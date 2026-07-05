@@ -1,0 +1,9 @@
+# Deferred Work
+
+## Deferred from: code review of story-1-1-monorepo-starter-initialization (2026-07-05)
+
+- next/@supabase deps pinned to "latest" undermines --frozen-lockfile determinism [apps/dashboard/package.json, apps/super-admin/package.json] — pre-existing behavior of the official `create-next-app -e with-supabase` starter, not introduced by hand-authoring; worth pinning to real semver ranges in a later hardening pass.
+- TypeScript version spread across the workspace (5.9.2 exact in root/packages/types, ^5 in apps/dashboard & apps/super-admin, ~6.0.3 in apps/mobile) [package.json, apps/dashboard/package.json, apps/mobile/package.json] — stems from using two different official starter ecosystems (Next.js vs Expo), each with its own TypeScript convention; harmonize once versions stabilize.
+- packages/types has no `transpilePackages` wiring in either Next app's config (apps/dashboard/next.config.ts, apps/super-admin/next.config.ts) — currently harmless since the package only exports `export {}` (pure types, erased at compile time), but will matter the moment it gains runtime code (Zod schemas, error mapping, Supabase client factory) rather than type-only exports, which this story's own scope explicitly defers to later stories.
+- No root-level tsconfig.json, only tsconfig.base.json (repo root) — common in Turborepo setups since the root has no source files to typecheck, but means opening the repo root directly in an editor has nothing to resolve against.
+- .env.example bundles a single shared SENTRY_DSN variable across three apps (dashboard, super-admin, mobile) instead of per-app naming — inconsistent with the Supabase vars directly above it, which are explicitly duplicated per-framework (NEXT_PUBLIC_* vs EXPO_PUBLIC_*); its own comment says "wired in a later story," so revisit naming scheme when that story lands.

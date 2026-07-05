@@ -4,7 +4,7 @@ baseline_commit: NO_VCS
 
 # Story 1.1: Monorepo & Starter Initialization
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -57,7 +57,23 @@ so that all three apps share a consistent structure and can be developed togethe
 - [x] Task 9: Sanity-check the whole tree (AC: #1, #2, #3)
   - [x] `pnpm install` succeeds at the root with no phantom-dependency errors (verified on both the Windows-native and WSL2/Linux `node_modules` trees, the latter needed for the WSL-hosted Docker/Supabase toolchain)
   - [x] `turbo dev` starts all three apps and Supabase without error, then stops cleanly — **verified both paths 2026-07-05: (1) `pnpm dev:local-db` (`supabase start` + `turbo run dev`) — Supabase already-healthy, all three apps started; (2) `pnpm dev` (`turbo run dev` alone, the new default) against the remote Supabase project — dashboard and super-admin both reached `Ready` in ~30s reading `.env.local`, mobile's Metro bundler started. Both runs shut down via the same expected SIGTERM/force-kill pattern as a bounded smoke test (matches the 2026-07-04 run's documented behavior, not a new issue).**
-  - [ ] Push a commit and confirm the GitHub Actions workflow runs and passes — **BLOCKED: no GitHub remote configured yet** (see Completion Notes)
+  - [x] Push a commit and confirm the GitHub Actions workflow runs and passes — GitHub remote (`SmartSana-Studios/gymOS`) connected, pushed, CI workflow ran (required a pnpm-version-pin removal + Node bump to 22 fix, see Change Log)
+
+### Review Findings
+
+- [x] [Review][Patch] eslint-config-next (15.3.1) doesn't match the actually-verified Next version — Dev Agent Record's "Verified versions" note confirms Next **16.2.10** is what was scaffolded/tested, so `next`/`@supabase/*` pinned to "latest" resolving to Next 16 is correct and should stay; `eslint-config-next` should be bumped to match Next 16 instead, which likely fixes the `.next/types/validator.ts` lint failures currently dismissed as "upstream noise" [apps/dashboard/package.json, apps/super-admin/package.json] — decided: pin eslint-config-next up, not next down (next 16 is the verified/tested version) — fixed
+- [x] [Review][Patch] packages/types declares an unused `zod` dependency despite Task 5's explicit "no Zod schemas yet" scope fence [packages/types/package.json] — decided: remove now per the story's own "scope discipline is the main risk" note; re-add when Story 1.3+ actually needs Zod schemas — fixed
+- [x] [Review][Patch] README says "Node 20+" but engines/CI require Node ≥22 [README.md] — fixed
+- [x] [Review][Patch] packages/types/tsconfig.json configures an unused `dist` output with no build script [packages/types/tsconfig.json, packages/types/package.json] — fixed
+- [x] [Review][Patch] turbo.json doesn't list tsconfig.base.json as a global dependency, so editing it won't invalidate the Turbo cache [turbo.json] — fixed
+- [x] [Review][Patch] apps/mobile/package.json name is "mobile" instead of "@gymos/mobile", breaking the workspace naming convention [apps/mobile/package.json:2] — fixed
+- [x] [Review][Patch] CI workflow has no concurrency group, causing redundant duplicate runs on push+PR [.github/workflows/ci.yml] — fixed
+- [x] [Review][Patch] .gitignore doesn't exclude *.tsbuildinfo [.gitignore] — fixed
+- [x] [Review][Defer] next/@supabase deps pinned to "latest" undermines --frozen-lockfile determinism [apps/dashboard/package.json, apps/super-admin/package.json] — deferred, pre-existing (official with-supabase starter convention)
+- [x] [Review][Defer] TypeScript version spread across the workspace (5.9.2 exact / ^5 / ~6.0.3) [package.json, apps/dashboard/package.json, apps/mobile/package.json] — deferred, pre-existing (stems from using two different official starter ecosystems)
+- [x] [Review][Defer] packages/types has no transpilePackages wiring in either Next app's config — currently harmless since it only exports types [apps/dashboard/next.config.ts, apps/super-admin/next.config.ts] — deferred, will matter once runtime code (Zod schemas, client factory) lands
+- [x] [Review][Defer] No root-level tsconfig.json, only tsconfig.base.json [repo root] — deferred, standard in Turborepo setups
+- [x] [Review][Defer] .env.example bundles a single shared SENTRY_DSN across three apps [.env.example] — deferred, "wired in a later story" per its own comment
 
 ## Dev Notes
 
@@ -107,6 +123,7 @@ so that all three apps share a consistent structure and can be developed togethe
 - 2026-07-04: Initial implementation — Turborepo/pnpm monorepo root, `apps/dashboard` + `apps/super-admin` (Next.js `with-supabase`), `apps/mobile` (Expo Router), `packages/types` skeleton, `supabase/` local-dev scaffold, and the TypeScript-check CI workflow. Docker/local-Supabase runtime and CI-on-push left unverified pending Docker install and a GitHub remote.
 - 2026-07-05: Installed Docker Engine + Supabase CLI inside WSL2 Ubuntu (no Docker Desktop). `supabase start` brings up Postgres/Auth/Kong/Inbucket healthy consistently; Realtime/Storage consistently fail Docker's health check despite normal service logs (disabled the optional `analytics` service in `supabase/config.toml` along the way, since it failed outright). CI-on-push (needs a GitHub remote) still not exercised.
 - 2026-07-05 (continued): Diagnosed the Realtime/Storage "unhealthy" reading as a false positive caused by WSL2's VM-teardown-between-disconnected-checks behavior — confirmed all containers reach and hold `healthy` within one continuous session, and confirmed both endpoints functionally reachable via direct `curl`. Course-corrected AC #2 and the root dev workflow to target a remote Supabase project by default (`turbo run dev`), preserving local-Docker as `pnpm dev:local-db`, per explicit user direction to prioritize development speed; updated `architecture.md` accordingly. Verified both the local-Docker-combined and remote-Supabase-default dev workflows end-to-end. GitHub remote / CI-on-push still not exercised (open decision).
+- 2026-07-05 (continued): Connected the GitHub remote (`SmartSana-Studios/gymOS`), pushed the initial scaffold, and exercised CI-on-push for real — first run failed on a conflicting pnpm version pin, fixed alongside a Node 22 bump (matching the `@supabase/supabase-js` Node ≥22 requirement discovered earlier); CI is green as of `f1b0893`. Applied all 7 outstanding `[Review][Patch]` findings (eslint-config-next bumped to match Next 16, unused `zod` dep removed from `packages/types`, README Node version corrected to ≥22, unused `dist` output removed from `packages/types/tsconfig.json`, `tsconfig.base.json` added to `turbo.json`'s `globalDependencies`, `apps/mobile` package renamed to `@gymos/mobile`, CI workflow given a concurrency group, `.gitignore` now excludes `*.tsbuildinfo`). Story complete — all tasks and review findings closed.
 
 ## Dev Agent Record
 

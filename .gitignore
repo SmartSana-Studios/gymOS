@@ -8,6 +8,7 @@ dist/
 build/
 .expo/
 .turbo/
+*.tsbuildinfo
 
 # env
 .env

@@ -12,7 +12,7 @@ Multi-tenant gym management platform: member mobile app, gym admin dashboard, an
 
 ## Prerequisites
 
-- Node 20+
+- Node 22+
 - pnpm 10+
 - [Supabase CLI](https://supabase.com/docs/guides/cli)
 - Docker (for local Supabase via `supabase start`)

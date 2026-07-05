@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-07-04 (story 1-1 in-progress)
+last_updated: 2026-07-05 (story 1-1 done)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -43,7 +43,7 @@ story_location: "{project-root}/_bmad-output/implementation-artifacts"
 
 development_status:
   epic-1: in-progress
-  1-1-monorepo-starter-initialization: in-progress
+  1-1-monorepo-starter-initialization: done
   1-2-supabase-region-verification-spike: backlog
   1-3-tenant-isolation-foundation-jwt-claims-hook-rls-deny-all: backlog
   1-4-append-only-audit-log-foundation: backlog
