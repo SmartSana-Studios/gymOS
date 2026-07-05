@@ -1,0 +1,20 @@
+{
+  "name": "gymos",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "dev:local-db": "concurrently -n supabase,turbo -c yellow,cyan \"supabase start\" \"turbo run dev\"",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "turbo": "^2.10.3",
+    "typescript": "5.9.2"
+  },
+  "packageManager": "pnpm@10.27.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

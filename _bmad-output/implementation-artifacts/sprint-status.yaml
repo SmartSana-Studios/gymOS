@@ -1,0 +1,110 @@
+# generated: 2026-07-04
+# last_updated: 2026-07-04 (story 1-1 created)
+# project: gym_os
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: {project-root}/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-07-04
+last_updated: 2026-07-04 (story 1-1 in-progress)
+project: gym_os
+project_key: NOKEY
+tracking_system: file-system
+story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+development_status:
+  epic-1: in-progress
+  1-1-monorepo-starter-initialization: in-progress
+  1-2-supabase-region-verification-spike: backlog
+  1-3-tenant-isolation-foundation-jwt-claims-hook-rls-deny-all: backlog
+  1-4-append-only-audit-log-foundation: backlog
+  1-5-super-admin-create-onboard-a-gym: backlog
+  1-6-super-admin-tier-management-gym-lifecycle: backlog
+  1-7-super-admin-escalated-gym-data-access: backlog
+  1-8-gym-owner-login-role-filtered-dashboard-shell: backlog
+  1-9-gym-branding-operational-settings: backlog
+  1-10-bilingual-en-fr-platform-foundation: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-sms-otp-provider-sandbox-spike: backlog
+  2-2-membership-plan-configuration: backlog
+  2-3-manager-owner-create-edit-deactivate-members: backlog
+  2-4-csv-member-import: backlog
+  2-5-member-invitation-via-deep-link: backlog
+  2-6-member-app-phone-otp-onboarding-through-profile-setup: backlog
+  2-7-member-app-goal-experience-plan-confirmation: backlog
+  2-8-member-self-service-profile-management: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-subscription-lifecycle-cron-job: backlog
+  3-2-manual-renewal-reset: backlog
+  3-3-qr-code-generation-gym-token-validation: backlog
+  3-4-member-check-in-one-open-session-enforcement: backlog
+  3-5-check-out-manual-auto-timeout: backlog
+  3-6-occupancy-display-admin-attendance-page: backlog
+  3-7-member-app-home-screen-status-display: backlog
+  3-8-member-app-check-in-result-states: backlog
+  3-9-member-app-offline-check-in-queueing: backlog
+  3-10-member-app-plan-details-check-in-history: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-notch-pay-sandbox-spike: backlog
+  4-2-notch-pay-payment-integration: backlog
+  4-3-manual-payment-entry-verification-queue: backlog
+  4-4-payment-reconciliation-discrepancy-flagging: backlog
+  4-5-refund-recording: backlog
+  4-6-real-time-front-desk-alert: backlog
+  4-7-inline-renewal-panel: backlog
+  4-8-subscriptions-page-manual-renewal: backlog
+  4-9-member-app-payment-history-receipt-detail: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-coach-member-assignment: backlog
+  5-2-coach-portal-assigned-member-list: backlog
+  5-3-coach-portal-member-detail-session-notes: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-expo-push-token-registration-cleanup: backlog
+  6-2-subscription-lifecycle-notifications-n-01-n-02-n-03: backlog
+  6-3-payment-notifications-n-04-n-05: backlog
+  6-4-notification-preferences: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-audit-record-coverage-verification: backlog
+  7-2-audit-log-dashboard-page: backlog
+  epic-7-retrospective: optional
