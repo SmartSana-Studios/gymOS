@@ -4,6 +4,20 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-07-08 — Append-only audit log foundation: schema deviations, recorded during Story 1.4
+
+**Decision 1 — `audit_log.id` is a plain UUID primary key, not architecture.md's literal "bigint identity + separate UUID" text.** architecture.md's Data Architecture section names `attendance`/`audit_log` specifically as tables that should use `bigint identity` plus a separate UUID for external reference. In practice, `attendance_events` (Story 1.3, `0006_attendance.sql`) already used a plain `uuid primary key default gen_random_uuid()` instead, with no deviation recorded at the time. `audit_log` follows that actual in-repo precedent rather than architecture.md's unimplemented text, so it isn't the one bigint-PK table in an otherwise all-UUID schema. If this is later reconsidered, `attendance_events` should be revisited in the same pass for consistency.
+
+**Decision 2 — `audit_log.gym_id` and `audit_log.actor_id` are both nullable**, unlike every other gym-scoped table's `gym_id not null`. `pg_cron` job-failure audit records (FR-027/FR-080) aren't scoped to any one gym — `job_runs` itself has no `gym_id` either (architecture.md Entity Relationships: "global, not gym-scoped") — and have no authenticated session to derive an actor from. No gym-switcher/sentinel-gym-row scheme was introduced; `NULL` is the direct representation of "platform-level, not gym-scoped."
+
+**Decision 3 — `log_audit_event()` is the single canonical write path into `audit_log`.** A `SECURITY DEFINER` Postgres function (`0007_audit_log.sql`), mirroring the pattern established by `private.gym_id()`/`custom_access_token_hook()` in Story 1.3. Derives `actor_id`/`actor_display_name` from `auth.uid()` + `public.users.display_name` internally rather than accepting them as parameters, so no caller can spoof the audit trail's own actor field. System/cron callers (no session) pass an explicit label instead. Unlike the Story 1.3 hook functions, it deliberately does **not** swallow exceptions — a malformed call (e.g. a missing `action_type`) is a caller bug that should surface immediately rather than silently producing no audit record. Every future epic that needs to write an audit record (Epic 1 Stories 1.5–1.7, Epic 2, Epic 4, Epic 5) should call this function rather than inserting directly, which would fail under deny-all RLS for anything but `service_role` anyway.
+
+**Decision 4 — `audit_log.action_type` is free text, not a Postgres enum**, breaking the pattern every other closed-set column in this schema follows (`gym_status`, `member_role`, etc.). The full list of action types spans five future epics that don't exist yet, and enum values, once added, cannot be removed or reordered without recreating the type — free text avoids forcing every future epic's story to modify this migration's enum.
+
+**Why these are recorded here, not just in code comments:** same category as the region/claims decisions above — the schema shape (nullability, PK type, write-path convention) is hard to change once real audit records and calling code from later epics depend on it.
+
+---
+
 ## 2026-07-06 — Tenant isolation foundation: three deviations from architecture.md, recorded during Story 1.3
 
 **Decision 1 — RLS helper function lives in a new `private` schema, not `auth`.** architecture.md specifies `auth.gym_id()`. Verified hands-on (local Postgres 17) that migrations run as the `postgres` role, which does not have `CREATE` privilege on the `auth` schema (owned by `supabase_admin`) — confirmed via `permission denied for schema auth`. Supabase's own RLS documentation shows custom RLS helper functions living in a dedicated non-exposed schema (their example: `private`), not inside `auth`. Implemented as `private.gym_id()` instead; every RLS policy in this project should call it under that name. `private` is not in `supabase/config.toml`'s exposed `[api] schemas`, so it is not reachable via PostgREST.
