@@ -1,5 +1,15 @@
 # Deferred Work
 
+## Deferred from: code review of story-1-5-super-admin-create-onboard-a-gym (2026-07-08)
+
+- Multi-step `createGym` orchestration via 5 separate round-trips rather than one Postgres transaction [apps/super-admin/app/(admin)/gyms/actions.ts] — already the best achievable design given `auth.admin.createUser` is a GoTrue API call, not a SQL operation, so true single-transaction atomicity isn't possible regardless; the actionable mitigation (fixing the missing `gyms` DELETE RLS policy) was applied as a patch, not a redesign.
+- `is_super_admin()`/JWT claims have no DB-backed revocation check (a de-provisioned Super Admin retains access until token refresh) [supabase/migrations/0010_super_admin_gym_provisioning.sql] — pre-existing characteristic of the entire claims-hook system built in Story 1.3, not introduced by this story.
+- `idx_gyms_name_unique` isn't created `CONCURRENTLY` [supabase/migrations/0010_super_admin_gym_provisioning.sql] — real but inconsequential at current/pilot scale (NFR-009: 1-3 gyms), and Supabase migrations run inside a transaction where `CONCURRENTLY` typically isn't usable anyway.
+- `listGyms()` has no pagination [apps/super-admin/services/gyms.ts] — a real scalability gap relative to the "hundreds of gyms" architectural target, and SA-02's own mockup shows pagination controls that weren't built this story. Natural fit for Story 1.6, which already extends the Gyms pages.
+- Audit log stores the owner's phone (PII) in an immutable jsonb column with no redaction/retention policy [apps/super-admin/services/gyms.ts, `log_audit_event` metadata] — pre-existing, already-accepted tradeoff of the whole `audit_log` design from Story 1.4, not unique to this story.
+- AC #3's tenant isolation was verified via manual/pgTAP testing rather than a committed automated test exercising the real `createGym` code path end-to-end — consistent with this project's documented "no automated E2E dashboard testing in V1" standard and the lack of a browser-automation tool in this environment.
+- A stale/deleted `tierId` at Create Gym submit time would cause an FK violation mapped to the generic fallback error [apps/super-admin/app/(admin)/gyms/actions.ts] — not reachable today since Story 1.6 (tier deletion) hasn't shipped; revisit when it does.
+
 ## Deferred from: code review of story-1-1-monorepo-starter-initialization (2026-07-05)
 
 - next/@supabase deps pinned to "latest" undermines --frozen-lockfile determinism [apps/dashboard/package.json, apps/super-admin/package.json] — pre-existing behavior of the official `create-next-app -e with-supabase` starter, not introduced by hand-authoring; worth pinning to real semver ranges in a later hardening pass.
