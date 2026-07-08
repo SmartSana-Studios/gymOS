@@ -79,6 +79,57 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          action_type: string
+          actor_display_name: string
+          actor_id: string | null
+          created_at: string
+          gym_id: string | null
+          id: string
+          metadata: Json
+          target_entity_id: string | null
+          target_entity_type: string | null
+        }
+        Insert: {
+          action_type: string
+          actor_display_name: string
+          actor_id?: string | null
+          created_at?: string
+          gym_id?: string | null
+          id?: string
+          metadata?: Json
+          target_entity_id?: string | null
+          target_entity_type?: string | null
+        }
+        Update: {
+          action_type?: string
+          actor_display_name?: string
+          actor_id?: string | null
+          created_at?: string
+          gym_id?: string | null
+          id?: string
+          metadata?: Json
+          target_entity_id?: string | null
+          target_entity_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_log_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gyms: {
         Row: {
           alert_auto_dismiss_minutes: number
@@ -458,6 +509,17 @@ export type Database = {
     }
     Functions: {
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      log_audit_event: {
+        Args: {
+          p_action_type: string
+          p_gym_id?: string
+          p_metadata?: Json
+          p_system_actor_label?: string
+          p_target_entity_id?: string
+          p_target_entity_type?: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       billing_interval: "monthly" | "annual"

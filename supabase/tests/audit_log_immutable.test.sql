@@ -21,12 +21,12 @@ insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000000004', 'Hustle', 5000, 50000, 30);
 
 insert into gyms (id, name, tier_id, capacity)
-values ('00000000-0000-0000-0000-0000000000g1', 'Audit Gym', '00000000-0000-0000-0000-000000000004', 30);
+values ('00000000-0000-0000-0000-0000000000e1', 'Audit Gym', '00000000-0000-0000-0000-000000000004', 30);
 
 -- Seeded as postgres (default role, before any jwt claims are set) -- auth.uid()
 -- is null at this point, which is exactly the pg_cron/system-caller scenario.
-insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000g2');
-update public.users set display_name = 'Real Display Name' where id = '00000000-0000-0000-0000-0000000000g2';
+insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000e2');
+update public.users set display_name = 'Real Display Name' where id = '00000000-0000-0000-0000-0000000000e2';
 
 -- ---------------------------------------------------------------------------
 -- log_audit_event(): system/no-session caller (no request.jwt.claims set at all)
@@ -59,9 +59,9 @@ select is(
 -- swallow this the way private.gym_id()/custom_access_token_hook swallow their own
 -- expected-failure cases (see 0007's comment on why): a null action_type is a
 -- caller bug that must surface immediately, not silently produce no audit record.
-select throws_ok(
+select throws_like(
   $$ select log_audit_event(null) $$,
-  '23502',
+  '%not-null constraint%',
   'log_audit_event() raises (not-null violation) rather than silently swallowing a missing action_type'
 );
 
@@ -73,12 +73,12 @@ select throws_ok(
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-0000000000g2","role":"authenticated"}',
+  '{"sub":"00000000-0000-0000-0000-0000000000e2","role":"authenticated"}',
   true
 );
 
 select isnt(
-  log_audit_event('member_deactivated', '00000000-0000-0000-0000-0000000000g1', '00000000-0000-0000-0000-0000000000g3', 'members', '{"reason":"test"}'::jsonb),
+  log_audit_event('member_deactivated', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e3', 'members', '{"reason":"test"}'::jsonb),
   null,
   'log_audit_event() returns a non-null id for an authenticated caller'
 );
@@ -89,7 +89,7 @@ reset role;
 
 select is(
   (select actor_id from audit_log where action_type = 'member_deactivated'),
-  '00000000-0000-0000-0000-0000000000g2'::uuid,
+  '00000000-0000-0000-0000-0000000000e2'::uuid,
   'authenticated-session record''s actor_id is derived from auth.uid(), matching the session'
 );
 
@@ -101,7 +101,7 @@ select is(
 
 select is(
   (select gym_id from audit_log where action_type = 'member_deactivated'),
-  '00000000-0000-0000-0000-0000000000g1'::uuid,
+  '00000000-0000-0000-0000-0000000000e1'::uuid,
   'gym_id passes through as given'
 );
 
@@ -114,13 +114,13 @@ select is(
 -- story's first commit; kept here so it can't silently regress.
 -- ---------------------------------------------------------------------------
 
-insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000g4');
+insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000e4');
 -- Deliberately no `update public.users set display_name = ...` for this user.
 
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-0000000000g4","role":"authenticated"}',
+  '{"sub":"00000000-0000-0000-0000-0000000000e4","role":"authenticated"}',
   true
 );
 
@@ -134,7 +134,7 @@ reset role;
 
 select is(
   (select actor_id from audit_log where action_type = 'coach_assignment_changed'),
-  '00000000-0000-0000-0000-0000000000g4'::uuid,
+  '00000000-0000-0000-0000-0000000000e4'::uuid,
   'actor_id stays populated even when the session user has no display_name set (the bug this regression test guards)'
 );
 
@@ -163,7 +163,7 @@ select lives_ok(
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-0000000000g2","role":"authenticated"}',
+  '{"sub":"00000000-0000-0000-0000-0000000000e2","role":"authenticated"}',
   true
 );
 

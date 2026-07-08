@@ -1,5 +1,5 @@
 # generated: 2026-07-04
-# last_updated: 2026-07-08 (story 1-4 implementation complete, pending test execution)
+# last_updated: 2026-07-08 (story 1-4 implementation complete, all 46 pgTAP assertions verified passing)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-07-08 (story 1-4 implementation complete, pending test execution)
+last_updated: 2026-07-08 (story 1-4 implementation complete, all 46 pgTAP assertions verified passing)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
