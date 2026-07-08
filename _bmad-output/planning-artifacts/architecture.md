@@ -63,16 +63,16 @@ Architecturally, three clusters dominate:
 
 These were stress-tested via a cross-functional round table (architecture, engineering, product perspectives) and are carried forward as settled inputs to the technology and pattern decisions ahead, rather than left open:
 
-| Area | Decision | Rationale |
-|---|---|---|
-| Background jobs | Three independent `pg_cron` triggers (subscription lifecycle, payment reconciliation, check-in auto-timeout), each in its own function/transaction, each logging to a `job_runs` table (job_name, started_at, finished_at, status, error) | A single shared trigger means one job's failure can silently block or corrupt the others; per-team observability budget for V1 is a queryable status table, not a job queue |
-| JWT claims hook | Implemented as a Postgres function (not an HTTP Edge Function), pgTAP-tested in isolation, with a CI canary test asserting a known test tenant sees a non-zero, correctly-scoped row count | The failure mode is silent deny-all, not an error — it must be caught by an automated canary, not discovered at a pilot demo |
-| Edge Functions | Reserved for the Notch Pay webhook receiver only (signature verification + idempotent write) | Deno is a second runtime with a thinner Sentry/debugging story; minimizing its footprint keeps a 1-2 person team in one runtime (Next.js/Node) for everything else |
-| Repository pattern | Rejected in favor of a thin per-domain service layer (`services/subscriptions.ts`, etc.) wrapping `supabase-js`, typed via `packages/types` | RLS is the authorization layer and lives in the database; an app-side repository would be a second, driftable copy of the same rules |
-| RLS policy strategy | One `STABLE` SQL helper (`auth.gym_id()`) reused across all policies; explicit per-action (SELECT/INSERT/UPDATE/DELETE) policies per table, not `FOR ALL`; grant-level `REVOKE UPDATE, DELETE` on the audit log beneath the policy layer | Centralizes the one place tenancy logic can go wrong; grant-level revoke protects against `service_role` bypassing RLS entirely |
-| Realtime degrade path | Dashboard falls back to short-interval polling if the Supabase Realtime channel drops, instead of silently receiving no alerts | A retention-critical alert that fails silently is worse than no alert — the gym believes the safety net exists when it doesn't |
-| Region verification | EU West is the right call in principle, but actual RTT from Cameroonian mobile networks should be measured alongside the Notch Pay sandbox spike before the region is locked in production | A <3s budget is tight enough that region choice needs verification, not just a documented assumption |
-| Job queue (BullMQ/graphile-worker) | Explicitly rejected for V1 | A single nightly batch with no retry-with-backoff requirement does not justify the added moving part for a 1-2 person team |
+| Area                               | Decision                                                                                                                                                                                                                                  | Rationale                                                                                                                                                                   |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Background jobs                    | Three independent `pg_cron` triggers (subscription lifecycle, payment reconciliation, check-in auto-timeout), each in its own function/transaction, each logging to a `job_runs` table (job_name, started_at, finished_at, status, error) | A single shared trigger means one job's failure can silently block or corrupt the others; per-team observability budget for V1 is a queryable status table, not a job queue |
+| JWT claims hook                    | Implemented as a Postgres function (not an HTTP Edge Function), pgTAP-tested in isolation, with a CI canary test asserting a known test tenant sees a non-zero, correctly-scoped row count                                                | The failure mode is silent deny-all, not an error — it must be caught by an automated canary, not discovered at a pilot demo                                                |
+| Edge Functions                     | Reserved for the Notch Pay webhook receiver only (signature verification + idempotent write)                                                                                                                                              | Deno is a second runtime with a thinner Sentry/debugging story; minimizing its footprint keeps a 1-2 person team in one runtime (Next.js/Node) for everything else          |
+| Repository pattern                 | Rejected in favor of a thin per-domain service layer (`services/subscriptions.ts`, etc.) wrapping `supabase-js`, typed via `packages/types`                                                                                               | RLS is the authorization layer and lives in the database; an app-side repository would be a second, driftable copy of the same rules                                        |
+| RLS policy strategy                | One `STABLE` SQL helper (`auth.gym_id()`) reused across all policies; explicit per-action (SELECT/INSERT/UPDATE/DELETE) policies per table, not `FOR ALL`; grant-level `REVOKE UPDATE, DELETE` on the audit log beneath the policy layer  | Centralizes the one place tenancy logic can go wrong; grant-level revoke protects against `service_role` bypassing RLS entirely                                             |
+| Realtime degrade path              | Dashboard falls back to short-interval polling if the Supabase Realtime channel drops, instead of silently receiving no alerts                                                                                                            | A retention-critical alert that fails silently is worse than no alert — the gym believes the safety net exists when it doesn't                                              |
+| Region verification                | EU West is the right call in principle, but actual RTT from Cameroonian mobile networks should be measured alongside the Notch Pay sandbox spike before the region is locked in production                                                | A <3s budget is tight enough that region choice needs verification, not just a documented assumption                                                                        |
+| Job queue (BullMQ/graphile-worker) | Explicitly rejected for V1                                                                                                                                                                                                                | A single nightly batch with no retry-with-backoff requirement does not justify the added moving part for a 1-2 person team                                                  |
 
 ## Starter Template Evaluation
 
@@ -82,12 +82,12 @@ Full-stack multi-app monorepo — two Next.js web apps (gym dashboard, super adm
 
 ### Starter Options Considered
 
-| Piece | Option | Verdict |
-|---|---|---|
-| Monorepo tooling | Turborepo + pnpm workspaces | **Selected** — the 2026 default combination for this shape (Next.js + Expo + shared packages); Turborepo orders builds so `packages/types` builds before the apps that depend on it, pnpm gives efficient disk usage and strict peer resolution |
-| Next.js dashboards | Official `with-supabase` example (`npx create-next-app -e with-supabase`) | **Selected** for both `apps/dashboard` and `apps/super-admin` — ships cookie-based Supabase Auth via `@supabase/ssr`, TypeScript, Tailwind, App Router out of the box; maintained in the Next.js examples repo and by Supabase/Vercel |
-| Mobile app | `npx create-expo-app` (Expo Router is now the default) + Supabase's official Expo quickstart wiring | **Selected** — Expo Router ships by default in current `create-expo-app`; Supabase's Expo quickstart is the reference integration for auth + client setup |
-| Alternative considered | `create-expo-stack` (community CLI bundling Expo Router + Supabase + Nativewind in one command) | Rejected for V1 — convenient, but a third-party abstraction over choices a 1-2 person team should make and understand explicitly in one extra step |
+| Piece                  | Option                                                                                              | Verdict                                                                                                                                                                                                                                         |
+| ---------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Monorepo tooling       | Turborepo + pnpm workspaces                                                                         | **Selected** — the 2026 default combination for this shape (Next.js + Expo + shared packages); Turborepo orders builds so `packages/types` builds before the apps that depend on it, pnpm gives efficient disk usage and strict peer resolution |
+| Next.js dashboards     | Official `with-supabase` example (`npx create-next-app -e with-supabase`)                           | **Selected** for both `apps/dashboard` and `apps/super-admin` — ships cookie-based Supabase Auth via `@supabase/ssr`, TypeScript, Tailwind, App Router out of the box; maintained in the Next.js examples repo and by Supabase/Vercel           |
+| Mobile app             | `npx create-expo-app` (Expo Router is now the default) + Supabase's official Expo quickstart wiring | **Selected** — Expo Router ships by default in current `create-expo-app`; Supabase's Expo quickstart is the reference integration for auth + client setup                                                                                       |
+| Alternative considered | `create-expo-stack` (community CLI bundling Expo Router + Supabase + Nativewind in one command)     | Rejected for V1 — convenient, but a third-party abstraction over choices a 1-2 person team should make and understand explicitly in one extra step                                                                                              |
 
 Versions verified 2026-07-04: Next.js 16.2.10 (current LTS), Expo SDK 57.0.1 (React Native 0.86, React 19.2), Turborepo 2.x + pnpm workspaces.
 
@@ -449,24 +449,24 @@ gymos/
 
 ### Requirements to Structure Mapping
 
-| FR Category | Location |
-|---|---|
-| Platform Foundation / tenancy (FR-001–006) | `supabase/migrations/0001–0003`, `0009` (claims hook), `0010–0013` (RLS policies); `packages/types` |
-| Gym Setup & Onboarding, CSV Import (FR-007–010) | `apps/dashboard/app/(dashboard)/members/components/CsvImportModal.tsx`, `members/actions.ts` |
-| White-Label Branding (FR-011–013) | `apps/dashboard/.../settings/`, `apps/mobile` branded header components + 24h cache logic |
-| Localization (FR-014–018) | `packages/types/src/locales/` (dashboard + super-admin, shared source), `apps/mobile/locales/` (separate), CI i18n key-parity check |
-| Member Management (FR-019–023, FR-082–083) | `apps/dashboard/.../members/`, `services/members.ts` |
-| Membership Plans (FR-024–026) | `supabase/migrations/0004`, `apps/dashboard/.../settings/` (plan config) |
-| Subscription Lifecycle (FR-027–032) | `supabase/migrations/0014` (cron), `apps/dashboard/.../subscriptions/` |
-| Payments (FR-033–041) | `supabase/functions/notch-pay-webhook/`, `supabase/migrations/0005`, `0011`, `0015` (reconciliation), `apps/dashboard/.../payments/` |
-| Attendance & Occupancy (FR-042–048) | `supabase/migrations/0006`, `0016` (auto-timeout), `apps/dashboard/.../attendance/`, `apps/mobile/app/(tabs)/checkin.tsx` |
-| Retention Triggers / front-desk alert (FR-049–052) | `components/shared/FrontDeskAlertPanel.tsx`, `InlineRenewalPanel.tsx`, Realtime channel `gym:<gym_id>:alerts` |
-| Coach Portal (FR-053–056) | `apps/dashboard/.../coach/` |
-| Member Mobile App (FR-057–063) | `apps/mobile/app/onboarding/` (+ sequencing guard), `(tabs)/` |
-| Gym Admin Dashboard (FR-064–069, FR-085) | `apps/dashboard/` overall |
-| Super Admin Dashboard (FR-070–073, FR-086) | `apps/super-admin/` |
-| Push Notifications (FR-074–078) | triggered from within relevant service functions/cron jobs; Expo push token management in `apps/mobile/services/` |
-| Audit Log (FR-079–081) | `supabase/migrations/0007`, `0012` (append-only + grant revoke + policy), `apps/dashboard/.../audit/` |
+| FR Category                                        | Location                                                                                                                             |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Platform Foundation / tenancy (FR-001–006)         | `supabase/migrations/0001–0003`, `0009` (claims hook), `0010–0013` (RLS policies); `packages/types`                                  |
+| Gym Setup & Onboarding, CSV Import (FR-007–010)    | `apps/dashboard/app/(dashboard)/members/components/CsvImportModal.tsx`, `members/actions.ts`                                         |
+| White-Label Branding (FR-011–013)                  | `apps/dashboard/.../settings/`, `apps/mobile` branded header components + 24h cache logic                                            |
+| Localization (FR-014–018)                          | `packages/types/src/locales/` (dashboard + super-admin, shared source), `apps/mobile/locales/` (separate), CI i18n key-parity check  |
+| Member Management (FR-019–023, FR-082–083)         | `apps/dashboard/.../members/`, `services/members.ts`                                                                                 |
+| Membership Plans (FR-024–026)                      | `supabase/migrations/0004`, `apps/dashboard/.../settings/` (plan config)                                                             |
+| Subscription Lifecycle (FR-027–032)                | `supabase/migrations/0014` (cron), `apps/dashboard/.../subscriptions/`                                                               |
+| Payments (FR-033–041)                              | `supabase/functions/notch-pay-webhook/`, `supabase/migrations/0005`, `0011`, `0015` (reconciliation), `apps/dashboard/.../payments/` |
+| Attendance & Occupancy (FR-042–048)                | `supabase/migrations/0006`, `0016` (auto-timeout), `apps/dashboard/.../attendance/`, `apps/mobile/app/(tabs)/checkin.tsx`            |
+| Retention Triggers / front-desk alert (FR-049–052) | `components/shared/FrontDeskAlertPanel.tsx`, `InlineRenewalPanel.tsx`, Realtime channel `gym:<gym_id>:alerts`                        |
+| Coach Portal (FR-053–056)                          | `apps/dashboard/.../coach/`                                                                                                          |
+| Member Mobile App (FR-057–063)                     | `apps/mobile/app/onboarding/` (+ sequencing guard), `(tabs)/`                                                                        |
+| Gym Admin Dashboard (FR-064–069, FR-085)           | `apps/dashboard/` overall                                                                                                            |
+| Super Admin Dashboard (FR-070–073, FR-086)         | `apps/super-admin/`                                                                                                                  |
+| Push Notifications (FR-074–078)                    | triggered from within relevant service functions/cron jobs; Expo push token management in `apps/mobile/services/`                    |
+| Audit Log (FR-079–081)                             | `supabase/migrations/0007`, `0012` (append-only + grant revoke + policy), `apps/dashboard/.../audit/`                                |
 
 ### Integration Points
 
@@ -485,7 +485,7 @@ gymos/
 
 ### Development Workflow Integration
 
-**Dev server:** `turbo dev` runs all three apps against a remote Supabase project by default (`.env.local` per app) — chosen over local Docker Supabase during Story 1.1 to avoid the WSL2/Docker cross-OS setup overhead on this team's Windows dev machines. Local Supabase via `supabase start` remains fully scaffolded and verified working (`supabase/config.toml`, all services healthy under WSL2 Docker) for RLS/migration work and offline dev; `pnpm dev` (root) still composes `supabase start` + `turbo run dev` for anyone who wants it. Turborepo's task graph builds `packages/types` first regardless.
+**Dev server:** `turbo dev` runs all three apps + local Supabase (via `supabase start`) concurrently; Turborepo's task graph builds `packages/types` first.
 
 **Build:** `turbo build` builds `packages/types` → both Next.js apps (Turbopack) → Expo app is built separately via EAS (not part of the Turborepo build graph, since EAS runs in the cloud).
 
