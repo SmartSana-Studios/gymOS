@@ -17,11 +17,21 @@ create table audit_log (
   -- pg_cron job-failure audit records (FR-027/FR-080) aren't scoped to any
   -- one gym -- job_runs itself has no gym_id either (architecture.md Entity
   -- Relationships: "global, not gym-scoped"). Recorded in docs/decisions.md.
-  gym_id uuid references gyms(id),
+  -- `on delete set null`: an append-only audit trail must never be the reason
+  -- a gym can't be deleted (tenant offboarding) -- the record's evidentiary
+  -- content (action_type, target_entity_id, metadata, created_at) survives
+  -- regardless of whether the gym still exists.
+  gym_id uuid references gyms(id) on delete set null,
   -- Nullable for the same reason: a pg_cron job has no authenticated session
   -- to derive an actor from. actor_display_name (below) still captures a
   -- human-readable label ("system:<job_name>") even when actor_id is null.
-  actor_id uuid references users(id),
+  -- `on delete set null` for the same reason as gym_id above: user deletion
+  -- (GDPR erasure, offboarding) must never be permanently blocked by an
+  -- append-only table with no UPDATE/DELETE path to release the FK.
+  -- actor_display_name is already denormalized at write time specifically so
+  -- the human-readable identity survives this -- extending that same
+  -- reasoning to the FK itself, not a new complication.
+  actor_id uuid references users(id) on delete set null,
   -- Denormalized at write time -- must survive even if the users row's
   -- display_name later changes, since the audit trail describes what
   -- happened at the time, not the actor's current profile state.
@@ -65,7 +75,16 @@ alter table audit_log enable row level security;
 -- behavior. `anon` is deliberately not granted -- no unauthenticated flow
 -- touches audit data. `update`/`delete` are deliberately never granted here:
 -- this table has no update/delete path for any role, ever (AC #1/#2).
-grant select, insert on audit_log to authenticated, service_role;
+--
+-- `authenticated` gets SELECT only, not INSERT: `log_audit_event()` below is
+-- `SECURITY DEFINER`, so it never needs the calling role's own INSERT grant
+-- to write a row -- granting INSERT to `authenticated` anyway would be a
+-- dead privilege that only becomes a real risk if a future migration ever
+-- adds a permissive INSERT policy on this table. `service_role` keeps INSERT
+-- since it's the tested, intentional path for direct writes (e.g. a future
+-- Edge Function) that don't need actor-derivation.
+grant select on audit_log to authenticated;
+grant select, insert on audit_log to service_role;
 
 -- Explicit REVOKE even though update/delete were never granted above: this
 -- is the permanent, in-migration record of intent (AC #1's "enforced at the
@@ -74,7 +93,10 @@ grant select, insert on audit_log to authenticated, service_role;
 -- which would otherwise silently re-open UPDATE/DELETE on this one table.
 -- This is what actually stops `service_role`: service_role bypasses RLS
 -- entirely in Supabase (BYPASSRLS), so RLS alone could never enforce AC #1
--- for it -- only a grant-level REVOKE can.
+-- for it -- only a grant-level REVOKE can. TRUNCATE is revoked alongside
+-- UPDATE/DELETE for the identical reason -- it's just as destructive to an
+-- append-only log and is not automatically excluded by a table-level GRANT
+-- that doesn't mention it.
 --
 -- Note on scope: this cannot and does not attempt to block the Postgres
 -- superuser (`postgres`) role itself, which runs migrations and inherently
@@ -83,7 +105,7 @@ grant select, insert on audit_log to authenticated, service_role;
 -- the application-level `super_admin` app_role (the JWT claim from Story
 -- 1.3's hook), which only ever reaches Postgres as `authenticated` or
 -- `service_role` -- both of which this REVOKE correctly blocks.
-revoke update, delete on audit_log from authenticated, service_role, anon, public;
+revoke update, delete, truncate on audit_log from authenticated, service_role, anon, public;
 
 -- ============================================================================
 -- log_audit_event(): the single canonical write path into audit_log.
@@ -103,6 +125,16 @@ revoke update, delete on audit_log from authenticated, service_role, anon, publi
 -- spoof the audit trail's own actor field, defeating AC #3's trustworthiness
 -- guarantee. System/cron callers (no auth.uid() session) pass an explicit
 -- p_system_actor_label instead; actor_id stays null in that case.
+--
+-- Tenant isolation on p_gym_id: a regular gym-scoped caller may only write
+-- audit records for their own gym (private.gym_id()) -- p_gym_id is
+-- otherwise caller-supplied and unvalidated, which would let any
+-- authenticated user inject a fabricated record into an unrelated gym's
+-- audit trail. Super Admin is exempt by design: their escalated access to
+-- another gym's data is itself a legitimate, audit-logged action (FR-072),
+-- and private.gym_id() is null for them regardless (Story 1.3) -- this check
+-- would otherwise wrongly block Super Admin from logging their own
+-- escalations.
 --
 -- Deliberately does NOT swallow exceptions (unlike private.gym_id()/
 -- custom_access_token_hook, which must never break login and so fail closed
@@ -132,6 +164,8 @@ as $$
 declare
   v_actor_id uuid;
   v_actor_display_name text;
+  v_caller_gym_id uuid;
+  v_caller_is_super_admin boolean;
   v_id uuid;
 begin
   v_actor_id := auth.uid();
@@ -147,7 +181,21 @@ begin
     from public.users u
     where u.id = v_actor_id;
 
-    v_actor_display_name := coalesce(v_actor_display_name, 'Unknown User');
+    v_actor_display_name := coalesce(nullif(v_actor_display_name, ''), 'Unknown User');
+
+    -- Tenant isolation: reject a p_gym_id that doesn't belong to the caller,
+    -- unless they're Super Admin (see the function-level comment above for
+    -- why). A gym-scoped caller passing p_gym_id = null (a gym-agnostic
+    -- record) is allowed through unchanged.
+    v_caller_gym_id := private.gym_id();
+    v_caller_is_super_admin := coalesce((auth.jwt() ->> 'app_role') = 'super_admin', false);
+
+    if not v_caller_is_super_admin
+       and v_caller_gym_id is not null
+       and p_gym_id is not null
+       and p_gym_id is distinct from v_caller_gym_id then
+      raise exception 'log_audit_event: p_gym_id does not match the caller''s own gym';
+    end if;
   else
     -- No session at all -- the pg_cron/system-caller case. actor_id stays
     -- null (already is, from auth.uid() above); actor_display_name falls
