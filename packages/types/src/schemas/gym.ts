@@ -27,3 +27,39 @@ export const createGymSchema = z.object({
 });
 
 export type CreateGymInput = z.infer<typeof createGymSchema>;
+
+// Story 1.6: suspend/deactivate/reinstate all require a reason (AC #3,
+// audit-logged). The target status isn't part of this schema -- it's implied
+// by which Server Action is called (suspendGym/deactivateGym/reinstateGym),
+// closing off an invalid-transition class entirely rather than validating a
+// free-form target-status field.
+export const gymStatusChangeSchema = z.object({
+  reason: z.string().trim().min(5, "Add a reason describing this change"),
+});
+
+export type GymStatusChangeInput = z.infer<typeof gymStatusChangeSchema>;
+
+// SA-03: Super Admin can move a gym to a different tier (existing members
+// are not automatically reclassified, AC #1) or override its effective
+// member cap (null clears the override, reverting to the tier's own cap).
+export const changeGymTierSchema = z.object({
+  tierId: z.uuid("Select a subscription tier"),
+});
+
+export type ChangeGymTierInput = z.infer<typeof changeGymTierSchema>;
+
+export const overrideGymCapSchema = z.object({
+  capOverride: z
+    .number()
+    .int()
+    .positive("Enter a positive number")
+    .max(2147483647, "Value is too large")
+    .nullable(),
+});
+
+export type OverrideGymCapInput = z.infer<typeof overrideGymCapSchema>;
+
+// Validates the `gymId` positional argument on the lifecycle/tier/cap
+// Server Actions below -- the payload schemas above only cover the request
+// body, not the id itself.
+export const gymIdSchema = z.uuid("Invalid gym id");

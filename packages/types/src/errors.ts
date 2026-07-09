@@ -19,6 +19,37 @@ export function mapSupabaseError(error: unknown): AppError {
     };
   }
 
+  // Same pattern for the case-insensitive tier-name index
+  // (0011_super_admin_tier_gym_lifecycle.sql). Deliberately no mapping for
+  // gyms_tier_id_fkey's raw FK-violation on tier delete -- AC #2's friendly
+  // "N gyms use this tier" copy requires the actual count, which only an
+  // app-side pre-check (deleteTier) can produce; the FK constraint is the
+  // race-window backstop, not the primary UX path.
+  if (pgErrorCode === "23505" && message.includes("idx_tiers_name_unique")) {
+    return {
+      code: "tier_name_taken",
+      message: "This name is already in use",
+    };
+  }
+
+  // gyms_tier_id_fkey violated by *updating a gym's own* tier_id to point at
+  // a tier that no longer exists (e.g. deleted concurrently between page
+  // load and submit). Postgres's message reads `insert or update on table
+  // "gyms" violates foreign key constraint "gyms_tier_id_fkey"` for this
+  // direction -- distinct from the delete-blocked-by-reference direction
+  // above (`update or delete on table "tiers" ...`), which stays
+  // deliberately unmapped since deleteTier's own pre-check owns that path.
+  if (
+    pgErrorCode === "23503" &&
+    message.includes("gyms_tier_id_fkey") &&
+    message.startsWith('insert or update on table "gyms"')
+  ) {
+    return {
+      code: "tier_not_found",
+      message: "That tier no longer exists. Choose a different one.",
+    };
+  }
+
   // supabase.auth.admin.createUser's duplicate-email/-phone errors. GoTrue
   // returns a structured `code` field (confirmed via manual testing during
   // Story 1.5: e.g. `{"code":"phone_exists", "message":"Phone number

@@ -11,7 +11,7 @@ select plan(8);
 -- Seed: one tier, two gyms, two auth users (triggers handle_new_user -> public.users),
 -- one membership each, in different gyms.
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
-values ('00000000-0000-0000-0000-000000000001', 'Hustle', 5000, 50000, 30);
+values ('00000000-0000-0000-0000-000000000001', 'Canary Test Tier', 5000, 50000, 30);
 
 insert into gyms (id, name, tier_id, capacity) values
   ('00000000-0000-0000-0000-0000000000a1', 'Canary Gym A', '00000000-0000-0000-0000-000000000001', 30),

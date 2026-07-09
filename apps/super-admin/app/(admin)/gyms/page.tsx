@@ -15,17 +15,35 @@ import GymsLoading from "./loading";
 // data access must sit inside an explicit Suspense boundary or Next.js
 // errors the whole route ("Uncached data ... accessed outside of Suspense"),
 // which otherwise surfaced as a silently-caught query error.
-export default function GymsPage() {
+export default function GymsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; search?: string; status?: string }>;
+}) {
   return (
     <Suspense fallback={<GymsLoading />}>
-      <GymsData />
+      <GymsData searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function GymsData() {
-  const [{ data: gyms, error: gymsError }, { data: tiers, error: tiersError }] =
-    await Promise.all([listGyms(), listTiers()]);
+async function GymsData({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; search?: string; status?: string }>;
+}) {
+  const params = await searchParams;
+  const page = params.page ? Number(params.page) : 1;
+  const status =
+    params.status === "active" || params.status === "suspended" || params.status === "deactivated"
+      ? params.status
+      : undefined;
+
+  const [{ data: gymsPage, error: gymsError }, { data: tiers, error: tiersError }] =
+    await Promise.all([
+      listGyms({ page, search: params.search, status }),
+      listTiers(),
+    ]);
 
   if (gymsError || tiersError) {
     return (
@@ -35,5 +53,15 @@ async function GymsData() {
     );
   }
 
-  return <GymsPageClient initialGyms={gyms ?? []} tiers={tiers ?? []} />;
+  return (
+    <GymsPageClient
+      initialGyms={gymsPage?.rows ?? []}
+      total={gymsPage?.total ?? 0}
+      page={gymsPage?.page ?? 1}
+      pageSize={gymsPage?.pageSize ?? 20}
+      search={params.search ?? ""}
+      status={params.status ?? ""}
+      tiers={tiers ?? []}
+    />
+  );
 }

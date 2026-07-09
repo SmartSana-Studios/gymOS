@@ -140,6 +140,7 @@ export type Database = {
           gym_token: string
           id: string
           logo_url: string | null
+          member_cap_override: number | null
           name: string
           primary_color: string | null
           status: Database["public"]["Enums"]["gym_status"]
@@ -155,6 +156,7 @@ export type Database = {
           gym_token?: string
           id?: string
           logo_url?: string | null
+          member_cap_override?: number | null
           name: string
           primary_color?: string | null
           status?: Database["public"]["Enums"]["gym_status"]
@@ -170,6 +172,7 @@ export type Database = {
           gym_token?: string
           id?: string
           logo_url?: string | null
+          member_cap_override?: number | null
           name?: string
           primary_color?: string | null
           status?: Database["public"]["Enums"]["gym_status"]
@@ -454,7 +457,7 @@ export type Database = {
           annual_price: number
           created_at: string
           id: string
-          member_cap: number
+          member_cap: number | null
           monthly_price: number
           name: string
         }
@@ -462,7 +465,7 @@ export type Database = {
           annual_price: number
           created_at?: string
           id?: string
-          member_cap: number
+          member_cap?: number | null
           monthly_price: number
           name: string
         }
@@ -470,7 +473,7 @@ export type Database = {
           annual_price?: number
           created_at?: string
           id?: string
-          member_cap?: number
+          member_cap?: number | null
           monthly_price?: number
           name?: string
         }
@@ -509,6 +512,7 @@ export type Database = {
     }
     Functions: {
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      gym_member_count: { Args: { p_gym_id: string }; Returns: number }
       log_audit_event: {
         Args: {
           p_action_type: string
@@ -519,6 +523,17 @@ export type Database = {
           p_target_entity_type?: string
         }
         Returns: string
+      }
+      platform_metrics: {
+        Args: never
+        Returns: {
+          active_gyms: number
+          deactivated_gyms: number
+          suspended_gyms: number
+          total_gyms: number
+          total_members: number
+          total_payments_processed: number
+        }[]
       }
     }
     Enums: {

@@ -1,6 +1,13 @@
 "use server";
 
-import { createGymSchema, type AppError } from "@gymos/types";
+import {
+  changeGymTierSchema,
+  createGymSchema,
+  gymIdSchema,
+  gymStatusChangeSchema,
+  overrideGymCapSchema,
+  type AppError,
+} from "@gymos/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   deleteGym,
@@ -8,7 +15,11 @@ import {
   insertGym,
   insertOwnerMember,
   logGymCreated,
+  logGymLifecycleEvent,
   mapAndLog,
+  updateGymCapOverride,
+  updateGymStatus,
+  updateGymTier,
 } from "@/services/gyms";
 
 export interface CreateGymResult {
@@ -178,4 +189,162 @@ async function sendInviteSms(phone: string, actionLink: string): Promise<boolean
     `[invite-sms-stub] Would send SMS to ${phone} with login link: ${actionLink}`,
   );
   return false;
+}
+
+/** Shared validation + status-update + audit-log sequence for the three
+ * lifecycle actions below -- AC #3 requires a reason for every one of them. */
+async function changeGymStatus(
+  gymId: string,
+  status: "active" | "suspended" | "deactivated",
+  actionType: "gym_suspended" | "gym_deactivated" | "gym_reinstated",
+  input: unknown,
+): Promise<{ error: AppError | null }> {
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { error: { code: "validation_error", message: "Invalid gym id" } };
+  }
+
+  const parsed = gymStatusChangeSchema.safeParse(input);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return {
+      error: { code: "validation_error", message: firstIssue?.message ?? "Invalid input" },
+    };
+  }
+
+  const { data: result, error } = await updateGymStatus(gymId, status);
+  if (error) {
+    return { error };
+  }
+
+  if (result.previousStatus === status) {
+    return { error: { code: "no_op", message: `This gym is already ${status}.` } };
+  }
+
+  const { error: auditError } = await logGymLifecycleEvent(actionType, gymId, {
+    reason: parsed.data.reason,
+    status,
+    previous_status: result.previousStatus,
+  });
+  if (auditError) {
+    return {
+      error: {
+        code: "audit_log_failed",
+        message:
+          "The status change was saved, but the audit log entry failed to write. Please contact support.",
+      },
+    };
+  }
+
+  return { error: null };
+}
+
+export async function suspendGym(
+  gymId: string,
+  input: unknown,
+): Promise<{ error: AppError | null }> {
+  return changeGymStatus(gymId, "suspended", "gym_suspended", input);
+}
+
+export async function deactivateGym(
+  gymId: string,
+  input: unknown,
+): Promise<{ error: AppError | null }> {
+  return changeGymStatus(gymId, "deactivated", "gym_deactivated", input);
+}
+
+export async function reinstateGym(
+  gymId: string,
+  input: unknown,
+): Promise<{ error: AppError | null }> {
+  return changeGymStatus(gymId, "active", "gym_reinstated", input);
+}
+
+/** SA-03 "Change" tier. AC #1: existing members are never automatically
+ * reclassified -- this only reassigns which tier the gym is billed
+ * against going forward. */
+export async function changeGymTier(
+  gymId: string,
+  input: unknown,
+): Promise<{ error: AppError | null }> {
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { error: { code: "validation_error", message: "Invalid gym id" } };
+  }
+
+  const parsed = changeGymTierSchema.safeParse(input);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return {
+      error: { code: "validation_error", message: firstIssue?.message ?? "Invalid input" },
+    };
+  }
+
+  const { data: result, error } = await updateGymTier(gymId, parsed.data.tierId);
+  if (error) {
+    return { error };
+  }
+
+  if (result.previousTierId === parsed.data.tierId) {
+    return { error: { code: "no_op", message: "This gym is already on that tier." } };
+  }
+
+  const { error: auditError } = await logGymLifecycleEvent("gym_tier_changed", gymId, {
+    new_tier_id: parsed.data.tierId,
+    previous_tier_id: result.previousTierId,
+  });
+  if (auditError) {
+    return {
+      error: {
+        code: "audit_log_failed",
+        message:
+          "The tier change was saved, but the audit log entry failed to write. Please contact support.",
+      },
+    };
+  }
+
+  return { error: null };
+}
+
+/** SA-03 "Override cap". `capOverride: null` clears the override. */
+export async function overrideGymCap(
+  gymId: string,
+  input: unknown,
+): Promise<{ error: AppError | null }> {
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { error: { code: "validation_error", message: "Invalid gym id" } };
+  }
+
+  const parsed = overrideGymCapSchema.safeParse(input);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return {
+      error: { code: "validation_error", message: firstIssue?.message ?? "Invalid input" },
+    };
+  }
+
+  const { data: result, error } = await updateGymCapOverride(gymId, parsed.data.capOverride);
+  if (error) {
+    return { error };
+  }
+
+  if (result.previousCapOverride === parsed.data.capOverride) {
+    return {
+      error: { code: "no_op", message: "The cap override is already set to that value." },
+    };
+  }
+
+  const { error: auditError } = await logGymLifecycleEvent("gym_cap_overridden", gymId, {
+    cap_override: parsed.data.capOverride,
+    previous_cap_override: result.previousCapOverride,
+  });
+  if (auditError) {
+    return {
+      error: {
+        code: "audit_log_failed",
+        message:
+          "The cap override was saved, but the audit log entry failed to write. Please contact support.",
+      },
+    };
+  }
+
+  return { error: null };
 }

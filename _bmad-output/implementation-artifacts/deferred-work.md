@@ -1,5 +1,17 @@
 # Deferred Work
 
+## Deferred from: code review of story-1-6-super-admin-tier-management-gym-lifecycle, patch verification pass (2026-07-09)
+
+- Before/after audit value capture (`updateGymStatus`/`updateGymTier`/`updateGymCapOverride`) is two non-atomic PostgREST round trips (a SELECT then a separate UPDATE), not one transaction [apps/super-admin/services/gyms.ts] — under concurrent admins editing the exact same gym in the same narrow window, the recorded `previous_*` audit value could reflect a stale read; closing this properly needs a new atomic `SECURITY DEFINER` RPC (matching `platform_metrics()`/`gym_member_count()`'s precedent), a real scope increase not justified at this platform's current scale (NFR-009: 1-3 gyms). Revisit if concurrent super-admin usage becomes real.
+- The no-op guard's UPDATE (`updateGymStatus`/`updateGymTier`/`updateGymCapOverride`) still executes unconditionally, before the no-op comparison, even when the value is unchanged [apps/super-admin/services/gyms.ts] — currently harmless since no `updated_at`/`updated_by` trigger exists anywhere in the schema (verified via grep across all migrations); revisit if such a trigger is ever added to `gyms`.
+- `GymsPageClient`'s `search`-prop resync `useEffect` could theoretically overwrite a fast re-typed search value against a slow navigation round trip [apps/super-admin/app/(admin)/gyms/components/GymsPageClient.tsx] — narrow timing window; this app has no live/debounced search (URL only updates on explicit Enter/Search-button submit), so realistic exposure is small, and a proper fix needs more invasive state-management restructuring than the original one-line intent.
+
+## Deferred from: code review of story-1-6-super-admin-tier-management-gym-lifecycle (2026-07-09)
+
+- `gyms` UPDATE RLS policy (`super_admin_update_gyms`) is not column-scoped — grants Super Admin write access to every `gyms` column, not just `status`/`tier_id`/`member_cap_override` [supabase/migrations/0011_super_admin_tier_gym_lifecycle.sql] — matches this story's own documented design decision that RLS authorizes by role, not by which columns an UPDATE touches; worth narrowing in a future migration if the broader security surface becomes a concern.
+- `gyms.capacity` (pre-existing nullable integer, migration `0002_gyms_and_tiers.sql`) and the new `gyms.member_cap_override` are two similarly-named cap concepts with no documented relationship — pre-existing column, untouched by and unreferenced anywhere in current app code, not caused by this story's change.
+- `listGyms()` uses `count: "exact"` on every page load/search/filter/pagination call [apps/super-admin/services/gyms.ts] — performance/scale concern only, not a correctness bug, negligible at current gym counts.
+
 ## Deferred from: code review of story-1-5-super-admin-create-onboard-a-gym (2026-07-08)
 
 - Multi-step `createGym` orchestration via 5 separate round-trips rather than one Postgres transaction [apps/super-admin/app/(admin)/gyms/actions.ts] — already the best achievable design given `auth.admin.createUser` is a GoTrue API call, not a SQL operation, so true single-transaction atomicity isn't possible regardless; the actionable mitigation (fixing the missing `gyms` DELETE RLS policy) was applied as a patch, not a redesign.

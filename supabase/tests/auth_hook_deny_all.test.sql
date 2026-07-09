@@ -5,7 +5,7 @@ begin;
 select plan(8);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
-values ('00000000-0000-0000-0000-000000000002', 'Hustle', 5000, 50000, 30);
+values ('00000000-0000-0000-0000-000000000002', 'Deny All Test Tier', 5000, 50000, 30);
 
 insert into gyms (id, name, tier_id, capacity)
 values ('00000000-0000-0000-0000-0000000000c1', 'Deny-All Gym', '00000000-0000-0000-0000-000000000002', 30);
