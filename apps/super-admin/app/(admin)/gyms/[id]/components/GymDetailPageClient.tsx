@@ -5,28 +5,33 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import type { GymDetail, TierOption } from "@/services/gyms";
+import type { AuditTrailEntry, GymDetail, TierOption } from "@/services/gyms";
 import { GymLifecycleDialog } from "../../components/GymLifecycleDialog";
 import { deactivateGym, reinstateGym, suspendGym } from "../../actions";
 import { ChangeTierDialog } from "./ChangeTierDialog";
 import { CapOverrideEditor } from "./CapOverrideEditor";
+import { EscalateAccessDialog } from "./EscalateAccessDialog";
+import { AuditTrailTab } from "./AuditTrailTab";
 
-/**
- * SA-03 Gym Detail. Explicitly NOT built: the "Access gym data" escalation
- * and the Audit trail tab from SA-03's mockup -- both Story 1.7 (FR-072).
- */
+/** SA-03 Gym Detail (Story 1.7 adds the "Access gym data" escalation and
+ * the Audit trail tab from SA-03's mockup, FR-072). */
 export function GymDetailPageClient({
   gym,
   tiers,
+  auditTrail,
+  escalated,
 }: {
   gym: GymDetail;
   tiers: TierOption[];
+  auditTrail: AuditTrailEntry[];
+  escalated: boolean;
 }) {
   const router = useRouter();
   const [lifecycleAction, setLifecycleAction] = useState<
     "suspend" | "deactivate" | "reinstate" | null
   >(null);
   const [changingTier, setChangingTier] = useState(false);
+  const [escalating, setEscalating] = useState(false);
 
   const capLabel =
     gym.memberCapOverride !== null
@@ -115,7 +120,32 @@ export function GymDetailPageClient({
             )}
           </span>
         </div>
+
+        <div className="border-t pt-4">
+          {escalated ? (
+            <span className="text-sm text-muted-foreground">
+              Access granted — you can view this gym&rsquo;s member and payment records.
+            </span>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => setEscalating(true)}>
+              Access gym data — requires reason (audit-logged)
+            </Button>
+          )}
+        </div>
       </div>
+
+      <AuditTrailTab entries={auditTrail} />
+
+      {escalating && (
+        <EscalateAccessDialog
+          gym={gym}
+          onClose={() => setEscalating(false)}
+          onDone={() => {
+            setEscalating(false);
+            router.refresh();
+          }}
+        />
+      )}
 
       {lifecycleAction && (
         <GymLifecycleDialog

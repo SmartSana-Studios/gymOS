@@ -28,13 +28,19 @@ export const createGymSchema = z.object({
 
 export type CreateGymInput = z.infer<typeof createGymSchema>;
 
+// Shared minimum length for every free-text audit "reason" field in this
+// schema file (gymStatusChangeSchema, escalateGymAccessSchema below) --
+// factored into one constant so the length policy can't drift between them
+// while each still keeps its own action-specific error copy.
+const REASON_MIN_LENGTH = 5;
+
 // Story 1.6: suspend/deactivate/reinstate all require a reason (AC #3,
 // audit-logged). The target status isn't part of this schema -- it's implied
 // by which Server Action is called (suspendGym/deactivateGym/reinstateGym),
 // closing off an invalid-transition class entirely rather than validating a
 // free-form target-status field.
 export const gymStatusChangeSchema = z.object({
-  reason: z.string().trim().min(5, "Add a reason describing this change"),
+  reason: z.string().trim().min(REASON_MIN_LENGTH, "Add a reason describing this change"),
 });
 
 export type GymStatusChangeInput = z.infer<typeof gymStatusChangeSchema>;
@@ -63,3 +69,15 @@ export type OverrideGymCapInput = z.infer<typeof overrideGymCapSchema>;
 // Server Actions below -- the payload schemas above only cover the request
 // body, not the id itself.
 export const gymIdSchema = z.uuid("Invalid gym id");
+
+// Story 1.7 (FR-072): "Access gym data" escalation requires a mandatory
+// reason, audit-logged with the Super Admin's identity/reason/timestamp.
+// Shares gymStatusChangeSchema's REASON_MIN_LENGTH policy (one constant, so
+// the two can't silently drift) but keeps its own name/error copy -- this
+// action-intent (why you're viewing a gym's private data) reads differently
+// from a lifecycle status change at every call site.
+export const escalateGymAccessSchema = z.object({
+  reason: z.string().trim().min(REASON_MIN_LENGTH, "Add a reason describing why you need access"),
+});
+
+export type EscalateGymAccessInput = z.infer<typeof escalateGymAccessSchema>;

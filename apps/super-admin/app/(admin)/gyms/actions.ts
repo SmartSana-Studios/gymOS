@@ -3,6 +3,7 @@
 import {
   changeGymTierSchema,
   createGymSchema,
+  escalateGymAccessSchema,
   gymIdSchema,
   gymStatusChangeSchema,
   overrideGymCapSchema,
@@ -15,6 +16,7 @@ import {
   insertGym,
   insertOwnerMember,
   logGymCreated,
+  logGymDataEscalation,
   logGymLifecycleEvent,
   mapAndLog,
   updateGymCapOverride,
@@ -347,4 +349,38 @@ export async function overrideGymCap(
   }
 
   return { error: null };
+}
+
+/**
+ * SA-03 "Access gym data" escalation (FR-072). Unlike every other action in
+ * this file, there is no separate mutation followed by an audit-log call --
+ * the `gym_data_escalation` audit_log row itself is the access grant (0012
+ * migration's design note). If the write fails, nothing was granted, so the
+ * error propagates directly as a real, blocking error -- never the benign
+ * `audit_log_failed` shape the lifecycle/tier/cap actions use, since there
+ * that code means "the real change already saved" and here there is no
+ * other change that could have already saved.
+ *
+ * Deliberately no no-op guard: a repeat escalation for a gym the caller has
+ * already escalated to is still a legitimate, distinct, audit-worthy event
+ * (a new reason, a new point-in-time record), not a meaningless duplicate
+ * state transition.
+ */
+export async function escalateGymAccess(
+  gymId: string,
+  input: unknown,
+): Promise<{ error: AppError | null }> {
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { error: { code: "validation_error", message: "Invalid gym id" } };
+  }
+
+  const parsed = escalateGymAccessSchema.safeParse(input);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return {
+      error: { code: "validation_error", message: firstIssue?.message ?? "Invalid input" },
+    };
+  }
+
+  return logGymDataEscalation(gymId, parsed.data.reason);
 }
