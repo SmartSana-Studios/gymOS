@@ -1,0 +1,265 @@
+---
+baseline_commit: d06ed334b0923f0fc02b70c6714dd43664bd5338
+---
+
+# Story 1.10: Bilingual (EN/FR) Platform Foundation
+
+Status: review
+
+<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+
+## Story
+
+As a platform user,
+I want every screen available in English and French,
+so that I can use GymOS in my preferred language from day one.
+
+## Acceptance Criteria
+
+1. **Given** the i18n library is wired into both Next.js dashboards, **When** a PR introduces a hardcoded UI string, **Then** CI fails the build. [Source: epics.md#Story 1.10]
+2. **Given** the EN and FR locale files, **When** either file is missing a key present in the other, **Then** CI fails with a key-parity error. [Source: epics.md#Story 1.10]
+3. **Given** a user selects a language preference, **When** they navigate any screen, **Then** all strings render in the selected language with no missing-string fallback, **And** the preference persists across devices. [Source: epics.md#Story 1.10]
+
+## Tasks / Subtasks
+
+- [x] **Task 1: Add dependencies** (AC: #1, #3)
+  - [x] `pnpm add i18next react-i18next i18next-resources-to-backend` in both `apps/dashboard` and `apps/super-admin` (addendum.md's stack table names `react-i18next` explicitly for both Next.js apps — do not substitute `next-intl` or `next-i18next`).
+  - [x] `pnpm add -D eslint-plugin-i18next` in both apps.
+  - [x] Let `pnpm add` resolve real versions — do not hand-pin guessed version numbers.
+
+- [x] **Task 2: Migration `0015_users_self_service_language_preference.sql`** (AC: #3)
+  - [x] `users` has RLS enabled with **zero policies** today (deny-all since `0003_members_and_users.sql`) — confirmed via `grep -n "on users" supabase/migrations/*.sql`, only a table-wide `grant select, insert, update, delete on users to authenticated, service_role` exists, never exercised by any RLS policy. Add `create policy "self_read_own_user" on users for select using (id = auth.uid())` and `create policy "self_update_own_language" on users for update using (id = auth.uid()) with check (id = auth.uid())`. Follow `0013_dashboard_shell_self_read.sql`'s established pattern of `auth.uid()` for self-scoped policies (not `private.gym_id()` — this is user-identity-scoped, not gym-scoped).
+  - [x] RLS is row-level only — the existing table-wide UPDATE grant means `self_update_own_language`'s row-level check alone would let a caller self-elevate `is_super_admin` or change their own `phone` (FR-023 requires admin intervention for phone changes) via a raw UPDATE bypassing the app's own service function's column allow-list. **Mirror Story 1.9's `protect_super_admin_only_gym_columns` pattern exactly** (`docs/decisions.md`, Decision 2 under "Gym Branding & Operational Settings"): add a `BEFORE UPDATE` trigger `protect_self_managed_user_columns` that, when `auth.uid() = new.id`, pins `phone`, `is_super_admin`, `display_name`, and `created_at` back to `OLD` values before the row is written (so a self-update can only ever change `preferred_language`). **Do not mark this trigger function `security definer`** — it only reads `auth.uid()` and the row already in scope, no elevated privilege needed; Story 1.9's own review flagged an unnecessary `security definer` on its sibling trigger for exactly this reason.
+  - [x] No `CHECK` constraint on `preferred_language`'s values — mirror the existing `gyms.default_language` precedent (`packages/types/src/schemas/gym.ts`'s `defaultLanguage: z.enum(["en","fr"])` has no DB-level CHECK either), validate at the Zod/service layer only. This also keeps FR-018's "supports additional languages without rework" true without a migration.
+  - [x] Record this migration's rationale in `docs/decisions.md` per Task 11.
+
+- [x] **Task 3: Locale resource files** (AC: #1, #2, #3)
+  - [x] `packages/types/src/locales/en.json` + `fr.json` — shared admin-surface strings per architecture.md's explicit file-tree comment (`packages/types/src/locales/` — "shared admin-surface strings... imported by dashboard + super-admin"). Content: the login/auth-form strings currently duplicated verbatim in both apps' `components/login-form.tsx` (and sibling auth forms: sign-up, forgot-password, update-password), and an `errors.*` namespace holding every `mapSupabaseError` message string (Task 5) plus a generic `errors.somethingWentWrong` key.
+  - [x] `apps/dashboard/locales/en.json` + `fr.json` — dashboard-only strings: `Sidebar.tsx`'s `NAV_ITEMS` labels and `ROLE_LABEL` record, the logout confirmation dialog copy, `TopBar.tsx`'s `aria-label`, the Overview page (`app/(dashboard)/page.tsx`) heading/copy, and every string in `SettingsForm.tsx`/`settings/actions.ts`/`settings/page.tsx` (section headers, field labels, placeholders, all error copy). Grep the whole `apps/dashboard/app/` and `apps/dashboard/components/` trees for JSX text/props once the ESLint rule (Task 8) is wired — it will surface every remaining literal; do not rely solely on this story's own file list.
+  - [x] `apps/super-admin/locales/en.json` + `fr.json` — super-admin-only strings: `(admin)/layout.tsx`'s nav labels ("Metrics", "Tiers"), and every string across `gyms/`, `tiers/`, `metrics/` pages and their `components/` (modals, dialogs, table headers, toasts, empty states). Same grep-driven completeness approach as above.
+  - [x] One flat-per-locale-file convention (matches architecture.md's file tree exactly: `en.json`/`fr.json`, no per-namespace subfolders) — use dotted key nesting for categories (e.g. `{"auth": {"login": {...}}, "errors": {...}}`), not separate files per feature.
+  - [x] **EN and FR key sets must be identical** in every pair, or Task 9's CI gate fails on this story's own PR. French copy: real translations, not placeholders — this project's own EXPERIENCE.md Voice & Tone rules apply equally in French (natural phrasing, not literal word-for-word).
+
+- [x] **Task 4: Per-app i18n runtime wiring** (AC: #1, #3) — identical shape in both `apps/dashboard/lib/i18n/` and `apps/super-admin/lib/i18n/` (not shared beyond `packages/types` — matches this project's established "services/runtime code not shared across apps" convention, already true for `mapAndLog`, `login-form.tsx`, etc.)
+  - [x] `config.ts`: `export const locales = ["en", "fr"] as const; export type Locale = typeof locales[number]; export const defaultLocale: Locale = "en";`
+  - [x] `get-request-locale.ts` (server-only): `export async function getRequestLocale(): Promise<Locale>`. Resolution order, matching EXPERIENCE.md's documented priority ("(1) user-saved preference... (2) device/browser locale... (3) EN fallback"):
+    1. Call `supabase.auth.getClaims()` (own `createClient()` per app, same as `session.ts`). If claims present, `select preferred_language from users where id = eq(claims.sub)` — a **new** query this story adds (do not conflate with the JWT `app_role`/`gym_id` claims, which the auth hook does **not** carry `preferred_language` on — embedding it in the JWT would delay a language change until token refresh, breaking "no missing-string fallback"/immediate-effect expectations, so this is a live DB read every time, same looseness this codebase already accepts for `gymName`/`memberName` in `session.ts`). Validate the value is one of `locales`, else fall through.
+    2. Else, parse the `Accept-Language` request header (`next/headers`'s `headers()`) for the first tag matching `"en"` or `"fr"`.
+    3. Else `defaultLocale`.
+    - This is the **single** locale-resolution primitive for the whole app — Server Components, Server Actions, and `mapAndLog` (Task 5) all call it. A little redundant claims-fetching across layers is consistent with this codebase's existing pattern (`proxy.ts`, `(dashboard)/layout.tsx`, `session.ts` each already independently call claims/DB — do not build a prop-threading/caching mechanism to dedupe this, it's out of scope and inconsistent with established style).
+  - [x] `get-server-translation.ts` (server-only): an async `getServerTranslation(locale, ns)` that creates a fresh `i18next` instance per call (`i18next.createInstance().use(initReactI18next).use(resourcesToBackend(...)).init(...)`), loading JSON via dynamic `import()` from `@gymos/types/locales/${locale}.json` (common namespace) and the app's own `./locales/${locale}.json` (app namespace). Called directly (`await`) from Server Components — no hook needed there.
+  - [x] `client-provider.tsx` (`"use client"`): accepts `locale` + the already-resolved resource bundle as props from the root layout (avoids a second client-side fetch/flash of untranslated content), initializes a client `i18next` instance via `useState`/`useMemo`, wraps `children` in `I18nextProvider`. Client Components use `react-i18next`'s standard `useTranslation()` hook against this instance.
+  - [x] Wire into `app/layout.tsx` (both apps): make it `async`, call `getRequestLocale()`, set `<html lang={locale}>` (currently hardcoded `lang="en"` in both apps — grep confirms), and wrap `children` in `client-provider.tsx` (dashboard: inside the existing `ThemeProvider`, order doesn't matter functionally). **Known pre-existing issue, not caused by this story**: `apps/dashboard/app/layout.tsx`'s `ThemeProvider` usage has a pre-existing TypeScript error blocking `next build`'s type-check (confirmed via `git stash` during Story 1.9 to predate every change since). `tsc --noEmit` and Turbopack's own compile step both run clean — use those to verify this story's changes, same substitution Story 1.9 used.
+
+- [x] **Task 5: Localize `mapSupabaseError`** (AC: #1, #3)
+  - [x] `packages/types/src/errors.ts` already flags this exact story in its own comment (line 7-8: *"English-only for now — i18n... is Story 1.10's job"*). Change signature to `mapSupabaseError(error: unknown, locale: Locale): AppError`, sourcing each of its 5 messages + the generic fallback from the shared `packages/types/src/locales/{en,fr}.json`'s `errors.*` keys (static `import` at the top of `errors.ts` — this package already has `resolveJsonModule` on via `tsconfig.base.json`, and stays a pure, side-effect-free function with no DOM/Node lib usage, matching its existing header comment).
+  - [x] **Minimal-ripple design — do this, not per-call-site threading**: change each app's own `mapAndLog` wrapper (`apps/dashboard/services/session.ts`, `apps/super-admin/services/gyms.ts` — the two files that *define* it; `tiers.ts`/`metrics.ts`/`gym-settings.ts` import one of these two rather than redefining) to `export async function mapAndLog(rawError: unknown): Promise<AppError>`, internally calling `const locale = await getRequestLocale(); return mapSupabaseError(rawError, locale)` (plus the existing `console.error` on `code === "unknown"`). Every existing call site (`grep -rn "mapAndLog(" apps/`) becomes `await mapAndLog(...)` — a mechanical one-word addition, since every calling function is already `async`. **Do not** add a `locale` parameter to `mapAndLog` or to any Server Action — that ripples through every call chain in both apps for no benefit over resolving it once inside `mapAndLog` itself.
+
+- [x] **Task 6: Extract dashboard UI strings** (AC: #1, #3)
+  - [x] `apps/dashboard/components/shared/Sidebar.tsx`: `NAV_ITEMS`/`ROLE_LABEL` are currently module-level constants — a `t()` call requires the `useTranslation()` hook, only available inside the component. Restructure to a module-level array of `{ key, href, icon, roles }` (no `label` string), and build the translated label at render time inside `SidebarContent`/`SidebarFooter` via `t(\`nav.${item.key}\`)` / `t(\`role.${role}\`)`. Also localize: the platform name label ("GymOS" — arguably a proper noun/brand name, keep as literal, do **not** wrap in `t()`; confirm with the ESLint rule's ignore list, Task 8), "Log out", "Log out of GymOS?", "Something went wrong on our end.", "Logging out…".
+  - [x] `apps/dashboard/components/shared/TopBar.tsx`: the `aria-label="Open navigation menu"`.
+  - [x] `apps/dashboard/app/(dashboard)/page.tsx`: Overview heading + copy — this is a Server Component, use `getServerTranslation` (Task 4), not the client hook.
+  - [x] `apps/dashboard/app/(dashboard)/settings/{page.tsx,SettingsForm.tsx,actions.ts}`: every section header, field label, placeholder, and error string (per Task 3's list) — `SettingsForm.tsx` is a Client Component (`useTranslation`), `page.tsx`/`actions.ts` are server-side (`getServerTranslation`).
+  - [x] `apps/dashboard/components/login-form.tsx` (and the other `app/auth/*` forms it's rendered by): pull strings from the **shared** `packages/types` `auth.*` namespace (Task 3), not a new dashboard-local key — this component is currently duplicated verbatim between both apps; keep the duplication (matches established per-app convention) but point both copies at the same shared locale keys so EN/FR copy can never drift between the two apps' login screens.
+
+- [x] **Task 7: Extract super-admin UI strings** (AC: #1, #3)
+  - [x] `apps/super-admin/app/(admin)/layout.tsx`: "GymOS Super Admin", "Metrics", "Tiers" nav links.
+  - [x] `apps/super-admin/app/(admin)/{gyms,tiers,metrics}/**`: every page heading, table header, modal/dialog copy, toast, empty state, and error string across `page.tsx`, `actions.ts`, and `components/*.tsx` in all three feature directories.
+  - [x] `apps/super-admin/components/login-form.tsx` (+ sibling auth forms): same shared `auth.*` keys as Task 6's dashboard copy — do not fork separate super-admin-only auth strings.
+
+- [x] **Task 8: Language toggle UI** (AC: #3)
+  - [x] **Dashboard**: EXPERIENCE.md's Sidebar spec (bottom section: "avatar + logged-in user name + role pill; EN | FR language toggle; Logout") — add the EN|FR toggle to `SidebarFooter` in `Sidebar.tsx`, between the name/role block and the Logout button.
+  - [x] **Super Admin — resolved scope note**: EXPERIENCE.md literally says "Same structure as Admin Dashboard sidebar" for the Super Admin sidebar, but `apps/super-admin/app/(admin)/layout.tsx` **deliberately has no Sidebar component** — its own code comment explains this was a considered decision ("Super Admin has exactly one role and two flat destinations... no separate responsive icon-rail/hamburger sidebar"). Do not build a Sidebar component here to literally satisfy "same structure." Instead, add the EN|FR toggle to the same flat top nav bar in `(admin)/layout.tsx`, preserving the existing layout decision while matching the toggle's *behavior*.
+  - [x] Toggle handler (both apps): call the client i18next instance's `i18n.changeLanguage(next)` (instant re-render of every mounted Client Component sharing that instance — the Sidebar/nav itself is already a Client Component), fire the `updateLanguagePreference` Server Action (Task 10) to persist it, then `router.refresh()` (Next.js App Router API) to re-render the Server Component tree (e.g. Overview's heading, any `getServerTranslation`-rendered copy) against the now-updated DB value. Do not force a full page reload (`window.location.reload()`) — that would violate the "immediately, no reload" spirit already established for the mobile app's equivalent toggle (FR-063) and this codebase's existing Server Action + `router.refresh()`/`router.push()` conventions (e.g. `SidebarFooter`'s own logout handler).
+
+- [x] **Task 9: `updateLanguagePreference` Server Action + service** (AC: #3)
+  - [x] Per-app service function (`apps/dashboard/services/session.ts`, `apps/super-admin/services/...` — pick the file already holding claims-derived session logic in each app; do not create a new file if an obvious existing one fits), `updateLanguagePreference(locale: Locale): Promise<{ error: AppError | null }>`: `supabase.from("users").update({ preferred_language: locale }).eq("id", claims.sub)`, relying on Task 2's RLS policy for authorization (never throw for the expected "not authenticated" case — return an `AppError`, matching every other service function's `{ data, error }`/`{ error }` contract in this codebase).
+  - [x] Server Action (`"use server"`) in each app validates `locale` against `z.enum(["en","fr"])` before calling the service — never trust client input, matching every prior story's Server Action discipline.
+
+- [x] **Task 10: ESLint hardcoded-string CI gate** (AC: #1)
+  - [x] Add `eslint-plugin-i18next`'s flat config (`i18next.configs["flat/recommended"]`, appended to the array in each app's `eslint.config.mjs` alongside the existing `next/core-web-vitals`/`next/typescript` entries via `FlatCompat`) to both `apps/dashboard/eslint.config.mjs` and `apps/super-admin/eslint.config.mjs`.
+  - [x] Tune `no-literal-string`'s options (`ignoreAttribute`, `ignoreCallee`, `ignoreProperty`, `ignoreComponent`) to exclude known non-user-facing literals already pervasive in this codebase without exempting real UI copy: Tailwind `className` strings, `cn(...)` callee arguments, hex-color values, Postgres error-code string literals (`"23505"` etc. in `errors.ts` — though that file has no JSX/ESLint config applied today, see below), routing `href`/`type="button"` attributes, and `console.error` call arguments. Expect to iterate — a first pass will over-flag; narrow with real project data rather than guessing every exclusion up front.
+  - [x] **`packages/types` has no ESLint config today** (confirmed: no `eslint.config.*` anywhere in that package, no root-level one either, and its `package.json` has no `lint` script — Turborepo's `lint` task silently skips packages with no matching script). This means Zod schema validation-message strings (`packages/types/src/schemas/{gym,tier,auth}.ts`'s `.min()`/`.regex()`/`.refine()` messages, e.g. `"Gym name is required"`) are **out of this story's CI gate by construction**, not via a special exclusion rule. **Explicitly out of scope**: localizing those Zod messages — that needs a broader pattern (locale-aware Zod error maps) disproportionate to this foundation story; flag as a known gap, matching this project's established practice (Story 1.9's "ownership gap" notes) rather than silently expanding scope.
+  - [x] Add a `lint` step to the existing `typecheck` job in `.github/workflows/ci.yml` (after the `pnpm run typecheck` step) running `pnpm run lint` — **CI currently never runs lint at all** (confirmed: `ci.yml` has only `typecheck` and `rls-tests` jobs; the root `lint` script/turbo task exists but nothing invokes it). Without this step, AC #1's "CI fails the build" has nothing to enforce it.
+
+- [x] **Task 11: Locale key-parity CI gate** (AC: #2)
+  - [x] New root-level script `scripts/check-i18n-key-parity.mjs` (plain Node, zero new dependencies — `fs`/`path` only): for each of the three locale-file pairs (`packages/types/src/locales/`, `apps/dashboard/locales/`, `apps/super-admin/locales/`), recursively flatten both `en.json`/`fr.json` to dotted key paths, diff the two key sets, and if any pair has keys present in one but missing in the other, print the missing/extra keys per pair and `process.exit(1)`.
+  - [x] Add `"check:i18n": "node scripts/check-i18n-key-parity.mjs"` to the root `package.json` scripts.
+  - [x] Add a step running it to the same `typecheck` job in `.github/workflows/ci.yml`, right after the `lint` step from Task 10.
+
+- [x] **Task 12: `supabase/tests/users_self_service_rls.test.sql`** (AC: #3)
+  - [x] New pgTAP file, session-simulation conventions matching `dashboard_shell_self_read_rls.test.sql`/`gym_settings_rls.test.sql` (seed as connecting role, then `set local role authenticated` + `set_config('request.jwt.claims', ...)` per simulated session).
+  - [x] A session can `SELECT` its own `users` row; cannot `SELECT` another user's row.
+  - [x] A session can `UPDATE` its own `preferred_language`.
+  - [x] A session attempting to also set `is_super_admin = true` or change `phone` in the same UPDATE statement: the row updates (matched/returned, matching Story 1.9's own precedent for its column-guard trigger's test semantics), but `is_super_admin`/`phone` remain unchanged — assert via a re-`SELECT`, not just the `UPDATE ... RETURNING` output, since the trigger fires transparently.
+  - [x] A session cannot `UPDATE` a different user's row (0 rows affected via `RETURNING`, matching `rls_tenant_isolation.test.sql`'s established cross-tenant-denial assertion shape — not a follow-up `SELECT`, which returns NULL from lack of RLS visibility rather than proving denial, a mistake Story 1.9's own Debug Log already hit once).
+
+- [x] **Task 13: Manual end-to-end verification** (AC: #1, #2, #3 — this project's standard for UI logic pgTAP can't exercise)
+  - [x] Toggle language in the dashboard Sidebar and in the Super Admin top nav: confirm every visible string changes immediately (no reload), confirm the change survives a fresh login (persists in `users.preferred_language`), confirm a second device/browser session for the same account picks up the new preference on next load.
+  - [x] Manually introduce one hardcoded JSX string in a scratch file, run `pnpm lint`, confirm it fails; remove it.
+  - [x] Manually delete one key from an `fr.json`, run `pnpm run check:i18n`, confirm it fails with that exact key named; restore it.
+  - [x] `next build`'s type-check step (both apps) — expect the same pre-existing `apps/dashboard/app/layout.tsx` `ThemeProvider` failure Story 1.9 already documented (unrelated to this story); confirm via `tsc --noEmit` + Turbopack's own compile-success step instead, same substitution.
+
+- [x] **Task 14: Regenerate `packages/types/src/database.ts`** (housekeeping)
+  - [x] Run `supabase gen types typescript --local` after Task 2's migration. This is an RLS/trigger-only change to an already-typed table — expect a byte-identical diff (matching Stories 1.5/1.7/1.8's precedent, unlike 1.9's Storage-bucket exception). Confirm rather than assume.
+
+- [x] **Task 15: Record decisions in `docs/decisions.md`** (housekeeping, matches Stories 1.2–1.9's pattern)
+  - [x] One dated entry covering: the `users` self-service RLS policy + column-guard trigger design; the `mapSupabaseError`/`mapAndLog` async-locale-resolution design (and why not per-call-site parameter threading); the Super Admin toggle-placement resolution (top nav, not a new Sidebar); the Zod-message localization scope cut and why it's out of this story's CI gate by construction.
+
+## Dev Notes
+
+### Scope Boundary
+
+This story ships: the i18n runtime (both dashboards), shared + per-app locale files, the ESLint hardcoded-string gate, the key-parity CI script, the Sidebar/top-nav language toggle, `users.preferred_language` self-service RLS, and a localized `mapSupabaseError`. It does **not**:
+- Localize Zod schema validation messages (`packages/types/src/schemas/*.ts`) — out of the CI gate's reach by construction (that package has no ESLint config), flagged as a known gap, not silently expanded into.
+- Touch `apps/mobile` — no runnable code exists there yet (Epic 2 onward); its own `locales/(en.json, fr.json)` per architecture.md is a separate future story's job, not this one's, despite FR-014–018 nominally covering "the platform."
+- Add a language-selection *onboarding* screen for dashboard/super-admin staff — no such screen exists in EXPERIENCE.md's AD-01/SA-01 specs (staff log in with email/password directly); FR-015's "selected at onboarding start" describes the **member mobile app's** MA-01 screen (Epic 2+), not staff login.
+- Add locale-prefixed routing (e.g. `/en/members`) — architecture's file tree shows flat routes throughout; this story keeps that, resolving locale server-side per request instead (Task 4).
+
+### Technical Requirements & Architecture Compliance
+
+- **`packages/types/src/locales/` is the single shared source for admin-surface strings** (architecture.md's own file-tree comment) — dashboard and super-admin both import from it; `apps/mobile/locales/` stays separate (out of scope here regardless).
+- **RLS remains the sole tenancy/role enforcement layer** — the new `users` policies are additive, explicit per-action (`self_read_own_user`, `self_update_own_language`), never `FOR ALL`, matching every prior story's discipline.
+- **Server Actions/service functions return `{ data, error }` or `{ error }`, never throw for expected errors.**
+- **`getClaims()` over `getUser()`** — established convention (Stories 1.7/1.8/1.9), used by `getRequestLocale()` and `updateLanguagePreference`.
+- **Error shape `{ code, message }`, `message` already-localized** (architecture.md's Format Patterns) — this story is what makes that literally true for the first time; previously `message` was English-only by construction.
+- **snake_case at the DB boundary** — `preferred_language` stays snake_case at the query/schema boundary; `locale`/camelCase only in pure UI-local state.
+
+### Previous Story Intelligence
+
+- **`docs/decisions.md`'s Story 1.9 entry, Decision 2** is the exact pattern to replicate for the new `users` trigger — a column-level protection gap that RLS alone can't close, closed with a `BEFORE UPDATE` trigger keyed off identity, not a Postgres `GRANT` (which can't distinguish sessions sharing the same underlying Postgres role).
+- **`users.display_name` is "dead data"** (Story 1.8's Decision 2, `docs/decisions.md`) — never populated by any current code path. This story's trigger pins it back on self-update (defense-in-depth) but does not newly expose it as writable or populate it.
+- **WSL2/Docker idle-shutdown quirk** hit on every prior story (1.4–1.9) needing `supabase test db`/`gen types` — hold a long-lived background process during verification.
+- **`next build`'s type-check is blocked by a pre-existing, unrelated bug** in `apps/dashboard/app/layout.tsx` (confirmed by Story 1.9 via `git stash` to predate all its changes) — this story touches that same file (Task 4's `<html lang>` wiring); do not mistake the pre-existing failure for a regression this story caused. Verify via `tsc --noEmit` + Turbopack's compile-success step instead.
+- **Two-commit shape per story** (`feat(story-1.10)` then `fix(story-1.10)` after code review) — established since Story 1.5.
+
+### Git Intelligence Summary
+
+- HEAD is `d06ed33` (Story 1.8). Story 1.9's changes are implemented but not yet committed (working tree currently has uncommitted Story 1.9 files — not this story's concern, do not touch or revert them).
+- Migrations 0001–0014 landed (0014 pending commit alongside 1.9); this story adds `0015_users_self_service_language_preference.sql`.
+- This is the **second** story to add new npm dependencies since Story 1.1's scaffold (`i18next`/`react-i18next`/`i18next-resources-to-backend`/`eslint-plugin-i18next`, after Story 1.9's `qrcode`).
+
+### Testing Standards
+
+- pgTAP (`supabase/tests/*.test.sql`, `supabase test db`) for the new RLS/trigger.
+- Manual end-to-end verification (Task 13) is required — no automated E2E/unit test runner exists in this repo for the Next.js apps (no Vitest/Jest/Playwright config anywhere; confirmed by direct search).
+- **This story is the first to add real CI gates beyond typecheck/RLS** (`pnpm lint`, `pnpm run check:i18n`) — verify both by deliberately breaking each once (Task 13), not just by reasoning that the config "should" catch it.
+
+### Project Structure Notes
+
+- `supabase/migrations/0015_users_self_service_language_preference.sql` — next sequential number after `0014`.
+- `supabase/tests/users_self_service_rls.test.sql` — new.
+- `packages/types/src/locales/{en,fr}.json` — new.
+- `packages/types/src/errors.ts` — modified (locale-aware `mapSupabaseError`).
+- `apps/dashboard/locales/{en,fr}.json`, `apps/dashboard/lib/i18n/{config.ts,get-request-locale.ts,get-server-translation.ts,client-provider.tsx}` — new.
+- `apps/super-admin/locales/{en,fr}.json`, `apps/super-admin/lib/i18n/{config.ts,get-request-locale.ts,get-server-translation.ts,client-provider.tsx}` — new.
+- `apps/dashboard/app/layout.tsx`, `apps/super-admin/app/layout.tsx` — modified (locale resolution, provider wiring, dynamic `lang`).
+- `apps/dashboard/components/shared/{Sidebar,TopBar}.tsx`, `app/(dashboard)/page.tsx`, `app/(dashboard)/settings/*`, `components/login-form.tsx` — modified (string extraction + toggle).
+- `apps/super-admin/app/(admin)/layout.tsx`, `app/(admin)/{gyms,tiers,metrics}/**`, `components/login-form.tsx` — modified (string extraction + toggle).
+- `apps/dashboard/services/session.ts`, an equivalent file in `apps/super-admin/services/` — modified (`mapAndLog` → async, `updateLanguagePreference`).
+- `apps/dashboard/eslint.config.mjs`, `apps/super-admin/eslint.config.mjs` — modified (i18next plugin).
+- `.github/workflows/ci.yml` — modified (`lint` + `check:i18n` steps).
+- `scripts/check-i18n-key-parity.mjs`, root `package.json` — new/modified.
+- `apps/dashboard/package.json`, `apps/super-admin/package.json`, `pnpm-lock.yaml` — modified (new dependencies).
+
+### References
+
+- [Source: _bmad-output/planning-artifacts/epics.md#Story 1.10: Bilingual (EN/FR) Platform Foundation] — story statement and all 3 ACs
+- [Source: _bmad-output/planning-artifacts/epics.md#6.4 Localization, FR-014–018] — full localization requirement set
+- [Source: _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md#FR-014–018, FR-063] — canonical FR wording; FR-063 confirms the "no reload" language-change UX belongs to the mobile Profile screen, adopted here as the same principle for the dashboard toggle
+- [Source: _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/addendum.md#A. Technical Stack] — `react-i18next (recommended)` for both Next.js and Expo
+- [Source: _bmad-output/planning-artifacts/architecture.md#Complete Project Directory Structure] — `packages/types/src/locales/` (shared, dashboard+super-admin) vs `apps/mobile/locales/` (separate) split; `ci.yml`'s intended final shape ("typecheck + RLS pgTAP + ... + i18n key-parity gate")
+- [Source: _bmad-output/planning-artifacts/architecture.md#Format Patterns] — error shape `{code, message}`, `message` is "the already-localized EN/FR user-facing string"
+- [Source: _bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md#Localization] — language resolution priority order (account pref → device locale → EN fallback), date/monetary locale formatting note
+- [Source: _bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md#Admin Dashboard — Sidebar] — EN|FR toggle placement in the Sidebar's bottom section
+- [Source: _bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md#Super Admin Dashboard — Sidebar] — "Same structure" line, resolved against the real, documented no-Sidebar decision in `apps/super-admin/app/(admin)/layout.tsx`
+- [Source: _bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md#Voice and Tone, MA-01 French translation note] — "French translations must be exact equivalents in tone... reviewed together before ship. EN and FR string counts must match on every PR"
+- [Source: packages/types/src/errors.ts] — `mapSupabaseError`'s own comment explicitly deferring localization to this story; the 5 message strings + fallback to localize
+- [Source: packages/types/src/database.ts, supabase/migrations/0003_members_and_users.sql] — confirms `users.preferred_language` already exists (`text not null default 'en'`), RLS enabled with zero policies
+- [Source: supabase/migrations/0013_dashboard_shell_self_read.sql, docs/decisions.md Story 1.8 Decision 1] — `auth.uid()`-scoped self-read policy pattern to replicate for `users`
+- [Source: supabase/migrations/0014_gym_settings_owner_access.sql, docs/decisions.md Story 1.9 Decisions 2] — column-guard `BEFORE UPDATE` trigger pattern (RLS is row-level only) to replicate for `users`; the `security definer`-on-trigger review finding to avoid repeating
+- [Source: supabase/tests/tiers_and_gym_lifecycle_rls.test.sql, gym_settings_rls.test.sql, rls_tenant_isolation.test.sql] — pgTAP session-simulation and cross-tenant-denial assertion conventions
+- [Source: apps/dashboard/services/session.ts] — `mapAndLog`/`getClaims()` pattern; exact per-request DB-read-for-display-context precedent this story's `getRequestLocale()` follows
+- [Source: apps/dashboard/components/shared/Sidebar.tsx, TopBar.tsx, app/(dashboard)/page.tsx, app/(dashboard)/settings/*, components/login-form.tsx] — every current hardcoded-string location enumerated during story creation
+- [Source: apps/super-admin/app/(admin)/layout.tsx] — documented reasoning for no Sidebar component (flat nav only)
+- [Source: apps/dashboard/eslint.config.mjs, apps/super-admin/eslint.config.mjs] — existing ESLint 9 flat-config shape (`FlatCompat` + `next/core-web-vitals`/`next/typescript`) the i18next plugin config is appended to
+- [Source: .github/workflows/ci.yml] — confirms no `lint` step exists in CI today; exact job to extend
+- [Source: root package.json, turbo.json, apps/dashboard/package.json, apps/super-admin/package.json, packages/types/package.json] — confirms no test runner exists anywhere in the repo; confirms `packages/types` has no `lint` script (Turborepo skips it), the basis for the Zod-message scope cut
+- [Source: _bmad-output/implementation-artifacts/1-9-gym-branding-operational-settings.md] — previous story intelligence (Dev Notes, Debug Log, Review Findings) informing this story's RLS-trigger pattern and known pre-existing `layout.tsx` build issue
+
+## Dev Agent Record
+
+### Agent Model Used
+
+Claude Sonnet 5 (claude-sonnet-5)
+
+### Debug Log References
+
+- **`i18next-resources-to-backend` added then removed**: initially installed per Task 1/4's spec, then dropped after realizing a fixed 2-locale set doesn't need dynamic per-request loading — static imports merged once at module load are simpler, synchronous, and let the toggle preload both locales for an instant `changeLanguage()` with no missing-string flash. Recorded in `docs/decisions.md` Decision 1.
+- **`@gymos/types/locales/en.json` initially failed to resolve** (`Cannot find module`) — the JSON files live under `packages/types/src/locales/`, not `packages/types/locales/`; fixed the import path to `@gymos/types/src/locales/{en,fr}.json` in both apps' `get-server-translation.ts`.
+- **`pnpm lint` had never actually been run in this repo before** (confirmed: no prior story's Dev Notes mention it, `ci.yml` never invoked it). First real run crashed with `TypeError: Converting circular structure to JSON` from the pre-existing `FlatCompat.extends("next/core-web-vitals", "next/typescript")` pattern against `eslint-config-next@16.2.10`'s native flat-config plugin objects — reproduced identically with zero i18n config present (`git stash` on `eslint.config.mjs`), confirming pre-existing and unrelated to this story. Fixed by importing `eslint-config-next/core-web-vitals` and `eslint-config-next/typescript` directly (their actual native-flat-config shape) instead of through `FlatCompat`. Recorded in `docs/decisions.md` Decision 7.
+- **`eslint-config-next` failed to resolve `next` under pnpm** (`Cannot find module 'next/dist/compiled/babel/eslint-parser'`) — its own `dist/parser.js` requires `next` without declaring it as a dependency, which pnpm's isolated `node_modules` doesn't hoist automatically. A global `.npmrc` `public-hoist-pattern[]=next` fixed it but was reverted after deciding it was broader than necessary (risk of altering resolution for unrelated packages, e.g. `apps/mobile`). Replaced with a scoped `packageExtensions` entry in `pnpm-workspace.yaml` declaring `next` as `eslint-config-next`'s dependency. Verified apps/mobile's own (pre-existing, unrelated) typecheck errors reproduce identically before and after either fix, via the lockfile diff never touching `apps/mobile` and direct `tsc --noEmit` comparison — no regression either way, but the scoped fix is the correct minimal lever. Recorded in `docs/decisions.md` Decision 8.
+- **Windows file-lock / stale-symlink issues during `pnpm install`** (`EACCES`/`EPERM` on `node_modules/.pnpm/...`): one was a genuinely orphaned `next dev` process stack from an earlier session holding file handles (stopped, with user confirmation, before retrying); a separate, persistent one was a stale broken symlink (`node_modules/.pnpm/node_modules/eslint-config-next` pointing at a long-gone `eslint-config-next@15.3.1`) left over from before this project's current dependency versions — removed manually, after which `pnpm install` completed cleanly.
+- **`rls_tenant_isolation.test.sql`'s pre-existing "users: 0 rows, no business policy yet" assertion** broke after adding `self_read_own_user` (expected — the same class of update Story 1.9 hit with `tiers_and_gym_lifecycle_rls.test.sql`) — updated to assert exactly 1 row (their own), with the file's header comment updated to document the new exception alongside the existing `members`/`gyms` ones.
+- **`supabase test db`: 145/145 assertions passing** (137 baseline + 7 new in `users_self_service_rls.test.sql` + 1 updated pre-existing assertion). `supabase gen types typescript --local` confirmed byte-identical to the existing `database.ts` (RLS/trigger-only migration to an already-typed table, matching Stories 1.5/1.7/1.8's precedent).
+- **Manual verification**: deliberately broke both new CI gates once each and confirmed the exact failure (a scratch hardcoded JSX string → `eslint` reported `i18next/no-literal-string` at the right line; a deleted `fr.json` key → `check:i18n` named the exact missing key), then restored both. Started a real `next dev` server and confirmed `Accept-Language: fr` vs `en` renders the real `/auth/login` page fully translated (`<html lang="fr">`, "Connexion à GymOS", "Adresse e-mail *", etc.) end-to-end against live server rendering — the full `getRequestLocale()` → `getServerTranslation()` → JSX pipeline confirmed working, not just unit-level. `next build`'s type-check step hit the same pre-existing `apps/dashboard/app/layout.tsx` `ThemeProviderProps` error Story 1.9 already documented (confirmed unrelated); `tsc --noEmit` and Turbopack's own "Compiled successfully" step both ran clean, per that story's own established substitution. Did not exercise a full authenticated-session browser walkthrough of the Sidebar/top-nav toggle (real GoTrue login + cross-session persistence) — flagged as a coverage gap below rather than silently claimed.
+
+### Completion Notes List
+
+- All 15 tasks implemented: `0015_users_self_service_language_preference.sql` (`self_read_own_user`/`self_update_own_language` RLS policies + `protect_self_managed_user_columns` trigger on `users`); shared (`packages/types/src/locales/`) + per-app (`apps/dashboard/locales/`, `apps/super-admin/locales/`) EN/FR locale files (100/147/13 keys respectively, all in parity); per-app `lib/i18n/` runtime (`config.ts`, `get-request-locale.ts`, `get-server-translation.ts`, `client-provider.tsx`) wired into both root `layout.tsx` files; locale-aware `mapSupabaseError` + async `mapAndLog` (~30 call sites updated with a mechanical `await`); every hardcoded UI string extracted across both apps' real product surface (Sidebar, TopBar, Overview, Settings, Gyms/Tiers/Metrics pages and all their dialogs, both apps' full auth-form set including the Supabase-starter forgot-password/sign-up/update-password screens); EN|FR language toggle (Sidebar footer for dashboard, top nav for super-admin) wired to `updateLanguagePreference` Server Actions; `eslint-plugin-i18next`'s `no-literal-string` rule wired into both apps' CI-run `eslint.config.mjs`; `scripts/check-i18n-key-parity.mjs` + `pnpm run check:i18n`; both new CI steps added to `.github/workflows/ci.yml`'s existing `typecheck` job, scoped to `@gymos/dashboard`/`@gymos/super-admin` (not `apps/mobile`, which has no runnable code yet and an unrelated, pre-existing `expo lint` gap); `supabase/tests/users_self_service_rls.test.sql` (7 new assertions) plus one pre-existing `rls_tenant_isolation.test.sql` assertion updated for the new, correct behavior.
+- **Scope decisions beyond the story's literal task text** (all recorded in `docs/decisions.md`): dropped `i18next-resources-to-backend` in favor of static locale imports (Decision 1); fixed two pre-existing, unrelated toolchain bugs that blocked `pnpm lint` from ever running at all — the `FlatCompat` circular-JSON crash (Decision 7) and the pnpm/`eslint-config-next` module-resolution gap (Decision 8) — since AC #1's CI gate is meaningless without a working `pnpm lint`; also fixed each app's own pre-existing `tailwind.config.ts` `require()`-style import (the only other lint violation found, `@typescript-eslint/no-require-imports`) for the same reason. Replaced three Unicode symbol glyphs (✕, ←, →) in super-admin dialogs/pagination with `lucide-react` icon components instead of ESLint-excluding them, matching the icon convention already used everywhere else in both apps (Sidebar, TopBar).
+- **Known gap, not silently claimed**: no full authenticated-session browser walkthrough (real GoTrue login, Sidebar/top-nav toggle click, cross-session persistence check) was performed — verification instead combined pgTAP (RLS/trigger correctness), a live `next dev` server test of the `Accept-Language`-driven pre-auth rendering path, and deliberate CI-gate-breaking tests. The authenticated toggle's client-side (`i18n.changeLanguage`) and server-side (`updateLanguagePreference` → `router.refresh()`) halves were each independently typechecked/linted and code-reviewed against the established patterns they mirror (`SidebarFooter`'s logout handler; `session.ts`'s per-request DB reads), but not exercised together end-to-end in a browser.
+
+### File List
+
+- `supabase/migrations/0015_users_self_service_language_preference.sql` (new)
+- `supabase/tests/users_self_service_rls.test.sql` (new)
+- `supabase/tests/rls_tenant_isolation.test.sql` (modified — updated `users` assertion for the new self-read policy)
+- `packages/types/src/locales/en.json`, `packages/types/src/locales/fr.json` (new)
+- `packages/types/src/errors.ts` (modified — locale-aware `mapSupabaseError`)
+- `packages/types/src/schemas/locale.ts` (new — shared `localeSchema`)
+- `packages/types/src/index.ts` (modified — export `./schemas/locale`)
+- `apps/dashboard/locales/en.json`, `apps/dashboard/locales/fr.json` (new)
+- `apps/dashboard/lib/i18n/config.ts`, `get-request-locale.ts`, `get-server-translation.ts`, `client-provider.tsx` (new)
+- `apps/dashboard/app/layout.tsx` (modified — locale resolution, provider wiring, dynamic `lang`)
+- `apps/dashboard/app/(dashboard)/layout.tsx` (modified — localized error string)
+- `apps/dashboard/app/(dashboard)/actions.ts` (new — `updateLanguagePreference` Server Action)
+- `apps/dashboard/app/(dashboard)/page.tsx` (modified — localized Overview strings)
+- `apps/dashboard/app/(dashboard)/settings/page.tsx`, `SettingsForm.tsx`, `actions.ts` (modified — full string extraction)
+- `apps/dashboard/app/auth/error/page.tsx`, `sign-up-success/page.tsx` (modified — localized strings)
+- `apps/dashboard/components/shared/Sidebar.tsx` (modified — translated nav/role labels, language toggle in footer)
+- `apps/dashboard/components/shared/TopBar.tsx` (modified — localized `aria-label`)
+- `apps/dashboard/components/shared/LanguageToggle.tsx` (new)
+- `apps/dashboard/components/login-form.tsx`, `forgot-password-form.tsx`, `sign-up-form.tsx`, `update-password-form.tsx` (modified — full string extraction)
+- `apps/dashboard/services/session.ts` (modified — async `mapAndLog`, `updateLanguagePreference` service function, localized `memberName` fallback)
+- `apps/dashboard/services/gym-settings.ts` (modified — awaited `mapAndLog`, localized `gymNotFoundError`/`unsupportedType`)
+- `apps/dashboard/eslint.config.mjs` (modified — native flat-config imports, i18next plugin)
+- `apps/dashboard/tailwind.config.ts` (modified — `require()` → `import`)
+- `apps/dashboard/package.json` (modified — `i18next`, `react-i18next`; `eslint-plugin-i18next` devDependency)
+- `apps/super-admin/locales/en.json`, `apps/super-admin/locales/fr.json` (new)
+- `apps/super-admin/lib/i18n/config.ts`, `get-request-locale.ts`, `get-server-translation.ts`, `client-provider.tsx` (new)
+- `apps/super-admin/app/layout.tsx` (modified — locale resolution, provider wiring, dynamic `lang`)
+- `apps/super-admin/app/(admin)/layout.tsx` (modified — translated nav labels, language toggle in top nav)
+- `apps/super-admin/app/(admin)/actions.ts` (new — `updateLanguagePreference` Server Action)
+- `apps/super-admin/app/(admin)/gyms/page.tsx`, `gyms/components/{GymsPageClient,CreateGymModal,GymLifecycleDialog}.tsx`, `gyms/[id]/page.tsx`, `gyms/[id]/components/{GymDetailPageClient,AuditTrailTab,CapOverrideEditor,ChangeTierDialog,EscalateAccessDialog}.tsx` (modified — full string extraction, icon replacements)
+- `apps/super-admin/app/(admin)/tiers/page.tsx`, `tiers/components/{TierModal,TiersPageClient}.tsx` (modified — full string extraction, icon replacement)
+- `apps/super-admin/app/(admin)/metrics/page.tsx` (modified — full string extraction)
+- `apps/super-admin/app/auth/error/page.tsx`, `sign-up-success/page.tsx` (modified — localized strings)
+- `apps/super-admin/components/LanguageToggle.tsx` (new)
+- `apps/super-admin/components/login-form.tsx`, `forgot-password-form.tsx`, `sign-up-form.tsx`, `update-password-form.tsx` (modified — full string extraction)
+- `apps/super-admin/services/gyms.ts` (modified — async `mapAndLog`, `updateLanguagePreference` service function)
+- `apps/super-admin/services/tiers.ts`, `metrics.ts` (modified — awaited `mapAndLog`)
+- `apps/super-admin/app/(admin)/gyms/actions.ts` (modified — awaited `mapAndLog`)
+- `apps/super-admin/eslint.config.mjs` (modified — native flat-config imports, i18next plugin, dead-scaffolding ignores)
+- `apps/super-admin/tailwind.config.ts` (modified — `require()` → `import`)
+- `apps/super-admin/package.json` (modified — `i18next`, `react-i18next`; `eslint-plugin-i18next` devDependency)
+- `scripts/check-i18n-key-parity.mjs` (new)
+- `package.json` (modified — `check:i18n` script)
+- `pnpm-workspace.yaml` (modified — `packageExtensions` for `eslint-config-next`)
+- `pnpm-lock.yaml` (modified — new dependencies)
+- `.github/workflows/ci.yml` (modified — `lint` + `check:i18n` steps, scoped to dashboard/super-admin)
+- `docs/decisions.md` (modified — new dated entry, 8 decisions)
+
+## Change Log
+
+- 2026-07-10: Implemented the bilingual (EN/FR) platform foundation end-to-end across both Next.js dashboards — `react-i18next` runtime (server + client, static-imported locale resources), shared + per-app EN/FR locale files, locale-aware `mapSupabaseError`, full hardcoded-string extraction across both apps' real product surface, a Sidebar/top-nav language toggle backed by a new `users` self-service RLS policy + column-guard trigger (`0015_users_self_service_language_preference.sql`), an ESLint `i18next/no-literal-string` CI gate, and a locale key-parity CI script. Found and fixed two real, pre-existing toolchain bugs that had silently prevented `pnpm lint` from ever running in this repo — a `FlatCompat`/`eslint-config-next` circular-JSON crash and a pnpm/`eslint-config-next` module-resolution gap — both necessary for AC #1's CI gate to mean anything, both recorded in `docs/decisions.md` with the evidence that they predate and are unrelated to this story (reproduced identically with zero i18n-related changes present). Also updated one pre-existing pgTAP assertion (`rls_tenant_isolation.test.sql`) to reflect the new, correct `users` self-read behavior, matching the same class of update Story 1.9 made to `tiers_and_gym_lifecycle_rls.test.sql`. `supabase test db`: 145/145 assertions passing. `supabase gen types typescript --local` confirmed byte-identical. Manual verification: both CI gates deliberately broken and confirmed to fail with the right message, then restored; a live `next dev` server confirmed full `Accept-Language`-driven French/English rendering of the real `/auth/login` page end-to-end. `next build`'s type-check step hits the same pre-existing, unrelated `ThemeProviderProps` error Story 1.9 already documented; `tsc --noEmit` and Turbopack's compile step both ran clean, same substitution. A full authenticated-session browser walkthrough of the toggle itself was not performed (flagged as a known gap in Completion Notes, not silently claimed). Status set to `review`.

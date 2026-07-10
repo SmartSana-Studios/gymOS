@@ -18,32 +18,36 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { LanguageToggle } from "./LanguageToggle";
 
 // Role visibility matrix (EXPERIENCE.md, Admin Dashboard -- Sidebar). Kept
 // as a flat, explicit table -- no derived "role level" abstraction that
-// isn't in the spec. A Coach session matches only the last row.
+// isn't in the spec. A Coach session matches only the last row. `labelKey`
+// (not a literal label) since the translated string can only be looked up
+// inside the component via useTranslation().
 const NAV_ITEMS: {
-  label: string;
+  labelKey: string;
   href: string;
   icon: typeof LayoutDashboard;
   roles: MemberRole[];
 }[] = [
-  { label: "Overview", href: "/", icon: LayoutDashboard, roles: ["receptionist", "manager", "owner"] },
-  { label: "Members", href: "/members", icon: Users, roles: ["receptionist", "manager", "owner"] },
-  { label: "Subscriptions", href: "/subscriptions", icon: CreditCard, roles: ["manager", "owner"] },
-  { label: "Payments", href: "/payments", icon: Wallet, roles: ["receptionist", "manager", "owner"] },
-  { label: "Attendance", href: "/attendance", icon: ClipboardList, roles: ["receptionist", "manager", "owner"] },
-  { label: "Audit Log", href: "/audit", icon: ScrollText, roles: ["manager", "owner"] },
-  { label: "Settings", href: "/settings", icon: Settings, roles: ["owner"] },
-  { label: "Coach Portal", href: "/coach", icon: Dumbbell, roles: ["coach"] },
+  { labelKey: "nav.overview", href: "/", icon: LayoutDashboard, roles: ["receptionist", "manager", "owner"] },
+  { labelKey: "nav.members", href: "/members", icon: Users, roles: ["receptionist", "manager", "owner"] },
+  { labelKey: "nav.subscriptions", href: "/subscriptions", icon: CreditCard, roles: ["manager", "owner"] },
+  { labelKey: "nav.payments", href: "/payments", icon: Wallet, roles: ["receptionist", "manager", "owner"] },
+  { labelKey: "nav.attendance", href: "/attendance", icon: ClipboardList, roles: ["receptionist", "manager", "owner"] },
+  { labelKey: "nav.auditLog", href: "/audit", icon: ScrollText, roles: ["manager", "owner"] },
+  { labelKey: "nav.settings", href: "/settings", icon: Settings, roles: ["owner"] },
+  { labelKey: "nav.coachPortal", href: "/coach", icon: Dumbbell, roles: ["coach"] },
 ];
 
-const ROLE_LABEL: Record<MemberRole, string> = {
-  member: "Member",
-  coach: "Coach",
-  receptionist: "Receptionist",
-  manager: "Manager",
-  owner: "Owner",
+const ROLE_LABEL_KEY: Record<MemberRole, string> = {
+  member: "role.member",
+  coach: "role.coach",
+  receptionist: "role.receptionist",
+  manager: "role.manager",
+  owner: "role.owner",
 };
 
 /**
@@ -66,6 +70,7 @@ function SidebarContent({
   railAware: boolean;
   onNavigate: () => void;
 }) {
+  const { t } = useTranslation();
   const pathname = usePathname();
   const items = NAV_ITEMS.filter((item) => item.roles.includes(role));
   const labelClass = railAware ? "hidden truncate lg:inline" : "truncate";
@@ -89,12 +94,13 @@ function SidebarContent({
         {items.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
+          const label = t(item.labelKey);
           return (
             <Link
               key={item.href}
               href={item.href}
               onClick={onNavigate}
-              title={item.label}
+              title={label}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground",
                 isActive &&
@@ -102,7 +108,7 @@ function SidebarContent({
               )}
             >
               <Icon size={18} className="shrink-0" />
-              <span className={labelClass}>{item.label}</span>
+              <span className={labelClass}>{label}</span>
             </Link>
           );
         })}
@@ -184,6 +190,7 @@ function SidebarFooter({
   memberName: string;
   railAware: boolean;
 }) {
+  const { t } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [confirming, setConfirming] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -205,7 +212,7 @@ function SidebarFooter({
       // Surface the failure and keep the dialog open (Review finding: this
       // previously had no error handling at all -- on rejection, nothing
       // was shown and the dialog never closed).
-      setLogoutError("Something went wrong on our end.");
+      setLogoutError(t("common.somethingWentWrong"));
       setLoggingOut(false);
       return;
     }
@@ -224,23 +231,25 @@ function SidebarFooter({
         <div className={cn("flex min-w-0 flex-col", railAware && "hidden lg:flex")}>
           <span className="truncate text-sm font-medium">{memberName}</span>
           <Badge variant="secondary" className="w-fit text-[10px]">
-            {ROLE_LABEL[role]}
+            {t(ROLE_LABEL_KEY[role])}
           </Badge>
         </div>
       </div>
+
+      <LanguageToggle railAware={railAware} />
 
       <Button
         type="button"
         variant="outline"
         size="sm"
-        title="Log out"
+        title={t("sidebar.logout")}
         className={cn(
           "bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground",
           railAware && "lg:w-full",
         )}
         onClick={() => setConfirming(true)}
       >
-        <span className={railAware ? "hidden lg:inline" : undefined}>Log out</span>
+        <span className={railAware ? "hidden lg:inline" : undefined}>{t("sidebar.logout")}</span>
       </Button>
 
       <dialog
@@ -255,7 +264,7 @@ function SidebarFooter({
         className="w-full max-w-[360px] rounded-md border p-0 backdrop:bg-black/50"
       >
         <div className="space-y-4 p-6">
-          <h2 className="text-lg font-semibold">Log out of GymOS?</h2>
+          <h2 className="text-lg font-semibold">{t("sidebar.logoutConfirmTitle")}</h2>
           {logoutError && <p className="text-sm text-destructive">{logoutError}</p>}
           <div className="flex justify-end gap-2">
             <Button
@@ -264,10 +273,10 @@ function SidebarFooter({
               disabled={loggingOut}
               onClick={() => dialogRef.current?.close()}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button type="button" variant="destructive" disabled={loggingOut} onClick={handleLogout}>
-              {loggingOut ? "Logging out…" : "Log out"}
+              {loggingOut ? t("sidebar.loggingOut") : t("sidebar.logout")}
             </Button>
           </div>
         </div>

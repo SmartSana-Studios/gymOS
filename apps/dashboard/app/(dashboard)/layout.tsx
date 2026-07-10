@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 
 import { getDashboardShellContext } from "@/services/session";
 import { DashboardChrome } from "@/components/shared/DashboardChrome";
+import { getRequestLocale } from "@/lib/i18n/get-request-locale";
+import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
 /**
  * Hard security boundary, not incidental scaffolding: `apps/dashboard` and
@@ -30,9 +32,10 @@ export default async function DashboardLayout({
     // hit the same failure again immediately after re-authenticating
     // (Review finding). Show an inline error instead, matching
     // apps/super-admin's own established pattern for this exact situation.
+    const { t } = await getServerTranslation(await getRequestLocale());
     return (
       <div className="flex min-h-screen items-center justify-center p-6 text-sm text-destructive">
-        Something went wrong on our end. Try refreshing the page.
+        {t("common.loadError")}
       </div>
     );
   }

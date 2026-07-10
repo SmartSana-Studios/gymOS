@@ -1,0 +1,19 @@
+{
+  "common": {
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "saving": "Enregistrement…",
+    "close": "Fermer",
+    "somethingWentWrong": "Une erreur est survenue de notre côté.",
+    "loadError": "Une erreur est survenue de notre côté. Essayez de recharger la page.",
+    "invalidInput": "Saisie invalide"
+  },
+  "errors": {
+    "gymNameTaken": "Une salle porte déjà ce nom",
+    "tierNameTaken": "Ce nom est déjà utilisé",
+    "tierNotFound": "Ce palier n'existe plus. Choisissez-en un autre.",
+    "ownerEmailTaken": "Cette adresse e-mail est déjà enregistrée",
+    "ownerPhoneTaken": "Ce numéro de téléphone est déjà enregistré",
+    "unknown": "Une erreur est survenue de notre côté."
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { overrideGymCapSchema } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ export function CapOverrideEditor({
   gym: GymDetail;
   onSaved: (warning?: string) => void;
 }) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(
     gym.memberCapOverride !== null ? String(gym.memberCapOverride) : "",
@@ -28,13 +30,13 @@ export function CapOverrideEditor({
     setError(null);
     const raw = value.trim();
     if (raw !== "" && Number.isNaN(Number(raw))) {
-      setError("Enter a positive number");
+      setError(t("gyms.detail.enterPositiveNumber"));
       return;
     }
     const capOverride = raw === "" ? null : Number(raw);
     const parsed = overrideGymCapSchema.safeParse({ capOverride });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Enter a positive number");
+      setError(parsed.error.issues[0]?.message ?? t("gyms.detail.enterPositiveNumber"));
       return;
     }
 
@@ -76,7 +78,7 @@ export function CapOverrideEditor({
   if (!editing) {
     return (
       <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-        Override cap
+        {t("gyms.detail.overrideCap")}
       </Button>
     );
   }
@@ -88,14 +90,14 @@ export function CapOverrideEditor({
         min={1}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Blank = use tier cap"
+        placeholder={t("gyms.detail.overrideCapPlaceholder")}
         className="h-8 w-40"
       />
       <Button size="sm" onClick={handleSave} disabled={saving}>
-        {saving ? "Saving…" : "Save"}
+        {saving ? t("common.saving") : t("common.save")}
       </Button>
       <Button variant="outline" size="sm" onClick={handleCancel} disabled={saving}>
-        Cancel
+        {t("common.cancel")}
       </Button>
       {error && <span className="text-sm text-red-600">{error}</span>}
     </span>

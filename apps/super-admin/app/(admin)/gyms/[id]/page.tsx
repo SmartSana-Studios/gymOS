@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getGymDetail, listGymAuditTrail, listTiers, type AuditTrailEntry } from "@/services/gyms";
 import { GymDetailPageClient } from "./components/GymDetailPageClient";
 import GymDetailLoading from "./loading";
+import { getRequestLocale } from "@/lib/i18n/get-request-locale";
+import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
 // SA-03 Gym Detail. Same Server Component + explicit <Suspense> pattern as
 // gyms/page.tsx (Story 1.5's cacheComponents: true requirement). Story 1.7
@@ -41,11 +43,8 @@ async function GymDetailData({ params }: { params: Promise<{ id: string }> }) {
   ]);
 
   if (gymError || tiersError || auditTrailError) {
-    return (
-      <div className="text-sm text-red-600">
-        Something went wrong on our end. Try refreshing the page.
-      </div>
-    );
+    const { t } = await getServerTranslation(await getRequestLocale());
+    return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
   }
 
   if (!gym) {
@@ -72,6 +71,7 @@ async function GymDetailData({ params }: { params: Promise<{ id: string }> }) {
   // rows, which don't carry that class of content) keep their reason text.
   const auditTrailForDisplay: AuditTrailEntry[] = entries.map((entry) => {
     if (entry.actionType === "gym_data_escalation" && entry.actorId !== currentActorId) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- destructured only to drop it from `rest`
       const { reason: _reason, ...rest } = entry.metadata;
       return { ...entry, metadata: rest };
     }

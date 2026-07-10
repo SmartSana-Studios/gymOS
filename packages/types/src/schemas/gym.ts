@@ -81,3 +81,39 @@ export const escalateGymAccessSchema = z.object({
 });
 
 export type EscalateGymAccessInput = z.infer<typeof escalateGymAccessSchema>;
+
+// Story 1.9 (FR-069): Settings page field validation, copy taken
+// character-for-character from EXPERIENCE.md's AD-13 field table. `capacity`
+// here is `gyms.capacity` (FR-046 occupancy denominator) -- NOT
+// `gyms.member_cap_override` (Story 1.6, tier-based member ceiling); the two
+// columns are unrelated despite the similar naming. The `gyms.capacity`
+// column itself stays nullable (existing gyms provisioned before this story
+// may have capacity = null) -- this is form-level "required" only, no DB
+// constraint added.
+export const gymSettingsSchema = z.object({
+  gymName: z.string().trim().min(2, "Gym name is required").max(120, "Gym name is too long"),
+  // Only null (no logo) or a URL under this bucket's own public object path
+  // is accepted -- `uploadGymLogo` is the only legitimate producer of this
+  // value, so this rejects an arbitrary/data:/blob: string submitted by
+  // calling this schema directly, bypassing the upload flow.
+  logoUrl: z
+    .url()
+    .refine((url) => url.includes("/storage/v1/object/public/gym-logos/"), {
+      message: "Logo URL must come from the gym-logos upload flow",
+    })
+    .nullable(),
+  // `gyms.primary_color` is nullable with no default -- gyms provisioned
+  // before this story (or that simply haven't set a color yet) must still be
+  // able to save every other field without being forced to pick a color.
+  primaryColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "Enter a valid hex colour (e.g. #E0971F)")
+    .nullable(),
+  timezone: z.enum(["Africa/Douala", "Africa/Lagos", "Africa/Bangui", "Africa/Kinshasa", "UTC"]),
+  defaultLanguage: z.enum(["en", "fr"]),
+  gracePeriodDays: z.number().int().min(1, "Grace period must be between 1 and 30 days").max(30, "Grace period must be between 1 and 30 days"),
+  capacity: z.number().int().positive("Enter the gym's member capacity").max(2147483647, "Value is too large"),
+  alertAutoDismissMinutes: z.number().int().min(1, "Auto-dismiss must be between 1 and 120 minutes").max(120, "Auto-dismiss must be between 1 and 120 minutes"),
+});
+
+export type GymSettingsInput = z.infer<typeof gymSettingsSchema>;

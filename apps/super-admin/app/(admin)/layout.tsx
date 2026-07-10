@@ -2,6 +2,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
+import { getRequestLocale } from "@/lib/i18n/get-request-locale";
+import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { LanguageToggle } from "@/components/LanguageToggle";
 
 /**
  * Hard security boundary, not incidental scaffolding: `apps/super-admin` and
@@ -25,11 +28,13 @@ export default async function AdminLayout({
     redirect("/auth/login");
   }
 
+  const { t } = await getServerTranslation(await getRequestLocale());
+
   return (
     <div className="min-h-screen flex flex-col">
       <nav className="w-full border-b h-14 flex items-center gap-6 px-5">
         <Link href="/gyms" className="font-semibold">
-          GymOS Super Admin
+          {t("nav.brand")}
         </Link>
         {/*
           Flat links, not the responsive icon-rail/hamburger sidebar
@@ -39,11 +44,12 @@ export default async function AdminLayout({
           which already points to /gyms -- no separate "Gyms" link needed.
         */}
         <Link href="/metrics" className="text-sm text-muted-foreground hover:text-foreground">
-          Metrics
+          {t("nav.metrics")}
         </Link>
         <Link href="/tiers" className="text-sm text-muted-foreground hover:text-foreground">
-          Tiers
+          {t("nav.tiers")}
         </Link>
+        <LanguageToggle />
       </nav>
       <main className="flex-1 p-5">{children}</main>
     </div>

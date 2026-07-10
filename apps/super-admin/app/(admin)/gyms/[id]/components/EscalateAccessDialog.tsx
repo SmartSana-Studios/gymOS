@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { escalateGymAccessSchema } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ export function EscalateAccessDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const { t } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +43,7 @@ export function EscalateAccessDialog({
 
     const parsed = escalateGymAccessSchema.safeParse({ reason });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Invalid input");
+      setError(parsed.error.issues[0]?.message ?? t("common.invalidInput"));
       return;
     }
 
@@ -54,7 +56,7 @@ export function EscalateAccessDialog({
       }
       onDone();
     } catch {
-      setError("Something went wrong on our end.");
+      setError(t("common.somethingWentWrong"));
     } finally {
       setSubmitting(false);
     }
@@ -70,14 +72,13 @@ export function EscalateAccessDialog({
       className="w-full max-w-[420px] rounded-md border p-0 backdrop:bg-black/50"
     >
       <form onSubmit={handleSubmit} className="space-y-4 p-6">
-        <h2 className="text-lg font-semibold">Access gym data</h2>
+        <h2 className="text-lg font-semibold">{t("gyms.escalate.title")}</h2>
         <p className="text-sm text-muted-foreground">
-          Viewing {gym.name}&rsquo;s member and payment records requires a reason. This is
-          audit-logged with your identity and a timestamp.
+          {t("gyms.escalate.body", { gymName: gym.name })}
         </p>
 
         <div className="space-y-2">
-          <Label htmlFor="reason">Reason *</Label>
+          <Label htmlFor="reason">{t("gyms.lifecycle.reason")}</Label>
           <textarea
             id="reason"
             value={reason}
@@ -90,10 +91,10 @@ export function EscalateAccessDialog({
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" disabled={submitting}>
-            {submitting ? "Requesting…" : `Access ${gym.name}'s data`}
+            {submitting ? t("gyms.escalate.requesting") : t("gyms.escalate.accessButton", { gymName: gym.name })}
           </Button>
         </div>
       </form>

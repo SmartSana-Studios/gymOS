@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 import { Button } from "@/components/ui/button";
 import type { TierRow } from "@/services/tiers";
@@ -11,17 +13,18 @@ import { deleteTier } from "../actions";
 /** Display-only range derived from tier ordering (ascending monthly_price,
  * matching listTiersWithGymCounts' own order) -- "min" is never a stored
  * field (story 1-6 Dev Notes -> Open Question 1). */
-function rangeLabel(tiers: TierRow[], index: number): string {
+function rangeLabel(tiers: TierRow[], index: number, t: TFunction): string {
   const tier = tiers[index];
   const previousCap = index > 0 ? tiers[index - 1].memberCap : 0;
   const min = (previousCap ?? 0) + 1;
   if (tier.memberCap === null) {
-    return `> ${previousCap ?? 0} members (no cap)`;
+    return t("tiers.rangeNoCap", { cap: previousCap ?? 0 });
   }
-  return `${min}–${tier.memberCap} members`;
+  return t("tiers.rangeWithCap", { min, max: tier.memberCap });
 }
 
 export function TiersPageClient({ initialTiers }: { initialTiers: TierRow[] }) {
+  const { t } = useTranslation();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTier, setEditingTier] = useState<TierRow | null>(null);
   const [confirmTier, setConfirmTier] = useState<TierRow | null>(null);
@@ -96,16 +99,14 @@ export function TiersPageClient({ initialTiers }: { initialTiers: TierRow[] }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Tier Management</h1>
-        <Button onClick={openCreate}>+ Add Tier</Button>
+        <h1 className="text-2xl font-semibold">{t("tiers.title")}</h1>
+        <Button onClick={openCreate}>{t("tiers.addTier")}</Button>
       </div>
 
       {initialTiers.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-md border border-dashed py-16 text-center">
-          <p className="text-sm text-muted-foreground">
-            No tiers configured. Add your first tier.
-          </p>
-          <Button onClick={openCreate}>Add Tier</Button>
+          <p className="text-sm text-muted-foreground">{t("tiers.emptyNoTiers")}</p>
+          <Button onClick={openCreate}>{t("tiers.addTierButton")}</Button>
         </div>
       ) : (
         <div className="divide-y rounded-md border">
@@ -115,20 +116,22 @@ export function TiersPageClient({ initialTiers }: { initialTiers: TierRow[] }) {
                 <p className="font-medium">
                   {tier.name}{" "}
                   <span className="font-normal text-muted-foreground">
-                    {rangeLabel(initialTiers, index)}
+                    {rangeLabel(initialTiers, index, t)}
                   </span>
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Monthly: XAF {tier.monthlyPrice.toLocaleString()} · Annual: XAF{" "}
-                  {tier.annualPrice.toLocaleString()}
+                  {t("tiers.monthlyAnnual", {
+                    monthly: tier.monthlyPrice.toLocaleString(),
+                    annual: tier.annualPrice.toLocaleString(),
+                  })}
                 </p>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => openEdit(tier)}>
-                  Edit
+                  {t("tiers.edit")}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => openDeleteConfirm(tier)}>
-                  Delete
+                  {t("tiers.delete")}
                 </Button>
               </div>
             </div>
@@ -157,18 +160,18 @@ export function TiersPageClient({ initialTiers }: { initialTiers: TierRow[] }) {
       >
         <div className="space-y-4 p-6">
           <h2 className="text-lg font-semibold">
-            Delete {confirmTier?.name}
+            {t("tiers.deleteConfirmTitle", { name: confirmTier?.name ?? "" })}
           </h2>
-          <p className="text-sm text-muted-foreground">
-            This cannot be undone.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("tiers.deleteConfirmBody")}</p>
           {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={closeDeleteConfirm} disabled={deleting}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Deleting…" : `Delete ${confirmTier?.name ?? ""}`}
+              {deleting
+                ? t("tiers.deleting")
+                : t("tiers.deleteButton", { name: confirmTier?.name ?? "" })}
             </Button>
           </div>
         </div>

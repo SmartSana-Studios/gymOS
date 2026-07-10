@@ -3,6 +3,8 @@ import { Suspense } from "react";
 import { listGyms, listTiers } from "@/services/gyms";
 import { GymsPageClient } from "./components/GymsPageClient";
 import GymsLoading from "./loading";
+import { getRequestLocale } from "@/lib/i18n/get-request-locale";
+import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
 // SA-02 Gym List. Server Component: initial data loads server-side per
 // architecture's "Server Components for read-heavy pages" pattern; the
@@ -46,11 +48,8 @@ async function GymsData({
     ]);
 
   if (gymsError || tiersError) {
-    return (
-      <div className="text-sm text-red-600">
-        Something went wrong on our end. Try refreshing the page.
-      </div>
-    );
+    const { t } = await getServerTranslation(await getRequestLocale());
+    return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
   }
 
   return (

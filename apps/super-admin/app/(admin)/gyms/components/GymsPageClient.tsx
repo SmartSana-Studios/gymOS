@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useTranslation } from "react-i18next";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +13,12 @@ import { GymLifecycleDialog } from "./GymLifecycleDialog";
 import { deactivateGym, reinstateGym, suspendGym } from "../actions";
 
 const STATUS_OPTIONS = ["", "active", "suspended", "deactivated"] as const;
+const STATUS_LABEL_KEY: Record<(typeof STATUS_OPTIONS)[number], string> = {
+  "": "gyms.statusAll",
+  active: "gyms.create.statusActive",
+  suspended: "gyms.create.statusSuspended",
+  deactivated: "gyms.create.statusDeactivated",
+};
 
 export function GymsPageClient({
   initialGyms,
@@ -40,6 +48,7 @@ export function GymsPageClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     return () => {
@@ -49,8 +58,11 @@ export function GymsPageClient({
 
   // Resync the search box with the URL's `search` param when it changes
   // externally (e.g. browser back/forward) -- otherwise the input keeps
-  // showing stale text that no longer matches the applied filter.
+  // showing stale text that no longer matches the applied filter. Already a
+  // documented, accepted narrow-risk pattern (Story 1.6 deferred-work.md) --
+  // not redesigned here.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSearchInput(search);
   }, [search]);
 
@@ -78,8 +90,8 @@ export function GymsPageClient({
     setModalOpen(false);
     showToast(
       smsSent
-        ? `Gym created. SMS sent to ${ownerPhone}.`
-        : `Gym created. Invite link generated for ${ownerPhone} — SMS delivery isn't connected yet.`,
+        ? t("gyms.toast.createdSms", { phone: ownerPhone })
+        : t("gyms.toast.createdNoSms", { phone: ownerPhone }),
     );
     router.refresh();
   }
@@ -89,13 +101,13 @@ export function GymsPageClient({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Gyms</h1>
-        <Button onClick={() => setModalOpen(true)}>+ Create Gym</Button>
+        <h1 className="text-2xl font-semibold">{t("gyms.title")}</h1>
+        <Button onClick={() => setModalOpen(true)}>{t("gyms.createGym")}</Button>
       </div>
 
       <div className="flex gap-2">
         <Input
-          placeholder="Search gym name"
+          placeholder={t("gyms.searchPlaceholder")}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => {
@@ -110,12 +122,12 @@ export function GymsPageClient({
         >
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
-              {s === "" ? "All" : s[0].toUpperCase() + s.slice(1)}
+              {t(STATUS_LABEL_KEY[s])}
             </option>
           ))}
         </select>
         <Button variant="outline" onClick={() => updateParams({ search: searchInput, page: 1 })}>
-          Search
+          {t("gyms.search")}
         </Button>
       </div>
 
@@ -123,25 +135,19 @@ export function GymsPageClient({
         <div className="flex flex-col items-center gap-3 rounded-md border border-dashed py-16 text-center">
           {total === 0 && !search && !status ? (
             <>
-              <p className="text-sm text-muted-foreground">
-                No gyms on the platform yet. Create the first one.
-              </p>
-              <Button onClick={() => setModalOpen(true)}>Create Gym</Button>
+              <p className="text-sm text-muted-foreground">{t("gyms.emptyNoGyms")}</p>
+              <Button onClick={() => setModalOpen(true)}>{t("gyms.createGymButton")}</Button>
             </>
           ) : total === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No gyms match your search or filter.
-            </p>
+            <p className="text-sm text-muted-foreground">{t("gyms.emptyNoMatch")}</p>
           ) : (
             // total > 0 but this page has no rows -- a stale `page` param
             // past the last page (e.g. after a filter shrank the result
             // set), not "no matches."
             <>
-              <p className="text-sm text-muted-foreground">
-                No gyms on this page.
-              </p>
+              <p className="text-sm text-muted-foreground">{t("gyms.emptyNoPageRows")}</p>
               <Button variant="outline" onClick={() => updateParams({ page: 1 })}>
-                Back to page 1
+                {t("gyms.backToPage1")}
               </Button>
             </>
           )}
@@ -151,12 +157,12 @@ export function GymsPageClient({
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">
               <tr>
-                <th className="p-3 font-medium">Gym Name</th>
-                <th className="p-3 font-medium">Owner</th>
-                <th className="p-3 font-medium">Created</th>
-                <th className="p-3 font-medium">Tier</th>
-                <th className="p-3 font-medium">Status</th>
-                <th className="p-3 font-medium">Actions</th>
+                <th className="p-3 font-medium">{t("gyms.table.gymName")}</th>
+                <th className="p-3 font-medium">{t("gyms.table.owner")}</th>
+                <th className="p-3 font-medium">{t("gyms.table.created")}</th>
+                <th className="p-3 font-medium">{t("gyms.table.tier")}</th>
+                <th className="p-3 font-medium">{t("gyms.table.status")}</th>
+                <th className="p-3 font-medium">{t("gyms.table.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -175,7 +181,9 @@ export function GymsPageClient({
                     {new Date(gym.createdAt).toLocaleDateString()}
                   </td>
                   <td className="p-3">{gym.tierName}</td>
-                  <td className="p-3 capitalize">{gym.status}</td>
+                  <td className="p-3">
+                    {t(STATUS_LABEL_KEY[gym.status as (typeof STATUS_OPTIONS)[number]] ?? "")}
+                  </td>
                   <td className="p-3">
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                       {gym.status === "active" && (
@@ -185,14 +193,14 @@ export function GymsPageClient({
                             size="sm"
                             onClick={() => setLifecycleGym({ gym, action: "suspend" })}
                           >
-                            Suspend
+                            {t("gyms.actions.suspend")}
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setLifecycleGym({ gym, action: "deactivate" })}
                           >
-                            Deactivate
+                            {t("gyms.actions.deactivate")}
                           </Button>
                         </>
                       )}
@@ -203,14 +211,14 @@ export function GymsPageClient({
                             size="sm"
                             onClick={() => setLifecycleGym({ gym, action: "reinstate" })}
                           >
-                            Reinstate
+                            {t("gyms.actions.reinstate")}
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setLifecycleGym({ gym, action: "deactivate" })}
                           >
-                            Deactivate
+                            {t("gyms.actions.deactivate")}
                           </Button>
                         </>
                       )}
@@ -220,7 +228,7 @@ export function GymsPageClient({
                           size="sm"
                           onClick={() => setLifecycleGym({ gym, action: "reinstate" })}
                         >
-                          Reinstate
+                          {t("gyms.actions.reinstate")}
                         </Button>
                       )}
                     </div>
@@ -240,7 +248,7 @@ export function GymsPageClient({
             disabled={page <= 1}
             onClick={() => updateParams({ page: page - 1 })}
           >
-            ←
+            <ChevronLeft size={16} />
           </Button>
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
             <Button
@@ -258,7 +266,7 @@ export function GymsPageClient({
             disabled={page >= totalPages}
             onClick={() => updateParams({ page: page + 1 })}
           >
-            →
+            <ChevronRight size={16} />
           </Button>
         </div>
       )}

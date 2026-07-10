@@ -1,0 +1,183 @@
+{
+  "nav": {
+    "brand": "GymOS Super Admin",
+    "metrics": "Metrics",
+    "tiers": "Tiers"
+  },
+  "auth": {
+    "title": "Login",
+    "description": "Enter your email below to login to your account",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "forgotPassword": "Forgot your password?",
+    "signingIn": "Logging in...",
+    "signIn": "Login",
+    "noAccount": "Don't have an account?",
+    "signUp": "Sign up",
+    "emailPlaceholder": "m@example.com",
+    "checkYourEmail": "Check Your Email",
+    "passwordResetSent": "Password reset instructions sent",
+    "passwordResetSentBody": "If you registered using your email and password, you will receive a password reset email.",
+    "resetPasswordTitle": "Reset Your Password",
+    "resetPasswordDescription": "Type in your email and we'll send you a link to reset your password",
+    "resetPasswordBody2": "Please enter your new password below.",
+    "sendingEmail": "Sending...",
+    "sendResetEmail": "Send reset email",
+    "alreadyHaveAccount": "Already have an account?",
+    "loginLink": "Login",
+    "signUpTitle": "Sign up",
+    "createNewAccount": "Create a new account",
+    "repeatPassword": "Repeat Password",
+    "passwordsDoNotMatch": "Passwords do not match",
+    "creatingAccount": "Creating an account...",
+    "newPassword": "New password",
+    "savingPassword": "Saving...",
+    "saveNewPassword": "Save new password",
+    "signUpSuccessTitle": "Thank you for signing up!",
+    "checkEmailToConfirm": "Check your email to confirm",
+    "signUpSuccessBody": "You've successfully signed up. Please check your email to confirm your account before signing in.",
+    "errorTitle": "Sorry, something went wrong.",
+    "errorCode": "Code error: {{code}}",
+    "unspecifiedError": "An unspecified error occurred."
+  },
+  "gyms": {
+    "title": "Gyms",
+    "createGym": "+ Create Gym",
+    "searchPlaceholder": "Search gym name",
+    "statusAll": "All",
+    "search": "Search",
+    "emptyNoGyms": "No gyms on the platform yet. Create the first one.",
+    "createGymButton": "Create Gym",
+    "emptyNoMatch": "No gyms match your search or filter.",
+    "emptyNoPageRows": "No gyms on this page.",
+    "backToPage1": "Back to page 1",
+    "table": {
+      "gymName": "Gym Name",
+      "owner": "Owner",
+      "created": "Created",
+      "tier": "Tier",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "actions": {
+      "suspend": "Suspend",
+      "deactivate": "Deactivate",
+      "reinstate": "Reinstate"
+    },
+    "toast": {
+      "createdSms": "Gym created. SMS sent to {{phone}}.",
+      "createdNoSms": "Gym created. Invite link generated for {{phone}} — SMS delivery isn't connected yet."
+    },
+    "create": {
+      "title": "Create Gym",
+      "close": "Close",
+      "gymName": "Gym Name *",
+      "ownerName": "Owner Name *",
+      "ownerPhone": "Owner Phone *",
+      "ownerPhonePlaceholder": "+237600000000",
+      "ownerEmail": "Owner Email *",
+      "tier": "Subscription Tier *",
+      "selectTier": "Select a tier",
+      "status": "Status",
+      "statusActive": "Active",
+      "statusSuspended": "Suspended",
+      "statusDeactivated": "Deactivated",
+      "creating": "Creating…"
+    },
+    "lifecycle": {
+      "suspendTitle": "Suspend {{name}}",
+      "suspending": "Suspending…",
+      "deactivateTitle": "Deactivate {{name}}",
+      "deactivating": "Deactivating…",
+      "reinstateTitle": "Reinstate {{name}}",
+      "reinstating": "Reinstating…",
+      "reason": "Reason *"
+    },
+    "detail": {
+      "backToGyms": "← Gyms",
+      "gymName": "Gym Name:",
+      "owner": "Owner:",
+      "created": "Created:",
+      "tier": "Tier:",
+      "change": "Change",
+      "memberCount": "Member count:",
+      "memberCountOverride": "{{count}} / {{cap}} (override)",
+      "memberCountWithCap": "{{count}} / {{cap}}",
+      "memberCountNoCap": "{{count}} / no cap",
+      "status": "Status:",
+      "accessGranted": "Access granted — you can view this gym's member and payment records.",
+      "accessGymData": "Access gym data — requires reason (audit-logged)",
+      "overrideCap": "Override cap",
+      "overrideCapPlaceholder": "Blank = use tier cap",
+      "enterPositiveNumber": "Enter a positive number"
+    },
+    "auditTrail": {
+      "title": "Audit trail",
+      "empty": "No audit activity recorded for this gym yet.",
+      "action": {
+        "gym_created": "Gym created",
+        "gym_suspended": "Gym suspended",
+        "gym_deactivated": "Gym deactivated",
+        "gym_reinstated": "Gym reinstated",
+        "gym_tier_changed": "Tier changed",
+        "gym_cap_overridden": "Cap override changed",
+        "gym_data_escalation": "Accessed gym data"
+      }
+    },
+    "changeTier": {
+      "title": "Change Tier",
+      "newTier": "New Tier",
+      "selectTier": "Select a tier",
+      "confirmText": "Change {{gymName}} from {{oldTier}} to {{newTier}}? Existing members unaffected.",
+      "changing": "Changing…",
+      "changeTo": "Change to {{tierName}}",
+      "changeTierButton": "Change Tier",
+      "errorSelectTier": "Select a subscription tier"
+    },
+    "escalate": {
+      "title": "Access gym data",
+      "body": "Viewing {{gymName}}'s member and payment records requires a reason. This is audit-logged with your identity and a timestamp.",
+      "requesting": "Requesting…",
+      "accessButton": "Access {{gymName}}'s data"
+    }
+  },
+  "tiers": {
+    "title": "Tier Management",
+    "addTier": "+ Add Tier",
+    "emptyNoTiers": "No tiers configured. Add your first tier.",
+    "addTierButton": "Add Tier",
+    "monthlyAnnual": "Monthly: XAF {{monthly}} · Annual: XAF {{annual}}",
+    "edit": "Edit",
+    "delete": "Delete",
+    "rangeNoCap": "> {{cap}} members (no cap)",
+    "rangeWithCap": "{{min}}–{{max}} members",
+    "deleteConfirmTitle": "Delete {{name}}",
+    "deleteConfirmBody": "This cannot be undone.",
+    "deleting": "Deleting…",
+    "deleteButton": "Delete {{name}}",
+    "modal": {
+      "editTitle": "Edit {{name}}",
+      "addTitle": "Add Tier",
+      "close": "Close",
+      "tierName": "Tier Name *",
+      "memberCap": "Member Cap (blank = unlimited)",
+      "monthlyPrice": "Monthly Price (XAF) *",
+      "annualPrice": "Annual Price (XAF) *",
+      "saveChanges": "Save Changes",
+      "errors": {
+        "memberCapPositive": "Enter a positive member cap",
+        "monthlyPriceRequired": "Monthly price is required",
+        "monthlyPriceInvalid": "Enter a valid monthly price in XAF",
+        "annualPriceRequired": "Annual price is required",
+        "annualPriceInvalid": "Enter a valid annual price in XAF"
+      }
+    }
+  },
+  "metrics": {
+    "title": "Platform Metrics",
+    "totalGyms": "Total Gyms",
+    "totalMembers": "Total Members",
+    "totalPayments": "Total Payments",
+    "summary": "Active: {{active}} | Suspended: {{suspended}} | Deactivated: {{deactivated}}"
+  }
+}

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import type { AuditTrailEntry, GymDetail, TierOption } from "@/services/gyms";
@@ -27,24 +28,24 @@ export function GymDetailPageClient({
   escalated: boolean;
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [lifecycleAction, setLifecycleAction] = useState<
     "suspend" | "deactivate" | "reinstate" | null
   >(null);
   const [changingTier, setChangingTier] = useState(false);
   const [escalating, setEscalating] = useState(false);
 
-  const capLabel =
-    gym.memberCapOverride !== null
-      ? `${gym.memberCount} / ${gym.memberCapOverride} (override)`
-      : gym.tierMemberCap !== null
-        ? `${gym.memberCount} / ${gym.tierMemberCap}`
-        : `${gym.memberCount} / no cap`;
+  const STATUS_LABEL_KEY: Record<string, string> = {
+    active: "gyms.create.statusActive",
+    suspended: "gyms.create.statusSuspended",
+    deactivated: "gyms.create.statusDeactivated",
+  };
 
   return (
     <div className="space-y-4">
       <div className="text-sm text-muted-foreground">
         <Link href="/gyms" className="hover:underline">
-          ← Gyms
+          {t("gyms.detail.backToGyms")}
         </Link>
         {" / "}
         {gym.name}
@@ -52,46 +53,50 @@ export function GymDetailPageClient({
 
       <div className="space-y-4 rounded-md border p-6">
         <div className="grid grid-cols-[140px_1fr] gap-y-3 text-sm">
-          <span className="text-muted-foreground">Gym Name:</span>
+          <span className="text-muted-foreground">{t("gyms.detail.gymName")}</span>
           <span>{gym.name}</span>
 
-          <span className="text-muted-foreground">Owner:</span>
+          <span className="text-muted-foreground">{t("gyms.detail.owner")}</span>
           <span>
             {gym.ownerName ?? "—"}
             {gym.ownerPhone ? ` (${gym.ownerPhone})` : ""}
           </span>
 
-          <span className="text-muted-foreground">Created:</span>
+          <span className="text-muted-foreground">{t("gyms.detail.created")}</span>
           <span>{new Date(gym.createdAt).toLocaleDateString()}</span>
 
-          <span className="text-muted-foreground">Tier:</span>
+          <span className="text-muted-foreground">{t("gyms.detail.tier")}</span>
           <span className="flex items-center gap-2">
             {gym.tierName}
             <Button variant="outline" size="sm" onClick={() => setChangingTier(true)}>
-              Change
+              {t("gyms.detail.change")}
             </Button>
           </span>
 
-          <span className="text-muted-foreground">Member count:</span>
+          <span className="text-muted-foreground">{t("gyms.detail.memberCount")}</span>
           <span className="flex items-center gap-2">
-            {capLabel}
+            {gym.memberCapOverride !== null
+              ? t("gyms.detail.memberCountOverride", { count: gym.memberCount, cap: gym.memberCapOverride })
+              : gym.tierMemberCap !== null
+                ? t("gyms.detail.memberCountWithCap", { count: gym.memberCount, cap: gym.tierMemberCap })
+                : t("gyms.detail.memberCountNoCap", { count: gym.memberCount })}
             <CapOverrideEditor gym={gym} onSaved={() => router.refresh()} />
           </span>
 
-          <span className="text-muted-foreground">Status:</span>
+          <span className="text-muted-foreground">{t("gyms.detail.status")}</span>
           <span className="flex items-center gap-2">
-            <span className="capitalize">{gym.status}</span>
+            <span>{t(STATUS_LABEL_KEY[gym.status] ?? "")}</span>
             {gym.status === "active" && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setLifecycleAction("suspend")}>
-                  Suspend
+                  {t("gyms.actions.suspend")}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setLifecycleAction("deactivate")}
                 >
-                  Deactivate
+                  {t("gyms.actions.deactivate")}
                 </Button>
               </>
             )}
@@ -102,20 +107,20 @@ export function GymDetailPageClient({
                   size="sm"
                   onClick={() => setLifecycleAction("reinstate")}
                 >
-                  Reinstate
+                  {t("gyms.actions.reinstate")}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setLifecycleAction("deactivate")}
                 >
-                  Deactivate
+                  {t("gyms.actions.deactivate")}
                 </Button>
               </>
             )}
             {gym.status === "deactivated" && (
               <Button variant="outline" size="sm" onClick={() => setLifecycleAction("reinstate")}>
-                Reinstate
+                {t("gyms.actions.reinstate")}
               </Button>
             )}
           </span>
@@ -123,12 +128,10 @@ export function GymDetailPageClient({
 
         <div className="border-t pt-4">
           {escalated ? (
-            <span className="text-sm text-muted-foreground">
-              Access granted — you can view this gym&rsquo;s member and payment records.
-            </span>
+            <span className="text-sm text-muted-foreground">{t("gyms.detail.accessGranted")}</span>
           ) : (
             <Button variant="outline" size="sm" onClick={() => setEscalating(true)}>
-              Access gym data — requires reason (audit-logged)
+              {t("gyms.detail.accessGymData")}
             </Button>
           )}
         </div>

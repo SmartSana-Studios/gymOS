@@ -11,12 +11,8 @@ import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
-const NETWORK_ERROR_MESSAGE = "Couldn't connect. Check your internet connection.";
-const INVALID_CREDENTIALS_MESSAGE = "Email or password is incorrect.";
-const ACCOUNT_LOCKED_MESSAGE =
-  "Your account has been locked. Contact your gym administrator.";
-const GENERIC_ERROR_MESSAGE = "Something went wrong on our end.";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 // AD-01: two distinct error surfaces -- "invalid credentials" renders
 // inline below the password field (AC #2's literal requirement); network/
@@ -24,22 +20,25 @@ const GENERIC_ERROR_MESSAGE = "Something went wrong on our end.";
 // `user_banned` code has a real server-side mechanism (banned_until) even
 // though no admin UI currently sets it -- mapped here so the copy is wired
 // correctly if that ever becomes reachable, not invented for its own sake.
-function mapLoginError(error: unknown): { passwordError: string | null; formError: string | null } {
+function mapLoginError(
+  error: unknown,
+  t: TFunction,
+): { passwordError: string | null; formError: string | null } {
   const code = (error as { code?: string } | null)?.code;
 
   if (code === "invalid_credentials") {
-    return { passwordError: INVALID_CREDENTIALS_MESSAGE, formError: null };
+    return { passwordError: t("auth.errors.invalidCredentials"), formError: null };
   }
   if (code === "user_banned") {
-    return { passwordError: null, formError: ACCOUNT_LOCKED_MESSAGE };
+    return { passwordError: null, formError: t("auth.errors.accountLocked") };
   }
   if (error instanceof Error && !code) {
     // No `code` means this never reached GoTrue as a structured API
     // response -- a thrown fetch-level failure (offline, DNS, CORS), not a
     // credentials rejection.
-    return { passwordError: null, formError: NETWORK_ERROR_MESSAGE };
+    return { passwordError: null, formError: t("auth.errors.network") };
   }
-  return { passwordError: null, formError: GENERIC_ERROR_MESSAGE };
+  return { passwordError: null, formError: t("common.somethingWentWrong") };
 }
 
 export function LoginForm({
@@ -54,6 +53,7 @@ export function LoginForm({
   const [formError, setFormError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { t } = useTranslation();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +62,7 @@ export function LoginForm({
 
     const parsed = loginSchema.safeParse({ email, password });
     if (!parsed.success) {
-      setFormError(parsed.error.issues[0]?.message ?? "Invalid input");
+      setFormError(parsed.error.issues[0]?.message ?? t("common.invalidInput"));
       return;
     }
 
@@ -72,7 +72,7 @@ export function LoginForm({
     try {
       const { error } = await supabase.auth.signInWithPassword(parsed.data);
       if (error) {
-        const mapped = mapLoginError(error);
+        const mapped = mapLoginError(error, t);
         setPasswordError(mapped.passwordError);
         setFormError(mapped.formError);
         return;
@@ -88,7 +88,7 @@ export function LoginForm({
       router.push(safeRedirect);
       router.refresh();
     } catch (error: unknown) {
-      const mapped = mapLoginError(error);
+      const mapped = mapLoginError(error, t);
       setPasswordError(mapped.passwordError);
       setFormError(mapped.formError);
     } finally {
@@ -100,17 +100,17 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Sign in to GymOS</CardTitle>
+          <CardTitle className="text-2xl">{t("auth.title")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="email">Email address *</Label>
+                <Label htmlFor="email">{t("auth.emailLabel")}</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder={t("auth.emailPlaceholder")}
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -118,12 +118,12 @@ export function LoginForm({
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
-                  <Label htmlFor="password">Password *</Label>
+                  <Label htmlFor="password">{t("auth.passwordLabel")}</Label>
                   <Link
                     href="/auth/forgot-password"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
                   >
-                    Forgot password?
+                    {t("auth.forgotPassword")}
                   </Link>
                 </div>
                 <div className="relative">
@@ -138,7 +138,7 @@ export function LoginForm({
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -150,7 +150,7 @@ export function LoginForm({
               </div>
               {formError && <p className="text-sm text-destructive">{formError}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in…" : "Sign in"}
+                {isLoading ? t("auth.signingIn") : t("auth.signIn")}
               </Button>
             </div>
           </form>

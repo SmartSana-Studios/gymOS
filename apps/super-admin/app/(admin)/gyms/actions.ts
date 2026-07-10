@@ -103,11 +103,11 @@ export async function createGym(
       });
 
       if (authError || !data?.user) {
-        return { ok: false as const, error: mapAndLog(authError) };
+        return { ok: false as const, error: await mapAndLog(authError) };
       }
       return { ok: true as const, admin, authUser: data };
     } catch (err) {
-      return { ok: false as const, error: mapAndLog(err) };
+      return { ok: false as const, error: await mapAndLog(err) };
     }
   })();
 
@@ -128,7 +128,7 @@ export async function createGym(
   if (linkError || !linkData) {
     await deleteGym(gymRow.id);
     await deleteAuthUserAndLog(admin, authUser.user.id);
-    return { data: null, error: mapAndLog(linkError) };
+    return { data: null, error: await mapAndLog(linkError) };
   }
 
   // Step 5: insert the owner's membership row.

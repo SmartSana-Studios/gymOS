@@ -1,5 +1,16 @@
 # Deferred Work
 
+## Deferred from: code review of story-1-9-gym-branding-operational-settings, follow-up pass (2026-07-10)
+
+- No Storage cleanup on gym deletion/deprovisioning [supabase/migrations/0014_gym_settings_owner_access.sql] — a deleted gym's public logo would remain fetchable indefinitely at its predictable `{gym_id}/logo.{ext}` path; not actionable now since no real "delete an established gym" flow exists yet (`deleteGym` in apps/super-admin/services/gyms.ts is only `createGym`'s internal provisioning-rollback, called before an owner could ever have uploaded a logo). Revisit when a real gym-deprovisioning story lands.
+- `fieldErrors.defaultLanguage` is computed in `SettingsForm`'s validation but never rendered [apps/dashboard/app/(dashboard)/settings/SettingsForm.tsx] — unreachable via the UI today since the field is a fixed `<select>` with only valid enum options; low-priority consistency gap with the other fields' error display.
+- Business-rule bounds (grace period 1-30, alert auto-dismiss 1-120, hex color format, positive capacity) are enforced only in the Zod schema, not via a DB CHECK constraint or the RLS `WITH CHECK` clause [packages/types/src/schemas/gym.ts] — a direct Supabase REST API call from an authenticated owner session bypasses all of them; consistent with this project's already-documented "no CHECK constraints on business-numeric columns yet" precedent.
+- "Remove" on the Settings page's Logo upload zone clears the client-side preview only — it doesn't delete the underlying Storage object or persist the removal server-side [apps/dashboard/app/(dashboard)/settings/SettingsForm.tsx] — already flagged as a known scope gap in this story's own Completion Notes List; no `removeLogo` service/Server Action was ever specified.
+
+## Deferred from: code review of story-1-9-gym-branding-operational-settings (2026-07-10)
+
+- Any authenticated staff role (manager/receptionist/coach) can read the full Settings payload, including `gym_token` (the check-in QR secret), via direct route access to `/settings` [apps/dashboard/services/gym-settings.ts:50-56] — `getGymSettings` relies on the "read own gym" SELECT policy from `0009_auth_hook_gym_claims.sql`, which predates this story and is not owner-scoped; only the Sidebar nav link hides the route from non-owners. Writes are correctly RLS-enforced (owner-only), but this read-side exposure isn't new or widened by this story — pre-existing since Story 1.3/1.8. Revisit if `gym_token` should be owner-scoped at the RLS SELECT level, or narrowed to a dedicated owner-only view.
+
 ## Deferred from: code review of story-1-8-gym-owner-login-role-filtered-dashboard-shell (2026-07-10)
 
 - Suspense fallback swaps to a second, disconnected `LoginForm` instance while `searchParams` resolves [apps/dashboard/app/auth/login/page.tsx] — theoretically loses typed input if the swap happens after the user starts typing; low practical likelihood since `searchParams` resolution involves no real I/O (near-instant, single server-render pass), and a proper fix (e.g. React's `use()` hook instead of a fallback swap) is disproportionate for a foundation-shell story. Revisit if real users ever report losing login-form input.

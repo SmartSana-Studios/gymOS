@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Menu } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /**
  * Slim bar at the top of the content area (not inside the Sidebar). Two
@@ -26,6 +27,7 @@ export function TopBar({
   onOpenMobileNav: () => void;
   title?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       className={cn(
@@ -37,7 +39,7 @@ export function TopBar({
         type="button"
         variant="ghost"
         size="icon"
-        aria-label="Open navigation menu"
+        aria-label={t("topbar.openNavigationMenu")}
         onClick={onOpenMobileNav}
         className="md:hidden"
       >

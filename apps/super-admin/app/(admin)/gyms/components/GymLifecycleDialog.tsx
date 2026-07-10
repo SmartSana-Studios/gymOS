@@ -1,16 +1,27 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { gymStatusChangeSchema, type AppError } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { GymListRow } from "@/services/gyms";
 
-const ACTION_COPY = {
-  suspend: { verb: "Suspend", pastTense: "suspended" },
-  deactivate: { verb: "Deactivate", pastTense: "deactivated" },
-  reinstate: { verb: "Reinstate", pastTense: "reinstated" },
+// Full-phrase keys per action/state, not word-by-word concatenation --
+// composing a translated verb + translated noun at render time produces
+// broken grammar in French (conjugation/gender don't compose the way
+// English string concatenation does).
+const ACTION_COPY_KEYS = {
+  suspend: { titleKey: "gyms.lifecycle.suspendTitle", progressKey: "gyms.lifecycle.suspending" },
+  deactivate: {
+    titleKey: "gyms.lifecycle.deactivateTitle",
+    progressKey: "gyms.lifecycle.deactivating",
+  },
+  reinstate: {
+    titleKey: "gyms.lifecycle.reinstateTitle",
+    progressKey: "gyms.lifecycle.reinstating",
+  },
 } as const;
 
 /**
@@ -32,11 +43,13 @@ export function GymLifecycleDialog({
   onDone: (warning?: string) => void;
   runAction: (gymId: string, input: unknown) => Promise<{ error: AppError | null }>;
 }) {
+  const { t } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const copy = ACTION_COPY[action];
+  const copy = ACTION_COPY_KEYS[action];
+  const title = t(copy.titleKey, { name: gym.name });
 
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -48,7 +61,7 @@ export function GymLifecycleDialog({
 
     const parsed = gymStatusChangeSchema.safeParse({ reason });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Invalid input");
+      setError(parsed.error.issues[0]?.message ?? t("common.invalidInput"));
       return;
     }
 
@@ -74,7 +87,7 @@ export function GymLifecycleDialog({
       }
       onDone();
     } catch {
-      setError("Something went wrong on our end.");
+      setError(t("common.somethingWentWrong"));
     } finally {
       setSubmitting(false);
     }
@@ -90,12 +103,10 @@ export function GymLifecycleDialog({
       className="w-full max-w-[420px] rounded-md border p-0 backdrop:bg-black/50"
     >
       <form onSubmit={handleSubmit} className="space-y-4 p-6">
-        <h2 className="text-lg font-semibold">
-          {copy.verb} {gym.name}
-        </h2>
+        <h2 className="text-lg font-semibold">{title}</h2>
 
         <div className="space-y-2">
-          <Label htmlFor="reason">Reason *</Label>
+          <Label htmlFor="reason">{t("gyms.lifecycle.reason")}</Label>
           <textarea
             id="reason"
             value={reason}
@@ -108,10 +119,10 @@ export function GymLifecycleDialog({
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" variant="destructive" disabled={submitting}>
-            {submitting ? `${copy.verb}ing…` : `${copy.verb} ${gym.name}`}
+            {submitting ? t(copy.progressKey) : title}
           </Button>
         </div>
       </form>

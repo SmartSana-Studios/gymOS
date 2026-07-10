@@ -1,0 +1,126 @@
+{
+  "nav": {
+    "overview": "Overview",
+    "members": "Members",
+    "subscriptions": "Subscriptions",
+    "payments": "Payments",
+    "attendance": "Attendance",
+    "auditLog": "Audit Log",
+    "settings": "Settings",
+    "coachPortal": "Coach Portal"
+  },
+  "role": {
+    "member": "Member",
+    "coach": "Coach",
+    "receptionist": "Receptionist",
+    "manager": "Manager",
+    "owner": "Owner"
+  },
+  "sidebar": {
+    "logout": "Log out",
+    "loggingOut": "Logging out…",
+    "logoutConfirmTitle": "Log out of GymOS?",
+    "unknownUser": "Unknown User"
+  },
+  "topbar": {
+    "openNavigationMenu": "Open navigation menu"
+  },
+  "overview": {
+    "title": "Overview",
+    "body": "Your gym's activity summary will appear here as more of GymOS comes online."
+  },
+  "settings": {
+    "title": "Settings",
+    "saveHint": "Save applies changes across every section below.",
+    "saveButton": "Save Settings",
+    "savedToast": "Settings saved.",
+    "sections": {
+      "branding": "Branding",
+      "localization": "Localization",
+      "membership": "Membership",
+      "frontDeskAlerts": "Front-Desk Alerts",
+      "qrCode": "QR Code"
+    },
+    "fields": {
+      "gymName": "Gym Name *",
+      "logo": "Logo",
+      "noLogo": "No logo",
+      "uploadNew": "Upload new",
+      "uploading": "Uploading…",
+      "remove": "Remove",
+      "primaryColor": "Primary Color *",
+      "defaultLanguage": "Default Language",
+      "timezone": "Timezone *",
+      "gracePeriod": "Grace Period *",
+      "gracePeriodUnit": "days",
+      "capacity": "Gym Capacity *",
+      "capacityUnit": "members",
+      "alertAutoDismiss": "Alert auto-dismiss",
+      "alertAutoDismissUnit": "minutes"
+    },
+    "languageOptionEnglish": "English",
+    "languageOptionFrench": "Français",
+    "qr": {
+      "download": "Download QR code ↓",
+      "regenerate": "Regenerate QR code",
+      "regenerateConfirmTitle": "Regenerate QR code?",
+      "regenerateConfirmBody": "This will invalidate the current code immediately. Any printed or displayed copies will stop working. You will need to replace them.",
+      "regenerating": "Regenerating…",
+      "regenerateFailedToast": "Couldn't regenerate. Try again."
+    },
+    "errors": {
+      "gymNotFound": "Gym not found",
+      "noFileProvided": "No file provided",
+      "unsupportedType": "Unsupported image type. Use PNG, JPG, WEBP, or GIF.",
+      "imageTooLarge": "Image too large — maximum 5MB",
+      "auditLogFailedSave": "Settings were saved, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedQr": "QR code regenerated, but the audit log entry failed to write. Please contact support.",
+      "gracePeriodRange": "Grace period must be between 1 and 30 days",
+      "capacityRequired": "Enter the gym's member capacity",
+      "alertAutoDismissRange": "Auto-dismiss must be between 1 and 120 minutes"
+    }
+  },
+  "auth": {
+    "title": "Sign in to GymOS",
+    "emailLabel": "Email address *",
+    "emailPlaceholder": "you@example.com",
+    "passwordLabel": "Password *",
+    "forgotPassword": "Forgot password?",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "errors": {
+      "network": "Couldn't connect. Check your internet connection.",
+      "invalidCredentials": "Email or password is incorrect.",
+      "accountLocked": "Your account has been locked. Contact your gym administrator."
+    },
+    "emailLabelSimple": "Email",
+    "emailPlaceholderSimple": "m@example.com",
+    "passwordLabelSimple": "Password",
+    "loginLink": "Login",
+    "alreadyHaveAccount": "Already have an account?",
+    "checkYourEmail": "Check Your Email",
+    "passwordResetSent": "Password reset instructions sent",
+    "passwordResetSentBody": "If you registered using your email and password, you will receive a password reset email.",
+    "resetPasswordTitle": "Reset Your Password",
+    "resetPasswordDescription": "Type in your email and we'll send you a link to reset your password",
+    "resetPasswordBody2": "Please enter your new password below.",
+    "sendingEmail": "Sending...",
+    "sendResetEmail": "Send reset email",
+    "signUpTitle": "Sign up",
+    "createNewAccount": "Create a new account",
+    "repeatPassword": "Repeat Password",
+    "passwordsDoNotMatch": "Passwords do not match",
+    "creatingAccount": "Creating an account...",
+    "newPassword": "New password",
+    "savingPassword": "Saving...",
+    "saveNewPassword": "Save new password",
+    "signUpSuccessTitle": "Thank you for signing up!",
+    "checkEmailToConfirm": "Check your email to confirm",
+    "signUpSuccessBody": "You've successfully signed up. Please check your email to confirm your account before signing in.",
+    "errorTitle": "Sorry, something went wrong.",
+    "errorCode": "Code error: {{code}}",
+    "unspecifiedError": "An unspecified error occurred."
+  }
+}

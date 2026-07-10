@@ -1,0 +1,19 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving…",
+    "close": "Close",
+    "somethingWentWrong": "Something went wrong on our end.",
+    "loadError": "Something went wrong on our end. Try refreshing the page.",
+    "invalidInput": "Invalid input"
+  },
+  "errors": {
+    "gymNameTaken": "A gym with this name already exists",
+    "tierNameTaken": "This name is already in use",
+    "tierNotFound": "That tier no longer exists. Choose a different one.",
+    "ownerEmailTaken": "This email address is already registered",
+    "ownerPhoneTaken": "This phone number is already registered",
+    "unknown": "Something went wrong on our end."
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "nav": {
+    "brand": "GymOS Super Admin",
+    "metrics": "Statistiques",
+    "tiers": "Paliers"
+  },
+  "auth": {
+    "title": "Connexion",
+    "description": "Saisissez votre e-mail ci-dessous pour vous connecter à votre compte",
+    "emailLabel": "E-mail",
+    "passwordLabel": "Mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "signingIn": "Connexion en cours...",
+    "signIn": "Connexion",
+    "noAccount": "Vous n'avez pas de compte ?",
+    "signUp": "S'inscrire",
+    "emailPlaceholder": "vous@exemple.com",
+    "checkYourEmail": "Vérifiez votre e-mail",
+    "passwordResetSent": "Instructions de réinitialisation envoyées",
+    "passwordResetSentBody": "Si vous vous êtes inscrit avec votre e-mail et mot de passe, vous recevrez un e-mail de réinitialisation.",
+    "resetPasswordTitle": "Réinitialiser votre mot de passe",
+    "resetPasswordDescription": "Saisissez votre e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe",
+    "resetPasswordBody2": "Veuillez saisir votre nouveau mot de passe ci-dessous.",
+    "sendingEmail": "Envoi en cours...",
+    "sendResetEmail": "Envoyer l'e-mail de réinitialisation",
+    "alreadyHaveAccount": "Vous avez déjà un compte ?",
+    "loginLink": "Connexion",
+    "signUpTitle": "S'inscrire",
+    "createNewAccount": "Créer un nouveau compte",
+    "repeatPassword": "Répéter le mot de passe",
+    "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
+    "creatingAccount": "Création du compte...",
+    "newPassword": "Nouveau mot de passe",
+    "savingPassword": "Enregistrement...",
+    "saveNewPassword": "Enregistrer le nouveau mot de passe",
+    "signUpSuccessTitle": "Merci de vous être inscrit !",
+    "checkEmailToConfirm": "Vérifiez votre e-mail pour confirmer",
+    "signUpSuccessBody": "Votre inscription a réussi. Veuillez vérifier votre e-mail pour confirmer votre compte avant de vous connecter.",
+    "errorTitle": "Désolé, une erreur est survenue.",
+    "errorCode": "Code d'erreur : {{code}}",
+    "unspecifiedError": "Une erreur non spécifiée est survenue."
+  },
+  "gyms": {
+    "title": "Salles",
+    "createGym": "+ Créer une salle",
+    "searchPlaceholder": "Rechercher une salle",
+    "statusAll": "Toutes",
+    "search": "Rechercher",
+    "emptyNoGyms": "Aucune salle sur la plateforme pour le moment. Créez la première.",
+    "createGymButton": "Créer une salle",
+    "emptyNoMatch": "Aucune salle ne correspond à votre recherche ou filtre.",
+    "emptyNoPageRows": "Aucune salle sur cette page.",
+    "backToPage1": "Retour à la page 1",
+    "table": {
+      "gymName": "Nom de la salle",
+      "owner": "Propriétaire",
+      "created": "Créée le",
+      "tier": "Palier",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "actions": {
+      "suspend": "Suspendre",
+      "deactivate": "Désactiver",
+      "reinstate": "Réactiver"
+    },
+    "toast": {
+      "createdSms": "Salle créée. SMS envoyé à {{phone}}.",
+      "createdNoSms": "Salle créée. Lien d'invitation généré pour {{phone}} — l'envoi de SMS n'est pas encore connecté."
+    },
+    "create": {
+      "title": "Créer une salle",
+      "close": "Fermer",
+      "gymName": "Nom de la salle *",
+      "ownerName": "Nom du propriétaire *",
+      "ownerPhone": "Téléphone du propriétaire *",
+      "ownerPhonePlaceholder": "+237600000000",
+      "ownerEmail": "E-mail du propriétaire *",
+      "tier": "Palier d'abonnement *",
+      "selectTier": "Sélectionnez un palier",
+      "status": "Statut",
+      "statusActive": "Active",
+      "statusSuspended": "Suspendue",
+      "statusDeactivated": "Désactivée",
+      "creating": "Création…"
+    },
+    "lifecycle": {
+      "suspendTitle": "Suspendre {{name}}",
+      "suspending": "Suspension…",
+      "deactivateTitle": "Désactiver {{name}}",
+      "deactivating": "Désactivation…",
+      "reinstateTitle": "Réactiver {{name}}",
+      "reinstating": "Réactivation…",
+      "reason": "Motif *"
+    },
+    "detail": {
+      "backToGyms": "← Salles",
+      "gymName": "Nom de la salle :",
+      "owner": "Propriétaire :",
+      "created": "Créée le :",
+      "tier": "Palier :",
+      "change": "Modifier",
+      "memberCount": "Nombre de membres :",
+      "memberCountOverride": "{{count}} / {{cap}} (forcé)",
+      "memberCountWithCap": "{{count}} / {{cap}}",
+      "memberCountNoCap": "{{count}} / sans plafond",
+      "status": "Statut :",
+      "accessGranted": "Accès accordé — vous pouvez consulter les membres et paiements de cette salle.",
+      "accessGymData": "Accéder aux données de la salle — motif requis (journalisé)",
+      "overrideCap": "Forcer le plafond",
+      "overrideCapPlaceholder": "Vide = plafond du palier",
+      "enterPositiveNumber": "Saisissez un nombre positif"
+    },
+    "auditTrail": {
+      "title": "Journal d'audit",
+      "empty": "Aucune activité d'audit enregistrée pour cette salle pour le moment.",
+      "action": {
+        "gym_created": "Salle créée",
+        "gym_suspended": "Salle suspendue",
+        "gym_deactivated": "Salle désactivée",
+        "gym_reinstated": "Salle réactivée",
+        "gym_tier_changed": "Palier modifié",
+        "gym_cap_overridden": "Plafond forcé modifié",
+        "gym_data_escalation": "Données de la salle consultées"
+      }
+    },
+    "changeTier": {
+      "title": "Changer de palier",
+      "newTier": "Nouveau palier",
+      "selectTier": "Sélectionnez un palier",
+      "confirmText": "Faire passer {{gymName}} de {{oldTier}} à {{newTier}} ? Les membres existants ne sont pas affectés.",
+      "changing": "Changement…",
+      "changeTo": "Passer à {{tierName}}",
+      "changeTierButton": "Changer de palier",
+      "errorSelectTier": "Sélectionnez un palier d'abonnement"
+    },
+    "escalate": {
+      "title": "Accéder aux données de la salle",
+      "body": "Consulter les membres et paiements de {{gymName}} nécessite un motif. Ceci est journalisé avec votre identité et un horodatage.",
+      "requesting": "Demande en cours…",
+      "accessButton": "Accéder aux données de {{gymName}}"
+    }
+  },
+  "tiers": {
+    "title": "Gestion des paliers",
+    "addTier": "+ Ajouter un palier",
+    "emptyNoTiers": "Aucun palier configuré. Ajoutez votre premier palier.",
+    "addTierButton": "Ajouter un palier",
+    "monthlyAnnual": "Mensuel : XAF {{monthly}} · Annuel : XAF {{annual}}",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "rangeNoCap": "> {{cap}} membres (sans plafond)",
+    "rangeWithCap": "{{min}}–{{max}} membres",
+    "deleteConfirmTitle": "Supprimer {{name}}",
+    "deleteConfirmBody": "Cette action est irréversible.",
+    "deleting": "Suppression…",
+    "deleteButton": "Supprimer {{name}}",
+    "modal": {
+      "editTitle": "Modifier {{name}}",
+      "addTitle": "Ajouter un palier",
+      "close": "Fermer",
+      "tierName": "Nom du palier *",
+      "memberCap": "Plafond de membres (vide = illimité)",
+      "monthlyPrice": "Prix mensuel (XAF) *",
+      "annualPrice": "Prix annuel (XAF) *",
+      "saveChanges": "Enregistrer les modifications",
+      "errors": {
+        "memberCapPositive": "Saisissez un plafond de membres positif",
+        "monthlyPriceRequired": "Le prix mensuel est requis",
+        "monthlyPriceInvalid": "Saisissez un prix mensuel valide en XAF",
+        "annualPriceRequired": "Le prix annuel est requis",
+        "annualPriceInvalid": "Saisissez un prix annuel valide en XAF"
+      }
+    }
+  },
+  "metrics": {
+    "title": "Statistiques de la plateforme",
+    "totalGyms": "Total des salles",
+    "totalMembers": "Total des membres",
+    "totalPayments": "Total des paiements",
+    "summary": "Actives : {{active}} | Suspendues : {{suspended}} | Désactivées : {{deactivated}}"
+  }
+}

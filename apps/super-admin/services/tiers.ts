@@ -28,7 +28,7 @@ export async function listTiersWithGymCounts(): Promise<{
     .order("monthly_price", { ascending: true });
 
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
 
   const rows: TierRow[] = (data ?? []).map((tier) => ({
@@ -79,7 +79,7 @@ export async function getTier(
     .maybeSingle();
 
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
   return { data, error: null };
 }
@@ -113,7 +113,7 @@ export async function insertTier(input: {
     .single();
 
   if (error || !data) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
   return { data, error: null };
 }
@@ -144,7 +144,7 @@ export async function updateTier(
     .maybeSingle();
 
   if (error) {
-    return { error: mapAndLog(error) };
+    return { error: await mapAndLog(error) };
   }
   if (!data) {
     return { error: { code: "not_found", message: "Tier not found" } };
@@ -170,7 +170,7 @@ export async function deleteTier(tierId: string): Promise<{ error: AppError | nu
     .maybeSingle();
 
   if (error) {
-    return { error: mapAndLog(error) };
+    return { error: await mapAndLog(error) };
   }
   if (!data) {
     return { error: { code: "not_found", message: "Tier not found" } };
@@ -245,7 +245,7 @@ export async function logTierChange(
 
   if (error) {
     console.error(`[logTierChange] audit log write failed for tier ${tierId}`, error);
-    return { error: mapAndLog(error) };
+    return { error: await mapAndLog(error) };
   }
   return { error: null };
 }

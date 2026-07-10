@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { gymIdSchema, mapSupabaseError, type AppError } from "@gymos/types";
+import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 
 /**
  * `mapSupabaseError` is a pure mapping utility in `packages/types` (no
@@ -8,9 +9,15 @@ import { gymIdSchema, mapSupabaseError, type AppError } from "@gymos/types";
  * responsible for logging the original error when it maps to the generic
  * "unknown" fallback, since otherwise the original error is lost and
  * production failures become undebuggable.
+ *
+ * Async since Story 1.10: resolves the caller's locale (`getRequestLocale`)
+ * once here rather than threading a `locale` parameter through every
+ * Server Action/service function call chain in the app -- every existing
+ * call site just gains an `await`.
  */
-export function mapAndLog(rawError: unknown): AppError {
-  const mapped = mapSupabaseError(rawError);
+export async function mapAndLog(rawError: unknown): Promise<AppError> {
+  const locale = await getRequestLocale();
+  const mapped = mapSupabaseError(rawError, locale);
   if (mapped.code === "unknown") {
     console.error("[mapSupabaseError] unmapped error", rawError);
   }
@@ -91,7 +98,7 @@ export async function listGyms(
   const { data, error, count } = await query;
 
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
 
   const rows: GymListRow[] = (data ?? []).map((gym) => {
@@ -182,7 +189,7 @@ export async function getGymDetail(gymId: string): Promise<{
     ]);
 
   if (gymError || countError) {
-    return { data: null, error: mapAndLog(gymError ?? countError) };
+    return { data: null, error: await mapAndLog(gymError ?? countError) };
   }
   if (!gym) {
     return { data: null, error: null };
@@ -247,7 +254,7 @@ export async function listGymAuditTrail(gymId: string): Promise<{
     .limit(AUDIT_TRAIL_MAX_ROWS);
 
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
 
   const rows: AuditTrailEntry[] = (data ?? []).map((row) => ({
@@ -298,7 +305,7 @@ export async function updateGymStatus(
     .eq("id", gymId)
     .maybeSingle();
   if (beforeError) {
-    return { data: null, error: mapAndLog(beforeError) };
+    return { data: null, error: await mapAndLog(beforeError) };
   }
   if (!before) {
     return { data: null, error: { code: "not_found", message: "Gym not found" } };
@@ -311,7 +318,7 @@ export async function updateGymStatus(
     .select("id")
     .maybeSingle();
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
   if (!updated) {
     return { data: null, error: { code: "not_found", message: "Gym not found" } };
@@ -338,7 +345,7 @@ export async function updateGymTier(
     .eq("id", gymId)
     .maybeSingle();
   if (beforeError) {
-    return { data: null, error: mapAndLog(beforeError) };
+    return { data: null, error: await mapAndLog(beforeError) };
   }
   if (!before) {
     return { data: null, error: { code: "not_found", message: "Gym not found" } };
@@ -351,7 +358,7 @@ export async function updateGymTier(
     .select("id")
     .maybeSingle();
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
   if (!updated) {
     return { data: null, error: { code: "not_found", message: "Gym not found" } };
@@ -378,7 +385,7 @@ export async function updateGymCapOverride(
     .eq("id", gymId)
     .maybeSingle();
   if (beforeError) {
-    return { data: null, error: mapAndLog(beforeError) };
+    return { data: null, error: await mapAndLog(beforeError) };
   }
   if (!before) {
     return { data: null, error: { code: "not_found", message: "Gym not found" } };
@@ -391,7 +398,7 @@ export async function updateGymCapOverride(
     .select("id")
     .maybeSingle();
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
   if (!updated) {
     return { data: null, error: { code: "not_found", message: "Gym not found" } };
@@ -430,7 +437,7 @@ export async function logGymLifecycleEvent(
 
   if (error) {
     console.error(`[logGymLifecycleEvent] audit log write failed for gym ${gymId}`, error);
-    return { error: mapAndLog(error) };
+    return { error: await mapAndLog(error) };
   }
   return { error: null };
 }
@@ -447,7 +454,7 @@ export async function listTiers(): Promise<{
     .order("name");
 
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
 
   return { data, error: null };
@@ -482,7 +489,7 @@ export async function insertGym(input: {
     .single();
 
   if (error || !data) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
   return { data, error: null };
 }
@@ -531,7 +538,7 @@ export async function insertOwnerMember(input: {
   });
 
   if (error) {
-    return { error: mapAndLog(error) };
+    return { error: await mapAndLog(error) };
   }
   return { error: null };
 }
@@ -555,4 +562,31 @@ export async function logGymCreated(
     // disappear silently either, undermining Story 1.4's append-only trail.
     console.error(`[logGymCreated] audit log write failed for gym ${gymId}`, error);
   }
+}
+
+/**
+ * Persists the signed-in user's language preference (FR-015, Story 1.10).
+ * Relies entirely on the `self_update_own_language` RLS policy + the
+ * `protect_self_managed_user_columns` trigger
+ * (0015_users_self_service_language_preference.sql) for authorization.
+ */
+export async function updateLanguagePreference(
+  locale: "en" | "fr",
+): Promise<{ error: AppError | null }> {
+  const supabase = await createClient();
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+
+  if (claimsError || !claimsData?.claims?.sub) {
+    return { error: claimsError ? await mapAndLog(claimsError) : null };
+  }
+
+  const { error } = await supabase
+    .from("users")
+    .update({ preferred_language: locale })
+    .eq("id", claimsData.claims.sub as string);
+
+  if (error) {
+    return { error: await mapAndLog(error) };
+  }
+  return { error: null };
 }

@@ -27,6 +27,17 @@ jobs:
       - name: Type check
         run: pnpm run typecheck
 
+      - name: Lint (includes i18n hardcoded-string gate)
+        # Scoped to the two Next.js dashboards (this story's own AC #1 scope)
+        # rather than the full `pnpm run lint` -- apps/mobile has no runnable
+        # code yet (Epic 2+) and its own `expo lint` toolchain has an
+        # unrelated, pre-existing dependency resolution gap, unrelated to
+        # and out of scope for this story's i18n gate.
+        run: npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin
+
+      - name: i18n locale key-parity check
+        run: pnpm run check:i18n
+
   rls-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15

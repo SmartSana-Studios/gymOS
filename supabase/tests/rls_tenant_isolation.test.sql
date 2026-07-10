@@ -1,8 +1,11 @@
 -- Cross-cutting: every table from Task 1 stays pure deny-all (RLS enabled, zero
 -- policies) except the one deliberate canary policy on `gyms` (covered by
--- auth_hook_canary.test.sql) and, as of Story 1.8 (0013_dashboard_shell_self_read.sql),
+-- auth_hook_canary.test.sql), as of Story 1.8 (0013_dashboard_shell_self_read.sql),
 -- `members`' self_read_own_membership policy (a session now sees exactly its own
--- membership row, never any other row -- see the updated `members` assertion below).
+-- membership row, never any other row -- see the updated `members` assertion below),
+-- and as of Story 1.10 (0015_users_self_service_language_preference.sql),
+-- `users`' self_read_own_user policy (same shape -- a session sees exactly its
+-- own users row).
 -- This asserts that an authenticated session with a VALID, correctly-scoped gym_id
 -- claim still sees 0 rows everywhere else -- proving "even before any feature-specific
 -- policy exists" (this story's own Story statement) holds for every table, not just
@@ -53,7 +56,7 @@ select set_config(
 );
 
 select is((select count(*) from tiers)::int, 0, 'tiers: 0 rows, no business policy yet');
-select is((select count(*) from users)::int, 0, 'users: 0 rows, no business policy yet');
+select is((select count(*) from users)::int, 1, 'users: exactly 1 row -- their own (self_read_own_user, Story 1.10), not the pure deny-all of every other table here');
 select is((select count(*) from members)::int, 1, 'members: exactly 1 row -- their own (self_read_own_membership, Story 1.8), not the pure deny-all of every other table here');
 select is((select count(*) from plans)::int, 0, 'plans: 0 rows, no business policy yet');
 select is((select count(*) from subscriptions)::int, 0, 'subscriptions: 0 rows, no business policy yet');

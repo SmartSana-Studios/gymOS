@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { mapSupabaseError, type AppError } from "@gymos/types";
+import { getRequestLocale } from "@/lib/i18n/get-request-locale";
+import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import type { Locale } from "@/lib/i18n/config";
 
 /**
  * `mapSupabaseError` is a pure mapping utility in `packages/types` (no
@@ -10,9 +13,15 @@ import { mapSupabaseError, type AppError } from "@gymos/types";
  * production failures become undebuggable. Per-app local copy -- not shared
  * across apps/dashboard and apps/super-admin (architecture's service-layer
  * boundary: services are not shared across apps directly).
+ *
+ * Async since Story 1.10: resolves the caller's locale (`getRequestLocale`)
+ * once here rather than threading a `locale` parameter through every
+ * Server Action/service function call chain in the app -- every existing
+ * call site just gains an `await`.
  */
-export function mapAndLog(rawError: unknown): AppError {
-  const mapped = mapSupabaseError(rawError);
+export async function mapAndLog(rawError: unknown): Promise<AppError> {
+  const locale = await getRequestLocale();
+  const mapped = mapSupabaseError(rawError, locale);
   if (mapped.code === "unknown") {
     console.error("[mapSupabaseError] unmapped error", rawError);
   }
@@ -62,7 +71,7 @@ export async function getDashboardShellContext(): Promise<{
     // A genuine auth-server error, not just "no session" -- worth mapping
     // and logging (Review finding: this branch previously also fired, via
     // mapAndLog(null), for the ordinary logged-out case below).
-    return { data: null, error: mapAndLog(claimsError) };
+    return { data: null, error: await mapAndLog(claimsError) };
   }
 
   if (!claimsData?.claims) {
@@ -100,7 +109,7 @@ export async function getDashboardShellContext(): Promise<{
   ]);
 
   if (gymResult.error) {
-    return { data: null, error: mapAndLog(gymResult.error) };
+    return { data: null, error: await mapAndLog(gymResult.error) };
   }
 
   if (memberResult.error) {
@@ -117,7 +126,8 @@ export async function getDashboardShellContext(): Promise<{
   // regardless of what name renders in the corner. Fall back to the claims'
   // own email rather than erroring the whole shell (edge case: claims are
   // stale relative to a mid-session deactivation, or the query above failed).
-  const memberName = memberResult.data?.name ?? claims.email ?? "Unknown User";
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const memberName = memberResult.data?.name ?? claims.email ?? t("sidebar.unknownUser");
 
   return {
     data: {
@@ -127,4 +137,33 @@ export async function getDashboardShellContext(): Promise<{
     },
     error: null,
   };
+}
+
+/**
+ * Persists the signed-in user's language preference (FR-015, Story 1.10).
+ * Relies entirely on the `self_update_own_language` RLS policy + the
+ * `protect_self_managed_user_columns` trigger
+ * (0015_users_self_service_language_preference.sql) for authorization --
+ * mirrors `updateGymSettings`'s reliance on RLS rather than an app-side
+ * permission check.
+ */
+export async function updateLanguagePreference(
+  locale: Locale,
+): Promise<{ error: AppError | null }> {
+  const supabase = await createClient();
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+
+  if (claimsError || !claimsData?.claims?.sub) {
+    return { error: claimsError ? await mapAndLog(claimsError) : null };
+  }
+
+  const { error } = await supabase
+    .from("users")
+    .update({ preferred_language: locale })
+    .eq("id", claimsData.claims.sub as string);
+
+  if (error) {
+    return { error: await mapAndLog(error) };
+  }
+  return { error: null };
 }

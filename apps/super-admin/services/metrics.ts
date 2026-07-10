@@ -24,7 +24,7 @@ export async function getPlatformMetrics(): Promise<{
   const { data, error } = await supabase.rpc("platform_metrics").maybeSingle();
 
   if (error || !data) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
 
   // The Supabase client factories in this app aren't parameterized with the
