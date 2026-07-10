@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { gymIdSchema, mapSupabaseError, type AppError } from "@gymos/types";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
+import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
 /**
  * `mapSupabaseError` is a pure mapping utility in `packages/types` (no
@@ -576,8 +577,15 @@ export async function updateLanguagePreference(
   const supabase = await createClient();
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
 
-  if (claimsError || !claimsData?.claims?.sub) {
-    return { error: claimsError ? await mapAndLog(claimsError) : null };
+  if (claimsError) {
+    return { error: await mapAndLog(claimsError) };
+  }
+  if (!claimsData?.claims?.sub) {
+    // No session at all -- must be a real error, not `{error: null}`. A
+    // silent "success" here would leave the UI believing the preference
+    // saved when the DB was never touched.
+    const { t } = await getServerTranslation(await getRequestLocale());
+    return { error: { code: "unauthenticated", message: t("common.somethingWentWrong") } };
   }
 
   const { error } = await supabase

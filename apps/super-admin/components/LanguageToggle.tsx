@@ -22,11 +22,19 @@ export function LanguageToggle() {
 
   async function handleChange(next: Locale) {
     if (next === i18n.language || pending) return;
+    const previous = i18n.language;
     setPending(true);
     i18n.changeLanguage(next);
-    await updateLanguagePreference(next);
-    router.refresh();
-    setPending(false);
+    try {
+      const { error } = await updateLanguagePreference(next);
+      if (error) {
+        i18n.changeLanguage(previous);
+        return;
+      }
+      router.refresh();
+    } finally {
+      setPending(false);
+    }
   }
 
   return (

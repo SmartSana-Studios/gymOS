@@ -132,6 +132,8 @@ export function Sidebar({
   isMobileOpen: boolean;
   onCloseMobile: () => void;
 }) {
+  const { t } = useTranslation();
+
   // Escape dismisses the mobile overlay, matching the native <dialog>
   // elements elsewhere in this codebase (Review finding: this overlay had
   // no keyboard dismissal path at all).
@@ -163,7 +165,7 @@ export function Sidebar({
           className="fixed inset-0 z-50 md:hidden"
           role="dialog"
           aria-modal="true"
-          aria-label="Navigation menu"
+          aria-label={t("sidebar.navigationMenu")}
         >
           <div className="absolute inset-0 bg-black/50" onClick={onCloseMobile} aria-hidden="true" />
           <aside className="absolute inset-y-0 left-0 w-60">

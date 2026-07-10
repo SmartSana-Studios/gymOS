@@ -10,7 +10,7 @@
 -- proving denial (Story 1.9's Debug Log already hit this mistake once).
 
 begin;
-select plan(7);
+select plan(9);
 
 -- `handle_new_user()` (0003_members_and_users.sql's `on_auth_user_created`
 -- trigger) auto-inserts a bare `public.users` row on every `auth.users`
@@ -63,15 +63,16 @@ select is(
 
 -- ============================================================================
 -- Column-guard trigger: a self-update that also tries to flip
--- is_super_admin/phone in the same statement is matched/returned (the row
--- update succeeds at the row level), but those two columns stay pinned to
--- their prior values -- protect_self_managed_user_columns fires
--- transparently, not as a rejected UPDATE. Asserted via a re-SELECT, since
--- the trigger's pin-back isn't visible in a plain RETURNING clause on its
--- own inputs.
+-- is_super_admin/phone/display_name/created_at in the same statement is
+-- matched/returned (the row update succeeds at the row level), but all four
+-- columns stay pinned to their prior values -- protect_self_managed_user_columns
+-- fires transparently, not as a rejected UPDATE. Asserted via a re-SELECT,
+-- since the trigger's pin-back isn't visible in a plain RETURNING clause on
+-- its own inputs.
 -- ============================================================================
 update users
-set preferred_language = 'en', is_super_admin = true, phone = '+237699999999'
+set preferred_language = 'en', is_super_admin = true, phone = '+237699999999',
+    display_name = 'Attempted Rename', created_at = now() + interval '1 year'
 where id = '00000000-0000-0000-0000-000000005021';
 
 select is(
@@ -84,6 +85,22 @@ select is(
   (select phone from users where id = '00000000-0000-0000-0000-000000005021'),
   '+237600000021',
   'a self-update attempting to also change phone is silently pinned back to its prior value'
+);
+
+select is(
+  (select display_name from users where id = '00000000-0000-0000-0000-000000005021'),
+  'User A',
+  'a self-update attempting to also change display_name is silently pinned back to its prior value'
+);
+
+-- `now()` is frozen for the whole test transaction, so comparing directly
+-- against `now()` would spuriously pass/fail depending on fixture-insert
+-- timing -- compare against a bound well short of the "+1 year" value the
+-- update attempted instead (same technique as Story 1.9's equivalent
+-- created_at assertion, tiers_and_gym_lifecycle_rls.test.sql).
+select ok(
+  (select created_at from users where id = '00000000-0000-0000-0000-000000005021') < now() + interval '6 months',
+  'a self-update attempting to also change created_at is silently pinned back to its prior value'
 );
 
 -- ============================================================================

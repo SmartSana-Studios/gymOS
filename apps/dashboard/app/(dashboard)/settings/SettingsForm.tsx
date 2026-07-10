@@ -279,7 +279,7 @@ export function SettingsForm({ initial }: { initial: GymSettingsRow }) {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={logoUrl}
-                  alt="Gym logo preview"
+                  alt={t("settings.fields.logoPreviewAlt")}
                   className="size-16 rounded-md border object-cover"
                 />
               ) : (
@@ -427,7 +427,7 @@ export function SettingsForm({ initial }: { initial: GymSettingsRow }) {
         <h2 className="font-semibold">{t("settings.sections.qrCode")}</h2>
         {qrDataUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={qrDataUrl} alt="Gym check-in QR code" className="size-[120px]" />
+          <img src={qrDataUrl} alt={t("settings.qr.qrCodeAlt")} className="size-[120px]" />
         )}
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={handleDownloadQr}>

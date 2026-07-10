@@ -20,7 +20,8 @@
     "logout": "Se déconnecter",
     "loggingOut": "Déconnexion…",
     "logoutConfirmTitle": "Se déconnecter de GymOS ?",
-    "unknownUser": "Utilisateur inconnu"
+    "unknownUser": "Utilisateur inconnu",
+    "navigationMenu": "Menu de navigation"
   },
   "topbar": {
     "openNavigationMenu": "Ouvrir le menu de navigation"
@@ -45,6 +46,7 @@
       "gymName": "Nom de la salle *",
       "logo": "Logo",
       "noLogo": "Aucun logo",
+      "logoPreviewAlt": "Aperçu du logo de la salle",
       "uploadNew": "Téléverser",
       "uploading": "Téléversement…",
       "remove": "Retirer",
@@ -62,6 +64,7 @@
     "languageOptionFrench": "Français",
     "qr": {
       "download": "Télécharger le code QR ↓",
+      "qrCodeAlt": "Code QR de pointage de la salle",
       "regenerate": "Régénérer le code QR",
       "regenerateConfirmTitle": "Régénérer le code QR ?",
       "regenerateConfirmBody": "Ceci invalidera immédiatement le code actuel. Toute copie imprimée ou affichée cessera de fonctionner. Vous devrez les remplacer.",
@@ -79,48 +82,5 @@
       "capacityRequired": "Indiquez la capacité de la salle",
       "alertAutoDismissRange": "La fermeture automatique doit être comprise entre 1 et 120 minutes"
     }
-  },
-  "auth": {
-    "title": "Connexion à GymOS",
-    "emailLabel": "Adresse e-mail *",
-    "emailPlaceholder": "vous@exemple.com",
-    "passwordLabel": "Mot de passe *",
-    "forgotPassword": "Mot de passe oublié ?",
-    "showPassword": "Afficher le mot de passe",
-    "hidePassword": "Masquer le mot de passe",
-    "signIn": "Se connecter",
-    "signingIn": "Connexion en cours…",
-    "errors": {
-      "network": "Connexion impossible. Vérifiez votre connexion internet.",
-      "invalidCredentials": "E-mail ou mot de passe incorrect.",
-      "accountLocked": "Votre compte a été verrouillé. Contactez l'administrateur de votre salle."
-    },
-    "emailLabelSimple": "E-mail",
-    "emailPlaceholderSimple": "vous@exemple.com",
-    "passwordLabelSimple": "Mot de passe",
-    "loginLink": "Connexion",
-    "alreadyHaveAccount": "Vous avez déjà un compte ?",
-    "checkYourEmail": "Vérifiez votre e-mail",
-    "passwordResetSent": "Instructions de réinitialisation envoyées",
-    "passwordResetSentBody": "Si vous vous êtes inscrit avec votre e-mail et mot de passe, vous recevrez un e-mail de réinitialisation.",
-    "resetPasswordTitle": "Réinitialiser votre mot de passe",
-    "resetPasswordDescription": "Saisissez votre e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe",
-    "resetPasswordBody2": "Veuillez saisir votre nouveau mot de passe ci-dessous.",
-    "sendingEmail": "Envoi en cours...",
-    "sendResetEmail": "Envoyer l'e-mail de réinitialisation",
-    "signUpTitle": "S'inscrire",
-    "createNewAccount": "Créer un nouveau compte",
-    "repeatPassword": "Répéter le mot de passe",
-    "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
-    "creatingAccount": "Création du compte...",
-    "newPassword": "Nouveau mot de passe",
-    "savingPassword": "Enregistrement...",
-    "saveNewPassword": "Enregistrer le nouveau mot de passe",
-    "signUpSuccessTitle": "Merci de vous être inscrit !",
-    "checkEmailToConfirm": "Vérifiez votre e-mail pour confirmer",
-    "signUpSuccessBody": "Votre inscription a réussi. Veuillez vérifier votre e-mail pour confirmer votre compte avant de vous connecter.",
-    "errorTitle": "Désolé, une erreur est survenue.",
-    "errorCode": "Code d'erreur : {{code}}",
-    "unspecifiedError": "Une erreur non spécifiée est survenue."
   }
 }

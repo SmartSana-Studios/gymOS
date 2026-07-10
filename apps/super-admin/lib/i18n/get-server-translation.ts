@@ -5,14 +5,45 @@ import appEn from "../../locales/en.json";
 import appFr from "../../locales/fr.json";
 import type { Locale } from "./config";
 
+// Recursive, not a shallow `{...a, ...b}` spread -- shared (packages/types)
+// and app-local locale files can both define keys under the *same*
+// top-level namespace (e.g. both define "auth", shared owning the common
+// fields and this app owning a few app-only ones like "auth.description").
+// A shallow spread would let app-local's smaller "auth" object silently
+// clobber the entire shared "auth" object instead of merging into it.
+function deepMerge(
+  base: Record<string, unknown>,
+  override: Record<string, unknown>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...base };
+  for (const key of Object.keys(override)) {
+    const baseValue = base[key];
+    const overrideValue = override[key];
+    if (
+      baseValue &&
+      overrideValue &&
+      typeof baseValue === "object" &&
+      typeof overrideValue === "object" &&
+      !Array.isArray(baseValue) &&
+      !Array.isArray(overrideValue)
+    ) {
+      result[key] = deepMerge(
+        baseValue as Record<string, unknown>,
+        overrideValue as Record<string, unknown>,
+      );
+    } else {
+      result[key] = overrideValue;
+    }
+  }
+  return result;
+}
+
 // Only two locales exist (en/fr, config.ts) and both JSON files are tiny --
 // static imports merged once at module load, no dynamic per-request backend
-// needed. Shared keys (packages/types/src/locales) and app-local keys
-// (apps/super-admin/locales) merge into one flat "translation" namespace
-// per locale; the two files use disjoint top-level keys by convention.
+// needed.
 const RESOURCES = {
-  en: { translation: { ...commonEn, ...appEn } },
-  fr: { translation: { ...commonFr, ...appFr } },
+  en: { translation: deepMerge(commonEn, appEn) },
+  fr: { translation: deepMerge(commonFr, appFr) },
 } as const;
 
 /** Server Components call this directly (await, no hook) -- a fresh

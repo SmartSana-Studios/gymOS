@@ -42,12 +42,23 @@ const eslintConfig = [
       "i18next/no-literal-string": [
         2,
         {
-          // Real UI copy stays checked (jsx-text-only mode, the plugin's
-          // default) -- these are non-textual attribute values / literal
-          // brand names, not translatable content (Story 1.10). Options are
-          // shallow-merged over the plugin's defaults (lib/options/defaults.js),
-          // so the default jsx-attributes excludes are repeated here rather
-          // than lost.
+          // NOTE (code review, Story 1.10 follow-up): the plugin's default
+          // `mode: "jsx-text-only"` only checks a literal whose *direct* AST
+          // parent is JSXElement/JSXFragment -- every JSX attribute value
+          // (aria-label="...", alt="...") has JSXAttribute as its direct
+          // parent instead, so the `jsx-attributes` list below is currently
+          // dead configuration, never consulted -- a hardcoded aria-label
+          // can slip past CI (AC #1) undetected. Switching to `mode:
+          // "jsx-only"` does close that gap, but it also starts checking
+          // *every* string literal anywhere inside a JSX subtree, not just
+          // attributes -- CSS variant enums (variant="outline"), htmlFor
+          // refs, state-machine action strings, fallback display chars
+          // (`?? "—"`), etc. -- which surfaced ~130 false positives
+          // across both apps when tried. Properly scoping that needs a
+          // dedicated `callees`/`object-properties` exclude-list tuning
+          // pass per app, out of scope for a single patch; tracked in
+          // deferred-work.md instead of shipping an overly broad exclude
+          // list that would risk hiding real content.
           "jsx-attributes": {
             exclude: [
               "className",
@@ -66,11 +77,18 @@ const eslintConfig = [
             ],
           },
           words: {
+            // Options are shallow-merged over the plugin's defaults
+            // (lib/options/defaults.js), so its default `words.exclude`
+            // entries are repeated here rather than lost -- except the
+            // htmlEntities list, which isn't re-exported at a stable public
+            // path and isn't worth a fragile deep import for this rarely-hit
+            // case.
             exclude: [
               "[0-9!-/:-@[-`{-~]+",
               "[A-Z_-]+",
               "^GymOS$",
               "^·$",
+              /^\p{Emoji}+$/u,
             ],
           },
         },
