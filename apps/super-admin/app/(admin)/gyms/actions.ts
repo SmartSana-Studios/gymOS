@@ -23,6 +23,8 @@ import {
   updateGymStatus,
   updateGymTier,
 } from "@/services/gyms";
+import { getRequestLocale } from "@/lib/i18n/get-request-locale";
+import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
 export interface CreateGymResult {
   gymId: string;
@@ -46,12 +48,13 @@ export interface CreateGymResult {
 export async function createGym(
   input: unknown,
 ): Promise<{ data: CreateGymResult | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
   const parsed = createGymSchema.safeParse(input);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
       data: null,
-      error: { code: "validation_error", message: firstIssue?.message ?? "Invalid input" },
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
     };
   }
   const gym = parsed.data;
@@ -60,7 +63,7 @@ export async function createGym(
   if (await gymNameExists(gym.gymName)) {
     return {
       data: null,
-      error: { code: "gym_name_taken", message: "A gym with this name already exists" },
+      error: { code: "gym_name_taken", message: t("errors.gymNameTaken") },
     };
   }
 
@@ -195,21 +198,28 @@ async function sendInviteSms(phone: string, actionLink: string): Promise<boolean
 
 /** Shared validation + status-update + audit-log sequence for the three
  * lifecycle actions below -- AC #3 requires a reason for every one of them. */
+const STATUS_LABEL_KEY = {
+  active: "gyms.create.statusActive",
+  suspended: "gyms.create.statusSuspended",
+  deactivated: "gyms.create.statusDeactivated",
+} as const;
+
 async function changeGymStatus(
   gymId: string,
   status: "active" | "suspended" | "deactivated",
   actionType: "gym_suspended" | "gym_deactivated" | "gym_reinstated",
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
-    return { error: { code: "validation_error", message: "Invalid gym id" } };
+    return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
   }
 
   const parsed = gymStatusChangeSchema.safeParse(input);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
-      error: { code: "validation_error", message: firstIssue?.message ?? "Invalid input" },
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
     };
   }
 
@@ -219,7 +229,12 @@ async function changeGymStatus(
   }
 
   if (result.previousStatus === status) {
-    return { error: { code: "no_op", message: `This gym is already ${status}.` } };
+    return {
+      error: {
+        code: "no_op",
+        message: t("gyms.errors.alreadyStatus", { status: t(STATUS_LABEL_KEY[status]) }),
+      },
+    };
   }
 
   const { error: auditError } = await logGymLifecycleEvent(actionType, gymId, {
@@ -231,8 +246,7 @@ async function changeGymStatus(
     return {
       error: {
         code: "audit_log_failed",
-        message:
-          "The status change was saved, but the audit log entry failed to write. Please contact support.",
+        message: t("gyms.errors.auditLogFailedStatus"),
       },
     };
   }
@@ -268,15 +282,16 @@ export async function changeGymTier(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
-    return { error: { code: "validation_error", message: "Invalid gym id" } };
+    return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
   }
 
   const parsed = changeGymTierSchema.safeParse(input);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
-      error: { code: "validation_error", message: firstIssue?.message ?? "Invalid input" },
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
     };
   }
 
@@ -286,7 +301,7 @@ export async function changeGymTier(
   }
 
   if (result.previousTierId === parsed.data.tierId) {
-    return { error: { code: "no_op", message: "This gym is already on that tier." } };
+    return { error: { code: "no_op", message: t("gyms.errors.alreadyOnTier") } };
   }
 
   const { error: auditError } = await logGymLifecycleEvent("gym_tier_changed", gymId, {
@@ -297,8 +312,7 @@ export async function changeGymTier(
     return {
       error: {
         code: "audit_log_failed",
-        message:
-          "The tier change was saved, but the audit log entry failed to write. Please contact support.",
+        message: t("gyms.errors.auditLogFailedTier"),
       },
     };
   }
@@ -311,15 +325,16 @@ export async function overrideGymCap(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
-    return { error: { code: "validation_error", message: "Invalid gym id" } };
+    return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
   }
 
   const parsed = overrideGymCapSchema.safeParse(input);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
-      error: { code: "validation_error", message: firstIssue?.message ?? "Invalid input" },
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
     };
   }
 
@@ -330,7 +345,7 @@ export async function overrideGymCap(
 
   if (result.previousCapOverride === parsed.data.capOverride) {
     return {
-      error: { code: "no_op", message: "The cap override is already set to that value." },
+      error: { code: "no_op", message: t("gyms.errors.alreadySameCap") },
     };
   }
 
@@ -342,8 +357,7 @@ export async function overrideGymCap(
     return {
       error: {
         code: "audit_log_failed",
-        message:
-          "The cap override was saved, but the audit log entry failed to write. Please contact support.",
+        message: t("gyms.errors.auditLogFailedCap"),
       },
     };
   }
@@ -370,15 +384,16 @@ export async function escalateGymAccess(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
-    return { error: { code: "validation_error", message: "Invalid gym id" } };
+    return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
   }
 
   const parsed = escalateGymAccessSchema.safeParse(input);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
-      error: { code: "validation_error", message: firstIssue?.message ?? "Invalid input" },
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
     };
   }
 

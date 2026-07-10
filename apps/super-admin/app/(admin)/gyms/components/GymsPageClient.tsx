@@ -182,7 +182,10 @@ export function GymsPageClient({
                   </td>
                   <td className="p-3">{gym.tierName}</td>
                   <td className="p-3">
-                    {t(STATUS_LABEL_KEY[gym.status as (typeof STATUS_OPTIONS)[number]] ?? "")}
+                    {(() => {
+                      const key = STATUS_LABEL_KEY[gym.status as (typeof STATUS_OPTIONS)[number]];
+                      return key ? t(key) : gym.status;
+                    })()}
                   </td>
                   <td className="p-3">
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -245,6 +248,7 @@ export function GymsPageClient({
           <Button
             variant="outline"
             size="sm"
+            aria-label={t("gyms.pagination.previous")}
             disabled={page <= 1}
             onClick={() => updateParams({ page: page - 1 })}
           >
@@ -263,6 +267,7 @@ export function GymsPageClient({
           <Button
             variant="outline"
             size="sm"
+            aria-label={t("gyms.pagination.next")}
             disabled={page >= totalPages}
             onClick={() => updateParams({ page: page + 1 })}
           >

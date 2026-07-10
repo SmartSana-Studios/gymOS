@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { gymIdSchema, mapSupabaseError, type AppError } from "@gymos/types";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import type { Locale } from "@/lib/i18n/config";
 
 /**
  * `mapSupabaseError` is a pure mapping utility in `packages/types` (no
@@ -16,6 +17,14 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
  * Server Action/service function call chain in the app -- every existing
  * call site just gains an `await`.
  */
+/** Shared by every "gym row not found" branch below (Review finding: these
+ * were hardcoded English literals, invisible to both the ESLint gate -- a
+ * plain object literal in a .ts file, not JSX -- and AC #3). */
+async function gymNotFoundError(): Promise<AppError> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  return { code: "not_found", message: t("gyms.errors.gymNotFound") };
+}
+
 export async function mapAndLog(rawError: unknown): Promise<AppError> {
   const locale = await getRequestLocale();
   const mapped = mapSupabaseError(rawError, locale);
@@ -309,7 +318,7 @@ export async function updateGymStatus(
     return { data: null, error: await mapAndLog(beforeError) };
   }
   if (!before) {
-    return { data: null, error: { code: "not_found", message: "Gym not found" } };
+    return { data: null, error: await gymNotFoundError() };
   }
 
   const { data: updated, error } = await supabase
@@ -322,7 +331,7 @@ export async function updateGymStatus(
     return { data: null, error: await mapAndLog(error) };
   }
   if (!updated) {
-    return { data: null, error: { code: "not_found", message: "Gym not found" } };
+    return { data: null, error: await gymNotFoundError() };
   }
 
   return { data: { previousStatus: before.status }, error: null };
@@ -349,7 +358,7 @@ export async function updateGymTier(
     return { data: null, error: await mapAndLog(beforeError) };
   }
   if (!before) {
-    return { data: null, error: { code: "not_found", message: "Gym not found" } };
+    return { data: null, error: await gymNotFoundError() };
   }
 
   const { data: updated, error } = await supabase
@@ -362,7 +371,7 @@ export async function updateGymTier(
     return { data: null, error: await mapAndLog(error) };
   }
   if (!updated) {
-    return { data: null, error: { code: "not_found", message: "Gym not found" } };
+    return { data: null, error: await gymNotFoundError() };
   }
 
   return { data: { previousTierId: before.tier_id }, error: null };
@@ -389,7 +398,7 @@ export async function updateGymCapOverride(
     return { data: null, error: await mapAndLog(beforeError) };
   }
   if (!before) {
-    return { data: null, error: { code: "not_found", message: "Gym not found" } };
+    return { data: null, error: await gymNotFoundError() };
   }
 
   const { data: updated, error } = await supabase
@@ -402,7 +411,7 @@ export async function updateGymCapOverride(
     return { data: null, error: await mapAndLog(error) };
   }
   if (!updated) {
-    return { data: null, error: { code: "not_found", message: "Gym not found" } };
+    return { data: null, error: await gymNotFoundError() };
   }
 
   return { data: { previousCapOverride: before.member_cap_override }, error: null };
@@ -572,7 +581,7 @@ export async function logGymCreated(
  * (0015_users_self_service_language_preference.sql) for authorization.
  */
 export async function updateLanguagePreference(
-  locale: "en" | "fr",
+  locale: Locale,
 ): Promise<{ error: AppError | null }> {
   const supabase = await createClient();
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();

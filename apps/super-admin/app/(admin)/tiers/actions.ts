@@ -12,18 +12,21 @@ import {
   tierNameExists,
   updateTier,
 } from "@/services/tiers";
+import { getRequestLocale } from "@/lib/i18n/get-request-locale";
+import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
 /** SA-06 Create Tier. `{ data, error }` contract, never throws for expected
  * errors -- matches `createGym`'s established Process Pattern. */
 export async function createTier(
   input: unknown,
 ): Promise<{ data: { id: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
   const parsed = tierSchema.safeParse(input);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
       data: null,
-      error: { code: "validation_error", message: firstIssue?.message ?? "Invalid input" },
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
     };
   }
   const tier = parsed.data;
@@ -31,7 +34,7 @@ export async function createTier(
   if (await tierNameExists(tier.name)) {
     return {
       data: null,
-      error: { code: "tier_name_taken", message: "This name is already in use" },
+      error: { code: "tier_name_taken", message: t("errors.tierNameTaken") },
     };
   }
 
@@ -44,7 +47,7 @@ export async function createTier(
     memberCap: tier.memberCap ?? null,
   });
   if (orderingError) {
-    return { data: null, error: { code: "tier_cap_order_invalid", message: orderingError } };
+    return { data: null, error: { code: "tier_cap_order_invalid", message: t(orderingError) } };
   }
 
   const { data, error } = await insertTier({
@@ -68,8 +71,7 @@ export async function createTier(
       data,
       error: {
         code: "audit_log_failed",
-        message:
-          "The tier was created, but the audit log entry failed to write. Please contact support.",
+        message: t("tiers.errors.auditLogFailedCreate"),
       },
     };
   }
@@ -84,12 +86,13 @@ export async function editTier(
   tierId: string,
   input: unknown,
 ): Promise<{ data: { id: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
   const parsed = tierSchema.safeParse(input);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
       data: null,
-      error: { code: "validation_error", message: firstIssue?.message ?? "Invalid input" },
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
     };
   }
   const tier = parsed.data;
@@ -97,7 +100,7 @@ export async function editTier(
   if (await tierNameExists(tier.name, tierId)) {
     return {
       data: null,
-      error: { code: "tier_name_taken", message: "This name is already in use" },
+      error: { code: "tier_name_taken", message: t("errors.tierNameTaken") },
     };
   }
 
@@ -111,7 +114,7 @@ export async function editTier(
     memberCap: tier.memberCap ?? null,
   });
   if (orderingError) {
-    return { data: null, error: { code: "tier_cap_order_invalid", message: orderingError } };
+    return { data: null, error: { code: "tier_cap_order_invalid", message: t(orderingError) } };
   }
 
   const { error } = await updateTier(tierId, {
@@ -135,8 +138,7 @@ export async function editTier(
       data: { id: tierId },
       error: {
         code: "audit_log_failed",
-        message:
-          "The tier was updated, but the audit log entry failed to write. Please contact support.",
+        message: t("tiers.errors.auditLogFailedEdit"),
       },
     };
   }
@@ -152,12 +154,13 @@ export async function editTier(
  * trusted from the client) since both the error copy and the permanent
  * audit record depend on it. */
 export async function deleteTier(tierId: string): Promise<{ error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
   const { data: tier, error: tierError } = await getTier(tierId);
   if (tierError) {
     return { error: tierError };
   }
   if (!tier) {
-    return { error: { code: "not_found", message: "Tier not found" } };
+    return { error: { code: "not_found", message: t("tiers.errors.tierNotFound") } };
   }
 
   const gymCount = await gymCountForTier(tierId);
@@ -165,7 +168,7 @@ export async function deleteTier(tierId: string): Promise<{ error: AppError | nu
     return {
       error: {
         code: "tier_in_use",
-        message: `Cannot delete ${tier.name} — ${gymCount} gyms are on this tier. Reassign them before deleting.`,
+        message: t("tiers.errors.tierInUse", { name: tier.name, count: gymCount }),
       },
     };
   }
@@ -180,8 +183,7 @@ export async function deleteTier(tierId: string): Promise<{ error: AppError | nu
     return {
       error: {
         code: "audit_log_failed",
-        message:
-          "The tier was deleted, but the audit log entry failed to write. Please contact support.",
+        message: t("tiers.errors.auditLogFailedDelete"),
       },
     };
   }

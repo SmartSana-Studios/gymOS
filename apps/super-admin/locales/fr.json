@@ -108,6 +108,20 @@
       "body": "Consulter les membres et paiements de {{gymName}} nécessite un motif. Ceci est journalisé avec votre identité et un horodatage.",
       "requesting": "Demande en cours…",
       "accessButton": "Accéder aux données de {{gymName}}"
+    },
+    "pagination": {
+      "previous": "Page précédente",
+      "next": "Page suivante"
+    },
+    "errors": {
+      "invalidGymId": "Identifiant de salle invalide",
+      "gymNotFound": "Salle introuvable",
+      "alreadyStatus": "Cette salle est déjà {{status}}.",
+      "auditLogFailedStatus": "Le changement de statut a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "alreadyOnTier": "Cette salle est déjà sur ce palier.",
+      "auditLogFailedTier": "Le changement de palier a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "alreadySameCap": "Le plafond forcé est déjà réglé à cette valeur.",
+      "auditLogFailedCap": "Le plafond forcé a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
     }
   },
   "tiers": {
@@ -140,6 +154,15 @@
         "annualPriceRequired": "Le prix annuel est requis",
         "annualPriceInvalid": "Saisissez un prix annuel valide en XAF"
       }
+    },
+    "errors": {
+      "tierNotFound": "Palier introuvable",
+      "tierInUse": "Impossible de supprimer {{name}} — {{count}} salles utilisent ce palier. Réaffectez-les avant de supprimer.",
+      "auditLogFailedCreate": "Le palier a été créé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "auditLogFailedEdit": "Le palier a été modifié, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "auditLogFailedDelete": "Le palier a été supprimé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "capOrderingViolatesPrev": "Le plafond de membres doit être au moins aussi élevé que celui de chaque palier moins cher (ou illimité).",
+      "capOrderingViolatesNext": "Le plafond de membres ne doit pas dépasser celui d'un palier plus cher (sauf si ce palier est également illimité)."
     }
   },
   "metrics": {

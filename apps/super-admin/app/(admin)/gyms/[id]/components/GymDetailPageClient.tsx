@@ -14,6 +14,12 @@ import { CapOverrideEditor } from "./CapOverrideEditor";
 import { EscalateAccessDialog } from "./EscalateAccessDialog";
 import { AuditTrailTab } from "./AuditTrailTab";
 
+const STATUS_LABEL_KEY: Record<string, string> = {
+  active: "gyms.create.statusActive",
+  suspended: "gyms.create.statusSuspended",
+  deactivated: "gyms.create.statusDeactivated",
+};
+
 /** SA-03 Gym Detail (Story 1.7 adds the "Access gym data" escalation and
  * the Audit trail tab from SA-03's mockup, FR-072). */
 export function GymDetailPageClient({
@@ -34,12 +40,6 @@ export function GymDetailPageClient({
   >(null);
   const [changingTier, setChangingTier] = useState(false);
   const [escalating, setEscalating] = useState(false);
-
-  const STATUS_LABEL_KEY: Record<string, string> = {
-    active: "gyms.create.statusActive",
-    suspended: "gyms.create.statusSuspended",
-    deactivated: "gyms.create.statusDeactivated",
-  };
 
   return (
     <div className="space-y-4">
@@ -85,7 +85,7 @@ export function GymDetailPageClient({
 
           <span className="text-muted-foreground">{t("gyms.detail.status")}</span>
           <span className="flex items-center gap-2">
-            <span>{t(STATUS_LABEL_KEY[gym.status] ?? "")}</span>
+            <span>{STATUS_LABEL_KEY[gym.status] ? t(STATUS_LABEL_KEY[gym.status]) : gym.status}</span>
             {gym.status === "active" && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setLifecycleAction("suspend")}>

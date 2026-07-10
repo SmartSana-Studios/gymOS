@@ -1,5 +1,10 @@
 # Deferred Work
 
+## Deferred from: code review of story-1-10-bilingual-en-fr-platform-foundation, UI extraction pass (2026-07-10)
+
+- `updateLanguagePreference`'s "no session at all" error path reuses the generic `common.somethingWentWrong` message instead of a distinct, meaningful message [apps/dashboard/services/session.ts, apps/super-admin/services/gyms.ts] — low priority, the case is effectively unreachable (these pages sit behind auth middleware).
+- Translation keys scoped to one UI surface are reused verbatim elsewhere: `gyms.create.statusActive/Suspended/Deactivated` (Create Gym form) also drives the Gym Detail page and Gyms list table/filter; `gyms.lifecycle.reason` is also reused by `EscalateAccessDialog` — the wording happens to be correct in every context today, but this couples otherwise-unrelated UI surfaces to one shared copy choice. Revisit with dedicated keys (e.g. `gyms.status.active`) if any of these surfaces ever needs to diverge.
+
 ## Deferred from: code review of story-1-10-bilingual-en-fr-platform-foundation, i18n infra pass (2026-07-10)
 
 - The ESLint `i18next/no-literal-string` gate's default `mode: "jsx-text-only"` never checks JSX attribute values (`aria-label`, `alt`, `title`, etc.) — the `jsx-attributes` config block this story added is currently dead configuration [apps/dashboard/eslint.config.mjs, apps/super-admin/eslint.config.mjs] — switching to `mode: "jsx-only"` closes the gap but also starts checking every string literal anywhere inside a JSX subtree, surfacing ~130 false positives (CSS variant/size enums, htmlFor refs, state-machine action strings, fallback display chars) across both apps that need a dedicated `callees`/`object-properties` exclude-list tuning pass to resolve properly. The specific hardcoded strings found during this review were fixed directly; the gate itself doesn't yet prevent new regressions in this category.

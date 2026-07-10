@@ -108,6 +108,20 @@
       "body": "Viewing {{gymName}}'s member and payment records requires a reason. This is audit-logged with your identity and a timestamp.",
       "requesting": "Requesting…",
       "accessButton": "Access {{gymName}}'s data"
+    },
+    "pagination": {
+      "previous": "Previous page",
+      "next": "Next page"
+    },
+    "errors": {
+      "invalidGymId": "Invalid gym id",
+      "gymNotFound": "Gym not found",
+      "alreadyStatus": "This gym is already {{status}}.",
+      "auditLogFailedStatus": "The status change was saved, but the audit log entry failed to write. Please contact support.",
+      "alreadyOnTier": "This gym is already on that tier.",
+      "auditLogFailedTier": "The tier change was saved, but the audit log entry failed to write. Please contact support.",
+      "alreadySameCap": "The cap override is already set to that value.",
+      "auditLogFailedCap": "The cap override was saved, but the audit log entry failed to write. Please contact support."
     }
   },
   "tiers": {
@@ -140,6 +154,15 @@
         "annualPriceRequired": "Annual price is required",
         "annualPriceInvalid": "Enter a valid annual price in XAF"
       }
+    },
+    "errors": {
+      "tierNotFound": "Tier not found",
+      "tierInUse": "Cannot delete {{name}} — {{count}} gyms are on this tier. Reassign them before deleting.",
+      "auditLogFailedCreate": "The tier was created, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedEdit": "The tier was updated, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedDelete": "The tier was deleted, but the audit log entry failed to write. Please contact support.",
+      "capOrderingViolatesPrev": "Member cap must be at least as high as every cheaper tier's cap (or unlimited).",
+      "capOrderingViolatesNext": "Member cap must not exceed a more expensive tier's cap (unless that tier is unlimited too)."
     }
   },
   "metrics": {
