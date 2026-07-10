@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review of story-1-8-gym-owner-login-role-filtered-dashboard-shell (2026-07-10)
+
+- Suspense fallback swaps to a second, disconnected `LoginForm` instance while `searchParams` resolves [apps/dashboard/app/auth/login/page.tsx] — theoretically loses typed input if the swap happens after the user starts typing; low practical likelihood since `searchParams` resolution involves no real I/O (near-instant, single server-render pass), and a proper fix (e.g. React's `use()` hook instead of a fallback swap) is disproportionate for a foundation-shell story. Revisit if real users ever report losing login-form input.
+
 ## Deferred from: code review of story-1-6-super-admin-tier-management-gym-lifecycle, patch verification pass (2026-07-09)
 
 - Before/after audit value capture (`updateGymStatus`/`updateGymTier`/`updateGymCapOverride`) is two non-atomic PostgREST round trips (a SELECT then a separate UPDATE), not one transaction [apps/super-admin/services/gyms.ts] — under concurrent admins editing the exact same gym in the same narrow window, the recorded `previous_*` audit value could reflect a stale read; closing this properly needs a new atomic `SECURITY DEFINER` RPC (matching `platform_metrics()`/`gym_member_count()`'s precedent), a real scope increase not justified at this platform's current scale (NFR-009: 1-3 gyms). Revisit if concurrent super-admin usage becomes real.

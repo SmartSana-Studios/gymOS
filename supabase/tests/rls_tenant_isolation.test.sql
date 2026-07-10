@@ -1,9 +1,12 @@
 -- Cross-cutting: every table from Task 1 stays pure deny-all (RLS enabled, zero
 -- policies) except the one deliberate canary policy on `gyms` (covered by
--- auth_hook_canary.test.sql). This asserts that an authenticated session with a
--- VALID, correctly-scoped gym_id claim still sees 0 rows everywhere else -- proving
--- "even before any feature-specific policy exists" (this story's own Story statement)
--- holds for every table, not just the ones exercised by the canary/deny-all tests.
+-- auth_hook_canary.test.sql) and, as of Story 1.8 (0013_dashboard_shell_self_read.sql),
+-- `members`' self_read_own_membership policy (a session now sees exactly its own
+-- membership row, never any other row -- see the updated `members` assertion below).
+-- This asserts that an authenticated session with a VALID, correctly-scoped gym_id
+-- claim still sees 0 rows everywhere else -- proving "even before any feature-specific
+-- policy exists" (this story's own Story statement) holds for every table, not just
+-- the ones exercised by the canary/deny-all tests.
 -- 0 rows with no error is the point: a hard error here would mean a missing GRANT,
 -- not correct deny-all (see 0002-0008 migrations' GRANT comments for why this matters).
 
@@ -51,7 +54,7 @@ select set_config(
 
 select is((select count(*) from tiers)::int, 0, 'tiers: 0 rows, no business policy yet');
 select is((select count(*) from users)::int, 0, 'users: 0 rows, no business policy yet');
-select is((select count(*) from members)::int, 0, 'members: 0 rows, no business policy yet (even own gym)');
+select is((select count(*) from members)::int, 1, 'members: exactly 1 row -- their own (self_read_own_membership, Story 1.8), not the pure deny-all of every other table here');
 select is((select count(*) from plans)::int, 0, 'plans: 0 rows, no business policy yet');
 select is((select count(*) from subscriptions)::int, 0, 'subscriptions: 0 rows, no business policy yet');
 select is((select count(*) from payments)::int, 0, 'payments: 0 rows, no business policy yet');
