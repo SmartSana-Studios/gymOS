@@ -40,8 +40,11 @@ export function LoginForm({
         password,
       });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/protected");
+      // "/gyms" is SA-02, the real Super Admin landing page (Story 1.5) --
+      // apps/super-admin's "/protected" is leftover starter-kit scaffolding
+      // (confirmed dead in docs/decisions.md's 2026-07-10 entry) that only
+      // dumps raw JWT claims; every admin was landing there after login.
+      router.push("/gyms");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t("common.somethingWentWrong"));
     } finally {

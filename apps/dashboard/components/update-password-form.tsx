@@ -35,8 +35,11 @@ export function UpdatePasswordForm({
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/protected");
+      // "/" is AD-02 Overview (Story 1.8) -- apps/dashboard has no "/protected"
+      // route, so the starter kit's original target 404ed here for every
+      // owner who actually completed a password reset (invite link or
+      // forgot-password). See docs/manual-walkthrough-findings-2026-07-13.md.
+      router.push("/");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t("common.somethingWentWrong"));
     } finally {

@@ -50,7 +50,7 @@ create policy "super_admin_update_gyms" on gyms
 alter table tiers alter column member_cap drop not null;
 
 update tiers set member_cap = null
-where id = '00000000-0000-0000-0000-000000000103'; -- seeded Elite row (0010)
+where id = '00000000-0000-4000-8000-000000000103'; -- seeded Elite row (0010)
 
 -- FR-071's "gym tier assignment/cap override" -- the per-gym override column
 -- SA-03's mockup exposes ("Override cap"). NULL means "use the tier's own

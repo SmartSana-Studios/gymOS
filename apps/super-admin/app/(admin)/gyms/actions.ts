@@ -134,6 +134,23 @@ export async function createGym(
     return { data: null, error: await mapAndLog(linkError) };
   }
 
+  // `linkData.properties.action_link` points at GoTrue's own /verify
+  // endpoint, which verifies the token itself and redirects to the bare
+  // dashboard origin with the new session appended as a URL hash fragment
+  // (implicit-grant style) -- never reaching apps/dashboard's own
+  // /auth/confirm route. That hash fragment can only be consumed by
+  // client-side JS after the page loads, but apps/dashboard's middleware
+  // (Story 1.8) redirects any unauthenticated request to a non-/auth/* path
+  // -- including "/" -- to /auth/login server-side, before that client JS
+  // ever runs. The owner ends up back on a plain login page with no
+  // session and no way in. Building the link from `hashed_token` instead,
+  // pointed straight at the dashboard's own /auth/confirm route, verifies
+  // the token server-side and sets real session cookies before any
+  // redirect -- the standard pattern for custom (non-Supabase-hosted)
+  // email/SMS invite templates. See
+  // docs/manual-walkthrough-findings-2026-07-13.md.
+  const ownerInviteLink = `${getDashboardAppUrl()}/auth/confirm?token_hash=${linkData.properties.hashed_token}&type=recovery&next=${encodeURIComponent("/auth/update-password")}`;
+
   // Step 5: insert the owner's membership row.
   const { error: memberError } = await insertOwnerMember({
     gymId: gymRow.id,
@@ -152,7 +169,7 @@ export async function createGym(
   // Step 6: send the invite SMS -- stub for this story (Open Question 3, no
   // sandbox-verified SMS provider yet). Failure here must NOT roll back the
   // already-successful gym/owner/member creation.
-  const smsSent = await sendInviteSms(gym.ownerPhone, linkData.properties.action_link);
+  const smsSent = await sendInviteSms(gym.ownerPhone, ownerInviteLink);
 
   // Step 7: audit log entry -- the natural first entry in a gym's trail.
   await logGymCreated(gymRow.id, {
@@ -194,6 +211,19 @@ async function sendInviteSms(phone: string, actionLink: string): Promise<boolean
     `[invite-sms-stub] Would send SMS to ${phone} with login link: ${actionLink}`,
   );
   return false;
+}
+
+/**
+ * Origin of apps/dashboard -- where the owner invite link's /auth/confirm
+ * route lives (see the recovery-link comment above). Server-only: this is
+ * never sent to the browser, only interpolated into the invite link string.
+ */
+function getDashboardAppUrl(): string {
+  const url = process.env.DASHBOARD_APP_URL;
+  if (!url) {
+    throw new Error("DASHBOARD_APP_URL is not set");
+  }
+  return url.replace(/\/+$/, "");
 }
 
 /** Shared validation + status-update + audit-log sequence for the three
