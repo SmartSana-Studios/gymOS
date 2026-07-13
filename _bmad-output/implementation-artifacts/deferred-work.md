@@ -1,5 +1,10 @@
 # Deferred Work
 
+## Deferred from: mobile CSS-module ambient-types fix (2026-07-13)
+
+- `apps/mobile/src/constants/theme.ts`'s `import '@/global.css'` is a universal (non-`.web.ts`) file, so this import reaches native (iOS/Android) bundles too, not just web -- untested whether Metro can actually resolve/strip a plain CSS import on native, or whether it'd fail at bundle time. Not addressed here since `apps/mobile` has no runnable code yet (Epic 2+, per Story 1.1's own deferred notes) -- this is a static-typing-only fix (`css.d.ts`), it doesn't touch Metro's runtime bundling behavior. Revisit when the mobile app first actually builds/runs on a native target.
+- Local `tsc --noEmit` on Windows does not reproduce CI's `TS2307`/`TS2882` CSS-import errors at all (identical output with or without `css.d.ts` present), and separately surfaces ~15 "Image cannot be used as a JSX component" / `NativeTabsProps` errors that never appeared in CI's log. The two environments disagree on which errors fire for the exact same source -- root cause not identified (suspected `moduleResolution: "bundler"` + platform-specific dependency resolution divergence). Worth investigating if this recurs or blocks a future mobile fix from being locally verifiable.
+
 ## Deferred from: code review of spec-cache-components-suspense-boundary-fix (2026-07-13)
 
 - `LocaleShell` (the async component that resolves locale + wraps `ThemeProvider`/`I18nClientProvider`) is duplicated verbatim between `apps/dashboard/app/layout.tsx` and `apps/super-admin/app/layout.tsx` — pre-existing duplication pattern between the two apps' root layouts (they were already near-identical before this fix, no shared root-layout package exists), not introduced by this change; worth extracting to a shared package if/when the two apps' root layouts need to stay in lockstep on more than just this.
