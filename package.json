@@ -6,7 +6,8 @@
     "dev": "turbo run dev",
     "dev:local-db": "concurrently -n supabase,turbo -c yellow,cyan \"supabase start\" \"turbo run dev\"",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "check:i18n": "node scripts/check-i18n-key-parity.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

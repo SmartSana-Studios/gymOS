@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { X } from "lucide-react";
 import { tierSchema } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
@@ -42,6 +44,7 @@ export function TierModal({
   onSaved: (warning?: string) => void;
   editingTier: TierRow | null;
 }) {
+  const { t } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState(emptyForm);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -83,23 +86,23 @@ export function TierModal({
     const memberCapRaw = form.memberCap.trim();
     const memberCapNum = memberCapRaw === "" ? null : Number(memberCapRaw);
     if (memberCapRaw !== "" && !Number.isFinite(memberCapNum)) {
-      preErrors.memberCap = "Enter a positive member cap";
+      preErrors.memberCap = t("tiers.modal.errors.memberCapPositive");
     }
 
     const monthlyPriceRaw = form.monthlyPrice.trim();
     const monthlyPriceNum = Number(monthlyPriceRaw);
     if (monthlyPriceRaw === "") {
-      preErrors.monthlyPrice = "Monthly price is required";
+      preErrors.monthlyPrice = t("tiers.modal.errors.monthlyPriceRequired");
     } else if (!Number.isFinite(monthlyPriceNum)) {
-      preErrors.monthlyPrice = "Enter a valid monthly price in XAF";
+      preErrors.monthlyPrice = t("tiers.modal.errors.monthlyPriceInvalid");
     }
 
     const annualPriceRaw = form.annualPrice.trim();
     const annualPriceNum = Number(annualPriceRaw);
     if (annualPriceRaw === "") {
-      preErrors.annualPrice = "Annual price is required";
+      preErrors.annualPrice = t("tiers.modal.errors.annualPriceRequired");
     } else if (!Number.isFinite(annualPriceNum)) {
-      preErrors.annualPrice = "Enter a valid annual price in XAF";
+      preErrors.annualPrice = t("tiers.modal.errors.annualPriceInvalid");
     }
 
     if (Object.keys(preErrors).length > 0) {
@@ -150,7 +153,7 @@ export function TierModal({
 
       onSaved();
     } catch {
-      setFormError("Something went wrong on our end.");
+      setFormError(t("common.somethingWentWrong"));
     } finally {
       setSubmitting(false);
     }
@@ -168,21 +171,23 @@ export function TierModal({
       <form onSubmit={handleSubmit} className="space-y-4 p-6">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">
-            {editingTier ? `Edit ${editingTier.name}` : "Add Tier"}
+            {editingTier
+              ? t("tiers.modal.editTitle", { name: editingTier.name })
+              : t("tiers.modal.addTitle")}
           </h2>
           <button
             type="button"
-            aria-label="Close"
+            aria-label={t("tiers.modal.close")}
             onClick={resetAndClose}
             disabled={submitting}
             className="text-muted-foreground hover:text-foreground disabled:opacity-50"
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="tierName">Tier Name *</Label>
+          <Label htmlFor="tierName">{t("tiers.modal.tierName")}</Label>
           <Input
             id="tierName"
             value={form.name}
@@ -192,7 +197,7 @@ export function TierModal({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="memberCap">Member Cap (blank = unlimited)</Label>
+          <Label htmlFor="memberCap">{t("tiers.modal.memberCap")}</Label>
           <Input
             id="memberCap"
             type="number"
@@ -206,7 +211,7 @@ export function TierModal({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="monthlyPrice">Monthly Price (XAF) *</Label>
+          <Label htmlFor="monthlyPrice">{t("tiers.modal.monthlyPrice")}</Label>
           <Input
             id="monthlyPrice"
             type="number"
@@ -220,7 +225,7 @@ export function TierModal({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="annualPrice">Annual Price (XAF) *</Label>
+          <Label htmlFor="annualPrice">{t("tiers.modal.annualPrice")}</Label>
           <Input
             id="annualPrice"
             type="number"
@@ -237,10 +242,14 @@ export function TierModal({
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={resetAndClose} disabled={submitting}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" disabled={submitting}>
-            {submitting ? "Saving…" : editingTier ? "Save Changes" : "Add Tier"}
+            {submitting
+              ? t("common.saving")
+              : editingTier
+                ? t("tiers.modal.saveChanges")
+                : t("tiers.addTierButton")}
           </Button>
         </div>
       </form>

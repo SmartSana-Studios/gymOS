@@ -28,13 +28,19 @@ export const createGymSchema = z.object({
 
 export type CreateGymInput = z.infer<typeof createGymSchema>;
 
+// Shared minimum length for every free-text audit "reason" field in this
+// schema file (gymStatusChangeSchema, escalateGymAccessSchema below) --
+// factored into one constant so the length policy can't drift between them
+// while each still keeps its own action-specific error copy.
+const REASON_MIN_LENGTH = 5;
+
 // Story 1.6: suspend/deactivate/reinstate all require a reason (AC #3,
 // audit-logged). The target status isn't part of this schema -- it's implied
 // by which Server Action is called (suspendGym/deactivateGym/reinstateGym),
 // closing off an invalid-transition class entirely rather than validating a
 // free-form target-status field.
 export const gymStatusChangeSchema = z.object({
-  reason: z.string().trim().min(5, "Add a reason describing this change"),
+  reason: z.string().trim().min(REASON_MIN_LENGTH, "Add a reason describing this change"),
 });
 
 export type GymStatusChangeInput = z.infer<typeof gymStatusChangeSchema>;
@@ -63,3 +69,51 @@ export type OverrideGymCapInput = z.infer<typeof overrideGymCapSchema>;
 // Server Actions below -- the payload schemas above only cover the request
 // body, not the id itself.
 export const gymIdSchema = z.uuid("Invalid gym id");
+
+// Story 1.7 (FR-072): "Access gym data" escalation requires a mandatory
+// reason, audit-logged with the Super Admin's identity/reason/timestamp.
+// Shares gymStatusChangeSchema's REASON_MIN_LENGTH policy (one constant, so
+// the two can't silently drift) but keeps its own name/error copy -- this
+// action-intent (why you're viewing a gym's private data) reads differently
+// from a lifecycle status change at every call site.
+export const escalateGymAccessSchema = z.object({
+  reason: z.string().trim().min(REASON_MIN_LENGTH, "Add a reason describing why you need access"),
+});
+
+export type EscalateGymAccessInput = z.infer<typeof escalateGymAccessSchema>;
+
+// Story 1.9 (FR-069): Settings page field validation, copy taken
+// character-for-character from EXPERIENCE.md's AD-13 field table. `capacity`
+// here is `gyms.capacity` (FR-046 occupancy denominator) -- NOT
+// `gyms.member_cap_override` (Story 1.6, tier-based member ceiling); the two
+// columns are unrelated despite the similar naming. The `gyms.capacity`
+// column itself stays nullable (existing gyms provisioned before this story
+// may have capacity = null) -- this is form-level "required" only, no DB
+// constraint added.
+export const gymSettingsSchema = z.object({
+  gymName: z.string().trim().min(2, "Gym name is required").max(120, "Gym name is too long"),
+  // Only null (no logo) or a URL under this bucket's own public object path
+  // is accepted -- `uploadGymLogo` is the only legitimate producer of this
+  // value, so this rejects an arbitrary/data:/blob: string submitted by
+  // calling this schema directly, bypassing the upload flow.
+  logoUrl: z
+    .url()
+    .refine((url) => url.includes("/storage/v1/object/public/gym-logos/"), {
+      message: "Logo URL must come from the gym-logos upload flow",
+    })
+    .nullable(),
+  // `gyms.primary_color` is nullable with no default -- gyms provisioned
+  // before this story (or that simply haven't set a color yet) must still be
+  // able to save every other field without being forced to pick a color.
+  primaryColor: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "Enter a valid hex colour (e.g. #E0971F)")
+    .nullable(),
+  timezone: z.enum(["Africa/Douala", "Africa/Lagos", "Africa/Bangui", "Africa/Kinshasa", "UTC"]),
+  defaultLanguage: z.enum(["en", "fr"]),
+  gracePeriodDays: z.number().int().min(1, "Grace period must be between 1 and 30 days").max(30, "Grace period must be between 1 and 30 days"),
+  capacity: z.number().int().positive("Enter the gym's member capacity").max(2147483647, "Value is too large"),
+  alertAutoDismissMinutes: z.number().int().min(1, "Auto-dismiss must be between 1 and 120 minutes").max(120, "Auto-dismiss must be between 1 and 120 minutes"),
+});
+
+export type GymSettingsInput = z.infer<typeof gymSettingsSchema>;

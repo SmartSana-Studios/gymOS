@@ -5,7 +5,7 @@
 -- match gyms_super_admin_rls.test.sql / rls_tenant_isolation.test.sql.
 
 begin;
-select plan(25);
+select plan(29);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000000301', 'Lifecycle Test Tier', 5000, 50000, 30);
@@ -111,9 +111,16 @@ select is(
 );
 
 -- ============================================================================
--- Regression: an owner-claim session cannot update any gym, including
--- their own -- gym-settings self-service (FR-069) is a different table's
--- job, not this policy.
+-- Regression, updated by Story 1.9: `owner_update_own_gym`
+-- (0014_gym_settings_owner_access.sql) now lets an owner-claim session
+-- UPDATE its own gym row at all (gym-settings self-service, FR-069) -- so
+-- the row itself is matched/returned here, unlike before Story 1.9 when no
+-- owner UPDATE policy on `gyms` existed and this returned 0 rows. What's
+-- still protected is the `status` column specifically: Story 1.9's
+-- `protect_super_admin_only_gym_columns` trigger silently pins
+-- status/tier_id/member_cap_override back to their prior values for any
+-- non-super_admin session, closing the column-level gap a purely row-level
+-- RLS policy can't -- asserted directly below.
 -- ============================================================================
 set local role authenticated;
 select set_config(
@@ -126,13 +133,49 @@ with updated as (
   update gyms set status = 'active' where id = '00000000-0000-0000-0000-000000000401' returning id
 )
 select is(
-  (select count(*) from updated)::int, 0,
-  'an owner-claim session cannot UPDATE their own gym -- 0 rows affected silently (RLS USING-clause semantics), not an exception'
+  (select count(*) from updated)::int, 1,
+  'an owner-claim session CAN update its own gym row (Story 1.9''s owner_update_own_gym) -- the row is matched, even though the status value itself does not change'
 );
 
 select is(
   (select status from gyms where id = '00000000-0000-0000-0000-000000000401')::text, 'suspended',
-  'the gym''s status is unchanged after the blocked owner-claim update attempt'
+  'the gym''s status column is unchanged -- protect_super_admin_only_gym_columns silently pins it back for a non-super_admin session'
+);
+
+-- The trigger protects three Super Admin-only columns, but only `status` was
+-- asserted above -- close the gap for `tier_id`/`member_cap_override` too.
+with updated as (
+  update gyms
+  set tier_id = '00000000-0000-0000-0000-000000000301', member_cap_override = 999
+  where id = '00000000-0000-0000-0000-000000000401'
+  returning id
+)
+select is(
+  (select count(*) from updated)::int, 1,
+  'an owner-claim session''s UPDATE attempting to change tier_id/member_cap_override is still matched (row-level policy allows the write)'
+);
+
+select is(
+  (select tier_id from gyms where id = '00000000-0000-0000-0000-000000000401')::text, '00000000-0000-0000-0000-000000000303',
+  'the gym''s tier_id is unchanged -- protect_super_admin_only_gym_columns pins it back for a non-super_admin session'
+);
+
+select is(
+  (select member_cap_override from gyms where id = '00000000-0000-0000-0000-000000000401')::int, 50,
+  'the gym''s member_cap_override is unchanged -- protect_super_admin_only_gym_columns pins it back for a non-super_admin session'
+);
+
+update gyms set created_at = now() + interval '1 year'
+where id = '00000000-0000-0000-0000-000000000401';
+
+-- `now()` is frozen for the whole test transaction, so comparing directly
+-- against `now()` would spuriously pass/fail depending on fixture-insert
+-- timing -- compare against a bound well short of the "+1 year" value the
+-- update attempted instead, which correctly distinguishes "pinned back" from
+-- "shifted a year forward" regardless of when this transaction started.
+select ok(
+  (select created_at from gyms where id = '00000000-0000-0000-0000-000000000401') < now() + interval '6 months',
+  'the gym''s created_at is unchanged -- protect_super_admin_only_gym_columns pins it back unconditionally (still in the past, not shifted a year into the future)'
 );
 
 select throws_like(

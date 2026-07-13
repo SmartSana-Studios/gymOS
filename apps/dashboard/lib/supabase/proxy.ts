@@ -48,14 +48,25 @@ export async function updateSession(request: NextRequest) {
   const user = data?.claims;
 
   if (
-    request.nextUrl.pathname !== "/" &&
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/auth")
   ) {
-    // no user, potentially respond by redirecting the user to the login page
+    // `/` is AD-02 Overview (protected, Receptionist+) -- not the starter's
+    // public marketing page anymore, so it is deliberately no longer
+    // exempted here (Story 1.8). This is defense-in-depth, not the sole
+    // gate: app/(dashboard)/layout.tsx does the authoritative claims/role
+    // check. Preserve the originally-requested path so login can redirect
+    // back to it (AD-01's "redirect to AD-02 or originally-requested deep
+    // link").
     const url = request.nextUrl.clone();
+    // Preserve the original query string too (e.g. /members?filter=expiring),
+    // not just the pathname -- otherwise the post-login redirect drops it
+    // and lands the user on an unfiltered page (Review finding).
+    const next = request.nextUrl.pathname + request.nextUrl.search;
     url.pathname = "/auth/login";
+    url.search = "";
+    url.searchParams.set("next", next);
     return NextResponse.redirect(url);
   }
 

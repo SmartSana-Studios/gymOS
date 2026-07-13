@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { X } from "lucide-react";
 import { createGymSchema } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
@@ -34,9 +36,10 @@ export function CreateGymModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onCreated: (ownerPhone: string, smsSent: boolean) => void;
+  onCreated: (ownerPhone: string, smsSent: boolean, ownerInviteLink: string) => void;
   tiers: TierOption[];
 }) {
+  const { t } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -84,7 +87,7 @@ export function CreateGymModal({
 
       if (error) {
         if (error.code === "gym_name_taken") {
-          setFieldErrors({ gymName: "A gym with this name already exists" });
+          setFieldErrors({ gymName: error.message });
         } else if (error.code === "owner_email_taken") {
           setFieldErrors({ ownerEmail: error.message });
         } else if (error.code === "owner_phone_taken") {
@@ -96,7 +99,7 @@ export function CreateGymModal({
       }
 
       if (data) {
-        onCreated(data.ownerPhone, data.smsSent);
+        onCreated(data.ownerPhone, data.smsSent, data.ownerInviteLink);
         setForm(initialForm);
         setFieldErrors({});
       }
@@ -105,7 +108,7 @@ export function CreateGymModal({
       // throw for expected errors, but an unexpected exception (network
       // drop, etc.) must not leave the submit button stuck disabled forever
       // (code review finding).
-      setFormError("Something went wrong on our end.");
+      setFormError(t("common.somethingWentWrong"));
     } finally {
       setSubmitting(false);
     }
@@ -126,20 +129,20 @@ export function CreateGymModal({
     >
       <form onSubmit={handleSubmit} className="space-y-4 p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Create Gym</h2>
+          <h2 className="text-lg font-semibold">{t("gyms.create.title")}</h2>
           <button
             type="button"
-            aria-label="Close"
+            aria-label={t("gyms.create.close")}
             onClick={resetAndClose}
             disabled={submitting}
             className="text-muted-foreground hover:text-foreground disabled:opacity-50"
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="gymName">Gym Name *</Label>
+          <Label htmlFor="gymName">{t("gyms.create.gymName")}</Label>
           <Input
             id="gymName"
             value={form.gymName}
@@ -151,7 +154,7 @@ export function CreateGymModal({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="ownerName">Owner Name *</Label>
+          <Label htmlFor="ownerName">{t("gyms.create.ownerName")}</Label>
           <Input
             id="ownerName"
             value={form.ownerName}
@@ -163,10 +166,10 @@ export function CreateGymModal({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="ownerPhone">Owner Phone *</Label>
+          <Label htmlFor="ownerPhone">{t("gyms.create.ownerPhone")}</Label>
           <Input
             id="ownerPhone"
-            placeholder="+237600000000"
+            placeholder={t("gyms.create.ownerPhonePlaceholder")}
             value={form.ownerPhone}
             onChange={(e) => setForm({ ...form, ownerPhone: e.target.value })}
           />
@@ -176,7 +179,7 @@ export function CreateGymModal({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="ownerEmail">Owner Email *</Label>
+          <Label htmlFor="ownerEmail">{t("gyms.create.ownerEmail")}</Label>
           <Input
             id="ownerEmail"
             type="email"
@@ -189,14 +192,14 @@ export function CreateGymModal({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="tierId">Subscription Tier *</Label>
+          <Label htmlFor="tierId">{t("gyms.create.tier")}</Label>
           <select
             id="tierId"
             value={form.tierId}
             onChange={(e) => setForm({ ...form, tierId: e.target.value })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <option value="">Select a tier</option>
+            <option value="">{t("gyms.create.selectTier")}</option>
             {tiers.map((tier) => (
               <option key={tier.id} value={tier.id}>
                 {tier.name}
@@ -209,7 +212,7 @@ export function CreateGymModal({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="status">Status</Label>
+          <Label htmlFor="status">{t("gyms.create.status")}</Label>
           <select
             id="status"
             value={form.status}
@@ -218,9 +221,9 @@ export function CreateGymModal({
             }
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <option value="active">Active</option>
-            <option value="suspended">Suspended</option>
-            <option value="deactivated">Deactivated</option>
+            <option value="active">{t("gyms.create.statusActive")}</option>
+            <option value="suspended">{t("gyms.create.statusSuspended")}</option>
+            <option value="deactivated">{t("gyms.create.statusDeactivated")}</option>
           </select>
         </div>
 
@@ -228,10 +231,10 @@ export function CreateGymModal({
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={resetAndClose} disabled={submitting}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" disabled={submitting}>
-            {submitting ? "Creating…" : "Create Gym"}
+            {submitting ? t("gyms.create.creating") : t("gyms.create.title")}
           </Button>
         </div>
       </form>

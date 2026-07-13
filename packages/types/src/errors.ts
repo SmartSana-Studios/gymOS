@@ -1,12 +1,25 @@
+import en from "./locales/en.json";
+import fr from "./locales/fr.json";
+
 export interface AppError {
   code: string;
   message: string;
 }
 
+export type ErrorLocale = "en" | "fr";
+
+const ERROR_COPY: Record<ErrorLocale, typeof en.errors> = {
+  en: en.errors,
+  fr: fr.errors,
+};
+
 // Maps Postgres/Supabase errors to the exact user-facing copy from
-// EXPERIENCE.md's Error States table. English-only for now — i18n (FR-016's
-// CI gate) is Story 1.10's job; do not wire i18n keys here prematurely.
-export function mapSupabaseError(error: unknown): AppError {
+// EXPERIENCE.md's Error States table. `message` is sourced from
+// packages/types/src/locales/{en,fr}.json's `errors.*` keys (Story 1.10) --
+// still a pure, side-effect-free function with no DOM/Node lib usage
+// (locale JSON is a static import, not a dynamic fetch).
+export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): AppError {
+  const copy = ERROR_COPY[locale] ?? ERROR_COPY.en;
   const pgErrorCode = (error as { code?: string } | null)?.code;
   const message = (error as { message?: string } | null)?.message ?? "";
 
@@ -15,7 +28,7 @@ export function mapSupabaseError(error: unknown): AppError {
   if (pgErrorCode === "23505" && message.includes("idx_gyms_name_unique")) {
     return {
       code: "gym_name_taken",
-      message: "A gym with this name already exists",
+      message: copy.gymNameTaken,
     };
   }
 
@@ -28,7 +41,7 @@ export function mapSupabaseError(error: unknown): AppError {
   if (pgErrorCode === "23505" && message.includes("idx_tiers_name_unique")) {
     return {
       code: "tier_name_taken",
-      message: "This name is already in use",
+      message: copy.tierNameTaken,
     };
   }
 
@@ -46,7 +59,7 @@ export function mapSupabaseError(error: unknown): AppError {
   ) {
     return {
       code: "tier_not_found",
-      message: "That tier no longer exists. Choose a different one.",
+      message: copy.tierNotFound,
     };
   }
 
@@ -60,14 +73,14 @@ export function mapSupabaseError(error: unknown): AppError {
   if (pgErrorCode === "email_exists") {
     return {
       code: "owner_email_taken",
-      message: "This email address is already registered",
+      message: copy.ownerEmailTaken,
     };
   }
 
   if (pgErrorCode === "phone_exists") {
     return {
       code: "owner_phone_taken",
-      message: "This phone number is already registered",
+      message: copy.ownerPhoneTaken,
     };
   }
 
@@ -79,6 +92,6 @@ export function mapSupabaseError(error: unknown): AppError {
   // object is otherwise lost once mapped to this generic shape.
   return {
     code: "unknown",
-    message: "Something went wrong on our end.",
+    message: copy.unknown,
   };
 }

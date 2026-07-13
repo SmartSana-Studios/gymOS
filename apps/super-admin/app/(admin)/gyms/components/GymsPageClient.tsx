@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useTranslation } from "react-i18next";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +13,12 @@ import { GymLifecycleDialog } from "./GymLifecycleDialog";
 import { deactivateGym, reinstateGym, suspendGym } from "../actions";
 
 const STATUS_OPTIONS = ["", "active", "suspended", "deactivated"] as const;
+const STATUS_LABEL_KEY: Record<(typeof STATUS_OPTIONS)[number], string> = {
+  "": "gyms.statusAll",
+  active: "gyms.create.statusActive",
+  suspended: "gyms.create.statusSuspended",
+  deactivated: "gyms.create.statusDeactivated",
+};
 
 export function GymsPageClient({
   initialGyms,
@@ -30,7 +38,8 @@ export function GymsPageClient({
   tiers: TierOption[];
 }) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; inviteLink?: string } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [searchInput, setSearchInput] = useState(search);
   const [lifecycleGym, setLifecycleGym] = useState<{
     gym: GymListRow;
@@ -40,6 +49,7 @@ export function GymsPageClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     return () => {
@@ -49,8 +59,11 @@ export function GymsPageClient({
 
   // Resync the search box with the URL's `search` param when it changes
   // externally (e.g. browser back/forward) -- otherwise the input keeps
-  // showing stale text that no longer matches the applied filter.
+  // showing stale text that no longer matches the applied filter. Already a
+  // documented, accepted narrow-risk pattern (Story 1.6 deferred-work.md) --
+  // not redesigned here.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSearchInput(search);
   }, [search]);
 
@@ -68,20 +81,40 @@ export function GymsPageClient({
     router.push(`${pathname}?${params.toString()}`);
   }
 
-  function showToast(message: string) {
-    setToast(message);
+  // A plain status message auto-dismisses; one carrying the invite link stays
+  // on screen (no timer) until the admin explicitly closes it -- otherwise
+  // there's no time to copy the link before it vanishes, and (until Story
+  // 2.1 wires up real SMS) this is the only way anyone without server/log
+  // access can get it at all.
+  function showToast(message: string, inviteLink?: string) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToast(null), 4000);
+    setLinkCopied(false);
+    setToast({ message, inviteLink });
+    if (!inviteLink) {
+      toastTimerRef.current = setTimeout(() => setToast(null), 4000);
+    }
   }
 
-  function handleCreated(ownerPhone: string, smsSent: boolean) {
+  function handleCreated(ownerPhone: string, smsSent: boolean, ownerInviteLink: string) {
     setModalOpen(false);
     showToast(
       smsSent
-        ? `Gym created. SMS sent to ${ownerPhone}.`
-        : `Gym created. Invite link generated for ${ownerPhone} — SMS delivery isn't connected yet.`,
+        ? t("gyms.toast.createdSms", { phone: ownerPhone })
+        : t("gyms.toast.createdNoSms", { phone: ownerPhone }),
+      smsSent ? undefined : ownerInviteLink,
     );
     router.refresh();
+  }
+
+  async function copyInviteLink(link: string) {
+    try {
+      await navigator.clipboard.writeText(link);
+      setLinkCopied(true);
+    } catch {
+      // Clipboard API can be denied (permissions, insecure context) -- the
+      // link is still selectable/visible in the toast as a fallback, so this
+      // is silent rather than surfacing a second error on top of a success.
+    }
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -89,13 +122,13 @@ export function GymsPageClient({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Gyms</h1>
-        <Button onClick={() => setModalOpen(true)}>+ Create Gym</Button>
+        <h1 className="text-2xl font-semibold">{t("gyms.title")}</h1>
+        <Button onClick={() => setModalOpen(true)}>{t("gyms.createGym")}</Button>
       </div>
 
       <div className="flex gap-2">
         <Input
-          placeholder="Search gym name"
+          placeholder={t("gyms.searchPlaceholder")}
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => {
@@ -110,12 +143,12 @@ export function GymsPageClient({
         >
           {STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
-              {s === "" ? "All" : s[0].toUpperCase() + s.slice(1)}
+              {t(STATUS_LABEL_KEY[s])}
             </option>
           ))}
         </select>
         <Button variant="outline" onClick={() => updateParams({ search: searchInput, page: 1 })}>
-          Search
+          {t("gyms.search")}
         </Button>
       </div>
 
@@ -123,25 +156,19 @@ export function GymsPageClient({
         <div className="flex flex-col items-center gap-3 rounded-md border border-dashed py-16 text-center">
           {total === 0 && !search && !status ? (
             <>
-              <p className="text-sm text-muted-foreground">
-                No gyms on the platform yet. Create the first one.
-              </p>
-              <Button onClick={() => setModalOpen(true)}>Create Gym</Button>
+              <p className="text-sm text-muted-foreground">{t("gyms.emptyNoGyms")}</p>
+              <Button onClick={() => setModalOpen(true)}>{t("gyms.createGymButton")}</Button>
             </>
           ) : total === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No gyms match your search or filter.
-            </p>
+            <p className="text-sm text-muted-foreground">{t("gyms.emptyNoMatch")}</p>
           ) : (
             // total > 0 but this page has no rows -- a stale `page` param
             // past the last page (e.g. after a filter shrank the result
             // set), not "no matches."
             <>
-              <p className="text-sm text-muted-foreground">
-                No gyms on this page.
-              </p>
+              <p className="text-sm text-muted-foreground">{t("gyms.emptyNoPageRows")}</p>
               <Button variant="outline" onClick={() => updateParams({ page: 1 })}>
-                Back to page 1
+                {t("gyms.backToPage1")}
               </Button>
             </>
           )}
@@ -151,12 +178,12 @@ export function GymsPageClient({
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">
               <tr>
-                <th className="p-3 font-medium">Gym Name</th>
-                <th className="p-3 font-medium">Owner</th>
-                <th className="p-3 font-medium">Created</th>
-                <th className="p-3 font-medium">Tier</th>
-                <th className="p-3 font-medium">Status</th>
-                <th className="p-3 font-medium">Actions</th>
+                <th className="p-3 font-medium">{t("gyms.table.gymName")}</th>
+                <th className="p-3 font-medium">{t("gyms.table.owner")}</th>
+                <th className="p-3 font-medium">{t("gyms.table.created")}</th>
+                <th className="p-3 font-medium">{t("gyms.table.tier")}</th>
+                <th className="p-3 font-medium">{t("gyms.table.status")}</th>
+                <th className="p-3 font-medium">{t("gyms.table.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -175,7 +202,12 @@ export function GymsPageClient({
                     {new Date(gym.createdAt).toLocaleDateString()}
                   </td>
                   <td className="p-3">{gym.tierName}</td>
-                  <td className="p-3 capitalize">{gym.status}</td>
+                  <td className="p-3">
+                    {(() => {
+                      const key = STATUS_LABEL_KEY[gym.status as (typeof STATUS_OPTIONS)[number]];
+                      return key ? t(key) : gym.status;
+                    })()}
+                  </td>
                   <td className="p-3">
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                       {gym.status === "active" && (
@@ -185,14 +217,14 @@ export function GymsPageClient({
                             size="sm"
                             onClick={() => setLifecycleGym({ gym, action: "suspend" })}
                           >
-                            Suspend
+                            {t("gyms.actions.suspend")}
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setLifecycleGym({ gym, action: "deactivate" })}
                           >
-                            Deactivate
+                            {t("gyms.actions.deactivate")}
                           </Button>
                         </>
                       )}
@@ -203,14 +235,14 @@ export function GymsPageClient({
                             size="sm"
                             onClick={() => setLifecycleGym({ gym, action: "reinstate" })}
                           >
-                            Reinstate
+                            {t("gyms.actions.reinstate")}
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setLifecycleGym({ gym, action: "deactivate" })}
                           >
-                            Deactivate
+                            {t("gyms.actions.deactivate")}
                           </Button>
                         </>
                       )}
@@ -220,7 +252,7 @@ export function GymsPageClient({
                           size="sm"
                           onClick={() => setLifecycleGym({ gym, action: "reinstate" })}
                         >
-                          Reinstate
+                          {t("gyms.actions.reinstate")}
                         </Button>
                       )}
                     </div>
@@ -237,10 +269,11 @@ export function GymsPageClient({
           <Button
             variant="outline"
             size="sm"
+            aria-label={t("gyms.pagination.previous")}
             disabled={page <= 1}
             onClick={() => updateParams({ page: page - 1 })}
           >
-            ←
+            <ChevronLeft size={16} />
           </Button>
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
             <Button
@@ -255,10 +288,11 @@ export function GymsPageClient({
           <Button
             variant="outline"
             size="sm"
+            aria-label={t("gyms.pagination.next")}
             disabled={page >= totalPages}
             onClick={() => updateParams({ page: page + 1 })}
           >
-            →
+            <ChevronRight size={16} />
           </Button>
         </div>
       )}
@@ -293,9 +327,38 @@ export function GymsPageClient({
       {toast && (
         <div
           role="status"
-          className="fixed bottom-4 right-4 rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground shadow-lg"
+          className="fixed bottom-4 right-4 max-w-sm rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground shadow-lg"
         >
-          {toast}
+          <p>{toast.message}</p>
+          {toast.inviteLink && (
+            <div className="mt-2 space-y-2">
+              <Input
+                readOnly
+                value={toast.inviteLink}
+                onFocus={(e) => e.currentTarget.select()}
+                className="border-primary-foreground/30 bg-primary-foreground/10 text-xs text-primary-foreground"
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => copyInviteLink(toast.inviteLink!)}
+                >
+                  {linkCopied ? t("gyms.toast.linkCopied") : t("gyms.toast.copyLink")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-primary-foreground hover:text-primary-foreground"
+                  onClick={() => setToast(null)}
+                >
+                  {t("gyms.toast.dismiss")}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

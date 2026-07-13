@@ -112,9 +112,16 @@ create policy "super_admin_read_owner_members" on members
 -- a large sentinel (1,000,000) as a provisional stopgap; the real schema
 -- decision (e.g. making member_cap nullable = unlimited) belongs to Story 1.6,
 -- which owns tier CRUD. See docs/decisions.md.
+--
+-- IDs must be RFC-4122 version/variant-conformant (version nibble `4`,
+-- variant nibble `8`) -- `createGymSchema.tierId` (packages/types) validates
+-- with Zod v4's `z.uuid()`, which rejects the version-0 placeholders this
+-- migration originally shipped with (e.g. `...-0000-000000000101`), making
+-- the Create Gym form's tier dropdown unusable against its own seed data in
+-- every environment. See docs/manual-walkthrough-findings-2026-07-13.md.
 -- ----------------------------------------------------------------------------
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
-  ('00000000-0000-0000-0000-000000000101', 'Hustle', 15000, 150000, 30),
-  ('00000000-0000-0000-0000-000000000102', 'Grind', 35000, 350000, 100),
-  ('00000000-0000-0000-0000-000000000103', 'Elite', 75000, 750000, 1000000)
+  ('00000000-0000-4000-8000-000000000101', 'Hustle', 15000, 150000, 30),
+  ('00000000-0000-4000-8000-000000000102', 'Grind', 35000, 350000, 100),
+  ('00000000-0000-4000-8000-000000000103', 'Elite', 75000, 750000, 1000000)
 on conflict (id) do nothing;

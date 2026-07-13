@@ -1,0 +1,86 @@
+{
+  "nav": {
+    "overview": "Aperçu",
+    "members": "Membres",
+    "subscriptions": "Abonnements",
+    "payments": "Paiements",
+    "attendance": "Présences",
+    "auditLog": "Journal d'audit",
+    "settings": "Paramètres",
+    "coachPortal": "Espace Coach"
+  },
+  "role": {
+    "member": "Membre",
+    "coach": "Coach",
+    "receptionist": "Réceptionniste",
+    "manager": "Gérant",
+    "owner": "Propriétaire"
+  },
+  "sidebar": {
+    "logout": "Se déconnecter",
+    "loggingOut": "Déconnexion…",
+    "logoutConfirmTitle": "Se déconnecter de GymOS ?",
+    "unknownUser": "Utilisateur inconnu",
+    "navigationMenu": "Menu de navigation"
+  },
+  "topbar": {
+    "openNavigationMenu": "Ouvrir le menu de navigation"
+  },
+  "overview": {
+    "title": "Aperçu",
+    "body": "Le résumé de l'activité de votre salle apparaîtra ici à mesure que GymOS se déploie."
+  },
+  "settings": {
+    "title": "Paramètres",
+    "saveHint": "Enregistrer applique les changements de toutes les sections ci-dessous.",
+    "saveButton": "Enregistrer les paramètres",
+    "savedToast": "Paramètres enregistrés.",
+    "sections": {
+      "branding": "Image de marque",
+      "localization": "Localisation",
+      "membership": "Adhésion",
+      "frontDeskAlerts": "Alertes accueil",
+      "qrCode": "Code QR"
+    },
+    "fields": {
+      "gymName": "Nom de la salle *",
+      "logo": "Logo",
+      "noLogo": "Aucun logo",
+      "logoPreviewAlt": "Aperçu du logo de la salle",
+      "uploadNew": "Téléverser",
+      "uploading": "Téléversement…",
+      "remove": "Retirer",
+      "primaryColor": "Couleur principale *",
+      "defaultLanguage": "Langue par défaut",
+      "timezone": "Fuseau horaire *",
+      "gracePeriod": "Délai de grâce *",
+      "gracePeriodUnit": "jours",
+      "capacity": "Capacité de la salle *",
+      "capacityUnit": "membres",
+      "alertAutoDismiss": "Fermeture auto. des alertes",
+      "alertAutoDismissUnit": "minutes"
+    },
+    "languageOptionEnglish": "English",
+    "languageOptionFrench": "Français",
+    "qr": {
+      "download": "Télécharger le code QR ↓",
+      "qrCodeAlt": "Code QR de pointage de la salle",
+      "regenerate": "Régénérer le code QR",
+      "regenerateConfirmTitle": "Régénérer le code QR ?",
+      "regenerateConfirmBody": "Ceci invalidera immédiatement le code actuel. Toute copie imprimée ou affichée cessera de fonctionner. Vous devrez les remplacer.",
+      "regenerating": "Régénération…",
+      "regenerateFailedToast": "Impossible de régénérer. Réessayez."
+    },
+    "errors": {
+      "gymNotFound": "Salle introuvable",
+      "noFileProvided": "Aucun fichier fourni",
+      "unsupportedType": "Type d'image non pris en charge. Utilisez PNG, JPG, WEBP ou GIF.",
+      "imageTooLarge": "Image trop volumineuse — 5 Mo maximum",
+      "auditLogFailedSave": "Les paramètres ont été enregistrés, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "auditLogFailedQr": "Le code QR a été régénéré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "gracePeriodRange": "Le délai de grâce doit être compris entre 1 et 30 jours",
+      "capacityRequired": "Indiquez la capacité de la salle",
+      "alertAutoDismissRange": "La fermeture automatique doit être comprise entre 1 et 120 minutes"
+    }
+  }
+}

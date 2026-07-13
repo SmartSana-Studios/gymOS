@@ -4,7 +4,7 @@
 -- auth_hook_canary.test.sql / rls_tenant_isolation.test.sql.
 
 begin;
-select plan(22);
+select plan(23);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000000201', 'Test Tier', 5000, 50000, 30);
@@ -176,9 +176,21 @@ select is(
   'an owner-claim session still sees 0 tiers -- the new tiers SELECT policy is scoped to super_admin only'
 );
 
+-- Story 1.8 (0013_dashboard_shell_self_read.sql) adds
+-- self_read_own_membership, which ORs with this file's super_admin-scoped
+-- policies for the same command: an owner-claim session now sees exactly
+-- their own membership row (previously 0, when no self-read policy existed
+-- at all) -- not the New Owner row seeded above under a different user_id,
+-- confirming self-read stays scoped to the caller's own identity, not a
+-- roster-read.
 select is(
-  (select count(*) from members)::int, 0,
-  'an owner-claim session still sees 0 members rows (even their own gym''s owner row) -- the new members SELECT policy is scoped to super_admin only, matching Story 1.3/1.4''s existing deny-all coverage'
+  (select count(*) from members)::int, 1,
+  'an owner-claim session sees exactly 1 members row -- their own (self_read_own_membership, Story 1.8), not the platform-wide super_admin-scoped visibility'
+);
+
+select is(
+  (select name from members limit 1), 'Gym A Owner',
+  'the one visible row is their own row, not the New Owner row seeded under a different user_id'
 );
 
 select throws_like(

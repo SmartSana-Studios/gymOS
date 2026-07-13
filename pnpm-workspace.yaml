@@ -1,3 +1,16 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# eslint-config-next's dist/parser.js does `require('next/dist/compiled/babel/eslint-parser')`
+# without declaring `next` as its own dependency -- works under npm/yarn's
+# flat node_modules (hoisting papers over it) but fails to resolve under
+# pnpm's isolated layout. A scoped packageExtension (rather than a global
+# public-hoist-pattern, which risks affecting unrelated packages' own
+# dependency resolution, e.g. apps/mobile) declares this dependency only
+# for eslint-config-next itself. Story 1.10 -- first story to actually run
+# `pnpm lint`, which surfaced this pre-existing gap.
+packageExtensions:
+  eslint-config-next:
+    dependencies:
+      next: "*"

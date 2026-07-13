@@ -1,5 +1,5 @@
 # generated: 2026-07-04
-# last_updated: 2026-07-09 (story 1-6 code review complete, done)
+# last_updated: 2026-07-10 (story 1-10 code review complete, done)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-07-09 (story 1-6 code review complete, done)
+last_updated: 2026-07-10 (story 1-10 code review complete, done)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -49,10 +49,10 @@ development_status:
   1-4-append-only-audit-log-foundation: done
   1-5-super-admin-create-onboard-a-gym: done
   1-6-super-admin-tier-management-gym-lifecycle: done
-  1-7-super-admin-escalated-gym-data-access: backlog
-  1-8-gym-owner-login-role-filtered-dashboard-shell: backlog
-  1-9-gym-branding-operational-settings: backlog
-  1-10-bilingual-en-fr-platform-foundation: backlog
+  1-7-super-admin-escalated-gym-data-access: done
+  1-8-gym-owner-login-role-filtered-dashboard-shell: done
+  1-9-gym-branding-operational-settings: done
+  1-10-bilingual-en-fr-platform-foundation: done
   epic-1-retrospective: optional
 
   epic-2: backlog

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { changeGymTierSchema } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ export function ChangeTierDialog({
   onClose: () => void;
   onDone: (warning?: string) => void;
 }) {
+  const { t } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [tierId, setTierId] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export function ChangeTierDialog({
     dialogRef.current?.showModal();
   }, []);
 
-  const selectedTier = tiers.find((t) => t.id === tierId);
+  const selectedTier = tiers.find((tier) => tier.id === tierId);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,7 +40,7 @@ export function ChangeTierDialog({
 
     const parsed = changeGymTierSchema.safeParse({ tierId });
     if (!parsed.success) {
-      setError(parsed.error.issues[0]?.message ?? "Select a subscription tier");
+      setError(parsed.error.issues[0]?.message ?? t("gyms.changeTier.errorSelectTier"));
       return;
     }
 
@@ -63,7 +65,7 @@ export function ChangeTierDialog({
       }
       onDone();
     } catch {
-      setError("Something went wrong on our end.");
+      setError(t("common.somethingWentWrong"));
     } finally {
       setSubmitting(false);
     }
@@ -79,17 +81,17 @@ export function ChangeTierDialog({
       className="w-full max-w-[420px] rounded-md border p-0 backdrop:bg-black/50"
     >
       <form onSubmit={handleSubmit} className="space-y-4 p-6">
-        <h2 className="text-lg font-semibold">Change Tier</h2>
+        <h2 className="text-lg font-semibold">{t("gyms.changeTier.title")}</h2>
 
         <div className="space-y-2">
-          <Label htmlFor="newTier">New Tier</Label>
+          <Label htmlFor="newTier">{t("gyms.changeTier.newTier")}</Label>
           <select
             id="newTier"
             value={tierId}
             onChange={(e) => setTierId(e.target.value)}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
-            <option value="">Select a tier</option>
+            <option value="">{t("gyms.changeTier.selectTier")}</option>
             {tiers.map((tier) => (
               <option key={tier.id} value={tier.id}>
                 {tier.name}
@@ -100,8 +102,11 @@ export function ChangeTierDialog({
 
         {selectedTier && (
           <p className="text-sm text-muted-foreground">
-            Change {gym.name} from {gym.tierName} to {selectedTier.name}? Existing members
-            unaffected.
+            {t("gyms.changeTier.confirmText", {
+              gymName: gym.name,
+              oldTier: gym.tierName,
+              newTier: selectedTier.name,
+            })}
           </p>
         )}
 
@@ -109,14 +114,14 @@ export function ChangeTierDialog({
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" disabled={submitting || !tierId}>
             {submitting
-              ? "Changing…"
+              ? t("gyms.changeTier.changing")
               : selectedTier
-                ? `Change to ${selectedTier.name}`
-                : "Change Tier"}
+                ? t("gyms.changeTier.changeTo", { tierName: selectedTier.name })
+                : t("gyms.changeTier.changeTierButton")}
           </Button>
         </div>
       </form>

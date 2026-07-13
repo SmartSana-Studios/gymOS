@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { gymIdSchema, mapSupabaseError, type AppError } from "@gymos/types";
+import { getRequestLocale } from "@/lib/i18n/get-request-locale";
+import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import type { Locale } from "@/lib/i18n/config";
 
 /**
  * `mapSupabaseError` is a pure mapping utility in `packages/types` (no
@@ -8,9 +11,23 @@ import { gymIdSchema, mapSupabaseError, type AppError } from "@gymos/types";
  * responsible for logging the original error when it maps to the generic
  * "unknown" fallback, since otherwise the original error is lost and
  * production failures become undebuggable.
+ *
+ * Async since Story 1.10: resolves the caller's locale (`getRequestLocale`)
+ * once here rather than threading a `locale` parameter through every
+ * Server Action/service function call chain in the app -- every existing
+ * call site just gains an `await`.
  */
-export function mapAndLog(rawError: unknown): AppError {
-  const mapped = mapSupabaseError(rawError);
+/** Shared by every "gym row not found" branch below (Review finding: these
+ * were hardcoded English literals, invisible to both the ESLint gate -- a
+ * plain object literal in a .ts file, not JSX -- and AC #3). */
+async function gymNotFoundError(): Promise<AppError> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  return { code: "not_found", message: t("gyms.errors.gymNotFound") };
+}
+
+export async function mapAndLog(rawError: unknown): Promise<AppError> {
+  const locale = await getRequestLocale();
+  const mapped = mapSupabaseError(rawError, locale);
   if (mapped.code === "unknown") {
     console.error("[mapSupabaseError] unmapped error", rawError);
   }
@@ -91,7 +108,7 @@ export async function listGyms(
   const { data, error, count } = await query;
 
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
 
   const rows: GymListRow[] = (data ?? []).map((gym) => {
@@ -146,6 +163,16 @@ export interface GymDetail {
  * 1.5), so a direct count query would be silently filtered by RLS. The
  * RPC's SECURITY DEFINER is what makes the real count reachable without
  * broadening that policy.
+ *
+ * `escalated` (Story 1.7) is deliberately NOT computed here -- it used to be
+ * a third `Promise.all` branch calling `auth.getUser()` (a network round
+ * trip to the Auth server, unlike this app's established `getClaims()`
+ * convention) plus its own `audit_log` query. That query duplicated
+ * `listGymAuditTrail`'s (page.tsx already fetches the gym's full audit
+ * trail separately), swallowed its own error indistinguishably from "not
+ * escalated", and an unguarded `getUser()` throw could reject this whole
+ * `Promise.all`. The caller now derives `escalated` from the already-fetched
+ * audit trail instead (see `gyms/[id]/page.tsx`).
  */
 export async function getGymDetail(gymId: string): Promise<{
   data: GymDetail | null;
@@ -172,7 +199,7 @@ export async function getGymDetail(gymId: string): Promise<{
     ]);
 
   if (gymError || countError) {
-    return { data: null, error: mapAndLog(gymError ?? countError) };
+    return { data: null, error: await mapAndLog(gymError ?? countError) };
   }
   if (!gym) {
     return { data: null, error: null };
@@ -201,6 +228,72 @@ export async function getGymDetail(gymId: string): Promise<{
   };
 }
 
+export interface AuditTrailEntry {
+  id: string;
+  actorId: string | null;
+  actorDisplayName: string;
+  actionType: string;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+}
+
+const AUDIT_TRAIL_MAX_ROWS = 200;
+
+/**
+ * SA-03's "Audit trail" tab: this gym's audit_log history (every action
+ * type, not just escalations -- Dev Notes Open Question 2), newest first,
+ * capped at `AUDIT_TRAIL_MAX_ROWS`. No date-range/actor filter, unlike Epic
+ * 7's fuller AD-12 page. `actorId` is selected (not just
+ * `actorDisplayName`) so the caller can derive "did the current Super Admin
+ * escalate to this gym" from this same result set instead of a second query.
+ */
+export async function listGymAuditTrail(gymId: string): Promise<{
+  data: AuditTrailEntry[] | null;
+  error: AppError | null;
+}> {
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { data: null, error: null };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("audit_log")
+    .select("id, actor_id, actor_display_name, action_type, metadata, created_at")
+    .eq("gym_id", gymId)
+    .order("created_at", { ascending: false })
+    .limit(AUDIT_TRAIL_MAX_ROWS);
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  const rows: AuditTrailEntry[] = (data ?? []).map((row) => ({
+    id: row.id,
+    actorId: row.actor_id,
+    actorDisplayName: row.actor_display_name,
+    actionType: row.action_type,
+    metadata: (row.metadata as Record<string, unknown>) ?? {},
+    createdAt: row.created_at,
+  }));
+
+  return { data: rows, error: null };
+}
+
+/**
+ * Story 1.7 (FR-072): writes the `gym_data_escalation` audit_log row that
+ * *is* the access grant (0012 migration's design note -- one event, not a
+ * grant record plus a separate audit record). Thin wrapper over
+ * `logGymLifecycleEvent`, which already surfaces (never swallows) an audit
+ * RPC failure -- critical here, since unlike the lifecycle/tier/cap events
+ * it wraps, a failed write here means no access was granted at all.
+ */
+export async function logGymDataEscalation(
+  gymId: string,
+  reason: string,
+): Promise<{ error: AppError | null }> {
+  return logGymLifecycleEvent("gym_data_escalation", gymId, { reason });
+}
+
 /**
  * Reads the gym's current `status` before updating so the caller can (a)
  * detect a no-op transition and (b) record `previous_status` in the audit
@@ -222,10 +315,10 @@ export async function updateGymStatus(
     .eq("id", gymId)
     .maybeSingle();
   if (beforeError) {
-    return { data: null, error: mapAndLog(beforeError) };
+    return { data: null, error: await mapAndLog(beforeError) };
   }
   if (!before) {
-    return { data: null, error: { code: "not_found", message: "Gym not found" } };
+    return { data: null, error: await gymNotFoundError() };
   }
 
   const { data: updated, error } = await supabase
@@ -235,10 +328,10 @@ export async function updateGymStatus(
     .select("id")
     .maybeSingle();
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
   if (!updated) {
-    return { data: null, error: { code: "not_found", message: "Gym not found" } };
+    return { data: null, error: await gymNotFoundError() };
   }
 
   return { data: { previousStatus: before.status }, error: null };
@@ -262,10 +355,10 @@ export async function updateGymTier(
     .eq("id", gymId)
     .maybeSingle();
   if (beforeError) {
-    return { data: null, error: mapAndLog(beforeError) };
+    return { data: null, error: await mapAndLog(beforeError) };
   }
   if (!before) {
-    return { data: null, error: { code: "not_found", message: "Gym not found" } };
+    return { data: null, error: await gymNotFoundError() };
   }
 
   const { data: updated, error } = await supabase
@@ -275,10 +368,10 @@ export async function updateGymTier(
     .select("id")
     .maybeSingle();
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
   if (!updated) {
-    return { data: null, error: { code: "not_found", message: "Gym not found" } };
+    return { data: null, error: await gymNotFoundError() };
   }
 
   return { data: { previousTierId: before.tier_id }, error: null };
@@ -302,10 +395,10 @@ export async function updateGymCapOverride(
     .eq("id", gymId)
     .maybeSingle();
   if (beforeError) {
-    return { data: null, error: mapAndLog(beforeError) };
+    return { data: null, error: await mapAndLog(beforeError) };
   }
   if (!before) {
-    return { data: null, error: { code: "not_found", message: "Gym not found" } };
+    return { data: null, error: await gymNotFoundError() };
   }
 
   const { data: updated, error } = await supabase
@@ -315,27 +408,31 @@ export async function updateGymCapOverride(
     .select("id")
     .maybeSingle();
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
   if (!updated) {
-    return { data: null, error: { code: "not_found", message: "Gym not found" } };
+    return { data: null, error: await gymNotFoundError() };
   }
 
   return { data: { previousCapOverride: before.member_cap_override }, error: null };
 }
 
-/** Covers every gym-lifecycle/tier/cap-override audit entry this story
- * writes -- one small helper instead of five near-duplicate functions.
- * Returns the RPC's own error (instead of only console.error-ing it) so the
- * caller can surface "the change saved, but the audit entry failed to
- * write" rather than silently reporting a plain success. */
+/** Covers every gym-lifecycle/tier/cap-override/escalation audit entry this
+ * story and the prior one write -- one small helper instead of near-duplicate
+ * functions per action type. Returns the RPC's own error (instead of only
+ * console.error-ing it) so the caller can surface "the change saved, but the
+ * audit entry failed to write" rather than silently reporting a plain
+ * success -- for `gym_data_escalation` specifically, `logGymDataEscalation`'s
+ * caller treats this as a real blocking error, not a benign "saved anyway"
+ * outcome, since there the audit write is the only effect of the action. */
 export async function logGymLifecycleEvent(
   actionType:
     | "gym_suspended"
     | "gym_deactivated"
     | "gym_reinstated"
     | "gym_tier_changed"
-    | "gym_cap_overridden",
+    | "gym_cap_overridden"
+    | "gym_data_escalation",
   gymId: string,
   metadata: Record<string, unknown>,
 ): Promise<{ error: AppError | null }> {
@@ -350,7 +447,7 @@ export async function logGymLifecycleEvent(
 
   if (error) {
     console.error(`[logGymLifecycleEvent] audit log write failed for gym ${gymId}`, error);
-    return { error: mapAndLog(error) };
+    return { error: await mapAndLog(error) };
   }
   return { error: null };
 }
@@ -367,7 +464,7 @@ export async function listTiers(): Promise<{
     .order("name");
 
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
 
   return { data, error: null };
@@ -402,7 +499,7 @@ export async function insertGym(input: {
     .single();
 
   if (error || !data) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
   return { data, error: null };
 }
@@ -451,7 +548,7 @@ export async function insertOwnerMember(input: {
   });
 
   if (error) {
-    return { error: mapAndLog(error) };
+    return { error: await mapAndLog(error) };
   }
   return { error: null };
 }
@@ -475,4 +572,38 @@ export async function logGymCreated(
     // disappear silently either, undermining Story 1.4's append-only trail.
     console.error(`[logGymCreated] audit log write failed for gym ${gymId}`, error);
   }
+}
+
+/**
+ * Persists the signed-in user's language preference (FR-015, Story 1.10).
+ * Relies entirely on the `self_update_own_language` RLS policy + the
+ * `protect_self_managed_user_columns` trigger
+ * (0015_users_self_service_language_preference.sql) for authorization.
+ */
+export async function updateLanguagePreference(
+  locale: Locale,
+): Promise<{ error: AppError | null }> {
+  const supabase = await createClient();
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+
+  if (claimsError) {
+    return { error: await mapAndLog(claimsError) };
+  }
+  if (!claimsData?.claims?.sub) {
+    // No session at all -- must be a real error, not `{error: null}`. A
+    // silent "success" here would leave the UI believing the preference
+    // saved when the DB was never touched.
+    const { t } = await getServerTranslation(await getRequestLocale());
+    return { error: { code: "unauthenticated", message: t("common.somethingWentWrong") } };
+  }
+
+  const { error } = await supabase
+    .from("users")
+    .update({ preferred_language: locale })
+    .eq("id", claimsData.claims.sub as string);
+
+  if (error) {
+    return { error: await mapAndLog(error) };
+  }
+  return { error: null };
 }

@@ -1,0 +1,86 @@
+{
+  "nav": {
+    "overview": "Overview",
+    "members": "Members",
+    "subscriptions": "Subscriptions",
+    "payments": "Payments",
+    "attendance": "Attendance",
+    "auditLog": "Audit Log",
+    "settings": "Settings",
+    "coachPortal": "Coach Portal"
+  },
+  "role": {
+    "member": "Member",
+    "coach": "Coach",
+    "receptionist": "Receptionist",
+    "manager": "Manager",
+    "owner": "Owner"
+  },
+  "sidebar": {
+    "logout": "Log out",
+    "loggingOut": "Logging out…",
+    "logoutConfirmTitle": "Log out of GymOS?",
+    "unknownUser": "Unknown User",
+    "navigationMenu": "Navigation menu"
+  },
+  "topbar": {
+    "openNavigationMenu": "Open navigation menu"
+  },
+  "overview": {
+    "title": "Overview",
+    "body": "Your gym's activity summary will appear here as more of GymOS comes online."
+  },
+  "settings": {
+    "title": "Settings",
+    "saveHint": "Save applies changes across every section below.",
+    "saveButton": "Save Settings",
+    "savedToast": "Settings saved.",
+    "sections": {
+      "branding": "Branding",
+      "localization": "Localization",
+      "membership": "Membership",
+      "frontDeskAlerts": "Front-Desk Alerts",
+      "qrCode": "QR Code"
+    },
+    "fields": {
+      "gymName": "Gym Name *",
+      "logo": "Logo",
+      "noLogo": "No logo",
+      "logoPreviewAlt": "Gym logo preview",
+      "uploadNew": "Upload new",
+      "uploading": "Uploading…",
+      "remove": "Remove",
+      "primaryColor": "Primary Color *",
+      "defaultLanguage": "Default Language",
+      "timezone": "Timezone *",
+      "gracePeriod": "Grace Period *",
+      "gracePeriodUnit": "days",
+      "capacity": "Gym Capacity *",
+      "capacityUnit": "members",
+      "alertAutoDismiss": "Alert auto-dismiss",
+      "alertAutoDismissUnit": "minutes"
+    },
+    "languageOptionEnglish": "English",
+    "languageOptionFrench": "Français",
+    "qr": {
+      "download": "Download QR code ↓",
+      "qrCodeAlt": "Gym check-in QR code",
+      "regenerate": "Regenerate QR code",
+      "regenerateConfirmTitle": "Regenerate QR code?",
+      "regenerateConfirmBody": "This will invalidate the current code immediately. Any printed or displayed copies will stop working. You will need to replace them.",
+      "regenerating": "Regenerating…",
+      "regenerateFailedToast": "Couldn't regenerate. Try again."
+    },
+    "errors": {
+      "gymNotFound": "Gym not found",
+      "noFileProvided": "No file provided",
+      "unsupportedType": "Unsupported image type. Use PNG, JPG, WEBP, or GIF.",
+      "imageTooLarge": "Image too large — maximum 5MB",
+      "auditLogFailedSave": "Settings were saved, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedQr": "QR code regenerated, but the audit log entry failed to write. Please contact support.",
+      "gracePeriodRange": "Grace period must be between 1 and 30 days",
+      "capacityRequired": "Enter the gym's member capacity",
+      "alertAutoDismissRange": "Auto-dismiss must be between 1 and 120 minutes"
+    }
+  }
+}

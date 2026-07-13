@@ -1,6 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { type AppError } from "@gymos/types";
 import { mapAndLog } from "@/services/gyms";
+import { getRequestLocale } from "@/lib/i18n/get-request-locale";
+import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+
+/** Shared by every "tier row not found" branch below (Review finding: these
+ * were hardcoded English literals, invisible to both the ESLint gate and
+ * AC #3). */
+async function tierNotFoundError(): Promise<AppError> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  return { code: "not_found", message: t("tiers.errors.tierNotFound") };
+}
 
 export interface TierRow {
   id: string;
@@ -28,7 +38,7 @@ export async function listTiersWithGymCounts(): Promise<{
     .order("monthly_price", { ascending: true });
 
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
 
   const rows: TierRow[] = (data ?? []).map((tier) => ({
@@ -79,7 +89,7 @@ export async function getTier(
     .maybeSingle();
 
   if (error) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
   return { data, error: null };
 }
@@ -113,7 +123,7 @@ export async function insertTier(input: {
     .single();
 
   if (error || !data) {
-    return { data: null, error: mapAndLog(error) };
+    return { data: null, error: await mapAndLog(error) };
   }
   return { data, error: null };
 }
@@ -144,10 +154,10 @@ export async function updateTier(
     .maybeSingle();
 
   if (error) {
-    return { error: mapAndLog(error) };
+    return { error: await mapAndLog(error) };
   }
   if (!data) {
-    return { error: { code: "not_found", message: "Tier not found" } };
+    return { error: await tierNotFoundError() };
   }
   return { error: null };
 }
@@ -170,10 +180,10 @@ export async function deleteTier(tierId: string): Promise<{ error: AppError | nu
     .maybeSingle();
 
   if (error) {
-    return { error: mapAndLog(error) };
+    return { error: await mapAndLog(error) };
   }
   if (!data) {
-    return { error: { code: "not_found", message: "Tier not found" } };
+    return { error: await tierNotFoundError() };
   }
   return { error: null };
 }
@@ -186,6 +196,11 @@ export async function deleteTier(tierId: string): Promise<{ error: AppError | nu
  * price, a cheaper tier must not have a higher cap than this one, and a
  * pricier tier must not have a lower one (null = unlimited, always
  * permitted at the top end).
+ *
+ * Returns a locale key, not localized text (Review finding: this is a pure
+ * sync function called directly from tiers/actions.ts's request-handling
+ * code, which already resolves `t` -- keeps this function itself free of
+ * any i18n dependency rather than threading `t` through it).
  */
 export function tierCapOrderingError(
   existingTiers: { id: string; monthlyPrice: number; memberCap: number | null }[],
@@ -207,7 +222,7 @@ export function tierCapOrderingError(
         ? candidate.memberCap !== null
         : candidate.memberCap !== null && candidate.memberCap < prev.memberCap;
     if (violatesPrev) {
-      return "Member cap must be at least as high as every cheaper tier's cap (or unlimited).";
+      return "tiers.errors.capOrderingViolatesPrev";
     }
   }
 
@@ -217,7 +232,7 @@ export function tierCapOrderingError(
         ? next.memberCap !== null
         : next.memberCap !== null && candidate.memberCap > next.memberCap;
     if (violatesNext) {
-      return "Member cap must not exceed a more expensive tier's cap (unless that tier is unlimited too).";
+      return "tiers.errors.capOrderingViolatesNext";
     }
   }
 
@@ -245,7 +260,7 @@ export async function logTierChange(
 
   if (error) {
     console.error(`[logTierChange] audit log write failed for tier ${tierId}`, error);
-    return { error: mapAndLog(error) };
+    return { error: await mapAndLog(error) };
   }
   return { error: null };
 }
