@@ -35,7 +35,10 @@
     },
     "toast": {
       "createdSms": "Salle créée. SMS envoyé à {{phone}}.",
-      "createdNoSms": "Salle créée. Lien d'invitation généré pour {{phone}} — l'envoi de SMS n'est pas encore connecté."
+      "createdNoSms": "Salle créée. Lien d'invitation généré pour {{phone}} — l'envoi de SMS n'est pas encore connecté.",
+      "copyLink": "Copier le lien d'invitation",
+      "linkCopied": "Copié !",
+      "dismiss": "Ignorer"
     },
     "create": {
       "title": "Créer une salle",

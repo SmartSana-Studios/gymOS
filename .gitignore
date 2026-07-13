@@ -33,3 +33,5 @@ pnpm-debug.log*
 # Claude Code (personal/local, not shared config)
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+.vercel
+.env*

@@ -38,7 +38,8 @@ export function GymsPageClient({
   tiers: TierOption[];
 }) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; inviteLink?: string } | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [searchInput, setSearchInput] = useState(search);
   const [lifecycleGym, setLifecycleGym] = useState<{
     gym: GymListRow;
@@ -80,20 +81,40 @@ export function GymsPageClient({
     router.push(`${pathname}?${params.toString()}`);
   }
 
-  function showToast(message: string) {
-    setToast(message);
+  // A plain status message auto-dismisses; one carrying the invite link stays
+  // on screen (no timer) until the admin explicitly closes it -- otherwise
+  // there's no time to copy the link before it vanishes, and (until Story
+  // 2.1 wires up real SMS) this is the only way anyone without server/log
+  // access can get it at all.
+  function showToast(message: string, inviteLink?: string) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToast(null), 4000);
+    setLinkCopied(false);
+    setToast({ message, inviteLink });
+    if (!inviteLink) {
+      toastTimerRef.current = setTimeout(() => setToast(null), 4000);
+    }
   }
 
-  function handleCreated(ownerPhone: string, smsSent: boolean) {
+  function handleCreated(ownerPhone: string, smsSent: boolean, ownerInviteLink: string) {
     setModalOpen(false);
     showToast(
       smsSent
         ? t("gyms.toast.createdSms", { phone: ownerPhone })
         : t("gyms.toast.createdNoSms", { phone: ownerPhone }),
+      smsSent ? undefined : ownerInviteLink,
     );
     router.refresh();
+  }
+
+  async function copyInviteLink(link: string) {
+    try {
+      await navigator.clipboard.writeText(link);
+      setLinkCopied(true);
+    } catch {
+      // Clipboard API can be denied (permissions, insecure context) -- the
+      // link is still selectable/visible in the toast as a fallback, so this
+      // is silent rather than surfacing a second error on top of a success.
+    }
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -306,9 +327,38 @@ export function GymsPageClient({
       {toast && (
         <div
           role="status"
-          className="fixed bottom-4 right-4 rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground shadow-lg"
+          className="fixed bottom-4 right-4 max-w-sm rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground shadow-lg"
         >
-          {toast}
+          <p>{toast.message}</p>
+          {toast.inviteLink && (
+            <div className="mt-2 space-y-2">
+              <Input
+                readOnly
+                value={toast.inviteLink}
+                onFocus={(e) => e.currentTarget.select()}
+                className="border-primary-foreground/30 bg-primary-foreground/10 text-xs text-primary-foreground"
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => copyInviteLink(toast.inviteLink!)}
+                >
+                  {linkCopied ? t("gyms.toast.linkCopied") : t("gyms.toast.copyLink")}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="text-primary-foreground hover:text-primary-foreground"
+                  onClick={() => setToast(null)}
+                >
+                  {t("gyms.toast.dismiss")}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

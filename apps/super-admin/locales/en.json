@@ -35,7 +35,10 @@
     },
     "toast": {
       "createdSms": "Gym created. SMS sent to {{phone}}.",
-      "createdNoSms": "Gym created. Invite link generated for {{phone}} — SMS delivery isn't connected yet."
+      "createdNoSms": "Gym created. Invite link generated for {{phone}} — SMS delivery isn't connected yet.",
+      "copyLink": "Copy invite link",
+      "linkCopied": "Copied!",
+      "dismiss": "Dismiss"
     },
     "create": {
       "title": "Create Gym",

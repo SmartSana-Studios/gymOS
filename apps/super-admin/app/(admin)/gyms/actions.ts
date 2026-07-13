@@ -36,6 +36,13 @@ export interface CreateGymResult {
    * (code review finding: the toast previously lied about delivery).
    */
   smsSent: boolean;
+  /**
+   * The same link `sendInviteSms` logs server-side. Surfaced here too so the
+   * UI can display it directly -- until Story 2.1 wires up real SMS, this is
+   * the only way anyone without server/log access (e.g. a client evaluating
+   * a deploy) can actually get the new owner into their account.
+   */
+  ownerInviteLink: string;
 }
 
 /**
@@ -179,7 +186,10 @@ export async function createGym(
     sms_sent: smsSent,
   });
 
-  return { data: { gymId: gymRow.id, ownerPhone: gym.ownerPhone, smsSent }, error: null };
+  return {
+    data: { gymId: gymRow.id, ownerPhone: gym.ownerPhone, smsSent, ownerInviteLink },
+    error: null,
+  };
 }
 
 /** Compensating-cleanup helper: deleteUser()'s own result was previously
