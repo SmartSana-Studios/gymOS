@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
@@ -21,27 +22,35 @@ const geistSans = Geist({
   subsets: ["latin"],
 });
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${geistSans.className} antialiased`}>
+        <Suspense fallback={null}>
+          <LocaleShell>{children}</LocaleShell>
+        </Suspense>
+      </body>
+    </html>
+  );
+}
+
+async function LocaleShell({ children }: { children: React.ReactNode }) {
   const locale = await getRequestLocale();
 
   return (
-    <html lang={locale} suppressHydrationWarning>
-      <body className={`${geistSans.className} antialiased`}>
-        <I18nClientProvider locale={locale}>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-          </ThemeProvider>
-        </I18nClientProvider>
-      </body>
-    </html>
+    <I18nClientProvider locale={locale}>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        {children}
+      </ThemeProvider>
+    </I18nClientProvider>
   );
 }
