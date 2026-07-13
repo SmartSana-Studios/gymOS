@@ -1,9 +1,22 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import { getDashboardShellContext } from "@/services/session";
 import { DashboardChrome } from "@/components/shared/DashboardChrome";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <DashboardLayoutData>{children}</DashboardLayoutData>
+    </Suspense>
+  );
+}
 
 /**
  * Hard security boundary, not incidental scaffolding: `apps/dashboard` and
@@ -18,7 +31,7 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
  * does, making its own "no gym context" branch unreachable given this was
  * its only caller).
  */
-export default async function DashboardLayout({
+async function DashboardLayoutData({
   children,
 }: {
   children: React.ReactNode;

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -6,13 +7,25 @@ import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { LanguageToggle } from "@/components/LanguageToggle";
 
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense fallback={null}>
+      <AdminLayoutData>{children}</AdminLayoutData>
+    </Suspense>
+  );
+}
+
 /**
  * Hard security boundary, not incidental scaffolding: `apps/super-admin` and
  * `apps/dashboard` share one Supabase project/Auth instance. Without this
  * check, any authenticated user (including a gym member/owner from the
  * entirely separate dashboard login flow) could reach Super Admin pages.
  */
-export default async function AdminLayout({
+async function AdminLayoutData({
   children,
 }: {
   children: React.ReactNode;

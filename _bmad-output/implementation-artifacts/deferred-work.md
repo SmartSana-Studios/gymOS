@@ -1,5 +1,10 @@
 # Deferred Work
 
+## Deferred from: code review of spec-cache-components-suspense-boundary-fix (2026-07-13)
+
+- `LocaleShell` (the async component that resolves locale + wraps `ThemeProvider`/`I18nClientProvider`) is duplicated verbatim between `apps/dashboard/app/layout.tsx` and `apps/super-admin/app/layout.tsx` — pre-existing duplication pattern between the two apps' root layouts (they were already near-identical before this fix, no shared root-layout package exists), not introduced by this change; worth extracting to a shared package if/when the two apps' root layouts need to stay in lockstep on more than just this.
+- None of the four newly-Suspense-wrapped layouts (`apps/dashboard/app/layout.tsx`, `apps/dashboard/app/(dashboard)/layout.tsx`, `apps/super-admin/app/layout.tsx`, `apps/super-admin/app/(admin)/layout.tsx`) has an accompanying `error.tsx` verified to exist at the right level — if `getRequestLocale()`, `getDashboardShellContext()`, or the admin claims check throws a non-redirect error, there's nothing at this level explicitly confirmed to catch it. Same exposure existed before this change (an unhandled throw in the old fully-async layouts would have hit the same fallback), not a new gap; worth an explicit `error.tsx` coverage audit for both apps' route trees.
+
 ## Deferred from: code review of story-1-10-bilingual-en-fr-platform-foundation, UI extraction pass (2026-07-10)
 
 - `updateLanguagePreference`'s "no session at all" error path reuses the generic `common.somethingWentWrong` message instead of a distinct, meaningful message [apps/dashboard/services/session.ts, apps/super-admin/services/gyms.ts] — low priority, the case is effectively unreachable (these pages sit behind auth middleware).
