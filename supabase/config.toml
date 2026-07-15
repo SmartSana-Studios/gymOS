@@ -256,7 +256,7 @@ otp_expiry = 3600
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
-enable_signup = false
+enable_signup = true
 # If enabled, users need to confirm their phone number before signing in.
 enable_confirmations = false
 # Template for sending OTP to users
@@ -285,11 +285,31 @@ max_frequency = "5s"
 enabled = true
 uri = "pg-functions://postgres/public/custom_access_token_hook"
 
+# This hook lets a custom Edge Function send the OTP SMS instead of Supabase's built-in `auth.sms.twilio`
+# integration below. NOTE: that built-in block is enabled (see its own comment) purely to satisfy a CLI
+# requirement, not because it's actually used — this hook is confirmed (real send testing, Story 2.1)
+# to take priority over it at send time. Untested: what GoTrue does if this hook itself errors/times out
+# — see docs/decisions.md's Story 2.1 entries before assuming a safe fallback exists.
+[auth.hook.send_sms]
+enabled = true
+uri = "http://host.docker.internal:54321/functions/v1/send-sms-hook"
+secrets = "env(SEND_SMS_HOOK_SECRET)"
+
+# verify_jwt = false: this function is invoked by GoTrue's own Send SMS Hook call, authenticated via the Standard
+# Webhooks signature above (not a Supabase JWT) — the default verify_jwt = true would reject the hook call with a
+# 401 before our own signature check in index.ts ever runs.
+[functions.send-sms-hook]
+enabled = true
+verify_jwt = false
+
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]
-enabled = false
-account_sid = ""
-message_service_sid = ""
+# Story 2.1: enabled purely to satisfy the CLI's "a provider must be enabled to keep phone login on" check.
+# The Send SMS Hook (auth.hook.send_sms) takes priority over this built-in provider at actual send time —
+# these placeholder values are never used to send anything for real.
+enabled = true
+account_sid = "ACPLACEHOLDER00000000000000000000"
+message_service_sid = "MGPLACEHOLDER0000000000000000000"
 # DO NOT commit your Twilio auth token to git. Use environment variable substitution instead:
 auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 

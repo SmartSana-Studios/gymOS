@@ -4,6 +4,75 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-07-15 — `enable_signup=true` creates unconfirmed `public.users` rows before phone verification — accepted risk, not fixed here, recorded during Story 2.1 code review
+
+**Finding:** Story 2.1's `[auth.sms] enable_signup: false → true` (needed — FR-002 requires phone-based registration) combined with `enable_confirmations: false` (unchanged) means calling `POST /auth/v1/otp` for a brand-new phone number creates a real `auth.users` row immediately, before the OTP is ever verified. `supabase/migrations/0003_members_and_users.sql`'s `handle_new_user()` trigger (`SECURITY DEFINER`, no `WHEN` clause) unconditionally inserts a corresponding `public.users` row on that same event — so an unconfirmed phone number gets a real row in `public.users`, not just an internal `auth.users` artifact.
+
+**What this is NOT:** an authentication bypass. No session or access token is ever issued from `/otp` alone (confirmed via this story's own real testing — `/otp` returns only `{}`; tokens are issued only by `/verify`, which requires the actual code sent to the real phone). So the practical risk is narrower than "unverified accounts are usable" — it's phone-number squatting / unconfirmed-row accumulation (someone repeatedly calling `/otp` for numbers they don't own), not account takeover.
+
+**Existing mitigation, not new:** `config.toml`'s pre-existing rate limits (`[auth.rate_limit] sms_sent = 30`/hour, `sign_in_sign_ups = 30`/5min, `token_verifications = 30`/5min) already bound how many such rows one IP can create.
+
+**Decision — accepted as-is, not modified in this story.** `handle_new_user()` belongs to Story 1.3 (already shipped, reviewed, in Epic 1) — adding a `WHEN phone_confirmed_at IS NOT NULL`-style guard would be a real schema change to that migration, out of proportion for a code-review fix on Story 2.1 and out of Story 2.1's own scope. Flagged here for whoever builds Story 2.6 (real member onboarding) to consider hardening — e.g. a periodic cleanup of unconfirmed rows past some age, or the `WHEN` guard — if abuse in practice ever exceeds what the existing rate limits bound.
+
+---
+
+## 2026-07-14 — SMS/OTP Provider Sandbox Spike: Twilio passes, sent.dm fails on both channels, recorded during Story 2.1
+
+**Decision 1 — `TwilioSmsProvider` is validated and becomes the `OTP_PROVIDER` default.** A real OTP was requested against a real Cameroonian number (`+237680811041`) via the local GoTrue Auth API → Send SMS Hook → `TwilioSmsProvider`, using the direct `TWILIO_FROM_NUMBER` (`+16802069590`) path. Twilio's own Messages API confirmed `status: "delivered"`, `error_code: null`. The user independently confirmed receipt on the physical device: *"Your GymOS code is: 430868."* The code was then submitted to `POST /auth/v1/verify`, which returned a real access/refresh token pair and set `phone_confirmed_at` — a full round-trip pass, not just delivery. **AC #1: PASS.**
+
+Twilio's `TWILIO_MESSAGING_SERVICE_SID` path was also tested and failed with `error_code: 21704` (empty Sender Pool — no phone number attached to that Messaging Service in the Twilio Console). This is an account-configuration gap, not a code or deliverability problem; the direct From-number path is what's validated and in use. Revisit the Messaging Service path once a number is added to its Sender Pool (preferred long-term per the story's own Dev Notes, for easier number rotation).
+
+**Decision 2 — `SentDmProvider` fails on both SMS and WhatsApp for this account, against the same real number — not currently a viable fallback.** Two independent, real failures, both confirmed via `messages.activities.list`:
+
+- **WhatsApp** (sent.dm's auto-routing selected this channel first): failed with a Meta Graph API error — `GraphMethodException`, subcode 33, *"Object with ID '1128692860338387' does not exist, cannot be loaded due to missing permissions, or does not support this operation."* Sent.dm's own `ErrorCode`: `ERR_TEMPLATE_PARAMS_INVALID`. This looked at first like a template-parameter problem — the "ACCOUNT VERIFICATION" template (confirmed via `GET /v3/templates/{id}`) requires **two** variables, `code` and `var_2` (the latter is the WhatsApp "Copy Code" button's own separate variable slot, not a brand-name field as first assumed) — but the identical failure persisted across two different `var_2` values, ruling out parameter content as the cause. This points to a template/WhatsApp-Business-Account sync or permissions issue on sent.dm's platform side, not something fixable from this codebase.
+- **SMS** (forced explicitly via `channel: ["sms"]`, bypassing auto-routing): failed with `ERR_NO_ROUTE_MATCHED` — *"No MessageRouting rule matched send for customer [account id] to 237680811041. Configure a rule covering this customer/recipient/template."* This account's free tier has no SMS carrier routing rule configured for Cameroon at all.
+
+Both failures are real, diagnosable, and external to this codebase — not integration bugs. sent.dm's credentials and account (`SmartSana Technologies, ETS`) are otherwise valid and working (confirmed via successful template lookups and the connected Sent MCP tools). **AC #1's "at least one provider succeeding" is satisfied by Twilio alone; sent.dm is not currently usable and should not be relied on until its account's SMS routing and WhatsApp template sync are resolved directly with sent.dm** (likely requires their support, or a paid-tier upgrade for Cameroon SMS routing — not confirmed which).
+
+**Decision 3 — the architecture.md "WhatsApp OTP explicitly deferred" tension did not actually materialize.** sent.dm's auto-routing did select WhatsApp first for this real number (confirmed via `messageStatusActivity: ROUTED, content: "SelectedChannel: auto"`), which is exactly the scenario architecture.md's Deferred Decisions section flagged as a real tension worth recording (WhatsApp becoming a V1 delivery path as a side effect of provider choice, not a built `WhatsAppOtpProvider`). In practice, since the WhatsApp send itself failed, no member ever actually received an OTP via WhatsApp — the tension is real in principle but did not produce an actual WhatsApp delivery this round. Flagged here for whoever next revisits sent.dm, since fixing its WhatsApp template issue would make this tension live again.
+
+**Decision 4 — six real, non-hypothetical bugs were found and fixed only by running the actual spike, not by code review or docs research alone:**
+1. `supabase/config.toml`'s `[auth.hook.send_sms]` used `secret = "env(...)"` (singular) — the CLI's actual accepted key is `secrets` (plural); the singular form fails config parsing outright.
+2. The Supabase CLI hard-disables phone auth entirely (`WARN: no SMS provider is enabled. Disabling phone login`) unless a built-in SMS provider block (e.g. `[auth.sms.twilio]`) is also `enabled = true` — even when a custom Send SMS Hook is configured and enabled. Fixed by enabling `[auth.sms.twilio]` with placeholder credentials, which are never used for real sending since the hook takes priority at send time. This is undocumented in `config.toml`'s own comments and easy to miss.
+3. `[auth.sms] enable_signup` defaults to `false` in the starter scaffold — this blocks phone OTP entirely and was never a deliberate choice for this app; set to `true`, which is what FR-002 actually requires.
+4. GoTrue's Send SMS Hook payload delivers `user.phone` **without** a leading `+` (its internal storage convention). Twilio's Messaging-Service send path silently tolerated this; its direct From-number path did not (`21211: Invalid 'To' Phone Number`). Fixed by normalizing to `+`-prefixed E.164 once, at the `index.ts` payload boundary, rather than relying on per-provider leniency.
+5. sent.dm's real template requires `var_2` in addition to `code` (see Decision 2) — confirmed only by inspecting the template's actual schema via its API, not from docs alone.
+6. Twilio's Messaging Service had an empty Sender Pool — diagnosed by testing the direct From-number path as an isolation step.
+
+None of these were guessable from documentation or static code review; all six were found by actually executing the spike end-to-end against real accounts.
+
+**Why these are recorded here, not just in code comments:** Decision 1 sets the concrete `OTP_PROVIDER` default and is the direct spike outcome the story's AC requires recording. Decision 2 is a real, currently-open external-account gap a future story (or whoever manages the sent.dm account) needs to know about before trusting sent.dm as a fallback. Decision 4's six bugs are exactly the kind of "worked on paper, broke on contact with the real provider" findings this spike existed to surface, and the config-level ones (1–3) will otherwise silently re-trip for the next Edge Function/auth-hook this project builds (Notch Pay's webhook is next).
+
+---
+
+## 2026-07-14 — Twilio WhatsApp added as a fourth `OtpDeliveryProvider`, pulling forward architecture.md's deferred WhatsApp OTP decision, recorded during Story 2.1
+
+**Decision — WhatsApp OTP delivery via Twilio is brought into V1 now, at the user's explicit request, ahead of architecture.md's original "Deferred Decisions (Post-MVP)" placement.** Architecture.md states: *"WhatsApp OTP delivery — architecturally a drop-in second `OtpDeliveryProvider` implementation, not built for V1 (no FR requires it; avoids gating the pilot on WhatsApp Business Platform approval)."* This decision exercises exactly that anticipated extension point, earlier than planned. This is an explicit user decision, not scope drift discovered after the fact — flagged here per this story's own established practice of recording architecture deviations in this log rather than silently rewriting architecture.md's text.
+
+**What was built and validated:** `TwilioWhatsAppProvider`, a fourth `OtpDeliveryProvider` implementation, using Twilio's Content API (`ContentSid` + `ContentVariables`, `whatsapp:` To/From prefixes) against Twilio's own default `verifications_2fa_template` (SID `HX40e31e99442e38ba6ec2024a9fb34459`, category `AUTHENTICATION`, single `{{1}}` body variable, native Copy-Code button). The template was `unsubmitted` for WhatsApp when first inspected via Twilio's Content API — the user submitted and Meta approved it the same day. A real WhatsApp sender was already registered and `ONLINE` on the account (`whatsapp:+15553164996`, business profile "Digital Studios").
+
+**Real end-to-end test, same Cameroon number as the SMS spike:** `POST /auth/v1/otp` → Send SMS Hook → `TwilioWhatsAppProvider` → Twilio confirmed `status: "sent"`, `error_code: null`, body *"**451794** is your verification code. For your security, do not share this code."* — received on WhatsApp, confirmed by the user. `POST /auth/v1/verify` with the received code returned a real access/refresh token and set `phone_confirmed_at` — full round-trip pass, same as the SMS path. Selected via `OTP_PROVIDER=twilio_whatsapp`.
+
+**Why this is recorded here:** it's a real, working second delivery channel added to a shipped abstraction ahead of its originally planned timing — the kind of decision a future story could otherwise "discover" was made ad hoc rather than deliberately, if it weren't logged. No architecture.md text was edited; this entry is the record of the deviation instead, matching how Story 2.1's own Decision 3 (above) was handled.
+
+---
+
+## 2026-07-15 — Confirmed: Send SMS Hook failure falls back to the placeholder Twilio provider with a misleading error, recorded during Story 2.1 code review
+
+**Finding, confirmed by live test, not just static review.** `supabase/config.toml`'s `[auth.sms.twilio]` block was enabled (with fake placeholder credentials) purely to satisfy the Supabase CLI's "a provider must be enabled to keep phone login on" check, on the assumption that the Send SMS Hook always takes priority over it at send time. That assumption was true for the success path (Story 2.1's main spike), but the *hook-failure* path was never tested — until now.
+
+**Test:** with the local stack running, `[auth.hook.send_sms] enabled` was flipped to `false` (hook disabled) and the stack restarted. A real `POST /auth/v1/otp` request was then made against the same test number.
+
+**Result:** GoTrue did **not** fail cleanly. It silently fell back to attempting a real send through the now-only-available built-in Twilio provider, using its fake placeholder `account_sid`/`message_service_sid`, and returned:
+```
+422 { "error_code": "sms_send_failed", "msg": "Error sending confirmation OTP to provider: Authentication Error - invalid username ... (Twilio error 20003)" }
+```
+This is a genuinely misleading error — anyone debugging it would reasonably suspect broken Twilio credentials, not a disabled/misconfigured Send SMS Hook. The hook was then re-enabled, the stack restarted, and a real OTP send was re-confirmed working (`status: "sent"`, delivered) to rule out any regression from this test.
+
+**Action taken:** none code-side — this is inherent Supabase/GoTrue behavior (falling back to a configured built-in provider when a hook is disabled), not something this codebase controls or should try to work around with more placeholder logic. Recorded here so a future on-call engineer who sees `sms_send_failed` / "invalid username" / Twilio 20003 immediately checks `[auth.hook.send_sms].enabled` and the hook's own deployment health, rather than chasing Twilio credential rotation.
+
+---
+
 ## 2026-07-10 — Bilingual (EN/FR) Platform Foundation: i18n architecture, users self-service RLS, pnpm/eslint-config-next toolchain fix, recorded during Story 1.10
 
 **Decision 1 — `react-i18next` + static locale-file imports, no dynamic per-request backend.** The story initially specified `i18next-resources-to-backend` for dynamic per-locale loading, but with exactly two known locales (`en`/`fr`, tiny JSON files), both `lib/i18n/get-server-translation.ts` (server) and `lib/i18n/client-provider.tsx` (client) just statically import both locales' JSON and merge them into one `translation` namespace resource bundle at module load — synchronous, no async fetch, and critically lets the Sidebar/top-nav toggle call `i18n.changeLanguage()` with both locales already preloaded (no missing-string flash while a second locale loads). The `i18next-resources-to-backend` dependency was removed from both apps' `package.json` after being added — unused complexity for a fixed 2-locale set.

@@ -1,0 +1,201 @@
+---
+baseline_commit: 59f17bc7bddd7f21d9a76269d28f835b93f7834a
+---
+
+# Story 2.1: SMS/OTP Provider Sandbox Spike
+
+Status: review
+
+<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+
+## Story
+
+As a developer,
+I want to validate `TwilioSmsProvider` and `SentDmProvider` (both behind an `OtpDeliveryProvider` interface) against real Cameroon phone numbers,
+so that member phone verification is proven to work, on at least one provider, before the onboarding epic is built on top of it.
+
+## Scope Note — Read Before the Acceptance Criteria
+
+epics.md's literal AC text (below) names `TwilioSmsProvider` only, matching architecture.md's original single-provider plan. **This was expanded during story creation (2026-07-14, at the user's direction) to a two-provider parallel spike**, adding **sent.dm** (`SentDmProvider`) alongside Twilio, for two reasons: (1) Twilio's own Cameroon SMS deliverability is unproven — this is the exact risk the spike exists to catch, so testing a second candidate in the same pass avoids a second round-trip if Twilio fails; (2) sent.dm auto-routes each message across SMS **and WhatsApp**, so a number with no working native-SMS route to Cameroon (a real, documented risk — see Dev Notes) may still be reachable via WhatsApp through the exact same API call, with no extra integration work. `OtpDeliveryProvider` was designed for this kind of swappability, so testing two implementations costs one extra file, not a redesign.
+
+**Both providers stay behind the same `OtpDeliveryProvider` interface; the hook calls exactly one of them per deployment, selected by env var — never both at once for a single real OTP send** (sending the same code over two channels simultaneously is confusing UX and doubles cost for no benefit; that's not what "test both" means here). Whichever one passes the real-delivery test becomes the default; the other stays wired in as the documented AC #3 fallback, or both may be recorded as viable if both pass.
+
+## Acceptance Criteria
+
+1. **Given** a Cameroonian test phone number, **when** an OTP is requested through Supabase's Send SMS Hook → `TwilioSmsProvider`, **then** the SMS arrives and the code verifies successfully. [Source: epics.md#Story 2.1]
+2. **And** the outcome is recorded in `docs/decisions.md`. [Source: epics.md#Story 2.1]
+3. **And** if the spike fails, no onboarding-flow code ships until an alternative provider is validated and documented. [Source: epics.md#Story 2.1]
+
+**As executed under the expanded scope above**, AC #1 is satisfied by *at least one* of the two providers succeeding (Twilio OR sent.dm, via SMS or WhatsApp), and AC #3's "alternative provider... validated and documented" is fulfilled directly by sent.dm being tested in the same pass rather than a follow-up spike — this is the intended reading, not a deviation needing separate sign-off, since the user requested this exact structure.
+
+## ⚠️ Critical Context: This Spike Needs Two Real Accounts and a Real, Reachable Phone — Read Before Starting
+
+**This is a measurement/decision spike with two code deliverables, not a feature build.** The deliverables are (a) a working `OtpDeliveryProvider` interface with **two** implementations (`TwilioSmsProvider`, `SentDmProvider`) wired into Supabase's Send SMS Hook, swappable via one env var, and (b) a documented, evidence-backed decision in `docs/decisions.md` covering both. Resist building anything beyond that (no onboarding UI, no `apps/mobile` wiring — Story 2.6 owns consuming this).
+
+**The dev agent cannot execute the actual spike alone.** It requires:
+1. **A Twilio account** — SMS sending enabled; if Trial-tier, the target number must be added as a verified caller ID first (Trial accounts only send to verified numbers). Need `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and a `TWILIO_MESSAGING_SERVICE_SID` (preferred) or `TWILIO_FROM_NUMBER`.
+2. **A sent.dm account** — free tier is enough to start (email + phone verification unlocks the API, 6 pre-built OTP/verification templates, 500 sends/day). Need a `SENT_DM_API_KEY` and, once confirmed which pre-built template fits (Task 3b), a template ID.
+3. **A real, reachable phone the user can check.** Per the user's explicit direction: **do not gate this spike on obtaining a literal Cameroonian SIM card** — any number the user can actually receive messages on (SMS or WhatsApp) is enough to validate the plumbing end-to-end. The dev agent has no access to any real mobile network itself (same limitation Story 1.2 hit for RTT measurement) — the user triggers the request and reports what arrived, where, and how fast. **However**, AC #1's actual intent (per architecture.md, "Cameroon-coverage spike") is about *Cameroon* deliverability specifically — if the number used for testing isn't a real `+237` number, say so plainly in `docs/decisions.md` rather than letting a non-Cameroon success quietly stand in for a Cameroon-coverage verdict. Use a real `+237` number if the user has one available; if not, record the test as "plumbing verified, Cameroon-specific deliverability still unconfirmed" rather than overclaiming.
+
+**Real risk this spike exists to catch:** neither provider's actual Cameroon (MTN/Orange) delivery performance is documented anywhere public — confirmed by web research during story creation (see References). Twilio's global reach doesn't guarantee Cameroon routes; sent.dm's own "Cameroon SMS guide" marketing pages 404'd on direct fetch and what surfaced via search was generic market content, not sent.dm's own delivery data. Both are genuinely unverified going in — that is exactly why this is a spike and not an assumption.
+
+## Tasks / Subtasks
+
+- [x] **Task 1: Provider accounts and credentials (user-provided prerequisite)** (AC: #1) — completed by the user 2026-07-14
+  - [x] Twilio: real account created by the user; `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGING_SERVICE_SID`, and `TWILIO_FROM_NUMBER` all obtained and confirmed working (see Task 8 — real SMS delivered from the From-number path; the Messaging Service path separately failed on an empty Sender Pool, an account-configuration gap, not a credentials problem).
+  - [x] sent.dm: real account created by the user ("SmartSana Technologies, ETS"); `SENT_DM_API_KEY` and `SENT_DM_OTP_TEMPLATE_ID` (the "ACCOUNT VERIFICATION" template) obtained. Credentials themselves work (confirmed via successful API calls, template lookups, and the connected Sent MCP tools authenticating as the same account) — the account's routing/template configuration is what's currently broken, not the credentials.
+  - [x] All real values kept in `supabase/.env` only — gitignored, never committed.
+
+- [x] **Task 2: `OtpDeliveryProvider` interface** (AC: #1)
+  - [x] Create `supabase/functions/send-sms-hook/_shared/otp-providers/OtpDeliveryProvider.ts`: `export interface OtpDeliveryProvider { send(phone: string, code: string, locale: "en" | "fr"): Promise<DeliveryResult>; }` plus a `DeliveryResult` type (`{ success: true; channel?: string } | { success: false; error: string }`) — the optional `channel` field lets `SentDmProvider` report back which channel (SMS vs WhatsApp) actually delivered, useful evidence for the `docs/decisions.md` writeup; `TwilioSmsProvider` always omits it (SMS-only, no ambiguity). Matches architecture.md's Authentication & Security section (`send(phone, code, locale): Promise<DeliveryResult>`) and mirrors the `PaymentProvider` interface-plus-swappable-implementation pattern already established for Notch Pay (`_shared/<domain>-providers/` convention).
+  - [x] This interface owns the call contract only — no entity types from `packages/types` are needed here since this hook receives/returns plain primitives, not a DB row shape.
+
+- [x] **Task 3: `TwilioSmsProvider` implementation** (AC: #1)
+  - [x] Create `supabase/functions/send-sms-hook/_shared/otp-providers/TwilioSmsProvider.ts` implementing `OtpDeliveryProvider`. Call Twilio's REST API directly via `fetch` (no SDK — Twilio publishes no official Deno SDK; raw `fetch` against `https://api.twilio.com/2010-04-01/Accounts/{AccountSid}/Messages.json` with HTTP Basic Auth (`AccountSid:AuthToken`) and a form-encoded body is the standard, dependency-free approach for a Deno Edge Function).
+  - [x] Body params: `To` (E.164), `MessagingServiceSid` (preferred) or `From`, `Body` (locale-aware inline message, e.g. `"Your GymOS code is: {code}"` / `"Votre code GymOS est : {code}"` — a hardcoded inline template is fine here, no shared locale JSON file, since this is a single transactional string with no UI surface for the i18n CI gate).
+  - [x] Read credentials from `Deno.env.get(...)` inside the provider, never hardcoded — matches this project's `env(...)`-everywhere convention.
+  - [x] On a non-2xx Twilio response, return `{ success: false, error: ... }` including Twilio's own error code/message — never throw.
+
+- [x] **Task 3b: `SentDmProvider` implementation** (AC: #1, #3) — code complete and executed against the real API; the send itself fails for this account/number (see Dev Agent Record), not a code defect
+  - [x] Create `supabase/functions/send-sms-hook/_shared/otp-providers/SentDmProvider.ts` implementing `OtpDeliveryProvider`. Call sent.dm's REST API directly via `fetch` — `POST https://api.sent.dm/v3/messages`, header `x-api-key: <SENT_DM_API_KEY>`, `Content-Type: application/json`. **Do not use the `@sentdm/sentdm` npm SDK** — unconfirmed Deno/ESM compatibility, and a raw `fetch` keeps this consistent with `TwilioSmsProvider`'s own no-SDK approach (and this repo's general discipline of minimizing Edge Function dependencies).
+  - [x] **Confirmed API constraint, now verified against the real template (`GET /v3/templates/{id}`), not just docs research:** this template's actual variable set is `["code", "var_2"]` — `var_2` is the WhatsApp "Copy Code" button's own separate variable slot (the template is a WhatsApp Authentication template with a native OTP button), not a brand-name field as first assumed. Both must carry the same code. Confirmed via real send: sending only `code` fails with `VALIDATION_004 — 'var_2' is required`.
+  - [x] **Known open risk, now confirmed as a real, current blocker, not just a risk:** real sends were attempted on both channels for this account against a real `+237` number. **WhatsApp** failed with a Meta Graph API error (`GraphMethodException`, subcode 33, "Object ... does not exist, cannot be loaded due to missing permissions") — identical failure regardless of parameter values tested, pointing to a template/WhatsApp Business Account sync or permissions issue on sent.dm's platform side, not something fixable from this codebase. **SMS** (forced explicitly) failed with `ERR_NO_ROUTE_MATCHED` — *"No MessageRouting rule matched send for customer [id] to 237680811041. Configure a rule covering this customer/recipient/template."* — this account's free tier has no SMS routing rule configured for Cameroon at all. Neither channel delivered; sent.dm does not currently work for this account/number on either path.
+  - [x] On a non-2xx / non-202 response, return `{ success: false, error: ... }` including sent.dm's own error body — never throw. On success (`202`), read `data.recipients[0].channel` back into `DeliveryResult.channel` if present, so `docs/decisions.md` can record which channel actually carried the message.
+
+- [x] **Task 4: `send-sms-hook` Edge Function** (AC: #1)
+  - [x] Create `supabase/functions/send-sms-hook/index.ts`. Verify the incoming webhook's signature using the `standardwebhooks` package (`import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0"`) — the Standard Webhooks spec Supabase Auth Hooks use for every HTTP hook (this is Supabase's own signature scheme for calling *this* function; it is unrelated to sent.dm's own, different, custom HMAC webhook scheme, which this story does not need — see Task 3b, no delivery-status webhook is consumed here). Read the raw request body as text, reconstruct headers via `Object.fromEntries(req.headers)`, call `wh.verify(payload, headers)` using the base64 secret (strip the `v1,whsec_` prefix from `Deno.env.get("SEND_SMS_HOOK_SECRET")`).
+  - [x] Payload shape (Supabase's Send SMS Hook contract): `{ user: { id, phone, ... }, sms: { otp: string } }`. Extract `user.phone`/`sms.otp`; locale isn't in this payload — default to `"en"` for this spike, don't solve locale plumbing here (Story 2.6's job).
+  - [x] **Provider selection: read `Deno.env.get("OTP_PROVIDER")` (`"twilio" | "sentdm"`) and instantiate exactly one provider per call** — this is the swappable-by-config mechanism the whole `OtpDeliveryProvider` interface exists for. Do not call both providers for one real send.
+  - [x] On success, return `HTTP 200` with empty JSON body `{}` (200/202/204 = success per Supabase's contract). On failure, HTTP hooks communicate via status code alone, not a structured error body: `400`/`403` become Internal Server Errors (500) on Supabase's side; `429`/`503` are retry-able and need a non-empty `retry-after` header. Every response needs `Content-Type: application/json` or Supabase treats the function's own response as errored. [Source: https://supabase.com/docs/guides/auth/auth-hooks]
+  - [x] No signature-verification bypass, even for local dev — same secret configured locally (`config.toml`) and in any deployed environment.
+
+- [x] **Task 5: Create a `deno.json` for the function** (AC: #1)
+  - [x] `supabase/functions/send-sms-hook/deno.json` — first Edge Function in the repo (`supabase/functions/` currently holds only `.gitkeep`), so no existing convention to follow. Use Supabase CLI 2.x's default per-function `deno.json` declaring the `standardwebhooks` import; confirm the exact `imports` key shape against the installed CLI's own scaffolding (`supabase functions new <name>`) rather than hand-guessing.
+
+- [x] **Task 6: Local secrets** (AC: #1) — real credentials filled in by the user 2026-07-14, used successfully in Task 8
+  - [x] Create `supabase/.env` (gitignored — covered by the existing bare `.env` pattern, no new ignore rule needed) holding: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_MESSAGING_SERVICE_SID`/`TWILIO_FROM_NUMBER`, `SENT_DM_API_KEY`, `SENT_DM_OTP_TEMPLATE_ID`, `OTP_PROVIDER`, and `SEND_SMS_HOOK_SECRET`. Passed to local Edge Function serving via `supabase functions serve --env-file supabase/.env` — confirmed working against CLI 2.109.0 (WSL2-hosted).
+  - [x] First story needing an Edge-Function-scoped secrets file — do not add these to any app's `.env.local`/`.env.example` (different runtime boundary).
+
+- [x] **Task 7: Wire the hook into `supabase/config.toml`** (AC: #1)
+  - [x] Add `[auth.hook.send_sms]`: `enabled = true`, `uri = "http://host.docker.internal:54321/functions/v1/send-sms-hook"` (Docker-network address, not `localhost` — GoTrue and the Edge Function run in separate containers). **Correction from initial implementation:** the key is `secrets` (plural), not `secret` — `secret = "env(...)"` fails config parsing outright (`'auth.hook.send_sms' has invalid keys: secret`), confirmed against the installed CLI.
+  - [x] **Correction from initial implementation — `[auth.sms.twilio]` cannot stay at `enabled = false`.** Real testing surfaced a CLI-level requirement that isn't documented in `config.toml`'s own comments: with no built-in SMS provider enabled, the CLI prints `WARN: no SMS provider is enabled. Disabling phone login` and hard-disables phone auth entirely — regardless of the Send SMS Hook being enabled. Fix: `[auth.sms.twilio] enabled = true` with placeholder `account_sid`/`message_service_sid` values (never used for real sending — the Send SMS Hook takes priority over the built-in provider at send time; this is keeping phone-login itself switched on, not routing through Twilio's built-in integration). Documented inline in `config.toml`.
+  - [x] Also required (not in the original task list, discovered during Task 8): `[auth.sms] enable_signup = true` — the scaffold default (`false`) blocks phone-based OTP entirely, but FR-002 ("Registration requires phone verification via OTP") means this app genuinely needs phone signup enabled; the `false` default was never a deliberate choice for this app, just an unexamined template default.
+  - [x] Do not touch the commented-out `[auth.sms.test_otp]` block — real scope, but Story 2.6's job (see Dev Notes).
+
+- [x] **Task 8: Run the real spike, both providers** (AC: #1, #3 — required the user; executed together 2026-07-14)
+  - [x] Started local Supabase via WSL2 Docker (`supabase start`) and served the function (`supabase functions serve send-sms-hook --env-file supabase/.env`). Real `+237680811041` used throughout (user's own reachable Cameroon number) — satisfies AC #1's actual Cameroon-coverage intent directly, no non-Cameroon fallback needed.
+  - [x] `OTP_PROVIDER=twilio`: real OTP requested via `POST /auth/v1/otp`, delivered as SMS from `+16802069590`, confirmed **`status: "delivered"`** via Twilio's own Messages API (`error_code: null`), and confirmed received on the physical device by the user. `POST /auth/v1/verify` with the received code returned a real access/refresh token pair and set `phone_confirmed_at` — full round-trip verified, not just delivery. **PASS.**
+  - [x] `OTP_PROVIDER=sentdm`: tested both auto-routing and forced channels via the connected Sent MCP tools (`messages.send` + `messages.activities.list`) against the same real number. **Both channels FAILED** — see Dev Agent Record for full evidence. **FAIL.**
+  - [x] Real `+237` number used for both providers — no Cameroon-deliverability caveat needed in the decision record.
+  - [x] Only one of two providers passed. Per the story's own expanded-scope framing, AC #1 is satisfied by Twilio alone; AC #3's "alternative provider... validated and documented" is satisfied by Twilio itself (not sent.dm, which did not end up delivering). Documented in `docs/decisions.md`, not treated as blocking.
+
+- [x] **Task 9: Record the outcome in `docs/decisions.md`** (AC: #2, #3) — see entry dated 2026-07-14, "SMS/OTP Provider Sandbox Spike"
+  - [x] Full dated entry added: both providers' exact request/response evidence, which channel delivered for sent.dm (neither), pass/fail per AC #1 (Twilio passes, sent.dm fails), `OTP_PROVIDER` default set to `twilio`, and AC #3 implications (sent.dm is not currently a usable fallback — flagged as a real gap, not silently dropped).
+  - [x] Recorded: sent.dm's auto-routing attempted WhatsApp first (not SMS) for this number, so the "WhatsApp as a side-effect of provider choice" tension architecture.md's deferral decision anticipated did surface during testing — but since sent.dm's send failed outright, no actual WhatsApp OTP was delivered to a user. The tension is real in principle but did not materialize in practice this time; flagged for whoever revisits sent.dm.
+  - [x] Cross-referenced Story 1.5's Decision 6 — superseded by the 2026-07-14 correct-course Sprint Change Proposal, which created **Story 1.11** to formally own rewiring the owner-invite flow (temp-password-over-SMS, not the link `sendInviteSms` was stubbed for). No longer an unowned gap.
+
+## Dev Notes
+
+- **This is a spike, not a feature build** — the deliverable is a working, sandbox-verified `send-sms-hook` Edge Function (two swappable provider implementations) plus a documented decision, not member-facing onboarding functionality. `apps/mobile` is untouched (Epic 2, later stories).
+- **Why two providers:** Twilio was architecture.md's original single choice, explicitly "pending its own Cameroon-coverage sandbox spike" — i.e., always provisional. sent.dm was added at the user's direction specifically because its auto multi-channel routing (SMS + WhatsApp in one call) is a real hedge against exactly the risk this spike exists to catch. [Source: architecture.md#Authentication & Security]
+- **This reopens a locked architecture.md decision — flag, don't silently override.** architecture.md's Deferred Decisions section explicitly states: *"WhatsApp OTP delivery — architecturally a drop-in second `OtpDeliveryProvider` implementation, not built for V1... avoids gating the pilot on WhatsApp Business Platform approval."* Using sent.dm's auto-routing means WhatsApp delivery can happen in V1 as a side effect of provider selection, without anyone building a dedicated `WhatsAppOtpProvider`. This is arguably still compliant with the letter of that decision (no separate WhatsApp-specific engineering effort was spent) but is a real change to its spirit (WhatsApp *is* now a possible V1 delivery path). Record this tension explicitly in `docs/decisions.md` (Task 9) rather than treating it as free. [Source: architecture.md#Core Architectural Decisions — Deferred Decisions]
+- **The `OtpDeliveryProvider`/`PaymentProvider` pattern is deliberate and shared** — architecture.md notes both interfaces "share a design pattern... worth implementing them with a consistent internal convention." `notch-pay-webhook` doesn't exist yet either, so this story establishes that convention, not follows it — keep both Edge Functions' internal shape (`_shared/<domain>-providers/`, interface separate from implementation) consistent for whoever builds Notch Pay next. [Source: architecture.md#Decision Impact Analysis]
+- **Edge Functions are reserved for exactly two integrations platform-wide** (`notch-pay-webhook`, `send-sms-hook`) — adding a second *provider* inside `send-sms-hook` does not violate this; it's still one Edge Function, one network-exposed endpoint. Do not create a separate Edge Function per provider. [Source: architecture.md#Architectural Boundaries]
+- **sent.dm's webhook signature scheme is custom HMAC-SHA256 (`x-webhook-signature`/`x-webhook-id`/`x-webhook-timestamp`, `whsec_`-prefixed secret), not Standard Webhooks/svix** — this story doesn't need it (no delivery-status webhook is consumed, see Task 4), but flag for whoever later builds delivery-status tracking: it cannot reuse the `standardwebhooks` verification code this story writes for Supabase's own hook call.
+- **sent.dm has no raw-text send path — template-only.** Confirmed via docs research at story-creation time (`docs.sent.dm/start/guides/working-with-templates`: "all channels require templates to be approved before sending"). The free tier's 6 pre-built OTP templates are the way in; confirm one fits before writing `SentDmProvider` (Task 3b) rather than assuming a template exists that matches our exact copy.
+- **`SMS_TEST_OTP` is explicitly out of scope** (Task 7) — exists for *later* stories (2.6's onboarding flow/CI) to skip real sending, the opposite of this spike's purpose. [Source: architecture.md#Authentication & Security]
+- **No PRD Open Question (OQ-#) numbers this spike** — named only in architecture.md, not `prd.md#9. Open Questions`. Don't invent an OQ number in `docs/decisions.md`.
+- **Testing standard:** no pgTAP applies (no schema/RLS touched); no Next.js/Turborepo typecheck covers Deno code (separate runtime). The "test" is the real spike execution (Task 8) for both providers, plus a manual local hook invocation to confirm signature verification independent of either live provider call. No CI wiring for Deno type-checking exists yet — flag as a gap for whichever story next touches Edge Functions (likely Notch Pay) to solve for both functions at once.
+- **Twilio Trial-account constraint is a real local blocker, not hypothetical:** unverified-number sends fail outright on Trial — distinguish this from a genuine Cameroon-deliverability failure in the `docs/decisions.md` writeup.
+- **sent.dm blockers to watch for during implementation:** (1) whether the free-tier OTP templates actually accept a `{code}` parameter and arbitrary destination numbers — unconfirmed at story-creation time; (2) whether WhatsApp channel access requires additional Meta-side approval beyond the free-tier signup — also unconfirmed (see Task 3b). Neither should silently block the spike; if either is gated, test what *is* available (e.g., SMS-only via sent.dm) and record the gate as a finding, not a blocker to route around.
+
+### Project Structure Notes
+
+- `supabase/functions/` currently contains only `.gitkeep` — this story creates the first real Edge Function and its own `deno.json`.
+- No `supabase/.env` or Edge-Function-scoped secrets file exists yet — this story creates it, fully separate from `apps/dashboard/.env.local` / `apps/super-admin/.env.local` / root `.env.example` (different runtime boundary).
+- File layout to create:
+  ```
+  supabase/functions/send-sms-hook/
+    index.ts
+    deno.json
+    _shared/otp-providers/
+      OtpDeliveryProvider.ts
+      TwilioSmsProvider.ts
+      SentDmProvider.ts
+  ```
+- `docs/decisions.md` already exists (created by Story 1.2) — append a new dated entry at the top per its "newest first" convention.
+
+### References
+
+- [Source: _bmad-output/planning-artifacts/epics.md#Story 2.1] — original acceptance criteria (verbatim above); note the Scope Note explaining the two-provider expansion
+- [Source: _bmad-output/planning-artifacts/architecture.md#Authentication & Security] — `OtpDeliveryProvider` interface shape, Send SMS Hook wiring, `SMS_TEST_OTP` scope
+- [Source: _bmad-output/planning-artifacts/architecture.md#Core Architectural Decisions — Deferred Decisions] — the WhatsApp-deferral decision this story's sent.dm choice puts real tension on (see Dev Notes)
+- [Source: _bmad-output/planning-artifacts/architecture.md#Decision Impact Analysis] — shared interface+swappable-implementation convention between `OtpDeliveryProvider` and `PaymentProvider`
+- [Source: _bmad-output/planning-artifacts/architecture.md#Architectural Boundaries] — "exactly two Edge Functions" boundary, unaffected by multiple providers inside one function
+- [Source: docs/decisions.md#2026-07-08 — Super Admin gym provisioning, Decision 6] — existing `sendInviteSms` stub deferring real SMS to this story
+- [Source: _bmad-output/implementation-artifacts/1-2-supabase-region-verification-spike.md] — closest analog: a spike the dev agent can't fully execute alone
+- [Source: supabase/config.toml] — pre-existing `[auth.sms.twilio]` (stays disabled), `[auth.hook.custom_access_token]` (hook-wiring precedent), commented-out `[auth.sms.test_otp]`
+- [Source: https://supabase.com/docs/guides/auth/auth-hooks/send-sms-hook] — Send SMS Hook payload shape, response contract, `standardwebhooks` verification, `config.toml` block shape
+- [Source: https://supabase.com/docs/guides/auth/auth-hooks] — HTTP Auth Hook status-code-only error contract (200/202/204 success, 400/403→500, 429/503 retry-able)
+- [Source: https://docs.sent.dm/ , /start/quickstart/first-message , /reference/api , /start/guides/working-with-templates , /start/webhooks/signature-verification , /start/advanced/compliance-regulations , /sdks/typescript] — sent.dm API contract (`POST /v3/messages`, `x-api-key` auth, template-only sends, 6 free-tier OTP templates, custom HMAC webhook scheme distinct from Standard Webhooks), fetched/researched during story creation via a dedicated research pass since sent.dm was not part of the original architecture
+- [Source: web research, 2026-07-14 — sent.dm/resources/cameroon-sms-guide and /cameroon-sms-pricing] — both URLs 404'd on direct fetch; only generic, non-sent.dm-specific Cameroon SMS market content surfaced via search (MTN/Orange dominance, alphanumeric sender ID needing ~3-week pre-registration, bilingual STOP/HELP requirement) — no sent.dm-specific Cameroon delivery evidence found; treat sent.dm's Cameroon performance as genuinely unverified going into Task 8, same as Twilio's
+
+## Dev Agent Record
+
+### Agent Model Used
+
+Claude Sonnet 5 (claude-sonnet-5)
+
+### Debug Log References
+
+- No Deno runtime is installed in this dev environment directly (`deno --version` fails in bash/PowerShell) — but the real spike ran the actual code inside the Supabase CLI's own Deno-based edge-runtime container (via WSL2 Docker, `supabase functions serve --env-file supabase/.env`), so the code was genuinely executed end-to-end against real providers, not just statically reviewed.
+- `npx supabase functions new` (CLI 2.109.1) was scaffolded into a scratch dir to confirm the current `deno.json`/`index.ts` template shape before hand-writing the real files — the default template uses `@supabase/functions-js` + `@supabase/server`'s `withSupabase({ auth: [...] })` wrapper for apiKey-authenticated client endpoints, which does not apply here (this hook is invoked by GoTrue via Standard Webhooks signing, not a client apiKey) — used the raw `export default { fetch }` shape instead.
+- **Real bugs found and fixed during the live spike (2026-07-14), each confirmed via an actual failing request before the fix:**
+  1. `config.toml`'s `[auth.hook.send_sms]` used `secret = "env(...)"` (singular) — CLI rejects this at config-parse time (`invalid keys: secret`). Fixed to `secrets` (plural).
+  2. CLI printed `WARN: no SMS provider is enabled. Disabling phone login` and hard-blocked all phone auth despite the Send SMS Hook being enabled. Fixed by enabling `[auth.sms.twilio]` with placeholder values (the hook takes priority over the built-in provider at send time; the placeholders are never used to send anything real).
+  3. `[auth.sms] enable_signup` defaulted to `false` (unexamined scaffold default) — blocks phone OTP outright. Set to `true`, which is actually correct for this app per FR-002, not just a spike workaround.
+  4. `SentDmProvider` initially sent only `code`; the real template (confirmed via `GET /v3/templates/{id}`) requires `["code", "var_2"]` — `var_2` is a WhatsApp "Copy Code" button's own separate variable, not a brand-name field. Fixed to send the same code as both.
+  5. GoTrue's Send SMS Hook payload delivers `user.phone` **without** a leading `+` — Twilio's Messaging-Service send path tolerated this silently, but its direct From-number path rejected it outright (`21211: Invalid 'To' Phone Number`). Fixed by normalizing to `+`-prefixed E.164 once, in `index.ts`, at the payload boundary — not per-provider.
+  6. Twilio's `TWILIO_MESSAGING_SERVICE_SID` had an empty Sender Pool (`error_code: 21704`) — an account-configuration gap in the Twilio Console, not a code bug. Diagnosed by switching to the direct `TWILIO_FROM_NUMBER` path instead, which worked. `TWILIO_MESSAGING_SERVICE_SID` is commented out in `supabase/.env` pending the user adding a number to that Messaging Service's Sender Pool.
+
+### Completion Notes List
+
+- **All tasks complete. Real spike executed against a real Cameroon number (`+237680811041`), both providers, both channels where applicable.**
+- **Twilio: PASS.** Real SMS delivered (`status: "delivered"`, confirmed via Twilio's own Messages API), received on the physical device, and the code verified end-to-end via `POST /auth/v1/verify` (real access/refresh token issued, `phone_confirmed_at` set). `OTP_PROVIDER` default set to `twilio`.
+- **sent.dm: FAIL on both channels.** WhatsApp failed with a Meta Graph API permissions/object error (same failure regardless of parameters tested — a sent.dm-side template/WABA sync issue, not this codebase). SMS (forced explicitly) failed with `ERR_NO_ROUTE_MATCHED` — no Cameroon SMS routing rule configured for this account's free tier. Full evidence in `docs/decisions.md`.
+- Per the story's own expanded-scope framing, AC #1 is satisfied by Twilio alone (one of two providers succeeding is sufficient). AC #3's "alternative provider validated and documented" is met by Twilio itself — sent.dm did **not** end up serving as a working fallback in practice, which is flagged honestly in `docs/decisions.md` rather than glossed over.
+- **Addition beyond the literal task list:** added `[functions.send-sms-hook]` with `verify_jwt = false` to `supabase/config.toml` — necessary because Edge Functions default to `verify_jwt = true`, which would reject GoTrue's own hook call (Standard-Webhooks-signed, not a Supabase JWT) with a 401 before `index.ts`'s own signature check ever runs.
+- Story 1.5's Decision 6 cross-reference (owner-invite SMS) is superseded: a same-day correct-course pass (Sprint Change Proposal, 2026-07-14) created **Story 1.11** to formally own that flow (temp-password-over-SMS, not a link) — no longer an unowned gap.
+- **Post-review addition, same session (2026-07-14):** at the user's explicit request, added `TwilioWhatsAppProvider` — a fourth `OtpDeliveryProvider` implementation, WhatsApp via Twilio's Content API (`ContentSid`/`ContentVariables`, `verifications_2fa_template`, Meta-approved same day). This pulls forward architecture.md's "Deferred Decisions (Post-MVP): WhatsApp OTP delivery... not built for V1" — explicitly a user decision to bring it into V1 early, not a silent scope drift; recorded in `docs/decisions.md` rather than editing architecture.md's text directly (matches this story's own established pattern of flagging architecture deviations inline instead of rewriting the source document). Validated with a real end-to-end send + verify against the same Cameroon test number: **PASS** (`status: sent`, no error; code verified via `/auth/v1/verify`, real access token issued). Selected via `OTP_PROVIDER=twilio_whatsapp`.
+- Local dev stack (WSL2 Docker, `supabase start` + `functions serve`) was left running at session end; the user can `supabase stop` when done.
+- **Deferred, explicitly not built:** automatic provider fallback (try Twilio, fall back to sent.dm on failure) was discussed and deliberately deferred at the user's direction — sent.dm currently fails 100% of the time for this account (Decision 2), so fallback logic would add latency with zero benefit until sent.dm's routing/template issues are actually fixed. Revisit once sent.dm is confirmed working and there's a real redundancy need, not before.
+- **`OTP_PROVIDER` default confirmed as `twilio` (SMS)** on cost grounds too: Twilio's own Pricing API confirms $0.317 USD/message to Cameroon (MTN/Orange/all carriers, verified via `GET /v1/Messaging/Countries/CM`). No equivalent verified figure exists for WhatsApp Authentication-conversation pricing — Twilio's Pricing API doesn't cover it and the sent message record's `price` field stayed `null` even after delivery/read. Rather than estimate, SMS stays default as the only channel with a confirmed real cost.
+
+### File List
+
+- `supabase/functions/send-sms-hook/_shared/otp-providers/OtpDeliveryProvider.ts` (new, modified post-review — E.164 contract JSDoc)
+- `supabase/functions/send-sms-hook/_shared/otp-providers/TwilioSmsProvider.ts` (new, modified post-review — uses shared `sendTwilioMessage`)
+- `supabase/functions/send-sms-hook/_shared/otp-providers/TwilioWhatsAppProvider.ts` (new, post-review addition, modified again post-review-fix — uses shared `sendTwilioMessage`)
+- `supabase/functions/send-sms-hook/_shared/otp-providers/SentDmProvider.ts` (new, modified post-review — guarded JSON parse, clearer `var_2` coupling)
+- `supabase/functions/send-sms-hook/_shared/otp-providers/httpHelpers.ts` (new, post-review-fix — shared `sendTwilioMessage`/`errorResult`)
+- `supabase/functions/send-sms-hook/index.ts` (new, modified post-review — `twilio_whatsapp` case, module-scope hoisting, payload validation, defensive try/catch)
+- `supabase/functions/send-sms-hook/deno.json` (new)
+- `supabase/.env` (new, gitignored, real local credentials — never committed)
+- `supabase/config.toml` (modified — `[auth.hook.send_sms]`, `[functions.send-sms-hook]`, `[auth.sms]`, `[auth.sms.twilio]`; comment fix post-review)
+- `docs/decisions.md` (modified — four dated entries: Task 9 spike outcome, WhatsApp addendum, hook-failure-fallback finding, enable_signup accepted-risk note)
+
+## Change Log
+
+- 2026-07-14 — Implemented Tasks 2–7 (code + config). Ran the real spike (Task 8) against a real `+237` number for both providers: Twilio passed (SMS delivered + verified end-to-end), sent.dm failed on both SMS and WhatsApp channels for real, diagnosable reasons (account routing/template-sync gaps, not this codebase). Fixed six real bugs surfaced only by live testing (see Debug Log References). Recorded the outcome in `docs/decisions.md` (Task 9). Status moves to `review`.
+- 2026-07-14 (same session) — Added `TwilioWhatsAppProvider` as a fourth `OtpDeliveryProvider`, at the user's request, pulling forward architecture.md's deferred WhatsApp OTP decision. Validated end-to-end against the same real number. Recorded in `docs/decisions.md`.
+- 2026-07-15 — Multi-angle code review (8 finder angles, 10-candidate verify pass) found 10 issues; applied fixes for 9:
+  - Hoisted the Webhook verifier and provider selection to module scope (Edge Function isolates are reused across warm invocations) — the `Webhook` constructor's synchronous throw on an empty secret is now caught at init time instead of crashing every request.
+  - Added runtime shape validation on the verified webhook payload (`isValidPayload`) instead of a blind `as` cast — a validly-signed-but-malformed body (e.g. a dashboard test ping) now returns a clean 400 instead of crashing on a null dereference.
+  - Guarded `SentDmProvider`'s success-path `response.json()` call, and wrapped the `provider.send()` call site in `index.ts` in try/catch as defense in depth — a 2xx-with-bad-body response no longer crashes the hook.
+  - Extracted `_shared/otp-providers/httpHelpers.ts` (`sendTwilioMessage`, `errorResult`) — removes triplicated Twilio auth/URL/error-handling logic across `TwilioSmsProvider`/`TwilioWhatsAppProvider`/`SentDmProvider`, ahead of `notch-pay-webhook` needing the same pattern.
+  - Documented the E.164 `+`-prefix contract directly on `OtpDeliveryProvider.send`'s JSDoc, not just as an `index.ts` comment, so a future provider implementer can't miss it.
+  - Made the `SentDmProvider` `var_2`/`code` template-parameter coupling more explicit (named `templateParameters()` helper + comment) — this coupling already caused one real incident this session, worth over-communicating.
+  - Fixed `config.toml`'s stale "stays disabled" comment (contradicted by the built-in Twilio provider actually being enabled), and **live-tested** the previously-unverified hook-failure fallback path: disabling the hook and re-testing confirmed GoTrue falls back to a real send attempt through the placeholder Twilio block, producing a misleading `sms_send_failed`/"invalid username" (Twilio 20003) error — documented in `docs/decisions.md` so this is recognizable during a future incident rather than mistaken for a credentials problem.
+  - Full regression test after all fixes: real Twilio SMS re-confirmed `status: "sent"`, delivered, no regressions.
+  - **Not fixed, documented instead:** the `enable_signup`/unconfirmed-`public.users`-row finding touches Story 1.3's already-shipped `handle_new_user()` trigger — accepted as a bounded, rate-limit-mitigated risk (no session bypass) and flagged for Story 2.6 rather than modified here, per explicit user direction.
+  - **Not changed:** the hardcoded `locale: "en"` finding — confirmed mechanically true but already documented as this spike's deliberate scope limit (Story 2.6's job), not a defect.
