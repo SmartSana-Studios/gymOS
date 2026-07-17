@@ -4,7 +4,7 @@ baseline_commit: 59f17bc7bddd7f21d9a76269d28f835b93f7834a
 
 # Story 2.1: SMS/OTP Provider Sandbox Spike
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -94,6 +94,28 @@ epics.md's literal AC text (below) names `TwilioSmsProvider` only, matching arch
   - [x] Recorded: sent.dm's auto-routing attempted WhatsApp first (not SMS) for this number, so the "WhatsApp as a side-effect of provider choice" tension architecture.md's deferral decision anticipated did surface during testing — but since sent.dm's send failed outright, no actual WhatsApp OTP was delivered to a user. The tension is real in principle but did not materialize in practice this time; flagged for whoever revisits sent.dm.
   - [x] Cross-referenced Story 1.5's Decision 6 — superseded by the 2026-07-14 correct-course Sprint Change Proposal, which created **Story 1.11** to formally own rewiring the owner-invite flow (temp-password-over-SMS, not the link `sendInviteSms` was stubbed for). No longer an unowned gap.
 
+### Review Findings (2026-07-15, second pass — Blind Hunter + Edge Case Hunter + Acceptance Auditor)
+
+- [x] [Review][Patch] No timeout on outbound provider `fetch()` calls — fixed via a shared `fetchWithTimeout` (10s) in `httpHelpers.ts`, used by both `sendTwilioMessage` and `SentDmProvider`; an abort now returns a retryable `503` DeliveryResult instead of hanging [supabase/functions/send-sms-hook/_shared/otp-providers/httpHelpers.ts, SentDmProvider.ts]
+- [x] [Review][Patch] Provider failures collapse to a flat `500` despite Task 4 requiring 429/503 to map to a retryable response with a `retry-after` header — fixed: `DeliveryResult`'s failure variant now carries `status`/`retryAfter`, and `index.ts` returns the upstream 429/503 with a `Retry-After` header when present [supabase/functions/send-sms-hook/index.ts, _shared/otp-providers/{OtpDeliveryProvider,httpHelpers}.ts]
+- [x] [Review][Patch] Provider error response bodies are logged verbatim via `console.error`, leaking phone numbers — fixed via `redactPhone()` in `index.ts`, applied to `result.error` before logging [supabase/functions/send-sms-hook/index.ts]
+- [x] [Review][Patch] Phone normalization blindly prefixes `+` without validating the remainder is E.164-shaped digits — fixed via `normalizePhone()`, which validates digit shape and returns `null` (→ `400`) on a malformed number instead of forwarding it [supabase/functions/send-sms-hook/index.ts]
+- [x] [Review][Patch] `req.text()` body read happens outside the try/catch around `wh.verify()` — fixed by moving both under one try/catch [supabase/functions/send-sms-hook/index.ts]
+- [x] [Review][Patch] `isValidPayload` only checks types, not content — fixed by adding non-empty-string checks for both `phone` and `otp` [supabase/functions/send-sms-hook/index.ts]
+- [x] [Review][Patch] `TwilioWhatsAppProvider` unconditionally prepends `whatsapp:` to `TWILIO_WHATSAPP_FROM_NUMBER` with no guard — fixed with a `startsWith("whatsapp:")` guard on both `To` and `From` [supabase/functions/send-sms-hook/_shared/otp-providers/TwilioWhatsAppProvider.ts]
+
+- [x] [Review][Defer] `OtpDeliveryProvider.locale` is silently discarded by `SentDmProvider`/`TwilioWhatsAppProvider` (fixed single-language templates) [supabase/functions/send-sms-hook/_shared/otp-providers/{SentDmProvider,TwilioWhatsAppProvider}.ts] — deferred, pre-existing; already flagged in this story's own Change Log as Story 2.6's scope, not a defect here.
+- [x] [Review][Defer] Zero automated test coverage for signature verification, payload validation, and provider dispatch [supabase/functions/send-sms-hook/index.ts] — deferred, pre-existing; consistent with this story's explicit "spike, not feature build" framing, and no test infrastructure exists yet for edge functions in this repo.
+- [x] [Review][Defer] Hook-failure fallback produces a misleading Twilio `20003`/"invalid username" error when the hook is disabled or broken [supabase/config.toml] — deferred, pre-existing; already live-tested and documented in `docs/decisions.md` during the prior review round as a known, recognizable-in-incident footgun rather than something to restructure now.
+- [x] [Review][Defer] `SentDmProvider`'s `var_2`/`code` template-parameter coupling is enforced only by a comment, not a runtime guard [supabase/functions/send-sms-hook/_shared/otp-providers/SentDmProvider.ts] — deferred, pre-existing; already deliberately addressed in the prior review round via an explicit `templateParameters()` helper + over-communicated comment rather than brittle runtime coupling checks.
+- [x] [Review][Decision→Defer] Module-scope hoisting caches the webhook secret and provider selection for the isolate's lifetime — a rotated `SEND_SMS_HOOK_SECRET` or a flipped `OTP_PROVIDER` is silently ignored by already-warm isolates until a redeploy/cold restart recycles them [supabase/functions/send-sms-hook/index.ts] — deferred, accepted as an operational caveat: secret rotation is a rare, deliberate admin action, self-resolved by an intentional redeploy; a per-request freshness check would partially revert the prior round's intentional hoisting-for-perf fix for a low-frequency event.
+- [x] [Review][Decision→Defer] No idempotency guard against hook retries — combined with the (now-patched) fetch timeout, a GoTrue retry after a lost response could still double-send/double-bill the same OTP [supabase/functions/send-sms-hook/index.ts] — deferred to Story 2.6: the failure window is narrow (only matters if a send succeeds but the response is lost before GoTrue receives it), pilot volume is tiny, and proper dedup needs real infrastructure (Deno KV or a table) that doesn't exist yet. Story 2.6 is the first story with real member volume through this hook — natural place to add it if it's ever observed.
+- [x] [Review][Decision→Defer] The `enable_signup`/unconfirmed-`public.users`-row risk accepted in the prior review round as "bounded, rate-limit-mitigated, no session bypass" is more accurately an unauthenticated SMS-pumping/toll-fraud cost-abuse vector: `[auth.captcha]` is fully disabled in `supabase/config.toml`, and the cited `sms_sent`/`sign_in_sign_ups` limits are per-IP throttles, not hard caps — an attacker with rotating IPs (or just patience) can sustain real, billed Twilio sends ($0.317 USD/msg to Cameroon) to arbitrary numbers [supabase/config.toml]. Risk re-characterization recorded in `docs/decisions.md`; fix deferred to Story 2.6 because CAPTCHA can't be enabled in isolation — GoTrue would reject every phone signup without a matching client-side CAPTCHA widget, which doesn't exist until Story 2.6 builds the real member-facing signup UI.
+
+#### bmad-code-review (2026-07-17, cross-story diff review — Blind Hunter + Edge Case Hunter + Acceptance Auditor)
+
+- [x] [Review][Patch] `index.ts`'s `E164_DIGITS` regex (`/^[1-9]\d{6,14}$/`, 7–15 total digits) is looser than the E.164 validation every app-layer schema enforces (`packages/types/src/schemas/{member,csvImport}.ts`'s `e164Phone`, `/^\+[1-9]\d{7,14}$/`, 8–15 total digits) — the Edge Function boundary would accept a one-digit-shorter number than any of this app's own flows could ever produce. Low real-world impact today (nothing in this codebase currently sends a 7-digit number here), but a latent inconsistency for whoever next touches phone validation. **Fixed 2026-07-17:** `E164_DIGITS` tightened to `/^[1-9]\d{7,14}$/`, matching the app-layer bound exactly. [supabase/functions/send-sms-hook/index.ts]
+
 ## Dev Notes
 
 - **This is a spike, not a feature build** — the deliverable is a working, sandbox-verified `send-sms-hook` Edge Function (two swappable provider implementations) plus a documented decision, not member-facing onboarding functionality. `apps/mobile` is untouched (Epic 2, later stories).
@@ -173,16 +195,16 @@ Claude Sonnet 5 (claude-sonnet-5)
 
 ### File List
 
-- `supabase/functions/send-sms-hook/_shared/otp-providers/OtpDeliveryProvider.ts` (new, modified post-review — E.164 contract JSDoc)
+- `supabase/functions/send-sms-hook/_shared/otp-providers/OtpDeliveryProvider.ts` (new, modified post-review — E.164 contract JSDoc; modified again second pass — `status`/`retryAfter` on `DeliveryResult`)
 - `supabase/functions/send-sms-hook/_shared/otp-providers/TwilioSmsProvider.ts` (new, modified post-review — uses shared `sendTwilioMessage`)
-- `supabase/functions/send-sms-hook/_shared/otp-providers/TwilioWhatsAppProvider.ts` (new, post-review addition, modified again post-review-fix — uses shared `sendTwilioMessage`)
-- `supabase/functions/send-sms-hook/_shared/otp-providers/SentDmProvider.ts` (new, modified post-review — guarded JSON parse, clearer `var_2` coupling)
-- `supabase/functions/send-sms-hook/_shared/otp-providers/httpHelpers.ts` (new, post-review-fix — shared `sendTwilioMessage`/`errorResult`)
-- `supabase/functions/send-sms-hook/index.ts` (new, modified post-review — `twilio_whatsapp` case, module-scope hoisting, payload validation, defensive try/catch)
+- `supabase/functions/send-sms-hook/_shared/otp-providers/TwilioWhatsAppProvider.ts` (new, post-review addition, modified again post-review-fix — uses shared `sendTwilioMessage`; modified again second pass — `whatsapp:` prefix guard)
+- `supabase/functions/send-sms-hook/_shared/otp-providers/SentDmProvider.ts` (new, modified post-review — guarded JSON parse, clearer `var_2` coupling; modified again second pass — routed through `postJsonWithTimeout`)
+- `supabase/functions/send-sms-hook/_shared/otp-providers/httpHelpers.ts` (new, post-review-fix — shared `sendTwilioMessage`/`errorResult`; modified again second pass — `fetchWithTimeout`, `postJsonWithTimeout`, status/retry-after on `errorResult`)
+- `supabase/functions/send-sms-hook/index.ts` (new, modified post-review — `twilio_whatsapp` case, module-scope hoisting, payload validation, defensive try/catch; modified again second pass — `normalizePhone`, `redactPhone`, merged body-read/verify try/catch, 429/503 retry-after handling)
 - `supabase/functions/send-sms-hook/deno.json` (new)
 - `supabase/.env` (new, gitignored, real local credentials — never committed)
 - `supabase/config.toml` (modified — `[auth.hook.send_sms]`, `[functions.send-sms-hook]`, `[auth.sms]`, `[auth.sms.twilio]`; comment fix post-review)
-- `docs/decisions.md` (modified — four dated entries: Task 9 spike outcome, WhatsApp addendum, hook-failure-fallback finding, enable_signup accepted-risk note)
+- `docs/decisions.md` (modified — five dated entries: Task 9 spike outcome, WhatsApp addendum, hook-failure-fallback finding, enable_signup accepted-risk note, enable_signup risk re-characterization)
 
 ## Change Log
 
@@ -199,3 +221,13 @@ Claude Sonnet 5 (claude-sonnet-5)
   - Full regression test after all fixes: real Twilio SMS re-confirmed `status: "sent"`, delivered, no regressions.
   - **Not fixed, documented instead:** the `enable_signup`/unconfirmed-`public.users`-row finding touches Story 1.3's already-shipped `handle_new_user()` trigger — accepted as a bounded, rate-limit-mitigated risk (no session bypass) and flagged for Story 2.6 rather than modified here, per explicit user direction.
   - **Not changed:** the hardcoded `locale: "en"` finding — confirmed mechanically true but already documented as this spike's deliberate scope limit (Story 2.6's job), not a defect.
+- 2026-07-15 (second pass) — Second code review (Blind Hunter + Edge Case Hunter + Acceptance Auditor against `baseline_commit` → HEAD): 17 raw findings, 3 dismissed as noise, 4 deferred (pre-existing/already-adjudicated), 3 decision-needed resolved with the user and deferred to Story 2.6 (one with a corrected risk write-up in `docs/decisions.md`), 7 patches applied:
+  - Added a shared 10s `fetchWithTimeout` in `httpHelpers.ts` (used by `sendTwilioMessage` and `SentDmProvider`) — a hung provider response now fails fast with a retryable `503` instead of blocking the hook indefinitely.
+  - `DeliveryResult`'s failure variant now carries `status`/`retryAfter`; `index.ts` returns the real upstream `429`/`503` with a `Retry-After` header, per Supabase's documented HTTP Auth Hook retry contract (previously collapsed every failure to a flat `500`).
+  - Added `redactPhone()` in `index.ts` — provider error bodies (which echo the destination number) are redacted before hitting `console.error`.
+  - Added `normalizePhone()` in `index.ts` — validates `user.phone` is E.164-digit-shaped before forwarding to a provider, returning `400` on a malformed number instead of blindly prefixing `+` and forwarding it as-is.
+  - Moved `req.text()` inside the same try/catch as `wh.verify()` — a body-read failure now returns the required JSON `400` instead of throwing uncaught.
+  - `isValidPayload` now rejects empty-string `phone`/`otp`, not just wrong types.
+  - `TwilioWhatsAppProvider` now guards against an already-`whatsapp:`-prefixed `TWILIO_WHATSAPP_FROM_NUMBER` (and, defensively, `phone`) instead of unconditionally prepending.
+  - **Not live-retested against real Twilio/sent.dm this pass** — same environment constraint as Task 8 (no local Deno/Docker available in this session); the patches are type- and logic-consistent with the existing, previously-live-tested code paths, but the timeout/retry-after/redaction logic specifically has not been exercised against a real provider response. Flagged here rather than silently claimed as verified — worth a real re-run (`supabase functions serve` + real send) before this hook next changes.
+  - Status moves to `done`.

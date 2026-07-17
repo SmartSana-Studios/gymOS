@@ -1,5 +1,5 @@
 import type { DeliveryResult, OtpDeliveryProvider } from "./OtpDeliveryProvider.ts";
-import { errorResult } from "./httpHelpers.ts";
+import { errorResult, postJsonWithTimeout } from "./httpHelpers.ts";
 
 // This exact { code, var_2 } shape is coupled to SENT_DM_OTP_TEMPLATE_ID's specific template
 // ("ACCOUNT VERIFICATION") and is NOT a generic sent.dm contract — confirmed via a real send +
@@ -23,7 +23,7 @@ export class SentDmProvider implements OtpDeliveryProvider {
       return { success: false, error: "sent.dm credentials are not configured" };
     }
 
-    const response = await fetch("https://api.sent.dm/v3/messages", {
+    const result = await postJsonWithTimeout("sent.dm", "https://api.sent.dm/v3/messages", {
       method: "POST",
       headers: {
         "x-api-key": apiKey,
@@ -38,12 +38,16 @@ export class SentDmProvider implements OtpDeliveryProvider {
       }),
     });
 
-    if (!response.ok) {
-      return errorResult("sent.dm", response);
+    if (!(result instanceof Response)) {
+      return result;
+    }
+
+    if (!result.ok) {
+      return errorResult("sent.dm", result);
     }
 
     try {
-      const data = await response.json();
+      const data = await result.json();
       const channel = data?.data?.recipients?.[0]?.channel;
       return channel ? { success: true, channel } : { success: true };
     } catch {

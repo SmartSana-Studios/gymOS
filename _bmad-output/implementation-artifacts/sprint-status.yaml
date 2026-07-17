@@ -1,5 +1,5 @@
 # generated: 2026-07-04
-# last_updated: 2026-07-17 (story 1-11 done)
+# last_updated: 2026-07-17 (story 2-1 code-review follow-up fixes, done)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-07-17 (story 1-11 done)
+last_updated: 2026-07-17 (story 2-1 code-review follow-up fixes, done)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -57,7 +57,7 @@ development_status:
   epic-1-retrospective: optional
 
   epic-2: in-progress
-  2-1-sms-otp-provider-sandbox-spike: review
+  2-1-sms-otp-provider-sandbox-spike: done
   2-2-membership-plan-configuration: backlog
   2-3-manager-owner-create-edit-deactivate-members: backlog
   2-4-csv-member-import: backlog

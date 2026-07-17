@@ -1,6 +1,13 @@
 export type DeliveryResult =
   | { success: true; channel?: string }
-  | { success: false; error: string };
+  | {
+      success: false;
+      error: string;
+      /** Underlying provider HTTP status, when known — lets the hook map 429/503 to a retryable response. */
+      status?: number;
+      /** Provider's own Retry-After value, when present. */
+      retryAfter?: string;
+    };
 
 export interface OtpDeliveryProvider {
   /**

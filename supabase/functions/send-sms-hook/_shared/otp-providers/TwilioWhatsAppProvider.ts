@@ -16,9 +16,13 @@ export class TwilioWhatsAppProvider implements OtpDeliveryProvider {
     // body variable ({{1}}) and a native Copy Code button — Twilio/Meta render the surrounding
     // security-disclaimer text automatically (add_security_recommendation), unlike TwilioSmsProvider's
     // own hardcoded inline body. ContentVariables replaces Body for content-template-based sends.
+    // Guard against a misconfigured TWILIO_WHATSAPP_FROM_NUMBER that already carries the prefix —
+    // an unconditional prepend would silently double it (e.g. "whatsapp:whatsapp:+1...").
+    const To = phone.startsWith("whatsapp:") ? phone : `whatsapp:${phone}`;
+    const From = whatsappFrom.startsWith("whatsapp:") ? whatsappFrom : `whatsapp:${whatsappFrom}`;
     const body = new URLSearchParams({
-      To: `whatsapp:${phone}`,
-      From: `whatsapp:${whatsappFrom}`,
+      To,
+      From,
       ContentSid: contentSid,
       ContentVariables: JSON.stringify({ "1": code }),
     });
