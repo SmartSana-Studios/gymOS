@@ -1,0 +1,56 @@
+{
+  "common": {
+    "continue": "Continue",
+    "back": "Back",
+    "close": "Close",
+    "tryAgain": "Try again"
+  },
+  "onboarding": {
+    "language": {
+      "headingEn": "Choose your language",
+      "headingFr": "Choisissez votre langue",
+      "english": "English",
+      "french": "Français"
+    },
+    "phone": {
+      "title": "Enter your phone number",
+      "subtitle": "We'll send you a one-time verification code",
+      "helper": "+237 6 XX XX XX XX",
+      "errorInvalidFormat": "Enter a valid phone number (e.g. +237 6 XX XX XX XX)",
+      "errorNotRegistered": "This number isn't registered at a gym yet. Contact your gym to get an invite.",
+      "errorNetwork": "Something went wrong. Check your connection and try again."
+    },
+    "otp": {
+      "title": "Enter the code",
+      "subtitleSentTo": "Sent to {{maskedPhone}}",
+      "resendCountdown": "Resend code ({{countdown}})",
+      "resendLink": "Resend code",
+      "errorIncorrect": "Incorrect code. Try again.",
+      "errorNetwork": "Couldn't verify the code. Check your connection."
+    },
+    "lockout": {
+      "title": "Too many attempts",
+      "explanation": "Wait 5 minutes, then try again. Contact your gym if you need help sooner.",
+      "countdown": "Try again in {{countdown}}",
+      "tryAgain": "Try again"
+    },
+    "profile": {
+      "stepIndicator": "Step {{step}} of 4",
+      "title": "Set up your profile",
+      "addPhoto": "Add photo (optional)",
+      "removePhoto": "Remove",
+      "nameLabel": "Full name",
+      "errorNameTooLong": "Name must be 100 characters or fewer",
+      "errorPhotoTooLarge": "Photo must be smaller than 5MB",
+      "errorPhotoUploadFailed": "Photo upload failed. Try again.",
+      "errorPhotoPermissionDenied": "GymOS needs permission to access your camera or photos to add a picture.",
+      "errorSaveFailed": "Something went wrong. Check your connection and try again.",
+      "photoSourceTakePhoto": "Take Photo",
+      "photoSourceChooseFromLibrary": "Choose from Library"
+    },
+    "goal": {
+      "title": "You're in!",
+      "subtitle": "Goal selection and plan confirmation are coming soon."
+    }
+  }
+}

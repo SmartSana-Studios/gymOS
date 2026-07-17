@@ -14,6 +14,12 @@ const LOCALE_DIRS = [
   "packages/types/src/locales",
   "apps/dashboard/locales",
   "apps/super-admin/locales",
+  // Story 2.6: closes the gap deferred-work.md already flagged -- "a future
+  // locale-bearing package (e.g. apps/mobile) is silently excluded from the
+  // key-parity gate until someone remembers to add it." Deliberately
+  // separate from packages/types/src/locales (different vocabulary/
+  // onboarding flow, architecture.md), not merged with it.
+  "apps/mobile/src/locales",
 ];
 
 function flattenKeys(obj, prefix = "") {

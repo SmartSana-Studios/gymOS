@@ -34,6 +34,14 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow GymOS to access your photos so you can set a profile picture.",
+          "cameraPermission": "Allow GymOS to access your camera so you can take a profile picture."
+        }
       ]
     ],
     "experiments": {

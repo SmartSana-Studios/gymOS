@@ -10,7 +10,7 @@
 -- proving denial (Story 1.9's Debug Log already hit this mistake once).
 
 begin;
-select plan(9);
+select plan(16);
 
 -- `handle_new_user()` (0003_members_and_users.sql's `on_auth_user_created`
 -- trigger) auto-inserts a bare `public.users` row on every `auth.users`
@@ -63,12 +63,15 @@ select is(
 
 -- ============================================================================
 -- Column-guard trigger: a self-update that also tries to flip
--- is_super_admin/phone/display_name/created_at in the same statement is
--- matched/returned (the row update succeeds at the row level), but all four
--- columns stay pinned to their prior values -- protect_self_managed_user_columns
--- fires transparently, not as a rejected UPDATE. Asserted via a re-SELECT,
--- since the trigger's pin-back isn't visible in a plain RETURNING clause on
--- its own inputs.
+-- is_super_admin/phone/created_at in the same statement is matched/returned
+-- (the row update succeeds at the row level), but those three columns stay
+-- pinned to their prior values -- protect_self_managed_user_columns fires
+-- transparently, not as a rejected UPDATE. Asserted via a re-SELECT, since
+-- the trigger's pin-back isn't visible in a plain RETURNING clause on its
+-- own inputs. `display_name` is deliberately included in the same UPDATE
+-- but is NOT pinned (Story 2.6 removed it from the trigger's deny-list --
+-- MA-05 profile setup is the first code to self-write it) -- asserted below
+-- as a positive "this now persists" case, not a regression.
 -- ============================================================================
 update users
 set preferred_language = 'en', is_super_admin = true, phone = '+237699999999',
@@ -89,8 +92,22 @@ select is(
 
 select is(
   (select display_name from users where id = '00000000-0000-0000-0000-000000005021'),
-  'User A',
-  'a self-update attempting to also change display_name is silently pinned back to its prior value'
+  'Attempted Rename',
+  'Story 2.6: a self-update changing display_name now actually persists -- no longer pinned back'
+);
+
+-- photo_url (Story 2.6's other new self-writable column, alongside
+-- display_name) was never in the trigger's pin-back list to begin with --
+-- asserted explicitly rather than assumed, since member_onboarding_rls.test.sql
+-- defers this exact coverage to this file (Review finding, 2026-07-17: that
+-- claim was previously false -- no assertion here actually covered it).
+update users set photo_url = 'https://example.com/photo.jpg'
+where id = '00000000-0000-0000-0000-000000005021';
+
+select is(
+  (select photo_url from users where id = '00000000-0000-0000-0000-000000005021'),
+  'https://example.com/photo.jpg',
+  'Story 2.6: a self-update setting photo_url actually persists'
 );
 
 -- `now()` is frozen for the whole test transaction, so comparing directly
@@ -101,6 +118,61 @@ select is(
 select ok(
   (select created_at from users where id = '00000000-0000-0000-0000-000000005021') < now() + interval '6 months',
   'a self-update attempting to also change created_at is silently pinned back to its prior value'
+);
+
+-- ============================================================================
+-- Story 1.11: must_change_password defaults true, and a self-update can flip
+-- it to false WITHOUT being reverted by protect_self_managed_user_columns
+-- (0016_owner_must_change_password.sql added it to the trigger's allow-list
+-- alongside preferred_language) -- this is the one regression this story
+-- could most easily introduce silently, so it's asserted explicitly rather
+-- than assumed.
+-- ============================================================================
+select is(
+  (select must_change_password from users where id = '00000000-0000-0000-0000-000000005021'),
+  true,
+  'must_change_password defaults to true on insert'
+);
+
+with updated as (
+  update users set must_change_password = false
+  where id = '00000000-0000-0000-0000-000000005021'
+  returning id
+)
+select is((select count(*) from updated)::int, 1, 'a session can UPDATE its own must_change_password');
+
+select is(
+  (select must_change_password from users where id = '00000000-0000-0000-0000-000000005021'),
+  false,
+  'the must_change_password change actually persisted -- not silently reverted by the trigger'
+);
+
+-- Regression check: the trigger's allow-list extension (Task 1) didn't
+-- accidentally loosen the existing phone/is_super_admin protections when
+-- the same statement also touches must_change_password. display_name is
+-- intentionally excluded from this "still pinned" check (Story 2.6 -- see
+-- above).
+update users
+set must_change_password = true, is_super_admin = true, phone = '+237699999998',
+    display_name = 'Attempted Rename 2'
+where id = '00000000-0000-0000-0000-000000005021';
+
+select is(
+  (select is_super_admin from users where id = '00000000-0000-0000-0000-000000005021'),
+  false,
+  'a self-update also setting is_super_admin=true alongside must_change_password is still pinned back'
+);
+
+select is(
+  (select phone from users where id = '00000000-0000-0000-0000-000000005021'),
+  '+237600000021',
+  'a self-update also setting phone alongside must_change_password is still pinned back'
+);
+
+select is(
+  (select display_name from users where id = '00000000-0000-0000-0000-000000005021'),
+  'Attempted Rename 2',
+  'Story 2.6: display_name still persists (not pinned) even alongside a must_change_password change'
 );
 
 -- ============================================================================

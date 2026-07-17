@@ -1,0 +1,56 @@
+{
+  "common": {
+    "continue": "Continuer",
+    "back": "Retour",
+    "close": "Fermer",
+    "tryAgain": "Réessayer"
+  },
+  "onboarding": {
+    "language": {
+      "headingEn": "Choose your language",
+      "headingFr": "Choisissez votre langue",
+      "english": "English",
+      "french": "Français"
+    },
+    "phone": {
+      "title": "Entrez votre numéro de téléphone",
+      "subtitle": "Nous allons vous envoyer un code de vérification à usage unique",
+      "helper": "+237 6 XX XX XX XX",
+      "errorInvalidFormat": "Entrez un numéro de téléphone valide (ex. +237 6 XX XX XX XX)",
+      "errorNotRegistered": "Ce numéro n'est pas encore enregistré dans une salle. Contactez votre salle pour obtenir une invitation.",
+      "errorNetwork": "Une erreur s'est produite. Vérifiez votre connexion et réessayez."
+    },
+    "otp": {
+      "title": "Entrez le code",
+      "subtitleSentTo": "Envoyé au {{maskedPhone}}",
+      "resendCountdown": "Renvoyer le code ({{countdown}})",
+      "resendLink": "Renvoyer le code",
+      "errorIncorrect": "Code incorrect. Réessayez.",
+      "errorNetwork": "Impossible de vérifier le code. Vérifiez votre connexion."
+    },
+    "lockout": {
+      "title": "Trop de tentatives",
+      "explanation": "Patientez 5 minutes, puis réessayez. Contactez votre salle si vous avez besoin d'aide plus tôt.",
+      "countdown": "Nouvelle tentative dans {{countdown}}",
+      "tryAgain": "Réessayer"
+    },
+    "profile": {
+      "stepIndicator": "Étape {{step}} sur 4",
+      "title": "Configurez votre profil",
+      "addPhoto": "Ajouter une photo (facultatif)",
+      "removePhoto": "Supprimer",
+      "nameLabel": "Nom complet",
+      "errorNameTooLong": "Le nom doit comporter au maximum 100 caractères",
+      "errorPhotoTooLarge": "La photo doit faire moins de 5 Mo",
+      "errorPhotoUploadFailed": "Échec de l'envoi de la photo. Réessayez.",
+      "errorPhotoPermissionDenied": "GymOS a besoin d'accéder à votre appareil photo ou à vos photos pour ajouter une image.",
+      "errorSaveFailed": "Une erreur s'est produite. Vérifiez votre connexion et réessayez.",
+      "photoSourceTakePhoto": "Prendre une photo",
+      "photoSourceChooseFromLibrary": "Choisir dans la bibliothèque"
+    },
+    "goal": {
+      "title": "Vous y êtes presque !",
+      "subtitle": "La sélection d'objectifs et la confirmation du forfait arrivent bientôt."
+    }
+  }
+}
