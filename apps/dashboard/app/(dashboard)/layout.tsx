@@ -59,6 +59,15 @@ async function DashboardLayoutData({
     redirect("/auth/login");
   }
 
+  if (shell.mustChangePassword) {
+    // Story 1.11: a temp-password-activated owner must set a real password
+    // before reaching any (dashboard) route. No loop risk: /auth/update-
+    // password is a top-level app/auth/update-password/ route, not nested
+    // under this route group, so this redirect target never re-triggers
+    // this check.
+    redirect("/auth/update-password");
+  }
+
   return (
     <DashboardChrome role={shell.role} gymName={shell.gymName} memberName={shell.memberName}>
       {children}

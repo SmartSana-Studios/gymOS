@@ -1,5 +1,5 @@
 # generated: 2026-07-04
-# last_updated: 2026-07-17 (story 2-6 done, via bmad-code-review)
+# last_updated: 2026-07-17 (story 1-11 done)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-07-17 (story 2-6 done, via bmad-code-review)
+last_updated: 2026-07-17 (story 1-11 done)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -53,7 +53,7 @@ development_status:
   1-8-gym-owner-login-role-filtered-dashboard-shell: done
   1-9-gym-branding-operational-settings: done
   1-10-bilingual-en-fr-platform-foundation: done
-  1-11-gym-owner-activation-temp-password-sms: backlog
+  1-11-gym-owner-activation-temp-password-sms: done
   epic-1-retrospective: optional
 
   epic-2: in-progress

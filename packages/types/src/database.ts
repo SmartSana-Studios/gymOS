@@ -485,6 +485,7 @@ export type Database = {
           display_name: string | null
           id: string
           is_super_admin: boolean
+          must_change_password: boolean
           phone: string | null
           preferred_language: string
         }
@@ -493,6 +494,7 @@ export type Database = {
           display_name?: string | null
           id: string
           is_super_admin?: boolean
+          must_change_password?: boolean
           phone?: string | null
           preferred_language?: string
         }
@@ -501,6 +503,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           is_super_admin?: boolean
+          must_change_password?: boolean
           phone?: string | null
           preferred_language?: string
         }

@@ -34,10 +34,10 @@
       "reinstate": "Réactiver"
     },
     "toast": {
-      "createdSms": "Salle créée. SMS envoyé à {{phone}}.",
-      "createdNoSms": "Salle créée. Lien d'invitation généré pour {{phone}} — l'envoi de SMS n'est pas encore connecté.",
-      "copyLink": "Copier le lien d'invitation",
-      "linkCopied": "Copié !",
+      "createdSms": "Salle créée. Mot de passe temporaire envoyé à {{phone}}.",
+      "createdNoSms": "Salle créée. Échec de l'envoi automatique du mot de passe temporaire à {{phone}} — communiquez-le ci-dessous.",
+      "copyPassword": "Copier le mot de passe temporaire",
+      "passwordCopied": "Copié !",
       "dismiss": "Ignorer"
     },
     "create": {

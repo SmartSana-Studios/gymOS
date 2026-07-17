@@ -34,10 +34,10 @@
       "reinstate": "Reinstate"
     },
     "toast": {
-      "createdSms": "Gym created. SMS sent to {{phone}}.",
-      "createdNoSms": "Gym created. Invite link generated for {{phone}} — SMS delivery isn't connected yet.",
-      "copyLink": "Copy invite link",
-      "linkCopied": "Copied!",
+      "createdSms": "Gym created. Temp password sent to {{phone}}.",
+      "createdNoSms": "Gym created. Could not send the temp password to {{phone}} automatically — share it below.",
+      "copyPassword": "Copy temp password",
+      "passwordCopied": "Copied!",
       "dismiss": "Dismiss"
     },
     "create": {

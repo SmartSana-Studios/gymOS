@@ -38,8 +38,8 @@ export function GymsPageClient({
   tiers: TierOption[];
 }) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [toast, setToast] = useState<{ message: string; inviteLink?: string } | null>(null);
-  const [linkCopied, setLinkCopied] = useState(false);
+  const [toast, setToast] = useState<{ message: string; tempPassword?: string } | null>(null);
+  const [passwordCopied, setPasswordCopied] = useState(false);
   const [searchInput, setSearchInput] = useState(search);
   const [lifecycleGym, setLifecycleGym] = useState<{
     gym: GymListRow;
@@ -81,39 +81,42 @@ export function GymsPageClient({
     router.push(`${pathname}?${params.toString()}`);
   }
 
-  // A plain status message auto-dismisses; one carrying the invite link stays
-  // on screen (no timer) until the admin explicitly closes it -- otherwise
-  // there's no time to copy the link before it vanishes, and (until Story
-  // 2.1 wires up real SMS) this is the only way anyone without server/log
-  // access can get it at all.
-  function showToast(message: string, inviteLink?: string) {
+  // A plain status message auto-dismisses; one carrying the temp password
+  // stays on screen (no timer) until the admin explicitly closes it --
+  // otherwise there's no time to copy it before it vanishes. Always shown on
+  // gym creation (Open Question 3, resolved 2026-07-15), not gated behind
+  // `smsSent` -- a reported WhatsApp send success doesn't guarantee the
+  // owner actually saw the message, so this remains the manual fallback
+  // either way.
+  function showToast(message: string, tempPassword?: string) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setLinkCopied(false);
-    setToast({ message, inviteLink });
-    if (!inviteLink) {
+    setPasswordCopied(false);
+    setToast({ message, tempPassword });
+    if (!tempPassword) {
       toastTimerRef.current = setTimeout(() => setToast(null), 4000);
     }
   }
 
-  function handleCreated(ownerPhone: string, smsSent: boolean, ownerInviteLink: string) {
+  function handleCreated(ownerPhone: string, smsSent: boolean, tempPassword: string) {
     setModalOpen(false);
     showToast(
       smsSent
         ? t("gyms.toast.createdSms", { phone: ownerPhone })
         : t("gyms.toast.createdNoSms", { phone: ownerPhone }),
-      smsSent ? undefined : ownerInviteLink,
+      tempPassword,
     );
     router.refresh();
   }
 
-  async function copyInviteLink(link: string) {
+  async function copyTempPassword(password: string) {
     try {
-      await navigator.clipboard.writeText(link);
-      setLinkCopied(true);
+      await navigator.clipboard.writeText(password);
+      setPasswordCopied(true);
     } catch {
       // Clipboard API can be denied (permissions, insecure context) -- the
-      // link is still selectable/visible in the toast as a fallback, so this
-      // is silent rather than surfacing a second error on top of a success.
+      // password is still selectable/visible in the toast as a fallback, so
+      // this is silent rather than surfacing a second error on top of a
+      // success.
     }
   }
 
@@ -330,11 +333,11 @@ export function GymsPageClient({
           className="fixed bottom-4 right-4 max-w-sm rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground shadow-lg"
         >
           <p>{toast.message}</p>
-          {toast.inviteLink && (
+          {toast.tempPassword && (
             <div className="mt-2 space-y-2">
               <Input
                 readOnly
-                value={toast.inviteLink}
+                value={toast.tempPassword}
                 onFocus={(e) => e.currentTarget.select()}
                 className="border-primary-foreground/30 bg-primary-foreground/10 text-xs text-primary-foreground"
               />
@@ -343,9 +346,9 @@ export function GymsPageClient({
                   type="button"
                   size="sm"
                   variant="secondary"
-                  onClick={() => copyInviteLink(toast.inviteLink!)}
+                  onClick={() => copyTempPassword(toast.tempPassword!)}
                 >
-                  {linkCopied ? t("gyms.toast.linkCopied") : t("gyms.toast.copyLink")}
+                  {passwordCopied ? t("gyms.toast.passwordCopied") : t("gyms.toast.copyPassword")}
                 </Button>
                 <Button
                   type="button"

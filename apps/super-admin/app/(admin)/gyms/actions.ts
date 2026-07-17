@@ -11,6 +11,10 @@ import {
 } from "@gymos/types";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  sendTempPasswordMessage,
+  type TempPasswordMessageResult,
+} from "@/lib/messaging/sendTempPasswordMessage";
+import {
   deleteGym,
   gymNameExists,
   insertGym,
@@ -30,19 +34,48 @@ export interface CreateGymResult {
   gymId: string;
   ownerPhone: string;
   /**
-   * True once a real SMS provider is wired in (Story 2.1+). Always false for
-   * now -- sendInviteSms is a stub (Open Question 3). The client uses this
-   * to show honest copy instead of unconditionally claiming "SMS sent"
-   * (code review finding: the toast previously lied about delivery).
+   * True once the WhatsApp send attempt (Story 1.11, Twilio Content API)
+   * reports success. Reflects the WhatsApp send result despite the "sms"
+   * name -- renaming touches more call sites than this story needs; kept
+   * for continuity with Story 1.5's original field. The client uses this
+   * to show honest copy instead of unconditionally claiming delivery
+   * (code review finding on Story 1.5: the toast previously lied about it).
    */
   smsSent: boolean;
   /**
-   * The same link `sendInviteSms` logs server-side. Surfaced here too so the
-   * UI can display it directly -- until Story 2.1 wires up real SMS, this is
-   * the only way anyone without server/log access (e.g. a client evaluating
-   * a deploy) can actually get the new owner into their account.
+   * The real temp password set on the owner's `auth.users` row. Always
+   * surfaced here (Open Question 3, resolved 2026-07-15) as a manual
+   * fallback -- mirrors Story 1.5's own precedent (commit `6049e7a`) of
+   * showing the fallback unconditionally, not gated behind `smsSent`: a
+   * reported WhatsApp send success doesn't guarantee the owner actually
+   * saw the message. Ephemeral -- not persisted beyond this return value.
    */
-  ownerInviteLink: string;
+  tempPassword: string;
+}
+
+// Fixed unambiguous alphabet -- excludes 0/O/1/l/I (visually confusable when
+// read off a screen or heard over the phone). Length 10 comfortably clears
+// config.toml's minimum_password_length = 6; this is a forced-change temp
+// credential (must_change_password gate, Task 1/5), not a long-lived secret,
+// so simple rejection-sampling (below) is sufficient rigor.
+const TEMP_PASSWORD_ALPHABET =
+  "23456789ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+const TEMP_PASSWORD_LENGTH = 10;
+
+function generateTempPassword(): string {
+  const maxValidByte =
+    Math.floor(256 / TEMP_PASSWORD_ALPHABET.length) * TEMP_PASSWORD_ALPHABET.length;
+  let password = "";
+  while (password.length < TEMP_PASSWORD_LENGTH) {
+    const bytes = crypto.getRandomValues(new Uint8Array(TEMP_PASSWORD_LENGTH));
+    for (const byte of bytes) {
+      if (password.length >= TEMP_PASSWORD_LENGTH) break;
+      // Reject bytes past the last full multiple of the alphabet's length --
+      // avoids the modulo-bias a plain `byte % alphabet.length` would introduce.
+      if (byte < maxValidByte) password += TEMP_PASSWORD_ALPHABET[byte % TEMP_PASSWORD_ALPHABET.length];
+    }
+  }
+  return password;
 }
 
 /**
@@ -89,8 +122,13 @@ export async function createGym(
   // are set: email is the Supabase Auth login identifier (matching AD-01/
   // SA-01's existing signInWithPassword({ email, password }) form), phone is
   // stored for display (SA-03's "Owner: Paul Nkusu (+237 6XX XXX XXX)"). A
-  // random password is set and never surfaced directly -- delivery is via a
-  // generated recovery link (Step 4), not a plaintext password over SMS.
+  // real temp password is generated and sent as plain text over WhatsApp
+  // (Step 5, Story 1.11) -- no recovery link is generated anymore (Story
+  // 1.5's generateLink mechanism is superseded, see docs/decisions.md).
+  // `email_confirm: true` is still set, but its justification changes:
+  // previously the recovery link's own GoTrue verify step proved email
+  // ownership implicitly; with no link at all, this flag is now the only
+  // thing establishing the account as usable (AC #1).
   //
   // createAdminClient() itself (env var non-null assertions) and the first
   // admin call are wrapped together: a misconfigured deployment throwing
@@ -100,10 +138,10 @@ export async function createGym(
   // existed). An IIFE keeps the try/catch's inferred success type flowing
   // naturally into `admin`/`authUser` below, instead of hand-writing their
   // (fairly gnarly) generic types.
+  const temporaryPassword = generateTempPassword();
   const provisioned = await (async () => {
     try {
       const admin = createAdminClient();
-      const temporaryPassword = crypto.randomUUID();
       const { data, error: authError } = await admin.auth.admin.createUser({
         email: gym.ownerEmail,
         phone: gym.ownerPhone,
@@ -127,38 +165,10 @@ export async function createGym(
   }
   const { admin, authUser } = provisioned;
 
-  // Step 4: generate a password-recovery link for the SMS invite (Step 6) --
-  // does not send Supabase's own built-in email; this flow's delivery
-  // channel is SMS (AC #1, SA-04's toast copy).
-  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-    type: "recovery",
-    email: gym.ownerEmail,
-  });
-
-  if (linkError || !linkData) {
-    await deleteGym(gymRow.id);
-    await deleteAuthUserAndLog(admin, authUser.user.id);
-    return { data: null, error: await mapAndLog(linkError) };
-  }
-
-  // `linkData.properties.action_link` points at GoTrue's own /verify
-  // endpoint, which verifies the token itself and redirects to the bare
-  // dashboard origin with the new session appended as a URL hash fragment
-  // (implicit-grant style) -- never reaching apps/dashboard's own
-  // /auth/confirm route. That hash fragment can only be consumed by
-  // client-side JS after the page loads, but apps/dashboard's middleware
-  // (Story 1.8) redirects any unauthenticated request to a non-/auth/* path
-  // -- including "/" -- to /auth/login server-side, before that client JS
-  // ever runs. The owner ends up back on a plain login page with no
-  // session and no way in. Building the link from `hashed_token` instead,
-  // pointed straight at the dashboard's own /auth/confirm route, verifies
-  // the token server-side and sets real session cookies before any
-  // redirect -- the standard pattern for custom (non-Supabase-hosted)
-  // email/SMS invite templates. See
-  // docs/manual-walkthrough-findings-2026-07-13.md.
-  const ownerInviteLink = `${getDashboardAppUrl()}/auth/confirm?token_hash=${linkData.properties.hashed_token}&type=recovery&next=${encodeURIComponent("/auth/update-password")}`;
-
-  // Step 5: insert the owner's membership row.
+  // Step 4: insert the owner's membership row. `must_change_password`
+  // defaults `true` at the `users` level (0016 migration's DB default) --
+  // no explicit set needed here, matching this codebase's existing
+  // preference for DB-level defaults over app-level explicit sets.
   const { error: memberError } = await insertOwnerMember({
     gymId: gymRow.id,
     userId: authUser.user.id,
@@ -173,12 +183,43 @@ export async function createGym(
     return { data: null, error: memberError };
   }
 
-  // Step 6: send the invite SMS -- stub for this story (Open Question 3, no
-  // sandbox-verified SMS provider yet). Failure here must NOT roll back the
-  // already-successful gym/owner/member creation.
-  const smsSent = await sendInviteSms(gym.ownerPhone, ownerInviteLink);
+  // Step 5: send the temp password over WhatsApp (Story 2.1's already-
+  // approved verifications_2fa_template, Task 2). Failure here must NOT
+  // roll back the already-successful gym/owner/member creation (AC #7,
+  // matches Story 1.5's smsSent-never-blocks-success precedent) -- the
+  // temp password is still returned below as a manual UI fallback either way.
+  // Explicitly try/catch'd (code review finding) -- gym/owner/member are
+  // already committed at this point, so an unexpected throw here must not
+  // be allowed to propagate out of createGym and turn a partial success
+  // into a reported failure, same discipline as getDashboardAppUrl() below.
+  let sendResult: TempPasswordMessageResult;
+  try {
+    sendResult = await sendTempPasswordMessage(gym.ownerPhone, temporaryPassword);
+  } catch (err) {
+    sendResult = {
+      success: false,
+      error: err instanceof Error ? err.message : "temp-password send threw unexpectedly",
+    };
+  }
+  const smsSent = sendResult.success;
+  if (!sendResult.success) {
+    // Best-effort logging only -- gym/owner/member are already successfully
+    // created at this point (AC #7), so a throw from getDashboardAppUrl()
+    // (e.g. DASHBOARD_APP_URL unset) must not propagate and turn an
+    // already-successful creation into a reported failure.
+    let loginUrl = "(DASHBOARD_APP_URL not set)";
+    try {
+      loginUrl = `${getDashboardAppUrl()}/auth/login`;
+    } catch {
+      // fall through with the placeholder above
+    }
+    console.error(
+      `[createGym] temp-password WhatsApp send failed for ${gym.ownerPhone}; owner can still log in at ${loginUrl} with the temp password shown in the UI`,
+      sendResult.error,
+    );
+  }
 
-  // Step 7: audit log entry -- the natural first entry in a gym's trail.
+  // Step 6: audit log entry -- the natural first entry in a gym's trail.
   await logGymCreated(gymRow.id, {
     owner_name: gym.ownerName,
     owner_phone: gym.ownerPhone,
@@ -187,7 +228,7 @@ export async function createGym(
   });
 
   return {
-    data: { gymId: gymRow.id, ownerPhone: gym.ownerPhone, smsSent, ownerInviteLink },
+    data: { gymId: gymRow.id, ownerPhone: gym.ownerPhone, smsSent, tempPassword: temporaryPassword },
     error: null,
   };
 }
@@ -209,24 +250,10 @@ async function deleteAuthUserAndLog(
 }
 
 /**
- * Story 1.5 Open Question 3's recommended default: no SMS provider is
- * sandbox-verified yet (Story 2.1, Epic 2, still backlog). Rather than ship
- * unverified real SMS delivery in Epic 1, this records the invite instead of
- * sending it -- swap for a real TwilioSmsProvider-backed implementation once
- * Story 2.1 lands. Deliberately never throws. Returns false (never actually
- * sent) so the caller can show honest UI copy instead of claiming delivery.
- */
-async function sendInviteSms(phone: string, actionLink: string): Promise<boolean> {
-  console.info(
-    `[invite-sms-stub] Would send SMS to ${phone} with login link: ${actionLink}`,
-  );
-  return false;
-}
-
-/**
- * Origin of apps/dashboard -- where the owner invite link's /auth/confirm
- * route lives (see the recovery-link comment above). Server-only: this is
- * never sent to the browser, only interpolated into the invite link string.
+ * Origin of apps/dashboard. Server-only: never sent to the browser, only
+ * used to build the login URL logged (Step 5) when the temp-password
+ * WhatsApp send fails, so a failure is still debuggable/manually
+ * recoverable without guessing the app's own origin.
  */
 function getDashboardAppUrl(): string {
   const url = process.env.DASHBOARD_APP_URL;

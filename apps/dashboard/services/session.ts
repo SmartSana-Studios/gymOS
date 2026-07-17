@@ -45,6 +45,12 @@ export interface DashboardShellContext {
   gymName: string;
   memberName: string;
   role: MemberRole;
+  /**
+   * Story 1.11: true until the owner completes the forced password-change
+   * flow after a temp-password activation. `(dashboard)/layout.tsx` reads
+   * this to redirect to `/auth/update-password` before any other route.
+   */
+  mustChangePassword: boolean;
 }
 
 /**
@@ -97,7 +103,7 @@ export async function getDashboardShellContext(): Promise<{
     return { data: null, error: null };
   }
 
-  const [gymResult, memberResult] = await Promise.all([
+  const [gymResult, memberResult, userResult] = await Promise.all([
     supabase.from("gyms").select("name").eq("id", gymId).single(),
     supabase
       .from("members")
@@ -106,6 +112,7 @@ export async function getDashboardShellContext(): Promise<{
       .eq("user_id", claims.sub)
       .is("deactivated_at", null)
       .maybeSingle(),
+    supabase.from("users").select("must_change_password").eq("id", claims.sub).single(),
   ]);
 
   if (gymResult.error) {
@@ -121,6 +128,16 @@ export async function getDashboardShellContext(): Promise<{
     console.error("[getDashboardShellContext] members lookup failed", memberResult.error);
   }
 
+  if (userResult.error) {
+    // Unlike the member-name fallback below, `mustChangePassword` is a real
+    // security gate (Story 1.11) -- a failed lookup must not silently fall
+    // through to "false" (would let an owner who never changed their temp
+    // password reach the dashboard). Every authenticated `users` row exists
+    // via `handle_new_user()` (0003), so a genuine error here is a real
+    // backend failure, treated the same as the gym lookup above.
+    return { data: null, error: await mapAndLog(userResult.error) };
+  }
+
   // A failed/null member lookup is a display nicety, not a security
   // boundary -- RLS on every other table still enforces access correctly
   // regardless of what name renders in the corner. Fall back to the claims'
@@ -134,6 +151,7 @@ export async function getDashboardShellContext(): Promise<{
       gymName: gymResult.data.name,
       memberName,
       role,
+      mustChangePassword: userResult.data.must_change_password,
     },
     error: null,
   };
