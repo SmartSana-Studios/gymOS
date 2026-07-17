@@ -11,6 +11,7 @@
   "errors": {
     "gymNameTaken": "A gym with this name already exists",
     "tierNameTaken": "This name is already in use",
+    "planNameTaken": "A plan with this name already exists at your gym",
     "tierNotFound": "That tier no longer exists. Choose a different one.",
     "ownerEmailTaken": "This email address is already registered",
     "ownerPhoneTaken": "This phone number is already registered",

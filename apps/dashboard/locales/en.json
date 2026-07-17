@@ -2,6 +2,7 @@
   "nav": {
     "overview": "Overview",
     "members": "Members",
+    "plans": "Plans",
     "subscriptions": "Subscriptions",
     "payments": "Payments",
     "attendance": "Attendance",
@@ -81,6 +82,66 @@
       "gracePeriodRange": "Grace period must be between 1 and 30 days",
       "capacityRequired": "Enter the gym's member capacity",
       "alertAutoDismissRange": "Auto-dismiss must be between 1 and 120 minutes"
+    }
+  },
+  "plans": {
+    "title": "Plans",
+    "addPlan": "+ Add Plan",
+    "emptyNoPlans": "No plans configured. Add your first plan.",
+    "addPlanButton": "Add Plan",
+    "edit": "Edit",
+    "delete": "Delete",
+    "priceLabel": "XAF {{price}} / {{interval}}",
+    "discountSuffix": "({{percent}}% discount)",
+    "intervalMonthly": "monthly",
+    "intervalAnnual": "annual",
+    "durationDaysLabel": "{{days}} days",
+    "durationPerVisit": "No fixed duration — billed per visit",
+    "deleteConfirmTitle": "Delete {{name}}",
+    "deleteConfirmBody": "This cannot be undone.",
+    "deleting": "Deleting…",
+    "deleteButton": "Delete {{name}}",
+    "types": {
+      "payPerSession": "Pay-per-session",
+      "monthly": "Monthly",
+      "coachInclusive": "Coach-inclusive",
+      "classOnly": "Class-only"
+    },
+    "accessDescriptions": {
+      "payPerSession": "Member pays per visit; no fixed expiry",
+      "monthly": "Fixed-fee plan with a defined expiry date",
+      "coachInclusive": "Monthly plan that includes scheduled sessions with an assigned coach",
+      "classOnly": "Access to scheduled classes only; no general floor access"
+    },
+    "modal": {
+      "editTitle": "Edit {{name}}",
+      "addTitle": "Add Plan",
+      "close": "Close",
+      "name": "Plan Name *",
+      "planType": "Plan Type *",
+      "price": "Price (XAF) *",
+      "durationDays": "Duration (days) *",
+      "billingInterval": "Billing Interval *",
+      "annualDiscountPercent": "Annual Discount (%) *",
+      "saveChanges": "Save Changes",
+      "errors": {
+        "nameRequired": "Plan name is required",
+        "priceRequired": "Price is required",
+        "priceInvalid": "Enter a valid price in XAF",
+        "durationRequired": "Duration is required",
+        "durationInvalid": "Enter a valid duration in days",
+        "billingIntervalInvalid": "Pay-per-session plans must use a monthly billing interval",
+        "discountRequired": "Annual discount is required",
+        "discountInvalid": "Enter a valid discount between 0 and 100"
+      }
+    },
+    "errors": {
+      "planNotFound": "Plan not found",
+      "planNameTaken": "A plan with this name already exists at your gym",
+      "planInUse": "Cannot delete {{name}} — {{count}} subscriptions use this plan.",
+      "auditLogFailedCreate": "The plan was created, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedEdit": "The plan was updated, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedDelete": "The plan was deleted, but the audit log entry failed to write. Please contact support."
     }
   }
 }

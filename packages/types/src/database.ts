@@ -359,6 +359,7 @@ export type Database = {
           billing_interval: Database["public"]["Enums"]["billing_interval"]
           created_at: string
           currency: string
+          duration_days: number | null
           gym_id: string
           id: string
           name: string
@@ -370,6 +371,7 @@ export type Database = {
           billing_interval: Database["public"]["Enums"]["billing_interval"]
           created_at?: string
           currency?: string
+          duration_days?: number | null
           gym_id: string
           id?: string
           name: string
@@ -381,6 +383,7 @@ export type Database = {
           billing_interval?: Database["public"]["Enums"]["billing_interval"]
           created_at?: string
           currency?: string
+          duration_days?: number | null
           gym_id?: string
           id?: string
           name?: string

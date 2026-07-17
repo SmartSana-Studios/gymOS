@@ -45,6 +45,16 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // Same pattern for the case-insensitive, gym-scoped plan-name index
+  // (0017_membership_plan_configuration.sql). Backstops planNameExists'
+  // app-layer check-then-insert race window in insertPlan/updatePlan.
+  if (pgErrorCode === "23505" && message.includes("idx_plans_gym_name_unique")) {
+    return {
+      code: "plan_name_taken",
+      message: copy.planNameTaken,
+    };
+  }
+
   // gyms_tier_id_fkey violated by *updating a gym's own* tier_id to point at
   // a tier that no longer exists (e.g. deleted concurrently between page
   // load and submit). Postgres's message reads `insert or update on table

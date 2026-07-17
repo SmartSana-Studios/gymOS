@@ -3,9 +3,14 @@
 -- auth_hook_canary.test.sql), as of Story 1.8 (0013_dashboard_shell_self_read.sql),
 -- `members`' self_read_own_membership policy (a session now sees exactly its own
 -- membership row, never any other row -- see the updated `members` assertion below),
--- and as of Story 1.10 (0015_users_self_service_language_preference.sql),
+-- as of Story 1.10 (0015_users_self_service_language_preference.sql),
 -- `users`' self_read_own_user policy (same shape -- a session sees exactly its
--- own users row).
+-- own users row), and as of Story 2.2 (0017_membership_plan_configuration.sql),
+-- `plans`' gym_staff_read_own_plans policy -- deliberately ungated by role
+-- (unlike plans' own INSERT/UPDATE/DELETE policies, manager/owner-only): a
+-- `member`-role session now legitimately sees its own gym's plans too, since
+-- the member app's own Plan Confirmation/Plan Details screens (Story 2.7,
+-- 3.10) need to read plan name/price/duration directly.
 -- This asserts that an authenticated session with a VALID, correctly-scoped gym_id
 -- claim still sees 0 rows everywhere else -- proving "even before any feature-specific
 -- policy exists" (this story's own Story statement) holds for every table, not just
@@ -32,8 +37,8 @@ insert into auth.users (id) values
 insert into members (id, gym_id, user_id, role, name)
 values ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000f1', 'member', 'Test Member');
 
-insert into plans (id, gym_id, name, plan_type, price, billing_interval)
-values ('00000000-0000-0000-0000-0000000000f3', '00000000-0000-0000-0000-0000000000e1', 'Monthly', 'monthly', 5000, 'monthly');
+insert into plans (id, gym_id, name, plan_type, price, billing_interval, duration_days)
+values ('00000000-0000-0000-0000-0000000000f3', '00000000-0000-0000-0000-0000000000e1', 'Monthly', 'monthly', 5000, 'monthly', 30);
 
 insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date)
 values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000f3', 'active', current_date, current_date + 30);
@@ -58,7 +63,7 @@ select set_config(
 select is((select count(*) from tiers)::int, 0, 'tiers: 0 rows, no business policy yet');
 select is((select count(*) from users)::int, 1, 'users: exactly 1 row -- their own (self_read_own_user, Story 1.10), not the pure deny-all of every other table here');
 select is((select count(*) from members)::int, 1, 'members: exactly 1 row -- their own (self_read_own_membership, Story 1.8), not the pure deny-all of every other table here');
-select is((select count(*) from plans)::int, 0, 'plans: 0 rows, no business policy yet');
+select is((select count(*) from plans)::int, 1, 'plans: exactly 1 row -- their own gym''s plan (gym_staff_read_own_plans, Story 2.2), not the pure deny-all of every other table here');
 select is((select count(*) from subscriptions)::int, 0, 'subscriptions: 0 rows, no business policy yet');
 select is((select count(*) from payments)::int, 0, 'payments: 0 rows, no business policy yet');
 select is((select count(*) from attendance_events)::int, 0, 'attendance_events: 0 rows, no business policy yet');

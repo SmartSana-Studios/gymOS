@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   ScrollText,
   Settings,
+  Tag,
   Users,
   Wallet,
 } from "lucide-react";
@@ -34,6 +35,7 @@ const NAV_ITEMS: {
 }[] = [
   { labelKey: "nav.overview", href: "/", icon: LayoutDashboard, roles: ["receptionist", "manager", "owner"] },
   { labelKey: "nav.members", href: "/members", icon: Users, roles: ["receptionist", "manager", "owner"] },
+  { labelKey: "nav.plans", href: "/plans", icon: Tag, roles: ["manager", "owner"] },
   { labelKey: "nav.subscriptions", href: "/subscriptions", icon: CreditCard, roles: ["manager", "owner"] },
   { labelKey: "nav.payments", href: "/payments", icon: Wallet, roles: ["receptionist", "manager", "owner"] },
   { labelKey: "nav.attendance", href: "/attendance", icon: ClipboardList, roles: ["receptionist", "manager", "owner"] },

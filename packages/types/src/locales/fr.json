@@ -11,6 +11,7 @@
   "errors": {
     "gymNameTaken": "Une salle porte déjà ce nom",
     "tierNameTaken": "Ce nom est déjà utilisé",
+    "planNameTaken": "Une formule portant ce nom existe déjà dans votre salle",
     "tierNotFound": "Ce palier n'existe plus. Choisissez-en un autre.",
     "ownerEmailTaken": "Cette adresse e-mail est déjà enregistrée",
     "ownerPhoneTaken": "Ce numéro de téléphone est déjà enregistré",

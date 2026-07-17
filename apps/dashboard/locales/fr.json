@@ -2,6 +2,7 @@
   "nav": {
     "overview": "Aperçu",
     "members": "Membres",
+    "plans": "Formules",
     "subscriptions": "Abonnements",
     "payments": "Paiements",
     "attendance": "Présences",
@@ -81,6 +82,66 @@
       "gracePeriodRange": "Le délai de grâce doit être compris entre 1 et 30 jours",
       "capacityRequired": "Indiquez la capacité de la salle",
       "alertAutoDismissRange": "La fermeture automatique doit être comprise entre 1 et 120 minutes"
+    }
+  },
+  "plans": {
+    "title": "Formules",
+    "addPlan": "+ Ajouter une formule",
+    "emptyNoPlans": "Aucune formule configurée. Ajoutez votre première formule.",
+    "addPlanButton": "Ajouter une formule",
+    "edit": "Modifier",
+    "delete": "Supprimer",
+    "priceLabel": "XAF {{price}} / {{interval}}",
+    "discountSuffix": "(remise de {{percent}} %)",
+    "intervalMonthly": "mensuel",
+    "intervalAnnual": "annuel",
+    "durationDaysLabel": "{{days}} jours",
+    "durationPerVisit": "Aucune durée fixe — facturé à la visite",
+    "deleteConfirmTitle": "Supprimer {{name}}",
+    "deleteConfirmBody": "Cette action est irréversible.",
+    "deleting": "Suppression…",
+    "deleteButton": "Supprimer {{name}}",
+    "types": {
+      "payPerSession": "Paiement à la séance",
+      "monthly": "Mensuel",
+      "coachInclusive": "Coaching inclus",
+      "classOnly": "Cours uniquement"
+    },
+    "accessDescriptions": {
+      "payPerSession": "Le membre paie à la visite ; aucune expiration fixe",
+      "monthly": "Formule à prix fixe avec une date d'expiration définie",
+      "coachInclusive": "Formule mensuelle incluant des séances programmées avec un coach assigné",
+      "classOnly": "Accès aux cours programmés uniquement ; pas d'accès général à la salle"
+    },
+    "modal": {
+      "editTitle": "Modifier {{name}}",
+      "addTitle": "Ajouter une formule",
+      "close": "Fermer",
+      "name": "Nom de la formule *",
+      "planType": "Type de formule *",
+      "price": "Prix (XAF) *",
+      "durationDays": "Durée (jours) *",
+      "billingInterval": "Intervalle de facturation *",
+      "annualDiscountPercent": "Remise annuelle (%) *",
+      "saveChanges": "Enregistrer les modifications",
+      "errors": {
+        "nameRequired": "Le nom de la formule est requis",
+        "priceRequired": "Le prix est requis",
+        "priceInvalid": "Saisissez un prix valide en XAF",
+        "durationRequired": "La durée est requise",
+        "durationInvalid": "Saisissez une durée valide en jours",
+        "billingIntervalInvalid": "Les formules à la séance doivent avoir un intervalle de facturation mensuel",
+        "discountRequired": "La remise annuelle est requise",
+        "discountInvalid": "Saisissez une remise valide entre 0 et 100"
+      }
+    },
+    "errors": {
+      "planNotFound": "Formule introuvable",
+      "planNameTaken": "Une formule portant ce nom existe déjà dans votre salle",
+      "planInUse": "Impossible de supprimer {{name}} — {{count}} abonnements utilisent cette formule.",
+      "auditLogFailedCreate": "La formule a été créée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "auditLogFailedEdit": "La formule a été modifiée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "auditLogFailedDelete": "La formule a été supprimée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
     }
   }
 }
