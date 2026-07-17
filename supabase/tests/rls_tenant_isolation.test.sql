@@ -5,12 +5,20 @@
 -- membership row, never any other row -- see the updated `members` assertion below),
 -- as of Story 1.10 (0015_users_self_service_language_preference.sql),
 -- `users`' self_read_own_user policy (same shape -- a session sees exactly its
--- own users row), and as of Story 2.2 (0017_membership_plan_configuration.sql),
+-- own users row), as of Story 2.2 (0017_membership_plan_configuration.sql),
 -- `plans`' gym_staff_read_own_plans policy -- deliberately ungated by role
 -- (unlike plans' own INSERT/UPDATE/DELETE policies, manager/owner-only): a
 -- `member`-role session now legitimately sees its own gym's plans too, since
 -- the member app's own Plan Confirmation/Plan Details screens (Story 2.7,
--- 3.10) need to read plan name/price/duration directly.
+-- 3.10) need to read plan name/price/duration directly, and as of Story 2.3
+-- (0018_member_management.sql), `members`' gym_staff_read_own_members policy
+-- (unlike gym_staff_read_own_plans, gated to staff roles only -- plans carry
+-- no PII, members do -- see the updated `members` assertion below, still
+-- satisfied for a member-role session via the pre-existing
+-- self_read_own_membership policy from Story 1.8) and `subscriptions`' own
+-- gym_staff_read_own_subscriptions policy (staff-gated plus a self-access
+-- `exists` clause for the caller's own subscription -- see the updated
+-- `subscriptions` assertion below -- this table is no longer pure deny-all).
 -- This asserts that an authenticated session with a VALID, correctly-scoped gym_id
 -- claim still sees 0 rows everywhere else -- proving "even before any feature-specific
 -- policy exists" (this story's own Story statement) holds for every table, not just
@@ -60,11 +68,11 @@ select set_config(
   true
 );
 
-select is((select count(*) from tiers)::int, 0, 'tiers: 0 rows, no business policy yet');
+select is((select count(*) from tiers)::int, 0, 'tiers: 0 rows, no business policy yet -- Story 2.3 deliberately adds no tiers SELECT policy (gym_effective_member_cap() RPC instead, Scope Note #7)');
 select is((select count(*) from users)::int, 1, 'users: exactly 1 row -- their own (self_read_own_user, Story 1.10), not the pure deny-all of every other table here');
-select is((select count(*) from members)::int, 1, 'members: exactly 1 row -- their own (self_read_own_membership, Story 1.8), not the pure deny-all of every other table here');
+select is((select count(*) from members)::int, 1, 'members: exactly 1 row -- this fixture only seeds one member row (this session''s own), satisfied by self_read_own_membership (Story 1.8); as of Story 2.3, gym_staff_read_own_members does NOT additionally grant this to a member-role session (staff-gated), so this count does not distinguish the two policies -- see member_management_rls.test.sql for a multi-member fixture that does');
 select is((select count(*) from plans)::int, 1, 'plans: exactly 1 row -- their own gym''s plan (gym_staff_read_own_plans, Story 2.2), not the pure deny-all of every other table here');
-select is((select count(*) from subscriptions)::int, 0, 'subscriptions: 0 rows, no business policy yet');
+select is((select count(*) from subscriptions)::int, 1, 'subscriptions: exactly 1 row -- their own subscription via gym_staff_read_own_subscriptions'' self-access exists-clause (Story 2.3), not the pure deny-all it was before this story -- the staff-gated half of that policy does not apply to this member-role session');
 select is((select count(*) from payments)::int, 0, 'payments: 0 rows, no business policy yet');
 select is((select count(*) from attendance_events)::int, 0, 'attendance_events: 0 rows, no business policy yet');
 select is((select count(*) from job_runs)::int, 0, 'job_runs: 0 rows, no business policy yet');
@@ -87,7 +95,7 @@ select throws_like(
 select throws_like(
   $$ insert into members (gym_id, user_id, role, name) values ('00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000f5', 'member', 'Sneaky Member') $$,
   '%row-level security%',
-  'INSERT into members (pure deny-all table) is blocked by RLS'
+  'INSERT into members is blocked by RLS for a member-role session (as of Story 2.3, manager_or_owner_insert_own_members requires app_role manager/owner -- this session''s app_role is member, so it is still denied, just no longer via pure deny-all)'
 );
 
 with updated as (

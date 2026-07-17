@@ -143,5 +143,144 @@
       "auditLogFailedEdit": "The plan was updated, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedDelete": "The plan was deleted, but the audit log entry failed to write. Please contact support."
     }
+  },
+  "members": {
+    "title": "Members",
+    "addMember": "+ Add Member",
+    "addMemberButton": "Add Member",
+    "importCsv": "Import CSV",
+    "emptyNoMembers": "No members yet. Add your first member.",
+    "emptySearchNoMatch": "No members match your search or filter.",
+    "searchPlaceholder": "Search by name or phone",
+    "statusAll": "All",
+    "status": {
+      "active": "Active",
+      "expiringSoon": "Expiring Soon",
+      "gracePeriod": "Grace Period",
+      "expired": "Expired",
+      "deactivated": "Deactivated",
+      "noActivePlan": "No Active Plan"
+    },
+    "table": {
+      "name": "Name",
+      "phone": "Phone",
+      "plan": "Plan",
+      "status": "Status",
+      "expiry": "Expiry",
+      "lastCheckIn": "Last Check-in",
+      "actions": "Actions"
+    },
+    "actions": {
+      "view": "View",
+      "invite": "Invite",
+      "deactivate": "Deactivate"
+    },
+    "pagination": {
+      "previous": "Previous page",
+      "next": "Next page",
+      "ellipsis": "…"
+    },
+    "export": {
+      "button": "Export CSV",
+      "exporting": "Exporting…"
+    },
+    "modal": {
+      "addTitle": "Add Member",
+      "editTitle": "Edit {{name}}",
+      "viewTitle": "{{name}}",
+      "close": "Close",
+      "name": "Name *",
+      "phone": "Phone *",
+      "email": "Email",
+      "dob": "Date of Birth",
+      "photoUrl": "Profile Photo URL",
+      "emergencyContact": "Emergency Contact",
+      "plan": "Plan *",
+      "selectPlan": "Select a plan",
+      "billingIntervalReadonly": "Billing interval: {{interval}}",
+      "joinDate": "Join Date *",
+      "subscriptionStatus": "Subscription Status *",
+      "expiryDate": "Expiry Date *",
+      "saveChanges": "Save Changes",
+      "errors": {
+        "nameInvalid": "Name is required (2-100 characters)",
+        "phoneInvalid": "Enter a valid phone number",
+        "emailInvalid": "Enter a valid email address",
+        "dobInvalid": "Enter a valid date of birth (must be in the past, member must be at least 10 years old)",
+        "planRequired": "Select a plan",
+        "joinDateInvalid": "Enter a valid join date (cannot be in the future)",
+        "expiryDateInvalid": "Enter a valid expiry date (must be on or after the join date)"
+      }
+    },
+    "deactivateDialog": {
+      "title": "Deactivate {{name}}?",
+      "body": "They'll lose gym access immediately. Their history is preserved.",
+      "reason": "Reason *",
+      "deactivating": "Deactivating…",
+      "confirmButton": "Deactivate {{name}}"
+    },
+    "invite": {
+      "title": "Invite {{name}}",
+      "message": "{{name}}, you've been added to {{gymName}} on GymOS. Download the app and enter your phone number to get started.",
+      "copyMessage": "Copy message",
+      "copied": "Copied!",
+      "shareWhatsapp": "Share via WhatsApp"
+    },
+    "errors": {
+      "memberNotFound": "Member not found",
+      "capReached": "You've reached your plan limit ({{count}}/{{max}} members). Contact GymOS to upgrade.",
+      "expiryDateRequired": "Expiry date is required for this plan",
+      "expiryDateNotAllowed": "Pay-per-session plans have no fixed expiry date",
+      "exportTooLarge": "Apply a filter to narrow results",
+      "auditLogFailedCreate": "The member was created, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedEdit": "The member was updated, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedDeactivate": "The member was deactivated, but the audit log entry failed to write. Please contact support."
+    },
+    "csvImport": {
+      "title": "CSV Import",
+      "downloadTemplate": "Download template ↓",
+      "uploadZoneText": "Drag your CSV here, or",
+      "browseButton": "Browse",
+      "acceptedFiles": "Accepted: .csv files only",
+      "selectedFile": "Selected file: {{filename}}",
+      "remove": "Remove",
+      "validateButton": "Validate →",
+      "validating": "Validating…",
+      "confirmImportButton": "Confirm Import →",
+      "reuploadButton": "Re-upload CSV",
+      "successSummary": "✓ {{count}} members ready to import. No errors found.",
+      "blankRowsSkipped": "{{count}} blank row(s) were skipped (rows: {{rows}}).",
+      "templateError": "✕ {{message}}",
+      "previewHeading": "Preview (first 5 rows):",
+      "previewColumns": {
+        "name": "Name",
+        "phone": "Phone",
+        "plan": "Plan",
+        "status": "Status",
+        "expiry": "Expiry",
+        "joinDate": "Join Date"
+      },
+      "errorSummary": "✕ Import blocked — {{count}} errors found. Correct your CSV and re-upload.",
+      "table": {
+        "row": "Row",
+        "column": "Column",
+        "error": "Error"
+      },
+      "importing": "Importing…",
+      "importingLarge": "Importing… this may take a moment",
+      "importSuccessToast": "{{count}} members imported.",
+      "errors": {
+        "invalidTemplate": "The CSV is missing required columns: {{columns}}",
+        "emptyFile": "The CSV file has no data rows to import.",
+        "planNotConfigured": "Plan \"{{value}}\" is not configured for this gym",
+        "expiryDateRequiredForPlan": "Expiry date is required for this plan type",
+        "duplicatePhoneInFile": "This phone number is already used in row {{row}} of this file",
+        "capExceeded": "Importing these members would exceed your plan limit ({{count}}/{{max}} members). Contact GymOS to upgrade.",
+        "midImportFailure": "Import failed. No records were saved (all-or-nothing). Fix and re-import.",
+        "rowColumnCountMismatch": "This row has more or fewer fields than expected — check for a stray comma or missing value",
+        "tooManyRows": "This file has {{count}} rows — the maximum is {{max}} per import. Split it into smaller files and try again.",
+        "auditLogFailedRows": "All members were imported, but the audit log entry failed to write for {{count}} row(s) (rows: {{rows}}). Please contact support."
+      }
+    }
   }
 }

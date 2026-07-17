@@ -143,5 +143,144 @@
       "auditLogFailedEdit": "La formule a été modifiée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedDelete": "La formule a été supprimée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
     }
+  },
+  "members": {
+    "title": "Membres",
+    "addMember": "+ Ajouter un membre",
+    "addMemberButton": "Ajouter un membre",
+    "importCsv": "Importer un CSV",
+    "emptyNoMembers": "Aucun membre pour le moment. Ajoutez votre premier membre.",
+    "emptySearchNoMatch": "Aucun membre ne correspond à votre recherche ou filtre.",
+    "searchPlaceholder": "Rechercher par nom ou téléphone",
+    "statusAll": "Tous",
+    "status": {
+      "active": "Actif",
+      "expiringSoon": "Expire bientôt",
+      "gracePeriod": "Délai de grâce",
+      "expired": "Expiré",
+      "deactivated": "Désactivé",
+      "noActivePlan": "Aucune formule active"
+    },
+    "table": {
+      "name": "Nom",
+      "phone": "Téléphone",
+      "plan": "Formule",
+      "status": "Statut",
+      "expiry": "Expiration",
+      "lastCheckIn": "Dernier pointage",
+      "actions": "Actions"
+    },
+    "actions": {
+      "view": "Voir",
+      "invite": "Inviter",
+      "deactivate": "Désactiver"
+    },
+    "pagination": {
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "ellipsis": "…"
+    },
+    "export": {
+      "button": "Exporter en CSV",
+      "exporting": "Exportation…"
+    },
+    "modal": {
+      "addTitle": "Ajouter un membre",
+      "editTitle": "Modifier {{name}}",
+      "viewTitle": "{{name}}",
+      "close": "Fermer",
+      "name": "Nom *",
+      "phone": "Téléphone *",
+      "email": "E-mail",
+      "dob": "Date de naissance",
+      "photoUrl": "URL de la photo de profil",
+      "emergencyContact": "Contact d'urgence",
+      "plan": "Formule *",
+      "selectPlan": "Sélectionnez une formule",
+      "billingIntervalReadonly": "Intervalle de facturation : {{interval}}",
+      "joinDate": "Date d'adhésion *",
+      "subscriptionStatus": "Statut de l'abonnement *",
+      "expiryDate": "Date d'expiration *",
+      "saveChanges": "Enregistrer les modifications",
+      "errors": {
+        "nameInvalid": "Le nom est requis (2 à 100 caractères)",
+        "phoneInvalid": "Saisissez un numéro de téléphone valide",
+        "emailInvalid": "Saisissez une adresse e-mail valide",
+        "dobInvalid": "Saisissez une date de naissance valide (doit être dans le passé, le membre doit avoir au moins 10 ans)",
+        "planRequired": "Sélectionnez une formule",
+        "joinDateInvalid": "Saisissez une date d'adhésion valide (ne peut pas être dans le futur)",
+        "expiryDateInvalid": "Saisissez une date d'expiration valide (doit être postérieure ou égale à la date d'adhésion)"
+      }
+    },
+    "deactivateDialog": {
+      "title": "Désactiver {{name}} ?",
+      "body": "Il/elle perdra immédiatement l'accès à la salle. Son historique est conservé.",
+      "reason": "Raison *",
+      "deactivating": "Désactivation…",
+      "confirmButton": "Désactiver {{name}}"
+    },
+    "invite": {
+      "title": "Inviter {{name}}",
+      "message": "{{name}}, vous avez été ajouté(e) à {{gymName}} sur GymOS. Téléchargez l'application et saisissez votre numéro de téléphone pour commencer.",
+      "copyMessage": "Copier le message",
+      "copied": "Copié !",
+      "shareWhatsapp": "Partager via WhatsApp"
+    },
+    "errors": {
+      "memberNotFound": "Membre introuvable",
+      "capReached": "Vous avez atteint la limite de votre formule ({{count}}/{{max}} membres). Contactez GymOS pour mettre à niveau.",
+      "expiryDateRequired": "La date d'expiration est requise pour cette formule",
+      "expiryDateNotAllowed": "Les formules à la séance n'ont pas de date d'expiration fixe",
+      "exportTooLarge": "Appliquez un filtre pour réduire les résultats",
+      "auditLogFailedCreate": "Le membre a été créé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "auditLogFailedEdit": "Le membre a été modifié, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "auditLogFailedDeactivate": "Le membre a été désactivé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
+    },
+    "csvImport": {
+      "title": "Importation CSV",
+      "downloadTemplate": "Télécharger le modèle ↓",
+      "uploadZoneText": "Glissez votre CSV ici, ou",
+      "browseButton": "Parcourir",
+      "acceptedFiles": "Accepté : fichiers .csv uniquement",
+      "selectedFile": "Fichier sélectionné : {{filename}}",
+      "remove": "Supprimer",
+      "validateButton": "Valider →",
+      "validating": "Validation…",
+      "confirmImportButton": "Confirmer l'importation →",
+      "reuploadButton": "Réimporter le CSV",
+      "successSummary": "✓ {{count}} membres prêts à être importés. Aucune erreur trouvée.",
+      "blankRowsSkipped": "{{count}} ligne(s) vide(s) ignorée(s) (lignes : {{rows}}).",
+      "templateError": "✕ {{message}}",
+      "previewHeading": "Aperçu (5 premières lignes) :",
+      "previewColumns": {
+        "name": "Nom",
+        "phone": "Téléphone",
+        "plan": "Formule",
+        "status": "Statut",
+        "expiry": "Expiration",
+        "joinDate": "Date d'adhésion"
+      },
+      "errorSummary": "✕ Importation bloquée — {{count}} erreurs trouvées. Corrigez votre CSV et réimportez-le.",
+      "table": {
+        "row": "Ligne",
+        "column": "Colonne",
+        "error": "Erreur"
+      },
+      "importing": "Importation…",
+      "importingLarge": "Importation… cela peut prendre un moment",
+      "importSuccessToast": "{{count}} membres importés.",
+      "errors": {
+        "invalidTemplate": "Le CSV ne contient pas les colonnes requises : {{columns}}",
+        "emptyFile": "Le fichier CSV ne contient aucune ligne de données à importer.",
+        "planNotConfigured": "La formule « {{value}} » n'est pas configurée pour cette salle",
+        "expiryDateRequiredForPlan": "La date d'expiration est requise pour ce type de formule",
+        "duplicatePhoneInFile": "Ce numéro de téléphone est déjà utilisé à la ligne {{row}} de ce fichier",
+        "capExceeded": "L'importation de ces membres dépasserait la limite de votre formule ({{count}}/{{max}} membres). Contactez GymOS pour effectuer une mise à niveau.",
+        "midImportFailure": "Échec de l'importation. Aucun enregistrement n'a été sauvegardé (tout ou rien). Corrigez et réimportez.",
+        "rowColumnCountMismatch": "Cette ligne contient plus ou moins de champs que prévu — vérifiez une virgule superflue ou une valeur manquante",
+        "tooManyRows": "Ce fichier contient {{count}} lignes — le maximum autorisé est {{max}} par importation. Divisez-le en fichiers plus petits et réessayez.",
+        "auditLogFailedRows": "Tous les membres ont été importés, mais l'entrée du journal d'audit n'a pas pu être écrite pour {{count}} ligne(s) (lignes : {{rows}}). Veuillez contacter le support."
+      }
+    }
   }
 }

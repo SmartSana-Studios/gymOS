@@ -15,6 +15,9 @@
     "tierNotFound": "That tier no longer exists. Choose a different one.",
     "ownerEmailTaken": "This email address is already registered",
     "ownerPhoneTaken": "This phone number is already registered",
+    "memberPhoneTaken": "This phone number already belongs to an active member at this gym",
+    "memberCapReached": "You've reached your plan limit. Contact GymOS to upgrade.",
+    "subscriptionPlanMismatch": "This subscription's expiry date doesn't match the selected plan's type.",
     "unknown": "Something went wrong on our end."
   },
   "auth": {

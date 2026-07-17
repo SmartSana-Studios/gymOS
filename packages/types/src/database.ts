@@ -403,7 +403,7 @@ export type Database = {
       subscriptions: {
         Row: {
           created_at: string
-          expiry_date: string
+          expiry_date: string | null
           gym_id: string
           id: string
           member_id: string
@@ -413,7 +413,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          expiry_date: string
+          expiry_date?: string | null
           gym_id: string
           id?: string
           member_id: string
@@ -423,7 +423,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          expiry_date?: string
+          expiry_date?: string | null
           gym_id?: string
           id?: string
           member_id?: string
@@ -518,6 +518,7 @@ export type Database = {
     }
     Functions: {
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      gym_effective_member_cap: { Args: never; Returns: number | null }
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
       log_audit_event: {
         Args: {

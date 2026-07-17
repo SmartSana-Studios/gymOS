@@ -55,6 +55,20 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // idx_members_active_gym_user (0003_members_and_users.sql): the same
+  // user_id can only hold one *active* membership per gym at a time. The
+  // DB-level backstop for "this phone already has an active membership at
+  // this gym" -- distinct from the phone_exists GoTrue mapping below, which
+  // stays owner_phone_taken-scoped (Story 2.3's find-or-create-by-phone flow
+  // self-heals its own race window before this constraint would ever fire
+  // for a brand-new phone).
+  if (pgErrorCode === "23505" && message.includes("idx_members_active_gym_user")) {
+    return {
+      code: "member_already_active_at_gym",
+      message: copy.memberPhoneTaken,
+    };
+  }
+
   // gyms_tier_id_fkey violated by *updating a gym's own* tier_id to point at
   // a tier that no longer exists (e.g. deleted concurrently between page
   // load and submit). Postgres's message reads `insert or update on table
@@ -91,6 +105,35 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     return {
       code: "owner_phone_taken",
       message: copy.ownerPhoneTaken,
+    };
+  }
+
+  // enforce_member_cap's raise (0018_member_management.sql) -- the DB
+  // trigger's own race-window backstop when the app-layer memberCountForGym
+  // fast-fail (which builds the friendly "N/Max members" copy directly, see
+  // apps/dashboard/locales' members.capReached) passes but a concurrent
+  // INSERT already filled the last slot. No pg error `code` of its own
+  // (plain plpgsql `raise exception`, not a constraint violation), so this
+  // matches on message text like every other raise-based mapping here.
+  if (message.includes("member cap reached for gym")) {
+    return {
+      code: "member_cap_reached",
+      message: copy.memberCapReached,
+    };
+  }
+
+  // enforce_subscription_expiry_matches_plan_type's two raises (0018) --
+  // both share this generic fallback since the app layer (createMember's
+  // server-side plan_type lookup) is expected to prevent a mismatched pair
+  // from ever reaching the trigger; this only fires on a genuine race
+  // (plan_type changed between lookup and insert) or a direct API call.
+  if (
+    message.includes("must not have an expiry_date") ||
+    message.includes("requires an expiry_date")
+  ) {
+    return {
+      code: "subscription_plan_mismatch",
+      message: copy.subscriptionPlanMismatch,
     };
   }
 

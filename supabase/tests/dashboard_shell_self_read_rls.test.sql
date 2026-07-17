@@ -4,6 +4,16 @@
 -- all fixture rows seeded up front as the connecting role, then
 -- `set local role authenticated` + `set_config('request.jwt.claims', ...)`
 -- per simulated session.
+--
+-- As of Story 2.3 (0018_member_management.sql), `members` also carries
+-- gym_staff_read_own_members -- ungated by role, scoped to
+-- gym_id = private.gym_id() -- so a same-gym query by a different user_id
+-- (tests 3 and 5 below) is no longer 0 rows: any gym-staff session now
+-- legitimately sees its own gym's full roster (AC #5, member search/list),
+-- not just its own row. This file's cross-tenant (test 4) and
+-- same-identity-two-gyms (tests 6-7) assertions are unaffected --
+-- gym_staff_read_own_members is still gym_id-scoped, so it grants no
+-- visibility across tenants or into a claim's non-active gym.
 
 begin;
 select plan(8);
@@ -29,9 +39,11 @@ insert into members (id, gym_id, user_id, role, name) values
   ('00000000-0000-0000-0000-000000004035', '00000000-0000-0000-0000-000000004012', '00000000-0000-0000-0000-000000004024', 'manager', 'Multi-Gym Staffer B');
 
 -- ============================================================================
--- An owner-claim session sees exactly its own row -- not the gym's other
--- members (regression: this policy must not accidentally become a
--- roster-read, which is Epic 2's job, not this story's).
+-- self_read_own_membership itself still scopes an owner-claim session to
+-- exactly its own row when queried by its own user_id (test just below).
+-- The *other* gym member (test at line ~64) is now also visible, but via
+-- gym_staff_read_own_members (Story 2.3), a second, independent policy --
+-- not because this policy's own shape changed.
 -- ============================================================================
 set local role authenticated;
 select set_config(
@@ -52,8 +64,8 @@ select is(
 );
 
 select is(
-  (select count(*) from members where user_id = '00000000-0000-0000-0000-000000004022')::int, 0,
-  'an owner-claim session sees 0 rows when querying a different user_id at the same gym -- self-read only, not a roster-read'
+  (select count(*) from members where user_id = '00000000-0000-0000-0000-000000004022')::int, 1,
+  'an owner-claim session sees 1 row when querying a different user_id at the same gym -- as of Story 2.3, gym_staff_read_own_members legitimately grants this (full-roster visibility, AC #5), no longer the pure self-read-only shape this assertion originally proved'
 );
 
 -- ============================================================================
@@ -73,8 +85,8 @@ select is(
 );
 
 select is(
-  (select count(*) from members where user_id = '00000000-0000-0000-0000-000000004021')::int, 0,
-  'a coach-claim session sees 0 rows when querying the gym owner''s user_id -- self-read only'
+  (select count(*) from members where user_id = '00000000-0000-0000-0000-000000004021')::int, 1,
+  'a coach-claim session sees 1 row when querying the gym owner''s user_id -- as of Story 2.3, gym_staff_read_own_members legitimately grants this (full-roster visibility, AC #5), no longer the pure self-read-only shape this assertion originally proved'
 );
 
 -- ============================================================================
