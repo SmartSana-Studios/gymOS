@@ -49,8 +49,38 @@
       "photoSourceChooseFromLibrary": "Choose from Library"
     },
     "goal": {
-      "title": "You're in!",
-      "subtitle": "Goal selection and plan confirmation are coming soon."
+      "stepIndicator": "Step {{step}} of 4",
+      "title": "What's your goal?",
+      "subtitle": "Your coach will use this to personalise your sessions.",
+      "optionLoseWeight": "Lose Weight",
+      "optionBuildMuscle": "Build Muscle",
+      "optionImproveFitness": "Improve Fitness",
+      "optionGeneralWellness": "General Wellness"
+    },
+    "experience": {
+      "stepIndicator": "Step {{step}} of 4",
+      "title": "What's your experience level?",
+      "subtitle": "Your coach will use this to personalise your sessions.",
+      "optionBeginner": "Beginner",
+      "optionIntermediate": "Intermediate",
+      "optionAdvanced": "Advanced"
+    },
+    "plan": {
+      "stepIndicator": "Step {{step}} of 4",
+      "title": "Your membership plan",
+      "note": "This plan was set by your gym. Contact them to make changes.",
+      "perMonth": "/ month",
+      "perYear": "/ year",
+      "durationDays_one": "{{count}} day",
+      "durationDays_other": "{{count}} days",
+      "noFixedDuration": "No fixed duration",
+      "activeFrom": "Active from: {{date}}",
+      "expires": "Expires: {{date}}",
+      "noExpiry": "No expiry",
+      "errorLoadFailed": "Couldn't load your plan. Check your connection and try again.",
+      "errorNoPlanAssigned": "No plan assigned yet. Contact your coach or gym manager.",
+      "errorSaveFailed": "Couldn't save your profile. Check your connection and try again.",
+      "confirmButton": "Confirm and start"
     }
   }
 }

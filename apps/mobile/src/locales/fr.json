@@ -49,8 +49,38 @@
       "photoSourceChooseFromLibrary": "Choisir dans la bibliothèque"
     },
     "goal": {
-      "title": "Vous y êtes presque !",
-      "subtitle": "La sélection d'objectifs et la confirmation du forfait arrivent bientôt."
+      "stepIndicator": "Étape {{step}} sur 4",
+      "title": "Quel est votre objectif ?",
+      "subtitle": "Votre coach l'utilisera pour personnaliser vos séances.",
+      "optionLoseWeight": "Perdre du poids",
+      "optionBuildMuscle": "Prendre de la masse",
+      "optionImproveFitness": "Améliorer la forme physique",
+      "optionGeneralWellness": "Bien-être général"
+    },
+    "experience": {
+      "stepIndicator": "Étape {{step}} sur 4",
+      "title": "Quel est votre niveau d'expérience ?",
+      "subtitle": "Votre coach l'utilisera pour personnaliser vos séances.",
+      "optionBeginner": "Débutant",
+      "optionIntermediate": "Intermédiaire",
+      "optionAdvanced": "Avancé"
+    },
+    "plan": {
+      "stepIndicator": "Étape {{step}} sur 4",
+      "title": "Votre forfait d'adhésion",
+      "note": "Ce forfait a été défini par votre salle. Contactez-la pour le modifier.",
+      "perMonth": "/ mois",
+      "perYear": "/ an",
+      "durationDays_one": "{{count}} jour",
+      "durationDays_other": "{{count}} jours",
+      "noFixedDuration": "Pas de durée fixe",
+      "activeFrom": "Actif depuis : {{date}}",
+      "expires": "Expire le : {{date}}",
+      "noExpiry": "Pas d'expiration",
+      "errorLoadFailed": "Impossible de charger votre forfait. Vérifiez votre connexion et réessayez.",
+      "errorNoPlanAssigned": "Aucun forfait assigné pour le moment. Contactez votre coach ou le gérant de la salle.",
+      "errorSaveFailed": "Impossible d'enregistrer votre profil. Vérifiez votre connexion et réessayez.",
+      "confirmButton": "Confirmer et commencer"
     }
   }
 }

@@ -223,10 +223,13 @@ export type Database = {
           dob: string | null
           email: string | null
           emergency_contact: string | null
+          experience_level: string | null
+          goal: string | null
           gym_id: string
           id: string
           join_date: string
           name: string
+          onboarding_completed_at: string | null
           phone: string | null
           photo_url: string | null
           role: Database["public"]["Enums"]["member_role"]
@@ -238,10 +241,13 @@ export type Database = {
           dob?: string | null
           email?: string | null
           emergency_contact?: string | null
+          experience_level?: string | null
+          goal?: string | null
           gym_id: string
           id?: string
           join_date?: string
           name: string
+          onboarding_completed_at?: string | null
           phone?: string | null
           photo_url?: string | null
           role: Database["public"]["Enums"]["member_role"]
@@ -253,10 +259,13 @@ export type Database = {
           dob?: string | null
           email?: string | null
           emergency_contact?: string | null
+          experience_level?: string | null
+          goal?: string | null
           gym_id?: string
           id?: string
           join_date?: string
           name?: string
+          onboarding_completed_at?: string | null
           phone?: string | null
           photo_url?: string | null
           role?: Database["public"]["Enums"]["member_role"]
@@ -278,6 +287,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      otp_resend_attempts: {
+        Row: {
+          locked_until: string | null
+          phone: string
+          resend_count: number
+          updated_at: string
+        }
+        Insert: {
+          locked_until?: string | null
+          phone: string
+          resend_count?: number
+          updated_at?: string
+        }
+        Update: {
+          locked_until?: string | null
+          phone?: string
+          resend_count?: number
+          updated_at?: string
+        }
+        Relationships: []
       }
       payments: {
         Row: {
@@ -490,6 +520,7 @@ export type Database = {
           is_super_admin: boolean
           must_change_password: boolean
           phone: string | null
+          photo_url: string | null
           preferred_language: string
         }
         Insert: {
@@ -499,6 +530,7 @@ export type Database = {
           is_super_admin?: boolean
           must_change_password?: boolean
           phone?: string | null
+          photo_url?: string | null
           preferred_language?: string
         }
         Update: {
@@ -508,6 +540,7 @@ export type Database = {
           is_super_admin?: boolean
           must_change_password?: boolean
           phone?: string | null
+          photo_url?: string | null
           preferred_language?: string
         }
         Relationships: []
@@ -517,8 +550,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      caller_has_membership: { Args: never; Returns: boolean }
+      check_otp_resend_allowed: {
+        Args: { p_phone: string }
+        Returns: {
+          allowed: boolean
+          locked_until: string
+        }[]
+      }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
-      gym_effective_member_cap: { Args: never; Returns: number | null }
+      gym_effective_member_cap: { Args: never; Returns: number }
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
       log_audit_event: {
         Args: {
@@ -531,6 +572,7 @@ export type Database = {
         }
         Returns: string
       }
+      phone_has_membership: { Args: { p_phone: string }; Returns: boolean }
       platform_metrics: {
         Args: never
         Returns: {
@@ -540,6 +582,14 @@ export type Database = {
           total_gyms: number
           total_members: number
           total_payments_processed: number
+        }[]
+      }
+      record_otp_resend: {
+        Args: { p_phone: string }
+        Returns: {
+          allowed: boolean
+          attempts_remaining: number
+          locked_until: string
         }[]
       }
     }

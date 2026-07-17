@@ -36,3 +36,16 @@ export const profileSetupSchema = z.object({
 });
 
 export type ProfileSetupInput = z.infer<typeof profileSetupSchema>;
+
+// MA-06/MA-08: goal is one of four fixed options (EXPERIENCE.md), captured
+// for the assigned coach (FR-054). Writes to members.goal, not users --
+// gym-membership-level, not account-level (Story 2.7 Scope Note #2).
+export const memberGoalSchema = z.enum(["lose_weight", "build_muscle", "improve_fitness", "general_wellness"]);
+
+export type MemberGoalInput = z.infer<typeof memberGoalSchema>;
+
+// MA-07/MA-08: experience level is one of three fixed options
+// (EXPERIENCE.md). Writes to members.experience_level.
+export const experienceLevelSchema = z.enum(["beginner", "intermediate", "advanced"]);
+
+export type ExperienceLevelInput = z.infer<typeof experienceLevelSchema>;

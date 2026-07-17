@@ -1,4 +1,4 @@
-import type { MemberGoalInput } from '@gymos/types';
+import type { ExperienceLevelInput } from '@gymos/types';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -11,31 +11,29 @@ import { Spacing } from '@/constants/theme';
 import { useOnboardingProgress } from '@/lib/onboarding-context';
 
 const TOTAL_STEPS = 4;
-const CURRENT_STEP = 2;
+const CURRENT_STEP = 3;
 
-// EXPERIENCE.md MA-06: four fixed goal options, in this exact order.
-const GOAL_OPTIONS: { value: MemberGoalInput; labelKey: string }[] = [
-  { value: 'lose_weight', labelKey: 'onboarding.goal.optionLoseWeight' },
-  { value: 'build_muscle', labelKey: 'onboarding.goal.optionBuildMuscle' },
-  { value: 'improve_fitness', labelKey: 'onboarding.goal.optionImproveFitness' },
-  { value: 'general_wellness', labelKey: 'onboarding.goal.optionGeneralWellness' },
+// EXPERIENCE.md MA-07: three fixed experience-level options, in this exact
+// order -- "Identical pattern to MA-06".
+const EXPERIENCE_OPTIONS: { value: ExperienceLevelInput; labelKey: string }[] = [
+  { value: 'beginner', labelKey: 'onboarding.experience.optionBeginner' },
+  { value: 'intermediate', labelKey: 'onboarding.experience.optionIntermediate' },
+  { value: 'advanced', labelKey: 'onboarding.experience.optionAdvanced' },
 ];
 
-/** MA-06. Local state only (Story 2.7 Task 3/4) -- nothing is written to
- * `members` until MA-08's "Confirm and start". Reuses profile.tsx's inline
- * step-indicator/progress-bar markup (no shared component exists yet for
- * this pattern, Story 2.6 precedent). */
-export default function GoalScreen() {
+/** MA-07. Local state only (Story 2.7 Task 3/5) -- nothing is written to
+ * `members` until MA-08's "Confirm and start". Identical layout pattern to
+ * MA-06 (goal.tsx). */
+export default function ExperienceScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { goal, setGoal } = useOnboardingProgress();
+  const { experienceLevel, setExperienceLevel } = useOnboardingProgress();
 
   function handleContinue() {
     // `push`, not `replace` (Review finding): this screen shows a back
     // button wired to `router.back()`, which needs the prior stack entry
-    // preserved to land on the immediately-prior step instead of skipping
-    // past it.
-    router.push('/onboarding/experience');
+    // (goal) preserved to land on it instead of skipping past it.
+    router.push('/onboarding/plan');
   }
 
   return (
@@ -49,27 +47,27 @@ export default function GoalScreen() {
           <ThemedText type="default">←</ThemedText>
         </Pressable>
 
-        <ThemedText type="small">{t('onboarding.goal.stepIndicator', { step: CURRENT_STEP })}</ThemedText>
+        <ThemedText type="small">{t('onboarding.experience.stepIndicator', { step: CURRENT_STEP })}</ThemedText>
         <View style={styles.progressTrack}>
           {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
             <View key={i} style={[styles.progressSegment, i < CURRENT_STEP && styles.progressSegmentFilled]} />
           ))}
         </View>
 
-        <ThemedText type="subtitle">{t('onboarding.goal.title')}</ThemedText>
+        <ThemedText type="subtitle">{t('onboarding.experience.title')}</ThemedText>
         <ThemedText type="default" themeColor="textSecondary">
-          {t('onboarding.goal.subtitle')}
+          {t('onboarding.experience.subtitle')}
         </ThemedText>
 
         <View style={styles.optionList}>
-          {GOAL_OPTIONS.map((option) => {
-            const selected = goal === option.value;
+          {EXPERIENCE_OPTIONS.map((option) => {
+            const selected = experienceLevel === option.value;
             return (
               <Pressable
                 key={option.value}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
-                onPress={() => setGoal(option.value)}
+                onPress={() => setExperienceLevel(option.value)}
                 style={[styles.optionCard, selected && styles.optionCardSelected]}>
                 <ThemedText type="default">{t(option.labelKey)}</ThemedText>
                 {selected && <ThemedText type="default">✓</ThemedText>}
@@ -80,9 +78,9 @@ export default function GoalScreen() {
 
         <Pressable
           accessibilityRole="button"
-          disabled={goal === null}
+          disabled={experienceLevel === null}
           onPress={handleContinue}
-          style={[styles.continueButton, goal === null && styles.continueButtonDisabled]}>
+          style={[styles.continueButton, experienceLevel === null && styles.continueButtonDisabled]}>
           <ThemedText style={styles.continueLabel}>{t('common.continue')}</ThemedText>
         </Pressable>
       </SafeAreaView>

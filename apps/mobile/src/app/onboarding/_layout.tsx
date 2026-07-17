@@ -13,7 +13,7 @@ import { OnboardingProgressProvider, useOnboardingProgress } from '@/lib/onboard
 function SequencingGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { language, phone, otpVerified } = useOnboardingProgress();
+  const { language, phone, otpVerified, goal, experienceLevel } = useOnboardingProgress();
 
   useEffect(() => {
     if (pathname.startsWith('/onboarding/phone') && language === null) {
@@ -41,8 +41,38 @@ function SequencingGuard({ children }: { children: React.ReactNode }) {
       } else {
         router.replace('/onboarding/otp');
       }
+      return;
     }
-  }, [pathname, language, phone, otpVerified, router]);
+    // Story 2.7 Task 8: same "nearest missing prerequisite" discipline
+    // extended one/two steps further -- /experience requires a goal
+    // selection (MA-06) and /plan requires an experience-level selection
+    // (MA-07), each falling back through every earlier prerequisite too.
+    if (pathname.startsWith('/onboarding/experience') && goal === null) {
+      if (language === null) {
+        router.replace('/onboarding/language');
+      } else if (phone === null) {
+        router.replace('/onboarding/phone');
+      } else if (!otpVerified) {
+        router.replace('/onboarding/otp');
+      } else {
+        router.replace('/onboarding/goal');
+      }
+      return;
+    }
+    if (pathname.startsWith('/onboarding/plan') && experienceLevel === null) {
+      if (language === null) {
+        router.replace('/onboarding/language');
+      } else if (phone === null) {
+        router.replace('/onboarding/phone');
+      } else if (!otpVerified) {
+        router.replace('/onboarding/otp');
+      } else if (goal === null) {
+        router.replace('/onboarding/goal');
+      } else {
+        router.replace('/onboarding/experience');
+      }
+    }
+  }, [pathname, language, phone, otpVerified, goal, experienceLevel, router]);
 
   return children;
 }
@@ -62,6 +92,8 @@ export default function OnboardingLayout() {
           <Stack.Screen name="lockout" options={{ gestureEnabled: false }} />
           <Stack.Screen name="profile" />
           <Stack.Screen name="goal" />
+          <Stack.Screen name="experience" />
+          <Stack.Screen name="plan" />
         </Stack>
       </SequencingGuard>
     </OnboardingProgressProvider>

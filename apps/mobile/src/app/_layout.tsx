@@ -9,12 +9,15 @@ import { i18n } from '@/lib/i18n';
 
 SplashScreen.preventAutoHideAsync();
 
-// Root auth gate (Story 2.6, Task 4). No session, or a session whose
-// `users.display_name` is still null -> onboarding is the only reachable
-// group; a session that has completed profile setup -> the existing tab
-// experience. Gating on `isOnboarded` (not just session presence) is
-// required, not a nicety -- see useSession()'s own comment for the race it
-// closes (Review finding, 2026-07-17).
+// Root auth gate (Story 2.6, Task 4; Story 2.7, Task 7). No session, or a
+// session whose current membership row still has a null
+// `onboarding_completed_at` -> onboarding is the only reachable group; a
+// session that has completed the full onboarding flow (MA-06/07/08) -> the
+// existing tab experience. Gating on `isOnboarded` (not just session
+// presence) is required, not a nicety -- see useSession()'s own comment for
+// the race it closes (Review finding, 2026-07-17) and for why the
+// underlying signal changed from `users.display_name` (Story 2.7 Scope
+// Note #1).
 function RootNavigator() {
   const { session, isOnboarded, isLoading } = useSession();
 
