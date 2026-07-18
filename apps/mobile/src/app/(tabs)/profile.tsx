@@ -1,0 +1,499 @@
+import { profileSetupSchema } from '@gymos/types';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { Brand } from '@/constants/brand';
+import { BottomTabInset, Spacing } from '@/constants/theme';
+import type { MobileLocale } from '@/lib/i18n';
+import { openPhotoPicker, pickPhoto, uploadPhoto } from '@/lib/photo-upload';
+import { supabase } from '@/lib/supabase';
+
+// Narrows the untyped embedded-select response, same discipline as
+// onboarding/plan.tsx's `isSubscriptionRow` (Review finding there) -- a
+// shape mismatch falls through to the existing loadError handling instead
+// of masking itself as a generic failure with no signal.
+interface PlanNameRow {
+  plans: { name: string } | null;
+}
+function isPlanNameRow(value: unknown): value is PlanNameRow {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return typeof row.plans === 'object';
+}
+
+/** MA-12. On mount, resolves the caller's own `users` row
+ * (`self_read_own_user`), gym name (`"read own gym"`, scoped via JWT claim,
+ * no explicit gym_id filter needed -- Story 2.8 Scope Note #1), and current
+ * plan name via the same member-id tie-break + active-subscription->plan
+ * join pattern onboarding/plan.tsx's `loadPlan` already uses (Story 2.7
+ * Scope Note #3), but only needs `plans.name`. */
+export default function ProfileScreen() {
+  const { t, i18n } = useTranslation();
+  const insets = useSafeAreaInsets();
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const [userId, setUserId] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [phone, setPhone] = useState<string | null>(null);
+  const [gymName, setGymName] = useState<string | null>(null);
+  const [planName, setPlanName] = useState<string | null>(null);
+  const [noActivePlan, setNoActivePlan] = useState(false);
+
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhotoUri, setEditPhotoUri] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  const [langPending, setLangPending] = useState(false);
+
+  const loadProfile = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    setNoActivePlan(false);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = sessionData.session?.user.id;
+      if (!uid) {
+        if (mountedRef.current) setLoadError(true);
+        return;
+      }
+      if (mountedRef.current) setUserId(uid);
+
+      const [userResult, gymResult, memberResult] = await Promise.all([
+        supabase.from('users').select('display_name, photo_url, phone').eq('id', uid).single(),
+        supabase.from('gyms').select('name').single(),
+        supabase
+          .from('members')
+          .select('id')
+          .eq('user_id', uid)
+          .is('deactivated_at', null)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
+          .limit(1)
+          .single(),
+      ]);
+
+      if (!mountedRef.current) return;
+
+      if (userResult.error || !userResult.data || gymResult.error || !gymResult.data) {
+        setLoadError(true);
+        return;
+      }
+
+      setDisplayName(userResult.data.display_name);
+      setPhotoUrl(userResult.data.photo_url);
+      setPhone(userResult.data.phone);
+      setGymName(gymResult.data.name);
+
+      // PGRST116 = PostgREST's "no rows" code for `.single()` -- a member
+      // with no currently-active membership row is a distinct, non-retryable
+      // state (no plan to show), not a load failure.
+      if (memberResult.error?.code === 'PGRST116') {
+        setNoActivePlan(true);
+        return;
+      }
+      if (memberResult.error || !memberResult.data) {
+        setLoadError(true);
+        return;
+      }
+
+      // Same PGRST116 distinction as above -- a member with no active
+      // subscription is a distinct, non-retryable state from a real
+      // network/connectivity failure (same distinction onboarding/plan.tsx's
+      // loadPlan already makes).
+      const subscriptionResult = await supabase
+        .from('subscriptions')
+        .select('plans(name)')
+        .eq('member_id', memberResult.data.id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!mountedRef.current) return;
+
+      if (subscriptionResult.error?.code === 'PGRST116') {
+        setNoActivePlan(true);
+      } else if (
+        subscriptionResult.error ||
+        !isPlanNameRow(subscriptionResult.data) ||
+        !subscriptionResult.data.plans
+      ) {
+        setLoadError(true);
+        return;
+      } else {
+        setPlanName(subscriptionResult.data.plans.name);
+      }
+    } catch {
+      if (mountedRef.current) setLoadError(true);
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
+
+  function handleStartEdit() {
+    setEditName(displayName ?? '');
+    setEditPhotoUri(null);
+    setEditError(null);
+    setEditing(true);
+  }
+
+  function handleCancelEdit() {
+    setEditing(false);
+    setEditError(null);
+    setEditPhotoUri(null);
+  }
+
+  function handleOpenPhotoPicker() {
+    openPhotoPicker(handlePickPhoto, t);
+  }
+
+  async function handlePickPhoto(source: 'camera' | 'library') {
+    const result = await pickPhoto(source);
+    if ('error' in result) {
+      setEditError(
+        result.error === 'permission_denied'
+          ? t('onboarding.profile.errorPhotoPermissionDenied')
+          : t('onboarding.profile.errorPhotoTooLarge'),
+      );
+      return;
+    }
+    if ('canceled' in result) return;
+    setEditError(null);
+    setEditPhotoUri(result.uri);
+  }
+
+  async function handleSaveProfile() {
+    if (!userId) return;
+    const trimmedName = editName.trim();
+    if (trimmedName.length > 100) {
+      setEditError(t('onboarding.profile.errorNameTooLong'));
+      return;
+    }
+
+    setEditSubmitting(true);
+    setEditError(null);
+    try {
+      let nextPhotoUrl = photoUrl;
+      if (editPhotoUri) {
+        const uploaded = await uploadPhoto(userId, editPhotoUri);
+        if (!uploaded) {
+          setEditError(t('onboarding.profile.errorPhotoUploadFailed'));
+          return;
+        }
+        nextPhotoUrl = uploaded;
+      }
+
+      const parsed = profileSetupSchema.safeParse({ displayName: trimmedName, photoUrl: nextPhotoUrl });
+      if (!parsed.success) {
+        setEditError(t('profile.errorSaveFailed'));
+        return;
+      }
+
+      // `.select()` + row-count check (Story 2.7's review-fixed discipline
+      // for self-writes) -- a zero-row update returns `error: null` under
+      // PostgREST and must not be silently treated as success.
+      const { data, error } = await supabase
+        .from('users')
+        .update({ display_name: parsed.data.displayName, photo_url: parsed.data.photoUrl ?? null })
+        .eq('id', userId)
+        .select('id');
+
+      if (error || !data || data.length === 0) {
+        setEditError(t('profile.errorSaveFailed'));
+        return;
+      }
+
+      setDisplayName(parsed.data.displayName);
+      setPhotoUrl(parsed.data.photoUrl ?? null);
+      setEditPhotoUri(null);
+      setEditing(false);
+    } catch {
+      setEditError(t('profile.errorSaveFailed'));
+    } finally {
+      setEditSubmitting(false);
+    }
+  }
+
+  // Exact optimistic-update/rollback shape as
+  // apps/dashboard/components/shared/LanguageToggle.tsx's `handleChange` --
+  // referenced directly rather than reinvented for mobile (Story 2.8 Task
+  // 4). No separate error toast: the toggle visually reverting is the
+  // user-visible feedback on a failed persist.
+  async function handleLanguageChange(code: MobileLocale) {
+    if (code === i18n.language || langPending || !userId) return;
+    const previous = i18n.language;
+    setLangPending(true);
+    void i18n.changeLanguage(code);
+    try {
+      const { error } = await supabase.from('users').update({ preferred_language: code }).eq('id', userId);
+      if (error) {
+        void i18n.changeLanguage(previous);
+        return;
+      }
+    } finally {
+      if (mountedRef.current) setLangPending(false);
+    }
+  }
+
+  function handleLogOut() {
+    Alert.alert(t('profile.logOutConfirmTitle'), undefined, [
+      {
+        text: t('profile.logOut'),
+        style: 'destructive',
+        onPress: () => {
+          void supabase.auth.signOut().catch(() => Alert.alert(t('profile.errorSaveFailed')));
+        },
+      },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
+  }
+
+  const displayPhotoUri = editing ? (editPhotoUri ?? photoUrl) : photoUrl;
+  const isDirty = editName.trim() !== (displayName ?? '') || editPhotoUri !== null;
+  const canSaveEdit = isDirty && editName.trim().length > 0 && !editSubmitting;
+
+  return (
+    <ThemedView style={styles.container}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: insets.bottom + BottomTabInset + Spacing.three },
+          ]}>
+          <ThemedText type="subtitle">{t('profile.title')}</ThemedText>
+
+          {loading && <ActivityIndicator style={styles.loadingIndicator} />}
+
+        {!loading && loadError && (
+          <View style={styles.card}>
+            <ThemedText type="small" style={styles.error}>
+              {t('profile.errorLoadFailed')}
+            </ThemedText>
+            <Pressable accessibilityRole="button" onPress={() => void loadProfile()}>
+              <ThemedText type="link">{t('common.tryAgain')}</ThemedText>
+            </Pressable>
+          </View>
+        )}
+
+        {!loading && !loadError && (
+          <>
+            <Pressable
+              accessibilityRole={editing ? 'button' : undefined}
+              disabled={!editing}
+              onPress={handleOpenPhotoPicker}
+              style={styles.avatar}>
+              {displayPhotoUri ? (
+                <Image source={{ uri: displayPhotoUri }} style={styles.avatarImage} />
+              ) : editing ? (
+                <ThemedText type="small" style={styles.avatarPlaceholderText}>
+                  {t('onboarding.profile.addPhoto')}
+                </ThemedText>
+              ) : null}
+            </Pressable>
+
+            <ThemedText type="subtitle" style={styles.centered}>
+              {displayName}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.centered}>
+              {gymName} · {noActivePlan ? t('profile.noActivePlan') : planName}
+            </ThemedText>
+
+            <View style={styles.row}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t(editing ? 'common.cancel' : 'profile.editProfile')}
+                onPress={editing ? handleCancelEdit : handleStartEdit}
+                style={styles.rowContent}>
+                <ThemedText type="default">{t(editing ? 'common.cancel' : 'profile.editProfile')}</ThemedText>
+                <ThemedText type="default">{editing ? '×' : '→'}</ThemedText>
+              </Pressable>
+
+              {editing && (
+                <View style={styles.editSection}>
+                  <ThemedText type="small">{t('onboarding.profile.nameLabel')}</ThemedText>
+                  <TextInput value={editName} onChangeText={setEditName} autoCapitalize="words" style={styles.nameInput} />
+
+                  <ThemedText
+                    type="small"
+                    themeColor="textSecondary"
+                    accessibilityLabel={`${phone}. ${t('profile.phoneNotEditable')}`}>
+                    {phone}
+                  </ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {t('profile.phoneNotEditable')}
+                  </ThemedText>
+
+                  {editError && (
+                    <ThemedText type="small" style={styles.error}>
+                      {editError}
+                    </ThemedText>
+                  )}
+
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={!canSaveEdit}
+                    onPress={handleSaveProfile}
+                    style={[styles.saveButton, !canSaveEdit && styles.saveButtonDisabled]}>
+                    {editSubmitting ? (
+                      <ActivityIndicator color="#ffffff" />
+                    ) : (
+                      <ThemedText style={styles.saveButtonLabel}>{t('common.save')}</ThemedText>
+                    )}
+                  </Pressable>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.row}>
+              <View style={styles.rowContent}>
+                <ThemedText type="default">{t('profile.language')}</ThemedText>
+                <View style={styles.languageToggle}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: i18n.language === 'en', disabled: langPending }}
+                    disabled={langPending}
+                    onPress={() => void handleLanguageChange('en')}
+                    style={[styles.languageOption, i18n.language === 'en' && styles.languageOptionActive]}>
+                    <ThemedText type="smallBold">{t('profile.languageEn')}</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: i18n.language === 'fr', disabled: langPending }}
+                    disabled={langPending}
+                    onPress={() => void handleLanguageChange('fr')}
+                    style={[styles.languageOption, i18n.language === 'fr' && styles.languageOptionActive]}>
+                    <ThemedText type="smallBold">{t('profile.languageFr')}</ThemedText>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.row}>
+              <Pressable accessibilityRole="button" onPress={handleLogOut} style={styles.rowContent}>
+                <ThemedText type="default">{t('profile.logOut')}</ThemedText>
+              </Pressable>
+            </View>
+          </>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Brand.background,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.four,
+    gap: Spacing.three,
+  },
+  loadingIndicator: {
+    marginTop: Spacing.four,
+  },
+  card: {
+    borderWidth: 1,
+    borderColor: '#E0E1E6',
+    borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+    gap: Spacing.one,
+  },
+  error: {
+    color: '#B3261E',
+  },
+  centered: {
+    textAlign: 'center',
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#E0E1E6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 64,
+    height: 64,
+  },
+  avatarPlaceholderText: {
+    textAlign: 'center',
+    paddingHorizontal: Spacing.one,
+  },
+  row: {
+    borderTopWidth: 1,
+    borderTopColor: '#E0E1E6',
+    paddingTop: Spacing.three,
+  },
+  rowContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  editSection: {
+    marginTop: Spacing.three,
+    gap: Spacing.two,
+  },
+  nameInput: {
+    borderWidth: 1,
+    borderColor: Brand.primary,
+    borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+    fontSize: 16,
+  },
+  saveButton: {
+    marginTop: Spacing.two,
+    backgroundColor: Brand.primary,
+    borderRadius: Spacing.two,
+    paddingVertical: Spacing.three,
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    opacity: 0.5,
+  },
+  saveButtonLabel: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  languageToggle: {
+    flexDirection: 'row',
+    gap: Spacing.one,
+  },
+  languageOption: {
+    paddingHorizontal: Spacing.two,
+    paddingVertical: Spacing.one,
+    borderRadius: Spacing.one,
+    backgroundColor: '#F0F0F3',
+  },
+  languageOptionActive: {
+    backgroundColor: Brand.accent,
+  },
+});

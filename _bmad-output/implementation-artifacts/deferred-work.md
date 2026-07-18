@@ -1,5 +1,12 @@
 # Deferred Work
 
+## Deferred from: code review of story-2-8-member-self-service-profile-management (2026-07-18)
+
+- Storage upload happens before the DB write is confirmed; on a DB-write failure the storage object at the same path is already overwritten with no compensating rollback [apps/mobile/src/lib/photo-upload.ts uploadPhoto] — inherited verbatim from `onboarding/profile.tsx`'s original implementation (predates this story), now duplicated at a second call site (`(tabs)/profile.tsx`'s `handleSaveProfile`) via the Task 1 extraction; not introduced by this story.
+- `asset.fileSize` undefined skips the client-side size guard entirely (e.g. on web or with some pickers) [apps/mobile/src/lib/photo-upload.ts pickPhoto] — lifted verbatim from the original onboarding photo-picker logic, not introduced by this story.
+- Unmapped photo extension (e.g. heic/heif from an iOS camera capture) silently defaults Content-Type to `image/jpeg` [apps/mobile/src/lib/photo-upload.ts EXTENSION_TO_MIME/uploadPhoto] — lifted verbatim, not introduced by this story.
+- Zero automated test coverage for the new `photo-upload.ts` module or the new `(tabs)/profile.tsx` screen [apps/mobile/src/lib/photo-upload.ts, apps/mobile/src/app/(tabs)/profile.tsx] — matches the existing project-wide precedent of no mobile unit tests (already a logged gap in Stories 2.6/2.7); no test runner is wired for `apps/mobile` yet.
+
 ## Deferred from: code review of story-2-6-member-app-phone-otp-onboarding-through-profile-setup (2026-07-17)
 
 - `phone_has_membership` has no rate limit of its own, callable directly via PostgREST at unlimited volume to enumerate registered phone numbers, bypassing GoTrue's per-IP `/otp` throttle entirely [supabase/migrations/0019_member_onboarding_otp.sql:31] — already an accepted, documented risk (Scope Note #3 of this story, `docs/decisions.md` Decision 3): narrows but does not eliminate the enumeration/abuse surface; CAPTCHA remains explicitly out of scope until a client-side widget exists.

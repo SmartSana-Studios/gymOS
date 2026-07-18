@@ -1,32 +1,19 @@
 import { profileSetupSchema } from '@gymos/types';
-import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Brand } from '@/constants/brand';
 import { Spacing } from '@/constants/theme';
+import { openPhotoPicker, pickPhoto, uploadPhoto } from '@/lib/photo-upload';
 import { supabase } from '@/lib/supabase';
 
 const TOTAL_STEPS = 4;
 const CURRENT_STEP = 1;
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
-
-// Bucket's allowed_mime_types (0019_member_onboarding_otp.sql) lists
-// 'image/jpeg', never 'image/jpg' -- a bare extension-to-mime-type mapping
-// would mislabel the most common real-world upload and get it rejected by
-// Storage (Review finding, 2026-07-17).
-const EXTENSION_TO_MIME: Record<string, string> = {
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-  gif: 'image/gif',
-};
 
 /** MA-05. Writes users.display_name / users.photo_url -- never
  * members.name / members.photo_url (Story 2.6 Scope Note #2: those stay
@@ -42,57 +29,23 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function openPhotoPicker() {
-    Alert.alert(t('onboarding.profile.addPhoto'), undefined, [
-      { text: t('onboarding.profile.photoSourceTakePhoto'), onPress: () => pickPhoto('camera') },
-      { text: t('onboarding.profile.photoSourceChooseFromLibrary'), onPress: () => pickPhoto('library') },
-      { text: t('common.close'), style: 'cancel' },
-    ]);
+  function handleOpenPhotoPicker() {
+    openPhotoPicker(handlePickPhoto, t);
   }
 
-  async function pickPhoto(source: 'camera' | 'library') {
-    const permission =
-      source === 'camera'
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      setError(t('onboarding.profile.errorPhotoPermissionDenied'));
+  async function handlePickPhoto(source: 'camera' | 'library') {
+    const result = await pickPhoto(source);
+    if ('error' in result) {
+      setError(
+        result.error === 'permission_denied'
+          ? t('onboarding.profile.errorPhotoPermissionDenied')
+          : t('onboarding.profile.errorPhotoTooLarge'),
+      );
       return;
     }
-
-    const result =
-      source === 'camera'
-        ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-
-    if (result.canceled || !result.assets[0]) return;
-
-    const asset = result.assets[0];
-    if (asset.fileSize && asset.fileSize > MAX_PHOTO_BYTES) {
-      setError(t('onboarding.profile.errorPhotoTooLarge'));
-      return;
-    }
+    if ('canceled' in result) return;
     setError(null);
-    setPhotoUri(asset.uri);
-  }
-
-  async function uploadPhoto(userId: string, uri: string): Promise<string | null> {
-    const extensionMatch = /\.(\w+)$/.exec(uri);
-    const extension = (extensionMatch?.[1] ?? 'jpg').toLowerCase();
-    const contentType = EXTENSION_TO_MIME[extension] ?? 'image/jpeg';
-    const path = `${userId}/photo.${extension}`;
-
-    const response = await fetch(uri);
-    const arrayBuffer = await response.arrayBuffer();
-
-    const { error: uploadError } = await supabase.storage
-      .from('member-photos')
-      .upload(path, arrayBuffer, { contentType, upsert: true });
-
-    if (uploadError) return null;
-
-    const { data } = supabase.storage.from('member-photos').getPublicUrl(path);
-    return data.publicUrl;
+    setPhotoUri(result.uri);
   }
 
   async function handleContinue() {
@@ -172,7 +125,7 @@ export default function ProfileScreen() {
 
         <ThemedText type="subtitle">{t('onboarding.profile.title')}</ThemedText>
 
-        <Pressable accessibilityRole="button" onPress={openPhotoPicker} style={styles.photoCircle}>
+        <Pressable accessibilityRole="button" onPress={handleOpenPhotoPicker} style={styles.photoCircle}>
           {photoUri ? (
             <Image source={{ uri: photoUri }} style={styles.photoImage} />
           ) : (

@@ -3,6 +3,8 @@
     "continue": "Continuer",
     "back": "Retour",
     "close": "Fermer",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
     "tryAgain": "Réessayer"
   },
   "onboarding": {
@@ -82,5 +84,18 @@
       "errorSaveFailed": "Impossible d'enregistrer votre profil. Vérifiez votre connexion et réessayez.",
       "confirmButton": "Confirmer et commencer"
     }
+  },
+  "profile": {
+    "title": "Profil",
+    "editProfile": "Modifier le profil",
+    "phoneNotEditable": "Contactez votre salle pour changer votre numéro",
+    "language": "Langue",
+    "languageEn": "EN",
+    "languageFr": "FR",
+    "logOut": "Se déconnecter",
+    "logOutConfirmTitle": "Se déconnecter de GymOS ?",
+    "noActivePlan": "Aucun forfait actif",
+    "errorLoadFailed": "Impossible de charger votre profil. Vérifiez votre connexion et réessayez.",
+    "errorSaveFailed": "Impossible d'enregistrer votre profil. Vérifiez votre connexion et réessayez."
   }
 }

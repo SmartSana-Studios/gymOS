@@ -4,6 +4,22 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-07-18 — First physical-device walkthrough (Epic 2 retrospective follow-up) found a real photo-upload bug invisible to `tsc`/lint/two review rounds
+
+**Decision:** Per the Epic 2 retrospective's decision to close the "no device-class testing" gap before Epic 3, the full 2.6→2.8 mobile onboarding + self-service profile flow was walked through on a real Android device (Expo Go, sideloaded SDK 57 build — the Play/App Store listings hadn't caught up yet). Onboarding (2.6, 2.7) verified clean end-to-end, including a real OTP delivered via Twilio WhatsApp to a live number. Story 2.8's photo upload (AC #1) failed: a real photo uploaded from the device's picker landed in Storage as a 14-byte corrupt object, with no error surfaced anywhere — `uploadPhoto()` in `photo-upload.ts` read the picked file via `fetch(uri).arrayBuffer()`, and `fetch()` against Android's local `file://`/`content://` picker URIs can resolve successfully while returning a near-empty body. Fixed by switching to `expo-file-system`'s new SDK 57 `File` class (`new File(uri).arrayBuffer()`), which reads the filesystem bytes directly. Since `onboarding/profile.tsx` (Story 2.6, MA-05) shares the same helper, this also silently fixes the identical latent bug there. Re-verified on-device post-fix: photo uploads and displays correctly.
+
+**Why this is recorded here, not just in the story file:** this is the first bug in the epic that two code-review rounds and a fully green `tsc`/pgTAP/i18n-parity suite all missed — concrete evidence for why the retrospective treated device testing as a blocker rather than an optional nice-to-have. Also: the environment itself needed real repair to get here (Windows Developer Mode had never been enabled, breaking pnpm's symlinks across the whole monorepo in ways that only surfaced as scattered `EACCES` crashes in Metro; WSL2 needed mirrored networking mode for LAN-device reachability) — worth a permanent record in case either regresses.
+
+---
+
+## 2026-07-18 — `users.display_name`/`users.photo_url` confirmed as the permanent account-level profile fields, recorded during Story 2.8
+
+**Decision:** Story 2.6's Decision 2 (2026-07-17) synthesized `users.display_name`/`users.photo_url` as the self-writable, account-level home for a member's own profile data (distinct from admin-controlled `members.name`/`members.photo_url`), flagging it as a decision to confirm once a second story built on the same fields. Story 2.8 (Member Self-Service Profile Management) is that confirmation: MA-12's Profile tab reads and edits the exact same two columns, for the same reason (a member's display name/photo is one value across every gym membership, not one per gym). No new column, table, or write path was introduced — `self_update_own_language`'s RLS policy and `protect_self_managed_user_columns`'s column allow-list (0019) already covered this story's writes without modification.
+
+**Why this is recorded here, not just in code comments:** closes the loop Story 2.6's own decision log entry explicitly left open, so a future reader doesn't have to re-derive whether `users.display_name`/`photo_url` are a one-off onboarding artifact or the intended long-term home for self-entered profile data — they are the latter.
+
+---
+
 ## 2026-07-17 — Member App onboarding: source-tree correction, account model, and OTP hardening, recorded during Story 2.6
 
 **Decision 1 — `architecture.md`'s mobile directory tree (`apps/mobile/app/...`) is wrong; the real, already-shipped scaffold is rooted at `apps/mobile/src/app/...`.** Confirmed via `apps/mobile/tsconfig.json`'s `@/* → ./src/*` path alias and the pre-existing `apps/mobile/src/app/_layout.tsx` (Story 1.1). This was never flagged before because Story 2.6 is the first story to write any real code into `apps/mobile`. Every future mobile story should build under `src/`, not architecture.md's literal (and now stale) text — architecture.md itself is not edited, per this log's own established practice of recording deviations here rather than rewriting the architecture doc.

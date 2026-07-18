@@ -1,5 +1,5 @@
 # generated: 2026-07-04
-# last_updated: 2026-07-18 (story 2-7 code review complete, done)
+# last_updated: 2026-07-18 (epic-2 retrospective complete)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-07-18 (story 2-7 code review complete, done)
+last_updated: 2026-07-18 (epic-2 retrospective complete)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -64,8 +64,8 @@ development_status:
   2-5-member-invitation-via-deep-link: done
   2-6-member-app-phone-otp-onboarding-through-profile-setup: done
   2-7-member-app-goal-experience-plan-confirmation: done
-  2-8-member-self-service-profile-management: backlog
-  epic-2-retrospective: optional
+  2-8-member-self-service-profile-management: done
+  epic-2-retrospective: done
 
   epic-3: backlog
   3-1-subscription-lifecycle-cron-job: backlog
