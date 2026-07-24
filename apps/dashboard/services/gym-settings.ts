@@ -25,6 +25,7 @@ export interface GymSettingsRow {
   gracePeriodDays: number;
   capacity: number | null;
   alertAutoDismissMinutes: number;
+  checkinTimeoutHours: number;
   gymToken: string;
 }
 
@@ -76,7 +77,7 @@ export async function getGymSettings(): Promise<{
   const { data, error } = await supabase
     .from("gyms")
     .select(
-      "name, logo_url, primary_color, timezone, default_language, grace_period_days, capacity, alert_auto_dismiss_minutes, gym_token",
+      "name, logo_url, primary_color, timezone, default_language, grace_period_days, capacity, alert_auto_dismiss_minutes, checkin_timeout_hours, gym_token",
     )
     .eq("id", gymId)
     .maybeSingle();
@@ -98,6 +99,7 @@ export async function getGymSettings(): Promise<{
       gracePeriodDays: data.grace_period_days,
       capacity: data.capacity,
       alertAutoDismissMinutes: data.alert_auto_dismiss_minutes,
+      checkinTimeoutHours: data.checkin_timeout_hours,
       gymToken: data.gym_token,
     },
     error: null,
@@ -129,6 +131,7 @@ export async function updateGymSettings(
       grace_period_days: input.gracePeriodDays,
       capacity: input.capacity,
       alert_auto_dismiss_minutes: input.alertAutoDismissMinutes,
+      checkin_timeout_hours: input.checkinTimeoutHours,
     })
     .eq("id", gymId)
     .select("id")

@@ -40,6 +40,7 @@
       "branding": "Branding",
       "localization": "Localization",
       "membership": "Membership",
+      "attendance": "Attendance",
       "frontDeskAlerts": "Front-Desk Alerts",
       "qrCode": "QR Code"
     },
@@ -59,7 +60,9 @@
       "capacity": "Gym Capacity *",
       "capacityUnit": "members",
       "alertAutoDismiss": "Alert auto-dismiss",
-      "alertAutoDismissUnit": "minutes"
+      "alertAutoDismissUnit": "minutes",
+      "checkinTimeout": "Check-In Timeout *",
+      "checkinTimeoutUnit": "hours"
     },
     "languageOptionEnglish": "English",
     "languageOptionFrench": "Français",
@@ -81,7 +84,8 @@
       "auditLogFailedQr": "QR code regenerated, but the audit log entry failed to write. Please contact support.",
       "gracePeriodRange": "Grace period must be between 1 and 30 days",
       "capacityRequired": "Enter the gym's member capacity",
-      "alertAutoDismissRange": "Auto-dismiss must be between 1 and 120 minutes"
+      "alertAutoDismissRange": "Auto-dismiss must be between 1 and 120 minutes",
+      "checkinTimeoutRange": "Check-in timeout must be between 1 and 24 hours"
     }
   },
   "plans": {

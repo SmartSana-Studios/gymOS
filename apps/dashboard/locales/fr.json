@@ -40,6 +40,7 @@
       "branding": "Image de marque",
       "localization": "Localisation",
       "membership": "Adhésion",
+      "attendance": "Présence",
       "frontDeskAlerts": "Alertes accueil",
       "qrCode": "Code QR"
     },
@@ -59,7 +60,9 @@
       "capacity": "Capacité de la salle *",
       "capacityUnit": "membres",
       "alertAutoDismiss": "Fermeture auto. des alertes",
-      "alertAutoDismissUnit": "minutes"
+      "alertAutoDismissUnit": "minutes",
+      "checkinTimeout": "Délai de pointage *",
+      "checkinTimeoutUnit": "heures"
     },
     "languageOptionEnglish": "English",
     "languageOptionFrench": "Français",
@@ -81,7 +84,8 @@
       "auditLogFailedQr": "Le code QR a été régénéré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "gracePeriodRange": "Le délai de grâce doit être compris entre 1 et 30 jours",
       "capacityRequired": "Indiquez la capacité de la salle",
-      "alertAutoDismissRange": "La fermeture automatique doit être comprise entre 1 et 120 minutes"
+      "alertAutoDismissRange": "La fermeture automatique doit être comprise entre 1 et 120 minutes",
+      "checkinTimeoutRange": "Le délai de pointage doit être compris entre 1 et 24 heures"
     }
   },
   "plans": {

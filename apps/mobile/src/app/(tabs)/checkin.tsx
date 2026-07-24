@@ -9,31 +9,42 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Brand } from '@/constants/brand';
 import { BottomTabInset, Spacing } from '@/constants/theme';
-import { validateGymToken } from '@/services/checkin';
+import { recordCheckIn, validateGymToken } from '@/services/checkin';
 
 // MA-10's own "scanning timeout" nudge (EXPERIENCE.md) -- purely
 // informational, the viewfinder keeps scanning regardless.
 const NUDGE_DELAY_MS = 15000;
-// Brief acknowledgement for a *valid* scan (MA-10's "QR detected" flash) --
-// this story has no result overlay to hand off to for that outcome yet
-// (Story 3.3 Scope Note #2), so the flash is the entire visible reaction.
+// Brief acknowledgement for a *valid* scan (MA-10's "QR detected" flash),
+// shown before the Success overlay takes over.
 const FLASH_DURATION_MS = 300;
 // Gentle idle pulse on the scan-target corner brackets (MA-10).
 const PULSE_DURATION_MS = 900;
+// MA-10's Success overlay auto-dismisses back to scanning after 2.5s.
+const SUCCESS_AUTO_DISMISS_MS = 2500;
 
-/** MA-10. This story (3.3) implements the camera shell and exactly one of
- * five mocked result states -- Wrong QR. Success / Already Checked In are
- * Story 3.4's job (attendance recording doesn't exist yet); Denied -
- * Expired is Epic 4's job (subscription-status branching); Success -
- * Offline is Story 3.9's job. See the story's Scope Note #2. */
+// Date-only formatting precedent: onboarding/plan.tsx's formatDateOnly
+// builds a per-file-local, locale-aware string rather than adding a shared
+// date-utils module -- this follows the same convention for a time string.
+function formatCheckInTime(isoString: string, locale: string): string {
+  return new Date(isoString).toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' });
+}
+
+/** MA-10. Story 3.3 built the camera shell and the Wrong QR result state;
+ * this story (3.4) adds the Success and Already Checked In states by
+ * recording a real attendance event via recordCheckIn(). Denied - Expired
+ * is Epic 4's job (subscription-status branching); Success - Offline is
+ * Story 3.9's job. See the story's Scope Note #2/#4. */
 export default function CheckInScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
 
   const [wrongQr, setWrongQr] = useState(false);
   const [networkError, setNetworkError] = useState(false);
+  const [alreadyCheckedIn, setAlreadyCheckedIn] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [successCheckedInAt, setSuccessCheckedInAt] = useState<string | null>(null);
   const [showNudge, setShowNudge] = useState(false);
   const [flash, setFlash] = useState(false);
   const [validating, setValidating] = useState(false);
@@ -42,6 +53,7 @@ export default function CheckInScreen() {
   const isFocusedRef = useRef(isFocused);
   const nudgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -59,6 +71,7 @@ export default function CheckInScreen() {
     return () => {
       if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
     };
   }, []);
 
@@ -80,7 +93,7 @@ export default function CheckInScreen() {
     return () => subscription.remove();
   }, [permission, requestPermission]);
 
-  const resultShowing = wrongQr || networkError;
+  const resultShowing = wrongQr || networkError || alreadyCheckedIn || success;
 
   // 15s-with-no-scan nudge -- only counts down while actively scanning
   // (focused tab, permission granted, no result showing).
@@ -118,6 +131,9 @@ export default function CheckInScreen() {
   const resetScanning = useCallback(() => {
     setWrongQr(false);
     setNetworkError(false);
+    setAlreadyCheckedIn(false);
+    setSuccess(false);
+    setSuccessCheckedInAt(null);
     processingRef.current = false;
   }, []);
 
@@ -139,21 +155,59 @@ export default function CheckInScreen() {
       return;
     }
 
-    setValidating(false);
-
     if (error) {
+      setValidating(false);
       setNetworkError(true);
       return;
     }
     if (!matched) {
+      setValidating(false);
       setWrongQr(true);
       return;
     }
 
+    // Token match: record the actual attendance event (Story 3.4). Same
+    // mountedRef/isFocusedRef guard applied around this second await --
+    // the user may leave the tab again during the RPC round-trip.
+    const checkInResult = await recordCheckIn();
+
+    if (!mountedRef.current || !isFocusedRef.current) {
+      setValidating(false);
+      processingRef.current = false;
+      return;
+    }
+
+    setValidating(false);
+
+    if (checkInResult.status === 'error') {
+      setNetworkError(true);
+      return;
+    }
+
+    if (checkInResult.status === 'already_checked_in') {
+      setAlreadyCheckedIn(true);
+      return;
+    }
+
+    // Success: the existing "QR detected" flash first, then the Success
+    // overlay, which auto-dismisses back to scanning on its own (MA-10).
     setFlash(true);
     flashTimerRef.current = setTimeout(() => {
+      if (!mountedRef.current || !isFocusedRef.current) {
+        processingRef.current = false;
+        return;
+      }
       setFlash(false);
-      processingRef.current = false;
+      setSuccessCheckedInAt(checkInResult.checkedInAt ?? null);
+      setSuccess(true);
+      successTimerRef.current = setTimeout(() => {
+        if (!mountedRef.current || !isFocusedRef.current) {
+          processingRef.current = false;
+          return;
+        }
+        setSuccess(false);
+        processingRef.current = false;
+      }, SUCCESS_AUTO_DISMISS_MS);
     }, FLASH_DURATION_MS);
   }
 
@@ -219,6 +273,35 @@ export default function CheckInScreen() {
               <ThemedText type="small" style={[styles.instruction, { paddingBottom: BottomTabInset + Spacing.three }]}>
                 {t(showNudge ? 'checkin.scanningTrouble' : 'checkin.instruction')}
               </ThemedText>
+            </View>
+          )}
+
+          {success && (
+            <View style={[styles.overlay, styles.overlaySuccess]}>
+              <ThemedText style={styles.overlayIcon}>✓</ThemedText>
+              <ThemedText type="subtitle" style={styles.centeredText}>
+                {t('checkin.checkedIn')}
+              </ThemedText>
+              {successCheckedInAt && (
+                <ThemedText type="default" style={styles.centeredText}>
+                  {formatCheckInTime(successCheckedInAt, i18n.language)}
+                </ThemedText>
+              )}
+            </View>
+          )}
+
+          {alreadyCheckedIn && (
+            <View style={styles.overlay}>
+              <ThemedText style={styles.overlayIcon}>⚠</ThemedText>
+              <ThemedText type="subtitle" style={styles.centeredText}>
+                {t('checkin.alreadyCheckedInTitle')}
+              </ThemedText>
+              <ThemedText type="default" style={styles.centeredText}>
+                {t('checkin.alreadyCheckedInBody')}
+              </ThemedText>
+              <Pressable accessibilityRole="button" onPress={resetScanning} style={styles.overlayButton}>
+                <ThemedText style={styles.overlayButtonLabel}>{t('common.ok')}</ThemedText>
+              </Pressable>
             </View>
           )}
 
@@ -366,6 +449,9 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingHorizontal: Spacing.five,
     backgroundColor: '#B8860B',
+  },
+  overlaySuccess: {
+    backgroundColor: '#3BB273',
   },
   overlayIcon: {
     fontSize: 48,

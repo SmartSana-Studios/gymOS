@@ -29,6 +29,7 @@ interface FieldErrors {
   gracePeriodDays?: string;
   capacity?: string;
   alertAutoDismissMinutes?: string;
+  checkinTimeoutHours?: string;
 }
 
 export function SettingsForm({ initial }: { initial: GymSettingsRow }) {
@@ -38,6 +39,7 @@ export function SettingsForm({ initial }: { initial: GymSettingsRow }) {
     gracePeriodDays: "settings.errors.gracePeriodRange",
     capacity: "settings.errors.capacityRequired",
     alertAutoDismissMinutes: "settings.errors.alertAutoDismissRange",
+    checkinTimeoutHours: "settings.errors.checkinTimeoutRange",
   };
 
   const [form, setForm] = useState({
@@ -48,6 +50,7 @@ export function SettingsForm({ initial }: { initial: GymSettingsRow }) {
     gracePeriodDays: String(initial.gracePeriodDays),
     capacity: initial.capacity === null ? "" : String(initial.capacity),
     alertAutoDismissMinutes: String(initial.alertAutoDismissMinutes),
+    checkinTimeoutHours: String(initial.checkinTimeoutHours),
   });
   // Swatch only updates on a *valid* hex value (Task 7's manual verification
   // spec: "swatch updates only on valid input") -- kept separate from the
@@ -178,6 +181,7 @@ export function SettingsForm({ initial }: { initial: GymSettingsRow }) {
       gracePeriodDays: Number(form.gracePeriodDays),
       capacity: Number(form.capacity),
       alertAutoDismissMinutes: Number(form.alertAutoDismissMinutes),
+      checkinTimeoutHours: Number(form.checkinTimeoutHours),
     };
 
     const parsed = gymSettingsSchema.safeParse(candidate);
@@ -190,7 +194,7 @@ export function SettingsForm({ initial }: { initial: GymSettingsRow }) {
       // `Number("-")`/`Number("")` produce NaN, which Zod reports with a
       // generic "expected number, received nan" message instead of the
       // field's tailored copy -- substitute it back in for exactly that case.
-      for (const field of ["gracePeriodDays", "capacity", "alertAutoDismissMinutes"] as const) {
+      for (const field of ["gracePeriodDays", "capacity", "alertAutoDismissMinutes", "checkinTimeoutHours"] as const) {
         if (Number.isNaN(candidate[field])) {
           errors[field] = t(NAN_FIELD_MESSAGE_KEYS[field]!);
         }
@@ -393,6 +397,30 @@ export function SettingsForm({ initial }: { initial: GymSettingsRow }) {
               <span className="text-sm text-muted-foreground">{t("settings.fields.capacityUnit")}</span>
             </div>
             {fieldErrors.capacity && <p className="text-sm text-red-600">{fieldErrors.capacity}</p>}
+          </div>
+        </section>
+
+        <section className="space-y-4 rounded-md border p-4">
+          <h2 className="font-semibold">{t("settings.sections.attendance")}</h2>
+
+          <div className="space-y-2">
+            <Label htmlFor="checkinTimeoutHours">{t("settings.fields.checkinTimeout")}</Label>
+            <div className="flex max-w-40 items-center gap-2">
+              <Input
+                id="checkinTimeoutHours"
+                type="number"
+                value={form.checkinTimeoutHours}
+                onChange={(e) =>
+                  setForm({ ...form, checkinTimeoutHours: e.target.value })
+                }
+              />
+              <span className="text-sm text-muted-foreground">
+                {t("settings.fields.checkinTimeoutUnit")}
+              </span>
+            </div>
+            {fieldErrors.checkinTimeoutHours && (
+              <p className="text-sm text-red-600">{fieldErrors.checkinTimeoutHours}</p>
+            )}
           </div>
         </section>
 

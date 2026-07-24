@@ -5,7 +5,8 @@
     "close": "Fermer",
     "cancel": "Annuler",
     "save": "Enregistrer",
-    "tryAgain": "Réessayer"
+    "tryAgain": "Réessayer",
+    "ok": "OK"
   },
   "onboarding": {
     "language": {
@@ -107,6 +108,9 @@
     "openSettings": "Ouvrir les réglages",
     "wrongQrTitle": "QR non reconnu",
     "wrongQrBody": "Assurez-vous de scanner le QR code de votre salle.",
-    "errorNetwork": "Une erreur s'est produite. Vérifiez votre connexion et réessayez."
+    "errorNetwork": "Une erreur s'est produite. Vérifiez votre connexion et réessayez.",
+    "checkedIn": "Enregistré",
+    "alreadyCheckedInTitle": "Déjà enregistré",
+    "alreadyCheckedInBody": "Vous êtes déjà enregistré.\nContactez l'accueil si vous avez besoin d'aide."
   }
 }

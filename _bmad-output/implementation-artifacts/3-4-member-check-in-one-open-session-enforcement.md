@@ -4,7 +4,7 @@ baseline_commit: fd074bee858a525a77d7ff03501d2a20fee6423a
 
 # Story 3.4: Member Check-In & One-Open-Session Enforcement
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -192,32 +192,51 @@ Apply the same `mountedRef`/`isFocusedRef` guards around the post-`await recordC
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Migration `0023` — partial unique index, `checkin_timeout_hours` column, `check_in()` RPC** (AC #1, #2, #3; Scope Note #2)
-  - [ ] `supabase/migrations/0023_member_check_in_one_open_session_enforcement.sql`: the partial unique index, the `gyms.checkin_timeout_hours integer not null default 8` column, and the `check_in()` function exactly as specified in Scope Note #2 (adapt comments to explain rationale in your own words, matching this repo's established migration-comment density — do not skip the "why," this codebase never ships an uncommented design decision).
-  - [ ] `revoke execute on function check_in from public; grant execute on function check_in to authenticated;` — no `service_role`/`anon` grant (self-service only, matches `renew_subscription()`'s grant shape minus the staff angle).
+- [x] **Task 1: Migration `0023` — partial unique index, `checkin_timeout_hours` column, `check_in()` RPC** (AC #1, #2, #3; Scope Note #2)
+  - [x] `supabase/migrations/0023_member_check_in_one_open_session_enforcement.sql`: the partial unique index, the `gyms.checkin_timeout_hours integer not null default 8` column, and the `check_in()` function exactly as specified in Scope Note #2 (adapt comments to explain rationale in your own words, matching this repo's established migration-comment density — do not skip the "why," this codebase never ships an uncommented design decision).
+  - [x] `revoke execute on function check_in from public; grant execute on function check_in to authenticated;` — no `service_role`/`anon` grant (self-service only, matches `renew_subscription()`'s grant shape minus the staff angle).
 
-- [ ] **Task 2: `apps/mobile/src/services/checkin.ts` — `recordCheckIn()`** (AC #1, #2, #3; Scope Note #3)
-  - [ ] Add `recordCheckIn()` exactly as specified in Scope Note #3: calls `supabase.rpc('check_in')`, maps the "already has an open check-in" message and the `idx_attendance_events_one_open_per_member` 23505 constraint-violation both to `'already_checked_in'`, any other error to `'error'`, success to `{ status: 'success', checkedInAt: data.checked_in_at }`.
-  - [ ] Keep `validateGymToken()` untouched.
+- [x] **Task 2: `apps/mobile/src/services/checkin.ts` — `recordCheckIn()`** (AC #1, #2, #3; Scope Note #3)
+  - [x] Add `recordCheckIn()` exactly as specified in Scope Note #3: calls `supabase.rpc('check_in')`, maps the "already has an open check-in" message and the `idx_attendance_events_one_open_per_member` 23505 constraint-violation both to `'already_checked_in'`, any other error to `'error'`, success to `{ status: 'success', checkedInAt: data.checked_in_at }`.
+  - [x] Keep `validateGymToken()` untouched.
 
-- [ ] **Task 3: `apps/mobile/src/app/(tabs)/checkin.tsx` — Success and Already-Checked-In result states** (AC #1, #2, #3; Scope Note #3)
-  - [ ] Replace the current match-branch (flash → reset, no overlay) with: on match, call `recordCheckIn()`; branch on `status` per Scope Note #3 (`success` → flash then green Success overlay with formatted check-in time, 2.5s auto-dismiss; `already_checked_in` → amber overlay immediately, OK button, no auto-dismiss; `error` → reuse the existing network-error overlay).
-  - [ ] Apply `mountedRef`/`isFocusedRef` guards around the post-await state updates, matching 3.3's existing pattern for `validateGymToken()`'s result.
-  - [ ] New i18n keys in `apps/mobile/src/locales/en.json`/`fr.json`: `checkin.checkedIn`, `checkin.alreadyCheckedInTitle`, `checkin.alreadyCheckedInBody`, `common.ok`. Run `node scripts/check-i18n-key-parity.mjs` after.
+- [x] **Task 3: `apps/mobile/src/app/(tabs)/checkin.tsx` — Success and Already-Checked-In result states** (AC #1, #2, #3; Scope Note #3)
+  - [x] Replace the current match-branch (flash → reset, no overlay) with: on match, call `recordCheckIn()`; branch on `status` per Scope Note #3 (`success` → flash then green Success overlay with formatted check-in time, 2.5s auto-dismiss; `already_checked_in` → amber overlay immediately, OK button, no auto-dismiss; `error` → reuse the existing network-error overlay).
+  - [x] Apply `mountedRef`/`isFocusedRef` guards around the post-await state updates, matching 3.3's existing pattern for `validateGymToken()`'s result.
+  - [x] New i18n keys in `apps/mobile/src/locales/en.json`/`fr.json`: `checkin.checkedIn`, `checkin.alreadyCheckedInTitle`, `checkin.alreadyCheckedInBody`, `common.ok`. Run `node scripts/check-i18n-key-parity.mjs` after.
 
-- [ ] **Task 4: pgTAP coverage for `check_in()`** (AC #1, #2, #3; Scope Note #2)
-  - [ ] New `supabase/tests/check_in_one_open_session_enforcement.test.sql`, following `manual_renewal_reset.test.sql`'s exact session-simulation convention (`set local role authenticated` + `set_config('request.jwt.claims', ...)`, fixtures seeded up front as the connecting role, `reset role` before asserting on committed table state).
-  - [ ] Assert: a member-claim session with no open check-in calling `check_in()` succeeds (`lives_ok`) and inserts exactly one `attendance_events` row with `checked_out_at is null`.
-  - [ ] Assert: the same member calling `check_in()` again immediately (open, non-stale session) is rejected via `throws_like('%already has an open check-in%')`, and no second row was inserted.
-  - [ ] Assert (AC #3): a member with an open check-in whose `checked_in_at` is seeded further in the past than `checkin_timeout_hours` (use the gym's actual configured value, or override it on the fixture gym for a deterministic test) — calling `check_in()` succeeds, the *old* row is now `checked_out_at = checked_in_at + timeout interval` with `checkout_type = 'auto'`, a *new* open row exists, and exactly one `audit_log` row with `action_type = 'attendance_stale_check_in_auto_closed'` was written for the closed row's id.
-  - [ ] Assert: a coach-claim or owner-claim session (non-`member` `app_role`) calling `check_in()` is rejected via `throws_like('%permission denied%')`.
-  - [ ] Assert: the partial unique index itself rejects a second concurrent open row for the same `member_id` at the raw SQL level (a direct `INSERT ... throws_like('%idx_attendance_events_one_open_per_member%')` or equivalent, bypassing the function) — proves AC #2's literal "enforced via a partial unique index" wording independently of `check_in()`'s own pre-check.
-  - [ ] Assert cross-tenant: a Gym B member-claim session's `check_in()` call only ever inserts against Gym B's `gym_id` (`private.gym_id()`-derived), never Gym A's, even with fixtures present in both gyms.
+- [x] **Task 4: pgTAP coverage for `check_in()`** (AC #1, #2, #3; Scope Note #2)
+  - [x] New `supabase/tests/check_in_one_open_session_enforcement.test.sql`, following `manual_renewal_reset.test.sql`'s exact session-simulation convention (`set local role authenticated` + `set_config('request.jwt.claims', ...)`, fixtures seeded up front as the connecting role, `reset role` before asserting on committed table state).
+  - [x] Assert: a member-claim session with no open check-in calling `check_in()` succeeds (`lives_ok`) and inserts exactly one `attendance_events` row with `checked_out_at is null`.
+  - [x] Assert: the same member calling `check_in()` again immediately (open, non-stale session) is rejected via `throws_like('%already has an open check-in%')`, and no second row was inserted.
+  - [x] Assert (AC #3): a member with an open check-in whose `checked_in_at` is seeded further in the past than `checkin_timeout_hours` (use the gym's actual configured value, or override it on the fixture gym for a deterministic test) — calling `check_in()` succeeds, the *old* row is now `checked_out_at = checked_in_at + timeout interval` with `checkout_type = 'auto'`, a *new* open row exists, and exactly one `audit_log` row with `action_type = 'attendance_stale_check_in_auto_closed'` was written for the closed row's id.
+  - [x] Assert: a coach-claim or owner-claim session (non-`member` `app_role`) calling `check_in()` is rejected via `throws_like('%permission denied%')`.
+  - [x] Assert: the partial unique index itself rejects a second concurrent open row for the same `member_id` at the raw SQL level (a direct `INSERT ... throws_like('%idx_attendance_events_one_open_per_member%')` or equivalent, bypassing the function) — proves AC #2's literal "enforced via a partial unique index" wording independently of `check_in()`'s own pre-check.
+  - [x] Assert cross-tenant: a Gym B member-claim session's `check_in()` call only ever inserts against Gym B's `gym_id` (`private.gym_id()`-derived), never Gym A's, even with fixtures present in both gyms.
 
-- [ ] **Task 5: Validation and manual verification**
-  - [ ] `pnpm run typecheck` (all packages, 0 errors) and `node scripts/check-i18n-key-parity.mjs` (0 errors).
-  - [ ] `supabase test db` — confirm the new file passes and zero regressions in the existing suite (baseline: 268 passing as of Story 3.3).
-  - [ ] Run the mobile app as a logged-in member (per `apps/mobile/AGENTS.md`'s versioned-docs guidance for anything touching the existing camera code): scan the gym's real QR twice in a row and confirm the second scan shows "Already checked in"; manually backdate a fixture's `checked_in_at` past the timeout (or temporarily lower `checkin_timeout_hours` on the test gym) and confirm a stale open session auto-closes with a fresh success confirmation on the next scan.
+- [x] **Task 5: Validation and manual verification**
+  - [x] `pnpm run typecheck` (all packages, 0 errors) and `node scripts/check-i18n-key-parity.mjs` (0 errors).
+  - [x] `supabase test db` — confirm the new file passes and zero regressions in the existing suite (baseline: 268 passing as of Story 3.3).
+  - [x] Run the mobile app as a logged-in member (per `apps/mobile/AGENTS.md`'s versioned-docs guidance for anything touching the existing camera code): scan the gym's real QR twice in a row and confirm the second scan shows "Already checked in"; manually backdate a fixture's `checked_in_at` past the timeout (or temporarily lower `checkin_timeout_hours` on the test gym) and confirm a stale open session auto-closes with a fresh success confirmation on the next scan.
+
+### Review Findings
+
+- [x] [Review][Patch] `validating` state is never reset to `false` when the post-`recordCheckIn()` mounted/focused guard short-circuits — every sibling early-return path in `handleBarcodeScanned` resets it but this one doesn't, so backgrounding the tab mid-RPC can leave the loading spinner stuck showing on return [apps/mobile/src/app/(tabs)/checkin.tsx:172]
+- [x] [Review][Patch] Success overlay can pop up stale after the user backgrounds the tab — the `flashTimerRef`/`successTimerRef` timeout callbacks fire unconditionally with no `mountedRef`/`isFocusedRef` guard, unlike the `await recordCheckIn()` continuation in the same function [apps/mobile/src/app/(tabs)/checkin.tsx:192]
+- [x] [Review][Patch] `gyms.checkin_timeout_hours` has no `CHECK` constraint against zero/negative values — a future edit could make every check-in instantly auto-close the prior session [supabase/migrations/0023_member_check_in_one_open_session_enforcement.sql:28]
+- [x] [Review][Patch] Concurrent `check_in()` calls both hitting the stale-session branch can each pass the open-session read (no `for update` lock) and each write a `log_audit_event()` entry for the same auto-close, producing duplicate audit rows [supabase/migrations/0023_member_check_in_one_open_session_enforcement.sql:98]
+- [x] [Review][Patch] `resetScanning()` doesn't clear `success`/`successCheckedInAt` — currently unreachable since scanning is disabled while `success` is showing, but a latent trap for any future caller that reuses `resetScanning` [apps/mobile/src/app/(tabs)/checkin.tsx:131]
+- [x] [Review][Patch] The `members` lookup (`user_id`/`gym_id` match) has no `ORDER BY`/`LIMIT 1` — the partial unique index only guarantees one *active* row per user/gym, so if a deactivated historical row ever coexists with an active one, `SELECT INTO` could silently pick the wrong row [supabase/migrations/0023_member_check_in_one_open_session_enforcement.sql:79]
+- [x] [Review][Defer] Client-side error classification relies on substring-matching the Postgres error message/constraint name [apps/mobile/src/services/checkin.ts:36] — deferred, pre-existing: this is the literal pattern Scope Note #3 prescribes and mirrors `validateGymToken()`'s established shape
+- [x] [Review][Defer] New Success/Already-Checked-In overlays have no accessibility live-region announcement for screen readers [apps/mobile/src/app/(tabs)/checkin.tsx:268] — deferred, pre-existing: the Wrong-QR/network-error overlays this story extends have the same gap
+- [x] [Review][Defer] `recordCheckIn()`'s catch-all and generic error branch have no logging/telemetry [apps/mobile/src/services/checkin.ts:41] — deferred, pre-existing: matches `validateGymToken()`'s existing silent-catch pattern exactly
+- [x] [Review][Defer] No unit/component test coverage for the new client-side branching logic in `checkin.ts`/`checkin.tsx` [apps/mobile/src/app/(tabs)/checkin.tsx] — deferred, pre-existing: this repo has no existing precedent for mobile unit tests; the established convention is pgTAP + manual on-device verification, which this story followed
+- [x] [Review][Defer] The new partial unique index will fail the migration outright if pre-existing duplicate-open-session data violates it [supabase/migrations/0023_member_check_in_one_open_session_enforcement.sql:20] — deferred, pre-existing: an operational/deployment risk, not a code-level fix
+
+**Fix summary:**
+- `apps/mobile/src/app/(tabs)/checkin.tsx`: `setValidating(false)` added to the post-`recordCheckIn()` mounted/focused guard's early return; `mountedRef`/`isFocusedRef` checks added inside both the flash and success `setTimeout` callbacks; `resetScanning()` now also clears `success`/`successCheckedInAt`.
+- `supabase/migrations/0023_member_check_in_one_open_session_enforcement.sql`: added `check (checkin_timeout_hours > 0)`; added `order by deactivated_at nulls first limit 1` to the caller's `members` lookup; added `for update` to the open-session read to close the concurrent-stale-check-in duplicate-audit-log race.
+- Verified: `pnpm --filter @gymos/mobile run typecheck` (0 errors). `supabase db reset` + `supabase test db` (via WSL) re-run clean: 282/282 passing, zero regressions.
 
 ## Dev Notes
 
@@ -267,8 +286,45 @@ No changes expected to `apps/dashboard`, `apps/super-admin`, `packages/types`, `
 
 ### Agent Model Used
 
+Claude Sonnet 5 (claude-sonnet-5)
+
 ### Debug Log References
+
+- Local Supabase reset (`supabase db reset`, via WSL) applied migration `0023` cleanly against the full existing migration history (0001–0022), no errors.
+- `pnpm --filter @gymos/mobile run typecheck` and `pnpm run typecheck` (all 4 packages) — 0 errors.
+- `node scripts/check-i18n-key-parity.mjs` — 0 errors (mobile locale count: 86 → 90 keys, EN/FR in parity).
+- `supabase test db` (full suite, local via WSL Docker): first run of the new test file failed 4/14 assertions — a test-authoring bug, not a `check_in()` bug: several assertions filtered `attendance_events.member_id` by the fixture's `auth.users.id` instead of the corresponding `members.id` (the two are different UUIDs in the fixture). Fixed the four affected assertions to reference the correct `members.id` values; re-ran — 282/282 passing (268 baseline from Story 3.3 + 14 new in `check_in_one_open_session_enforcement.test.sql`), zero regressions.
+- `pnpm run lint`: `@gymos/mobile`'s `expo lint` fails with `'eslint' is not recognized` — a pre-existing local Windows PATH issue unrelated to this story's changes (not introduced by this story; `@gymos/dashboard`/`@gymos/super-admin` lint clean).
+- Task 6 manual mobile verification (physical Android device via Expo Go, WSL2 mirrored networking): seeded a temporary tier/gym/member fixture (phone `+237 600000001`, matching the app's fixed Cameroon-only prefix — a fake US-format test number was tried first and had to be redone once this was noticed) and a matching `auth.users` row via the GoTrue admin API, with `[auth.sms.test_otp]` temporarily enabled in `supabase/config.toml` for that number (code `123456`) to log in without a real SMS send. Generated a QR image encoding the fixture gym's `gym_token` (the `qrcode` npm package, same as the dashboard's own QR renderer) and displayed it on-screen for the phone to scan.
+- Hit two rounds of local-environment instability unrelated to this story's code: (1) the Supabase Kong container transiently crash-looped under concurrent typecheck/build load, self-resolved; (2) Windows→WSL2 reachability on port 54321 was consistently broken from the Windows host's own network stack (`netstat` showed no record of the port at all, while an ad-hoc test container on a different port was reachable fine) even after a full `wsl --shutdown`/restart — but the physical phone's traffic (arriving via the LAN/Wi-Fi interface rather than the Windows loopback path) got through regardless once the stack was freshly restarted, so the device test itself was not blocked by this. Also caught and fixed a fixture gap along the way: `phone_has_membership()` checks `members.phone`, which the first fixture pass left null, initially surfacing as "number not registered" on the phone.
+- Verified all three scenarios live on the device: a fresh scan showed the green "Checked in" overlay (with the actual check-in time) auto-dismissing after ~2.5s; an immediate second scan showed the amber "Already checked in" overlay with a working OK button; after backdating the open `attendance_events` row's `checked_in_at` by 9 hours (past the 8-hour default `checkin_timeout_hours`) directly in the DB, a third scan produced a fresh green "Checked in" overlay again. Confirmed via direct DB query afterward: the original row had `checked_out_at = checked_in_at + 8h` and `checkout_type = 'auto'`, a new open row existed, and exactly one `audit_log` row with `action_type = 'attendance_stale_check_in_auto_closed'` was written for the closed row's id — matching AC #3 exactly.
+- All test fixtures (member/gym/tier/two auth users), the temporary `test_otp` config change, and the QR/Metro/Supabase processes started for this verification were fully reverted/stopped afterward; `supabase test db` re-run clean (282/282) post-revert.
 
 ### Completion Notes List
 
+- AC #1 and #2 implemented via a new `check_in()` SECURITY DEFINER RPC (migration `0023`) following `renew_subscription()`'s established shape: derives member/gym from the caller's own session (no `p_member_id`/token parameter, per Scope Note #2), checks for an existing open session, auto-closes it if stale (AC #3) with an audit log write, then inserts the new attendance event — all in one atomic function to avoid the race window three separate client calls would have.
+- AC #2's literal "enforced via a partial unique index" wording is satisfied by `idx_attendance_events_one_open_per_member` (a partial unique index on `member_id` where `checked_out_at is null`) — this is the concurrent-request backstop behind `check_in()`'s own pre-check, and Task 4's test suite proves it independently at the raw SQL level.
+- `gyms.checkin_timeout_hours` added with a `default 8` (FR-045) and no Settings UI field in this story, per Scope Note #2 — Story 3.5's job.
+- Mobile: `recordCheckIn()` added to `checkin.ts` (`validateGymToken()` untouched); `checkin.tsx`'s match branch now calls it and renders the Success (green, auto-dismiss 2.5s) and Already Checked In (amber, OK button, no auto-dismiss) overlays per EXPERIENCE.md's MA-10, reusing the existing network-error overlay for RPC failures. Same `mountedRef`/`isFocusedRef` guard pattern from Story 3.3's review findings applied around the new `recordCheckIn()` await.
+- New i18n keys (`checkin.checkedIn`/`alreadyCheckedInTitle`/`alreadyCheckedInBody`, `common.ok`) added to both `en.json`/`fr.json`, parity-checked.
+- pgTAP: `check_in_one_open_session_enforcement.test.sql`, 14 assertions covering fresh check-in, repeat-check-in rejection, stale auto-close (auditing included), permission denial for coach/owner claims, the raw partial-unique-index backstop, and cross-tenant isolation.
+- Task 5's physical-device manual verification was completed live with the user via Expo Go over the local network, matching Story 3.3's precedent: fresh check-in (green "Checked in" + time, auto-dismiss), immediate repeat scan (amber "Already checked in", OK button), and a backdated stale session (auto-close + fresh success), all confirmed both visually on-device and against the underlying `attendance_events`/`audit_log` rows. See Debug Log for the full fixture/config setup, two environment hiccups encountered along the way (unrelated to this story's code), and teardown.
+
 ### File List
+
+**New:**
+- `supabase/migrations/0023_member_check_in_one_open_session_enforcement.sql`
+- `supabase/tests/check_in_one_open_session_enforcement.test.sql`
+
+**Modified:**
+- `apps/mobile/src/services/checkin.ts` (+ `recordCheckIn()`)
+- `apps/mobile/src/app/(tabs)/checkin.tsx` (+ Success / Already-Checked-In result states)
+- `apps/mobile/src/locales/en.json` (+ `checkin.checkedIn`/`alreadyCheckedInTitle`/`alreadyCheckedInBody`, `common.ok`)
+- `apps/mobile/src/locales/fr.json` (same keys, FR copy)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (workflow status tracking)
+
+No changes to `apps/dashboard`, `apps/super-admin`, `packages/types`, `gym-settings.ts`, `SettingsForm.tsx`, or any existing migration file (Scope Notes #2, #4).
+
+## Change Log
+
+- 2026-07-24: Story implemented. Added migration `0023` (`check_in()` SECURITY DEFINER RPC, the `idx_attendance_events_one_open_per_member` partial unique index, and `gyms.checkin_timeout_hours`) turning Story 3.3's inert valid-scan branch into real attendance recording with one-open-session enforcement (AC #1/#2) and stale-session auto-close (AC #3). Mobile: `recordCheckIn()` added to `checkin.ts`; `checkin.tsx` now renders MA-10's Success (green, auto-dismiss) and Already Checked In (amber, OK button) overlays. New i18n keys (EN/FR, parity-checked). New pgTAP suite (`check_in_one_open_session_enforcement.test.sql`, 14 assertions). `pnpm run typecheck` (4/4 packages) and i18n-parity clean. `supabase test db`: 282/282 passing (268 baseline + 14 new), zero regressions. Manually verified end-to-end on a physical device via Expo Go over the local network: fresh check-in, immediate repeat-scan rejection, and backdated stale-session auto-close all confirmed on-device and against the underlying `attendance_events`/`audit_log` rows. Status set to `review`.

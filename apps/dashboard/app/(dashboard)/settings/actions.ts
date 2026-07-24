@@ -45,6 +45,7 @@ export async function saveGymSettings(
     grace_period_days: parsed.data.gracePeriodDays,
     capacity: parsed.data.capacity,
     alert_auto_dismiss_minutes: parsed.data.alertAutoDismissMinutes,
+    checkin_timeout_hours: parsed.data.checkinTimeoutHours,
   });
 
   return {

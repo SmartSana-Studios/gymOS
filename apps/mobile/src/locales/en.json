@@ -5,7 +5,8 @@
     "close": "Close",
     "cancel": "Cancel",
     "save": "Save",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "ok": "OK"
   },
   "onboarding": {
     "language": {
@@ -107,6 +108,9 @@
     "openSettings": "Open Settings",
     "wrongQrTitle": "QR not recognised",
     "wrongQrBody": "Make sure you're scanning your gym's QR code.",
-    "errorNetwork": "Something went wrong. Check your connection and try again."
+    "errorNetwork": "Something went wrong. Check your connection and try again.",
+    "checkedIn": "Checked in",
+    "alreadyCheckedInTitle": "Already checked in",
+    "alreadyCheckedInBody": "You're already checked in.\nSee front desk if you need help."
   }
 }

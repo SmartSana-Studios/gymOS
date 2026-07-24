@@ -114,6 +114,7 @@ export const gymSettingsSchema = z.object({
   gracePeriodDays: z.number().int().min(1, "Grace period must be between 1 and 30 days").max(30, "Grace period must be between 1 and 30 days"),
   capacity: z.number().int().positive("Enter the gym's member capacity").max(2147483647, "Value is too large"),
   alertAutoDismissMinutes: z.number().int().min(1, "Auto-dismiss must be between 1 and 120 minutes").max(120, "Auto-dismiss must be between 1 and 120 minutes"),
+  checkinTimeoutHours: z.number().int().min(1, "Check-in timeout must be between 1 and 24 hours").max(24, "Check-in timeout must be between 1 and 24 hours"),
 });
 
 export type GymSettingsInput = z.infer<typeof gymSettingsSchema>;

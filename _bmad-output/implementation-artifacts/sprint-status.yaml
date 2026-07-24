@@ -1,5 +1,5 @@
 # generated: 2026-07-04
-# last_updated: 2026-07-23 (story 3.4 ready-for-dev)
+# last_updated: 2026-07-24 (story 3.5 done)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-07-23 (story 3.4 ready-for-dev)
+last_updated: 2026-07-24 (story 3.5 done)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -71,8 +71,8 @@ development_status:
   3-1-subscription-lifecycle-cron-job: done
   3-2-manual-renewal-reset: done
   3-3-qr-code-generation-gym-token-validation: done
-  3-4-member-check-in-one-open-session-enforcement: ready-for-dev
-  3-5-check-out-manual-auto-timeout: backlog
+  3-4-member-check-in-one-open-session-enforcement: done
+  3-5-check-out-manual-auto-timeout: done
   3-6-occupancy-display-admin-attendance-page: backlog
   3-7-member-app-home-screen-status-display: backlog
   3-8-member-app-check-in-result-states: backlog
