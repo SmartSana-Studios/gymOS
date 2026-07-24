@@ -664,17 +664,12 @@ export async function deactivateMember(memberId: string): Promise<{ error: AppEr
     return { error: await memberNotFoundError("0 rows affected by member deactivation UPDATE (non-manager/owner session or stale/cross-gym id)") };
   }
 
-  const { error: subscriptionError } = await supabase
-    .from("subscriptions")
-    .update({ status: "expired" })
-    .eq("gym_id", gymId)
-    .eq("member_id", memberId);
-
-  if (subscriptionError) {
-    // Compensating rollback: no cross-table transaction available via
-    // supabase-js (same accepted limitation as `deleteMemberForCleanup`
-    // above), so undo the already-committed `deactivated_at` rather than
-    // leave the member marked deactivated with a still-active subscription.
+  // Compensating rollback shared by both failure points below: no
+  // cross-table transaction available via supabase-js (same accepted
+  // limitation as `deleteMemberForCleanup` above), so undo the
+  // already-committed `deactivated_at` rather than leave the member marked
+  // deactivated with a still-active subscription.
+  async function rollbackDeactivation(cause: unknown): Promise<{ error: AppError | null }> {
     const { error: rollbackError } = await supabase
       .from("members")
       .update({ deactivated_at: null })
@@ -682,11 +677,47 @@ export async function deactivateMember(memberId: string): Promise<{ error: AppEr
       .eq("id", memberId);
     if (rollbackError) {
       console.error(
-        `[members] deactivateMember rollback failed to restore member ${memberId} after a failed subscription UPDATE`,
+        `[members] deactivateMember rollback failed to restore member ${memberId} after a failed subscription lookup/UPDATE`,
         rollbackError,
       );
     }
-    return { error: await mapAndLog(subscriptionError) };
+    return { error: await mapAndLog(cause) };
+  }
+
+  // Story 3.2: a member can now have multiple `subscriptions` rows (renewal
+  // history) -- only the current (most-recently-created) one should be
+  // expired here, not every historical row, or deactivation would silently
+  // rewrite a prior row's already-accurate historical status (e.g. a
+  // `grace_period` row from before a renewal getting retroactively flipped
+  // to `expired`). Mirrors the same "most recent subscription"
+  // `.order(...).limit(1)` pattern already used by this file's own read
+  // queries (~lines 219-220, 756-757). A member with zero subscription rows
+  // (shouldn't happen in practice -- every member gets exactly one at
+  // creation) is tolerated as a no-op, matching the original blanket
+  // UPDATE's own implicit "0 rows matched" tolerance.
+  const { data: currentSubscription, error: currentSubscriptionError } = await supabase
+    .from("subscriptions")
+    .select("id")
+    .eq("gym_id", gymId)
+    .eq("member_id", memberId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (currentSubscriptionError) {
+    return rollbackDeactivation(currentSubscriptionError);
+  }
+
+  if (currentSubscription) {
+    const { error: subscriptionError } = await supabase
+      .from("subscriptions")
+      .update({ status: "expired" })
+      .eq("gym_id", gymId)
+      .eq("id", currentSubscription.id);
+
+    if (subscriptionError) {
+      return rollbackDeactivation(subscriptionError);
+    }
   }
 
   return { error: null };

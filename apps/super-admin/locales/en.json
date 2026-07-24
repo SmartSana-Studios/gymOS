@@ -173,6 +173,11 @@
     "totalGyms": "Total Gyms",
     "totalMembers": "Total Members",
     "totalPayments": "Total Payments",
-    "summary": "Active: {{active}} | Suspended: {{suspended}} | Deactivated: {{deactivated}}"
+    "summary": "Active: {{active}} | Suspended: {{suspended}} | Deactivated: {{deactivated}}",
+    "jobFailuresTitle": "Recent Job Failures",
+    "jobFailuresJobName": "Job",
+    "jobFailuresStartedAt": "Started",
+    "jobFailuresFinishedAt": "Finished",
+    "jobFailuresError": "Error"
   }
 }

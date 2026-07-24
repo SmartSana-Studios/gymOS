@@ -97,5 +97,16 @@
     "noActivePlan": "Aucun forfait actif",
     "errorLoadFailed": "Impossible de charger votre profil. Vérifiez votre connexion et réessayez.",
     "errorSaveFailed": "Impossible d'enregistrer votre profil. Vérifiez votre connexion et réessayez."
+  },
+  "checkin": {
+    "title": "Enregistrement",
+    "instruction": "Visez le QR code de votre salle",
+    "scanningTrouble": "Des difficultés ? Rapprochez-vous du QR code.",
+    "permissionDeniedTitle": "Accès à l'appareil photo requis",
+    "permissionDeniedBody": "GymOS a besoin d'accéder à votre appareil photo pour scanner les QR codes.",
+    "openSettings": "Ouvrir les réglages",
+    "wrongQrTitle": "QR non reconnu",
+    "wrongQrBody": "Assurez-vous de scanner le QR code de votre salle.",
+    "errorNetwork": "Une erreur s'est produite. Vérifiez votre connexion et réessayez."
   }
 }

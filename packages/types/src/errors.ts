@@ -137,6 +137,28 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // renew_subscription()'s raises (0022_manual_renewal_reset.sql, Story
+  // 3.2). Matched on the exact raise-text substrings to avoid colliding with
+  // unrelated messages. `permission denied`, the reason-required raise, and
+  // the no-existing-subscription raise are deliberately left unmapped here
+  // (fall through to "unknown") -- all three are unreachable through this
+  // story's own role-gated, Zod-validated call path, matching this file's
+  // established precedent of leaving "shouldn't happen" DB-level backstops
+  // unmapped (e.g. super_admin_job_failures()'s own permission-denied case).
+  if (message.includes("renew_subscription:") && message.includes("not found")) {
+    return {
+      code: "member_not_found",
+      message: copy.memberNotFound,
+    };
+  }
+
+  if (message.includes("is deactivated and cannot be renewed")) {
+    return {
+      code: "member_deactivated",
+      message: copy.memberDeactivated,
+    };
+  }
+
   // No console/logging call here: packages/types targets ES2022 only (no
   // DOM/Node lib -- consumed by both Next.js apps and, eventually, Expo),
   // and is meant to stay a pure, side-effect-free mapping utility. Callers

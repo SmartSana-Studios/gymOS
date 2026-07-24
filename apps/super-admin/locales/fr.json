@@ -173,6 +173,11 @@
     "totalGyms": "Total des salles",
     "totalMembers": "Total des membres",
     "totalPayments": "Total des paiements",
-    "summary": "Actives : {{active}} | Suspendues : {{suspended}} | Désactivées : {{deactivated}}"
+    "summary": "Actives : {{active}} | Suspendues : {{suspended}} | Désactivées : {{deactivated}}",
+    "jobFailuresTitle": "Échecs de tâches récents",
+    "jobFailuresJobName": "Tâche",
+    "jobFailuresStartedAt": "Démarrée",
+    "jobFailuresFinishedAt": "Terminée",
+    "jobFailuresError": "Erreur"
   }
 }

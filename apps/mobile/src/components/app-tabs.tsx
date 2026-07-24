@@ -20,6 +20,11 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="checkin">
+        <NativeTabs.Trigger.Label>Check In</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="qrcode.viewfinder" md="qr_code_scanner" />
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="profile">
         <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon

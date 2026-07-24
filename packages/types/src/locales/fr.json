@@ -18,6 +18,8 @@
     "memberPhoneTaken": "Ce numéro de téléphone appartient déjà à un membre actif de cette salle",
     "memberCapReached": "Vous avez atteint la limite de votre formule. Contactez GymOS pour la mettre à niveau.",
     "subscriptionPlanMismatch": "La date d'expiration de cet abonnement ne correspond pas au type de la formule sélectionnée.",
+    "memberNotFound": "Ce membre est introuvable.",
+    "memberDeactivated": "Ce membre est désactivé et ne peut pas être renouvelé.",
     "unknown": "Une erreur est survenue de notre côté."
   },
   "auth": {

@@ -18,6 +18,8 @@
     "memberPhoneTaken": "This phone number already belongs to an active member at this gym",
     "memberCapReached": "You've reached your plan limit. Contact GymOS to upgrade.",
     "subscriptionPlanMismatch": "This subscription's expiry date doesn't match the selected plan's type.",
+    "memberNotFound": "This member could not be found.",
+    "memberDeactivated": "This member is deactivated and cannot be renewed.",
     "unknown": "Something went wrong on our end."
   },
   "auth": {

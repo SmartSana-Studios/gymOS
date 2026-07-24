@@ -42,6 +42,12 @@
           "photosPermission": "Allow GymOS to access your photos so you can set a profile picture.",
           "cameraPermission": "Allow GymOS to access your camera so you can take a profile picture."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "GymOS needs camera access to scan your gym's check-in QR code."
+        }
       ]
     ],
     "experiments": {

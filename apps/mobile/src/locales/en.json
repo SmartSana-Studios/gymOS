@@ -97,5 +97,16 @@
     "noActivePlan": "No active plan",
     "errorLoadFailed": "Couldn't load your profile. Check your connection and try again.",
     "errorSaveFailed": "Couldn't save your profile. Check your connection and try again."
+  },
+  "checkin": {
+    "title": "Check In",
+    "instruction": "Point at your gym's QR code",
+    "scanningTrouble": "Having trouble? Move closer to the QR code.",
+    "permissionDeniedTitle": "Camera access needed",
+    "permissionDeniedBody": "GymOS needs camera access to scan QR codes.",
+    "openSettings": "Open Settings",
+    "wrongQrTitle": "QR not recognised",
+    "wrongQrBody": "Make sure you're scanning your gym's QR code.",
+    "errorNetwork": "Something went wrong. Check your connection and try again."
   }
 }
