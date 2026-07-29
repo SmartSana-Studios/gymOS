@@ -111,7 +111,10 @@
     "errorNetwork": "Something went wrong. Check your connection and try again.",
     "checkedIn": "Checked in",
     "alreadyCheckedInTitle": "Already checked in",
-    "alreadyCheckedInBody": "You're already checked in.\nSee front desk if you need help."
+    "alreadyCheckedInBody": "You're already checked in.\nSee front desk if you need help.",
+    "deniedExpiredTitle": "Access denied",
+    "deniedExpiredBody": "Your membership has expired.\nPlease see the front desk.",
+    "seeFrontDesk": "See front desk"
   },
   "home": {
     "welcomeBack": "Welcome back, {{name}}",

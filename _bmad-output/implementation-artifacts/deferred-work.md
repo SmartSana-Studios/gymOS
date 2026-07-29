@@ -1,5 +1,12 @@
 # Deferred Work
 
+## Deferred from: code review of story-3-8-member-app-check-in-result-states (2026-07-29)
+
+- No secondary tie-break (e.g. `id`) if two subscription rows share an identical `created_at` [supabase/migrations/0027_member_app_check_in_result_states.sql:457] — negligible practical risk given microsecond-precision timestamps; same class of gap already deferred from story-3-2's `renew_subscription()` "most recent subscription" lookup, now duplicated in `check_in()` too.
+- Subscription status is read without a lock (`for update`) before check-in completes, leaving a narrow TOCTOU race against the periodic subscription-lifecycle batch job (0021) that could let a check-in through in the same window the job flips a status to `expired` [supabase/migrations/0027_member_app_check_in_result_states.sql:457] — consistent with how the rest of the batch-updated subscription-status system already behaves; no AC requires locking.
+- Client detects the `'expired'` check-in outcome via substring-matching the raised exception's message rather than a stable error code [apps/mobile/src/services/checkin.ts:81] — matches this codebase's established convention for `already_checked_in`/`recordCheckIn()`'s other branches (Story 3.4 Scope Note #3); a codebase-wide pattern, not introduced by this story.
+- The "most recent subscription row wins" business rule is implemented independently in both SQL (`check_in()`) and TS (Home screen's `loadHome` query, Story 3.7) with no shared source of truth or synchronization test — pre-existing duplication pattern (both sides use the identical `order by created_at desc limit 1` shape), not introduced by this story's design choice alone.
+
 ## Deferred from: code review of story-3-7-member-app-home-screen-status-display (2026-07-29)
 
 - `gyms` query has no explicit `.eq('id', ...)` scoping filter, relying entirely on RLS + `.single()` [apps/mobile/src/app/(tabs)/index.tsx loadHome] — identical pattern already used by `apps/mobile/src/app/(tabs)/profile.tsx:78` (Story 2.8); not introduced by this story.

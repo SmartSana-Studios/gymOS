@@ -58,7 +58,7 @@ export async function getRecentCheckIns(memberId: string, limit: number): Promis
 }
 
 export interface RecordCheckInResult {
-  status: 'success' | 'already_checked_in' | 'error';
+  status: 'success' | 'already_checked_in' | 'expired' | 'error';
   checkedInAt?: string;
 }
 
@@ -66,7 +66,8 @@ export interface RecordCheckInResult {
  * check_in() RPC (0023_member_check_in_one_open_session_enforcement.sql) --
  * a SECURITY DEFINER function, not a raw INSERT, since the "is there an open
  * session, is it stale, insert" sequence must be atomic. Story 3.4 Scope
- * Note #3. */
+ * Note #3. Story 3.8 adds the 'expired' outcome (0027's subscription-status
+ * guard, AC #3). */
 export async function recordCheckIn(): Promise<RecordCheckInResult> {
   try {
     const { data, error } = await supabase.rpc('check_in');
@@ -77,6 +78,7 @@ export async function recordCheckIn(): Promise<RecordCheckInResult> {
       if (error.code === '23505' && error.message?.includes('idx_attendance_events_one_open_per_member')) {
         return { status: 'already_checked_in' };
       }
+      if (error.message?.includes('subscription is expired')) return { status: 'expired' };
       return { status: 'error' };
     }
     return { status: 'success', checkedInAt: data.checked_in_at };

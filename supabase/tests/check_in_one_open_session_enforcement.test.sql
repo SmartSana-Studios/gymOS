@@ -8,7 +8,7 @@
 -- connecting role, `reset role` before asserting on committed table state).
 
 begin;
-select plan(14);
+select plan(24);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000009001', 'Check-In Test Tier', 5000, 50000, 10);
@@ -22,14 +22,55 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000009022'), -- Gym A: coach (permission-denied)
   ('00000000-0000-0000-0000-000000009023'), -- Gym A: owner (permission-denied)
   ('00000000-0000-0000-0000-000000009024'), -- Gym A: stale-session member (assertion c)
-  ('00000000-0000-0000-0000-000000009025'); -- Gym B: fresh member (cross-tenant, assertion f)
+  ('00000000-0000-0000-0000-000000009025'), -- Gym B: fresh member (cross-tenant, assertion f)
+  ('00000000-0000-0000-0000-000000009026'), -- Gym A: expired-subscription member (Story 3.8, assertion g)
+  ('00000000-0000-0000-0000-000000009027'), -- Gym A: grace_period-subscription member (Story 3.8, assertion h)
+  ('00000000-0000-0000-0000-000000009028'), -- Gym A: zero-subscription member (Story 3.8, assertion i)
+  ('00000000-0000-0000-0000-000000009029'), -- Gym A: expiring_soon-subscription member (Story 3.8 review, assertion h2)
+  ('00000000-0000-0000-0000-000000009030'); -- Gym A: renewed member with an old expired + new active subscription row (Story 3.8 review, assertion j)
 
 insert into members (id, gym_id, user_id, role, name) values
   ('00000000-0000-0000-0000-000000009041', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009021', 'member', 'Check-In Gym A Fresh Member'),
   ('00000000-0000-0000-0000-000000009042', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009022', 'coach', 'Check-In Gym A Coach'),
   ('00000000-0000-0000-0000-000000009043', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009023', 'owner', 'Check-In Gym A Owner'),
   ('00000000-0000-0000-0000-000000009044', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009024', 'member', 'Check-In Gym A Stale Member'),
-  ('00000000-0000-0000-0000-000000009045', '00000000-0000-0000-0000-000000009012', '00000000-0000-0000-0000-000000009025', 'member', 'Check-In Gym B Fresh Member');
+  ('00000000-0000-0000-0000-000000009045', '00000000-0000-0000-0000-000000009012', '00000000-0000-0000-0000-000000009025', 'member', 'Check-In Gym B Fresh Member'),
+  ('00000000-0000-0000-0000-000000009046', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009026', 'member', 'Check-In Gym A Expired Member'),
+  ('00000000-0000-0000-0000-000000009047', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009027', 'member', 'Check-In Gym A Grace Member'),
+  ('00000000-0000-0000-0000-000000009048', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009028', 'member', 'Check-In Gym A No-Subscription Member'),
+  ('00000000-0000-0000-0000-000000009049', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009029', 'member', 'Check-In Gym A Expiring-Soon Member'),
+  ('00000000-0000-0000-0000-000000009050', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009030', 'member', 'Check-In Gym A Renewed Member');
+
+-- Story 3.8: plans + subscriptions fixtures (insert shape follows
+-- manual_renewal_reset.test.sql). check_in()'s new guard (0027) means every
+-- member expected to check in *successfully* below now needs an
+-- active/expiring_soon/grace_period subscription row, not just a bare
+-- members row -- the Fresh Member, Stale Member and Gym B Fresh Member
+-- fixtures above pre-date this guard and would otherwise be denied as
+-- "zero subscription rows" (Scope Note #2's null-status decision).
+insert into plans (id, gym_id, name, plan_type, price, billing_interval, duration_days) values
+  ('00000000-0000-0000-0000-000000009061', '00000000-0000-0000-0000-000000009011', 'Check-In Gym A Monthly', 'monthly', 15000, 'monthly', 30),
+  ('00000000-0000-0000-0000-000000009062', '00000000-0000-0000-0000-000000009012', 'Check-In Gym B Monthly', 'monthly', 15000, 'monthly', 30);
+
+insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date) values
+  ('00000000-0000-0000-0000-000000009071', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009041', '00000000-0000-0000-0000-000000009061', 'active', current_date, current_date + 30),
+  ('00000000-0000-0000-0000-000000009072', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009044', '00000000-0000-0000-0000-000000009061', 'active', current_date, current_date + 30),
+  ('00000000-0000-0000-0000-000000009073', '00000000-0000-0000-0000-000000009012', '00000000-0000-0000-0000-000000009045', '00000000-0000-0000-0000-000000009062', 'active', current_date, current_date + 30),
+  ('00000000-0000-0000-0000-000000009074', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009046', '00000000-0000-0000-0000-000000009061', 'expired', current_date - 40, current_date - 10),
+  ('00000000-0000-0000-0000-000000009075', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009047', '00000000-0000-0000-0000-000000009061', 'grace_period', current_date - 40, current_date - 10),
+  ('00000000-0000-0000-0000-000000009076', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009049', '00000000-0000-0000-0000-000000009061', 'expiring_soon', current_date - 25, current_date + 5);
+
+-- No-Subscription Member (9048): deliberately zero subscription rows,
+-- exercising the null-status branch of the new guard.
+
+-- Renewed Member (9050): two subscription rows -- an old `expired` one and a
+-- newer `active` one, with explicit created_at values so ordering is
+-- deterministic regardless of statement-local now(). Exercises the "most
+-- recent subscription row wins" resolution against the realistic renewal
+-- case, not just a single-row fixture.
+insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date, created_at) values
+  ('00000000-0000-0000-0000-000000009077', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009050', '00000000-0000-0000-0000-000000009061', 'expired', current_date - 90, current_date - 60, now() - interval '90 days'),
+  ('00000000-0000-0000-0000-000000009078', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009050', '00000000-0000-0000-0000-000000009061', 'active', current_date - 5, current_date + 25, now() - interval '5 days');
 
 -- Stale Member: an open check-in seeded further in the past than Gym A's
 -- checkin_timeout_hours (default 8, unchanged in this fixture -- the
@@ -199,6 +240,130 @@ select is(
   (select gym_id from attendance_events where member_id = '00000000-0000-0000-0000-000000009045'),
   '00000000-0000-0000-0000-000000009012',
   'the Gym B member''s check-in was recorded against Gym B, not Gym A'
+);
+
+-- ============================================================================
+-- (g) Story 3.8 AC #3 / FR-031: a member with an expired subscription is
+-- rejected by the new guard, and no attendance_events row is inserted.
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009026","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009011","app_role":"member"}',
+  true
+);
+
+select throws_like(
+  $$select check_in()$$,
+  '%subscription is expired%',
+  'a member with an expired subscription is rejected on check-in'
+);
+
+reset role;
+
+select is(
+  (select count(*)::int from attendance_events where member_id = '00000000-0000-0000-0000-000000009046'),
+  0,
+  'no attendance_events row was inserted for the expired member'
+);
+
+-- ============================================================================
+-- (h) FR-031 regression guard: a grace_period member must still be accepted
+-- -- only null/expired triggers the new guard.
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009027","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009011","app_role":"member"}',
+  true
+);
+
+select lives_ok(
+  $$select check_in()$$,
+  'a member with a grace_period subscription can still check in'
+);
+
+reset role;
+
+select is(
+  (select count(*)::int from attendance_events where member_id = '00000000-0000-0000-0000-000000009047'),
+  1,
+  'an attendance_events row was inserted for the grace_period member'
+);
+
+-- ============================================================================
+-- (h2) FR-031 regression guard: an expiring_soon member must still be
+-- accepted -- same guard, other half of "grace/expiring_soon must remain
+-- accepted" (Task 5).
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009029","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009011","app_role":"member"}',
+  true
+);
+
+select lives_ok(
+  $$select check_in()$$,
+  'a member with an expiring_soon subscription can still check in'
+);
+
+reset role;
+
+select is(
+  (select count(*)::int from attendance_events where member_id = '00000000-0000-0000-0000-000000009049'),
+  1,
+  'an attendance_events row was inserted for the expiring_soon member'
+);
+
+-- ============================================================================
+-- (i) Story 3.8 Scope Note #2: a member with zero subscription rows at all
+-- is treated identically to expired -- denied, no 6th "no plan" UI state.
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009028","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009011","app_role":"member"}',
+  true
+);
+
+select throws_like(
+  $$select check_in()$$,
+  '%subscription is expired%',
+  'a member with zero subscription rows is rejected on check-in, same as expired'
+);
+
+reset role;
+
+select is(
+  (select count(*)::int from attendance_events where member_id = '00000000-0000-0000-0000-000000009048'),
+  0,
+  'no attendance_events row was inserted for the zero-subscription member'
+);
+
+-- ============================================================================
+-- (j) Renewal scenario: a member with an old expired subscription row and a
+-- newer active row is accepted -- "most recent by created_at" must resolve
+-- to the new row, not the old one.
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009030","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009011","app_role":"member"}',
+  true
+);
+
+select lives_ok(
+  $$select check_in()$$,
+  'a renewed member (old expired + new active subscription row) can check in'
+);
+
+reset role;
+
+select is(
+  (select count(*)::int from attendance_events where member_id = '00000000-0000-0000-0000-000000009050'),
+  1,
+  'an attendance_events row was inserted for the renewed member'
 );
 
 select * from finish();

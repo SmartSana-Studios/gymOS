@@ -30,10 +30,10 @@ function formatCheckInTime(isoString: string, locale: string): string {
 }
 
 /** MA-10. Story 3.3 built the camera shell and the Wrong QR result state;
- * this story (3.4) adds the Success and Already Checked In states by
- * recording a real attendance event via recordCheckIn(). Denied - Expired
- * is Epic 4's job (subscription-status branching); Success - Offline is
- * Story 3.9's job. See the story's Scope Note #2/#4. */
+ * Story 3.4 added the Success and Already Checked In states by recording a
+ * real attendance event via recordCheckIn(). Story 3.8 adds the Denied -
+ * Expired state (subscription-status branching, 0027's check_in() guard).
+ * Success - Offline is Story 3.9's job. See the story's Scope Note #2/#4. */
 export default function CheckInScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -43,6 +43,7 @@ export default function CheckInScreen() {
   const [wrongQr, setWrongQr] = useState(false);
   const [networkError, setNetworkError] = useState(false);
   const [alreadyCheckedIn, setAlreadyCheckedIn] = useState(false);
+  const [deniedExpired, setDeniedExpired] = useState(false);
   const [success, setSuccess] = useState(false);
   const [successCheckedInAt, setSuccessCheckedInAt] = useState<string | null>(null);
   const [showNudge, setShowNudge] = useState(false);
@@ -65,6 +66,20 @@ export default function CheckInScreen() {
 
   useEffect(() => {
     isFocusedRef.current = isFocused;
+  }, [isFocused]);
+
+  // The Denied - Expired overlay's own button deliberately does NOT call
+  // resetScanning() -- it navigates to Home instead, without inviting an
+  // immediate rescan (Scope Note #2/#4). Nothing else ever clears
+  // deniedExpired, so without this, returning to this tab later (e.g. after
+  // renewing at the front desk) would show the same frozen red overlay
+  // forever. Only fires on an actual focus transition, not on every
+  // deniedExpired change, so it never clears the overlay out from under the
+  // member while it's still being shown.
+  useEffect(() => {
+    if (isFocused) {
+      setDeniedExpired(false);
+    }
   }, [isFocused]);
 
   useEffect(() => {
@@ -93,7 +108,7 @@ export default function CheckInScreen() {
     return () => subscription.remove();
   }, [permission, requestPermission]);
 
-  const resultShowing = wrongQr || networkError || alreadyCheckedIn || success;
+  const resultShowing = wrongQr || networkError || alreadyCheckedIn || deniedExpired || success;
 
   // 15s-with-no-scan nudge -- only counts down while actively scanning
   // (focused tab, permission granted, no result showing).
@@ -132,6 +147,7 @@ export default function CheckInScreen() {
     setWrongQr(false);
     setNetworkError(false);
     setAlreadyCheckedIn(false);
+    setDeniedExpired(false);
     setSuccess(false);
     setSuccessCheckedInAt(null);
     processingRef.current = false;
@@ -186,6 +202,11 @@ export default function CheckInScreen() {
 
     if (checkInResult.status === 'already_checked_in') {
       setAlreadyCheckedIn(true);
+      return;
+    }
+
+    if (checkInResult.status === 'expired') {
+      setDeniedExpired(true);
       return;
     }
 
@@ -301,6 +322,21 @@ export default function CheckInScreen() {
               </ThemedText>
               <Pressable accessibilityRole="button" onPress={resetScanning} style={styles.overlayButton}>
                 <ThemedText style={styles.overlayButtonLabel}>{t('common.ok')}</ThemedText>
+              </Pressable>
+            </View>
+          )}
+
+          {deniedExpired && (
+            <View style={[styles.overlay, styles.overlayDenied]}>
+              <ThemedText style={styles.overlayIcon}>✕</ThemedText>
+              <ThemedText type="subtitle" style={styles.centeredText}>
+                {t('checkin.deniedExpiredTitle')}
+              </ThemedText>
+              <ThemedText type="default" style={styles.centeredText}>
+                {t('checkin.deniedExpiredBody')}
+              </ThemedText>
+              <Pressable accessibilityRole="button" onPress={handleClose} style={styles.overlayButton}>
+                <ThemedText style={styles.overlayButtonLabel}>{t('checkin.seeFrontDesk')}</ThemedText>
               </Pressable>
             </View>
           )}
@@ -452,6 +488,9 @@ const styles = StyleSheet.create({
   },
   overlaySuccess: {
     backgroundColor: '#3BB273',
+  },
+  overlayDenied: {
+    backgroundColor: '#B3261E',
   },
   overlayIcon: {
     fontSize: 48,

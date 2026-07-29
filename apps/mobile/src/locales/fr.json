@@ -111,7 +111,10 @@
     "errorNetwork": "Une erreur s'est produite. Vérifiez votre connexion et réessayez.",
     "checkedIn": "Enregistré",
     "alreadyCheckedInTitle": "Déjà enregistré",
-    "alreadyCheckedInBody": "Vous êtes déjà enregistré.\nContactez l'accueil si vous avez besoin d'aide."
+    "alreadyCheckedInBody": "Vous êtes déjà enregistré.\nContactez l'accueil si vous avez besoin d'aide.",
+    "deniedExpiredTitle": "Accès refusé",
+    "deniedExpiredBody": "Votre adhésion a expiré.\nVeuillez voir l'accueil.",
+    "seeFrontDesk": "Voir l'accueil"
   },
   "home": {
     "welcomeBack": "Content de vous revoir, {{name}}",
