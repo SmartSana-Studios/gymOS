@@ -286,5 +286,39 @@
         "auditLogFailedRows": "All members were imported, but the audit log entry failed to write for {{count}} row(s) (rows: {{rows}}). Please contact support."
       }
     }
+  },
+  "attendance": {
+    "title": "Attendance",
+    "checkedInHeading": "Currently Checked In ({{count}} members)",
+    "todayCount": "Today: {{count}} check-ins",
+    "refresh": "Refresh",
+    "emptyCheckedIn": "No one is checked in right now.",
+    "dailyLogHeading": "Daily Log",
+    "table": {
+      "member": "Member",
+      "checkIn": "Check-in",
+      "checkOut": "Check-out",
+      "duration": "Duration",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "durationOpen": "Open",
+    "durationFormat": "{{hours}}h {{minutes}}m",
+    "unknownMember": "Unknown member",
+    "emptyLog": "No check-ins recorded for this period.",
+    "searchPlaceholder": "Search by member name",
+    "checkOutButton": "Check Out",
+    "checkOutDialog": {
+      "title": "Check out {{name}}?",
+      "confirmButton": "Check Out",
+      "checkingOut": "Checking out…"
+    },
+    "dateFrom": "From",
+    "dateTo": "To",
+    "pagination": {
+      "previous": "Previous page",
+      "next": "Next page",
+      "ellipsis": "…"
+    }
   }
 }

@@ -159,6 +159,22 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // check_out_member()'s raises (0024/0025) -- unmapped until Story 3.6's
+  // dashboard Check Out button needed friendly copy for them.
+  if (message.includes("check_out_member:") && message.includes("not found")) {
+    return {
+      code: "member_not_found",
+      message: copy.memberNotFound,
+    };
+  }
+
+  if (message.includes("has no open check-in")) {
+    return {
+      code: "no_open_check_in",
+      message: copy.noOpenCheckIn,
+    };
+  }
+
   // No console/logging call here: packages/types targets ES2022 only (no
   // DOM/Node lib -- consumed by both Next.js apps and, eventually, Expo),
   // and is meant to stay a pure, side-effect-free mapping utility. Callers

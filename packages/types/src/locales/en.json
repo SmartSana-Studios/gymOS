@@ -20,6 +20,7 @@
     "subscriptionPlanMismatch": "This subscription's expiry date doesn't match the selected plan's type.",
     "memberNotFound": "This member could not be found.",
     "memberDeactivated": "This member is deactivated and cannot be renewed.",
+    "noOpenCheckIn": "This member doesn't have an open check-in to close.",
     "unknown": "Something went wrong on our end."
   },
   "auth": {

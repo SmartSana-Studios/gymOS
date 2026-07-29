@@ -286,5 +286,39 @@
         "auditLogFailedRows": "Tous les membres ont été importés, mais l'entrée du journal d'audit n'a pas pu être écrite pour {{count}} ligne(s) (lignes : {{rows}}). Veuillez contacter le support."
       }
     }
+  },
+  "attendance": {
+    "title": "Présences",
+    "checkedInHeading": "Actuellement présents ({{count}} membres)",
+    "todayCount": "Aujourd'hui : {{count}} pointages",
+    "refresh": "Actualiser",
+    "emptyCheckedIn": "Personne n'est actuellement présent.",
+    "dailyLogHeading": "Journal quotidien",
+    "table": {
+      "member": "Membre",
+      "checkIn": "Arrivée",
+      "checkOut": "Départ",
+      "duration": "Durée",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "durationOpen": "En cours",
+    "durationFormat": "{{hours}} h {{minutes}} min",
+    "unknownMember": "Membre inconnu",
+    "emptyLog": "Aucun pointage enregistré pour cette période.",
+    "searchPlaceholder": "Rechercher par nom de membre",
+    "checkOutButton": "Enregistrer le départ",
+    "checkOutDialog": {
+      "title": "Enregistrer le départ de {{name}} ?",
+      "confirmButton": "Enregistrer le départ",
+      "checkingOut": "Enregistrement du départ…"
+    },
+    "dateFrom": "Du",
+    "dateTo": "Au",
+    "pagination": {
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "ellipsis": "…"
+    }
   }
 }
