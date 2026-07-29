@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Brand } from '@/constants/brand';
 import { BottomTabInset, Spacing } from '@/constants/theme';
+import { useOfflineSync } from '@/lib/offline-sync-context';
 import { getRecentCheckIns, type RecentCheckIn } from '@/services/checkin';
 import { getOccupancyBand, type OccupancyBand } from '@/services/occupancy';
 import { supabase } from '@/lib/supabase';
@@ -86,6 +87,7 @@ export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { pendingCount } = useOfflineSync();
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -269,6 +271,14 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
+          {pendingCount > 0 && (
+            <View style={styles.offlineBanner}>
+              <ThemedText type="small" style={styles.offlineBannerText}>
+                {t('home.offlineSyncPending')}
+              </ThemedText>
+            </View>
+          )}
+
           {loading && <ActivityIndicator style={styles.loadingIndicator} />}
 
           {!loading && loadError && (
@@ -407,6 +417,17 @@ const styles = StyleSheet.create({
   },
   loadingIndicator: {
     marginTop: Spacing.four,
+  },
+  offlineBanner: {
+    backgroundColor: '#FFEDD5',
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  offlineBannerText: {
+    color: '#9A3412',
   },
   card: {
     borderWidth: 1,

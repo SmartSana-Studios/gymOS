@@ -1,4 +1,7 @@
+import * as Crypto from 'expo-crypto';
+
 import { supabase } from '@/lib/supabase';
+import { deleteOfflineCheckIn, getOfflineCheckIns, insertOfflineCheckIn } from '@/lib/sqlite';
 
 export interface ValidateGymTokenResult {
   matched: boolean;
@@ -84,5 +87,53 @@ export async function recordCheckIn(): Promise<RecordCheckInResult> {
     return { status: 'success', checkedInAt: data.checked_in_at };
   } catch {
     return { status: 'error' };
+  }
+}
+
+/** Story 3.9 AC #1: queues an offline check-in locally and returns
+ * immediately -- no network call, no `await` on anything network-bound --
+ * which is what makes the "success state is shown immediately" AC true.
+ * `client_scan_id` doubles as the server-side idempotency key (Scope Note
+ * #1/#3): a retried sync for the same queued record can never double-insert. */
+export async function queueOfflineCheckIn(): Promise<{ id: string; scannedAt: string }> {
+  const id = Crypto.randomUUID();
+  const scannedAt = new Date().toISOString();
+  await insertOfflineCheckIn(id, scannedAt);
+  return { id, scannedAt };
+}
+
+/** Story 3.9 AC #2: replays every queued offline check-in, oldest-first,
+ * against check_in(). Per-record outcome handling (Scope Note #4), each
+ * independent -- one record's outcome must never stop processing the rest
+ * of the batch:
+ * - success -> delete from the local queue.
+ * - 'already has an open check-in' -> leave queued; recoverable on a later
+ *   sync pass once the pre-existing open session closes.
+ * - any other RPC error (expired, deactivated, permission denied, no member
+ *   record) -> delete anyway, retrying can't fix these.
+ * - a thrown/network exception -> leave queued, no deletion. */
+export async function syncPendingCheckIns(): Promise<void> {
+  let pending;
+  try {
+    pending = await getOfflineCheckIns();
+  } catch (err) {
+    console.error('[offline-sync] failed to read the local offline queue', err);
+    return;
+  }
+
+  for (const record of pending) {
+    try {
+      const { error } = await supabase.rpc('check_in', {
+        p_scanned_at: record.scannedAt,
+        p_client_scan_id: record.id,
+      });
+
+      if (!error || !error.message?.includes('already has an open check-in')) {
+        await deleteOfflineCheckIn(record.id);
+      }
+    } catch (err) {
+      // Network/thrown exception: leave queued, retried on the next sync pass.
+      console.error('[offline-sync] check_in RPC failed, record left queued for retry', err);
+    }
   }
 }

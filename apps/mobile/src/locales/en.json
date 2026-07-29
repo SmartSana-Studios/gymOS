@@ -114,7 +114,8 @@
     "alreadyCheckedInBody": "You're already checked in.\nSee front desk if you need help.",
     "deniedExpiredTitle": "Access denied",
     "deniedExpiredBody": "Your membership has expired.\nPlease see the front desk.",
-    "seeFrontDesk": "See front desk"
+    "seeFrontDesk": "See front desk",
+    "checkedInSyncing": "{{time}} · Syncing…"
   },
   "home": {
     "welcomeBack": "Welcome back, {{name}}",
@@ -143,6 +144,7 @@
       "medium": "Moderately busy",
       "busy": "Busy"
     },
-    "errorLoadFailed": "Couldn't load your data. Check your connection and try again."
+    "errorLoadFailed": "Couldn't load your data. Check your connection and try again.",
+    "offlineSyncPending": "Offline check-in pending sync…"
   }
 }

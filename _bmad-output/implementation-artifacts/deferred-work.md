@@ -1,5 +1,16 @@
 # Deferred Work
 
+## Deferred from: code review of story-3-9-member-app-offline-check-in-queueing (2026-07-29)
+
+- `syncPendingCheckIns` deletes queued check-ins on any non-"already open" RPC error, including transient failures [apps/mobile/src/services/checkin.ts] — user decision: leave as-is. A transient server-side error (statement timeout, deadlock, temporary outage) is returned as a normal `{error}` response, not a thrown exception, so it falls into the "delete anyway" bucket even though it may have succeeded on retry; accepted as rare/low-impact at pilot scale rather than adding a maintained permanent-error whitelist.
+- No de-duplication for repeated offline scans within the same outage [apps/mobile/src/app/(tabs)/checkin.tsx] — user decision: leave as-is. A second re-scan queues a second `client_scan_id`; the second legitimately hits "already has an open check-in" on sync and stays queued until checkout/timeout, then replays into a second, spurious attendance event for one physical visit — rare and low-stakes (attendance data, not billing).
+- Migration 0028's `create unique index` on `attendance_events` is not built `CONCURRENTLY` [supabase/migrations/0028_member_app_offline_check_in_queueing.sql] — user decision: leave as-is. Takes an ACCESS EXCLUSIVE lock for the build duration; matches this repo's own established precedent (`idx_gyms_name_unique`, story 1-5, deferred for the identical reason at identical pilot scale).
+- Sync-outcome branching depends on a hardcoded substring match on the Postgres exception message [apps/mobile/src/services/checkin.ts] — pre-existing design choice specified by Task 4/Scope Note #4; fragile if the server message wording ever changes, but not a regression introduced by this diff.
+- Pending-sync banner text isn't pluralization-aware for `pendingCount > 1` [apps/mobile/src/locales/en.json, fr.json] — text is copied verbatim from EXPERIENCE.md per Task 9's explicit instruction; a design-level wording change, not a code defect.
+- Device clock is trusted for `checked_in_at`; only future skew is clamped, not past skew [supabase/migrations/0028_member_app_offline_check_in_queueing.sql] — this is Scope Note #2's own disambiguation of what gets clamped; not an implementation gap introduced by this diff.
+- No accessibility live-region announcement for the offline banner / "Syncing…" text [apps/mobile/src/app/(tabs)/checkin.tsx, index.tsx] — consistent with the rest of this app's existing lack of accessibility props; a pre-existing gap, not unique to this change.
+- `client_scan_id` collision with a different member's row would surface as a raw unique-violation and get silently deleted from the queue on next sync [supabase/migrations/0028_member_app_offline_check_in_queueing.sql] — extremely low likelihood given UUIDv4 generation via `Crypto.randomUUID()`, but a real unhandled path worth a follow-up.
+
 ## Deferred from: code review of story-3-8-member-app-check-in-result-states (2026-07-29)
 
 - No secondary tie-break (e.g. `id`) if two subscription rows share an identical `created_at` [supabase/migrations/0027_member_app_check_in_result_states.sql:457] — negligible practical risk given microsecond-precision timestamps; same class of gap already deferred from story-3-2's `renew_subscription()` "most recent subscription" lookup, now duplicated in `check_in()` too.

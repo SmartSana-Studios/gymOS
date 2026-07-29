@@ -114,7 +114,8 @@
     "alreadyCheckedInBody": "Vous êtes déjà enregistré.\nContactez l'accueil si vous avez besoin d'aide.",
     "deniedExpiredTitle": "Accès refusé",
     "deniedExpiredBody": "Votre adhésion a expiré.\nVeuillez voir l'accueil.",
-    "seeFrontDesk": "Voir l'accueil"
+    "seeFrontDesk": "Voir l'accueil",
+    "checkedInSyncing": "{{time}} · Synchronisation en cours…"
   },
   "home": {
     "welcomeBack": "Content de vous revoir, {{name}}",
@@ -143,6 +144,7 @@
       "medium": "Moyennement fréquenté",
       "busy": "Fréquenté"
     },
-    "errorLoadFailed": "Impossible de charger vos données. Vérifiez votre connexion et réessayez."
+    "errorLoadFailed": "Impossible de charger vos données. Vérifiez votre connexion et réessayez.",
+    "offlineSyncPending": "Enregistrement hors ligne en attente de synchronisation…"
   }
 }

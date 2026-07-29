@@ -39,6 +39,7 @@ export type Database = {
           checked_in_at: string
           checked_out_at: string | null
           checkout_type: string | null
+          client_scan_id: string | null
           created_at: string
           gym_id: string
           id: string
@@ -48,6 +49,7 @@ export type Database = {
           checked_in_at?: string
           checked_out_at?: string | null
           checkout_type?: string | null
+          client_scan_id?: string | null
           created_at?: string
           gym_id: string
           id?: string
@@ -57,6 +59,7 @@ export type Database = {
           checked_in_at?: string
           checked_out_at?: string | null
           checkout_type?: string | null
+          client_scan_id?: string | null
           created_at?: string
           gym_id?: string
           id?: string
@@ -134,6 +137,7 @@ export type Database = {
         Row: {
           alert_auto_dismiss_minutes: number
           capacity: number | null
+          checkin_timeout_hours: number
           created_at: string
           default_language: string
           grace_period_days: number
@@ -150,6 +154,7 @@ export type Database = {
         Insert: {
           alert_auto_dismiss_minutes?: number
           capacity?: number | null
+          checkin_timeout_hours?: number
           created_at?: string
           default_language?: string
           grace_period_days?: number
@@ -166,6 +171,7 @@ export type Database = {
         Update: {
           alert_auto_dismiss_minutes?: number
           capacity?: number | null
+          checkin_timeout_hours?: number
           created_at?: string
           default_language?: string
           grace_period_days?: number
@@ -551,12 +557,69 @@ export type Database = {
     }
     Functions: {
       caller_has_membership: { Args: never; Returns: boolean }
+      check_in: {
+        Args: { p_client_scan_id?: string; p_scanned_at?: string }
+        Returns: {
+          checked_in_at: string
+          checked_out_at: string | null
+          checkout_type: string | null
+          client_scan_id: string | null
+          created_at: string
+          gym_id: string
+          id: string
+          member_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "attendance_events"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       check_otp_resend_allowed: {
         Args: { p_phone: string }
         Returns: {
           allowed: boolean
           locked_until: string
         }[]
+      }
+      check_out: {
+        Args: never
+        Returns: {
+          checked_in_at: string
+          checked_out_at: string | null
+          checkout_type: string | null
+          client_scan_id: string | null
+          created_at: string
+          gym_id: string
+          id: string
+          member_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "attendance_events"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      check_out_member: {
+        Args: { p_member_id: string }
+        Returns: {
+          checked_in_at: string
+          checked_out_at: string | null
+          checkout_type: string | null
+          client_scan_id: string | null
+          created_at: string
+          gym_id: string
+          id: string
+          member_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "attendance_events"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       gym_effective_member_cap: { Args: never; Returns: number }
@@ -572,6 +635,7 @@ export type Database = {
         }
         Returns: string
       }
+      member_occupancy_band: { Args: never; Returns: string }
       phone_has_membership: { Args: { p_phone: string }; Returns: boolean }
       platform_metrics: {
         Args: never
@@ -590,6 +654,22 @@ export type Database = {
           allowed: boolean
           attempts_remaining: number
           locked_until: string
+        }[]
+      }
+      renew_subscription: {
+        Args: { p_member_id: string; p_reason: string }
+        Returns: string
+      }
+      run_check_in_auto_timeout_job: { Args: never; Returns: undefined }
+      run_subscription_lifecycle_job: { Args: never; Returns: undefined }
+      super_admin_job_failures: {
+        Args: never
+        Returns: {
+          error: string
+          finished_at: string
+          id: string
+          job_name: string
+          started_at: string
         }[]
       }
     }

@@ -8,10 +8,12 @@
 -- connecting role, `reset role` before asserting on committed table state).
 
 begin;
-select plan(24);
+select plan(34);
 
+-- member_cap 20, not 10: Story 3.9's four new offline-sync fixture members
+-- (9055-9058) push Gym A's member count past the original 10.
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
-values ('00000000-0000-0000-0000-000000009001', 'Check-In Test Tier', 5000, 50000, 10);
+values ('00000000-0000-0000-0000-000000009001', 'Check-In Test Tier', 5000, 50000, 20);
 
 insert into gyms (id, name, tier_id, capacity) values
   ('00000000-0000-0000-0000-000000009011', 'Check-In Gym A', '00000000-0000-0000-0000-000000009001', 30),
@@ -364,6 +366,151 @@ select is(
   (select count(*)::int from attendance_events where member_id = '00000000-0000-0000-0000-000000009050'),
   1,
   'an attendance_events row was inserted for the renewed member'
+);
+
+-- ============================================================================
+-- Story 3.9: offline-sync fixtures. Fresh members (not reusing (a)-(j)'s
+-- fixtures, which already carry open/closed check-in state from earlier
+-- assertions) exercising check_in(p_scanned_at, p_client_scan_id).
+-- ============================================================================
+insert into auth.users (id) values
+  ('00000000-0000-0000-0000-000000009031'), -- Gym A: offline-sync, not-stale scan (assertion k)
+  ('00000000-0000-0000-0000-000000009032'), -- Gym A: offline-sync, past-timeout scan (assertion l)
+  ('00000000-0000-0000-0000-000000009033'), -- Gym A: offline-sync idempotent replay (assertion m)
+  ('00000000-0000-0000-0000-000000009034'); -- Gym A: offline-sync, expired subscription (assertion n)
+
+insert into members (id, gym_id, user_id, role, name) values
+  ('00000000-0000-0000-0000-000000009055', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009031', 'member', 'Check-In Gym A Offline Not-Stale Member'),
+  ('00000000-0000-0000-0000-000000009056', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009032', 'member', 'Check-In Gym A Offline Stale-Sync Member'),
+  ('00000000-0000-0000-0000-000000009057', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009033', 'member', 'Check-In Gym A Offline Idempotent-Replay Member'),
+  ('00000000-0000-0000-0000-000000009058', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009034', 'member', 'Check-In Gym A Offline Expired Member');
+
+insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date) values
+  ('00000000-0000-0000-0000-000000009079', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009055', '00000000-0000-0000-0000-000000009061', 'active', current_date, current_date + 30),
+  ('00000000-0000-0000-0000-000000009080', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009056', '00000000-0000-0000-0000-000000009061', 'active', current_date, current_date + 30),
+  ('00000000-0000-0000-0000-000000009081', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009057', '00000000-0000-0000-0000-000000009061', 'active', current_date, current_date + 30),
+  ('00000000-0000-0000-0000-000000009082', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009058', '00000000-0000-0000-0000-000000009061', 'expired', current_date - 40, current_date - 10);
+
+-- ============================================================================
+-- (k) An offline-sync call within the timeout window: row inserted,
+-- checked_in_at equals the passed p_scanned_at (not sync time), checked_out_at
+-- still null.
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009031","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009011","app_role":"member"}',
+  true
+);
+
+select lives_ok(
+  $$select check_in(now() - interval '2 hours', '10000000-0000-0000-0000-000000000001')$$,
+  'an offline-sync check-in within the timeout window succeeds'
+);
+
+reset role;
+
+select is(
+  (select checked_in_at from attendance_events where client_scan_id = '10000000-0000-0000-0000-000000000001'),
+  now() - interval '2 hours',
+  'checked_in_at equals the passed p_scanned_at, not sync time'
+);
+
+select is(
+  (select checked_out_at from attendance_events where client_scan_id = '10000000-0000-0000-0000-000000000001'),
+  null,
+  'checked_out_at is still null -- the timeout has not elapsed since p_scanned_at'
+);
+
+-- ============================================================================
+-- (l) An offline-sync call past the timeout window: row inserted, but
+-- immediately auto-closed at p_scanned_at + checkin_timeout_hours.
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009032","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009011","app_role":"member"}',
+  true
+);
+
+select lives_ok(
+  $$select check_in(now() - interval '10 hours', '10000000-0000-0000-0000-000000000002')$$,
+  'an offline-sync check-in past the timeout window succeeds and is immediately auto-closed'
+);
+
+reset role;
+
+select is(
+  (select checked_out_at from attendance_events where client_scan_id = '10000000-0000-0000-0000-000000000002'),
+  (now() - interval '10 hours') + interval '8 hours',
+  'checked_out_at equals p_scanned_at + the gym''s checkin_timeout_hours'
+);
+
+select is(
+  (select checkout_type from attendance_events where client_scan_id = '10000000-0000-0000-0000-000000000002'),
+  'auto',
+  'checkout_type is auto for the immediately-stale offline sync'
+);
+
+-- ============================================================================
+-- (m) Idempotent replay: calling check_in() twice with the same
+-- p_client_scan_id, without closing the session in between, must succeed
+-- both times and return the same row -- the important case, since the
+-- second call's own open session (from the first call) would otherwise be
+-- wrongly rejected by the open-session lock block if the short-circuit ran
+-- after it instead of before.
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009033","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009011","app_role":"member"}',
+  true
+);
+
+create temp table offline_replay_first as
+select (check_in(now() - interval '1 hour', '10000000-0000-0000-0000-000000000003')).id as id;
+
+select is(
+  (select (check_in(now() - interval '1 hour', '10000000-0000-0000-0000-000000000003')).id),
+  (select id from offline_replay_first),
+  'replaying check_in() with the same client_scan_id returns the same row (id matches) as the first call, even though the member now has an open check-in from that first call'
+);
+
+reset role;
+
+select is(
+  (select count(*)::int from attendance_events where client_scan_id = '10000000-0000-0000-0000-000000000003'),
+  1,
+  'attendance_events has exactly one row for the replayed client_scan_id -- the replay did not insert a second row'
+);
+
+drop table offline_replay_first;
+
+-- ============================================================================
+-- (n) An expired-subscription member's offline-sync call is rejected the
+-- same way the existing online-path assertion (g) expects -- confirms the
+-- subscription-status guard's placement (before the insert) applies
+-- identically to both call shapes.
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009034","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009011","app_role":"member"}',
+  true
+);
+
+select throws_like(
+  $$select check_in(now() - interval '1 hour', '10000000-0000-0000-0000-000000000004')$$,
+  '%subscription is expired%',
+  'an expired-subscription member is rejected on an offline-sync check-in call the same way as the online path'
+);
+
+reset role;
+
+select is(
+  (select count(*)::int from attendance_events where member_id = '00000000-0000-0000-0000-000000009058'),
+  0,
+  'no attendance_events row was inserted for the expired member''s offline-sync attempt'
 );
 
 select * from finish();

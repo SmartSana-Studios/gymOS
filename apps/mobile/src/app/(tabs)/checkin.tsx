@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Brand } from '@/constants/brand';
 import { BottomTabInset, Spacing } from '@/constants/theme';
+import { useOfflineSync } from '@/lib/offline-sync-context';
 import { recordCheckIn, validateGymToken } from '@/services/checkin';
 
 // MA-10's own "scanning timeout" nudge (EXPERIENCE.md) -- purely
@@ -33,18 +34,21 @@ function formatCheckInTime(isoString: string, locale: string): string {
  * Story 3.4 added the Success and Already Checked In states by recording a
  * real attendance event via recordCheckIn(). Story 3.8 adds the Denied -
  * Expired state (subscription-status branching, 0027's check_in() guard).
- * Success - Offline is Story 3.9's job. See the story's Scope Note #2/#4. */
+ * Story 3.9 adds the Success - Offline state (offline queueing, Scope Notes
+ * #2/#4/#5). */
 export default function CheckInScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
+  const { isConnected, queueOfflineCheckIn } = useOfflineSync();
 
   const [wrongQr, setWrongQr] = useState(false);
   const [networkError, setNetworkError] = useState(false);
   const [alreadyCheckedIn, setAlreadyCheckedIn] = useState(false);
   const [deniedExpired, setDeniedExpired] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [successOffline, setSuccessOffline] = useState(false);
   const [successCheckedInAt, setSuccessCheckedInAt] = useState<string | null>(null);
   const [showNudge, setShowNudge] = useState(false);
   const [flash, setFlash] = useState(false);
@@ -149,9 +153,59 @@ export default function CheckInScreen() {
     setAlreadyCheckedIn(false);
     setDeniedExpired(false);
     setSuccess(false);
+    setSuccessOffline(false);
     setSuccessCheckedInAt(null);
     processingRef.current = false;
   }, []);
+
+  // Shared by the online and offline success paths -- same
+  // FLASH_DURATION_MS/SUCCESS_AUTO_DISMISS_MS timers, same
+  // mountedRef/isFocusedRef guards (MA-10).
+  const showSuccessOverlay = useCallback((checkedInAt: string | null, offline: boolean) => {
+    setFlash(true);
+    flashTimerRef.current = setTimeout(() => {
+      if (!mountedRef.current || !isFocusedRef.current) {
+        processingRef.current = false;
+        return;
+      }
+      setFlash(false);
+      setSuccessCheckedInAt(checkedInAt);
+      setSuccessOffline(offline);
+      setSuccess(true);
+      successTimerRef.current = setTimeout(() => {
+        if (!mountedRef.current || !isFocusedRef.current) {
+          processingRef.current = false;
+          return;
+        }
+        setSuccess(false);
+        processingRef.current = false;
+      }, SUCCESS_AUTO_DISMISS_MS);
+    }, FLASH_DURATION_MS);
+  }, []);
+
+  // Story 3.9 AC #1: no QR-token comparison, no recordCheckIn() call -- both
+  // are impossible offline anyway (Scope Note #5). Queues the scan locally
+  // and shows the same flash -> success sequence as the online path.
+  const handleOfflineScan = useCallback(async () => {
+    try {
+      const { scannedAt } = await queueOfflineCheckIn();
+
+      if (!mountedRef.current || !isFocusedRef.current) {
+        processingRef.current = false;
+        return;
+      }
+
+      setValidating(false);
+      showSuccessOverlay(scannedAt, true);
+    } catch {
+      if (!mountedRef.current || !isFocusedRef.current) {
+        processingRef.current = false;
+        return;
+      }
+      setValidating(false);
+      setNetworkError(true);
+    }
+  }, [queueOfflineCheckIn, showSuccessOverlay]);
 
   async function handleBarcodeScanned(result: BarcodeScanningResult) {
     // Guards against expo-camera re-firing onBarcodeScanned repeatedly for
@@ -159,6 +213,11 @@ export default function CheckInScreen() {
     if (processingRef.current) return;
     processingRef.current = true;
     setValidating(true);
+
+    if (!isConnected) {
+      await handleOfflineScan();
+      return;
+    }
 
     const { matched, error } = await validateGymToken(result.data);
 
@@ -172,6 +231,13 @@ export default function CheckInScreen() {
     }
 
     if (error) {
+      // The connectivity flag may not have caught up yet by the time this
+      // request failed -- fall through to the offline path rather than
+      // showing the generic network-error overlay.
+      if (!isConnected) {
+        await handleOfflineScan();
+        return;
+      }
       setValidating(false);
       setNetworkError(true);
       return;
@@ -193,12 +259,17 @@ export default function CheckInScreen() {
       return;
     }
 
-    setValidating(false);
-
     if (checkInResult.status === 'error') {
+      if (!isConnected) {
+        await handleOfflineScan();
+        return;
+      }
+      setValidating(false);
       setNetworkError(true);
       return;
     }
+
+    setValidating(false);
 
     if (checkInResult.status === 'already_checked_in') {
       setAlreadyCheckedIn(true);
@@ -212,24 +283,7 @@ export default function CheckInScreen() {
 
     // Success: the existing "QR detected" flash first, then the Success
     // overlay, which auto-dismisses back to scanning on its own (MA-10).
-    setFlash(true);
-    flashTimerRef.current = setTimeout(() => {
-      if (!mountedRef.current || !isFocusedRef.current) {
-        processingRef.current = false;
-        return;
-      }
-      setFlash(false);
-      setSuccessCheckedInAt(checkInResult.checkedInAt ?? null);
-      setSuccess(true);
-      successTimerRef.current = setTimeout(() => {
-        if (!mountedRef.current || !isFocusedRef.current) {
-          processingRef.current = false;
-          return;
-        }
-        setSuccess(false);
-        processingRef.current = false;
-      }, SUCCESS_AUTO_DISMISS_MS);
-    }, FLASH_DURATION_MS);
+    showSuccessOverlay(checkInResult.checkedInAt ?? null, false);
   }
 
   function handleClose() {
@@ -305,7 +359,9 @@ export default function CheckInScreen() {
               </ThemedText>
               {successCheckedInAt && (
                 <ThemedText type="default" style={styles.centeredText}>
-                  {formatCheckInTime(successCheckedInAt, i18n.language)}
+                  {successOffline
+                    ? t('checkin.checkedInSyncing', { time: formatCheckInTime(successCheckedInAt, i18n.language) })
+                    : formatCheckInTime(successCheckedInAt, i18n.language)}
                 </ThemedText>
               )}
             </View>

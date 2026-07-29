@@ -48,7 +48,8 @@
         {
           "cameraPermission": "GymOS needs camera access to scan your gym's check-in QR code."
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,
