@@ -112,5 +112,34 @@
     "checkedIn": "Checked in",
     "alreadyCheckedInTitle": "Already checked in",
     "alreadyCheckedInBody": "You're already checked in.\nSee front desk if you need help."
+  },
+  "home": {
+    "welcomeBack": "Welcome back, {{name}}",
+    "welcomeBackNoName": "Welcome back",
+    "status": {
+      "active": "Active",
+      "expiringSoon": "Expiring soon",
+      "gracePeriod": "Grace period",
+      "expired": "Membership expired",
+      "noPlan": "No active plan"
+    },
+    "expiresOn": "Expires {{date}}",
+    "gracePeriodNote": "Expires {{date}} — you can still check in",
+    "expiredNote": "See front desk to renew",
+    "noPlanNote": "Contact your gym",
+    "checkIn": "Check In",
+    "seeFrontDesk": "See front desk",
+    "seeFrontDeskTitle": "Membership expired",
+    "seeFrontDeskBody": "Your membership has expired. Please see the front desk to renew before checking in.",
+    "viewPlan": "View Plan",
+    "recentActivity": "Recent Activity",
+    "recentActivityEmpty": "No activity yet — check in for the first time!",
+    "checkedIn": "Checked in",
+    "occupancy": {
+      "low": "Not busy",
+      "medium": "Moderately busy",
+      "busy": "Busy"
+    },
+    "errorLoadFailed": "Couldn't load your data. Check your connection and try again."
   }
 }

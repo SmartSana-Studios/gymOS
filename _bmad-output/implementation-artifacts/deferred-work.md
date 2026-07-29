@@ -1,5 +1,14 @@
 # Deferred Work
 
+## Deferred from: code review of story-3-7-member-app-home-screen-status-display (2026-07-29)
+
+- `gyms` query has no explicit `.eq('id', ...)` scoping filter, relying entirely on RLS + `.single()` [apps/mobile/src/app/(tabs)/index.tsx loadHome] — identical pattern already used by `apps/mobile/src/app/(tabs)/profile.tsx:78` (Story 2.8); not introduced by this story.
+- `isSubscriptionRow`'s `plans` shape check (`typeof === 'object'`) would also pass for an array [apps/mobile/src/app/(tabs)/index.tsx isSubscriptionRow] — copied verbatim from `onboarding/plan.tsx`'s existing `isSubscriptionRow`, not introduced by this story.
+- No unmount/cancellation guard on the async `loadHome` load [apps/mobile/src/app/(tabs)/index.tsx loadHome] — no screen in this codebase guards against this either.
+- Silent, unlogged failure paths in `getRecentCheckIns`/`getOccupancyBand` [apps/mobile/src/services/checkin.ts, apps/mobile/src/services/occupancy.ts] — matches the spec's own best-effort/non-blocking design (Scope Note #2) and no logging/telemetry convention exists anywhere else in this app.
+- New `create policy "member_read_own_attendance_events"` migration has no `drop policy if exists` guard or down-migration [supabase/migrations/0026_member_app_home_screen_status_display.sql] — matches every other migration in this repo (verified: none use `drop policy if exists`).
+- No `onError` fallback for broken/expired gym-logo or avatar image URLs [apps/mobile/src/app/(tabs)/index.tsx header render] — no existing screen handles this either.
+
 ## Deferred from: code review of story-3-6-occupancy-display-admin-attendance-page (2026-07-28)
 
 - `escapeIlike()` (`apps/dashboard/services/attendance.ts`) doesn't escape PostgREST composite-filter metacharacters (comma/parens) in the Daily Log's member-name search. Copied verbatim from `members.ts`'s own `escapeIlike` — if this is actually exploitable, it predates this story and affects the Members search box too, not something introduced here.

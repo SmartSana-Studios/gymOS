@@ -25,6 +25,38 @@ export async function validateGymToken(token: string): Promise<ValidateGymTokenR
   }
 }
 
+export interface RecentCheckIn {
+  id: string;
+  checkedInAt: string;
+  checkedOutAt: string | null;
+}
+
+/** Home screen's "recent activity" feed (Story 3.7 AC #3). Takes the
+ * caller's own `members.id`, already resolved once by the caller (Home
+ * screen's `loadHome`), rather than re-resolving it here -- avoids a second,
+ * redundant round-trip to `members` for data the caller already has.
+ * Selects the last `limit` `attendance_events` rows via the new
+ * `member_read_own_attendance_events` RLS policy (0026 migration, Scope Note
+ * #1) -- no SECURITY DEFINER RPC needed for a plain scoped read. Returns an
+ * empty array on any failure: this is a best-effort, non-blocking feed, not
+ * a load-blocking one. */
+export async function getRecentCheckIns(memberId: string, limit: number): Promise<RecentCheckIn[]> {
+  try {
+    const { data, error } = await supabase
+      .from('attendance_events')
+      .select('id, checked_in_at, checked_out_at')
+      .eq('member_id', memberId)
+      .order('checked_in_at', { ascending: false })
+      .limit(limit);
+
+    if (error || !data) return [];
+
+    return data.map((row) => ({ id: row.id, checkedInAt: row.checked_in_at, checkedOutAt: row.checked_out_at }));
+  } catch {
+    return [];
+  }
+}
+
 export interface RecordCheckInResult {
   status: 'success' | 'already_checked_in' | 'error';
   checkedInAt?: string;

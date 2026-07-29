@@ -136,10 +136,14 @@ select is(
 );
 
 -- ============================================================================
--- (d) A member-claim session sees 0 rows on attendance_events directly --
--- deny-all still holds for member (only owner/manager/receptionist got a
--- policy this story), backstopping member_occupancy_band()'s "never expose
--- the raw count" requirement at the DB layer, not just the app layer.
+-- (d) A member-claim session sees only its own attendance_events rows
+-- directly -- as of Story 3.7 (0026_member_app_home_screen_status_display.sql),
+-- member_read_own_attendance_events grants a member session read access to
+-- its own rows (for the Home screen's "recent activity" feed), but never
+-- another member's or the gym's aggregate rows. member_occupancy_band()'s
+-- "never expose the raw checked-in count/capacity" guarantee (Scope Note #2
+-- there) is unaffected -- that guarantee is about the function's own return
+-- shape, not about attendance_events row visibility in general.
 -- ============================================================================
 set local role authenticated;
 select set_config(
@@ -150,8 +154,8 @@ select set_config(
 
 select is(
   (select count(*)::int from attendance_events where gym_id = '00000000-0000-0000-0000-000000009011'),
-  0,
-  'a member-claim session sees 0 rows on attendance_events directly -- deny-all, the band function is the only channel'
+  2,
+  'a member-claim session sees exactly its own 2 seeded attendance_events rows -- member_read_own_attendance_events (Story 3.7), not the pure deny-all it was before this story'
 );
 
 -- ============================================================================

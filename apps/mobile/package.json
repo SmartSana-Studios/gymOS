@@ -6,6 +6,7 @@
     "@expo/ui": "~57.0.7",
     "@gymos/types": "workspace:*",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-vector-icons/material-icons": "^13.1.2",
     "@supabase/supabase-js": "^2.110.7",
     "expo": "~57.0.7",
     "expo-camera": "~57.0.3",

@@ -112,5 +112,34 @@
     "checkedIn": "Enregistré",
     "alreadyCheckedInTitle": "Déjà enregistré",
     "alreadyCheckedInBody": "Vous êtes déjà enregistré.\nContactez l'accueil si vous avez besoin d'aide."
+  },
+  "home": {
+    "welcomeBack": "Content de vous revoir, {{name}}",
+    "welcomeBackNoName": "Content de vous revoir",
+    "status": {
+      "active": "Actif",
+      "expiringSoon": "Expire bientôt",
+      "gracePeriod": "Période de grâce",
+      "expired": "Adhésion expirée",
+      "noPlan": "Aucun forfait actif"
+    },
+    "expiresOn": "Expire le {{date}}",
+    "gracePeriodNote": "Expire le {{date}} — vous pouvez encore vous enregistrer",
+    "expiredNote": "Voir l'accueil pour renouveler",
+    "noPlanNote": "Contactez votre salle",
+    "checkIn": "Enregistrement",
+    "seeFrontDesk": "Voir l'accueil",
+    "seeFrontDeskTitle": "Adhésion expirée",
+    "seeFrontDeskBody": "Votre adhésion a expiré. Veuillez voir l'accueil pour renouveler avant de vous enregistrer.",
+    "viewPlan": "Voir le forfait",
+    "recentActivity": "Activité récente",
+    "recentActivityEmpty": "Aucune activité pour le moment — enregistrez-vous pour la première fois !",
+    "checkedIn": "Enregistré",
+    "occupancy": {
+      "low": "Peu fréquenté",
+      "medium": "Moyennement fréquenté",
+      "busy": "Fréquenté"
+    },
+    "errorLoadFailed": "Impossible de charger vos données. Vérifiez votre connexion et réessayez."
   }
 }

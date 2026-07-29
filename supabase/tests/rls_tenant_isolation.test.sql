@@ -18,7 +18,12 @@
 -- self_read_own_membership policy from Story 1.8) and `subscriptions`' own
 -- gym_staff_read_own_subscriptions policy (staff-gated plus a self-access
 -- `exists` clause for the caller's own subscription -- see the updated
--- `subscriptions` assertion below -- this table is no longer pure deny-all).
+-- `subscriptions` assertion below -- this table is no longer pure deny-all),
+-- and as of Story 3.7 (0026_member_app_home_screen_status_display.sql),
+-- `attendance_events`' member_read_own_attendance_events policy (same
+-- self-access `exists`-clause shape as subscriptions' -- see the updated
+-- `attendance_events` assertion below -- also no longer pure deny-all for a
+-- member-role session, alongside 0025's pre-existing staff-only policy).
 -- This asserts that an authenticated session with a VALID, correctly-scoped gym_id
 -- claim still sees 0 rows everywhere else -- proving "even before any feature-specific
 -- policy exists" (this story's own Story statement) holds for every table, not just
@@ -74,7 +79,7 @@ select is((select count(*) from members)::int, 1, 'members: exactly 1 row -- thi
 select is((select count(*) from plans)::int, 1, 'plans: exactly 1 row -- their own gym''s plan (gym_staff_read_own_plans, Story 2.2), not the pure deny-all of every other table here');
 select is((select count(*) from subscriptions)::int, 1, 'subscriptions: exactly 1 row -- their own subscription via gym_staff_read_own_subscriptions'' self-access exists-clause (Story 2.3), not the pure deny-all it was before this story -- the staff-gated half of that policy does not apply to this member-role session');
 select is((select count(*) from payments)::int, 0, 'payments: 0 rows, no business policy yet');
-select is((select count(*) from attendance_events)::int, 0, 'attendance_events: 0 rows, no business policy yet');
+select is((select count(*) from attendance_events)::int, 1, 'attendance_events: exactly 1 row -- their own check-in via member_read_own_attendance_events'' self-access exists-clause (Story 3.7), not the pure deny-all it was before this story -- the staff-gated 0025 policy does not additionally apply to this member-role session');
 select is((select count(*) from job_runs)::int, 0, 'job_runs: 0 rows, no business policy yet');
 
 -- gyms is the one exception (its canary policy): the user's own gym IS visible here,
