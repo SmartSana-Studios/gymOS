@@ -2,7 +2,8 @@
   "nav": {
     "brand": "GymOS Super Admin",
     "metrics": "Statistiques",
-    "tiers": "Paliers"
+    "tiers": "Paliers",
+    "paymentProviders": "Fournisseurs de paiement"
   },
   "auth": {
     "description": "Saisissez votre e-mail ci-dessous pour vous connecter à votre compte",
@@ -167,6 +168,18 @@
       "capOrderingViolatesPrev": "Le plafond de membres doit être au moins aussi élevé que celui de chaque palier moins cher (ou illimité).",
       "capOrderingViolatesNext": "Le plafond de membres ne doit pas dépasser celui d'un palier plus cher (sauf si ce palier est également illimité)."
     }
+  },
+  "paymentProviders": {
+    "title": "Fournisseurs de paiement",
+    "table": {
+      "provider": "Fournisseur",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "statusActive": "Actif",
+    "statusInactive": "Inactif",
+    "activate": "Activer",
+    "activating": "Activation…"
   },
   "metrics": {
     "title": "Statistiques de la plateforme",

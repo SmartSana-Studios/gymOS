@@ -320,5 +320,71 @@
       "next": "Page suivante",
       "ellipsis": "…"
     }
+  },
+  "payments": {
+    "title": "Paiements",
+    "recordPaymentButton": "+ Enregistrer un paiement",
+    "emptyQueue": "Aucun paiement enregistré pour le moment.",
+    "table": {
+      "member": "Membre",
+      "amount": "Montant",
+      "method": "Méthode",
+      "submittedBy": "Soumis par",
+      "reason": "Raison",
+      "status": "Statut",
+      "actions": "Actions"
+    },
+    "status": {
+      "pending": "En attente",
+      "verified": "Vérifié",
+      "flagged": "Signalé"
+    },
+    "methods": {
+      "cash": "Espèces",
+      "bankTransfer": "Virement bancaire",
+      "manualMomo": "Mobile Money manuel"
+    },
+    "verifyButton": "Vérifier",
+    "flagButton": "Signaler",
+    "modal": {
+      "title": "Enregistrer un paiement",
+      "close": "Fermer",
+      "member": "Membre *",
+      "memberPlaceholder": "Rechercher par nom ou téléphone",
+      "method": "Mode de paiement *",
+      "methodOptions": {
+        "cash": "Espèces",
+        "bankTransfer": "Virement bancaire",
+        "manualMomo": "Mobile Money manuel"
+      },
+      "amount": "Montant (XAF) *",
+      "reason": "Raison / Note *",
+      "reasonCount": "{{count}} / min 10",
+      "recordedBy": "Enregistré par",
+      "recordButton": "Enregistrer le paiement",
+      "recording": "Enregistrement…",
+      "errors": {
+        "memberRequired": "Sélectionnez un membre",
+        "amountInvalid": "Saisissez un montant valide",
+        "reasonInvalid": "Ajoutez une note (au moins 10 caractères)"
+      }
+    },
+    "verifyDialog": {
+      "title": "Vérifier ce paiement de {{amount}} XAF de {{name}} ?",
+      "confirmButton": "Vérifier",
+      "verifying": "Vérification…"
+    },
+    "flagDialog": {
+      "title": "Signaler ce paiement de {{amount}} XAF de {{name}} pour examen ?",
+      "reason": "Raison *",
+      "confirmButton": "Signaler pour examen",
+      "flagging": "Signalement…"
+    },
+    "errors": {
+      "paymentNotFound": "Paiement introuvable",
+      "auditLogFailedRecord": "Le paiement a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "auditLogFailedVerify": "Le paiement a été vérifié, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "auditLogFailedFlag": "Le paiement a été signalé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
+    }
   }
 }

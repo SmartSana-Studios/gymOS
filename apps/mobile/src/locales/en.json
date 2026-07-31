@@ -146,5 +146,49 @@
     },
     "errorLoadFailed": "Couldn't load your data. Check your connection and try again.",
     "offlineSyncPending": "Offline check-in pending sync…"
+  },
+  "history": {
+    "title": "History",
+    "viewPlan": "View Plan",
+    "tabPayments": "Payments",
+    "tabCheckins": "Check-ins",
+    "payments": {
+      "empty": "No payments on record yet."
+    },
+    "checkins": {
+      "empty": "No check-ins yet. Scan the QR at your gym to get started.",
+      "checkInButton": "Check In",
+      "durationFormat": "{{hours}}h {{minutes}}m",
+      "errorLoadFailed": "Couldn't load your check-ins. Check your connection and try again."
+    }
+  },
+  "plan": {
+    "title": "Plan Details",
+    "type": {
+      "payPerSession": "Pay-per-session",
+      "monthly": "Monthly",
+      "coachInclusive": "Coach-inclusive",
+      "classOnly": "Class-only"
+    },
+    "access": {
+      "payPerSession": "Member pays per visit; no fixed expiry",
+      "monthly": "Fixed-fee plan with a defined expiry date",
+      "coachInclusive": "Monthly plan that includes scheduled sessions with an assigned coach",
+      "classOnly": "Access to scheduled classes only; no general floor access"
+    },
+    "priceLabel": "Price",
+    "durationLabel": "Duration",
+    "durationDays_one": "{{count}} day",
+    "durationDays_other": "{{count}} days",
+    "noFixedDuration": "No fixed duration",
+    "activeFromLabel": "Active from",
+    "expiryLabel": "Expires",
+    "noExpiry": "No expiry",
+    "billingLabel": "Billing",
+    "billingMonthly": "Monthly",
+    "billingAnnual": "Annual",
+    "accessLabel": "Access",
+    "errorLoadFailed": "Couldn't load your plan. Check your connection and try again.",
+    "errorNoSubscription": "No plan on record yet. Contact your gym."
   }
 }

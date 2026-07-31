@@ -146,5 +146,49 @@
     },
     "errorLoadFailed": "Impossible de charger vos données. Vérifiez votre connexion et réessayez.",
     "offlineSyncPending": "Enregistrement hors ligne en attente de synchronisation…"
+  },
+  "history": {
+    "title": "Historique",
+    "viewPlan": "Voir le forfait",
+    "tabPayments": "Paiements",
+    "tabCheckins": "Enregistrements",
+    "payments": {
+      "empty": "Aucun paiement enregistré pour le moment."
+    },
+    "checkins": {
+      "empty": "Aucun enregistrement pour le moment. Scannez le QR code de votre salle pour commencer.",
+      "checkInButton": "Enregistrement",
+      "durationFormat": "{{hours}} h {{minutes}} min",
+      "errorLoadFailed": "Impossible de charger vos enregistrements. Vérifiez votre connexion et réessayez."
+    }
+  },
+  "plan": {
+    "title": "Détails du forfait",
+    "type": {
+      "payPerSession": "Paiement à la séance",
+      "monthly": "Mensuel",
+      "coachInclusive": "Coaching inclus",
+      "classOnly": "Cours uniquement"
+    },
+    "access": {
+      "payPerSession": "Le membre paie à la visite ; aucune expiration fixe",
+      "monthly": "Formule à prix fixe avec une date d'expiration définie",
+      "coachInclusive": "Formule mensuelle incluant des séances programmées avec un coach assigné",
+      "classOnly": "Accès aux cours programmés uniquement ; pas d'accès général à la salle"
+    },
+    "priceLabel": "Prix",
+    "durationLabel": "Durée",
+    "durationDays_one": "{{count}} jour",
+    "durationDays_other": "{{count}} jours",
+    "noFixedDuration": "Pas de durée fixe",
+    "activeFromLabel": "Actif depuis",
+    "expiryLabel": "Expire",
+    "noExpiry": "Pas d'expiration",
+    "billingLabel": "Facturation",
+    "billingMonthly": "Mensuelle",
+    "billingAnnual": "Annuelle",
+    "accessLabel": "Accès",
+    "errorLoadFailed": "Impossible de charger votre forfait. Vérifiez votre connexion et réessayez.",
+    "errorNoSubscription": "Aucun forfait enregistré pour le moment. Contactez votre salle."
   }
 }

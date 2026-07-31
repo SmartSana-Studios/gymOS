@@ -9,20 +9,19 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Brand } from '@/constants/brand';
 import { BottomTabInset, Spacing } from '@/constants/theme';
+import {
+  isSubscriptionStatus,
+  STATUS_COLORS,
+  statusLabelKey,
+  type BadgeStatus,
+  type SubscriptionStatus,
+} from '@/constants/subscription-status';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import { getRecentCheckIns, type RecentCheckIn } from '@/services/checkin';
 import { getOccupancyBand, type OccupancyBand } from '@/services/occupancy';
 import { supabase } from '@/lib/supabase';
 
 const RECENT_CHECK_INS_LIMIT = 3;
-
-type SubscriptionStatus = 'active' | 'expiring_soon' | 'grace_period' | 'expired';
-type BadgeStatus = SubscriptionStatus | 'no_plan';
-
-const SUBSCRIPTION_STATUSES: readonly SubscriptionStatus[] = ['active', 'expiring_soon', 'grace_period', 'expired'];
-function isSubscriptionStatus(value: string): value is SubscriptionStatus {
-  return (SUBSCRIPTION_STATUSES as readonly string[]).includes(value);
-}
 
 // Narrows the untyped embedded-select response, same discipline as
 // onboarding/plan.tsx's `isSubscriptionRow` / (tabs)/profile.tsx's
@@ -55,18 +54,6 @@ function formatDateOnly(value: string, locale: string): string {
 function formatCheckInTimestamp(value: string, locale: string): string {
   return new Date(value).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
 }
-
-// Meaning matches the dashboard's existing green/orange/red/gray badge
-// families (attendanceLabels.ts's STATUS_BADGE_CONFIG) -- not identical hex
-// values, since no cross-app design-token doc mandates parity for mobile
-// (Story 3.7 Scope Note #4).
-const STATUS_COLORS: Record<BadgeStatus, { bg: string; border: string; text: string }> = {
-  active: { bg: '#DCFCE7', border: '#BBF7D0', text: '#166534' },
-  expiring_soon: { bg: '#FFEDD5', border: '#FED7AA', text: '#9A3412' },
-  grace_period: { bg: '#FFEDD5', border: '#FED7AA', text: '#9A3412' },
-  expired: { bg: '#FEE2E2', border: '#FECACA', text: '#991B1B' },
-  no_plan: { bg: '#F3F4F6', border: '#E5E7EB', text: '#374151' },
-};
 
 const OCCUPANCY_COLORS: Record<OccupancyBand, { bg: string; text: string }> = {
   low: { bg: '#DCFCE7', text: '#166534' },
@@ -216,14 +203,6 @@ export default function HomeScreen() {
   const statusColors = STATUS_COLORS[badgeStatus];
   const expiryLabel = expiryDate ? formatDateOnly(expiryDate, i18n.language) : null;
 
-  const statusLabelKey: Record<BadgeStatus, string> = {
-    active: 'home.status.active',
-    expiring_soon: 'home.status.expiringSoon',
-    grace_period: 'home.status.gracePeriod',
-    expired: 'home.status.expired',
-    no_plan: 'home.status.noPlan',
-  };
-
   let statusNote: string | null = null;
   if (badgeStatus === 'no_plan') {
     statusNote = t('home.noPlanNote');
@@ -235,11 +214,9 @@ export default function HomeScreen() {
     statusNote = t('home.expiresOn', { date: expiryLabel });
   }
 
-  // Story 3.10 ("Member App -- Plan Details & Check-In History") wires real
-  // navigation for the status card, "View Plan", and recent-activity rows
-  // -- neither MA-13 (Plan Details) nor the History screen exists yet
-  // (Story 3.7 Scope Note #5), so these are documented no-ops today.
-  function handleViewPlan() {}
+  function handleViewPlan() {
+    router.push('/plan');
+  }
 
   function handleSeeFrontDesk() {
     Alert.alert(t('home.seeFrontDeskTitle'), t('home.seeFrontDeskBody'), [{ text: t('common.ok') }]);
@@ -355,12 +332,16 @@ export default function HomeScreen() {
                   </ThemedText>
                 ) : (
                   recentCheckIns.map((event) => (
-                    <View key={event.id} style={styles.activityRow}>
+                    <Pressable
+                      key={event.id}
+                      accessibilityRole="button"
+                      onPress={() => router.push('/history')}
+                      style={styles.activityRow}>
                       <ThemedText type="small">{t('home.checkedIn')}</ThemedText>
                       <ThemedText type="small" themeColor="textSecondary">
                         {formatCheckInTimestamp(event.checkedInAt, i18n.language)}
                       </ThemedText>
-                    </View>
+                    </Pressable>
                   ))
                 )}
               </View>

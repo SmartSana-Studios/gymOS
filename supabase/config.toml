@@ -302,6 +302,14 @@ secrets = "env(SEND_SMS_HOOK_SECRET)"
 enabled = true
 verify_jwt = false
 
+# verify_jwt = false: this function is invoked directly by a payment gateway's (e.g. TaraMoney's) own webhook
+# call, authenticated via that gateway's own signature scheme (not a Supabase JWT) — the default
+# verify_jwt = true would reject the webhook call with a 401 before our own signature check in index.ts ever
+# runs. Story 4.1: generic name, deviates from architecture.md's `notch-pay-webhook` — see docs/decisions.md.
+[functions.payment-webhook]
+enabled = true
+verify_jwt = false
+
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]
 # Story 2.1: enabled purely to satisfy the CLI's "a provider must be enabled to keep phone login on" check.

@@ -320,5 +320,71 @@
       "next": "Next page",
       "ellipsis": "…"
     }
+  },
+  "payments": {
+    "title": "Payments",
+    "recordPaymentButton": "+ Record Payment",
+    "emptyQueue": "No payments recorded yet.",
+    "table": {
+      "member": "Member",
+      "amount": "Amount",
+      "method": "Method",
+      "submittedBy": "Submitted By",
+      "reason": "Reason",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "status": {
+      "pending": "Pending",
+      "verified": "Verified",
+      "flagged": "Flagged"
+    },
+    "methods": {
+      "cash": "Cash",
+      "bankTransfer": "Bank Transfer",
+      "manualMomo": "Manual Mobile Money"
+    },
+    "verifyButton": "Verify",
+    "flagButton": "Flag",
+    "modal": {
+      "title": "Record Payment",
+      "close": "Close",
+      "member": "Member *",
+      "memberPlaceholder": "Search by name or phone",
+      "method": "Payment Method *",
+      "methodOptions": {
+        "cash": "Cash",
+        "bankTransfer": "Bank Transfer",
+        "manualMomo": "Manual Mobile Money"
+      },
+      "amount": "Amount (XAF) *",
+      "reason": "Reason / Note *",
+      "reasonCount": "{{count}} / min 10",
+      "recordedBy": "Recorded By",
+      "recordButton": "Record Payment",
+      "recording": "Recording…",
+      "errors": {
+        "memberRequired": "Select a member",
+        "amountInvalid": "Enter a valid amount",
+        "reasonInvalid": "Add a note (at least 10 characters)"
+      }
+    },
+    "verifyDialog": {
+      "title": "Verify this {{amount}} XAF payment from {{name}}?",
+      "confirmButton": "Verify",
+      "verifying": "Verifying…"
+    },
+    "flagDialog": {
+      "title": "Flag this {{amount}} XAF payment from {{name}} for review?",
+      "reason": "Reason *",
+      "confirmButton": "Flag for Review",
+      "flagging": "Flagging…"
+    },
+    "errors": {
+      "paymentNotFound": "Payment not found",
+      "auditLogFailedRecord": "The payment was recorded, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedVerify": "The payment was verified, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedFlag": "The payment was flagged, but the audit log entry failed to write. Please contact support."
+    }
   }
 }

@@ -7,5 +7,7 @@ export * from "./schemas/csvImport";
 export * from "./schemas/memberOnboarding";
 export * from "./schemas/auth";
 export * from "./schemas/locale";
+export * from "./schemas/paymentProvider";
+export * from "./schemas/payment";
 export * from "./errors";
 

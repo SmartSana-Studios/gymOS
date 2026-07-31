@@ -315,6 +315,30 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_providers: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          is_active: boolean
+          provider_key: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id?: string
+          is_active?: boolean
+          provider_key: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          provider_key?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           actor_id: string | null
@@ -325,6 +349,8 @@ export type Database = {
           id: string
           member_id: string
           method: Database["public"]["Enums"]["payment_method"]
+          provider: string | null
+          provider_fee_amount: number | null
           provider_transaction_ref: string | null
           reason: string | null
           status: Database["public"]["Enums"]["payment_status"]
@@ -339,6 +365,8 @@ export type Database = {
           id?: string
           member_id: string
           method: Database["public"]["Enums"]["payment_method"]
+          provider?: string | null
+          provider_fee_amount?: number | null
           provider_transaction_ref?: string | null
           reason?: string | null
           status: Database["public"]["Enums"]["payment_status"]
@@ -353,6 +381,8 @@ export type Database = {
           id?: string
           member_id?: string
           method?: Database["public"]["Enums"]["payment_method"]
+          provider?: string | null
+          provider_fee_amount?: number | null
           provider_transaction_ref?: string | null
           reason?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
@@ -379,6 +409,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_provider_fkey"
+            columns: ["provider"]
+            isOneToOne: false
+            referencedRelation: "payment_providers"
+            referencedColumns: ["provider_key"]
           },
           {
             foreignKeyName: "payments_subscription_id_fkey"
@@ -556,6 +593,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_payment_provider: {
+        Args: { p_provider_key: string }
+        Returns: undefined
+      }
+      active_payment_provider: { Args: never; Returns: string }
       caller_has_membership: { Args: never; Returns: boolean }
       check_in: {
         Args: { p_client_scan_id?: string; p_scanned_at?: string }
@@ -620,6 +662,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      complete_verified_payment: {
+        Args: { p_fee_amount: number; p_payment_id: string }
+        Returns: string
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       gym_effective_member_cap: { Args: never; Returns: number }

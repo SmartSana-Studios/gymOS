@@ -62,6 +62,9 @@ async function AdminLayoutData({
         <Link href="/tiers" className="text-sm text-muted-foreground hover:text-foreground">
           {t("nav.tiers")}
         </Link>
+        <Link href="/payment-providers" className="text-sm text-muted-foreground hover:text-foreground">
+          {t("nav.paymentProviders")}
+        </Link>
         <LanguageToggle />
       </nav>
       <main className="flex-1 p-5">{children}</main>
