@@ -42,6 +42,7 @@ export type MemberRole = "member" | "coach" | "receptionist" | "manager" | "owne
 const STAFF_ROLES: readonly MemberRole[] = ["receptionist", "manager", "owner", "coach"];
 
 export interface DashboardShellContext {
+  gymId: string;
   gymName: string;
   memberName: string;
   role: MemberRole;
@@ -148,6 +149,7 @@ export async function getDashboardShellContext(): Promise<{
 
   return {
     data: {
+      gymId,
       gymName: gymResult.data.name,
       memberName,
       role,

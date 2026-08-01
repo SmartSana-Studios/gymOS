@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { listPendingPayments } from "@/services/payments";
+import { listPendingPayments, listPaymentDiscrepancies } from "@/services/payments";
 import { getDashboardShellContext } from "@/services/session";
 import { PaymentsPageClient } from "./components/PaymentsPageClient";
 import PaymentsLoading from "./loading";
@@ -27,15 +27,30 @@ export default function PaymentsPage() {
 }
 
 async function PaymentsData() {
-  const [{ data: pendingPayments, error: pendingError }, { data: shell, error: shellError }] = await Promise.all([
-    listPendingPayments(),
-    getDashboardShellContext(),
-  ]);
+  const [
+    { data: pendingPayments, error: pendingError },
+    { data: discrepancies, error: discrepanciesError },
+    { data: shell, error: shellError },
+  ] = await Promise.all([listPendingPayments(), listPaymentDiscrepancies(), getDashboardShellContext()]);
 
   if (pendingError || shellError || !shell) {
     const { t } = await getServerTranslation(await getRequestLocale());
     return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
   }
 
-  return <PaymentsPageClient pendingPayments={pendingPayments ?? []} recordedByName={shell.memberName} />;
+  // A Discrepancies-only failure degrades to an empty section rather than
+  // blanking the whole page -- the Pending Payments verification queue above
+  // it is the business-critical part and must keep rendering regardless.
+  if (discrepanciesError) {
+    console.error(`PaymentsData: listPaymentDiscrepancies failed -- ${discrepanciesError.message}`);
+  }
+
+  return (
+    <PaymentsPageClient
+      pendingPayments={pendingPayments ?? []}
+      discrepancies={discrepanciesError ? [] : (discrepancies ?? [])}
+      recordedByName={shell.memberName}
+      role={shell.role}
+    />
+  );
 }

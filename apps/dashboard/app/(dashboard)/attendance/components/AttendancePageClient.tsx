@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { AttendanceLogRow, CurrentlyCheckedInRow } from "@/services/attendance";
+import type { FrontDeskAlertRow } from "@/services/frontDeskAlerts";
+import { FrontDeskAlertPanel } from "@/components/shared/FrontDeskAlertPanel";
 import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../attendanceLabels";
 import { CheckOutMemberConfirmDialog } from "./CheckOutMemberConfirmDialog";
 
@@ -51,6 +53,9 @@ export function AttendancePageClient({
   from,
   to,
   memberSearch,
+  gymId,
+  initialAlerts,
+  autoDismissMinutes,
 }: {
   currentlyCheckedIn: CurrentlyCheckedInRow[];
   checkedInTotal: number;
@@ -64,6 +69,9 @@ export function AttendancePageClient({
   from: string;
   to: string;
   memberSearch: string;
+  gymId: string;
+  initialAlerts: FrontDeskAlertRow[];
+  autoDismissMinutes: number;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -171,6 +179,8 @@ export function AttendancePageClient({
 
   return (
     <div className="space-y-8">
+      <FrontDeskAlertPanel gymId={gymId} initialAlerts={initialAlerts} autoDismissMinutes={autoDismissMinutes} />
+
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-semibold">{t("attendance.title")}</h1>

@@ -9,6 +9,7 @@ import {
   todayUtcDate,
 } from "@/services/attendance";
 import { getDashboardShellContext } from "@/services/session";
+import { listActiveFrontDeskAlerts } from "@/services/frontDeskAlerts";
 import { AttendancePageClient } from "./components/AttendancePageClient";
 import AttendanceLoading from "./loading";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -62,11 +63,13 @@ async function AttendanceData({ searchParams }: { searchParams: AttendanceSearch
     { count: todayCount, error: todayCountError },
     { data: logPage, error: logError },
     { data: shell, error: shellError },
+    { data: alertsData },
   ] = await Promise.all([
     getCurrentlyCheckedIn({ page: checkedInPage }),
     getTodayAttendanceCount(),
     listAttendanceLog({ page, from, to, memberSearch: params.memberSearch }),
     getDashboardShellContext(),
+    listActiveFrontDeskAlerts(),
   ]);
 
   if (checkedInError || todayCountError || logError || shellError || !shell) {
@@ -88,6 +91,9 @@ async function AttendanceData({ searchParams }: { searchParams: AttendanceSearch
       from={from}
       to={to}
       memberSearch={params.memberSearch ?? ""}
+      gymId={shell.gymId}
+      initialAlerts={alertsData?.alerts ?? []}
+      autoDismissMinutes={alertsData?.autoDismissMinutes ?? 30}
     />
   );
 }

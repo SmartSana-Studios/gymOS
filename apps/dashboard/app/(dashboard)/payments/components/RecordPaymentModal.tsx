@@ -165,7 +165,7 @@ export function RecordPaymentModal({
       onCancel={(e) => {
         if (submitting) e.preventDefault();
       }}
-      className="w-full max-w-[480px] rounded-md border p-0 backdrop:bg-black/50"
+      className="w-full max-w-[480px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
     >
       <form onSubmit={handleSubmit} className="space-y-4 p-6">
         <div className="flex items-center justify-between">

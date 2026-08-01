@@ -70,7 +70,11 @@ export interface RecordCheckInResult {
  * a SECURITY DEFINER function, not a raw INSERT, since the "is there an open
  * session, is it stale, insert" sequence must be atomic. Story 3.4 Scope
  * Note #3. Story 3.8 adds the 'expired' outcome (0027's subscription-status
- * guard, AC #3). */
+ * guard, AC #3). Story 4.6: check_in() no longer throws for the expired/
+ * no-subscription case (a `raise exception` there would roll back the
+ * front-desk alert row it needs to insert in the same transaction) -- it
+ * returns a clean `{ data: null, error: null }` instead, so that outcome is
+ * now detected via a null `data`, not a thrown error's message text. */
 export async function recordCheckIn(): Promise<RecordCheckInResult> {
   try {
     const { data, error } = await supabase.rpc('check_in');
@@ -81,9 +85,9 @@ export async function recordCheckIn(): Promise<RecordCheckInResult> {
       if (error.code === '23505' && error.message?.includes('idx_attendance_events_one_open_per_member')) {
         return { status: 'already_checked_in' };
       }
-      if (error.message?.includes('subscription is expired')) return { status: 'expired' };
       return { status: 'error' };
     }
+    if (!data) return { status: 'expired' };
     return { status: 'success', checkedInAt: data.checked_in_at };
   } catch {
     return { status: 'error' };

@@ -216,20 +216,13 @@ export default {
 
     const event = verification.event;
 
-    if (event.status !== "verified") {
-      // A FAILURE/flagged delivery has nothing to complete -- payment_status
-      // has no "failed" value (AC #2's initiate-time delete already handles
-      // charges that never started), and calling complete_verified_payment
-      // here would incorrectly mark a failed attempt as verified.
-      console.error(
-        `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} reported status "${event.status}" -- not persisted`,
-      );
-      return jsonResponse(200);
-    }
-
-    // AC #3(a): matched to the pre-existing payments row by
+    // AC #3(a)/Story 4.4 Task 2: matched to the pre-existing payments row by
     // provider_transaction_ref (set at initiate time) -- no new row is ever
-    // inserted by the webhook handler.
+    // inserted by the webhook handler. Moved ahead of the
+    // `event.status !== "verified"` branch (below) so a declined delivery's
+    // matched_payment_id is available to the payment_webhook_events insert
+    // too -- previously a declined delivery never even attempted this
+    // lookup.
     const { data: paymentRow, error: lookupError } = await supabase
       .from("payments")
       .select("id")
@@ -239,6 +232,50 @@ export default {
     if (lookupError) {
       console.error(`payment-webhook: ${providerKey} payments lookup failed — ${lookupError.message}`);
       return jsonResponse(500);
+    }
+
+    // Story 4.4 Task 2: persist one payment_webhook_events row per
+    // signature-verified delivery, matched or not -- the reconciliation
+    // job's only source of truth for AC #1 (an event with no matching
+    // payments row). `ignoreDuplicates` relies on the table's own
+    // (provider_key, provider_transaction_ref) unique index to make a
+    // retried delivery a no-op rather than a second log row. A failure here
+    // is logged but never blocks the completion path below -- reconciliation
+    // -log durability is a nice-to-have, real payment completion is not.
+    const { error: eventLogError } = await supabase
+      .from("payment_webhook_events")
+      .upsert(
+        {
+          provider_key: providerKey,
+          provider_transaction_ref: event.providerTransactionRef,
+          reference: event.reference ?? null,
+          amount: event.amount,
+          currency: event.currency,
+          status: event.status,
+          matched_payment_id: paymentRow?.id ?? null,
+          raw_payload: JSON.parse(payloadText),
+        },
+        { onConflict: "provider_key,provider_transaction_ref", ignoreDuplicates: true },
+      );
+
+    if (eventLogError) {
+      console.error(
+        `payment-webhook: ${providerKey} failed to persist payment_webhook_events row for ${event.providerTransactionRef} — ${eventLogError.message}`,
+      );
+    }
+
+    if (event.status !== "verified") {
+      // A FAILURE/flagged delivery has nothing to complete -- payment_status
+      // has no "failed" value (AC #2's initiate-time delete already handles
+      // charges that never started), and calling complete_verified_payment
+      // here would incorrectly mark a failed attempt as verified. Story
+      // 4.4's reconciliation job structurally catches a payment stranded
+      // `processing` by a declined delivery like this one via its
+      // stale_processing check -- no auto-transition happens here.
+      console.error(
+        `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} reported status "${event.status}" -- no completion action taken`,
+      );
+      return jsonResponse(200);
     }
 
     if (!paymentRow) {

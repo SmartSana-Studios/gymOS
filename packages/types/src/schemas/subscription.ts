@@ -24,3 +24,20 @@ export const renewSubscriptionSchema = z.object({
 });
 
 export type RenewSubscriptionInput = z.infer<typeof renewSubscriptionSchema>;
+
+// Story 4.7: Inline Renewal Panel. Validates
+// apps/dashboard/services/subscriptions.ts's `confirmRenewal()`, which calls
+// the `confirm_renewal()` RPC (0035_inline_renewal_panel.sql). `.extend()`s
+// this file's own renewSubscriptionSchema per that schema's original
+// comment naming this story as its intended consumer -- inherits
+// memberId/reason (5-200 chars) verbatim; a 5-char minimum, not the 10-char
+// minimum recordManualPaymentSchema uses for its note field (an accepted
+// inconsistency from reusing this schema's shape, not a bug). `method` is
+// the same 3-value manual-methods enum as recordManualPaymentSchema -- the
+// renewal panel never offers mtn_momo/orange_money (those are
+// initiatePaymentSchema's automated-only methods).
+export const confirmRenewalSchema = renewSubscriptionSchema.extend({
+  method: z.enum(["cash", "bank_transfer", "manual_momo"]),
+});
+
+export type ConfirmRenewalInput = z.infer<typeof confirmRenewalSchema>;

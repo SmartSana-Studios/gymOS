@@ -69,6 +69,15 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // refunds.payment_id unique constraint (0033_refund_recording.sql, Story
+  // 4.5): a concurrent duplicate-refund race against the same payment.
+  if (pgErrorCode === "23505" && message.includes("refunds_payment_id_key")) {
+    return {
+      code: "payment_already_refunded",
+      message: copy.paymentAlreadyRefunded,
+    };
+  }
+
   // gyms_tier_id_fkey violated by *updating a gym's own* tier_id to point at
   // a tier that no longer exists (e.g. deleted concurrently between page
   // load and submit). Postgres's message reads `insert or update on table
@@ -156,6 +165,36 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     return {
       code: "member_deactivated",
       message: copy.memberDeactivated,
+    };
+  }
+
+  // confirm_renewal()'s raises (0035_inline_renewal_panel.sql, Story 4.7).
+  // Separate check from renew_subscription()'s above -- confirm_renewal's
+  // own raise messages are prefixed "confirm_renewal:", not
+  // "renew_subscription:", so they don't match that block's prefix guard.
+  // The deactivated-member raise above already matches both prefixes (its
+  // guard has no prefix check), so no separate branch is needed for that
+  // case. permission-denied/reason-required stay unmapped here too, same
+  // "unreachable through this story's own role-gated, Zod-validated call
+  // path" rationale as renew_subscription's.
+  if (message.includes("confirm_renewal:") && message.includes("not found")) {
+    return {
+      code: "member_not_found",
+      message: copy.memberNotFound,
+    };
+  }
+
+  // confirm_renewal()'s "no existing subscription to renew" raise -- unlike
+  // permission-denied/reason-required, this one IS reachable through the
+  // normal UI path: RenewalModal's preview (getRenewalPreview) and its
+  // confirm click are two separate round trips, so a subscription that gets
+  // cancelled/removed in the gap between them still reaches this raise.
+  // Mapped explicitly (review finding) instead of falling through to the
+  // generic "unknown" copy.
+  if (message.includes("confirm_renewal:") && message.includes("has no existing subscription to renew")) {
+    return {
+      code: "no_active_subscription",
+      message: copy.noActiveSubscriptionToRenew,
     };
   }
 

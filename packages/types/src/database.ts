@@ -133,6 +133,61 @@ export type Database = {
           },
         ]
       }
+      front_desk_alerts: {
+        Row: {
+          created_at: string
+          dismissed_at: string | null
+          dismissed_by: string | null
+          expiry_date: string | null
+          gym_id: string
+          id: string
+          member_id: string
+          status: Database["public"]["Enums"]["subscription_status"]
+        }
+        Insert: {
+          created_at?: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          expiry_date?: string | null
+          gym_id: string
+          id?: string
+          member_id: string
+          status: Database["public"]["Enums"]["subscription_status"]
+        }
+        Update: {
+          created_at?: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          expiry_date?: string | null
+          gym_id?: string
+          id?: string
+          member_id?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "front_desk_alerts_dismissed_by_fkey"
+            columns: ["dismissed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "front_desk_alerts_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "front_desk_alerts_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gyms: {
         Row: {
           alert_auto_dismiss_minutes: number
@@ -315,6 +370,58 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_discrepancies: {
+        Row: {
+          details: Json
+          detected_at: string
+          discrepancy_type: Database["public"]["Enums"]["payment_discrepancy_type"]
+          gym_id: string | null
+          id: string
+          payment_id: string | null
+          webhook_event_id: string | null
+        }
+        Insert: {
+          details?: Json
+          detected_at?: string
+          discrepancy_type: Database["public"]["Enums"]["payment_discrepancy_type"]
+          gym_id?: string | null
+          id?: string
+          payment_id?: string | null
+          webhook_event_id?: string | null
+        }
+        Update: {
+          details?: Json
+          detected_at?: string
+          discrepancy_type?: Database["public"]["Enums"]["payment_discrepancy_type"]
+          gym_id?: string | null
+          id?: string
+          payment_id?: string | null
+          webhook_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_discrepancies_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_discrepancies_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_discrepancies_webhook_event_id_fkey"
+            columns: ["webhook_event_id"]
+            isOneToOne: false
+            referencedRelation: "payment_webhook_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_providers: {
         Row: {
           created_at: string
@@ -339,6 +446,60 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_webhook_events: {
+        Row: {
+          amount: number
+          currency: string
+          id: string
+          matched_payment_id: string | null
+          provider_key: string
+          provider_transaction_ref: string
+          raw_payload: Json
+          received_at: string
+          reference: string | null
+          status: string
+        }
+        Insert: {
+          amount: number
+          currency: string
+          id?: string
+          matched_payment_id?: string | null
+          provider_key: string
+          provider_transaction_ref: string
+          raw_payload: Json
+          received_at?: string
+          reference?: string | null
+          status: string
+        }
+        Update: {
+          amount?: number
+          currency?: string
+          id?: string
+          matched_payment_id?: string | null
+          provider_key?: string
+          provider_transaction_ref?: string
+          raw_payload?: Json
+          received_at?: string
+          reference?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_webhook_events_matched_payment_id_fkey"
+            columns: ["matched_payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_webhook_events_provider_key_fkey"
+            columns: ["provider_key"]
+            isOneToOne: false
+            referencedRelation: "payment_providers"
+            referencedColumns: ["provider_key"]
+          },
+        ]
+      }
       payments: {
         Row: {
           actor_id: string | null
@@ -348,7 +509,7 @@ export type Database = {
           gym_id: string
           id: string
           member_id: string
-          method: Database["public"]["Enums"]["payment_method"]
+          method: string
           provider: string | null
           provider_fee_amount: number | null
           provider_transaction_ref: string | null
@@ -364,7 +525,7 @@ export type Database = {
           gym_id: string
           id?: string
           member_id: string
-          method: Database["public"]["Enums"]["payment_method"]
+          method: string
           provider?: string | null
           provider_fee_amount?: number | null
           provider_transaction_ref?: string | null
@@ -380,7 +541,7 @@ export type Database = {
           gym_id?: string
           id?: string
           member_id?: string
-          method?: Database["public"]["Enums"]["payment_method"]
+          method?: string
           provider?: string | null
           provider_fee_amount?: number | null
           provider_transaction_ref?: string | null
@@ -469,6 +630,61 @@ export type Database = {
             columns: ["gym_id"]
             isOneToOne: false
             referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      refunds: {
+        Row: {
+          actor_id: string
+          amount: number
+          created_at: string
+          currency: string
+          gym_id: string
+          id: string
+          payment_id: string
+          reason: string
+        }
+        Insert: {
+          actor_id: string
+          amount: number
+          created_at?: string
+          currency?: string
+          gym_id: string
+          id?: string
+          payment_id: string
+          reason: string
+        }
+        Update: {
+          actor_id?: string
+          amount?: number
+          created_at?: string
+          currency?: string
+          gym_id?: string
+          id?: string
+          payment_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refunds_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refunds_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refunds_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: true
+            referencedRelation: "payments"
             referencedColumns: ["id"]
           },
         ]
@@ -667,6 +883,10 @@ export type Database = {
         Args: { p_fee_amount: number; p_payment_id: string }
         Returns: string
       }
+      confirm_renewal: {
+        Args: { p_member_id: string; p_method: string; p_reason: string }
+        Returns: Record<string, unknown>
+      }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       gym_effective_member_cap: { Args: never; Returns: number }
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
@@ -707,6 +927,7 @@ export type Database = {
         Returns: string
       }
       run_check_in_auto_timeout_job: { Args: never; Returns: undefined }
+      run_payment_reconciliation_job: { Args: never; Returns: undefined }
       run_subscription_lifecycle_job: { Args: never; Returns: undefined }
       super_admin_job_failures: {
         Args: never
@@ -724,12 +945,10 @@ export type Database = {
       gym_status: "active" | "suspended" | "deactivated"
       job_status: "success" | "failure"
       member_role: "member" | "coach" | "receptionist" | "manager" | "owner"
-      payment_method:
-        | "mtn_momo"
-        | "orange_money"
-        | "cash"
-        | "bank_transfer"
-        | "manual_momo"
+      payment_discrepancy_type:
+        | "missing_internal_record"
+        | "stale_processing"
+        | "amount_mismatch"
       payment_status: "pending" | "processing" | "verified" | "flagged"
       plan_type:
         | "pay_per_session"
@@ -875,12 +1094,10 @@ export const Constants = {
       gym_status: ["active", "suspended", "deactivated"],
       job_status: ["success", "failure"],
       member_role: ["member", "coach", "receptionist", "manager", "owner"],
-      payment_method: [
-        "mtn_momo",
-        "orange_money",
-        "cash",
-        "bank_transfer",
-        "manual_momo",
+      payment_discrepancy_type: [
+        "missing_internal_record",
+        "stale_processing",
+        "amount_mismatch",
       ],
       payment_status: ["pending", "processing", "verified", "flagged"],
       plan_type: [

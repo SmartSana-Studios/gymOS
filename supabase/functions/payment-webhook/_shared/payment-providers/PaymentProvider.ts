@@ -57,13 +57,18 @@ export interface NormalizedPaymentEvent {
    */
   reference?: string;
   /**
-   * The mobile-money network that processed the payment (e.g. "orange_money",
-   * "mtn_momo"), when the provider's webhook makes it derivable. Confirmed
+   * The mobile-money network/operator that processed the payment (e.g.
+   * "orange_money", "mtn_momo", or any other operator/country the provider
+   * reports), when the provider's webhook makes it derivable. Confirmed
    * derivable for TaraMoney via its real Task 9 spike delivery (2026-07-31,
    * `mobileOperator: "ORANGE_CAMEROON"`) — absent means the caller falls back
-   * to a default rather than guessing.
+   * to a default rather than guessing. Open string, not a closed union
+   * (0036_open_payment_method.sql) — `payments.method` is plain `text` now,
+   * so this is free to carry whatever operator TaraMoney (or a future
+   * provider) actually reports, not just the two Cameroon operators this
+   * project started with.
    */
-  vendor?: "mtn_momo" | "orange_money";
+  vendor?: string;
   /**
    * Gym-credited amount vs. member-paid amount delta (the provider's own
    * fee, FR-039) -- e.g. TaraMoney's real webhook carries both `amount`

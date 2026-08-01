@@ -4,6 +4,7 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { I18nClientProvider } from "@/lib/i18n/client-provider";
+import { QueryProvider } from "@/lib/query-provider";
 import "./globals.css";
 
 const defaultUrl = process.env.VERCEL_URL
@@ -49,7 +50,7 @@ async function LocaleShell({ children }: { children: React.ReactNode }) {
         enableSystem
         disableTransitionOnChange
       >
-        {children}
+        <QueryProvider>{children}</QueryProvider>
       </ThemeProvider>
     </I18nClientProvider>
   );

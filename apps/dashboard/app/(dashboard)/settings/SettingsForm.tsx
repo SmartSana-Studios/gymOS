@@ -473,7 +473,7 @@ export function SettingsForm({ initial }: { initial: GymSettingsRow }) {
         onCancel={(e) => {
           if (regenerating) e.preventDefault();
         }}
-        className="w-full max-w-[420px] rounded-md border p-0 backdrop:bg-black/50"
+        className="w-full max-w-[420px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
       >
         <div className="space-y-4 p-6">
           <h2 className="text-lg font-semibold">{t("settings.qr.regenerateConfirmTitle")}</h2>

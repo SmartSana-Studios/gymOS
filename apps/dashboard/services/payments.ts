@@ -2,8 +2,10 @@ import { createClient } from "@/lib/supabase/server";
 import {
   initiatePaymentSchema,
   recordManualPaymentSchema,
+  recordRefundSchema,
   type InitiatePaymentInput,
   type RecordManualPaymentInput,
+  type RecordRefundInput,
   type AppError,
 } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
@@ -438,6 +440,85 @@ export async function searchMembersForPayment(
   return { data: data ?? [], error: null };
 }
 
+// ============================================================================
+// Story 4.4: nightly reconciliation discrepancies, read-only. The
+// `run_payment_reconciliation_job()` cron job (0032 migration) is the only
+// writer of `payment_discrepancies` -- nothing below ever inserts/updates it.
+// ============================================================================
+
+export interface PaymentDiscrepancyRow {
+  id: string;
+  discrepancyType: "stale_processing" | "amount_mismatch";
+  memberId: string;
+  memberName: string;
+  amount: number;
+  currency: string;
+  details: Record<string, unknown>;
+  detectedAt: string;
+}
+
+interface PaymentDiscrepancyRowFromDb {
+  id: string;
+  discrepancy_type: string;
+  details: unknown;
+  detected_at: string;
+  payments: { member_id: string; amount: number; currency: string; members: { name: string } | null } | null;
+}
+
+function isDisplayableDiscrepancyType(value: string): value is "stale_processing" | "amount_mismatch" {
+  return value === "stale_processing" || value === "amount_mismatch";
+}
+
+/**
+ * AC #1-#3: backs the Payments page's Discrepancies section. RLS
+ * (`gym_staff_read_own_payment_discrepancies`, 0032 migration) already
+ * scopes rows to the caller's own gym -- the explicit `.eq` below is
+ * defense-in-depth, matching every other list function in this file. The
+ * gym-scoped query can never legitimately return a `missing_internal_record`
+ * row (it carries `gym_id = null`, invisible under RLS/the `.eq` above), so
+ * `isDisplayableDiscrepancyType` below only needs to guard against an
+ * unexpected value rather than special-case that type. No pagination -- same
+ * NFR-009-scale reasoning as `listPendingPayments`.
+ */
+export async function listPaymentDiscrepancies(): Promise<{
+  data: PaymentDiscrepancyRow[] | null;
+  error: AppError | null;
+}> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data, error } = await supabase
+    .from("payment_discrepancies")
+    .select("id, discrepancy_type, details, detected_at, payments(member_id, amount, currency, members(name))")
+    .eq("gym_id", gymId)
+    .order("detected_at", { ascending: false });
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  const rows = (data ?? []) as unknown as PaymentDiscrepancyRowFromDb[];
+
+  return {
+    data: rows
+      .filter((row) => row.payments !== null && isDisplayableDiscrepancyType(row.discrepancy_type))
+      .map((row) => ({
+        id: row.id,
+        discrepancyType: row.discrepancy_type as "stale_processing" | "amount_mismatch",
+        memberId: row.payments!.member_id,
+        memberName: row.payments!.members?.name ?? "",
+        amount: row.payments!.amount,
+        currency: row.payments!.currency,
+        details: (row.details ?? {}) as Record<string, unknown>,
+        detectedAt: row.detected_at,
+      })),
+    error: null,
+  };
+}
+
 /** Thin `log_audit_event` wrapper, following `logMemberChange`'s pattern. */
 export async function logPaymentChange(
   actionType: "manual_payment_recorded" | "payment_verified" | "payment_flagged",
@@ -460,6 +541,182 @@ export async function logPaymentChange(
 
   if (error) {
     console.error(`[logPaymentChange] audit log write failed for payment ${paymentId}`, error);
+    return { error: await mapAndLog(error) };
+  }
+  return { error: null };
+}
+
+// ============================================================================
+// Story 4.5: refund recording. Refunds live in a brand-new `refunds` table,
+// entirely separate from `payments` -- see the story file's Scope Note and
+// 0033_refund_recording.sql. Nothing below ever mutates payments.status or
+// touches subscriptions; a refund is a pure ledger entry.
+// ============================================================================
+
+export interface RefundEligiblePaymentRow {
+  id: string;
+  amount: number;
+  currency: string;
+  method: string;
+  createdAt: string;
+}
+
+interface RefundEligiblePaymentRowFromDb {
+  id: string;
+  amount: number;
+  currency: string;
+  method: string;
+  created_at: string;
+  refunds: { id: string } | null;
+}
+
+/**
+ * Backs the Record Refund modal's payment-selection step: a member's
+ * `verified` payments that have no existing `refunds` row yet, newest
+ * first. `refunds.payment_id` is unique, so PostgREST embeds the reverse-FK
+ * as a single object (or `null`), not an array -- rows with a non-null
+ * `refunds` embed are filtered out here rather than expressed as a query
+ * predicate, since PostgREST has no direct "embedded relation is empty"
+ * filter.
+ */
+export async function listRefundEligiblePayments(
+  memberId: string,
+): Promise<{ data: RefundEligiblePaymentRow[] | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data, error } = await supabase
+    .from("payments")
+    .select("id, amount, currency, method, created_at, refunds(id)")
+    .eq("gym_id", gymId)
+    .eq("member_id", memberId)
+    .eq("status", "verified")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  const rows = (data ?? []) as unknown as RefundEligiblePaymentRowFromDb[];
+
+  return {
+    data: rows
+      .filter((row) => !row.refunds)
+      .map((row) => ({
+        id: row.id,
+        amount: row.amount,
+        currency: row.currency,
+        method: row.method,
+        createdAt: row.created_at,
+      })),
+    error: null,
+  };
+}
+
+/** Read back out for the audit-log call site (Task 4) -- authoritative
+ * fields read from the target payment row, not trusted from the caller,
+ * same discipline as `verifyPayment`/`flagPayment`. */
+export interface RecordedRefundInfo {
+  id: string;
+  memberId: string;
+}
+
+/**
+ * AC #1: records a refund against an already-`verified` payment. The
+ * `amount <= original payment amount` rule is checked here for a friendly
+ * error message, and again -- the real, uncircumventable gate -- inside the
+ * `manager_or_owner_insert_own_refunds` RLS policy's own `exists` clause
+ * (0033_refund_recording.sql). A concurrent duplicate-refund race hits
+ * `refunds.payment_id`'s unique constraint at the INSERT below; `mapAndLog`
+ * maps that the same way every other unique-violation path in this codebase
+ * already does.
+ */
+export async function recordRefund(
+  input: RecordRefundInput,
+): Promise<{ data: RecordedRefundInfo | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = recordRefundSchema.safeParse(input);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+
+  const supabase = await createClient();
+  const { gymId, actorId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data: paymentRow, error: paymentError } = await supabase
+    .from("payments")
+    .select("id, gym_id, member_id, amount, currency, status")
+    .eq("id", parsed.data.paymentId)
+    .eq("gym_id", gymId)
+    .maybeSingle();
+
+  if (paymentError) {
+    return { data: null, error: await mapAndLog(paymentError) };
+  }
+  if (!paymentRow || paymentRow.status !== "verified") {
+    return {
+      data: null,
+      error: await paymentNotFoundError(
+        "recordRefund: target payment not found, cross-gym, or not verified",
+      ),
+    };
+  }
+  if (parsed.data.amount > paymentRow.amount) {
+    return {
+      data: null,
+      error: { code: "validation_error", message: t("payments.refundModal.errors.amountExceedsPayment") },
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("refunds")
+    .insert({
+      gym_id: gymId,
+      payment_id: parsed.data.paymentId,
+      amount: parsed.data.amount,
+      currency: paymentRow.currency,
+      reason: parsed.data.reason,
+      actor_id: actorId,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: { id: data.id, memberId: paymentRow.member_id }, error: null };
+}
+
+/** A new, separate thin `log_audit_event` wrapper -- not folded into
+ * `logPaymentChange`'s `actionType` union, since a refund's
+ * `target_entity_type` ("refund") differs from every existing call in that
+ * function ("payment"), and that function has no parameter for it. */
+export async function logRefundChange(
+  refundId: string,
+  metadata: Record<string, unknown>,
+): Promise<{ error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { error: gymIdError };
+  }
+
+  const { error } = await supabase.rpc("log_audit_event", {
+    p_action_type: "refund_recorded",
+    p_gym_id: gymId,
+    p_target_entity_id: refundId,
+    p_target_entity_type: "refund",
+    p_metadata: metadata,
+  });
+
+  if (error) {
+    console.error(`[logRefundChange] audit log write failed for refund ${refundId}`, error);
     return { error: await mapAndLog(error) };
   }
   return { error: null };

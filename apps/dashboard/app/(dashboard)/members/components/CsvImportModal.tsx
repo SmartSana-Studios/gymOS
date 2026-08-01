@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 import { CSV_TEMPLATE_COLUMNS } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
@@ -170,7 +170,7 @@ export function CsvImportModal({
       onCancel={(e) => {
         if (validating || confirming) e.preventDefault();
       }}
-      className="w-full max-w-[720px] rounded-md border p-0 backdrop:bg-black/50"
+      className="w-full max-w-[720px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
     >
       <div className="space-y-4 p-6">
         <div className="flex items-center justify-between">
@@ -242,7 +242,14 @@ export function CsvImportModal({
                 {t("common.cancel")}
               </Button>
               <Button type="button" onClick={handleValidate} disabled={!file || validating}>
-                {validating ? t("members.csvImport.validating") : t("members.csvImport.validateButton")}
+                {validating ? (
+                  t("members.csvImport.validating")
+                ) : (
+                  <>
+                    {t("members.csvImport.validateButton")}
+                    <ArrowRight />
+                  </>
+                )}
               </Button>
             </div>
           </>
@@ -304,6 +311,7 @@ export function CsvImportModal({
                   </Button>
                   <Button type="button" onClick={handleConfirm}>
                     {t("members.csvImport.confirmImportButton")}
+                    <ArrowRight />
                   </Button>
                 </div>
               </>

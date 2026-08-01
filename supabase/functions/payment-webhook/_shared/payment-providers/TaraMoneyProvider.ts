@@ -66,13 +66,33 @@ interface TaraMoneyWebhookPayload {
   transactionId?: string;
 }
 
-/** Maps TaraMoney's real `mobileOperator`/`vendor` string to this project's `payment_method` enum. Returns undefined for an unrecognized value rather than guessing. */
-function mapTaraMoneyVendor(vendor: string | undefined): "mtn_momo" | "orange_money" | undefined {
+/**
+ * Maps TaraMoney's real `mobileOperator`/`vendor` string to this app's own
+ * `payments.method` label. Cameroon's two known operators keep their
+ * existing exact labels (matching this app's pre-0036 values, so existing
+ * rows/copy stay consistent); any other operator TaraMoney reports (e.g.
+ * Wave, used in Senegal/Burkina Faso/Ivory Coast) is normalized to a
+ * lowercase snake_case token instead of being silently dropped to
+ * `undefined` — widened for 0036_open_payment_method.sql, since
+ * `payments.method` is open `text` now, not a closed 2-value enum. Returns
+ * undefined only when TaraMoney's payload carries no operator at all; the
+ * caller falls back to a default rather than guessing at that point.
+ */
+function mapTaraMoneyVendor(vendor: string | undefined): string | undefined {
   if (!vendor) return undefined;
   const upper = vendor.toUpperCase();
   if (upper.includes("ORANGE")) return "orange_money";
   if (upper.includes("MTN")) return "mtn_momo";
-  return undefined;
+  // A vendor string with no alphanumeric characters (e.g. "---") normalizes
+  // to "" here -- fall back to undefined rather than persisting an empty
+  // method, matching this function's own documented undefined-fallback
+  // contract (review finding).
+  const token = vendor
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return token || undefined;
 }
 
 // Constant-time comparison so a wrong-guess webhook secret can't be brute-forced

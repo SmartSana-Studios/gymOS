@@ -255,10 +255,12 @@ select set_config(
   true
 );
 
-select throws_like(
-  $$select check_in()$$,
-  '%subscription is expired%',
-  'a member with an expired subscription is rejected on check-in'
+-- Story 4.6: check_in() no longer raises for the expired case (a thrown
+-- exception would roll back the front-desk alert row it now inserts in the
+-- same transaction) -- it returns a clean null instead.
+select ok(
+  (select check_in()) is null,
+  'a member with an expired subscription gets a null return on check-in (no exception)'
 );
 
 reset role;
@@ -329,10 +331,10 @@ select set_config(
   true
 );
 
-select throws_like(
-  $$select check_in()$$,
-  '%subscription is expired%',
-  'a member with zero subscription rows is rejected on check-in, same as expired'
+-- Story 4.6: same null-return contract as the expired case above.
+select ok(
+  (select check_in()) is null,
+  'a member with zero subscription rows gets a null return on check-in, same as expired'
 );
 
 reset role;
@@ -499,10 +501,11 @@ select set_config(
   true
 );
 
-select throws_like(
-  $$select check_in(now() - interval '1 hour', '10000000-0000-0000-0000-000000000004')$$,
-  '%subscription is expired%',
-  'an expired-subscription member is rejected on an offline-sync check-in call the same way as the online path'
+-- Story 4.6: same null-return contract applies identically to the
+-- offline-sync call shape.
+select ok(
+  (select check_in(now() - interval '1 hour', '10000000-0000-0000-0000-000000000004')) is null,
+  'an expired-subscription member gets a null return on an offline-sync check-in call the same way as the online path'
 );
 
 reset role;

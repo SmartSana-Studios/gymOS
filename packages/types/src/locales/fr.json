@@ -20,7 +20,9 @@
     "subscriptionPlanMismatch": "La date d'expiration de cet abonnement ne correspond pas au type de la formule sélectionnée.",
     "memberNotFound": "Ce membre est introuvable.",
     "memberDeactivated": "Ce membre est désactivé et ne peut pas être renouvelé.",
+    "noActiveSubscriptionToRenew": "Ce membre n'a pas de formule active à renouveler.",
     "noOpenCheckIn": "Ce membre n'a pas de pointage ouvert à clôturer.",
+    "paymentAlreadyRefunded": "Ce paiement a déjà été remboursé.",
     "unknown": "Une erreur est survenue de notre côté."
   },
   "auth": {

@@ -248,9 +248,9 @@
       "acceptedFiles": "Accepté : fichiers .csv uniquement",
       "selectedFile": "Fichier sélectionné : {{filename}}",
       "remove": "Supprimer",
-      "validateButton": "Valider →",
+      "validateButton": "Valider",
       "validating": "Validation…",
-      "confirmImportButton": "Confirmer l'importation →",
+      "confirmImportButton": "Confirmer l'importation",
       "reuploadButton": "Réimporter le CSV",
       "successSummary": "✓ {{count}} membres prêts à être importés. Aucune erreur trouvée.",
       "blankRowsSkipped": "{{count}} ligne(s) vide(s) ignorée(s) (lignes : {{rows}}).",
@@ -324,6 +324,7 @@
   "payments": {
     "title": "Paiements",
     "recordPaymentButton": "+ Enregistrer un paiement",
+    "recordRefundButton": "+ Enregistrer un remboursement",
     "emptyQueue": "Aucun paiement enregistré pour le moment.",
     "table": {
       "member": "Membre",
@@ -380,11 +381,76 @@
       "confirmButton": "Signaler pour examen",
       "flagging": "Signalement…"
     },
+    "refundModal": {
+      "title": "Enregistrer un remboursement",
+      "close": "Fermer",
+      "member": "Membre *",
+      "memberPlaceholder": "Rechercher par nom ou téléphone",
+      "paymentLabel": "Paiement à rembourser *",
+      "loadingPayments": "Chargement des paiements…",
+      "noEligiblePayments": "Aucun paiement remboursable pour ce membre.",
+      "amount": "Montant (XAF) *",
+      "reason": "Raison *",
+      "reasonCount": "{{count}} / min 10",
+      "recordedBy": "Enregistré par",
+      "recordButton": "Enregistrer le remboursement",
+      "recording": "Enregistrement…",
+      "errors": {
+        "memberRequired": "Sélectionnez un membre",
+        "paymentRequired": "Sélectionnez un paiement à rembourser",
+        "amountInvalid": "Saisissez un montant valide",
+        "amountExceedsPayment": "Le montant du remboursement ne peut pas dépasser le montant du paiement d'origine",
+        "reasonInvalid": "Ajoutez une raison (au moins 10 caractères)"
+      }
+    },
     "errors": {
       "paymentNotFound": "Paiement introuvable",
       "auditLogFailedRecord": "Le paiement a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedVerify": "Le paiement a été vérifié, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
-      "auditLogFailedFlag": "Le paiement a été signalé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
+      "auditLogFailedFlag": "Le paiement a été signalé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "auditLogFailedRefund": "Le remboursement a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
+    },
+    "discrepancies": {
+      "title": "Écarts",
+      "table": {
+        "type": "Type",
+        "detectedAt": "Détecté le"
+      },
+      "types": {
+        "staleProcessing": "Bloqué en traitement",
+        "amountMismatch": "Écart de montant"
+      },
+      "amountMismatchLine": "{{internal}} (signalé : {{reported}})"
+    }
+  },
+  "frontDeskAlert": {
+    "panelLabel": "Alertes à l'accueil",
+    "expiresIn": "Expire dans {{count}} jour",
+    "expiredDaysAgo": "Expiré depuis {{count}} jour",
+    "deniedMessage": "Encaisser le paiement pour rétablir l'accès",
+    "dismiss": "Ignorer l'alerte",
+    "unknownMember": "Membre inconnu",
+    "renew": "Renouveler"
+  },
+  "renewalPanel": {
+    "title": "Renouveler l'adhésion",
+    "plan": "Forfait",
+    "startDate": "Nouvelle date de début",
+    "startDateToday": "Aujourd'hui",
+    "price": "Prix du renouvellement",
+    "method": "Mode de paiement",
+    "note": "Note",
+    "notePrefillCash": "Payé à l'accueil",
+    "noteCount": "{{count}} / min 5",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "confirmButton": "Confirmer le renouvellement",
+    "confirming": "Confirmation…",
+    "errors": {
+      "reasonInvalid": "Ajoutez une note (5 caractères minimum)",
+      "noActivePlan": "Ce membre n'a aucun forfait actif à renouveler.",
+      "previewLoadFailed": "Impossible de charger les détails du renouvellement. Vérifiez votre connexion et réessayez.",
+      "confirmFailed": "Le renouvellement a échoué. Vérifiez votre connexion et réessayez."
     }
   }
 }

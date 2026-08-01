@@ -1,12 +1,16 @@
 "use server";
 
-import { flagPaymentSchema, recordManualPaymentSchema, type AppError } from "@gymos/types";
+import { flagPaymentSchema, recordManualPaymentSchema, recordRefundSchema, type AppError } from "@gymos/types";
 import {
   flagPayment,
+  listRefundEligiblePayments,
   logPaymentChange,
+  logRefundChange,
   recordManualPayment,
+  recordRefund,
   searchMembersForPayment,
   verifyPayment,
+  type RefundEligiblePaymentRow,
 } from "@/services/payments";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -107,4 +111,45 @@ export async function searchMembersForPaymentAction(
   query: string,
 ): Promise<{ data: { id: string; name: string; phone: string | null }[] | null; error: AppError | null }> {
   return searchMembersForPayment(query);
+}
+
+/** Thin wrapper, same shape as `searchMembersForPaymentAction`. */
+export async function listRefundEligiblePaymentsAction(
+  memberId: string,
+): Promise<{ data: RefundEligiblePaymentRow[] | null; error: AppError | null }> {
+  return listRefundEligiblePayments(memberId);
+}
+
+/** AC #1: Record Refund. Same `audit_log_failed`-code-means-"saved but log
+ * the warning" pattern as `recordPayment`/`verifyPaymentAction`/
+ * `flagPaymentAction` -- the refund row is not rolled back if only the
+ * audit write fails. */
+export async function recordRefundAction(
+  input: unknown,
+): Promise<{ data: { id: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = recordRefundSchema.safeParse(input);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+
+  const { data, error } = await recordRefund(parsed.data);
+  if (error || !data) {
+    return { data: null, error };
+  }
+
+  const { error: auditError } = await logRefundChange(data.id, {
+    payment_id: parsed.data.paymentId,
+    member_id: data.memberId,
+    amount: parsed.data.amount,
+    reason: parsed.data.reason,
+  });
+  if (auditError) {
+    return {
+      data: { id: data.id },
+      error: { code: "audit_log_failed", message: t("payments.errors.auditLogFailedRefund") },
+    };
+  }
+
+  return { data: { id: data.id }, error: null };
 }

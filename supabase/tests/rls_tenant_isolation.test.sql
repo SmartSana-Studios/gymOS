@@ -32,7 +32,7 @@
 -- not correct deny-all (see 0002-0008 migrations' GRANT comments for why this matters).
 
 begin;
-select plan(13);
+select plan(17);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000000003', 'Tenant Isolation Test Tier', 5000, 50000, 30);
@@ -65,6 +65,46 @@ values (gen_random_uuid(), '00000000-0000-0000-0000-0000000000e1', '00000000-000
 insert into job_runs (id, job_name, status)
 values (gen_random_uuid(), 'test_job', 'success');
 
+-- Story 4.4 (0032_payment_reconciliation_job.sql): 'taramoney' is seeded
+-- globally by 0029, no per-test payment_providers row needed.
+insert into payment_webhook_events (id, provider_key, provider_transaction_ref, amount, currency, status, raw_payload)
+values (gen_random_uuid(), 'taramoney', 'tenant-isolation-test-ref', 5000, 'XAF', 'verified', '{}'::jsonb);
+
+insert into payment_discrepancies (id, gym_id, payment_id, discrepancy_type, details)
+values (
+  gen_random_uuid(),
+  '00000000-0000-0000-0000-0000000000e1',
+  (select id from payments where gym_id = '00000000-0000-0000-0000-0000000000e1' limit 1),
+  'stale_processing',
+  '{}'::jsonb
+);
+
+-- Story 4.5 (0033_refund_recording.sql): a real seeded row, not just an
+-- empty table -- without this, the `refunds` assertion below would read 0
+-- rows regardless of whether gym_staff_read_own_refunds actually denies a
+-- member-role session (Review Finding).
+insert into refunds (id, gym_id, payment_id, amount, reason, actor_id)
+values (
+  gen_random_uuid(),
+  '00000000-0000-0000-0000-0000000000e1',
+  (select id from payments where gym_id = '00000000-0000-0000-0000-0000000000e1' limit 1),
+  5000,
+  'Tenant isolation test refund',
+  '00000000-0000-0000-0000-0000000000f1'
+);
+
+-- Story 4.6 (0034_real_time_front_desk_alert.sql): a real seeded row, same
+-- "seed one, don't assert 0 against an empty table" discipline as refunds'
+-- own entry above (Story 4.5's Review Findings flagged this exact mistake).
+insert into front_desk_alerts (id, gym_id, member_id, status, expiry_date)
+values (
+  gen_random_uuid(),
+  '00000000-0000-0000-0000-0000000000e1',
+  '00000000-0000-0000-0000-0000000000f2',
+  'grace_period',
+  current_date - 1
+);
+
 -- Authenticated session, valid claim, correctly matching the seeded gym.
 set local role authenticated;
 select set_config(
@@ -81,6 +121,10 @@ select is((select count(*) from subscriptions)::int, 1, 'subscriptions: exactly 
 select is((select count(*) from payments)::int, 0, 'payments: 0 rows, no business policy yet');
 select is((select count(*) from attendance_events)::int, 1, 'attendance_events: exactly 1 row -- their own check-in via member_read_own_attendance_events'' self-access exists-clause (Story 3.7), not the pure deny-all it was before this story -- the staff-gated 0025 policy does not additionally apply to this member-role session');
 select is((select count(*) from job_runs)::int, 0, 'job_runs: 0 rows, no business policy yet');
+select is((select count(*) from payment_webhook_events)::int, 0, 'payment_webhook_events: 0 rows, no SELECT policy at all (deny-all, same as job_runs)');
+select is((select count(*) from payment_discrepancies)::int, 0, 'payment_discrepancies: 0 rows for a member-role session -- gym_staff_read_own_payment_discrepancies is staff-gated (owner/manager/receptionist), same shape as payments'' own gym_staff_read_own_payments');
+select is((select count(*) from refunds)::int, 0, 'refunds: 0 rows for a member-role session -- gym_staff_read_own_refunds is staff-gated (owner/manager/receptionist), same shape as payment_discrepancies'' own gym_staff_read_own_payment_discrepancies');
+select is((select count(*) from front_desk_alerts)::int, 0, 'front_desk_alerts: 0 rows for a member-role session -- gym_staff_read_own_front_desk_alerts is staff-gated (owner/manager/receptionist), same shape as refunds'' own gym_staff_read_own_refunds');
 
 -- gyms is the one exception (its canary policy): the user's own gym IS visible here,
 -- proving the 0-row results above are RLS deny-all, not a broken session/claim.

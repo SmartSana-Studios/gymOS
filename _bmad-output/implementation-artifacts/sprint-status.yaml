@@ -1,5 +1,5 @@
 # generated: 2026-07-04
-# last_updated: 2026-07-31 (story 4.3 done)
+# last_updated: 2026-08-01 (story 4.7 created: ready-for-dev)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-07-31 (story 4.3 done)
+last_updated: 2026-08-01 (story 4.7 code review complete, all patches applied)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -84,10 +84,10 @@ development_status:
   4-1-notch-pay-sandbox-spike: done
   4-2-notch-pay-payment-integration: done
   4-3-manual-payment-entry-verification-queue: done
-  4-4-payment-reconciliation-discrepancy-flagging: backlog
-  4-5-refund-recording: backlog
-  4-6-real-time-front-desk-alert: backlog
-  4-7-inline-renewal-panel: backlog
+  4-4-payment-reconciliation-discrepancy-flagging: done
+  4-5-refund-recording: done
+  4-6-real-time-front-desk-alert: done
+  4-7-inline-renewal-panel: done
   4-8-subscriptions-page-manual-renewal: backlog
   4-9-member-app-payment-history-receipt-detail: backlog
   epic-4-retrospective: optional
@@ -109,3 +109,5 @@ development_status:
   7-1-audit-record-coverage-verification: backlog
   7-2-audit-log-dashboard-page: backlog
   epic-7-retrospective: optional
+
+

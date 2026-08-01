@@ -248,9 +248,9 @@
       "acceptedFiles": "Accepted: .csv files only",
       "selectedFile": "Selected file: {{filename}}",
       "remove": "Remove",
-      "validateButton": "Validate →",
+      "validateButton": "Validate",
       "validating": "Validating…",
-      "confirmImportButton": "Confirm Import →",
+      "confirmImportButton": "Confirm Import",
       "reuploadButton": "Re-upload CSV",
       "successSummary": "✓ {{count}} members ready to import. No errors found.",
       "blankRowsSkipped": "{{count}} blank row(s) were skipped (rows: {{rows}}).",
@@ -324,6 +324,7 @@
   "payments": {
     "title": "Payments",
     "recordPaymentButton": "+ Record Payment",
+    "recordRefundButton": "+ Record Refund",
     "emptyQueue": "No payments recorded yet.",
     "table": {
       "member": "Member",
@@ -380,11 +381,76 @@
       "confirmButton": "Flag for Review",
       "flagging": "Flagging…"
     },
+    "refundModal": {
+      "title": "Record Refund",
+      "close": "Close",
+      "member": "Member *",
+      "memberPlaceholder": "Search by name or phone",
+      "paymentLabel": "Payment to Refund *",
+      "loadingPayments": "Loading payments…",
+      "noEligiblePayments": "No refund-eligible payments for this member.",
+      "amount": "Amount (XAF) *",
+      "reason": "Reason *",
+      "reasonCount": "{{count}} / min 10",
+      "recordedBy": "Recorded By",
+      "recordButton": "Record Refund",
+      "recording": "Recording…",
+      "errors": {
+        "memberRequired": "Select a member",
+        "paymentRequired": "Select a payment to refund",
+        "amountInvalid": "Enter a valid amount",
+        "amountExceedsPayment": "Refund amount cannot exceed the original payment amount",
+        "reasonInvalid": "Add a reason (at least 10 characters)"
+      }
+    },
     "errors": {
       "paymentNotFound": "Payment not found",
       "auditLogFailedRecord": "The payment was recorded, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedVerify": "The payment was verified, but the audit log entry failed to write. Please contact support.",
-      "auditLogFailedFlag": "The payment was flagged, but the audit log entry failed to write. Please contact support."
+      "auditLogFailedFlag": "The payment was flagged, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedRefund": "The refund was recorded, but the audit log entry failed to write. Please contact support."
+    },
+    "discrepancies": {
+      "title": "Discrepancies",
+      "table": {
+        "type": "Type",
+        "detectedAt": "Detected"
+      },
+      "types": {
+        "staleProcessing": "Stuck Processing",
+        "amountMismatch": "Amount Mismatch"
+      },
+      "amountMismatchLine": "{{internal}} (reported: {{reported}})"
+    }
+  },
+  "frontDeskAlert": {
+    "panelLabel": "Front-desk alerts",
+    "expiresIn": "Expires in {{count}} day",
+    "expiredDaysAgo": "Expired {{count}} day ago",
+    "deniedMessage": "Collect payment to restore access",
+    "dismiss": "Dismiss alert",
+    "unknownMember": "Unknown member",
+    "renew": "Renew"
+  },
+  "renewalPanel": {
+    "title": "Renew Membership",
+    "plan": "Plan",
+    "startDate": "New start date",
+    "startDateToday": "Today",
+    "price": "Renewal price",
+    "method": "Payment method",
+    "note": "Note",
+    "notePrefillCash": "Paid at desk",
+    "noteCount": "{{count}} / min 5",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirmButton": "Confirm Renewal",
+    "confirming": "Confirming…",
+    "errors": {
+      "reasonInvalid": "Add a note (at least 5 characters)",
+      "noActivePlan": "This member has no active plan to renew.",
+      "previewLoadFailed": "Couldn't load renewal details. Check your connection and try again.",
+      "confirmFailed": "Renewal failed. Check your connection and try again."
     }
   }
 }
