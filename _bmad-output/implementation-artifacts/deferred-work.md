@@ -1,5 +1,11 @@
 # Deferred Work
 
+## Deferred from: code review of story-4-9-member-app-payment-history-receipt-detail (2026-08-01)
+
+- `getPaymentReceipt`'s companion `gymResult` query (`supabase.from('gyms').select('name').single()`) has no explicit filter, unlike every other query added in this diff, which all add a defense-in-depth `.eq(...)` per their own comments [apps/mobile/src/app/(tabs)/history/payment/[id].tsx:997] — relies solely on RLS for single-row scope; matches a pre-existing pattern already used elsewhere in this app (e.g. `(tabs)/index.tsx`'s own `loadHome`, `profile.tsx`), not unique to this story.
+- `getRecentPayments` has no secondary `order by id` tie-breaker at its `.limit()` boundary, unlike `loadPaymentsPage` in the same file, which explicitly orders by `(created_at desc, id desc)` for exactly this reason [apps/mobile/src/services/payments.ts:1363-1370] — deferred, pre-existing gap: `getRecentCheckIns` (the function this one is explicitly modeled on) has the identical missing tie-breaker.
+- The Home screen's merged-activity sort comparator (`new Date(bTime).getTime() - new Date(aTime).getTime()`) has no fallback for a date-parse failure (NaN), which would produce unspecified `Array.prototype.sort` ordering behavior [apps/mobile/src/app/(tabs)/index.tsx:634-638] — requires malformed timestamp data from the DB to trigger; no other screen in this app guards a raw `new Date().getTime()` comparator either.
+
 ## Deferred from: code review of story-4-8-subscriptions-page-manual-renewal (2026-08-01)
 
 - Duplicate-named FK relationship synthesized in `database.ts` for the new view — regenerating types added a **second** `payments_subscription_id_fkey` relationship entry (same constraint name as the existing one, but `referencedRelation: "subscriptions_current"` instead of `subscriptions`), which `supabase gen types` inferred from the view's `subscription_id` column [packages/types/src/database.ts:585-595] — deferred, likely harmless: PostgREST embed resolution uses real DB constraints in `pg_catalog`, not this generated client-type file, so no runtime ambiguity is expected; the Dev Agent Record's Debug Log claim that the diff was "limited to" the expected changes has been corrected to note this. Revisit if any future PostgREST embed query against `payments` behaves unexpectedly.

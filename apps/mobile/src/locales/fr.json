@@ -139,6 +139,7 @@
     "recentActivity": "Activité récente",
     "recentActivityEmpty": "Aucune activité pour le moment — enregistrez-vous pour la première fois !",
     "checkedIn": "Enregistré",
+    "paymentRecorded": "Paiement : {{amount}} {{currency}}",
     "occupancy": {
       "low": "Peu fréquenté",
       "medium": "Moyennement fréquenté",
@@ -153,7 +154,10 @@
     "tabPayments": "Paiements",
     "tabCheckins": "Enregistrements",
     "payments": {
-      "empty": "Aucun paiement enregistré pour le moment."
+      "empty": "Aucun paiement enregistré pour le moment.",
+      "planUnavailable": "Forfait non disponible",
+      "loading": "Chargement de vos paiements…",
+      "errorLoadFailed": "Impossible de charger vos paiements. Vérifiez votre connexion et réessayez."
     },
     "checkins": {
       "empty": "Aucun enregistrement pour le moment. Scannez le QR code de votre salle pour commencer.",
@@ -190,5 +194,36 @@
     "accessLabel": "Accès",
     "errorLoadFailed": "Impossible de charger votre forfait. Vérifiez votre connexion et réessayez.",
     "errorNoSubscription": "Aucun forfait enregistré pour le moment. Contactez votre salle."
+  },
+  "paymentDetail": {
+    "title": "Reçu de paiement",
+    "memberLabel": "Membre",
+    "gymLabel": "Salle",
+    "planLabel": "Forfait",
+    "planUnavailable": "Forfait non disponible",
+    "amountLabel": "Montant",
+    "methodLabel": "Méthode",
+    "dateLabel": "Date",
+    "referenceLabel": "Référence",
+    "noReference": "Aucune référence",
+    "actorLabel": "Enregistré par",
+    "unknownActor": "—",
+    "statusLabel": "Statut",
+    "errorLoadFailed": "Impossible de charger ce reçu. Vérifiez votre connexion et réessayez."
+  },
+  "payments": {
+    "status": {
+      "pending": "En attente",
+      "processing": "En cours",
+      "verified": "Vérifié",
+      "flagged": "Signalé"
+    },
+    "methods": {
+      "mtnMomo": "MTN Mobile Money",
+      "orangeMoney": "Orange Money",
+      "cash": "Espèces",
+      "bankTransfer": "Virement bancaire",
+      "manualMomo": "Mobile money (manuel)"
+    }
   }
 }

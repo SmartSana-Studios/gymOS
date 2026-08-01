@@ -139,6 +139,7 @@
     "recentActivity": "Recent Activity",
     "recentActivityEmpty": "No activity yet — check in for the first time!",
     "checkedIn": "Checked in",
+    "paymentRecorded": "Payment: {{amount}} {{currency}}",
     "occupancy": {
       "low": "Not busy",
       "medium": "Moderately busy",
@@ -153,7 +154,10 @@
     "tabPayments": "Payments",
     "tabCheckins": "Check-ins",
     "payments": {
-      "empty": "No payments on record yet."
+      "empty": "No payments on record yet.",
+      "planUnavailable": "Plan unavailable",
+      "loading": "Loading your payments…",
+      "errorLoadFailed": "Couldn't load your payments. Check your connection and try again."
     },
     "checkins": {
       "empty": "No check-ins yet. Scan the QR at your gym to get started.",
@@ -190,5 +194,36 @@
     "accessLabel": "Access",
     "errorLoadFailed": "Couldn't load your plan. Check your connection and try again.",
     "errorNoSubscription": "No plan on record yet. Contact your gym."
+  },
+  "paymentDetail": {
+    "title": "Payment Receipt",
+    "memberLabel": "Member",
+    "gymLabel": "Gym",
+    "planLabel": "Plan",
+    "planUnavailable": "Plan unavailable",
+    "amountLabel": "Amount",
+    "methodLabel": "Method",
+    "dateLabel": "Date",
+    "referenceLabel": "Reference",
+    "noReference": "No reference",
+    "actorLabel": "Recorded by",
+    "unknownActor": "—",
+    "statusLabel": "Status",
+    "errorLoadFailed": "Couldn't load this receipt. Check your connection and try again."
+  },
+  "payments": {
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "verified": "Verified",
+      "flagged": "Flagged"
+    },
+    "methods": {
+      "mtnMomo": "MTN Mobile Money",
+      "orangeMoney": "Orange Money",
+      "cash": "Cash",
+      "bankTransfer": "Bank transfer",
+      "manualMomo": "Mobile money (manual)"
+    }
   }
 }

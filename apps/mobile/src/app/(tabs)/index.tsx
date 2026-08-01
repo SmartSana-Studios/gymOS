@@ -19,9 +19,19 @@ import {
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import { getRecentCheckIns, type RecentCheckIn } from '@/services/checkin';
 import { getOccupancyBand, type OccupancyBand } from '@/services/occupancy';
+import { getRecentPayments, type RecentPayment } from '@/services/payments';
 import { supabase } from '@/lib/supabase';
 
-const RECENT_CHECK_INS_LIMIT = 3;
+// Bounds the merged check-in + payment feed (Story 4.9 AC #3) -- renamed
+// from RECENT_CHECK_INS_LIMIT now that it no longer bounds check-ins alone.
+const RECENT_ACTIVITY_LIMIT = 3;
+
+// Tagged union so the render below can distinguish a check-in row (existing
+// appearance/behavior, unchanged) from a payment row (new, Story 4.9 AC #3)
+// after the two feeds are merged and sorted together.
+type ActivityItem =
+  | ({ kind: 'checkin' } & RecentCheckIn)
+  | ({ kind: 'payment' } & RecentPayment);
 
 // Narrows the untyped embedded-select response, same discipline as
 // onboarding/plan.tsx's `isSubscriptionRow` / (tabs)/profile.tsx's
@@ -89,7 +99,7 @@ export default function HomeScreen() {
   const [expiryDate, setExpiryDate] = useState<string | null>(null);
   const [planName, setPlanName] = useState<string | null>(null);
 
-  const [recentCheckIns, setRecentCheckIns] = useState<RecentCheckIn[]>([]);
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [occupancyBand, setOccupancyBand] = useState<OccupancyBand | null>(null);
 
   const loadHome = useCallback(async () => {
@@ -103,7 +113,7 @@ export default function HomeScreen() {
     setSubscriptionStatus(null);
     setExpiryDate(null);
     setPlanName(null);
-    setRecentCheckIns([]);
+    setRecentActivity([]);
     setOccupancyBand(null);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -172,8 +182,24 @@ export default function HomeScreen() {
         setPlanName(subscriptionData.plans.name);
       }
 
-      const recent = await getRecentCheckIns(memberResult.data.id, RECENT_CHECK_INS_LIMIT);
-      setRecentCheckIns(recent);
+      // Story 4.9 AC #3: check-ins and payments fetched in parallel, merged
+      // into one tagged-union array, sorted by timestamp descending, capped
+      // to the top RECENT_ACTIVITY_LIMIT -- still best-effort/non-blocking
+      // (neither feed's own failure trips the outer loadError; both service
+      // functions already return `[]` on any error, same contract as before).
+      const [recentCheckIns, recentPayments] = await Promise.all([
+        getRecentCheckIns(memberResult.data.id, RECENT_ACTIVITY_LIMIT),
+        getRecentPayments(memberResult.data.id, RECENT_ACTIVITY_LIMIT),
+      ]);
+      const merged: ActivityItem[] = [
+        ...recentCheckIns.map((event) => ({ kind: 'checkin' as const, ...event })),
+        ...recentPayments.map((payment) => ({ kind: 'payment' as const, ...payment })),
+      ].sort((a, b) => {
+        const aTime = a.kind === 'checkin' ? a.checkedInAt : a.createdAt;
+        const bTime = b.kind === 'checkin' ? b.checkedInAt : b.createdAt;
+        return new Date(bTime).getTime() - new Date(aTime).getTime();
+      });
+      setRecentActivity(merged.slice(0, RECENT_ACTIVITY_LIMIT));
 
       // Best-effort, non-blocking (Scope Note #2) -- `band === null` (no
       // capacity configured) and any RPC error are treated identically:
@@ -326,23 +352,38 @@ export default function HomeScreen() {
 
               <View style={styles.activitySection}>
                 <ThemedText type="smallBold">{t('home.recentActivity')}</ThemedText>
-                {recentCheckIns.length === 0 ? (
+                {recentActivity.length === 0 ? (
                   <ThemedText type="small" themeColor="textSecondary">
                     {t('home.recentActivityEmpty')}
                   </ThemedText>
                 ) : (
-                  recentCheckIns.map((event) => (
-                    <Pressable
-                      key={event.id}
-                      accessibilityRole="button"
-                      onPress={() => router.push('/history')}
-                      style={styles.activityRow}>
-                      <ThemedText type="small">{t('home.checkedIn')}</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {formatCheckInTimestamp(event.checkedInAt, i18n.language)}
-                      </ThemedText>
-                    </Pressable>
-                  ))
+                  recentActivity.map((item) =>
+                    item.kind === 'checkin' ? (
+                      <Pressable
+                        key={`checkin-${item.id}`}
+                        accessibilityRole="button"
+                        onPress={() => router.push('/history')}
+                        style={styles.activityRow}>
+                        <ThemedText type="small">{t('home.checkedIn')}</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {formatCheckInTimestamp(item.checkedInAt, i18n.language)}
+                        </ThemedText>
+                      </Pressable>
+                    ) : (
+                      <Pressable
+                        key={`payment-${item.id}`}
+                        accessibilityRole="button"
+                        onPress={() => router.push(`/history/payment/${item.id}`)}
+                        style={styles.activityRow}>
+                        <ThemedText type="small">
+                          {t('home.paymentRecorded', { amount: item.amount, currency: item.currency })}
+                        </ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {formatCheckInTimestamp(item.createdAt, i18n.language)}
+                        </ThemedText>
+                      </Pressable>
+                    ),
+                  )
                 )}
               </View>
             </>

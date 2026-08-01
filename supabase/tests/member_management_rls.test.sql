@@ -18,7 +18,7 @@
 -- denial checks use a CTE `returning` clause on the write itself.
 
 begin;
-select plan(25);
+select plan(26);
 
 -- Gym A / Gym B: tier with room for ordinary CRUD tests (cap 10).
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
@@ -297,15 +297,22 @@ select lives_ok(
 
 -- ============================================================================
 -- (g) A member-claim session sees only its own row via
--- self_read_own_membership, not gym A's other 4 members via
+-- self_read_own_membership, not gym A's coach row or Gym B's rows via
 -- gym_staff_read_own_members -- proves this story's review fix (role-gating
 -- that policy to staff only) actually excludes app_role='member' sessions.
--- Before the fix, this would have returned 5, not 1. The subscriptions count
--- below only proves the self-access exists-clause resolves correctly (both
--- of this member's own subscription rows) -- it does not prove exclusivity
--- on its own, since this fixture gives no other Gym A member a subscription
--- row to leak; the members assertion above is this section's real
--- regression guard for the PII-leak class of bug.
+-- As of Story 4.9 (0038_member_app_payment_history_receipt_detail.sql), this
+-- is no longer "only its own row": the new member_read_gym_staff_members
+-- policy deliberately grants a member-claim session read access to its own
+-- gym's owner/manager/receptionist rows too (needed for the mobile
+-- receipt's "Recorded by" field) -- so this session now sees 4 rows: itself
+-- plus gym A's owner, manager, and receptionist. The coach row (excluded
+-- from that policy's role list) must still be invisible -- see the
+-- assertion below. The subscriptions count further down only proves the
+-- self-access exists-clause resolves correctly (both of this member's own
+-- subscription rows) -- it does not prove exclusivity on its own, since
+-- this fixture gives no other Gym A member a subscription row to leak; the
+-- members assertions here are this section's real regression guard for the
+-- PII-leak class of bug.
 -- ============================================================================
 set local role authenticated;
 select set_config(
@@ -316,8 +323,14 @@ select set_config(
 
 select is(
   (select count(*)::int from members),
-  1,
-  'a member-claim session sees only its own row (self_read_own_membership) -- gym_staff_read_own_members no longer grants app_role=member visibility into gym A''s other 4 members'
+  4,
+  'a member-claim session sees its own row plus gym A''s owner/manager/receptionist rows (Story 4.9''s member_read_gym_staff_members), not the coach row or any Gym B row'
+);
+
+select is(
+  (select count(*)::int from members where id = '00000000-0000-0000-0000-000000007034'),
+  0,
+  'a member-claim session still cannot select gym A''s coach row -- member_read_gym_staff_members excludes the coach role'
 );
 
 select is(

@@ -23,7 +23,16 @@
 -- `attendance_events`' member_read_own_attendance_events policy (same
 -- self-access `exists`-clause shape as subscriptions' -- see the updated
 -- `attendance_events` assertion below -- also no longer pure deny-all for a
--- member-role session, alongside 0025's pre-existing staff-only policy).
+-- member-role session, alongside 0025's pre-existing staff-only policy), and
+-- as of Story 4.9 (0038_member_app_payment_history_receipt_detail.sql),
+-- `payments`' own member_read_own_payments policy (same self-access
+-- `exists`-clause shape again -- see the updated `payments` assertion below,
+-- also no longer pure deny-all for a member-role session). This story's
+-- second new policy, `member_read_gym_staff_members` on `members`, is not
+-- exercised by this file's fixture (it only seeds the calling member's own
+-- row, no owner/manager/receptionist row in this gym for it to newly
+-- reveal) -- see member_management_rls.test.sql for that policy's own
+-- dedicated coverage.
 -- This asserts that an authenticated session with a VALID, correctly-scoped gym_id
 -- claim still sees 0 rows everywhere else -- proving "even before any feature-specific
 -- policy exists" (this story's own Story statement) holds for every table, not just
@@ -118,7 +127,7 @@ select is((select count(*) from users)::int, 1, 'users: exactly 1 row -- their o
 select is((select count(*) from members)::int, 1, 'members: exactly 1 row -- this fixture only seeds one member row (this session''s own), satisfied by self_read_own_membership (Story 1.8); as of Story 2.3, gym_staff_read_own_members does NOT additionally grant this to a member-role session (staff-gated), so this count does not distinguish the two policies -- see member_management_rls.test.sql for a multi-member fixture that does');
 select is((select count(*) from plans)::int, 1, 'plans: exactly 1 row -- their own gym''s plan (gym_staff_read_own_plans, Story 2.2), not the pure deny-all of every other table here');
 select is((select count(*) from subscriptions)::int, 1, 'subscriptions: exactly 1 row -- their own subscription via gym_staff_read_own_subscriptions'' self-access exists-clause (Story 2.3), not the pure deny-all it was before this story -- the staff-gated half of that policy does not apply to this member-role session');
-select is((select count(*) from payments)::int, 0, 'payments: 0 rows, no business policy yet');
+select is((select count(*) from payments)::int, 1, 'payments: exactly 1 row -- their own payment via member_read_own_payments'' self-access exists-clause (Story 4.9), not the pure deny-all it was before this story');
 select is((select count(*) from attendance_events)::int, 1, 'attendance_events: exactly 1 row -- their own check-in via member_read_own_attendance_events'' self-access exists-clause (Story 3.7), not the pure deny-all it was before this story -- the staff-gated 0025 policy does not additionally apply to this member-role session');
 select is((select count(*) from job_runs)::int, 0, 'job_runs: 0 rows, no business policy yet');
 select is((select count(*) from payment_webhook_events)::int, 0, 'payment_webhook_events: 0 rows, no SELECT policy at all (deny-all, same as job_runs)');
