@@ -38,6 +38,7 @@ export type RenewSubscriptionInput = z.infer<typeof renewSubscriptionSchema>;
 // initiatePaymentSchema's automated-only methods).
 export const confirmRenewalSchema = renewSubscriptionSchema.extend({
   method: z.enum(["cash", "bank_transfer", "manual_momo"]),
+  backdate: z.boolean().optional(),
 });
 
 export type ConfirmRenewalInput = z.infer<typeof confirmRenewalSchema>;

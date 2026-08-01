@@ -1,7 +1,14 @@
 "use server";
 
 import { confirmRenewalSchema, type AppError } from "@gymos/types";
-import { confirmRenewal, getRenewalPreview, type ConfirmedRenewal, type RenewalPreview } from "@/services/subscriptions";
+import {
+  confirmRenewal,
+  getRenewalPreview,
+  exportSubscriptionsCsv,
+  type ConfirmedRenewal,
+  type RenewalPreview,
+  type ExportSubscriptionsCsvResult,
+} from "@/services/subscriptions";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
@@ -38,4 +45,15 @@ export async function getRenewalPreviewAction(
   memberId: string,
 ): Promise<{ data: RenewalPreview | null; error: AppError | null }> {
   return getRenewalPreview(memberId);
+}
+
+/** AC #3: thin wrapper, same shape as this file's other two Server Actions.
+ * `listSubscriptions()` is called directly from `page.tsx` (a Server
+ * Component) -- no wrapper needed for it, matching members/page.tsx's
+ * calling `listMembers()` directly. */
+export async function exportSubscriptionsCsvAction(params: {
+  status?: string;
+  planType?: string;
+}): Promise<ExportSubscriptionsCsvResult> {
+  return exportSubscriptionsCsv(params);
 }

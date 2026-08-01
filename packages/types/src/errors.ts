@@ -198,6 +198,26 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // confirm_renewal()'s three p_backdate raises (0037_subscriptions_page_manual_renewal.sql,
+  // Story 4.8) -- reachable through the normal UI path (RenewalModal's
+  // checkbox can be checked for a row whose status/expiry_date changed in
+  // the gap between the Subscriptions page's own list fetch and the confirm
+  // click), so all three map to the same friendly copy rather than falling
+  // through to "unknown". The third (review finding, added post-implementation)
+  // rejects back-dating a member expired longer than one plan cycle, which
+  // would otherwise insert an already-expired "active" subscription.
+  if (
+    message.includes("confirm_renewal:") &&
+    (message.includes("back-dating is only available for") ||
+      message.includes("cannot back-date a subscription") ||
+      message.includes("back-dated renewal would still be expired"))
+  ) {
+    return {
+      code: "backdate_not_eligible",
+      message: copy.backdateNotEligible,
+    };
+  }
+
   // check_out_member()'s raises (0024/0025) -- unmapped until Story 3.6's
   // dashboard Check Out button needed friendly copy for them.
   if (message.includes("check_out_member:") && message.includes("not found")) {

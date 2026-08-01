@@ -1,5 +1,5 @@
 # generated: 2026-07-04
-# last_updated: 2026-08-01 (story 4.7 created: ready-for-dev)
+# last_updated: 2026-08-01 (story 4.9 ready-for-dev)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-08-01 (story 4.7 code review complete, all patches applied)
+last_updated: 2026-08-01 (story 4.9 ready-for-dev)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -88,8 +88,8 @@ development_status:
   4-5-refund-recording: done
   4-6-real-time-front-desk-alert: done
   4-7-inline-renewal-panel: done
-  4-8-subscriptions-page-manual-renewal: backlog
-  4-9-member-app-payment-history-receipt-detail: backlog
+  4-8-subscriptions-page-manual-renewal: done
+  4-9-member-app-payment-history-receipt-detail: ready-for-dev
   epic-4-retrospective: optional
 
   epic-5: backlog

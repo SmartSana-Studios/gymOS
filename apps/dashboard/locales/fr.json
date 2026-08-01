@@ -287,6 +287,39 @@
       }
     }
   },
+  "subscriptions": {
+    "title": "Abonnements",
+    "statusAll": "Tous",
+    "filters": {
+      "status": "Statut",
+      "planType": "Type de formule",
+      "planTypeAll": "Tous"
+    },
+    "table": {
+      "member": "Membre",
+      "plan": "Formule",
+      "status": "Statut",
+      "expiry": "Expiration",
+      "actions": "Actions"
+    },
+    "actions": {
+      "renew": "Renouveler"
+    },
+    "emptyNoSubscriptions": "Aucun abonnement pour le moment.",
+    "emptyFilterNoMatch": "Aucun abonnement ne correspond à votre filtre.",
+    "pagination": {
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "ellipsis": "…"
+    },
+    "export": {
+      "button": "Exporter en CSV",
+      "exporting": "Exportation…"
+    },
+    "errors": {
+      "exportTooLarge": "Appliquez un filtre pour réduire les résultats"
+    }
+  },
   "attendance": {
     "title": "Présences",
     "checkedInHeading": "Actuellement présents ({{count}} membres)",
@@ -446,6 +479,7 @@
     "close": "Fermer",
     "confirmButton": "Confirmer le renouvellement",
     "confirming": "Confirmation…",
+    "backdateCheckbox": "Antidater à la date d'expiration d'origine ({{date}})",
     "errors": {
       "reasonInvalid": "Ajoutez une note (5 caractères minimum)",
       "noActivePlan": "Ce membre n'a aucun forfait actif à renouveler.",

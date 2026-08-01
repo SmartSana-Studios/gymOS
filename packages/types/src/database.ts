@@ -585,6 +585,13 @@ export type Database = {
             referencedRelation: "subscriptions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payments_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions_current"
+            referencedColumns: ["subscription_id"]
+          },
         ]
       }
       plans: {
@@ -806,7 +813,47 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      subscriptions_current: {
+        Row: {
+          deactivated_at: string | null
+          expiry_date: string | null
+          gym_id: string | null
+          join_date: string | null
+          member_id: string | null
+          member_name: string | null
+          member_phone: string | null
+          plan_id: string | null
+          plan_name: string | null
+          plan_type: Database["public"]["Enums"]["plan_type"] | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["subscription_status"] | null
+          subscription_created_at: string | null
+          subscription_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       activate_payment_provider: {
@@ -884,7 +931,12 @@ export type Database = {
         Returns: string
       }
       confirm_renewal: {
-        Args: { p_member_id: string; p_method: string; p_reason: string }
+        Args: {
+          p_backdate?: boolean
+          p_member_id: string
+          p_method: string
+          p_reason: string
+        }
         Returns: Record<string, unknown>
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }

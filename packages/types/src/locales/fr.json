@@ -23,6 +23,7 @@
     "noActiveSubscriptionToRenew": "Ce membre n'a pas de formule active à renouveler.",
     "noOpenCheckIn": "Ce membre n'a pas de pointage ouvert à clôturer.",
     "paymentAlreadyRefunded": "Ce paiement a déjà été remboursé.",
+    "backdateNotEligible": "Cet abonnement ne peut pas être antidaté.",
     "unknown": "Une erreur est survenue de notre côté."
   },
   "auth": {

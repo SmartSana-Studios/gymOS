@@ -287,6 +287,39 @@
       }
     }
   },
+  "subscriptions": {
+    "title": "Subscriptions",
+    "statusAll": "All",
+    "filters": {
+      "status": "Status",
+      "planType": "Plan Type",
+      "planTypeAll": "All"
+    },
+    "table": {
+      "member": "Member",
+      "plan": "Plan",
+      "status": "Status",
+      "expiry": "Expiry",
+      "actions": "Actions"
+    },
+    "actions": {
+      "renew": "Renew"
+    },
+    "emptyNoSubscriptions": "No subscriptions yet.",
+    "emptyFilterNoMatch": "No subscriptions match your filter.",
+    "pagination": {
+      "previous": "Previous page",
+      "next": "Next page",
+      "ellipsis": "…"
+    },
+    "export": {
+      "button": "Export CSV",
+      "exporting": "Exporting…"
+    },
+    "errors": {
+      "exportTooLarge": "Apply a filter to narrow results"
+    }
+  },
   "attendance": {
     "title": "Attendance",
     "checkedInHeading": "Currently Checked In ({{count}} members)",
@@ -446,6 +479,7 @@
     "close": "Close",
     "confirmButton": "Confirm Renewal",
     "confirming": "Confirming…",
+    "backdateCheckbox": "Back-date to original expiry ({{date}})",
     "errors": {
       "reasonInvalid": "Add a note (at least 5 characters)",
       "noActivePlan": "This member has no active plan to renew.",

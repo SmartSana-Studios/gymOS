@@ -35,6 +35,15 @@ const METHOD_OPTIONS: { value: ConfirmRenewalInput["method"] }[] = [
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
+// MembersPageClient.tsx's exact local-date-parsing pattern: building the
+// Date from local Y/M/D components (not `new Date(string)` directly) avoids
+// the UTC-shift bug where a "YYYY-MM-DD" string parses as UTC midnight and
+// then renders a day early for a negative-UTC-offset viewer.
+function formatLocalDate(dateOnly: string, locale: string): string {
+  const [year, month, day] = dateOnly.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString(locale);
+}
+
 /**
  * Story 4.7, converted to a `<dialog>` modal per user direction -- matches
  * RecordPaymentModal/RecordRefundModal/FlagPaymentDialog's established
@@ -48,17 +57,20 @@ export function RenewalModal({
   alertId,
   memberId,
   memberName,
+  originalExpiryDate,
   onClose,
   onRenewed,
 }: {
-  alertId: string;
+  alertId?: string;
   memberId: string;
   memberName: string;
+  originalExpiryDate?: string | null;
   onClose: () => void;
   onRenewed: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const domIdSuffix = alertId ?? memberId;
 
   const [preview, setPreview] = useState<RenewalPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -66,6 +78,12 @@ export function RenewalModal({
 
   const [method, setMethod] = useState<ConfirmRenewalInput["method"]>("cash");
   const [note, setNote] = useState(t("renewalPanel.notePrefillCash"));
+  // Story 4.8: only ever true when `originalExpiryDate` is passed (the
+  // Subscriptions page, for grace_period/expired rows with a non-null
+  // expiryDate) -- FrontDeskAlertPanel's call site never passes this prop,
+  // so the checkbox never renders there and this state is always false/unused
+  // for that flow.
+  const [backdate, setBackdate] = useState(false);
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -130,7 +148,7 @@ export function RenewalModal({
     setFieldErrors({});
     setFormError(null);
 
-    const parsed = confirmRenewalSchema.safeParse({ memberId, method, reason: note });
+    const parsed = confirmRenewalSchema.safeParse({ memberId, method, reason: note, backdate });
     if (!parsed.success) {
       const errors: FieldErrors = {};
       for (const issue of parsed.error.issues) {
@@ -160,11 +178,15 @@ export function RenewalModal({
       // Review finding: the dismiss call's error was previously discarded --
       // a failed dismiss after a successful renewal closed the panel as if
       // nothing went wrong, leaving the alert stuck with no signal to staff.
-      const { error: dismissError } = await dismissFrontDeskAlert(alertId);
-      if (dismissError) {
-        console.error(
-          `RenewalModal: renewal for member ${memberId} succeeded but dismissing alert ${alertId} failed -- ${dismissError.message}`,
-        );
+      // Story 4.8: the Subscriptions page has no alert to dismiss -- only
+      // call this when opened from FrontDeskAlertPanel (`alertId` truthy).
+      if (alertId) {
+        const { error: dismissError } = await dismissFrontDeskAlert(alertId);
+        if (dismissError) {
+          console.error(
+            `RenewalModal: renewal for member ${memberId} succeeded but dismissing alert ${alertId} failed -- ${dismissError.message}`,
+          );
+        }
       }
       onRenewed();
     } catch {
@@ -219,7 +241,7 @@ export function RenewalModal({
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t("renewalPanel.startDate")}</span>
-              <span>{t("renewalPanel.startDateToday")}</span>
+              <span>{backdate && originalExpiryDate ? formatLocalDate(originalExpiryDate, i18n.language) : t("renewalPanel.startDateToday")}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t("renewalPanel.price")}</span>
@@ -227,13 +249,24 @@ export function RenewalModal({
                 {preview.currency} {preview.price.toLocaleString()}
               </span>
             </div>
+            {originalExpiryDate && (
+              <label className="flex items-center gap-2 pt-1 text-sm">
+                <input
+                  type="checkbox"
+                  checked={backdate}
+                  onChange={(e) => setBackdate(e.target.checked)}
+                  disabled={submitting}
+                />
+                {t("renewalPanel.backdateCheckbox", { date: formatLocalDate(originalExpiryDate, i18n.language) })}
+              </label>
+            )}
           </div>
         ) : null}
 
         <div className="space-y-2">
-          <Label htmlFor={`renewalMethod-${alertId}`}>{t("renewalPanel.method")}</Label>
+          <Label htmlFor={`renewalMethod-${domIdSuffix}`}>{t("renewalPanel.method")}</Label>
           <select
-            id={`renewalMethod-${alertId}`}
+            id={`renewalMethod-${domIdSuffix}`}
             value={method}
             onChange={(e) => handleMethodChange(e.target.value as ConfirmRenewalInput["method"])}
             disabled={submitting || !preview}
@@ -248,9 +281,9 @@ export function RenewalModal({
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor={`renewalNote-${alertId}`}>{t("renewalPanel.note")} *</Label>
+          <Label htmlFor={`renewalNote-${domIdSuffix}`}>{t("renewalPanel.note")} *</Label>
           <textarea
-            id={`renewalNote-${alertId}`}
+            id={`renewalNote-${domIdSuffix}`}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             disabled={submitting || !preview}
