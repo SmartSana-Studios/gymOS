@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { MemberListRow } from "@/services/members";
 import type { PlanRow } from "@/services/plans";
+import type { CoachRow } from "@/services/coaches";
 import type { MemberRole } from "@/services/session";
 import { exportMembersCsv } from "../actions";
 import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
@@ -65,6 +66,7 @@ export function MembersPageClient({
   status,
   role,
   plans,
+  coaches,
   gymName,
 }: {
   initialMembers: MemberListRow[];
@@ -75,6 +77,7 @@ export function MembersPageClient({
   status: string;
   role: MemberRole;
   plans: PlanRow[];
+  coaches: CoachRow[];
   gymName: string;
 }) {
   const { t, i18n } = useTranslation();
@@ -358,6 +361,7 @@ export function MembersPageClient({
           readOnly={modalState.readOnly}
           editingMember={modalState.member}
           plans={plans}
+          coaches={coaches}
           onClose={() => setModalState(null)}
           onSaved={(warning) => {
             setModalState(null);

@@ -214,7 +214,14 @@
         "planRequired": "Sélectionnez une formule",
         "joinDateInvalid": "Saisissez une date d'adhésion valide (ne peut pas être dans le futur)",
         "expiryDateInvalid": "Saisissez une date d'expiration valide (doit être postérieure ou égale à la date d'adhésion)"
-      }
+      },
+      "assignedCoach": "Coach assigné",
+      "selectCoachOptional": "Aucun coach assigné",
+      "noCoachAssigned": "Aucun coach assigné",
+      "assignmentHistoryTitle": "Historique des assignations de coach",
+      "assignmentActive": "Actuel",
+      "assignmentStarted": "Débuté le {{date}}",
+      "assignmentEnded": "Terminé le {{date}}"
     },
     "deactivateDialog": {
       "title": "Désactiver {{name}} ?",
@@ -232,6 +239,7 @@
     },
     "errors": {
       "memberNotFound": "Membre introuvable",
+      "coachNotFound": "Coach introuvable",
       "capReached": "Vous avez atteint la limite de votre formule ({{count}}/{{max}} membres). Contactez GymOS pour mettre à niveau.",
       "expiryDateRequired": "La date d'expiration est requise pour cette formule",
       "expiryDateNotAllowed": "Les formules à la séance n'ont pas de date d'expiration fixe",

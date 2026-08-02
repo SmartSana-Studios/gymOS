@@ -1,6 +1,6 @@
 "use server";
 
-import { createMemberSchema, editMemberSchema, deactivateMemberSchema, type AppError } from "@gymos/types";
+import { assignCoachSchema, createMemberSchema, editMemberSchema, deactivateMemberSchema, type AppError } from "@gymos/types";
 import {
   deactivateMember as deactivateMemberRow,
   exportMembersCsv as exportMembersCsvRow,
@@ -10,6 +10,10 @@ import {
   provisionMemberRow,
   updateMember,
 } from "@/services/members";
+import {
+  assignCoach as assignCoachRow,
+  getCoachAssignments as getCoachAssignmentsRow,
+} from "@/services/coaches";
 import {
   confirmCsvImport as confirmCsvImportRows,
   mapCsvRows,
@@ -190,6 +194,37 @@ export async function deactivateMember(
   }
 
   return { error: null };
+}
+
+/** Story 5.1 (AC #1, #2): Manager/Owner assign/reassign a member's coach.
+ * No separate audit-log step here (unlike createMember's explicit
+ * logMemberChange call) -- assign_coach()'s own log_audit_event() call
+ * already covers AC #4 atomically inside the RPC. */
+export async function assignCoach(
+  input: unknown,
+): Promise<{ data: { id: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = assignCoachSchema.safeParse(input);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  const { data, error } = await assignCoachRow(parsed.data.memberId, parsed.data.coachId);
+  if (error || !data) {
+    return { data: null, error };
+  }
+  return { data: { id: data.id }, error: null };
+}
+
+/** Story 5.1 (AC #3): a member's coach assignment history for the modal's
+ * View mode. Validates `memberId` with the same `memberId` schema `assignCoach`
+ * above uses, rather than passing the raw string straight to the service layer. */
+export async function getCoachAssignments(memberId: string) {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = assignCoachSchema.shape.memberId.safeParse(memberId);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  return getCoachAssignmentsRow(parsed.data);
 }
 
 /** AC #4: thin wrapper -- returns the CSV text itself, the client triggers

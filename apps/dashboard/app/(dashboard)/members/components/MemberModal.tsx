@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { MemberListRow, MemberSubscriptionStatus } from "@/services/members";
 import type { PlanRow } from "@/services/plans";
-import { createMember, editMember } from "../actions";
+import type { CoachRow, CoachAssignmentRow } from "@/services/coaches";
+import { createMember, editMember, assignCoach, getCoachAssignments } from "../actions";
 
 interface FieldErrors {
   name?: string;
@@ -76,6 +77,7 @@ const emptyForm = {
   joinDate: todayLocalDateString(),
   subscriptionStatus: "active" as MemberSubscriptionStatus,
   expiryDate: "",
+  coachId: "",
 };
 
 function formFromMember(member: MemberListRow | null) {
@@ -91,6 +93,9 @@ function formFromMember(member: MemberListRow | null) {
     joinDate: member.joinDate,
     subscriptionStatus: (member.status === "no_active_plan" ? "active" : member.status),
     expiryDate: member.expiryDate ?? "",
+    // Patched shortly after by the coach-assignment fetch effect below (Story
+    // 5.1) -- MemberListRow carries no coach data of its own.
+    coachId: "",
   };
 }
 
@@ -114,6 +119,7 @@ export function MemberModal({
   readOnly,
   editingMember,
   plans,
+  coaches,
   onClose,
   onSaved,
 }: {
@@ -121,15 +127,21 @@ export function MemberModal({
   readOnly: boolean;
   editingMember: MemberListRow | null;
   plans: PlanRow[];
+  coaches: CoachRow[];
   onClose: () => void;
   onSaved: (warning?: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState(emptyForm);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Story 5.1: coach assignment history + the coach the modal opened with
+  // (for handleSubmit's "did the selection actually change" check below).
+  const [assignmentHistory, setAssignmentHistory] = useState<CoachAssignmentRow[]>([]);
+  const [currentCoachId, setCurrentCoachId] = useState("");
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
 
   const isCreate = !editingMember;
   const isEdit = Boolean(editingMember) && !readOnly;
@@ -147,6 +159,13 @@ export function MemberModal({
     setForm(formFromMember(editingMember));
     setFieldErrors({});
     setFormError(null);
+    // Reset to avoid flashing the previous member's (or a stale) coach
+    // assignment data before the fetch effect below repopulates it. Set here
+    // (render phase), not inside the effect's body, to avoid an unconditional
+    // synchronous setState-in-effect (react-hooks/set-state-in-effect).
+    setAssignmentHistory([]);
+    setCurrentCoachId("");
+    setLoadingAssignments(Boolean(editingMember));
   } else if (!open && syncedWith.open) {
     setSyncedWith({ open, editingMember });
   }
@@ -160,6 +179,27 @@ export function MemberModal({
       dialog.close();
     }
   }, [open]);
+
+  // Story 5.1 (AC #1, #3): fetch the existing member's current coach +
+  // assignment history on open (Edit and View mode both need it -- Manager/
+  // Owner see it in Edit mode for reassignment context, Receptionist/View
+  // mode shows it read-only). Create mode has no member yet, so this is
+  // skipped entirely and form.coachId/assignmentHistory stay at their
+  // just-reset empty values above.
+  useEffect(() => {
+    if (!open || !editingMember) return;
+    let cancelled = false;
+    getCoachAssignments(editingMember.id).then(({ data }) => {
+      if (cancelled) return;
+      setCurrentCoachId(data?.current?.coachId ?? "");
+      setAssignmentHistory(data?.history ?? []);
+      setForm((f) => ({ ...f, coachId: data?.current?.coachId ?? "" }));
+      setLoadingAssignments(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, editingMember]);
 
   const selectedPlan = plans.find((p) => p.id === form.planId) ?? null;
   const isPayPerSession = selectedPlan?.planType === "pay_per_session";
@@ -214,7 +254,7 @@ export function MemberModal({
 
       setSubmitting(true);
       try {
-        const { error } = await createMember(parsed.data);
+        const { data, error } = await createMember(parsed.data);
         if (error) {
           if (error.code === "audit_log_failed") {
             onSaved(error.message);
@@ -226,6 +266,17 @@ export function MemberModal({
             setFormError(error.message);
           }
           return;
+        }
+        // Story 5.1: the member record already saved successfully above --
+        // an assignCoach failure here does not fail the whole save, matching
+        // the audit_log_failed branch's own "warning toast, not a blocking
+        // error" precedent.
+        if (data && form.coachId) {
+          const { error: assignError } = await assignCoach({ memberId: data.id, coachId: form.coachId });
+          if (assignError) {
+            onSaved(assignError.message);
+            return;
+          }
         }
         onSaved();
       } catch {
@@ -267,6 +318,20 @@ export function MemberModal({
           }
           setFormError(error.message);
           return;
+        }
+        // Story 5.1: only call assignCoach if the selection actually changed
+        // from the coach the modal opened with -- re-submitting the same
+        // assignment would otherwise needlessly end-and-restart it (and
+        // double-log an audit entry) every time the member is edited.
+        if (form.coachId && form.coachId !== currentCoachId) {
+          const { error: assignError } = await assignCoach({
+            memberId: editingMember.id,
+            coachId: form.coachId,
+          });
+          if (assignError) {
+            onSaved(assignError.message);
+            return;
+          }
         }
         onSaved();
       } catch {
@@ -465,6 +530,63 @@ export function MemberModal({
               </div>
             )}
           </>
+        )}
+
+        {/* Story 5.1: Assignment section -- unlike the Membership block
+           above (gated to isCreate || readOnly), this is rendered
+           unconditionally in Create, Edit, AND View mode. Reassignment
+           (AC #2) has to be reachable after a member already exists, which
+           the existing Edit mode is the only path for. */}
+        <div className="space-y-2">
+          <Label htmlFor="memberCoach">{t("members.modal.assignedCoach")}</Label>
+          {readOnly ? (
+            <Input
+              id="memberCoach"
+              value={
+                assignmentHistory.find((a) => a.endedAt === null)?.coachName ?? t("members.modal.noCoachAssigned")
+              }
+              disabled
+            />
+          ) : (
+            <select
+              id="memberCoach"
+              value={form.coachId}
+              disabled={loadingAssignments}
+              onChange={(e) => setForm({ ...form, coachId: e.target.value })}
+              className={selectClassName}
+            >
+              <option value="">{t("members.modal.selectCoachOptional")}</option>
+              {coaches.map((coach) => (
+                <option key={coach.id} value={coach.id}>
+                  {coach.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {!isCreate && assignmentHistory.length > 0 && (
+          <div className="space-y-2">
+            <Label>{t("members.modal.assignmentHistoryTitle")}</Label>
+            <ul className="space-y-1 text-sm">
+              {assignmentHistory.map((assignment) => (
+                <li key={assignment.id} className="flex items-center justify-between border-b pb-1 last:border-0">
+                  <span>{assignment.coachName}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {t("members.modal.assignmentStarted", {
+                      date: new Date(assignment.startedAt).toLocaleDateString(i18n.language),
+                    })}
+                    {" — "}
+                    {assignment.endedAt === null
+                      ? t("members.modal.assignmentActive")
+                      : t("members.modal.assignmentEnded", {
+                          date: new Date(assignment.endedAt).toLocaleDateString(i18n.language),
+                        })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}

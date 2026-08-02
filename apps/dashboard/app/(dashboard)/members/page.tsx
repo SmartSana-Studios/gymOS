@@ -2,6 +2,7 @@ import { Suspense } from "react";
 
 import { listMembers, MEMBERS_PAGE_SIZE } from "@/services/members";
 import { listPlans } from "@/services/plans";
+import { listCoaches } from "@/services/coaches";
 import { getDashboardShellContext } from "@/services/session";
 import { MembersPageClient } from "./components/MembersPageClient";
 import MembersLoading from "./loading";
@@ -51,13 +52,15 @@ async function MembersData({
     { data: membersPage, error: membersError },
     { data: shell, error: shellError },
     { data: plans, error: plansError },
+    { data: coaches, error: coachesError },
   ] = await Promise.all([
     listMembers({ page, search: params.search, status: params.status }),
     getDashboardShellContext(),
     listPlans(),
+    listCoaches(),
   ]);
 
-  if (membersError || shellError || !shell || plansError) {
+  if (membersError || shellError || !shell || plansError || coachesError) {
     const { t } = await getServerTranslation(await getRequestLocale());
     return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
   }
@@ -72,6 +75,7 @@ async function MembersData({
       status={params.status ?? ""}
       role={shell.role}
       plans={plans ?? []}
+      coaches={coaches ?? []}
       gymName={shell.gymName}
     />
   );

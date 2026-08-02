@@ -133,6 +133,58 @@ export type Database = {
           },
         ]
       }
+      coach_assignments: {
+        Row: {
+          coach_id: string
+          created_at: string
+          ended_at: string | null
+          gym_id: string
+          id: string
+          member_id: string
+          started_at: string
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          ended_at?: string | null
+          gym_id: string
+          id?: string
+          member_id: string
+          started_at?: string
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          ended_at?: string | null
+          gym_id?: string
+          id?: string
+          member_id?: string
+          started_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_assignments_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_assignments_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_assignments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       front_desk_alerts: {
         Row: {
           created_at: string
@@ -861,6 +913,10 @@ export type Database = {
         Returns: undefined
       }
       active_payment_provider: { Args: never; Returns: string }
+      assign_coach: {
+        Args: { p_coach_id: string; p_member_id: string }
+        Returns: string
+      }
       caller_has_membership: { Args: never; Returns: boolean }
       check_in: {
         Args: { p_client_scan_id?: string; p_scanned_at?: string }

@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review of story-5-1-coach-member-assignment (2026-08-02)
+
+- Concurrent reassignment race: two simultaneous `assign_coach()` calls could both pass the "no active row" check under READ COMMITTED and then collide on `idx_coach_assignments_active_member` during INSERT, surfacing an unmapped Postgres unique-violation error instead of a friendly message [supabase/migrations/0039_coach_member_assignment.sql] — mirrors `renew_subscription()`'s identical pre-existing shape (no advisory lock), an inherited codebase-wide design pattern, not something newly introduced by this diff.
+
 ## Deferred from: code review of story-4-9-member-app-payment-history-receipt-detail (2026-08-01)
 
 - `getPaymentReceipt`'s companion `gymResult` query (`supabase.from('gyms').select('name').single()`) has no explicit filter, unlike every other query added in this diff, which all add a defense-in-depth `.eq(...)` per their own comments [apps/mobile/src/app/(tabs)/history/payment/[id].tsx:997] — relies solely on RLS for single-row scope; matches a pre-existing pattern already used elsewhere in this app (e.g. `(tabs)/index.tsx`'s own `loadHome`, `profile.tsx`), not unique to this story.

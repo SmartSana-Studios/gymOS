@@ -214,7 +214,14 @@
         "planRequired": "Select a plan",
         "joinDateInvalid": "Enter a valid join date (cannot be in the future)",
         "expiryDateInvalid": "Enter a valid expiry date (must be on or after the join date)"
-      }
+      },
+      "assignedCoach": "Assigned Coach",
+      "selectCoachOptional": "No coach assigned",
+      "noCoachAssigned": "No coach assigned",
+      "assignmentHistoryTitle": "Coach Assignment History",
+      "assignmentActive": "Current",
+      "assignmentStarted": "Started {{date}}",
+      "assignmentEnded": "Ended {{date}}"
     },
     "deactivateDialog": {
       "title": "Deactivate {{name}}?",
@@ -232,6 +239,7 @@
     },
     "errors": {
       "memberNotFound": "Member not found",
+      "coachNotFound": "Coach not found",
       "capReached": "You've reached your plan limit ({{count}}/{{max}} members). Contact GymOS to upgrade.",
       "expiryDateRequired": "Expiry date is required for this plan",
       "expiryDateNotAllowed": "Pay-per-session plans have no fixed expiry date",
