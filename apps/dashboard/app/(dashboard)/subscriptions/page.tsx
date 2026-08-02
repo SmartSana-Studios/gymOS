@@ -17,11 +17,15 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
  * members/page.tsx's documented "Sidebar hides it, RLS is the real
  * enforcement" precedent) -- Sidebar's `NAV_ITEMS` already restricts the
  * `/subscriptions` link to `["manager", "owner"]`, but that's UI-only. A
- * Receptionist or Coach reaching this route directly still gets full read
- * access via `gym_staff_read_own_subscriptions` (`0018_member_management.sql`)
- * -- a known, accepted gap inherited from that policy, not introduced or
- * fixed here (same shape as `plans`/`members`/`settings`'s own accepted
- * gaps, see docs/decisions.md). Writes stay backstopped by
+ * Receptionist reaching this route directly still gets full read access via
+ * `gym_staff_read_own_subscriptions` (`0018_member_management.sql`) -- a
+ * known, accepted gap inherited from that policy, not introduced or fixed
+ * here (same shape as `plans`/`members`/`settings`'s own accepted gaps, see
+ * docs/decisions.md). As of Story 5.2 (`0040_coach_portal_member_list_rls.sql`),
+ * `coach` was dropped from this policy's role array -- a Coach reaching this
+ * route directly now only sees their own assigned members' subscriptions via
+ * `coach_read_assigned_subscriptions`, not the full roster this comment used
+ * to describe. Writes stay backstopped by
  * `manager_or_owner_insert_own_subscriptions`/`manager_or_owner_update_own_subscriptions`
  * and `confirm_renewal()`'s own role check. No `listPlans()`/
  * `getDashboardShellContext()` fetch is needed -- no role-conditional UI on

@@ -16,6 +16,9 @@
     "searchPlaceholder": "Search gym name",
     "statusAll": "All",
     "search": "Search",
+    "filters": {
+      "status": "Status"
+    },
     "emptyNoGyms": "No gyms on the platform yet. Create the first one.",
     "createGymButton": "Create Gym",
     "emptyNoMatch": "No gyms match your search or filter.",

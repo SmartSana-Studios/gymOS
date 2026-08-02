@@ -16,6 +16,9 @@
     "searchPlaceholder": "Rechercher une salle",
     "statusAll": "Toutes",
     "search": "Rechercher",
+    "filters": {
+      "status": "Statut"
+    },
     "emptyNoGyms": "Aucune salle sur la plateforme pour le moment. Créez la première.",
     "createGymButton": "Créer une salle",
     "emptyNoMatch": "Aucune salle ne correspond à votre recherche ou filtre.",

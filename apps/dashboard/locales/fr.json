@@ -156,7 +156,11 @@
     "emptyNoMembers": "Aucun membre pour le moment. Ajoutez votre premier membre.",
     "emptySearchNoMatch": "Aucun membre ne correspond à votre recherche ou filtre.",
     "searchPlaceholder": "Rechercher par nom ou téléphone",
+    "searchLabel": "Recherche",
     "statusAll": "Tous",
+    "filters": {
+      "status": "Statut"
+    },
     "status": {
       "active": "Actif",
       "expiringSoon": "Expire bientôt",
@@ -176,6 +180,7 @@
     },
     "actions": {
       "view": "Voir",
+      "edit": "Modifier",
       "invite": "Inviter",
       "deactivate": "Désactiver"
     },
@@ -206,6 +211,13 @@
       "subscriptionStatus": "Statut de l'abonnement *",
       "expiryDate": "Date d'expiration *",
       "saveChanges": "Enregistrer les modifications",
+      "view": {
+        "phone": "Téléphone",
+        "plan": "Formule",
+        "joinDate": "Date d'adhésion",
+        "subscriptionStatus": "Statut de l'abonnement",
+        "expiryDate": "Date d'expiration"
+      },
       "errors": {
         "nameInvalid": "Le nom est requis (2 à 100 caractères)",
         "phoneInvalid": "Saisissez un numéro de téléphone valide",
@@ -326,6 +338,63 @@
     },
     "errors": {
       "exportTooLarge": "Appliquez un filtre pour réduire les résultats"
+    }
+  },
+  "coachPortal": {
+    "title": "Portail Coach",
+    "searchPlaceholder": "Rechercher par nom",
+    "table": {
+      "name": "Nom",
+      "plan": "Formule",
+      "status": "Statut",
+      "expiry": "Expiration",
+      "actions": "Actions"
+    },
+    "actions": {
+      "view": "Voir"
+    },
+    "emptyNoAssignments": "Aucun membre ne vous a encore été assigné. Demandez à votre gérant d'assigner des membres.",
+    "emptySearchNoMatch": "Aucun membre ne correspond à '{{term}}'.",
+    "clearSearch": "Effacer la recherche",
+    "detail": {
+      "notFound": "Ce membre est introuvable.",
+      "planLabel": "Formule",
+      "expiresLabel": "Expire le",
+      "goalLabel": "Objectif",
+      "experienceLabel": "Expérience",
+      "phoneLabel": "Téléphone",
+      "phoneNotSet": "Non renseigné",
+      "notSet": "Non renseigné",
+      "expiredInfoBar": "L'abonnement de ce membre a expiré. Contactez votre réceptionniste.",
+      "goalOptions": {
+        "loseWeight": "Perdre du poids",
+        "buildMuscle": "Prendre de la masse",
+        "improveFitness": "Améliorer la forme physique",
+        "generalWellness": "Bien-être général"
+      },
+      "experienceOptions": {
+        "beginner": "Débutant",
+        "intermediate": "Intermédiaire",
+        "advanced": "Avancé"
+      },
+      "notes": {
+        "heading": "Notes de séance",
+        "addButton": "+ Ajouter une note",
+        "addTitle": "Ajouter une note de séance",
+        "editTitle": "Modifier la note de séance",
+        "placeholder": "Rédigez une note de séance…",
+        "save": "Enregistrer",
+        "saving": "Enregistrement…",
+        "cancel": "Annuler",
+        "edit": "Modifier",
+        "edited": "Modifié le {{timestamp}}",
+        "empty": "Aucune note de séance pour le moment. Ajoutez la première note ci-dessus.",
+        "charCount": "{{count}}/{{max}}",
+        "errors": {
+          "required": "Saisissez une note avant d'enregistrer",
+          "tooLong": "La note est trop longue (2000 caractères maximum)"
+        }
+      }
     }
   },
   "attendance": {

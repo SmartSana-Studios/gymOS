@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Flag } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -148,17 +148,21 @@ export function PaymentsPageClient({
                         <Button
                           variant="outline"
                           size="sm"
+                          className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
                           disabled={isRefreshing}
                           onClick={() => setVerifyingPayment(row)}
                         >
+                          <CheckCircle2 size={14} />
                           {t("payments.verifyButton")}
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
+                          className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
                           disabled={isRefreshing}
                           onClick={() => setFlaggingPayment(row)}
                         >
+                          <Flag size={14} />
                           {t("payments.flagButton")}
                         </Button>
                       </div>

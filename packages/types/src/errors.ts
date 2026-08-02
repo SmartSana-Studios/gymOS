@@ -234,6 +234,27 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // add_session_note()'s reachable race (0041, Story 5.3): the coach's
+  // assignment to this member ended in the gap between loading the detail
+  // page and submitting a note (e.g. a manager reassigned the member in
+  // another session).
+  if (message.includes("add_session_note:") && message.includes("is not currently assigned")) {
+    return {
+      code: "member_not_assigned",
+      message: copy.memberNotAssigned,
+    };
+  }
+
+  // edit_session_note()'s not-found/not-owned raise -- reachable if the
+  // note was deleted or reassigned away between page load and edit submit.
+  // Also the AC #4 enforcement backstop (see 0041's own comment).
+  if (message.includes("edit_session_note:") && message.includes("not found or not owned")) {
+    return {
+      code: "note_not_editable",
+      message: copy.noteNotEditable,
+    };
+  }
+
   // No console/logging call here: packages/types targets ES2022 only (no
   // DOM/Node lib -- consumed by both Next.js apps and, eventually, Expo),
   // and is meant to stay a pure, side-effect-free mapping utility. Callers

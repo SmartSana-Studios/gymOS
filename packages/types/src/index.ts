@@ -11,5 +11,6 @@ export * from "./schemas/locale";
 export * from "./schemas/paymentProvider";
 export * from "./schemas/payment";
 export * from "./schemas/frontDeskAlert";
+export * from "./schemas/sessionNote";
 export * from "./errors";
 

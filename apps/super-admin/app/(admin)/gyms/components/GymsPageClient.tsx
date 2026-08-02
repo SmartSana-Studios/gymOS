@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, PauseCircle, Ban, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { GymListRow, TierOption } from "@/services/gyms";
 import { CreateGymModal } from "./CreateGymModal";
 import { GymLifecycleDialog } from "./GymLifecycleDialog";
@@ -130,29 +131,41 @@ export function GymsPageClient({
       </div>
 
       <div className="flex gap-2">
-        <Input
-          placeholder={t("gyms.searchPlaceholder")}
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") updateParams({ search: searchInput, page: 1 });
-          }}
-          className="max-w-xs"
-        />
-        <select
-          value={status}
-          onChange={(e) => updateParams({ status: e.target.value, page: 1 })}
-          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {t(STATUS_LABEL_KEY[s])}
-            </option>
-          ))}
-        </select>
-        <Button variant="outline" onClick={() => updateParams({ search: searchInput, page: 1 })}>
-          {t("gyms.search")}
-        </Button>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="gymsSearch" className="invisible">
+            {t("gyms.search")}
+          </Label>
+          <Input
+            id="gymsSearch"
+            placeholder={t("gyms.searchPlaceholder")}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") updateParams({ search: searchInput, page: 1 });
+            }}
+            className="max-w-xs"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="gymsStatusFilter">{t("gyms.filters.status")}</Label>
+          <select
+            id="gymsStatusFilter"
+            value={status}
+            onChange={(e) => updateParams({ status: e.target.value, page: 1 })}
+            className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {t(STATUS_LABEL_KEY[s])}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col justify-end">
+          <Button variant="outline" onClick={() => updateParams({ search: searchInput, page: 1 })}>
+            {t("gyms.search")}
+          </Button>
+        </div>
       </div>
 
       {initialGyms.length === 0 ? (
@@ -218,15 +231,19 @@ export function GymsPageClient({
                           <Button
                             variant="outline"
                             size="sm"
+                            className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
                             onClick={() => setLifecycleGym({ gym, action: "suspend" })}
                           >
+                            <PauseCircle size={14} />
                             {t("gyms.actions.suspend")}
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
+                            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
                             onClick={() => setLifecycleGym({ gym, action: "deactivate" })}
                           >
+                            <Ban size={14} />
                             {t("gyms.actions.deactivate")}
                           </Button>
                         </>
@@ -236,15 +253,19 @@ export function GymsPageClient({
                           <Button
                             variant="outline"
                             size="sm"
+                            className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
                             onClick={() => setLifecycleGym({ gym, action: "reinstate" })}
                           >
+                            <RotateCcw size={14} />
                             {t("gyms.actions.reinstate")}
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
+                            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
                             onClick={() => setLifecycleGym({ gym, action: "deactivate" })}
                           >
+                            <Ban size={14} />
                             {t("gyms.actions.deactivate")}
                           </Button>
                         </>
@@ -253,8 +274,10 @@ export function GymsPageClient({
                         <Button
                           variant="outline"
                           size="sm"
+                          className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
                           onClick={() => setLifecycleGym({ gym, action: "reinstate" })}
                         >
+                          <RotateCcw size={14} />
                           {t("gyms.actions.reinstate")}
                         </Button>
                       )}

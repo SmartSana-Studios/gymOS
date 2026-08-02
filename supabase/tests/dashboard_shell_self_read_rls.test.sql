@@ -6,11 +6,19 @@
 -- per simulated session.
 --
 -- As of Story 2.3 (0018_member_management.sql), `members` also carries
--- gym_staff_read_own_members -- ungated by role, scoped to
--- gym_id = private.gym_id() -- so a same-gym query by a different user_id
--- (tests 3 and 5 below) is no longer 0 rows: any gym-staff session now
--- legitimately sees its own gym's full roster (AC #5, member search/list),
--- not just its own row. This file's cross-tenant (test 4) and
+-- gym_staff_read_own_members -- scoped to gym_id = private.gym_id() and
+-- gated to owner/manager/receptionist/coach -- so a same-gym query by a
+-- different user_id (test 3 below) is no longer 0 rows for those roles: an
+-- owner/manager/receptionist/coach session now legitimately sees its own
+-- gym's full roster (AC #5, member search/list), not just its own row.
+--
+-- As of Story 5.2 (0040_coach_portal_member_list_rls.sql), `coach` is
+-- dropped from gym_staff_read_own_members' role array (AC #3's assignment-
+-- scoped narrowing) -- test 5 below reverts to asserting a coach-claim
+-- session sees 0 rows for a different user_id (the gym owner, who is never
+-- one of that coach's assigned members), the pure self-read-only shape this
+-- test originally proved before Story 2.3 broadened it for every staff role
+-- including coach. This file's cross-tenant (test 4) and
 -- same-identity-two-gyms (tests 6-7) assertions are unaffected --
 -- gym_staff_read_own_members is still gym_id-scoped, so it grants no
 -- visibility across tenants or into a claim's non-active gym.
@@ -85,8 +93,8 @@ select is(
 );
 
 select is(
-  (select count(*) from members where user_id = '00000000-0000-0000-0000-000000004021')::int, 1,
-  'a coach-claim session sees 1 row when querying the gym owner''s user_id -- as of Story 2.3, gym_staff_read_own_members legitimately grants this (full-roster visibility, AC #5), no longer the pure self-read-only shape this assertion originally proved'
+  (select count(*) from members where user_id = '00000000-0000-0000-0000-000000004021')::int, 0,
+  'a coach-claim session sees 0 rows when querying the gym owner''s user_id -- as of Story 5.2 (0040_coach_portal_member_list_rls.sql), gym_staff_read_own_members no longer includes ''coach'', and the owner is not one of this coach''s assigned members via coach_read_assigned_members -- reverting the Story 2.3-era full-roster visibility this assertion previously proved for coach specifically (AC #3: a coach sees only their own row plus assigned members)'
 );
 
 -- ============================================================================

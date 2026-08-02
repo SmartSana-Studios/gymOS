@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { createMemberSchema, editMemberSchema } from "@gymos/types";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +13,7 @@ import type { MemberListRow, MemberSubscriptionStatus } from "@/services/members
 import type { PlanRow } from "@/services/plans";
 import type { CoachRow, CoachAssignmentRow } from "@/services/coaches";
 import { createMember, editMember, assignCoach, getCoachAssignments } from "../actions";
+import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
 
 interface FieldErrors {
   name?: string;
@@ -102,6 +104,26 @@ function formFromMember(member: MemberListRow | null) {
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 
+// MembersPageClient.tsx's exact local-date-parsing pattern -- avoids the
+// UTC-shift bug from parsing a "YYYY-MM-DD" string via `new Date(string)`
+// directly. Per-file copy, this app's established convention.
+function formatLocalDate(dateOnly: string, locale: string): string {
+  const [year, month, day] = dateOnly.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString(locale);
+}
+
+// View mode's read-only label/value pair -- replaces a disabled Input with
+// plain text, matching a real profile-detail presentation instead of a
+// grayed-out form.
+function DetailField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="text-sm font-medium">{value}</p>
+    </div>
+  );
+}
+
 /** Create/Edit/View Member. One modal, three modes -- native <dialog>,
  * controlled string-based form state (matches PlanModal/TierModal's
  * established convention, not react-hook-form). `readOnly` is Scope Note
@@ -142,6 +164,10 @@ export function MemberModal({
   const [assignmentHistory, setAssignmentHistory] = useState<CoachAssignmentRow[]>([]);
   const [currentCoachId, setCurrentCoachId] = useState("");
   const [loadingAssignments, setLoadingAssignments] = useState(false);
+  // View mode's photo avatar -- falls back to the initial-letter circle if
+  // the member's stored photoUrl is broken/unreachable, rather than showing
+  // a native broken-image icon.
+  const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
 
   const isCreate = !editingMember;
   const isEdit = Boolean(editingMember) && !readOnly;
@@ -166,6 +192,7 @@ export function MemberModal({
     setAssignmentHistory([]);
     setCurrentCoachId("");
     setLoadingAssignments(Boolean(editingMember));
+    setPhotoLoadFailed(false);
   } else if (!open && syncedWith.open) {
     setSyncedWith({ open, editingMember });
   }
@@ -353,11 +380,14 @@ export function MemberModal({
     >
       <form onSubmit={handleSubmit} className="space-y-4 p-6">
         <div className="flex items-center justify-between">
+          {/* View mode's name already appears as the profile hero heading
+             below -- repeating it here too would be redundant, so this stays
+             an empty (but layout-preserving) spacer for that mode only. */}
           <h2 className="text-lg font-semibold">
             {isCreate
               ? t("members.modal.addTitle")
               : readOnly
-                ? t("members.modal.viewTitle", { name: editingMember?.name ?? "" })
+                ? ""
                 : t("members.modal.editTitle", { name: editingMember?.name ?? "" })}
           </h2>
           <button
@@ -371,222 +401,268 @@ export function MemberModal({
           </button>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="memberName">{t("members.modal.name")}</Label>
-          <Input
-            id="memberName"
-            value={form.name}
-            disabled={readOnly}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          {fieldErrors.name && <p className="text-sm text-red-600">{fieldErrors.name}</p>}
-        </div>
+        {readOnly && editingMember ? (
+          <>
+            <div className="flex flex-col items-center gap-3 pb-2">
+              {editingMember.photoUrl && !photoLoadFailed ? (
+                // An arbitrary, member-supplied external URL -- next/image
+                // would require allow-listing every possible remote host.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={editingMember.photoUrl}
+                  alt={editingMember.name}
+                  onError={() => setPhotoLoadFailed(true)}
+                  className="size-20 rounded-full border object-cover"
+                />
+              ) : (
+                <div className="flex size-20 shrink-0 items-center justify-center rounded-full bg-muted text-2xl font-semibold">
+                  {editingMember.name.slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              <div className="flex flex-col items-center gap-1">
+                <h3 className="text-xl font-semibold">{editingMember.name}</h3>
+                {(() => {
+                  const badge = STATUS_BADGE_CONFIG[resolveBadgeStatus(editingMember)];
+                  const StatusIcon = badge.icon;
+                  return (
+                    <Badge variant="outline" className={badge.className}>
+                      <StatusIcon size={12} className="mr-1" />
+                      {t(badge.labelKey)}
+                    </Badge>
+                  );
+                })()}
+              </div>
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="memberPhone">{t("members.modal.phone")}</Label>
-          <Input
-            id="memberPhone"
-            value={form.phone}
-            disabled={readOnly || isEdit}
-            placeholder="+237600000000"
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-          />
-          {fieldErrors.phone && <p className="text-sm text-red-600">{fieldErrors.phone}</p>}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="memberEmail">{t("members.modal.email")}</Label>
-          <Input
-            id="memberEmail"
-            type="email"
-            value={form.email}
-            disabled={readOnly}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-          {fieldErrors.email && <p className="text-sm text-red-600">{fieldErrors.email}</p>}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="memberDob">{t("members.modal.dob")}</Label>
-          <Input
-            id="memberDob"
-            type="date"
-            value={form.dob}
-            disabled={readOnly}
-            onChange={(e) => setForm({ ...form, dob: e.target.value })}
-          />
-          {fieldErrors.dob && <p className="text-sm text-red-600">{fieldErrors.dob}</p>}
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="memberPhotoUrl">{t("members.modal.photoUrl")}</Label>
-          <Input
-            id="memberPhotoUrl"
-            value={form.photoUrl}
-            disabled={readOnly}
-            onChange={(e) => setForm({ ...form, photoUrl: e.target.value })}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="memberEmergencyContact">{t("members.modal.emergencyContact")}</Label>
-          <Input
-            id="memberEmergencyContact"
-            value={form.emergencyContact}
-            disabled={readOnly}
-            onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })}
-          />
-        </div>
-
-        {(isCreate || readOnly) && (
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+              <DetailField label={t("members.modal.view.phone")} value={editingMember.phone ?? "—"} />
+              <DetailField label={t("members.modal.email")} value={editingMember.email ?? "—"} />
+              <DetailField
+                label={t("members.modal.dob")}
+                value={editingMember.dob ? formatLocalDate(editingMember.dob, i18n.language) : "—"}
+              />
+              <DetailField
+                label={t("members.modal.emergencyContact")}
+                value={editingMember.emergencyContact ?? "—"}
+              />
+              <DetailField label={t("members.modal.view.plan")} value={editingMember.planName ?? "—"} />
+              <DetailField
+                label={t("members.modal.view.joinDate")}
+                value={formatLocalDate(editingMember.joinDate, i18n.language)}
+              />
+              <DetailField
+                label={t("members.modal.view.subscriptionStatus")}
+                value={
+                  editingMember.status !== "no_active_plan"
+                    ? t(SUBSCRIPTION_STATUS_LABEL_KEY[editingMember.status])
+                    : "—"
+                }
+              />
+              {!isPayPerSession && (
+                <DetailField
+                  label={t("members.modal.view.expiryDate")}
+                  value={editingMember.expiryDate ? formatLocalDate(editingMember.expiryDate, i18n.language) : "—"}
+                />
+              )}
+              <DetailField
+                label={t("members.modal.assignedCoach")}
+                value={
+                  assignmentHistory.find((a) => a.endedAt === null)?.coachName ??
+                  t("members.modal.noCoachAssigned")
+                }
+              />
+            </div>
+          </>
+        ) : (
           <>
             <div className="space-y-2">
-              <Label htmlFor="memberPlan">{t("members.modal.plan")}</Label>
-              {isCreate ? (
-                <select
-                  id="memberPlan"
-                  value={form.planId}
-                  onChange={(e) => handlePlanChange(e.target.value)}
-                  className={selectClassName}
-                >
-                  <option value="">{t("members.modal.selectPlan")}</option>
-                  {plans.map((plan) => (
-                    <option key={plan.id} value={plan.id}>
-                      {plan.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <Input id="memberPlan" value={editingMember?.planName ?? "—"} disabled />
-              )}
-              {fieldErrors.planId && <p className="text-sm text-red-600">{fieldErrors.planId}</p>}
-              {selectedPlan && (
-                <p className="text-xs text-muted-foreground">
-                  {t("members.modal.billingIntervalReadonly", {
-                    interval:
-                      selectedPlan.billingInterval === "annual"
-                        ? t("plans.intervalAnnual")
-                        : t("plans.intervalMonthly"),
-                  })}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="memberJoinDate">{t("members.modal.joinDate")}</Label>
+              <Label htmlFor="memberName">{t("members.modal.name")}</Label>
               <Input
-                id="memberJoinDate"
-                type="date"
-                value={form.joinDate}
-                disabled={readOnly || !isCreate}
-                onChange={(e) => setForm({ ...form, joinDate: e.target.value })}
+                id="memberName"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
-              {fieldErrors.joinDate && <p className="text-sm text-red-600">{fieldErrors.joinDate}</p>}
+              {fieldErrors.name && <p className="text-sm text-red-600">{fieldErrors.name}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="memberSubscriptionStatus">{t("members.modal.subscriptionStatus")}</Label>
-              {isCreate ? (
-                <select
-                  id="memberSubscriptionStatus"
-                  value={form.subscriptionStatus}
-                  onChange={(e) =>
-                    setForm({ ...form, subscriptionStatus: e.target.value as MemberSubscriptionStatus })
-                  }
-                  className={selectClassName}
-                >
-                  {SUBSCRIPTION_STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {t(SUBSCRIPTION_STATUS_LABEL_KEY[s])}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <Input
-                  id="memberSubscriptionStatus"
-                  value={
-                    editingMember && editingMember.status !== "no_active_plan"
-                      ? t(SUBSCRIPTION_STATUS_LABEL_KEY[editingMember.status])
-                      : "—"
-                  }
-                  disabled
-                />
-              )}
+              <Label htmlFor="memberPhone">{t("members.modal.phone")}</Label>
+              <Input
+                id="memberPhone"
+                value={form.phone}
+                disabled={isEdit}
+                placeholder="+237600000000"
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+              {fieldErrors.phone && <p className="text-sm text-red-600">{fieldErrors.phone}</p>}
             </div>
 
-            {!isPayPerSession && (
-              <div className="space-y-2">
-                <Label htmlFor="memberExpiryDate">{t("members.modal.expiryDate")}</Label>
-                <Input
-                  id="memberExpiryDate"
-                  type="date"
-                  value={form.expiryDate}
-                  disabled={readOnly || !isCreate}
-                  onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
-                />
-                {fieldErrors.expiryDate && (
-                  <p className="text-sm text-red-600">{fieldErrors.expiryDate}</p>
+            <div className="space-y-2">
+              <Label htmlFor="memberEmail">{t("members.modal.email")}</Label>
+              <Input
+                id="memberEmail"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+              {fieldErrors.email && <p className="text-sm text-red-600">{fieldErrors.email}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="memberDob">{t("members.modal.dob")}</Label>
+              <Input
+                id="memberDob"
+                type="date"
+                value={form.dob}
+                onChange={(e) => setForm({ ...form, dob: e.target.value })}
+              />
+              {fieldErrors.dob && <p className="text-sm text-red-600">{fieldErrors.dob}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="memberPhotoUrl">{t("members.modal.photoUrl")}</Label>
+              <Input
+                id="memberPhotoUrl"
+                value={form.photoUrl}
+                onChange={(e) => setForm({ ...form, photoUrl: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="memberEmergencyContact">{t("members.modal.emergencyContact")}</Label>
+              <Input
+                id="memberEmergencyContact"
+                value={form.emergencyContact}
+                onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })}
+              />
+            </div>
+
+            {isCreate && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="memberPlan">{t("members.modal.plan")}</Label>
+                  <select
+                    id="memberPlan"
+                    value={form.planId}
+                    onChange={(e) => handlePlanChange(e.target.value)}
+                    className={selectClassName}
+                  >
+                    <option value="">{t("members.modal.selectPlan")}</option>
+                    {plans.map((plan) => (
+                      <option key={plan.id} value={plan.id}>
+                        {plan.name}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldErrors.planId && <p className="text-sm text-red-600">{fieldErrors.planId}</p>}
+                  {selectedPlan && (
+                    <p className="text-xs text-muted-foreground">
+                      {t("members.modal.billingIntervalReadonly", {
+                        interval:
+                          selectedPlan.billingInterval === "annual"
+                            ? t("plans.intervalAnnual")
+                            : t("plans.intervalMonthly"),
+                      })}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="memberJoinDate">{t("members.modal.joinDate")}</Label>
+                  <Input
+                    id="memberJoinDate"
+                    type="date"
+                    value={form.joinDate}
+                    onChange={(e) => setForm({ ...form, joinDate: e.target.value })}
+                  />
+                  {fieldErrors.joinDate && <p className="text-sm text-red-600">{fieldErrors.joinDate}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="memberSubscriptionStatus">{t("members.modal.subscriptionStatus")}</Label>
+                  <select
+                    id="memberSubscriptionStatus"
+                    value={form.subscriptionStatus}
+                    onChange={(e) =>
+                      setForm({ ...form, subscriptionStatus: e.target.value as MemberSubscriptionStatus })
+                    }
+                    className={selectClassName}
+                  >
+                    {SUBSCRIPTION_STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {t(SUBSCRIPTION_STATUS_LABEL_KEY[s])}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {!isPayPerSession && (
+                  <div className="space-y-2">
+                    <Label htmlFor="memberExpiryDate">{t("members.modal.expiryDate")}</Label>
+                    <Input
+                      id="memberExpiryDate"
+                      type="date"
+                      value={form.expiryDate}
+                      onChange={(e) => setForm({ ...form, expiryDate: e.target.value })}
+                    />
+                    {fieldErrors.expiryDate && (
+                      <p className="text-sm text-red-600">{fieldErrors.expiryDate}</p>
+                    )}
+                  </div>
                 )}
+              </>
+            )}
+
+            {/* Story 5.1: Assignment section -- unlike the Membership block
+               above (gated to isCreate only), this is rendered
+               unconditionally in both Create and Edit mode. Reassignment
+               (AC #2) has to be reachable after a member already exists,
+               which Edit mode is the only path for. */}
+            <div className="space-y-2">
+              <Label htmlFor="memberCoach">{t("members.modal.assignedCoach")}</Label>
+              <select
+                id="memberCoach"
+                value={form.coachId}
+                disabled={loadingAssignments}
+                onChange={(e) => setForm({ ...form, coachId: e.target.value })}
+                className={selectClassName}
+              >
+                <option value="">{t("members.modal.selectCoachOptional")}</option>
+                {coaches.map((coach) => (
+                  <option key={coach.id} value={coach.id}>
+                    {coach.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {!isCreate && assignmentHistory.length > 0 && (
+              <div className="space-y-2">
+                <Label>{t("members.modal.assignmentHistoryTitle")}</Label>
+                <ul className="space-y-1 text-sm">
+                  {assignmentHistory.map((assignment) => (
+                    <li
+                      key={assignment.id}
+                      className="flex items-center justify-between border-b pb-1 last:border-0"
+                    >
+                      <span>{assignment.coachName}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {t("members.modal.assignmentStarted", {
+                          date: new Date(assignment.startedAt).toLocaleDateString(i18n.language),
+                        })}
+                        {" — "}
+                        {assignment.endedAt === null
+                          ? t("members.modal.assignmentActive")
+                          : t("members.modal.assignmentEnded", {
+                              date: new Date(assignment.endedAt).toLocaleDateString(i18n.language),
+                            })}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </>
-        )}
-
-        {/* Story 5.1: Assignment section -- unlike the Membership block
-           above (gated to isCreate || readOnly), this is rendered
-           unconditionally in Create, Edit, AND View mode. Reassignment
-           (AC #2) has to be reachable after a member already exists, which
-           the existing Edit mode is the only path for. */}
-        <div className="space-y-2">
-          <Label htmlFor="memberCoach">{t("members.modal.assignedCoach")}</Label>
-          {readOnly ? (
-            <Input
-              id="memberCoach"
-              value={
-                assignmentHistory.find((a) => a.endedAt === null)?.coachName ?? t("members.modal.noCoachAssigned")
-              }
-              disabled
-            />
-          ) : (
-            <select
-              id="memberCoach"
-              value={form.coachId}
-              disabled={loadingAssignments}
-              onChange={(e) => setForm({ ...form, coachId: e.target.value })}
-              className={selectClassName}
-            >
-              <option value="">{t("members.modal.selectCoachOptional")}</option>
-              {coaches.map((coach) => (
-                <option key={coach.id} value={coach.id}>
-                  {coach.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        {!isCreate && assignmentHistory.length > 0 && (
-          <div className="space-y-2">
-            <Label>{t("members.modal.assignmentHistoryTitle")}</Label>
-            <ul className="space-y-1 text-sm">
-              {assignmentHistory.map((assignment) => (
-                <li key={assignment.id} className="flex items-center justify-between border-b pb-1 last:border-0">
-                  <span>{assignment.coachName}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {t("members.modal.assignmentStarted", {
-                      date: new Date(assignment.startedAt).toLocaleDateString(i18n.language),
-                    })}
-                    {" — "}
-                    {assignment.endedAt === null
-                      ? t("members.modal.assignmentActive")
-                      : t("members.modal.assignmentEnded", {
-                          date: new Date(assignment.endedAt).toLocaleDateString(i18n.language),
-                        })}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
         )}
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}

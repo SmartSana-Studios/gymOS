@@ -156,7 +156,11 @@
     "emptyNoMembers": "No members yet. Add your first member.",
     "emptySearchNoMatch": "No members match your search or filter.",
     "searchPlaceholder": "Search by name or phone",
+    "searchLabel": "Search",
     "statusAll": "All",
+    "filters": {
+      "status": "Status"
+    },
     "status": {
       "active": "Active",
       "expiringSoon": "Expiring Soon",
@@ -176,6 +180,7 @@
     },
     "actions": {
       "view": "View",
+      "edit": "Edit",
       "invite": "Invite",
       "deactivate": "Deactivate"
     },
@@ -206,6 +211,13 @@
       "subscriptionStatus": "Subscription Status *",
       "expiryDate": "Expiry Date *",
       "saveChanges": "Save Changes",
+      "view": {
+        "phone": "Phone",
+        "plan": "Plan",
+        "joinDate": "Join Date",
+        "subscriptionStatus": "Subscription Status",
+        "expiryDate": "Expiry Date"
+      },
       "errors": {
         "nameInvalid": "Name is required (2-100 characters)",
         "phoneInvalid": "Enter a valid phone number",
@@ -326,6 +338,63 @@
     },
     "errors": {
       "exportTooLarge": "Apply a filter to narrow results"
+    }
+  },
+  "coachPortal": {
+    "title": "Coach Portal",
+    "searchPlaceholder": "Search by name",
+    "table": {
+      "name": "Name",
+      "plan": "Plan",
+      "status": "Status",
+      "expiry": "Expiry",
+      "actions": "Actions"
+    },
+    "actions": {
+      "view": "View"
+    },
+    "emptyNoAssignments": "No members have been assigned to you yet. Ask your manager to assign members.",
+    "emptySearchNoMatch": "No members match '{{term}}'.",
+    "clearSearch": "Clear search",
+    "detail": {
+      "notFound": "This member could not be found.",
+      "planLabel": "Plan",
+      "expiresLabel": "Expires",
+      "goalLabel": "Goal",
+      "experienceLabel": "Experience",
+      "phoneLabel": "Phone",
+      "phoneNotSet": "Not set",
+      "notSet": "Not set",
+      "expiredInfoBar": "This member's membership has expired. Contact your receptionist.",
+      "goalOptions": {
+        "loseWeight": "Lose Weight",
+        "buildMuscle": "Build Muscle",
+        "improveFitness": "Improve Fitness",
+        "generalWellness": "General Wellness"
+      },
+      "experienceOptions": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced"
+      },
+      "notes": {
+        "heading": "Session Notes",
+        "addButton": "+ Add note",
+        "addTitle": "Add Session Note",
+        "editTitle": "Edit Session Note",
+        "placeholder": "Write a session note…",
+        "save": "Save",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "edit": "Edit",
+        "edited": "Edited {{timestamp}}",
+        "empty": "No session notes yet. Add the first note above.",
+        "charCount": "{{count}}/{{max}}",
+        "errors": {
+          "required": "Enter a note before saving",
+          "tooLong": "Note is too long (max 2000 characters)"
+        }
+      }
     }
   },
   "attendance": {

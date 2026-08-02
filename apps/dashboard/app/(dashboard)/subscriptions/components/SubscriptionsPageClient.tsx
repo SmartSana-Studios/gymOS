@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCw } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { RenewalModal } from "@/components/shared/RenewalModal";
 import type { SubscriptionListRow } from "@/services/subscriptions";
 import { PLAN_TYPE_LABEL_KEY } from "@/app/(dashboard)/plans/planLabels";
@@ -182,30 +183,38 @@ export function SubscriptionsPageClient({
         </Button>
       </div>
 
-      <div className="flex gap-2">
-        <select
-          value={status}
-          onChange={(e) => updateParams({ status: e.target.value, page: 1 })}
-          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {t(STATUS_LABEL_KEY[s])}
-            </option>
-          ))}
-        </select>
-        <select
-          value={planType}
-          onChange={(e) => updateParams({ planType: e.target.value, page: 1 })}
-          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <option value="">{t("subscriptions.filters.planTypeAll")}</option>
-          {PLAN_TYPE_OPTIONS.filter((p) => p).map((p) => (
-            <option key={p} value={p}>
-              {t(PLAN_TYPE_LABEL_KEY[p as keyof typeof PLAN_TYPE_LABEL_KEY])}
-            </option>
-          ))}
-        </select>
+      <div className="flex gap-4">
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="subscriptionsStatusFilter">{t("subscriptions.filters.status")}</Label>
+          <select
+            id="subscriptionsStatusFilter"
+            value={status}
+            onChange={(e) => updateParams({ status: e.target.value, page: 1 })}
+            className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {t(STATUS_LABEL_KEY[s])}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="subscriptionsPlanTypeFilter">{t("subscriptions.filters.planType")}</Label>
+          <select
+            id="subscriptionsPlanTypeFilter"
+            value={planType}
+            onChange={(e) => updateParams({ planType: e.target.value, page: 1 })}
+            className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">{t("subscriptions.filters.planTypeAll")}</option>
+            {PLAN_TYPE_OPTIONS.filter((p) => p).map((p) => (
+              <option key={p} value={p}>
+                {t(PLAN_TYPE_LABEL_KEY[p as keyof typeof PLAN_TYPE_LABEL_KEY])}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {initialSubscriptions.length === 0 ? (
@@ -265,7 +274,13 @@ export function SubscriptionsPageClient({
                     <td className="p-3">{planTypeLabel(row)}</td>
                     <td className="p-3">
                       {row.status !== "active" ? (
-                        <Button variant="outline" size="sm" onClick={() => setRenewingRow(row)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
+                          onClick={() => setRenewingRow(row)}
+                        >
+                          <RotateCw size={14} />
                           {t("subscriptions.actions.renew")}
                         </Button>
                       ) : (

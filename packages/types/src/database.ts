@@ -748,6 +748,68 @@ export type Database = {
           },
         ]
       }
+      session_notes: {
+        Row: {
+          coach_assignment_id: string
+          coach_id: string
+          created_at: string
+          edited_at: string | null
+          gym_id: string
+          id: string
+          member_id: string
+          note_text: string
+        }
+        Insert: {
+          coach_assignment_id: string
+          coach_id: string
+          created_at?: string
+          edited_at?: string | null
+          gym_id: string
+          id?: string
+          member_id: string
+          note_text: string
+        }
+        Update: {
+          coach_assignment_id?: string
+          coach_id?: string
+          created_at?: string
+          edited_at?: string | null
+          gym_id?: string
+          id?: string
+          member_id?: string
+          note_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_notes_coach_assignment_id_fkey"
+            columns: ["coach_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "coach_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_notes_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_notes_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_notes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -913,6 +975,10 @@ export type Database = {
         Returns: undefined
       }
       active_payment_provider: { Args: never; Returns: string }
+      add_session_note: {
+        Args: { p_member_id: string; p_note_text: string }
+        Returns: string
+      }
       assign_coach: {
         Args: { p_coach_id: string; p_member_id: string }
         Returns: string
@@ -996,6 +1062,10 @@ export type Database = {
         Returns: Record<string, unknown>
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      edit_session_note: {
+        Args: { p_note_id: string; p_note_text: string }
+        Returns: undefined
+      }
       gym_effective_member_cap: { Args: never; Returns: number }
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
       log_audit_event: {

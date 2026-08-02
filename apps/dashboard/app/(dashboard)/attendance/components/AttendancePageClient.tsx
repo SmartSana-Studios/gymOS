@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -234,7 +234,13 @@ export function AttendancePageClient({
                         </Badge>
                       </td>
                       <td className="p-3">
-                        <Button variant="outline" size="sm" onClick={() => setCheckingOutMember(row)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                          onClick={() => setCheckingOutMember(row)}
+                        >
+                          <LogOut size={14} />
                           {t("attendance.checkOutButton")}
                         </Button>
                       </td>

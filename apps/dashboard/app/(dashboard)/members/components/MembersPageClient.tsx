@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Pencil, Send, Ban } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { MemberListRow } from "@/services/members";
 import type { PlanRow } from "@/services/plans";
 import type { CoachRow } from "@/services/coaches";
@@ -144,8 +145,15 @@ export function MembersPageClient({
     setModalState({ member: null, readOnly: false });
   }
 
+  // Always read-only -- View's own label must match its behavior for every
+  // role, not just non-managers. Editing (for roles that can) is a separate,
+  // explicit action (openEdit below), not an implicit side effect of "View".
   function openView(member: MemberListRow) {
-    setModalState({ member, readOnly: !canManage });
+    setModalState({ member, readOnly: true });
+  }
+
+  function openEdit(member: MemberListRow) {
+    setModalState({ member, readOnly: false });
   }
 
   async function handleExport() {
@@ -208,23 +216,33 @@ export function MembersPageClient({
       </div>
 
       <div className="flex gap-2">
-        <Input
-          placeholder={t("members.searchPlaceholder")}
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          className="max-w-xs"
-        />
-        <select
-          value={status}
-          onChange={(e) => updateParams({ status: e.target.value, page: 1 })}
-          className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {t(STATUS_LABEL_KEY[s])}
-            </option>
-          ))}
-        </select>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="membersSearch" className="invisible">
+            {t("members.searchLabel")}
+          </Label>
+          <Input
+            id="membersSearch"
+            placeholder={t("members.searchPlaceholder")}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="max-w-xs"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="membersStatusFilter">{t("members.filters.status")}</Label>
+          <select
+            id="membersStatusFilter"
+            value={status}
+            onChange={(e) => updateParams({ status: e.target.value, page: 1 })}
+            className="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {t(STATUS_LABEL_KEY[s])}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {initialMembers.length === 0 ? (
@@ -282,18 +300,37 @@ export function MembersPageClient({
                     <td className="p-3 text-muted-foreground">{"—"}</td>
                     <td className="p-3">
                       <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button variant="outline" size="sm" onClick={() => openView(member)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                          onClick={() => openView(member)}
+                        >
+                          <Eye size={14} />
                           {t("members.actions.view")}
                         </Button>
+                        {canManage && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
+                            onClick={() => openEdit(member)}
+                          >
+                            <Pencil size={14} />
+                            {t("members.actions.edit")}
+                          </Button>
+                        )}
                         {canManage && !member.deactivatedAt && member.phone && (
                           <Button
                             variant="outline"
                             size="sm"
+                            className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
                             onClick={(e) => {
                               e.stopPropagation();
                               setInvitingMember(member);
                             }}
                           >
+                            <Send size={14} />
                             {t("members.actions.invite")}
                           </Button>
                         )}
@@ -301,8 +338,10 @@ export function MembersPageClient({
                           <Button
                             variant="outline"
                             size="sm"
+                            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
                             onClick={() => setDeactivatingMember(member)}
                           >
+                            <Ban size={14} />
                             {t("members.actions.deactivate")}
                           </Button>
                         )}
