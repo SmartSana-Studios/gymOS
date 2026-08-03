@@ -1,11 +1,13 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { useSession } from '@/hooks/use-session';
 import { i18n } from '@/lib/i18n';
+import { registerPushToken, subscribeToPushTokenChanges } from '@/services/pushTokens';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,6 +22,21 @@ SplashScreen.preventAutoHideAsync();
 // Note #1).
 function RootNavigator() {
   const { session, isOnboarded, isLoading } = useSession();
+  const isFullyOnboarded = !!session && isOnboarded;
+
+  // Story 6.1 AC #1: registration fires once onboarding fully completes --
+  // the same gate the auth Stack.Protected guard below already uses -- using
+  // only the OS's own native permission dialog (no custom pre-permission
+  // screen exists in the UX spec). Fire-and-forget: must not delay hiding
+  // the splash screen or block the (tabs)/onboarding navigation switch,
+  // which is why registerPushToken is never awaited here. Declared before
+  // the isLoading early return below so this hook's call order never
+  // changes across renders (Rules of Hooks).
+  useEffect(() => {
+    if (!isFullyOnboarded || !session) return;
+    void registerPushToken(session.user.id);
+    return subscribeToPushTokenChanges(session.user.id);
+  }, [isFullyOnboarded, session]);
 
   // Keep the native splash visible (AnimatedSplashOverlay below still owns
   // hiding it) until the persisted session has been read once, so a
@@ -27,8 +44,6 @@ function RootNavigator() {
   if (isLoading) {
     return null;
   }
-
-  const isFullyOnboarded = !!session && isOnboarded;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>

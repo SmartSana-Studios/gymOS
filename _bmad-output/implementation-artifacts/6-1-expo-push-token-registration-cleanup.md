@@ -1,6 +1,10 @@
+---
+baseline_commit: f71ef31cde96731f72f5c7676299e2f61e216589
+---
+
 # Story 6.1: Expo Push Token Registration & Cleanup
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -37,12 +41,12 @@ so that I get timely alerts about my membership.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Migration `supabase/migrations/0042_expo_push_token_registration_cleanup.sql`** (AC: #1, #2)
-  - [ ] New enum, defined in this migration file (not retrofitted into `0001_extensions_and_enums.sql`) — matches `0032_payment_reconciliation_job.sql`'s own precedent of a later migration introducing its own new enum type:
+- [x] **Task 1: Migration `supabase/migrations/0042_expo_push_token_registration_cleanup.sql`** (AC: #1, #2)
+  - [x] New enum, defined in this migration file (not retrofitted into `0001_extensions_and_enums.sql`) — matches `0032_payment_reconciliation_job.sql`'s own precedent of a later migration introducing its own new enum type:
     ```sql
     create type device_platform as enum ('ios', 'android');
     ```
-  - [ ] `device_push_tokens` table (child of `users`, no `gym_id` — Scope Notes):
+  - [x] `device_push_tokens` table (child of `users`, no `gym_id` — Scope Notes):
     ```sql
     create table device_push_tokens (
       id uuid primary key default gen_random_uuid(),
@@ -61,7 +65,7 @@ so that I get timely alerts about my membership.
     grant select, insert, update, delete on device_push_tokens to authenticated, service_role;
     ```
     No `on delete cascade`/`on delete` clause on the `user_id` FK — matches this codebase's existing accepted gap on every other bare FK (e.g. `coach_assignments`, `session_notes`).
-  - [ ] Self-scoped RLS — explicit per-action policies, no `for all` (architecture.md's RLS policy strategy rule), mirrors `0015_users_self_service_language_preference.sql`'s `self_read_own_user`/`self_update_own_language` shape:
+  - [x] Self-scoped RLS — explicit per-action policies, no `for all` (architecture.md's RLS policy strategy rule), mirrors `0015_users_self_service_language_preference.sql`'s `self_read_own_user`/`self_update_own_language` shape:
     ```sql
     create policy "self_read_own_device_push_tokens" on device_push_tokens
       for select
@@ -77,7 +81,7 @@ so that I get timely alerts about my membership.
       with check (user_id = auth.uid());
     ```
     Deliberately no DELETE policy for `authenticated` — a session never deletes its own token row directly in this story; the only delete path is the function below. Deny-all default blocks it, which is intended, not a gap.
-  - [ ] Cleanup primitive (AC #2 — Scope Notes on why this has no caller yet):
+  - [x] Cleanup primitive (AC #2 — Scope Notes on why this has no caller yet):
     ```sql
     create function private.cleanup_invalid_device_push_token(p_expo_push_token text)
     returns void
@@ -92,10 +96,10 @@ so that I get timely alerts about my membership.
     grant execute on function private.cleanup_invalid_device_push_token to service_role;
     ```
     `security definer` is required, not optional: it must be able to delete *any* user's stale row, not just the caller's own, which no policy above allows. Granted to `service_role` only — no ordinary `authenticated` session has a legitimate reason to delete a token row by string value.
-  - [ ] Regenerate `packages/types/src/database.ts` via `supabase gen types typescript --local` (WSL shell — see Dev Notes). Expect a new `device_push_tokens` table type (alphabetically between `coach_assignments` and `front_desk_alerts`) and a new `device_platform` enum entry; `private.cleanup_invalid_device_push_token` is in the `private` schema so it will not appear in the generated `public` types, same as `private.is_assigned_coach`/`private.is_own_coach_id`.
+  - [x] Regenerate `packages/types/src/database.ts` via `supabase gen types typescript --local` (WSL shell — see Dev Notes). Expect a new `device_push_tokens` table type (alphabetically between `coach_assignments` and `front_desk_alerts`) and a new `device_platform` enum entry; `private.cleanup_invalid_device_push_token` is in the `private` schema so it will not appear in the generated `public` types, same as `private.is_assigned_coach`/`private.is_own_coach_id`.
 
-- [ ] **Task 2: `packages/types/src/schemas/devicePushToken.ts`** (new) (AC: #1)
-  - [ ] Single schema, validated at the mobile write boundary (Task 5) even though the values originate from Expo's own API, not raw user input — matches this codebase's "Zod schemas at every write boundary" rule:
+- [x] **Task 2: `packages/types/src/schemas/devicePushToken.ts`** (new) (AC: #1)
+  - [x] Single schema, validated at the mobile write boundary (Task 5) even though the values originate from Expo's own API, not raw user input — matches this codebase's "Zod schemas at every write boundary" rule:
     ```ts
     import { z } from "zod";
 
@@ -106,17 +110,17 @@ so that I get timely alerts about my membership.
 
     export type DevicePushTokenInput = z.infer<typeof devicePushTokenSchema>;
     ```
-  - [ ] Export from `packages/types/src/index.ts` (`export * from "./schemas/devicePushToken";`), same list every other schema file is already in.
+  - [x] Export from `packages/types/src/index.ts` (`export * from "./schemas/devicePushToken";`), same list every other schema file is already in.
 
-- [ ] **Task 3: `apps/mobile` — install `expo-notifications`** (AC: #1)
-  - [ ] From `apps/mobile`: `npx expo install expo-notifications` (not plain `npm install`/`pnpm add` — this resolves the exact SDK-57-compatible version, matching how every other `expo-*` dependency in this app's `package.json` was added).
-  - [ ] Add the bare plugin entry to `apps/mobile/app.json`'s `plugins` array (no icon/sound customization needed for this story — no in-app notification display exists yet, matching the bare-string style already used for `"expo-localization"`/`"expo-sqlite"`):
+- [x] **Task 3: `apps/mobile` — install `expo-notifications`** (AC: #1)
+  - [x] From `apps/mobile`: `npx expo install expo-notifications` (not plain `npm install`/`pnpm add` — this resolves the exact SDK-57-compatible version, matching how every other `expo-*` dependency in this app's `package.json` was added).
+  - [x] Add the bare plugin entry to `apps/mobile/app.json`'s `plugins` array (no icon/sound customization needed for this story — no in-app notification display exists yet, matching the bare-string style already used for `"expo-localization"`/`"expo-sqlite"`):
     ```json
     "expo-notifications"
     ```
 
-- [ ] **Task 4: `apps/mobile/src/services/pushTokens.ts`** (new) (AC: #1, #2)
-  - [ ] `registerPushToken(userId: string): Promise<void>` — physical-device guard, Android notification channel (required before requesting permission on Android 13+, per Expo's own SDK 57 docs), permission check/request, token fetch, upsert:
+- [x] **Task 4: `apps/mobile/src/services/pushTokens.ts`** (new) (AC: #1, #2)
+  - [x] `registerPushToken(userId: string): Promise<void>` — physical-device guard, Android notification channel (required before requesting permission on Android 13+, per Expo's own SDK 57 docs), permission check/request, token fetch, upsert:
     ```ts
     import Constants from 'expo-constants';
     import * as Device from 'expo-device';
@@ -176,8 +180,8 @@ so that I get timely alerts about my membership.
     ```
     `try/catch` around the whole registration path is deliberate: a missing EAS `projectId`, a denied permission, or a network failure must never crash the app or block navigation — this is a best-effort background action, same resilience posture as `checkin.ts`'s `syncPendingCheckIns()`. `subscribeToPushTokenChanges` covers Expo's own documented token-rotation case (SDK 57 docs: "a push token may be changed by the push notification service while the app is running").
 
-- [ ] **Task 5: Wire into `apps/mobile/src/app/_layout.tsx`** (AC: #1)
-  - [ ] In `RootNavigator`, once `isFullyOnboarded` is true (same gate the auth `Stack.Protected` guard already uses), call `registerPushToken(session.user.id)` once and subscribe to token changes, unsubscribing on unmount/session change:
+- [x] **Task 5: Wire into `apps/mobile/src/app/_layout.tsx`** (AC: #1)
+  - [x] In `RootNavigator`, once `isFullyOnboarded` is true (same gate the auth `Stack.Protected` guard already uses), call `registerPushToken(session.user.id)` once and subscribe to token changes, unsubscribing on unmount/session change:
     ```tsx
     useEffect(() => {
       if (!isFullyOnboarded || !session) return;
@@ -185,29 +189,29 @@ so that I get timely alerts about my membership.
       return subscribeToPushTokenChanges(session.user.id);
     }, [isFullyOnboarded, session]);
     ```
-  - [ ] Fire-and-forget: this must not delay hiding the splash screen or block the `(tabs)`/`onboarding` navigation switch already driven by `isLoading`/`isFullyOnboarded`.
+  - [x] Fire-and-forget: this must not delay hiding the splash screen or block the `(tabs)`/`onboarding` navigation switch already driven by `isLoading`/`isFullyOnboarded`.
 
-- [ ] **Task 6: `docs/decisions.md` entry** (AC: all)
-  - [ ] Dated entry recording: (1) `device_push_tokens` is a child of `users`, not `gyms`/`members` (no `gym_id`) — rationale; (2) composite `unique(user_id, expo_push_token)` chosen over a global-unique token to avoid an RLS-blocks-its-own-update trap on device handoff between accounts, and the accepted V1 gap that implies (Scope Notes); (3) `private.cleanup_invalid_device_push_token()` is built ahead of any caller — a reusable primitive Story 6.2/6.3's `send_push_notification()` will invoke, not a fully wired pipeline yet; (4) the EAS-project-not-linked and Expo-Go-can't-test-Android environment prerequisites, and their status as of this story's completion (linked or still blocking).
+- [x] **Task 6: `docs/decisions.md` entry** (AC: all)
+  - [x] Dated entry recording: (1) `device_push_tokens` is a child of `users`, not `gyms`/`members` (no `gym_id`) — rationale; (2) composite `unique(user_id, expo_push_token)` chosen over a global-unique token to avoid an RLS-blocks-its-own-update trap on device handoff between accounts, and the accepted V1 gap that implies (Scope Notes); (3) `private.cleanup_invalid_device_push_token()` is built ahead of any caller — a reusable primitive Story 6.2/6.3's `send_push_notification()` will invoke, not a fully wired pipeline yet; (4) the EAS-project-not-linked and Expo-Go-can't-test-Android environment prerequisites, and their status as of this story's completion (linked or still blocking).
 
-- [ ] **Task 7: pgTAP coverage — `supabase/tests/expo_push_token_registration_cleanup.test.sql`** (new file) (AC: #1, #2)
-  - [ ] This is the first RLS test file in this codebase with no gym-scoping dimension at all — seed only `auth.users`/`users` rows for two independent accounts (no `gyms`/`members`/`tiers` fixtures needed), and simulate sessions the same way `coach_portal_member_detail_session_notes.test.sql` does, but with only `sub`/`role` claims (no `gym_id`/`app_role` needed, since RLS here never reads either):
+- [x] **Task 7: pgTAP coverage — `supabase/tests/expo_push_token_registration_cleanup.test.sql`** (new file) (AC: #1, #2)
+  - [x] This is the first RLS test file in this codebase with no gym-scoping dimension at all — seed only `auth.users`/`users` rows for two independent accounts (no `gyms`/`members`/`tiers` fixtures needed), and simulate sessions the same way `coach_portal_member_detail_session_notes.test.sql` does, but with only `sub`/`role` claims (no `gym_id`/`app_role` needed, since RLS here never reads either):
     ```sql
     set local role authenticated;
     select set_config('request.jwt.claims', '{"sub":"<user-uuid>","role":"authenticated"}', true);
     ```
-  - [ ] As User A: insert own row succeeds; `select` returns only A's own rows, never User B's; `update` own row (e.g. bump `platform`) succeeds.
-  - [ ] As User A: attempting to `insert` a row with `user_id` = User B's id is denied (`WITH CHECK` failure). Attempting to `update`/`select` User B's row by its `id` returns zero rows / fails.
-  - [ ] As User A: attempting a direct `delete` on their own row is denied (no DELETE policy exists for `authenticated` — deny-all default applies).
-  - [ ] `(user_id, expo_push_token)` upsert behavior: two `insert ... on conflict (user_id, expo_push_token) do update set updated_at = now()` calls with the same pair leave exactly one row, with `updated_at` advancing.
-  - [ ] `device_platform` enum: inserting a value outside `('ios', 'android')` fails.
-  - [ ] `private.cleanup_invalid_device_push_token()`: called directly (as `service_role`, matching how other `private`-schema `SECURITY DEFINER` functions are exercised in this codebase's test files where a non-owning caller must succeed), deletes the matching row **regardless of which user owns it** — this is the actual point of the function, test it against a token owned by a different user than whatever role the test happens to be running as. A call with a non-matching token is a no-op (no error, zero rows affected).
-  - [ ] Cross-user privacy regression (this story's own most-important test, same weight prior epics' central RLS test carries): seed User A's and User B's tokens, confirm `select * from device_push_tokens` as A never returns B's row and vice versa.
+  - [x] As User A: insert own row succeeds; `select` returns only A's own rows, never User B's; `update` own row (e.g. bump `platform`) succeeds.
+  - [x] As User A: attempting to `insert` a row with `user_id` = User B's id is denied (`WITH CHECK` failure). Attempting to `update`/`select` User B's row by its `id` returns zero rows / fails.
+  - [x] As User A: attempting a direct `delete` on their own row is denied (no DELETE policy exists for `authenticated` — deny-all default applies).
+  - [x] `(user_id, expo_push_token)` upsert behavior: two `insert ... on conflict (user_id, expo_push_token) do update set updated_at = now()` calls with the same pair leave exactly one row, with `updated_at` advancing.
+  - [x] `device_platform` enum: inserting a value outside `('ios', 'android')` fails.
+  - [x] `private.cleanup_invalid_device_push_token()`: called directly (as `service_role`, matching how other `private`-schema `SECURITY DEFINER` functions are exercised in this codebase's test files where a non-owning caller must succeed), deletes the matching row **regardless of which user owns it** — this is the actual point of the function, test it against a token owned by a different user than whatever role the test happens to be running as. A call with a non-matching token is a no-op (no error, zero rows affected).
+  - [x] Cross-user privacy regression (this story's own most-important test, same weight prior epics' central RLS test carries): seed User A's and User B's tokens, confirm `select * from device_push_tokens` as A never returns B's row and vice versa.
 
-- [ ] **Task 8: Validation and manual verification** (AC: all)
-  - [ ] `pnpm run typecheck` (all packages) — 0 errors. `node scripts/check-i18n-key-parity.mjs` — 0 errors (no new locale keys are added by this story — no custom UI text; confirm the script still passes clean as a regression check).
-  - [ ] `supabase test db` (WSL shell) — zero regressions against the pre-story baseline plus this story's new test file.
-  - [ ] Manual verification is environment-gated (Scope Notes) — attempt in this order, and record in Completion Notes exactly how far this got:
+- [x] **Task 8: Validation and manual verification** (AC: all)
+  - [x] `pnpm run typecheck` (all packages) — 0 errors. `node scripts/check-i18n-key-parity.mjs` — 0 errors (no new locale keys are added by this story — no custom UI text; confirm the script still passes clean as a regression check).
+  - [x] `supabase test db` (WSL shell) — zero regressions against the pre-story baseline plus this story's new test file.
+  - [x] Manual verification is environment-gated (Scope Notes) — attempt in this order, and record in Completion Notes exactly how far this got:
     1. If no EAS project is linked and no EAS credentials are available: confirm the app still launches and functions normally end-to-end (onboarding, check-in, etc.) with `registerPushToken` failing closed (caught, logged, no crash) — this is the maximum verifiable state without account access. State this plainly; do not claim a real token was obtained.
     2. If an EAS project can be linked (`eas init`) and a development build produced: install on a physical Android and/or iOS device, grant notification permission at first launch, and confirm a `device_push_tokens` row appears for that user via the Supabase Studio table view (WSL-local or the linked project, per Dev Notes) with a plausible `ExponentPushToken[...]`-shaped value.
     3. Do not attempt to verify this via Expo Go on Android — confirmed unsupported since SDK 53 (Scope Notes).
@@ -262,10 +266,38 @@ so that I get timely alerts about my membership.
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-sonnet-5
 
 ### Debug Log References
 
+None.
+
 ### Completion Notes List
 
+- Migration `0042_expo_push_token_registration_cleanup.sql` applied cleanly against a fresh `supabase db reset` (WSL); `packages/types/src/database.ts` regenerated and diffed as expected — new `device_push_tokens` table type (alphabetically between `coach_assignments` and `front_desk_alerts`) and `device_platform` enum entry; `private.cleanup_invalid_device_push_token` correctly absent from the generated `public` types (lives in `private` schema).
+- pgTAP: `supabase/tests/expo_push_token_registration_cleanup.test.sql` (22 assertions) covers self-scoped RLS (own insert/select/update succeed; cross-user insert/select/update denied; direct delete denied for both users, confirming the no-DELETE-policy deny-all default), the `(user_id, expo_push_token)` upsert/idempotency behavior, the `device_platform` enum constraint, `private.cleanup_invalid_device_push_token()` deleting a different user's row when called as `service_role` plus its no-op behavior on a non-matching token, and the cross-user privacy regression (this file's most important assertion, per Dev Notes).
+- Full suite: `supabase test db` (WSL) — 638/638 passing across 35 files, zero regressions. One transient failure was observed on an interim run (`check_out_manual_auto_timeout.test.sql`, "have: 2 want: 1" on a `job_runs` success-row count) — root-caused to the long-lived local Supabase stack's real `pg_cron` schedule (`check_in_auto_timeout` fires every 15 minutes) ticking for real during this session's extended wall-clock time, not anything this story's migration/tests touch. Confirmed by re-running `supabase db reset` immediately followed by `supabase test db`: all 638 tests passed clean, including that file.
+- `pnpm run typecheck` (all 4 packages) — 0 errors. `node scripts/check-i18n-key-parity.mjs` — 0 errors, all 4 locale directories in parity (no new locale keys added by this story, matching the no-custom-UI-text scope). `pnpm run lint` — `@gymos/dashboard` and `@gymos/super-admin` clean; `@gymos/mobile`'s `expo lint` fails with `'eslint' is not recognized as an internal or external command` — confirmed via `git stash` that this identical failure pre-exists on the baseline commit (before any file this story touches existed), i.e. an environment tooling gap (eslint not resolvable via PATH for this Windows/pnpm setup), not a regression introduced by this story.
+- **Manual verification — completed live, end-to-end, on a physical Android device (post-review update, same day).** Initial completion (above) was environment-blocked; the user then provided a physical Android device and an Expo account, superseding that state. Ran `eas init` (linked `@josephfeussi/gymos`, `extra.eas.projectId` written to `app.json`), added `expo-dev-client`, hand-authored `eas.json` (`build:configure` requires an interactive TTY this session didn't have), and produced an EAS cloud development build. First build attempt hit `Error: unable to get Firebase Messaging instance` — Android push requires a Firebase project + `google-services.json`, which this repo never had; the user created one, and a second build with it wired into `app.json`'s `android.googleServicesFile` succeeded (the file itself stays gitignored — not committed — and was only temporarily un-ignored for the EAS upload step, since EAS Build's archiver skips gitignored files by default). Seeded a throwaway local test gym/tier/plan/member/subscription (fake `+237` number, not the user's real number) plus a Supabase `auth.sms.test_otp` fixed-code mapping so the phone-OTP onboarding flow could be completed on-device without a real SMS provider. **Confirmed end-to-end**: installed the dev build, completed onboarding, granted the OS notification permission prompt, and a real `ExponentPushToken[...]` row appeared in `device_push_tokens` for the test member — AC #1 genuinely verified working, not just code-reviewed.
+- **Bug found via this live test, fixed same session: `subscribeToPushTokenChanges` was storing the wrong token type.** `Notifications.addPushTokenListener()`'s callback receives the raw native `DevicePushToken` (an FCM registration token on Android), never an `ExpoPushToken` — confirmed against Expo's SDK 57 docs after the device test produced direct evidence: two rows landed in `device_push_tokens` for the same user, one correctly `ExponentPushToken[...]`-shaped (from `registerPushToken`'s `getExpoPushTokenAsync()` call) and one a raw FCM token string (`fMNgDb3...`, from the listener storing `token.data` directly, exactly as Task 4's own original spec code did). Expo's push service cannot deliver to a raw FCM token under this app's schema — it would have silently produced an undeliverable `device_push_tokens` row on every token-rotation event in production, never caught by pgTAP (which only exercises the DB/RLS layer, not what Expo's client APIs actually return). Fixed by extracting a shared `fetchAndStorePushToken()` that always calls `getExpoPushTokenAsync()` fresh; `subscribeToPushTokenChanges`'s listener now ignores the native token payload entirely and just triggers that re-fetch, matching Expo's documented token-rotation guidance exactly. Re-ran `pnpm run typecheck` (0 errors) after the fix; the erroneous raw-FCM-token row was deleted from local test data. No pgTAP changes needed (RLS/schema untouched by this fix, purely a client-side call-shape correction).
+
 ### File List
+
+- `supabase/migrations/0042_expo_push_token_registration_cleanup.sql` (new)
+- `supabase/tests/expo_push_token_registration_cleanup.test.sql` (new)
+- `packages/types/src/database.ts` (regenerated)
+- `packages/types/src/schemas/devicePushToken.ts` (new)
+- `packages/types/src/index.ts` (modified — new export line)
+- `apps/mobile/package.json` (modified — `expo-notifications` added)
+- `apps/mobile/app.json` (modified — `expo-notifications` plugin entry, `extra.eas.projectId`, `android.googleServicesFile`)
+- `apps/mobile/eas.json` (new — development/preview/production build profiles)
+- `apps/mobile/.gitignore` (modified — `google-services.json` excluded)
+- `apps/mobile/src/services/pushTokens.ts` (new; post-review fix — token-rotation listener no longer stores the raw native token)
+- `apps/mobile/src/app/_layout.tsx` (modified — registration wiring)
+- `docs/decisions.md` (modified)
+- `pnpm-lock.yaml` (modified — `expo-notifications` dependency resolution)
+
+### Change Log
+
+- 2026-08-03: Story 6.1 implementation complete — Expo push token registration & cleanup, migration 0042 (`device_push_tokens`, `device_platform` enum, self-scoped RLS, `private.cleanup_invalid_device_push_token()`), 22 new pgTAP assertions, `devicePushTokenSchema`, `pushTokens.ts` service (`registerPushToken`/`subscribeToPushTokenChanges`), `_layout.tsx` wiring gated on `isFullyOnboarded`, decisions log entry. Manual device verification environment-blocked (no EAS project/credentials, no physical device) — stated plainly, no live token claimed. Status → review.
+- 2026-08-03: Post-review live device verification. User provided a physical Android device + Expo account. Linked EAS project, added Firebase (`google-services.json`, user-provided), produced two EAS development builds (first failed on missing Firebase config, second succeeded). Seeded throwaway local test fixtures (fake-phone member/gym/plan/subscription + `auth.sms.test_otp`) to complete onboarding without real SMS. Confirmed AC #1 end-to-end: real `ExponentPushToken[...]` row written to `device_push_tokens` after granting notification permission on-device. **Found and fixed a real bug during this test**: `subscribeToPushTokenChanges` was storing the raw native FCM `DevicePushToken` from `addPushTokenListener` instead of re-fetching a proper `ExponentPushToken` via `getExpoPushTokenAsync()` — confirmed against Expo's SDK 57 docs, would have produced undeliverable token rows on every rotation in production. Typecheck re-verified clean (0 errors) after the fix.
