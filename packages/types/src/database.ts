@@ -185,6 +185,41 @@ export type Database = {
           },
         ]
       }
+      device_push_tokens: {
+        Row: {
+          created_at: string
+          expo_push_token: string
+          id: string
+          platform: Database["public"]["Enums"]["device_platform"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expo_push_token: string
+          id?: string
+          platform: Database["public"]["Enums"]["device_platform"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expo_push_token?: string
+          id?: string
+          platform?: Database["public"]["Enums"]["device_platform"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_push_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       front_desk_alerts: {
         Row: {
           created_at: string
@@ -1120,6 +1155,7 @@ export type Database = {
     }
     Enums: {
       billing_interval: "monthly" | "annual"
+      device_platform: "ios" | "android"
       gym_status: "active" | "suspended" | "deactivated"
       job_status: "success" | "failure"
       member_role: "member" | "coach" | "receptionist" | "manager" | "owner"
@@ -1269,6 +1305,7 @@ export const Constants = {
   public: {
     Enums: {
       billing_interval: ["monthly", "annual"],
+      device_platform: ["ios", "android"],
       gym_status: ["active", "suspended", "deactivated"],
       job_status: ["success", "failure"],
       member_role: ["member", "coach", "receptionist", "manager", "owner"],
