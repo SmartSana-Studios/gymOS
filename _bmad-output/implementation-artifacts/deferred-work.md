@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review (Round 2) of story-6-1-expo-push-token-registration-cleanup (2026-08-04)
+
+- No `CONCURRENTLY` on the new `idx_device_push_tokens_expo_push_token` index [supabase/migrations/0043_add_idx_device_push_tokens_expo_push_token.sql:4] — takes an ACCESS EXCLUSIVE lock during build; harmless today on a brand-new, empty table, and not a regression (only one other migration in this codebase's entire history — 0039 — ever uses `CONCURRENTLY`).
+
 ## Deferred from: code review of story-5-3-coach-portal-member-detail-session-notes (2026-08-02)
 
 - `router.push` used for both sort-column clicks and debounced search input, polluting browser history on every interaction [apps/dashboard/app/(dashboard)/coach/components/CoachPortalPageClient.tsx] — reclassified from patch to defer during apply: verified byte-identical `router.push(...)` (not `replace`) exists in the same `updateParams`-style function in `MembersPageClient.tsx`, `SubscriptionsPageClient.tsx`, and `AttendancePageClient.tsx` — a deliberate, app-wide convention across all four filter/sort pages, not a regression introduced by this story. Fixing only the coach page would make it the one inconsistent page; worth a cross-cutting follow-up across all four if this behavior is ever revisited.
