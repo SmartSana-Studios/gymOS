@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-08-03 (story 6.1 review)
+last_updated: 2026-08-04 (story 6.1 review round 3 complete, story 6.3 ready-for-dev)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -99,9 +99,9 @@ development_status:
   epic-5-retrospective: optional
 
   epic-6: in-progress
-  6-1-expo-push-token-registration-cleanup: review
-  6-2-subscription-lifecycle-notifications-n-01-n-02-n-03: backlog
-  6-3-payment-notifications-n-04-n-05: backlog
+  6-1-expo-push-token-registration-cleanup: done
+  6-2-subscription-lifecycle-notifications-n-01-n-02-n-03: done
+  6-3-payment-notifications-n-04-n-05: ready-for-dev
   6-4-notification-preferences: backlog
   epic-6-retrospective: optional
 

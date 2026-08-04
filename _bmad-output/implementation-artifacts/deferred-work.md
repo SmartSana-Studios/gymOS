@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review (Round 3) of story-6-1-expo-push-token-registration-cleanup (2026-08-04)
+
+- `subscribeToPushTokenChanges`'s `.catch()` handler (line 93) is unreachable dead code [apps/mobile/src/services/pushTokens.ts:93] — `fetchAndStorePushToken` already swallows every error internally via its own try/catch, so the new `if (error) throw error` added to `upsertPushToken` in this round can never propagate up to it. Pre-existing: the function already never rejected before this round's throw was added one level down, so this isn't a new gap introduced by this diff.
+
 ## Deferred from: code review (Round 2) of story-6-1-expo-push-token-registration-cleanup (2026-08-04)
 
 - No `CONCURRENTLY` on the new `idx_device_push_tokens_expo_push_token` index [supabase/migrations/0043_add_idx_device_push_tokens_expo_push_token.sql:4] — takes an ACCESS EXCLUSIVE lock during build; harmless today on a brand-new, empty table, and not a regression (only one other migration in this codebase's entire history — 0039 — ever uses `CONCURRENTLY`).

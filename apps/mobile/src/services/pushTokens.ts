@@ -67,10 +67,11 @@ async function upsertPushToken(userId: string, expoPushToken: string, platform: 
   const parsed = devicePushTokenSchema.safeParse({ expoPushToken, platform });
   if (!parsed.success) return;
 
-  await supabase.from('device_push_tokens').upsert(
+  const { error } = await supabase.from('device_push_tokens').upsert(
     { user_id: userId, expo_push_token: parsed.data.expoPushToken, platform: parsed.data.platform },
     { onConflict: 'user_id,expo_push_token' },
   );
+  if (error) throw error;
 }
 
 /** Story 6.1 AC #1: Expo's SDK 57 docs document that a push token may be
