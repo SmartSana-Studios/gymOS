@@ -1,5 +1,12 @@
 # Deferred Work
 
+## Deferred from: code review of story-6-3-payment-notifications-n-04-n-05 (2026-08-04)
+
+- `complete_flagged_payment()` omits an audit-log call unlike its sibling `complete_verified_payment()` [supabase/migrations/0046_payment_notifications.sql:252-263] — deferred, pre-existing: the story's own Dev Notes explicitly frame this as "a judgment call, not mandated by any AC" and hand it to Story 7.1 (Audit Record Coverage Verification) to close.
+- N-04/N-05's automated-vs-manual boundary (`processing→flagged` = notify, `pending→flagged` = silent) is enforced only by a trigger comment and a `docs/decisions.md` paragraph, not by schema [supabase/migrations/0046_payment_notifications.sql:228-235] — accepted trade-off of the epic-mandated genuine `AFTER INSERT OR UPDATE` trigger design; a future story adding a third `processing→flagged` write path for an unrelated reason would silently misfire N-05 with no mechanism to catch it. Worth a follow-up (e.g. a table comment or schema-level guard) if a third `processing→flagged` path is ever added.
+- Trigger has no `INSERT`-with-`flagged` branch for N-05 [supabase/migrations/0046_payment_notifications.sql:223-235] — only reachable via a `service_role`-authored direct INSERT with `status` already `'flagged'` (bypassing RLS); none of this story's 5 documented write paths do this, so it's out of scope today, but a future backfill/import path could silently produce no N-05.
+- `payment-webhook/index.ts`'s `event.status !== "verified"` branch treats any non-`"verified"` status as a failure to flag, rather than checking specifically for `"flagged"` [supabase/functions/payment-webhook/index.ts:267] — harmless today since the only real provider (`TaraMoneyProvider`) only ever emits `"verified"` or `"flagged"`; a design note for the next payment-provider integration if one is ever added.
+
 ## Deferred from: code review (Round 3) of story-6-1-expo-push-token-registration-cleanup (2026-08-04)
 
 - `subscribeToPushTokenChanges`'s `.catch()` handler (line 93) is unreachable dead code [apps/mobile/src/services/pushTokens.ts:93] — `fetchAndStorePushToken` already swallows every error internally via its own try/catch, so the new `if (error) throw error` added to `upsertPushToken` in this round can never propagate up to it. Pre-existing: the function already never rejected before this round's throw was added one level down, so this isn't a new gap introduced by this diff.

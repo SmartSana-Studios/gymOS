@@ -1083,6 +1083,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      complete_flagged_payment: {
+        Args: { p_payment_id: string }
+        Returns: undefined
+      }
       complete_verified_payment: {
         Args: { p_fee_amount: number; p_payment_id: string }
         Returns: string
