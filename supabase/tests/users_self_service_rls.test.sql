@@ -10,7 +10,7 @@
 -- proving denial (Story 1.9's Debug Log already hit this mistake once).
 
 begin;
-select plan(16);
+select plan(18);
 
 -- `handle_new_user()` (0003_members_and_users.sql's `on_auth_user_created`
 -- trigger) auto-inserts a bare `public.users` row on every `auth.users`
@@ -185,6 +185,45 @@ with updated as (
   returning id
 )
 select is((select count(*) from updated)::int, 0, 'a session cannot UPDATE a different user''s row');
+
+-- ============================================================================
+-- Story 1.12 AC #2 regression guard: provision-super-admin.mjs's promote
+-- path does a service-role UPDATE ... SET is_super_admin = true against an
+-- arbitrary user's row. protect_self_managed_user_columns's `auth.uid() =
+-- new.id` guard (0015_users_self_service_language_preference.sql:32-46)
+-- must never fire for it -- service_role has no request.jwt.claims / session
+-- at all (auth.uid() is null, matching this suite's sibling convention,
+-- audit_log_immutable.test.sql:36-38), unlike the `authenticated`-role
+-- self-updates simulated above, which deliberately keep a `sub` claim to
+-- prove the opposite (pinned-back) case. This is the one regression this
+-- story could most easily ship silently: a future edit to that trigger
+-- tightening its guard beyond the current check could break the CLI script
+-- without any application-level test catching it.
+-- ============================================================================
+-- Clear the `sub` claim left over from the `authenticated`-role assertions
+-- above (transaction-scoped via set_config's is_local=true, so it survives
+-- the role switch on its own) -- a real service-role request never carries
+-- a session/sub claim at all, and leaving the old one in place would let
+-- `auth.uid() = new.id` spuriously evaluate true for this same user id,
+-- masking the very case this regression guard exists to catch.
+select set_config('request.jwt.claims', '{}', true);
+set local role service_role;
+
+with promoted as (
+  update users set is_super_admin = true
+  where id = '00000000-0000-0000-0000-000000005021'
+  returning id
+)
+select is(
+  (select count(*) from promoted)::int, 1,
+  'a service-role UPDATE can set is_super_admin on an arbitrary user row'
+);
+
+select is(
+  (select is_super_admin from users where id = '00000000-0000-0000-0000-000000005021'),
+  true,
+  'the service-role is_super_admin write actually persisted -- not reverted by protect_self_managed_user_columns'
+);
 
 select * from finish();
 rollback;

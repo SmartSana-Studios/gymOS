@@ -6,7 +6,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "provision-super-admin": "node --env-file=.env.local scripts/provision-super-admin.mjs"
   },
   "dependencies": {
     "@gymos/types": "workspace:*",

@@ -1,5 +1,10 @@
 # Deferred Work
 
+## Deferred from: code review of 1-12-super-admin-provisioning-cli (2026-08-05)
+
+- `findUserByEmail` (`apps/super-admin/scripts/provision-super-admin.mjs:82-97`) does a full paginated scan of `auth.users` instead of a server-side filtered lookup — O(total platform users) per invocation. Acceptable given the story's stated rare/small-team usage; revisit if usage frequency or user count grows, or if the Admin API gains a filtered email lookup.
+- `docs/decisions.md`'s 2026-08-04 Story 7.1 dated entry claims "full FR-080 coverage matrix confirmed," which is now stale since Story 1.12 adds two new `action_type` values (`super_admin_provisioned`, `super_admin_promoted`) not reflected in that matrix. Dated entries are historical record by this project's convention, so don't edit in place — needs a follow-up doc pass (e.g., a new dated entry noting the matrix update) rather than retroactive correction.
+
 ## Deferred from: code review of story-7-2-audit-log-dashboard-page (2026-08-05)
 
 - No automated test for the Owner-only CSV export server-side authorization gate (AC #4) — `exportAuditLogCsv`'s `role !== "owner"` check [apps/dashboard/services/auditLog.ts:255] is the only mechanism enforcing this distinction (RLS deliberately doesn't role-split Manager/Owner read access); verified only via manual browser check. No test runner (Vitest/Jest) exists anywhere in this repo — user decision: defer, manual verification is sufficient for now, matching the codebase's established service-layer testing convention; setting up test infra is a separate future decision.
