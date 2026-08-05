@@ -6,7 +6,7 @@
 -- manual_payment_verification_queue.test.sql.
 
 begin;
-select plan(51);
+select plan(53);
 
 -- Task 1 RED contract: internal logical-dispatch and per-device ledgers.
 select ok(
@@ -360,6 +360,20 @@ select lives_ok(
 );
 reset role;
 
+-- Story 7.1 (AC #3): complete_flagged_payment() now closes the audit gap
+-- against its sibling complete_verified_payment() -- confirm the shape.
+select ok(
+  exists (
+    select 1 from audit_log
+    where action_type = 'payment_verification_failed'
+      and gym_id = '00000000-0000-0000-0000-000000006301'
+      and target_entity_id = '00000000-0000-0000-0000-000000006416'
+      and target_entity_type = 'member'
+      and metadata @> '{"payment_id": "00000000-0000-0000-0000-000000006606", "amount": 15000, "method": "orange_money"}'::jsonb
+  ),
+  'an automated processing -> flagged transition writes a payment_verification_failed audit record with the expected shape'
+);
+
 select is(
   (select status::text from payments where id = '00000000-0000-0000-0000-000000006606'),
   'flagged',
@@ -394,6 +408,12 @@ select is(
   (select count(*)::int from private.payment_notification_dispatches where payment_id = '00000000-0000-0000-0000-000000006606'),
   1,
   'the replayed failure delivery creates no duplicate N-05 dispatch'
+);
+
+select is(
+  (select count(*)::int from audit_log where action_type = 'payment_verification_failed' and target_entity_id = '00000000-0000-0000-0000-000000006416'),
+  1,
+  'the retried no-op complete_flagged_payment call creates no duplicate payment_verification_failed audit record'
 );
 
 -- AC #6: French N-05 copy, same discipline as the N-04 fr/fallback assertions
