@@ -1,5 +1,5 @@
 # generated: 2026-07-04
-# last_updated: 2026-08-05 (story 7.2 done, code review passed)
+# last_updated: 2026-08-05 (epic 7 retrospective done)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-08-05 (story 7.2 done, code review passed)
+last_updated: 2026-08-05 (epic 7 retrospective done)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -105,9 +105,26 @@ development_status:
   6-4-notification-preferences: done
   epic-6-retrospective: optional
 
-  epic-7: in-progress
+  epic-7: done
   7-1-audit-record-coverage-verification: done
   7-2-audit-log-dashboard-page: done
-  epic-7-retrospective: optional
+  epic-7-retrospective: done
 
+action_items:
+  - epic: 7
+    action: "Commit immediately when a story's Status is set to done, before starting the next story's work"
+    owner: "Amelia (Dev workflow)"
+    status: open
+  - epic: 7
+    action: "When splitting/reconstructing an uncommitted or mixed diff, cross-check each changed file against the story's own Task List / File List before assigning it to a commit"
+    owner: "Amelia (Dev workflow)"
+    status: open
+  - epic: 7
+    action: "Commit framework/tooling reinstalls (BMad upgrades, dependency bumps) separately and immediately, not left mixed with feature branches"
+    owner: "smartsana"
+    status: open
+  - epic: 7
+    action: "Make an explicit, one-time decision on the 'no test runner' question (adopt Vitest, or ratify pgTAP + typecheck + manual as the permanent standard in docs/decisions.md)"
+    owner: "smartsana"
+    status: open
 
