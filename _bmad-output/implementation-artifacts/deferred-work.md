@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review of story-8-4-mobile-shared-ui-primitives (2026-08-05)
+
+- `Badge.tsx`'s `paddingHorizontal: 10` doesn't match the `Spacing` token scale (`half`/`one`/`two`/`three`... = 2/4/8/16...) that the rest of the codebase sources all spacing from [apps/mobile/src/components/ui/Badge.tsx:33] — deferred, no design-source confirmation available for whether 10px is an intentional Figma value or should normalize to `Spacing.two`=8.
+
 ## Deferred from: code review of story-8-3-mobile-design-system-foundation (2026-08-05)
 
 - `linkPrimary` in `ThemedText` is still hardcoded to legacy blue `#3c87f7` [apps/mobile/src/components/themed-text.tsx] despite this story introducing a full gold-accent/dark token set — deferred, pre-existing value untouched by this diff and out of scope for this story's AC; worth migrating once a screen actually surfaces `linkPrimary` in the redesign.
