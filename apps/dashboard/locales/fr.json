@@ -563,5 +563,49 @@
       "previewLoadFailed": "Impossible de charger les détails du renouvellement. Vérifiez votre connexion et réessayez.",
       "confirmFailed": "Le renouvellement a échoué. Vérifiez votre connexion et réessayez."
     }
+  },
+  "audit": {
+    "title": "Journal d'audit",
+    "table": {
+      "timestamp": "Horodatage",
+      "actor": "Acteur",
+      "action": "Action",
+      "target": "Cible",
+      "details": "Détails"
+    },
+    "filters": {
+      "dateFrom": "Du",
+      "dateTo": "Au",
+      "actor": "Acteur",
+      "actorAll": "Tous"
+    },
+    "emptyNoRecords": "Aucune entrée d'audit pour cette période.",
+    "pagination": {
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "ellipsis": "…"
+    },
+    "export": {
+      "button": "Exporter en CSV",
+      "exporting": "Exportation…"
+    },
+    "errors": {
+      "exportTooLarge": "Appliquez un filtre pour réduire les résultats",
+      "exportOwnerOnly": "Seul le propriétaire de la salle peut exporter le journal d'audit"
+    },
+    "actionTypes": {
+      "manualPaymentRecorded": "Paiement enregistré",
+      "paymentVerified": "Paiement vérifié",
+      "paymentFlagged": "Paiement signalé",
+      "paymentVerificationFailed": "Échec de la vérification du paiement",
+      "refundRecorded": "Remboursement enregistré",
+      "memberDeactivated": "Membre désactivé",
+      "coachAssigned": "Coach assigné",
+      "coachReassigned": "Coach réassigné",
+      "gymDataEscalation": "Accès aux données de la salle",
+      "subscriptionLifecycleJobFailure": "Échec de la tâche d'abonnement",
+      "checkInAutoTimeoutJobFailure": "Échec de la tâche d'enregistrement",
+      "paymentReconciliationJobFailure": "Échec de la tâche de rapprochement des paiements"
+    }
   }
 }

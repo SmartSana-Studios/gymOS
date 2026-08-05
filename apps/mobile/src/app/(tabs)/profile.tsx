@@ -1,7 +1,7 @@
 import { profileSetupSchema } from '@gymos/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -11,6 +11,7 @@ import { BottomTabInset, Spacing } from '@/constants/theme';
 import type { MobileLocale } from '@/lib/i18n';
 import { openPhotoPicker, pickPhoto, uploadPhoto } from '@/lib/photo-upload';
 import { supabase } from '@/lib/supabase';
+import { getMemberPreferences, updateMemberPreferences } from '@/services/notificationPreferences';
 
 // Narrows the untyped embedded-select response, same discipline as
 // onboarding/plan.tsx's `isSubscriptionRow` (Review finding there) -- a
@@ -59,6 +60,13 @@ export default function ProfileScreen() {
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   const [langPending, setLangPending] = useState(false);
+
+  const [memberId, setMemberId] = useState<string | null>(null);
+  const [quietGymAlertsOptedOut, setQuietGymAlertsOptedOut] = useState(false);
+  const [classReminderOptedOut, setClassReminderOptedOut] = useState(false);
+  const [quietGymAlertsPending, setQuietGymAlertsPending] = useState(false);
+  const [classReminderPending, setClassReminderPending] = useState(false);
+  const [notificationsLoadError, setNotificationsLoadError] = useState(false);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -111,18 +119,28 @@ export default function ProfileScreen() {
         return;
       }
 
-      // Same PGRST116 distinction as above -- a member with no active
-      // subscription is a distinct, non-retryable state from a real
-      // network/connectivity failure (same distinction onboarding/plan.tsx's
-      // loadPlan already makes).
-      const subscriptionResult = await supabase
-        .from('subscriptions')
-        .select('plans(name)')
-        .eq('member_id', memberResult.data.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      const resolvedMemberId = memberResult.data.id;
+      if (mountedRef.current) setMemberId(resolvedMemberId);
+
+      // Preferences load only depends on the member row existing (guaranteed
+      // by migration 0047's auto-create trigger), not on an active
+      // subscription -- fetched alongside subscription rather than gated
+      // behind noActivePlan (Story 6.4 AC #2).
+      const [subscriptionResult, preferences] = await Promise.all([
+        // Same PGRST116 distinction as above -- a member with no active
+        // subscription is a distinct, non-retryable state from a real
+        // network/connectivity failure (same distinction onboarding/plan.tsx's
+        // loadPlan already makes).
+        supabase
+          .from('subscriptions')
+          .select('plans(name)')
+          .eq('member_id', resolvedMemberId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single(),
+        getMemberPreferences(resolvedMemberId),
+      ]);
 
       if (!mountedRef.current) return;
 
@@ -137,6 +155,18 @@ export default function ProfileScreen() {
         return;
       } else {
         setPlanName(subscriptionResult.data.plans.name);
+      }
+
+      // A notifications-load failure is isolated to its own section (inline
+      // retry) rather than failing the whole profile -- this is an inert,
+      // non-critical feature (Story 6.4 AC #5), unlike the user/gym/member
+      // fetches above which are load-bearing for the rest of the screen.
+      if (preferences) {
+        setNotificationsLoadError(false);
+        setQuietGymAlertsOptedOut(preferences.quietGymAlertsOptedOut);
+        setClassReminderOptedOut(preferences.classReminderOptedOut);
+      } else {
+        setNotificationsLoadError(true);
       }
     } catch {
       if (mountedRef.current) setLoadError(true);
@@ -251,6 +281,50 @@ export default function ProfileScreen() {
       }
     } finally {
       if (mountedRef.current) setLangPending(false);
+    }
+  }
+
+  // Same optimistic-update/rollback shape as handleLanguageChange above --
+  // no separate error toast, the toggle visually reverting is the
+  // user-visible feedback on a failed persist (Story 6.4 AC #3). Each row
+  // has its own pending flag (not a single shared one) so toggling one
+  // category doesn't visually disable the other while its write is in
+  // flight -- confirmed on-device that a shared flag made the untouched
+  // switch look like it was reacting too.
+  async function handleToggleQuietGymAlerts() {
+    if (quietGymAlertsPending || !memberId) return;
+    const previous = quietGymAlertsOptedOut;
+    setQuietGymAlertsPending(true);
+    setQuietGymAlertsOptedOut(!previous);
+    try {
+      const ok = await updateMemberPreferences(memberId, { quietGymAlertsOptedOut: !previous });
+      if (!ok && mountedRef.current) setQuietGymAlertsOptedOut(previous);
+    } finally {
+      if (mountedRef.current) setQuietGymAlertsPending(false);
+    }
+  }
+
+  async function handleToggleClassReminder() {
+    if (classReminderPending || !memberId) return;
+    const previous = classReminderOptedOut;
+    setClassReminderPending(true);
+    setClassReminderOptedOut(!previous);
+    try {
+      const ok = await updateMemberPreferences(memberId, { classReminderOptedOut: !previous });
+      if (!ok && mountedRef.current) setClassReminderOptedOut(previous);
+    } finally {
+      if (mountedRef.current) setClassReminderPending(false);
+    }
+  }
+
+  async function handleRetryNotifications() {
+    if (!memberId) return;
+    const preferences = await getMemberPreferences(memberId);
+    if (!mountedRef.current) return;
+    if (preferences) {
+      setNotificationsLoadError(false);
+      setQuietGymAlertsOptedOut(preferences.quietGymAlertsOptedOut);
+      setClassReminderOptedOut(preferences.classReminderOptedOut);
     }
   }
 
@@ -387,6 +461,55 @@ export default function ProfileScreen() {
               </View>
             </View>
 
+            {memberId && (
+              <View style={styles.row}>
+                <ThemedText type="default">{t('profile.notifications.title')}</ThemedText>
+
+                {notificationsLoadError ? (
+                  <View style={styles.notificationRow}>
+                    <ThemedText type="small" style={styles.error}>
+                      {t('profile.errorLoadFailed')}
+                    </ThemedText>
+                    <Pressable accessibilityRole="button" onPress={() => void handleRetryNotifications()}>
+                      <ThemedText type="link">{t('common.tryAgain')}</ThemedText>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <>
+                    <View style={[styles.rowContent, styles.notificationRow]}>
+                      <ThemedText type="small">{t('profile.notifications.quietGymAlerts')}</ThemedText>
+                      <Switch
+                        accessibilityRole="switch"
+                        accessibilityLabel={t('profile.notifications.quietGymAlerts')}
+                        accessibilityState={{ checked: !quietGymAlertsOptedOut, disabled: quietGymAlertsPending }}
+                        disabled={quietGymAlertsPending}
+                        value={!quietGymAlertsOptedOut}
+                        onValueChange={() => void handleToggleQuietGymAlerts()}
+                      />
+                    </View>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {t('profile.notifications.quietGymAlertsDescription')}
+                    </ThemedText>
+
+                    <View style={[styles.rowContent, styles.notificationRow]}>
+                      <ThemedText type="small">{t('profile.notifications.classReminder')}</ThemedText>
+                      <Switch
+                        accessibilityRole="switch"
+                        accessibilityLabel={t('profile.notifications.classReminder')}
+                        accessibilityState={{ checked: !classReminderOptedOut, disabled: classReminderPending }}
+                        disabled={classReminderPending}
+                        value={!classReminderOptedOut}
+                        onValueChange={() => void handleToggleClassReminder()}
+                      />
+                    </View>
+                    <ThemedText type="small" themeColor="textSecondary">
+                      {t('profile.notifications.classReminderDescription')}
+                    </ThemedText>
+                  </>
+                )}
+              </View>
+            )}
+
             <View style={styles.row}>
               <Pressable accessibilityRole="button" onPress={handleLogOut} style={styles.rowContent}>
                 <ThemedText type="default">{t('profile.logOut')}</ThemedText>
@@ -456,6 +579,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  notificationRow: {
+    marginTop: Spacing.two,
   },
   editSection: {
     marginTop: Spacing.three,

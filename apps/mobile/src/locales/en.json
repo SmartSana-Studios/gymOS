@@ -97,7 +97,14 @@
     "logOutConfirmTitle": "Log out of GymOS?",
     "noActivePlan": "No active plan",
     "errorLoadFailed": "Couldn't load your profile. Check your connection and try again.",
-    "errorSaveFailed": "Couldn't save your profile. Check your connection and try again."
+    "errorSaveFailed": "Couldn't save your profile. Check your connection and try again.",
+    "notifications": {
+      "title": "Notifications",
+      "quietGymAlerts": "Quiet-gym alerts",
+      "quietGymAlertsDescription": "Get notified when your gym is quiet enough for a relaxed workout. (Coming soon.)",
+      "classReminder": "Class reminders",
+      "classReminderDescription": "Get a reminder before your booked classes start. (Coming soon.)"
+    }
   },
   "checkin": {
     "title": "Check In",

@@ -115,8 +115,11 @@ select is(
 -- test's own fixture gym_id, not a bare unfiltered count -- the local dev
 -- database can carry other committed audit_log rows from unrelated manual
 -- testing, same class of fragility Story 1.6 hit with tier-name fixture
--- collisions), still deny-all for a regular gym-scoped session (Epic 7's own
--- future policy is separate and does not exist yet).
+-- collisions). A regular gym-scoped owner session ALSO sees this row now --
+-- Story 7.2's manager_or_owner_read_own_audit_log policy
+-- (0049_audit_log_dashboard_read_policy.sql) OR's in a gym-scoped
+-- Manager/Owner grant alongside this Super-Admin-only policy; this test
+-- previously asserted the pre-7.2 deny-all state, which no longer holds.
 -- ============================================================================
 select is(
   (select count(*) from audit_log where gym_id = '00000000-0000-0000-0000-000000003011')::int, 1,
@@ -131,8 +134,8 @@ select set_config(
 );
 
 select is(
-  (select count(*) from audit_log where gym_id = '00000000-0000-0000-0000-000000003011')::int, 0,
-  'an owner-claim session still sees 0 audit_log rows for Gym A -- this story''s read policy is Super-Admin-only, not a general gym-admin grant'
+  (select count(*) from audit_log where gym_id = '00000000-0000-0000-0000-000000003011')::int, 1,
+  'an owner-claim session for its own gym now sees that gym''s audit_log row -- Story 7.2''s manager_or_owner_read_own_audit_log policy grants this, coexisting (OR''d) with the Super-Admin-only policy asserted above'
 );
 
 select * from finish();

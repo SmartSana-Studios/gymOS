@@ -23,6 +23,7 @@ SplashScreen.preventAutoHideAsync();
 function RootNavigator() {
   const { session, isOnboarded, isLoading } = useSession();
   const isFullyOnboarded = !!session && isOnboarded;
+  const sessionUserId = session?.user.id;
 
   // Story 6.1 AC #1: registration fires once onboarding fully completes --
   // the same gate the auth Stack.Protected guard below already uses -- using
@@ -33,10 +34,10 @@ function RootNavigator() {
   // the isLoading early return below so this hook's call order never
   // changes across renders (Rules of Hooks).
   useEffect(() => {
-    if (!isFullyOnboarded || !session) return;
-    void registerPushToken(session.user.id);
-    return subscribeToPushTokenChanges(session.user.id);
-  }, [isFullyOnboarded, session]);
+    if (!isFullyOnboarded || !sessionUserId) return;
+    void registerPushToken(sessionUserId);
+    return subscribeToPushTokenChanges(sessionUserId);
+  }, [isFullyOnboarded, sessionUserId]);
 
   // Keep the native splash visible (AnimatedSplashOverlay below still owns
   // hiding it) until the persisted session has been read once, so a

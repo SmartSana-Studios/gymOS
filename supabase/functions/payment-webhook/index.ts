@@ -265,16 +265,36 @@ export default {
     }
 
     if (event.status !== "verified") {
-      // A FAILURE/flagged delivery has nothing to complete -- payment_status
-      // has no "failed" value (AC #2's initiate-time delete already handles
-      // charges that never started), and calling complete_verified_payment
-      // here would incorrectly mark a failed attempt as verified. Story
-      // 4.4's reconciliation job structurally catches a payment stranded
-      // `processing` by a declined delivery like this one via its
-      // stale_processing check -- no auto-transition happens here.
+      // Story 6.3: a declined/failed delivery now has a real, observable
+      // completion path. complete_flagged_payment() only transitions a row
+      // that is still `processing` (idempotency guard for a retried
+      // delivery) -- the payments AFTER INSERT OR UPDATE trigger (migration
+      // 0046) fires N-05 on exactly that processing -> flagged transition,
+      // distinct from a staff "Flag for Review" (pending -> flagged), which
+      // stays silent. When no matching payments row was found, there is
+      // nothing to transition -- Story 4.4's reconciliation job remains the
+      // catch-all for that case.
       console.error(
-        `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} reported status "${event.status}" -- no completion action taken`,
+        `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} reported status "${event.status}"`,
       );
+
+      if (paymentRow) {
+        console.error(
+          `payment-webhook: ${providerKey} flagging payment ${paymentRow.id} for ${event.providerTransactionRef}`,
+        );
+
+        const { error: flagError } = await supabase.rpc("complete_flagged_payment", {
+          p_payment_id: paymentRow.id,
+        });
+
+        if (flagError) {
+          console.error(
+            `payment-webhook: ${providerKey} complete_flagged_payment failed for payment ${paymentRow.id} — ${flagError.message}`,
+          );
+          return jsonResponse(500);
+        }
+      }
+
       return jsonResponse(200);
     }
 

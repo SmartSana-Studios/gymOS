@@ -563,5 +563,49 @@
       "previewLoadFailed": "Couldn't load renewal details. Check your connection and try again.",
       "confirmFailed": "Renewal failed. Check your connection and try again."
     }
+  },
+  "audit": {
+    "title": "Audit Log",
+    "table": {
+      "timestamp": "Timestamp",
+      "actor": "Actor",
+      "action": "Action",
+      "target": "Target",
+      "details": "Details"
+    },
+    "filters": {
+      "dateFrom": "From",
+      "dateTo": "To",
+      "actor": "Actor",
+      "actorAll": "All"
+    },
+    "emptyNoRecords": "No audit records for this period.",
+    "pagination": {
+      "previous": "Previous page",
+      "next": "Next page",
+      "ellipsis": "…"
+    },
+    "export": {
+      "button": "Export CSV",
+      "exporting": "Exporting…"
+    },
+    "errors": {
+      "exportTooLarge": "Apply a filter to narrow results",
+      "exportOwnerOnly": "Only the gym owner can export the audit log"
+    },
+    "actionTypes": {
+      "manualPaymentRecorded": "Payment entry",
+      "paymentVerified": "Payment verified",
+      "paymentFlagged": "Payment flagged",
+      "paymentVerificationFailed": "Payment verification failed",
+      "refundRecorded": "Refund recorded",
+      "memberDeactivated": "Member deactivated",
+      "coachAssigned": "Coach assigned",
+      "coachReassigned": "Coach reassigned",
+      "gymDataEscalation": "Gym data access",
+      "subscriptionLifecycleJobFailure": "Subscription job failure",
+      "checkInAutoTimeoutJobFailure": "Check-in job failure",
+      "paymentReconciliationJobFailure": "Payment reconciliation job failure"
+    }
   }
 }

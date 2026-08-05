@@ -100,9 +100,8 @@ select is(
 );
 
 -- ============================================================================
--- (d) As User A: updating their own row succeeds; deleting their own row
--- directly is denied (no DELETE policy exists for `authenticated` -- deny-all
--- default applies, the only delete path is the cleanup function below).
+-- (d) As User A: updating their own row succeeds; direct deletion is denied at
+-- the table-privilege boundary. The only delete path is the cleanup function.
 -- ============================================================================
 with updated as (
   update device_push_tokens set platform = 'android'
@@ -117,16 +116,15 @@ select is(
   'the platform change actually persisted'
 );
 
-with deleted as (
-  delete from device_push_tokens where user_id = '00000000-0000-0000-0000-000000016021'
-  returning id
-)
-select is((select count(*)::int from deleted), 0, 'User A attempting to DELETE their own row directly affects zero rows (no DELETE policy)');
+select ok(
+  not has_table_privilege('authenticated', 'public.device_push_tokens', 'DELETE'),
+  'authenticated has no direct DELETE privilege on device_push_tokens'
+);
 
 select is(
   (select count(*)::int from device_push_tokens where user_id = '00000000-0000-0000-0000-000000016021'),
   1,
-  'User A''s row still exists after the denied direct DELETE attempt'
+  'User A''s row remains available only to the service-role cleanup path'
 );
 
 -- ============================================================================
@@ -136,7 +134,8 @@ select is(
 select lives_ok(
   $$insert into device_push_tokens (user_id, expo_push_token, platform)
     values ('00000000-0000-0000-0000-000000016021', 'ExponentPushToken[AAA111]', 'android')
-    on conflict (user_id, expo_push_token) do update set updated_at = now()$$,
+    on conflict (user_id, expo_push_token) do update
+      set updated_at = '2000-01-01 00:00:00+00'::timestamptz$$,
   'a repeated upsert on the same (user_id, expo_push_token) pair does not raise'
 );
 
@@ -146,14 +145,12 @@ select is(
   'the repeated upsert leaves exactly one row for the same (user_id, expo_push_token) pair'
 );
 
--- `now()` is frozen for the whole test transaction (transaction_timestamp()
--- semantics), so comparing updated_at to a fresh now() would spuriously
--- pass/fail on timing -- assert it never moves backwards instead, same
--- technique as coach_portal_member_detail_session_notes.test.sql's
--- edited_at >= created_at assertion.
+-- The upsert explicitly attempts to write a stale timestamp. The BEFORE UPDATE
+-- trigger must replace it, proving the trigger ran without relying on time
+-- advancing inside this transaction (`now()` is transaction-stable).
 select ok(
-  (select updated_at >= created_at from device_push_tokens where user_id = '00000000-0000-0000-0000-000000016021' and expo_push_token = 'ExponentPushToken[AAA111]'),
-  'updated_at is at least as recent as created_at after the upsert (same-transaction now() is constant, see comment)'
+  (select updated_at > '2000-01-01 00:00:00+00'::timestamptz from device_push_tokens where user_id = '00000000-0000-0000-0000-000000016021' and expo_push_token = 'ExponentPushToken[AAA111]'),
+  'the updated_at trigger replaces an explicitly stale timestamp during upsert'
 );
 
 -- ============================================================================
