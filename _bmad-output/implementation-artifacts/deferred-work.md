@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review of story-8-3-mobile-design-system-foundation (2026-08-05)
+
+- `linkPrimary` in `ThemedText` is still hardcoded to legacy blue `#3c87f7` [apps/mobile/src/components/themed-text.tsx] despite this story introducing a full gold-accent/dark token set — deferred, pre-existing value untouched by this diff and out of scope for this story's AC; worth migrating once a screen actually surfaces `linkPrimary` in the redesign.
+
 ## Deferred from: code review of 8-2-e-ink-display-endpoint (2026-08-05)
 
 - No `gyms.status` filter — a suspended/deactivated gym's QR is served identically to an active one [supabase/functions/gym-qr-display/index.ts:41-45] — deferred, pre-existing gap already present in `apps/mobile/src/services/checkin.ts`'s `validateGymToken`, not introduced by this diff.

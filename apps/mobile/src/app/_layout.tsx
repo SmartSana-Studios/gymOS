@@ -1,8 +1,16 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import {
+  Barlow_400Regular,
+  Barlow_500Medium,
+  Barlow_600SemiBold,
+  Barlow_700Bold,
+  Barlow_800ExtraBold,
+  useFonts,
+} from '@expo-google-fonts/barlow';
+import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { I18nextProvider } from 'react-i18next';
-import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { useSession } from '@/hooks/use-session';
@@ -25,6 +33,24 @@ function RootNavigator() {
   const isFullyOnboarded = !!session && isOnboarded;
   const sessionUserId = session?.user.id;
 
+  // Story 8.3: Barlow replaces the system font app-wide. Declared
+  // unconditionally alongside the other hooks below (Rules of Hooks) --
+  // combined with `isLoading` in the single early-return gate further down,
+  // so real screens never render in the system font before Barlow is ready.
+  const [fontsLoaded, fontsError] = useFonts({
+    Barlow_400Regular,
+    Barlow_500Medium,
+    Barlow_600SemiBold,
+    Barlow_700Bold,
+    Barlow_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsError) {
+      console.error('Failed to load Barlow fonts, falling back to system font:', fontsError);
+    }
+  }, [fontsError]);
+
   // Story 6.1 AC #1: registration fires once onboarding fully completes --
   // the same gate the auth Stack.Protected guard below already uses -- using
   // only the OS's own native permission dialog (no custom pre-permission
@@ -41,8 +67,9 @@ function RootNavigator() {
 
   // Keep the native splash visible (AnimatedSplashOverlay below still owns
   // hiding it) until the persisted session has been read once, so a
-  // returning member never sees a flash of the onboarding flow.
-  if (isLoading) {
+  // returning member never sees a flash of the onboarding flow -- and until
+  // Barlow has loaded (or failed), so no screen ever flashes the system font.
+  if (isLoading || (!fontsLoaded && !fontsError)) {
     return null;
   }
 
@@ -60,11 +87,15 @@ function RootNavigator() {
   );
 }
 
+// Story 8.3 (Review finding): navigation chrome now matches the
+// unconditionally-dark content theme (see hooks/use-theme.ts) instead of
+// following the device color scheme -- device scheme is intentionally
+// ignored app-wide until a real light-mode toggle is built.
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   return (
     <I18nextProvider i18n={i18n}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider value={DarkTheme}>
+        <StatusBar style="light" />
         <AnimatedSplashOverlay />
         <RootNavigator />
       </ThemeProvider>
