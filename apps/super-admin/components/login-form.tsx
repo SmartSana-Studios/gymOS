@@ -96,15 +96,6 @@ export function LoginForm({
                 {isLoading ? t("auth.signingIn") : t("auth.signIn")}
               </Button>
             </div>
-            <div className="mt-4 text-center text-sm">
-              {t("auth.noAccount")}{" "}
-              <Link
-                href="/auth/sign-up"
-                className="underline underline-offset-4"
-              >
-                {t("auth.signUp")}
-              </Link>
-            </div>
           </form>
         </CardContent>
       </Card>

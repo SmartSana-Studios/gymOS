@@ -1,5 +1,5 @@
 # generated: 2026-07-04
-# last_updated: 2026-08-05 (epic 7 retrospective done)
+# last_updated: 2026-08-05 (story 1.12 created)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-08-05 (epic 7 retrospective done)
+last_updated: 2026-08-05 (story 1.12 created)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -54,6 +54,7 @@ development_status:
   1-9-gym-branding-operational-settings: done
   1-10-bilingual-en-fr-platform-foundation: done
   1-11-gym-owner-activation-temp-password-sms: done
+  1-12-super-admin-provisioning-cli: ready-for-dev
   epic-1-retrospective: optional
 
   epic-2: in-progress
