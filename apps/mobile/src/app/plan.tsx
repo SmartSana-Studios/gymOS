@@ -5,11 +5,12 @@ import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Brand } from '@/constants/brand';
 import { Spacing } from '@/constants/theme';
 import { isSubscriptionStatus, STATUS_COLORS, statusLabelKey, type SubscriptionStatus } from '@/constants/subscription-status';
+import { GymAccentColorProvider } from '@/hooks/use-gym-accent-color';
 import { supabase } from '@/lib/supabase';
 
 type PlanType = 'pay_per_session' | 'monthly' | 'coach_inclusive' | 'class_only';
@@ -109,6 +110,14 @@ function formatDateOnly(value: string, locale: string): string {
  * authorized by `gym_staff_read_own_subscriptions` (0018) and
  * `gym_staff_read_own_plans` (0017) -- no new migration. */
 export default function PlanScreen() {
+  return (
+    <GymAccentColorProvider>
+      <PlanScreenContent />
+    </GymAccentColorProvider>
+  );
+}
+
+function PlanScreenContent() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
 
@@ -226,26 +235,26 @@ export default function PlanScreen() {
         {loading && <ActivityIndicator style={styles.loadingIndicator} />}
 
         {!loading && loadError && (
-          <View style={styles.planCard}>
+          <Card style={styles.planCard}>
             <ThemedText type="small" style={styles.error}>
               {t('plan.errorLoadFailed')}
             </ThemedText>
             <Pressable accessibilityRole="button" onPress={() => void loadPlan()}>
               <ThemedText type="link">{t('common.tryAgain')}</ThemedText>
             </Pressable>
-          </View>
+          </Card>
         )}
 
         {!loading && noSubscription && (
-          <View style={styles.planCard}>
+          <Card style={styles.planCard}>
             <ThemedText type="small" style={styles.error}>
               {t('plan.errorNoSubscription')}
             </ThemedText>
-          </View>
+          </Card>
         )}
 
         {!loading && !loadError && !noSubscription && plan && statusColors && (
-          <View style={styles.planCard}>
+          <Card style={styles.planCard}>
             <View style={styles.headerRow}>
               <ThemedText type="subtitle">{planTypeLabel}</ThemedText>
               <View
@@ -281,7 +290,7 @@ export default function PlanScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               {t('plan.accessLabel')}: {accessDescription}
             </ThemedText>
-          </View>
+          </Card>
         )}
       </SafeAreaView>
     </ThemedView>
@@ -291,7 +300,6 @@ export default function PlanScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Brand.background,
   },
   safeArea: {
     flex: 1,
@@ -305,16 +313,11 @@ const styles = StyleSheet.create({
     marginTop: Spacing.four,
   },
   planCard: {
-    borderWidth: 1,
-    borderColor: '#E0E1E6',
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
     gap: Spacing.two,
     marginTop: Spacing.two,
   },
   error: {
-    color: '#B3261E',
+    color: '#F87171',
   },
   headerRow: {
     flexDirection: 'row',

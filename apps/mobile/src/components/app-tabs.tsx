@@ -1,17 +1,22 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
 
-import { Colors } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 
+// Story 8.5: recolored to the dark+gym-accent palette only -- NativeTabs is
+// the real OS-native tab bar (iOS UITabBar/Android equivalent), which can't
+// be reshaped into a custom pill like the reference design's tab bar
+// (explicit user direction: keep the app's existing native tab bar
+// mechanism, don't replicate that shape).
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
+  const theme = useTheme();
+  const accent = useGymAccentColor();
 
   return (
     <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
+      backgroundColor={theme.surface}
+      indicatorColor={accent}
+      labelStyle={{ selected: { color: theme.text } }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon

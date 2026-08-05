@@ -22,11 +22,13 @@ export function isPaymentMethod(value: string): value is PaymentMethod {
 // subscription-status.ts's STATUS_COLORS -- 4 entries, no `failed` (the
 // mockup's "Verified / Pending / Failed" wording doesn't match this schema's
 // real payment_status enum, which has `processing` instead of `failed`).
+// Story 8.5: re-tuned from pastel-light-only values to dark-surface-friendly
+// tints, same semantic hues as subscription-status.ts's STATUS_COLORS.
 export const PAYMENT_STATUS_COLORS: Record<PaymentStatus, { bg: string; border: string; text: string }> = {
-  pending: { bg: '#FFEDD5', border: '#FED7AA', text: '#9A3412' },
-  processing: { bg: '#DBEAFE', border: '#BFDBFE', text: '#1E40AF' },
-  verified: { bg: '#DCFCE7', border: '#BBF7D0', text: '#166534' },
-  flagged: { bg: '#FEE2E2', border: '#FECACA', text: '#991B1B' },
+  pending: { bg: '#3A2A12', border: '#5C4420', text: '#FBBF24' },
+  processing: { bg: '#122A3A', border: '#1F4D6B', text: '#60A5FA' },
+  verified: { bg: '#123321', border: '#1F5C3A', text: '#4ADE80' },
+  flagged: { bg: '#3A1414', border: '#5C1F1F', text: '#F87171' },
 };
 
 export const paymentStatusLabelKey: Record<PaymentStatus, string> = {

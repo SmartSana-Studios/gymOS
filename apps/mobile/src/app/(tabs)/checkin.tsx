@@ -5,10 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Animated, AppState, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Brand } from '@/constants/brand';
 import { BottomTabInset, Spacing } from '@/constants/theme';
+import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import { recordCheckIn, validateGymToken } from '@/services/checkin';
 
@@ -42,6 +44,7 @@ export default function CheckInScreen() {
   const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
   const { isConnected, queueOfflineCheckIn } = useOfflineSync();
+  const accent = useGymAccentColor();
 
   const [wrongQr, setWrongQr] = useState(false);
   const [networkError, setNetworkError] = useState(false);
@@ -313,7 +316,7 @@ export default function CheckInScreen() {
         <View style={styles.body}>
           {permissionPending ? (
             <View style={styles.centeredContent}>
-              <ActivityIndicator color={Brand.primary} />
+              <ActivityIndicator color={accent} />
             </View>
           ) : permissionDenied ? (
             <View style={styles.centeredContent}>
@@ -324,9 +327,9 @@ export default function CheckInScreen() {
               <ThemedText type="default" themeColor="textSecondary" style={styles.centeredText}>
                 {t('checkin.permissionDeniedBody')}
               </ThemedText>
-              <Pressable accessibilityRole="button" onPress={handleOpenSettings} style={styles.primaryButton}>
-                <ThemedText style={styles.primaryButtonLabel}>{t('checkin.openSettings')}</ThemedText>
-              </Pressable>
+              <View style={styles.primaryButton}>
+                <Button label={t('checkin.openSettings')} onPress={handleOpenSettings} />
+              </View>
             </View>
           ) : (
             <View style={styles.cameraContainer}>
@@ -339,10 +342,10 @@ export default function CheckInScreen() {
                 />
               )}
               <Animated.View style={[styles.scanTarget, { opacity: flash ? 1 : pulseAnim }]} pointerEvents="none">
-                <View style={[styles.corner, styles.cornerTopLeft, flash && styles.cornerFlash]} />
-                <View style={[styles.corner, styles.cornerTopRight, flash && styles.cornerFlash]} />
-                <View style={[styles.corner, styles.cornerBottomLeft, flash && styles.cornerFlash]} />
-                <View style={[styles.corner, styles.cornerBottomRight, flash && styles.cornerFlash]} />
+                <View style={[styles.corner, styles.cornerTopLeft, flash && { borderColor: accent }]} />
+                <View style={[styles.corner, styles.cornerTopRight, flash && { borderColor: accent }]} />
+                <View style={[styles.corner, styles.cornerBottomLeft, flash && { borderColor: accent }]} />
+                <View style={[styles.corner, styles.cornerBottomRight, flash && { borderColor: accent }]} />
               </Animated.View>
               {validating && <ActivityIndicator color="#ffffff" style={styles.validatingIndicator} />}
               <ThemedText type="small" style={[styles.instruction, { paddingBottom: BottomTabInset + Spacing.three }]}>
@@ -368,7 +371,7 @@ export default function CheckInScreen() {
           )}
 
           {alreadyCheckedIn && (
-            <View style={styles.overlay}>
+            <View style={[styles.overlay, styles.overlayWarning]}>
               <ThemedText style={styles.overlayIcon}>⚠</ThemedText>
               <ThemedText type="subtitle" style={styles.centeredText}>
                 {t('checkin.alreadyCheckedInTitle')}
@@ -398,7 +401,7 @@ export default function CheckInScreen() {
           )}
 
           {(wrongQr || networkError) && (
-            <View style={styles.overlay}>
+            <View style={[styles.overlay, styles.overlayWarning]}>
               <ThemedText style={styles.overlayIcon}>⚠</ThemedText>
               {wrongQr ? (
                 <>
@@ -491,9 +494,6 @@ const styles = StyleSheet.create({
     borderRightWidth: CORNER_BORDER_WIDTH,
     borderBottomRightRadius: Spacing.three,
   },
-  cornerFlash: {
-    borderColor: '#3BB273',
-  },
   validatingIndicator: {
     marginTop: Spacing.three,
   },
@@ -520,15 +520,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     marginTop: Spacing.three,
-    backgroundColor: Brand.primary,
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.five,
-    alignItems: 'center',
-  },
-  primaryButtonLabel: {
-    color: '#ffffff',
-    fontWeight: '600',
+    width: '100%',
   },
   overlay: {
     position: 'absolute',
@@ -540,10 +532,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.two,
     paddingHorizontal: Spacing.five,
-    backgroundColor: '#B8860B',
   },
   overlaySuccess: {
-    backgroundColor: '#3BB273',
+    backgroundColor: '#4ADE80',
+  },
+  overlayWarning: {
+    backgroundColor: '#B8860B',
   },
   overlayDenied: {
     backgroundColor: '#B3261E',

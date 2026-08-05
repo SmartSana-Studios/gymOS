@@ -4,10 +4,14 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Brand } from '@/constants/brand';
 import { BottomTabInset, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
+import { getContrastTextColor } from '@/lib/color-contrast';
 import type { MobileLocale } from '@/lib/i18n';
 import { openPhotoPicker, pickPhoto, uploadPhoto } from '@/lib/photo-upload';
 import { supabase } from '@/lib/supabase';
@@ -35,6 +39,8 @@ function isPlanNameRow(value: unknown): value is PlanNameRow {
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
+  const accent = useGymAccentColor();
   const mountedRef = useRef(true);
   useEffect(() => {
     return () => {
@@ -358,14 +364,14 @@ export default function ProfileScreen() {
           {loading && <ActivityIndicator style={styles.loadingIndicator} />}
 
         {!loading && loadError && (
-          <View style={styles.card}>
+          <Card style={styles.card}>
             <ThemedText type="small" style={styles.error}>
               {t('profile.errorLoadFailed')}
             </ThemedText>
             <Pressable accessibilityRole="button" onPress={() => void loadProfile()}>
               <ThemedText type="link">{t('common.tryAgain')}</ThemedText>
             </Pressable>
-          </View>
+          </Card>
         )}
 
         {!loading && !loadError && (
@@ -374,7 +380,7 @@ export default function ProfileScreen() {
               accessibilityRole={editing ? 'button' : undefined}
               disabled={!editing}
               onPress={handleOpenPhotoPicker}
-              style={styles.avatar}>
+              style={[styles.avatar, { backgroundColor: theme.surfaceElevated }]}>
               {displayPhotoUri ? (
                 <Image source={{ uri: displayPhotoUri }} style={styles.avatarImage} />
               ) : editing ? (
@@ -391,7 +397,7 @@ export default function ProfileScreen() {
               {gymName} · {noActivePlan ? t('profile.noActivePlan') : planName}
             </ThemedText>
 
-            <View style={styles.row}>
+            <View style={[styles.row, { borderTopColor: theme.border }]}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t(editing ? 'common.cancel' : 'profile.editProfile')}
@@ -404,7 +410,13 @@ export default function ProfileScreen() {
               {editing && (
                 <View style={styles.editSection}>
                   <ThemedText type="small">{t('onboarding.profile.nameLabel')}</ThemedText>
-                  <TextInput value={editName} onChangeText={setEditName} autoCapitalize="words" style={styles.nameInput} />
+                  <TextInput
+                    value={editName}
+                    onChangeText={setEditName}
+                    autoCapitalize="words"
+                    placeholderTextColor={theme.textSecondary}
+                    style={[styles.nameInput, { borderColor: theme.border, color: theme.text }]}
+                  />
 
                   <ThemedText
                     type="small"
@@ -422,22 +434,19 @@ export default function ProfileScreen() {
                     </ThemedText>
                   )}
 
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={!canSaveEdit}
-                    onPress={handleSaveProfile}
-                    style={[styles.saveButton, !canSaveEdit && styles.saveButtonDisabled]}>
-                    {editSubmitting ? (
-                      <ActivityIndicator color="#ffffff" />
-                    ) : (
-                      <ThemedText style={styles.saveButtonLabel}>{t('common.save')}</ThemedText>
-                    )}
-                  </Pressable>
+                  <View style={styles.saveButton}>
+                    <Button
+                      label={t('common.save')}
+                      disabled={!canSaveEdit}
+                      loading={editSubmitting}
+                      onPress={handleSaveProfile}
+                    />
+                  </View>
                 </View>
               )}
             </View>
 
-            <View style={styles.row}>
+            <View style={[styles.row, { borderTopColor: theme.border }]}>
               <View style={styles.rowContent}>
                 <ThemedText type="default">{t('profile.language')}</ThemedText>
                 <View style={styles.languageToggle}>
@@ -446,23 +455,39 @@ export default function ProfileScreen() {
                     accessibilityState={{ selected: i18n.language === 'en', disabled: langPending }}
                     disabled={langPending}
                     onPress={() => void handleLanguageChange('en')}
-                    style={[styles.languageOption, i18n.language === 'en' && styles.languageOptionActive]}>
-                    <ThemedText type="smallBold">{t('profile.languageEn')}</ThemedText>
+                    style={[
+                      styles.languageOption,
+                      { backgroundColor: theme.surfaceElevated },
+                      i18n.language === 'en' && { backgroundColor: accent },
+                    ]}>
+                    <ThemedText
+                      type="smallBold"
+                      style={i18n.language === 'en' && { color: getContrastTextColor(accent) }}>
+                      {t('profile.languageEn')}
+                    </ThemedText>
                   </Pressable>
                   <Pressable
                     accessibilityRole="button"
                     accessibilityState={{ selected: i18n.language === 'fr', disabled: langPending }}
                     disabled={langPending}
                     onPress={() => void handleLanguageChange('fr')}
-                    style={[styles.languageOption, i18n.language === 'fr' && styles.languageOptionActive]}>
-                    <ThemedText type="smallBold">{t('profile.languageFr')}</ThemedText>
+                    style={[
+                      styles.languageOption,
+                      { backgroundColor: theme.surfaceElevated },
+                      i18n.language === 'fr' && { backgroundColor: accent },
+                    ]}>
+                    <ThemedText
+                      type="smallBold"
+                      style={i18n.language === 'fr' && { color: getContrastTextColor(accent) }}>
+                      {t('profile.languageFr')}
+                    </ThemedText>
                   </Pressable>
                 </View>
               </View>
             </View>
 
             {memberId && (
-              <View style={styles.row}>
+              <View style={[styles.row, { borderTopColor: theme.border }]}>
                 <ThemedText type="default">{t('profile.notifications.title')}</ThemedText>
 
                 {notificationsLoadError ? (
@@ -510,7 +535,7 @@ export default function ProfileScreen() {
               </View>
             )}
 
-            <View style={styles.row}>
+            <View style={[styles.row, { borderTopColor: theme.border }]}>
               <Pressable accessibilityRole="button" onPress={handleLogOut} style={styles.rowContent}>
                 <ThemedText type="default">{t('profile.logOut')}</ThemedText>
               </Pressable>
@@ -526,7 +551,6 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Brand.background,
   },
   safeArea: {
     flex: 1,
@@ -539,15 +563,10 @@ const styles = StyleSheet.create({
     marginTop: Spacing.four,
   },
   card: {
-    borderWidth: 1,
-    borderColor: '#E0E1E6',
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
     gap: Spacing.one,
   },
   error: {
-    color: '#B3261E',
+    color: '#F87171',
   },
   centered: {
     textAlign: 'center',
@@ -556,7 +575,6 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#E0E1E6',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
@@ -572,7 +590,6 @@ const styles = StyleSheet.create({
   },
   row: {
     borderTopWidth: 1,
-    borderTopColor: '#E0E1E6',
     paddingTop: Spacing.three,
   },
   rowContent: {
@@ -589,7 +606,6 @@ const styles = StyleSheet.create({
   },
   nameInput: {
     borderWidth: 1,
-    borderColor: Brand.primary,
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
@@ -597,17 +613,6 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginTop: Spacing.two,
-    backgroundColor: Brand.primary,
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-  },
-  saveButtonDisabled: {
-    opacity: 0.5,
-  },
-  saveButtonLabel: {
-    color: '#ffffff',
-    fontWeight: '600',
   },
   languageToggle: {
     flexDirection: 'row',
@@ -617,9 +622,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.one,
     borderRadius: Spacing.one,
-    backgroundColor: '#F0F0F3',
-  },
-  languageOptionActive: {
-    backgroundColor: Brand.accent,
   },
 });

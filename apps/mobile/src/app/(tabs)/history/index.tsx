@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Brand } from '@/constants/brand';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import {
   isPaymentMethod,
@@ -15,6 +16,7 @@ import {
   PAYMENT_STATUS_COLORS,
   paymentStatusLabelKey,
 } from '@/constants/payment-status';
+import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
 import { loadPaymentsPage, type PaymentListRow } from '@/services/payments';
 
@@ -66,6 +68,7 @@ export default function HistoryScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
 
   const [activeTab, setActiveTab] = useState<HistoryTab>('checkins');
 
@@ -333,21 +336,15 @@ export default function HistoryScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.segmentedControl} accessibilityRole="tablist">
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'payments' }}
-            onPress={() => setActiveTab('payments')}
-            style={[styles.segmentOption, activeTab === 'payments' && styles.segmentOptionActive]}>
-            <ThemedText type="smallBold">{t('history.tabPayments')}</ThemedText>
-          </Pressable>
-          <Pressable
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'checkins' }}
-            onPress={() => setActiveTab('checkins')}
-            style={[styles.segmentOption, activeTab === 'checkins' && styles.segmentOptionActive]}>
-            <ThemedText type="smallBold">{t('history.tabCheckins')}</ThemedText>
-          </Pressable>
+        <View style={styles.segmentedControl}>
+          <SegmentedControl
+            options={[
+              { value: 'payments' as const, label: t('history.tabPayments') },
+              { value: 'checkins' as const, label: t('history.tabCheckins') },
+            ]}
+            value={activeTab}
+            onChange={setActiveTab}
+          />
         </View>
 
         {activeTab === 'payments' && (
@@ -355,7 +352,7 @@ export default function HistoryScreen() {
             {paymentsInitialLoading && <ActivityIndicator style={styles.loadingIndicator} />}
 
             {!paymentsInitialLoading && paymentsLoadError && payments.length === 0 && (
-              <View style={styles.card}>
+              <View style={[styles.card, { borderColor: theme.border }]}>
                 <ThemedText type="small" style={styles.error}>
                   {t('history.payments.errorLoadFailed')}
                 </ThemedText>
@@ -397,7 +394,7 @@ export default function HistoryScreen() {
                   // misrepresent a financial record's true state.
                   const statusColors = isPaymentStatus(itemStatus)
                     ? PAYMENT_STATUS_COLORS[itemStatus]
-                    : { bg: '#F3F4F6', border: '#E5E7EB', text: '#374151' };
+                    : { bg: theme.surfaceElevated, border: theme.border, text: theme.textSecondary };
                   const statusLabel = isPaymentStatus(itemStatus) ? t(paymentStatusLabelKey[itemStatus]) : itemStatus;
                   const methodLabel = isPaymentMethod(item.method) ? t(PAYMENT_METHOD_LABEL_KEY[item.method]) : item.method;
                   const planLabel = item.planName ?? t('history.payments.planUnavailable');
@@ -406,7 +403,7 @@ export default function HistoryScreen() {
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => router.push(`/history/payment/${item.id}`)}
-                      style={styles.paymentRow}>
+                      style={[styles.paymentRow, { borderTopColor: theme.border }]}>
                       <View style={styles.paymentRowTop}>
                         <ThemedText type="small">{formatPaymentDate(item.createdAt, i18n.language)}</ThemedText>
                         <ThemedText type="smallBold">{`${item.amount} ${item.currency}`}</ThemedText>
@@ -482,16 +479,13 @@ export default function HistoryScreen() {
                     <ThemedText type="small" themeColor="textSecondary">
                       {t('history.checkins.empty')}
                     </ThemedText>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => router.push('/checkin')}
-                      style={styles.checkInButton}>
-                      <ThemedText style={styles.checkInButtonLabel}>{t('history.checkins.checkInButton')}</ThemedText>
-                    </Pressable>
+                    <View style={styles.checkInButton}>
+                      <Button label={t('history.checkins.checkInButton')} onPress={() => router.push('/checkin')} />
+                    </View>
                   </View>
                 }
                 renderItem={({ item }) => (
-                  <View style={styles.row}>
+                  <View style={[styles.row, { borderTopColor: theme.border }]}>
                     <ThemedText type="small" style={styles.rowLeft}>
                       {formatCheckInTimestamp(item.checkedInAt, i18n.language)}
                     </ThemedText>
@@ -531,7 +525,6 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Brand.background,
   },
   safeArea: {
     flex: 1,
@@ -544,19 +537,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.two,
   },
   segmentedControl: {
-    flexDirection: 'row',
-    gap: Spacing.one,
     marginTop: Spacing.three,
-  },
-  segmentOption: {
-    flex: 1,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.two,
-    backgroundColor: '#F0F0F3',
-    alignItems: 'center',
-  },
-  segmentOptionActive: {
-    backgroundColor: '#E0E1E6',
   },
   loadingIndicator: {
     marginTop: Spacing.four,
@@ -564,14 +545,13 @@ const styles = StyleSheet.create({
   card: {
     marginTop: Spacing.three,
     borderWidth: 1,
-    borderColor: '#E0E1E6',
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
     gap: Spacing.one,
   },
   error: {
-    color: '#B3261E',
+    color: '#F87171',
   },
   listContent: {
     marginTop: Spacing.three,
@@ -584,20 +564,12 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   checkInButton: {
-    backgroundColor: Brand.primary,
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-  },
-  checkInButtonLabel: {
-    color: '#ffffff',
-    fontWeight: '600',
+    minWidth: 200,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#E0E1E6',
     paddingTop: Spacing.two,
     gap: Spacing.two,
   },
@@ -619,7 +591,6 @@ const styles = StyleSheet.create({
   },
   paymentRow: {
     borderTopWidth: 1,
-    borderTopColor: '#E0E1E6',
     paddingTop: Spacing.two,
     gap: Spacing.one,
   },

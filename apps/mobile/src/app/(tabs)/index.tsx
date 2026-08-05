@@ -5,9 +5,9 @@ import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Brand } from '@/constants/brand';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import {
   isSubscriptionStatus,
@@ -16,6 +16,7 @@ import {
   type BadgeStatus,
   type SubscriptionStatus,
 } from '@/constants/subscription-status';
+import { useTheme } from '@/hooks/use-theme';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import { getRecentCheckIns, type RecentCheckIn } from '@/services/checkin';
 import { getOccupancyBand, type OccupancyBand } from '@/services/occupancy';
@@ -65,10 +66,12 @@ function formatCheckInTimestamp(value: string, locale: string): string {
   return new Date(value).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
+// Story 8.5: re-tuned for the dark theme, same semantic hues as
+// constants/subscription-status.ts's STATUS_COLORS.
 const OCCUPANCY_COLORS: Record<OccupancyBand, { bg: string; text: string }> = {
-  low: { bg: '#DCFCE7', text: '#166534' },
-  medium: { bg: '#FFEDD5', text: '#9A3412' },
-  busy: { bg: '#FEE2E2', text: '#991B1B' },
+  low: { bg: '#123321', text: '#4ADE80' },
+  medium: { bg: '#3A2A12', text: '#FBBF24' },
+  busy: { bg: '#3A1414', text: '#F87171' },
 };
 
 /** MA-09. On mount: resolves the caller's own `users` row, gym branding
@@ -85,6 +88,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { pendingCount } = useOfflineSync();
+  const theme = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -269,7 +273,7 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel={t('profile.title')}
               onPress={() => router.push('/profile')}
-              style={styles.avatar}>
+              style={[styles.avatar, { backgroundColor: theme.surfaceElevated }]}>
               {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : null}
             </Pressable>
           </View>
@@ -282,10 +286,11 @@ export default function HomeScreen() {
             </View>
           )}
 
+
           {loading && <ActivityIndicator style={styles.loadingIndicator} />}
 
           {!loading && loadError && (
-            <View style={styles.card}>
+            <View style={[styles.card, { borderColor: theme.border }]}>
               <ThemedText type="small" style={styles.error}>
                 {t('home.errorLoadFailed')}
               </ThemedText>
@@ -331,23 +336,17 @@ export default function HomeScreen() {
 
               <View style={styles.quickActions}>
                 {badgeStatus === 'expired' ? (
-                  <Pressable accessibilityRole="button" onPress={handleSeeFrontDesk} style={styles.quickActionButton}>
-                    <ThemedText style={styles.quickActionLabel}>{t('home.seeFrontDesk')}</ThemedText>
-                  </Pressable>
+                  <View style={styles.quickActionButton}>
+                    <Button label={t('home.seeFrontDesk')} onPress={handleSeeFrontDesk} />
+                  </View>
                 ) : (
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => router.push('/checkin')}
-                    style={styles.quickActionButton}>
-                    <ThemedText style={styles.quickActionLabel}>{t('home.checkIn')}</ThemedText>
-                  </Pressable>
+                  <View style={styles.quickActionButton}>
+                    <Button label={t('home.checkIn')} onPress={() => router.push('/checkin')} />
+                  </View>
                 )}
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={handleViewPlan}
-                  style={[styles.quickActionButton, styles.quickActionButtonSecondary]}>
-                  <ThemedText style={styles.quickActionLabelSecondary}>{t('home.viewPlan')}</ThemedText>
-                </Pressable>
+                <View style={styles.quickActionButton}>
+                  <Button label={t('home.viewPlan')} variant="secondary" onPress={handleViewPlan} />
+                </View>
               </View>
 
               <View style={styles.activitySection}>
@@ -363,7 +362,7 @@ export default function HomeScreen() {
                         key={`checkin-${item.id}`}
                         accessibilityRole="button"
                         onPress={() => router.push('/history')}
-                        style={styles.activityRow}>
+                        style={[styles.activityRow, { borderTopColor: theme.border }]}>
                         <ThemedText type="small">{t('home.checkedIn')}</ThemedText>
                         <ThemedText type="small" themeColor="textSecondary">
                           {formatCheckInTimestamp(item.checkedInAt, i18n.language)}
@@ -374,7 +373,7 @@ export default function HomeScreen() {
                         key={`payment-${item.id}`}
                         accessibilityRole="button"
                         onPress={() => router.push(`/history/payment/${item.id}`)}
-                        style={styles.activityRow}>
+                        style={[styles.activityRow, { borderTopColor: theme.border }]}>
                         <ThemedText type="small">
                           {t('home.paymentRecorded', { amount: item.amount, currency: item.currency })}
                         </ThemedText>
@@ -397,7 +396,6 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Brand.background,
   },
   safeArea: {
     flex: 1,
@@ -430,7 +428,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#E0E1E6',
     overflow: 'hidden',
   },
   avatarImage: {
@@ -441,30 +438,29 @@ const styles = StyleSheet.create({
     marginTop: Spacing.four,
   },
   offlineBanner: {
-    backgroundColor: '#FFEDD5',
+    backgroundColor: '#3A2A12',
     borderWidth: 1,
-    borderColor: '#FED7AA',
+    borderColor: '#5C4420',
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
   },
   offlineBannerText: {
-    color: '#9A3412',
+    color: '#FBBF24',
   },
   card: {
     borderWidth: 1,
-    borderColor: '#E0E1E6',
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
     gap: Spacing.one,
   },
   error: {
-    color: '#B3261E',
+    color: '#F87171',
   },
   statusCard: {
     borderWidth: 1,
-    borderRadius: Spacing.two,
+    borderRadius: 16,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
     gap: Spacing.half,
@@ -486,21 +482,6 @@ const styles = StyleSheet.create({
   },
   quickActionButton: {
     flex: 1,
-    backgroundColor: Brand.primary,
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-  },
-  quickActionButtonSecondary: {
-    backgroundColor: '#F0F0F3',
-  },
-  quickActionLabel: {
-    color: '#ffffff',
-    fontWeight: '600',
-  },
-  quickActionLabelSecondary: {
-    color: Brand.primary,
-    fontWeight: '600',
   },
   activitySection: {
     gap: Spacing.two,
@@ -510,7 +491,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: '#E0E1E6',
     paddingTop: Spacing.two,
   },
 });

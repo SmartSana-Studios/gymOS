@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Brand } from '@/constants/brand';
 import { Spacing } from '@/constants/theme';
 import { isPaymentMethod, isPaymentStatus, PAYMENT_METHOD_LABEL_KEY, paymentStatusLabelKey } from '@/constants/payment-status';
 import { supabase } from '@/lib/supabase';
@@ -118,18 +118,18 @@ export default function PaymentDetailScreen() {
         {loading && <ActivityIndicator style={styles.loadingIndicator} />}
 
         {!loading && loadError && (
-          <View style={styles.card}>
+          <Card style={styles.card}>
             <ThemedText type="small" style={styles.error}>
               {t('paymentDetail.errorLoadFailed')}
             </ThemedText>
             <Pressable accessibilityRole="button" onPress={() => void loadReceipt()}>
               <ThemedText type="link">{t('common.tryAgain')}</ThemedText>
             </Pressable>
-          </View>
+          </Card>
         )}
 
         {!loading && !loadError && receipt && (
-          <View style={styles.card}>
+          <Card style={styles.card}>
             <ThemedText type="default">
               {t('paymentDetail.memberLabel')}: {receipt.memberName}
             </ThemedText>
@@ -157,7 +157,7 @@ export default function PaymentDetailScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               {t('paymentDetail.statusLabel')}: {statusLabel}
             </ThemedText>
-          </View>
+          </Card>
         )}
       </SafeAreaView>
     </ThemedView>
@@ -167,7 +167,6 @@ export default function PaymentDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Brand.background,
   },
   safeArea: {
     flex: 1,
@@ -181,15 +180,10 @@ const styles = StyleSheet.create({
     marginTop: Spacing.four,
   },
   card: {
-    borderWidth: 1,
-    borderColor: '#E0E1E6',
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
     gap: Spacing.two,
     marginTop: Spacing.two,
   },
   error: {
-    color: '#B3261E',
+    color: '#F87171',
   },
 });
