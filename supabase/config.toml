@@ -310,6 +310,14 @@ verify_jwt = false
 enabled = true
 verify_jwt = false
 
+# verify_jwt = false: this function is polled directly by unauthenticated e-ink display hardware at a gym's
+# front desk, not a logged-in Supabase session — the gym_token in the URL path is itself the bearer secret
+# (same trust level as a printed QR poster). Story 8.2: first Edge Function added since architecture.md's
+# "no external API surface outside Edge Functions" was recorded — see docs/decisions.md.
+[functions.gym-qr-display]
+enabled = true
+verify_jwt = false
+
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]
 # Story 2.1: enabled purely to satisfy the CLI's "a provider must be enabled to keep phone login on" check.

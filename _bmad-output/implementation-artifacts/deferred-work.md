@@ -1,5 +1,10 @@
 # Deferred Work
 
+## Deferred from: code review of 8-2-e-ink-display-endpoint (2026-08-05)
+
+- No `gyms.status` filter — a suspended/deactivated gym's QR is served identically to an active one [supabase/functions/gym-qr-display/index.ts:41-45] — deferred, pre-existing gap already present in `apps/mobile/src/services/checkin.ts`'s `validateGymToken`, not introduced by this diff.
+- No rate limiting or cost-amplification guard on the unauthenticated endpoint — every request runs a Postgres lookup plus a server-side PNG render, and `Cache-Control: no-store` guarantees no caching layer ever shields it [supabase/functions/gym-qr-display/index.ts] — user decision: accept as-is. Pilot-scale usage (a single e-ink display polling infrequently, not internet-facing traffic), `gym_token` is a full unguessable UUID, matches this codebase's established pattern of accepting comparable low-probability abuse risk on other endpoints. Revisit if real abuse is observed.
+
 ## Deferred from: code review of 1-12-super-admin-provisioning-cli (2026-08-05)
 
 - `findUserByEmail` (`apps/super-admin/scripts/provision-super-admin.mjs:82-97`) does a full paginated scan of `auth.users` instead of a server-side filtered lookup — O(total platform users) per invocation. Acceptable given the story's stated rare/small-team usage; revisit if usage frequency or user count grows, or if the Admin API gains a filtered email lookup.
