@@ -364,6 +364,51 @@ export type Database = {
         }
         Relationships: []
       }
+      member_preferences: {
+        Row: {
+          class_reminder_opted_out: boolean
+          created_at: string
+          gym_id: string
+          id: string
+          member_id: string
+          quiet_gym_alerts_opted_out: boolean
+          updated_at: string
+        }
+        Insert: {
+          class_reminder_opted_out?: boolean
+          created_at?: string
+          gym_id: string
+          id?: string
+          member_id: string
+          quiet_gym_alerts_opted_out?: boolean
+          updated_at?: string
+        }
+        Update: {
+          class_reminder_opted_out?: boolean
+          created_at?: string
+          gym_id?: string
+          id?: string
+          member_id?: string
+          quiet_gym_alerts_opted_out?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_preferences_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_preferences_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       members: {
         Row: {
           created_at: string
