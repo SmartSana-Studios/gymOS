@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "qrcode";
+import { Bell, Clock, Globe, Palette, QrCode, Users } from "lucide-react";
 import { gymSettingsSchema } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { GymSettingsRow } from "@/services/gym-settings";
@@ -255,6 +257,31 @@ export function SettingsForm({ initial }: { initial: GymSettingsRow }) {
 
   return (
     <div ref={formTopRef} className="space-y-8">
+      <Card>
+        <CardHeader className="flex-row items-center gap-2 space-y-0">
+          <QrCode className="size-5 text-muted-foreground" aria-hidden="true" />
+          <CardTitle role="heading" aria-level={2}>{t("settings.sections.qrCode")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {qrDataUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={qrDataUrl}
+              alt={t("settings.qr.qrCodeAlt")}
+              className="size-[220px] rounded-md border p-2"
+            />
+          )}
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={handleDownloadQr}>
+              {t("settings.qr.download")}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setRegenerateOpen(true)}>
+              {t("settings.qr.regenerate")}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <form onSubmit={handleSubmit} className="space-y-8">
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">{t("settings.saveHint")}</span>
@@ -263,209 +290,213 @@ export function SettingsForm({ initial }: { initial: GymSettingsRow }) {
           </Button>
         </div>
 
-        <section className="space-y-4 rounded-md border p-4">
-          <h2 className="font-semibold">{t("settings.sections.branding")}</h2>
+        <Card>
+          <CardHeader className="flex-row items-center gap-2 space-y-0">
+            <Palette className="size-5 text-muted-foreground" aria-hidden="true" />
+            <CardTitle role="heading" aria-level={2}>{t("settings.sections.branding")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="gymName">{t("settings.fields.gymName")}</Label>
+              <Input
+                id="gymName"
+                value={form.gymName}
+                onChange={(e) => setForm({ ...form, gymName: e.target.value })}
+              />
+              {fieldErrors.gymName && <p className="text-sm text-red-600">{fieldErrors.gymName}</p>}
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="gymName">{t("settings.fields.gymName")}</Label>
-            <Input
-              id="gymName"
-              value={form.gymName}
-              onChange={(e) => setForm({ ...form, gymName: e.target.value })}
-            />
-            {fieldErrors.gymName && <p className="text-sm text-red-600">{fieldErrors.gymName}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="logo">{t("settings.fields.logo")}</Label>
-            <div className="flex items-center gap-3">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logoUrl}
-                  alt={t("settings.fields.logoPreviewAlt")}
-                  className="size-16 rounded-md border object-cover"
+            <div className="space-y-2">
+              <Label htmlFor="logo">{t("settings.fields.logo")}</Label>
+              <div className="flex items-center gap-3">
+                {logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={logoUrl}
+                    alt={t("settings.fields.logoPreviewAlt")}
+                    className="size-16 rounded-md border object-cover"
+                  />
+                ) : (
+                  <div className="flex size-16 items-center justify-center rounded-md border text-xs text-muted-foreground">
+                    {t("settings.fields.noLogo")}
+                  </div>
+                )}
+                <Button type="button" variant="outline" size="sm" asChild>
+                  <label htmlFor="logo" className="cursor-pointer">
+                    {uploadingLogo ? t("settings.fields.uploading") : t("settings.fields.uploadNew")}
+                  </label>
+                </Button>
+                <input
+                  id="logo"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleLogoSelect}
                 />
-              ) : (
-                <div className="flex size-16 items-center justify-center rounded-md border text-xs text-muted-foreground">
-                  {t("settings.fields.noLogo")}
-                </div>
+                <Button type="button" variant="outline" size="sm" onClick={handleRemoveLogo}>
+                  {t("settings.fields.remove")}
+                </Button>
+              </div>
+              {logoError && <p className="text-sm text-red-600">{logoError}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="primaryColor">{t("settings.fields.primaryColor")}</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="primaryColor"
+                  value={form.primaryColor}
+                  onChange={(e) => handleColorChange(e.target.value)}
+                  placeholder="#E0971F"
+                  className="max-w-40"
+                />
+                <div
+                  className="size-12 rounded-md border"
+                  style={{ backgroundColor: swatchColor ?? "transparent" }}
+                  aria-hidden="true"
+                />
+              </div>
+              {fieldErrors.primaryColor && (
+                <p className="text-sm text-red-600">{fieldErrors.primaryColor}</p>
               )}
-              <Button type="button" variant="outline" size="sm" asChild>
-                <label htmlFor="logo" className="cursor-pointer">
-                  {uploadingLogo ? t("settings.fields.uploading") : t("settings.fields.uploadNew")}
-                </label>
-              </Button>
-              <input
-                id="logo"
-                type="file"
-                accept="image/png,image/jpeg,image/webp,image/gif"
-                className="hidden"
-                onChange={handleLogoSelect}
-              />
-              <Button type="button" variant="outline" size="sm" onClick={handleRemoveLogo}>
-                {t("settings.fields.remove")}
-              </Button>
             </div>
-            {logoError && <p className="text-sm text-red-600">{logoError}</p>}
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="space-y-2">
-            <Label htmlFor="primaryColor">{t("settings.fields.primaryColor")}</Label>
-            <div className="flex items-center gap-3">
-              <Input
-                id="primaryColor"
-                value={form.primaryColor}
-                onChange={(e) => handleColorChange(e.target.value)}
-                placeholder="#E0971F"
-                className="max-w-40"
-              />
-              <div
-                className="size-9 rounded-md border"
-                style={{ backgroundColor: swatchColor ?? "transparent" }}
-                aria-hidden="true"
-              />
+        <Card>
+          <CardHeader className="flex-row items-center gap-2 space-y-0">
+            <Globe className="size-5 text-muted-foreground" aria-hidden="true" />
+            <CardTitle role="heading" aria-level={2}>{t("settings.sections.localization")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="defaultLanguage">{t("settings.fields.defaultLanguage")}</Label>
+              <select
+                id="defaultLanguage"
+                value={form.defaultLanguage}
+                onChange={(e) => setForm({ ...form, defaultLanguage: e.target.value })}
+                className="flex h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="en">{t("settings.languageOptionEnglish")}</option>
+                <option value="fr">{t("settings.languageOptionFrench")}</option>
+              </select>
             </div>
-            {fieldErrors.primaryColor && (
-              <p className="text-sm text-red-600">{fieldErrors.primaryColor}</p>
-            )}
-          </div>
-        </section>
 
-        <section className="space-y-4 rounded-md border p-4">
-          <h2 className="font-semibold">{t("settings.sections.localization")}</h2>
-
-          <div className="space-y-2">
-            <Label htmlFor="defaultLanguage">{t("settings.fields.defaultLanguage")}</Label>
-            <select
-              id="defaultLanguage"
-              value={form.defaultLanguage}
-              onChange={(e) => setForm({ ...form, defaultLanguage: e.target.value })}
-              className="flex h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option value="en">{t("settings.languageOptionEnglish")}</option>
-              <option value="fr">{t("settings.languageOptionFrench")}</option>
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="timezone">{t("settings.fields.timezone")}</Label>
-            <select
-              id="timezone"
-              value={form.timezone}
-              onChange={(e) => setForm({ ...form, timezone: e.target.value })}
-              className="flex h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              {TIMEZONE_OPTIONS.map((tz) => (
-                <option key={tz.value} value={tz.value}>
-                  {tz.label}
-                </option>
-              ))}
-            </select>
-            {fieldErrors.timezone && <p className="text-sm text-red-600">{fieldErrors.timezone}</p>}
-          </div>
-        </section>
-
-        <section className="space-y-4 rounded-md border p-4">
-          <h2 className="font-semibold">{t("settings.sections.membership")}</h2>
-
-          <div className="space-y-2">
-            <Label htmlFor="gracePeriodDays">{t("settings.fields.gracePeriod")}</Label>
-            <div className="flex max-w-40 items-center gap-2">
-              <Input
-                id="gracePeriodDays"
-                type="number"
-                value={form.gracePeriodDays}
-                onChange={(e) => setForm({ ...form, gracePeriodDays: e.target.value })}
-              />
-              <span className="text-sm text-muted-foreground">{t("settings.fields.gracePeriodUnit")}</span>
+            <div className="space-y-2">
+              <Label htmlFor="timezone">{t("settings.fields.timezone")}</Label>
+              <select
+                id="timezone"
+                value={form.timezone}
+                onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+                className="flex h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {TIMEZONE_OPTIONS.map((tz) => (
+                  <option key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </option>
+                ))}
+              </select>
+              {fieldErrors.timezone && <p className="text-sm text-red-600">{fieldErrors.timezone}</p>}
             </div>
-            {fieldErrors.gracePeriodDays && (
-              <p className="text-sm text-red-600">{fieldErrors.gracePeriodDays}</p>
-            )}
-          </div>
+          </CardContent>
+        </Card>
 
-          <div className="space-y-2">
-            <Label htmlFor="capacity">{t("settings.fields.capacity")}</Label>
-            <div className="flex max-w-40 items-center gap-2">
-              <Input
-                id="capacity"
-                type="number"
-                value={form.capacity}
-                onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-              />
-              <span className="text-sm text-muted-foreground">{t("settings.fields.capacityUnit")}</span>
+        <Card>
+          <CardHeader className="flex-row items-center gap-2 space-y-0">
+            <Users className="size-5 text-muted-foreground" aria-hidden="true" />
+            <CardTitle role="heading" aria-level={2}>{t("settings.sections.membership")}</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="gracePeriodDays">{t("settings.fields.gracePeriod")}</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="gracePeriodDays"
+                  type="number"
+                  value={form.gracePeriodDays}
+                  onChange={(e) => setForm({ ...form, gracePeriodDays: e.target.value })}
+                />
+                <span className="text-sm text-muted-foreground">{t("settings.fields.gracePeriodUnit")}</span>
+              </div>
+              {fieldErrors.gracePeriodDays && (
+                <p className="text-sm text-red-600">{fieldErrors.gracePeriodDays}</p>
+              )}
             </div>
-            {fieldErrors.capacity && <p className="text-sm text-red-600">{fieldErrors.capacity}</p>}
-          </div>
-        </section>
 
-        <section className="space-y-4 rounded-md border p-4">
-          <h2 className="font-semibold">{t("settings.sections.attendance")}</h2>
-
-          <div className="space-y-2">
-            <Label htmlFor="checkinTimeoutHours">{t("settings.fields.checkinTimeout")}</Label>
-            <div className="flex max-w-40 items-center gap-2">
-              <Input
-                id="checkinTimeoutHours"
-                type="number"
-                value={form.checkinTimeoutHours}
-                onChange={(e) =>
-                  setForm({ ...form, checkinTimeoutHours: e.target.value })
-                }
-              />
-              <span className="text-sm text-muted-foreground">
-                {t("settings.fields.checkinTimeoutUnit")}
-              </span>
+            <div className="space-y-2">
+              <Label htmlFor="capacity">{t("settings.fields.capacity")}</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="capacity"
+                  type="number"
+                  value={form.capacity}
+                  onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+                />
+                <span className="text-sm text-muted-foreground">{t("settings.fields.capacityUnit")}</span>
+              </div>
+              {fieldErrors.capacity && <p className="text-sm text-red-600">{fieldErrors.capacity}</p>}
             </div>
-            {fieldErrors.checkinTimeoutHours && (
-              <p className="text-sm text-red-600">{fieldErrors.checkinTimeoutHours}</p>
-            )}
-          </div>
-        </section>
+          </CardContent>
+        </Card>
 
-        <section className="space-y-4 rounded-md border p-4">
-          <h2 className="font-semibold">{t("settings.sections.frontDeskAlerts")}</h2>
-
-          <div className="space-y-2">
-            <Label htmlFor="alertAutoDismissMinutes">{t("settings.fields.alertAutoDismiss")}</Label>
-            <div className="flex max-w-40 items-center gap-2">
-              <Input
-                id="alertAutoDismissMinutes"
-                type="number"
-                value={form.alertAutoDismissMinutes}
-                onChange={(e) =>
-                  setForm({ ...form, alertAutoDismissMinutes: e.target.value })
-                }
-              />
-              <span className="text-sm text-muted-foreground">
-                {t("settings.fields.alertAutoDismissUnit")}
-              </span>
+        <Card>
+          <CardHeader className="flex-row items-center gap-2 space-y-0">
+            <Clock className="size-5 text-muted-foreground" aria-hidden="true" />
+            <CardTitle role="heading" aria-level={2}>{t("settings.sections.attendance")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="max-w-xs space-y-2">
+              <Label htmlFor="checkinTimeoutHours">{t("settings.fields.checkinTimeout")}</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="checkinTimeoutHours"
+                  type="number"
+                  value={form.checkinTimeoutHours}
+                  onChange={(e) =>
+                    setForm({ ...form, checkinTimeoutHours: e.target.value })
+                  }
+                />
+                <span className="text-sm text-muted-foreground">
+                  {t("settings.fields.checkinTimeoutUnit")}
+                </span>
+              </div>
+              {fieldErrors.checkinTimeoutHours && (
+                <p className="text-sm text-red-600">{fieldErrors.checkinTimeoutHours}</p>
+              )}
             </div>
-            {fieldErrors.alertAutoDismissMinutes && (
-              <p className="text-sm text-red-600">{fieldErrors.alertAutoDismissMinutes}</p>
-            )}
-          </div>
-        </section>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex-row items-center gap-2 space-y-0">
+            <Bell className="size-5 text-muted-foreground" aria-hidden="true" />
+            <CardTitle role="heading" aria-level={2}>{t("settings.sections.frontDeskAlerts")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="max-w-xs space-y-2">
+              <Label htmlFor="alertAutoDismissMinutes">{t("settings.fields.alertAutoDismiss")}</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="alertAutoDismissMinutes"
+                  type="number"
+                  value={form.alertAutoDismissMinutes}
+                  onChange={(e) =>
+                    setForm({ ...form, alertAutoDismissMinutes: e.target.value })
+                  }
+                />
+                <span className="text-sm text-muted-foreground">
+                  {t("settings.fields.alertAutoDismissUnit")}
+                </span>
+              </div>
+              {fieldErrors.alertAutoDismissMinutes && (
+                <p className="text-sm text-red-600">{fieldErrors.alertAutoDismissMinutes}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
       </form>
-
-      <section className="space-y-4 rounded-md border p-4">
-        <h2 className="font-semibold">{t("settings.sections.qrCode")}</h2>
-        {qrDataUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={qrDataUrl} alt={t("settings.qr.qrCodeAlt")} className="size-[120px]" />
-        )}
-        <div className="flex gap-2">
-          <Button type="button" variant="outline" onClick={handleDownloadQr}>
-            {t("settings.qr.download")}
-          </Button>
-          <Button type="button" variant="outline" onClick={() => setRegenerateOpen(true)}>
-            {t("settings.qr.regenerate")}
-          </Button>
-        </div>
-      </section>
 
       <dialog
         ref={regenerateDialogRef}

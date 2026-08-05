@@ -1269,3 +1269,119 @@ So that I can reconstruct what happened and by whom.
 **Given** I am an Owner
 **When** I click CSV export on the filtered results
 **Then** a CSV downloads; Managers do not see this export option
+
+## Epic 8: Front-of-House Polish — Settings Redesign, E-Ink Display Support & Mobile Visual Refresh
+
+Raised directly by the user (2026-08-05), not derived from the original PRD — a pre-deployment visual/polish pass. The dashboard Settings page is functionally complete but visually flat with its most operationally important element (the check-in QR code) buried at the bottom; the mobile app is functionally complete but visually minimal (system font, ad hoc inline hex colors, no real dark theme). Full context and decisions locked in with the user during planning: `C:\Users\Admin\.claude\plans\peaceful-inventing-umbrella.md`.
+
+### Story 8.1: Settings Page Redesign & QR Code Prominence
+
+As a gym Owner or Manager,
+I want the Settings page to be visually clear and to show the check-in QR code prominently at the top,
+So that the QR code — the single most operationally important thing on this page — is immediately visible rather than buried at the bottom in a small thumbnail.
+
+**Acceptance Criteria:**
+
+**Given** the Settings page
+**When** I load it
+**Then** the QR Code section renders first, above Branding/Localization/Membership/Attendance/Front Desk Alerts, at a larger size (200–240px) than today's 120px
+
+**Given** the existing manual QR regeneration flow (confirm dialog, `regenerateQrCode` server action)
+**When** the page is restyled
+**Then** the same confirm-dialog behavior and server action are preserved unchanged — this is a presentational-only change, no new auto-regeneration
+
+**Given** the rest of the page's sections
+**When** I view them
+**Then** they render using the dashboard's existing `Card` component and `lucide-react` section icons instead of today's uniform bordered boxes, with the four numeric fields (grace period, capacity, check-in timeout, alert auto-dismiss) laid out in a responsive 2-column grid
+
+### Story 8.2: E-Ink Display Endpoint
+
+As a gym Owner whose front desk uses an e-ink display instead of a printed QR poster,
+I want a device-pollable endpoint that returns the gym's current check-in QR code as an image,
+So that the display can refresh itself without a human reprinting or re-uploading anything after a manual QR regeneration.
+
+**Acceptance Criteria:**
+
+**Given** a gym's `gym_token`
+**When** a device sends `GET` to the new `gym-qr-display` Edge Function with that token
+**Then** it receives a `200` response with `Content-Type: image/png` containing a QR code encoding that exact token, rendered server-side (no session/auth beyond the token itself — same trust model as a printed poster)
+
+**Given** an unknown or malformed token
+**When** the endpoint is polled
+**Then** it returns a generic `404` with no information about why
+
+**Given** this is the first unauthenticated endpoint outside the two existing Edge Functions (`payment-webhook`, `send-sms-hook`)
+**When** the story is complete
+**Then** `docs/decisions.md` records why a 3rd Edge Function was chosen over a Next.js API route, matching `architecture.md`'s "no external API surface outside Edge Functions" constraint
+
+### Story 8.3: Mobile Design System Foundation — Dark Theme, Per-Gym Accent & Barlow Typography
+
+As a gym member using the mobile app,
+I want the app to use my gym's branded accent color on a polished dark theme with proper typography,
+So that the app feels premium and reflects my specific gym's branding rather than a generic hardcoded color.
+
+**Acceptance Criteria:**
+
+**Given** a gym has set `gyms.primary_color` in Settings (Story 8.1's Branding section)
+**When** a member of that gym opens the app
+**Then** the app's accent color (buttons, active states, progress fill, selected borders) uses that gym's color; gyms with no `primary_color` set fall back to the default brand gold (`#E0971F`)
+
+**Given** the redesigned dark theme
+**When** any screen renders
+**Then** colors come from `constants/theme.ts`'s token system (a filled-out `dark` variant within the existing `Colors.light`/`Colors.dark` shape, kept light-mode-extensible for a future release) rather than hardcoded inline hex
+
+**Given** the app's headers ("Home", "Check In", etc.)
+**When** they render
+**Then** they use the Barlow font (bold/extra-bold, uppercase, letter-spaced) loaded via `expo-font`, gated behind the existing splash sequencing so no system-font flash occurs
+
+### Story 8.4: Mobile Shared UI Primitives
+
+As a developer building/maintaining the mobile app,
+I want a shared library of themed UI primitives,
+So that button, card, badge, progress-bar, OTP-input, and segmented-control styling isn't copy-pasted and drifting across every screen.
+
+**Acceptance Criteria:**
+
+**Given** the patterns already duplicated per-screen today (buttons, bordered cards, status badges, the 4-segment onboarding progress bar, the 6-box OTP entry, the History segmented control)
+**When** this story is complete
+**Then** each has exactly one themed implementation under `apps/mobile/src/components/ui/` (`Button`, `Card`, `Badge`, `ProgressSteps`, `OtpInput`, `SegmentedControl`), consuming Story 8.3's tokens and per-gym accent color
+
+**Given** `OtpInput`
+**When** it replaces the existing 6-box entry in `onboarding/otp.tsx`
+**Then** the underlying hidden-`TextInput` auto-advance/paste-fill logic is preserved exactly — this is a restyle, not a rewrite of behavior
+
+### Story 8.5: Mobile Screen Restyle — Tabs, Plan Modal, Tab Bar & Splash
+
+As a gym member,
+I want the Home, Check-In, History, Profile, and Plan screens to use the new design system,
+So that the app's main daily-use surfaces match the new visual quality.
+
+**Acceptance Criteria:**
+
+**Given** `(tabs)/index.tsx`, `checkin.tsx`, `history/index.tsx`, `history/payment/[id].tsx`, `profile.tsx`, and `app/plan.tsx`
+**When** restyled
+**Then** they use Story 8.4's primitives and Story 8.3's tokens, with all existing data-fetching, navigation, and business logic unchanged — check-in's scan/result states keep clear green=success/red=error semantics
+
+**Given** the native tab bar (`components/app-tabs.tsx`)
+**When** restyled
+**Then** only `backgroundColor`/`indicatorColor`/label colors change to the new tokens — `NativeTabs` structure/shape is not replaced (explicit user direction: no custom pill tab bar)
+
+**Given** `components/app-tabs.web.tsx` and the splash screen (`components/animated-icon.tsx`/`.web.tsx`)
+**When** restyled
+**Then** the leftover "Expo Starter" placeholder branding/Docs link is replaced with real app branding, and the splash badge's Expo-blue gradient is recolored to the new brand tokens
+
+### Story 8.6: Mobile Screen Restyle — Onboarding Flow
+
+As a new gym member,
+I want the onboarding flow (language, phone, OTP, profile, goal, experience, plan confirmation) to match the app's new visual quality,
+So that first impressions of the app are polished, not the current plain/minimal styling.
+
+**Acceptance Criteria:**
+
+**Given** all 8 onboarding screens (`language`, `phone`, `otp`, `lockout`, `profile`, `goal`, `experience`, `plan`)
+**When** restyled
+**Then** they use Story 8.4's primitives (`Button`, `Card`, `ProgressSteps`, `OtpInput`) and Story 8.3's tokens/Barlow typography, with the existing step sequencing/guards (`onboarding/_layout.tsx`'s `SequencingGuard`) and all validation/submission logic unchanged
+
+**Given** the 4-segment progress bar currently copy-pasted across `profile`/`goal`/`experience`/`plan`
+**When** restyled
+**Then** all four screens use the single extracted `ProgressSteps` component from Story 8.4
