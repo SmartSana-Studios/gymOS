@@ -149,39 +149,46 @@ begin
     return;
   end if;
 
+  -- Each token's enqueue is wrapped in its own BEGIN...EXCEPTION block so a
+  -- net.http_post/insert failure on one device cannot roll back the dispatch
+  -- row or another device's already-queued delivery in this same loop.
   for v_token in
     select expo_push_token
     from device_push_tokens
     where user_id = v_user_id
     order by id
   loop
-    v_request_id := net.http_post(
-      url := 'https://exp.host/--/api/v2/push/send',
-      body := jsonb_build_object(
-        'to', v_token.expo_push_token,
-        'title', v_title,
-        'body', v_body,
-        'sound', 'default',
-        'data', jsonb_build_object(
-          'notificationCode', p_notification_code,
-          'paymentId', p_payment_id::text,
-          'gymId', v_gym_id::text
-        )
-      ),
-      headers := jsonb_build_object('Content-Type', 'application/json')
-    );
+    begin
+      v_request_id := net.http_post(
+        url := 'https://exp.host/--/api/v2/push/send',
+        body := jsonb_build_object(
+          'to', v_token.expo_push_token,
+          'title', v_title,
+          'body', v_body,
+          'sound', 'default',
+          'data', jsonb_build_object(
+            'notificationCode', p_notification_code,
+            'paymentId', p_payment_id::text,
+            'gymId', v_gym_id::text
+          )
+        ),
+        headers := jsonb_build_object('Content-Type', 'application/json')
+      );
 
-    insert into private.payment_notification_deliveries (
-      dispatch_id,
-      expo_push_token,
-      push_request_id
-    ) values (
-      v_dispatch_id,
-      v_token.expo_push_token,
-      v_request_id
-    );
+      insert into private.payment_notification_deliveries (
+        dispatch_id,
+        expo_push_token,
+        push_request_id
+      ) values (
+        v_dispatch_id,
+        v_token.expo_push_token,
+        v_request_id
+      );
 
-    v_delivery_count := v_delivery_count + 1;
+      v_delivery_count := v_delivery_count + 1;
+    exception when others then
+      raise warning 'send_payment_push_notification: delivery enqueue failed for token %: %', v_token.expo_push_token, sqlerrm;
+    end;
   end loop;
 
   update private.payment_notification_dispatches
@@ -253,9 +260,15 @@ begin
 end;
 $$;
 
+-- WHEN skips invoking the function entirely for every payments write that
+-- isn't even a candidate for N-04/N-05 (refunds, other column-only edits,
+-- any status other than 'verified'/'flagged') -- the function body's own
+-- OLD/NEW guards still gate the two real firing conditions precisely.
 create trigger payments_notify_status_change
   after insert or update on payments
-  for each row execute function private.notify_payment_status_change();
+  for each row
+  when (NEW.status in ('verified', 'flagged'))
+  execute function private.notify_payment_status_change();
 
 -- complete_flagged_payment(): mirrors complete_verified_payment()'s exact
 -- trust boundary (security definer, service_role-only) -- it must never be
@@ -312,6 +325,18 @@ declare
   v_error_message text;
   v_receipt_request_id bigint;
 begin
+  -- Guards against the every-minute cron.schedule overlapping itself if one
+  -- run ever takes longer than a minute: a second concurrent invocation
+  -- returns immediately instead of both processing the same delivery row.
+  -- (Row-level FOR UPDATE isn't usable here -- Postgres rejects FOR UPDATE
+  -- on a query combined with UNION -- so this is a single whole-function
+  -- lock instead.) Xact-scoped and re-entrant for the same session, so
+  -- calling this more than once within one transaction (e.g. pgTAP fixtures)
+  -- is unaffected.
+  if not pg_try_advisory_xact_lock(hashtext('private.process_notification_deliveries')::bigint) then
+    return;
+  end if;
+
   for v_delivery in
     select * from (
       select

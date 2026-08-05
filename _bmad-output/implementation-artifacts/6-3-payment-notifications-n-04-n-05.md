@@ -95,6 +95,18 @@ so that I know my membership status is up to date.
 - [x] [Review][Defer] Asymmetric INSERT handling — no `INSERT`-with-`flagged` branch for N-05 [supabase/migrations/0046_payment_notifications.sql:223-235] — deferred, pre-existing (only reachable via a service_role direct INSERT; none of this story's 5 documented write paths do this)
 - [x] [Review][Defer] Webhook branch treats any non-`"verified"` status as failure rather than checking specifically for `"flagged"` [supabase/functions/payment-webhook/index.ts:267] — deferred, pre-existing (harmless today; design note for the next payment-provider integration)
 
+**Review round 2 (branch `bmad/6.1-expo-push-fixes` @ `55eda46`, diff vs `master`) — 2026-08-04:**
+
+- [x] [Review][Patch] `private.send_payment_push_notification()`'s per-token dispatch loop has no exception isolation between iterations — identical gap to Story 6.2's `send_push_notification()`. A mid-loop `net.http_post`/insert failure rolls back the dispatch row and already-queued deliveries for other tokens, and since the `payments` trigger fires only once per transition (no retry), the notification is then permanently lost for the whole payment, not just the failing token. Fixed: each loop iteration is now wrapped in its own exception-isolated block. [supabase/migrations/0046_payment_notifications.sql:152-185]
+- [x] [Review][Patch] `notify_payment_status_change()`'s `create trigger` statement has no `WHEN` clause, so the `security definer` trigger function is invoked on every `payments` INSERT/UPDATE — including refunds and `complete_verified_payment()`'s own subscription-id-only second UPDATE — even though only two specific status transitions ever do anything. Fixed: added `WHEN (NEW.status IN ('verified', 'flagged'))` to the `CREATE TRIGGER` statement. [supabase/migrations/0046_payment_notifications.sql:256-258]
+- [x] [Review][Defer] `private.payment_notification_dispatches`/`private.payment_notification_deliveries` have no retention/purge job and grow unbounded — deferred, pre-existing: same accepted pattern as every other unbounded-growth table in this codebase. [supabase/migrations/0046_payment_notifications.sql]
+- [x] [Review][Defer] A declined-webhook `processing → flagged` transition now forecloses recovery if a genuinely delayed success webhook later arrives for the same payment reference (no path back from `flagged` to `verified`, automated or manual) — deferred: speculative (no evidence TaraMoney ever redelivers a contradictory outcome for one transaction reference), and `flagged` was already a dead-end state for manually-flagged payments before this diff (Story 4.3); this change only adds a new path into an already-terminal state, it doesn't newly invent the lack of recovery. [supabase/migrations/0046_payment_notifications.sql, supabase/functions/payment-webhook/index.ts]
+
+Dismissed as noise/non-issues (verified against repo state, not new problems):
+- No fresh physical-device verification of the payment-keyed N-04/N-05 path — Story 6.3's own Task 8 explicitly states this is not required, with reasoning already documented in the story.
+- N-04 firing on backdated/corrective manual payment entries with no distinction from a live entry — no AC addresses "historical" entries, and the notification is factually accurate (the payment really was confirmed); not a functional defect.
+- `apps/mobile/app.config.js`'s `googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json'` using `??` instead of `||` — an EAS file-type secret resolves to either a real temp-file path or is absent (`undefined`); it cannot resolve to an empty string, so the `??`/`||` distinction is unreachable in practice.
+
 ## Dev Notes
 
 ### Scope and Non-Negotiable Decisions

@@ -142,39 +142,46 @@ begin
     return;
   end if;
 
+  -- Each token's enqueue is wrapped in its own BEGIN...EXCEPTION block so a
+  -- net.http_post/insert failure on one device cannot roll back the dispatch
+  -- row or another device's already-queued delivery in this same loop.
   for v_token in
     select expo_push_token
     from device_push_tokens
     where user_id = v_user_id
     order by id
   loop
-    v_request_id := net.http_post(
-      url := 'https://exp.host/--/api/v2/push/send',
-      body := jsonb_build_object(
-        'to', v_token.expo_push_token,
-        'title', v_title,
-        'body', v_body,
-        'sound', 'default',
-        'data', jsonb_build_object(
-          'notificationCode', p_notification_code,
-          'subscriptionId', p_subscription_id::text,
-          'gymId', v_gym_id::text
-        )
-      ),
-      headers := jsonb_build_object('Content-Type', 'application/json')
-    );
+    begin
+      v_request_id := net.http_post(
+        url := 'https://exp.host/--/api/v2/push/send',
+        body := jsonb_build_object(
+          'to', v_token.expo_push_token,
+          'title', v_title,
+          'body', v_body,
+          'sound', 'default',
+          'data', jsonb_build_object(
+            'notificationCode', p_notification_code,
+            'subscriptionId', p_subscription_id::text,
+            'gymId', v_gym_id::text
+          )
+        ),
+        headers := jsonb_build_object('Content-Type', 'application/json')
+      );
 
-    insert into private.notification_deliveries (
-      dispatch_id,
-      expo_push_token,
-      push_request_id
-    ) values (
-      v_dispatch_id,
-      v_token.expo_push_token,
-      v_request_id
-    );
+      insert into private.notification_deliveries (
+        dispatch_id,
+        expo_push_token,
+        push_request_id
+      ) values (
+        v_dispatch_id,
+        v_token.expo_push_token,
+        v_request_id
+      );
 
-    v_delivery_count := v_delivery_count + 1;
+      v_delivery_count := v_delivery_count + 1;
+    exception when others then
+      raise warning 'send_push_notification: delivery enqueue failed for token %: %', v_token.expo_push_token, sqlerrm;
+    end;
   end loop;
 
   update private.notification_dispatches
@@ -204,6 +211,17 @@ declare
   v_error_message text;
   v_receipt_request_id bigint;
 begin
+  -- Guards against the every-minute cron.schedule overlapping itself if one
+  -- run ever takes longer than a minute: a second concurrent invocation
+  -- returns immediately instead of both processing the same delivery row.
+  -- Xact-scoped and re-entrant for the same session, so calling this more
+  -- than once within one transaction (e.g. pgTAP fixtures) is unaffected.
+  -- (Superseded by 0046's create-or-replace, which extends this same guard
+  -- to the payment-keyed ledger too.)
+  if not pg_try_advisory_xact_lock(hashtext('private.process_notification_deliveries')::bigint) then
+    return;
+  end if;
+
   for v_delivery in
     select
       d.id,
@@ -379,6 +397,12 @@ declare
   v_subscription record;
 begin
   begin
+    -- Each notification call below is wrapped in its own BEGIN...EXCEPTION
+    -- block (implicit savepoint), matching 0046's identical discipline: a
+    -- notification failure (bad join, unsupported code, net.http_post error)
+    -- must never roll back the real status transitions already committed by
+    -- this run, nor abort processing of the other subscriptions in the loop.
+
     -- 1. Expired first. N-03 belongs only to rows actually changed by this
     -- run, after the configured grace period has strictly elapsed.
     for v_subscription_id in
@@ -391,7 +415,11 @@ begin
         and (s.expiry_date + g.grace_period_days) < current_date
       returning s.id
     loop
-      perform private.send_push_notification(v_subscription_id, 'N-03');
+      begin
+        perform private.send_push_notification(v_subscription_id, 'N-03');
+      exception when others then
+        raise warning 'run_subscription_lifecycle_job: N-03 dispatch failed for subscription %: %', v_subscription_id, sqlerrm;
+      end;
     end loop;
 
     -- 2. Preserve the strict grace boundary from Story 3.1.
@@ -412,7 +440,11 @@ begin
       returning id, expiry_date
     loop
       if v_subscription.expiry_date = current_date + 7 then
-        perform private.send_push_notification(v_subscription.id, 'N-01');
+        begin
+          perform private.send_push_notification(v_subscription.id, 'N-01');
+        exception when others then
+          raise warning 'run_subscription_lifecycle_job: N-01 dispatch failed for subscription %: %', v_subscription.id, sqlerrm;
+        end;
       end if;
     end loop;
 
@@ -425,7 +457,11 @@ begin
       where status = 'expiring_soon'
         and expiry_date = current_date + 1
     loop
-      perform private.send_push_notification(v_subscription_id, 'N-02');
+      begin
+        perform private.send_push_notification(v_subscription_id, 'N-02');
+      exception when others then
+        raise warning 'run_subscription_lifecycle_job: N-02 dispatch failed for subscription %: %', v_subscription_id, sqlerrm;
+      end;
     end loop;
 
     insert into job_runs (job_name, started_at, finished_at, status)
