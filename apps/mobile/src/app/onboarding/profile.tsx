@@ -2,13 +2,15 @@ import { profileSetupSchema } from '@gymos/types';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Image, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
+import { ProgressSteps } from '@/components/ui/ProgressSteps';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Brand } from '@/constants/brand';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { openPhotoPicker, pickPhoto, uploadPhoto } from '@/lib/photo-upload';
 import { supabase } from '@/lib/supabase';
 
@@ -24,6 +26,7 @@ const CURRENT_STEP = 1;
 export default function ProfileScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const theme = useTheme();
   const [name, setName] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -117,15 +120,14 @@ export default function ProfileScreen() {
         <ThemedText type="small">
           {t('onboarding.profile.stepIndicator', { step: CURRENT_STEP })}
         </ThemedText>
-        <View style={styles.progressTrack}>
-          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-            <View key={i} style={[styles.progressSegment, i < CURRENT_STEP && styles.progressSegmentFilled]} />
-          ))}
-        </View>
+        <ProgressSteps totalSteps={TOTAL_STEPS} currentStep={CURRENT_STEP} />
 
         <ThemedText type="subtitle">{t('onboarding.profile.title')}</ThemedText>
 
-        <Pressable accessibilityRole="button" onPress={handleOpenPhotoPicker} style={styles.photoCircle}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={handleOpenPhotoPicker}
+          style={[styles.photoCircle, { backgroundColor: theme.surfaceElevated }]}>
           {photoUri ? (
             <Image source={{ uri: photoUri }} style={styles.photoImage} />
           ) : (
@@ -145,7 +147,8 @@ export default function ProfileScreen() {
           value={name}
           onChangeText={setName}
           autoCapitalize="words"
-          style={styles.nameInput}
+          placeholderTextColor={theme.textSecondary}
+          style={[styles.nameInput, { borderColor: theme.border, color: theme.text }]}
         />
 
         {error && (
@@ -154,13 +157,9 @@ export default function ProfileScreen() {
           </ThemedText>
         )}
 
-        <Pressable
-          accessibilityRole="button"
-          disabled={!canContinue}
-          onPress={handleContinue}
-          style={[styles.continueButton, !canContinue && styles.continueButtonDisabled]}>
-          {submitting ? <ActivityIndicator color="#ffffff" /> : <ThemedText style={styles.continueLabel}>{t('common.continue')}</ThemedText>}
-        </Pressable>
+        <View style={styles.continueButton}>
+          <Button label={t('common.continue')} disabled={!canContinue} loading={submitting} onPress={handleContinue} />
+        </View>
       </SafeAreaView>
     </ThemedView>
   );
@@ -169,7 +168,6 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Brand.background,
   },
   safeArea: {
     flex: 1,
@@ -179,24 +177,10 @@ const styles = StyleSheet.create({
   backButton: {
     paddingVertical: Spacing.two,
   },
-  progressTrack: {
-    flexDirection: 'row',
-    gap: Spacing.one,
-  },
-  progressSegment: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E0E1E6',
-  },
-  progressSegmentFilled: {
-    backgroundColor: Brand.accent,
-  },
   photoCircle: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#E0E1E6',
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
@@ -212,27 +196,15 @@ const styles = StyleSheet.create({
   },
   nameInput: {
     borderWidth: 1,
-    borderColor: Brand.primary,
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
     fontSize: 16,
   },
   error: {
-    color: '#B3261E',
+    color: '#F87171',
   },
   continueButton: {
     marginTop: Spacing.three,
-    backgroundColor: Brand.primary,
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-  },
-  continueButtonDisabled: {
-    opacity: 0.5,
-  },
-  continueLabel: {
-    color: '#ffffff',
-    fontWeight: '600',
   },
 });

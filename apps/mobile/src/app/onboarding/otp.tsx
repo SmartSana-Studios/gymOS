@@ -1,12 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Animated, Pressable, StyleSheet, TextInput } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { OtpInput } from '@/components/ui/OtpInput';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Brand } from '@/constants/brand';
 import { Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useOnboardingProgress } from '@/lib/onboarding-context';
@@ -49,7 +49,6 @@ export default function OtpScreen() {
   const [countdown, setCountdown] = useState(INITIAL_COUNTDOWN_SECONDS);
   const [resending, setResending] = useState(false);
   const shake = useRef(new Animated.Value(0)).current;
-  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -179,25 +178,13 @@ export default function OtpScreen() {
           </ThemedText>
         )}
 
-        <Animated.View style={[styles.boxRow, { transform: [{ translateX: shake }] }]}>
-          {Array.from({ length: CODE_LENGTH }).map((_, i) => (
-            <Pressable key={i} onPress={() => inputRef.current?.focus()} style={styles.box}>
-              <ThemedText type="subtitle">{code[i] ?? ''}</ThemedText>
-            </Pressable>
-          ))}
-        </Animated.View>
-        {/* Single hidden input driving all six visual boxes -- the robust
-            RN pattern for auto-advance + paste-to-fill (EXPERIENCE.md),
-            versus six separately-focus-managed TextInputs. */}
-        <TextInput
-          ref={inputRef}
+        <OtpInput
           value={code}
-          onChangeText={(value) => setCode(value.replace(/[^0-9]/g, '').slice(0, CODE_LENGTH))}
-          keyboardType="number-pad"
-          autoFocus
+          onChangeText={(v) => setCode(v.replace(/[^0-9]/g, '').slice(0, CODE_LENGTH))}
+          length={CODE_LENGTH}
           editable={!verifying}
-          maxLength={CODE_LENGTH}
-          style={styles.hiddenInput}
+          autoFocus
+          shakeValue={shake}
         />
 
         {verifying && <ActivityIndicator />}
@@ -222,7 +209,6 @@ export default function OtpScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Brand.background,
   },
   safeArea: {
     flex: 1,
@@ -232,28 +218,8 @@ const styles = StyleSheet.create({
   backButton: {
     paddingVertical: Spacing.two,
   },
-  boxRow: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    justifyContent: 'center',
-  },
-  box: {
-    width: 44,
-    height: 56,
-    borderWidth: 1,
-    borderColor: Brand.primary,
-    borderRadius: Spacing.one,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hiddenInput: {
-    position: 'absolute',
-    opacity: 0,
-    height: 1,
-    width: 1,
-  },
   error: {
-    color: '#B3261E',
+    color: '#F87171',
     textAlign: 'center',
   },
 });

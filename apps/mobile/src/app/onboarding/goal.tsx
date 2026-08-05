@@ -4,10 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
+import { ProgressSteps } from '@/components/ui/ProgressSteps';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Brand } from '@/constants/brand';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 import { useOnboardingProgress } from '@/lib/onboarding-context';
 
 const TOTAL_STEPS = 4;
@@ -28,6 +31,8 @@ const GOAL_OPTIONS: { value: MemberGoalInput; labelKey: string }[] = [
 export default function GoalScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const theme = useTheme();
+  const accent = useGymAccentColor();
   const { goal, setGoal } = useOnboardingProgress();
 
   function handleContinue() {
@@ -50,11 +55,7 @@ export default function GoalScreen() {
         </Pressable>
 
         <ThemedText type="small">{t('onboarding.goal.stepIndicator', { step: CURRENT_STEP })}</ThemedText>
-        <View style={styles.progressTrack}>
-          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-            <View key={i} style={[styles.progressSegment, i < CURRENT_STEP && styles.progressSegmentFilled]} />
-          ))}
-        </View>
+        <ProgressSteps totalSteps={TOTAL_STEPS} currentStep={CURRENT_STEP} />
 
         <ThemedText type="subtitle">{t('onboarding.goal.title')}</ThemedText>
         <ThemedText type="default" themeColor="textSecondary">
@@ -70,7 +71,11 @@ export default function GoalScreen() {
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
                 onPress={() => setGoal(option.value)}
-                style={[styles.optionCard, selected && styles.optionCardSelected]}>
+                style={[
+                  styles.optionCard,
+                  { borderColor: theme.border },
+                  selected && { borderColor: accent, borderWidth: 2 },
+                ]}>
                 <ThemedText type="default">{t(option.labelKey)}</ThemedText>
                 {selected && <ThemedText type="default">✓</ThemedText>}
               </Pressable>
@@ -78,13 +83,9 @@ export default function GoalScreen() {
           })}
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          disabled={goal === null}
-          onPress={handleContinue}
-          style={[styles.continueButton, goal === null && styles.continueButtonDisabled]}>
-          <ThemedText style={styles.continueLabel}>{t('common.continue')}</ThemedText>
-        </Pressable>
+        <View style={styles.continueButton}>
+          <Button label={t('common.continue')} disabled={goal === null} onPress={handleContinue} />
+        </View>
       </SafeAreaView>
     </ThemedView>
   );
@@ -93,7 +94,6 @@ export default function GoalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Brand.background,
   },
   safeArea: {
     flex: 1,
@@ -102,19 +102,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     paddingVertical: Spacing.two,
-  },
-  progressTrack: {
-    flexDirection: 'row',
-    gap: Spacing.one,
-  },
-  progressSegment: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E0E1E6',
-  },
-  progressSegmentFilled: {
-    backgroundColor: Brand.accent,
   },
   optionList: {
     gap: Spacing.two,
@@ -125,27 +112,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#E0E1E6',
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.three,
   },
-  optionCardSelected: {
-    borderWidth: 2,
-    borderColor: Brand.accent,
-  },
   continueButton: {
     marginTop: Spacing.three,
-    backgroundColor: Brand.primary,
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-  },
-  continueButtonDisabled: {
-    opacity: 0.5,
-  },
-  continueLabel: {
-    color: '#ffffff',
-    fontWeight: '600',
   },
 });

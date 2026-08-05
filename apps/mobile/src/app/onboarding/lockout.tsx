@@ -2,12 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BackHandler, Pressable, StyleSheet } from 'react-native';
+import { BackHandler, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Brand } from '@/constants/brand';
 import { Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useOnboardingProgress } from '@/lib/onboarding-context';
@@ -146,13 +146,9 @@ export default function LockoutScreen() {
           </ThemedText>
         )}
 
-        <Pressable
-          accessibilityRole="button"
-          disabled={!expired}
-          onPress={() => router.replace('/onboarding/phone')}
-          style={[styles.button, !expired && styles.buttonDisabled]}>
-          <ThemedText style={styles.buttonLabel}>{t('onboarding.lockout.tryAgain')}</ThemedText>
-        </Pressable>
+        <View style={styles.button}>
+          <Button label={t('onboarding.lockout.tryAgain')} disabled={!expired} onPress={() => router.replace('/onboarding/phone')} />
+        </View>
       </SafeAreaView>
     </ThemedView>
   );
@@ -161,7 +157,6 @@ export default function LockoutScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Brand.background,
   },
   safeArea: {
     flex: 1,
@@ -178,16 +173,6 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: Spacing.three,
-    backgroundColor: Brand.primary,
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.five,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonLabel: {
-    color: '#ffffff',
-    fontWeight: '600',
+    width: '100%',
   },
 });

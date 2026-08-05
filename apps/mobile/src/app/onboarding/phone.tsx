@@ -2,13 +2,14 @@ import { phoneEntrySchema } from '@gymos/types';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, StyleSheet, TextInput } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Brand } from '@/constants/brand';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
 import { useOnboardingProgress } from '@/lib/onboarding-context';
 
@@ -22,6 +23,7 @@ const COUNTRY_PREFIX = '+237';
 export default function PhoneScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const theme = useTheme();
   const { phone: prefillPhone, setPhone } = useOnboardingProgress();
   const [digits, setDigits] = useState(() => (prefillPhone?.startsWith(COUNTRY_PREFIX) ? prefillPhone.slice(COUNTRY_PREFIX.length) : ''));
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export default function PhoneScreen() {
           {t('onboarding.phone.subtitle')}
         </ThemedText>
 
-        <ThemedView style={styles.inputRow}>
+        <ThemedView style={[styles.inputRow, { borderColor: theme.border }]}>
           <ThemedText type="default" style={styles.prefix}>
             {COUNTRY_PREFIX}
           </ThemedText>
@@ -95,7 +97,8 @@ export default function PhoneScreen() {
             keyboardType="number-pad"
             autoFocus
             placeholder={t('onboarding.phone.helper')}
-            style={styles.input}
+            placeholderTextColor={theme.textSecondary}
+            style={[styles.input, { color: theme.text }]}
           />
         </ThemedView>
         <ThemedText type="small" themeColor="textSecondary">
@@ -108,13 +111,14 @@ export default function PhoneScreen() {
           </ThemedText>
         )}
 
-        <Pressable
-          accessibilityRole="button"
-          disabled={digits.length === 0 || submitting}
-          onPress={handleContinue}
-          style={[styles.continueButton, (digits.length === 0 || submitting) && styles.continueButtonDisabled]}>
-          {submitting ? <ActivityIndicator color="#ffffff" /> : <ThemedText style={styles.continueLabel}>{t('common.continue')}</ThemedText>}
-        </Pressable>
+        <View style={styles.continueButton}>
+          <Button
+            label={t('common.continue')}
+            disabled={digits.length === 0}
+            loading={submitting}
+            onPress={handleContinue}
+          />
+        </View>
       </SafeAreaView>
     </ThemedView>
   );
@@ -123,7 +127,6 @@ export default function PhoneScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Brand.background,
   },
   safeArea: {
     flex: 1,
@@ -137,7 +140,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Brand.primary,
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
   },
@@ -150,20 +152,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   error: {
-    color: '#B3261E',
+    color: '#F87171',
   },
   continueButton: {
     marginTop: Spacing.three,
-    backgroundColor: Brand.primary,
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-  },
-  continueButtonDisabled: {
-    opacity: 0.5,
-  },
-  continueLabel: {
-    color: '#ffffff',
-    fontWeight: '600',
   },
 });

@@ -4,9 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { ProgressSteps } from '@/components/ui/ProgressSteps';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Brand } from '@/constants/brand';
 import { Spacing } from '@/constants/theme';
 import { useOnboardingProgress } from '@/lib/onboarding-context';
 import { supabase } from '@/lib/supabase';
@@ -249,25 +251,21 @@ export default function PlanScreen() {
         </Pressable>
 
         <ThemedText type="small">{t('onboarding.plan.stepIndicator', { step: CURRENT_STEP })}</ThemedText>
-        <View style={styles.progressTrack}>
-          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-            <View key={i} style={[styles.progressSegment, i < CURRENT_STEP && styles.progressSegmentFilled]} />
-          ))}
-        </View>
+        <ProgressSteps totalSteps={TOTAL_STEPS} currentStep={CURRENT_STEP} />
 
         <ThemedText type="subtitle">{t('onboarding.plan.title')}</ThemedText>
 
         {loading && <ActivityIndicator style={styles.loadingIndicator} />}
 
         {!loading && loadError && (
-          <View style={styles.planCard}>
+          <Card style={styles.planCard}>
             <ThemedText type="small" style={styles.error}>
               {t('onboarding.plan.errorLoadFailed')}
             </ThemedText>
             <Pressable accessibilityRole="button" onPress={() => void loadPlan()}>
               <ThemedText type="link">{t('common.tryAgain')}</ThemedText>
             </Pressable>
-          </View>
+          </Card>
         )}
 
         {/* Distinct from `loadError` (Review finding): a member with no
@@ -275,15 +273,15 @@ export default function PlanScreen() {
             query, so it gets its own non-retryable message instead of the
             network-failure "try again" copy. */}
         {!loading && noPlanAssigned && (
-          <View style={styles.planCard}>
+          <Card style={styles.planCard}>
             <ThemedText type="small" style={styles.error}>
               {t('onboarding.plan.errorNoPlanAssigned')}
             </ThemedText>
-          </View>
+          </Card>
         )}
 
         {!loading && !loadError && !noPlanAssigned && plan && (
-          <View style={styles.planCard}>
+          <Card style={styles.planCard}>
             <ThemedText type="subtitle">{plan.planName}</ThemedText>
             <ThemedText type="default">{durationLabel}</ThemedText>
             <ThemedText type="default">
@@ -293,27 +291,21 @@ export default function PlanScreen() {
               {t('onboarding.plan.activeFrom', { date: formatDateOnly(plan.startDate, i18n.language) })}
             </ThemedText>
             <ThemedText type="default">{t('onboarding.plan.expires', { date: expiryLabel })}</ThemedText>
-          </View>
+          </Card>
         )}
 
         <ThemedText type="small" themeColor="textSecondary">
           {t('onboarding.plan.note')}
         </ThemedText>
 
-        <Pressable
-          accessibilityRole="button"
-          disabled={!plan || !goal || !experienceLevel || loading || submitting}
-          onPress={handleConfirm}
-          style={[
-            styles.continueButton,
-            (!plan || !goal || !experienceLevel || loading || submitting) && styles.continueButtonDisabled,
-          ]}>
-          {submitting ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <ThemedText style={styles.continueLabel}>{t('onboarding.plan.confirmButton')}</ThemedText>
-          )}
-        </Pressable>
+        <View style={styles.continueButton}>
+          <Button
+            label={t('onboarding.plan.confirmButton')}
+            disabled={!plan || !goal || !experienceLevel || loading}
+            loading={submitting}
+            onPress={handleConfirm}
+          />
+        </View>
 
         {/* EXPERIENCE.md MA-08 error state: "Inline below button" -- tapping
             "Confirm and start" again is the retry action (AC #4), same
@@ -332,7 +324,6 @@ export default function PlanScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Brand.background,
   },
   safeArea: {
     flex: 1,
@@ -342,46 +333,17 @@ const styles = StyleSheet.create({
   backButton: {
     paddingVertical: Spacing.two,
   },
-  progressTrack: {
-    flexDirection: 'row',
-    gap: Spacing.one,
-  },
-  progressSegment: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E0E1E6',
-  },
-  progressSegmentFilled: {
-    backgroundColor: Brand.accent,
-  },
   loadingIndicator: {
     marginTop: Spacing.four,
   },
   planCard: {
-    borderWidth: 1,
-    borderColor: '#E0E1E6',
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
     gap: Spacing.one,
     marginTop: Spacing.two,
   },
   error: {
-    color: '#B3261E',
+    color: '#F87171',
   },
   continueButton: {
     marginTop: Spacing.three,
-    backgroundColor: Brand.primary,
-    borderRadius: Spacing.two,
-    paddingVertical: Spacing.three,
-    alignItems: 'center',
-  },
-  continueButtonDisabled: {
-    opacity: 0.5,
-  },
-  continueLabel: {
-    color: '#ffffff',
-    fontWeight: '600',
   },
 });
