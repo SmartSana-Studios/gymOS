@@ -8,7 +8,7 @@
     "scheme": "gymos",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.gymos.app",
+      "bundleIdentifier": "com.smartsana.gymos",
       "icon": "./assets/expo.icon"
     },
     "android": {
