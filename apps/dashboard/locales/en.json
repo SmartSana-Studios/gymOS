@@ -44,6 +44,14 @@
       "frontDeskAlerts": "Front-Desk Alerts",
       "qrCode": "QR Code"
     },
+    "sectionDescriptions": {
+      "branding": "Logo, gym name & brand color",
+      "localization": "Language & timezone defaults",
+      "membership": "Grace period & member capacity",
+      "attendance": "Check-in session timeout",
+      "frontDeskAlerts": "Auto-dismiss timing for alerts",
+      "qrCode": "Check-in code for your gym"
+    },
     "fields": {
       "gymName": "Gym Name *",
       "logo": "Logo",

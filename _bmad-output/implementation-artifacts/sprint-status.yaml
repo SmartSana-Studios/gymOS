@@ -1,5 +1,5 @@
 # generated: 2026-07-04
-# last_updated: 2026-08-05 (8.1-8.6 code-reviewed and done; end-of-epic manual/visual verification still pending)
+# last_updated: 2026-08-06 (8.1 dashboard Settings verified against Figma and reworked to a two-column layout, user-confirmed; broken dashboard node_modules/next repaired; 8.3-8.6 mobile app still needs follow-up design/implementation work -- color-swap only, doesn't match Figma)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-08-05 (8.1-8.6 code-reviewed and done; end-of-epic manual/visual verification still pending)
+last_updated: 2026-08-06 (8.1 dashboard Settings verified against Figma and reworked to a two-column layout, user-confirmed; broken dashboard node_modules/next repaired; 8.3-8.6 mobile app still needs follow-up design/implementation work -- color-swap only, doesn't match Figma)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -138,11 +138,15 @@ action_items:
     owner: "smartsana"
     status: open
   - epic: 8
-    action: "apps/dashboard's local node_modules/next is broken (MODULE_NOT_FOUND on next/dist/bin/next, reproduced both natively on Windows and from WSL) -- pre-existing, unrelated to Epic 8's changes (confirmed via git status: no dashboard package.json/dependency changes this epic). Blocked live browser verification of Story 8.1's Settings page redesign; verified via clean TypeScript compilation + code review only. Needs a `pnpm install` repair (or a fresh node_modules) before anyone can run `pnpm --filter dashboard dev` locally."
+    action: "apps/dashboard's local node_modules/next was broken (MODULE_NOT_FOUND on next/dist/bin/next) -- root cause: the `next@16.2.12` folder was missing from the root .pnpm store (interrupted/partial install), leaving a dangling symlink. Fixed by re-running `pnpm install` at the repo root (2026-08-06), which re-resolved and downloaded the missing package. `pnpm --filter dashboard dev` now boots cleanly."
     owner: "smartsana"
-    status: open
+    status: resolved
   - epic: 8
-    action: "Stories 8.1/8.3-8.6 (dashboard Settings visual result, and the entire mobile app redesign) still need real visual/manual verification by a human -- run `pnpm --filter dashboard dev` (once the next.js install above is fixed) and `pnpm --filter mobile start` (iOS/Android simulator or device) and walk through every screen against the Figma reference. This session verified TypeScript compiles clean across every touched file and the new gym-qr-display Edge Function live end-to-end (200/404/405, real PNG bytes, no-store header) via a temporary local Supabase gym row, since a JS/TS-only agent cannot judge visual design quality or drive a mobile simulator."
+    action: "Story 8.1 (dashboard Settings visual result) manually verified by smartsana on 2026-08-06 against the Figma reference via a locally seeded gym-owner test account. Finding: matched Figma but layout felt sparse (single-column stack of narrow cards, large unused whitespace on wide screens). Reworked SettingsForm.tsx into a two-column layout (QR code + Branding, both enlarged, on the left; Localization/Membership/Attendance/Front-Desk Alerts on the right), added per-section tinted icon badges and one-line section descriptions (en/fr), and removed the width cap so it fills the viewport. Re-verified in browser -- user confirmed \"perfect\"."
+    owner: "smartsana"
+    status: resolved
+  - epic: 8
+    action: "Stories 8.3-8.6 (mobile app redesign) manually verified on a real device (2026-08-05, smartsana, dev-client build against local Supabase). Finding: the redesign reads as a color/theme swap only -- general interface quality/layout still doesn't match what was expected from the Figma reference. Needs follow-up design/implementation work, not just re-verification."
     owner: "smartsana"
     status: open
 

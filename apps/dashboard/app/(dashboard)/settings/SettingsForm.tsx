@@ -3,15 +3,55 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "qrcode";
-import { Bell, Clock, Globe, Palette, QrCode, Users } from "lucide-react";
+import { Bell, Clock, Globe, Palette, QrCode, Users, type LucideIcon } from "lucide-react";
 import { gymSettingsSchema } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { GymSettingsRow } from "@/services/gym-settings";
 import { regenerateQrCode, saveGymSettings, uploadLogo } from "./actions";
+
+// Tinted per-section icon treatment (each section gets its own accent so the
+// grid reads as distinct categories at a glance, rather than one repeated
+// muted-gray icon) -- deliberately independent of the gym's own configurable
+// `primaryColor` brand color below, since these are fixed UI chrome, not
+// tenant-branded surface.
+const SECTION_ACCENTS = {
+  violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
+  blue: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+  emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  cyan: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
+  rose: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
+} as const;
+
+function SectionHeader({
+  icon: Icon,
+  accent,
+  title,
+  description,
+}: {
+  icon: LucideIcon;
+  accent: keyof typeof SECTION_ACCENTS;
+  title: string;
+  description: string;
+}) {
+  return (
+    <CardHeader className="flex-row items-center gap-3 space-y-0">
+      <div className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${SECTION_ACCENTS[accent]}`}>
+        <Icon className="size-4.5" aria-hidden="true" />
+      </div>
+      <div className="space-y-0.5">
+        <CardTitle role="heading" aria-level={2} className="text-base">
+          {title}
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </div>
+    </CardHeader>
+  );
+}
 
 const TIMEZONE_OPTIONS = [
   { value: "Africa/Douala", label: "Africa/Douala (GMT+1)" },
@@ -256,244 +296,275 @@ export function SettingsForm({ initial }: { initial: GymSettingsRow }) {
   }
 
   return (
-    <div ref={formTopRef} className="space-y-8">
-      <Card>
-        <CardHeader className="flex-row items-center gap-2 space-y-0">
-          <QrCode className="size-5 text-muted-foreground" aria-hidden="true" />
-          <CardTitle role="heading" aria-level={2}>{t("settings.sections.qrCode")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {qrDataUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={qrDataUrl}
-              alt={t("settings.qr.qrCodeAlt")}
-              className="size-[220px] rounded-md border p-2"
-            />
-          )}
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={handleDownloadQr}>
-              {t("settings.qr.download")}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => setRegenerateOpen(true)}>
-              {t("settings.qr.regenerate")}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="flex items-center justify-between">
+    <div ref={formTopRef} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="flex items-center justify-between rounded-md border bg-muted/40 px-4 py-3">
           <span className="text-sm text-muted-foreground">{t("settings.saveHint")}</span>
           <Button type="submit" disabled={submitting || uploadingLogo}>
             {submitting ? t("common.saving") : t("settings.saveButton")}
           </Button>
         </div>
 
-        <Card>
-          <CardHeader className="flex-row items-center gap-2 space-y-0">
-            <Palette className="size-5 text-muted-foreground" aria-hidden="true" />
-            <CardTitle role="heading" aria-level={2}>{t("settings.sections.branding")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="gymName">{t("settings.fields.gymName")}</Label>
-              <Input
-                id="gymName"
-                value={form.gymName}
-                onChange={(e) => setForm({ ...form, gymName: e.target.value })}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+          {/* Left column: the two visual, identity-heavy sections -- QR code
+              is the thing gyms actually print/display, so it leads big, with
+              its actions stacked below rather than squeezed beside it. */}
+          <div className="space-y-6">
+            <Card>
+              <SectionHeader
+                icon={QrCode}
+                accent="blue"
+                title={t("settings.sections.qrCode")}
+                description={t("settings.sectionDescriptions.qrCode")}
               />
-              {fieldErrors.gymName && <p className="text-sm text-red-600">{fieldErrors.gymName}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="logo">{t("settings.fields.logo")}</Label>
-              <div className="flex items-center gap-3">
-                {logoUrl ? (
+              <CardContent className="flex flex-col items-center gap-5">
+                {qrDataUrl && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={logoUrl}
-                    alt={t("settings.fields.logoPreviewAlt")}
-                    className="size-16 rounded-md border object-cover"
+                    src={qrDataUrl}
+                    alt={t("settings.qr.qrCodeAlt")}
+                    className="h-auto w-full max-w-[280px] rounded-md border p-3"
                   />
-                ) : (
-                  <div className="flex size-16 items-center justify-center rounded-md border text-xs text-muted-foreground">
-                    {t("settings.fields.noLogo")}
-                  </div>
                 )}
-                <Button type="button" variant="outline" size="sm" asChild>
-                  <label htmlFor="logo" className="cursor-pointer">
-                    {uploadingLogo ? t("settings.fields.uploading") : t("settings.fields.uploadNew")}
-                  </label>
-                </Button>
-                <input
-                  id="logo"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp,image/gif"
-                  className="hidden"
-                  onChange={handleLogoSelect}
-                />
-                <Button type="button" variant="outline" size="sm" onClick={handleRemoveLogo}>
-                  {t("settings.fields.remove")}
-                </Button>
-              </div>
-              {logoError && <p className="text-sm text-red-600">{logoError}</p>}
-            </div>
+                <div className="flex w-full max-w-[280px] flex-col gap-2">
+                  <Button type="button" variant="outline" className="w-full" onClick={handleDownloadQr}>
+                    {t("settings.qr.download")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setRegenerateOpen(true)}
+                  >
+                    {t("settings.qr.regenerate")}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
-            <div className="space-y-2">
-              <Label htmlFor="primaryColor">{t("settings.fields.primaryColor")}</Label>
-              <div className="flex items-center gap-3">
-                <Input
-                  id="primaryColor"
-                  value={form.primaryColor}
-                  onChange={(e) => handleColorChange(e.target.value)}
-                  placeholder="#E0971F"
-                  className="max-w-40"
-                />
-                <div
-                  className="size-12 rounded-md border"
-                  style={{ backgroundColor: swatchColor ?? "transparent" }}
-                  aria-hidden="true"
-                />
-              </div>
-              {fieldErrors.primaryColor && (
-                <p className="text-sm text-red-600">{fieldErrors.primaryColor}</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+            <Card>
+              <SectionHeader
+                icon={Palette}
+                accent="violet"
+                title={t("settings.sections.branding")}
+                description={t("settings.sectionDescriptions.branding")}
+              />
+              <CardContent className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="gymName">{t("settings.fields.gymName")}</Label>
+                  <Input
+                    id="gymName"
+                    value={form.gymName}
+                    onChange={(e) => setForm({ ...form, gymName: e.target.value })}
+                  />
+                  {fieldErrors.gymName && <p className="text-sm text-red-600">{fieldErrors.gymName}</p>}
+                </div>
 
-        <Card>
-          <CardHeader className="flex-row items-center gap-2 space-y-0">
-            <Globe className="size-5 text-muted-foreground" aria-hidden="true" />
-            <CardTitle role="heading" aria-level={2}>{t("settings.sections.localization")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="defaultLanguage">{t("settings.fields.defaultLanguage")}</Label>
-              <select
-                id="defaultLanguage"
-                value={form.defaultLanguage}
-                onChange={(e) => setForm({ ...form, defaultLanguage: e.target.value })}
-                className="flex h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="en">{t("settings.languageOptionEnglish")}</option>
-                <option value="fr">{t("settings.languageOptionFrench")}</option>
-              </select>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="logo">{t("settings.fields.logo")}</Label>
+                  <div className="flex items-center gap-4">
+                    {logoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={logoUrl}
+                        alt={t("settings.fields.logoPreviewAlt")}
+                        className="size-24 rounded-md border object-cover"
+                      />
+                    ) : (
+                      <div className="flex size-24 items-center justify-center rounded-md border text-xs text-muted-foreground">
+                        {t("settings.fields.noLogo")}
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-1.5">
+                      <Button type="button" variant="outline" size="sm" asChild>
+                        <label htmlFor="logo" className="cursor-pointer">
+                          {uploadingLogo ? t("settings.fields.uploading") : t("settings.fields.uploadNew")}
+                        </label>
+                      </Button>
+                      <input
+                        id="logo"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        className="hidden"
+                        onChange={handleLogoSelect}
+                      />
+                      <Button type="button" variant="outline" size="sm" onClick={handleRemoveLogo}>
+                        {t("settings.fields.remove")}
+                      </Button>
+                    </div>
+                  </div>
+                  {logoError && <p className="text-sm text-red-600">{logoError}</p>}
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="timezone">{t("settings.fields.timezone")}</Label>
-              <select
-                id="timezone"
-                value={form.timezone}
-                onChange={(e) => setForm({ ...form, timezone: e.target.value })}
-                className="flex h-9 w-full max-w-xs rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                {TIMEZONE_OPTIONS.map((tz) => (
-                  <option key={tz.value} value={tz.value}>
-                    {tz.label}
-                  </option>
-                ))}
-              </select>
-              {fieldErrors.timezone && <p className="text-sm text-red-600">{fieldErrors.timezone}</p>}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="primaryColor">{t("settings.fields.primaryColor")}</Label>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      id="primaryColor"
+                      value={form.primaryColor}
+                      onChange={(e) => handleColorChange(e.target.value)}
+                      placeholder="#E0971F"
+                      className="max-w-40"
+                    />
+                    <div
+                      className="size-9 shrink-0 rounded-md border"
+                      style={{ backgroundColor: swatchColor ?? "transparent" }}
+                      aria-hidden="true"
+                    />
+                  </div>
+                  {fieldErrors.primaryColor && (
+                    <p className="text-sm text-red-600">{fieldErrors.primaryColor}</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-        <Card>
-          <CardHeader className="flex-row items-center gap-2 space-y-0">
-            <Users className="size-5 text-muted-foreground" aria-hidden="true" />
-            <CardTitle role="heading" aria-level={2}>{t("settings.sections.membership")}</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="gracePeriodDays">{t("settings.fields.gracePeriod")}</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="gracePeriodDays"
-                  type="number"
-                  value={form.gracePeriodDays}
-                  onChange={(e) => setForm({ ...form, gracePeriodDays: e.target.value })}
-                />
-                <span className="text-sm text-muted-foreground">{t("settings.fields.gracePeriodUnit")}</span>
-              </div>
-              {fieldErrors.gracePeriodDays && (
-                <p className="text-sm text-red-600">{fieldErrors.gracePeriodDays}</p>
-              )}
-            </div>
+          {/* Right column: the smaller, numeric-field settings -- naturally
+              more compact, so they read fine stacked in a narrower column
+              rather than each claiming a full-width row of their own. */}
+          <div className="space-y-6">
+            <Card>
+              <SectionHeader
+                icon={Globe}
+                accent="emerald"
+                title={t("settings.sections.localization")}
+                description={t("settings.sectionDescriptions.localization")}
+              />
+              <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="defaultLanguage">{t("settings.fields.defaultLanguage")}</Label>
+                  <select
+                    id="defaultLanguage"
+                    value={form.defaultLanguage}
+                    onChange={(e) => setForm({ ...form, defaultLanguage: e.target.value })}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="en">{t("settings.languageOptionEnglish")}</option>
+                    <option value="fr">{t("settings.languageOptionFrench")}</option>
+                  </select>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="capacity">{t("settings.fields.capacity")}</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="capacity"
-                  type="number"
-                  value={form.capacity}
-                  onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-                />
-                <span className="text-sm text-muted-foreground">{t("settings.fields.capacityUnit")}</span>
-              </div>
-              {fieldErrors.capacity && <p className="text-sm text-red-600">{fieldErrors.capacity}</p>}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="timezone">{t("settings.fields.timezone")}</Label>
+                  <select
+                    id="timezone"
+                    value={form.timezone}
+                    onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    {TIMEZONE_OPTIONS.map((tz) => (
+                      <option key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldErrors.timezone && <p className="text-sm text-red-600">{fieldErrors.timezone}</p>}
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader className="flex-row items-center gap-2 space-y-0">
-            <Clock className="size-5 text-muted-foreground" aria-hidden="true" />
-            <CardTitle role="heading" aria-level={2}>{t("settings.sections.attendance")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="max-w-xs space-y-2">
-              <Label htmlFor="checkinTimeoutHours">{t("settings.fields.checkinTimeout")}</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="checkinTimeoutHours"
-                  type="number"
-                  value={form.checkinTimeoutHours}
-                  onChange={(e) =>
-                    setForm({ ...form, checkinTimeoutHours: e.target.value })
-                  }
-                />
-                <span className="text-sm text-muted-foreground">
-                  {t("settings.fields.checkinTimeoutUnit")}
-                </span>
-              </div>
-              {fieldErrors.checkinTimeoutHours && (
-                <p className="text-sm text-red-600">{fieldErrors.checkinTimeoutHours}</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+            <Card>
+              <SectionHeader
+                icon={Users}
+                accent="amber"
+                title={t("settings.sections.membership")}
+                description={t("settings.sectionDescriptions.membership")}
+              />
+              <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="gracePeriodDays">{t("settings.fields.gracePeriod")}</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="gracePeriodDays"
+                      type="number"
+                      value={form.gracePeriodDays}
+                      onChange={(e) => setForm({ ...form, gracePeriodDays: e.target.value })}
+                    />
+                    <span className="text-sm text-muted-foreground">{t("settings.fields.gracePeriodUnit")}</span>
+                  </div>
+                  {fieldErrors.gracePeriodDays && (
+                    <p className="text-sm text-red-600">{fieldErrors.gracePeriodDays}</p>
+                  )}
+                </div>
 
-        <Card>
-          <CardHeader className="flex-row items-center gap-2 space-y-0">
-            <Bell className="size-5 text-muted-foreground" aria-hidden="true" />
-            <CardTitle role="heading" aria-level={2}>{t("settings.sections.frontDeskAlerts")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="max-w-xs space-y-2">
-              <Label htmlFor="alertAutoDismissMinutes">{t("settings.fields.alertAutoDismiss")}</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  id="alertAutoDismissMinutes"
-                  type="number"
-                  value={form.alertAutoDismissMinutes}
-                  onChange={(e) =>
-                    setForm({ ...form, alertAutoDismissMinutes: e.target.value })
-                  }
-                />
-                <span className="text-sm text-muted-foreground">
-                  {t("settings.fields.alertAutoDismissUnit")}
-                </span>
-              </div>
-              {fieldErrors.alertAutoDismissMinutes && (
-                <p className="text-sm text-red-600">{fieldErrors.alertAutoDismissMinutes}</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="capacity">{t("settings.fields.capacity")}</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="capacity"
+                      type="number"
+                      value={form.capacity}
+                      onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+                    />
+                    <span className="text-sm text-muted-foreground">{t("settings.fields.capacityUnit")}</span>
+                  </div>
+                  {fieldErrors.capacity && <p className="text-sm text-red-600">{fieldErrors.capacity}</p>}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <SectionHeader
+                icon={Clock}
+                accent="cyan"
+                title={t("settings.sections.attendance")}
+                description={t("settings.sectionDescriptions.attendance")}
+              />
+              <CardContent>
+                <div className="max-w-xs space-y-2">
+                  <Label htmlFor="checkinTimeoutHours">{t("settings.fields.checkinTimeout")}</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="checkinTimeoutHours"
+                      type="number"
+                      value={form.checkinTimeoutHours}
+                      onChange={(e) =>
+                        setForm({ ...form, checkinTimeoutHours: e.target.value })
+                      }
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {t("settings.fields.checkinTimeoutUnit")}
+                    </span>
+                  </div>
+                  {fieldErrors.checkinTimeoutHours && (
+                    <p className="text-sm text-red-600">{fieldErrors.checkinTimeoutHours}</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <SectionHeader
+                icon={Bell}
+                accent="rose"
+                title={t("settings.sections.frontDeskAlerts")}
+                description={t("settings.sectionDescriptions.frontDeskAlerts")}
+              />
+              <CardContent>
+                <div className="max-w-xs space-y-2">
+                  <Label htmlFor="alertAutoDismissMinutes">{t("settings.fields.alertAutoDismiss")}</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="alertAutoDismissMinutes"
+                      type="number"
+                      value={form.alertAutoDismissMinutes}
+                      onChange={(e) =>
+                        setForm({ ...form, alertAutoDismissMinutes: e.target.value })
+                      }
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {t("settings.fields.alertAutoDismissUnit")}
+                    </span>
+                  </div>
+                  {fieldErrors.alertAutoDismissMinutes && (
+                    <p className="text-sm text-red-600">{fieldErrors.alertAutoDismissMinutes}</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
       </form>

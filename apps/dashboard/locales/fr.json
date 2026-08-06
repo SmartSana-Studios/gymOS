@@ -44,6 +44,14 @@
       "frontDeskAlerts": "Alertes accueil",
       "qrCode": "Code QR"
     },
+    "sectionDescriptions": {
+      "branding": "Logo, nom de la salle et couleur de marque",
+      "localization": "Langue et fuseau horaire par défaut",
+      "membership": "Délai de grâce et capacité des membres",
+      "attendance": "Délai d'expiration de la session de présence",
+      "frontDeskAlerts": "Délai de disparition automatique des alertes",
+      "qrCode": "Code de présence de votre salle"
+    },
     "fields": {
       "gymName": "Nom de la salle *",
       "logo": "Logo",
