@@ -24,7 +24,6 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA"
       ]
     },
@@ -53,7 +52,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "GymOS needs camera access to scan your gym's check-in QR code."
+          "cameraPermission": "GymOS needs camera access to scan your gym's check-in QR code.",
+          "recordAudioAndroid": false
         }
       ],
       "expo-sqlite",
