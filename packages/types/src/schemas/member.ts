@@ -21,10 +21,20 @@ const MAX_MEMBER_AGE_YEARS = 120;
 // new Date()`): an ISO "YYYY-MM-DD" string parses as UTC midnight, so
 // comparing it against a full local `new Date()` instant can misclassify a
 // same-day boundary value depending on the caller's timezone offset relative
-// to UTC. Comparing two UTC-derived date-only strings sidesteps this --
-// ISO-formatted dates sort lexicographically the same as chronologically.
+// to UTC. Comparing two UTC-derived date-only strings sidesteps that
+// particular bug, but plain UTC "now" is itself the wrong boundary: this
+// runs both in the browser (a Cameroon, UTC+1, front-desk session) and on
+// the server (UTC), and neither clock reflects the *caller's* local calendar
+// day. Padding the boundary one day ahead of UTC covers every real-world
+// timezone's local "today" (UTC-12 through UTC+14) without ever accepting a
+// date that's genuinely in the future everywhere on Earth (bug report: a
+// same-day join date entered shortly after Cameroon local midnight was
+// rejected as "in the future" because the UTC calendar day hadn't rolled
+// over yet).
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
 function isoDateYearsAgo(years: number): string {

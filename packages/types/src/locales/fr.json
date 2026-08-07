@@ -4,6 +4,8 @@
     "save": "Enregistrer",
     "saving": "Enregistrement…",
     "close": "Fermer",
+    "back": "Retour",
+    "next": "Suivant",
     "somethingWentWrong": "Une erreur est survenue de notre côté.",
     "loadError": "Une erreur est survenue de notre côté. Essayez de recharger la page.",
     "invalidInput": "Saisie invalide"

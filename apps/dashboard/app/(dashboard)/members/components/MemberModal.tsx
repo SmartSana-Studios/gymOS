@@ -68,9 +68,36 @@ function todayLocalDateString(): string {
   return `${year}-${month}-${day}`;
 }
 
+// Expiry was previously left for the user to fill in by hand -- easy to
+// forget, and the resulting empty value then failed createMember's
+// server-side expiryRequired check with a "needed for this plan" error that
+// reads like a plan-selection problem even though the plan itself was picked
+// correctly. Deriving it from the plan's own duration_days removes that trap
+// entirely; the field stays editable afterward for a manual override.
+function computeExpiryDate(joinDate: string, plan: PlanRow | null): string {
+  if (!plan || plan.planType === "pay_per_session" || plan.durationDays == null || joinDate === "") {
+    return "";
+  }
+  const [year, month, day] = joinDate.split("-").map(Number);
+  const d = new Date(year, month - 1, day);
+  d.setDate(d.getDate() + plan.durationDays);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+}
+
+// Pre-filled rather than left blank with a "+237600000000" placeholder --
+// the placeholder disappears the moment the user starts typing, so it
+// silently dropped the country code prefix (this product's Cameroon market,
+// same context as todayLocalDateString above) unless the user remembered to
+// type it themselves first. A real value here means they only ever type the
+// subscriber number; still fully editable for any non-Cameroon number.
+const DEFAULT_PHONE_PREFIX = "+237";
+
 const emptyForm = {
   name: "",
-  phone: "",
+  phone: DEFAULT_PHONE_PREFIX,
   email: "",
   dob: "",
   photoUrl: "",
@@ -156,6 +183,11 @@ export function MemberModal({
   const { t, i18n } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState(emptyForm);
+  // Create mode only: Personal Info (step 1) / Membership (step 2) -- the
+  // single-column form crammed 11 fields into one scroll, easy to lose track
+  // of what's still required. Edit mode has too few fields (identity only,
+  // Scope Note's Edit-mode boundary) to need this and stays single-step.
+  const [step, setStep] = useState<1 | 2>(1);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -183,6 +215,7 @@ export function MemberModal({
   if (open && (!syncedWith.open || syncedWith.editingMember !== editingMember)) {
     setSyncedWith({ open, editingMember });
     setForm(formFromMember(editingMember));
+    setStep(1);
     setFieldErrors({});
     setFormError(null);
     // Reset to avoid flashing the previous member's (or a stale) coach
@@ -244,12 +277,22 @@ export function MemberModal({
     setForm({
       ...form,
       planId,
-      expiryDate: plan?.planType === "pay_per_session" ? "" : form.expiryDate,
+      expiryDate: computeExpiryDate(form.joinDate, plan),
     });
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Step 1's "Next" is this same submit button (native Enter-to-submit on
+    // a step-1 input must not fall through to the full create below, which
+    // would fail on step 2's still-empty planId with no visible field to
+    // show that error on) -- advance instead of validating/saving.
+    if (isCreate && step === 1) {
+      setStep(2);
+      return;
+    }
+
     setFieldErrors({});
     setFormError(null);
 
@@ -276,6 +319,13 @@ export function MemberModal({
           }
         }
         setFieldErrors(errors);
+        // Step 2 is the only place submit can be reached from, but a
+        // validation failure can still land on step 1's own fields (name/
+        // phone/email/dob) -- jump back so the error is actually visible
+        // instead of stranded behind the membership step.
+        if (errors.name || errors.phone || errors.email || errors.dob) {
+          setStep(1);
+        }
         return;
       }
 
@@ -289,6 +339,7 @@ export function MemberModal({
           }
           if (error.code === "member_already_active_at_gym") {
             setFieldErrors({ phone: error.message });
+            setStep(1);
           } else {
             setFormError(error.message);
           }
@@ -401,6 +452,26 @@ export function MemberModal({
           </button>
         </div>
 
+        {isCreate && (
+          <div className="flex items-center gap-2 text-xs">
+            <span
+              className={
+                step === 1 ? "font-semibold text-foreground" : "text-muted-foreground"
+              }
+            >
+              1. {t("members.modal.stepPersonal")}
+            </span>
+            <span className="h-px flex-1 bg-border" />
+            <span
+              className={
+                step === 2 ? "font-semibold text-foreground" : "text-muted-foreground"
+              }
+            >
+              2. {t("members.modal.stepMembership")}
+            </span>
+          </div>
+        )}
+
         {readOnly && editingMember ? (
           <>
             <div className="flex flex-col items-center gap-3 pb-2">
@@ -475,6 +546,8 @@ export function MemberModal({
           </>
         ) : (
           <>
+            {(!isCreate || step === 1) && (
+              <>
             <div className="space-y-2">
               <Label htmlFor="memberName">{t("members.modal.name")}</Label>
               <Input
@@ -536,8 +609,10 @@ export function MemberModal({
                 onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })}
               />
             </div>
+              </>
+            )}
 
-            {isCreate && (
+            {isCreate && step === 2 && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="memberPlan">{t("members.modal.plan")}</Label>
@@ -573,7 +648,10 @@ export function MemberModal({
                     id="memberJoinDate"
                     type="date"
                     value={form.joinDate}
-                    onChange={(e) => setForm({ ...form, joinDate: e.target.value })}
+                    onChange={(e) => {
+                      const joinDate = e.target.value;
+                      setForm({ ...form, joinDate, expiryDate: computeExpiryDate(joinDate, selectedPlan) });
+                    }}
                   />
                   {fieldErrors.joinDate && <p className="text-sm text-red-600">{fieldErrors.joinDate}</p>}
                 </div>
@@ -614,27 +692,30 @@ export function MemberModal({
             )}
 
             {/* Story 5.1: Assignment section -- unlike the Membership block
-               above (gated to isCreate only), this is rendered
-               unconditionally in both Create and Edit mode. Reassignment
-               (AC #2) has to be reachable after a member already exists,
-               which Edit mode is the only path for. */}
-            <div className="space-y-2">
-              <Label htmlFor="memberCoach">{t("members.modal.assignedCoach")}</Label>
-              <select
-                id="memberCoach"
-                value={form.coachId}
-                disabled={loadingAssignments}
-                onChange={(e) => setForm({ ...form, coachId: e.target.value })}
-                className={selectClassName}
-              >
-                <option value="">{t("members.modal.selectCoachOptional")}</option>
-                {coaches.map((coach) => (
-                  <option key={coach.id} value={coach.id}>
-                    {coach.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+               above (gated to isCreate only), this is rendered in both
+               Create and Edit mode (Reassignment, AC #2, has to be
+               reachable after a member already exists, which Edit mode is
+               the only path for). Folded into step 2 for Create mode since
+               it's assignment/membership context, not personal info. */}
+            {(!isCreate || step === 2) && (
+              <div className="space-y-2">
+                <Label htmlFor="memberCoach">{t("members.modal.assignedCoach")}</Label>
+                <select
+                  id="memberCoach"
+                  value={form.coachId}
+                  disabled={loadingAssignments}
+                  onChange={(e) => setForm({ ...form, coachId: e.target.value })}
+                  className={selectClassName}
+                >
+                  <option value="">{t("members.modal.selectCoachOptional")}</option>
+                  {coaches.map((coach) => (
+                    <option key={coach.id} value={coach.id}>
+                      {coach.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {!isCreate && assignmentHistory.length > 0 && (
               <div className="space-y-2">
@@ -667,17 +748,25 @@ export function MemberModal({
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
 
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" onClick={resetAndClose} disabled={submitting}>
-            {readOnly ? t("common.close") : t("common.cancel")}
-          </Button>
+        <div className="flex justify-between gap-2 pt-2">
+          {isCreate && step === 2 ? (
+            <Button type="button" variant="outline" onClick={() => setStep(1)} disabled={submitting}>
+              {t("common.back")}
+            </Button>
+          ) : (
+            <Button type="button" variant="outline" onClick={resetAndClose} disabled={submitting}>
+              {readOnly ? t("common.close") : t("common.cancel")}
+            </Button>
+          )}
           {!readOnly && (
             <Button type="submit" disabled={submitting}>
-              {submitting
-                ? t("common.saving")
-                : isCreate
-                  ? t("members.addMemberButton")
-                  : t("members.modal.saveChanges")}
+              {isCreate && step === 1
+                ? t("common.next")
+                : submitting
+                  ? t("common.saving")
+                  : isCreate
+                    ? t("members.addMemberButton")
+                    : t("members.modal.saveChanges")}
             </Button>
           )}
         </div>

@@ -4,6 +4,8 @@
     "save": "Save",
     "saving": "Saving…",
     "close": "Close",
+    "back": "Back",
+    "next": "Next",
     "somethingWentWrong": "Something went wrong on our end.",
     "loadError": "Something went wrong on our end. Try refreshing the page.",
     "invalidInput": "Invalid input"

@@ -206,6 +206,8 @@
       "editTitle": "Modifier {{name}}",
       "viewTitle": "{{name}}",
       "close": "Fermer",
+      "stepPersonal": "Informations personnelles",
+      "stepMembership": "Adhésion",
       "name": "Nom *",
       "phone": "Téléphone *",
       "email": "E-mail",

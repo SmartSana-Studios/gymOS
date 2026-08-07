@@ -206,6 +206,8 @@
       "editTitle": "Edit {{name}}",
       "viewTitle": "{{name}}",
       "close": "Close",
+      "stepPersonal": "Personal Info",
+      "stepMembership": "Membership",
       "name": "Name *",
       "phone": "Phone *",
       "email": "Email",
