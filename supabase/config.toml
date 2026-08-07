@@ -265,8 +265,10 @@ template = "Your code is {{ `{{ .Code }}` }}"
 max_frequency = "5s"
 
 # Use pre-defined map of phone number to OTP for testing.
-# [auth.sms.test_otp]
-# 4152127777 = "123456"
+[auth.sms.test_otp]
+"237670000001" = "123456"
+# Play Store review test account (send-sms-hook/index.ts's REVIEW_TEST_PHONE bypass).
+"237699000001" = "123456"
 
 # Configure logged in session timeouts.
 # [auth.sessions]
