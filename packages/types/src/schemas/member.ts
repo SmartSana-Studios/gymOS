@@ -89,7 +89,16 @@ export const createMemberSchema = z
     dob: dobSchema,
     photoUrl: photoUrlSchema,
     emergencyContact: emergencyContactSchema,
-    planId: z.uuid("Select a plan"),
+    // Not z.uuid(): that enforces RFC 4122's version/variant nibbles, which
+    // Postgres' own uuid column type does not -- a hand-seeded id like
+    // "dddddddd-0000-0000-0000-000000000004" (this product's Play Store
+    // review demo gym) is a syntactically valid Postgres uuid but fails
+    // z.uuid()'s stricter check, so the correctly-selected plan was rejected
+    // as "Select a plan" on every single submit regardless of what was
+    // chosen (production bug report). getPlanTypeForGym's real, gym-scoped
+    // DB lookup is the actual authority on whether planId refers to a real
+    // row -- this only needs to reject an empty selection.
+    planId: z.string().min(1, "Select a plan"),
     joinDate: z
       .iso.date("Enter a valid join date")
       .refine((val) => val <= todayIso(), {
