@@ -9,6 +9,7 @@ export * from "./schemas/memberOnboarding";
 export * from "./schemas/auth";
 export * from "./schemas/locale";
 export * from "./schemas/paymentProvider";
+export * from "./schemas/messagingProviderConfig";
 export * from "./schemas/payment";
 export * from "./schemas/frontDeskAlert";
 export * from "./schemas/sessionNote";

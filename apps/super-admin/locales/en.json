@@ -3,7 +3,8 @@
     "brand": "GymOS Super Admin",
     "metrics": "Metrics",
     "tiers": "Tiers",
-    "paymentProviders": "Payment Providers"
+    "paymentProviders": "Payment Providers",
+    "messaging": "Messaging"
   },
   "auth": {
     "description": "Enter your email below to login to your account",
@@ -183,6 +184,17 @@
     "statusInactive": "Inactive",
     "activate": "Activate",
     "activating": "Activating…"
+  },
+  "messaging": {
+    "title": "Messaging",
+    "instanceIdLabel": "Evolution API Instance ID",
+    "instanceIdPlaceholder": "e.g. evo-instance-1",
+    "notConfigured": "Not configured yet.",
+    "lastUpdated": "Last updated: {{date}}",
+    "save": "Save",
+    "errors": {
+      "instanceIdRequired": "Instance ID is required"
+    }
   },
   "metrics": {
     "title": "Platform Metrics",

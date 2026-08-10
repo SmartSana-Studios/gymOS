@@ -91,11 +91,6 @@ export default {
       return jsonResponse(500);
     }
 
-    if (!provider) {
-      console.error("send-sms-hook: no valid OTP_PROVIDER configured");
-      return jsonResponse(500);
-    }
-
     // Body read and signature verification share one try/catch: a body-read failure (aborted/
     // truncated request) is just as much a "reject this request" case as a bad signature, and both
     // must produce the JSON error response the Auth Hook contract requires, not an uncaught throw.
@@ -118,6 +113,20 @@ export default {
     if (!phone) {
       console.error("send-sms-hook: payload.user.phone is not a valid E.164 number");
       return jsonResponse(400);
+    }
+
+    // Play Store review test account: bypass real SMS delivery for this number.
+    // Supabase still generates and validates the OTP internally — we just skip
+    // the Twilio/sent.dm send. The fixed OTP (123456) must be configured via
+    // Supabase Dashboard → Authentication → Phone → Test OTPs.
+    const REVIEW_TEST_PHONE = "+237699000001";
+    if (phone === REVIEW_TEST_PHONE) {
+      return jsonResponse(200);
+    }
+
+    if (!provider) {
+      console.error("send-sms-hook: no valid OTP_PROVIDER configured");
+      return jsonResponse(500);
     }
 
     let result;

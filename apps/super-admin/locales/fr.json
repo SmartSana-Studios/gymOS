@@ -3,7 +3,8 @@
     "brand": "GymOS Super Admin",
     "metrics": "Statistiques",
     "tiers": "Paliers",
-    "paymentProviders": "Fournisseurs de paiement"
+    "paymentProviders": "Fournisseurs de paiement",
+    "messaging": "Messagerie"
   },
   "auth": {
     "description": "Saisissez votre e-mail ci-dessous pour vous connecter à votre compte",
@@ -183,6 +184,17 @@
     "statusInactive": "Inactif",
     "activate": "Activer",
     "activating": "Activation…"
+  },
+  "messaging": {
+    "title": "Messagerie",
+    "instanceIdLabel": "ID d'instance Evolution API",
+    "instanceIdPlaceholder": "p. ex. evo-instance-1",
+    "notConfigured": "Pas encore configuré.",
+    "lastUpdated": "Dernière mise à jour : {{date}}",
+    "save": "Enregistrer",
+    "errors": {
+      "instanceIdRequired": "L'ID d'instance est requis"
+    }
   },
   "metrics": {
     "title": "Statistiques de la plateforme",

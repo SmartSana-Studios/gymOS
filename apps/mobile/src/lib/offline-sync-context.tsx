@@ -1,8 +1,16 @@
 import { useNetworkState } from 'expo-network';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Platform } from 'react-native';
 
 import { countOfflineCheckIns } from '@/lib/sqlite';
 import { queueOfflineCheckIn as queueOfflineCheckInService, syncPendingCheckIns } from '@/services/checkin';
+
+/** expo-sqlite's web VFS (OPFS SyncAccessHandles) has no meaningful use on
+ * web anyway -- there's no persistent native storage to queue offline
+ * check-ins into, and repeated mounts fight over the same OPFS file handle,
+ * hanging the tab ("Invalid VFS state"). Skip SQLite entirely on web rather
+ * than let every remount corrupt the previous instance's handle. */
+const isWeb = Platform.OS === 'web';
 
 /** Story 3.9: mirrors `lib/onboarding-context.tsx`'s exact shape --
  * `createContext` + `XProvider` + `useX()` that throws if called outside
@@ -31,6 +39,7 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
   const syncInFlightRef = useRef(false);
 
   const refreshPendingCount = useCallback(async () => {
+    if (isWeb) return;
     try {
       setPendingCount(await countOfflineCheckIns());
     } catch (err) {
@@ -42,7 +51,7 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
   // opportunistic re-sync firing close together and both processing the
   // same queued rows concurrently.
   const runSync = useCallback(async () => {
-    if (syncInFlightRef.current) return;
+    if (isWeb || syncInFlightRef.current) return;
     syncInFlightRef.current = true;
     try {
       await syncPendingCheckIns();
@@ -66,6 +75,9 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
   }, [isConnected, runSync]);
 
   const queueOfflineCheckIn = useCallback(async () => {
+    if (isWeb) {
+      throw new Error('Offline check-in queueing is not supported on web.');
+    }
     const result = await queueOfflineCheckInService();
     await refreshPendingCount();
     // Opportunistic re-sync in case the connectivity flag was a stale false

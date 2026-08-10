@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { LogoutButton } from "@/components/logout-button";
 
 export default function AdminLayout({
   children,
@@ -53,7 +54,7 @@ async function AdminLayoutData({
           Flat links, not the responsive icon-rail/hamburger sidebar
           (UX-DR4/UX-DR13) -- that component is specified for the
           multi-role gym-admin dashboard (apps/dashboard); Super Admin has
-          exactly one role and two flat destinations besides the brand link,
+          exactly one role and four flat destinations besides the brand link,
           which already points to /gyms -- no separate "Gyms" link needed.
         */}
         <Link href="/metrics" className="text-sm text-muted-foreground hover:text-foreground">
@@ -65,7 +66,11 @@ async function AdminLayoutData({
         <Link href="/payment-providers" className="text-sm text-muted-foreground hover:text-foreground">
           {t("nav.paymentProviders")}
         </Link>
+        <Link href="/messaging" className="text-sm text-muted-foreground hover:text-foreground">
+          {t("nav.messaging")}
+        </Link>
         <LanguageToggle />
+        <LogoutButton />
       </nav>
       <main className="flex-1 p-5">{children}</main>
     </div>

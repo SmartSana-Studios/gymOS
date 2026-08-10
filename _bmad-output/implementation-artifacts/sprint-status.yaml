@@ -1,5 +1,5 @@
 # generated: 2026-07-04
-# last_updated: 2026-08-06 (8.1 dashboard Settings verified against Figma and reworked to a two-column layout, user-confirmed; broken dashboard node_modules/next repaired; 8.3-8.6 mobile app still needs follow-up design/implementation work -- color-swap only, doesn't match Figma)
+# last_updated: 2026-08-08 (correct-course: sprint-change-proposal-2026-08-08.md approved -- added 1-13 (Super Admin Evolution API instance config + logout wiring fix), 2-9 (Evolution API sandbox spike + OTP fallback chain), 2-10 (automated member invite via Evolution API, revises 2-5's shipped scope, 2-5 left as historical record)); (create-story: 1-13 story file created, status backlog -> ready-for-dev); (dev-story: 1-13 status ready-for-dev -> in-progress, Tasks 1-7 complete, Task 8 manual verification paused mid-task -- see story file's Dev Agent Record)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-08-06 (8.1 dashboard Settings verified against Figma and reworked to a two-column layout, user-confirmed; broken dashboard node_modules/next repaired; 8.3-8.6 mobile app still needs follow-up design/implementation work -- color-swap only, doesn't match Figma)
+last_updated: 2026-08-08 (correct-course: sprint-change-proposal-2026-08-08.md approved -- added 1-13 (Super Admin Evolution API instance config + logout wiring fix), 2-9 (Evolution API sandbox spike + OTP fallback chain), 2-10 (automated member invite via Evolution API, revises 2-5's shipped scope, 2-5 left as historical record)); (create-story: 1-13 story file created, status backlog -> ready-for-dev); (dev-story: 1-13 status ready-for-dev -> in-progress, Tasks 1-7 complete, Task 8 manual verification paused mid-task -- see story file's Dev Agent Record)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -55,6 +55,7 @@ development_status:
   1-10-bilingual-en-fr-platform-foundation: done
   1-11-gym-owner-activation-temp-password-sms: done
   1-12-super-admin-provisioning-cli: done
+  1-13-super-admin-evolution-api-instance-configuration: in-progress
   epic-1-retrospective: optional
 
   epic-2: in-progress
@@ -66,6 +67,8 @@ development_status:
   2-6-member-app-phone-otp-onboarding-through-profile-setup: done
   2-7-member-app-goal-experience-plan-confirmation: done
   2-8-member-self-service-profile-management: done
+  2-9-evolution-api-sandbox-spike-otp-provider-fallback-chain: backlog
+  2-10-automated-member-invite-via-evolution-api: backlog
   epic-2-retrospective: done
 
   epic-3: in-progress
