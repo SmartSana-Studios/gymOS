@@ -1,0 +1,51 @@
+{
+  "name": "GymOS Development",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+
+  "features": {
+    "ghcr.io/devcontainers/features/node:2": {
+      "version": "22",
+      "pnpmVersion": "10.27.0",
+      "nodeGypDependencies": true
+    },
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "version": "latest",
+      "moby": true,
+      "dockerDashComposeVersion": "v2"
+    },
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+  },
+
+  "workspaceFolder": "/workspaces/gym_os",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/gym_os,type=bind",
+
+  "runArgs": [
+    "--network=host"
+  ],
+
+  "mounts": [
+  "source=gymos-pnpm-store,target=/home/vscode/.local/share/pnpm/store,type=volume",
+  "source=claude-code-config,target=/home/vscode/.claude,type=volume"
+],
+
+"containerEnv": {
+  "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
+},
+
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+
+"postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.local/share/pnpm /home/vscode/.claude && pnpm install --frozen-lockfile",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-containers"
+      ]
+    }
+  },
+
+  "shutdownAction": "stopContainer"
+}
