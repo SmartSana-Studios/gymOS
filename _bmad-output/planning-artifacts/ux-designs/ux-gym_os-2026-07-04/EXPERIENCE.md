@@ -1,8 +1,8 @@
 ---
 name: GymOS
-status: draft
+status: final
 created: 2026-07-04
-updated: 2026-07-04
+updated: 2026-08-11
 sources:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
 design_spine: DESIGN.md
@@ -23,7 +23,7 @@ design_spine: DESIGN.md
 | Surface | Runtime | Primary Audience | Primary Device |
 |---|---|---|---|
 | Member App | React Native + Expo (iOS + Android) | Gym members | Android mobile, portrait |
-| Admin Dashboard | Next.js web app | Receptionist, Manager, Owner, Coach | Desktop browser |
+| Admin Dashboard | Next.js web app | Receptionist, Manager, Supervisor, Owner, Coach | Desktop browser |
 | Super Admin Dashboard | Next.js web app (separate URL + auth) | GymOS platform staff | Desktop browser |
 
 **Localization.** All UI strings, push notification copy, and error messages are available in English (EN) and French (FR). Language resolves in priority order: (1) user-saved preference stored on the account, (2) device/browser locale, (3) EN fallback. No string is hardcoded in the UI — all strings flow through the i18n layer. Date and monetary values follow locale conventions (e.g., "25 000 XAF" in FR; "25,000 XAF" in EN).
@@ -52,10 +52,12 @@ design_spine: DESIGN.md
 | MA-08 | Plan Confirmation | `/onboarding/plan` | After MA-07 |
 | MA-09 | Home | `/home` | Post-onboarding; bottom tab |
 | MA-10 | Check-In (+ result states) | `/checkin` | Bottom tab; Home quick-action |
-| MA-11 | History | `/history` | Bottom tab |
-| MA-12 | Profile | `/profile` | Bottom tab |
+| MA-11 | History (Payments / Check-ins) | `/profile/history` | Profile → History row *(V1.5: moved off the bottom tab bar, see Navigation Structure)* |
+| MA-12 | Profile | `/profile` | Bottom tab. *(V1.5: gains History and Notification Preferences sections)* |
 | MA-13 | Plan Details | `/plan` | Home quick-action |
-| MA-14 | Payment Detail | `/history/payment/:id` | History → payment row |
+| MA-14 | Payment Detail | `/profile/history/payment/:id` | History → payment row |
+| MA-15 | Progress | `/progress` | Bottom tab *(V1.5, FR-123)* |
+| MA-16 | Classes | `/classes` | Bottom tab; Home quick-action for upcoming bookings *(V1.5, FR-123, FR-108)* |
 
 ### Admin Dashboard
 
@@ -73,9 +75,13 @@ design_spine: DESIGN.md
 | AD-10 | Manual Payment Entry | Modal on AD-09 / AD-02 | Receptionist |
 | AD-11 | Attendance | `/attendance` | Receptionist |
 | AD-12 | Audit Log | `/audit` | Manager |
-| AD-13 | Settings | `/settings` | Owner |
+| AD-13 | Settings | `/settings` | Supervisor *(V1.5: Manager-plus access — was Owner-only; gains Staff and Connect Payment Account sections)* |
 | AD-14 | Coach Portal — Member List | `/coach` | Coach |
-| AD-15 | Coach Portal — Member Detail | `/coach/:memberId` | Coach |
+| AD-15 | Coach Portal — Member Detail | `/coach/:memberId` | Coach *(V1.5: restructured into tabs — Session Notes / Progress / Workout Plan)* |
+| AD-16 | Staff — List | `/settings/staff` | Supervisor *(V1.5, FR-120)* |
+| AD-17 | Staff — Add / Edit | Modal on AD-16 | Supervisor *(V1.5, FR-087–FR-089)* |
+| AD-18 | Classes — List & Attendance | `/classes` | Receptionist *(V1.5, FR-121)* |
+| AD-19 | Classes — Create / Edit | Modal on AD-18 | Manager *(V1.5, FR-104)* |
 
 ### Super Admin Dashboard
 
@@ -87,6 +93,7 @@ design_spine: DESIGN.md
 | SA-04 | Create Gym | Modal on SA-02 |
 | SA-05 | Platform Metrics | `/metrics` |
 | SA-06 | Tier Management | `/tiers` |
+| SA-07 | Billing | `/billing` *(V1.5, FR-131/FR-135)* |
 
 ---
 
@@ -107,15 +114,21 @@ App — Unauthenticated
     └── MA-08  Plan Confirmation
 
 App — Authenticated
-└── Bottom Tab Bar (always visible)
+└── Bottom Tab Bar (always visible) — 5 tabs (V1.5, up from 4; see Navigation Structure for the tab-count rationale)
     ├── Tab 1: Home (MA-09)
     │    ├── → Check-In (MA-10)     [quick-action button]
-    │    └── → Plan Details (MA-13) [quick-action button]
+    │    ├── → Plan Details (MA-13) [quick-action button]
+    │    └── → upcoming booked classes summary [V1.5, links into Classes tab]
     ├── Tab 2: Check-In (MA-10)     [camera activates on tab entry]
-    ├── Tab 3: History (MA-11)
-    │    ├── → Plan Details (MA-13)
-    │    └── → Payment Detail (MA-14)
-    └── Tab 4: Profile (MA-12)
+    ├── Tab 3: Classes (MA-16)      [V1.5]
+    │    └── → Class Detail / booking action
+    ├── Tab 4: Progress (MA-15)     [V1.5]
+    │    └── → Log Entry sheet
+    └── Tab 5: Profile (MA-12)
+         ├── → History (MA-11)         [V1.5: moved off the tab bar into here]
+         │    ├── → Plan Details (MA-13)
+         │    └── → Payment Detail (MA-14)
+         └── → Notification Preferences section [in-page, unchanged from V1.0 shipped behavior]
 ```
 
 ### Admin Dashboard IA
@@ -128,10 +141,12 @@ Admin Dashboard
 │   ├── Subscriptions     → AD-08
 │   ├── Payments          → AD-09 → AD-10 (modal)
 │   ├── Attendance        → AD-11
+│   ├── Classes           → AD-18 → AD-19 (modal)                    [V1.5]
 │   ├── Audit Log         → AD-12
 │   ├── Settings          → AD-13
+│   │   └── Staff         → AD-16 → AD-17 (modal)  [Owner/Supervisor] [V1.5]
 │   └── [Coach role only]
-│       └── Coach Portal  → AD-14 → AD-15
+│       └── Coach Portal  → AD-14 → AD-15 (tabs: Session Notes / Progress [V1.5] / Workout Plan [V1.5])
 └── Floating / Overlay
     ├── Front-Desk Alert Panel  [on AD-02, AD-11; real-time]
     └── Inline Renewal Panel    [within alert or Subscriptions row]
@@ -144,7 +159,8 @@ Super Admin Dashboard
 └── Sidebar
     ├── Gyms      → SA-02 → SA-03; SA-04 (modal on SA-02)
     ├── Metrics   → SA-05
-    └── Tiers     → SA-06
+    ├── Tiers     → SA-06
+    └── Billing   → SA-07                                            [V1.5]
 ```
 
 ---
@@ -153,12 +169,15 @@ Super Admin Dashboard
 
 ### Member App — Bottom Tab Bar
 
+**V1.5 change:** the tab bar goes from 4 tabs to 5 — Progress (MA-15) and Classes (MA-16) are added; History (MA-11) moves off the bar into a Profile section. 6 tabs was rejected as exceeding the mobile usability ceiling (iOS HIG / Material Design both cap persistent bottom-nav items around 5). History was the item folded away rather than Progress or Classes, since those two are the features V1.5 is explicitly betting on to drive non-visit-day app opens (PRD Section 3.2); History is a lower-frequency look-back action by comparison. See `.memlog.md` for the full decision record.
+
 | Tab index | Label | Icon type | Badge |
 |---|---|---|---|
 | 1 | Home | House icon | Red dot if status = expired; orange dot if expiring_soon or grace_period |
 | 2 | Check In | QR / scan icon | None |
-| 3 | History | Clock / list icon | None |
-| 4 | Profile | Avatar / person icon | None |
+| 3 | Classes | Calendar icon | None *(V1.5)* |
+| 4 | Progress | Trend/chart icon | None *(V1.5)* |
+| 5 | Profile | Avatar / person icon | None |
 
 **Rules:**
 - Tab bar is rendered only for authenticated users. Onboarding screens have no tab bar.
@@ -184,16 +203,21 @@ Super Admin Dashboard
 
 **Role visibility matrix:**
 
-| Nav item | Receptionist | Manager | Owner | Coach |
-|---|---|---|---|---|
-| Overview | ✓ | ✓ | ✓ | — |
-| Members | ✓ | ✓ | ✓ | — |
-| Subscriptions | — | ✓ | ✓ | — |
-| Payments | ✓ | ✓ | ✓ | — |
-| Attendance | ✓ | ✓ | ✓ | — |
-| Audit Log | — | ✓ | ✓ | — |
-| Settings | — | — | ✓ | — |
-| Coach Portal | — | — | — | ✓ |
+*V1.5 adds the Supervisor role, inserted between Owner and Manager (`Owner → Supervisor → Manager → Receptionist → Coach → Member`). Supervisor's nav access is "Manager-plus": everything Manager sees, plus Settings and Staff — the same footprint as Owner, minus the ability to create another Supervisor.*
+
+| Nav item | Receptionist | Manager | Supervisor | Owner | Coach |
+|---|---|---|---|---|---|
+| Overview | ✓ | ✓ | ✓ | ✓ | — |
+| Members | ✓ | ✓ | ✓ | ✓ | — |
+| Subscriptions | — | ✓ | ✓ | ✓ | — |
+| Payments | ✓ | ✓ | ✓ | ✓ | — |
+| Attendance | ✓ | ✓ | ✓ | ✓ | — |
+| Classes — view/attendance (AD-18) | ✓ | ✓ | ✓ | ✓ | — |
+| Classes — create/edit (AD-19) | — | ✓ | ✓ | ✓ | — |
+| Audit Log | — | ✓ | ✓ | ✓ | — |
+| Settings (AD-13) | — | — | ✓ | ✓ | — |
+| Staff (AD-16/17) | — | — | ✓ | ✓ | — |
+| Coach Portal | — | — | — | — | ✓ |
 
 Coach role: sidebar renders only the "Coach Portal" link. All other items are absent from the DOM.
 
@@ -201,7 +225,7 @@ Coach role: sidebar renders only the "Coach Portal" link. All other items are ab
 
 ### Super Admin Dashboard — Sidebar
 
-Same structure as Admin Dashboard sidebar. 240px fixed on desktop. Links: Gyms | Metrics | Tiers.
+Same structure as Admin Dashboard sidebar. 240px fixed on desktop. Links: Gyms | Metrics | Tiers | Billing *(V1.5)*.
 
 ---
 
@@ -224,6 +248,15 @@ Microcopy guide. Brand voice and visual identity live in `DESIGN.md`.
 | Offline (member app) | "You're offline — check-in still works." | "No internet connection detected." |
 | Offline (dashboard) | "You're offline. Data may be outdated." | "Network error." |
 | Session expired | "Your session expired. Please log in again." | "401 Unauthorized." |
+| Class full *(V1.5)* | "This class is full." | "Booking failed: capacity exceeded." |
+| Class booking lost the race *(V1.5)* | "That spot was just taken — try another session." | "Conflict: session at capacity." |
+| Staff role-ceiling rejection *(V1.5)* | "You don't have permission to assign that role." | "Forbidden: insufficient privilege level." |
+| Staff deactivation confirm *(V1.5)* | "Deactivate [Name]? They'll lose gym access immediately." | "Are you sure?" (already covered by the general destructive-action row above — listed here as the specific staff instance since it's a new, security-sensitive action) |
+| Gym suspended — member-facing *(V1.5, FR-132)* | "GymOS is temporarily unavailable for this gym. Please check back later." | Anything mentioning billing, payment, subscription, or an amount owed — never shown to a member, this relationship is between GymOS and the Owner only |
+| Gym suspended — Owner-facing *(V1.5)* | "Your GymOS subscription payment is overdue. Pay now to restore access for your whole team." | "Account suspended." |
+| SaaS payment reminder *(V1.5, FR-131)* | "Your GymOS subscription payment is due [date]. Pay now: [link]" | Anything implying an automatic charge — mobile money isn't auto-debited, the copy must always ask the Owner to act |
+| Quiet-gym alert *(V1.5, N-06)* | "[Gym name] is quiet right now — good time to train." | "Occupancy alert: low." |
+| Class reminder *(V1.5, N-07)* | "Your [Class name] class starts in 1 hour." | "Reminder: upcoming event." |
 
 **French translations** must be exact equivalents in tone and reading level — not literal word-for-word. Both language versions are reviewed together before ship. EN and FR string counts must match on every PR.
 
@@ -563,13 +596,17 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 │                                  │
 │  [Check In]        [View Plan]   │  ← quick actions (icon + label)
 │                                  │
+│  Upcoming Classes            →   │  ← V1.5; only if ≥1 booking exists
+│  ─────────────────────────────── │
+│  [Class name]   [day, time]      │
+│                                  │
 │  Recent Activity                 │
 │  ─────────────────────────────── │
 │  [event row]              [date] │
 │  [event row]              [date] │
 │                                  │
 ├──────────────────────────────────┤
-│ [Home] [Check In] [History] [Me] │  ← bottom tab bar
+│ [Home][Check In][Classes][Progress][Me] │  ← bottom tab bar, 5 tabs (V1.5)
 └──────────────────────────────────┘
 ```
 
@@ -582,7 +619,8 @@ Step indicator: step 3 of 4; segments 1–3 filled.
   - Expiry date formatted per locale
   - Tapping the card navigates to MA-13 (Plan Details)
 - **Quick action buttons:** "Check In" (navigates to MA-10) + "View Plan" (navigates to MA-13); row of two equal-width buttons
-- **Recent activity section:** last 2–3 combined events (check-ins + payments, reverse chronological); each row tappable; check-in rows navigate to History, payment rows navigate to MA-14
+- **Upcoming Classes section** *(V1.5, FR-108)*: shown only when the member has ≥1 upcoming booking; up to 2 nearest sessions (name, day/time); "→" navigates to MA-16 (Classes) Booked tab; section is absent entirely (not an empty state) when there are zero bookings, to avoid crowding Home with an unused feature
+- **Recent activity section:** last 2–3 combined events (check-ins + payments, reverse chronological); each row tappable; check-in rows navigate to History (now under Profile), payment rows navigate to MA-14
 
 **Status badge states:**
 
@@ -718,9 +756,12 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 
 **Purpose:** Member views their full payment and attendance history.
 
+**V1.5 change:** no longer a bottom-tab destination — reached from Profile (MA-12) via a "History" row. Layout changes from a tab-bar screen to a pushed sub-screen (back arrow to Profile, no tab bar) — same content and components otherwise, unchanged from V1.0.
+
 **Layout:**
 ```
 ┌──────────────────────────────────┐
+│  ← (back to Profile)             │
 │  History                         │
 ├─────────────────┬────────────────┤
 │    Payments     │   Check-ins    │  ← segmented control
@@ -729,8 +770,6 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 │  [event row]         [date/time] │
 │  [event row]         [date/time] │
 │  ...                             │
-├──────────────────────────────────┤
-│ [Home] [Check In] [History] [Me] │
 └──────────────────────────────────┘
 ```
 
@@ -751,7 +790,9 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 
 ### MA-12 · Profile
 
-**Purpose:** Member views and edits their profile, changes language, and manages their session.
+**Purpose:** Member views and edits their profile, changes language, reviews History, manages notification preferences, and manages their session.
+
+**V1.5 change:** gains a "History" row (→ MA-11, moved off the tab bar) and a "Notification Preferences" section (in-page — this section documents the already-shipped V1.0 Story 6.4 behavior, undocumented until this update, plus the two new V1.5 toggles).
 
 **Layout:**
 ```
@@ -765,11 +806,18 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 ├──────────────────────────────────┤
 │  Edit profile                  → │
 │  ─────────────────────────────── │
+│  History                       → │  ← V1.5: moved here from tab bar
+│  ─────────────────────────────── │
 │  Language          [EN] [FR]     │
+│  ─────────────────────────────── │
+│  Notifications                   │
+│    Renewal & payment reminders  ⊙ │
+│    Quiet-gym alerts        ⊙(off)│  ← V1.5, default off (FR-113)
+│    Class reminders         ⊙(on) │  ← V1.5, default on, opt-out (FR-116)
 │  ─────────────────────────────── │
 │  Log out                         │
 ├──────────────────────────────────┤
-│ [Home] [Check In] [History] [Me] │
+│ [Home][Check In][Classes][Progress][Me] │
 └──────────────────────────────────┘
 ```
 
@@ -777,12 +825,15 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 - Avatar (tappable only in edit mode)
 - Name, gym name, plan name (read-only display)
 - "Edit profile" row → inline edit section: name field (pre-filled, editable) + photo upload circle; phone number shown as non-editable with label "Contact your gym to change your number"
+- "History" row → pushes MA-11
 - Language row: segmented EN | FR toggle — tapping the non-active option switches immediately; no reload required
+- **Notifications section:** one toggle row per notification category. Existing V1.0 categories (subscription lifecycle N-01–N-03, payment N-04–N-05) already ship as a single "Renewal & payment reminders" toggle (this documents current shipped behavior). V1.5 adds two more rows: "Quiet-gym alerts" (default **off** — opt-in, FR-113) and "Class reminders" (default **on** — opt-out, FR-116); each is an independent toggle, saved immediately on change (no separate Save action)
 - "Log out" row → bottom sheet: "Log out of GymOS?" [Log out] [Cancel]
 
 **Interactions:**
 - Language change: immediately re-renders all app strings; preference saved to account; screen reader announces the change in the new language
 - Edit profile save: spinner during save; success → collapses to read-only; failure → inline error below name field
+- Notification toggle: optimistic UI (flips immediately), reverts with an inline error toast if the save fails
 - Log out: clears local tokens; navigates to MA-01
 
 ---
@@ -838,6 +889,98 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 ```
 
 **Components:** Read-only receipt. All fields from FR-041. No member-initiated refund action.
+
+---
+
+### MA-15 · Progress *(V1.5)*
+
+**Purpose:** Member's private trend view of their body metrics and photos over time — the screen the Progress tab exists to give members a reason to open the app on a non-visit day (PRD Section 3.2).
+
+**Layout:**
+```
+┌──────────────────────────────────┐
+│  Progress                        │
+│                                  │
+│  Current weight        [+ Log]   │
+│  78.4 kg   (-2.4 kg since start) │
+│                                  │
+│  ┌────────────────────────────┐  │
+│  │   [weight trend line chart]│  │
+│  └────────────────────────────┘  │
+│                                  │
+│  Measurements                    │
+│  ─────────────────────────────── │
+│  Waist    76 cm   (-3 cm)        │
+│  Chest    98 cm   (+1 cm)        │
+│  ...                             │
+│                                  │
+│  Photos                          │
+│  ─────────────────────────────── │
+│  [thumb] [thumb] [thumb] [thumb] │  ← reverse-chronological grid
+└──────────────────────────────────┘
+```
+
+**Components:**
+- **Header row:** current weight + delta since the member's starting weight; color follows goal type — for a directional goal (Lose Weight / Build Muscle), green if the delta trends toward that goal, neutral gray otherwise; for a non-directional goal (Improve Fitness / General Wellness), always neutral gray regardless of trend, since there's no "right direction" to reward. Never red on this screen — it is not a judgment screen. "+ Log" opens the Log Entry sheet.
+- **Weight trend chart:** simple line chart, all logged weight entries in chronological order; X-axis dates, Y-axis kg; tapping a point shows that entry's exact value + date in a small tooltip. Renders via the RN charting library already in use elsewhere in the app (implementer's choice if none yet adopted — no new dependency mandated here); single series, `accent` token color, no legend needed.
+- **Measurements section:** one row per measurement field that has ≥2 logged values (waist/chest/hips/arms/thighs, FR-094); each row shows latest value + delta from the previous entry; a field with 0–1 entries is omitted from this list, not shown with an empty delta
+- **Photo timeline:** grid of thumbnails, reverse-chronological; a small lock icon overlays any thumbnail not currently shared with the member's coach (shared = no icon); tapping a thumbnail opens it full-screen with the per-photo share toggle (Story 10.2)
+
+**Log Entry sheet** (bottom sheet, triggered from "+ Log" here or from Home if surfaced there):
+- Fields, all optional, any subset may be filled: Weight (kg), Waist/Chest/Hips/Arms/Thighs (cm), Photo (camera or gallery), Note (free text)
+- No field is required — a member can log just a photo, or just a note, or everything at once (FR-093/FR-094)
+- New photos default to **not shared** with the coach — sharing is an explicit opt-in the member sets afterward from the photo detail view, never a blanket setting (Story 10.2)
+- [Save entry] — on save, entry is stamped with a timestamp and syncs offline-safely via `client_id` (same pattern as check-in queueing, FR-097)
+
+**Empty state (no entries yet):** "Log your first entry to start tracking your progress." [+ Log] button, same action as the header's.
+
+**Offline behavior:** previously-synced chart and measurement data render from local cache. Logging a new entry queues locally and syncs on reconnect — the only other V1.5 flow besides check-in that works fully offline.
+
+**Privacy note (drives every visibility rule on this screen):** progress data and photos are visible only to the member and their currently-assigned coach (if shared, for photos) — never Receptionist, Manager, Supervisor, Owner, or other members (FR-095). This is enforced at the RLS layer, not just hidden in this UI.
+
+---
+
+### MA-16 · Classes *(V1.5)*
+
+**Purpose:** Member browses and books class sessions, and manages their own upcoming bookings.
+
+**Layout:**
+```
+┌──────────────────────────────────┐
+│  Classes                         │
+├─────────────────┬────────────────┤
+│    Available    │  My Bookings   │  ← segmented control
+├─────────────────┴────────────────┤
+│  HIIT · Tue 6:00 PM              │
+│  Coach Emmanuel · 8/15 spots     │
+│                        [ Book ]  │
+│  ─────────────────────────────── │
+│  Yoga · Wed 7:00 AM              │
+│  Coach Fatima · 15/15 — Full     │
+│                        [ Full ]  │
+│  ...                             │
+└──────────────────────────────────┘
+```
+
+**Components:**
+- Segmented control: "Available" | "My Bookings" (mirrors the History screen's pattern)
+- **Available tab:** upcoming sessions, chronological. Row: class name + day/time, assigned coach, capacity as "booked/total"; action button is "Book" (enabled) or "Full" (disabled, gray) per current capacity
+- **My Bookings tab:** the member's own upcoming booked sessions. Row: class name + day/time; action button is "Cancel" if before the gym's cancellation cutoff (default 2 hours before start), or a static "Cancellation closed" label if past it (FR-106)
+- Tapping a row (either tab) expands the class description inline — no separate detail screen
+
+**Interactions:**
+- **Book:** tap → immediate optimistic UI (button flips to a brief spinner, then either confirms or reverts); server enforces capacity atomically (`book_class_session()`, Architecture Decision AD-21) so a race against another member booking the last spot is possible — if the server rejects because it filled in the interim, the button reverts to "Full" with a toast: "That spot was just taken — try another session."
+- **Cancel:** tap → inline confirm ("Cancel this booking?" [Keep] [Cancel booking]), no reason required; on confirm, the row moves out of My Bookings and the spot frees immediately in Available
+
+**States:**
+- **"This class is full"** (FR-105): shown as the row's own disabled "Full" button state — no separate error dialog needed, the state is visible before the member taps
+- Booking/cancellation is never a payment step — no price, no payment method shown anywhere on this screen (FR-106)
+
+**Empty states:**
+- Available tab: "No upcoming classes scheduled. Check back soon."
+- My Bookings tab: "You haven't booked any classes yet." with a link that switches to the Available tab
+
+**Offline behavior:** this screen requires connectivity (unlike Check-In and Progress) — booking/cancellation are not queued offline, given the concurrency-sensitive capacity check; if offline, the screen shows a persistent banner ("You're offline — classes can't be booked right now") over the last-synced list.
 
 ---
 
@@ -1245,6 +1388,68 @@ Daily Log
 
 ---
 
+### AD-18 · Classes — List & Attendance *(V1.5)*
+
+**Purpose:** View scheduled classes and sessions, booking counts, and mark attendance. Receptionist+ can view and mark attendance; create/edit is Manager+ only (AD-19).
+
+**Layout:**
+```
+Classes                                            [+ Create class]  ← Manager+ only
+
+┌─────────────────────────────────────────────────────────────────┐
+│ Class      Coach       Schedule           Next session  Booked   │
+│ HIIT       Emmanuel    Tue/Thu 6:00 PM    Tue Aug 12     8/15    │
+│ Yoga       Fatima      Wed 7:00 AM        Wed Aug 13    15/15    │
+└─────────────────────────────────────────────────────────────────┘
+
+[Row expanded — Tue Aug 12 session]
+┌─────────────────────────────────────────────────────────────────┐
+│ Booked members                              [Mark attendance]    │
+│ Amara K.                                    [ ] Attended         │
+│ Jean B.                                     [ ] Attended         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Components:**
+- Class list: name, assigned coach, schedule (one-off date or recurring pattern), next upcoming session date, booking count vs. capacity for that session
+- Row click expands to the next session's booked-member list (Receptionist+): checkbox per member to mark attendance; an expired member's checkbox is disabled with the same front-desk-alert trigger as floor check-in (FR-107) — attendance marking is rejected the same way, and it surfaces the alert
+- "+ Create class" button: Manager+ only, absent from the DOM for Receptionist — opens AD-19
+- Class row also has an "Edit" action (Manager+ only) → opens AD-19 pre-filled
+
+**Empty state:** "No classes scheduled yet." + [+ Create class] (Manager+ only; Receptionist sees the message with no action)
+
+---
+
+### AD-19 · Classes — Create / Edit *(V1.5, modal on AD-18)*
+
+**Purpose:** Manager or Owner defines a class's schedule and capacity.
+
+**Layout:**
+```
+Create Class                                          [x]
+
+Name *              [                          ]
+Description         [                          ]
+Assigned Coach *     [Select coach ▾]
+Capacity *           [  15  ] members
+
+Schedule *
+  ○ One-off    ● Recurring
+  Days          [Tue] [Thu]
+  Time          [ 6:00 PM ]
+  Starting      [ 12 Aug 2026 ]
+
+                                    [Cancel]  [Create class]
+```
+
+**Component behaviors:**
+- Coach dropdown: lists this gym's Coach-role staff only (tenant-scoped)
+- Capacity: positive integer, minimum 1
+- Schedule: one-off requires a single date+time; recurring requires ≥1 day-of-week + a time + a start date
+- Save: validates all required fields inline before submit; on success, closes modal and the new/edited class appears in AD-18's list immediately
+
+---
+
 ### AD-12 · Audit Log
 
 **Purpose:** Read-only, append-only action record. Manager+ only.
@@ -1281,7 +1486,7 @@ Audit Log
 
 ### AD-13 · Settings
 
-**Purpose:** Gym configuration. Owner only.
+**Purpose:** Gym configuration. Owner and Supervisor *(V1.5: "Manager-plus" access — Supervisor gets the same Settings footprint as Owner)*.
 
 **Layout:**
 ```
@@ -1290,7 +1495,7 @@ Settings                                              [Save Settings]
 ── Branding ──────────────────────────────────────────────────────────
 Gym Name *         [                               ]
 Logo               [preview thumbnail] [Upload new] [Remove]
-Primary Color *    [#E0971F  ] [live color swatch]
+Primary Colour *   [#E0971F  ] [live color swatch]
 
 ── Localization ──────────────────────────────────────────────────────
 Default Language   [English ▾]
@@ -1306,19 +1511,107 @@ Alert auto-dismiss [ 30  ] minutes
 ── QR Code ───────────────────────────────────────────────────────────
 [QR code preview, 120×120px]
 [Download QR code ↓]   [Regenerate QR code]
+
+── Staff ──────────────────────────────────────────────────────────── V1.5
+[N] staff members                              [Manage staff →]  ← opens AD-16
+
+── Payment Account ───────────────────────────────────────────────────  V1.5
+Tara Money           [Not connected]     [Connect payment account →]
 ```
 
 **Component behaviors:**
-- Primary Color hex input: live swatch updates as user types valid hex
+- Primary Colour hex input: live swatch updates as user types valid hex
 - Logo upload: image/* only; max 5MB; preview updates after selection; gym name is fallback if no logo
 - QR Download: PNG download of current code
 - QR Regenerate: confirmation dialog before action (see below)
 - Save: single button saves all sections; spinner; success toast "Settings saved."
+- **Staff row** *(V1.5)*: shows a live count; "Manage staff →" navigates to AD-16 (its own page, not inline — the list/add/edit/deactivate interaction is too involved for an inline section)
+- **Payment Account row** *(V1.5, FR-126)*: shows connection status ("Not connected" / "Connected — [merchant name]"); "Connect payment account →" opens the connect flow below. This row is purely additive — a gym with no Tara Money connection keeps operating on cash and manual entry exactly as before (FR-127); nothing here is a prerequisite for anything else in Settings
 
 **Regenerate QR confirmation:**
 - Title: "Regenerate QR code?"
 - Body: "This will invalidate the current code immediately. Any printed or displayed copies will stop working. You will need to replace them."
 - [Cancel] [Regenerate]
+
+**Connect Payment Account flow** *(V1.5, FR-126, modal on AD-13)*:
+```
+Connect Payment Account                                [x]
+
+Connect your gym's own Tara Money account so member
+mobile-money payments settle directly to you.
+
+Tara Money Merchant ID *    [                    ]
+Tara Money API Key *        [                    ]
+
+  This is stored encrypted and is never shown again
+  after saving, including to you.
+
+                                    [Cancel]  [Connect]
+```
+- On save: credentials are sent directly to the payment service and stored in Supabase Vault — never persisted client-side, never logged (NFR-017)
+- On success: modal closes, Settings row updates to "Connected — [merchant name]"; a "pay by Tara Money" action now appears alongside cash wherever a payment is collected (front desk, member self-service renewal)
+- On failure (invalid credentials): inline error below the API Key field, connection status unchanged
+- **Disconnect / credentials invalid in production:** if a connected gym's credentials become invalid or are revoked, the Owner sees a persistent Settings banner ("Your payment account needs attention — reconnect to keep accepting Tara Money") rather than a silent failure (FR-128); mobile-money payment attempts fail gracefully for members in the meantime and direct them to the front desk
+
+---
+
+### AD-16 · Staff — List *(V1.5)*
+
+**Purpose:** Owner or Supervisor views and manages their gym's staff. FR-120.
+
+**Layout:**
+```
+← Settings  /  Staff                                  [+ Add staff]
+
+┌─────────────────────────────────────────────────────────────────┐
+│ Name          Role            Status              │
+│ Aicha M.      Receptionist    Active               │
+│ Emmanuel T.   Coach           Active               │
+│ Fatima B.     Supervisor      Pending activation    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Components:**
+- List: name, role, status (Active / Pending activation / Deactivated)
+- Row click → inline expand or a lightweight detail panel with Edit and Deactivate actions
+- "+ Add staff" opens AD-17
+- Visible to Owner and Supervisor only — absent from the sidebar/DOM for every other role, including Manager (FR-089: Manager gets no staff-creation grant at all, not even a hidden one)
+
+**Edit action:**
+- Opens AD-17 pre-filled with the staff member's current name/role
+- **Role-ceiling enforcement (NFR-013):** the Role dropdown only ever offers roles the acting user is structurally permitted to assign — an Owner sees Supervisor/Manager/Receptionist/Coach; a Supervisor sees only Manager/Receptionist/Coach (never Supervisor or Owner). This isn't just a UI filter — `update_staff_role()`'s RPC allowlist rejects the same set server-side, so the UI constraint and the enforcement are the same boundary, not two separately-maintained lists
+- Editing your own row: the Role field is present but disabled with a tooltip "You can't change your own role" — self-escalation is rejected at the RPC layer regardless, this just avoids a round-trip to discover that
+
+**Deactivate action:**
+- Confirmation dialog, **reason required** (free text, not optional): "Deactivate [Name]? They'll lose gym access immediately. Reason (required): [________]"
+- [Cancel] [Deactivate]
+- On confirm: status updates to "Deactivated" in the list immediately (this is enforced at the RLS/auth-hook layer, not just a status flag — see the Immediate Access Revocation state pattern)
+- If the deactivated staff member is a Coach: no additional warning — their session notes and any authored workout plans are retained and stay visible to Owner/Manager per FR-089's data-retention rule; this is silent/automatic, not a choice presented in the dialog
+
+**Empty state:** "No staff yet. Add your first staff member to get started." + [+ Add staff]
+
+---
+
+### AD-17 · Staff — Add / Edit *(V1.5, modal on AD-16)*
+
+**Purpose:** Create a new staff account or edit an existing one, with the role-ceiling enforced in the form itself.
+
+**Layout:**
+```
+Add Staff Member                                       [x]
+
+Full Name *          [                          ]
+Phone (E.164) *      [ +237                     ]
+Role *                [Select role ▾]              ← options are role-ceiling-filtered, see AD-16
+
+                                    [Cancel]  [Create]
+```
+
+**Component behaviors:**
+- Phone: E.164 format validation inline (e.g. "+237 6XX XXX XXX"), same pattern as the Member Create form
+- Role dropdown: filtered per the acting user's own role (see AD-16's Edit action note) — a Manager never reaches this screen at all (FR-089)
+- On Create: calls `create_staff_member()`; on success, modal closes and the new staff member appears in AD-16's list with status "Pending activation"; an SMS with a temporary password and the dashboard link is sent automatically (Story 9.2, reusing the existing Story 1.11 temp-password mechanism) — no separate "send invite" step
+- On rejection (role-ceiling check fails server-side, e.g. a stale client trying to assign a role the RPC no longer permits): inline error "You don't have permission to assign that role," Role field highlighted
 
 ---
 
@@ -1346,13 +1639,15 @@ Coach Portal
 - Row click → AD-15
 - No payment, deactivation, or settings actions — absent from the DOM for Coach role
 
-**Empty state:** "No members have been assigned to you yet. Ask your manager to assign members."
+**Empty state:** "No members have been assigned to you yet. Ask your Manager, Owner, or Supervisor to assign members." *(V1.5, Story 9.4: copy amended to include all three roles that can now perform assignment — was "Ask your manager" only, predating the Supervisor role)*
 
 ---
 
 ### AD-15 · Coach Portal — Member Detail
 
-**Purpose:** Coach views an assigned member's profile and manages session notes.
+**Purpose:** Coach views an assigned member's profile and manages session notes, progress trends, and their workout plan.
+
+**V1.5 change:** restructured from a single Session Notes view into three tabs — Session Notes (unchanged from V1.0) plus two new tabs, Progress and Workout Plan (FR-122). Confirmed with user (2026-08-11): desktop three-tab layout, distinct from the Member App's separate 5-tab bottom nav decision.
 
 **Layout:**
 ```
@@ -1368,25 +1663,57 @@ Coach Portal
 [Amber info bar — shown if expired]
 "This member's membership has expired. Contact your receptionist."
 
+┌─────────────┬──────────────┬────────────────┐
+│ Session Notes│  Progress   │  Workout Plan  │  ← tabs, V1.5
+└─────────────┴──────────────┴────────────────┘
+```
+
+**Session Notes tab (unchanged from V1.0):**
+```
 Session Notes                                        [+ Add note]
 
 ────────────────────────────────────────────────────────────────
 [Note text]
 Fatima B.  ·  04 Jul 2026, 09:22        [Edit — own notes only]
 ────────────────────────────────────────────────────────────────
-[Note text]
-Fatima B.  ·  01 Jul 2026, 11:05
-────────────────────────────────────────────────────────────────
 ```
-
-**Components:**
-- Member header: all read-only; no renew button for Coach role
-- **Status info bar** (conditional — amber, shown when expired): informational only; no action
 - "**+ Add note**": opens inline textarea at the top of the notes list; auto-expands; character count shown; [Save note] [Cancel]
 - **Note editing (own notes only):** "Edit" appears on hover; inline editable textarea; saved note shows "Edited [timestamp]" appended
 - Coach cannot edit other coaches' notes
+- **Empty state:** "No session notes yet. Add the first note above."
 
-**Empty state (notes):** "No session notes yet. Add the first note above."
+**Progress tab** *(V1.5, FR-122, Story 10.4)*:
+```
+[Same weight trend chart + measurements as MA-15, read-only]
+
+Shared Photos
+[thumb] [thumb]                          ← only photos this member has shared with THIS coach
+
+Coach Notes                                           [+ Add note]
+[Note text]  ·  Emmanuel T.  ·  04 Jul 2026
+```
+- Weight/measurement trends and shared-photo timeline: same visual pattern as the member's own MA-15, read-only for the coach
+- **Never shows unshared photos** — a photo with sharing off is absent from this view entirely, not shown blurred or locked (Story 10.4)
+- Coach can add a note (same interaction pattern as Session Notes) but **cannot edit or delete the member's own progress entries** — those stay member-owned
+- **Empty state:** "No progress data logged yet."
+- If this member is not currently assigned to this coach and the coach reaches this URL by any means (e.g. a stale bookmark after reassignment): the tab is invisible/unreadable, RLS blocks the query the same way it already blocks an unassigned member's profile (Story 10.4)
+
+**Workout Plan tab** *(V1.5, FR-122, Story 13.2)*:
+```
+[Plan Name]                                    [Edit]  [+ New plan]
+
+1. Squat            3 sets × 10 reps
+   Note: "focus on depth"
+2. Bench Press       3 sets × 8 reps
+3. Deadlift          1 set × 5 reps
+   [drag handle — reorder]
+```
+- Ordered exercise list: each row has exercise name (from the shared library, Story 13.1), sets, reps, an optional note; drag-to-reorder
+- Exercises are added from the shared library — platform defaults plus this gym's own custom entries (Story 13.1); no free-typing an exercise name outside the library
+- Edits save immediately; the member sees the update on their next app open (no push notification for plan edits)
+- A plan belongs to exactly one member — there's no "assign to another member" action anywhere on this screen (FR-110)
+- **Coach reassignment / plan handoff** (Story 13.4): if this plan was authored by a previous coach, this coach sees it (read-only) with a banner — "This plan was written by [Previous Coach Name]. Take ownership to make changes." [Take ownership] — until they explicitly take ownership, Edit/reorder controls are disabled, mirroring the V1.0 session-note handoff pattern
+- **Empty state:** "No workout plan yet." + [+ New plan]
 
 ---
 
@@ -1501,6 +1828,41 @@ Tier Management                                        [+ Add Tier]
 ```
 
 **Delete guard:** If ≥1 gym uses the tier: "Cannot delete Grind — 3 gyms are on this tier. Reassign them before deleting." Delete is blocked, not just warned.
+
+---
+
+### SA-07 · Billing *(V1.5, FR-131/FR-135, Story 11.5)*
+
+**Purpose:** Super Admin sees every gym's SaaS (platform) billing status in one place, with manual override actions for operating the beta.
+
+**Layout:**
+```
+Billing
+
+[🔍 Search gym]  [Filter: All statuses ▾]
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Gym          Tier    Interval  Status       Next billing  Last payment  Failed │
+│ Martin Fit.  Grind   Monthly   Active       01 Sep 2026    01 Aug 2026   0     │
+│ Yaoundé Gym  Hustle  Monthly   Past due     05 Aug 2026    05 Jul 2026   1     │
+│ Beta Test 1  Free    —         Active       —              —            0     │
+│ Douala Box   Elite   Annual    Suspended    —              12 Jun 2026   3     │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Components:**
+- Table columns: gym name, tier, billing interval, SaaS status (Active / Past due / Grace period / Suspended, per Story 11.2's lifecycle), next billing date, last successful payment date, failed-attempt count
+- Status badge colors: Active = green, Past due = amber, Grace period = orange, Suspended = red — same badge visual language as member subscription status elsewhere in the product
+- Filter by status; search by gym name
+- Row click → expands inline with override actions
+
+**Row override actions** (all require explicit confirmation, all audit-logged with actor/action/target gym/timestamp — FR-080):
+- **Mark payment received (out-of-band):** for a payment confirmed outside Tara Money (e.g. bank transfer during the beta). Confirm dialog: "Mark [Gym]'s payment as received? This will not create a Tara Money transaction record." [Cancel] [Mark received]
+- **Apply credit / free period:** grants N days or one billing cycle free. Confirm dialog with a reason field (required, same pattern as staff deactivation): "Grant [Gym] a free period. Reason: [________]"
+- **Trigger retry:** manually re-attempts a failed/pending charge outside the normal reminder schedule
+- **Suspend / Reactivate:** manual override of the automated lifecycle — same underlying `private.current_gym_status()` mechanism Story 11.4 uses for automatic suspension (Architecture Decision AD-3), so a manual suspension takes effect at the RLS/auth-hook layer immediately, exactly like the automated path. Confirm dialog: "Suspend [Gym]? All staff and members will lose access immediately." [Cancel] [Suspend]
+
+**Empty state:** not applicable — every gym appears in this table regardless of tier or status, including Free/Test tier gyms (Story 11.2's 0 XAF gyms still run the full billing lifecycle so this view stays accurate for them too).
 
 ---
 
@@ -1644,13 +2006,13 @@ Note *          [Paid at desk                   ]
 | Field | Rule | Error |
 |---|---|---|
 | Gym Name | Required; ≥2 chars | "Gym name is required" |
-| Primary Color | Required; valid hex (#RRGGBB) | "Enter a valid hex colour (e.g. #E0971F)" |
+| Primary Colour | Required; valid hex (#RRGGBB) | "Enter a valid hex colour (e.g. #E0971F)" |
 | Logo | Optional; image file; ≤5MB | "Image too large — maximum 5MB" |
 | Grace Period | Required; integer 1–30 | "Grace period must be between 1 and 30 days" |
 | Gym Capacity | Required; positive integer | "Enter the gym's member capacity" |
 | Alert Auto-Dismiss | Required; integer 1–120 | "Auto-dismiss must be between 1 and 120 minutes" |
 
-**AD-16 Inline Renewal Panel**
+**Inline Renewal Panel** *(cross-cutting component, no page ID — corrected from this table's prior stray "AD-16" label, which collided with no entry in the Surface Index and is reassigned to Staff — List, V1.5)*
 | Field | Rule | Error |
 |---|---|---|
 | Plan | Required | "Select a plan" |
@@ -1674,6 +2036,40 @@ Note *          [Paid at desk                   ]
 | Member cap (max) | Optional (blank = unlimited); if set: must be > min | "Maximum must be greater than minimum" |
 | Monthly price | Required; non-negative integer | "Enter a valid monthly price in XAF" |
 | Annual price | Required; non-negative integer; ≤ monthly × 12 | "Annual price must not exceed 12 × the monthly price" |
+
+**AD-17 Staff Add / Edit** *(V1.5)*
+| Field | Rule | Error |
+|---|---|---|
+| Full Name | Required; ≥2 chars; ≤100 chars | "Full name is required" |
+| Phone | Required; valid E.164; unique in the system | "Enter a valid phone number" / "This phone number is already registered" |
+| Role | Required; must be within the acting user's role-ceiling allowlist (client-filtered, server-enforced) | "Select a role" / "You don't have permission to assign that role" (server rejection) |
+
+**AD-19 Classes Create / Edit** *(V1.5)*
+| Field | Rule | Error |
+|---|---|---|
+| Name | Required; ≥2 chars | "Class name is required" |
+| Assigned Coach | Required; must be a Coach-role staff member at this gym | "Select a coach" |
+| Capacity | Required; positive integer | "Enter a capacity" |
+| Schedule type | Required: One-off or Recurring | "Select a schedule type" |
+| Days (if Recurring) | Required; ≥1 day selected | "Select at least one day" |
+| Time | Required | "Select a time" |
+| Start date | Required; not in the past | "Select a valid start date" |
+
+**AD-13 Connect Payment Account** *(V1.5)*
+| Field | Rule | Error |
+|---|---|---|
+| Tara Money Merchant ID | Required | "Merchant ID is required" |
+| Tara Money API Key | Required | "API key is required" |
+| (server) | Credentials must authenticate against Tara Money | "Couldn't connect — check your Merchant ID and API Key" |
+
+**MA-15 Progress — Log Entry** *(V1.5)*
+| Field | Rule | Error |
+|---|---|---|
+| Weight | Optional; positive number, 1 decimal place; plausible range (20–300 kg) | "Enter a valid weight" |
+| Measurements (each) | Optional; positive number; plausible range (10–300 cm) | "Enter a valid measurement" |
+| Photo | Optional; image file type; ≤5MB | "Photo too large. Choose an image under 5MB." |
+| Note | Optional; ≤500 chars | "Note is too long" |
+| (all fields) | At least one field must be filled to save | "Add at least one entry (weight, a measurement, a photo, or a note)" |
 
 ---
 
@@ -1701,6 +2097,14 @@ Note *          [Paid at desk                   ]
 | AD-15 Session Notes | "No session notes yet. Add the first note above." | (Inline add always visible above) |
 | SA-02 Gym List | "No gyms on the platform yet. Create the first one." | [Create Gym] |
 | SA-06 Tiers | "No tiers configured. Add your first tier." | [Add Tier] |
+| MA-15 Progress *(V1.5)* | "Log your first entry to start tracking your progress." | [+ Log] |
+| MA-16 Classes — Available *(V1.5)* | "No upcoming classes scheduled. Check back soon." | None |
+| MA-16 Classes — My Bookings *(V1.5)* | "You haven't booked any classes yet." | [Browse classes] → switches to Available tab |
+| AD-15 Progress tab *(V1.5)* | "No progress data logged yet." | None |
+| AD-15 Workout Plan tab *(V1.5)* | "No workout plan yet." | [+ New plan] |
+| AD-16 Staff — no staff *(V1.5)* | "No staff yet. Add your first staff member to get started." | [+ Add staff] |
+| AD-18 Classes — no classes *(V1.5)* | "No classes scheduled yet." | [+ Create class] (Manager+ only) |
+| SA-07 Billing *(V1.5)* | Not applicable — every gym always appears in this table | — |
 
 ### Loading States
 
@@ -1712,7 +2116,7 @@ Note *          [Paid at desk                   ]
 
 | Context | Skeleton shape |
 |---|---|
-| MA-09 Status card | Rounded rectangle, ~88px tall, full-width |
+| MA-09 Status card | Rounded rectangle, ~80px tall, full-width |
 | MA-09 Recent activity | 2–3 rows, ~44px each |
 | MA-10 Camera | Native platform camera loading indicator |
 | MA-11 History rows | 5–6 rows, ~48px each |
@@ -1727,6 +2131,11 @@ Note *          [Paid at desk                   ]
 | AD-14 Coach member list | 4 rows |
 | SA-02 Gym list | 5 rows |
 | SA-05 Metrics | 3 stat cards |
+| MA-15 Progress chart *(V1.5)* | Rounded rectangle, ~160px tall, full-width |
+| MA-16 Classes list *(V1.5)* | 4 rows |
+| AD-16 Staff list *(V1.5)* | 4 rows |
+| AD-18 Classes list *(V1.5)* | 4 rows |
+| SA-07 Billing table *(V1.5)* | 6 rows |
 
 **Button loading state:** Spinner replaces label text; button width does not change (prevents layout shift); button disabled during request.
 
@@ -1769,6 +2178,37 @@ Note *          [Paid at desk                   ]
 | AD-13 | Save failure | Scroll to first error; per-field errors shown |
 | SA-04 | Gym name already exists | Per-field inline on Gym Name |
 | SA-06 | Delete blocked (gyms on tier) | Inline in confirmation: "Cannot delete — [N] gyms use this tier." |
+| MA-16 *(V1.5)* | Booking lost the capacity race | Button reverts from spinner to "Full"; toast: "That spot was just taken — try another session." |
+| AD-17 *(V1.5)* | Role-ceiling rejected server-side | Inline: "You don't have permission to assign that role." Role field highlighted. |
+| AD-13 *(V1.5)* | Tara Money credentials invalid | Inline below API Key field on Connect; persistent Settings banner if a previously-working connection later fails |
+| MA-15 *(V1.5)* | Data load failure (no cache yet) | Error card in place of the chart: "Couldn't load your progress. Pull down to refresh." — same pattern as MA-09's home-load failure |
+| AD-16 *(V1.5)* | Staff list load failure | Page-level error with [Refresh], same treatment as AD-03 |
+| AD-18 *(V1.5)* | Classes list load failure | Page-level error with [Refresh], same treatment as AD-03 |
+| SA-07 *(V1.5)* | Row override action fails (mark paid / credit / retry / suspend) | Inline error in the row's expanded panel, action not applied; the row's status is not optimistically updated for Suspend/Reactivate specifically, given the access-denial stakes of a false-positive success |
+
+### V1.5 — New State Patterns
+
+These four states are new state-machine concepts V1.5 introduces, not covered by the generic Empty/Loading/Error taxonomy above — each has security or privacy weight, so each gets its own explicit spec rather than being folded into a generic "error."
+
+**Gym suspended (SaaS non-payment, FR-131/FR-132):**
+- Takes effect at the RLS/auth-hook layer on the gym's *next* request after `suspended` status is reached — not a poll, not a client-side check; the client simply starts getting denied
+- **Member-facing:** the entire app shows a single full-screen neutral state replacing all tabs: "GymOS is temporarily unavailable for this gym. Please check back later." No billing, payment, or subscription language anywhere on this screen — that relationship is between GymOS and the Owner only (FR-132, see Voice and Tone)
+- **Staff-facing (Owner):** the Owner specifically sees the billing-aware version: "Your GymOS subscription payment is overdue. Pay now to restore access for your whole team." with a one-tap pay action, since the Owner is the one party who needs to act
+- **Staff-facing (Manager/Receptionist/Coach, not Owner):** same neutral treatment as members — they aren't the billing relationship either, and shouldn't see GymOS's dunning language
+- **Reversal:** the instant a SaaS payment succeeds, the gym returns to `active` and every blocked user regains access on their next request — no manual re-provisioning step, symmetric with how suspension took effect
+
+**Immediate access revocation (staff role change or deactivation, NFR-013):**
+- On a role edit or deactivation, the affected staff member's *current, already-logged-in* session is denied on its very next request — not "next login," not "next token refresh." There is no client-visible warning beforehand; the next action they take (a page navigation, a Server Action) simply fails
+- Treatment: same as the existing "Permission denied (RLS rejection)" global error state — "You don't have permission to do that." — reused rather than inventing a new denial message, since from the affected user's client perspective it's indistinguishable from any other RLS denial
+
+**Class capacity race (FR-105, Architecture Decision AD-21):**
+- The "Full" button state is the *steady-state* signal (visible before tapping, once the row has loaded current capacity) — the race condition only surfaces when two members tap "Book" on the last spot within the same request window
+- Loser's client: optimistic spinner reverts, toast fires (see Error States table above), row's button state updates to "Full"
+- This is treated as an expected, named outcome (documented copy, above) — not a generic network-error fallback
+
+**Progress photo share revoke (Story 10.2):**
+- Revoking a previously-shared photo takes effect within the signed URL's short lifetime — there is no "delete from coach's device" mechanic (that's not achievable), so the guarantee is forward-only: no *new* access is granted after revoke, not retroactive proof the coach never viewed it while it was shared
+- Member-facing treatment: toggle flips immediately (optimistic), no confirmation dialog required for revoke (unlike deactivation/suspension, this is reversible and low-stakes to undo) — sharing it again is just as easy as revoking it
 
 ---
 
@@ -1786,6 +2226,8 @@ Note *          [Paid at desk                   ]
 | Swipe down | Modals, action sheets | Dismiss |
 | Paste | MA-03 OTP input | Auto-fills all 6 boxes and auto-submits |
 | Long press | Not used in V1 | — |
+| Tap chart point | MA-15 Progress trend chart *(V1.5)* | Shows a tooltip with that entry's exact value + date |
+| Toggle | MA-12 Notification rows; MA-15 photo share *(V1.5)* | Immediate optimistic flip, no confirmation |
 
 **Keyboard:**
 - Numeric keyboard auto-opens on: MA-02 (phone), MA-03 (OTP)
@@ -1820,6 +2262,7 @@ Note *          [Paid at desk                   ]
 - Modals: focus trap; Escape closes (except destructive confirmations — Escape disabled there)
 - Dropdowns: arrow keys to navigate; Enter to select; Escape to close
 - Inline Renewal Panel tab order: Plan → Start Date → (Renewal Price — skip, read-only) → Payment Method → Note → Confirm Renewal → Cancel
+- **AD-15 Workout Plan exercise reordering** *(V1.5)*: drag handle is mouse-only by design (see Mouse behaviour below) — keyboard users get an equivalent "Move up" / "Move down" icon-button pair per row, both keyboard-focusable and announced ("Move [exercise name] up," "Move [exercise name] down")
 
 **Mouse behaviour:**
 - Table row hover: row background highlight; full row is clickable
@@ -1827,6 +2270,7 @@ Note *          [Paid at desk                   ]
 - Truncated text cells: hover tooltip shows full text
 - Icon-only buttons: hover tooltip with action label
 - Status badges: hover tooltip with full status description and date
+- AD-15 Workout Plan exercise rows *(V1.5)*: drag handle appears on row hover; drag-and-drop reorder
 
 **Real-time alert arrival:**
 - No sound; no browser notification; no tab badge (V1)
@@ -1850,6 +2294,9 @@ Note *          [Paid at desk                   ]
 | Touch targets | Minimum 44×44pt for all tappable elements |
 | Font scaling | Layout adapts to system text size settings up to +2 steps without clipping |
 | Language switch | Re-announces current screen title in new language after switch |
+| Trend chart text-equivalent *(V1.5, MA-15)* | The weight trend chart is decorative to screen readers (`accessibilityRole: 'none'`); the header row's "78.4 kg (-2.4 kg since start)" text is the accessible summary, and the Measurements list below (already plain text rows) carries the same trend information non-visually — no chart-only data exists |
+| Photo share status *(V1.5, MA-15)* | Each photo thumbnail's accessibility label states its share state explicitly: "Progress photo, 04 Aug 2026, not shared with coach" / "…, shared with coach" — not conveyed by the lock icon alone |
+| Notification toggles *(V1.5, MA-12)* | Each toggle's accessible label states the setting name and current state: "Quiet-gym alerts, off" |
 
 ### Admin Dashboard
 
@@ -1865,6 +2312,8 @@ Note *          [Paid at desk                   ]
 | Destructive confirmations | Confirm button labeled specifically: "Deactivate Amara K." not "Confirm" |
 | Loading regions | `aria-busy="true"` on skeleton containers; removed when content resolves |
 | Language toggle | `lang` on `<html>` updates on language change |
+| Exercise reordering *(V1.5, AD-15)* | Keyboard-only "Move up"/"Move down" buttons per row, per the Interaction Primitives note above — drag alone is never the only way to reorder |
+| Role-ceiling-filtered dropdowns *(V1.5, AD-17)* | The Role `<select>` only ever contains options the acting user may legally choose — screen reader users never encounter a role they'd then have rejected server-side |
 
 **Color contrast:** All text meets WCAG 2.1 AA (4.5:1 for body; 3:1 for large text and UI components). See `DESIGN.md` for token values.
 
@@ -1920,7 +2369,7 @@ Same breakpoints as Admin Dashboard. Desktop primary; tablet supported; mobile s
 
 ## Key Flows
 
-### Flow 1 · Kwame's First Check-In
+### Flow 1 · Kwame's First Check-In *(UJ-1)*
 
 **Protagonist:** Kwame, 28, office worker in Yaoundé. Has just received an SMS invite from his new gym.
 
@@ -1939,7 +2388,7 @@ Same breakpoints as Admin Dashboard. Desktop primary; tablet supported; mobile s
 
 ---
 
-### Flow 2 · Amara's Grace Period — The Renewal Moment
+### Flow 2 · Amara's Grace Period — The Renewal Moment *(UJ-2a)*
 
 **Protagonist:** Amara, monthly member. Status: `grace_period`. She doesn't know.
 
@@ -1956,7 +2405,7 @@ Same breakpoints as Admin Dashboard. Desktop primary; tablet supported; mobile s
 
 ---
 
-### Flow 3 · Amara Returns Expired
+### Flow 3 · Amara Returns Expired *(UJ-2b)*
 
 **Protagonist:** Amara, three weeks later. Status: `expired` (grace period ended).
 
@@ -1971,7 +2420,7 @@ Same breakpoints as Admin Dashboard. Desktop primary; tablet supported; mobile s
 
 ---
 
-### Flow 4 · Nadia Reconciles End-of-Day Payments
+### Flow 4 · Nadia Reconciles End-of-Day Payments *(UJ-3)*
 
 **Protagonist:** Nadia, gym manager in Douala. 7 PM, end of shift.
 
@@ -1986,7 +2435,7 @@ Same breakpoints as Admin Dashboard. Desktop primary; tablet supported; mobile s
 
 ---
 
-### Flow 5 · Fatima Manages Her Clients
+### Flow 5 · Fatima Manages Her Clients *(UJ-4)*
 
 **Protagonist:** Fatima, personal trainer, Coach role. Morning session prep.
 
@@ -1999,7 +2448,7 @@ Same breakpoints as Admin Dashboard. Desktop primary; tablet supported; mobile s
 
 ---
 
-### Flow 6 · Chidi Onboards a New Gym
+### Flow 6 · Chidi Onboards a New Gym *(UJ-5)*
 
 **Protagonist:** Chidi, GymOS platform staff, Super Admin.
 
@@ -2010,3 +2459,76 @@ Same breakpoints as Admin Dashboard. Desktop primary; tablet supported; mobile s
 5. **CSV import.** Paul downloads template from Members → Import CSV. Fills in 45 members. Uploads. Validation passes. Confirms. 45 records created.
 
 **Climax beat:** A gym that didn't exist this morning has 45 members on the platform by afternoon. Paul never touched a spreadsheet after the CSV.
+
+---
+
+### Flow 7 · Grace Staffs Her Gym *(V1.5, UJ-6)*
+
+**Protagonist:** Grace, gym Owner, whose gym just joined the beta.
+
+1. **AD-13 Settings.** Opens the new "Staff" row: "0 staff members." Taps [Manage staff →].
+2. **AD-16.** Empty state: "No staff yet. Add your first staff member to get started." Taps [+ Add staff].
+3. **AD-17.** Fills in: Name: "Aicha M." | Phone: +237 6XX XXX XXX | Role: Receptionist. Taps [Create].
+4. **Confirmation.** Modal closes; Aicha appears in AD-16 with status "Pending activation." An SMS with a temp password and dashboard link is already on its way — Grace didn't send anything herself.
+5. **Repeats for Emmanuel**, Role: Coach. Same flow, same four-minute rhythm.
+6. **Emmanuel logs in** with his temp password, sets a real one, and lands in the Coach Portal — no other sidebar item is visible to him.
+7. **Grace never contacts support.**
+
+**Climax beat:** Four minutes, two staff accounts, zero support tickets. The role-ceiling check that would reject Grace trying to create another Owner never even surfaces — she was never offered that option in the first place.
+
+---
+
+### Flow 8 · Amara Tracks Her Progress *(V1.5, UJ-7)*
+
+**Protagonist:** Amara, member, on a rest-day evening — not at the gym.
+
+1. **Opens the app.** No check-in reason to be here tonight; taps the Progress tab (MA-15) instead of Home.
+2. **MA-15, first visit.** Empty state: "Log your first entry to start tracking your progress." Taps [+ Log].
+3. **Log Entry sheet.** Enters weight (68.2 kg) and waist (76 cm). Adds a photo from her camera roll. Leaves the note blank. Taps [Save entry].
+4. **Sheet closes.** MA-15 now shows "68.2 kg" as her current weight — no prior entry to compare against yet, so no delta shown.
+5. **Weeks later.** Same screen: "66.8 kg (-1.4 kg since start)," a trend line with three points, waist trending down 3 cm. She didn't train today. She opened the app anyway.
+
+**Climax beat:** The photo she just uploaded is private by default — nobody at her gym, not even her coach, can see it until she explicitly shares it. That's not a setting she had to find; it's the state the app was already in.
+
+---
+
+### Flow 9 · Emmanuel Coaches With Real Data *(V1.5, UJ-8)*
+
+**Protagonist:** Emmanuel, Coach role, reviewing an assigned client before their session.
+
+1. **AD-14.** Opens his member list — Amara is on it (assigned).
+2. **AD-15.** Three tabs now instead of one: Session Notes | Progress | Workout Plan. Opens Progress.
+3. **Sees Amara's trend:** weight down, waist down, and two photos she's chosen to share with him — a third one from her camera roll is simply not there; he has no way to know it exists.
+4. **Writes a coach note** on the plateau he's noticing in her arms measurement.
+5. **Switches to Workout Plan.** Opens her existing plan, drags "Bicep Curl" below "Tricep Extension," swaps one exercise for another. Saves.
+6. **A member he isn't assigned to** — he tries the same URL pattern out of curiosity. Blank. Not "access denied," just nothing there.
+
+**Climax beat:** Emmanuel adjusted a real program based on real numbers, not what Amara remembered to tell him. The member he isn't assigned to doesn't just look empty — the query never ran.
+
+---
+
+### Flow 10 · Nadia Schedules a Week of Classes *(V1.5, UJ-9)*
+
+**Protagonist:** Nadia, gym Manager, planning next week's schedule (also seen in Flow 4, reconciling payments — same gym, different afternoon).
+
+1. **AD-18.** Empty-ish list, one existing class. Taps [+ Create class].
+2. **AD-19.** Name: "HIIT" | Coach: Emmanuel | Capacity: 15 | Schedule: Recurring, Tue + Thu, 6:00 PM, starting 12 Aug. Taps [Create class].
+3. **Modal closes.** HIIT now appears in AD-18 with its next session (Tue Aug 12) and a live "0/15" booking count.
+4. **Members book from the app (MA-16)** across the week; by Tuesday morning the count reads "15/15" — the next member to try sees "Full" before they even tap.
+5. **Tuesday, 6:55 PM.** The front desk's Receptionist opens AD-18, expands the Tuesday session, and checks off each booked member as they arrive — a separate record from floor check-in, but the same familiar interaction.
+6. **60 minutes before the session**, every booked member got a push reminder (N-07) — Nadia didn't have to do anything for that to happen.
+
+**Climax beat:** A class that existed only in Nadia's head on Monday runs itself by Tuesday evening — booking, capacity, reminders, and attendance, without her touching it again after creation.
+
+---
+
+### Flow 11 · Chidi Verifies the Payment Cutover *(V1.5, UJ-10)*
+
+**Protagonist:** Chidi, GymOS platform staff, Super Admin — back at HQ, this time on the money side rather than onboarding (Flow 6).
+
+1. **`supabase/.env` swap.** Points Tara Money credentials at the real, now-activated business account (`9FmIZg9GBB`) instead of the "Temporal" stand-in the original spike used. No code change — this is the `PaymentProvider` interface doing what it was built for.
+2. **Re-runs the same exit criteria** that passed once already (2026-07-31): sandbox auth, an initiated payment returns a reference, the webhook lands and is processed, idempotency holds, one real-money round-trip completes.
+3. **SA-07, weeks later, post-cutover.** Opens the Billing view — a different table from the one this flow is verifying (that one's `payments`, this one's `saas_billing_payments`), but Chidi checks both are behaving: no gym's Flow A settlement shows up misrouted to the platform account, and no gym shows a Flow B charge that landed in a gym's own account instead.
+4. **Audit log cross-check.** Every Flow A payment's settlement account is verifiable against its own gym's connected credentials — not just asserted, provable (NFR-019).
+
+**Climax beat:** One config value changed. The payment logic itself never moved — and the audit log is what lets Chidi *prove* that, not just claim it.
