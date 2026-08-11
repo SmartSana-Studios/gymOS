@@ -255,6 +255,19 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // update_messaging_instance()'s empty-value raise (0050_messaging_provider_config.sql,
+  // Story 1.13 review finding) -- defense-in-depth behind the client-side
+  // Zod check, reachable if that check is ever bypassed (e.g. a direct RPC
+  // call). Its sibling 'permission denied' raise stays deliberately
+  // unmapped, same "unreachable through this story's own role-gated call
+  // path" rationale as every other permission-denied raise in this file.
+  if (message.includes("update_messaging_instance: instance_id must not be empty")) {
+    return {
+      code: "validation_error",
+      message: copy.messagingInstanceRequired,
+    };
+  }
+
   // No console/logging call here: packages/types targets ES2022 only (no
   // DOM/Node lib -- consumed by both Next.js apps and, eventually, Expo),
   // and is meant to stay a pure, side-effect-free mapping utility. Callers

@@ -1,5 +1,12 @@
 # Deferred Work
 
+## Deferred from: code review of story-1-13-super-admin-evolution-api-instance-configuration (2026-08-11)
+
+- Zod `.trim()` (client, `messagingProviderConfig.ts`) vs PostgreSQL `btrim()` (server, `update_messaging_instance()`) handle different Unicode whitespace sets — a string with exotic whitespace (e.g. U+200B zero-width space) could pass client validation but fail server-side — deferred, extremely rare in practice (requires a pasted exotic character), all typical input succeeds; fix in follow-up if a user reports it.
+- No visual confirmation that `router.refresh()` completed after a successful save in `MessagingSettingsPageClient.tsx` — user has no toast/checkmark feedback that the save persisted — deferred, UX polish, non-blocking; AC #1-#3 are fully met without it.
+- `send-sms-hook/index.ts`'s Play Store review test-phone bypass returns 200 before any real provider check runs, so a misconfigured provider wouldn't be caught by that path — deferred, out-of-scope for Story 1.13 (the SMS hook itself is Epic 2 work); flagged for deployment-process awareness (pre-deployment verification should exercise a real phone number or a provider health check).
+- `update_messaging_instance()` (`supabase/migrations/0050_messaging_provider_config.sql`) calls `auth.uid()` without a null check before writing `updated_by` — if a session expired mid-call (theoretical), `updated_by = NULL` would be written — deferred, pre-existing pattern across every RPC in this codebase (Story 1.12 confirms the same pattern); a codebase-wide concern, not specific to this story.
+
 ## Deferred from: code review of story-8-4-mobile-shared-ui-primitives (2026-08-05)
 
 - `Badge.tsx`'s `paddingHorizontal: 10` doesn't match the `Spacing` token scale (`half`/`one`/`two`/`three`... = 2/4/8/16...) that the rest of the codebase sources all spacing from [apps/mobile/src/components/ui/Badge.tsx:33] — deferred, no design-source confirmation available for whether 10px is an intentional Figma value or should normalize to `Spacing.two`=8.

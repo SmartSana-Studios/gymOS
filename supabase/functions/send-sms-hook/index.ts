@@ -118,9 +118,11 @@ export default {
     // Play Store review test account: bypass real SMS delivery for this number.
     // Supabase still generates and validates the OTP internally — we just skip
     // the Twilio/sent.dm send. The fixed OTP (123456) must be configured via
-    // Supabase Dashboard → Authentication → Phone → Test OTPs.
-    const REVIEW_TEST_PHONE = "+237699000001";
-    if (phone === REVIEW_TEST_PHONE) {
+    // Supabase Dashboard → Authentication → Phone → Test OTPs. Number lives in
+    // REVIEW_TEST_PHONE (Edge Function env config), not hardcoded, so it can be
+    // rotated without a redeploy.
+    const reviewTestPhone = Deno.env.get("REVIEW_TEST_PHONE");
+    if (reviewTestPhone && phone === reviewTestPhone) {
       return jsonResponse(200);
     }
 

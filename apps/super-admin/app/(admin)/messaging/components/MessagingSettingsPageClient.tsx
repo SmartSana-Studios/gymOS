@@ -32,6 +32,7 @@ export function MessagingSettingsPageClient({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); // validate on submit only, UX-DR11
+    if (submitting) return; // guard against a double-submit beating the disabled state's re-render
     setFieldError(null);
     setFormError(null);
 
@@ -49,7 +50,8 @@ export function MessagingSettingsPageClient({
         return;
       }
       router.refresh();
-    } catch {
+    } catch (err) {
+      console.error("MessagingSettingsPageClient.handleSubmit error:", err);
       setFormError(t("common.somethingWentWrong"));
     } finally {
       setSubmitting(false);

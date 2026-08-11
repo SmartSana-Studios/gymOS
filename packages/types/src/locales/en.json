@@ -28,6 +28,7 @@
     "backdateNotEligible": "This subscription can't be back-dated.",
     "memberNotAssigned": "This member is no longer assigned to you.",
     "noteNotEditable": "This note can't be edited.",
+    "messagingInstanceRequired": "Instance ID is required",
     "unknown": "Something went wrong on our end."
   },
   "auth": {

@@ -22,7 +22,17 @@ create table messaging_provider_config (
 -- Seed exactly one row. No INSERT policy is ever granted to any role below,
 -- so the row count is structurally fixed at 1 forever -- update_messaging_instance()
 -- is the only sanctioned write path and it only ever UPDATEs.
-insert into messaging_provider_config (instance_id) values (null);
+--
+-- Guarded with WHERE NOT EXISTS (review finding: make the seed re-run-safe)
+-- rather than `ON CONFLICT DO NOTHING` -- `id` defaults to a fresh
+-- gen_random_uuid() on every insert and instance_id carries no unique
+-- constraint, so a plain ON CONFLICT clause would never actually trigger on
+-- a re-run and a second row would still be inserted silently, breaking the
+-- singleton invariant this table depends on. NOT EXISTS is the form that
+-- actually makes this a no-op past the first run.
+insert into messaging_provider_config (instance_id)
+select null
+where not exists (select 1 from messaging_provider_config);
 
 alter table messaging_provider_config enable row level security;
 
@@ -74,15 +84,26 @@ begin
   -- Admin action worth its own audit trail entry (unlike
   -- activate_payment_provider's idempotent reactivate case) -- no no-op
   -- short-circuit here.
-  perform log_audit_event(
-    p_action_type => 'messaging_instance_updated',
-    p_target_entity_id => v_row_id::text,
-    p_target_entity_type => 'messaging_provider_config',
-    p_metadata => jsonb_build_object(
-      'previous_instance_id', v_previous,
-      'new_instance_id', p_instance_id
-    )
-  );
+  --
+  -- The audit write is wrapped in its own exception block (review finding):
+  -- without it, an audit_log failure would roll back the instance_id update
+  -- above via plpgsql's default whole-transaction rollback, blocking AC #2's
+  -- "takes effect with no redeploy" guarantee on an unrelated subsystem
+  -- failure. A failed audit write is logged and swallowed rather than
+  -- re-raised, so the instance change still lands.
+  begin
+    perform log_audit_event(
+      p_action_type => 'messaging_instance_updated',
+      p_target_entity_id => v_row_id::text,
+      p_target_entity_type => 'messaging_provider_config',
+      p_metadata => jsonb_build_object(
+        'previous_instance_id', v_previous,
+        'new_instance_id', p_instance_id
+      )
+    );
+  exception when others then
+    raise warning 'update_messaging_instance: audit log write failed, instance update still applied: %', sqlerrm;
+  end;
 end;
 $$;
 

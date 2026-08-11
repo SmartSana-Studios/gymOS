@@ -28,6 +28,7 @@
     "backdateNotEligible": "Cet abonnement ne peut pas être antidaté.",
     "memberNotAssigned": "Ce membre ne vous est plus assigné.",
     "noteNotEditable": "Cette note ne peut pas être modifiée.",
+    "messagingInstanceRequired": "L'ID d'instance est requis",
     "unknown": "Une erreur est survenue de notre côté."
   },
   "auth": {
