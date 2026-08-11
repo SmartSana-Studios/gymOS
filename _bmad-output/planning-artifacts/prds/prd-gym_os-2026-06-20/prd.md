@@ -2,14 +2,15 @@
 title: GymOS — Product Requirements Document
 status: final
 created: 2026-06-20
-updated: 2026-06-20
-version: "0.4"
-updated: 2026-06-21
+updated: 2026-08-11
+version: "1.5"
 audience: Development Team
-scope: V1.0
+scope: V1.0 (shipped) + V1.5 — Beta-Ready (this update)
 ---
 
 # GymOS — Product Requirements Document
+
+> Stable requirement IDs (FR-NNN, NFR-NNN) are never renumbered. V1.0 ended at FR-086 / NFR-010; V1.5 begins at FR-087 / NFR-011. Where a V1.5 requirement changes a V1.0 requirement's behavior, it says so explicitly ("Amendment to FR-XXX") and states the change — V1.0 text is not edited in place, so history stays legible. The exceptions are the two pre-existing FR-071/FR-082 edits below, decided and shipped (Story 1.13) before this convention was adopted for V1.5.
 
 ## 1. Overview
 
@@ -26,6 +27,26 @@ The product is organized around a single thesis: **retention**. Features map to 
 V1 builds loops 1 and 2. Loop 3 requires the member base and trust that loops 1 and 2 create. The signature V1 interaction is a real-time front-desk alert the instant an expiring member checks in, putting renewal collection at the point of maximum willingness to pay.
 
 V1 targets Cameroon-first gyms with mobile-money payments (MTN MoMo + Orange Money), an Android-first member base, and 1–3 founder-onboarded pilot gyms. Target: a live pilot with real members and real payments in 3–4 months, built by a 1–2 person full-stack team.
+
+### 1.1 What Changed Since V1.0
+
+V1.0 proved the retention spine — payments, attendance, the front-desk alert, multi-tenant isolation — and has shipped (Epics 1–8, all `done`). V1.5 turns that pilot into a beta a gym can run without founder hand-holding, and gives members a reason to open the app between visits.
+
+| Area | V1.0 | V1.5 |
+|------|------|------|
+| Automated mobile-money provider | Notch Pay as planned (FR-034), never actually carried live traffic | Tara Money formalized as the documented, sole intended provider; one real-money sandbox round-trip passed (Story 4.2, 2026-07-31), but no automated mobile-money payment has yet been collected from a real member in production — production activation is still pending (OQ-7) |
+| Member payment routing | Implicit | Into each gym's own Tara Money account |
+| Gym SaaS billing | Tier assigned, not collected | Owner-approved recurring, reminder + one-tap pay via Tara Money (gym Owner → GymOS); automated debit deferred pending a card provider (OQ-14) |
+| Tenant suspension | Manual (Super Admin) | Automated on SaaS non-payment, after grace |
+| Client profile | Name, phone, plan, status | + body metrics, measurements, photos, trends |
+| Staff accounts | Super Admin creates Owner only | Owner self-serve: Supervisor, Manager, Receptionist, Coach |
+| Coach data access | Assigned members + notes | + member progress data (when assigned) |
+| App between-visit value | Status, history | + progress tracking, quiet-gym alerts |
+| Classes | Deferred | Scheduling + booking + reminders |
+| Workout plans | Deferred | Coach-authored plans |
+| WhatsApp invite / OTP fallback | Started, unfinished | Completed |
+| Product analytics | Sentry only | + PostHog |
+| Test automation | Manual + RLS/payment CI | + E2E automation baseline |
 
 ---
 
@@ -47,26 +68,37 @@ The cost is twofold: operational chaos for the gym owner, and invisible churn th
 
 ### 3.1 Goals
 
-| # | Goal |
-|---|------|
-| G-1 | Deliver a live pilot with real members and real payments within 3–4 months |
-| G-2 | Make every franc auditable — no silent payment failures, all manual actions traceable |
-| G-3 | Land the retention moment — front-desk alert catches expiring members at check-in |
-| G-4 | Prove the multi-tenant foundation — RLS and schema hold as new gyms are added |
-| G-5 | Ship to both Android and iOS from a single codebase |
-| G-6 | Launch fully bilingual (English + French) with zero missing-string errors |
+| # | Goal | V |
+|---|------|---|
+| G-1 | Deliver a live pilot with real members and real payments within 3–4 months | 1.0 |
+| G-2 | Make every franc auditable — no silent payment failures, all manual actions traceable | 1.0 |
+| G-3 | Land the retention moment — front-desk alert catches expiring members at check-in | 1.0 |
+| G-4 | Prove the multi-tenant foundation — RLS and schema hold as new gyms are added | 1.0 |
+| G-5 | Ship to both Android and iOS from a single codebase | 1.0 |
+| G-6 | Launch fully bilingual (English + French) with zero missing-string errors | 1.0 |
+| G-7 | Ship a beta a gym can operate end-to-end without founder involvement — including provisioning its own staff | 1.5 |
+| G-8 | Give members a reason to open the app between gym visits, measured by non-visit-day app opens | 1.5 |
+| G-9 | Complete the Notch Pay → Tara Money cutover with zero lost or double-charged payments | 1.5 |
+| G-10 | Keep member body/progress data private by construction — no cross-member and no unauthorized coach access | 1.5 |
+| G-11 | Prove classes and workout plans work in a real gym's weekly rhythm without adding operational load | 1.5 |
+| G-12 | Stand up GymOS's own SaaS revenue collection (Flow B) — reliable and reconciled with zero cross-account leakage into or out of gym funds, via the reminder-driven, Owner-approved billing model V1.5 ships with (OQ-14) | 1.5 |
 
 ### 3.2 Success Metrics
 
-| Metric | Target | Counter-Metric |
-|--------|--------|----------------|
-| Pilot live date | Within 3–4 months of dev start | Scope expansion pushing timeline — tracked via sprint velocity |
-| Front-desk alert reliability | ≥ 95% of expiring/expired check-ins trigger an alert | Alert-to-renewal-action conversion — if alerts fire but aren't actioned, they become noise |
-| Payment reconciliation accuracy | Zero undetected discrepancies in first 30 pilot days | Mandatory-reason field abandonment — if receptionists skip payments to avoid friction |
-| Cross-tenant data isolation | Zero cross-tenant leaks in CI and pilot operation | Over-restrictive RLS — access-denied errors per role tracked in Sentry |
-| Localization completeness | Zero missing-string errors in EN and FR across all flows | Translation divergence — EN and FR string counts must stay in sync on every PR |
-
-> **V1.5 metric target (to be formalized at V1.5 planning):** Quiet-gym alerts and progress tracking drive a measurable increase in member app opens on non-visit days. Baseline established from V1 pilot data before V1.5 launches.
+| Metric | Target | Counter-Metric | V |
+|--------|--------|----------------|---|
+| Pilot live date | Within 3–4 months of dev start | Scope expansion pushing timeline — tracked via sprint velocity | 1.0 |
+| Front-desk alert reliability | ≥ 95% of expiring/expired check-ins trigger an alert | Alert-to-renewal-action conversion — if alerts fire but aren't actioned, they become noise | 1.0 |
+| Payment reconciliation accuracy | Zero undetected discrepancies in first 30 pilot days | Mandatory-reason field abandonment — if receptionists skip payments to avoid friction | 1.0 |
+| Cross-tenant data isolation | Zero cross-tenant leaks in CI and pilot operation | Over-restrictive RLS — access-denied errors per role tracked in Sentry | 1.0 |
+| Localization completeness | Zero missing-string errors in EN and FR across all flows | Translation divergence — EN and FR string counts must stay in sync on every PR | 1.0 |
+| Beta gym self-sufficiency | ≥ 80% of beta gyms complete a full week with zero founder-support tickets | Founder-intervention rate per gym/week | 1.5 |
+| Non-visit-day app opens | ≥ 20% of active members open the app on a non-visit day within 60 days | Progress-logging abandonment after first entry | 1.5 |
+| Payment cutover integrity | Zero lost or duplicated payments across migration | Reconciliation discrepancies during cutover | 1.5 |
+| Progress-data isolation | Zero unauthorized reads of member body data | Coaches wrongly blocked from assigned members | 1.5 |
+| Staff-provisioning safety | Zero privilege-escalation incidents | Legitimate staff-creation actions blocked | 1.5 |
+| Class booking reliability | ≥ 95% of bookings honoured (no overbooking) | No-show rate (informational only) | 1.5 |
+| SaaS billing collection reliability | Zero missed or duplicated billing cycles across active gyms; zero payments settling to the wrong account (NFR-019) | Suspension false-positive rate — gyms wrongly moved to `suspended` | 1.5 |
 
 ---
 
@@ -79,13 +111,16 @@ Roles are scoped per gym except Super Admin, which is platform-wide.
 ```
 Super Admin  (platform-wide; GymOS staff only)
   └─ Owner       (full gym access + settings)
-       └─ Manager     (operations; no settings)
-            └─ Receptionist  (front desk; payments; check-in)
-                 └─ Coach         (assigned members + session notes only)
-                      └─ Member       (own data only)
+       └─ Supervisor  (Manager-plus: staff management + settings access) [V1.5]
+            └─ Manager     (operations; no settings)
+                 └─ Receptionist  (front desk; payments; check-in)
+                      └─ Coach         (assigned members + session notes only)
+                           └─ Member       (own data only)
 ```
 
 Role enforcement is at the PostgreSQL RLS layer. Client-side role checks are supplementary only. When RLS rejects a request the client thought was allowed, the UI shows "You don't have permission to do that" and logs the denial to Sentry with the user's role, action, and resource — no raw database errors reach the user.
+
+**Supervisor** is new in V1.5 (see 6.17). It sits between Owner and Manager with the same staff-management and Settings access as Owner ("Manager-plus"), but it structurally cannot create another Supervisor or an Owner — only Manager, Receptionist, or Coach, mirroring Owner's own creatable set minus Supervisor itself. The general rule this and every other rung follows: no role may create a role equal to or above its own (NFR-013).
 
 ### 4.2 User Profiles
 
@@ -99,10 +134,23 @@ Front-desk operator. Processes payments, confirms check-ins, acts on renewal ale
 One branded app for gym life: subscription status, QR check-in, payment history, profile, language preference.
 
 **Coach**
-Manages assigned members and session notes from a role-gated view inside the dashboard. Sees member goals and experience levels set during onboarding. Workout plans and class scheduling are deferred to V1.5.
+Manages assigned members and session notes from a role-gated view inside the dashboard. Sees member goals and experience levels set during onboarding. Workout plans and class scheduling ship in V1.5 (6.21, 6.22).
 
 **GymOS Platform Owner (Super Admin)**
 Full visibility across all tenant gyms: gym status, platform-wide metrics. Creates and manages gym accounts in the founder-onboarding flow.
+
+### 4.3 Role Capability Deltas in V1.5
+
+The V1.0 role hierarchy is unchanged in spirit — V1.5 makes the already-defined staff roles operationally real by giving the Owner (and now Supervisor) the means to create and manage them, and extends the Coach's data access to include progress tracking.
+
+| Role | New in V1.5 |
+|------|-------------|
+| Owner | Create, edit, deactivate, reassign Supervisors, Managers, Receptionists, Coaches; assign members to coaches |
+| Supervisor | Same staff-management and Settings access as Owner; creates Manager, Receptionist, Coach only — never Supervisor or Owner |
+| Manager | Manage classes and schedules; cannot manage staff accounts or settings |
+| Receptionist | Manage class bookings at the desk; check members into classes |
+| Coach | Author workout plans; view assigned members' progress data; manage class sessions they lead |
+| Member | Log body metrics and progress photos; book classes; opt into quiet-gym alerts; follow a workout plan |
 
 ---
 
@@ -145,6 +193,26 @@ She checks her next client. His status shows "Expiring Soon." Fatima can't proce
 Chidi works at GymOS HQ. A new gym in Yaoundé has signed up. He opens the Super Admin dashboard, clicks "Create Gym", fills in the gym name, owner's name, and phone number, and clicks Create. The system creates the gym record and sends the owner an SMS with their login credentials.
 
 Chidi sets the gym's subscription to Active. The gym now appears in the gym list. He hands off to the owner, who logs into the dashboard and goes through Settings to upload their logo and set their primary color. Their members haven't been imported yet — the owner will use the CSV import tool tomorrow with GymOS's help.
+
+### UJ-6: The Owner staffs their gym (V1.5)
+
+Grace's gym just joined the beta. She opens Settings → Staff, clicks Add staff, adds her receptionist Aicha (name, phone, role → Create). Aicha gets an SMS with a temp password and dashboard link. Grace adds her coach Emmanuel, who on login sees only the Coach Portal. Grace never contacts support — the gym is staffed in four minutes.
+
+### UJ-7: Amara tracks her progress (V1.5)
+
+On a rest-day evening Amara opens the app, taps Progress, logs her weight and waist measurement, and adds a photo stored privately. The app shows her weight down 2.4 kg since joining. She didn't train today but she opened the app — exactly the behaviour V1.5 is built to create.
+
+### UJ-8: Emmanuel coaches with real data (V1.5)
+
+Emmanuel opens an assigned client's profile and sees their goal, experience level, and now their progress trend. He writes a note about the plateau and adjusts the workout plan, swapping two exercises. The member sees the update on next app open. A member he isn't assigned to is invisible — including all their progress data.
+
+### UJ-9: Nadia schedules a week of classes (V1.5)
+
+Nadia (Manager) creates a recurring HIIT Tue/Thu 6 PM class, capacity 15, coach Emmanuel. Members book from the app; when it fills, booking closes. An hour before each session, booked members get a reminder push. The receptionist sees who's booked and checks them in.
+
+### UJ-10: Chidi verifies the payment cutover (V1.5)
+
+Chidi, back at GymOS HQ, re-runs the Tara Money round-trip that already passed once (`docs/decisions.md`, 2026-07-31) — this time against GymOS's own now-activated business account instead of the stand-in the original spike used (OQ-7). He swaps one config value, sends a real test charge, and confirms the webhook lands and reconciles. He checks the audit log: no gym's payment ever touched the platform account, and no member was charged twice. The swap changed one config surface behind the `PaymentProvider` interface — payment logic never moved.
 
 ---
 
@@ -227,7 +295,7 @@ The import is **all-or-nothing**: all rows are validated before any records are 
 
 **FR-023** — Members can view and edit their own profile (name, photo, language preference) from the app. Changing a phone number requires admin intervention.
 
-**FR-082** — When a Manager or Owner creates a new member record in the dashboard, the system generates a personalized onboarding invitation. The invitation contains the member's name, the gym name, and a deep link to the GymOS app (a custom URL scheme that opens the app or falls back to the Play Store / App Store). The gym admin copies or sends this message — via SMS or WhatsApp — directly from the dashboard. The deep link pre-associates the member's phone number, so the OTP screen is the first thing they see in the app.
+**FR-082** — When a Manager or Owner creates a new member record in the dashboard and clicks "Send Invite," the system automatically sends the personalized onboarding invitation (member's name, gym name, a deep link to the GymOS app) via WhatsApp, routed through the self-hosted Evolution API gateway (FR-071). The deep link pre-associates the member's phone number, so the OTP screen is the first thing they see in the app. Manager/Owner may resend at any time from the member's row. If the automated send fails, the dashboard shows an inline error and falls back to the manual copy/share-via-WhatsApp option as a safety net — the original V1.0 UI, demoted from primary path to fallback, not removed.
 
 **FR-083** — When a Manager or Owner deactivates a member: (a) the member's subscription is set to `expired` immediately; (b) the member loses check-in access; (c) the member retains app access to view their history; (d) no automated push notification is sent for deactivation — the gym handles communication. The deactivation is audit-logged with actor, reason (mandatory), and timestamp.
 
@@ -368,11 +436,11 @@ The 91%+ "Full" threshold and raw occupancy counts are visible on the admin dash
 | Member profile view | Name, plan, subscription status, contact info, goal, and experience level set during onboarding |
 | Session notes | Add, view, and edit timestamped session notes per member (coach-attributed) |
 
-Members with `expired` status remain visible in the coach's list with their status shown — the coach is not automatically notified but can see the status. Coach-to-receptionist escalation for expiring or expired clients (e.g., coach flags a member for a renewal conversation) is deferred to V1.5; verbal communication is expected in the V1 pilot.
+Members with `expired` status remain visible in the coach's list with their status shown — the coach is not automatically notified but can see the status. Coach-to-receptionist escalation for expiring or expired clients (e.g., coach flags a member for a renewal conversation) is deferred to V2.0 (Section 8); verbal communication is expected through V1.5.
 
 **FR-055** — A Manager or Owner assigns members to coaches from the Members page. A member may be assigned to at most one coach at a time. When a new coach is assigned to a member who already has one, the previous assignment is ended with an `ended_at` timestamp (not deleted). Session notes from the previous coach remain visible to Owner and Manager only — not to the new coach. Historical assignment records are queryable from the member's profile.
 
-**FR-056** — Workout plan management and class scheduling are deferred to V1.5.
+**FR-056** — Workout plan management and class scheduling are deferred to V1.5. Resolved in V1.5 — see 6.21 Classes & Scheduling (FR-104–FR-108) and 6.22 Workout Plans (FR-109–FR-112).
 
 ---
 
@@ -429,7 +497,7 @@ Members with `expired` status remain visible in the coach's list with their stat
 
 **FR-065** — The Overview page front-desk alert panel is the primary surface for renewal action. Alerts are real-time (Supabase Realtime) and require no page refresh.
 
-**FR-066** — The Members page supports: search by name or phone, filter by subscription status (all / active / expiring\_soon / grace\_period / expired), and bulk CSV export. Export is limited to 1,000 rows per download in V1; apply a filter to reduce results before exporting larger sets. Export columns: member_name, phone, plan_type, subscription_status, expiry_date, join_date, last_check_in_date.
+**FR-066** — The Members page supports: search by name or phone, filter by subscription status (all / active / `expiring_soon` / `grace_period` / expired), and bulk CSV export. Export is limited to 1,000 rows per download in V1; apply a filter to reduce results before exporting larger sets. Export columns: member_name, phone, plan_type, subscription_status, expiry_date, join_date, last_check_in_date.
 
 **FR-067** — The Payments page verification queue shows all unverified manual payments ordered by submission time. Each row shows the member, amount, method, submitting receptionist, and mandatory reason note.
 
@@ -442,11 +510,11 @@ Members with `expired` status remain visible in the coach's list with their stat
 | Element | Detail |
 |---------|--------|
 | Record list | All member subscriptions, sortable by member name, status, and expiry date |
-| Filters | By subscription status (active / expiring\_soon / grace\_period / expired) and by plan type |
+| Filters | By subscription status (active / `expiring_soon` / `grace_period` / expired) and by plan type |
 | Access | Manager and Owner only (matches FR-064 table) |
 | Manual renewal | Manager or Owner selects a member row → opens the inline renewal panel (same panel as the front-desk alert, FR-050) → selects plan, payment method, confirms |
 | Export | CSV export of the filtered list (same 1,000-row limit and column schema as the Members page export, FR-066) |
-| Renewal start date | Defaults to today; if the member is in grace\_period or expired, the receptionist/manager may back-date to the original expiry date to avoid losing the member a day |
+| Renewal start date | Defaults to today; if the member is in `grace_period` or expired, the receptionist/manager may back-date to the original expiry date to avoid losing the member a day |
 
 ---
 
@@ -464,6 +532,7 @@ Members with `expired` status remain visible in the coach's list with their stat
 | Platform metrics | Total gyms, total members, total payments processed (platform-wide aggregates) |
 | Tier management | Create, edit, and delete subscription tiers: set name, monthly price (XAF), annual price (XAF), and member cap (integer or unlimited). Changes take effect immediately for new gym assignments; existing gyms are not automatically reclassified. |
 | Gym tier assignment | Assign or change a gym's subscription tier; override the member cap for a specific gym |
+| Messaging instance management | View the active Evolution API WhatsApp instance ID and connection status; update the instance ID used for platform-wide WhatsApp sends (OTP delivery and member invitations) when a number disconnects, without a code deployment |
 
 **FR-072** — Super Admin access to individual member data or payment records within a specific gym requires an explicit support escalation action (not a standard view). Such access is audit-logged with the Super Admin's identity, reason, and timestamp.
 
@@ -515,6 +584,188 @@ Tier definitions — names, price points, member thresholds, and the ability to 
 
 ---
 
+### 6.17 Staff Management (Owner Self-Serve) — V1.5
+
+**FR-087** — A gym Owner can create staff accounts for their own gym: Supervisor, Manager, Receptionist, and Coach. A Supervisor can create Manager, Receptionist, and Coach accounts — the same set an Owner can create, minus Supervisor itself. Neither an Owner nor a Supervisor can create an Owner or a Super Admin. A Manager cannot create staff at all. In general, no role may create a role equal to or above its own rung (Owner > Supervisor > Manager > Receptionist > Coach — see NFR-013). Captures full name, phone (E.164), and role. Staff creation is audit-logged.
+
+**FR-088** — A newly created staff member is provisioned like V1.0 owner activation: an SMS with a temporary password and dashboard link. First login requires setting a new password. Until first login the account is `pending_activation`.
+
+**FR-089** — An Owner or Supervisor can edit a staff member's name and role, and deactivate (soft-delete) a staff account. The same ceiling rule as FR-087 applies to role *edits*, not only creation: an editor cannot raise a target's role to equal or above their own rung, and cannot edit their own role at all (self-escalation is structurally impossible, not just discouraged). Deactivation revokes access immediately, via the same server-side revocation check as FR-090 (a role change and a deactivation are the same security-sensitive event — losing access entirely), and is audit-logged with a mandatory reason. A deactivated Coach's notes and plan authorship are retained, visible to Owner and Manager.
+
+**FR-090** — Role changes take effect immediately, not on the staff member's next voluntary token refresh or re-login. Because role/gym claims are carried in the JWT (FR-003), immediate revocation requires a server-side check independent of client cooperation — a role-version or session-invalidation marker verified at the same auth-hook/RLS layer that already enforces deny-all-by-default. A demoted or deactivated staff member's existing JWT is rejected the moment that check runs, closing the security window a client-side-only refresh would leave open.
+
+**FR-091** — One phone number maps to one platform user (FR-001). A person may hold different roles at different gyms — each a separate binding. A person cannot hold two roles at the same gym; a new role replaces the prior binding (audit-logged).
+
+**FR-092** — A Coach account is a staff role for portal access. Assigning members to that coach remains a separate action on the Members page (FR-055). A Coach with no assignments sees an empty list with guidance to contact their Manager/Owner/Supervisor.
+
+---
+
+### 6.18 Complete Client Profiles — Body & Progress Tracking — V1.5
+
+**FR-093** — The member profile is extended with an optional body profile: height, starting weight, and optional baseline measurements. Entered during an optional "Complete your profile" step or any time from Progress. No body data is mandatory.
+
+**FR-094** — A member can log progress entries over time — any subset of: weight, body measurements (waist, chest, hips, arms, thighs), a progress photo, and a note. Each entry carries a timestamp and a `client_id` for offline-safe dedupe. A member may soft-delete their own entry.
+
+**FR-095** — Body and progress data is private by default. RLS visibility rules:
+- A member can always read and write their own body/progress data.
+- An assigned Coach can read the progress data of members currently assigned to them — and only those members.
+- A Coach's access ends the instant their assignment ends (FR-055 `ended_at`).
+- No other role — Receptionist, Manager, Supervisor, Owner, or another member — can read a member's measurements or photos.
+- Progress photos: readable only by the owning member and, if the member opts in per-photo, their assigned coach. Sharing defaults to off for every new photo — an explicit per-photo action, not a blanket setting. A member can revoke a photo's sharing at any time; revocation takes effect immediately (no outstanding signed URL remains valid past revocation, per NFR-011) and applies going forward — it does not retroactively determine whether the coach already viewed it, which is not tracked.
+
+**FR-096** — The member Progress screen shows current weight and change since start, a weight trend chart, logged measurements with trends, a photo timeline (member-only unless shared), and a log-entry action. Charts view offline; logging offline queues the entry (FR-097).
+
+**FR-097** — Amendment to FR-061. V1.0 limited offline support to check-in. V1.5 extends offline queueing to progress entry logging, stored locally (SQLite) and synced on reconnect via `client_id` idempotency. No other flows are offline in V1.5.
+
+**FR-098** — In the Coach Portal, an assigned member's profile gains a Progress tab showing weight/measurement trends and shared photos. The coach can add a note but cannot edit or delete a member's progress entries. Unassigned members are invisible and unreadable.
+
+---
+
+### 6.19 Payments — Tara Money (Automated Mobile-Money Option) — V1.5
+
+**FR-099** — Amendment to FR-034. Tara Money (a Cameroon mobile-money service with a developer API — create a collect, then detect payment via callback/status) is the designated automated mobile-money provider going forward, replacing Notch Pay in that role — this requirement formalizes that decision (`docs/decisions.md`, 2026-07-31) rather than introducing new capability. **Correction:** no automated mobile-money payment has actually been collected from a real member in production under either provider to date; only cash and other manual methods (FR-033) have carried real member payments. The sandbox spike (FR-100) succeeded, including one real-money round-trip, but production activation is still pending — see OQ-7. Tara Money is offered alongside cash and the manual methods (FR-033), not as a replacement for them. It uses the existing `PaymentProvider` interface; business logic is unchanged. Notch Pay remains a documented fallback behind the same interface, never actually carrying live traffic. Provider selection is configuration, not code.
+
+**FR-100** — The Tara Money integration was gated by a sandbox spike with the same exit criteria that gated Notch Pay (OQ-2): sandbox auth, payment initiation returns a reference, webhook received and processed, idempotency test passes. The spike passed in full against a stand-in business account on 2026-07-31 (`docs/decisions.md`), including one real-money round-trip. **No member has been charged, and no member payment has been collected, through that stand-in account or any other account since** — the spike proved the integration works, it did not put it into production use. GymOS's own business account (`9FmIZg9GBB`) was blocked on activation until this session. A credential swap to the real account, re-verifying the same round-trip against it, and only then beginning to route real member payments through it, are the remaining steps before production reliance — see OQ-7. This is a credential swap, not a provider cutover (FR-102) — it needs no code or migration changes, but it is a hard prerequisite for G-9 and Section 10 item 2, not a formality.
+
+**FR-101** — Webhook signature verification (NFR-002) is provider-specific. The handler verifies using the active provider's scheme. Tara Money verification is implemented and tested against sandbox and real webhook deliveries before cutover. Invalid payloads are rejected with HTTP 401.
+
+**FR-102** — Cutover procedure:
+- New payment initiations route to Tara Money.
+- Notch Pay payments already in processing reconcile to a terminal state under Notch Pay; the reconciliation job polls both providers during the window.
+- No payment is re-initiated across providers (prevents double-charge).
+- The migration window and its reconciliation result are recorded in the audit log.
+- Cutover is reversible by configuration for the duration of the beta.
+
+**FR-103** — Both MTN Mobile Money and Orange Money are supported via Tara Money (matching V1.0 coverage, FR-033). Cash, bank transfer, and manual mobile money remain first-class manual methods, unchanged.
+
+---
+
+### 6.20 Payment Gateway — Two Distinct Payment Flows — V1.5
+
+Two structurally different payment relationships, both using the Tara Money integration (FR-099) but routing money in opposite directions with separate lifecycles.
+
+|  | Flow A — Member pays Gym | Flow B — Gym Owner pays GymOS |
+|---|---|---|
+| Payer | Member | Gym Owner |
+| Recipient account | The gym's own Tara Money account | The GymOS platform account |
+| Purpose | Gym membership subscription | Platform SaaS tier (FR-073) |
+| Amount set by | Gym Owner (plan prices) | Super Admin (tier prices) |
+| Provider credentials | Per-gym (each gym connects its own) | Single, platform-level |
+| On non-payment | Member loses gym access (FR-030) | Whole gym suspended after grace (FR-131) |
+| Exists before V1.5 | Yes (V1.0) | No — new in V1.5 |
+
+The same `PaymentProvider` interface serves both; the difference is whose credentials the payment routes through. GymOS never holds member money (FR-124) and earns only the SaaS tier fee (FR-125).
+
+**Flow A — Member → Gym (membership payments)**
+
+**FR-124** — When a member pays their gym by Tara Money, the payment settles directly into that gym's own Tara Money account. GymOS orchestrates (create collect, detect confirmation, reconcile, receipt) but never receives or holds member funds — a technical orchestrator over each gym's own account, not an aggregator. Paying by Tara Money is one option beside cash and the other manual methods (FR-033).
+
+**FR-125** — GymOS takes no commission on member→gym payments in V1.5. Platform revenue comes solely from the SaaS tier fee (Flow B). Provider transaction fees are borne by the gym (FR-039); GymOS neither absorbs nor marks them up.
+
+**FR-126** — Each gym must connect its own Tara Money account to collect automated mobile-money payments. Settings provides a "Connect payment account" flow where the Owner authorizes their gym's merchant credentials. Credentials are stored encrypted (Supabase Vault), readable only by the payment service, never returned to any client, tenant-isolated.
+
+**FR-127** — Cash and Tara Money are co-equal payment options, not a primary and a fallback. A gym always takes cash and the manual methods (FR-033); connecting Tara Money adds the automated mobile-money option beside them. A gym without Tara Money connected loses no ability to operate — it collects by cash and manual entry as before, and the app simply does not surface the automated "pay by Tara Money" action until the Owner connects. Connecting is an enhancement, never a prerequisite.
+
+**FR-128** — When a member initiates a mobile-money payment, the service resolves the gym's connected credentials (FR-126) and routes through them. A member never sees gym credentials. If credentials are missing, invalid, or revoked, initiation fails gracefully, directing the member to the desk, and the Owner is notified their connection needs attention.
+
+**FR-129** — Both member subscription purchase and renewal use Flow A. Renewal via the front-desk alert panel (FR-050) and self-service renewal from the app both route through the gym's connected account. The subscription lifecycle (FR-027–FR-032) is unchanged; only money routing is now explicitly the gym's own account.
+
+**Flow B — Gym Owner → GymOS (SaaS subscription billing)**
+
+**FR-130** — GymOS bills each gym for its platform SaaS subscription per the gym's tier (FR-073) and interval (monthly/annual). New in V1.5: V1.0 assigned tiers and enforced caps (FR-086) but did not collect the fee. Billing for V1.5 is a reminder-to-approve model, not an automated debit: GymOS notifies the Owner when payment is due (FR-135) and the Owner completes the charge via Tara Money into the platform's account (OQ-14, resolved). Automated recurring debit is deferred to a future version pending a card-based provider.
+
+**FR-131** — A gym's platform subscription has its own lifecycle: `active` → `past_due` → `grace_period` → `suspended`.
+- `active` — SaaS fee paid; gym fully operational.
+- `past_due` — the Owner missed the payment-due notice or the Tara Money charge failed; the gym stays operational and repeat reminders begin (FR-133, FR-135).
+- `grace_period` — retries exhausted; a Super-Admin-configurable window begins (default 7 days). Gym operational; Owner sees a "renew to avoid suspension" banner and is notified.
+- `suspended` — grace elapsed; the whole gym tenant is suspended (staff and members cannot log in), data retained. Payment restores full access. Formalizes the Super Admin suspend capability (FR-071).
+
+**FR-132** — Suspending a gym for non-payment suspends the entire tenant — every staff and member account loses access until the subscription is current. Reversible: a successful SaaS payment returns the gym to `active` and restores access immediately. Member states and all data are preserved through suspension. The member-facing suspension surface never mentions billing or payment — that is between GymOS and the Owner only.
+
+**FR-133** — **Amendment — OQ-14 resolved.** SaaS billing is Owner-approved, not automated: on each gym's billing anchor date, GymOS sends the Owner a payment-due notice (channels per FR-135) with a one-tap Tara Money payment link. The Owner is never auto-debited — mobile money does not support that. If unpaid, GymOS re-sends the notice on a defined schedule (default: 1, 3, 5 days after due) before the gym moves to `grace_period`. Every notice and payment attempt is recorded (FR-135). Automated recurring debit is deferred to a future version pending a card-based provider (e.g. Stripe); this FR is amended again when that ships.
+
+**FR-134** — The Super Admin dashboard gains a Billing view: each gym's tier, interval, SaaS status, next billing date, last payment, failed attempts. Super Admin can mark a payment received (out-of-band), apply a credit/free period (beta gyms, FR-136), trigger a retry, or suspend/reactivate. All actions audit-logged (FR-080).
+
+**FR-135** — Gym Owners receive platform-subscription notifications distinct from member notifications: upcoming SaaS renewal, payment due (with the one-tap Tara Money link, FR-133), payment succeeded/failed (with retry date), entering grace, impending suspension. Owner-facing and mandatory (non-opt-out), as they concern continued platform access. Sent via **both SMS and WhatsApp** (not a fallback chain — both fire, since missing this notice risks suspension), reusing the Evolution API/Twilio infrastructure from FR-118, **plus email if the Owner has one on file.** Capturing an Owner email is new in V1.5 — an optional field on the Owner account, mirroring FR-020's optional member email — and requires a transactional email provider, which is not part of the V1.0/V1.5 stack today (addendum §A lists none). Email is a best-effort third channel until that provider is selected and integrated; SMS and WhatsApp are the guaranteed channels regardless.
+
+**FR-136** — Beta accommodation. Super Admin can place a gym on a free or discounted plan (zero-price tier or credited period) so beta gyms aren't charged during validation — formalized as the Free/Test tier (FR-139) rather than left to ad-hoc discounting. The billing machinery (FR-130–FR-135) is built and exercised even at a 0 XAF price point, but whether a given beta gym is charged is Super-Admin policy per gym.
+
+**Shared requirements (both flows)**
+
+**FR-137** — Both flows reuse the V1.0 integrity machinery: idempotent webhooks (FR-035), reconciliation (FR-036), append-only audit (FR-079), integer-XAF storage (FR-026). Flow B reconciles against the platform account, Flow A against each gym's account. Discrepancies in either are flagged. Amendment to FR-036: the discrepancy definition gains a fourth category — a payment whose settled account does not match its declared routing context (FR-138), i.e. a Flow A collect that landed in or credited against the platform account, or a Flow B collect that landed in a gym account. Reference and amount matching alone (the original three FR-036 categories) cannot catch a misrouted-but-otherwise-clean payment.
+
+**FR-138** — The `PaymentProvider` abstraction carries a routing context identifying which account a payment belongs to (a specific gym for Flow A, the platform for Flow B). This context selects the correct credentials at initiation, verification, and reconciliation. Adding a provider or flow changes only the adapter and context, not the calling code.
+
+**FR-139** — Amendment to FR-073. A fourth tier, **Free/Test**, is added to the platform defaults: member cap Super Admin-configurable per gym, monthly and annual price fixed at 0 XAF. It exists specifically for beta/test gyms during validation, giving Super Admin a formal, auditable way to exempt a gym from SaaS billing (FR-130) rather than relying only on ad-hoc per-gym discounting (FR-136). Assigning a gym to Free/Test is a tier change like any other (FR-071 Gym tier assignment) — the billing reminder/reconciliation machinery (FR-130–FR-135) still runs, just at a 0 XAF price point, so those code paths stay exercised during the beta.
+
+**FR-140** — A member can renew their own subscription directly from the app (Flow A, FR-124) without visiting the front desk. When status is `expiring_soon`, `grace_period`, or `expired`, the app surfaces a "Renew" action showing the current plan and renewal price; the member pays by Tara Money if the gym has one connected (FR-126), or sees "See front desk to renew with cash" if not (FR-127). On successful payment, the subscription resets per FR-032 and the member sees an immediate confirmation — the same outcome as the front-desk renewal panel (FR-050), just member-initiated and routed through the gym's connected account (FR-129).
+
+---
+
+### 6.21 Classes & Scheduling — V1.5
+
+**FR-104** — A Manager or Owner can create classes: name, description, assigned coach, capacity, and a schedule (one-off or recurring). Classes are tenant-isolated like all other data.
+
+**FR-105** — Any member with an active subscription, on any plan type, can book a class session from the app (fixed rule — no per-plan class-eligibility flag). Booking is capacity-limited; when full, booking closes ("This class is full"). Enforced server-side to prevent overbooking under concurrency.
+
+**FR-106** — A member can cancel a booking up to a gym-configurable cutoff (default 2 hours), freeing the spot. Booking and cancellation are not payments.
+
+**FR-107** — A Receptionist can view a session's booked members and mark attendance. Class attendance is distinct from floor check-in but uses the same member-status rules — an expired member cannot be checked in and triggers the front-desk alert (FR-049).
+
+**FR-108** — The member app shows upcoming booked classes on Home and a Classes screen of available/booked sessions. Workout plans and classes are separate features.
+
+---
+
+### 6.22 Workout Plans — V1.5
+
+**FR-109** — A Coach can author a workout plan for an assigned member: a named plan with an ordered list of exercises (sets, reps, optional notes), created and edited from the Coach Portal.
+
+**FR-110** — A plan is assigned to exactly one member. The member sees their plan and can mark exercises/sessions complete; completion logging is offline-safe (`client_id`). Completion data is visible to the authoring coach.
+
+**FR-111** — If a coach assignment ends (FR-055), the previous coach's plan stays visible to the member and Owner/Manager but is not editable by a new coach until they take ownership — mirroring the V1.0 session-note handoff.
+
+**FR-112** — A shared exercise library (platform defaults; gym/coach can add custom entries, gym-scoped) backs plan authoring.
+
+---
+
+### 6.23 Quiet-Gym Alerts — V1.5
+
+**FR-113** — A member can opt in to quiet-gym alerts (default off). When occupancy drops into the Low band (FR-047) during opening hours, opted-in members receive N-06 — the V1.5 activation of the reserved N-06 notification (FR-075).
+
+**FR-114** — Quiet-gym alerts are rate-limited: max 2 per day per member, min 3-hour gap, only during configured opening hours.
+
+**FR-115** — Quiet-gym alerts use the existing occupancy calculation (FR-046) — no new presence detection — preserving the honest-estimate guarantee.
+
+---
+
+### 6.24 Class Reminders — V1.5
+
+**FR-116** — A booked member receives N-07 60 minutes before the session. Class reminders are opt-out (non-critical), per FR-076.
+
+---
+
+### 6.25 WhatsApp Invite & OTP Fallback (V1.0 Carryover Completion) — V1.5
+
+**FR-117** — The Evolution API WhatsApp integration is completed, covering the two unfinished V1.0 stories. Member invitations (FR-082) can be sent via WhatsApp in addition to SMS, at the gym admin's choice.
+
+**FR-118** — OTP delivery uses an ordered fallback chain, Evolution API WhatsApp first, falling through to Twilio WhatsApp, then Twilio SMS, then sent.dm on failure at each step. Transparent to the member; channel and outcome are logged for observability. (Corrects the V1.5 draft's original "primary SMS, WhatsApp fallback" framing, which had the order backwards relative to the chain already decided and shipping per the 2026-08-08 proposal.)
+
+**FR-119** — The Evolution API instance configuration (V1.0 Epic 1, Story 1.13 — shipped) is finalized: platform-level, managed by Super Admin, documented in `docs/decisions.md`.
+
+---
+
+### 6.26 Dashboard & App Additions — V1.5
+
+**FR-120** — The Settings page gains a Staff section (Owner and Supervisor) listing staff with role and status, plus Add/Edit/Deactivate (FR-087–FR-089). All other Settings capabilities unchanged.
+
+**FR-121** — A new Classes page (Manager for create/edit; Receptionist for bookings and class attendance) lists classes, sessions, booking counts vs capacity, and the assigned coach.
+
+**FR-122** — The Coach Portal gains Workout Plans and, per assigned member, a Progress tab. No other dashboard section becomes visible to the Coach role.
+
+**FR-123** — The member app gains a Progress tab and a Classes tab alongside Home/Check-In/Profile. Notification preferences gain N-06 and N-07 toggles.
+
+---
+
 ## 7. Non-Functional Requirements
 
 ### 7.1 Performance
@@ -535,6 +786,16 @@ Tier definitions — names, price points, member thresholds, and the ability to 
 
 **NFR-004** — The audit log is append-only by design. No migration, script, or application code may issue UPDATE or DELETE against audit records.
 
+**NFR-012** — The Tara Money cutover (FR-102) must produce zero double-charges and zero lost payments, verified by the reconciliation job reporting zero discrepancies before Notch Pay is stood down as primary.
+
+**NFR-013** — Staff provisioning and role editing (FR-087, FR-089) must make privilege escalation impossible: no role can create *or edit a target into* a role equal to or above its own, and no role can edit its own role, enforced at the RLS/auth-hook layer. CI asserts an Owner cannot mint or promote-to a Super Admin, a Supervisor cannot mint or promote-to a Supervisor or Owner (including on themselves), and a Manager cannot mint or edit staff roles at all.
+
+**NFR-017** — Per-gym Tara Money credentials (FR-126) are stored encrypted at rest (Supabase Vault), accessible only to the server-side payment service, never returned to any client, never logged, never readable across tenants. They carry the same isolation guarantees as all tenant data (NFR-001).
+
+**NFR-018** — Tenant suspension for SaaS non-payment (FR-131/FR-132) is enforced at the authorization layer, not only the UI: a suspended gym's staff and members are denied at the RLS/auth-hook layer, so suspension cannot be bypassed by a client ignoring UI state. Takes effect on the next request; no tenant data is deleted or mutated.
+
+**NFR-019** — FR-125's "GymOS takes no commission on member→gym payments" is auditable, not merely asserted: every Flow A payment's settlement account is verifiable against its gym's connected credentials (FR-126) via the audit log, so a platform-account credit from a Flow A transaction is detectable after the fact, not just prevented in theory.
+
 ### 7.3 Availability
 
 **NFR-005** — V1 availability is covered by Supabase Cloud and Vercel managed SLAs. No additional uptime commitment is made until commercial scale.
@@ -545,7 +806,9 @@ Tier definitions — names, price points, member thresholds, and the ability to 
 
 **NFR-007** — Sentry is integrated on both the mobile app and the admin dashboard in V1. Error events from both surfaces are routed to a single Sentry project with environment tagging (dev / staging / prod).
 
-**NFR-008** — PostHog product analytics is deferred to V1.5. No analytics instrumentation is added to V1 beyond what Sentry captures as error/crash telemetry.
+**NFR-008** — **Superseded by NFR-014.** PostHog was deferred at V1.0; V1.5 activates it.
+
+**NFR-014** — PostHog product analytics is integrated on app and dashboard, focused on the V1.5 metrics (Section 3.2), carrying no body-measurement or photo content into events. Same environment tagging as Sentry (NFR-007).
 
 ### 7.5 Testing
 
@@ -556,8 +819,10 @@ Tier definitions — names, price points, member thresholds, and the ability to 
 | Payment flows | Integration tests against Notch Pay sandbox: auth, initiate, webhook, idempotency | V1 |
 | Mobile app | Manual QA on physical Android device before each release; iOS via TestFlight | V1 |
 | Dashboard | Manual QA in V1; no automated E2E (team too small, surface too volatile) | V1 |
-| E2E automation | Revisit at V1.5 when team and surface stabilize | V1.5 |
+| E2E automation | Baseline established (NFR-015): staff provisioning + role enforcement, the payment cutover path, progress-data access boundaries, class booking capacity limits. Complements, not replaces, V1 CI gates | V1.5 |
 | CI gate | RLS tests + payment integration tests + TypeScript type checks on every PR | V1 |
+
+**NFR-015** — An E2E test automation baseline is established, covering the four priority flows listed above.
 
 ### 7.6 Scale Targets
 
@@ -567,25 +832,28 @@ Tier definitions — names, price points, member thresholds, and the ability to 
 
 **NFR-010** — The Supabase project must be provisioned in a region geographically close to West/Central Africa. EU West (Ireland or Frankfurt) is the recommended selection. US East adds 200–400ms of intercontinental latency on top of Cameroonian mobile network jitter, making the &lt;3s front-desk alert target (FR-052) difficult to meet. Region selection must be confirmed before any Supabase project is created — it cannot be changed after data is written.
 
+### 7.8 Data Privacy — Progress Data (V1.5)
+
+**NFR-011** — Progress photos (FR-094) are stored in Supabase Storage under access rules mirroring FR-095: retrievable only by the owning member and, if shared, their assigned coach. Object paths are non-guessable; no photo is served from a public bucket — a new, dedicated bucket, separate from the existing public `member-photos` bucket used for profile photos (Story 2.6). Signed URLs are short-lived enough that revoking a photo's sharing (FR-095) invalidates access within that same window — no long-lived signed URL survives a revoke.
+
+**NFR-016** — Coach access to member progress data — both the assignment relationship and each photo's per-photo sharing flag (FR-095) — is re-verified on every request against current state; an ended assignment or a revoked photo-share revokes read access with no caching window that outlives either.
+
 ---
 
-## 8. Out of Scope — V1
+## 8. Out of Scope
 
-The following are explicitly deferred. Nothing below may be added to V1 scope without an explicit decision recorded in `.decision-log.md`.
+The following are explicitly deferred. Nothing below may be added to scope without an explicit decision recorded in `.memlog.md` (see also the legacy `.decision-log.md`).
 
 | Item | Target Version |
 |------|---------------|
-| Self-serve gym signup | Post-V1 |
+| Self-serve gym signup | Post-V1.5 |
 | Travel mode plan type | V2.0 |
 | Campay payment provider integration | V2.0 |
-| Workout plans | V1.5 |
-| Class scheduling (create, manage, book) | V1.5 |
-| Progress tracking (weight, measurements, photos) | V1.5 |
-| Quiet-gym alerts | V1.5 |
-| Class reminders | V1.5 |
-| PostHog / product analytics | V1.5 |
-| E2E test automation | V1.5 |
-| Provider-executed refund API calls | V1.5 |
+| Provider-executed refund API calls | V2.0 |
+| Coach-to-receptionist escalation for expiring clients | V2.0 |
+| Class waitlists (auto-promote when a spot frees) | V2.0 |
+| Nutrition / meal logging | V2.0 |
+| Progress data export (member downloads history) | V2.0 |
 | Streaks, challenges, leaderboards, activity feed | V2.0 |
 | Live multi-currency payments beyond XAF | V2+ |
 | Gym-owned merch store | V2.5 |
@@ -594,7 +862,9 @@ The following are explicitly deferred. Nothing below may be added to V1 scope wi
 | Per-gym App Store listings | V4+ |
 | Custom fonts, full theme systems | V4+ |
 | AI features, wearables, corporate wellness | V4+ |
-| Dokploy / VPS services | Decision pending for V1.5 |
+| Dokploy / VPS services | Decision pending |
+
+**Explicit non-goal (privacy model, not a temporary limitation):** Manager/Owner visibility into member progress data is **not planned**. The member + assigned-coach boundary (FR-095) is a product commitment. Any future change requires a recorded decision and member consent handling.
 
 ---
 
@@ -608,3 +878,44 @@ The following are explicitly deferred. Nothing below may be added to V1 scope wi
 | OQ-4 | **Resolved** — Travel mode plan type deferred to V2.0. See `.decision-log.md` entries #4 and #16. | — | — |
 | OQ-5 | **Resolved** — 8-hour default confirmed (changed from assumed 4 hours). | — | — |
 | OQ-6 | **Resolved** — 30-minute default, gym-configurable (changed from assumed 15 min fixed). | — | — |
+| OQ-7 | Tara Money sandbox spike re-verification against GymOS's own now-activated business account (`9FmIZg9GBB`), replacing the stand-in account the 2026-07-31 spike passed against. Also carries OQ-13's and OQ-14's questions — see below; the architecture decision for Flow B's billing-job shape is blocked on this answer. | Dev team | Full production reliance on Tara Money (FR-100); Flow B design (FR-130, FR-133) |
+| OQ-8 | **Resolved** — no retention/purge policy for progress photos at beta scale; matches this codebase's existing accepted-unbounded-growth convention (`job_runs`, `audit_log`, `otp_resend_attempts`). Revisit if real storage cost emerges. | — | — |
+| OQ-9 | **Resolved** — fixed, simplest rule: any member with an active subscription, on any plan type, can book a class. No per-plan class-eligibility flag. | — | — |
+| OQ-10 | **Resolved** — all five FR-094 measurement fields ship (waist, chest, hips, arms, thighs); the schema already needs to support all five per FR-094's "any subset" wording. | — | — |
+| OQ-11 | **Resolved** — no co-owners; one Owner per gym for the beta. | — | — |
+| OQ-12 | WhatsApp/Evolution API compliance and number provisioning; messaging limits and sender identity. | Dev team | FR-117–FR-119 (Stories 2.9/2.10, backlog) |
+| OQ-13 | Confirm Tara Money's create-collect + payment-detection flow (callback vs poll) and whether payments settle into each gym's own Tara account (per-gym credentials/sub-accounts). Folded into the OQ-7 re-spike. | Dev team | FR-124, FR-126, FR-128 |
+| OQ-14 | **Resolved** — Tara Money (mobile money) does not support automated recurring debits. Flow B billing for V1.5 is a reminder-to-approve model: GymOS notifies the Owner when payment is due and the Owner completes the charge via Tara Money each cycle. True automated recurring collection is deferred to a future version, pending a card-based provider (e.g. Stripe). See FR-130, FR-133. | — | — |
+| OQ-15 | **Resolved** — no proration on mid-cycle SaaS tier change; the new price applies at the next billing cycle. | — | — |
+
+---
+
+## 10. Release Definition — "Beta-Ready" (V1.5)
+
+V1.5 is beta-ready when a gym the founding team has not personally hand-held can:
+
+1. Be created by GymOS (founder-onboarded), then staff itself — add its own Supervisor, Manager, Receptionist, and Coach — with no support ticket (FR-087–FR-092).
+2. Take real payments through Tara Money, with the cutover proven clean (FR-099–FR-103, NFR-012).
+3. Run the retention loop end to end: front-desk alert (V1.0) plus members returning to the app between visits to log progress (FR-093–FR-098).
+4. Operate its weekly rhythm — classes scheduled and booked, workout plans assigned (FR-104–FR-112).
+5. Collect its own GymOS platform subscription from gyms via the reminder-driven, Owner-approved billing model (OQ-14, resolved), with zero missed cycles and zero cross-account leakage (FR-130–FR-140, NFR-019, G-12) — still gated on OQ-7's re-verification against GymOS's own activated Tara Money business account before production reliance.
+6. Do all of the above bilingually, offline-tolerant where FR-097 requires, with PostHog showing whether the loops work and E2E tests guarding critical paths (NFR-014, NFR-015).
+
+This gate is additive on top of V1.0's already-shipped goals (Section 3.1, G-1–G-6) — a scope layer, not a replacement. Everything in Section 8 is deliberately out, so the beta ships on time rather than growing into V2.
+
+---
+
+## 11. Glossary
+
+| Term | Meaning |
+|------|---------|
+| RLS | Row-Level Security — PostgreSQL's per-row access control, the primary tenant/role isolation mechanism (FR-005, NFR-001) |
+| JWT | JSON Web Token — carries the `gym_id`/`role` claims used for authorization (FR-003) |
+| OTP | One-time password, sent via SMS/WhatsApp for phone verification (FR-002) |
+| XAF | Central African CFA franc — GymOS's only supported currency in V1.0/V1.5 (FR-026) |
+| MoMo | Mobile Money (MTN Mobile Money / Orange Money) |
+| SaaS | Software-as-a-Service — here, specifically GymOS's own platform subscription fee charged to gyms (Flow B, FR-130) |
+| Flow A / Flow B | The two payment directions in 6.20: Flow A is member→gym, Flow B is gym→GymOS |
+| FR / NFR | Functional Requirement / Non-Functional Requirement — stable, never-renumbered IDs (Section 6/7 header note) |
+| E2E | End-to-end (test automation), NFR-015 |
+| RPC | Remote Procedure Call — a Postgres function invoked from application code, e.g. the staff-creation function (addendum D) |

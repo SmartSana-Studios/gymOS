@@ -3,7 +3,7 @@ title: GymOS PRD — Addendum
 type: addendum
 linked_prd: prd.md
 created: 2026-06-20
-updated: 2026-06-20
+updated: 2026-08-11
 ---
 
 # GymOS PRD — Addendum
@@ -22,7 +22,7 @@ Captured here for team reference; not a PRD requirement. Stack decisions are fin
 | Admin Dashboard | Next.js + TypeScript + Tailwind CSS | App Router; protected routes; SSR for sensitive operations |
 | Backend | Supabase Cloud | PostgreSQL + Auth + Realtime + Storage + Edge Functions |
 | Database | PostgreSQL with RLS | Multi-tenant row-level security |
-| Payments | Notch Pay SDK (primary) / Campay SDK (fallback) | Mobile-money aggregation; Cameroon-first |
+| Payments | Tara Money (live primary, since Story 4.2 2026-07-31) / Notch Pay (documented fallback, never carried live traffic) / Campay (deferred to V2) | Mobile-money aggregation; Cameroon-first; behind a `PaymentProvider` interface |
 | Mobile Shipping | EAS Build + Submit | Cloud builds; no Mac required for iOS |
 | Error Tracking | Sentry | Dashboard + mobile; single project, environment-tagged |
 | i18n | react-i18next (recommended) | Both Next.js and Expo; all strings externalized |
@@ -66,6 +66,10 @@ These decisions are final unless explicitly revisited via `docs/decisions.md`. R
 | Decision | Resolution | Rationale |
 |----------|-----------|-----------|
 | Payment aggregator | Notch Pay only in V1, behind a PaymentProvider interface; Campay deferred to V2 | Dual-provider = 2x integration work for a 1–2 dev team on a 3–4 month timeline; abstraction costs ~2 hours and slots Campay in cleanly later |
+| Payment aggregator, V1.5 correction | Tara Money (not Notch Pay) is the live, active provider since Story 4.2 (2026-07-31) — Notch Pay was never actually shipped as live despite its V1.0-era naming. See `docs/decisions.md` 2026-07-31 entries | Real sandbox spike + real-money round-trip (Orange Money, real USSD, real webhook) passed against Tara Money; Notch Pay retained only as a documented fallback behind the same interface |
+| Per-gym payment credential storage (FR-126) | Supabase Vault | Least code to own and maintain, vs. pgsodium or app-layer encryption |
+| Staff-provisioning security (FR-087, NFR-013) | New `SECURITY DEFINER` RPC, caller must be Owner/Supervisor, target role restricted to a hard allowlist below caller's own rung; distinct in shape from Story 1.5's admin-client gym/owner creation (that one bypasses RLS via Super Admin; this one runs inside a normal Owner/Supervisor RLS session with the ceiling check in the function body) | Manager gets no grant at all; role-ceiling check must live in the function body, not just Zod input validation |
+| Progress-photo storage (NFR-011) | New, separate, private Storage bucket with signed URLs | The existing `member-photos` bucket is `public = true` (Story 2.6 precedent) — wrong bucket for body-progress content |
 | Manual payments | First-class: cash, bank, manual MoMo — mandatory reason + audit log | Core to African gym reality |
 | Identity rule | One phone = one platform user; multi-gym via separate `members` rows | Prevents duplicate accounts; simplifies auth |
 | Refund posture | V1 records refunds; provider-API execution deferred | Reduces V1 complexity |
@@ -80,6 +84,7 @@ These decisions are final unless explicitly revisited via `docs/decisions.md`. R
 | Currency scope | XAF in V1; `currency` column present from day one | No schema rework for NGN, GHS expansion |
 | Timezone | UTC stored in DB; displayed in gym's configured timezone (default: Africa/Douala) | Multi-timezone ready without schema changes |
 | Observability | Sentry for errors (V1); PostHog deferred to V1.5 | Right-sized for pilot |
+| Observability, V1.5 correction | PostHog is activated in V1.5 (NFR-014), not merely still-deferred | See prd.md 7.4 — the V1.0 decision above is superseded, not stale; kept for history |
 | QR check-in direction | Member scans gym's static entrance QR with the member app | Confirmed 2026-06-20 (overrides brief ambiguity) |
 | Grace period | Gym-configurable duration per gym; platform default 3 days | Confirmed 2026-06-20 |
 | Coach portal | Exists in V1 (assigned members + session notes); workout plans and classes V1.5 | Confirmed 2026-06-20 (overrides brief's V1.5 assignment) |
@@ -110,8 +115,8 @@ For downstream planning reference:
 
 | Version | Focus |
 |---------|-------|
-| V1.0 | Money + attendance core: payments, subscriptions, check-in, occupancy, front-desk renewal alert, coach portal (basic), bilingual UI |
-| V1.5 | Coaches (full), classes, workout plans, progress tracking, quiet-gym alerts, reports, E2E tests, PostHog |
+| V1.0 | Money + attendance core: payments, subscriptions, check-in, occupancy, front-desk renewal alert, coach portal (basic), bilingual UI — shipped, Epics 1–8 done |
+| V1.5 | Owner self-serve staff (+ Supervisor role), body/progress tracking, Tara Money formalization, gym→GymOS SaaS billing (Flow B), classes, workout plans, quiet-gym alerts, class reminders, WhatsApp/Evolution API completion, PostHog, E2E baseline |
 | V2.0 | Travel mode (full), meal logging, streaks, challenges, leaderboards, activity feed, NGN/GHS markets |
 | V2.5 | Gym-owned merch store |
 | V3.0 | Platform-wide marketplace, geofence/BT/WiFi detection, branch management |
