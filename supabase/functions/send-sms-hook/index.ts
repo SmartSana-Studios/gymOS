@@ -1,7 +1,8 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { Webhook } from "standardwebhooks";
 
-import type { OtpDeliveryProvider } from "./_shared/otp-providers/OtpDeliveryProvider.ts";
+import type { DeliveryResult, OtpDeliveryProvider } from "./_shared/otp-providers/OtpDeliveryProvider.ts";
+import { EvolutionApiProvider } from "./_shared/otp-providers/EvolutionApiProvider.ts";
 import { TwilioSmsProvider } from "./_shared/otp-providers/TwilioSmsProvider.ts";
 import { TwilioWhatsAppProvider } from "./_shared/otp-providers/TwilioWhatsAppProvider.ts";
 import { SentDmProvider } from "./_shared/otp-providers/SentDmProvider.ts";
@@ -20,19 +21,6 @@ function jsonResponse(
     status,
     headers: { "Content-Type": "application/json", ...extraHeaders },
   });
-}
-
-function getProvider(): OtpDeliveryProvider | undefined {
-  switch (Deno.env.get("OTP_PROVIDER")) {
-    case "twilio":
-      return new TwilioSmsProvider();
-    case "twilio_whatsapp":
-      return new TwilioWhatsAppProvider();
-    case "sentdm":
-      return new SentDmProvider();
-    default:
-      return undefined;
-  }
 }
 
 function isValidPayload(value: unknown): value is SendSmsHookPayload {
@@ -82,7 +70,45 @@ try {
   webhookInitError = err instanceof Error ? err.message : String(err);
 }
 
-const provider = getProvider();
+// Ordered fallback chain (AD-11): Evolution API first (lowest friction when its self-hosted
+// instance is connected), then Twilio WhatsApp, then Twilio SMS, then sent.dm. Module-scope
+// hoisted like `provider` used to be — instantiating these is cheap and stateless, and each
+// provider reads its own credentials inside send(), not at construction time.
+const PROVIDER_CHAIN: OtpDeliveryProvider[] = [
+  new EvolutionApiProvider(),
+  new TwilioWhatsAppProvider(),
+  new TwilioSmsProvider(),
+  new SentDmProvider(),
+];
+
+// Tries each provider in order, short-circuiting on the first success. A provider throwing
+// unexpectedly (contract violation — every provider is supposed to always return a
+// DeliveryResult, never throw) must not abort the whole chain, so each attempt gets its own
+// try/catch rather than one try/catch around the loop. Every attempt is logged (provider name +
+// outcome only, never the phone number/code) per AD-11's "every attempt is logged" requirement.
+async function sendViaChain(phone: string, code: string, locale: "en" | "fr"): Promise<DeliveryResult> {
+  let lastResult: DeliveryResult = { success: false, error: "no OTP provider configured" };
+
+  for (const provider of PROVIDER_CHAIN) {
+    const providerName = provider.constructor.name;
+    try {
+      lastResult = await provider.send(phone, code, locale);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      lastResult = { success: false, error: message };
+      console.log(`send-sms-hook: ${providerName} → failed: ${redactPhone(message, phone)}`);
+      continue;
+    }
+
+    if (lastResult.success) {
+      console.log(`send-sms-hook: ${providerName} → success`);
+      return lastResult;
+    }
+    console.log(`send-sms-hook: ${providerName} → failed: ${redactPhone(lastResult.error, phone)}`);
+  }
+
+  return lastResult;
+}
 
 export default {
   fetch: async (req: Request): Promise<Response> => {
@@ -126,24 +152,10 @@ export default {
       return jsonResponse(200);
     }
 
-    if (!provider) {
-      console.error("send-sms-hook: no valid OTP_PROVIDER configured");
-      return jsonResponse(500);
-    }
-
-    let result;
-    try {
-      result = await provider.send(phone, payload.sms.otp, "en");
-    } catch (err) {
-      // Defense in depth: providers are contracted to always return a DeliveryResult, never throw,
-      // but a future provider (or an unexpected runtime error) breaking that contract shouldn't crash
-      // the whole hook — same posture as the try/catch around signature verification above.
-      console.error(`send-sms-hook: provider threw unexpectedly — ${err instanceof Error ? err.message : String(err)}`);
-      return jsonResponse(500);
-    }
+    const result = await sendViaChain(phone, payload.sms.otp, "en");
 
     if (!result.success) {
-      console.error(`send-sms-hook: delivery failed — ${redactPhone(result.error, phone)}`);
+      console.error(`send-sms-hook: all providers failed — ${redactPhone(result.error, phone)}`);
       // Per Supabase's HTTP Auth Hook contract: 429/503 are retry-able and need a non-empty
       // Retry-After header; everything else becomes a 500 on Supabase's side regardless of the
       // status we send, so there's no benefit to forwarding other provider status codes as-is.

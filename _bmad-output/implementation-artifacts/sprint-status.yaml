@@ -2,6 +2,9 @@
 # last_updated: 2026-08-08 (correct-course: sprint-change-proposal-2026-08-08.md approved -- added 1-13 (Super Admin Evolution API instance config + logout wiring fix), 2-9 (Evolution API sandbox spike + OTP fallback chain), 2-10 (automated member invite via Evolution API, revises 2-5's shipped scope, 2-5 left as historical record)); (create-story: 1-13 story file created, status backlog -> ready-for-dev); (dev-story: 1-13 status ready-for-dev -> in-progress, Tasks 1-7 complete, Task 8 manual verification paused mid-task -- see story file's Dev Agent Record)
 # last_updated: 2026-08-11 (dev-story: 1-13 resumed in a new devcontainer environment, Task 8(d)/(e) completed via in-browser verification -- prior WSL2 login-hang blocker did not reproduce; full pgTAP regression re-run clean (861/861) after a db reset ruled out 2 unrelated stale-state failures; status in-progress -> review); (code-review: 1-13 resumed a prior review session's unresolved findings, 1 decision + 5 patches all resolved/applied, pgTAP 861/861 clean, i18n parity clean; also restored deferred-work.md after the prior session had overwritten its history instead of appending; status review -> done); (correct-course: sprint-change-proposal-2026-08-11.md approved -- V1.5 PRD adopted as next release; added epic-9 (Staff Management), epic-10 (Client Progress Tracking), epic-11 (SaaS Billing Gym->GymOS), epic-12 (Classes & Scheduling), epic-13 (Workout Plans), all backlog; Epic 4 (Tara Money formalization) and Epic 6 (quiet-gym alerts + class reminders) to gain new stories within their existing structure, not tracked as new epics)
 # last_updated: 2026-08-11 (sprint-planning: re-run against updated epics.md -- expanded epic-9 (5 stories), epic-10 (4 stories), epic-11 (6 stories), epic-12 (4 stories), epic-13 (5 stories) from their full bmad-create-epics-and-stories detail, all backlog; appended epic-4's 6 extension stories (4.10-4.15, Tara Money cutover/Flow A) and epic-6's 2 extension stories (6.5-6.6, quiet-gym alerts + class reminders) to their existing epic blocks, all backlog; note -- epics.md's Epic 1/Epic 2 sections have no ### Story headers for 1-11/1-12/1-13/2-9/2-10 (added ad hoc via the 2026-08-08 correct-course proposal, never backfilled into epics.md's prose) -- their existing statuses preserved unchanged per the no-downgrade rule, flagged here as a documentation-drift gap in epics.md, not a sprint-status error)
+# last_updated: 2026-08-12 (create-story: 2-9 story file created, status backlog -> ready-for-dev -- Evolution API sandbox spike + OTP provider fallback chain; authoritative source is sprint-change-proposal-2026-08-08.md#4.4 plus the since-ratified ARCHITECTURE-SPINE.md AD-11/AD-12, since epics.md has no ### Story 2.9 header (documentation-drift gap, already flagged above); confirmed via git status/grep that no prior Evolution API code exists in the tree despite Story 1.13's git intelligence flagging likely in-progress uncommitted work toward this story at its own creation time -- that work was not present, this story starts clean)
+# last_updated: 2026-08-12 (dev-story: 2-9 status ready-for-dev -> in-progress, baseline_commit already set at 4c89fec, dev work starting)
+# last_updated: 2026-08-12 (dev-story: 2-9 status in-progress -> review -- Tasks 1-6 all complete; real Evolution API spike run live with the user against their instance (souna2 @ evo.ultradominon.com), PASS on both send and a real connector-level disconnect fall-through to TwilioWhatsAppProvider; EvolutionApiProvider ships as PROVIDER_CHAIN[0], OTP_PROVIDER fully retired; full evidence + a devcontainer/Docker infra fix (TMPDIR workaround for `supabase functions serve`) recorded in docs/decisions.md's 2026-08-12 entry)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -37,7 +40,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-08-11 (sprint-planning: re-run against updated epics.md -- expanded epic-9 (5 stories), epic-10 (4 stories), epic-11 (6 stories), epic-12 (4 stories), epic-13 (5 stories) from their full bmad-create-epics-and-stories detail, all backlog; appended epic-4's 6 extension stories (4.10-4.15, Tara Money cutover/Flow A) and epic-6's 2 extension stories (6.5-6.6, quiet-gym alerts + class reminders) to their existing epic blocks, all backlog; note -- epics.md's Epic 1/Epic 2 sections have no ### Story headers for 1-11/1-12/1-13/2-9/2-10 (added ad hoc via the 2026-08-08 correct-course proposal, never backfilled into epics.md's prose) -- their existing statuses preserved unchanged per the no-downgrade rule, flagged here as a documentation-drift gap in epics.md, not a sprint-status error)
+last_updated: 2026-08-12 (dev-story: 2-9 status ready-for-dev -> in-progress -> review, Evolution API sandbox spike PASS)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -69,7 +72,7 @@ development_status:
   2-6-member-app-phone-otp-onboarding-through-profile-setup: done
   2-7-member-app-goal-experience-plan-confirmation: done
   2-8-member-self-service-profile-management: done
-  2-9-evolution-api-sandbox-spike-otp-provider-fallback-chain: backlog
+  2-9-evolution-api-sandbox-spike-otp-provider-fallback-chain: review
   2-10-automated-member-invite-via-evolution-api: backlog
   epic-2-retrospective: done
 
