@@ -889,6 +889,62 @@ So that I can keep my display name, photo, and language preference current.
 **When** I do so
 **Then** the app re-renders in the new language immediately without requiring re-login
 
+### Story 2.9: Evolution API Sandbox Spike & OTP Provider Fallback Chain
+
+> **Note:** Backfilled 2026-08-13 — this story was originally raised via `sprint-change-proposal-2026-08-08.md` Section 4.4 (approved) and shipped without an `epics.md` header (documentation-drift gap flagged in `sprint-status.yaml`). Added here verbatim from the approved proposal so downstream tooling that parses `epics.md` can resolve it. The story file `_bmad-output/implementation-artifacts/2-9-evolution-api-sandbox-spike-otp-provider-fallback-chain.md` and `ARCHITECTURE-SPINE.md`'s AD-11/AD-12 remain the authoritative source for implementation detail.
+
+As a developer,
+I want to validate Evolution API against a real send/receive round-trip and wire it into an ordered fallback chain ahead of the existing Twilio/sent.dm providers,
+So that OTP delivery gains a lower-friction primary channel without weakening reliability if it's unavailable.
+
+**Acceptance Criteria:**
+
+**Given** the already-running Evolution API instance
+**When** I send a test OTP-shaped message and confirm delivery
+**Then** the outcome is recorded in `docs/decisions.md` (send succeeds, response shape confirmed, instance-disconnect behavior observed and documented)
+
+**Given** the spike passes
+**When** `EvolutionApiProvider` (implements `OtpDeliveryProvider`) is added to `send-sms-hook`
+**Then** the `OTP_PROVIDER` env var is retired, and the hook tries providers in order — Evolution API → Twilio WhatsApp → Twilio SMS → sent.dm — advancing to the next on any failure
+
+**Given** the Evolution API instance is disconnected or misconfigured
+**When** an OTP is requested
+**Then** the chain falls through to Twilio WhatsApp (then SMS, then sent.dm) and the OTP still arrives
+
+**Given** the spike fails
+**When** that occurs
+**Then** Evolution API is not added to the chain until a fix is validated and documented — the existing three-provider chain (Twilio WhatsApp → Twilio SMS → sent.dm) ships and remains the production path
+
+### Story 2.10: Automated Member Invite via Evolution API
+
+> **Note:** Backfilled 2026-08-13 — raised via `sprint-change-proposal-2026-08-08.md` Section 4.5 as a revision to Story 2.5, then re-tracked as an independent story (`2-10`) per `sprint-change-proposal-2026-08-11.md`'s correct-course decision, leaving Story 2.5 above as a historical record of the original manual-only flow. Depends on Story 2.9's `EvolutionApiProvider`/chain infrastructure.
+
+As a Manager or Owner,
+I want member invitations to send automatically via the Evolution API WhatsApp gateway instead of requiring a manual copy/share step,
+So that onboarding a new member takes one click, with the original manual flow retained only as a fallback.
+
+**Acceptance Criteria:**
+
+**Given** a newly created member record
+**When** I click "Send Invite"
+**Then** the system automatically sends the personalized invitation (member's name, gym name, deep link) via WhatsApp through the Evolution API gateway — no manual copy/share step required
+
+**Given** the automated send succeeds
+**When** it completes
+**Then** the dashboard shows a confirmation ("Invite sent to [name] via WhatsApp")
+
+**Given** the automated send fails (Evolution API unreachable, instance disconnected)
+**When** the failure occurs
+**Then** the dashboard shows an inline error and offers the existing manual copy/share-via-WhatsApp flow as a fallback — the same UI Story 2.5 originally shipped, now demoted to a fallback path rather than the primary flow
+
+**Given** a member who was already sent an invite (successfully or not)
+**When** Manager/Owner clicks "Send Invite" again from the member's row
+**Then** a new automated send attempt is made via Evolution API (same success/failure/fallback behavior as the original send) — resending is not blocked or rate-limited beyond what Evolution API itself enforces
+
+**Given** the member taps the deep link (unchanged from original)
+**When** the app opens (or falls back to the Play Store/App Store)
+**Then** the deep link's phone number is available to pre-associate at the OTP step
+
 ## Epic 3: Subscription Lifecycle & Attendance
 
 Subscriptions automatically progress through active → expiring_soon → grace_period → expired; members check in via QR; occupancy and attendance are tracked and auto-closed.
