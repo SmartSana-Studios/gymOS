@@ -110,6 +110,10 @@ async function sendViaChain(phone: string, code: string, locale: "en" | "fr"): P
   return lastResult;
 }
 
+// Exported for testing only — the Edge Function's own entry point is the default export below;
+// Supabase's runtime ignores named exports on a function's index.ts.
+export { normalizePhone, PROVIDER_CHAIN, redactPhone, sendViaChain };
+
 export default {
   fetch: async (req: Request): Promise<Response> => {
     if (!wh) {

@@ -18,19 +18,23 @@ const MESSAGES: Record<"en" | "fr", string> = {
 
 // Hoisted to module scope: same warm-isolate rationale as gym-qr-display/index.ts and
 // payment-webhook/index.ts — created once per isolate boot, not once per OTP send. This is the
-// first OtpDeliveryProvider with a live database dependency; SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY
-// are Supabase-CLI-injected defaults for every Edge Function, so a missing value here means a
-// genuinely broken deployment, worth a hard isolate-boot failure with a clear message rather than
-// a client silently pointed nowhere.
+// first OtpDeliveryProvider with a live database dependency. Unlike gym-qr-display/payment-webhook
+// (each its own whole Edge Function, where a missing client is fatal to the only thing that
+// function does), this provider is one of four in send-sms-hook's PROVIDER_CHAIN, imported
+// statically at module scope alongside the others — throwing here would crash isolate boot for
+// the entire hook (Twilio/sent.dm included), not just disable Evolution API, defeating AD-11's
+// whole fallback-resilience point. Never throw; degrade to a per-request clean failure instead,
+// same "always return a DeliveryResult" contract every provider in this directory follows.
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-if (!supabaseUrl || !serviceRoleKey) {
-  throw new Error("EvolutionApiProvider: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
-}
-const supabase = createClient(supabaseUrl, serviceRoleKey);
+const supabase = supabaseUrl && serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null;
 
 export class EvolutionApiProvider implements OtpDeliveryProvider {
   async send(phone: string, code: string, locale: "en" | "fr"): Promise<DeliveryResult> {
+    if (!supabase) {
+      return { success: false, error: "Evolution API: missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" };
+    }
+
     const baseUrl = Deno.env.get("EVOLUTION_API_BASE_URL");
     const apiKey = Deno.env.get("EVOLUTION_API_KEY");
     if (!baseUrl || !apiKey) {
