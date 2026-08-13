@@ -6,6 +6,9 @@
 # last_updated: 2026-08-12 (dev-story: 2-9 status ready-for-dev -> in-progress, baseline_commit already set at 4c89fec, dev work starting)
 # last_updated: 2026-08-12 (dev-story: 2-9 status in-progress -> review -- Tasks 1-6 all complete; real Evolution API spike run live with the user against their instance (souna2 @ evo.ultradominon.com), PASS on both send and a real connector-level disconnect fall-through to TwilioWhatsAppProvider; EvolutionApiProvider ships as PROVIDER_CHAIN[0], OTP_PROVIDER fully retired; full evidence + a devcontainer/Docker infra fix (TMPDIR workaround for `supabase functions serve`) recorded in docs/decisions.md's 2026-08-12 entry)
 # last_updated: 2026-08-13 (code-review: 2-9 status review -> done -- 1 High (EvolutionApiProvider.ts threw at module scope on missing SUPABASE_URL/SERVICE_ROLE_KEY, which would have crashed isolate boot for the whole 4-provider chain, not just Evolution API -- fixed to degrade gracefully instead) + 1 Medium (EvolutionApiProvider.test.ts/index.test.ts/deno.lock existed but were missing from File List -- added) found and auto-fixed; deno check/test actually run for the first time (15/15 pass, previously assumed unavailable in-container) confirming both the pre-existing implementation and the fix)
+# last_updated: 2026-08-13 (create-story: 2-10 story file created, status backlog -> ready-for-dev -- Automated Member Invite via Evolution API; epic-2 already in-progress, no epic status change needed; authoritative source is epics.md's backfilled ### Story 2.10 header plus sprint-change-proposal-2026-08-08.md#4.5's Implementation Note (EvolutionApiMessageProvider, sendMemberInvite Server Action, InviteMemberModal kept as failure-path fallback); depends on Story 2.9's EvolutionApiProvider pattern and messaging_provider_config table, both confirmed done)
+# last_updated: 2026-08-13 (dev-story: 2-10 status ready-for-dev -> in-progress -> review -- Tasks 1-5 all complete; EvolutionApiMessageProvider (Node port of Story 2.9's EvolutionApiProvider), sendMemberInvite Server Action, MembersPageClient.tsx wiring, i18n keys, env vars all shipped; typecheck clean, lint clean relative to pre-existing baseline (4 unrelated pre-existing errors confirmed via git stash), i18n key-parity clean; live-verified against the real Evolution API instance (souna2 @ evo.ultradominon.com) with user consent -- success, forced-failure (clean {success:false}, never throws), and resend all confirmed against the Story 2.9 spike's test number)
+# last_updated: 2026-08-13 (code-review: 2-10 status review -> done -- 1 Medium finding (File List/Change Log omitted real, git-confirmed test-infrastructure and CI changes: apps/dashboard's first Vitest test runner, 3 test files/23 tests, turbo.json test task, ci.yml CI step -- already documented in tests/test-summary.md, just not synced back into the story file) found and auto-fixed; independently re-ran pnpm --filter dashboard test (23/23 pass), typecheck (0 errors), lint (same 4 pre-existing baseline errors), check-i18n-key-parity.mjs (pass) -- all claims verified against actual code, no High/Critical findings)
 # project: gym_os
 # project_key: NOKEY
 # tracking_system: file-system
@@ -41,7 +44,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-08-13 (code-review: 2-9 status review -> done, 1 High + 1 Medium finding auto-fixed)
+last_updated: 2026-08-13 (code-review: 2-10 status review -> done, 1 Medium finding auto-fixed)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -74,7 +77,7 @@ development_status:
   2-7-member-app-goal-experience-plan-confirmation: done
   2-8-member-self-service-profile-management: done
   2-9-evolution-api-sandbox-spike-otp-provider-fallback-chain: done
-  2-10-automated-member-invite-via-evolution-api: backlog
+  2-10-automated-member-invite-via-evolution-api: done
   epic-2-retrospective: done
 
   epic-3: in-progress

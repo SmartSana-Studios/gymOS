@@ -4,6 +4,7 @@ import { assignCoachSchema, createMemberSchema, editMemberSchema, deactivateMemb
 import {
   deactivateMember as deactivateMemberRow,
   exportMembersCsv as exportMembersCsvRow,
+  getMemberForInvite,
   getPlanTypeForGym,
   logMemberChange,
   memberCountForGym,
@@ -21,9 +22,11 @@ import {
   type CsvRowError,
   type ValidatedCsvRow,
 } from "@/services/csvImport";
+import { getDashboardShellContext } from "@/services/session";
 import { parseCsvRows } from "@/lib/csv";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { sendEvolutionApiMessage } from "@/lib/messaging/EvolutionApiMessageProvider";
 
 /** Manager/Owner Create Member (AC #1, #2). `{ data, error }` never-throws
  * contract, matches `createGym`/`createPlan`'s established Process Pattern.
@@ -194,6 +197,44 @@ export async function deactivateMember(
   }
 
   return { error: null };
+}
+
+/** Story 2.10 (AC #1, #2, #3, #4): automated WhatsApp invite send via the
+ * Evolution API gateway, replacing the manual copy/share step as the
+ * primary flow -- `InviteMemberModal.tsx` is kept, unmodified, demoted to a
+ * failure-path fallback the client opens when `sent: false`. Re-fetches
+ * name/phone server-side (never trusts a client-supplied value, this file's
+ * established discipline) and resolves `gymName` server-side via
+ * `getDashboardShellContext()` rather than accepting it as a parameter.
+ * `error` is only set for genuine failures (validation, member not found) --
+ * `sent: false` with `error: null` is the expected "gateway unreachable or
+ * not configured" outcome AC #3 requires the client to render as the
+ * fallback state, not a generic error toast. No audit-log entry (Story
+ * 2.5 Scope Note #3 precedent) and no persisted state -- this action reads
+ * and calls out only. */
+export async function sendMemberInvite(
+  memberId: string,
+): Promise<{ data: { sent: boolean } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = assignCoachSchema.shape.memberId.safeParse(memberId);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+
+  const { data: member, error: memberError } = await getMemberForInvite(parsed.data);
+  if (memberError || !member) {
+    return { data: null, error: memberError };
+  }
+
+  const { data: shell, error: shellError } = await getDashboardShellContext();
+  if (shellError || !shell) {
+    return { data: null, error: shellError ?? { code: "not_found", message: t("common.somethingWentWrong") } };
+  }
+
+  const message = t("members.invite.message", { name: member.name, gymName: shell.gymName });
+  const result = await sendEvolutionApiMessage(member.phone, message);
+
+  return { data: { sent: result.success }, error: null };
 }
 
 /** Story 5.1 (AC #1, #2): Manager/Owner assign/reassign a member's coach.

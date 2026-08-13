@@ -38,6 +38,11 @@ jobs:
       - name: i18n locale key-parity check
         run: pnpm run check:i18n
 
+      - name: Unit/component tests
+        # Scoped to dashboard, matching the lint step above -- the only app
+        # with a wired-up test runner so far (Story 2.10 QA automation).
+        run: npx turbo run test --filter=@gymos/dashboard
+
   rls-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15

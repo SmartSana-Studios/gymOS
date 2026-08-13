@@ -237,6 +237,44 @@ export async function listMembers(params: {
   };
 }
 
+/** Story 2.10: single-member fetch-by-id for `sendMemberInvite` -- no
+ * existing function covers this (`listMembers` is a paginated list, not
+ * fetch-by-id). Scoped by `gym_id` via `getCallerGymId()`, same as every
+ * other function in this file; never trusts a client-supplied name/phone
+ * (this file's established re-validation discipline, e.g. `createMember`).
+ * Returns `not_found` if the member doesn't belong to the caller's gym or
+ * has no phone -- both are the same "can't send an invite" outcome from the
+ * caller's perspective. */
+export async function getMemberForInvite(
+  memberId: string,
+): Promise<{ data: { name: string; phone: string } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data, error } = await supabase
+    .from("members")
+    .select("name, phone")
+    .eq("gym_id", gymId)
+    .eq("id", memberId)
+    .maybeSingle();
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  if (!data || !data.phone) {
+    return {
+      data: null,
+      error: await memberNotFoundError(
+        "0 rows or no phone for member invite lookup (non-manager/owner session, stale/cross-gym id, or member.phone is null)",
+      ),
+    };
+  }
+  return { data: { name: data.name, phone: data.phone }, error: null };
+}
+
 /** The fast-fail half of AC #2's cap check (Scope Note #4: counts every
  * row, no `deactivated_at is null` filter -- deactivating a member does not
  * free a slot). Reads the effective cap via

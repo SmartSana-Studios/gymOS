@@ -13,7 +13,7 @@ import type { MemberListRow } from "@/services/members";
 import type { PlanRow } from "@/services/plans";
 import type { CoachRow } from "@/services/coaches";
 import type { MemberRole } from "@/services/session";
-import { exportMembersCsv } from "../actions";
+import { exportMembersCsv, sendMemberInvite } from "../actions";
 import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
 import { MemberModal } from "./MemberModal";
 import { DeactivateMemberDialog } from "./DeactivateMemberDialog";
@@ -94,6 +94,7 @@ export function MembersPageClient({
   const [csvImportOpen, setCsvImportOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [sendingInviteId, setSendingInviteId] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -182,6 +183,34 @@ export function MembersPageClient({
       showToast(t("common.somethingWentWrong"));
     } finally {
       setExporting(false);
+    }
+  }
+
+  // Story 2.10 (AC #1-#4): Send Invite now attempts an automated WhatsApp
+  // send first -- InviteMemberModal only opens as the failure-path fallback
+  // (AC #3), not on every click. No disabled/one-shot guard is added after
+  // send: the button stays clickable for a resend (AC #4's explicit
+  // "resending is not blocked" requirement).
+  async function handleSendInvite(member: MemberListRow) {
+    setSendingInviteId(member.id);
+    try {
+      const { data } = await sendMemberInvite(member.id);
+      if (data?.sent) {
+        showToast(t("members.invite.sentConfirmation", { name: member.name }));
+        return;
+      }
+      // A `sent: false` result (gateway unreachable/not configured) and a
+      // genuine `error` (e.g. member not found) both fall through to the
+      // same visible-failure + fallback-modal path -- AC #3 requires the
+      // failure to be communicated, not just implicitly inferred from the
+      // modal appearing.
+      showToast(t("members.invite.sendFailedFallback"));
+      setInvitingMember(member);
+    } catch {
+      showToast(t("members.invite.sendFailedFallback"));
+      setInvitingMember(member);
+    } finally {
+      setSendingInviteId(null);
     }
   }
 
@@ -325,13 +354,16 @@ export function MembersPageClient({
                             variant="outline"
                             size="sm"
                             className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                            disabled={sendingInviteId === member.id}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setInvitingMember(member);
+                              void handleSendInvite(member);
                             }}
                           >
                             <Send size={14} />
-                            {t("members.actions.invite")}
+                            {sendingInviteId === member.id
+                              ? t("members.invite.sending")
+                              : t("members.actions.invite")}
                           </Button>
                         )}
                         {canManage && !member.deactivatedAt && (

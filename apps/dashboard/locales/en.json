@@ -257,7 +257,10 @@
       "message": "{{name}}, you've been added to {{gymName}} on GymOS. Download the app and enter your phone number to get started.",
       "copyMessage": "Copy message",
       "copied": "Copied!",
-      "shareWhatsapp": "Share via WhatsApp"
+      "shareWhatsapp": "Share via WhatsApp",
+      "sending": "Sending…",
+      "sentConfirmation": "Invite sent to {{name}} via WhatsApp",
+      "sendFailedFallback": "Automated send failed. Use the options below to share the invite manually."
     },
     "errors": {
       "memberNotFound": "Member not found",
