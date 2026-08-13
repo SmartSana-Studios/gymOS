@@ -242,9 +242,16 @@ export async function listMembers(params: {
  * fetch-by-id). Scoped by `gym_id` via `getCallerGymId()`, same as every
  * other function in this file; never trusts a client-supplied name/phone
  * (this file's established re-validation discipline, e.g. `createMember`).
- * Returns `not_found` if the member doesn't belong to the caller's gym or
- * has no phone -- both are the same "can't send an invite" outcome from the
- * caller's perspective. */
+ * Filters `role = "member"` (matches `listMembers`/`memberCountForGym`'s
+ * established pattern -- `gym_staff_read_own_members` RLS (0018) grants
+ * staff read access to every role in the gym, not just members, so this
+ * app-layer filter is what actually stops a coach/manager/owner id from
+ * reaching this lookup, code review fix) and `deactivated_at is null`
+ * (mirrors the UI's own `!member.deactivatedAt` gate on the Send Invite
+ * button -- code review fix, this function must not trust that client-side
+ * gate). Returns `not_found` if the member doesn't belong to the caller's
+ * gym, isn't an active `role = "member"` row, or has no phone -- all the
+ * same "can't send an invite" outcome from the caller's perspective. */
 export async function getMemberForInvite(
   memberId: string,
 ): Promise<{ data: { name: string; phone: string } | null; error: AppError | null }> {
@@ -259,6 +266,8 @@ export async function getMemberForInvite(
     .select("name, phone")
     .eq("gym_id", gymId)
     .eq("id", memberId)
+    .eq("role", "member")
+    .is("deactivated_at", null)
     .maybeSingle();
 
   if (error) {
@@ -268,7 +277,7 @@ export async function getMemberForInvite(
     return {
       data: null,
       error: await memberNotFoundError(
-        "0 rows or no phone for member invite lookup (non-manager/owner session, stale/cross-gym id, or member.phone is null)",
+        "0 rows or no phone for member invite lookup (non-manager/owner session, stale/cross-gym id, non-member role, deactivated member, or member.phone is null)",
       ),
     };
   }

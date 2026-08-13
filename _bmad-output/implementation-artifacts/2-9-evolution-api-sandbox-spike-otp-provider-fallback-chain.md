@@ -4,7 +4,7 @@ baseline_commit: 4c89fec9e33c9b5c6f89e981f8461f4a3175f523
 
 # Story 2.9: Evolution API Sandbox Spike & OTP Provider Fallback Chain
 
-Status: done
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -140,6 +140,11 @@ so that OTP delivery gains a lower-friction primary channel without weakening re
 - [Source: https://doc.evolution-api.com/v2/api-reference/message-controller/send-text, https://gist.github.com/dantetesta/b8b7e7e2d6196beae968c8b0a61afb7a] — Evolution API v2's documented `POST /message/sendText/{instance}` contract (`apikey` header, `{number, text}` body) — researched during story creation since Evolution API is not part of the original architecture; **the real spike (Task 4) is authoritative over this research if they conflict.**
 - [Source: https://github.com/EvolutionAPI/evolution-api/issues/2216] — a real user's report of `/instance/connect`/`/instance/connectionState` 404ing on some deployments/versions while `/message/sendText` works fine with the same base URL/key — flagged so a 404 during the spike isn't mistaken for a credentials problem; this story doesn't need the connection-state endpoint (Task 1 relies on `sendText`'s own response, not a separate state check), but the versioning fragility it reveals is worth knowing going in.
 - [[project_supabase_wsl]] — local Supabase/Docker must run from WSL for Task 4's manual spike execution.
+
+### Review Findings
+
+- [x] [Review][Decision] Story marked `done` but has undocumented rework — An uncommitted "code review fix" change exists against `index.ts` (per-provider failure logging switched from `console.log` to `console.error`, and the thrown-error/`success:false` log call sites were merged into one) that post-dates this story's `done` status and Change Log, with no entry recording who requested it or why. **Resolved 2026-08-13:** reopened — status `done` → `in-progress` until this round is committed and re-reviewed.
+- [x] [Review][Patch] `index.test.ts`'s log-capture helper can no longer verify the `console.error` log-level fix [supabase/functions/send-sms-hook/index.test.ts:47-58] — `captureConsoleLog()` now merges `console.log` and `console.error` output into a single ordered array, so no assertion distinguishes which stream a given line came from. The entire point of the code review fix (a failed provider must log at `console.error`, not `console.log`, so persistent chain-position failures reach error-level monitoring/alerting) has zero test coverage verifying the log level itself — a regression reverting to `console.log` for failures would pass all 15 tests undetected. **Fixed 2026-08-13:** `captureConsoleLog()` now tags each entry with its source stream (`log`/`error`); the existing test asserts the failed attempt's entry has `stream: "error"` and the successful attempt's has `stream: "log"` (15/15 Deno tests pass).
 
 ## Dev Agent Record
 

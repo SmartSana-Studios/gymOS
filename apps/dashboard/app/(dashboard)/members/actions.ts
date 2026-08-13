@@ -221,12 +221,15 @@ export async function sendMemberInvite(
     return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
   }
 
-  const { data: member, error: memberError } = await getMemberForInvite(parsed.data);
+  // Independent reads -- run concurrently rather than sequentially (code review fix): neither
+  // call's result feeds the other, both only need the caller's already-authenticated session.
+  const [{ data: member, error: memberError }, { data: shell, error: shellError }] = await Promise.all([
+    getMemberForInvite(parsed.data),
+    getDashboardShellContext(),
+  ]);
   if (memberError || !member) {
     return { data: null, error: memberError };
   }
-
-  const { data: shell, error: shellError } = await getDashboardShellContext();
   if (shellError || !shell) {
     return { data: null, error: shellError ?? { code: "not_found", message: t("common.somethingWentWrong") } };
   }

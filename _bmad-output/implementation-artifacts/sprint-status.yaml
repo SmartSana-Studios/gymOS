@@ -46,7 +46,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-07-04
-last_updated: 2026-08-13 (code-review: 2-10 status review -> done, 1 Medium finding auto-fixed); (create-story: 4-10 story file created, status backlog -> ready-for-dev -- Tara Money sandbox re-verification against GymOS's own now-activated business account 9FmIZg9GBB, resolving OQ-7 and OQ-13; authoritative source is epics.md's Story 4.10 header plus sprint-change-proposal-2026-08-11.md and prd.md's Open Questions table; no code changes expected, pure credential-swap spike mirroring Story 4.1 Task 9's methodology); (dev-story: 4-10 status ready-for-dev -> in-progress -> review -- Tasks 1-4 all complete; supabase/.env swapped to real 9FmIZg9GBB credentials (gitignored, uncommitted); real spike run live with the user against the real Cameroon test number (237659172788) -- PASS on real initiate, real webhook delivery (businessId 9FmIZg9GBB confirmed, resolving OQ-13), idempotency (duplicate replay + wrong-secret 401), all fixture rows cleaned up; payment_providers.taramoney.is_active confirmed unchanged (true); full evidence recorded in docs/decisions.md's 2026-08-13 entry, resolving OQ-7; Story 4.12's cutover is now unblocked; no code changes, only docs/decisions.md tracked in git)
+last_updated: 2026-08-13 (code-review: 2-9 and 2-10 both status done -> in-progress -- found uncommitted, undocumented "code review fix" changes on top of both already-done stories (2-9: send-sms-hook logging level fix; 2-10: sendMemberInvite parallelization, handleSendInvite error-branch split, getMemberForInvite role/deactivated_at filter); 1 patch finding per story (missing test coverage for the respective fix) written to each story file's own Review Findings section, reopened pending commit + re-review of this round); (code-review: 2-10 status review -> done, 1 Medium finding auto-fixed); (create-story: 4-10 story file created, status backlog -> ready-for-dev -- Tara Money sandbox re-verification against GymOS's own now-activated business account 9FmIZg9GBB, resolving OQ-7 and OQ-13; authoritative source is epics.md's Story 4.10 header plus sprint-change-proposal-2026-08-11.md and prd.md's Open Questions table; no code changes expected, pure credential-swap spike mirroring Story 4.1 Task 9's methodology); (dev-story: 4-10 status ready-for-dev -> in-progress -> review -- Tasks 1-4 all complete; supabase/.env swapped to real 9FmIZg9GBB credentials (gitignored, uncommitted); real spike run live with the user against the real Cameroon test number (237659172788) -- PASS on real initiate, real webhook delivery (businessId 9FmIZg9GBB confirmed, resolving OQ-13), idempotency (duplicate replay + wrong-secret 401), all fixture rows cleaned up; payment_providers.taramoney.is_active confirmed unchanged (true); full evidence recorded in docs/decisions.md's 2026-08-13 entry, resolving OQ-7; Story 4.12's cutover is now unblocked; no code changes, only docs/decisions.md tracked in git)
 project: gym_os
 project_key: NOKEY
 tracking_system: file-system
@@ -78,8 +78,8 @@ development_status:
   2-6-member-app-phone-otp-onboarding-through-profile-setup: done
   2-7-member-app-goal-experience-plan-confirmation: done
   2-8-member-self-service-profile-management: done
-  2-9-evolution-api-sandbox-spike-otp-provider-fallback-chain: done
-  2-10-automated-member-invite-via-evolution-api: done
+  2-9-evolution-api-sandbox-spike-otp-provider-fallback-chain: in-progress
+  2-10-automated-member-invite-via-evolution-api: in-progress
   epic-2-retrospective: done
 
   epic-3: in-progress

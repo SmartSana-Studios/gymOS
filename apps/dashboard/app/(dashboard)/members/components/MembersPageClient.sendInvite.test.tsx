@@ -112,6 +112,21 @@ describe("MembersPageClient - Send Invite (Story 2.10)", () => {
     expect(await screen.findByTestId("invite-fallback-modal")).toBeInTheDocument();
   });
 
+  it("code review fix: a genuine server error (e.g. member not found) shows the server's own message and does NOT open the fallback modal", async () => {
+    sendMemberInvite.mockResolvedValue({
+      data: null,
+      error: { code: "not_found", message: "This member could not be found." },
+    });
+    const user = userEvent.setup();
+    await renderPage();
+
+    await user.click(screen.getByRole("button", { name: /invite/i }));
+
+    const toast = await screen.findByRole("status");
+    expect(within(toast).getByText("This member could not be found.")).toBeInTheDocument();
+    expect(screen.queryByTestId("invite-fallback-modal")).not.toBeInTheDocument();
+  });
+
   it("AC #4: the Send Invite button remains clickable after a send, allowing an immediate resend", async () => {
     sendMemberInvite.mockResolvedValue({ data: { sent: true }, error: null });
     const user = userEvent.setup();

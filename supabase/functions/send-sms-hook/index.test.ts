@@ -41,11 +41,26 @@ function trackedProvider(behavior: "success" | "fail" | "throw", label = "provid
   };
 }
 
+// Captures both console.log (success) and console.error (failure, code review fix -- a
+// per-provider failure now logs at error level, not log level) into one ordered array, tagged
+// with which stream each line came from -- `lines` stays a plain-text projection for callers
+// that only care about content/order, `entries` exposes the stream tag for callers (review fix:
+// code review flagged that only exposing merged `lines` made the console.error-for-failures
+// fix itself unverifiable by any test) that need to assert failures use console.error, not
+// console.log.
 function captureConsoleLog() {
-  const lines: string[] = [];
-  const original = console.log;
-  console.log = (...args: unknown[]) => lines.push(args.map(String).join(" "));
-  return { lines, restore: () => (console.log = original) };
+  const entries: Array<{ stream: "log" | "error"; text: string }> = [];
+  const originalLog = console.log;
+  const originalError = console.error;
+  console.log = (...args: unknown[]) => entries.push({ stream: "log", text: args.map(String).join(" ") });
+  console.error = (...args: unknown[]) => entries.push({ stream: "error", text: args.map(String).join(" ") });
+  return {
+    entries,
+    restore: () => {
+      console.log = originalLog;
+      console.error = originalError;
+    },
+  };
 }
 
 Deno.test({
@@ -130,15 +145,17 @@ Deno.test({
     const a = trackedProvider("fail", "A");
     const b = trackedProvider("success");
     setChain(a, b);
-    const { lines, restore } = captureConsoleLog();
+    const { entries, restore } = captureConsoleLog();
     try {
       await sendViaChain(PHONE, CODE, "en");
-      assertEquals(lines.length, 2, "one log line per attempt");
-      for (const line of lines) {
-        assert(!line.includes(PHONE), `log line leaked the raw phone number: ${line}`);
+      assertEquals(entries.length, 2, "one log line per attempt");
+      for (const entry of entries) {
+        assert(!entry.text.includes(PHONE), `log line leaked the raw phone number: ${entry.text}`);
       }
-      assert(lines[0].includes("[REDACTED]"), "failed attempt must log the redacted error");
-      assert(lines[1].includes("success"), "successful attempt must log success");
+      assert(entries[0].text.includes("[REDACTED]"), "failed attempt must log the redacted error");
+      assert(entries[1].text.includes("success"), "successful attempt must log success");
+      assertEquals(entries[0].stream, "error", "code review fix: a failed attempt must log via console.error, not console.log, so it reaches error-level monitoring");
+      assertEquals(entries[1].stream, "log", "a successful attempt must still log via console.log");
     } finally {
       restore();
       restoreChain();

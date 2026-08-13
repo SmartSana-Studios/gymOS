@@ -12,6 +12,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 let claimsResult: { data: { claims: Record<string, unknown> | null } | null; error: unknown };
 let memberRow: { name: string; phone: string | null } | null;
 let memberQueryError: unknown;
+let eqCalls: Array<[string, unknown]>;
+let isCalls: Array<[string, unknown]>;
 
 function makeSupabaseStub() {
   return {
@@ -20,11 +22,27 @@ function makeSupabaseStub() {
     },
     from: vi.fn(() => ({
       select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            maybeSingle: vi.fn(async () => ({ data: memberRow, error: memberQueryError })),
-          })),
-        })),
+        eq: vi.fn((column: string, value: unknown) => {
+          eqCalls.push([column, value]);
+          return {
+            eq: vi.fn((column: string, value: unknown) => {
+              eqCalls.push([column, value]);
+              return {
+                eq: vi.fn((column: string, value: unknown) => {
+                  eqCalls.push([column, value]);
+                  return {
+                    is: vi.fn((column: string, value: unknown) => {
+                      isCalls.push([column, value]);
+                      return {
+                        maybeSingle: vi.fn(async () => ({ data: memberRow, error: memberQueryError })),
+                      };
+                    }),
+                  };
+                }),
+              };
+            }),
+          };
+        }),
       })),
     })),
   };
@@ -55,6 +73,8 @@ describe("getMemberForInvite", () => {
     claimsResult = { data: { claims: { gym_id: "gym-1" } }, error: null };
     memberRow = { name: "Alice", phone: "+237680811041" };
     memberQueryError = null;
+    eqCalls = [];
+    isCalls = [];
   });
 
   it("returns name/phone for a member belonging to the caller's gym", async () => {
@@ -63,6 +83,15 @@ describe("getMemberForInvite", () => {
     const result = await getMemberForInvite("member-1");
 
     expect(result).toEqual({ data: { name: "Alice", phone: "+237680811041" }, error: null });
+  });
+
+  it("code review fix: scopes the lookup to role='member' and excludes deactivated rows -- a coach/manager/owner id or a deactivated member must not resolve, since gym_staff_read_own_members RLS (0018) alone permits reading every role in the gym", async () => {
+    const { getMemberForInvite } = await import("./members");
+
+    await getMemberForInvite("member-1");
+
+    expect(eqCalls).toContainEqual(["role", "member"]);
+    expect(isCalls).toContainEqual(["deactivated_at", null]);
   });
 
   it("returns not_found when no row matches (stale id or cross-gym id)", async () => {

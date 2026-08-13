@@ -193,22 +193,36 @@ export function MembersPageClient({
   // "resending is not blocked" requirement).
   async function handleSendInvite(member: MemberListRow) {
     setSendingInviteId(member.id);
+    // Shared by both the "gateway unreachable" (`sent: false`) result below and an unexpected
+    // thrown exception in the catch block -- both are the same "couldn't confirm the automated
+    // send, use the manual fallback" outcome from the user's perspective (code review fix: this
+    // was previously two independently-maintained copies of the same two lines).
+    const showFallback = () => {
+      showToast(t("members.invite.sendFailedFallback"));
+      setInvitingMember(member);
+    };
     try {
-      const { data } = await sendMemberInvite(member.id);
+      const { data, error } = await sendMemberInvite(member.id);
       if (data?.sent) {
         showToast(t("members.invite.sentConfirmation", { name: member.name }));
         return;
       }
-      // A `sent: false` result (gateway unreachable/not configured) and a
-      // genuine `error` (e.g. member not found) both fall through to the
-      // same visible-failure + fallback-modal path -- AC #3 requires the
-      // failure to be communicated, not just implicitly inferred from the
-      // modal appearing.
-      showToast(t("members.invite.sendFailedFallback"));
-      setInvitingMember(member);
+      if (error) {
+        // A genuine failure (e.g. member not found/stale row) -- surface the
+        // server's own message instead of the generic gateway-down fallback
+        // copy, and skip the fallback modal (mirrors handleExport's { data,
+        // error } handling above; code review fix -- this branch previously
+        // discarded `error` entirely and treated it identically to the
+        // expected `sent: false` gateway-unreachable case below).
+        showToast(error.message);
+        return;
+      }
+      // A `sent: false` result with `error: null` is the expected "gateway
+      // unreachable or not configured" outcome AC #3 requires the client to
+      // render as the fallback state.
+      showFallback();
     } catch {
-      showToast(t("members.invite.sendFailedFallback"));
-      setInvitingMember(member);
+      showFallback();
     } finally {
       setSendingInviteId(null);
     }

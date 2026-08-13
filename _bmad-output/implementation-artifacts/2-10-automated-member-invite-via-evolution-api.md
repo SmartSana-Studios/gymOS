@@ -4,7 +4,7 @@ baseline_commit: 1e6a0998063af9c53edf6234928209cb333d3a70
 
 # Story 2.10: Automated Member Invite via Evolution API
 
-Status: done
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -141,6 +141,11 @@ apps/dashboard/.env.local                                                  (giti
   - [x] Add `EVOLUTION_API_BASE_URL`/`EVOLUTION_API_KEY` to `apps/dashboard/.env.example` (documented) and `.env.local` (gitignored, real values — same Story 2.9 already validated instance, copied from `supabase/.env`, no new credentials needed).
   - [x] `pnpm --filter dashboard typecheck` / `pnpm --filter dashboard lint` clean (typecheck: 0 errors; lint: same 4 pre-existing errors in `RecordRefundModal.tsx`/`RenewalModal.tsx`, confirmed present via `git stash` before this story's changes — no new failures introduced).
   - [x] Manual verification: with user consent, ran `sendEvolutionApiMessage` directly (the exact Task 1 code path) against local Supabase (`instance_id=souna2`) and the real, live `evo.ultradominon.com` gateway, targeting the same test number used in Story 2.9's spike (`+237680811041`, `docs/decisions.md` 2026-07-14 entry). All three scenarios confirmed: (1) successful send → `{success:true, channel:"whatsapp"}` (AC #1/#2), (2) forced failure via a bogus `instance_id` → clean `{success:false, error:"Evolution API 404: ..."}`, never throws (AC #3 — this is exactly the failure shape `sendMemberInvite`/`MembersPageClient.tsx` branch on to show the fallback), (3) resend after restoring the real `instance_id` → `{success:true}` again (AC #4, no blocking). `instance_id` was restored to `souna2` after the test. Full browser click-through of the Send Invite button/toast/fallback-modal UI was not additionally performed in this session (no interactive Manager/Owner browser session available) — the UI wiring (Task 3) was verified by typecheck (which validates the exact `sent`/`error` branching against `sendMemberInvite`'s real return type) and direct code review against the story's exact spec instead.
+
+### Review Findings
+
+- [x] [Review][Decision] Story marked `done` but has undocumented rework — Uncommitted "code review fix" changes exist against `actions.ts`, `MembersPageClient.tsx`, and `services/members.ts` (Promise.all parallelization in `sendMemberInvite`, error-vs-fallback branching split in `handleSendInvite`, `role`/`deactivated_at` filters added to `getMemberForInvite`) that post-date this story's `done` status and Change Log, with no corresponding entry recording who requested them or why. **Resolved 2026-08-13:** reopened — status `done` → `in-progress` until this round is committed and re-reviewed.
+- [x] [Review][Patch] `getMemberForInvite`'s new `role`/`deactivated_at` authorization filter has no real test coverage [apps/dashboard/services/members.getMemberForInvite.test.ts:16-35] — `services/members.ts:269-270` adds `.eq("role", "member").is("deactivated_at", null)`, but the test file's mock `Supabase` stub returns `memberRow` unconditionally regardless of what's passed to `.eq()`/`.is()`, and no test varies `role`/`deactivated_at` to prove a coach/manager/owner or deactivated member is actually excluded. A regression to this filter (wrong column, wrong value, or accidental removal) would pass CI undetected. **Fixed 2026-08-13:** the mock stub now records every `.eq()`/`.is()` call, and a new test asserts `getMemberForInvite` calls them with exactly `["role","member"]`/`["deactivated_at",null]` (25/25 tests pass).
 
 ## Dev Agent Record
 

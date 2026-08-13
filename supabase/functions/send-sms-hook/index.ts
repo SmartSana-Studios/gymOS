@@ -86,6 +86,12 @@ const PROVIDER_CHAIN: OtpDeliveryProvider[] = [
 // DeliveryResult, never throw) must not abort the whole chain, so each attempt gets its own
 // try/catch rather than one try/catch around the loop. Every attempt is logged (provider name +
 // outcome only, never the phone number/code) per AD-11's "every attempt is logged" requirement.
+// A failed attempt (whether from a thrown error or a `success: false` result) always logs at
+// console.error, not console.log (code review fix) -- a per-provider failure previously logged
+// at console.log, so a persistently broken PROVIDER_CHAIN[0] that a later provider always
+// rescues would never surface to error-level monitoring/alerting until the whole chain failed.
+// A thrown error and a `success: false` result now share one log call site below instead of
+// each having their own separately-maintained duplicate log line.
 async function sendViaChain(phone: string, code: string, locale: "en" | "fr"): Promise<DeliveryResult> {
   let lastResult: DeliveryResult = { success: false, error: "no OTP provider configured" };
 
@@ -96,15 +102,13 @@ async function sendViaChain(phone: string, code: string, locale: "en" | "fr"): P
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       lastResult = { success: false, error: message };
-      console.log(`send-sms-hook: ${providerName} → failed: ${redactPhone(message, phone)}`);
-      continue;
     }
 
     if (lastResult.success) {
       console.log(`send-sms-hook: ${providerName} → success`);
       return lastResult;
     }
-    console.log(`send-sms-hook: ${providerName} → failed: ${redactPhone(lastResult.error, phone)}`);
+    console.error(`send-sms-hook: ${providerName} → failed: ${redactPhone(lastResult.error, phone)}`);
   }
 
   return lastResult;
