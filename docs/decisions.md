@@ -4,6 +4,36 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-08-13 — TaraMoney real spike re-run PASSES against GYM OS's own now-activated business account (`9FmIZg9GBB`); resolves OQ-7 and OQ-13 — recorded during Story 4.10
+
+**Outcome: the spike passed in full, on the first attempt, against the real GYM OS business account.** Per `sprint-change-proposal-2026-08-11.md`, TaraMoney support confirmed `9FmIZg9GBB` activated since the two 2026-07-31 attempts recorded above (the first of which failed on this exact account with `BUSINESS_NOT_ACTIVATED_PLEASE_CONTACT_SUPPORT`). `supabase/.env` was swapped from the Temporal stand-in credentials back to the real `9FmIZg9GBB` credentials (`apiKey LcB8...redacted`, `webhookSecret I4Y2...redacted`) — no code or migration change was needed; `TaraMoneyProvider.ts` was re-read in full and confirmed to still read all three credentials exclusively via `Deno.env.get(...)`, unmodified since 2026-08-01. **This resolves OQ-7** (`prd.md` Open Questions table): production reliance on Tara Money (FR-100) now rests on the real business account, not a stand-in.
+
+**1. Real auth + initiation — PASS.** `POST https://www.dklo.co/api/tara/mobilepay` with the real `9FmIZg9GBB` credentials, 100 XAF, and the same real Cameroon number Story 4.1's spike used (`<redacted-phone-number>`) returned:
+```json
+{"status":"SUCCESS","message":"API_ORDER_SUCESSFULL","ussdCode":"#150*50#","vendor":"ORANGE_CAMEROON","transactionId":"165126343","price":0,"transactionList":[]}
+```
+Confirms Story 4.1's finding still holds against the real account's response shape: a SUCCESS response carries a usable `transactionId`, and `TaraMoneyProvider.initiate()`'s existing `body.transactionId ?? params.reference` fallback needed no change.
+
+**2. Real webhook delivery — PASS.** The user dialed the USSD prompt (`#150*50#`) to confirm the collection. TaraMoney delivered a real webhook to a fresh webhook.site capture URL (a new capture token created for this run, not reused):
+```json
+{"businessId":"9FmIZg9GBB","paymentId":"165126343","amount":"100","originalAmount":"97","mobileOperator":"ORANGE_CAMEROON","collectionId":"165126343","phoneNumber":"<redacted-phone-number>","creationDate":"2026-08-13T18:25:33.212-03:00","changeDate":"2026-08-13T18:25:33.212-03:00","status":"SUCCESS","productId":"story-4-10-reverify-1786656261","invoiceUrl":"https://www.dklo.co/DkLMRsT/hUfJEgELp?PgeV=165126343","transactionId":"MP260813.2224.D34194"}
+```
+with header **`tara-webhook-secret: I4Y2...redacted`** — an exact match to the swapped `TARAMONEY_WEBHOOK_SECRET`, confirming the shared-secret header mechanism holds identically for this account. Replayed against the local `payment-webhook` function's real HTTP endpoint (`supabase functions serve payment-webhook`, started with `TMPDIR` pointed under the project directory per the 2026-08-12 devcontainer workaround below, and `--env-file supabase/.env` to pick up the swapped credentials — env changes do not hot-reload into an already-running instance) using a throwaway gym/member/auth-user fixture created for this test (`provider_transaction_ref` pre-seeded to `165126343` so the webhook handler's existing-row lookup could match it): `HTTP 200`, the `payments` row transitioned to `status: "verified"`, `provider: "taramoney"`, `method: "orange_money"`, `provider_fee_amount: 3` (100 − 97, TaraMoney's fee deduction).
+
+**3. Idempotency — PASS.** The same captured payload replayed a second time: `HTTP 200`, still exactly one `payments` row (no duplicate) for `provider_transaction_ref = 165126343`. A third request with a deliberately wrong `tara-webhook-secret` header: `HTTP 401`, confirmed zero additional DB writes. Same three-call pattern as Story 4.1's Task 9.
+
+**4. `businessId` scoping — confirmed, resolves OQ-13.** The real webhook payload's `businessId` field is `9FmIZg9GBB` — the real GYM OS account, distinct from the Temporal stand-in's `wxND8vZv5v` seen in the 2026-07-31 entries above. **This is concrete evidence that TaraMoney scopes a collection/settlement to the specific `businessId` supplied in the initiate request** — confirming (per `prd.md`'s OQ-13) that Tara Money's create-collect flow is callback/webhook-driven (not poll-based, consistent with every prior spike in this log) and that payments settle per the `businessId` supplied, not to some platform-wide account. This directly informs Story 4.13's per-gym-credential design (`AD-15`): routing a gym's collections through its own `businessId`/credential pair is an architecturally sound model, not just an assumption.
+
+**5. `payment_providers.taramoney.is_active` was confirmed unchanged (`true`)** before and after this spike — `activate_payment_provider()` was never called, matching this story's explicit scope (activation state is Story 4.12's concern, not this one's).
+
+**Cleanup:** all fixture rows (payment, member, gym, tier, auth user) created for the webhook-replay test were deleted from the local DB afterward — no fixture data was left behind, same discipline as Stories 4.1/4.2.
+
+**What's now unblocked:** with this passing re-run recorded, Story 4.12's cutover (Notch Pay → Tara Money) is no longer blocked. `supabase/.env` now holds the real `9FmIZg9GBB` credentials active, with the Temporal credentials commented out alongside them for reference/rollback.
+
+**Why recorded here, not just in the story file:** same category as the four 2026-07-31 entries below — this is the exact re-verification `ARCHITECTURE-SPINE.md`'s "Deferred" section and `epics.md`'s Story 4.10 header named as the sole remaining prerequisite before any real member payment may route through Tara Money, and it resolves two named open questions (OQ-7, OQ-13) with real, dated evidence rather than an assumption.
+
+---
+
 ## 2026-08-12 — Evolution API Sandbox Spike: PASS on both send and disconnect fall-through, `EvolutionApiProvider` joins the OTP chain as `PROVIDER_CHAIN[0]` — recorded during Story 2.9
 
 **Decision 1 — `EvolutionApiProvider` is validated and becomes the first entry in the OTP fallback chain. AC #1/#2/#3: PASS.** Against the user's already-running, self-hosted Evolution API instance (`https://evo.ultradominon.com`, instance `souna2`), a direct `POST /message/sendText/souna2` call with `{"number": "237680811041", "text": "..."}` returned **HTTP 201** with a real `key`/`message`/`status: "PENDING"` response body, and the user confirmed real WhatsApp receipt on the physical device (`+237680811041`, same test number as every prior OTP spike in this log). This confirms the researched contract from Task 1 exactly as assumed: the live instance expects the `number` field as bare digits with no leading `+` (not a `jid`-style `"<digits>@s.whatsapp.net"` alternative form) — no code correction was needed.
