@@ -1,6 +1,13 @@
 "use server";
 
-import { assignCoachSchema, createMemberSchema, editMemberSchema, deactivateMemberSchema, type AppError } from "@gymos/types";
+import {
+  assignCoachSchema,
+  createMemberSchema,
+  editMemberSchema,
+  deactivateMemberSchema,
+  memberIdSchema,
+  type AppError,
+} from "@gymos/types";
 import {
   deactivateMember as deactivateMemberRow,
   exportMembersCsv as exportMembersCsvRow,
@@ -216,7 +223,7 @@ export async function sendMemberInvite(
   memberId: string,
 ): Promise<{ data: { sent: boolean } | null; error: AppError | null }> {
   const { t } = await getServerTranslation(await getRequestLocale());
-  const parsed = assignCoachSchema.shape.memberId.safeParse(memberId);
+  const parsed = memberIdSchema.safeParse(memberId);
   if (!parsed.success) {
     return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
   }

@@ -164,3 +164,11 @@ export const deactivateMemberSchema = z.object({
 });
 
 export type DeactivateMemberInput = z.infer<typeof deactivateMemberSchema>;
+
+// A bare member-id validator for Server Actions that take just an id, no
+// other fields (e.g. sendMemberInvite) -- same z.uuid() strictness as
+// assignCoachSchema.shape.memberId (Story 5.1), duplicated here rather than
+// imported from that unrelated coach-assignment schema file, so a future
+// change to assignCoachSchema for coach-assignment reasons can't silently
+// affect member-invite validation (Review finding, Story 2.10).
+export const memberIdSchema = z.uuid("Select a valid member");

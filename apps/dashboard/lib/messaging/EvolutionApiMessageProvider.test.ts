@@ -123,6 +123,29 @@ describe("sendEvolutionApiMessage", () => {
     expect(fromMock).toHaveBeenCalledTimes(2);
   });
 
+  it("returns a clean failure, never throws, when the fetch is aborted by the timeout (Review finding, Story 2.10)", async () => {
+    singleMock.mockResolvedValue({ data: { instance_id: "souna2" }, error: null });
+    globalThis.fetch = vi.fn().mockRejectedValue(new DOMException("The operation was aborted.", "AbortError"));
+    const { sendEvolutionApiMessage } = await import("./EvolutionApiMessageProvider");
+
+    const result = await sendEvolutionApiMessage(PHONE, MESSAGE);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("timed out after");
+    }
+  });
+
+  it("returns a clean failure when fetch rejects with a non-Error value (Review finding, Story 2.10)", async () => {
+    singleMock.mockResolvedValue({ data: { instance_id: "souna2" }, error: null });
+    globalThis.fetch = vi.fn().mockRejectedValue("network exploded");
+    const { sendEvolutionApiMessage } = await import("./EvolutionApiMessageProvider");
+
+    const result = await sendEvolutionApiMessage(PHONE, MESSAGE);
+
+    expect(result).toEqual({ success: false, error: "Evolution API request failed" });
+  });
+
   it("returns a clean failure if response.text() itself throws while reading a non-ok body", async () => {
     singleMock.mockResolvedValue({ data: { instance_id: "souna2" }, error: null });
     globalThis.fetch = vi.fn().mockResolvedValue({

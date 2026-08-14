@@ -224,7 +224,11 @@ export function MembersPageClient({
     } catch {
       showFallback();
     } finally {
-      setSendingInviteId(null);
+      // Only clear if this row is still the in-flight one -- a second Send Invite click on a
+      // different member before this one resolves would otherwise have its own still-pending
+      // "sending" state (and disabled button) cleared early by this unrelated completion,
+      // letting the user double-send the second invite (Review finding, Story 2.10).
+      setSendingInviteId((current) => (current === member.id ? null : current));
     }
   }
 

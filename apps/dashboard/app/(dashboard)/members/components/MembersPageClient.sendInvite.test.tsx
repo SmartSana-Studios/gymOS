@@ -127,6 +127,18 @@ describe("MembersPageClient - Send Invite (Story 2.10)", () => {
     expect(screen.queryByTestId("invite-fallback-modal")).not.toBeInTheDocument();
   });
 
+  it("Review finding (Story 2.10): an unexpected thrown exception falls back the same as a gateway-unreachable result", async () => {
+    sendMemberInvite.mockRejectedValue(new Error("network exploded"));
+    const user = userEvent.setup();
+    await renderPage();
+
+    await user.click(screen.getByRole("button", { name: /invite/i }));
+
+    const toast = await screen.findByRole("status");
+    expect(within(toast).getByText("Automated send failed -- fallback shown")).toBeInTheDocument();
+    expect(await screen.findByTestId("invite-fallback-modal")).toBeInTheDocument();
+  });
+
   it("AC #4: the Send Invite button remains clickable after a send, allowing an immediate resend", async () => {
     sendMemberInvite.mockResolvedValue({ data: { sent: true }, error: null });
     const user = userEvent.setup();
