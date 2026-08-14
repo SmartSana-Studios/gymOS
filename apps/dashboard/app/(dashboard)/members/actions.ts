@@ -221,15 +221,17 @@ export async function sendMemberInvite(
     return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
   }
 
-  // Independent reads -- run concurrently rather than sequentially (code review fix): neither
-  // call's result feeds the other, both only need the caller's already-authenticated session.
-  const [{ data: member, error: memberError }, { data: shell, error: shellError }] = await Promise.all([
-    getMemberForInvite(parsed.data),
-    getDashboardShellContext(),
-  ]);
+  const { data: member, error: memberError } = await getMemberForInvite(parsed.data);
   if (memberError || !member) {
     return { data: null, error: memberError };
   }
+
+  // Sequential, not parallel: getDashboardShellContext() awaits supabase.auth.getClaims()
+  // before its own internal Promise.all (session.ts, Story 1.7 finding) specifically so that
+  // an unguarded getClaims() throw never lands inside a Promise.all and rejects an unrelated
+  // batch. Wrapping it in a Promise.all here with getMemberForInvite() would reintroduce that
+  // exact bug on every invite attempt, including ones that would have failed fast above.
+  const { data: shell, error: shellError } = await getDashboardShellContext();
   if (shellError || !shell) {
     return { data: null, error: shellError ?? { code: "not_found", message: t("common.somethingWentWrong") } };
   }
