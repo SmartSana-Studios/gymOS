@@ -14,6 +14,7 @@ import { AttendancePageClient } from "./components/AttendancePageClient";
 import AttendanceLoading from "./loading";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { isMobileMoneyInitiationEnabled } from "@/lib/featureFlags";
 
 type AttendanceSearchParams = Promise<{
   page?: string;
@@ -94,6 +95,7 @@ async function AttendanceData({ searchParams }: { searchParams: AttendanceSearch
       gymId={shell.gymId}
       initialAlerts={alertsData?.alerts ?? []}
       autoDismissMinutes={alertsData?.autoDismissMinutes ?? 30}
+      mobileMoneyEnabled={isMobileMoneyInitiationEnabled()}
     />
   );
 }

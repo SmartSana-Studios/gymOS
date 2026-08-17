@@ -1,8 +1,10 @@
 "use server";
 
-import { flagPaymentSchema, recordManualPaymentSchema, recordRefundSchema, type AppError } from "@gymos/types";
+import { flagPaymentSchema, initiatePaymentSchema, recordManualPaymentSchema, recordRefundSchema, type AppError } from "@gymos/types";
 import {
   flagPayment,
+  getPendingMobileMoneyPayment,
+  initiatePayment,
   listRefundEligiblePayments,
   logPaymentChange,
   logRefundChange,
@@ -14,6 +16,7 @@ import {
 } from "@/services/payments";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { isMobileMoneyInitiationEnabled } from "@/lib/featureFlags";
 
 /** AC #1, #4: Record Payment. Same `audit_log_failed`-code-means-"saved but
  * log the warning" pattern as `createMember`/`deactivateMember` -- the
@@ -152,4 +155,44 @@ export async function recordRefundAction(
   }
 
   return { data: { id: data.id }, error: null };
+}
+
+/**
+ * Story 4.12 (AC #1): the first real UI-reachable caller of
+ * `initiatePayment()` (`services/payments.ts`, built since Story 4.2 but
+ * never wired to any dashboard screen until now). Inserts a `processing`
+ * `payments` row and triggers a real Tara Money USSD prompt on the member's
+ * phone -- the caller (RenewalModal) must not treat a successful `{ data }`
+ * response as a completed renewal; the subscription only actually renews
+ * once Tara Money's webhook later confirms via `complete_verified_payment()`
+ * (Story 4.2's Decision 2).
+ */
+export async function initiatePaymentAction(
+  input: unknown,
+): Promise<{ data: { paymentId: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+
+  if (!isMobileMoneyInitiationEnabled()) {
+    return { data: null, error: { code: "not_found", message: t("renewalPanel.errors.mobileMoneyDisabled") } };
+  }
+
+  const parsed = initiatePaymentSchema.safeParse(input);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+
+  return initiatePayment(parsed.data);
+}
+
+/**
+ * Review finding (Story 4.12): lets `RenewalModal` discover an existing
+ * `processing` mobile_money payment for this member on open, so it can
+ * resume watching it instead of allowing a second, duplicate initiation.
+ * Not kill-switch-gated -- this is a read of existing state, not a new
+ * initiation, so it must still resolve even if the flag is currently off.
+ */
+export async function getPendingMobileMoneyPaymentAction(
+  memberId: string,
+): Promise<{ data: { paymentId: string } | null; error: AppError | null }> {
+  return getPendingMobileMoneyPayment(memberId);
 }

@@ -5,6 +5,7 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { getDashboardShellContext } from "@/services/session";
 import { listActiveFrontDeskAlerts } from "@/services/frontDeskAlerts";
 import { FrontDeskAlertPanel } from "@/components/shared/FrontDeskAlertPanel";
+import { isMobileMoneyInitiationEnabled } from "@/lib/featureFlags";
 
 /**
  * AD-02 Overview -- still a minimal shell (story Dev Notes -> Scope
@@ -43,6 +44,7 @@ async function OverviewData() {
           gymId={shell.gymId}
           initialAlerts={alertsData?.alerts ?? []}
           autoDismissMinutes={alertsData?.autoDismissMinutes ?? 30}
+          mobileMoneyEnabled={isMobileMoneyInitiationEnabled()}
         />
       )}
       <div className="flex flex-col gap-2">

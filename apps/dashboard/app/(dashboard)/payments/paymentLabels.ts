@@ -31,6 +31,11 @@ export const PAYMENT_METHOD_LABEL_KEY: Record<string, string> = {
   cash: "payments.methods.cash",
   bank_transfer: "payments.methods.bankTransfer",
   manual_momo: "payments.methods.manualMomo",
+  // Story 4.12: the automated, initiatePayment()-backed method -- distinct
+  // from manual_momo (a staff-attested, already-collected-in-cash mobile
+  // money payment). Only ever offered by RenewalModal's `mobile_money`
+  // option, never recordManualPaymentSchema's closed enum.
+  mobile_money: "payments.methods.mobileMoney",
 };
 
 // Story 4.4: only the two discrepancy types the Discrepancies section ever

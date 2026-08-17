@@ -8,8 +8,15 @@ import { confirmRenewalSchema, type ConfirmRenewalInput } from "@gymos/types";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { dismissFrontDeskAlert } from "@/lib/realtime/frontDeskAlerts";
+import {
+  fetchPaymentStatus,
+  subscribeToPaymentStatus,
+  type WatchedPaymentStatus,
+} from "@/lib/realtime/paymentStatus";
 import { PAYMENT_METHOD_LABEL_KEY } from "@/app/(dashboard)/payments/paymentLabels";
 import { confirmRenewalAction, getRenewalPreviewAction } from "@/app/(dashboard)/subscriptions/actions";
+import { getPendingMobileMoneyPaymentAction, initiatePaymentAction } from "@/app/(dashboard)/payments/actions";
+import { createClient } from "@/lib/supabase/client";
 import type { RenewalPreview } from "@/services/subscriptions";
 
 interface FieldErrors {
@@ -22,15 +29,32 @@ interface FieldErrors {
 // displaying issue.message directly. `memberId`/`method` are never
 // user-editable inputs here (memberId is a prop, method is a closed enum
 // select) so only `reason` (the Note field) has a reachable field error.
+// Never reachable for the `mobile_money` branch (Story 4.12) -- that branch
+// bypasses confirmRenewalSchema entirely (see handleSubmit).
 const FIELD_ERROR_KEY: Record<keyof FieldErrors, string> = {
   reason: "renewalPanel.errors.reasonInvalid",
 };
 
-const METHOD_OPTIONS: { value: ConfirmRenewalInput["method"] }[] = [
+// Story 4.12 (AC #1): `mobile_money` is NOT part of `ConfirmRenewalInput["method"]`
+// (that stays confirmRenewalSchema's own closed, manual-methods-only enum,
+// per packages/types/src/schemas/subscription.ts's own comment) -- it's a
+// UI-only branch that calls `initiatePaymentAction`/`initiatePaymentSchema`
+// instead of `confirmRenewalAction`/`confirmRenewalSchema`.
+type RenewalMethod = ConfirmRenewalInput["method"] | "mobile_money";
+
+const MANUAL_METHOD_OPTIONS: { value: ConfirmRenewalInput["method"] }[] = [
   { value: "cash" },
   { value: "bank_transfer" },
   { value: "manual_momo" },
 ];
+
+// Story 4.12 (Task 2): mirrors the reconciliation job's own 10-minute
+// stale_processing threshold (0032_payment_reconciliation_job.sql) as the
+// outer bound for "this is taking unusually long" -- but the UI surfaces a
+// non-blocking "still waiting" state well before that, not a 10-minute
+// silent spinner.
+const STILL_WAITING_MS = 45_000;
+const POLL_INTERVAL_MS = 5000;
 
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
@@ -58,6 +82,7 @@ export function RenewalModal({
   memberId,
   memberName,
   originalExpiryDate,
+  mobileMoneyEnabled,
   onClose,
   onRenewed,
 }: {
@@ -65,6 +90,13 @@ export function RenewalModal({
   memberId: string;
   memberName: string;
   originalExpiryDate?: string | null;
+  /** Story 4.12 (AC #4): the UI-level half of the kill switch -- read from
+   * `TARAMONEY_INITIATION_ENABLED` by each Server Component caller and
+   * threaded down, same convention as `autoDismissMinutes`. Required (no
+   * default) so a caller can't accidentally omit it and silently show a
+   * dead option; `initiatePaymentAction`'s own server-side check is the real
+   * enforcement regardless of what this prop says. */
+  mobileMoneyEnabled: boolean;
   onClose: () => void;
   onRenewed: () => void;
 }) {
@@ -76,7 +108,7 @@ export function RenewalModal({
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(true);
 
-  const [method, setMethod] = useState<ConfirmRenewalInput["method"]>("cash");
+  const [method, setMethod] = useState<RenewalMethod>("cash");
   const [note, setNote] = useState(t("renewalPanel.notePrefillCash"));
   // Story 4.8: only ever true when `originalExpiryDate` is passed (the
   // Subscriptions page, for grace_period/expired rows with a non-null
@@ -96,6 +128,19 @@ export function RenewalModal({
   // double-submit confirm_renewal(). Closing and reopening the panel (a
   // fresh mount, fresh preview fetch) is the safe way to try again.
   const [retryBlocked, setRetryBlocked] = useState(false);
+
+  // Story 4.12 (Task 2): the `mobile_money` branch's own async state machine,
+  // entirely separate from `submitting`/`retryBlocked` above (those exist
+  // for confirmRenewalAction's synchronous request/response cycle only).
+  // "idle": form not yet submitted for this method. "sending": the brief
+  // initiatePaymentAction call itself. "pending"/"stillWaiting": watching
+  // `initiatedPaymentId` via Realtime (below) for a terminal state. "failed":
+  // the payment was flagged (declined/rejected), not initiateAction erroring
+  // (that's `formError`, handled the same as the manual-methods branch).
+  const [mobileMoneyPhase, setMobileMoneyPhase] = useState<
+    "idle" | "sending" | "pending" | "stillWaiting" | "failed"
+  >("idle");
+  const [initiatedPaymentId, setInitiatedPaymentId] = useState<string | null>(null);
 
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -128,10 +173,121 @@ export function RenewalModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
 
+  // Review finding (Story 4.12): discover an already-`processing`
+  // mobile_money payment for this member on open, so a receptionist who
+  // closed the pending panel and reopened the modal (a flow the UI itself
+  // invites -- see the pending panel's "close and check back" copy) resumes
+  // watching the existing payment instead of being able to submit a second
+  // one. Only meaningful when Mobile Money is offered at all.
+  useEffect(() => {
+    if (!mobileMoneyEnabled) return;
+    let active = true;
+    getPendingMobileMoneyPaymentAction(memberId).then(({ data }) => {
+      if (!active || !data) return;
+      setInitiatedPaymentId(data.paymentId);
+      setMobileMoneyPhase("pending");
+    });
+    return () => {
+      active = false;
+    };
+  }, [memberId, mobileMoneyEnabled]);
+
+  // Story 4.12 (Task 2, AC #1): watches the initiated payment row for a
+  // terminal state once `initiatedPaymentId` is set (mobile_money branch
+  // only). Realtime-subscription-with-polling-degrade, mirroring
+  // `FrontDeskAlertPanel`'s established AD-20 pattern exactly -- decided as
+  // this story's approach (user direction, 2026-08-17). Deliberately a plain
+  // effect + local state, not TanStack Query: this is a single ephemeral
+  // row-watch scoped to one modal instance, not a shared cache other
+  // components read.
+  useEffect(() => {
+    if (!initiatedPaymentId) return;
+    const paymentId = initiatedPaymentId;
+
+    let active = true;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+    function stopPolling() {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    }
+
+    async function handleUpdate(row: { status: WatchedPaymentStatus }) {
+      if (!active) return;
+      if (row.status === "verified") {
+        stopPolling();
+        // Same alert-dismiss-then-onRenewed sequence as the synchronous
+        // confirmRenewalAction success path below -- see its own comment for
+        // why the dismiss error is logged, not surfaced/blocking.
+        if (alertId) {
+          const { error: dismissError } = await dismissFrontDeskAlert(alertId);
+          if (dismissError) {
+            console.error(
+              `RenewalModal: mobile money renewal for member ${memberId} succeeded but dismissing alert ${alertId} failed -- ${dismissError.message}`,
+            );
+          }
+        }
+        if (active) onRenewed();
+      } else if (row.status === "flagged") {
+        stopPolling();
+        setMobileMoneyPhase("failed");
+      }
+      // "processing" is a no-op here -- still waiting, nothing to update.
+    }
+
+    function startPolling() {
+      if (pollTimer) return;
+      pollTimer = setInterval(() => {
+        void fetchPaymentStatus(paymentId).then((row) => {
+          if (row) void handleUpdate(row);
+        });
+      }, POLL_INTERVAL_MS);
+    }
+
+    function handleStatusChange(status: string) {
+      if (status === "SUBSCRIBED") {
+        stopPolling();
+        return;
+      }
+      startPolling();
+    }
+
+    const channel = subscribeToPaymentStatus(
+      paymentId,
+      (row) => void handleUpdate(row),
+      handleStatusChange,
+    );
+    const supabase = createClient();
+
+    const stillWaitingTimer = setTimeout(() => {
+      setMobileMoneyPhase((current) => (current === "pending" ? "stillWaiting" : current));
+    }, STILL_WAITING_MS);
+
+    return () => {
+      active = false;
+      stopPolling();
+      clearTimeout(stillWaitingTimer);
+      void supabase.removeChannel(channel);
+    };
+  }, [initiatedPaymentId, alertId, memberId, onRenewed]);
+
   // UX: "pre-filled 'Paid at desk' for Cash; cleared when method changes".
-  function handleMethodChange(nextMethod: ConfirmRenewalInput["method"]) {
+  // `mobile_money` (Story 4.12) has no note/reason field at all (
+  // initiatePaymentSchema carries none) -- cleared the same as any
+  // non-cash manual method for consistency, even though it's unused.
+  function handleMethodChange(nextMethod: RenewalMethod) {
     setMethod(nextMethod);
     setNote(nextMethod === "cash" ? t("renewalPanel.notePrefillCash") : "");
+    // Review finding (Story 4.12): `retryBlocked`/`formError` are set by a
+    // failed manual-method (confirmRenewalAction) attempt, but the submit
+    // button's `disabled` check reads `retryBlocked` regardless of method --
+    // without this, switching to Mobile Money after a retry-blocked manual
+    // attempt left "Send Payment Request" permanently disabled with a stale
+    // error message and no way to recover short of closing the modal.
+    setRetryBlocked(false);
+    setFormError(null);
   }
 
   function methodLabel(method: string): string {
@@ -143,10 +299,50 @@ export function RenewalModal({
     onClose();
   }
 
+  /**
+   * Story 4.12 (Task 2, AC #1): the `mobile_money` branch. Does NOT go
+   * through `confirmRenewalSchema`/`confirmRenewalAction` (see this file's
+   * top-of-file comment) -- `initiatePayment()` inserts a `processing` row
+   * and returns immediately; the subscription only actually renews later,
+   * once Tara Money's webhook confirms (watched by the effect above).
+   */
+  async function handleMobileMoneySubmit() {
+    setFormError(null);
+
+    if (!preview?.memberPhone) {
+      setFormError(t("renewalPanel.errors.noPhoneOnFile"));
+      return;
+    }
+
+    setMobileMoneyPhase("sending");
+    try {
+      const { data, error } = await initiatePaymentAction({
+        memberId,
+        phoneNumber: preview.memberPhone,
+        method: "mobile_money",
+      });
+      if (error || !data) {
+        setFormError(error?.message || t("renewalPanel.errors.initiateFailed"));
+        setMobileMoneyPhase("idle");
+        return;
+      }
+      setInitiatedPaymentId(data.paymentId);
+      setMobileMoneyPhase("pending");
+    } catch {
+      setFormError(t("renewalPanel.errors.initiateFailed"));
+      setMobileMoneyPhase("idle");
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFieldErrors({});
     setFormError(null);
+
+    if (method === "mobile_money") {
+      await handleMobileMoneySubmit();
+      return;
+    }
 
     const parsed = confirmRenewalSchema.safeParse({ memberId, method, reason: note, backdate });
     if (!parsed.success) {
@@ -201,12 +397,24 @@ export function RenewalModal({
     }
   }
 
+  // Story 4.12 (Task 2): once a mobile_money payment has been initiated,
+  // the form's method/note/submit-button area is replaced by the pending
+  // panel below -- these three phases all mean "watching initiatedPaymentId",
+  // "failed" included since the payment reached a real terminal state
+  // (flagged) the user needs to see, not just still-pending ones.
+  const isWatchingMobileMoney =
+    mobileMoneyPhase === "pending" || mobileMoneyPhase === "stillWaiting" || mobileMoneyPhase === "failed";
+  const blockClose = submitting || mobileMoneyPhase === "sending";
+  const methodOptions: { value: RenewalMethod }[] = mobileMoneyEnabled
+    ? [...MANUAL_METHOD_OPTIONS, { value: "mobile_money" }]
+    : MANUAL_METHOD_OPTIONS;
+
   return (
     <dialog
       ref={dialogRef}
       onClose={resetAndClose}
       onCancel={(e) => {
-        if (submitting) e.preventDefault();
+        if (blockClose) e.preventDefault();
       }}
       className="w-full max-w-[480px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
     >
@@ -217,7 +425,7 @@ export function RenewalModal({
             type="button"
             aria-label={t("renewalPanel.close")}
             onClick={resetAndClose}
-            disabled={submitting}
+            disabled={blockClose}
             className="text-muted-foreground hover:text-foreground disabled:opacity-50"
           >
             <X size={16} />
@@ -263,52 +471,91 @@ export function RenewalModal({
           </div>
         ) : null}
 
-        <div className="space-y-2">
-          <Label htmlFor={`renewalMethod-${domIdSuffix}`}>{t("renewalPanel.method")}</Label>
-          <select
-            id={`renewalMethod-${domIdSuffix}`}
-            value={method}
-            onChange={(e) => handleMethodChange(e.target.value as ConfirmRenewalInput["method"])}
-            disabled={submitting || !preview}
-            className={selectClassName}
-          >
-            {METHOD_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {methodLabel(option.value)}
-              </option>
-            ))}
-          </select>
-        </div>
+        {isWatchingMobileMoney ? (
+          // Story 4.12 (Task 2, AC #1): the async wait-for-confirmation
+          // state. No form fields here -- this is a read-only status view
+          // until the Realtime-watch effect above resolves it, or the
+          // receptionist closes the modal to check back later (the payment
+          // stays `processing`/`flagged` in the DB either way).
+          <div className="space-y-3 rounded-md border p-3 text-sm">
+            {mobileMoneyPhase === "failed" ? (
+              <p className="text-red-600">{t("renewalPanel.pending.failed")}</p>
+            ) : (
+              <>
+                <p className="font-medium">{t("renewalPanel.pending.title", { name: memberName })}</p>
+                <p className="text-muted-foreground">{t("renewalPanel.pending.description")}</p>
+                {mobileMoneyPhase === "stillWaiting" && (
+                  <p className="text-muted-foreground">{t("renewalPanel.pending.stillWaiting")}</p>
+                )}
+              </>
+            )}
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor={`renewalMethod-${domIdSuffix}`}>{t("renewalPanel.method")}</Label>
+              <select
+                id={`renewalMethod-${domIdSuffix}`}
+                value={method}
+                onChange={(e) => handleMethodChange(e.target.value as RenewalMethod)}
+                disabled={submitting || !preview}
+                className={selectClassName}
+              >
+                {methodOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {methodLabel(option.value)}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div className="space-y-2">
-          <Label htmlFor={`renewalNote-${domIdSuffix}`}>{t("renewalPanel.note")} *</Label>
-          <textarea
-            id={`renewalNote-${domIdSuffix}`}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            disabled={submitting || !preview}
-            className="flex min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-          <p className="text-xs text-muted-foreground">{t("renewalPanel.noteCount", { count: note.length })}</p>
-          {fieldErrors.reason && <p className="text-sm text-red-600">{fieldErrors.reason}</p>}
-        </div>
+            {method !== "mobile_money" && (
+              <div className="space-y-2">
+                <Label htmlFor={`renewalNote-${domIdSuffix}`}>{t("renewalPanel.note")} *</Label>
+                <textarea
+                  id={`renewalNote-${domIdSuffix}`}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  disabled={submitting || !preview}
+                  className="flex min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+                <p className="text-xs text-muted-foreground">{t("renewalPanel.noteCount", { count: note.length })}</p>
+                {fieldErrors.reason && <p className="text-sm text-red-600">{fieldErrors.reason}</p>}
+              </div>
+            )}
+          </>
+        )}
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" onClick={resetAndClose} disabled={submitting}>
-            {t("common.cancel")}
+          <Button type="button" variant="outline" onClick={resetAndClose} disabled={blockClose}>
+            {isWatchingMobileMoney ? t("renewalPanel.pending.closeButton") : t("common.cancel")}
           </Button>
-          <Button type="submit" disabled={submitting || !preview || retryBlocked}>
-            {submitting ? (
-              t("renewalPanel.confirming")
-            ) : (
-              <>
-                {t("renewalPanel.confirmButton")}
-                <ArrowRight />
-              </>
-            )}
-          </Button>
+          {!isWatchingMobileMoney && (
+            <Button
+              type="submit"
+              disabled={submitting || !preview || retryBlocked || mobileMoneyPhase === "sending"}
+            >
+              {method === "mobile_money" ? (
+                mobileMoneyPhase === "sending" ? (
+                  t("renewalPanel.sendingPaymentRequest")
+                ) : (
+                  <>
+                    {t("renewalPanel.sendPaymentRequestButton")}
+                    <ArrowRight />
+                  </>
+                )
+              ) : submitting ? (
+                t("renewalPanel.confirming")
+              ) : (
+                <>
+                  {t("renewalPanel.confirmButton")}
+                  <ArrowRight />
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </form>
     </dialog>

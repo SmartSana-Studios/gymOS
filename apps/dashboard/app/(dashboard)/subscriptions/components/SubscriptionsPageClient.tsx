@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { ChevronLeft, ChevronRight, ArrowUp, ArrowDown, RotateCw } from "lucide-react";
@@ -74,6 +74,7 @@ export function SubscriptionsPageClient({
   planType,
   sort,
   dir,
+  mobileMoneyEnabled,
 }: {
   initialSubscriptions: SubscriptionListRow[];
   total: number;
@@ -83,6 +84,8 @@ export function SubscriptionsPageClient({
   planType: string;
   sort: string;
   dir: string;
+  /** Story 4.12 (AC #4): threaded straight through to `RenewalModal`. */
+  mobileMoneyEnabled: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -90,6 +93,13 @@ export function SubscriptionsPageClient({
   const searchParams = useSearchParams();
 
   const [renewingRow, setRenewingRow] = useState<SubscriptionListRow | null>(null);
+  // Review finding (Story 4.12): a stable identity for `onRenewed` -- see
+  // FrontDeskAlertPanel's identical fix for why RenewalModal's pending-
+  // payment watch effect needs this callback's identity to stay stable.
+  const handleRenewed = useCallback(() => {
+    setRenewingRow(null);
+    router.refresh();
+  }, [router]);
   const [toast, setToast] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -343,11 +353,9 @@ export function SubscriptionsPageClient({
               ? renewingRow.expiryDate
               : undefined
           }
+          mobileMoneyEnabled={mobileMoneyEnabled}
           onClose={() => setRenewingRow(null)}
-          onRenewed={() => {
-            setRenewingRow(null);
-            router.refresh();
-          }}
+          onRenewed={handleRenewed}
         />
       )}
 

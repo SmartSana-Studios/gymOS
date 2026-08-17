@@ -32,10 +32,12 @@ export type RenewSubscriptionInput = z.infer<typeof renewSubscriptionSchema>;
 // comment naming this story as its intended consumer -- inherits
 // memberId/reason (5-200 chars) verbatim; a 5-char minimum, not the 10-char
 // minimum recordManualPaymentSchema uses for its note field (an accepted
-// inconsistency from reusing this schema's shape, not a bug). `method` is
-// the same 3-value manual-methods enum as recordManualPaymentSchema -- the
-// renewal panel never offers mtn_momo/orange_money (those are
-// initiatePaymentSchema's automated-only methods).
+// inconsistency from reusing this schema's shape, not a bug). `method` stays
+// this same 3-value closed manual-methods enum -- Story 4.12 added a 4th,
+// automated `mobile_money` option to RenewalModal's own local UI-only
+// `RenewalMethod` union, but that branch calls `initiatePaymentAction`/
+// `initiatePaymentSchema` instead of `confirmRenewalAction`/this schema, so
+// this enum itself is intentionally unchanged.
 export const confirmRenewalSchema = renewSubscriptionSchema.extend({
   method: z.enum(["cash", "bank_transfer", "manual_momo"]),
   backdate: z.boolean().optional(),

@@ -1,0 +1,18 @@
+-- Story 4.12 (code review patch): `RenewalModal`'s new pending-payment
+-- watch (`apps/dashboard/lib/realtime/paymentStatus.ts`) subscribes to
+-- `postgres_changes` UPDATE events on `payments`, mirroring
+-- `front_desk_alerts`' Realtime-with-polling-degrade pattern (0034,
+-- Story 4.6, AD-20). That migration's own header comment notes it was
+-- "the first migration in the codebase to add a table to the
+-- `supabase_realtime` publication" -- `payments` was never added, which
+-- this migration closes. Without it, the channel still reports
+-- `"SUBSCRIBED"` (websocket-topic acknowledgment, independent of
+-- publication membership), so the UI's polling fallback never engages
+-- either -- a real `processing -> verified`/`flagged` transition would
+-- never reach the pending panel.
+--
+-- Security: same as 0034 -- Realtime evaluates `gym_staff_read_own_payments`
+-- (0030_payment_initiation_and_renewal.sql) per subscribing client before
+-- ever delivering a row; this ALTER PUBLICATION statement grants no new
+-- access by itself.
+alter publication supabase_realtime add table payments;

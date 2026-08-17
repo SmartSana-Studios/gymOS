@@ -148,6 +148,43 @@ export async function initiatePayment(
   return { data: { paymentId: paymentRow.id }, error: null };
 }
 
+/**
+ * Review finding (Story 4.12): `RenewalModal` had no way to discover an
+ * already-`processing` mobile_money payment for this member -- closing the
+ * pending panel (a flow the UI itself invites) and reopening the modal lost
+ * all memory of it, letting a second "Send Payment Request" click fire a
+ * second real USSD prompt. Called on modal open so the pending panel can
+ * resume watching the existing row instead of starting a fresh one.
+ * `gym_staff_read_own_payments` (0030) is the same RLS gate `initiatePayment`
+ * itself relies on -- no separate authorization check needed here.
+ */
+export async function getPendingMobileMoneyPayment(
+  memberId: string,
+): Promise<{ data: { paymentId: string } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data, error } = await supabase
+    .from("payments")
+    .select("id")
+    .eq("gym_id", gymId)
+    .eq("member_id", memberId)
+    .eq("method", "mobile_money")
+    .eq("status", "processing")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  return { data: data ? { paymentId: data.id } : null, error: null };
+}
+
 // ============================================================================
 // Story 4.3: manual payment recording + verification queue. This is a
 // payment *ledger* entry, not a renewal -- see the story file's Scope Note.

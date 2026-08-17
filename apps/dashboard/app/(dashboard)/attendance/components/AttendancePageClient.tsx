@@ -56,6 +56,7 @@ export function AttendancePageClient({
   gymId,
   initialAlerts,
   autoDismissMinutes,
+  mobileMoneyEnabled,
 }: {
   currentlyCheckedIn: CurrentlyCheckedInRow[];
   checkedInTotal: number;
@@ -72,6 +73,8 @@ export function AttendancePageClient({
   gymId: string;
   initialAlerts: FrontDeskAlertRow[];
   autoDismissMinutes: number;
+  /** Story 4.12 (AC #4): threaded straight through to `FrontDeskAlertPanel`. */
+  mobileMoneyEnabled: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -179,7 +182,12 @@ export function AttendancePageClient({
 
   return (
     <div className="space-y-8">
-      <FrontDeskAlertPanel gymId={gymId} initialAlerts={initialAlerts} autoDismissMinutes={autoDismissMinutes} />
+      <FrontDeskAlertPanel
+        gymId={gymId}
+        initialAlerts={initialAlerts}
+        autoDismissMinutes={autoDismissMinutes}
+        mobileMoneyEnabled={mobileMoneyEnabled}
+      />
 
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">

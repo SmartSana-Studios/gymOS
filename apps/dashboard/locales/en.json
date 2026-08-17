@@ -466,7 +466,8 @@
     "methods": {
       "cash": "Cash",
       "bankTransfer": "Bank Transfer",
-      "manualMomo": "Manual Mobile Money"
+      "manualMomo": "Manual Mobile Money",
+      "mobileMoney": "Mobile Money (Tara Money)"
     },
     "verifyButton": "Verify",
     "flagButton": "Flag",
@@ -570,11 +571,23 @@
     "confirmButton": "Confirm Renewal",
     "confirming": "Confirming…",
     "backdateCheckbox": "Back-date to original expiry ({{date}})",
+    "sendPaymentRequestButton": "Send Payment Request",
+    "sendingPaymentRequest": "Sending…",
+    "pending": {
+      "title": "Waiting for {{name}} to approve on their phone…",
+      "description": "A payment request was sent by SMS. This will update automatically once it's confirmed.",
+      "stillWaiting": "Still waiting — you can close this and check back on the Payments page.",
+      "failed": "The payment was not approved or was declined.",
+      "closeButton": "Close"
+    },
     "errors": {
       "reasonInvalid": "Add a note (at least 5 characters)",
       "noActivePlan": "This member has no active plan to renew.",
       "previewLoadFailed": "Couldn't load renewal details. Check your connection and try again.",
-      "confirmFailed": "Renewal failed. Check your connection and try again."
+      "confirmFailed": "Renewal failed. Check your connection and try again.",
+      "noPhoneOnFile": "This member has no phone number on file — add one before requesting a Mobile Money payment.",
+      "mobileMoneyDisabled": "Automated Mobile Money payments are temporarily unavailable. Use cash or another manual method.",
+      "initiateFailed": "Couldn't send the payment request. Check your connection and try again."
     }
   },
   "audit": {

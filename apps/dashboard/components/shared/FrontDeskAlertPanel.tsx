@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
@@ -56,10 +56,16 @@ export function FrontDeskAlertPanel({
   gymId,
   initialAlerts,
   autoDismissMinutes,
+  mobileMoneyEnabled,
 }: {
   gymId: string;
   initialAlerts: FrontDeskAlertRow[];
   autoDismissMinutes: number;
+  /** Story 4.12 (AC #4): threaded straight through to `RenewalModal`, same
+   * convention as `autoDismissMinutes` -- read from `TARAMONEY_INITIATION_ENABLED`
+   * by each Server Component caller (`page.tsx`/`AttendancePageClient`'s own
+   * `page.tsx`). */
+  mobileMoneyEnabled: boolean;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -88,6 +94,13 @@ export function FrontDeskAlertPanel({
   // already-gone alert a harmless no-op, so holding a stale snapshot open is
   // safe.
   const [openRenewalAlert, setOpenRenewalAlert] = useState<FrontDeskAlertRow | null>(null);
+  // Review finding (Story 4.12): a stable identity for `onRenewed` --
+  // RenewalModal's mobile-money pending-payment watch effect lists this
+  // callback as a dependency, and this panel re-renders on every unrelated
+  // Realtime alert INSERT/UPDATE and query cache write, so a fresh inline
+  // arrow here would tear down/recreate the payment-status subscription
+  // continuously while a payment is pending.
+  const handleRenewed = useCallback(() => setOpenRenewalAlert(null), []);
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Review finding (Story 4.6): guards against an INSERT event's async
@@ -243,8 +256,9 @@ export function FrontDeskAlertPanel({
           alertId={openRenewalAlert.id}
           memberId={openRenewalAlert.memberId}
           memberName={openRenewalAlert.memberName || t("frontDeskAlert.unknownMember")}
+          mobileMoneyEnabled={mobileMoneyEnabled}
           onClose={() => setOpenRenewalAlert(null)}
-          onRenewed={() => setOpenRenewalAlert(null)}
+          onRenewed={handleRenewed}
         />
       )}
     </div>

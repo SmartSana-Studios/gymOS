@@ -144,10 +144,17 @@ export interface RenewalPreview {
   planName: string;
   price: number;
   currency: string;
+  /** Story 4.12: the member's own E.164 phone, needed to offer the
+   * automated Mobile Money (Tara Money) option -- `null` when the member has
+   * no phone on file, in which case the panel must not offer that option
+   * (initiatePaymentSchema requires a valid phone). Sourced from the same
+   * query as plan/price rather than a second round-trip. */
+  memberPhone: string | null;
 }
 
 interface RenewalPreviewRowFromDb {
   plans: { name: string; price: number; currency: string } | null;
+  members: { phone: string | null } | null;
 }
 
 /**
@@ -170,7 +177,7 @@ export async function getRenewalPreview(
 
   const { data, error } = await supabase
     .from("subscriptions")
-    .select("plans(name, price, currency)")
+    .select("plans(name, price, currency), members(phone)")
     .eq("gym_id", gymId)
     .eq("member_id", memberId)
     .order("created_at", { ascending: false })
@@ -181,13 +188,17 @@ export async function getRenewalPreview(
     return { data: null, error: await mapAndLog(error) };
   }
 
-  const plan = (data as unknown as RenewalPreviewRowFromDb | null)?.plans ?? null;
+  const row = data as unknown as RenewalPreviewRowFromDb | null;
+  const plan = row?.plans ?? null;
   if (!plan) {
     console.warn(`[subscriptions] getRenewalPreview: member ${memberId} has no subscription/plan to preview`);
     return { data: null, error: { code: "not_found", message: t("renewalPanel.errors.noActivePlan") } };
   }
 
-  return { data: { planName: plan.name, price: plan.price, currency: plan.currency }, error: null };
+  return {
+    data: { planName: plan.name, price: plan.price, currency: plan.currency, memberPhone: row?.members?.phone ?? null },
+    error: null,
+  };
 }
 
 // ============================================================================

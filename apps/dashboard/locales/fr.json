@@ -466,7 +466,8 @@
     "methods": {
       "cash": "Espèces",
       "bankTransfer": "Virement bancaire",
-      "manualMomo": "Mobile Money manuel"
+      "manualMomo": "Mobile Money manuel",
+      "mobileMoney": "Mobile Money (Tara Money)"
     },
     "verifyButton": "Vérifier",
     "flagButton": "Signaler",
@@ -570,11 +571,23 @@
     "confirmButton": "Confirmer le renouvellement",
     "confirming": "Confirmation…",
     "backdateCheckbox": "Antidater à la date d'expiration d'origine ({{date}})",
+    "sendPaymentRequestButton": "Envoyer la demande de paiement",
+    "sendingPaymentRequest": "Envoi…",
+    "pending": {
+      "title": "En attente de l'approbation de {{name}} sur son téléphone…",
+      "description": "Une demande de paiement a été envoyée par SMS. Cette page se mettra à jour automatiquement une fois confirmée.",
+      "stillWaiting": "Toujours en attente — vous pouvez fermer cette fenêtre et revenir plus tard sur la page Paiements.",
+      "failed": "Le paiement n'a pas été approuvé ou a été refusé.",
+      "closeButton": "Fermer"
+    },
     "errors": {
       "reasonInvalid": "Ajoutez une note (5 caractères minimum)",
       "noActivePlan": "Ce membre n'a aucun forfait actif à renouveler.",
       "previewLoadFailed": "Impossible de charger les détails du renouvellement. Vérifiez votre connexion et réessayez.",
-      "confirmFailed": "Le renouvellement a échoué. Vérifiez votre connexion et réessayez."
+      "confirmFailed": "Le renouvellement a échoué. Vérifiez votre connexion et réessayez.",
+      "noPhoneOnFile": "Ce membre n'a pas de numéro de téléphone enregistré — ajoutez-en un avant de demander un paiement Mobile Money.",
+      "mobileMoneyDisabled": "Les paiements Mobile Money automatisés sont temporairement indisponibles. Utilisez les espèces ou une autre méthode manuelle.",
+      "initiateFailed": "Impossible d'envoyer la demande de paiement. Vérifiez votre connexion et réessayez."
     }
   },
   "audit": {

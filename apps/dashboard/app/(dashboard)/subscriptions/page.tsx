@@ -5,6 +5,7 @@ import { SubscriptionsPageClient } from "./components/SubscriptionsPageClient";
 import SubscriptionsLoading from "./loading";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { isMobileMoneyInitiationEnabled } from "@/lib/featureFlags";
 
 /**
  * AD-08 Subscriptions List. Server Component + explicit <Suspense> -- same
@@ -77,6 +78,7 @@ async function SubscriptionsData({
       planType={params.planType ?? ""}
       sort={params.sort ?? "name"}
       dir={params.dir ?? "asc"}
+      mobileMoneyEnabled={isMobileMoneyInitiationEnabled()}
     />
   );
 }
