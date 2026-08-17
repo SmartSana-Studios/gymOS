@@ -14,7 +14,7 @@ import { AttendancePageClient } from "./components/AttendancePageClient";
 import AttendanceLoading from "./loading";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
-import { isMobileMoneyInitiationEnabled } from "@/lib/featureFlags";
+import { canOfferMobileMoneyPayment } from "@/lib/featureFlags";
 
 type AttendanceSearchParams = Promise<{
   page?: string;
@@ -65,12 +65,14 @@ async function AttendanceData({ searchParams }: { searchParams: AttendanceSearch
     { data: logPage, error: logError },
     { data: shell, error: shellError },
     { data: alertsData },
+    mobileMoneyEnabled,
   ] = await Promise.all([
     getCurrentlyCheckedIn({ page: checkedInPage }),
     getTodayAttendanceCount(),
     listAttendanceLog({ page, from, to, memberSearch: params.memberSearch }),
     getDashboardShellContext(),
     listActiveFrontDeskAlerts(),
+    canOfferMobileMoneyPayment(),
   ]);
 
   if (checkedInError || todayCountError || logError || shellError || !shell) {
@@ -95,7 +97,7 @@ async function AttendanceData({ searchParams }: { searchParams: AttendanceSearch
       gymId={shell.gymId}
       initialAlerts={alertsData?.alerts ?? []}
       autoDismissMinutes={alertsData?.autoDismissMinutes ?? 30}
-      mobileMoneyEnabled={isMobileMoneyInitiationEnabled()}
+      mobileMoneyEnabled={mobileMoneyEnabled}
     />
   );
 }

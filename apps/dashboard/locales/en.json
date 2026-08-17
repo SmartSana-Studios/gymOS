@@ -42,7 +42,8 @@
       "membership": "Membership",
       "attendance": "Attendance",
       "frontDeskAlerts": "Front-Desk Alerts",
-      "qrCode": "QR Code"
+      "qrCode": "QR Code",
+      "payments": "Payment Account"
     },
     "sectionDescriptions": {
       "branding": "Logo, gym name & brand color",
@@ -50,7 +51,8 @@
       "membership": "Grace period & member capacity",
       "attendance": "Check-in session timeout",
       "frontDeskAlerts": "Auto-dismiss timing for alerts",
-      "qrCode": "Check-in code for your gym"
+      "qrCode": "Check-in code for your gym",
+      "payments": "Connect your Tara Money account for mobile-money payments"
     },
     "fields": {
       "gymName": "Gym Name *",
@@ -82,6 +84,32 @@
       "regenerateConfirmBody": "This will invalidate the current code immediately. Any printed or displayed copies will stop working. You will need to replace them.",
       "regenerating": "Regenerating…",
       "regenerateFailedToast": "Couldn't regenerate. Try again."
+    },
+    "payments": {
+      "notConnected": "Not connected. Cash and manual payment methods still work as usual.",
+      "connect": "Connect",
+      "reconnect": "Reconnect",
+      "disconnect": "Disconnect",
+      "connecting": "Connecting…",
+      "disconnecting": "Disconnecting…",
+      "connectedLabel": "Connected — {{businessId}}",
+      "connectedSince": "Since {{date}}",
+      "connectDialogTitle": "Connect your Tara Money account",
+      "connectDialogBody": "Your credentials are encrypted and never shown again after saving. Automated settlement directly into your own account activates in a future release — for now, connecting only stores your credentials securely.",
+      "apiKeyLabel": "API Key *",
+      "businessIdLabel": "Business ID *",
+      "webhookSecretLabel": "Webhook Secret *",
+      "apiKeyRequiredError": "API key is required",
+      "apiKeyTooLongError": "API key is too long",
+      "businessIdRequiredError": "Business ID is required",
+      "businessIdTooLongError": "Business ID is too long",
+      "webhookSecretRequiredError": "Webhook secret is required",
+      "webhookSecretTooLongError": "Webhook secret is too long",
+      "connectedToast": "Payment account connected.",
+      "disconnectConfirmTitle": "Disconnect payment account?",
+      "disconnectConfirmBody": "Members will no longer see the automated mobile-money payment option. Cash and other manual methods are unaffected.",
+      "disconnectedToast": "Payment account disconnected.",
+      "disconnectFailedToast": "Couldn't disconnect. Try again."
     },
     "errors": {
       "gymNotFound": "Gym not found",
@@ -587,6 +615,7 @@
       "confirmFailed": "Renewal failed. Check your connection and try again.",
       "noPhoneOnFile": "This member has no phone number on file — add one before requesting a Mobile Money payment.",
       "mobileMoneyDisabled": "Automated Mobile Money payments are temporarily unavailable. Use cash or another manual method.",
+      "mobileMoneyNotConnected": "Connect your Tara Money account in Settings first to accept automated Mobile Money payments.",
       "initiateFailed": "Couldn't send the payment request. Check your connection and try again."
     }
   },

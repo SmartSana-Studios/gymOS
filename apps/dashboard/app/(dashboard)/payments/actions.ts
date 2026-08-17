@@ -16,7 +16,7 @@ import {
 } from "@/services/payments";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
-import { isMobileMoneyInitiationEnabled } from "@/lib/featureFlags";
+import { getMobileMoneyAvailability } from "@/lib/featureFlags";
 
 /** AC #1, #4: Record Payment. Same `audit_log_failed`-code-means-"saved but
  * log the warning" pattern as `createMember`/`deactivateMember` -- the
@@ -172,8 +172,23 @@ export async function initiatePaymentAction(
 ): Promise<{ data: { paymentId: string } | null; error: AppError | null }> {
   const { t } = await getServerTranslation(await getRequestLocale());
 
-  if (!isMobileMoneyInitiationEnabled()) {
-    return { data: null, error: { code: "not_found", message: t("renewalPanel.errors.mobileMoneyDisabled") } };
+  // Story 4.13 review fix: routed through the shared
+  // `getMobileMoneyAvailability()` helper (same one `canOfferMobileMoneyPayment()`
+  // uses) instead of re-checking the kill switch and connection status
+  // inline -- still surfaces the 3 distinct outcomes this action needs
+  // ("feature disabled" / "connect Tara Money in Settings" / a real
+  // backend error mean different things to an Owner deciding what to do
+  // next), but a real RPC failure no longer gets misreported as "not
+  // connected."
+  const availability = await getMobileMoneyAvailability();
+  if (!availability.available) {
+    if (availability.reason === "disabled") {
+      return { data: null, error: { code: "not_found", message: t("renewalPanel.errors.mobileMoneyDisabled") } };
+    }
+    if (availability.reason === "not_connected") {
+      return { data: null, error: { code: "not_found", message: t("renewalPanel.errors.mobileMoneyNotConnected") } };
+    }
+    return { data: null, error: availability.error };
   }
 
   const parsed = initiatePaymentSchema.safeParse(input);

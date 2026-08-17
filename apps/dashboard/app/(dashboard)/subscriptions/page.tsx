@@ -5,7 +5,7 @@ import { SubscriptionsPageClient } from "./components/SubscriptionsPageClient";
 import SubscriptionsLoading from "./loading";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
-import { isMobileMoneyInitiationEnabled } from "@/lib/featureFlags";
+import { canOfferMobileMoneyPayment } from "@/lib/featureFlags";
 
 /**
  * AD-08 Subscriptions List. Server Component + explicit <Suspense> -- same
@@ -55,13 +55,16 @@ async function SubscriptionsData({
   const parsedPage = params.page ? Number(params.page) : 1;
   const page = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
 
-  const { data: subscriptionsPage, error } = await listSubscriptions({
-    status: params.status,
-    planType: params.planType,
-    sort: params.sort,
-    dir: params.dir,
-    page,
-  });
+  const [{ data: subscriptionsPage, error }, mobileMoneyEnabled] = await Promise.all([
+    listSubscriptions({
+      status: params.status,
+      planType: params.planType,
+      sort: params.sort,
+      dir: params.dir,
+      page,
+    }),
+    canOfferMobileMoneyPayment(),
+  ]);
 
   if (error) {
     const { t } = await getServerTranslation(await getRequestLocale());
@@ -78,7 +81,7 @@ async function SubscriptionsData({
       planType={params.planType ?? ""}
       sort={params.sort ?? "name"}
       dir={params.dir ?? "asc"}
-      mobileMoneyEnabled={isMobileMoneyInitiationEnabled()}
+      mobileMoneyEnabled={mobileMoneyEnabled}
     />
   );
 }

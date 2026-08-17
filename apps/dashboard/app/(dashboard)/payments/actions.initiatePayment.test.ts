@@ -7,10 +7,18 @@
  * switch (`TARAMONEY_INITIATION_ENABLED`) and input validation -- the
  * underlying `initiatePayment()` service function's own behavior is Story
  * 4.2's concern, already covered there, and is mocked here.
+ *
+ * Story 4.13 (Task 5, AC #3): a *second* gate was added on top of the kill
+ * switch -- the gym must have connected its own Tara Money account
+ * (`getGymPaymentConnectionStatus`). `getConnectionStatusResult` defaults to
+ * "connected" in `beforeEach` so the pre-existing Story 4.12 cases above
+ * keep exercising exactly what they always did; the new gate itself gets
+ * its own dedicated cases below.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const initiatePayment = vi.fn();
+const getGymPaymentConnectionStatus = vi.fn();
 
 vi.mock("@/services/payments", () => ({
   initiatePayment: (...args: unknown[]) => initiatePayment(...args),
@@ -25,6 +33,10 @@ vi.mock("@/services/payments", () => ({
   recordRefund: vi.fn(),
   searchMembersForPayment: vi.fn(),
   verifyPayment: vi.fn(),
+}));
+
+vi.mock("@/services/gym-payment-credentials", () => ({
+  getGymPaymentConnectionStatus: (...args: unknown[]) => getGymPaymentConnectionStatus(...args),
 }));
 
 vi.mock("@/lib/i18n/get-request-locale", () => ({
@@ -46,6 +58,11 @@ const ORIGINAL_ENV = process.env.TARAMONEY_INITIATION_ENABLED;
 describe("initiatePaymentAction", () => {
   beforeEach(() => {
     initiatePayment.mockReset();
+    getGymPaymentConnectionStatus.mockReset();
+    getGymPaymentConnectionStatus.mockResolvedValue({
+      data: { businessIdMasked: "•••• 1234", connectedAt: "2026-08-17T00:00:00Z" },
+      error: null,
+    });
     delete process.env.TARAMONEY_INITIATION_ENABLED;
   });
 
@@ -116,5 +133,62 @@ describe("initiatePaymentAction", () => {
     const result = await initiatePaymentAction(VALID_INPUT);
 
     expect(result).toEqual({ data: null, error: { code: "not_found", message: "no active provider" } });
+  });
+
+  it("AC #3: when the gym has not connected Tara Money, returns a distinct error and never calls initiatePayment", async () => {
+    getGymPaymentConnectionStatus.mockResolvedValue({ data: null, error: null });
+    const { initiatePaymentAction } = await import("./actions");
+
+    const result = await initiatePaymentAction(VALID_INPUT);
+
+    expect(initiatePayment).not.toHaveBeenCalled();
+    expect(result.data).toBeNull();
+    expect(result.error?.code).toBe("not_found");
+    expect(result.error?.message).toBe("renewalPanel.errors.mobileMoneyNotConnected");
+  });
+
+  it("AC #3: the not-connected error is distinct from the kill-switch-disabled error", async () => {
+    process.env.TARAMONEY_INITIATION_ENABLED = "false";
+    const { initiatePaymentAction } = await import("./actions");
+
+    const disabledResult = await initiatePaymentAction(VALID_INPUT);
+
+    expect(disabledResult.error?.message).toBe("renewalPanel.errors.mobileMoneyDisabled");
+    expect(disabledResult.error?.message).not.toBe("renewalPanel.errors.mobileMoneyNotConnected");
+  });
+
+  it("AC #3: the kill switch is checked before the connection gate -- disabled flag never calls getGymPaymentConnectionStatus", async () => {
+    process.env.TARAMONEY_INITIATION_ENABLED = "false";
+    const { initiatePaymentAction } = await import("./actions");
+
+    await initiatePaymentAction(VALID_INPUT);
+
+    expect(getGymPaymentConnectionStatus).not.toHaveBeenCalled();
+  });
+
+  it("review fix (Story 4.13): a real connection-status RPC failure is propagated as-is, not misreported as 'not connected'", async () => {
+    getGymPaymentConnectionStatus.mockResolvedValue({
+      data: null,
+      error: { code: "unknown", message: "backend unavailable" },
+    });
+    const { initiatePaymentAction } = await import("./actions");
+
+    const result = await initiatePaymentAction(VALID_INPUT);
+
+    expect(initiatePayment).not.toHaveBeenCalled();
+    expect(result.data).toBeNull();
+    expect(result.error).toEqual({ code: "unknown", message: "backend unavailable" });
+    expect(result.error?.message).not.toBe("renewalPanel.errors.mobileMoneyNotConnected");
+  });
+
+  it("a connected gym passes the second gate and reaches initiatePayment", async () => {
+    initiatePayment.mockResolvedValue({ data: { paymentId: "payment-1" }, error: null });
+    const { initiatePaymentAction } = await import("./actions");
+
+    const result = await initiatePaymentAction(VALID_INPUT);
+
+    expect(getGymPaymentConnectionStatus).toHaveBeenCalledWith("taramoney");
+    expect(initiatePayment).toHaveBeenCalledWith(VALID_INPUT);
+    expect(result.error).toBeNull();
   });
 });

@@ -1,7 +1,9 @@
 import { getGymSettings } from "@/services/gym-settings";
+import { getGymPaymentConnectionStatus } from "@/services/gym-payment-credentials";
 import { SettingsForm } from "./SettingsForm";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { TARAMONEY_PROVIDER_KEY } from "@/lib/featureFlags";
 
 /**
  * Route-level role guard beyond `(dashboard)/layout.tsx`'s gym-scoped-staff
@@ -24,10 +26,16 @@ export default async function SettingsPage() {
     );
   }
 
+  // Not owner-gated at the RPC level (any gym-scoped session can read it),
+  // and a failure here shouldn't block the rest of Settings from rendering
+  // -- treat an error the same as "not connected" rather than failing the
+  // whole page.
+  const { data: paymentConnection } = await getGymPaymentConnectionStatus(TARAMONEY_PROVIDER_KEY);
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">{t("settings.title")}</h1>
-      <SettingsForm initial={settings} />
+      <SettingsForm initial={settings} initialPaymentConnection={paymentConnection} />
     </div>
   );
 }

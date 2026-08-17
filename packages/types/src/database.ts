@@ -337,6 +337,61 @@ export type Database = {
           },
         ]
       }
+      gym_payment_credentials: {
+        Row: {
+          business_id_masked: string
+          connected_at: string
+          connected_by: string | null
+          credentials_secret_id: string
+          gym_id: string
+          id: string
+          provider_key: string
+          updated_at: string
+        }
+        Insert: {
+          business_id_masked: string
+          connected_at?: string
+          connected_by?: string | null
+          credentials_secret_id: string
+          gym_id: string
+          id?: string
+          provider_key: string
+          updated_at?: string
+        }
+        Update: {
+          business_id_masked?: string
+          connected_at?: string
+          connected_by?: string | null
+          credentials_secret_id?: string
+          gym_id?: string
+          id?: string
+          provider_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gym_payment_credentials_connected_by_fkey"
+            columns: ["connected_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gym_payment_credentials_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gym_payment_credentials_provider_key_fkey"
+            columns: ["provider_key"]
+            isOneToOne: false
+            referencedRelation: "payment_providers"
+            referencedColumns: ["provider_key"]
+          },
+        ]
+      }
       job_runs: {
         Row: {
           error: string | null
@@ -475,6 +530,35 @@ export type Database = {
           {
             foreignKeyName: "members_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messaging_provider_config: {
+        Row: {
+          id: string
+          instance_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          instance_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          instance_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messaging_provider_config_updated_by_fkey"
+            columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -1145,10 +1229,30 @@ export type Database = {
         }
         Returns: Record<string, unknown>
       }
+      connect_gym_payment_credentials: {
+        Args: {
+          p_api_key: string
+          p_business_id: string
+          p_provider_key: string
+          p_webhook_secret: string
+        }
+        Returns: undefined
+      }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      disconnect_gym_payment_credentials: {
+        Args: { p_provider_key: string }
+        Returns: undefined
+      }
       edit_session_note: {
         Args: { p_note_id: string; p_note_text: string }
         Returns: undefined
+      }
+      get_gym_payment_connection_status: {
+        Args: { p_provider_key: string }
+        Returns: {
+          business_id_masked: string
+          connected_at: string
+        }[]
       }
       gym_effective_member_cap: { Args: never; Returns: number }
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
@@ -1200,6 +1304,10 @@ export type Database = {
           job_name: string
           started_at: string
         }[]
+      }
+      update_messaging_instance: {
+        Args: { p_instance_id: string }
+        Returns: undefined
       }
     }
     Enums: {

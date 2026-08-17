@@ -5,7 +5,7 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { getDashboardShellContext } from "@/services/session";
 import { listActiveFrontDeskAlerts } from "@/services/frontDeskAlerts";
 import { FrontDeskAlertPanel } from "@/components/shared/FrontDeskAlertPanel";
-import { isMobileMoneyInitiationEnabled } from "@/lib/featureFlags";
+import { canOfferMobileMoneyPayment } from "@/lib/featureFlags";
 
 /**
  * AD-02 Overview -- still a minimal shell (story Dev Notes -> Scope
@@ -32,9 +32,10 @@ export default function OverviewPage() {
 async function OverviewData() {
   const { t } = await getServerTranslation(await getRequestLocale());
 
-  const [{ data: shell }, { data: alertsData }] = await Promise.all([
+  const [{ data: shell }, { data: alertsData }, mobileMoneyEnabled] = await Promise.all([
     getDashboardShellContext(),
     listActiveFrontDeskAlerts(),
+    canOfferMobileMoneyPayment(),
   ]);
 
   return (
@@ -44,7 +45,7 @@ async function OverviewData() {
           gymId={shell.gymId}
           initialAlerts={alertsData?.alerts ?? []}
           autoDismissMinutes={alertsData?.autoDismissMinutes ?? 30}
-          mobileMoneyEnabled={isMobileMoneyInitiationEnabled()}
+          mobileMoneyEnabled={mobileMoneyEnabled}
         />
       )}
       <div className="flex flex-col gap-2">
