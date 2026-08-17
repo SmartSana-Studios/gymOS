@@ -45,14 +45,25 @@ export class EvolutionApiProvider implements OtpDeliveryProvider {
     // deploy-time secret — read per-request, not hoisted, so a Super Admin repointing it takes
     // effect on the very next send instead of after an isolate recycle. A null/missing value (the
     // table's documented "not yet configured" state) is a clean failure result, not a thrown
-    // exception — this is what lets AC #3's fall-through actually work.
-    const { data, error } = await supabase.from("messaging_provider_config").select("instance_id").single();
+    // exception — this is what lets AC #3's fall-through actually work. Bounded with an abort
+    // signal (code review fix) — unlike every HTTP fetch in this chain, this query previously had
+    // no timeout, so a hung PostgREST/Postgres response would have blocked send() indefinitely.
+    const { data, error } = await supabase
+      .from("messaging_provider_config")
+      .select("instance_id")
+      .abortSignal(AbortSignal.timeout(3_000))
+      .single();
     if (error || !data?.instance_id) {
-      return { success: false, error: "Evolution API instance is not configured" };
+      // A genuine DB error (RLS misconfiguration, transient outage, abort-timeout) is logged with
+      // its own message (code review fix) rather than collapsed into the same "not configured"
+      // text as the routine empty-table case — the two are indistinguishable outcomes for the
+      // caller (both fall through to the next provider) but must stay distinguishable in logs.
+      const detail = error ? `: ${error.message}` : "";
+      return { success: false, error: `Evolution API instance is not configured${detail}` };
     }
     const instance = data.instance_id;
 
-    const result = await postJsonWithTimeout("Evolution API", `${baseUrl}/message/sendText/${instance}`, {
+    const result = await postJsonWithTimeout("Evolution API", `${baseUrl.replace(/\/+$/, "")}/message/sendText/${encodeURIComponent(instance)}`, {
       method: "POST",
       headers: {
         apikey: apiKey,

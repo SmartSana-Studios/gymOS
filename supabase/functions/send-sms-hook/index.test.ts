@@ -29,6 +29,18 @@ function restoreChain() {
   setChain(...originalChain);
 }
 
+// Captured before any test mutates PROVIDER_CHAIN (code review fix) — every other test in this
+// file swaps in tracked fake providers to test sendViaChain's own control flow, so nothing
+// previously asserted that the real, production-wired order matches AD-11/AC#2's mandated
+// Evolution API → Twilio WhatsApp → Twilio SMS → sent.dm sequence; an accidental reorder in
+// index.ts would have passed every other test here undetected.
+Deno.test("PROVIDER_CHAIN: production order matches AD-11/AC#2 — Evolution API, Twilio WhatsApp, Twilio SMS, sent.dm", () => {
+  assertEquals(
+    originalChain.map((p) => p.constructor.name),
+    ["EvolutionApiProvider", "TwilioWhatsAppProvider", "TwilioSmsProvider", "SentDmProvider"],
+  );
+});
+
 function trackedProvider(behavior: "success" | "fail" | "throw", label = "provider"): OtpDeliveryProvider & { calls: number } {
   return {
     calls: 0,

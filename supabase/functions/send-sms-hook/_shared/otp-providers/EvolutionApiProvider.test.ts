@@ -22,12 +22,17 @@ const CODE = "123456";
 /** Routes the global fetch to canned responses based on URL shape, and records every call. */
 function stubFetch(opts: {
   instanceRow?: { instance_id: string | null } | null;
+  /** Cycled through in order on successive messaging_provider_config calls, one row per call — proves a
+   * changed value is actually picked up rather than just that the DB is hit more than once. Falls back to
+   * `instanceRow`/the default once exhausted. */
+  instanceRowSequence?: Array<{ instance_id: string | null } | null>;
   instanceStatus?: number;
   sendStatus?: number;
   sendBody?: string;
 }) {
   const calls: { url: string; init?: RequestInit }[] = [];
   const original = globalThis.fetch;
+  let instanceCallCount = 0;
 
   globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
     const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
@@ -35,9 +40,9 @@ function stubFetch(opts: {
 
     if (href.includes("messaging_provider_config")) {
       const status = opts.instanceStatus ?? 200;
-      const body = opts.instanceRow === null
-        ? JSON.stringify({ message: "no rows", code: "PGRST116" })
-        : JSON.stringify(opts.instanceRow ?? { instance_id: "souna2" });
+      const row = opts.instanceRowSequence?.[instanceCallCount] ?? opts.instanceRow ?? { instance_id: "souna2" };
+      instanceCallCount++;
+      const body = row === null ? JSON.stringify({ message: "no rows", code: "PGRST116" }) : JSON.stringify(row);
       return Promise.resolve(
         new Response(body, { status, headers: { "content-type": "application/json" } }),
       );
@@ -77,13 +82,24 @@ function withEnv(vars: Record<string, string>, fn: () => Promise<void> | void) {
 }
 
 Deno.test("EvolutionApiProvider.send: missing EVOLUTION_API_BASE_URL/KEY returns a clean failure, never throws", async () => {
-  await withEnv({}, async () => {
+  // Deleted vars are restored in `finally` (code review fix) — the previous version deleted them
+  // directly inside a withEnv({}, ...) callback, whose restore loop only covers keys passed into
+  // `vars`, so an empty object meant these two were never restored if either was already set in
+  // the ambient environment.
+  const previousBaseUrl = Deno.env.get("EVOLUTION_API_BASE_URL");
+  const previousApiKey = Deno.env.get("EVOLUTION_API_KEY");
+  try {
     Deno.env.delete("EVOLUTION_API_BASE_URL");
     Deno.env.delete("EVOLUTION_API_KEY");
     const result = await new EvolutionApiProvider().send(PHONE, CODE, "en");
     assertEquals(result.success, false);
     if (!result.success) assertStringIncludes(result.error, "not configured");
-  });
+  } finally {
+    if (previousBaseUrl === undefined) Deno.env.delete("EVOLUTION_API_BASE_URL");
+    else Deno.env.set("EVOLUTION_API_BASE_URL", previousBaseUrl);
+    if (previousApiKey === undefined) Deno.env.delete("EVOLUTION_API_KEY");
+    else Deno.env.set("EVOLUTION_API_KEY", previousApiKey);
+  }
 });
 
 Deno.test("EvolutionApiProvider.send: missing instance_id (Story 1.13's 'not yet configured' state) fails cleanly, not a thrown exception", async () => {
@@ -174,15 +190,24 @@ Deno.test("EvolutionApiProvider.send: uses the locale-appropriate plain-text mes
   });
 });
 
-Deno.test("EvolutionApiProvider.send: reads instance_id per-request, not cached — two sends with a changed instance both hit the DB", async () => {
+Deno.test("EvolutionApiProvider.send: reads instance_id per-request, not cached — a changed instance between sends is actually picked up", async () => {
   await withEnv({ EVOLUTION_API_BASE_URL: "https://evo.example.com", EVOLUTION_API_KEY: "key" }, async () => {
-    const { calls, restore } = stubFetch({ sendStatus: 201 });
+    // Two distinct rows (code review fix) — a static single row across both calls only proved the
+    // DB was hit twice, not that a Super Admin's mid-flight instance_id change actually reaches the
+    // second sendText call, which is the property AC #2's "no redeploy" guarantee depends on.
+    const { calls, restore } = stubFetch({
+      instanceRowSequence: [{ instance_id: "souna2" }, { instance_id: "changed-instance" }],
+      sendStatus: 201,
+    });
     try {
       const provider = new EvolutionApiProvider();
       await provider.send(PHONE, CODE, "en");
       await provider.send(PHONE, CODE, "en");
       const configCalls = calls.filter((c) => c.url.includes("messaging_provider_config"));
       assertEquals(configCalls.length, 2, "instance_id must be read fresh on every send(), not hoisted");
+      const sendCalls = calls.filter((c) => c.url.includes("/message/sendText/"));
+      assertStringIncludes(sendCalls[0].url, "/message/sendText/souna2");
+      assertStringIncludes(sendCalls[1].url, "/message/sendText/changed-instance");
     } finally {
       restore();
     }

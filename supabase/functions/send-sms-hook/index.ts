@@ -81,6 +81,17 @@ const PROVIDER_CHAIN: OtpDeliveryProvider[] = [
   new SentDmProvider(),
 ];
 
+// GoTrue's own Send SMS Hook call has a real, client-side 5s hook_timeout (confirmed live, see
+// docs/decisions.md's 2026-08-12 Decision 4 entry) — each provider's own fetch is independently
+// bounded at 10s (httpHelpers.ts's FETCH_TIMEOUT_MS), so up to 4 sequential attempts could
+// otherwise run as long as 40s. This chain-wide deadline (code review fix) caps total wall-clock
+// time so a slow-but-not-instantly-failing provider can't push the response past GoTrue's own
+// timeout — if GoTrue gives up first, the app-visible /auth/v1/otp call reports failure even
+// though a later provider might otherwise have gone on to actually deliver the OTP. Deliberately
+// not a change to the shared FETCH_TIMEOUT_MS constant, which also bounds the already-shipped
+// Twilio/sent.dm single-provider paths outside this chain.
+const CHAIN_DEADLINE_MS = 4_500;
+
 // Tries each provider in order, short-circuiting on the first success. A provider throwing
 // unexpectedly (contract violation — every provider is supposed to always return a
 // DeliveryResult, never throw) must not abort the whole chain, so each attempt gets its own
@@ -94,11 +105,32 @@ const PROVIDER_CHAIN: OtpDeliveryProvider[] = [
 // each having their own separately-maintained duplicate log line.
 async function sendViaChain(phone: string, code: string, locale: "en" | "fr"): Promise<DeliveryResult> {
   let lastResult: DeliveryResult = { success: false, error: "no OTP provider configured" };
+  const deadlineAt = Date.now() + CHAIN_DEADLINE_MS;
 
   for (const provider of PROVIDER_CHAIN) {
     const providerName = provider.constructor.name;
+    const remainingMs = deadlineAt - Date.now();
+    if (remainingMs <= 0) {
+      console.error(`send-sms-hook: chain deadline exceeded before trying ${providerName}`);
+      break;
+    }
+
     try {
-      lastResult = await provider.send(phone, code, locale);
+      lastResult = await Promise.race([
+        provider.send(phone, code, locale),
+        new Promise<DeliveryResult>((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                success: false,
+                error: `${providerName} exceeded the remaining chain deadline (${remainingMs}ms)`,
+                status: 503,
+                retryAfter: "5",
+              }),
+            remainingMs,
+          )
+        ),
+      ]);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       lastResult = { success: false, error: message };

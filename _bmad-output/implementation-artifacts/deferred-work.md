@@ -1,5 +1,10 @@
 # Deferred Work
 
+## Deferred from: code review of 2-9-evolution-api-sandbox-spike-otp-provider-fallback-chain (2026-08-14)
+
+- `send-sms-hook` still hardcodes OTP delivery locale to `"en"` [supabase/functions/send-sms-hook/index.ts:163] — deferred, pre-existing and unchanged by this diff (same hardcoded `"en"` existed before Story 2.9's chain refactor); already tracked as an accepted gap in this file's Story 2.6 entry and `docs/decisions.md`'s Decision 5 entry (2026-08-12) — not re-litigated here, just cross-referenced since this story's diff touches the same call site.
+- Test suite mutates the shared module-level `PROVIDER_CHAIN` array in place (`PROVIDER_CHAIN.length = 0; PROVIDER_CHAIN.push(...)`) rather than through an isolation seam [supabase/functions/send-sms-hook/index.test.ts:22-29] — deferred, latent flake risk only if the suite is ever run with `--parallel`; no CI config in this repo currently does so.
+
 ## Deferred from: code review of story-1-13-super-admin-evolution-api-instance-configuration (2026-08-11)
 
 - Zod `.trim()` (client, `messagingProviderConfig.ts`) vs PostgreSQL `btrim()` (server, `update_messaging_instance()`) handle different Unicode whitespace sets — a string with exotic whitespace (e.g. U+200B zero-width space) could pass client validation but fail server-side — deferred, extremely rare in practice (requires a pasted exotic character), all typical input succeeds; fix in follow-up if a user reports it.
