@@ -4,7 +4,7 @@ baseline_commit: 4ce3ba8632f1c9536db28d7e8072efd25797b6ba
 
 # Story 4.10: Tara Money Sandbox Re-Verification Against Real Business Account
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -63,7 +63,21 @@ so that production reliance on Tara Money (FR-100) rests on the real account, no
   - [x] Include the real transaction reference (`transactionId`) from the passing real-money round-trip, per AC #2's explicit requirement.
   - [x] ~~If failed: document the exact failure response/status...~~ — N/A, spike passed.
 
-## Dev Notes
+### Review Findings
+
+**2026-08-17 code-review round (bmad-code-review, diff vs. baseline `4ce3ba8`, docs-only diff: `docs/decisions.md`):**
+
+- [x] [Review][Decision] The new `docs/decisions.md` entry declares "resolves OQ-7 and OQ-13," but `prd.md`'s OQ-7 row (line 881) and `ARCHITECTURE-SPINE.md`'s Deferred section (line 276) both still list OQ-7 as open, and `prd.md`'s FR-100 (line 628) frames three remaining steps before "production reliance" — credential swap, re-verification, and *only then* routing real member payments — of which this story completes only the first two. Unlike OQ-14 (marked "**Resolved**" inline in the same `prd.md` table, line 888), OQ-7/OQ-13 were not updated to reflect this outcome. **Resolved 2026-08-17 (do both):** appended a 2026-08-17 corrective entry to `docs/decisions.md` narrowing the 2026-08-13 entry's claim (append-only convention, not edited in place); updated `prd.md`'s OQ-7/OQ-13 Open Questions rows to "Resolved" with accurate scope, plus FR-099/FR-100/Section 10 item 5's stale "still pending — see OQ-7" cross-references; also updated `ARCHITECTURE-SPINE.md`'s Deferred section, which had explicitly flagged this same inconsistency.
+- [x] [Review][Decision] The new entry embeds truncated prefixes of the live, currently-active TaraMoney credentials (`apiKey LcB8...redacted`, `webhookSecret I4Y2...redacted`) into `docs/decisions.md`, a file whose own header states entries "can't be changed later without cost" (i.e. append-only by convention). This is the same credential set the story's own Dev Notes note was "briefly committed in plaintext during Story 4.1 and redacted after the fact." **Resolved 2026-08-17 (accept as negligible):** no rotation — matches this project's established precedent from Story 4.1 (redacted going forward, not rotated), and a 4-character prefix carries negligible brute-force value; kept on record in `deferred-work.md` with a note to avoid writing credential fragments into `docs/decisions.md` going forward.
+- [x] [Review][Defer] The new entry redacts the test phone number (`<redacted-phone-number>`) but this is inconsistent both with pre-existing `docs/decisions.md` entries (plaintext at lines 401/405) and with this same commit's `sprint-status.yaml` and this story file's own Completion Notes List, all of which carry the real number in plaintext — a cosmetic convention gap, not new PII exposure, since the number was already public within the same commit. [docs/decisions.md] — deferred, pre-existing inconsistency, not worth retroactively editing an append-only log for.
+- [x] [Review][Defer] The entry's `businessId`-scoping claim ("confirms... that payments settle per the `businessId` supplied") overstates what a webhook payload echoing back the same `businessId` actually proves — correlation/attribution in TaraMoney's API layer, not confirmed fund settlement into a specific account. Relevant nuance for Story 4.13's per-gym credential design (AD-15), which should independently confirm settlement (e.g. via a TaraMoney merchant balance check) rather than relying solely on this wording. [docs/decisions.md] — deferred, wording-only, doesn't block Story 4.13.
+- [x] [Review][Defer] The entry describes `supabase/.env`'s live contents ("now holds the real `9FmIZg9GBB` credentials active...") as durable record, but `.env` is gitignored and mutable — nothing flags drift once Story 4.12's cutover edits it again. [docs/decisions.md] — deferred, low-risk (dev-only file), no mechanism needed beyond awareness.
+- [x] [Review][Defer] Edge case: this spike didn't exercise the `payment-webhook` handler against a non-`SUCCESS` webhook status (e.g. `FAILED`/`PENDING`) from the real account — pre-existing, untested behavior, out of scope for this credential-swap-only story. [supabase/functions/payment-webhook/index.ts] — deferred, pre-existing gap.
+- [x] [Review][Defer] Edge case: the missing-header path (no `tara-webhook-secret` at all) vs. the tested wrong-value path was not distinguished — pre-existing, untested behavior. [supabase/functions/payment-webhook/index.ts] — deferred, pre-existing gap.
+- [x] [Review][Defer] Edge case: replaying a payload with the same `transactionId`/`provider_transaction_ref` but altered `amount`/`status` (a conflicting, not exact, duplicate) was not tested — only exact-duplicate idempotency was verified. [supabase/functions/payment-webhook/index.ts] — deferred, pre-existing gap.
+- [x] [Review][Defer] Edge case: a valid shared secret paired with a mismatched `businessId` payload (cross-tenant misrouting) was not tested — directly relevant to Story 4.13's upcoming per-gym credential/sub-account design (AD-15); should inform that story's own test plan rather than being retrofitted here. [supabase/functions/payment-webhook/index.ts] — deferred, feeds into Story 4.13's design.
+
+
 
 - **No new code is expected.** `TaraMoneyProvider.ts` and the `PaymentProvider` interface are stable and unmodified since 2026-08-01 (commit `5626d55`) and already read all three Tara Money credentials exclusively from env vars — there is no hardcoded credential anywhere to find and change. If Task 1's re-read of `TaraMoneyProvider.ts` finds otherwise, that is itself a story-worthy finding, not something to silently patch around.
 - **`payment_providers.taramoney.is_active` is already `true`** and stays that way — this story is not an activation/cutover story (that's Story 4.12). Do not call `activate_payment_provider()`.

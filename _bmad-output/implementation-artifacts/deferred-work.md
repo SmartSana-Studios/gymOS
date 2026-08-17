@@ -1,5 +1,14 @@
 # Deferred Work
 
+## Deferred from: code review of story-4-10-tara-money-sandbox-re-verification-against-real-business-account (2026-08-17)
+
+- `docs/decisions.md`'s 2026-08-13 entry embeds truncated prefixes of the live, currently-active TaraMoney credentials (`apiKey LcB8...`, `webhookSecret I4Y2...`) — the same credential set that leaked once before during Story 4.1 (redacted after the fact, not rotated). User decision: accept as negligible risk, no rotation — matches this project's established precedent, and a 4-character prefix carries negligible brute-force value against a live key/secret. Going forward, avoid writing even truncated credential fragments into `docs/decisions.md`, since it's meant to be a permanent, unedited record.
+- `docs/decisions.md`'s new 2026-08-13 entry redacts the test phone number but this is inconsistent with pre-existing entries and this same commit's `sprint-status.yaml`/story file, all of which carry the real number in plaintext — cosmetic convention gap, not new PII exposure, not worth retroactively editing an append-only log for.
+- The entry's `businessId`-scoping claim overstates correlation/attribution as confirmed fund settlement — relevant nuance for Story 4.13's per-gym credential design (AD-15), which should independently confirm settlement rather than relying on this wording.
+- The entry describes `supabase/.env`'s live contents as durable record, but `.env` is gitignored/mutable and nothing flags drift once Story 4.12's cutover edits it again — low-risk, dev-only file.
+- The real spike against `9FmIZg9GBB` didn't exercise `payment-webhook`'s handling of a non-`SUCCESS` webhook status, a missing (vs. wrong-value) `tara-webhook-secret` header, or a conflicting-payload replay (same `transactionId`, altered `amount`/`status`) — pre-existing, untested `payment-webhook` behavior, out of scope for this credential-swap-only story.
+- A valid shared secret paired with a mismatched `businessId` payload (cross-tenant misrouting) was not tested against `payment-webhook` — directly relevant to Story 4.13's upcoming per-gym credential/sub-account design (AD-15); should inform that story's own test plan.
+
 ## Deferred from: code review of 2-9-evolution-api-sandbox-spike-otp-provider-fallback-chain (2026-08-14)
 
 - `send-sms-hook` still hardcodes OTP delivery locale to `"en"` [supabase/functions/send-sms-hook/index.ts:163] — deferred, pre-existing and unchanged by this diff (same hardcoded `"en"` existed before Story 2.9's chain refactor); already tracked as an accepted gap in this file's Story 2.6 entry and `docs/decisions.md`'s Decision 5 entry (2026-08-12) — not re-litigated here, just cross-referenced since this story's diff touches the same call site.

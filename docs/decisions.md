@@ -4,6 +4,12 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-08-17 — Correction to the 2026-08-13 entry below: OQ-7/OQ-13 scope clarified — recorded during Story 4.10's code review
+
+The 2026-08-13 entry below states "this resolves OQ-7" without qualification. Per this project's append-only convention for dated entries, that entry is left unedited; this note narrows the claim instead. `prd.md`'s FR-100 frames three remaining steps before full production reliance on Tara Money: (1) credential swap, (2) re-verification against the real `9FmIZg9GBB` account, and (3) routing real member payments through it. Story 4.10 completed only (1) and (2). `prd.md`'s OQ-7/OQ-13 rows have been updated accordingly (see `prd.md`, Open Questions table): the re-verification question they asked is resolved, but full production reliance remains gated on Story 4.12's cutover actually routing real member payments — a separate, not-yet-done step, tracked via `sprint-status.yaml`'s `4-12-notch-pay-tara-money-cutover` entry, not via OQ-7 itself.
+
+---
+
 ## 2026-08-13 — TaraMoney real spike re-run PASSES against GYM OS's own now-activated business account (`9FmIZg9GBB`); resolves OQ-7 and OQ-13 — recorded during Story 4.10
 
 **Outcome: the spike passed in full, on the first attempt, against the real GYM OS business account.** Per `sprint-change-proposal-2026-08-11.md`, TaraMoney support confirmed `9FmIZg9GBB` activated since the two 2026-07-31 attempts recorded above (the first of which failed on this exact account with `BUSINESS_NOT_ACTIVATED_PLEASE_CONTACT_SUPPORT`). `supabase/.env` was swapped from the Temporal stand-in credentials back to the real `9FmIZg9GBB` credentials (`apiKey LcB8...redacted`, `webhookSecret I4Y2...redacted`) — no code or migration change was needed; `TaraMoneyProvider.ts` was re-read in full and confirmed to still read all three credentials exclusively via `Deno.env.get(...)`, unmodified since 2026-08-01. **This resolves OQ-7** (`prd.md` Open Questions table): production reliance on Tara Money (FR-100) now rests on the real business account, not a stand-in.
