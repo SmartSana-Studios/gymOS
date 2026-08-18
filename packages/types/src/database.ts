@@ -280,6 +280,7 @@ export type Database = {
           alert_auto_dismiss_minutes: number
           capacity: number | null
           checkin_timeout_hours: number
+          closing_time: string | null
           created_at: string
           default_language: string
           grace_period_days: number
@@ -288,6 +289,7 @@ export type Database = {
           logo_url: string | null
           member_cap_override: number | null
           name: string
+          opening_time: string | null
           primary_color: string | null
           status: Database["public"]["Enums"]["gym_status"]
           tier_id: string
@@ -297,6 +299,7 @@ export type Database = {
           alert_auto_dismiss_minutes?: number
           capacity?: number | null
           checkin_timeout_hours?: number
+          closing_time?: string | null
           created_at?: string
           default_language?: string
           grace_period_days?: number
@@ -305,6 +308,7 @@ export type Database = {
           logo_url?: string | null
           member_cap_override?: number | null
           name: string
+          opening_time?: string | null
           primary_color?: string | null
           status?: Database["public"]["Enums"]["gym_status"]
           tier_id: string
@@ -314,6 +318,7 @@ export type Database = {
           alert_auto_dismiss_minutes?: number
           capacity?: number | null
           checkin_timeout_hours?: number
+          closing_time?: string | null
           created_at?: string
           default_language?: string
           grace_period_days?: number
@@ -322,6 +327,7 @@ export type Database = {
           logo_url?: string | null
           member_cap_override?: number | null
           name?: string
+          opening_time?: string | null
           primary_color?: string | null
           status?: Database["public"]["Enums"]["gym_status"]
           tier_id?: string
@@ -1323,6 +1329,7 @@ export type Database = {
       }
       run_check_in_auto_timeout_job: { Args: never; Returns: undefined }
       run_payment_reconciliation_job: { Args: never; Returns: undefined }
+      run_quiet_gym_alert_job: { Args: never; Returns: undefined }
       run_subscription_lifecycle_job: { Args: never; Returns: undefined }
       super_admin_job_failures: {
         Args: never

@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review of 6-5-quiet-gym-alert-opt-in-delivery (2026-08-18)
+
+- `run_quiet_gym_alert_job()` has no advisory lock against overlapping cron runs [supabase/migrations/0056_quiet_gym_alert_opt_in_delivery.sql:598-662] — unlike `private.process_notification_deliveries()` in the same migration (which takes `pg_try_advisory_xact_lock`), the new job's per-member rate-limit check is a read-then-insert sequence with no locking, so two overlapping 15-minute-cadence runs could each observe "under the cap" and double-dispatch. Deferred: matches the existing project convention exactly — `run_check_in_auto_timeout_job()` (`0024`) and `run_subscription_lifecycle_job()` (`0021`/`0045`) are equally unlocked — so this is an inherited gap, not novel to this story.
+
 ## Deferred from: code review of story-4-14-flow-a-explicit-gym-account-routing-auditability (2026-08-18)
 
 - The new unauthenticated `payment-webhook` receive path now performs a Vault-decrypting DB round trip (`get_gym_payment_credentials_by_business_id`) for any well-formed JSON POST, before the shared-secret header is even compared — previously a cheap env-var string comparison [supabase/functions/payment-webhook/_shared/payment-providers/TaraMoneyProvider.ts:229-268]. New attack surface (resource exhaustion) and a response-timing side channel that can distinguish a connected `businessId` from an unconnected one; no rate limiting added. User decision: accept as-is, consistent with this codebase's established precedent of accepting low-probability abuse risk at pilot scale (e.g. this file's `gym-qr-display` entry above); revisit if real abuse is observed.

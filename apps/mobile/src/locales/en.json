@@ -101,7 +101,7 @@
     "notifications": {
       "title": "Notifications",
       "quietGymAlerts": "Quiet-gym alerts",
-      "quietGymAlertsDescription": "Get notified when your gym is quiet enough for a relaxed workout. (Coming soon.)",
+      "quietGymAlertsDescription": "Get notified when your gym is quiet enough for a relaxed workout.",
       "classReminder": "Class reminders",
       "classReminderDescription": "Get a reminder before your booked classes start. (Coming soon.)"
     }
