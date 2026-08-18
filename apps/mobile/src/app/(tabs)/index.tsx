@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -9,18 +9,13 @@ import { Button } from '@/components/ui/Button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
-import {
-  isSubscriptionStatus,
-  STATUS_COLORS,
-  statusLabelKey,
-  type BadgeStatus,
-  type SubscriptionStatus,
-} from '@/constants/subscription-status';
+import { STATUS_COLORS, statusLabelKey, type BadgeStatus, type SubscriptionStatus } from '@/constants/subscription-status';
 import { useTheme } from '@/hooks/use-theme';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import { getRecentCheckIns, type RecentCheckIn } from '@/services/checkin';
 import { getOccupancyBand, type OccupancyBand } from '@/services/occupancy';
-import { getRecentPayments, type RecentPayment } from '@/services/payments';
+import { getGymTaraMoneyConnectionStatus, getRecentPayments, type RecentPayment } from '@/services/payments';
+import { getOwnSubscriptionWithPlan } from '@/services/subscriptions';
 import { supabase } from '@/lib/supabase';
 
 // Bounds the merged check-in + payment feed (Story 4.9 AC #3) -- renamed
@@ -33,26 +28,6 @@ const RECENT_ACTIVITY_LIMIT = 3;
 type ActivityItem =
   | ({ kind: 'checkin' } & RecentCheckIn)
   | ({ kind: 'payment' } & RecentPayment);
-
-// Narrows the untyped embedded-select response, same discipline as
-// onboarding/plan.tsx's `isSubscriptionRow` / (tabs)/profile.tsx's
-// `isPlanNameRow` (Review finding there) -- a shape mismatch falls through
-// to the existing loadError handling instead of masking itself as a
-// generic failure with no signal.
-interface SubscriptionRowFromDb {
-  status: string;
-  expiry_date: string | null;
-  plans: { name: string } | null;
-}
-function isSubscriptionRow(value: unknown): value is SubscriptionRowFromDb {
-  if (!value || typeof value !== 'object') return false;
-  const row = value as Record<string, unknown>;
-  return (
-    typeof row.status === 'string' &&
-    (row.expiry_date === null || typeof row.expiry_date === 'string') &&
-    typeof row.plans === 'object'
-  );
-}
 
 // Date-only string ("YYYY-MM-DD") -- same local-Y/M/D construction as
 // onboarding/plan.tsx's `formatDateOnly`, duplicated rather than imported
@@ -105,8 +80,23 @@ export default function HomeScreen() {
 
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [occupancyBand, setOccupancyBand] = useState<OccupancyBand | null>(null);
+  // Story 4.15 (AC #2/#3): whether the gym has Tara Money connected --
+  // decides Renew vs. "See front desk" for the CTA below. Best-effort, same
+  // non-blocking contract as occupancyBand -- a real RPC failure and "not
+  // connected" both resolve to false (no charge risk either way).
+  const [taraMoneyConnected, setTaraMoneyConnected] = useState(false);
+
+  // Review finding: rapid tab switching can fire loadHome() again before an
+  // earlier call resolves; without this, an older/slower response could
+  // resolve after a newer one and overwrite fresher state with stale data.
+  // Every setState call below that follows an `await` is guarded by
+  // `isCurrent()`, which stays true only for the most recently started call.
+  const requestIdRef = useRef(0);
 
   const loadHome = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+    const isCurrent = () => requestIdRef.current === requestId;
+
     setLoading(true);
     setLoadError(false);
     setNoActivePlan(false);
@@ -119,8 +109,10 @@ export default function HomeScreen() {
     setPlanName(null);
     setRecentActivity([]);
     setOccupancyBand(null);
+    setTaraMoneyConnected(false);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
+      if (!isCurrent()) return;
       const userId = sessionData.session?.user.id;
       if (!userId) {
         setLoadError(true);
@@ -140,6 +132,7 @@ export default function HomeScreen() {
           .limit(1)
           .single(),
       ]);
+      if (!isCurrent()) return;
 
       if (
         userResult.error ||
@@ -158,32 +151,21 @@ export default function HomeScreen() {
       setGymName(gymResult.data.name);
       setGymLogoUrl(gymResult.data.logo_url);
 
-      const { data: subscriptionData, error: subscriptionError } = await supabase
-        .from('subscriptions')
-        .select('status, expiry_date, plans(name)')
-        .eq('member_id', memberResult.data.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      // PGRST116 = PostgREST's "no rows" code for `.single()` -- a member
-      // with no subscription row at all is a distinct, non-retryable "no
-      // active plan" state, not a load failure (same distinction
-      // onboarding/plan.tsx's loadPlan already makes).
-      if (subscriptionError?.code === 'PGRST116') {
+      // Story 4.15: shared with the Renew screen (services/subscriptions.ts)
+      // -- same distinction onboarding/plan.tsx's loadPlan already makes
+      // between "no subscription row at all" (a non-retryable state, not a
+      // load failure) and a real load error.
+      const subscriptionResult = await getOwnSubscriptionWithPlan(memberResult.data.id);
+      if (!isCurrent()) return;
+      if (subscriptionResult.kind === 'no_subscription') {
         setNoActivePlan(true);
-      } else if (
-        subscriptionError ||
-        !isSubscriptionRow(subscriptionData) ||
-        !subscriptionData.plans ||
-        !isSubscriptionStatus(subscriptionData.status)
-      ) {
+      } else if (subscriptionResult.kind === 'error') {
         setLoadError(true);
         return;
       } else {
-        setSubscriptionStatus(subscriptionData.status);
-        setExpiryDate(subscriptionData.expiry_date);
-        setPlanName(subscriptionData.plans.name);
+        setSubscriptionStatus(subscriptionResult.data.status);
+        setExpiryDate(subscriptionResult.data.expiryDate);
+        setPlanName(subscriptionResult.data.planName);
       }
 
       // Story 4.9 AC #3: check-ins and payments fetched in parallel, merged
@@ -195,6 +177,7 @@ export default function HomeScreen() {
         getRecentCheckIns(memberResult.data.id, RECENT_ACTIVITY_LIMIT),
         getRecentPayments(memberResult.data.id, RECENT_ACTIVITY_LIMIT),
       ]);
+      if (!isCurrent()) return;
       const merged: ActivityItem[] = [
         ...recentCheckIns.map((event) => ({ kind: 'checkin' as const, ...event })),
         ...recentPayments.map((payment) => ({ kind: 'payment' as const, ...payment })),
@@ -212,26 +195,46 @@ export default function HomeScreen() {
       // propagate to the outer catch and incorrectly trip `loadError`.
       try {
         const { band } = await getOccupancyBand();
-        setOccupancyBand(band);
+        if (isCurrent()) setOccupancyBand(band);
       } catch {
-        setOccupancyBand(null);
+        if (isCurrent()) setOccupancyBand(null);
       }
+
+      // Story 4.15 (AC #2/#3): also best-effort/non-blocking -- never throws
+      // (services/payments.ts's own contract), so no local try/catch needed.
+      const connected = await getGymTaraMoneyConnectionStatus();
+      if (isCurrent()) setTaraMoneyConnected(connected);
     } catch {
-      setLoadError(true);
+      if (isCurrent()) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    void loadHome();
-  }, [loadHome]);
+  // Story 4.15: refetches whenever this tab regains focus (not just on
+  // mount) -- returning from the Renew screen after a successful renewal
+  // needs the badge/expiry/CTA to update without a manual pull-to-refresh,
+  // and expo-router keeps tab screens mounted across navigation, so a plain
+  // mount-only effect would never re-run on its own.
+  useFocusEffect(
+    useCallback(() => {
+      void loadHome();
+    }, [loadHome]),
+  );
 
   const firstName = displayName?.trim().split(/\s+/)[0] ?? null;
 
   const badgeStatus: BadgeStatus = noActivePlan ? 'no_plan' : (subscriptionStatus ?? 'no_plan');
   const statusColors = STATUS_COLORS[badgeStatus];
   const expiryLabel = expiryDate ? formatDateOnly(expiryDate, i18n.language) : null;
+  // Story 4.15 (AC #1): extends the previous expired-only CTA branch to all
+  // three renewal-eligible statuses.
+  const showRenewCta =
+    badgeStatus === 'expiring_soon' || badgeStatus === 'grace_period' || badgeStatus === 'expired';
+  // Review finding: only `expired` actually blocks gym access -- an
+  // `expiring_soon`/`grace_period` member still has access and should keep
+  // the Check In shortcut alongside Renew, not lose it.
+  const showCheckInAction = badgeStatus !== 'expired';
 
   let statusNote: string | null = null;
   if (badgeStatus === 'no_plan') {
@@ -335,11 +338,16 @@ export default function HomeScreen() {
               )}
 
               <View style={styles.quickActions}>
-                {badgeStatus === 'expired' ? (
+                {showRenewCta && (
                   <View style={styles.quickActionButton}>
-                    <Button label={t('home.seeFrontDesk')} onPress={handleSeeFrontDesk} />
+                    {taraMoneyConnected ? (
+                      <Button label={t('home.renew')} onPress={() => router.push('/renew')} />
+                    ) : (
+                      <Button label={t('home.seeFrontDesk')} onPress={handleSeeFrontDesk} />
+                    )}
                   </View>
-                ) : (
+                )}
+                {showCheckInAction && (
                   <View style={styles.quickActionButton}>
                     <Button label={t('home.checkIn')} onPress={() => router.push('/checkin')} />
                   </View>

@@ -99,6 +99,30 @@ async function handleInitiate(
   const basePathSegments = pathSegments.slice(0, pathSegments.length - 2);
   const callbackUrl = `${url.origin}/${[...basePathSegments, providerKey].join("/")}`;
 
+  // Story 4.15 Task 3: the dashboard's own initiatePaymentAction already
+  // checks isMobileMoneyInitiationEnabled() (same env var; default-enabled
+  // unless explicitly "false", same as that function -- do not invert the
+  // default) before ever reaching this route, so this check never changes
+  // the dashboard-caller path's behavior in the disabled case. It exists
+  // for the new mobile caller (initiate_member_payment() + this same
+  // shared route), which has no equivalent dashboard-side pre-check --
+  // this is the one point already common to both callers, closing the
+  // bypass without a second mobile-reachable source of truth for the flag.
+  if (Deno.env.get("TARAMONEY_INITIATION_ENABLED")?.trim().toLowerCase() === "false") {
+    // Review finding: every other rejection branch in this function deletes
+    // the `processing` row before returning (see the fetch-error and
+    // initiate()-throw branches above) -- this short-circuit was the sole
+    // exception, leaving a permanently orphaned row a member's next
+    // `getPendingMemberPayment()` check would resume into a dead-end.
+    const { error: deleteError } = await supabase.from("payments").delete().eq("id", paymentId);
+    if (deleteError) {
+      console.error(
+        `payment-webhook: ${providerKey} failed to delete payment ${paymentId} after the mobile-money-disabled short-circuit — ${deleteError.message}`,
+      );
+    }
+    return jsonResponse(502, { error: "mobile money initiation is disabled", code: "mobile_money_disabled" });
+  }
+
   let result: InitiatePaymentResult;
   try {
     result = await provider.initiate({

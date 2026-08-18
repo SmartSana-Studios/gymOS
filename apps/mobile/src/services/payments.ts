@@ -1,3 +1,5 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
+
 import { supabase } from '@/lib/supabase';
 
 export interface PaymentListRow {
@@ -181,5 +183,166 @@ export async function getRecentPayments(memberId: string, limit: number): Promis
     return data.map((row) => ({ id: row.id, createdAt: row.created_at, amount: row.amount, currency: row.currency }));
   } catch {
     return [];
+  }
+}
+
+// ============================================================================
+// Story 4.15: Member Self-Service Renewal. `initiate_member_payment()`
+// (0055_member_self_service_renewal.sql) is the member-session counterpart
+// to apps/dashboard/services/payments.ts's initiatePayment() -- a
+// SECURITY DEFINER RPC that derives amount/currency from the caller's own
+// plan and inserts the processing row itself, rather than a direct table
+// insert (no member-scoped payments INSERT policy exists, deliberately --
+// see the story file's Context section). Once it returns a payment_id, the
+// same shared payment-webhook/initiate/<providerKey> route the dashboard
+// calls is invoked -- no Edge Function change needed for that route itself.
+// ============================================================================
+
+/** Any authenticated gym-scoped session can call this (0052_gym_payment_credentials.sql
+ * -- not owner-gated); resolves the caller's own gym via private.gym_id()
+ * internally, no gym-id parameter needed. Best-effort boolean, matching
+ * `getRecentPayments`' contract -- a real RPC failure and "not connected"
+ * both resolve to `false` (no charge risk either way; the caller falls back
+ * to the front-desk-cash message per AC #3). */
+export async function getGymTaraMoneyConnectionStatus(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('get_gym_payment_connection_status', { p_provider_key: 'taramoney' });
+    if (error) return false;
+    return Array.isArray(data) && data.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Mirrors `getPendingMobileMoneyPayment` (apps/dashboard/services/payments.ts)
+ * but as a direct table query, not a new RPC -- `member_read_own_payments`
+ * RLS (0038) already lets a member's own session select their own `payments`
+ * rows. Called before allowing a fresh `initiateMemberPayment()` call, so a
+ * second tap resumes the existing row instead of firing a duplicate real
+ * USSD prompt (same bug class Story 4.12's review caught for the front-desk
+ * path). */
+export async function getPendingMemberPayment(memberId: string): Promise<{ paymentId: string } | null> {
+  try {
+    const { data, error } = await supabase
+      .from('payments')
+      .select('id')
+      .eq('member_id', memberId)
+      .eq('method', 'mobile_money')
+      .eq('status', 'processing')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return { paymentId: data.id };
+  } catch {
+    return null;
+  }
+}
+
+export interface InitiateMemberPaymentResult {
+  paymentId: string | null;
+  /** 'gym_credentials_unavailable'/'mobile_money_disabled' mirror the Edge
+   * Function's own structured failure codes (Story 4.14/4.15 Task 3) -- a
+   * bare boolean/null can't distinguish these from a generic failure, and
+   * the Renew screen needs a distinct message for each. 'no_active_plan'/
+   * 'not_eligible_for_renewal'/'payment_already_pending' mirror
+   * initiate_member_payment()'s own distinguishable exceptions
+   * (0055_member_self_service_renewal.sql, review finding -- these were
+   * previously collapsed into the generic 'error' code). */
+  code:
+    | 'success'
+    | 'gym_credentials_unavailable'
+    | 'mobile_money_disabled'
+    | 'no_active_plan'
+    | 'not_eligible_for_renewal'
+    | 'payment_already_pending'
+    | 'error';
+}
+
+/** Maps initiate_member_payment()'s raw Postgres exception text to a
+ * caller-friendly code by the same distinguishable substring the RPC itself
+ * raises with -- 'permission denied'/'member is deactivated' fall through
+ * to the generic code since both are defensive-only (unreachable via this
+ * app's normal session flow: a deactivated member never gets a 'member'
+ * JWT claim in the first place, per the auth hook, 0009_*.sql). */
+function mapInitiateErrorCode(message: string | undefined): InitiateMemberPaymentResult['code'] {
+  if (!message) return 'error';
+  if (message.includes('no_active_plan')) return 'no_active_plan';
+  if (message.includes('not_eligible_for_renewal')) return 'not_eligible_for_renewal';
+  if (message.includes('payment_already_pending')) return 'payment_already_pending';
+  return 'error';
+}
+
+/**
+ * Calls `initiate_member_payment()` then invokes the same shared
+ * payment-webhook/initiate/<providerKey> route
+ * apps/dashboard/services/payments.ts's initiatePayment() calls -- mirrors
+ * that function's shape (bare-digit phone stripping, FunctionsHttpError
+ * code-mapping), extended to also catch the new `mobile_money_disabled`
+ * code (Task 3), which initiatePayment() never needs to since the
+ * dashboard's own `isMobileMoneyInitiationEnabled()` pre-check means it
+ * never reaches the Edge Function in the disabled case -- mobile has no
+ * equivalent pre-check, so it can hit this code for real. Never throws
+ * (mirrors this app's `RecordCheckInResult`-shaped convention,
+ * services/checkin.ts) -- a distinguishable code, not just null, since the
+ * caller needs to tell "gym disconnected mid-flow" and "kill switch
+ * disabled" apart from a generic error.
+ */
+export async function initiateMemberPayment(phoneNumber: string): Promise<InitiateMemberPaymentResult> {
+  try {
+    const { data: paymentId, error: rpcError } = await supabase.rpc('initiate_member_payment');
+    if (rpcError || !paymentId) {
+      return { paymentId: null, code: mapInitiateErrorCode(rpcError?.message) };
+    }
+
+    // Reads the provider `initiate_member_payment()` already resolved and
+    // stored on the row itself, rather than a second independent
+    // `active_payment_provider()` call (review finding -- the previous
+    // two-call shape was a TOCTOU: the active provider could change between
+    // the RPC's own resolution and this second call, diverging from what's
+    // actually stored on the row). This also mirrors
+    // apps/dashboard/services/payments.ts's initiatePayment() risk model:
+    // once the row exists, no further fallible step should sit between it
+    // and the invoke() call below, since a member session has no `payments`
+    // DELETE RLS policy and can never clean up an orphaned row itself --
+    // only the Edge Function (service_role) can.
+    const { data: paymentRow, error: providerError } = await supabase
+      .from('payments')
+      .select('provider')
+      .eq('id', paymentId)
+      .single();
+    if (providerError || !paymentRow?.provider) {
+      return { paymentId: null, code: 'error' };
+    }
+    const providerKey = paymentRow.provider;
+
+    // TaraMoney's real API takes bare-digit Cameroon numbers with no leading
+    // '+' -- same stripping as initiatePayment()'s one call site that
+    // actually talks to the provider.
+    const bareDigitPhone = phoneNumber.replace(/^\+/, '');
+
+    const { error: invokeError } = await supabase.functions.invoke(`payment-webhook/initiate/${providerKey}`, {
+      body: { paymentId, phoneNumber: bareDigitPhone },
+    });
+
+    if (invokeError) {
+      if (invokeError instanceof FunctionsHttpError) {
+        let code: string | undefined;
+        try {
+          code = (await invokeError.context.json())?.code;
+        } catch {
+          // Non-JSON or unreadable body -- falls through to the generic 'error' below.
+        }
+        if (code === 'gym_credentials_unavailable' || code === 'mobile_money_disabled') {
+          return { paymentId: null, code };
+        }
+      }
+      return { paymentId: null, code: 'error' };
+    }
+
+    return { paymentId, code: 'success' };
+  } catch {
+    return { paymentId: null, code: 'error' };
   }
 }

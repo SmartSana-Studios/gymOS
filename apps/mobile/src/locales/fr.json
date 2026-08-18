@@ -140,8 +140,8 @@
     "noPlanNote": "Contactez votre salle",
     "checkIn": "Enregistrement",
     "seeFrontDesk": "Voir l'accueil",
-    "seeFrontDeskTitle": "Adhésion expirée",
-    "seeFrontDeskBody": "Votre adhésion a expiré. Veuillez voir l'accueil pour renouveler avant de vous enregistrer.",
+    "seeFrontDeskTitle": "Renouveler en espèces",
+    "seeFrontDeskBody": "Le paiement mobile money de votre salle n'est pas disponible actuellement. Voir l'accueil pour renouveler en espèces.",
     "viewPlan": "Voir le forfait",
     "recentActivity": "Activité récente",
     "recentActivityEmpty": "Aucune activité pour le moment — enregistrez-vous pour la première fois !",
@@ -153,7 +153,8 @@
       "busy": "Fréquenté"
     },
     "errorLoadFailed": "Impossible de charger vos données. Vérifiez votre connexion et réessayez.",
-    "offlineSyncPending": "Enregistrement hors ligne en attente de synchronisation…"
+    "offlineSyncPending": "Enregistrement hors ligne en attente de synchronisation…",
+    "renew": "Renouveler"
   },
   "history": {
     "title": "Historique",
@@ -231,6 +232,36 @@
       "cash": "Espèces",
       "bankTransfer": "Virement bancaire",
       "manualMomo": "Mobile money (manuel)"
+    }
+  },
+  "renew": {
+    "title": "Renouveler l'adhésion",
+    "plan": "Forfait",
+    "price": "Prix",
+    "payerPhone": "Paiement avec",
+    "payerPhoneHint": "Utilise votre numéro enregistré par défaut — modifiez-le si vous payez depuis un autre téléphone.",
+    "confirmButton": "Confirmer le renouvellement",
+    "sendingPaymentRequest": "Envoi de la demande de paiement…",
+    "pending": {
+      "title": "Demande de paiement envoyée",
+      "description": "Vérifiez votre téléphone et approuvez l'invite pour terminer votre renouvellement.",
+      "stillWaiting": "En attente de confirmation… cela peut prendre une minute.",
+      "failed": "Ce paiement n'a pas été approuvé. Vous pouvez réessayer."
+    },
+    "success": {
+      "title": "Renouvellement terminé !",
+      "description": "Votre adhésion a été renouvelée.",
+      "doneButton": "Terminé"
+    },
+    "errors": {
+      "loadFailed": "Impossible de charger votre forfait. Vérifiez votre connexion et réessayez.",
+      "noActivePlan": "Aucun forfait enregistré. Contactez votre salle.",
+      "notEligible": "Votre adhésion n'a pas besoin d'être renouvelée pour le moment.",
+      "paymentAlreadyPending": "Vous avez déjà une demande de paiement en cours. Vérifiez votre téléphone ou patientez un instant.",
+      "initiateFailed": "Un problème est survenu. Réessayez.",
+      "gymCredentialsUnavailable": "La connexion de paiement de votre salle ne fonctionne pas actuellement. Voir l'accueil pour renouveler en espèces.",
+      "mobileMoneyDisabled": "Le renouvellement par mobile money n'est pas disponible actuellement. Voir l'accueil pour renouveler en espèces.",
+      "payerPhoneInvalid": "Entrez un numéro de téléphone valide"
     }
   }
 }

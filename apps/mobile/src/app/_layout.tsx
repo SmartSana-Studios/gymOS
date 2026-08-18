@@ -78,6 +78,7 @@ function RootNavigator() {
       <Stack.Protected guard={isFullyOnboarded}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="plan" options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="renew" options={{ presentation: 'modal', headerShown: false }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!isFullyOnboarded}>

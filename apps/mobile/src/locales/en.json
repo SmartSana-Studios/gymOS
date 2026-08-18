@@ -140,8 +140,8 @@
     "noPlanNote": "Contact your gym",
     "checkIn": "Check In",
     "seeFrontDesk": "See front desk",
-    "seeFrontDeskTitle": "Membership expired",
-    "seeFrontDeskBody": "Your membership has expired. Please see the front desk to renew before checking in.",
+    "seeFrontDeskTitle": "Renew with cash",
+    "seeFrontDeskBody": "Your gym's mobile money payment isn't available right now. See front desk to renew with cash.",
     "viewPlan": "View Plan",
     "recentActivity": "Recent Activity",
     "recentActivityEmpty": "No activity yet — check in for the first time!",
@@ -153,7 +153,8 @@
       "busy": "Busy"
     },
     "errorLoadFailed": "Couldn't load your data. Check your connection and try again.",
-    "offlineSyncPending": "Offline check-in pending sync…"
+    "offlineSyncPending": "Offline check-in pending sync…",
+    "renew": "Renew"
   },
   "history": {
     "title": "History",
@@ -231,6 +232,36 @@
       "cash": "Cash",
       "bankTransfer": "Bank transfer",
       "manualMomo": "Mobile money (manual)"
+    }
+  },
+  "renew": {
+    "title": "Renew Membership",
+    "plan": "Plan",
+    "price": "Price",
+    "payerPhone": "Paying with",
+    "payerPhoneHint": "Defaults to your registered number — edit it if you're paying from a different phone.",
+    "confirmButton": "Confirm Renewal",
+    "sendingPaymentRequest": "Sending payment request…",
+    "pending": {
+      "title": "Payment request sent",
+      "description": "Check your phone and approve the prompt to complete your renewal.",
+      "stillWaiting": "Still waiting for confirmation… this can take a minute.",
+      "failed": "This payment wasn't approved. You can try again."
+    },
+    "success": {
+      "title": "Renewal complete!",
+      "description": "Your membership has been renewed.",
+      "doneButton": "Done"
+    },
+    "errors": {
+      "loadFailed": "Couldn't load your plan. Check your connection and try again.",
+      "noActivePlan": "No plan on record yet. Contact your gym.",
+      "notEligible": "Your membership doesn't need renewal right now.",
+      "paymentAlreadyPending": "You already have a payment request in progress. Check your phone or wait a moment.",
+      "initiateFailed": "Something went wrong. Try again.",
+      "gymCredentialsUnavailable": "Your gym's payment connection isn't working right now. See front desk to renew with cash.",
+      "mobileMoneyDisabled": "Mobile money renewal isn't available right now. See front desk to renew with cash.",
+      "payerPhoneInvalid": "Enter a valid phone number"
     }
   }
 }

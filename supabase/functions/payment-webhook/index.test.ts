@@ -227,3 +227,122 @@ Deno.test("payment-webhook taramoney receive route: unrecognized businessId (zer
     stub.restore();
   }
 });
+
+// Story 4.15 Task 3: handleInitiate()'s new kill-switch check. Scoped
+// strictly to that check's own short-circuit behavior -- a full
+// happy-path/DB-write route-level test suite for handleInitiate() is a
+// pre-existing, already-flagged gap (deferred-work.md, Story 4.11 review),
+// not something this story is scoped to close.
+
+const INITIATE_PAYMENT_ROW = {
+  id: "pay1",
+  status: "processing",
+  provider_transaction_ref: null,
+  amount: 5000,
+  currency: "XAF",
+  gym_id: "gym-a",
+};
+
+function initiateRequest(body: unknown) {
+  return new Request("https://example.com/functions/v1/payment-webhook/initiate/taramoney", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Serves the eligibility-check `payments` GET plus the DELETE the
+ * kill-switch short-circuit issues to clean up the row it never charged --
+ * any other DB access (in particular a call into the provider) throws,
+ * failing the test loudly. */
+function stubFetchServingPaymentRowOnly(paymentRow: unknown) {
+  const calls: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    const method = init?.method ?? "GET";
+    calls.push(`${method} ${href}`);
+    if (href.includes("/rest/v1/payments?") && method === "GET") {
+      return Promise.resolve(
+        new Response(JSON.stringify(paymentRow), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    if (href.includes("/rest/v1/payments?") && method === "DELETE") {
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+    throw new Error(`stubFetch: unexpected DB access ${method} ${href}`);
+  }) as typeof fetch;
+  return { calls, restore: () => (globalThis.fetch = original) };
+}
+
+/**
+ * Serves the eligibility-check `payments` GET plus everything
+ * TaraMoneyProvider.initiate()'s gym-credential-lookup branch touches when
+ * the gym has no connected credentials (an empty `get_gym_payment_credentials_for_service`
+ * result) -- used to prove the enabled path actually reaches the provider,
+ * rather than stubbing a full real Tara Money API call.
+ */
+function stubFetchEnabledPathReachesProvider(paymentRow: unknown) {
+  const calls: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    const method = init?.method ?? "GET";
+    calls.push(`${method} ${href}`);
+    if (href.includes("/rest/v1/payments?") && method === "GET") {
+      return Promise.resolve(
+        new Response(JSON.stringify(paymentRow), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    if (href.includes("/rest/v1/payments?") && method === "DELETE") {
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+    if (href.includes("/rest/v1/rpc/get_gym_payment_credentials_for_service")) {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    if (href.includes("/rest/v1/rpc/mark_gym_payment_credentials_needs_attention")) {
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }
+    throw new Error(`stubFetch: unexpected DB access ${method} ${href}`);
+  }) as typeof fetch;
+  return { calls, restore: () => (globalThis.fetch = original) };
+}
+
+Deno.test("payment-webhook taramoney initiate route: TARAMONEY_INITIATION_ENABLED=false short-circuits before the provider is ever called, and cleans up the payment row (review finding)", async () => {
+  Deno.env.set("TARAMONEY_INITIATION_ENABLED", "false");
+  const stub = stubFetchServingPaymentRowOnly(INITIATE_PAYMENT_ROW);
+  try {
+    const req = initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" });
+    const res = await handler.fetch(req);
+    assertEquals(res.status, 502);
+    const body = await res.json();
+    assertEquals(body.code, "mobile_money_disabled");
+    assertEquals(
+      stub.calls.some((c) => c.startsWith("DELETE") && c.includes("/rest/v1/payments?")),
+      true,
+      "the disabled short-circuit must delete the payment row, same as every other rejection branch",
+    );
+  } finally {
+    stub.restore();
+    Deno.env.delete("TARAMONEY_INITIATION_ENABLED");
+  }
+});
+
+Deno.test("payment-webhook taramoney initiate route: TARAMONEY_INITIATION_ENABLED unset reaches the provider -- the kill switch does not block the default-enabled path", async () => {
+  const stub = stubFetchEnabledPathReachesProvider(INITIATE_PAYMENT_ROW);
+  try {
+    const req = initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" });
+    const res = await handler.fetch(req);
+    assertEquals(res.status, 502);
+    const body = await res.json();
+    assertEquals(
+      body.code,
+      "gym_credentials_unavailable",
+      "an unset kill switch must reach the provider, not short-circuit as mobile_money_disabled",
+    );
+  } finally {
+    stub.restore();
+  }
+});
