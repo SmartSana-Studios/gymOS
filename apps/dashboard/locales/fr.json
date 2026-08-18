@@ -601,6 +601,8 @@
     "backdateCheckbox": "Antidater à la date d'expiration d'origine ({{date}})",
     "sendPaymentRequestButton": "Envoyer la demande de paiement",
     "sendingPaymentRequest": "Envoi…",
+    "payerPhone": "Numéro de téléphone du payeur",
+    "payerPhoneHint": "Pré-rempli avec le numéro enregistré du membre — modifiez-le s'il paie depuis un autre téléphone.",
     "pending": {
       "title": "En attente de l'approbation de {{name}} sur son téléphone…",
       "description": "Une demande de paiement a été envoyée par SMS. Cette page se mettra à jour automatiquement une fois confirmée.",
@@ -613,7 +615,7 @@
       "noActivePlan": "Ce membre n'a aucun forfait actif à renouveler.",
       "previewLoadFailed": "Impossible de charger les détails du renouvellement. Vérifiez votre connexion et réessayez.",
       "confirmFailed": "Le renouvellement a échoué. Vérifiez votre connexion et réessayez.",
-      "noPhoneOnFile": "Ce membre n'a pas de numéro de téléphone enregistré — ajoutez-en un avant de demander un paiement Mobile Money.",
+      "payerPhoneInvalid": "Entrez un numéro de téléphone valide",
       "mobileMoneyDisabled": "Les paiements Mobile Money automatisés sont temporairement indisponibles. Utilisez les espèces ou une autre méthode manuelle.",
       "mobileMoneyNotConnected": "Connectez d'abord votre compte Tara Money dans les paramètres pour accepter les paiements Mobile Money automatisés.",
       "initiateFailed": "Impossible d'envoyer la demande de paiement. Vérifiez votre connexion et réessayez."

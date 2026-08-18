@@ -65,7 +65,9 @@ const TRANSLATIONS: Record<string, string> = {
   "renewalPanel.confirmButton": "Confirm Renewal",
   "renewalPanel.pending.failed": "The payment was not approved or was declined.",
   "renewalPanel.pending.closeButton": "Close",
-  "renewalPanel.errors.noPhoneOnFile": "This member has no phone number on file",
+  "renewalPanel.payerPhone": "Payer's phone number",
+  "renewalPanel.payerPhoneHint": "Defaults to the member's number on file — edit it if they're paying from a different phone.",
+  "renewalPanel.errors.payerPhoneInvalid": "Enter a valid phone number",
   "renewalPanel.errors.initiateFailed": "Couldn't send the payment request.",
   "payments.methods.cash": "Cash",
   "payments.methods.bankTransfer": "Bank Transfer",
@@ -195,7 +197,16 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
-  it("shows a friendly error and never calls initiatePaymentAction when the member has no phone on file", async () => {
+  it("pre-fills the payer phone field with the member's registered number", async () => {
+    await renderModal();
+
+    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
+    await userEvent.setup().selectOptions(screen.getByRole("combobox"), "mobile_money");
+
+    expect(screen.getByLabelText(/payer's phone number/i)).toHaveValue("+237680811041");
+  });
+
+  it("shows a field error and never calls initiatePaymentAction when the member has no phone on file and the front desk submits without entering one", async () => {
     getRenewalPreviewAction.mockResolvedValue({
       data: { planName: "Monthly", price: 15000, currency: "XAF", memberPhone: null },
       error: null,
@@ -205,10 +216,34 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
 
     await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
     await user.selectOptions(screen.getByRole("combobox"), "mobile_money");
+    // Defaults to just the "+237" prefix with no subscriber number -- too
+    // short to pass validation, same as leaving the field untouched.
     await user.click(screen.getByRole("button", { name: /send payment request/i }));
 
-    expect(await screen.findByText(/no phone number on file/i)).toBeInTheDocument();
+    expect(await screen.findByText(/enter a valid phone number/i)).toBeInTheDocument();
     expect(initiatePaymentAction).not.toHaveBeenCalled();
+  });
+
+  it("lets the front desk override the payer phone with a different number than the one on file", async () => {
+    initiatePaymentAction.mockResolvedValue({ data: { paymentId: "payment-1" }, error: null });
+    const user = userEvent.setup();
+    await renderModal();
+
+    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
+    await user.selectOptions(screen.getByRole("combobox"), "mobile_money");
+
+    const phoneInput = screen.getByLabelText(/payer's phone number/i);
+    await user.clear(phoneInput);
+    await user.type(phoneInput, "+237691234567");
+    await user.click(screen.getByRole("button", { name: /send payment request/i }));
+
+    await waitFor(() =>
+      expect(initiatePaymentAction).toHaveBeenCalledWith({
+        memberId: MEMBER_ID,
+        phoneNumber: "+237691234567",
+        method: "mobile_money",
+      }),
+    );
   });
 
   it("on initiatePaymentAction error, shows an error and returns to the form (method selector reappears)", async () => {

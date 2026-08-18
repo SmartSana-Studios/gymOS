@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowRight, X } from "lucide-react";
-import { confirmRenewalSchema, type ConfirmRenewalInput } from "@gymos/types";
+import { confirmRenewalSchema, initiatePaymentSchema, type ConfirmRenewalInput } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { dismissFrontDeskAlert } from "@/lib/realtime/frontDeskAlerts";
 import {
@@ -21,7 +22,18 @@ import type { RenewalPreview } from "@/services/subscriptions";
 
 interface FieldErrors {
   reason?: string;
+  payerPhone?: string;
 }
+
+// Front desk default: the member's own registered number pre-fills the
+// payer field, but stays editable -- a member sometimes wants to pay with a
+// different phone than the one on file (e.g. a friend/parent's line), and
+// blocking submission on `memberPhone` being null (previous behavior) also
+// dead-ended any member with no phone on file with no way to pay by mobile
+// money at all. `+237` matches `MemberModal.tsx`'s own `DEFAULT_PHONE_PREFIX`
+// convention (per-file-copy, not a cross-import) for the no-phone-on-file
+// case, so the front desk only has to type the subscriber number.
+const DEFAULT_PHONE_PREFIX = "+237";
 
 // confirmRenewalSchema's own issue messages are hardcoded English literals
 // (matches RecordRefundModal/RecordPaymentModal's established pattern) --
@@ -33,6 +45,7 @@ interface FieldErrors {
 // bypasses confirmRenewalSchema entirely (see handleSubmit).
 const FIELD_ERROR_KEY: Record<keyof FieldErrors, string> = {
   reason: "renewalPanel.errors.reasonInvalid",
+  payerPhone: "renewalPanel.errors.payerPhoneInvalid",
 };
 
 // Story 4.12 (AC #1): `mobile_money` is NOT part of `ConfirmRenewalInput["method"]`
@@ -110,6 +123,11 @@ export function RenewalModal({
 
   const [method, setMethod] = useState<RenewalMethod>("cash");
   const [note, setNote] = useState(t("renewalPanel.notePrefillCash"));
+  // Mobile Money payer phone -- defaults to the member's own registered
+  // number once the preview loads (below), but stays editable so the front
+  // desk can enter a different number when the client wants to pay from
+  // another line.
+  const [payerPhone, setPayerPhone] = useState(DEFAULT_PHONE_PREFIX);
   // Story 4.8: only ever true when `originalExpiryDate` is passed (the
   // Subscriptions page, for grace_period/expired rows with a non-null
   // expiryDate) -- FrontDeskAlertPanel's call site never passes this prop,
@@ -158,6 +176,7 @@ export function RenewalModal({
           return;
         }
         setPreview(data);
+        setPayerPhone(data.memberPhone ?? DEFAULT_PHONE_PREFIX);
       })
       .catch(() => {
         // Review finding: an unhandled rejection here previously left the
@@ -288,6 +307,7 @@ export function RenewalModal({
     // error message and no way to recover short of closing the modal.
     setRetryBlocked(false);
     setFormError(null);
+    setFieldErrors({});
   }
 
   function methodLabel(method: string): string {
@@ -308,9 +328,11 @@ export function RenewalModal({
    */
   async function handleMobileMoneySubmit() {
     setFormError(null);
+    setFieldErrors({});
 
-    if (!preview?.memberPhone) {
-      setFormError(t("renewalPanel.errors.noPhoneOnFile"));
+    const phoneCheck = initiatePaymentSchema.shape.phoneNumber.safeParse(payerPhone.trim());
+    if (!phoneCheck.success) {
+      setFieldErrors({ payerPhone: t(FIELD_ERROR_KEY.payerPhone) });
       return;
     }
 
@@ -318,7 +340,7 @@ export function RenewalModal({
     try {
       const { data, error } = await initiatePaymentAction({
         memberId,
-        phoneNumber: preview.memberPhone,
+        phoneNumber: phoneCheck.data,
         method: "mobile_money",
       });
       if (error || !data) {
@@ -509,7 +531,20 @@ export function RenewalModal({
               </select>
             </div>
 
-            {method !== "mobile_money" && (
+            {method === "mobile_money" ? (
+              <div className="space-y-2">
+                <Label htmlFor={`renewalPayerPhone-${domIdSuffix}`}>{t("renewalPanel.payerPhone")}</Label>
+                <Input
+                  id={`renewalPayerPhone-${domIdSuffix}`}
+                  type="tel"
+                  value={payerPhone}
+                  onChange={(e) => setPayerPhone(e.target.value)}
+                  disabled={mobileMoneyPhase === "sending" || !preview}
+                />
+                <p className="text-xs text-muted-foreground">{t("renewalPanel.payerPhoneHint")}</p>
+                {fieldErrors.payerPhone && <p className="text-sm text-red-600">{fieldErrors.payerPhone}</p>}
+              </div>
+            ) : (
               <div className="space-y-2">
                 <Label htmlFor={`renewalNote-${domIdSuffix}`}>{t("renewalPanel.note")} *</Label>
                 <textarea
