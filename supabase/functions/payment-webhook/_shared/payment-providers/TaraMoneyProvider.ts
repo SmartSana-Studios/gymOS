@@ -137,17 +137,31 @@ export class TaraMoneyProvider implements PaymentProvider {
         p_gym_id: params.routingContext.gymId,
         p_provider_key: this.providerKey,
       });
-      const row = Array.isArray(data) ? data[0] : undefined;
-      if (error || !row) {
-        // An expected *operational* state (never connected, or a prior
-        // connection now invalid/revoked) -- not a deploy-time
-        // misconfiguration, so it gets a typed, matchable code (AC #3)
-        // rather than collapsing into a generic error string.
+      if (error) {
+        // A transient RPC/DB failure -- distinct from "genuinely not
+        // connected" (review finding). Collapsing this into
+        // credentials_not_connected would flip needs_attention (and write
+        // an audit event) on a mere infra blip that has nothing to do with
+        // the gym's actual credentials, with no self-healing path short of
+        // a full manual reconnect. No typed code -- falls through to a
+        // generic initiation failure, matching every other transient
+        // provider-call error in this method.
         return {
           success: false,
-          error: error
-            ? `TaraMoney credential lookup failed: ${error.message}`
-            : "TaraMoney credentials are not connected for this gym",
+          error: `TaraMoney credential lookup failed: ${error.message}`,
+        };
+      }
+      const row = Array.isArray(data) ? data[0] : undefined;
+      if (!row || !row.api_key || !row.business_id) {
+        // Zero rows (never connected / disconnected) or a row with an
+        // unexpectedly blank credential value -- both are the real
+        // "not usable right now" operational state AC #3 needs a typed,
+        // matchable code for (review finding: a partially-populated row
+        // must not silently fall through to a generic provider-call
+        // failure below).
+        return {
+          success: false,
+          error: "TaraMoney credentials are not connected for this gym",
           code: "credentials_not_connected",
         };
       }
@@ -282,6 +296,12 @@ export class TaraMoneyProvider implements PaymentProvider {
     if (!event) {
       return { valid: false };
     }
+
+    // Surfaced so index.ts can synchronously confirm the payments row it
+    // matches by provider_transaction_ref actually belongs to this same
+    // gym before completing it (review finding) -- row.gym_id is exactly
+    // the gym whose secret just verified this delivery.
+    event.resolvedGymId = row.gym_id;
 
     return { valid: true, event };
   }

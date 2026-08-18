@@ -51,6 +51,46 @@ function stubFetchServingBusinessIdLookupOnly(lookupResponse: unknown[]) {
   };
 }
 
+/**
+ * Serves a full receive-route flow past signature verification: the businessId lookup RPC, a
+ * `payments` select returning `paymentRow`, and a `payment_webhook_events` upsert -- then records
+ * whether `complete_verified_payment` (the completion RPC) was ever called. Used by the
+ * cross-tenant-completion-guard test below (review finding), which must reach this far and then
+ * stop short of calling it.
+ */
+function stubFetchFullFlow(lookupResponse: unknown[], paymentRow: { id: string; gym_id: string } | null) {
+  const calls: string[] = [];
+  let completeVerifiedPaymentCalled = false;
+  const original = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL | Request) => {
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    calls.push(href);
+    if (href.includes("/rest/v1/rpc/get_gym_payment_credentials_by_business_id")) {
+      return Promise.resolve(
+        new Response(JSON.stringify(lookupResponse), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    if (href.includes("/rest/v1/payments?")) {
+      return Promise.resolve(
+        new Response(JSON.stringify(paymentRow), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    if (href.includes("/rest/v1/payment_webhook_events")) {
+      return Promise.resolve(new Response(null, { status: 201 }));
+    }
+    if (href.includes("/rest/v1/rpc/complete_verified_payment")) {
+      completeVerifiedPaymentCalled = true;
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }
+    throw new Error(`stubFetch: unexpected DB access ${href}`);
+  }) as typeof fetch;
+  return {
+    calls,
+    completeVerifiedPaymentCalled: () => completeVerifiedPaymentCalled,
+    restore: () => (globalThis.fetch = original),
+  };
+}
+
 function stubFetchNoCallsExpected() {
   const calls: string[] = [];
   const original = globalThis.fetch;
@@ -127,6 +167,48 @@ Deno.test("payment-webhook taramoney receive route: malformed JSON body with a c
     assertEquals(calls.length, 0, "a malformed payload must fail before any DB access, including the businessId lookup");
   } finally {
     restore();
+  }
+});
+
+Deno.test("payment-webhook taramoney receive route: a correctly-signed delivery resolved to gym A never completes a matched payment that actually belongs to gym B (review finding -- synchronous cross-tenant guard)", async () => {
+  const stub = stubFetchFullFlow([GYM_A_ROW], { id: "payment-1", gym_id: "gym-b" });
+  try {
+    const req = receiveRequest({ "tara-webhook-secret": SECRET }, {
+      businessId: "biz1",
+      paymentId: "pay1",
+      status: "SUCCESS",
+      amount: "5000",
+    });
+    const res = await handler.fetch(req);
+    assertEquals(res.status, 200);
+    assertEquals(
+      stub.completeVerifiedPaymentCalled(),
+      false,
+      "a signature-verified delivery for gym A must never complete a payment matched to a different gym",
+    );
+  } finally {
+    stub.restore();
+  }
+});
+
+Deno.test("payment-webhook taramoney receive route: a correctly-signed delivery resolved to gym A completes a matched payment that also belongs to gym A", async () => {
+  const stub = stubFetchFullFlow([GYM_A_ROW], { id: "payment-1", gym_id: "gym-a" });
+  try {
+    const req = receiveRequest({ "tara-webhook-secret": SECRET }, {
+      businessId: "biz1",
+      paymentId: "pay1",
+      status: "SUCCESS",
+      amount: "5000",
+    });
+    const res = await handler.fetch(req);
+    assertEquals(res.status, 200);
+    assertEquals(
+      stub.completeVerifiedPaymentCalled(),
+      true,
+      "a signature-verified delivery must still complete a payment matched to the same gym it resolved to",
+    );
+  } finally {
+    stub.restore();
   }
 });
 

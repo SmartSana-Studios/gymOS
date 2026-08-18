@@ -25,6 +25,7 @@
     "noActiveSubscriptionToRenew": "Ce membre n'a pas de formule active à renouveler.",
     "noOpenCheckIn": "Ce membre n'a pas de pointage ouvert à clôturer.",
     "paymentAlreadyRefunded": "Ce paiement a déjà été remboursé.",
+    "paymentBusinessIdAlreadyConnected": "Ce compte Tara Money est déjà connecté à une autre salle.",
     "backdateNotEligible": "Cet abonnement ne peut pas être antidaté.",
     "memberNotAssigned": "Ce membre ne vous est plus assigné.",
     "noteNotEditable": "Cette note ne peut pas être modifiée.",

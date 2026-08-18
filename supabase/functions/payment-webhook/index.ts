@@ -249,7 +249,7 @@ export default {
     // lookup.
     const { data: paymentRow, error: lookupError } = await supabase
       .from("payments")
-      .select("id")
+      .select("id, gym_id")
       .eq("provider_transaction_ref", event.providerTransactionRef)
       .maybeSingle();
 
@@ -328,6 +328,23 @@ export default {
       // for it can arrive.
       console.error(
         `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} matched no payments row -- nothing to do`,
+      );
+      return jsonResponse(200);
+    }
+
+    // Review finding: verifyWebhookSignature resolves gym_id from the
+    // payload's businessId internally, but the payments-row match above is
+    // purely by provider_transaction_ref -- a synchronous cross-check
+    // closes the gap where a signature-verified delivery for gym A's
+    // account could otherwise complete a payment row that actually belongs
+    // to a different gym (a provider_transaction_ref collision/anomaly).
+    // Previously this was only ever caught after the fact, and only for
+    // gyms already connected, by run_payment_reconciliation_job()'s
+    // wrong_account_settlement category -- this prevents it synchronously
+    // instead of merely detecting it later.
+    if (event.resolvedGymId && event.resolvedGymId !== paymentRow.gym_id) {
+      console.error(
+        `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} resolved to gym ${event.resolvedGymId} but matched payment ${paymentRow.id} belongs to gym ${paymentRow.gym_id} -- refusing to complete, leaving for reconciliation`,
       );
       return jsonResponse(200);
     }

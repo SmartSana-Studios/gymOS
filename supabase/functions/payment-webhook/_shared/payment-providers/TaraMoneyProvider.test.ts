@@ -88,6 +88,7 @@ Deno.test("verifyWebhookSignature: valid header + valid payload + matching gym r
     event: {
       providerTransactionRef: "pay1",
       businessId: "biz1",
+      resolvedGymId: "gym-a",
       status: "verified",
       amount: 100,
       currency: "XAF",
@@ -234,6 +235,7 @@ Deno.test("verifyWebhookSignature: amount entirely absent defaults to 0 and stil
     event: {
       providerTransactionRef: "pay1",
       businessId: "biz1",
+      resolvedGymId: "gym-a",
       status: "verified",
       amount: 0,
       currency: "XAF",
@@ -253,6 +255,7 @@ Deno.test("verifyWebhookSignature: status FAILURE normalizes to event.status 'fl
     event: {
       providerTransactionRef: "pay1",
       businessId: "biz1",
+      resolvedGymId: "gym-a",
       status: "flagged",
       amount: 100,
       currency: "XAF",
@@ -357,6 +360,7 @@ Deno.test("verifyWebhookSignature: parses the real 2026-07-31 stand-in-account w
     event: {
       providerTransactionRef: "643539724",
       businessId: "wxND8vZv5v",
+      resolvedGymId: "gym-a",
       status: "verified",
       amount: 50,
       currency: "XAF",
@@ -395,6 +399,7 @@ Deno.test("verifyWebhookSignature: parses the real 2026-08-13 real-account webho
     event: {
       providerTransactionRef: "165126343",
       businessId: "9FmIZg9GBB",
+      resolvedGymId: "gym-a",
       status: "verified",
       amount: 100,
       currency: "XAF",
@@ -445,7 +450,13 @@ Deno.test("initiate(): a gym with no connected credentials (zero rows) returns a
   }
 });
 
-Deno.test("initiate(): a gym credentials RPC error also returns a typed credentials_not_connected failure (fail closed), no HTTP call attempted", async () => {
+// Review finding: a genuine RPC/DB error (as opposed to a real zero-row "not
+// connected" result) must NOT collapse into credentials_not_connected --
+// index.ts only flips needs_attention (and writes an audit event) on that
+// specific typed code, and a transient infra blip has nothing to do with
+// whether the gym's actual credentials are valid. No code at all here, same
+// as every other transient provider-call failure this method can return.
+Deno.test("initiate(): a gym credentials RPC error (transient DB failure) returns an untyped failure, distinct from credentials_not_connected, no HTTP call attempted", async () => {
   const { supabase } = makeMockSupabase({
     get_gym_payment_credentials_for_service: { data: null, error: { message: "db unreachable" } },
   });
@@ -463,8 +474,43 @@ Deno.test("initiate(): a gym credentials RPC error also returns a typed credenti
     });
 
     assertEquals(result.success, false);
-    assertEquals((result as { code?: string }).code, "credentials_not_connected");
+    assertEquals((result as { code?: string }).code, undefined);
     assertEquals((result as { error: string }).error.includes("db unreachable"), true);
+    assertEquals(fetchStub.wasCalled(), false);
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+// Review finding: a row found but missing a required credential value
+// (apiKey/businessId blank) is also a real "not usable right now" state --
+// must get the same typed code as zero rows, not silently proceed to call
+// TaraMoney with a blank credential.
+Deno.test("initiate(): a gym credentials row with a blank businessId returns a typed credentials_not_connected failure, no HTTP call attempted", async () => {
+  const { supabase } = makeMockSupabase({
+    get_gym_payment_credentials_for_service: {
+      data: [{ api_key: "key-a", business_id: "", webhook_secret: "secret-a" }],
+      error: null,
+    },
+  });
+  const provider = new TaraMoneyProvider(supabase);
+  const fetchStub = stubFetchNoCallsExpected();
+
+  try {
+    const result = await provider.initiate({
+      amount: 100,
+      currency: "XAF",
+      reference: "ref1",
+      callbackUrl: "https://example.com/callback",
+      phoneNumber: "237600000000",
+      routingContext: { type: "gym", gymId: "gym-a" },
+    });
+
+    assertEquals(result, {
+      success: false,
+      error: "TaraMoney credentials are not connected for this gym",
+      code: "credentials_not_connected",
+    });
     assertEquals(fetchStub.wasCalled(), false);
   } finally {
     fetchStub.restore();

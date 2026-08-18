@@ -78,6 +78,17 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // idx_gym_payment_credentials_provider_business_id (0054_flow_a_gym_routing.sql,
+  // Story 4.14, review finding): two gyms attempting to connect the same
+  // Tara Money business account under the same provider. Without this
+  // mapping the raw unique_violation surfaced as a generic "unknown error".
+  if (pgErrorCode === "23505" && message.includes("idx_gym_payment_credentials_provider_business_id")) {
+    return {
+      code: "payment_business_id_already_connected",
+      message: copy.paymentBusinessIdAlreadyConnected,
+    };
+  }
+
   // gyms_tier_id_fkey violated by *updating a gym's own* tier_id to point at
   // a tier that no longer exists (e.g. deleted concurrently between page
   // load and submit). Postgres's message reads `insert or update on table

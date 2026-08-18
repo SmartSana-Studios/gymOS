@@ -117,11 +117,19 @@ begin
 
   if v_existing_id is not null then
     perform vault.update_secret(v_existing_secret_id, v_secret_json);
+    -- connected_at is also bumped here (not just set at insert time) --
+    -- run_payment_reconciliation_job()'s wrong_account_settlement check
+    -- anchors its comparison to this timestamp (review finding), so an
+    -- in-place credential change (e.g. rotating to a different Tara Money
+    -- account without an explicit disconnect first) must move the anchor
+    -- too, or payments settled under the prior account would be retroactively
+    -- flagged against the new one.
     update gym_payment_credentials
     set business_id_masked = v_masked,
       business_id_plain = v_plain,
       needs_attention = false,
       connected_by = auth.uid(),
+      connected_at = now(),
       updated_at = now()
     where id = v_existing_id;
   else
@@ -205,6 +213,16 @@ grant execute on function get_gym_payment_credentials_by_business_id to service_
 -- credentials-mutation path. Only transitions false -> true (no-op, no audit
 -- row, if already true) so a repeatedly-failing gym doesn't spam the audit
 -- log on every retry.
+--
+-- Review finding: a stale in-flight initiate() failure (its credentials
+-- lookup raced a concurrent disconnect) could otherwise flip needs_attention
+-- back to true immediately after a successful, unrelated reconnect --
+-- connect_gym_payment_credentials() clears needs_attention and sets a fresh
+-- connected_at, then this call lands moments later and re-sets it, even
+-- though the new credentials are fine. Guarded by requiring the current
+-- connection to not be brand new (connected_at older than 30s) -- a
+-- just-(re)connected row's failure signal is almost certainly stale, not a
+-- real problem with the credentials just entered.
 -- ----------------------------------------------------------------------------
 create function mark_gym_payment_credentials_needs_attention(p_gym_id uuid, p_provider_key text)
 returns void
@@ -215,7 +233,8 @@ as $$
 begin
   update gym_payment_credentials
   set needs_attention = true
-  where gym_id = p_gym_id and provider_key = p_provider_key and needs_attention = false;
+  where gym_id = p_gym_id and provider_key = p_provider_key and needs_attention = false
+    and connected_at < now() - interval '30 seconds';
 
   if found then
     perform log_audit_event(
@@ -261,10 +280,23 @@ grant execute on function get_gym_payment_connection_status to authenticated, se
 -- run_payment_reconciliation_job(): 4th detection block (FR-137), added
 -- after the existing 3 (0032_payment_reconciliation_job.sql). Flags a
 -- signature-verified, matched webhook event whose payload businessId
--- disagrees with its gym's connected business_id_plain -- covers both "gym
--- never connected, payment somehow settled to the platform account" (the
--- left join to gym_payment_credentials produces no row, so `is distinct
--- from` is true) and "settled to a different gym's account".
+-- disagrees with its gym's connected business_id_plain -- "settled to a
+-- different gym's account" (or the platform account under a stale name).
+--
+-- Review finding (post-implementation): the naive version of this check
+-- (left join, unconditional `is distinct from`) floods the discrepancy
+-- table with false positives -- every payment settled before any gym had
+-- connected (all pre-Story-4.13 history) has no gym_payment_credentials row
+-- yet, so it was unconditionally flagged; and a gym disconnecting/
+-- reconnecting with a different account retroactively re-flagged its own
+-- previously-correct payments. Fixed by requiring a connected row to exist
+-- (inner join, not left join -- "never connected" is not itself evidence of
+-- misrouting once this story ships, since initiate() cannot even attempt a
+-- gym payment without one) and anchoring the comparison to the connection
+-- that was actually in effect when the payment was created
+-- (p.created_at >= g.connected_at), so a later disconnect/reconnect under a
+-- different account doesn't retroactively re-flag payments settled under
+-- the prior, since-superseded connection.
 -- ============================================================================
 create or replace function run_payment_reconciliation_job()
 returns void
@@ -318,8 +350,9 @@ begin
       jsonb_build_object('webhookBusinessId', e.raw_payload ->> 'businessId', 'expectedBusinessId', g.business_id_plain)
     from payment_webhook_events e
     join payments p on p.id = e.matched_payment_id
-    left join gym_payment_credentials g on g.gym_id = p.gym_id and g.provider_key = e.provider_key
+    join gym_payment_credentials g on g.gym_id = p.gym_id and g.provider_key = e.provider_key
     where e.status = 'verified'
+      and p.created_at >= g.connected_at
       and e.raw_payload ->> 'businessId' is distinct from g.business_id_plain
     on conflict (webhook_event_id) where discrepancy_type = 'wrong_account_settlement' do nothing;
 

@@ -562,7 +562,7 @@
       "auditLogFailedVerify": "Le paiement a été vérifié, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedFlag": "Le paiement a été signalé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedRefund": "Le remboursement a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
-      "gymCredentialsUnavailable": "Le paiement mobile money n'est pas disponible pour le moment. Veuillez payer à l'accueil en espèces ou par un autre moyen."
+      "gymCredentialsUnavailable": "Le paiement mobile money n'est pas disponible pour le moment. Veuillez essayer un autre moyen de paiement."
     },
     "discrepancies": {
       "title": "Écarts",
@@ -575,7 +575,8 @@
         "amountMismatch": "Écart de montant",
         "wrongAccountSettlement": "Règlement sur le mauvais compte"
       },
-      "amountMismatchLine": "{{internal}} (signalé : {{reported}})"
+      "amountMismatchLine": "{{internal}} (signalé : {{reported}})",
+      "wrongAccountSettlementLine": "Attendu {{expected}}, réglé sur {{actual}}"
     }
   },
   "frontDeskAlert": {

@@ -13,7 +13,7 @@
 -- amount_mismatch (see the updated per-role counts below).
 
 begin;
-select plan(28);
+select plan(27);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000009501', 'Reconciliation Test Tier', 5000, 50000, 30);
@@ -43,11 +43,14 @@ insert into members (id, gym_id, user_id, role, name) values
 -- ============================================================================
 -- Story 4.14 (Task 2, FR-137): Gym A connects Tara Money -- inserted
 -- directly (not via connect_gym_payment_credentials()) since this file only
--- needs business_id_plain populated for the job's join, not real Vault
--- encryption (already covered by gym_payment_credentials_rls.test.sql).
--- Gym B deliberately has NO row here -- p7 below exercises the "gym never
--- connected, payment somehow settled to the platform account" arm of the
--- job's left join.
+-- needs business_id_plain/connected_at populated for the job's join, not
+-- real Vault encryption (already covered by gym_payment_credentials_rls.test.sql).
+-- Gym B deliberately has NO row here -- p7 below exercises the (fixed,
+-- review finding) "gym never connected" arm: the job now requires a
+-- connected row to exist (inner join, not left join) before comparing
+-- businessId at all, so a payment for a gym that never connected is no
+-- longer flagged -- avoids retroactively flooding the discrepancy table
+-- with every payment settled before this story shipped.
 -- ============================================================================
 insert into gym_payment_credentials (id, gym_id, provider_key, credentials_secret_id, business_id_masked, business_id_plain) values
   ('00000000-0000-0000-0000-000000009801', '00000000-0000-0000-0000-000000009511', 'taramoney', gen_random_uuid(), '•••• ess-a', 'recon-test-business-a');
@@ -60,7 +63,13 @@ insert into gym_payment_credentials (id, gym_id, provider_key, credentials_secre
 -- p5/p6 (Gym A, Story 4.14): p5's matched webhook event settles to the
 -- wrong businessId; p6's matches Gym A's own connected business_id_plain.
 -- p7 (Gym B, Story 4.14): Gym B never connected (no gym_payment_credentials
--- row at all) -- its matched webhook event still gets flagged.
+-- row at all) -- its matched webhook event must NOT be flagged (review
+-- finding fix -- see comment above the gym_payment_credentials insert).
+-- p8 (Gym A, review-finding fix): created well before Gym A's
+-- connected_at (which defaults to this same transaction's now()) -- proves
+-- a payment settled before the gym ever connected isn't retroactively
+-- flagged even though its webhook's businessId disagrees with what Gym A
+-- has connected today (the exact historical-flood scenario the fix closes).
 insert into payments (id, gym_id, member_id, amount, currency, method, status, created_at) values
   ('00000000-0000-0000-0000-000000009601', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 5000, 'XAF', 'mtn_momo', 'processing', now() - interval '11 minutes'),
   ('00000000-0000-0000-0000-000000009602', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 5000, 'XAF', 'mtn_momo', 'processing', now() - interval '5 minutes'),
@@ -68,7 +77,8 @@ insert into payments (id, gym_id, member_id, amount, currency, method, status, c
   ('00000000-0000-0000-0000-000000009604', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 8000, 'XAF', 'orange_money', 'verified', now()),
   ('00000000-0000-0000-0000-000000009605', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 6000, 'XAF', 'orange_money', 'verified', now()),
   ('00000000-0000-0000-0000-000000009606', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 7000, 'XAF', 'orange_money', 'verified', now()),
-  ('00000000-0000-0000-0000-000000009607', '00000000-0000-0000-0000-000000009512', '00000000-0000-0000-0000-000000009562', 9000, 'XAF', 'orange_money', 'verified', now());
+  ('00000000-0000-0000-0000-000000009607', '00000000-0000-0000-0000-000000009512', '00000000-0000-0000-0000-000000009562', 9000, 'XAF', 'orange_money', 'verified', now()),
+  ('00000000-0000-0000-0000-000000009608', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 4000, 'XAF', 'orange_money', 'verified', now() - interval '30 days');
 
 -- payment_webhook_events fixtures. 'taramoney' is seeded globally by 0029
 -- (0029_payment_provider_registry.sql), no per-test payment_providers row
@@ -76,7 +86,9 @@ insert into payments (id, gym_id, member_id, amount, currency, method, status, c
 -- (AC #3). e3 matches p4 and agrees (no discrepancy). e4 matches p5 but
 -- settles to the wrong businessId (Story 4.14, FR-137). e5 matches p6 and
 -- settles to Gym A's own connected businessId (no discrepancy). e6 matches
--- p7 (Gym B, never connected).
+-- p7 (Gym B, never connected). e7 matches p8 (Gym A, settled 30 days before
+-- Gym A's connected_at) with a mismatched businessId -- must NOT flag
+-- (review-finding fix).
 -- e2/e3's raw_payload carries Gym A's own connected businessId (Story 4.14
 -- fixture addition, below) -- otherwise their empty '{}' payload would also
 -- trip the new wrong_account_settlement category (NULL businessId IS
@@ -90,7 +102,8 @@ insert into payment_webhook_events (id, provider_key, provider_transaction_ref, 
   ('00000000-0000-0000-0000-000000009703', 'taramoney', 'recon-test-match', 8000, 'XAF', 'verified', '00000000-0000-0000-0000-000000009604', '{"businessId": "recon-test-business-a"}'::jsonb),
   ('00000000-0000-0000-0000-000000009704', 'taramoney', 'recon-test-wrong-account', 6000, 'XAF', 'verified', '00000000-0000-0000-0000-000000009605', '{"businessId": "wrong-business-id"}'::jsonb),
   ('00000000-0000-0000-0000-000000009705', 'taramoney', 'recon-test-right-account', 7000, 'XAF', 'verified', '00000000-0000-0000-0000-000000009606', '{"businessId": "recon-test-business-a"}'::jsonb),
-  ('00000000-0000-0000-0000-000000009706', 'taramoney', 'recon-test-never-connected', 9000, 'XAF', 'verified', '00000000-0000-0000-0000-000000009607', '{"businessId": "some-business-id"}'::jsonb);
+  ('00000000-0000-0000-0000-000000009706', 'taramoney', 'recon-test-never-connected', 9000, 'XAF', 'verified', '00000000-0000-0000-0000-000000009607', '{"businessId": "some-business-id"}'::jsonb),
+  ('00000000-0000-0000-0000-000000009707', 'taramoney', 'recon-test-pre-connection', 4000, 'XAF', 'verified', '00000000-0000-0000-0000-000000009608', '{"businessId": "some-other-business-id"}'::jsonb);
 
 -- ============================================================================
 -- Call the job directly -- no waiting on real cron timing.
@@ -210,20 +223,15 @@ select is(
 select is(
   (select count(*)::int from payment_discrepancies
     where discrepancy_type = 'wrong_account_settlement' and webhook_event_id = '00000000-0000-0000-0000-000000009706'),
-  1,
-  'a gym with no gym_payment_credentials row at all (never connected) still gets its matched webhook event flagged -- the left join produces NULL, which IS DISTINCT FROM any businessId'
+  0,
+  'review-finding fix: a gym with no gym_payment_credentials row at all (never connected) does NOT get its matched webhook event flagged -- inner join requires a connected row, avoiding a flood of every pre-connection historical payment'
 );
 
 select is(
-  (select gym_id from payment_discrepancies where webhook_event_id = '00000000-0000-0000-0000-000000009706' and discrepancy_type = 'wrong_account_settlement'),
-  '00000000-0000-0000-0000-000000009512',
-  'the never-connected-gym''s wrong_account_settlement discrepancy still carries its own gym_id'
-);
-
-select is(
-  (select details ->> 'expectedBusinessId' from payment_discrepancies where webhook_event_id = '00000000-0000-0000-0000-000000009706' and discrepancy_type = 'wrong_account_settlement'),
-  null,
-  'the never-connected-gym''s discrepancy details carries a NULL expectedBusinessId, not a fabricated value'
+  (select count(*)::int from payment_discrepancies
+    where discrepancy_type = 'wrong_account_settlement' and webhook_event_id = '00000000-0000-0000-0000-000000009707'),
+  0,
+  'review-finding fix: a payment settled before its gym''s connected_at is not retroactively flagged, even though the webhook''s businessId disagrees with what the gym has connected today -- the check is anchored to p.created_at >= g.connected_at'
 );
 
 -- ============================================================================
@@ -238,13 +246,13 @@ select lives_ok(
 
 select is(
   (select count(*)::int from payment_discrepancies),
-  5,
-  'a second consecutive run leaves the total discrepancy row count unchanged -- no re-flagging of already-known discrepancies (1 missing_internal_record + 1 stale_processing + 1 amount_mismatch + 2 wrong_account_settlement)'
+  4,
+  'a second consecutive run leaves the total discrepancy row count unchanged -- no re-flagging of already-known discrepancies (1 missing_internal_record + 1 stale_processing + 1 amount_mismatch + 1 wrong_account_settlement)'
 );
 
 select is(
   (select count(*)::int from payment_discrepancies where discrepancy_type = 'wrong_account_settlement'),
-  2,
+  1,
   'the 4th category''s own partial unique index holds across the second run too -- no duplicate wrong_account_settlement rows'
 );
 
@@ -326,8 +334,8 @@ select set_config(
 
 select is(
   (select count(*)::int from payment_discrepancies),
-  1,
-  'a Gym B owner-claim session sees only its own 1 wrong_account_settlement discrepancy -- Gym A''s 3 discrepancies stay invisible (cross-gym read deny)'
+  0,
+  'a Gym B owner-claim session sees 0 discrepancies -- Gym B never connected so its payment is no longer flagged (review-finding fix), and Gym A''s 3 discrepancies stay invisible (cross-gym read deny)'
 );
 
 select * from finish();

@@ -10,7 +10,7 @@
 -- either -- plus business_id_plain's uniqueness constraint.
 
 begin;
-select plan(36);
+select plan(37);
 
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000000901'), -- owner, gym A
@@ -311,6 +311,10 @@ select is(
   'get_gym_payment_connection_status: needs_attention starts false for a freshly-connected gym'
 );
 
+-- Review finding: mark_gym_payment_credentials_needs_attention() guards
+-- against a stale in-flight failure racing a fresh reconnect by requiring
+-- connected_at to be older than 30s -- calling it against a just-connected
+-- row (as gym C's is here) must be a no-op.
 reset role;
 set local role service_role;
 select mark_gym_payment_credentials_needs_attention('00000000-0000-0000-0000-000000000407', 'taramoney');
@@ -321,8 +325,28 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 
 select is(
   (select needs_attention from get_gym_payment_connection_status('taramoney')),
+  false,
+  'mark_gym_payment_credentials_needs_attention() is a no-op against a just-connected row (< 30s old) -- guards a stale in-flight failure from racing a fresh reconnect'
+);
+
+-- Backdate connected_at to simulate a connection that has been established
+-- for a while, so the realistic "was connected, now failing" case is what
+-- the next assertion actually exercises.
+reset role;
+set local role service_role;
+update gym_payment_credentials
+set connected_at = now() - interval '5 minutes'
+where gym_id = '00000000-0000-0000-0000-000000000407' and provider_key = 'taramoney';
+select mark_gym_payment_credentials_needs_attention('00000000-0000-0000-0000-000000000407', 'taramoney');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000904","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000000407","app_role":"owner"}', true);
+
+select is(
+  (select needs_attention from get_gym_payment_connection_status('taramoney')),
   true,
-  'mark_gym_payment_credentials_needs_attention() flips needs_attention to true, visible via get_gym_payment_connection_status'
+  'mark_gym_payment_credentials_needs_attention() flips needs_attention to true for a connection that has been established a while, visible via get_gym_payment_connection_status'
 );
 
 select lives_ok(

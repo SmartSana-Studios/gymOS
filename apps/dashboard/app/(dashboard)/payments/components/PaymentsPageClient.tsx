@@ -211,7 +211,12 @@ export function PaymentsPageClient({
                             internal: formatAmount(row.amount),
                             reported: formatAmount(Number(row.details.webhookAmount ?? 0)),
                           })
-                        : formatAmount(row.amount)}
+                        : row.discrepancyType === "wrong_account_settlement"
+                          ? t("payments.discrepancies.wrongAccountSettlementLine", {
+                              expected: String(row.details.expectedBusinessId ?? "—"),
+                              actual: String(row.details.webhookBusinessId ?? "—"),
+                            })
+                          : formatAmount(row.amount)}
                     </td>
                     <td className="p-3">{formatDetectedAt(row.detectedAt)}</td>
                   </tr>

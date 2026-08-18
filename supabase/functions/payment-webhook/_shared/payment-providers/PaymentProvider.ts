@@ -70,6 +70,17 @@ export interface NormalizedPaymentEvent {
    * query). Present whenever the provider's payload carries one.
    */
   businessId?: string;
+  /**
+   * The gym_id verifyWebhookSignature() resolved businessId against
+   * (Story 4.14, review finding) — surfaced so index.ts can synchronously
+   * confirm the payments row it matched by provider_transaction_ref
+   * actually belongs to this same gym before completing it, instead of
+   * relying solely on the nightly reconciliation job's wrong_account_settlement
+   * category to catch a cross-tenant mismatch after the fact. Present
+   * whenever the provider resolves gym-scoped credentials during
+   * verification (every real TaraMoneyProvider webhook).
+   */
+  resolvedGymId?: string;
   /** Maps to the existing payment_status enum, 0001_extensions_and_enums.sql. */
   status: "processing" | "verified" | "flagged";
   amount: number;

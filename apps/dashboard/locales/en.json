@@ -562,7 +562,7 @@
       "auditLogFailedVerify": "The payment was verified, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedFlag": "The payment was flagged, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedRefund": "The refund was recorded, but the audit log entry failed to write. Please contact support.",
-      "gymCredentialsUnavailable": "Mobile-money payment isn't available right now. Please pay at the front desk with cash or another method."
+      "gymCredentialsUnavailable": "Mobile-money payment isn't available right now. Please try another payment method."
     },
     "discrepancies": {
       "title": "Discrepancies",
@@ -575,7 +575,8 @@
         "amountMismatch": "Amount Mismatch",
         "wrongAccountSettlement": "Wrong Account Settlement"
       },
-      "amountMismatchLine": "{{internal}} (reported: {{reported}})"
+      "amountMismatchLine": "{{internal}} (reported: {{reported}})",
+      "wrongAccountSettlementLine": "Expected {{expected}}, settled to {{actual}}"
     }
   },
   "frontDeskAlert": {
