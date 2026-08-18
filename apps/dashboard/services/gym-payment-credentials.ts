@@ -5,6 +5,10 @@ import { mapAndLog } from "@/services/session";
 export interface GymPaymentConnectionStatus {
   businessIdMasked: string;
   connectedAt: string;
+  /** Story 4.14/AC #3: a prior connection that is now failing (initiation
+   * hit a "credentials not usable" outcome) -- distinct from Story 4.13's
+   * "not connected" case, which has no row at all and needs no banner. */
+  needsAttention: boolean;
 }
 
 /** Mirrors `connect_gym_payment_credentials()`'s own masking rule
@@ -42,7 +46,11 @@ export async function getGymPaymentConnectionStatus(
   }
 
   return {
-    data: { businessIdMasked: row.business_id_masked, connectedAt: row.connected_at },
+    data: {
+      businessIdMasked: row.business_id_masked,
+      connectedAt: row.connected_at,
+      needsAttention: row.needs_attention,
+    },
     error: null,
   };
 }

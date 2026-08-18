@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import {
   initiatePaymentSchema,
   recordManualPaymentSchema,
@@ -142,6 +143,28 @@ export async function initiatePayment(
       `[payments] initiatePayment: payment-webhook initiate failed for payment ${paymentRow.id}`,
       invokeError,
     );
+
+    // AC #3: distinguish "this gym has no usable Tara Money connection right
+    // now" (the payment-webhook Edge Function's typed "credentials_not_connected"
+    // failure, Story 4.14 Task 3/4) from every other initiation failure, so
+    // the member can be directed to the front desk specifically for this
+    // case rather than shown a generic error.
+    if (invokeError instanceof FunctionsHttpError) {
+      let code: string | undefined;
+      try {
+        code = (await invokeError.context.json())?.code;
+      } catch {
+        // Non-JSON or unreadable body -- falls through to the generic
+        // mapAndLog(invokeError) below.
+      }
+      if (code === "gym_credentials_unavailable") {
+        return {
+          data: null,
+          error: { code: "gym_credentials_unavailable", message: t("payments.errors.gymCredentialsUnavailable") },
+        };
+      }
+    }
+
     return { data: null, error: await mapAndLog(invokeError) };
   }
 
@@ -485,7 +508,7 @@ export async function searchMembersForPayment(
 
 export interface PaymentDiscrepancyRow {
   id: string;
-  discrepancyType: "stale_processing" | "amount_mismatch";
+  discrepancyType: "stale_processing" | "amount_mismatch" | "wrong_account_settlement";
   memberId: string;
   memberName: string;
   amount: number;
@@ -502,8 +525,10 @@ interface PaymentDiscrepancyRowFromDb {
   payments: { member_id: string; amount: number; currency: string; members: { name: string } | null } | null;
 }
 
-function isDisplayableDiscrepancyType(value: string): value is "stale_processing" | "amount_mismatch" {
-  return value === "stale_processing" || value === "amount_mismatch";
+function isDisplayableDiscrepancyType(
+  value: string,
+): value is "stale_processing" | "amount_mismatch" | "wrong_account_settlement" {
+  return value === "stale_processing" || value === "amount_mismatch" || value === "wrong_account_settlement";
 }
 
 /**
@@ -544,7 +569,7 @@ export async function listPaymentDiscrepancies(): Promise<{
       .filter((row) => row.payments !== null && isDisplayableDiscrepancyType(row.discrepancy_type))
       .map((row) => ({
         id: row.id,
-        discrepancyType: row.discrepancy_type as "stale_processing" | "amount_mismatch",
+        discrepancyType: row.discrepancy_type as "stale_processing" | "amount_mismatch" | "wrong_account_settlement",
         memberId: row.payments!.member_id,
         memberName: row.payments!.members?.name ?? "",
         amount: row.payments!.amount,

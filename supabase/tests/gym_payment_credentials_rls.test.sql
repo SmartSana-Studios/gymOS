@@ -2,9 +2,15 @@
 -- the connecting gym's own Owner) and the 3 new SECURITY DEFINER functions
 -- (0052_gym_payment_credentials.sql). Session-simulation conventions match
 -- payment_providers_rls.test.sql.
+--
+-- Story 4.14: extended with the 2 new service-role-only credential-decrypt
+-- RPCs (0054_flow_a_gym_routing.sql) -- the first in this codebase granted
+-- with no session-derived gym scoping, so `authenticated` (any role,
+-- including the connecting gym's own Owner) must be provably unable to call
+-- either -- plus business_id_plain's uniqueness constraint.
 
 begin;
-select plan(24);
+select plan(36);
 
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000000901'), -- owner, gym A
@@ -243,6 +249,116 @@ select is(
   (select business_id_masked from get_gym_payment_connection_status('taramoney'))::text, '••••',
   'a business_id of 4 characters or fewer is never partially revealed by the mask'
 );
+
+-- ============================================================================
+-- Story 4.14: the 2 new service-role-only credential-decrypt RPCs. Gym C
+-- (just connected above, business_id_plain = 'ab', the same short value
+-- used for the masking test) is reused as the fixture -- a real connection
+-- already exists, no new setup needed.
+-- ============================================================================
+select throws_like(
+  $$ select * from get_gym_payment_credentials_for_service('00000000-0000-0000-0000-000000000407', 'taramoney') $$,
+  '%permission denied%',
+  'an authenticated session (even the connecting gym''s own Owner) cannot call get_gym_payment_credentials_for_service -- service_role only'
+);
+
+select throws_like(
+  $$ select * from get_gym_payment_credentials_by_business_id('ab', 'taramoney') $$,
+  '%permission denied%',
+  'an authenticated session cannot call get_gym_payment_credentials_by_business_id -- service_role only'
+);
+
+select throws_like(
+  $$ select mark_gym_payment_credentials_needs_attention('00000000-0000-0000-0000-000000000407', 'taramoney') $$,
+  '%permission denied%',
+  'an authenticated session cannot call mark_gym_payment_credentials_needs_attention -- service_role only'
+);
+
+reset role;
+set local role service_role;
+
+select is(
+  (select api_key from get_gym_payment_credentials_for_service('00000000-0000-0000-0000-000000000407', 'taramoney'))::text,
+  'key-c',
+  'service_role can call get_gym_payment_credentials_for_service and receives the decrypted apiKey'
+);
+
+select is(
+  (select gym_id from get_gym_payment_credentials_by_business_id('ab', 'taramoney'))::text,
+  '00000000-0000-0000-0000-000000000407',
+  'service_role can call get_gym_payment_credentials_by_business_id and it resolves the correct gym_id from the plain businessId'
+);
+
+select is(
+  (select count(*)::int from get_gym_payment_credentials_for_service('00000000-0000-0000-0000-000000000999', 'taramoney')),
+  0,
+  'get_gym_payment_credentials_for_service returns 0 rows for a gym with no connection at all'
+);
+
+reset role;
+
+-- ============================================================================
+-- Story 4.14: mark_gym_payment_credentials_needs_attention() and its
+-- interaction with get_gym_payment_connection_status()'s new needs_attention
+-- column, and with a reconnect clearing it back to false.
+-- ============================================================================
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000904","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000000407","app_role":"owner"}', true);
+
+select is(
+  (select needs_attention from get_gym_payment_connection_status('taramoney')),
+  false,
+  'get_gym_payment_connection_status: needs_attention starts false for a freshly-connected gym'
+);
+
+reset role;
+set local role service_role;
+select mark_gym_payment_credentials_needs_attention('00000000-0000-0000-0000-000000000407', 'taramoney');
+reset role;
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000904","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000000407","app_role":"owner"}', true);
+
+select is(
+  (select needs_attention from get_gym_payment_connection_status('taramoney')),
+  true,
+  'mark_gym_payment_credentials_needs_attention() flips needs_attention to true, visible via get_gym_payment_connection_status'
+);
+
+select lives_ok(
+  $$ select connect_gym_payment_credentials('taramoney', 'key-c-2', 'ab', 'secret-c-2') $$,
+  'gym C''s owner can reconnect after a needs_attention flag'
+);
+
+select is(
+  (select needs_attention from get_gym_payment_connection_status('taramoney')),
+  false,
+  'a successful reconnect clears needs_attention back to false'
+);
+
+-- ============================================================================
+-- Story 4.14: business_id_plain uniqueness (per provider_key) -- a second
+-- gym cannot connect using a business id another gym already has.
+-- ============================================================================
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000903","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000000406","app_role":"owner"}', true);
+
+select throws_like(
+  $$ select connect_gym_payment_credentials('taramoney', 'key-b-dup', 'ab', 'secret-b-dup') $$,
+  '%idx_gym_payment_credentials_provider_business_id%',
+  'a second gym cannot connect using a business_id another gym (under the same provider_key) already has -- the partial unique index rejects it'
+);
+
+reset role;
+set local role service_role;
+
+select is(
+  (select count(*)::int from get_gym_payment_credentials_by_business_id('this-business-id-does-not-exist', 'taramoney')),
+  0,
+  'get_gym_payment_credentials_by_business_id returns 0 rows for an unrecognized businessId'
+);
+
+reset role;
 
 select * from finish();
 rollback;

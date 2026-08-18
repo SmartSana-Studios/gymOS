@@ -38,10 +38,14 @@ export const PAYMENT_METHOD_LABEL_KEY: Record<string, string> = {
   mobile_money: "payments.methods.mobileMoney",
 };
 
-// Story 4.4: only the two discrepancy types the Discrepancies section ever
+// Story 4.4/4.14: the three discrepancy types the Discrepancies section ever
 // renders -- `missing_internal_record` never reaches this component
 // (gym-unattributable, RLS-invisible; see docs/decisions.md).
 export const PAYMENT_DISCREPANCY_TYPE_LABEL_KEY: Record<string, string> = {
   stale_processing: "payments.discrepancies.types.staleProcessing",
   amount_mismatch: "payments.discrepancies.types.amountMismatch",
+  // Story 4.14/FR-137: a payment that settled to the wrong (or the
+  // platform's) account -- caught by comparing the webhook's businessId
+  // against the gym's own connected business_id_plain.
+  wrong_account_settlement: "payments.discrepancies.types.wrongAccountSettlement",
 };

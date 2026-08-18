@@ -49,6 +49,7 @@ const TRANSLATIONS: Record<string, string> = {
   "settings.payments.disconnectConfirmBody": "Members will no longer see the automated option.",
   "settings.payments.disconnectedToast": "Payment account disconnected.",
   "settings.payments.disconnectFailedToast": "Couldn't disconnect. Try again.",
+  "settings.payments.needsAttention": "Your Tara Money connection needs attention — reconnect below.",
   "common.cancel": "Cancel",
   "common.somethingWentWrong": "Something went wrong.",
 };
@@ -78,7 +79,9 @@ const INITIAL_SETTINGS = {
   gymToken: "token-1",
 };
 
-async function renderForm(initialPaymentConnection: { businessIdMasked: string; connectedAt: string } | null) {
+async function renderForm(
+  initialPaymentConnection: { businessIdMasked: string; connectedAt: string; needsAttention: boolean } | null,
+) {
   const { SettingsForm } = await import("./SettingsForm");
   return render(<SettingsForm initial={INITIAL_SETTINGS} initialPaymentConnection={initialPaymentConnection} />);
 }
@@ -97,17 +100,31 @@ describe("SettingsForm payments section", () => {
   });
 
   it("shows the masked business id and Reconnect/Disconnect actions when already connected", async () => {
-    await renderForm({ businessIdMasked: "•••• 1234", connectedAt: "2026-08-17T00:00:00.000Z" });
+    await renderForm({ businessIdMasked: "•••• 1234", connectedAt: "2026-08-17T00:00:00.000Z", needsAttention: false });
 
     expect(screen.getByText("Connected — •••• 1234")).toBeVisible();
     expect(screen.getByRole("button", { name: "Reconnect" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Disconnect" })).toBeVisible();
   });
 
+  it("shows the needs-attention banner when a prior connection is failing (Story 4.14)", async () => {
+    await renderForm({ businessIdMasked: "•••• 1234", connectedAt: "2026-08-17T00:00:00.000Z", needsAttention: true });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Your Tara Money connection needs attention");
+  });
+
+  it("does not show the needs-attention banner for a healthy connection", async () => {
+    await renderForm({ businessIdMasked: "•••• 1234", connectedAt: "2026-08-17T00:00:00.000Z", needsAttention: false });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("connect happy path: fills the dialog, submits, and shows the new connected state", async () => {
     const user = userEvent.setup();
     connectPaymentProvider.mockResolvedValue({
-      data: { status: { businessIdMasked: "•••• 9999", connectedAt: "2026-08-17T00:00:00.000Z" } },
+      data: {
+        status: { businessIdMasked: "•••• 9999", connectedAt: "2026-08-17T00:00:00.000Z", needsAttention: false },
+      },
       error: null,
     });
     await renderForm(null);
@@ -171,7 +188,7 @@ describe("SettingsForm payments section", () => {
   it("disconnect happy path: confirms and returns to the not-connected state", async () => {
     const user = userEvent.setup();
     disconnectPaymentProvider.mockResolvedValue({ data: { ok: true }, error: null });
-    await renderForm({ businessIdMasked: "•••• 1234", connectedAt: "2026-08-17T00:00:00.000Z" });
+    await renderForm({ businessIdMasked: "•••• 1234", connectedAt: "2026-08-17T00:00:00.000Z", needsAttention: false });
 
     await user.click(screen.getByRole("button", { name: "Disconnect" }));
     const dialog = screen.getByRole("dialog");

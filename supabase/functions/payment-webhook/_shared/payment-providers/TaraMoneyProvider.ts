@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 import type {
   InitiatePaymentParams,
   InitiatePaymentResult,
@@ -120,12 +122,54 @@ function isTaraMoneyWebhookPayload(value: unknown): value is TaraMoneyWebhookPay
 export class TaraMoneyProvider implements PaymentProvider {
   readonly providerKey = "taramoney";
 
+  constructor(private readonly supabase: SupabaseClient) {}
+
   async initiate(params: InitiatePaymentParams): Promise<InitiatePaymentResult> {
-    const apiKey = Deno.env.get("TARAMONEY_API_KEY");
-    const businessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
-    if (!apiKey || !businessId) {
-      return { success: false, error: "TaraMoney credentials are not configured" };
+    let apiKey: string | undefined;
+    let businessId: string | undefined;
+
+    if (params.routingContext.type === "gym") {
+      // AD-14/Story 4.14: resolve this gym's own connected credentials
+      // (Story 4.13's gym_payment_credentials, Vault-decrypted) instead of
+      // the platform-wide env vars -- a service-role-only RPC, never a
+      // client-supplied credential blob.
+      const { data, error } = await this.supabase.rpc("get_gym_payment_credentials_for_service", {
+        p_gym_id: params.routingContext.gymId,
+        p_provider_key: this.providerKey,
+      });
+      const row = Array.isArray(data) ? data[0] : undefined;
+      if (error || !row) {
+        // An expected *operational* state (never connected, or a prior
+        // connection now invalid/revoked) -- not a deploy-time
+        // misconfiguration, so it gets a typed, matchable code (AC #3)
+        // rather than collapsing into a generic error string.
+        return {
+          success: false,
+          error: error
+            ? `TaraMoney credential lookup failed: ${error.message}`
+            : "TaraMoney credentials are not connected for this gym",
+          code: "credentials_not_connected",
+        };
+      }
+      apiKey = row.api_key;
+      businessId = row.business_id;
+    } else {
+      // {type:"platform"}: unused by this story (Flow A always resolves a
+      // gym), kept alive for Epic 11/Flow B, not yet designed, which may
+      // repurpose the platform-wide env vars as the platform-level
+      // credential source -- deleting them now would be out of this
+      // story's scope.
+      apiKey = Deno.env.get("TARAMONEY_API_KEY");
+      businessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
+      if (!apiKey || !businessId) {
+        return {
+          success: false,
+          error: "TaraMoney credentials are not configured",
+          code: "credentials_not_connected",
+        };
+      }
     }
+
     if (!params.phoneNumber) {
       return { success: false, error: "TaraMoney requires the payer's phoneNumber" };
     }
@@ -177,23 +221,60 @@ export class TaraMoneyProvider implements PaymentProvider {
     };
   }
 
-  verifyWebhookSignature(payload: string, headers: Record<string, string>): WebhookVerificationResult {
+  /**
+   * Story 4.14: the webhook secret is now per-gym, not one global env var --
+   * but the handler doesn't know which gym until it can identify the
+   * payment, and identification happens *before* today's signature check.
+   * Resolved via the payload's own (non-secret, cleartext-on-every-delivery)
+   * `businessId` field, independent of whether a matching `payments` row
+   * exists yet -- see the story's Context section for why resolving gym_id
+   * via the matched payments row instead would regress the accepted
+   * 2026-08-01 webhook-before-ref-persisted race.
+   *
+   * Order, matching FR-101/AD-17's "verified before any DB write" invariant
+   * (this adds the first DB *read* to this path, not a write):
+   *   1. Parse the payload just far enough to type-guard-check
+   *      businessId/paymentId are present -- malformed payload, no DB call.
+   *   2. Look up gym_id + decrypted credentials by businessId (a single RPC
+   *      does both -- get_gym_payment_credentials_by_business_id).
+   *   3. Unrecognized businessId (zero rows) -- {valid:false}, same 401
+   *      outcome as today's "no secret configured" case, no DB write.
+   *   4. Row found -- constant-time-compare the header against *that gym's*
+   *      webhookSecret (not the env var).
+   */
+  async verifyWebhookSignature(payload: string, headers: Record<string, string>): Promise<WebhookVerificationResult> {
+    let rawPayload: unknown;
+    try {
+      rawPayload = JSON.parse(payload);
+    } catch {
+      return { valid: false };
+    }
+
+    if (!isTaraMoneyWebhookPayload(rawPayload)) {
+      return { valid: false };
+    }
+
+    const { data, error } = await this.supabase.rpc("get_gym_payment_credentials_by_business_id", {
+      p_business_id: rawPayload.businessId,
+      p_provider_key: this.providerKey,
+    });
+    const row = Array.isArray(data) ? data[0] : undefined;
+    if (error || !row) {
+      // Unrecognized businessId -- could be a missing_internal_record case
+      // (a real gym that was never connected/since disconnected) or a
+      // forged payload. Either way, no gym secret can be resolved, so this
+      // is a verification failure -- not a DB write.
+      return { valid: false };
+    }
+
     // Confirmed via Task 9's real spike (2026-07-31): TaraMoney's "Webhook
     // Secret" is sent verbatim as the `tara-webhook-secret` request header
     // -- a shared-secret header match, not an HMAC-of-body signature scheme.
     // Real delivery evidence: header `tara-webhook-secret` equaled this
     // project's configured TARAMONEY_WEBHOOK_SECRET exactly. See
     // docs/decisions.md for the full captured request.
-    const expected = Deno.env.get("TARAMONEY_WEBHOOK_SECRET");
     const received = headers["tara-webhook-secret"];
-    if (!expected || !received || !constantTimeEqual(received, expected)) {
-      return { valid: false };
-    }
-
-    let rawPayload: unknown;
-    try {
-      rawPayload = JSON.parse(payload);
-    } catch {
+    if (!received || !constantTimeEqual(received, row.webhook_secret)) {
       return { valid: false };
     }
 
@@ -248,6 +329,7 @@ export function normalizeTaraMoneyWebhook(rawPayload: unknown): NormalizedPaymen
 
   return {
     providerTransactionRef: rawPayload.paymentId,
+    businessId: rawPayload.businessId,
     status: rawPayload.status === "SUCCESS" ? "verified" : "flagged",
     amount,
     currency: "XAF",

@@ -95,7 +95,7 @@
       "connectedLabel": "Connected — {{businessId}}",
       "connectedSince": "Since {{date}}",
       "connectDialogTitle": "Connect your Tara Money account",
-      "connectDialogBody": "Your credentials are encrypted and never shown again after saving. Automated settlement directly into your own account activates in a future release — for now, connecting only stores your credentials securely.",
+      "connectDialogBody": "Your credentials are encrypted and never shown again after saving. Once connected, automated mobile-money payments settle directly into your own account.",
       "apiKeyLabel": "API Key *",
       "businessIdLabel": "Business ID *",
       "webhookSecretLabel": "Webhook Secret *",
@@ -109,7 +109,8 @@
       "disconnectConfirmTitle": "Disconnect payment account?",
       "disconnectConfirmBody": "Members will no longer see the automated mobile-money payment option. Cash and other manual methods are unaffected.",
       "disconnectedToast": "Payment account disconnected.",
-      "disconnectFailedToast": "Couldn't disconnect. Try again."
+      "disconnectFailedToast": "Couldn't disconnect. Try again.",
+      "needsAttention": "Your Tara Money connection needs attention — reconnect below to resume automated mobile-money payments."
     },
     "errors": {
       "gymNotFound": "Gym not found",
@@ -560,7 +561,8 @@
       "auditLogFailedRecord": "The payment was recorded, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedVerify": "The payment was verified, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedFlag": "The payment was flagged, but the audit log entry failed to write. Please contact support.",
-      "auditLogFailedRefund": "The refund was recorded, but the audit log entry failed to write. Please contact support."
+      "auditLogFailedRefund": "The refund was recorded, but the audit log entry failed to write. Please contact support.",
+      "gymCredentialsUnavailable": "Mobile-money payment isn't available right now. Please pay at the front desk with cash or another method."
     },
     "discrepancies": {
       "title": "Discrepancies",
@@ -570,7 +572,8 @@
       },
       "types": {
         "staleProcessing": "Stuck Processing",
-        "amountMismatch": "Amount Mismatch"
+        "amountMismatch": "Amount Mismatch",
+        "wrongAccountSettlement": "Wrong Account Settlement"
       },
       "amountMismatchLine": "{{internal}} (reported: {{reported}})"
     }

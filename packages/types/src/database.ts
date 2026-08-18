@@ -340,31 +340,37 @@ export type Database = {
       gym_payment_credentials: {
         Row: {
           business_id_masked: string
+          business_id_plain: string | null
           connected_at: string
           connected_by: string | null
           credentials_secret_id: string
           gym_id: string
           id: string
+          needs_attention: boolean
           provider_key: string
           updated_at: string
         }
         Insert: {
           business_id_masked: string
+          business_id_plain?: string | null
           connected_at?: string
           connected_by?: string | null
           credentials_secret_id: string
           gym_id: string
           id?: string
+          needs_attention?: boolean
           provider_key: string
           updated_at?: string
         }
         Update: {
           business_id_masked?: string
+          business_id_plain?: string | null
           connected_at?: string
           connected_by?: string | null
           credentials_secret_id?: string
           gym_id?: string
           id?: string
+          needs_attention?: boolean
           provider_key?: string
           updated_at?: string
         }
@@ -1252,6 +1258,24 @@ export type Database = {
         Returns: {
           business_id_masked: string
           connected_at: string
+          needs_attention: boolean
+        }[]
+      }
+      get_gym_payment_credentials_by_business_id: {
+        Args: { p_business_id: string; p_provider_key: string }
+        Returns: {
+          api_key: string
+          business_id: string
+          gym_id: string
+          webhook_secret: string
+        }[]
+      }
+      get_gym_payment_credentials_for_service: {
+        Args: { p_gym_id: string; p_provider_key: string }
+        Returns: {
+          api_key: string
+          business_id: string
+          webhook_secret: string
         }[]
       }
       gym_effective_member_cap: { Args: never; Returns: number }
@@ -1266,6 +1290,10 @@ export type Database = {
           p_target_entity_type?: string
         }
         Returns: string
+      }
+      mark_gym_payment_credentials_needs_attention: {
+        Args: { p_gym_id: string; p_provider_key: string }
+        Returns: undefined
       }
       member_occupancy_band: { Args: never; Returns: string }
       phone_has_membership: { Args: { p_phone: string }; Returns: boolean }
@@ -1320,6 +1348,7 @@ export type Database = {
         | "missing_internal_record"
         | "stale_processing"
         | "amount_mismatch"
+        | "wrong_account_settlement"
       payment_status: "pending" | "processing" | "verified" | "flagged"
       plan_type:
         | "pay_per_session"
@@ -1470,6 +1499,7 @@ export const Constants = {
         "missing_internal_record",
         "stale_processing",
         "amount_mismatch",
+        "wrong_account_settlement",
       ],
       payment_status: ["pending", "processing", "verified", "flagged"],
       plan_type: [

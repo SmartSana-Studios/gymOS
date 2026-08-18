@@ -4,6 +4,25 @@
 // (architecture.md Service Boundaries); this interface owns the wire
 // contract only.
 
+/**
+ * AD-14's discriminated routing context. Flow A (Story 4.14) introduces the
+ * `gym` variant — a gym's own Vault-stored Tara Money credentials, resolved
+ * via a service-role-only RPC (never a client-supplied credential blob).
+ * `platform` is additive forward-compatibility for Epic 11's SaaS billing
+ * (GymOS's own platform-level account) — this story's PaymentProvider
+ * implementations do not implement its behavior, only the type constant.
+ */
+export type PaymentRoutingContext = { type: "gym"; gymId: string } | { type: "platform" };
+
+/**
+ * Distinguishes "this gym has no usable Tara Money connection right now" (an
+ * expected *operational* state — never connected, or a prior connection now
+ * invalid/revoked) from every other initiation failure (network error,
+ * provider-side decline). AC #3 needs this to route specifically to the
+ * front-desk-fallback message, not a generic error.
+ */
+export type PaymentInitiationErrorCode = "credentials_not_connected";
+
 export interface InitiatePaymentParams {
   /** Integer, smallest currency unit per FR-026 — XAF has no subunit (whole francs). */
   amount: number;
@@ -21,6 +40,8 @@ export interface InitiatePaymentParams {
    * provider might collect it on its own page instead.
    */
   phoneNumber?: string;
+  /** AD-14/Story 4.14: which account this payment must settle into. */
+  routingContext: PaymentRoutingContext;
 }
 
 export type InitiatePaymentResult =
@@ -31,7 +52,7 @@ export type InitiatePaymentResult =
       /** Present if the provider requires a redirect/USSD-prompt step. */
       authorizationUrl?: string;
     }
-  | { success: false; error: string };
+  | { success: false; error: string; code?: PaymentInitiationErrorCode };
 
 export interface WebhookVerificationResult {
   valid: boolean;
@@ -41,6 +62,14 @@ export interface WebhookVerificationResult {
 
 export interface NormalizedPaymentEvent {
   providerTransactionRef: string;
+  /**
+   * The payload's own account-routing identifier (TaraMoney's `businessId`),
+   * surfaced for the caller's own use (e.g. a future audit-log write) — not
+   * required by the webhook-receive DB-write path, which reads it directly
+   * from the stored raw_payload instead (Story 4.14 Task 2's reconciliation
+   * query). Present whenever the provider's payload carries one.
+   */
+  businessId?: string;
   /** Maps to the existing payment_status enum, 0001_extensions_and_enums.sql. */
   status: "processing" | "verified" | "flagged";
   amount: number;
@@ -83,5 +112,13 @@ export interface PaymentProvider {
   /** Must match a payment_providers.provider_key row. */
   readonly providerKey: string;
   initiate(params: InitiatePaymentParams): Promise<InitiatePaymentResult>;
-  verifyWebhookSignature(payload: string, headers: Record<string, string>): WebhookVerificationResult;
+  /**
+   * Async as of Story 4.14: per-gym webhook secrets mean the routing
+   * context isn't known from the header/payload alone — the implementation
+   * resolves it internally via a DB round-trip (a non-secret businessId
+   * lookup, before any DB write) rather than requiring the caller to
+   * supply it. See TaraMoneyProvider.ts and the story's Context section for
+   * the full design rationale.
+   */
+  verifyWebhookSignature(payload: string, headers: Record<string, string>): Promise<WebhookVerificationResult>;
 }

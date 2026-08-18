@@ -3,7 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "qrcode";
-import { Bell, Clock, CreditCard, Globe, Palette, QrCode, Users, type LucideIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  Bell,
+  Clock,
+  CreditCard,
+  Globe,
+  Palette,
+  QrCode,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { connectGymPaymentCredentialsSchema, gymSettingsSchema } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
@@ -711,29 +721,40 @@ export function SettingsForm({
               />
               <CardContent>
                 {paymentConnection ? (
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-sm">
-                      <p className="font-medium">
-                        {t("settings.payments.connectedLabel", { businessId: paymentConnection.businessIdMasked })}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {t("settings.payments.connectedSince", {
-                          date: new Date(paymentConnection.connectedAt).toLocaleDateString(),
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button type="button" variant="outline" size="sm" onClick={openConnectDialog}>
-                        {t("settings.payments.reconnect")}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setDisconnectOpen(true)}
+                  <div className="flex flex-col gap-3">
+                    {paymentConnection.needsAttention && (
+                      <div
+                        className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
+                        role="alert"
                       >
-                        {t("settings.payments.disconnect")}
-                      </Button>
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>{t("settings.payments.needsAttention")}</span>
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="text-sm">
+                        <p className="font-medium">
+                          {t("settings.payments.connectedLabel", { businessId: paymentConnection.businessIdMasked })}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {t("settings.payments.connectedSince", {
+                            date: new Date(paymentConnection.connectedAt).toLocaleDateString(),
+                          })}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={openConnectDialog}>
+                          {t("settings.payments.reconnect")}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDisconnectOpen(true)}
+                        >
+                          {t("settings.payments.disconnect")}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ) : (

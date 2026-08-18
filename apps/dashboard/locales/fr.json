@@ -95,7 +95,7 @@
       "connectedLabel": "Connecté — {{businessId}}",
       "connectedSince": "Depuis le {{date}}",
       "connectDialogTitle": "Connecter votre compte Tara Money",
-      "connectDialogBody": "Vos identifiants sont chiffrés et ne seront plus jamais affichés après l'enregistrement. Le règlement automatique directement sur votre propre compte sera activé dans une prochaine version — pour l'instant, la connexion ne fait que stocker vos identifiants en toute sécurité.",
+      "connectDialogBody": "Vos identifiants sont chiffrés et ne seront plus jamais affichés après l'enregistrement. Une fois connecté, les paiements automatiques par mobile money sont réglés directement sur votre propre compte.",
       "apiKeyLabel": "Clé API *",
       "businessIdLabel": "ID de l'entreprise *",
       "webhookSecretLabel": "Secret Webhook *",
@@ -109,7 +109,8 @@
       "disconnectConfirmTitle": "Déconnecter le compte de paiement ?",
       "disconnectConfirmBody": "Les membres ne verront plus l'option de paiement automatique par mobile money. L'espèce et les autres méthodes manuelles ne sont pas affectées.",
       "disconnectedToast": "Compte de paiement déconnecté.",
-      "disconnectFailedToast": "Impossible de déconnecter. Réessayez."
+      "disconnectFailedToast": "Impossible de déconnecter. Réessayez.",
+      "needsAttention": "Votre connexion Tara Money nécessite votre attention — reconnectez-vous ci-dessous pour reprendre les paiements automatiques par mobile money."
     },
     "errors": {
       "gymNotFound": "Salle introuvable",
@@ -560,7 +561,8 @@
       "auditLogFailedRecord": "Le paiement a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedVerify": "Le paiement a été vérifié, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedFlag": "Le paiement a été signalé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
-      "auditLogFailedRefund": "Le remboursement a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
+      "auditLogFailedRefund": "Le remboursement a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "gymCredentialsUnavailable": "Le paiement mobile money n'est pas disponible pour le moment. Veuillez payer à l'accueil en espèces ou par un autre moyen."
     },
     "discrepancies": {
       "title": "Écarts",
@@ -570,7 +572,8 @@
       },
       "types": {
         "staleProcessing": "Bloqué en traitement",
-        "amountMismatch": "Écart de montant"
+        "amountMismatch": "Écart de montant",
+        "wrongAccountSettlement": "Règlement sur le mauvais compte"
       },
       "amountMismatchLine": "{{internal}} (signalé : {{reported}})"
     }

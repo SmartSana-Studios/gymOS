@@ -1,13 +1,18 @@
 // Deno test suite for payment-webhook's receive route — signature-verification-before-DB-write
 // invariant (Story 4.11, Task 3's last bullet — AC #1's "before any DB write" clause, AD-17).
 //
+// Story 4.14: verification now resolves a per-gym secret via a businessId lookup RPC -- a
+// legitimate DB *read* for any well-formed payload, before the header is even compared. The
+// invariant these tests protect is unchanged (no DB *write* before a successful verification);
+// what changed is that "no DB call at all" is no longer the right assertion for a well-formed
+// payload -- these tests now stub fetch to serve that one expected read and assert no *write*
+// endpoint (payment_webhook_events/payments) is ever hit, instead of asserting zero calls.
+//
 // index.ts's static import graph pulls in TaraMoneyProvider.ts and @supabase/supabase-js, which
 // creates a real client at module scope from SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY — this file
 // sets fake values before the dynamic import so the module loads cleanly (a static top-level
 // import would in any case be hoisted ahead of the Deno.env.set calls), following
-// send-sms-hook/index.test.ts's precedent. globalThis.fetch is stubbed to throw on any call so an
-// unexpected DB access fails the test loudly rather than silently succeeding against a fake
-// client.
+// send-sms-hook/index.test.ts's precedent.
 //
 // Run: deno test --allow-env supabase/functions/payment-webhook/index.test.ts
 
@@ -16,9 +21,35 @@ import { assertEquals } from "jsr:@std/assert@^1";
 const SECRET = "test-taramoney-webhook-secret";
 Deno.env.set("SUPABASE_URL", "http://localhost:54321");
 Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "test-service-role-key");
-Deno.env.set("TARAMONEY_WEBHOOK_SECRET", SECRET);
 
 const handler = (await import("./index.ts")).default;
+
+const GYM_A_ROW = { gym_id: "gym-a", api_key: "key-a", business_id: "biz1", webhook_secret: SECRET };
+
+/**
+ * Serves `get_gym_payment_credentials_by_business_id` with `lookupResponse` (an array of rows,
+ * PostgREST's own RPC response shape) and records every call made; any other fetch (in
+ * particular a write to payment_webhook_events/payments) throws, failing the test loudly.
+ */
+function stubFetchServingBusinessIdLookupOnly(lookupResponse: unknown[]) {
+  const calls: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL | Request) => {
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    calls.push(href);
+    if (href.includes("/rest/v1/rpc/get_gym_payment_credentials_by_business_id")) {
+      return Promise.resolve(
+        new Response(JSON.stringify(lookupResponse), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    throw new Error(`stubFetch: unexpected DB access ${href}`);
+  }) as typeof fetch;
+  return {
+    calls,
+    writeCallsCount: () => calls.filter((c) => !c.includes("/rest/v1/rpc/get_gym_payment_credentials_by_business_id")).length,
+    restore: () => (globalThis.fetch = original),
+  };
+}
 
 function stubFetchNoCallsExpected() {
   const calls: string[] = [];
@@ -39,8 +70,8 @@ function receiveRequest(headers: Record<string, string>, body: unknown) {
   });
 }
 
-Deno.test("payment-webhook taramoney receive route: wrong-value signature returns 401 and makes no DB call", async () => {
-  const { calls, restore } = stubFetchNoCallsExpected();
+Deno.test("payment-webhook taramoney receive route: wrong-value signature (businessId resolves, header wrong) returns 401 and makes no DB write", async () => {
+  const stub = stubFetchServingBusinessIdLookupOnly([GYM_A_ROW]);
   try {
     const req = receiveRequest({ "tara-webhook-secret": "wrong-secret" }, {
       businessId: "biz1",
@@ -49,14 +80,14 @@ Deno.test("payment-webhook taramoney receive route: wrong-value signature return
     });
     const res = await handler.fetch(req);
     assertEquals(res.status, 401);
-    assertEquals(calls.length, 0, "signature verification must fail before any DB access");
+    assertEquals(stub.writeCallsCount(), 0, "signature verification must fail before any DB write");
   } finally {
-    restore();
+    stub.restore();
   }
 });
 
-Deno.test("payment-webhook taramoney receive route: equal-length wrong-value signature returns 401 and makes no DB call", async () => {
-  const { calls, restore } = stubFetchNoCallsExpected();
+Deno.test("payment-webhook taramoney receive route: equal-length wrong-value signature returns 401 and makes no DB write", async () => {
+  const stub = stubFetchServingBusinessIdLookupOnly([GYM_A_ROW]);
   try {
     const req = receiveRequest({ "tara-webhook-secret": "x".repeat(SECRET.length) }, {
       businessId: "biz1",
@@ -65,25 +96,25 @@ Deno.test("payment-webhook taramoney receive route: equal-length wrong-value sig
     });
     const res = await handler.fetch(req);
     assertEquals(res.status, 401);
-    assertEquals(calls.length, 0, "signature verification must fail before any DB access");
+    assertEquals(stub.writeCallsCount(), 0, "signature verification must fail before any DB write");
   } finally {
-    restore();
+    stub.restore();
   }
 });
 
-Deno.test("payment-webhook taramoney receive route: missing signature header returns 401 and makes no DB call", async () => {
-  const { calls, restore } = stubFetchNoCallsExpected();
+Deno.test("payment-webhook taramoney receive route: missing signature header returns 401 and makes no DB write", async () => {
+  const stub = stubFetchServingBusinessIdLookupOnly([GYM_A_ROW]);
   try {
     const req = receiveRequest({}, { businessId: "biz1", paymentId: "pay1", status: "SUCCESS" });
     const res = await handler.fetch(req);
     assertEquals(res.status, 401);
-    assertEquals(calls.length, 0, "signature verification must fail before any DB access");
+    assertEquals(stub.writeCallsCount(), 0, "signature verification must fail before any DB write");
   } finally {
-    restore();
+    stub.restore();
   }
 });
 
-Deno.test("payment-webhook taramoney receive route: malformed JSON body with a correct header returns 401 and makes no DB call", async () => {
+Deno.test("payment-webhook taramoney receive route: malformed JSON body with a correct header returns 401 and makes no DB call at all (not even the businessId lookup -- can't parse a businessId out of it)", async () => {
   const { calls, restore } = stubFetchNoCallsExpected();
   try {
     const req = new Request("https://example.com/functions/v1/payment-webhook/taramoney", {
@@ -93,8 +124,24 @@ Deno.test("payment-webhook taramoney receive route: malformed JSON body with a c
     });
     const res = await handler.fetch(req);
     assertEquals(res.status, 401);
-    assertEquals(calls.length, 0, "signature verification must fail before any DB access");
+    assertEquals(calls.length, 0, "a malformed payload must fail before any DB access, including the businessId lookup");
   } finally {
     restore();
+  }
+});
+
+Deno.test("payment-webhook taramoney receive route: unrecognized businessId (zero rows from the lookup) returns 401 and makes no DB write", async () => {
+  const stub = stubFetchServingBusinessIdLookupOnly([]);
+  try {
+    const req = receiveRequest({ "tara-webhook-secret": SECRET }, {
+      businessId: "unknown-business-id",
+      paymentId: "pay1",
+      status: "SUCCESS",
+    });
+    const res = await handler.fetch(req);
+    assertEquals(res.status, 401);
+    assertEquals(stub.writeCallsCount(), 0, "an unresolvable businessId must fail before any DB write");
+  } finally {
+    stub.restore();
   }
 });

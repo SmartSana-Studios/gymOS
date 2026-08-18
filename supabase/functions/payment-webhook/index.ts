@@ -4,14 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 import type { InitiatePaymentResult, PaymentProvider } from "./_shared/payment-providers/PaymentProvider.ts";
 import { TaraMoneyProvider } from "./_shared/payment-providers/TaraMoneyProvider.ts";
 
-// The one place a future second provider's class gets wired in (AC #4).
-// Deliberately independent of payment_providers.is_active -- see the
-// dispatch note below for why every *registered* provider's webhook must
-// still be honored regardless of which one is currently active.
-const PROVIDERS: Record<string, PaymentProvider> = {
-  taramoney: new TaraMoneyProvider(),
-};
-
 function jsonResponse(status: number, body: Record<string, unknown> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -23,6 +15,16 @@ function jsonResponse(status: number, body: Record<string, unknown> = {}): Respo
 const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+// The one place a future second provider's class gets wired in (AC #4).
+// Deliberately independent of payment_providers.is_active -- see the
+// dispatch note below for why every *registered* provider's webhook must
+// still be honored regardless of which one is currently active. Story 4.14:
+// TaraMoneyProvider now takes the same service-role client, needed to
+// resolve per-gym credentials (Task 2's new RPCs).
+const PROVIDERS: Record<string, PaymentProvider> = {
+  taramoney: new TaraMoneyProvider(supabase),
+};
 
 /**
  * Story 4.2: POST /payment-webhook/initiate/<providerKey> -- the real
@@ -63,7 +65,7 @@ async function handleInitiate(
 
   const { data: paymentRow, error: fetchError } = await supabase
     .from("payments")
-    .select("id, status, provider_transaction_ref, amount, currency")
+    .select("id, status, provider_transaction_ref, amount, currency, gym_id")
     .eq("id", paymentId)
     .maybeSingle();
 
@@ -108,6 +110,10 @@ async function handleInitiate(
       currency: paymentRow.currency,
       callbackUrl,
       phoneNumber,
+      // AD-14/Story 4.14: Flow A always routes through the payment's own
+      // gym -- payments.gym_id already exists at initiate time, no lookup
+      // needed.
+      routingContext: { type: "gym", gymId: paymentRow.gym_id },
     });
   } catch (err) {
     // A thrown (not returned) error -- e.g. a non-timeout network failure
@@ -140,6 +146,24 @@ async function handleInitiate(
     // caller should still get a generic message rather than a passthrough
     // of provider/internal error text.
     console.error(`payment-webhook: ${providerKey} initiate() failed for payment ${paymentId} — ${result.error}`);
+
+    if (result.code === "credentials_not_connected") {
+      // Task 5 (AC #3): a no-op for a gym that was never connected (Story
+      // 4.13's ordinary case, already surfaced in Settings) -- the RPC only
+      // flips needs_attention when a gym_payment_credentials row actually
+      // exists, i.e. a prior connection that is now failing.
+      const { error: attentionError } = await supabase.rpc("mark_gym_payment_credentials_needs_attention", {
+        p_gym_id: paymentRow.gym_id,
+        p_provider_key: providerKey,
+      });
+      if (attentionError) {
+        console.error(
+          `payment-webhook: ${providerKey} failed to mark needs_attention for gym ${paymentRow.gym_id} — ${attentionError.message}`,
+        );
+      }
+      return jsonResponse(502, { error: "payment provider initiation failed", code: "gym_credentials_unavailable" });
+    }
+
     return jsonResponse(502, { error: "payment provider initiation failed" });
   }
 
@@ -201,7 +225,7 @@ export default {
     // provider to Y in the meantime.
     let verification;
     try {
-      verification = provider.verifyWebhookSignature(payloadText, headers);
+      verification = await provider.verifyWebhookSignature(payloadText, headers);
     } catch (err) {
       console.error(
         `payment-webhook: ${providerKey} signature verification threw — ${err instanceof Error ? err.message : String(err)}`,

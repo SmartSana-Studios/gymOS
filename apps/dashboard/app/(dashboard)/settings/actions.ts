@@ -150,7 +150,14 @@ export async function connectPaymentProvider(
     // the same way the DB would have.
     return {
       data: {
-        status: { businessIdMasked: maskBusinessId(parsed.data.businessId), connectedAt: new Date().toISOString() },
+        status: {
+          businessIdMasked: maskBusinessId(parsed.data.businessId),
+          connectedAt: new Date().toISOString(),
+          // A successful connect always clears needs_attention server-side
+          // (Story 4.14's connect_gym_payment_credentials() update) -- this
+          // fallback only runs after that write already succeeded.
+          needsAttention: false,
+        },
       },
       error: null,
     };
