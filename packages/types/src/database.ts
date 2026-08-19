@@ -1494,6 +1494,7 @@ export type Database = {
         Returns: string
       }
       run_check_in_auto_timeout_job: { Args: never; Returns: undefined }
+      run_class_reminder_job: { Args: never; Returns: undefined }
       run_class_session_materializer_job: { Args: never; Returns: undefined }
       run_payment_reconciliation_job: { Args: never; Returns: undefined }
       run_quiet_gym_alert_job: { Args: never; Returns: undefined }

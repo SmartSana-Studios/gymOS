@@ -103,7 +103,7 @@
       "quietGymAlerts": "Alertes salle calme",
       "quietGymAlertsDescription": "Soyez averti quand votre salle est assez calme pour un entraînement tranquille.",
       "classReminder": "Rappels de cours",
-      "classReminderDescription": "Recevez un rappel avant le début de vos cours réservés. (Bientôt disponible.)"
+      "classReminderDescription": "Recevez un rappel avant le début de vos cours réservés."
     }
   },
   "checkin": {
