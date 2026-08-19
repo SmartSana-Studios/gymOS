@@ -58,7 +58,8 @@
       "payments": "Connect your Tara Money account for mobile-money payments",
       "staff": "Manage staff accounts and roles"
     },
-    "staffSummary": "{{count}} staff members",
+    "staffSummary_one": "{{count}} staff member",
+    "staffSummary_other": "{{count}} staff members",
     "manageStaffLink": "Manage staff →",
     "fields": {
       "gymName": "Gym Name *",
@@ -160,8 +161,7 @@
       "errors": {
         "nameInvalid": "Name is required (2-100 characters)",
         "phoneInvalid": "Enter a valid phone number",
-        "roleRequired": "Select a role",
-        "roleNotPermitted": "You don't have permission to assign that role"
+        "roleRequired": "Select a role"
       }
     },
     "tempPasswordToast": "Staff account created. Temporary password: {{password}}",

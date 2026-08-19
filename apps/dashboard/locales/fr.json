@@ -58,7 +58,8 @@
       "payments": "Connectez votre compte Tara Money pour les paiements mobile money",
       "staff": "Gérez les comptes et les rôles du personnel"
     },
-    "staffSummary": "{{count}} membres du personnel",
+    "staffSummary_one": "{{count}} membre du personnel",
+    "staffSummary_other": "{{count}} membres du personnel",
     "manageStaffLink": "Gérer le personnel →",
     "fields": {
       "gymName": "Nom de la salle *",
@@ -160,8 +161,7 @@
       "errors": {
         "nameInvalid": "Le nom est requis (2 à 100 caractères)",
         "phoneInvalid": "Saisissez un numéro de téléphone valide",
-        "roleRequired": "Sélectionnez un rôle",
-        "roleNotPermitted": "Vous n'êtes pas autorisé à attribuer ce rôle"
+        "roleRequired": "Sélectionnez un rôle"
       }
     },
     "tempPasswordToast": "Compte du personnel créé. Mot de passe temporaire : {{password}}",

@@ -92,6 +92,7 @@ export function AddStaffModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) return;
     setFieldErrors({});
     setFormError(null);
 
