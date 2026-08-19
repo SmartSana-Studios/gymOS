@@ -1,0 +1,23 @@
+-- Story 9.1: Staff Creation with Role-Ceiling Enforcement (FR-087/FR-089).
+-- First post-creation extension of the `member_role` enum (0001) -- adds
+-- 'supervisor', a role that sits between owner and manager (owner-equivalent
+-- Settings/Staff access, but can never create another Supervisor or Owner).
+--
+-- Deliberately the ONLY statement in this migration. Postgres forbids using a
+-- newly-added enum value in the same transaction that added it -- any
+-- expression resolving the literal 'supervisor' to the member_role type (a
+-- cast, a comparison, a function parameter of that type) inside this same
+-- transaction would raise "unsafe use of new value 'supervisor' of enum type
+-- member_role". Each migration file runs as one transaction, so the RLS
+-- policy widening, the ceiling-check RPC, and any other 'supervisor'
+-- reference all belong in the next migration (0061), a separate, already-
+-- committed transaction by the time it runs. No prior story in this codebase
+-- has extended an existing enum post-creation, so there is no earlier
+-- precedent to follow -- this comment is that precedent going forward.
+--
+-- Renumbered from the story's originally-planned 0059 (would have been the
+-- next sequential file when this story was drafted) to 0060 -- 0059 is
+-- already claimed by the uncommitted Story 6.6 migration
+-- (0059_class_reminder_notification.sql), which landed first. See
+-- docs/decisions.md for the full renumbering note.
+alter type member_role add value 'supervisor';

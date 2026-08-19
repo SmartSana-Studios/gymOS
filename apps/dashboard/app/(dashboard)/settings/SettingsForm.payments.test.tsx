@@ -83,7 +83,9 @@ async function renderForm(
   initialPaymentConnection: { businessIdMasked: string; connectedAt: string; needsAttention: boolean } | null,
 ) {
   const { SettingsForm } = await import("./SettingsForm");
-  return render(<SettingsForm initial={INITIAL_SETTINGS} initialPaymentConnection={initialPaymentConnection} />);
+  return render(
+    <SettingsForm initial={INITIAL_SETTINGS} initialPaymentConnection={initialPaymentConnection} staffCount={0} />,
+  );
 }
 
 describe("SettingsForm payments section", () => {

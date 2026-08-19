@@ -1,0 +1,220 @@
+---
+baseline_commit: c262f7e
+---
+
+# Story 9.1: Staff Creation with Role-Ceiling Enforcement
+
+Status: review
+
+<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+
+## Story
+
+As a gym Owner or Supervisor,
+I want to create staff accounts for my gym with a specific role,
+so that I can build out my team without contacting GymOS support.
+
+## Acceptance Criteria
+
+1. **Given** I am an Owner, **when** I open Settings → Staff and add a new staff member with name, E.164 phone, and role (Supervisor, Manager, Receptionist, or Coach), **then** `create_staff_member()` (a `SECURITY DEFINER` RPC) creates the account after checking my role against a hard target-role allowlist, and the creation is audit-logged with actor, target role, and timestamp — FR-087.
+2. **Given** I am a Supervisor, **when** I attempt to create a staff member, **then** I can create Manager, Receptionist, or Coach — the same set an Owner can create, minus Supervisor — and any attempt to create a Supervisor or Owner is rejected by the RPC's allowlist check, not merely hidden in the UI.
+3. **Given** I am a Manager, **when** I look for a way to create staff, **then** no staff-creation UI is available to me at all, and a direct RPC call is rejected by the same internal ceiling check every other disallowed caller hits — FR-089's "Manager cannot create staff at all."
+4. **Given** any Owner or Supervisor attempting to create an Owner or Super Admin account, **when** the RPC runs, **then** it is rejected regardless of caller role — no role may ever create an Owner or Super Admin through this path. (Structurally guaranteed: `member_role` has no `'owner'`-reachable-from-ceiling path and no `'super_admin'` value exists in the enum at all — Super Admin is a separate `users.is_super_admin` flag, never a `member_role`.)
+5. **Given** the Settings → Staff section, **when** I view it, **then** it lists all staff (every non-`member`-role row) with name, role, and status (Active / Pending activation / Deactivated) — FR-120 — reachable only by Owner and Supervisor (Sidebar/route entry point; see Dev Notes for the RLS read boundary this relies on).
+
+## Tasks / Subtasks
+
+- [x] **Task 1: Add the `supervisor` enum value in its own migration** (AC: #1, #2)
+  - [x] Create `supabase/migrations/0059_staff_role_enum.sql` containing **only**: `alter type member_role add value 'supervisor';`. Nothing else in this file — see Dev Notes "The Enum-Transaction Gotcha" for why a second statement referencing `'supervisor'::member_role` in the same file/transaction would fail with `unsafe use of new value "supervisor" of enum type member_role`.
+
+- [x] **Task 2: Add the role-ceiling migration** (AC: #1, #2, #3, #4, #5)
+  - [x] Create `supabase/migrations/0060_staff_creation_role_ceiling_enforcement.sql` (next sequential migration after Task 1's `0059`).
+  - [x] **`private.current_member_role()`** — `returns member_role language plpgsql stable security definer set search_path = public`. Live lookup: `select role into v_role from members where user_id = auth.uid() and gym_id = private.gym_id() and deactivated_at is null order by created_at desc, id desc limit 1; return v_role;` (returns `null` — fail-closed — if no active membership, mirroring `private.gym_id()`'s never-throws/return-null-on-absence discipline, 0009). **Must be `SECURITY DEFINER`, not plain `STABLE`** — see Dev Notes "Why `current_member_role()` Must Be `SECURITY DEFINER`" for the exact precedent (a Coach caller has zero direct SELECT access to their own `members` row today; an invoker-rights version would silently return `null` for every Coach, the identical bug class `docs/decisions.md`'s Decision 1 on `private.is_own_coach_id()`/`private.is_assigned_coach()` already documents and fixed twice). Explicit `revoke execute ... from public; grant execute ... to authenticated, service_role;` — same discipline `private.is_assigned_coach()` (`0039`) uses, not the lighter `usage on schema private` gate alone.
+  - [x] **`create_staff_member(p_user_id uuid, p_name text, p_phone text, p_role member_role) returns members security definer set search_path = public`:**
+    1. `v_gym_id := private.gym_id();` — `raise exception 'create_staff_member: caller has no gym-scoped session'` if null.
+    2. `v_caller_role := private.current_member_role();`
+    3. Ceiling check, closed allowlist (AC #1–#4): `if v_caller_role = 'owner' then` require `p_role in ('supervisor','manager','receptionist','coach')`, else raise; `elsif v_caller_role = 'supervisor' then` require `p_role in ('manager','receptionist','coach')`, else raise; `else raise exception 'create_staff_member: caller is not authorized to create staff';` — this `else` branch is what makes Manager (and every other role) rejected identically whether they reach this via a hidden UI path or a direct RPC call (AC #3).
+    4. `insert into members (gym_id, user_id, role, name, phone) values (v_gym_id, p_user_id, p_role, p_name, p_phone) returning * into v_row;`
+    5. `perform log_audit_event(p_action_type => 'staff_created', p_gym_id => v_gym_id, p_target_entity_id => v_row.id::text, p_target_entity_type => 'member', p_metadata => jsonb_build_object('target_role', p_role, 'target_name', p_name));` — matches `assign_coach()`'s (`0039`) named-parameter call style.
+    6. `return v_row;`
+    - `revoke execute from public; grant execute to authenticated;` (never `service_role` — this RPC always runs inside a real Owner/Supervisor session, per AD-6: "it runs inside the caller's normal Owner/Supervisor RLS session, with the ceiling check in the function body," not a service-role bypass).
+    - **Do not build `update_staff_role()` in this story** — it is explicitly Story 9.3's ("Staff Edit, Deactivation & Immediate Access Revocation") own scope. Do not build `private.current_gym_status()` either — AD-3 names it alongside `current_member_role()`, but no Story 9.1 AC exercises it; it belongs to Story 9.3's FR-090 immediate-revocation work.
+  - [x] **RLS:** `alter policy "gym_staff_read_own_members" on members using (gym_id = private.gym_id() and (auth.jwt() ->> 'app_role') = any(array['owner', 'manager', 'receptionist', 'coach', 'supervisor']));` — adds `'supervisor'` to the existing broad staff-read policy (`0018`) so a Supervisor session can read the gym's roster at all (owner/manager/receptionist/coach already could). This policy is already unfiltered by target role, so it also already covers reading staff rows themselves for Owner/Manager/Receptionist/Coach — this one-line addition is the only RLS change this story needs for the Staff list read path. **No new INSERT policy is needed on `members`** — `create_staff_member()` is `SECURITY DEFINER` and writes as its owning role, bypassing RLS entirely, matching `book_class_session()`/`assign_coach()`'s established write-via-RPC-not-policy precedent.
+
+- [x] **Task 3: Wire the dashboard app's role plumbing for `supervisor`** (AC: #1, #2, #5)
+  - [x] `apps/dashboard/services/session.ts`: add `"supervisor"` to the `MemberRole` union and to `STAFF_ROLES`.
+  - [x] `apps/dashboard/components/shared/Sidebar.tsx`: add `"supervisor"` to the `nav.settings` `NAV_ITEMS` entry's `roles` array (currently `["owner"]` → `["owner", "supervisor"]`), and add a `supervisor: "role.supervisor"` entry to `ROLE_LABEL_KEY`. **Do not add `supervisor` to any other `NAV_ITEMS` entry** — see Dev Notes "Known Scope Boundary — Supervisor's Non-Settings Dashboard Access" for why this is deliberately narrow, not an oversight.
+  - [x] `apps/dashboard/locales/en.json` / `fr.json`: add `role.supervisor` ("Supervisor" / "Superviseur" — confirm FR wording against this codebase's existing FR strings for staff-role nouns, e.g. how `role.manager`/`role.receptionist` were translated) plus the new `settings.staff.*` keys Task 4/5 need (list column headers, statuses, empty state, Add Staff modal fields/errors — mirror `members.errors.*`/`members` create-form key shapes in the same locale files for naming consistency).
+
+- [x] **Task 4: Add the staff service layer and Server Action** (AC: #1, #2, #3, #5)
+  - [x] Create `packages/types/src/schemas/staff.ts`: `createStaffMemberSchema` — `name` (non-empty string), `phone` (reuse `member.ts`'s exact `e164Phone` regex, redeclared per-file per this codebase's no-shared-cross-file-consts convention), `role: z.enum(["supervisor", "manager", "receptionist", "coach"])` (never `"owner"` — no caller can ever target it, so it's not offered at the schema level either).
+  - [x] Create `apps/dashboard/lib/temp-password.ts` — a per-app copy of `apps/super-admin/lib/temp-password.mjs`'s `generateTempPassword()` (same alphabet, same rejection-sampling algorithm). **Plain `.ts`, not `.mjs`** — the super-admin version is `.mjs` only because Story 1.12's CLI script (`provision-super-admin.mjs`) needs a no-build-step Node ESM import, a constraint that doesn't exist in `apps/dashboard`; matches this codebase's established no-shared-code-across-apps discipline (services aren't shared across apps either, per `AD-7`).
+  - [x] Create `apps/dashboard/services/staff.ts`, following `members.ts`'s shape (own copy of `getCallerGymId()`, `mapAndLog` from `services/session.ts`, `{ data, error }`-never-throw per AD-9):
+    - `listStaff()`: `select id, name, phone, role, deactivated_at from members where gym_id = <caller gym> and role <> 'member' order by created_at`. Status for display is derived, not stored: `deactivated_at is not null` → "Deactivated"; else look up the row's `users.must_change_password` (join or second query, mirroring `getPaymentReceipt()`'s/`listPendingPayments()`'s established two-query actor-lookup pattern for a non-embeddable FK) → `true` → "Pending activation"; `false` → "Active". **Reuses the existing `users.must_change_password` column (`0016`, Story 1.11) — do not add a new `status`/`pending_activation` column.** This is the same flag `(dashboard)/layout.tsx` already reads to force the password-change redirect after temp-password login.
+    - `createStaffMember(input)`: validates via `createStaffMemberSchema`, then orchestrates the two-step flow in Dev Notes "Creation Sequencing" below (admin `createUser` → `create_staff_member()` RPC → compensating `deleteUser` on RPC failure). Returns `{ data: { tempPassword: string } | null, error: AppError | null }`, mirroring `CreateGymResult`'s shape (Story 1.5) — the temp password is surfaced the same way pending Story 9.2's SMS wiring (see Dev Notes).
+  - [x] Create `apps/dashboard/app/(dashboard)/settings/staff/actions.ts` — a thin Server Action (`"use server"`) wrapping `createStaffMember()`/`listStaff()`, matching `settings/actions.ts`'s existing shape in this same directory.
+
+- [x] **Task 5: Build the Staff List page and Add Staff modal** (AC: #1, #2, #3, #5)
+  - [x] Create `apps/dashboard/app/(dashboard)/settings/staff/page.tsx` (AD-16): table of name/role/status, "+ Add staff" button opening the modal, empty state "No staff yet. Add your first staff member to get started." No route-level role guard beyond `(dashboard)/layout.tsx`'s existing gym-staff gate — matches `settings/page.tsx`'s own documented precedent (Sidebar hides the link, RLS is the real gate: a non-Owner/Supervisor reaching this route directly still only sees what `gym_staff_read_own_members` already grants their role, which for Manager/Receptionist/Coach is read-only visibility into the same roster they can already see via other pages).
+  - [x] Create the Add Staff modal (AD-17): Full Name, Phone (E.164, inline-validated, same pattern as the Member Create form), Role dropdown. **The dropdown's offered options must be filtered client-side to the caller's own ceiling** (Owner sees Supervisor/Manager/Receptionist/Coach; Supervisor sees Manager/Receptionist/Coach only) — this is a UX convenience, not the enforcement boundary; the RPC's own allowlist is what actually rejects a stale/bypassed client (AD-17: "On rejection... inline error 'You don't have permission to assign that role,' Role field highlighted"). On success, close the modal and show the returned temp password in a toast (mirrors `GymsPageClient`'s existing unconditional-temp-password-toast precedent, Story 1.5) — **do not** claim an SMS was sent in this story's own copy; that claim belongs to Story 9.2 once it actually wires the send.
+  - [x] Add the "Staff" section to `apps/dashboard/app/(dashboard)/settings/page.tsx`/`SettingsForm.tsx` per AD-13: a live staff count + "Manage staff →" link to `/settings/staff`, visible only where the section already renders for Owner/Supervisor (mirrors the existing Settings sections' conditional-rendering shape). This is the only entry point into the new page — no new Sidebar nav item.
+
+- [x] **Task 6: Add pgTAP coverage** (AC: #1–#5)
+  - [x] Create `supabase/tests/staff_creation_role_ceiling_enforcement.test.sql` (follow `coach_member_assignment.test.sql`'s/`class_booking_with_capacity_enforcement.test.sql`'s fixture/RPC-testing conventions: deterministic UUIDs, `transaction`, `plan(...)`, `finish()`, rollback). Cover at minimum: Owner can create Supervisor/Manager/Receptionist/Coach (4 assertions); Supervisor can create Manager/Receptionist/Coach but a Supervisor's attempt to create Supervisor is rejected, and a Supervisor's attempt to create Owner is rejected (`p_role` can't even be `'owner'` — assert the function call itself errors, e.g. via a cast attempt or simply that no such enum path exists if the schema enum forbids it structurally — confirm what's actually testable given `p_role member_role` accepts any valid enum value including `'owner'`, so the RPC's own `elsif`/`else` branches must be what rejects it, not the type system); Manager, Receptionist, Coach, and a plain Member caller are all rejected outright (5 assertions, `create_staff_member: caller is not authorized to create staff`); a caller with no active membership (deactivated, or no `gym_id` claim) is rejected; the `members` row is inserted with the correct `gym_id`/`role`/`name`/`phone` on success; an `audit_log` row is written with `action_type = 'staff_created'`, correct `actor_id`, `target_entity_id`, and `metadata.target_role`. NFR-013's explicit CI requirement: assert directly that an Owner cannot mint a Super Admin (there's no `p_role` value that could even represent one — document this as the structural proof, per AC #4) and that a Supervisor cannot promote-to Supervisor/Owner including on themselves (self-target with the caller's own `user_id` as `p_user_id` — note `create_staff_member` never accepts "edit," so "on themselves" here means attempting to create a *second* `members` row for their own `user_id`/`gym_id`, which the allowlist rejects on `p_role` grounds identically to any other target — this is *not* Story 9.3's self-escalation-on-edit case, do not conflate the two in test naming).
+  - [x] Create `supabase/tests/staff_creation_role_ceiling_enforcement.negative.test.sql`: `authenticated`/`anon` cannot directly `INSERT` into `members` with a non-`'member'` role bypassing the RPC (per-privilege assertions against the pre-existing `manager_or_owner_insert_own_members` policy's `role = 'member'` pin — confirms the RPC path is the *only* way a staff row gets created, not a new gap this story introduces); a Supervisor session can `SELECT` the full gym roster via the now-widened `gym_staff_read_own_members`; a cross-gym Supervisor sees none of another gym's staff.
+  - [x] Run the full `supabase test db` suite and confirm zero regressions in every pre-existing file — this story's migrations are additive-only (one new enum value, one new helper function, one new RPC, one widened policy's role array) touching no existing table's behavior or data.
+
+- [x] **Task 7: Regenerate types, validate, and document** (AC: #1–#5)
+  - [x] Regenerate `packages/types/src/database.ts` (pg-meta HTTP-endpoint devcontainer workaround if `supabase gen types typescript --local` reproduces the known zero-byte-stdout bug, documented in every story since 4.13). Confirm the diff contains exactly: the widened `member_role` enum, the two new function signatures (`private.current_member_role`, `create_staff_member`) if they surface in generated types, and nothing else.
+  - [x] Run `supabase db reset`, the full `supabase test db` suite, `pnpm run typecheck`, `pnpm run lint`, `pnpm run check:i18n`.
+  - [ ] Manual verification: as a seeded Owner session, add a Supervisor/Manager/Receptionist/Coach via the real UI; confirm each appears in the Staff list with "Pending activation" status; confirm the temp password toast appears. As a seeded Supervisor session, confirm the Role dropdown never offers Supervisor/Owner and a direct RPC call (SQL editor) attempting `p_role = 'supervisor'` is rejected. As a seeded Manager session, confirm no Staff entry point exists anywhere in Settings.
+  - [x] Add a dated `docs/decisions.md` entry covering: (a) the two-migration enum split and why; (b) the Creation Sequencing decision (admin `createUser` before the ceiling-checked RPC, with compensating cleanup on rejection) and the FK constraint that forces it; (c) `current_member_role()`'s `SECURITY DEFINER` requirement and the `is_own_coach_id()`/`is_assigned_coach()` precedent it follows; (d) the Supervisor non-Settings dashboard access scope boundary (flagged, not resolved, here); (e) the existing-phone/multi-gym-binding gap explicitly deferred to Story 9.4.
+
+## Dev Notes
+
+### This Story's Real Crux — Read This First
+
+This is the first story to introduce a new `member_role` enum value since the schema was created (`0001`), and the first `SECURITY DEFINER` RPC in this codebase whose entire job is a caller-vs-target authorization decision rather than a business-state transition. Two design questions the epics/architecture text leaves genuinely ambiguous are resolved below with explicit reasoning — read both before writing code, since getting either wrong either breaks the migration outright (enum gotcha) or silently ships a broken authorization boundary (sequencing).
+
+### The Enum-Transaction Gotcha
+
+Postgres forbids using a newly-added enum value in the same transaction that added it — any expression that resolves the literal `'supervisor'` to the `member_role` type (a cast, a comparison, a function parameter of that type being invoked) inside the same transaction as `ALTER TYPE member_role ADD VALUE 'supervisor'` raises `unsafe use of new value "supervisor" of enum type member_role`. Since each migration file runs as one transaction, **Task 1's `0059` migration must contain only the `ALTER TYPE` statement, nothing else** — no policy, no function, no seed data referencing `'supervisor'`. Task 2's `0060` migration is free to reference it normally, since by then it's a separate, already-committed transaction. This is the first time this codebase has extended an existing enum post-creation — there is no prior-story precedent to copy, so this note *is* the precedent going forward.
+
+### Creation Sequencing — Why `createUser` Runs Before the Ceiling-Checked RPC
+
+`members.user_id` is `not null references users(id)` (`0003`) — a `members` row cannot be inserted before a real `auth.users`/`public.users` row exists for the target. Postgres functions cannot call the Supabase Auth Admin API (AD-6's own text), so account creation is structurally a two-client operation: the service-role admin client (`createAdminClient()`, `apps/dashboard/lib/supabase/admin.ts` — already exists, no new file needed) creates the `auth.users` row, and the RPC (running under the *caller's own* authenticated session, not the admin client — this is what lets `private.current_member_role()` resolve `auth.uid()` correctly) does the ceiling check and the `members` insert.
+
+The concrete order this story implements: (1) generate a temp password and call `admin.auth.admin.createUser({ phone, password, phone_confirm: true })` — mirrors `createGym()`'s (Story 1.5) exact Step 3, including its IIFE-wrapped try/catch discipline; (2) call `create_staff_member(p_user_id, p_name, p_phone, p_role)` under the caller's normal session; (3) **if the RPC raises** (ceiling violated, or any other failure), compensating cleanup via `admin.auth.admin.deleteUser(user_id)` — mirrors `deleteGym()`'s exact compensating-cleanup shape from the same story, so no orphaned `auth.users` row survives a rejected staff-creation attempt.
+
+This reading is the only one consistent with the FK constraint above; a superficially different reading of epics.md's Story 9.2 BDD text ("Given a staff account just created via Story 9.1 / When the creation RPC's role-ceiling check passes / Then a Server Action calls `createUser`") could be taken to imply `createUser` happens *after* the RPC — that's structurally impossible given the FK, so treat 9.2's phrasing as narrating the same combined flow from Story 9.2's own vantage (its job is layering the SMS *send* onto the account-creation step this story already performs), not a literal second `createUser` call. **Flagged as a judgment call, not certainty** — record it in the `docs/decisions.md` entry (Task 7) so it's easy to revisit if Story 9.2's actual implementation surfaces a contradiction.
+
+### Why `current_member_role()` Must Be `SECURITY DEFINER`
+
+`private.gym_id()`/`private.is_super_admin()` (`0009`/`0010`) are plain `STABLE`, not `SECURITY DEFINER`, because they only read `auth.jwt()` — no table access, no RLS to bypass. `private.current_member_role()` is different: it reads `members`, which has RLS. If it were plain invoker-rights, its correctness would depend on the *calling session's own* SELECT access to `members` — which is exactly the bug class `docs/decisions.md` already documents twice (`private.is_own_coach_id()`, `private.is_assigned_coach()`, both `0040`/`0041`): a Coach session has **zero** direct SELECT access to their own `members` row today (`gym_staff_read_own_members` excludes `coach` since Story 5.2; `coach_read_assigned_members` only covers *assigned* members, never the coach's own row). A plain invoker-rights `current_member_role()` would silently return `null` for every Coach caller — not an error, a wrong empty result, the "identical, no-error, wrong-empty-result failure mode" `docs/decisions.md` calls out explicitly as this codebase's recurring gotcha in this exact area. Making it `SECURITY DEFINER` (as specified in Task 2) sidesteps this entirely, matching `custom_access_token_hook()`'s original fix for the same class of bug.
+
+### Known Scope Boundary — Supervisor's Non-Settings Dashboard Access
+
+PRD §6.17 and the epics text both describe Supervisor as having "the same staff-management and Settings access as Owner" — read literally, that's exactly Settings + Staff, which is the *only* surface in this codebase currently gated to `owner` alone (every other nav item already includes `manager`). No Story in Epic 9 (9.1–9.5) has an AC that grants Supervisor read/write access to Members, Plans, Subscriptions, Payments, Attendance, Classes, or the Audit Log — all of which Manager (sitting *below* Supervisor in the hierarchy) already has. Taken narrowly, this story's scope (Task 3: add `supervisor` to the Settings nav item and nothing else) fully satisfies every literal AC and FR text available. Taken by the hierarchy diagram's implication (Owner > Supervisor > Manager, and Owner today = Manager's footprint + Settings), a newly-created Supervisor account would land on a dashboard where every nav item *except* Settings is invisible and every underlying RLS policy denies them too — a functionally near-useless account for anything but staff administration. **This tension is real and not resolved by any current planning artifact.** This story deliberately ships the narrow reading (documented in `docs/decisions.md` per Task 7) rather than silently retrofitting `supervisor` into every `manager`/`owner`-gated RLS policy across ~10 other migrations, which would be a much larger, cross-cutting change than "Staff Creation with Role-Ceiling Enforcement" describes. Flag this for the user/PO before or shortly after this story ships — it will surface immediately the first time a real Supervisor account is used for anything beyond staff management.
+
+### Known Scope Boundary — Existing-Phone / Multi-Gym Binding
+
+`admin.auth.admin.createUser({ phone, ... })` fails if the phone number already has an `auth.users` account — which FR-091/Story 9.4 ("Multi-Gym Staff Binding Rules") explicitly expects to be possible (one phone, multiple gym-scoped `members` bindings). This story's `createStaffMember()` does **not** special-case an already-registered phone — it will surface `createUser`'s raw "phone already registered" error rather than looking up the existing `user_id` and creating a second `members` binding. That lookup-and-bind path is explicitly Story 9.4's job (its own ACs describe exactly this scenario); do not build it here. Same discipline as Story 5.1's Decision 2 (coach-account-creation gap, intentionally deferred and documented, not silently closed early).
+
+### Architecture Compliance
+
+- **AD-3** (role/status reads live state, not the JWT claim) is this story's binding constraint for `current_member_role()` — it must be a live `members` lookup, never a `auth.jwt() ->> 'app_role'` read. `log_audit_event()` itself is **not** touched by this story (still reads the JWT claim) — that's explicitly Story 9.3's job per its own AC; do not "fix" it early.
+- **AD-6** (one canonical RPC pair) — this story builds `create_staff_member()` only. `update_staff_role()` is Story 9.3's.
+- Every new/changed RLS surface stays explicit per-action policies, never `FOR ALL` — matches `AD-1`.
+- `create_staff_member()`'s `EXECUTE` grant goes to `authenticated` only, never `service_role` — it's designed to run inside a real staff session, not a system/webhook context (contrast with `complete_verified_payment()`'s `service_role`-only grant, the opposite shape for the opposite reason).
+
+### Existing Files to Read Before Writing New Ones
+
+- `supabase/migrations/0039_coach_member_assignment.sql` (full file) — `assign_coach()`'s exact resolve→check→write→`log_audit_event()`-with-named-params shape and its `SECURITY DEFINER` + explicit revoke/grant discipline, the direct precedent for both new functions here.
+- `supabase/migrations/0018_member_management.sql` — `gym_staff_read_own_members`'s current definition (the policy Task 2 widens) and the `manager_or_owner_insert_own_members` role-pin this story's negative tests must not accidentally weaken.
+- `apps/super-admin/app/(admin)/gyms/actions.ts` (`createGym`, full function) — the exact `createUser` → compensating-cleanup-on-failure shape `createStaffMember()` copies, including the IIFE try/catch wrapping the admin client call.
+- `apps/dashboard/lib/supabase/admin.ts` (full file, already exists) — the admin client this story reuses as-is, no changes needed.
+- `apps/dashboard/services/session.ts` (full file) — `MemberRole`/`STAFF_ROLES`/`DashboardShellContext.mustChangePassword`, all of which Task 3/4 extend or reuse.
+- `apps/dashboard/services/members.ts` (first ~60 lines) — `getCallerGymId()`'s per-file-copy shape, the convention `staff.ts` follows.
+- `docs/decisions.md` — search "is_own_coach_id" and "is_assigned_coach" for the full original writeups of the `SECURITY DEFINER`-required-for-table-reading-helpers bug class this story's `current_member_role()` must not repeat.
+- `_bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md` — AD-13 (Settings, ~line 1489), AD-16/AD-17 (Staff List/Add-Edit, ~line 1558–1616) for exact field lists, copy, and empty/error states. **Note:** AD-16/17's mockup shows Edit and Deactivate actions too — those are Story 9.3's, not built here (Task 5 explicitly builds List + Add only).
+
+### Testing Requirements
+
+- Follow `coach_member_assignment.test.sql`'s pgTAP fixture conventions (deterministic UUIDs, `transaction`, `plan(...)`, `finish()`, rollback).
+- **Highest-risk regressions, in priority order:** (1) the allowlist's closed-by-construction shape — every non-owner/non-supervisor caller (including a caller with *no* active membership at all) must hit the same `else` rejection branch, not silently fall through; (2) `current_member_role()` returning correctly for a Coach caller specifically (the exact bug class two prior stories already hit — a dedicated test authenticating as a Coach and asserting the helper returns `'coach'`, not `null`, is the regression guard); (3) the RLS widening on `gym_staff_read_own_members` not accidentally broadening *write* access — the negative test suite must confirm direct `INSERT`/`UPDATE` on `members` with a staff role is still blocked outside the RPC.
+- Full regression gate: clean `supabase db reset`, all pgTAP tests, generated-types diff inspection, monorepo typecheck, lint, `check:i18n`.
+
+### Previous Story Intelligence
+
+- Story 9.1 is the first story in Epic 9 — no direct predecessor story exists to inherit learnings from. The most recent story shipped overall is 12.2 (class booking) — its Dev Notes/Decisions establish this codebase's current conventions for `SECURITY DEFINER` RPC shape, pgTAP fixture style, and the `docs/decisions.md` dated-entry format, all followed above.
+- Git/worktree note: preserve any unrelated BMAD tooling changes already in the working tree (`.claude/settings.json`, `_bmad-output/implementation-artifacts/6-6-class-reminder-notification.md`, `_bmad-output/planning-artifacts/implementation-readiness-report-2026-08-11.md`, `_bmad-output/story-automator/` — all untracked as of this story's creation); never use destructive reset/checkout commands. Story 12.2's diff is already committed (`c262f7e`) as of this story's creation.
+
+### Latest Technical Information
+
+- No new libraries or external services. `alter type ... add value` is long-stable core Postgres (available since 9.1, unrestricted-position variant since PG12) — the transaction-visibility restriction noted above is the one behavior to get right, not a version-currency concern.
+
+### Project Structure Notes
+
+- New migrations: `supabase/migrations/0059_staff_role_enum.sql`, `supabase/migrations/0060_staff_creation_role_ceiling_enforcement.sql`.
+- New schema: `packages/types/src/schemas/staff.ts`.
+- New helper: `apps/dashboard/lib/temp-password.ts`.
+- New service: `apps/dashboard/services/staff.ts`.
+- New route: `apps/dashboard/app/(dashboard)/settings/staff/page.tsx`, `.../staff/actions.ts`, plus the Add Staff modal component (co-located in the same directory, following `SettingsForm.tsx`'s sibling-component convention).
+- Edited: `apps/dashboard/services/session.ts` (`MemberRole`, `STAFF_ROLES`), `apps/dashboard/components/shared/Sidebar.tsx` (`NAV_ITEMS` settings entry, `ROLE_LABEL_KEY`), `apps/dashboard/app/(dashboard)/settings/page.tsx`/`SettingsForm.tsx` (new Staff section), `apps/dashboard/locales/en.json`/`fr.json`.
+- New tests: `supabase/tests/staff_creation_role_ceiling_enforcement.test.sql`, `supabase/tests/staff_creation_role_ceiling_enforcement.negative.test.sql`.
+- Updated generated type: `packages/types/src/database.ts`.
+- Updated decision record: `docs/decisions.md`.
+- **No changes** to `apps/mobile` or `apps/super-admin` — this story is dashboard + schema only. Do not build `update_staff_role()`, Edit/Deactivate UI, `private.current_gym_status()`, PostHog instrumentation (Story 9.5), or the existing-phone multi-gym lookup (Story 9.4) — all explicitly out of scope, detailed above.
+
+### References
+
+- [Source: `_bmad-output/planning-artifacts/epics.md` — Epic 9: Staff Management (Owner Self-Serve), Story 9.1 (line 1652), Epic 9 summary (line 479) for FR/NFR coverage list]
+- [Source: `_bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md` — FR-087, FR-089 (staff-management ceiling rule text), FR-120 (Settings Staff section), NFR-013 (privilege-escalation-impossible + CI assertion requirement), §6.17, §123 (Supervisor role definition)]
+- [Source: `_bmad-output/planning-artifacts/architecture/architecture-gym_os-2026-08-11/ARCHITECTURE-SPINE.md` — AD-3 (live-state role/status helpers, `current_member_role()`/`current_gym_status()` named explicitly), AD-6 (canonical RPC pair, two-step creation sequencing, hierarchy definition)]
+- [Source: `_bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md` — AD-13 (Settings, Staff section), AD-16 (Staff List), AD-17 (Staff Add/Edit modal), role-visibility matrix (line 208–219), error copy table (line 253–254)]
+- [Source: `docs/decisions.md` — Decision 1 on `private.is_own_coach_id()`/`private.is_assigned_coach()` (the `SECURITY DEFINER`-for-table-reading-helpers precedent), Decision 2 on Story 5.1's coach-account-creation gap (the "flag, don't silently close" precedent this story's own scope-boundary notes follow), Decision 5 (Story 1.5's temp-password-toast-unconditional precedent)]
+- [Source: `supabase/migrations/0003_members_and_users.sql` — `members.user_id not null references users(id)`, the FK constraint driving Creation Sequencing]
+- [Source: `supabase/migrations/0016_owner_must_change_password.sql` — `users.must_change_password`, reused for "Pending activation" status, not a new column]
+- [Source: `supabase/migrations/0039_coach_member_assignment.sql` — `assign_coach()`, the RPC shape/named-parameter `log_audit_event()` call this story's `create_staff_member()` copies]
+- [Source: `apps/super-admin/app/(admin)/gyms/actions.ts` — `createGym()`, the `createUser`-then-compensating-cleanup shape]
+- [Source: `apps/dashboard/services/session.ts` — `MemberRole`, `STAFF_ROLES`, `DashboardShellContext`]
+- [Source: `apps/dashboard/components/shared/Sidebar.tsx` — `NAV_ITEMS`, `ROLE_LABEL_KEY`]
+
+## Change Log
+
+- 2026-08-19: Story drafted via create-story workflow. First story of Epic 9 (Staff Management) — epic status moved backlog → in-progress.
+- 2026-08-19: dev-story started. Migrations renumbered `0060`/`0061` (not the story's originally-planned `0059`/`0060`) — `0059` is already claimed by the uncommitted `6-6` `class_reminder_notification` migration; `deferred-work.md` had already flagged this coordination need. Per explicit user instruction ("make sure the real name of the person making an action is logged"), scope expanded to fix `log_audit_event()`'s actor-name derivation: it reads `users.display_name`, which `docs/decisions.md` documents as never populated for staff accounts, so every staff-creation audit row would otherwise log "Unknown User" instead of the acting Owner/Supervisor's real name. User chose (of 3 options) to fix this at the source in `log_audit_event()` itself — falling back to the caller's own `members.name` when `users.display_name` is null, matching `services/session.ts`'s existing identical fallback precedent — rather than a narrower per-RPC workaround. This fix ships in migration `0061` alongside `create_staff_member()`.
+- 2026-08-19: dev-story complete, Tasks 1–7 implemented (Task 7's live-browser manual-verification subtask left unchecked — no browser automation tool available this session; see Completion Notes for the substitute verification performed and what still needs a human click-through). Status ready-for-dev → in-progress → review. Full pgTAP suite 1161/1161 clean, monorepo typecheck/lint/i18n clean, dashboard `next build` clean including the new `/settings/staff` route, dashboard vitest 93/93 clean.
+
+## Dev Agent Record
+
+### Agent Model Used
+
+Claude Sonnet 5 (claude-sonnet-5), via Claude Code's bmad-dev-story workflow.
+
+### Debug Log References
+
+- `npx supabase db reset` + `npx supabase test db` (multiple runs) — full pgTAP suite, 1161/1161 tests passing after fixing 3 self-introduced bugs caught by the suite itself (see below).
+- `pnpm run typecheck` (all 4 packages), `pnpm run lint` (dashboard/super-admin clean beyond pre-existing baseline; `@gymos/mobile`'s `eslint` binary is missing/broken in this devcontainer, pre-existing and unrelated — this story makes zero `apps/mobile` changes), `pnpm run check:i18n` (all 4 locale sets in parity).
+- `pnpm --filter dashboard test` — 93/93 vitest tests passing (including the pre-existing `SettingsForm.payments.test.tsx`, updated for the new required `staffCount` prop).
+- `pnpm --filter dashboard build` — production build succeeds, `/settings/staff` correctly listed as a new Partial-Prerender route.
+- `curl http://localhost:3000/settings/staff` against the already-running dev server — 307 redirect to `/auth/login?next=%2Fsettings%2Fstaff`, confirming the route is live and the auth gate fires correctly (not a crash), though this is not a substitute for an authenticated interactive check.
+- pg-meta HTTP-endpoint workaround for `supabase gen types typescript --local`'s known zero-byte-stdout bug — needed 3 attempts before a non-empty response, matching every prior story's documented flakiness for this same environment bug.
+
+### Completion Notes List
+
+- **Migration renumbering (found during Task 1):** the story's planned `0059`/`0060` were already taken by the uncommitted Story 6.6 migration. Renumbered to `0060`/`0061` — see `docs/decisions.md` (2026-08-19) and the migration files' own header comments.
+- **Real-name audit logging (user-requested scope addition):** `log_audit_event()` fixed to fall back to the caller's own `members.name` when `users.display_name` is null (always true for staff accounts today) — see `docs/decisions.md` (2026-08-19) for the full investigation and the three options presented to the user before implementing.
+- **Stale Dev Notes caught by the test suite (found during Task 2):** Task 2's own RLS instruction described `gym_staff_read_own_members` as already including `'coach'` (true of `0018`'s original definition) — Story 5.2 (`0040`) had since narrowed it to exclude `'coach'` for a real privacy reason (AC #3 there). Copying the story text verbatim regressed 2 existing test files; caught and fixed by running the full suite, not by inspection. See `docs/decisions.md` for the full note.
+- **All 7 tasks implemented and pgTAP-verified** exactly as scoped: enum split (Task 1), RPC/RLS/audit-fix migration (Task 2), dashboard role plumbing (Task 3), service layer + Server Action (Task 4), Staff List page + Add Staff modal + Settings entry (Task 5), positive + negative pgTAP suites plus a dedicated `log_audit_event()` regression (Task 6), types/validation/documentation (Task 7).
+- **Manual UI verification not performed live in-browser** (Task 7's third subtask, left unchecked) — no browser automation tool was available in this session. Substitute verification performed instead: a full pgTAP suite exercising every AC's RPC-level behavior exactly as a real UI submission would trigger it (role ceilings, rejection messages, audit real-name logging, RLS read scoping); a clean production `next build` including the new route; and a live redirect check against the running dev server confirming the route serves without crashing. **Recommend the user do a quick interactive click-through** (seeded Owner/Supervisor/Manager sessions, per the story's own manual-verification script) before merging — this is the one item this session could not independently confirm.
+- Out of scope, as specified: `update_staff_role()`, Edit/Deactivate UI, `private.current_gym_status()`, PostHog instrumentation, the existing-phone/multi-gym-binding lookup, and any change to `apps/mobile`/`apps/super-admin` — none were built, matching the story's own explicit boundaries.
+
+### File List
+
+**New files:**
+- `supabase/migrations/0060_staff_role_enum.sql`
+- `supabase/migrations/0061_staff_creation_role_ceiling_enforcement.sql`
+- `supabase/tests/staff_creation_role_ceiling_enforcement.test.sql`
+- `supabase/tests/staff_creation_role_ceiling_enforcement.negative.test.sql`
+- `packages/types/src/schemas/staff.ts`
+- `apps/dashboard/lib/temp-password.ts`
+- `apps/dashboard/services/staff.ts`
+- `apps/dashboard/app/(dashboard)/settings/staff/page.tsx`
+- `apps/dashboard/app/(dashboard)/settings/staff/actions.ts`
+- `apps/dashboard/app/(dashboard)/settings/staff/components/StaffPageClient.tsx`
+- `apps/dashboard/app/(dashboard)/settings/staff/components/AddStaffModal.tsx`
+
+**Edited files:**
+- `packages/types/src/index.ts` (export `./schemas/staff`)
+- `packages/types/src/errors.ts` (`create_staff_member` ceiling-rejection mapping)
+- `packages/types/src/locales/en.json` / `fr.json` (`errors.staffRoleNotPermitted`)
+- `packages/types/src/database.ts` (regenerated: `member_role` enum's `'supervisor'` value, new `create_staff_member` function signature)
+- `apps/dashboard/services/session.ts` (`MemberRole`, `STAFF_ROLES` add `"supervisor"`)
+- `apps/dashboard/components/shared/Sidebar.tsx` (Settings `NAV_ITEMS` roles, `ROLE_LABEL_KEY`)
+- `apps/dashboard/locales/en.json` / `fr.json` (`role.supervisor`, `settings.sections.staff`/`sectionDescriptions.staff`/`staffSummary`/`manageStaffLink`, new top-level `staff.*` key tree)
+- `apps/dashboard/app/(dashboard)/settings/page.tsx` (fetch `listStaff()` for the live count, pass `staffCount` to `SettingsForm`)
+- `apps/dashboard/app/(dashboard)/settings/SettingsForm.tsx` (new Staff section card, `staffCount` prop, `Link`/`Users` usage)
+- `apps/dashboard/app/(dashboard)/settings/SettingsForm.payments.test.tsx` (added required `staffCount` fixture prop)
+- `supabase/tests/audit_log_immutable.test.sql` (new regression test for `log_audit_event()`'s real-name fallback; `plan(27)` → `plan(29)`)
+- `docs/decisions.md` (new dated entry, 2026-08-19)

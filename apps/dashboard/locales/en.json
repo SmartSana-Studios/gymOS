@@ -16,6 +16,7 @@
     "coach": "Coach",
     "receptionist": "Receptionist",
     "manager": "Manager",
+    "supervisor": "Supervisor",
     "owner": "Owner"
   },
   "sidebar": {
@@ -44,7 +45,8 @@
       "attendance": "Attendance",
       "frontDeskAlerts": "Front-Desk Alerts",
       "qrCode": "QR Code",
-      "payments": "Payment Account"
+      "payments": "Payment Account",
+      "staff": "Staff"
     },
     "sectionDescriptions": {
       "branding": "Logo, gym name & brand color",
@@ -53,8 +55,11 @@
       "attendance": "Check-in session timeout",
       "frontDeskAlerts": "Auto-dismiss timing for alerts",
       "qrCode": "Check-in code for your gym",
-      "payments": "Connect your Tara Money account for mobile-money payments"
+      "payments": "Connect your Tara Money account for mobile-money payments",
+      "staff": "Manage staff accounts and roles"
     },
+    "staffSummary": "{{count}} staff members",
+    "manageStaffLink": "Manage staff →",
     "fields": {
       "gymName": "Gym Name *",
       "logo": "Logo",
@@ -124,6 +129,45 @@
       "capacityRequired": "Enter the gym's member capacity",
       "alertAutoDismissRange": "Auto-dismiss must be between 1 and 120 minutes",
       "checkinTimeoutRange": "Check-in timeout must be between 1 and 24 hours"
+    }
+  },
+  "staff": {
+    "title": "Staff",
+    "addStaff": "+ Add staff",
+    "addStaffButton": "Add staff",
+    "emptyNoStaff": "No staff yet. Add your first staff member to get started.",
+    "backToSettings": "← Settings",
+    "table": {
+      "name": "Name",
+      "role": "Role",
+      "status": "Status"
+    },
+    "status": {
+      "active": "Active",
+      "pendingActivation": "Pending activation",
+      "deactivated": "Deactivated"
+    },
+    "modal": {
+      "addTitle": "Add Staff Member",
+      "close": "Close",
+      "name": "Full Name *",
+      "phone": "Phone (E.164) *",
+      "role": "Role *",
+      "selectRole": "Select role",
+      "cancel": "Cancel",
+      "create": "Create",
+      "creating": "Creating…",
+      "errors": {
+        "nameInvalid": "Name is required (2-100 characters)",
+        "phoneInvalid": "Enter a valid phone number",
+        "roleRequired": "Select a role",
+        "roleNotPermitted": "You don't have permission to assign that role"
+      }
+    },
+    "tempPasswordToast": "Staff account created. Temporary password: {{password}}",
+    "errors": {
+      "createFailed": "Failed to create staff member",
+      "loadFailed": "Failed to load staff"
     }
   },
   "plans": {

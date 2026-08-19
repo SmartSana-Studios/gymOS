@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import Link from "next/link";
 import QRCode from "qrcode";
 import {
   AlertTriangle,
@@ -121,9 +122,11 @@ const PAYMENT_FIELD_MESSAGE_KEYS: Record<keyof PaymentFieldErrors, { required: s
 export function SettingsForm({
   initial,
   initialPaymentConnection,
+  staffCount,
 }: {
   initial: GymSettingsRow;
   initialPaymentConnection: GymPaymentConnectionStatus | null;
+  staffCount: number;
 }) {
   const { t } = useTranslation();
 
@@ -765,6 +768,23 @@ export function SettingsForm({
                     </Button>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <SectionHeader
+                icon={Users}
+                accent="cyan"
+                title={t("settings.sections.staff")}
+                description={t("settings.sectionDescriptions.staff")}
+              />
+              <CardContent>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm">{t("settings.staffSummary", { count: staffCount })}</p>
+                  <Link href="/settings/staff" className="text-sm font-medium text-primary hover:underline">
+                    {t("settings.manageStaffLink")}
+                  </Link>
+                </div>
               </CardContent>
             </Card>
           </div>

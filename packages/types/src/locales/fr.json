@@ -30,6 +30,7 @@
     "memberNotAssigned": "Ce membre ne vous est plus assigné.",
     "noteNotEditable": "Cette note ne peut pas être modifiée.",
     "messagingInstanceRequired": "L'ID d'instance est requis",
+    "staffRoleNotPermitted": "Vous n'êtes pas autorisé à attribuer ce rôle",
     "unknown": "Une erreur est survenue de notre côté."
   },
   "auth": {

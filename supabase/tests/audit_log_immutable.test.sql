@@ -17,7 +17,7 @@
 -- (on delete set null).
 
 begin;
-select plan(27);
+select plan(29);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000000004', 'Audit Test Tier', 5000, 50000, 30);
@@ -163,6 +163,46 @@ select is(
   (select metadata from audit_log where action_type = 'coach_assignment_changed'),
   '{}'::jsonb,
   'metadata genuinely defaults to {} when the parameter is omitted entirely'
+);
+
+-- ---------------------------------------------------------------------------
+-- Story 9.1 (0061_staff_creation_role_ceiling_enforcement.sql, user-requested
+-- scope addition): a real gym-scoped session whose users.display_name is
+-- NULL -- the real-world-always case for every staff account
+-- (docs/decisions.md: display_name is only ever populated by the member
+-- self-service mobile flow) -- must fall back to the caller's own
+-- members.name, not straight to 'Unknown User'. The regression block above
+-- (e4) deliberately has no gym_id claim and no members row, so it still
+-- correctly falls through to 'Unknown User' unchanged by this fix -- this is
+-- the first fixture that actually has both a gym-scoped session AND a real
+-- members row, exercising the new fallback path itself.
+-- ---------------------------------------------------------------------------
+
+insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000e6');
+-- Deliberately no display_name set, same as e4 -- but this user DOES have an
+-- active members row in gym e1, unlike e4.
+insert into members (id, gym_id, user_id, role, name)
+values ('00000000-0000-0000-0000-0000000000e7', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e6', 'manager', 'Fallback Members Name');
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000000e6","role":"authenticated","gym_id":"00000000-0000-0000-0000-0000000000e1","app_role":"manager"}',
+  true
+);
+
+select isnt(
+  log_audit_event('member_edited'),
+  null,
+  'log_audit_event() succeeds for a gym-scoped session whose users.display_name is NULL but who has a real members row'
+);
+
+reset role;
+
+select is(
+  (select actor_display_name from audit_log where action_type = 'member_edited'),
+  'Fallback Members Name',
+  'actor_display_name falls back to the caller''s own members.name when users.display_name is NULL, instead of ''Unknown User'' -- the real-name logging fix'
 );
 
 -- ---------------------------------------------------------------------------

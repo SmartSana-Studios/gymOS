@@ -32,14 +32,14 @@ export async function mapAndLog(rawError: unknown): Promise<AppError> {
 // enum, 0001_extensions_and_enums.sql). Super Admin is a platform-level
 // flag, never seen here -- (dashboard)/layout.tsx redirects a
 // super_admin-only session before this type is ever relevant.
-export type MemberRole = "member" | "coach" | "receptionist" | "manager" | "owner";
+export type MemberRole = "member" | "coach" | "receptionist" | "manager" | "supervisor" | "owner";
 
 // Only these roles have a place on apps/dashboard. "member" is a real,
 // valid member_role value (the gym-customer role, mobile-app/phone-OTP
 // auth) -- if a member-role account also happens to have an email/password
 // credential and signs in here, it must not silently render an empty
 // Sidebar with no nav items and no explanation (Review finding).
-const STAFF_ROLES: readonly MemberRole[] = ["receptionist", "manager", "owner", "coach"];
+const STAFF_ROLES: readonly MemberRole[] = ["receptionist", "manager", "supervisor", "owner", "coach"];
 
 export interface DashboardShellContext {
   gymId: string;

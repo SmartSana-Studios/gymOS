@@ -16,5 +16,6 @@ export * from "./schemas/frontDeskAlert";
 export * from "./schemas/sessionNote";
 export * from "./schemas/devicePushToken";
 export * from "./schemas/memberPreferences";
+export * from "./schemas/staff";
 export * from "./errors";
 

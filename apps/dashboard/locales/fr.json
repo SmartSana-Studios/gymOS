@@ -16,6 +16,7 @@
     "coach": "Coach",
     "receptionist": "Réceptionniste",
     "manager": "Gérant",
+    "supervisor": "Superviseur",
     "owner": "Propriétaire"
   },
   "sidebar": {
@@ -44,7 +45,8 @@
       "attendance": "Présence",
       "frontDeskAlerts": "Alertes accueil",
       "qrCode": "Code QR",
-      "payments": "Compte de paiement"
+      "payments": "Compte de paiement",
+      "staff": "Personnel"
     },
     "sectionDescriptions": {
       "branding": "Logo, nom de la salle et couleur de marque",
@@ -53,8 +55,11 @@
       "attendance": "Délai d'expiration de la session de présence",
       "frontDeskAlerts": "Délai de disparition automatique des alertes",
       "qrCode": "Code de présence de votre salle",
-      "payments": "Connectez votre compte Tara Money pour les paiements mobile money"
+      "payments": "Connectez votre compte Tara Money pour les paiements mobile money",
+      "staff": "Gérez les comptes et les rôles du personnel"
     },
+    "staffSummary": "{{count}} membres du personnel",
+    "manageStaffLink": "Gérer le personnel →",
     "fields": {
       "gymName": "Nom de la salle *",
       "logo": "Logo",
@@ -124,6 +129,45 @@
       "capacityRequired": "Indiquez la capacité de la salle",
       "alertAutoDismissRange": "La fermeture automatique doit être comprise entre 1 et 120 minutes",
       "checkinTimeoutRange": "Le délai de pointage doit être compris entre 1 et 24 heures"
+    }
+  },
+  "staff": {
+    "title": "Personnel",
+    "addStaff": "+ Ajouter un membre du personnel",
+    "addStaffButton": "Ajouter un membre du personnel",
+    "emptyNoStaff": "Aucun membre du personnel pour le moment. Ajoutez votre premier membre du personnel.",
+    "backToSettings": "← Paramètres",
+    "table": {
+      "name": "Nom",
+      "role": "Rôle",
+      "status": "Statut"
+    },
+    "status": {
+      "active": "Actif",
+      "pendingActivation": "Activation en attente",
+      "deactivated": "Désactivé"
+    },
+    "modal": {
+      "addTitle": "Ajouter un membre du personnel",
+      "close": "Fermer",
+      "name": "Nom complet *",
+      "phone": "Téléphone (E.164) *",
+      "role": "Rôle *",
+      "selectRole": "Sélectionnez un rôle",
+      "cancel": "Annuler",
+      "create": "Créer",
+      "creating": "Création…",
+      "errors": {
+        "nameInvalid": "Le nom est requis (2 à 100 caractères)",
+        "phoneInvalid": "Saisissez un numéro de téléphone valide",
+        "roleRequired": "Sélectionnez un rôle",
+        "roleNotPermitted": "Vous n'êtes pas autorisé à attribuer ce rôle"
+      }
+    },
+    "tempPasswordToast": "Compte du personnel créé. Mot de passe temporaire : {{password}}",
+    "errors": {
+      "createFailed": "Échec de la création du membre du personnel",
+      "loadFailed": "Échec du chargement du personnel"
     }
   },
   "plans": {

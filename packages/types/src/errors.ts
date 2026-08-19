@@ -279,6 +279,22 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // create_staff_member()'s ceiling-check raise (0061_staff_creation_role_ceiling_enforcement.sql,
+  // Story 9.1, AC #2). Reachable through the normal UI path: the Add Staff
+  // modal's Role dropdown is client-side filtered to the caller's own
+  // ceiling, but a stale client (role widened server-side after the page
+  // loaded) still hits this raise, matching AD-17's own documented rejection
+  // copy. The "caller has no gym-scoped session"/"caller is not authorized to
+  // create staff" (no active membership at all) raises stay deliberately
+  // unmapped, same "unreachable through this story's own role-gated call
+  // path" rationale as every other permission-denied raise in this file.
+  if (message.includes("create_staff_member:") && message.includes("caller is not authorized to create staff with role")) {
+    return {
+      code: "staff_role_not_permitted",
+      message: copy.staffRoleNotPermitted,
+    };
+  }
+
   // No console/logging call here: packages/types targets ES2022 only (no
   // DOM/Node lib -- consumed by both Next.js apps and, eventually, Expo),
   // and is meant to stay a pure, side-effect-free mapping utility. Callers

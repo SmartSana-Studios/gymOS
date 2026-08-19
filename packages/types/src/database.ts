@@ -1380,6 +1380,38 @@ export type Database = {
         }
         Returns: string
       }
+      create_staff_member: {
+        Args: {
+          p_name: string
+          p_phone: string
+          p_role: Database["public"]["Enums"]["member_role"]
+          p_user_id: string
+        }
+        Returns: {
+          created_at: string
+          deactivated_at: string | null
+          dob: string | null
+          email: string | null
+          emergency_contact: string | null
+          experience_level: string | null
+          goal: string | null
+          gym_id: string
+          id: string
+          join_date: string
+          name: string
+          onboarding_completed_at: string | null
+          phone: string | null
+          photo_url: string | null
+          role: Database["public"]["Enums"]["member_role"]
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "members"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       disconnect_gym_payment_credentials: {
         Args: { p_provider_key: string }
@@ -1501,7 +1533,13 @@ export type Database = {
       device_platform: "ios" | "android"
       gym_status: "active" | "suspended" | "deactivated"
       job_status: "success" | "failure"
-      member_role: "member" | "coach" | "receptionist" | "manager" | "owner"
+      member_role:
+        | "member"
+        | "coach"
+        | "receptionist"
+        | "manager"
+        | "owner"
+        | "supervisor"
       payment_discrepancy_type:
         | "missing_internal_record"
         | "stale_processing"
@@ -1652,7 +1690,7 @@ export const Constants = {
       device_platform: ["ios", "android"],
       gym_status: ["active", "suspended", "deactivated"],
       job_status: ["success", "failure"],
-      member_role: ["member", "coach", "receptionist", "manager", "owner"],
+      member_role: ["member", "coach", "receptionist", "manager", "owner", "supervisor"],
       payment_discrepancy_type: [
         "missing_internal_record",
         "stale_processing",

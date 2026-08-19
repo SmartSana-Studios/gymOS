@@ -42,7 +42,7 @@ const NAV_ITEMS: {
   { labelKey: "nav.attendance", href: "/attendance", icon: ClipboardList, roles: ["receptionist", "manager", "owner"] },
   { labelKey: "nav.classes", href: "/classes", icon: CalendarDays, roles: ["receptionist", "manager", "owner"] },
   { labelKey: "nav.auditLog", href: "/audit", icon: ScrollText, roles: ["manager", "owner"] },
-  { labelKey: "nav.settings", href: "/settings", icon: Settings, roles: ["owner"] },
+  { labelKey: "nav.settings", href: "/settings", icon: Settings, roles: ["owner", "supervisor"] },
   { labelKey: "nav.coachPortal", href: "/coach", icon: Dumbbell, roles: ["coach"] },
 ];
 
@@ -51,6 +51,7 @@ const ROLE_LABEL_KEY: Record<MemberRole, string> = {
   coach: "role.coach",
   receptionist: "role.receptionist",
   manager: "role.manager",
+  supervisor: "role.supervisor",
   owner: "role.owner",
 };
 

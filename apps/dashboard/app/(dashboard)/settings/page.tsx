@@ -1,5 +1,6 @@
 import { getGymSettings } from "@/services/gym-settings";
 import { getGymPaymentConnectionStatus } from "@/services/gym-payment-credentials";
+import { listStaff } from "@/services/staff";
 import { SettingsForm } from "./SettingsForm";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -32,10 +33,20 @@ export default async function SettingsPage() {
   // whole page.
   const { data: paymentConnection } = await getGymPaymentConnectionStatus(TARAMONEY_PROVIDER_KEY);
 
+  // Story 9.1 (AD-13): a live staff count for the new Staff section's
+  // summary row. Same "don't fail the whole page" treatment as the payment
+  // connection lookup above -- an error here just shows a 0 count rather
+  // than blocking Settings.
+  const { data: staff } = await listStaff();
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">{t("settings.title")}</h1>
-      <SettingsForm initial={settings} initialPaymentConnection={paymentConnection} />
+      <SettingsForm
+        initial={settings}
+        initialPaymentConnection={paymentConnection}
+        staffCount={staff?.length ?? 0}
+      />
     </div>
   );
 }
