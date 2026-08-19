@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import type { MemberRole } from "@/services/session";
 import {
+  CalendarDays,
   ClipboardList,
   CreditCard,
   Dumbbell,
@@ -39,6 +40,7 @@ const NAV_ITEMS: {
   { labelKey: "nav.subscriptions", href: "/subscriptions", icon: CreditCard, roles: ["manager", "owner"] },
   { labelKey: "nav.payments", href: "/payments", icon: Wallet, roles: ["receptionist", "manager", "owner"] },
   { labelKey: "nav.attendance", href: "/attendance", icon: ClipboardList, roles: ["receptionist", "manager", "owner"] },
+  { labelKey: "nav.classes", href: "/classes", icon: CalendarDays, roles: ["receptionist", "manager", "owner"] },
   { labelKey: "nav.auditLog", href: "/audit", icon: ScrollText, roles: ["manager", "owner"] },
   { labelKey: "nav.settings", href: "/settings", icon: Settings, roles: ["owner"] },
   { labelKey: "nav.coachPortal", href: "/coach", icon: Dumbbell, roles: ["coach"] },

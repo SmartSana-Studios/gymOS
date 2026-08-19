@@ -6,6 +6,7 @@
     "subscriptions": "Abonnements",
     "payments": "Paiements",
     "attendance": "Présences",
+    "classes": "Cours",
     "auditLog": "Journal d'audit",
     "settings": "Paramètres",
     "coachPortal": "Espace Coach"
@@ -183,6 +184,60 @@
       "auditLogFailedCreate": "La formule a été créée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedEdit": "La formule a été modifiée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedDelete": "La formule a été supprimée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
+    }
+  },
+  "classes": {
+    "title": "Cours",
+    "addClass": "+ Créer un cours",
+    "addClassButton": "Créer un cours",
+    "emptyNoClasses": "Aucun cours programmé pour le moment. Créez votre premier cours.",
+    "edit": "Modifier",
+    "columnName": "Nom",
+    "columnCoach": "Coach",
+    "columnSchedule": "Horaire",
+    "columnNextSession": "Prochaine séance",
+    "columnBooked": "Réservé",
+    "noUpcomingSession": "Aucune séance à venir",
+    "recurringSummary": "{{days}} à {{time}}",
+    "days": {
+      "sun": "Dim",
+      "mon": "Lun",
+      "tue": "Mar",
+      "wed": "Mer",
+      "thu": "Jeu",
+      "fri": "Ven",
+      "sat": "Sam"
+    },
+    "modal": {
+      "editTitle": "Modifier {{name}}",
+      "addTitle": "Créer un cours",
+      "close": "Fermer",
+      "name": "Nom du cours *",
+      "description": "Description",
+      "coach": "Coach assigné *",
+      "coachPlaceholder": "Sélectionnez un coach",
+      "capacity": "Capacité *",
+      "scheduleType": "Type d'horaire *",
+      "oneOff": "Ponctuel",
+      "recurring": "Récurrent",
+      "date": "Date *",
+      "time": "Heure *",
+      "daysOfWeek": "Jours de la semaine *",
+      "startDate": "Date de début *",
+      "saveChanges": "Enregistrer les modifications",
+      "errors": {
+        "nameRequired": "Le nom du cours est requis",
+        "coachRequired": "Sélectionnez un coach",
+        "capacityInvalid": "Saisissez une capacité d'au moins 1",
+        "oneOffDateTimeRequired": "Saisissez une date et une heure de séance",
+        "oneOffDateTimeInPast": "La date et l'heure de la séance doivent être dans le futur",
+        "recurringFieldsRequired": "Sélectionnez au moins un jour, une heure et une date de début"
+      }
+    },
+    "errors": {
+      "classNotFound": "Cours introuvable",
+      "auditLogFailedCreate": "Le cours a été créé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "auditLogFailedEdit": "Le cours a été modifié, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
     }
   },
   "members": {

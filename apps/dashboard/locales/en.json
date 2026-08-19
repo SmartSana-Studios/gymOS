@@ -6,6 +6,7 @@
     "subscriptions": "Subscriptions",
     "payments": "Payments",
     "attendance": "Attendance",
+    "classes": "Classes",
     "auditLog": "Audit Log",
     "settings": "Settings",
     "coachPortal": "Coach Portal"
@@ -183,6 +184,60 @@
       "auditLogFailedCreate": "The plan was created, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedEdit": "The plan was updated, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedDelete": "The plan was deleted, but the audit log entry failed to write. Please contact support."
+    }
+  },
+  "classes": {
+    "title": "Classes",
+    "addClass": "+ Create class",
+    "addClassButton": "Create class",
+    "emptyNoClasses": "No classes scheduled yet. Create your first class.",
+    "edit": "Edit",
+    "columnName": "Name",
+    "columnCoach": "Coach",
+    "columnSchedule": "Schedule",
+    "columnNextSession": "Next Session",
+    "columnBooked": "Booked",
+    "noUpcomingSession": "No upcoming session",
+    "recurringSummary": "{{days}} at {{time}}",
+    "days": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    },
+    "modal": {
+      "editTitle": "Edit {{name}}",
+      "addTitle": "Create class",
+      "close": "Close",
+      "name": "Class Name *",
+      "description": "Description",
+      "coach": "Assigned Coach *",
+      "coachPlaceholder": "Select a coach",
+      "capacity": "Capacity *",
+      "scheduleType": "Schedule Type *",
+      "oneOff": "One-off",
+      "recurring": "Recurring",
+      "date": "Date *",
+      "time": "Time *",
+      "daysOfWeek": "Days of the Week *",
+      "startDate": "Start Date *",
+      "saveChanges": "Save Changes",
+      "errors": {
+        "nameRequired": "Class name is required",
+        "coachRequired": "Select a coach",
+        "capacityInvalid": "Enter a capacity of at least 1",
+        "oneOffDateTimeRequired": "Enter a session date and time",
+        "oneOffDateTimeInPast": "Session date and time must be in the future",
+        "recurringFieldsRequired": "Select at least one day, a time, and a start date"
+      }
+    },
+    "errors": {
+      "classNotFound": "Class not found",
+      "auditLogFailedCreate": "The class was created, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedEdit": "The class was updated, but the audit log entry failed to write. Please contact support."
     }
   },
   "members": {
