@@ -52,11 +52,8 @@ export interface ClassRow {
    * but a class whose recurring pattern has no matching day-of-week within
    * the rolling window is theoretically possible). */
   nextSessionAt: string | null;
-  /** Always `0` today -- `class_bookings` (Story 12.2) does not exist yet.
-   * This is a real, wired-up query result, not a hardcoded stub: once
-   * Story 12.2 ships the table, only this one field's computation changes,
-   * no new column/query/UI. See this story's Dev Notes "Booking-Count
-   * Scope Gap". */
+  /** Live `class_bookings` count for `nextSessionAt`'s session, or `0` if
+   * there is no next session (nothing to book) or it has zero bookings. */
   bookedCount: number;
 }
 
@@ -77,7 +74,7 @@ interface ClassRowFromDb {
   members: { name: string } | { name: string }[] | null;
 }
 
-function toClassRow(row: ClassRowFromDb, nextSessionAt: string | null): ClassRow {
+function toClassRow(row: ClassRowFromDb, nextSessionAt: string | null, bookedCount: number): ClassRow {
   const coach = Array.isArray(row.members) ? row.members[0] : row.members;
   return {
     id: row.id,
@@ -92,7 +89,7 @@ function toClassRow(row: ClassRowFromDb, nextSessionAt: string | null): ClassRow
     recurrenceTime: row.recurrence_time,
     recurrenceStartDate: row.recurrence_start_date,
     nextSessionAt,
-    bookedCount: 0,
+    bookedCount,
   };
 }
 
@@ -127,7 +124,7 @@ export async function listClasses(): Promise<{ data: ClassRow[] | null; error: A
 
   const { data: sessionRows, error: sessionsError } = await supabase
     .from("class_sessions")
-    .select("class_id, scheduled_at")
+    .select("id, class_id, scheduled_at")
     .eq("gym_id", gymId)
     .gte("scheduled_at", new Date().toISOString())
     .order("scheduled_at", { ascending: true });
@@ -136,15 +133,49 @@ export async function listClasses(): Promise<{ data: ClassRow[] | null; error: A
     return { data: null, error: await mapAndLog(sessionsError) };
   }
 
-  const nextSessionByClassId = new Map<string, string>();
+  const nextSessionByClassId = new Map<string, { id: string; scheduledAt: string }>();
   for (const session of sessionRows ?? []) {
     if (!nextSessionByClassId.has(session.class_id)) {
-      nextSessionByClassId.set(session.class_id, session.scheduled_at);
+      nextSessionByClassId.set(session.class_id, { id: session.id, scheduledAt: session.scheduled_at });
+    }
+  }
+
+  // Story 12.2: real booking counts for each row's next session, replacing
+  // the previous hardcoded 0 -- see Story 12.1's Dev Notes "Booking-Count
+  // Scope Gap" and this story's own Task 2. A single class_bookings fetch
+  // scoped to just the next-session ids (not every future session), counted
+  // client-side (PostgREST has no group-by aggregate over a plain select),
+  // matching the same fetch-then-count-in-JS shape nextSessionByClassId
+  // itself already uses above.
+  const nextSessionIds = [...nextSessionByClassId.values()].map((s) => s.id);
+  const bookedCountBySessionId = new Map<string, number>();
+  if (nextSessionIds.length > 0) {
+    const { data: bookingRows, error: bookingsError } = await supabase
+      .from("class_bookings")
+      .select("class_session_id")
+      .in("class_session_id", nextSessionIds);
+
+    if (bookingsError) {
+      return { data: null, error: await mapAndLog(bookingsError) };
+    }
+
+    for (const booking of bookingRows ?? []) {
+      bookedCountBySessionId.set(
+        booking.class_session_id,
+        (bookedCountBySessionId.get(booking.class_session_id) ?? 0) + 1,
+      );
     }
   }
 
   return {
-    data: rows.map((row) => toClassRow(row, nextSessionByClassId.get(row.id) ?? null)),
+    data: rows.map((row) => {
+      const nextSession = nextSessionByClassId.get(row.id);
+      return toClassRow(
+        row,
+        nextSession?.scheduledAt ?? null,
+        nextSession ? (bookedCountBySessionId.get(nextSession.id) ?? 0) : 0,
+      );
+    }),
     error: null,
   };
 }

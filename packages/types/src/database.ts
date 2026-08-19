@@ -129,6 +129,49 @@ export type Database = {
           },
         ]
       }
+      class_bookings: {
+        Row: {
+          class_session_id: string
+          created_at: string
+          gym_id: string
+          id: string
+          member_id: string
+        }
+        Insert: {
+          class_session_id: string
+          created_at?: string
+          gym_id: string
+          id?: string
+          member_id: string
+        }
+        Update: {
+          class_session_id?: string
+          created_at?: string
+          gym_id?: string
+          id?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_bookings_class_session_id_fkey"
+            columns: ["class_session_id"]
+            referencedRelation: "class_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_bookings_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_bookings_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       class_sessions: {
         Row: {
           class_id: string
@@ -422,6 +465,7 @@ export type Database = {
           alert_auto_dismiss_minutes: number
           capacity: number | null
           checkin_timeout_hours: number
+          class_booking_cancellation_cutoff_minutes: number
           closing_time: string | null
           created_at: string
           default_language: string
@@ -441,6 +485,7 @@ export type Database = {
           alert_auto_dismiss_minutes?: number
           capacity?: number | null
           checkin_timeout_hours?: number
+          class_booking_cancellation_cutoff_minutes?: number
           closing_time?: string | null
           created_at?: string
           default_language?: string
@@ -460,6 +505,7 @@ export type Database = {
           alert_auto_dismiss_minutes?: number
           capacity?: number | null
           checkin_timeout_hours?: number
+          class_booking_cancellation_cutoff_minutes?: number
           closing_time?: string | null
           created_at?: string
           default_language?: string
@@ -1209,7 +1255,27 @@ export type Database = {
         Args: { p_coach_id: string; p_member_id: string }
         Returns: string
       }
+      book_class_session: {
+        Args: { p_class_session_id: string }
+        Returns: {
+          class_session_id: string
+          created_at: string
+          gym_id: string
+          id: string
+          member_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "class_bookings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       caller_has_membership: { Args: never; Returns: boolean }
+      cancel_class_booking: {
+        Args: { p_booking_id: string }
+        Returns: undefined
+      }
       check_in: {
         Args: { p_client_scan_id?: string; p_scanned_at?: string }
         Returns: {
