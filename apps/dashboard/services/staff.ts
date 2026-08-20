@@ -1,12 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { type AppError, type CreateStaffMemberInput, type UpdateStaffRoleInput, type DeactivateStaffInput } from "@gymos/types";
+import { ANALYTICS_EVENT, type AppError, type CreateStaffMemberInput, type UpdateStaffRoleInput, type DeactivateStaffInput } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { generateTempPassword } from "@/lib/temp-password";
 import { deleteAuthUserForCleanup } from "@/services/members";
 import { sendEvolutionApiMessage } from "@/lib/messaging/EvolutionApiMessageProvider";
+import { captureServerEvent } from "@/lib/analytics";
 
 /** Story 9.2 Task 1: dashboard's own copy, pointing at itself -- distinct
  * from apps/super-admin's own getDashboardAppUrl() (that one points
@@ -48,6 +49,18 @@ async function getCallerGymId(
   }
 
   return { gymId, error: null };
+}
+
+/** Story 9.5 (Task 4): resolves the caller's own auth.uid() for
+ * `staff_created` event attribution -- same `getClaims()` pattern
+ * `getCallerGymId()` above uses, reading `claims.sub` (the established
+ * shape confirmed elsewhere in this codebase, e.g. session.ts) instead of a
+ * second, independent auth lookup mechanism. */
+async function getCallerUserId(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+): Promise<string | undefined> {
+  const { data: claimsData } = await supabase.auth.getClaims();
+  return (claimsData?.claims as { sub?: string } | undefined)?.sub;
 }
 
 export type StaffStatus = "active" | "pending_activation" | "deactivated";
@@ -139,8 +152,9 @@ export async function listStaff(): Promise<{ data: StaffListRow[] | null; error:
 }
 
 export interface CreateStaffMemberResult {
-  tempPassword: string;
+  tempPassword: string | null;
   smsSent: boolean;
+  isExistingAccount: boolean;
 }
 
 /** AC #1/#2/#3: the two-step creation flow (Dev Notes "Creation Sequencing")
@@ -155,46 +169,148 @@ export interface CreateStaffMemberResult {
  * raises (ceiling violated, or any other failure), a compensating
  * `deleteUser()` (reused from members.ts) undoes the just-created auth user
  * so no orphaned row survives a rejected staff-creation attempt -- mirrors
- * `deleteGym()`'s exact compensating-cleanup shape. */
+ * `deleteGym()`'s exact compensating-cleanup shape.
+ *
+ * Story 9.4 (AC #1/#2): before provisioning a new `auth.users` row at all,
+ * look up whether `input.phone` already resolves to an existing platform
+ * user (same query shape `findOrCreateUserByPhone()`, members.ts:369-417,
+ * already uses -- not reused verbatim, since that function's own creation
+ * branch is member-shaped, `phone_confirm: false`/no password, incompatible
+ * with staff's password-based model). If found, skip `createUser()`
+ * entirely -- rotating an existing account's password here would silently
+ * invalidate a password they rely on at another gym or under their prior
+ * role at this one (Dev Notes "Why No Password Rotation for an Existing
+ * Account") -- and let `create_staff_member()` (0064) decide server-side
+ * whether this is a new binding at a different gym (AC #1) or a
+ * replace-in-place at the same gym (AC #2). */
 export async function createStaffMember(
   input: CreateStaffMemberInput,
 ): Promise<{ data: CreateStaffMemberResult | null; error: AppError | null }> {
   const supabase = await createClient();
   const { t } = await getServerTranslation(await getRequestLocale());
+  const admin = createAdminClient();
 
-  const temporaryPassword = generateTempPassword();
-  const provisioned = await (async () => {
-    try {
-      const admin = createAdminClient();
-      const { data, error: authError } = await admin.auth.admin.createUser({
-        phone: input.phone,
-        password: temporaryPassword,
-        phone_confirm: true,
-      });
+  // GoTrue stores auth.users.phone (and this trigger-copied public.users.phone,
+  // 0003_members_and_users.sql:62-63) in E.164 digits WITHOUT the leading
+  // "+" -- confirmed empirically against this project's local Supabase
+  // instance (createUser({phone: "+237..."}) persists as "237..."). Every
+  // Zod e164Phone schema in this codebase (packages/types/src/schemas/*.ts)
+  // requires the leading "+" on user-facing input, so a raw `.eq("phone",
+  // input.phone)` comparison here would never match an existing row --
+  // silently falling through to createUser(), which then correctly fails
+  // with `phone_exists` (GoTrue's own internal uniqueness check *is*
+  // normalized consistently), surfacing a confusing "already registered"
+  // rejection instead of ever finding/reusing the existing account. Strip
+  // the leading "+" before comparing, matching GoTrue's own stored format.
+  const normalizedPhoneForLookup = input.phone.replace(/^\+/, "");
+  const { data: existingUserRow, error: lookupError } = await admin
+    .from("users")
+    .select("id")
+    .eq("phone", normalizedPhoneForLookup)
+    .maybeSingle();
+  if (lookupError) {
+    return { data: null, error: await mapAndLog(lookupError) };
+  }
 
-      if (authError || !data?.user) {
-        return { ok: false as const, error: await mapAndLog(authError) };
+  let userId: string;
+  let isExistingAccount: boolean;
+  let temporaryPassword: string | null = null;
+
+  if (existingUserRow) {
+    userId = existingUserRow.id;
+    isExistingAccount = true;
+  } else {
+    temporaryPassword = generateTempPassword();
+    const provisioned = await (async () => {
+      try {
+        const { data, error: authError } = await admin.auth.admin.createUser({
+          phone: input.phone,
+          password: temporaryPassword as string,
+          phone_confirm: true,
+        });
+
+        if (authError || !data?.user) {
+          return { ok: false as const, error: await mapAndLog(authError) };
+        }
+        return { ok: true as const, userId: data.user.id };
+      } catch (err) {
+        return { ok: false as const, error: await mapAndLog(err) };
       }
-      return { ok: true as const, userId: data.user.id };
-    } catch (err) {
-      return { ok: false as const, error: await mapAndLog(err) };
-    }
-  })();
+    })();
 
-  if (!provisioned.ok) {
-    return { data: null, error: provisioned.error };
+    if (!provisioned.ok) {
+      return { data: null, error: provisioned.error };
+    }
+    userId = provisioned.userId;
+    isExistingAccount = false;
   }
 
   const { data: staffRow, error: rpcError } = await supabase.rpc("create_staff_member", {
-    p_user_id: provisioned.userId,
+    p_user_id: userId,
     p_name: input.name,
     p_phone: input.phone,
     p_role: input.role,
   });
 
   if (rpcError || !staffRow) {
-    await deleteAuthUserForCleanup(provisioned.userId);
+    // Only clean up an auth user *this call* just created -- deleting an
+    // existing platform user's account because this gym's binding attempt
+    // failed would be destructive to their other, unrelated gym membership(s).
+    if (!isExistingAccount) {
+      await deleteAuthUserForCleanup(userId);
+    }
     return { data: null, error: rpcError ? await mapAndLog(rpcError) : { code: "unknown", message: t("common.somethingWentWrong") } };
+  }
+
+  if (isExistingAccount) {
+    // Story 9.4: a lighter, no-password notification -- genuinely new UX
+    // surface this story invents (no planning artifact specifies messaging
+    // for this case), on the reasoning that a person's access changing at a
+    // gym without their knowledge is a real transparency concern. Best-effort
+    // only: a gym-name lookup failure or send failure must not turn a
+    // successful binding into a reported failure.
+    let gymName = "";
+    try {
+      const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+      if (gymIdError) {
+        // getCallerGymId() returns a { error } tuple rather than throwing --
+        // this branch, not the catch below, is how its failures actually
+        // surface (review finding: previously fell through silently).
+        console.error("[staff] failed to resolve gym name for the existing-account activation message", gymIdError);
+      } else if (gymId) {
+        const { data: gymRow } = await supabase.from("gyms").select("name").eq("id", gymId).maybeSingle();
+        gymName = gymRow?.name ?? "";
+      }
+    } catch (err) {
+      console.error("[staff] failed to resolve gym name for the existing-account activation message", err);
+    }
+
+    let loginUrl = "";
+    try {
+      loginUrl = `${getDashboardAppUrl()}/auth/login`;
+    } catch (err) {
+      console.error("[staff] DASHBOARD_APP_URL is not set; sending existing-account message without a login link", err);
+    }
+    const message = loginUrl
+      ? t("staff.activation.messageExistingAccount", { name: input.name, gymName, link: loginUrl })
+      : t("staff.activation.messageExistingAccountNoLink", { name: input.name, gymName });
+    const sendResult = await sendEvolutionApiMessage(input.phone, message);
+
+    // captureServerEvent() already swallows its own failures internally --
+    // wrapped again here too (review-anticipated defense-in-depth) so an
+    // analytics failure can never turn this successful binding into a
+    // reported failure, no matter which layer it originates from.
+    try {
+      await captureServerEvent(
+        ANALYTICS_EVENT.STAFF_CREATED,
+        { gymId: staffRow.gym_id, role: staffRow.role, isExistingAccount: true },
+        await getCallerUserId(supabase),
+      );
+    } catch (err) {
+      console.error("[staff] failed to capture staff_created analytics event", err);
+    }
+
+    return { data: { tempPassword: null, smsSent: sendResult.success, isExistingAccount: true }, error: null };
   }
 
   // AC #1: the account is already created and committed at this point --
@@ -212,7 +328,19 @@ export async function createStaffMember(
     : t("staff.activation.messageNoLink", { name: input.name, password: temporaryPassword });
   const sendResult = await sendEvolutionApiMessage(input.phone, message);
 
-  return { data: { tempPassword: temporaryPassword, smsSent: sendResult.success }, error: null };
+  // See the existing-account branch above for why this is double-wrapped
+  // despite captureServerEvent() already swallowing its own failures.
+  try {
+    await captureServerEvent(
+      ANALYTICS_EVENT.STAFF_CREATED,
+      { gymId: staffRow.gym_id, role: staffRow.role, isExistingAccount: false },
+      await getCallerUserId(supabase),
+    );
+  } catch (err) {
+    console.error("[staff] failed to capture staff_created analytics event", err);
+  }
+
+  return { data: { tempPassword: temporaryPassword, smsSent: sendResult.success, isExistingAccount: false }, error: null };
 }
 
 /** Story 9.2 (AC #4): Owner/Supervisor-triggered password reset for a staff

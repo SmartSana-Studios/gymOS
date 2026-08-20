@@ -9,12 +9,16 @@ import {
 import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import { I18nextProvider } from 'react-i18next';
+import { PostHogProvider } from 'posthog-react-native';
+import { ANALYTICS_EVENT } from '@gymos/types';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { useSession } from '@/hooks/use-session';
 import { i18n } from '@/lib/i18n';
+import { captureEvent, posthogClient } from '@/lib/analytics';
 import { registerPushToken, subscribeToPushTokenChanges } from '@/services/pushTokens';
 
 SplashScreen.preventAutoHideAsync();
@@ -29,9 +33,32 @@ SplashScreen.preventAutoHideAsync();
 // underlying signal changed from `users.display_name` (Story 2.7 Scope
 // Note #1).
 function RootNavigator() {
-  const { session, isOnboarded, isLoading } = useSession();
+  const { session, isOnboarded, gymId, isLoading } = useSession();
   const isFullyOnboarded = !!session && isOnboarded;
   const sessionUserId = session?.user.id;
+
+  // Story 9.5 (Task 6): app_opened, the concrete hook for the non-visit-
+  // day-app-opens success metric. Fired once per cold launch (guarded by
+  // the ref below, gated on isLoading so gymId reflects the settled
+  // session state) and once per foreground-from-background transition
+  // (the AppState listener further down) -- never on re-renders.
+  const hasCapturedColdLaunch = useRef(false);
+  useEffect(() => {
+    if (hasCapturedColdLaunch.current || isLoading) return;
+    hasCapturedColdLaunch.current = true;
+    captureEvent(ANALYTICS_EVENT.APP_OPENED, { gymId });
+  }, [isLoading, gymId]);
+
+  const appStateRef = useRef(AppState.currentState);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
+        captureEvent(ANALYTICS_EVENT.APP_OPENED, { gymId });
+      }
+      appStateRef.current = nextState;
+    });
+    return () => subscription.remove();
+  }, [gymId]);
 
   // Story 8.3: Barlow replaces the system font app-wide. Declared
   // unconditionally alongside the other hooks below (Rules of Hooks) --
@@ -93,7 +120,7 @@ function RootNavigator() {
 // following the device color scheme -- device scheme is intentionally
 // ignored app-wide until a real light-mode toggle is built.
 export default function RootLayout() {
-  return (
+  const content = (
     <I18nextProvider i18n={i18n}>
       <ThemeProvider value={DarkTheme}>
         <StatusBar style="light" />
@@ -102,4 +129,13 @@ export default function RootLayout() {
       </ThemeProvider>
     </I18nextProvider>
   );
+
+  // Skip the provider entirely when no PostHog key is configured (local
+  // dev with no project set up) rather than instantiating a client with an
+  // empty api key.
+  if (!posthogClient) {
+    return content;
+  }
+
+  return <PostHogProvider client={posthogClient}>{content}</PostHogProvider>;
 }

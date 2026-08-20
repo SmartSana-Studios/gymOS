@@ -29,6 +29,7 @@ import { supabase } from '@/lib/supabase';
 export function useSession() {
   const [session, setSession] = useState<Session | null>(null);
   const [isOnboarded, setIsOnboarded] = useState(false);
+  const [gymId, setGymId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -36,19 +37,27 @@ export function useSession() {
 
     async function refreshOnboardedState(currentSession: Session | null) {
       if (!currentSession) {
-        if (!cancelled) setIsOnboarded(false);
+        if (!cancelled) {
+          setIsOnboarded(false);
+          setGymId(null);
+        }
         return;
       }
       const { data } = await supabase
         .from('members')
-        .select('onboarding_completed_at')
+        .select('onboarding_completed_at, gym_id')
         .eq('user_id', currentSession.user.id)
         .is('deactivated_at', null)
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (!cancelled) setIsOnboarded(!!data?.onboarding_completed_at);
+      if (!cancelled) {
+        setIsOnboarded(!!data?.onboarding_completed_at);
+        // Story 9.5: sourced for app_opened's analytics payload -- same
+        // current-membership row/tie-break isOnboarded already reads.
+        setGymId(data?.gym_id ?? null);
+      }
     }
 
     supabase.auth
@@ -76,5 +85,5 @@ export function useSession() {
     };
   }, []);
 
-  return { session, isOnboarded, isLoading };
+  return { session, isOnboarded, gymId, isLoading };
 }

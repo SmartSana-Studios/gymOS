@@ -18,4 +18,5 @@ export * from "./schemas/devicePushToken";
 export * from "./schemas/memberPreferences";
 export * from "./schemas/staff";
 export * from "./errors";
+export * from "./analytics";
 
