@@ -31,6 +31,17 @@ const ROLE_LABEL_KEY: Record<string, string> = {
   coach: "role.coach",
 };
 
+// Code review fix: Edit/Deactivate were previously shown for every non-self
+// row regardless of the caller's role ceiling, so e.g. a Supervisor saw both
+// buttons on an Owner's or another Supervisor's row even though
+// update_staff_role()/deactivate_staff_member() always reject those targets.
+// Mirrors ROLE_OPTIONS_BY_CALLER's own ceiling shape (AddStaffModal.tsx /
+// EditStaffModal.tsx) so the affordance matches what the RPC actually allows.
+const ACTIONABLE_TARGET_ROLES: Record<string, string[]> = {
+  owner: ["supervisor", "manager", "receptionist", "coach"],
+  supervisor: ["manager", "receptionist", "coach"],
+};
+
 const STATUS_LABEL_KEY: Record<StaffStatus, string> = {
   active: "staff.status.active",
   pending_activation: "staff.status.pendingActivation",
@@ -147,15 +158,17 @@ export function StaffPageClient({
                           >
                             {resendingId === row.id ? t("staff.actions.resending") : t("staff.actions.resend")}
                           </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => setEditingRow(row)}
-                          >
-                            {t("staff.actions.edit")}
-                          </Button>
-                          {row.id !== callerMemberId && (
+                          {(row.id === callerMemberId || (ACTIONABLE_TARGET_ROLES[role] ?? []).includes(row.role)) && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setEditingRow(row)}
+                            >
+                              {t("staff.actions.edit")}
+                            </Button>
+                          )}
+                          {row.id !== callerMemberId && (ACTIONABLE_TARGET_ROLES[role] ?? []).includes(row.role) && (
                             <Button
                               type="button"
                               size="sm"

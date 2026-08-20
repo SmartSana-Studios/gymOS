@@ -30,9 +30,22 @@ export type CreateStaffMemberInput = z.infer<typeof createStaffMemberSchema>;
 // scope, FR-089's own text names only "name and role"). Same name-copy as
 // createStaffMemberSchema so both forms share identical field-level error
 // text.
+//
+// Widened beyond staffRoleSchema to also accept "owner" (code review
+// finding): unlike creation, an edit's role can legitimately be the
+// caller's own current role when that role is "owner" -- a self-edit that
+// echoes the caller's own role back unchanged (a name-only edit) must be
+// submittable, since update_staff_role()'s own self-edit carve-out already
+// accepts it server-side. This schema is not the enforcement boundary
+// either way -- update_staff_role()'s ceiling check is what actually
+// rejects any attempt to *assign* "owner" to someone else or escalate
+// into it; this widening only unblocks the legitimate self-edit case that
+// was previously rejected client-side before the RPC was ever called.
+export const updateStaffRoleValueSchema = z.enum(["owner", "supervisor", "manager", "receptionist", "coach"]);
+
 export const updateStaffRoleSchema = z.object({
   name: z.string().trim().min(2, "Name is required").max(100, "Name is too long"),
-  role: staffRoleSchema,
+  role: updateStaffRoleValueSchema,
 });
 
 export type UpdateStaffRoleInput = z.infer<typeof updateStaffRoleSchema>;

@@ -223,7 +223,19 @@ begin
     raise exception 'deactivate_staff_member: cannot deactivate your own account';
   end if;
 
-  if v_caller_role = 'supervisor' and v_target.role in ('owner', 'supervisor') then
+  -- Code review fix: the Dev Notes/docs/decisions.md ceiling contract reads
+  -- "Owner may deactivate any non-owner staff role... never Owner", but only
+  -- the Supervisor branch below actually enforced a target restriction --
+  -- an Owner caller had no explicit guard blocking an Owner target. Currently
+  -- unreachable (no RPC can ever assign 'owner' to a second member), but
+  -- closed explicitly for defense-in-depth and to match the documented
+  -- contract, mirroring the analogous gap already flagged in
+  -- staff_account_for_reset() (0062:71-73).
+  if v_target.role = 'owner' then
+    raise exception 'deactivate_staff_member: caller is not authorized to deactivate role %', v_target.role;
+  end if;
+
+  if v_caller_role = 'supervisor' and v_target.role = 'supervisor' then
     raise exception 'deactivate_staff_member: caller is not authorized to deactivate role %', v_target.role;
   end if;
 
@@ -255,12 +267,21 @@ grant execute on function deactivate_staff_member to authenticated;
 -- private.protect_self_managed_member_columns() (0020): add the
 -- update_staff_role() bypass GUC (set immediately around that RPC's own
 -- self-edit UPDATE above) to this trigger's existing self-row pin-back
--- check. Every other pinned column/scenario is completely unchanged --
--- this only lets the one already-authorized, already-ceiling-checked write
--- path through; the trigger still fully protects against a member sneaking
--- a role/name change through the unrelated onboarding self-update RLS
--- policy (0020's own original purpose), since that path never sets this
--- GUC.
+-- check.
+--
+-- Code review fix: the bypass is scoped to *only* the two columns
+-- update_staff_role() actually writes (name/role) -- every other
+-- self-managed column (gym_id, user_id, phone, email, dob, photo_url,
+-- join_date, emergency_contact, deactivated_at, created_at) is still
+-- unconditionally pinned back regardless of the GUC. The original,
+-- all-or-nothing bypass shape had no live exploit path (the only statement
+-- ever run under it sets exactly name/role), but a future reuse of this
+-- same GUC name against a broader UPDATE would have silently disabled
+-- protection for every other column too. This narrower shape keeps the
+-- trigger fully protecting against a member sneaking *any* self-managed
+-- column change through the unrelated onboarding self-update RLS policy
+-- (0020's own original purpose) except the one already-authorized,
+-- already-ceiling-checked name/role write path.
 -- ============================================================================
 create or replace function private.protect_self_managed_member_columns()
 returns trigger
@@ -268,12 +289,9 @@ language plpgsql
 set search_path = public
 as $$
 begin
-  if auth.uid() = old.user_id
-     and coalesce(current_setting('app.staff_role_update_bypass', true), 'false') <> 'true' then
+  if auth.uid() = old.user_id then
     new.gym_id := old.gym_id;
     new.user_id := old.user_id;
-    new.role := old.role;
-    new.name := old.name;
     new.phone := old.phone;
     new.email := old.email;
     new.dob := old.dob;
@@ -282,6 +300,11 @@ begin
     new.emergency_contact := old.emergency_contact;
     new.deactivated_at := old.deactivated_at;
     new.created_at := old.created_at;
+
+    if coalesce(current_setting('app.staff_role_update_bypass', true), 'false') <> 'true' then
+      new.role := old.role;
+      new.name := old.name;
+    end if;
   end if;
   return new;
 end;

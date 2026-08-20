@@ -8,7 +8,7 @@
 -- staff_password_resend.test.sql.
 
 begin;
-select plan(54);
+select plan(55);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000019001', 'Staff Edit Test Tier', 5000, 50000, 20);
@@ -55,6 +55,7 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000019212'),
   ('00000000-0000-0000-0000-000000019213'),
   ('00000000-0000-0000-0000-000000019214'),
+  ('00000000-0000-0000-0000-000000019215'), -- Gym A second Owner (code review: Owner-rejected-Owner ceiling target)
   ('00000000-0000-0000-0000-000000019220'), -- Manager for current_gym_status()-suspended wiring test
   ('00000000-0000-0000-0000-000000019221'), -- Manager for AC #4's dedicated stale-JWT regression
   ('00000000-0000-0000-0000-000000019230'); -- Super Admin actor for log_audit_event() fix coverage
@@ -94,6 +95,7 @@ insert into members (id, gym_id, user_id, role, name, phone, deactivated_at) val
   ('00000000-0000-0000-0000-000000019286', '00000000-0000-0000-0000-000000019011', '00000000-0000-0000-0000-000000019206', 'receptionist', 'DT6 Supervisor Deactivates Receptionist', '+237600100206', null),
   ('00000000-0000-0000-0000-000000019287', '00000000-0000-0000-0000-000000019011', '00000000-0000-0000-0000-000000019207', 'coach', 'DT7 Supervisor Deactivates Coach', '+237600100207', null),
   ('00000000-0000-0000-0000-000000019288', '00000000-0000-0000-0000-000000019011', '00000000-0000-0000-0000-000000019208', 'owner', 'DT8 Supervisor Rejected Owner', '+237600100208', null),
+  ('00000000-0000-0000-0000-000000019295', '00000000-0000-0000-0000-000000019011', '00000000-0000-0000-0000-000000019215', 'owner', 'DT15 Owner Rejected Owner', '+237600100215', null),
   ('00000000-0000-0000-0000-000000019290', '00000000-0000-0000-0000-000000019011', '00000000-0000-0000-0000-000000019210', 'coach', 'DT10 Manager Caller Rejected', '+237600100210', null),
   ('00000000-0000-0000-0000-000000019291', '00000000-0000-0000-0000-000000019011', '00000000-0000-0000-0000-000000019211', 'coach', 'DT11 Receptionist Caller Rejected', '+237600100211', null),
   ('00000000-0000-0000-0000-000000019292', '00000000-0000-0000-0000-000000019011', '00000000-0000-0000-0000-000000019212', 'coach', 'DT12 Coach Caller Rejected', '+237600100212', null),
@@ -365,6 +367,20 @@ select lives_ok(
 select lives_ok(
   $$select deactivate_staff_member('00000000-0000-0000-0000-000000019284', 'Stepping down')$$,
   'an owner-claim session can deactivate a Supervisor'
+);
+
+-- Code review fix: the ceiling contract ("Owner may deactivate any
+-- non-owner staff role... never Owner") previously had no explicit guard
+-- for an Owner caller targeting another Owner -- only the Supervisor
+-- branch restricted its targets. Unreachable via any RPC today (no path
+-- can ever assign 'owner' to a second member), but the raw-insert fixture
+-- above (DT15) proves the raise fires anyway for a bypassed/malformed
+-- call, mirroring update_staff_role()'s own "type-level impossible"
+-- coverage style (UT5/UT10 above).
+select throws_like(
+  $$select deactivate_staff_member('00000000-0000-0000-0000-000000019295', 'Attempted ceiling violation')$$,
+  '%deactivate_staff_member: caller is not authorized to deactivate role owner%',
+  'an owner-claim session cannot deactivate another Owner (target-role ceiling)'
 );
 
 reset role;

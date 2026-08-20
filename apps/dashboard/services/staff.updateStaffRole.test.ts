@@ -122,13 +122,26 @@ describe("updateStaffRole", () => {
     expect(usersSelectCalls).toEqual([]);
   });
 
-  it("returns a mapped error when the must_change_password lookup itself fails", async () => {
+  it("does not fail an already-successful edit when the must_change_password lookup itself errors (code review fix)", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     usersSelectResult = { data: null, error: { message: "users lookup failed" } };
     const { updateStaffRole } = await import("./staff");
 
     const result = await updateStaffRole(MEMBER_ID, input);
 
-    expect(result.data).toBeNull();
-    expect(result.error?.code).toBe("unknown");
+    // The name/role UPDATE + audit log already committed inside the RPC --
+    // a failure in this purely cosmetic status lookup must not report an
+    // otherwise-successful edit as an error (same non-blocking discipline
+    // as resendStaffTempPassword()'s must_change_password flip).
+    expect(result.error).toBeNull();
+    expect(result.data).toEqual({
+      id: "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      name: "Jane Manager",
+      phone: "+237680811041",
+      role: "manager",
+      status: "active",
+    });
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
   });
 });

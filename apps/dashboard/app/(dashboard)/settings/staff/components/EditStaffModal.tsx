@@ -33,6 +33,7 @@ const ROLE_OPTIONS_BY_CALLER: Record<string, UpdateStaffRoleInput["role"][]> = {
 };
 
 const ROLE_LABEL_KEY: Record<UpdateStaffRoleInput["role"], string> = {
+  owner: "role.owner",
   supervisor: "role.supervisor",
   manager: "role.manager",
   receptionist: "role.receptionist",

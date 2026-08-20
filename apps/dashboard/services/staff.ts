@@ -303,8 +303,16 @@ export async function updateStaffRole(
 
   // Same must_change_password derivation as listStaff() -- an edited staff
   // member's activation state is untouched by this RPC (name/role only), so
-  // the returned row's status must still reflect it accurately rather than
-  // assuming "active".
+  // the returned row's status should still reflect it accurately.
+  //
+  // Non-blocking on failure (code review finding): the name/role UPDATE and
+  // audit log above already committed -- a failure in this purely cosmetic
+  // status lookup must not report an otherwise-successful edit as an error
+  // (same discipline as resendStaffTempPassword()'s must_change_password
+  // flip, staff.ts:258-261). Every caller of this function follows a
+  // successful edit with a fresh listStaff() fetch (StaffPageClient's
+  // refreshStaff()), which corrects a best-effort "active" fallback here
+  // immediately regardless.
   const admin = createAdminClient();
   const { data: userRow, error: userError } = await admin
     .from("users")
@@ -312,7 +320,7 @@ export async function updateStaffRole(
     .eq("id", data.user_id)
     .single();
   if (userError) {
-    return { data: null, error: await mapAndLog(userError) };
+    console.error("[staff] failed to look up must_change_password after role update", userError);
   }
 
   return {
@@ -321,7 +329,7 @@ export async function updateStaffRole(
       name: data.name,
       phone: data.phone,
       role: data.role,
-      status: userRow.must_change_password ? "pending_activation" : "active",
+      status: userRow?.must_change_password ? "pending_activation" : "active",
     },
     error: null,
   };

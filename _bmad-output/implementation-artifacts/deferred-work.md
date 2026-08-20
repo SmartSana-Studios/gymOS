@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review of story-9-3-staff-edit-deactivation-immediate-access-revocation (2026-08-20)
+
+- No row-locking (`select ... for update`) in `update_staff_role()`/`deactivate_staff_member()` [supabase/migrations/0063_staff_edit_deactivation.sql] — two concurrent writes to the same target could race past each other's `deactivated_at is null` check, producing a duplicate audit-log row or a lost update. Deferred, pre-existing — identical to the lack of locking in every sibling staff RPC (`create_staff_member()`, `staff_account_for_reset()`), not a new regression introduced by this diff.
+
 ## Deferred from: dev-story of story-9-3-staff-edit-deactivation-immediate-access-revocation (2026-08-20)
 
 - AC #4's promise ("live role/status checks, no token-refresh window") is only closed for the one RLS policy this story retrofits (`gym_staff_read_own_members`) — a grep of `auth.jwt() ->> 'app_role'` across `supabase/migrations/` still turns up ~30 other call sites (payments, classes, subscriptions, coach portal, quiet-gym alerts, refunds, and more) [supabase/migrations/*.sql]. A demoted-but-not-yet-deactivated staff member still passes every one of those other role-gated checks as if still holding their old role, for up to the JWT's 1-hour expiry (`config.toml`'s `jwt_expiry`). User-confirmed narrowed scope for this story (see `docs/decisions.md`'s 2026-08-20 entry, section (a)); a future dedicated story should retrofit the remaining call sites to AD-3's live-helper pattern, incrementally, matching AD-3's own accepted "grandfathered, not big-bang" migration path.

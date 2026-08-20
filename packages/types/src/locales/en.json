@@ -33,6 +33,7 @@
     "staffRoleNotPermitted": "You don't have permission to assign that role",
     "staffSelfRoleEditNotPermitted": "You can't change your own role",
     "staffDeactivationNotPermitted": "You don't have permission to deactivate this staff member",
+    "staffTargetNotFound": "This staff member could not be found or is no longer eligible for this action.",
     "unknown": "Something went wrong on our end."
   },
   "auth": {

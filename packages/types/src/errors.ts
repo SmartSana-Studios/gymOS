@@ -335,6 +335,23 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // update_staff_role()/deactivate_staff_member()'s shared "target not
+  // found or not eligible" raise (0063_staff_edit_deactivation.sql, Story
+  // 9.3 code review) -- reachable through normal multi-admin use (e.g. a
+  // second admin already deactivated or otherwise changed the target
+  // between page load and submit), the same class of race edit_session_note's
+  // "not found or not owned" mapping above already covers. Previously fell
+  // through to the generic "unknown" message.
+  if (
+    (message.includes("update_staff_role:") || message.includes("deactivate_staff_member:")) &&
+    message.includes("target not found or not eligible")
+  ) {
+    return {
+      code: "staff_target_not_found",
+      message: copy.staffTargetNotFound,
+    };
+  }
+
   // No console/logging call here: packages/types targets ES2022 only (no
   // DOM/Node lib -- consumed by both Next.js apps and, eventually, Expo),
   // and is meant to stay a pure, side-effect-free mapping utility. Callers
