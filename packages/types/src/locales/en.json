@@ -31,6 +31,8 @@
     "noteNotEditable": "This note can't be edited.",
     "messagingInstanceRequired": "Instance ID is required",
     "staffRoleNotPermitted": "You don't have permission to assign that role",
+    "staffSelfRoleEditNotPermitted": "You can't change your own role",
+    "staffDeactivationNotPermitted": "You don't have permission to deactivate this staff member",
     "unknown": "Something went wrong on our end."
   },
   "auth": {

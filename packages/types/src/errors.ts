@@ -295,6 +295,46 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // update_staff_role()'s ceiling raise (0063_staff_edit_deactivation.sql,
+  // Story 9.3, AC #1) -- reuses create_staff_member()'s own
+  // staff_role_not_permitted code, since it's the identical user-facing
+  // situation ("you tried to assign a role you're not allowed to assign"),
+  // just from a second RPC.
+  if (message.includes("update_staff_role:") && message.includes("caller is not authorized to assign role")) {
+    return {
+      code: "staff_role_not_permitted",
+      message: copy.staffRoleNotPermitted,
+    };
+  }
+
+  // update_staff_role()'s self-role-edit rejection (AC #2) -- distinct from
+  // the ceiling rejection above. AD-16's UI already disables the Role field
+  // for a self-edit, so this raise is only reachable via a stale/bypassed
+  // client -- mapped anyway for defense-in-depth, matching this file's own
+  // established rationale for other client-bypass-only raises.
+  if (message.includes("update_staff_role: cannot edit your own role")) {
+    return {
+      code: "staff_self_role_edit_not_permitted",
+      message: copy.staffSelfRoleEditNotPermitted,
+    };
+  }
+
+  // deactivate_staff_member()'s ceiling and self-deactivation raises (0063,
+  // Story 9.3, AC #3) -- collapsed to one generic code/copy since the
+  // Deactivate confirm dialog has no role-dropdown to highlight the way the
+  // Edit modal does (unlike the Edit-side split above).
+  if (
+    message.includes("deactivate_staff_member:") &&
+    (message.includes("caller is not authorized to deactivate role") ||
+      message.includes("caller is not authorized to deactivate staff") ||
+      message.includes("cannot deactivate your own account"))
+  ) {
+    return {
+      code: "staff_deactivation_not_permitted",
+      message: copy.staffDeactivationNotPermitted,
+    };
+  }
+
   // No console/logging call here: packages/types targets ES2022 only (no
   // DOM/Node lib -- consumed by both Next.js apps and, eventually, Expo),
   // and is meant to stay a pure, side-effect-free mapping utility. Callers

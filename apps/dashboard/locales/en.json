@@ -165,13 +165,29 @@
         "roleRequired": "Select a role"
       }
     },
+    "editModal": {
+      "title": "Edit Staff Member",
+      "cannotEditOwnRole": "You can't change your own role",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…"
+    },
+    "deactivateDialog": {
+      "title": "Deactivate {{name}}?",
+      "body": "They'll lose gym access immediately. Their history is preserved.",
+      "reason": "Reason *",
+      "deactivating": "Deactivating…",
+      "confirmButton": "Deactivate {{name}}"
+    },
     "activation": {
       "message": "{{name}}, your GymOS staff account is ready. Temporary password: {{password}}. Log in at {{link}} to get started.",
       "messageNoLink": "{{name}}, your GymOS staff account is ready. Temporary password: {{password}}."
     },
     "actions": {
       "resend": "Resend password",
-      "resending": "Resending…"
+      "resending": "Resending…",
+      "edit": "Edit",
+      "deactivate": "Deactivate"
     },
     "resend": {
       "confirm": "Generate a new temporary password for {{name}} and send it via WhatsApp? Their password will stop working for new logins immediately (any session they're already logged into is unaffected)."
@@ -180,10 +196,13 @@
       "createdSms": "Staff account created. Temp password sent to {{phone}}.",
       "createdNoSms": "Staff account created. Could not send the temp password to {{phone}} automatically — share it below.",
       "resendSms": "New temp password sent to {{phone}}.",
-      "resendNoSms": "Could not send the new temp password to {{phone}} automatically — share it below."
+      "resendNoSms": "Could not send the new temp password to {{phone}} automatically — share it below.",
+      "roleUpdated": "{{name}}'s role has been updated.",
+      "deactivated": "{{name}} has been deactivated."
     },
     "errors": {
       "createFailed": "Failed to create staff member",
+      "updateFailed": "Failed to update staff member",
       "loadFailed": "Failed to load staff"
     }
   },

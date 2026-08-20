@@ -44,6 +44,16 @@ const STAFF_ROLES: readonly MemberRole[] = ["receptionist", "manager", "supervis
 export interface DashboardShellContext {
   gymId: string;
   gymName: string;
+  /**
+   * Story 9.3: the caller's own `members.id` -- needed by the Staff List's
+   * Edit/Deactivate UI to detect "is this row the caller's own row" for
+   * AD-16's self-edit-disables-Role-field and self-deactivation-hidden
+   * rules. Null on the same failed/null-lookup case `memberName`'s own
+   * comment below documents (a display nicety, not a security boundary --
+   * the RPC's own self-edit/self-deactivation checks are the real
+   * enforcement either way).
+   */
+  memberId: string | null;
   memberName: string;
   role: MemberRole;
   /**
@@ -53,6 +63,7 @@ export interface DashboardShellContext {
    */
   mustChangePassword: boolean;
 }
+
 
 /**
  * Backs the (dashboard) route group's layout: gym name (Sidebar header),
@@ -108,7 +119,7 @@ export async function getDashboardShellContext(): Promise<{
     supabase.from("gyms").select("name").eq("id", gymId).single(),
     supabase
       .from("members")
-      .select("name")
+      .select("id, name")
       .eq("gym_id", gymId)
       .eq("user_id", claims.sub)
       .is("deactivated_at", null)
@@ -151,6 +162,7 @@ export async function getDashboardShellContext(): Promise<{
     data: {
       gymId,
       gymName: gymResult.data.name,
+      memberId: memberResult.data?.id ?? null,
       memberName,
       role,
       mustChangePassword: userResult.data.must_change_password,

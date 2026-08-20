@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { type AppError, type CreateStaffMemberInput } from "@gymos/types";
+import { type AppError, type CreateStaffMemberInput, type UpdateStaffRoleInput, type DeactivateStaffInput } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -276,4 +276,75 @@ export async function resendStaffTempPassword(
   const sendResult = await sendEvolutionApiMessage(target.phone, message);
 
   return { data: { tempPassword: newTempPassword, smsSent: sendResult.success }, error: null };
+}
+
+/** Story 9.3 (AC #1/#2): a single `update_staff_role()` RPC call under the
+ * caller's own session -- the ceiling/self-edit checks must run inside the
+ * real session, same as every other staff RPC call site in this file. No
+ * compensating-cleanup logic needed (unlike `createStaffMember`) -- this is
+ * a single-table UPDATE, not a two-system creation sequence. Not wrapped in
+ * a try/catch -- matches this file's existing, deferred-work.md-flagged
+ * gap (createStaffMember/resendStaffTempPassword both already lack one). */
+export async function updateStaffRole(
+  memberId: string,
+  input: UpdateStaffRoleInput,
+): Promise<{ data: StaffListRow | null; error: AppError | null }> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc("update_staff_role", {
+    p_member_id: memberId,
+    p_name: input.name,
+    p_role: input.role,
+  });
+
+  if (error || !data) {
+    return { data: null, error: error ? await mapAndLog(error) : await staffNotFoundError("update_staff_role returned no row") };
+  }
+
+  // Same must_change_password derivation as listStaff() -- an edited staff
+  // member's activation state is untouched by this RPC (name/role only), so
+  // the returned row's status must still reflect it accurately rather than
+  // assuming "active".
+  const admin = createAdminClient();
+  const { data: userRow, error: userError } = await admin
+    .from("users")
+    .select("must_change_password")
+    .eq("id", data.user_id)
+    .single();
+  if (userError) {
+    return { data: null, error: await mapAndLog(userError) };
+  }
+
+  return {
+    data: {
+      id: data.id,
+      name: data.name,
+      phone: data.phone,
+      role: data.role,
+      status: userRow.must_change_password ? "pending_activation" : "active",
+    },
+    error: null,
+  };
+}
+
+/** Story 9.3 (AC #3): `deactivate_staff_member()` under the caller's own
+ * session. Returns `{ error }` only, matching `deactivateMember()`'s own
+ * return shape (members.ts:692) -- nothing new to hand back to the caller
+ * beyond success/failure. */
+export async function deactivateStaffMember(
+  memberId: string,
+  input: DeactivateStaffInput,
+): Promise<{ error: AppError | null }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc("deactivate_staff_member", {
+    p_member_id: memberId,
+    p_reason: input.reason,
+  });
+
+  if (error) {
+    return { error: await mapAndLog(error) };
+  }
+
+  return { error: null };
 }

@@ -1413,6 +1413,33 @@ export type Database = {
         }
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      deactivate_staff_member: {
+        Args: { p_member_id: string; p_reason: string }
+        Returns: {
+          created_at: string
+          deactivated_at: string | null
+          dob: string | null
+          email: string | null
+          emergency_contact: string | null
+          experience_level: string | null
+          goal: string | null
+          gym_id: string
+          id: string
+          join_date: string
+          name: string
+          onboarding_completed_at: string | null
+          phone: string | null
+          photo_url: string | null
+          role: Database["public"]["Enums"]["member_role"]
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "members"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       disconnect_gym_payment_credentials: {
         Args: { p_provider_key: string }
         Returns: undefined
@@ -1499,6 +1526,14 @@ export type Database = {
       run_payment_reconciliation_job: { Args: never; Returns: undefined }
       run_quiet_gym_alert_job: { Args: never; Returns: undefined }
       run_subscription_lifecycle_job: { Args: never; Returns: undefined }
+      staff_account_for_reset: {
+        Args: { p_member_id: string }
+        Returns: {
+          name: string
+          phone: string
+          user_id: string
+        }[]
+      }
       super_admin_job_failures: {
         Args: never
         Returns: {
@@ -1527,6 +1562,37 @@ export type Database = {
       update_messaging_instance: {
         Args: { p_instance_id: string }
         Returns: undefined
+      }
+      update_staff_role: {
+        Args: {
+          p_member_id: string
+          p_name: string
+          p_role: Database["public"]["Enums"]["member_role"]
+        }
+        Returns: {
+          created_at: string
+          deactivated_at: string | null
+          dob: string | null
+          email: string | null
+          emergency_contact: string | null
+          experience_level: string | null
+          goal: string | null
+          gym_id: string
+          id: string
+          join_date: string
+          name: string
+          onboarding_completed_at: string | null
+          phone: string | null
+          photo_url: string | null
+          role: Database["public"]["Enums"]["member_role"]
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "members"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
     }
     Enums: {

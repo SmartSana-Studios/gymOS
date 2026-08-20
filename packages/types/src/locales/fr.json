@@ -31,6 +31,8 @@
     "noteNotEditable": "Cette note ne peut pas être modifiée.",
     "messagingInstanceRequired": "L'ID d'instance est requis",
     "staffRoleNotPermitted": "Vous n'êtes pas autorisé à attribuer ce rôle",
+    "staffSelfRoleEditNotPermitted": "Vous ne pouvez pas modifier votre propre rôle",
+    "staffDeactivationNotPermitted": "Vous n'êtes pas autorisé à désactiver ce membre du personnel",
     "unknown": "Une erreur est survenue de notre côté."
   },
   "auth": {

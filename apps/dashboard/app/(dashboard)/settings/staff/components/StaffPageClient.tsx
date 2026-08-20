@@ -11,6 +11,8 @@ import type { MemberRole } from "@/services/session";
 import type { StaffListRow, StaffStatus } from "@/services/staff";
 import { getStaffList, resendStaffTempPasswordAction } from "../actions";
 import { AddStaffModal } from "./AddStaffModal";
+import { EditStaffModal } from "./EditStaffModal";
+import { DeactivateStaffDialog } from "./DeactivateStaffDialog";
 
 // Visible to Owner and Supervisor only (AD-16) -- this page is itself only
 // reachable via the Settings "Manage staff →" link, which is already
@@ -38,9 +40,11 @@ const STATUS_LABEL_KEY: Record<StaffStatus, string> = {
 export function StaffPageClient({
   initialStaff,
   role,
+  callerMemberId,
 }: {
   initialStaff: StaffListRow[];
   role: MemberRole;
+  callerMemberId: string | null;
 }) {
   const { t } = useTranslation();
   const canCreate = CAN_CREATE.includes(role);
@@ -50,6 +54,8 @@ export function StaffPageClient({
   const [toast, setToast] = useState<{ message: string; tempPassword?: string } | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [editingRow, setEditingRow] = useState<StaffListRow | null>(null);
+  const [deactivatingRow, setDeactivatingRow] = useState<StaffListRow | null>(null);
 
   function showToast(message: string, tempPassword?: string) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -129,17 +135,37 @@ export function StaffPageClient({
                   </td>
                   <td className="px-4 py-2">{t(STATUS_LABEL_KEY[row.status])}</td>
                   {canCreate && (
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 space-x-2">
                       {row.status !== "deactivated" && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={resendingId !== null}
-                          onClick={() => handleResend(row)}
-                        >
-                          {resendingId === row.id ? t("staff.actions.resending") : t("staff.actions.resend")}
-                        </Button>
+                        <>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={resendingId !== null}
+                            onClick={() => handleResend(row)}
+                          >
+                            {resendingId === row.id ? t("staff.actions.resending") : t("staff.actions.resend")}
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setEditingRow(row)}
+                          >
+                            {t("staff.actions.edit")}
+                          </Button>
+                          {row.id !== callerMemberId && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setDeactivatingRow(row)}
+                            >
+                              {t("staff.actions.deactivate")}
+                            </Button>
+                          )}
+                        </>
                       )}
                     </td>
                   )}
@@ -159,6 +185,34 @@ export function StaffPageClient({
             setModalOpen(false);
             await refreshStaff();
             showToast(t(smsSent ? "staff.toast.createdSms" : "staff.toast.createdNoSms", { phone }), tempPassword);
+          }}
+        />
+      )}
+
+      {editingRow && (
+        <EditStaffModal
+          open={editingRow !== null}
+          callerRole={role}
+          staff={editingRow}
+          isSelf={editingRow.id === callerMemberId}
+          onClose={() => setEditingRow(null)}
+          onUpdated={async (updated) => {
+            setEditingRow(null);
+            await refreshStaff();
+            showToast(t("staff.toast.roleUpdated", { name: updated.name }));
+          }}
+        />
+      )}
+
+      {deactivatingRow && (
+        <DeactivateStaffDialog
+          staff={deactivatingRow}
+          onClose={() => setDeactivatingRow(null)}
+          onDone={async () => {
+            const name = deactivatingRow.name;
+            setDeactivatingRow(null);
+            await refreshStaff();
+            showToast(t("staff.toast.deactivated", { name }));
           }}
         />
       )}

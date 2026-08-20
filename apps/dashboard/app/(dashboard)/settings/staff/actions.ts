@@ -1,10 +1,12 @@
 "use server";
 
-import { createStaffMemberSchema, memberIdSchema, type AppError } from "@gymos/types";
+import { createStaffMemberSchema, updateStaffRoleSchema, deactivateStaffSchema, memberIdSchema, type AppError } from "@gymos/types";
 import {
   createStaffMember,
   listStaff,
   resendStaffTempPassword,
+  updateStaffRole,
+  deactivateStaffMember,
   type CreateStaffMemberResult,
   type StaffListRow,
 } from "@/services/staff";
@@ -58,4 +60,49 @@ export async function resendStaffTempPasswordAction(
   }
 
   return resendStaffTempPassword(parsed.data);
+}
+
+/** Story 9.3 (AC #1/#2): "Edit Staff" action. `update_staff_role()`'s own
+ * ceiling/self-edit checks are the real enforcement boundary -- the Edit
+ * modal's disabled Role field for a self-edit and its ceiling-filtered
+ * dropdown are UX conveniences only, matching this file's established
+ * RPC-is-the-real-gate discipline. */
+export async function updateStaffRoleAction(
+  memberId: unknown,
+  input: unknown,
+): Promise<{ data: StaffListRow | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsedId = memberIdSchema.safeParse(memberId);
+  if (!parsedId.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  const parsedInput = updateStaffRoleSchema.safeParse(input);
+  if (!parsedInput.success) {
+    const firstIssue = parsedInput.error.issues[0];
+    return {
+      data: null,
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+    };
+  }
+
+  return updateStaffRole(parsedId.data, parsedInput.data);
+}
+
+/** Story 9.3 (AC #3): "Deactivate Staff" action. `deactivate_staff_member()`'s
+ * own ceiling/self-deactivation checks are the real enforcement boundary. */
+export async function deactivateStaffMemberAction(
+  memberId: unknown,
+  input: unknown,
+): Promise<{ error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsedId = memberIdSchema.safeParse(memberId);
+  if (!parsedId.success) {
+    return { error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  const parsedInput = deactivateStaffSchema.safeParse(input);
+  if (!parsedInput.success) {
+    return { error: { code: "validation_error", message: parsedInput.error.issues[0]?.message ?? t("common.invalidInput") } };
+  }
+
+  return deactivateStaffMember(parsedId.data, parsedInput.data);
 }

@@ -165,13 +165,29 @@
         "roleRequired": "Sélectionnez un rôle"
       }
     },
+    "editModal": {
+      "title": "Modifier le membre du personnel",
+      "cannotEditOwnRole": "Vous ne pouvez pas modifier votre propre rôle",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…"
+    },
+    "deactivateDialog": {
+      "title": "Désactiver {{name}} ?",
+      "body": "Il/elle perdra immédiatement l'accès à la salle. Son historique est conservé.",
+      "reason": "Raison *",
+      "deactivating": "Désactivation…",
+      "confirmButton": "Désactiver {{name}}"
+    },
     "activation": {
       "message": "{{name}}, votre compte du personnel GymOS est prêt. Mot de passe temporaire : {{password}}. Connectez-vous sur {{link}} pour commencer.",
       "messageNoLink": "{{name}}, votre compte du personnel GymOS est prêt. Mot de passe temporaire : {{password}}."
     },
     "actions": {
       "resend": "Renvoyer le mot de passe",
-      "resending": "Envoi…"
+      "resending": "Envoi…",
+      "edit": "Modifier",
+      "deactivate": "Désactiver"
     },
     "resend": {
       "confirm": "Générer un nouveau mot de passe temporaire pour {{name}} et l'envoyer par WhatsApp ? Son mot de passe cessera de fonctionner immédiatement pour toute nouvelle connexion (une session déjà ouverte n'est pas affectée)."
@@ -180,10 +196,13 @@
       "createdSms": "Compte du personnel créé. Mot de passe temporaire envoyé à {{phone}}.",
       "createdNoSms": "Compte du personnel créé. Impossible d'envoyer le mot de passe temporaire à {{phone}} automatiquement — partagez-le ci-dessous.",
       "resendSms": "Nouveau mot de passe temporaire envoyé à {{phone}}.",
-      "resendNoSms": "Impossible d'envoyer le nouveau mot de passe temporaire à {{phone}} automatiquement — partagez-le ci-dessous."
+      "resendNoSms": "Impossible d'envoyer le nouveau mot de passe temporaire à {{phone}} automatiquement — partagez-le ci-dessous.",
+      "roleUpdated": "Le rôle de {{name}} a été mis à jour.",
+      "deactivated": "{{name}} a été désactivé(e)."
     },
     "errors": {
       "createFailed": "Échec de la création du membre du personnel",
+      "updateFailed": "Échec de la mise à jour du membre du personnel",
       "loadFailed": "Échec du chargement du personnel"
     }
   },

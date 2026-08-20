@@ -24,3 +24,27 @@ export const createStaffMemberSchema = z.object({
 });
 
 export type CreateStaffMemberInput = z.infer<typeof createStaffMemberSchema>;
+
+// Story 9.3 (AC #1/#2): Edit Staff. Name+Role only -- no phone (Task 13's
+// decision: phone is the account's login identity, out of this story's
+// scope, FR-089's own text names only "name and role"). Same name-copy as
+// createStaffMemberSchema so both forms share identical field-level error
+// text.
+export const updateStaffRoleSchema = z.object({
+  name: z.string().trim().min(2, "Name is required").max(100, "Name is too long"),
+  role: staffRoleSchema,
+});
+
+export type UpdateStaffRoleInput = z.infer<typeof updateStaffRoleSchema>;
+
+// Story 9.3 (AC #3): mirrors deactivateMemberSchema's exact shape/copy
+// (packages/types/src/schemas/member.ts:162-164) -- a deliberate
+// near-duplicate rather than a shared cross-file import, matching this
+// file's own established per-file-const precedent (line 6-7).
+const STAFF_REASON_MIN_LENGTH = 5;
+
+export const deactivateStaffSchema = z.object({
+  reason: z.string().trim().min(STAFF_REASON_MIN_LENGTH, "Add a reason describing this deactivation"),
+});
+
+export type DeactivateStaffInput = z.infer<typeof deactivateStaffSchema>;

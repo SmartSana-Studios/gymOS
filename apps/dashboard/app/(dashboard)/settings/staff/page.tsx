@@ -54,5 +54,5 @@ async function StaffData() {
     return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
   }
 
-  return <StaffPageClient initialStaff={staff ?? []} role={shell.role} />;
+  return <StaffPageClient initialStaff={staff ?? []} role={shell.role} callerMemberId={shell.memberId} />;
 }
