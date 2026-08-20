@@ -55,7 +55,7 @@ export function AddStaffModal({
   open: boolean;
   callerRole: MemberRole;
   onClose: () => void;
-  onCreated: (tempPassword: string) => void;
+  onCreated: (tempPassword: string, smsSent: boolean, phone: string) => void;
 }) {
   const { t } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -129,7 +129,7 @@ export function AddStaffModal({
         }
         return;
       }
-      onCreated(data.tempPassword);
+      onCreated(data.tempPassword, data.smsSent, parsed.data.phone);
     } catch {
       setFormError(t("common.somethingWentWrong"));
     } finally {

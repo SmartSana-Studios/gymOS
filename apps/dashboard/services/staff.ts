@@ -6,6 +6,20 @@ import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { generateTempPassword } from "@/lib/temp-password";
 import { deleteAuthUserForCleanup } from "@/services/members";
+import { sendEvolutionApiMessage } from "@/lib/messaging/EvolutionApiMessageProvider";
+
+/** Story 9.2 Task 1: dashboard's own copy, pointing at itself -- distinct
+ * from apps/super-admin's own getDashboardAppUrl() (that one points
+ * super-admin AT the dashboard). Mirrors that function's shape exactly
+ * (apps/super-admin/app/(admin)/gyms/actions.ts, ~line 234) but is not
+ * imported across apps (AD-7: no shared code across apps). */
+function getDashboardAppUrl(): string {
+  const url = process.env.DASHBOARD_APP_URL;
+  if (!url) {
+    throw new Error("DASHBOARD_APP_URL is not set");
+  }
+  return url.replace(/\/+$/, "");
+}
 
 /** Shared by every "0 rows affected" / "no gym_id claim" branch in this file
  * -- same discipline as members.ts's memberNotFoundError. `context` is
@@ -126,6 +140,7 @@ export async function listStaff(): Promise<{ data: StaffListRow[] | null; error:
 
 export interface CreateStaffMemberResult {
   tempPassword: string;
+  smsSent: boolean;
 }
 
 /** AC #1/#2/#3: the two-step creation flow (Dev Notes "Creation Sequencing")
@@ -182,5 +197,83 @@ export async function createStaffMember(
     return { data: null, error: rpcError ? await mapAndLog(rpcError) : { code: "unknown", message: t("common.somethingWentWrong") } };
   }
 
-  return { data: { tempPassword: temporaryPassword }, error: null };
+  // AC #1: the account is already created and committed at this point --
+  // a WhatsApp send failure here must not turn a successful staff creation
+  // into a reported failure (same non-blocking discipline sendMemberInvite
+  // and createGym's own temp-password send already use).
+  let loginUrl = "";
+  try {
+    loginUrl = `${getDashboardAppUrl()}/auth/login`;
+  } catch (err) {
+    console.error("[staff] DASHBOARD_APP_URL is not set; sending activation message without a login link", err);
+  }
+  const message = loginUrl
+    ? t("staff.activation.message", { name: input.name, password: temporaryPassword, link: loginUrl })
+    : t("staff.activation.messageNoLink", { name: input.name, password: temporaryPassword });
+  const sendResult = await sendEvolutionApiMessage(input.phone, message);
+
+  return { data: { tempPassword: temporaryPassword, smsSent: sendResult.success }, error: null };
+}
+
+/** Story 9.2 (AC #4): Owner/Supervisor-triggered password reset for a staff
+ * member who lost their password -- whether it's still the original temp
+ * password (never completed first login) or a real password set after
+ * activation (no check on the target's current must_change_password state,
+ * per explicit user instruction that this must work "even after a first
+ * login"). staff_account_for_reset() (0062) does the authorization + lookup
+ * under the caller's own session; the actual credential write below uses
+ * the admin client because a SQL RPC cannot call the GoTrue Admin API. */
+export async function resendStaffTempPassword(
+  memberId: string,
+): Promise<{ data: { tempPassword: string; smsSent: boolean } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { t } = await getServerTranslation(await getRequestLocale());
+
+  const { data: targetRows, error: rpcError } = await supabase.rpc("staff_account_for_reset", {
+    p_member_id: memberId,
+  });
+
+  if (rpcError || !targetRows || targetRows.length === 0) {
+    return { data: null, error: rpcError ? await mapAndLog(rpcError) : await staffNotFoundError("staff_account_for_reset returned no row") };
+  }
+  const target = targetRows[0] as { user_id: string; phone: string; name: string };
+
+  const newTempPassword = generateTempPassword();
+
+  const admin = createAdminClient();
+  const { error: updateUserError } = await admin.auth.admin.updateUserById(target.user_id, {
+    password: newTempPassword,
+  });
+  if (updateUserError) {
+    return { data: null, error: await mapAndLog(updateUserError) };
+  }
+
+  // The password write above already succeeded -- a failure flipping
+  // must_change_password back to true must not discard the new password
+  // or report an otherwise-successful reset as an error (same
+  // non-blocking discipline as the WhatsApp send below): it only means
+  // the staff member won't be forced through the change-password gate on
+  // their next login. Losing the new password here (instead of surfacing
+  // it) would be a genuine lockout, since the old one is already gone.
+  const { error: flagError } = await admin.from("users").update({ must_change_password: true }).eq("id", target.user_id);
+  if (flagError) {
+    console.error("[staff] failed to flip must_change_password after password reset", flagError);
+  }
+
+  // Non-blocking on failure -- the password/must_change_password writes
+  // above already succeeded (the old credential is already invalidated
+  // either way); the UI's unconditional temp-password fallback covers a
+  // failed send, matching Task 2/AC #1's own discipline.
+  let loginUrl = "";
+  try {
+    loginUrl = `${getDashboardAppUrl()}/auth/login`;
+  } catch (err) {
+    console.error("[staff] DASHBOARD_APP_URL is not set; sending resend message without a login link", err);
+  }
+  const message = loginUrl
+    ? t("staff.activation.message", { name: target.name, password: newTempPassword, link: loginUrl })
+    : t("staff.activation.messageNoLink", { name: target.name, password: newTempPassword });
+  const sendResult = await sendEvolutionApiMessage(target.phone, message);
+
+  return { data: { tempPassword: newTempPassword, smsSent: sendResult.success }, error: null };
 }

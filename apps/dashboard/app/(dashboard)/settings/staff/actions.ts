@@ -1,7 +1,13 @@
 "use server";
 
-import { createStaffMemberSchema, type AppError } from "@gymos/types";
-import { createStaffMember, listStaff, type CreateStaffMemberResult, type StaffListRow } from "@/services/staff";
+import { createStaffMemberSchema, memberIdSchema, type AppError } from "@gymos/types";
+import {
+  createStaffMember,
+  listStaff,
+  resendStaffTempPassword,
+  type CreateStaffMemberResult,
+  type StaffListRow,
+} from "@/services/staff";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
@@ -35,4 +41,21 @@ export async function createStaffMemberAction(
   }
 
   return createStaffMember(parsed.data);
+}
+
+/** Story 9.2 (AC #4): "Resend password" action. `staff_account_for_reset()`
+ * (0062) is the real authorization boundary (Owner/Supervisor only) -- the
+ * Staff List's own role-gated button (StaffPageClient.tsx's `CAN_CREATE`)
+ * is a UX convenience only, matching createStaffMemberAction's own comment
+ * on this file's established RPC-is-the-real-gate discipline. */
+export async function resendStaffTempPasswordAction(
+  memberId: unknown,
+): Promise<{ data: { tempPassword: string; smsSent: boolean } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = memberIdSchema.safeParse(memberId);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+
+  return resendStaffTempPassword(parsed.data);
 }

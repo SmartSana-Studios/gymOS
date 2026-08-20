@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { MemberRole } from "@/services/session";
 import type { StaffListRow, StaffStatus } from "@/services/staff";
-import { getStaffList } from "../actions";
+import { getStaffList, resendStaffTempPasswordAction } from "../actions";
 import { AddStaffModal } from "./AddStaffModal";
 
 // Visible to Owner and Supervisor only (AD-16) -- this page is itself only
@@ -49,6 +49,7 @@ export function StaffPageClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; tempPassword?: string } | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   function showToast(message: string, tempPassword?: string) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -61,6 +62,31 @@ export function StaffPageClient({
   async function refreshStaff() {
     const { data } = await getStaffList();
     if (data) setStaff(data);
+  }
+
+  // Story 9.2 (AC #4): credential-invalidating action -- unlike the
+  // Members Invite button (which only re-sends a message, nothing is
+  // invalidated), this stops the staff member's current password (temp or
+  // real) from working immediately, so it needs an explicit confirm step.
+  async function handleResend(row: StaffListRow) {
+    if (resendingId) return;
+    if (!window.confirm(t("staff.resend.confirm", { name: row.name }))) return;
+
+    setResendingId(row.id);
+    try {
+      const { data, error } = await resendStaffTempPasswordAction(row.id);
+      if (error || !data) {
+        showToast(error?.message ?? t("common.somethingWentWrong"));
+        return;
+      }
+      await refreshStaff();
+      showToast(
+        t(data.smsSent ? "staff.toast.resendSms" : "staff.toast.resendNoSms", { phone: row.phone ?? "" }),
+        data.tempPassword,
+      );
+    } finally {
+      setResendingId(null);
+    }
   }
 
   return (
@@ -91,6 +117,7 @@ export function StaffPageClient({
                 <th className="px-4 py-2 font-medium">{t("staff.table.name")}</th>
                 <th className="px-4 py-2 font-medium">{t("staff.table.role")}</th>
                 <th className="px-4 py-2 font-medium">{t("staff.table.status")}</th>
+                {canCreate && <th className="px-4 py-2 font-medium">{t("staff.table.actions")}</th>}
               </tr>
             </thead>
             <tbody>
@@ -101,6 +128,21 @@ export function StaffPageClient({
                     <Badge variant="secondary">{t(ROLE_LABEL_KEY[row.role] ?? row.role)}</Badge>
                   </td>
                   <td className="px-4 py-2">{t(STATUS_LABEL_KEY[row.status])}</td>
+                  {canCreate && (
+                    <td className="px-4 py-2">
+                      {row.status !== "deactivated" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={resendingId !== null}
+                          onClick={() => handleResend(row)}
+                        >
+                          {resendingId === row.id ? t("staff.actions.resending") : t("staff.actions.resend")}
+                        </Button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -113,10 +155,10 @@ export function StaffPageClient({
           open={modalOpen}
           callerRole={role}
           onClose={() => setModalOpen(false)}
-          onCreated={async (tempPassword) => {
+          onCreated={async (tempPassword, smsSent, phone) => {
             setModalOpen(false);
             await refreshStaff();
-            showToast(t("staff.tempPasswordToast", { password: tempPassword }), tempPassword);
+            showToast(t(smsSent ? "staff.toast.createdSms" : "staff.toast.createdNoSms", { phone }), tempPassword);
           }}
         />
       )}

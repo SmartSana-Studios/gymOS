@@ -141,7 +141,8 @@
     "table": {
       "name": "Name",
       "role": "Role",
-      "status": "Status"
+      "status": "Status",
+      "actions": "Actions"
     },
     "status": {
       "active": "Active",
@@ -164,7 +165,23 @@
         "roleRequired": "Select a role"
       }
     },
-    "tempPasswordToast": "Staff account created. Temporary password: {{password}}",
+    "activation": {
+      "message": "{{name}}, your GymOS staff account is ready. Temporary password: {{password}}. Log in at {{link}} to get started.",
+      "messageNoLink": "{{name}}, your GymOS staff account is ready. Temporary password: {{password}}."
+    },
+    "actions": {
+      "resend": "Resend password",
+      "resending": "Resending…"
+    },
+    "resend": {
+      "confirm": "Generate a new temporary password for {{name}} and send it via WhatsApp? Their password will stop working for new logins immediately (any session they're already logged into is unaffected)."
+    },
+    "toast": {
+      "createdSms": "Staff account created. Temp password sent to {{phone}}.",
+      "createdNoSms": "Staff account created. Could not send the temp password to {{phone}} automatically — share it below.",
+      "resendSms": "New temp password sent to {{phone}}.",
+      "resendNoSms": "Could not send the new temp password to {{phone}} automatically — share it below."
+    },
     "errors": {
       "createFailed": "Failed to create staff member",
       "loadFailed": "Failed to load staff"
