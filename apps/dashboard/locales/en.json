@@ -9,6 +9,7 @@
     "classes": "Classes",
     "auditLog": "Audit Log",
     "settings": "Settings",
+    "staff": "Staff",
     "coachPortal": "Coach Portal"
   },
   "role": {
@@ -181,7 +182,9 @@
     },
     "activation": {
       "message": "{{name}}, your GymOS staff account is ready. Temporary password: {{password}}. Log in at {{link}} to get started.",
-      "messageNoLink": "{{name}}, your GymOS staff account is ready. Temporary password: {{password}}."
+      "messageNoLink": "{{name}}, your GymOS staff account is ready. Temporary password: {{password}}.",
+      "messageExistingAccount": "{{name}}, you've been added as staff at {{gymName}} on GymOS. Log in with your existing password at {{link}} to get started.",
+      "messageExistingAccountNoLink": "{{name}}, you've been added as staff at {{gymName}} on GymOS. Log in with your existing password to get started."
     },
     "actions": {
       "resend": "Resend password",
@@ -195,6 +198,8 @@
     "toast": {
       "createdSms": "Staff account created. Temp password sent to {{phone}}.",
       "createdNoSms": "Staff account created. Could not send the temp password to {{phone}} automatically — share it below.",
+      "createdExistingAccount": "{{phone}} was already registered on GymOS — access granted.",
+      "createdExistingAccountNoSms": "{{phone}} was already registered on GymOS — access granted, but we couldn't notify them automatically. Let them know they can log in with their existing password.",
       "resendSms": "New temp password sent to {{phone}}.",
       "resendNoSms": "Could not send the new temp password to {{phone}} automatically — share it below.",
       "roleUpdated": "{{name}}'s role has been updated.",
@@ -530,7 +535,7 @@
     "actions": {
       "view": "View"
     },
-    "emptyNoAssignments": "No members have been assigned to you yet. Ask your manager to assign members.",
+    "emptyNoAssignments": "No members have been assigned to you yet. Ask your manager, owner, or supervisor to assign members.",
     "emptySearchNoMatch": "No members match '{{term}}'.",
     "clearSearch": "Clear search",
     "detail": {

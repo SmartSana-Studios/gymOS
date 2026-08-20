@@ -1767,6 +1767,32 @@ So that V1.5's success metrics (Section 3.2) — beta gym self-sufficiency, non-
 
 ---
 
+### Story 9.6: Multi-Gym Session Switching *(backlog stub — added 2026-08-20, not yet elaborated via create-story)*
+
+As a staff member who holds an active role at more than one gym (Story 9.4),
+I want to choose which gym I'm acting on behalf of and switch between them without logging out,
+So that I can actually do my job at both gyms, not just have the platform correctly record that I hold both.
+
+**Context:** Story 9.4 (Multi-Gym Staff Binding Rules) makes it possible for a person to correctly hold two independent, simultaneously-active role bindings at two different gyms — but does not change how a session picks which one is "active." `custom_access_token_hook()` (`0009_auth_hook_gym_claims.sql`) has always resolved a login's `gym_id`/`app_role` claims to "the most recently created, non-deactivated membership" — a documented V1 limitation that predates Epic 9 entirely. Today, a multi-gym staff member has no way to see or act on their other gym from one logged-in session; their next login (or token refresh) silently lands them wherever their newest binding is. This story is the first to actually need to close that gap, since it's the first place multi-gym staff bindings are created in normal product use (a member's own multi-gym membership has existed since FR-001/Epic 2, but has had the identical limitation this whole time, never prioritized).
+
+**Acceptance Criteria (draft — needs full create-story elaboration before dev):**
+
+**Given** a staff member with 2+ active, non-deactivated `members` bindings across different gyms
+**When** they log in
+**Then** they are shown a gym-selection step, or the dashboard shell shows a switcher, rather than being silently routed to whichever binding happens to be newest
+
+**Given** a logged-in multi-gym staff session
+**When** they use the switcher to select a different gym they hold an active binding at
+**Then** their session's `gym_id`/`app_role` claims update to that gym without a full logout/login, and every RLS-scoped query reflects the newly-selected gym immediately
+
+**Given** a staff member with only one active gym binding (the overwhelming majority case)
+**When** they log in
+**Then** no switcher is shown at all — this story must not add friction to the common single-gym login path
+
+**Open architectural question, not resolved by this stub:** `custom_access_token_hook()` is invoked by GoTrue itself, not app code — it has no channel today for the app to say "mint this next token for gym B, not gym A." Whatever mechanism this story picks (a dedicated switch-gym endpoint that forces a token refresh with a hint, a short-lived claim override, or a schema change to track a "currently selected gym" per session) is a real design decision for create-story/architecture to make, not assumed by this stub.
+
+---
+
 ## Epic 4 (extension): Tara Money Cutover & Flow A Formalization
 
 New stories added to the existing Epic 4 (Payments & Front-Desk Retention Alert). Tara Money is re-verified against GymOS's own real business account and cut over from Notch Pay with zero discrepancies; each gym connects its own Vault-encrypted Tara Money account; Flow A payments are explicitly routed and audit-provable as never touching the platform account; members can self-serve renew from the app. Delivers UJ-10 (Chidi verifies the payment cutover) — the Flow A/cutover side.

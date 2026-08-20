@@ -34,6 +34,7 @@
     "staffSelfRoleEditNotPermitted": "Vous ne pouvez pas modifier votre propre rôle",
     "staffDeactivationNotPermitted": "Vous n'êtes pas autorisé à désactiver ce membre du personnel",
     "staffTargetNotFound": "Ce membre du personnel est introuvable ou n'est plus éligible pour cette action.",
+    "staffTargetRoleProtected": "Vous n'êtes pas autorisé à apporter cette modification à ce membre du personnel.",
     "unknown": "Une erreur est survenue de notre côté."
   },
   "auth": {

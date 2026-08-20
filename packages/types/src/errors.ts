@@ -307,12 +307,47 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // Story 9.4: target-role ceiling raises -- both fixed the identical gap
+  // (a check on the *new* role being assigned, but never on the target's
+  // *current* role, letting a Supervisor demote an Owner/Supervisor via
+  // either RPC). Distinct code from staff_role_not_permitted (review
+  // finding): that code drives both modals' `setFieldErrors({ role })`
+  // (AddStaffModal.tsx/EditStaffModal.tsx), which highlights the Role
+  // dropdown -- but no role choice can fix a target-ceiling rejection, since
+  // the problem is who the row belongs to, not which role was picked.
+  // Routes to a generic form-level error instead, same shape as
+  // staff_deactivation_not_permitted below (also a "no field to blame"
+  // ceiling rejection).
+  if (
+    (message.includes("create_staff_member:") && message.includes("caller is not authorized to replace a staff member with role")) ||
+    (message.includes("update_staff_role:") && message.includes("caller is not authorized to edit a staff member with role"))
+  ) {
+    return {
+      code: "staff_target_role_protected",
+      message: copy.staffTargetRoleProtected,
+    };
+  }
+
   // update_staff_role()'s self-role-edit rejection (AC #2) -- distinct from
   // the ceiling rejection above. AD-16's UI already disables the Role field
   // for a self-edit, so this raise is only reachable via a stale/bypassed
   // client -- mapped anyway for defense-in-depth, matching this file's own
   // established rationale for other client-bypass-only raises.
   if (message.includes("update_staff_role: cannot edit your own role")) {
+    return {
+      code: "staff_self_role_edit_not_permitted",
+      message: copy.staffSelfRoleEditNotPermitted,
+    };
+  }
+
+  // create_staff_member()'s new self-target rejection (0064_multi_gym_staff_binding_rules.sql,
+  // Story 9.4) -- reached when an Owner/Supervisor's own phone number is
+  // entered into the Add Staff form and resolves to their own existing
+  // binding at the same gym. Same user-facing situation as
+  // update_staff_role()'s self-edit rejection above (an attempt to change
+  // your own role, just reached via the creation form) -- reuses that
+  // code/copy rather than adding a new one.
+  if (message.includes("create_staff_member: cannot replace your own binding")) {
     return {
       code: "staff_self_role_edit_not_permitted",
       message: copy.staffSelfRoleEditNotPermitted,

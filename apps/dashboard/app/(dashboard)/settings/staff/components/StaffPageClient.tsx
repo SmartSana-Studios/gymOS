@@ -68,11 +68,14 @@ export function StaffPageClient({
   const [editingRow, setEditingRow] = useState<StaffListRow | null>(null);
   const [deactivatingRow, setDeactivatingRow] = useState<StaffListRow | null>(null);
 
+  // 4000ms was too short to read the longer toast messages (e.g. Story
+  // 9.4's "already registered on GymOS" copy) before they auto-dismissed --
+  // bumped to 8000ms, still auto-dismissing (no tempPassword) toasts only.
   function showToast(message: string, tempPassword?: string) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast({ message, tempPassword });
     if (!tempPassword) {
-      toastTimerRef.current = setTimeout(() => setToast(null), 4000);
+      toastTimerRef.current = setTimeout(() => setToast(null), 8000);
     }
   }
 
@@ -194,10 +197,21 @@ export function StaffPageClient({
           open={modalOpen}
           callerRole={role}
           onClose={() => setModalOpen(false)}
-          onCreated={async (tempPassword, smsSent, phone) => {
+          onCreated={async (tempPassword, smsSent, phone, isExistingAccount) => {
             setModalOpen(false);
             await refreshStaff();
-            showToast(t(smsSent ? "staff.toast.createdSms" : "staff.toast.createdNoSms", { phone }), tempPassword);
+            if (isExistingAccount) {
+              // Review finding: this branch previously ignored smsSent,
+              // showing the same "access granted" toast whether or not the
+              // person was actually notified -- unlike the new-account
+              // branch below. There's no tempPassword fallback to show here
+              // (none was generated for this path), so a failed send must
+              // at least surface as a distinct message telling the admin to
+              // notify the person another way.
+              showToast(t(smsSent ? "staff.toast.createdExistingAccount" : "staff.toast.createdExistingAccountNoSms", { phone }));
+            } else {
+              showToast(t(smsSent ? "staff.toast.createdSms" : "staff.toast.createdNoSms", { phone }), tempPassword ?? undefined);
+            }
           }}
         />
       )}
