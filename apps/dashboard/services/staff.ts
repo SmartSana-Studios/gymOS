@@ -59,7 +59,15 @@ async function getCallerGymId(
 async function getCallerUserId(
   supabase: Awaited<ReturnType<typeof createClient>>,
 ): Promise<string | undefined> {
-  const { data: claimsData } = await supabase.auth.getClaims();
+  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
+  if (claimsError) {
+    // Review finding: previously discarded silently, unlike getCallerGymId()
+    // above -- a failed lookup here used to collapse the resulting
+    // staff_created event into a shared "server" distinctId with no
+    // diagnostic trail of why the fallback fired.
+    console.error("[staff] failed to resolve caller user id for staff_created analytics attribution", claimsError);
+    return undefined;
+  }
   return (claimsData?.claims as { sub?: string } | undefined)?.sub;
 }
 
@@ -297,9 +305,12 @@ export async function createStaffMember(
     const sendResult = await sendEvolutionApiMessage(input.phone, message);
 
     // captureServerEvent() already swallows its own failures internally --
-    // wrapped again here too (review-anticipated defense-in-depth) so an
-    // analytics failure can never turn this successful binding into a
-    // reported failure, no matter which layer it originates from.
+    // wrapped again here too anyway (review: kept as defense-in-depth
+    // against a violated "never throws" contract, per this file's own
+    // Vitest coverage for exactly that scenario, rather than Task 4's
+    // literal "don't double-wrap" instruction) so an analytics failure can
+    // never turn this successful binding into a reported failure, no
+    // matter which layer it originates from.
     try {
       await captureServerEvent(
         ANALYTICS_EVENT.STAFF_CREATED,

@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { resolveAnalyticsEnvironment } from "./lib/analytics";
+import { resolveAnalyticsEnvironment } from "./lib/analytics-environment";
 
 const nextConfig: NextConfig = {
   // app/layout.tsx and app/(dashboard)/layout.tsx both read locale/auth

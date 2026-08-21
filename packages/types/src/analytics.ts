@@ -24,3 +24,13 @@ export interface StaffCreatedEventProperties {
 export interface AppOpenedEventProperties {
   gymId: string | null;
 }
+
+// Review finding: without this mapping, `capture()` wrapper functions typed
+// `properties` as `Record<string, unknown>`, so the closed interfaces above
+// were defined but never actually enforced at the one place that matters --
+// this ties each event name to its own named payload shape so a capture
+// call site must pass the matching interface, not an arbitrary bag.
+export interface AnalyticsEventProperties {
+  [ANALYTICS_EVENT.STAFF_CREATED]: StaffCreatedEventProperties;
+  [ANALYTICS_EVENT.APP_OPENED]: AppOpenedEventProperties;
+}
