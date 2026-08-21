@@ -6,6 +6,7 @@
 export const ANALYTICS_EVENT = {
   STAFF_CREATED: "staff_created",
   APP_OPENED: "app_opened",
+  PROGRESS_ENTRY_LOGGED: "progress_entry_logged",
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENT)[keyof typeof ANALYTICS_EVENT];
@@ -25,6 +26,19 @@ export interface AppOpenedEventProperties {
   gymId: string | null;
 }
 
+// Story 10.1: closed, named payload -- booleans/counts only, never a field
+// carrying an actual weight/measurement/photo value. This is the sole
+// structural enforcement of Epic 10's "no body-measurement or photo content
+// in analytics" guardrail (docs/decisions.md ~line 29).
+export interface ProgressEntryLoggedEventProperties {
+  gymId: string;
+  hasWeight: boolean;
+  measurementCount: number; // 0-5, count only, never a value
+  hasPhoto: boolean;
+  hasNote: boolean;
+  loggedOffline: boolean;
+}
+
 // Review finding: without this mapping, `capture()` wrapper functions typed
 // `properties` as `Record<string, unknown>`, so the closed interfaces above
 // were defined but never actually enforced at the one place that matters --
@@ -33,4 +47,5 @@ export interface AppOpenedEventProperties {
 export interface AnalyticsEventProperties {
   [ANALYTICS_EVENT.STAFF_CREATED]: StaffCreatedEventProperties;
   [ANALYTICS_EVENT.APP_OPENED]: AppOpenedEventProperties;
+  [ANALYTICS_EVENT.PROGRESS_ENTRY_LOGGED]: ProgressEntryLoggedEventProperties;
 }

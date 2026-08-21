@@ -89,6 +89,8 @@
   "profile": {
     "title": "Profil",
     "editProfile": "Modifier le profil",
+    "bodyProfile": "Profil corporel",
+    "logProgressEntry": "Enregistrer une entrée de progression",
     "phoneNotEditable": "Contactez votre salle pour changer votre numéro",
     "language": "Langue",
     "languageEn": "EN",
@@ -232,6 +234,35 @@
       "cash": "Espèces",
       "bankTransfer": "Virement bancaire",
       "manualMomo": "Mobile money (manuel)"
+    }
+  },
+  "progress": {
+    "bodyProfile": {
+      "title": "Votre profil corporel",
+      "subtitle": "Facultatif — aide votre coach à personnaliser votre plan. Vous pouvez passer cette étape et la compléter plus tard.",
+      "heightLabel": "Taille (cm)",
+      "weightLabel": "Poids de départ (kg)",
+      "logFirstEntry": "Enregistrer votre première entrée de progression",
+      "save": "Enregistrer",
+      "skip": "Passer",
+      "errorSaveFailed": "Impossible d'enregistrer. Vérifiez votre connexion et réessayez.",
+      "errorInvalidInput": "Entrez une valeur valide."
+    },
+    "logEntry": {
+      "title": "Enregistrer une progression",
+      "weightLabel": "Poids (kg)",
+      "waistLabel": "Tour de taille (cm)",
+      "chestLabel": "Tour de poitrine (cm)",
+      "hipsLabel": "Tour de hanches (cm)",
+      "armsLabel": "Bras (cm)",
+      "thighsLabel": "Cuisses (cm)",
+      "noteLabel": "Note",
+      "notePlaceholder": "Comment vous sentez-vous ?",
+      "addPhoto": "Ajouter une photo",
+      "photoAdded": "Photo ajoutée",
+      "save": "Enregistrer l'entrée",
+      "errorSaveFailed": "Impossible d'enregistrer votre entrée. Vérifiez votre connexion et réessayez.",
+      "errorInvalidInput": "Vérifiez les valeurs saisies et réessayez."
     }
   },
   "renew": {

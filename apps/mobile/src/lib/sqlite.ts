@@ -14,6 +14,23 @@ export interface OfflineCheckIn {
   scannedAt: string;
 }
 
+/** Story 10.1: the offline-queue intent for a progress entry -- every
+ * loggable field as a nullable column, plus `photoLocalUri` (the on-device
+ * file URI before upload). The actual Storage upload happens during sync,
+ * not before -- this row queues the intent to upload+insert. */
+export interface OfflineProgressEntry {
+  id: string;
+  weightKg: number | null;
+  waistCm: number | null;
+  chestCm: number | null;
+  hipsCm: number | null;
+  armsCm: number | null;
+  thighsCm: number | null;
+  note: string | null;
+  photoLocalUri: string | null;
+  loggedAt: string;
+}
+
 let dbPromise: ReturnType<typeof SQLite.openDatabaseAsync> | null = null;
 
 function getDb() {
@@ -22,6 +39,24 @@ function getDb() {
       .then(async (db) => {
         await db.execAsync(
           'CREATE TABLE IF NOT EXISTS offline_check_ins (id TEXT PRIMARY KEY, scanned_at TEXT NOT NULL)',
+        );
+        // Story 10.1: second queue-item type in the same DB/connection (AD-23
+        // requires reusing the same infra, one queue-item type per domain) --
+        // `id` is the client_entry_id, doubling as the idempotency key exactly
+        // like offline_check_ins.id doubles as client_scan_id.
+        await db.execAsync(
+          `CREATE TABLE IF NOT EXISTS offline_progress_entries (
+            id TEXT PRIMARY KEY,
+            weight_kg REAL,
+            waist_cm REAL,
+            chest_cm REAL,
+            hips_cm REAL,
+            arms_cm REAL,
+            thighs_cm REAL,
+            note TEXT,
+            photo_local_uri TEXT,
+            logged_at TEXT NOT NULL
+          )`,
         );
         return db;
       })
@@ -56,5 +91,71 @@ export async function deleteOfflineCheckIn(id: string): Promise<void> {
 export async function countOfflineCheckIns(): Promise<number> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM offline_check_ins');
+  return row?.count ?? 0;
+}
+
+interface OfflineProgressEntryRow {
+  id: string;
+  weight_kg: number | null;
+  waist_cm: number | null;
+  chest_cm: number | null;
+  hips_cm: number | null;
+  arms_cm: number | null;
+  thighs_cm: number | null;
+  note: string | null;
+  photo_local_uri: string | null;
+  logged_at: string;
+}
+
+function toOfflineProgressEntry(row: OfflineProgressEntryRow): OfflineProgressEntry {
+  return {
+    id: row.id,
+    weightKg: row.weight_kg,
+    waistCm: row.waist_cm,
+    chestCm: row.chest_cm,
+    hipsCm: row.hips_cm,
+    armsCm: row.arms_cm,
+    thighsCm: row.thighs_cm,
+    note: row.note,
+    photoLocalUri: row.photo_local_uri,
+    loggedAt: row.logged_at,
+  };
+}
+
+export async function insertOfflineProgressEntry(entry: OfflineProgressEntry): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    `INSERT INTO offline_progress_entries
+      (id, weight_kg, waist_cm, chest_cm, hips_cm, arms_cm, thighs_cm, note, photo_local_uri, logged_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    entry.id,
+    entry.weightKg,
+    entry.waistCm,
+    entry.chestCm,
+    entry.hipsCm,
+    entry.armsCm,
+    entry.thighsCm,
+    entry.note,
+    entry.photoLocalUri,
+    entry.loggedAt,
+  );
+}
+
+export async function getOfflineProgressEntries(): Promise<OfflineProgressEntry[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<OfflineProgressEntryRow>(
+    'SELECT * FROM offline_progress_entries ORDER BY logged_at ASC',
+  );
+  return rows.map(toOfflineProgressEntry);
+}
+
+export async function deleteOfflineProgressEntry(id: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM offline_progress_entries WHERE id = ?', id);
+}
+
+export async function countOfflineProgressEntries(): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM offline_progress_entries');
   return row?.count ?? 0;
 }

@@ -1,9 +1,11 @@
 import { profileSetupSchema } from '@gymos/types';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LogEntrySheet } from '@/components/LogEntrySheet';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/themed-text';
@@ -38,6 +40,7 @@ function isPlanNameRow(value: unknown): value is PlanNameRow {
  * Scope Note #3), but only needs `plans.name`. */
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const accent = useGymAccentColor();
@@ -73,6 +76,8 @@ export default function ProfileScreen() {
   const [quietGymAlertsPending, setQuietGymAlertsPending] = useState(false);
   const [classReminderPending, setClassReminderPending] = useState(false);
   const [notificationsLoadError, setNotificationsLoadError] = useState(false);
+
+  const [logEntrySheetVisible, setLogEntrySheetVisible] = useState(false);
 
   const loadProfile = useCallback(async () => {
     setLoading(true);
@@ -446,6 +451,25 @@ export default function ProfileScreen() {
               )}
             </View>
 
+            {/* Story 10.1 AC #2's "or visit Progress at any later time" --
+                an interim entry point before Story 10.3 formally adds this
+                to the Progress tab. Reuses /onboarding/body-profile itself
+                (skippable-safe to revisit; no dependency on
+                onboarding_completed_at). A second row underneath opens
+                LogEntrySheet directly for AC #3's "log an entry." */}
+            <View style={[styles.row, { borderTopColor: theme.border }]}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push({ pathname: '/onboarding/body-profile', params: { from: 'profile' } })}
+                style={styles.rowContent}>
+                <ThemedText type="default">{t('profile.bodyProfile')}</ThemedText>
+                <ThemedText type="default">→</ThemedText>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={() => setLogEntrySheetVisible(true)} style={styles.logEntryRow}>
+                <ThemedText type="link">{t('profile.logProgressEntry')}</ThemedText>
+              </Pressable>
+            </View>
+
             <View style={[styles.row, { borderTopColor: theme.border }]}>
               <View style={styles.rowContent}>
                 <ThemedText type="default">{t('profile.language')}</ThemedText>
@@ -544,6 +568,11 @@ export default function ProfileScreen() {
           )}
         </ScrollView>
       </SafeAreaView>
+      <LogEntrySheet
+        visible={logEntrySheetVisible}
+        onClose={() => setLogEntrySheetVisible(false)}
+        onSaved={() => setLogEntrySheetVisible(false)}
+      />
     </ThemedView>
   );
 }
@@ -598,6 +627,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   notificationRow: {
+    marginTop: Spacing.two,
+  },
+  logEntryRow: {
     marginTop: Spacing.two,
   },
   editSection: {

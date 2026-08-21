@@ -89,6 +89,8 @@
   "profile": {
     "title": "Profile",
     "editProfile": "Edit profile",
+    "bodyProfile": "Body profile",
+    "logProgressEntry": "Log a progress entry",
     "phoneNotEditable": "Contact your gym to change your number",
     "language": "Language",
     "languageEn": "EN",
@@ -232,6 +234,35 @@
       "cash": "Cash",
       "bankTransfer": "Bank transfer",
       "manualMomo": "Mobile money (manual)"
+    }
+  },
+  "progress": {
+    "bodyProfile": {
+      "title": "Your body profile",
+      "subtitle": "Optional — helps your coach personalise your plan. You can skip this and add it later.",
+      "heightLabel": "Height (cm)",
+      "weightLabel": "Starting weight (kg)",
+      "logFirstEntry": "Log your first progress entry",
+      "save": "Save",
+      "skip": "Skip",
+      "errorSaveFailed": "Couldn't save. Check your connection and try again.",
+      "errorInvalidInput": "Enter a valid value."
+    },
+    "logEntry": {
+      "title": "Log progress",
+      "weightLabel": "Weight (kg)",
+      "waistLabel": "Waist (cm)",
+      "chestLabel": "Chest (cm)",
+      "hipsLabel": "Hips (cm)",
+      "armsLabel": "Arms (cm)",
+      "thighsLabel": "Thighs (cm)",
+      "noteLabel": "Note",
+      "notePlaceholder": "How are you feeling?",
+      "addPhoto": "Add photo",
+      "photoAdded": "Photo added",
+      "save": "Save entry",
+      "errorSaveFailed": "Couldn't save your entry. Check your connection and try again.",
+      "errorInvalidInput": "Check the values you entered and try again."
     }
   },
   "renew": {

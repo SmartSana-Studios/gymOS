@@ -213,15 +213,19 @@ export default function PlanScreen() {
         return;
       }
 
-      // Forces a `TOKEN_REFRESHED` auth event so the root layout's
-      // `useSession()` re-runs `refreshOnboardedState` and picks up the
-      // `onboarding_completed_at` write above before the guard is checked
-      // (Review finding) -- otherwise `isOnboarded` is still the stale,
-      // pre-update `false` from mount/last auth event, and `(tabs)` stays
-      // excluded from the reachable route tree despite the write below.
-      await supabase.auth.refreshSession();
-
-      router.replace('/(tabs)');
+      // Story 10.1 (Review finding): `refreshSession()` used to run here,
+      // before navigating onward -- but the optional body-profile step below
+      // still lives inside the guarded `onboarding` Stack.Protected group
+      // (root layout's guard is keyed on `onboarding_completed_at`, which
+      // this screen already wrote above), so it's reachable without a
+      // refresh. Refreshing here instead raced `onAuthStateChange`'s async
+      // `refreshOnboardedState` against this navigation: `isFullyOnboarded`
+      // could flip true while the member was still on body-profile, and the
+      // root guard would then exclude the `onboarding` group mid-step and
+      // bounce them straight to `(tabs)`. The refresh is now deferred to
+      // body-profile's own Skip/Save handlers, which need it immediately
+      // before their own `router.replace('/(tabs)')`.
+      router.push('/onboarding/body-profile');
     } catch {
       setSubmitError(true);
     } finally {

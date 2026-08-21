@@ -62,7 +62,7 @@ export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { pendingCount } = useOfflineSync();
+  const { pendingCheckInCount } = useOfflineSync();
   const theme = useTheme();
 
   const [loading, setLoading] = useState(true);
@@ -281,7 +281,7 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          {pendingCount > 0 && (
+          {pendingCheckInCount > 0 && (
             <View style={styles.offlineBanner}>
               <ThemedText type="small" style={styles.offlineBannerText}>
                 {t('home.offlineSyncPending')}

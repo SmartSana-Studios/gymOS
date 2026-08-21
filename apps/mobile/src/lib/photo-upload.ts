@@ -75,6 +75,42 @@ export async function uploadPhoto(userId: string, uri: string): Promise<string |
   return data.publicUrl;
 }
 
+/** Story 10.1: uploads to the private progress-photos bucket at
+ * {auth.uid()}/{clientEntryId}.{ext} -- ties each photo to the offline-safe
+ * client-generated ID so a retried upload after a sync failure overwrites
+ * (upsert: true) rather than orphaning a duplicate file. Same
+ * File(uri).arrayBuffer() pattern as uploadPhoto() above (Android
+ * fetch(uri) unreliability). Returns the object path itself, never a public
+ * URL -- the bucket is private (public: false), so getPublicUrl would
+ * return an unusable link. */
+export async function uploadProgressPhoto(userId: string, clientEntryId: string, uri: string): Promise<string | null> {
+  const extensionMatch = /\.(\w+)$/.exec(uri);
+  const extension = (extensionMatch?.[1] ?? 'jpg').toLowerCase();
+  const contentType = EXTENSION_TO_MIME[extension] ?? 'image/jpeg';
+  const path = `${userId}/${clientEntryId}.${extension}`;
+
+  const arrayBuffer = await new File(uri).arrayBuffer();
+
+  const { error: uploadError } = await supabase.storage
+    .from('progress-photos')
+    .upload(path, arrayBuffer, { contentType, upsert: true });
+
+  if (uploadError) return null;
+
+  return path;
+}
+
+/** Resolves a short-lived signed URL for a progress photo at render time --
+ * never persisted, since the bucket is private and photo_path is a
+ * bucket-relative object path, not a URL. 1-hour TTL: the member viewing
+ * their own photo has no revoke-sensitivity yet (Story 10.2 tightens this
+ * once sharing exists). */
+export async function getProgressPhotoSignedUrl(path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage.from('progress-photos').createSignedUrl(path, 3600);
+  if (error || !data) return null;
+  return data.signedUrl;
+}
+
 /** The Alert-as-action-sheet pattern (Take Photo / Choose from Library /
  * Cancel) -- `onPick` receives the chosen source; callers run `pickPhoto`
  * themselves so error-state handling (which i18n key, which local state)
