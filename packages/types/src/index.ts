@@ -8,6 +8,7 @@ export * from "./schemas/subscription";
 export * from "./schemas/csvImport";
 export * from "./schemas/memberOnboarding";
 export * from "./schemas/progressEntry";
+export * from "./schemas/progressPhoto";
 export * from "./schemas/auth";
 export * from "./schemas/locale";
 export * from "./schemas/paymentProvider";

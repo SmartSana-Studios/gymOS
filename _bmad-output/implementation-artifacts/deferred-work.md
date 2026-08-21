@@ -1,5 +1,11 @@
 # Deferred Work
 
+## Deferred from: code review of story-10-2-progress-data-photo-privacy (2026-08-21)
+
+- Pin-back trigger `protect_progress_photo_immutable_columns()` doesn't pin `id` back, letting a self-update rewrite its own row's primary key — pre-existing pattern, mirrors the same omission in `protect_progress_entry_immutable_columns()` from 0066; self-only impact, no cross-tenant risk. [supabase/migrations/0067_progress_data_photo_privacy.sql:106-121]
+- `syncOneProgressEntry()`'s 23505-replay branch can delete the local offline queue record without confirming `entryId` was resolved, when no photo is attached — unchanged from before this diff (the pre-existing code deleted the offline record on any `!error || 23505` with no `entryId` confirmation either); near-unreachable in practice since a 23505 already guarantees the row exists. [apps/mobile/src/services/progress.ts:243-280]
+- `self_insert_own_progress_photos`'s `with check` `gym_id` guard has no negative pgTAP coverage proving a spoofed `gym_id` is rejected — same untested-guard convention as `progress_entries`' own `gym_id` check from 0066 (also never tested), not newly introduced by this story. [supabase/migrations/0067_progress_data_photo_privacy.sql:72-81]
+
 ## Deferred from: code review of story-9-6-multi-gym-session-switching (2026-08-21)
 
 - `custom_access_token_hook()`'s `exception when others` handler returns the original, unmodified `event` argument [supabase/migrations/0065_multi_gym_session_switching.sql:149-158] — if an exception fires between the initial claims-clearing step (line 102) and the final claims-write-back (line 147), any stale `gym_id`/`app_role` claims present in the raw input `event` would survive uncleared, undermining the function's own "a stale claim can never survive" comment. Confirmed this exact shape (compute into a local `claims` var, write back once at the very end, `when others -> return event`) already existed identically in `0009_auth_hook_gym_claims.sql`'s original version, unchanged by this story — not a new defect. This story does add two more `select` statements into that exposed window (the `active_gym_id` preference lookup), marginally widening exposure, but the underlying design characteristic is pre-existing and out of this story's scope to fix.

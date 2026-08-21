@@ -1,4 +1,4 @@
-import { ANALYTICS_EVENT, logProgressEntrySchema } from '@gymos/types';
+import { ANALYTICS_EVENT, logProgressEntrySchema, updateProgressPhotoSharingSchema } from '@gymos/types';
 
 import { captureEvent } from '@/lib/analytics';
 import {
@@ -27,6 +27,10 @@ export interface ProgressEntryFields {
 
 export interface LogProgressEntryResult {
   success: boolean;
+  /** Set when the entry itself was saved but its photo upsert failed
+   * (Review finding) -- the entry is never silently orphaned by reporting
+   * a persisted write as a total failure; no UI reads this yet. */
+  photoFailed?: boolean;
 }
 
 /** Resolves the caller's own current member_id/gym_id -- same
@@ -111,19 +115,24 @@ export async function logProgressEntry(
     if (!photoPath) return { success: false };
   }
 
-  const { error } = await supabase.from('progress_entries').insert({
-    member_id: current.memberId,
-    gym_id: current.gymId,
-    weight_kg: parsed.data.weightKg,
-    waist_cm: parsed.data.waistCm,
-    chest_cm: parsed.data.chestCm,
-    hips_cm: parsed.data.hipsCm,
-    arms_cm: parsed.data.armsCm,
-    thighs_cm: parsed.data.thighsCm,
-    photo_path: photoPath,
-    note: parsed.data.note,
-    client_entry_id: clientEntryId,
-  });
+  const { data: inserted, error } = await supabase
+    .from('progress_entries')
+    .insert({
+      member_id: current.memberId,
+      gym_id: current.gymId,
+      weight_kg: parsed.data.weightKg,
+      waist_cm: parsed.data.waistCm,
+      chest_cm: parsed.data.chestCm,
+      hips_cm: parsed.data.hipsCm,
+      arms_cm: parsed.data.armsCm,
+      thighs_cm: parsed.data.thighsCm,
+      note: parsed.data.note,
+      client_entry_id: clientEntryId,
+    })
+    .select('id')
+    .single();
+
+  let entryId: string | null = inserted?.id ?? null;
 
   if (error) {
     if (error.code === '23505') {
@@ -133,13 +142,33 @@ export async function logProgressEntry(
         .eq('client_entry_id', clientEntryId)
         .maybeSingle();
       if (!existing) return { success: false };
+      entryId = existing.id;
     } else {
       return { success: false };
     }
   }
 
+  // Story 10.2: the photo now lives in its own progress_photos table, not a
+  // column on progress_entries. The unique index on progress_entry_id
+  // (0067) makes this upsert idempotent on retry -- the same reason no
+  // transaction-owning RPC is needed for the two-step write (see the
+  // story's Dev Notes, "Why a Plain RLS Update, Not an RPC (Again)").
+  let photoFailed = false;
+  if (photoPath && entryId) {
+    const { error: photoError } = await supabase.from('progress_photos').upsert(
+      {
+        gym_id: current.gymId,
+        member_id: current.memberId,
+        progress_entry_id: entryId,
+        photo_path: photoPath,
+      },
+      { onConflict: 'progress_entry_id' },
+    );
+    if (photoError) photoFailed = true;
+  }
+
   captureEvent(ANALYTICS_EVENT.PROGRESS_ENTRY_LOGGED, analyticsPayload(fields, current.gymId, false));
-  return { success: true };
+  return photoFailed ? { success: true, photoFailed: true } : { success: true };
 }
 
 /** Story 10.1 AC #5: queues an offline progress entry locally and returns
@@ -191,52 +220,86 @@ async function syncOneProgressEntry(record: OfflineProgressEntry, userId: string
     photoPath = await uploadProgressPhoto(userId, record.id, record.photoLocalUri);
     if (!photoPath) {
       // Photo upload failed on a flaky connection -- leave the row queued
-      // rather than insert a row with a dangling/missing photo_path.
+      // rather than sync an entry this sync pass can't yet attach a photo to.
       return;
     }
   }
 
-  const { error } = await supabase.from('progress_entries').insert({
-    member_id: memberId,
-    gym_id: gymId,
-    weight_kg: record.weightKg,
-    waist_cm: record.waistCm,
-    chest_cm: record.chestCm,
-    hips_cm: record.hipsCm,
-    arms_cm: record.armsCm,
-    thighs_cm: record.thighsCm,
-    photo_path: photoPath,
-    note: record.note,
-    client_entry_id: record.id,
-    logged_at: record.loggedAt,
-  });
+  const { data: inserted, error } = await supabase
+    .from('progress_entries')
+    .insert({
+      member_id: memberId,
+      gym_id: gymId,
+      weight_kg: record.weightKg,
+      waist_cm: record.waistCm,
+      chest_cm: record.chestCm,
+      hips_cm: record.hipsCm,
+      arms_cm: record.armsCm,
+      thighs_cm: record.thighsCm,
+      note: record.note,
+      client_entry_id: record.id,
+      logged_at: record.loggedAt,
+    })
+    .select('id')
+    .single();
 
-  if (!error || error.code === '23505') {
-    // Success, or already-exists (unique-violation replay) -- it's already
-    // synced under a different attempt either way.
-    await deleteOfflineProgressEntry(record.id);
-    captureEvent(
-      ANALYTICS_EVENT.PROGRESS_ENTRY_LOGGED,
-      analyticsPayload(
-        {
-          weightKg: record.weightKg,
-          waistCm: record.waistCm,
-          chestCm: record.chestCm,
-          hipsCm: record.hipsCm,
-          armsCm: record.armsCm,
-          thighsCm: record.thighsCm,
-          note: record.note,
-          photoUri: record.photoLocalUri,
-        },
-        gymId,
-        true,
-      ),
-    );
+  let entryId: string | null = inserted?.id ?? null;
+
+  if (error) {
+    if (error.code === '23505') {
+      // Already-exists (unique-violation replay) -- resolve the entry id
+      // synced under a different attempt so the photo upsert below can
+      // still target it.
+      const { data: existing } = await supabase
+        .from('progress_entries')
+        .select('id')
+        .eq('client_entry_id', record.id)
+        .maybeSingle();
+      entryId = existing?.id ?? null;
+    } else {
+      // Any other server-side rejection is treated the same as check-in's
+      // "non-retryable" branch would be, but progress_entries has no such
+      // business-rule rejection today (no capacity check, no invariant
+      // beyond ownership) -- left queued for a future sync attempt.
+      return;
+    }
   }
-  // Any other server-side rejection is treated the same as check-in's
-  // "non-retryable" branch would be, but progress_entries has no such
-  // business-rule rejection today (no capacity check, no invariant beyond
-  // ownership) -- left queued for a future sync attempt.
+
+  if (photoPath && entryId) {
+    const { error: photoError } = await supabase.from('progress_photos').upsert(
+      { gym_id: gymId, member_id: memberId, progress_entry_id: entryId, photo_path: photoPath },
+      { onConflict: 'progress_entry_id' },
+    );
+    if (photoError) {
+      // Entry is synced but the photo row isn't -- leave the offline
+      // record queued so a retry re-uploads (upsert: true, same path) and
+      // re-attempts this upsert, rather than losing the photo association.
+      return;
+    }
+  } else if (photoPath && !entryId) {
+    // Entry insert failed with a 23505 whose existing-row lookup somehow
+    // came back empty -- leave queued rather than orphan the photo upload.
+    return;
+  }
+
+  await deleteOfflineProgressEntry(record.id);
+  captureEvent(
+    ANALYTICS_EVENT.PROGRESS_ENTRY_LOGGED,
+    analyticsPayload(
+      {
+        weightKg: record.weightKg,
+        waistCm: record.waistCm,
+        chestCm: record.chestCm,
+        hipsCm: record.hipsCm,
+        armsCm: record.armsCm,
+        thighsCm: record.thighsCm,
+        note: record.note,
+        photoUri: record.photoLocalUri,
+      },
+      gymId,
+      true,
+    ),
+  );
 }
 
 /** Story 10.1 AC #5: replays every queued offline progress entry,
@@ -268,4 +331,26 @@ export async function syncPendingProgressEntries(): Promise<void> {
       console.error('[offline-sync] progress-entry insert failed, record left queued for retry', err);
     }
   }
+}
+
+/** Story 10.2: the per-photo sharing-toggle write path -- a pure
+ * ownership-gated column flip (see the story's Dev Notes, "Why a Plain RLS
+ * Update, Not an RPC (Again)"). No UI calls this yet (the story's own Scope
+ * Boundary) -- Story 10.3 is the first caller, once its photo detail view
+ * exists. Returns the raw `{ data, error }` shape (AD-9) rather than this
+ * file's own typed-result-union convention -- a 0-row update (RLS-denied,
+ * or the photo was already deleted by a cascade) is a normal, expected
+ * outcome here, never a thrown exception. */
+export async function setProgressPhotoSharing(photoId: string, shared: boolean) {
+  const parsed = updateProgressPhotoSharingSchema.safeParse({ photoId, shared });
+  if (!parsed.success) {
+    return { data: null, error: parsed.error };
+  }
+
+  return supabase
+    .from('progress_photos')
+    .update({ shared_with_coach: parsed.data.shared })
+    .eq('id', parsed.data.photoId)
+    .select()
+    .single();
 }

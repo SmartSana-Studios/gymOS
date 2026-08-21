@@ -11,7 +11,7 @@
 -- member_onboarding_completion_rls.test.sql.
 
 begin;
-select plan(33);
+select plan(36);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000009201', 'Progress Entries Test Tier', 5000, 50000, 30);
@@ -23,12 +23,29 @@ insert into gyms (id, name, tier_id, capacity) values
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000009221'), -- Member A (self-access, the row under test)
   ('00000000-0000-0000-0000-000000009222'), -- Member A2 (different member, same gym -- cross-member denial)
-  ('00000000-0000-0000-0000-000000009223'); -- Member D (different member, different gym -- cross-gym denial)
+  ('00000000-0000-0000-0000-000000009223'), -- Member D (different member, different gym -- cross-gym denial)
+  ('00000000-0000-0000-0000-000000009224'), -- Coach A (gym A, actively assigned to Member A -- Story 10.2)
+  ('00000000-0000-0000-0000-000000009225'), -- Member A-Ended (gym A, Coach A's assignment to them has ended -- Story 10.2)
+  ('00000000-0000-0000-0000-000000009226'); -- Coach B (gym B, never assigned to Member A -- cross-gym denial, Story 10.2)
 
 insert into members (id, gym_id, user_id, role, name) values
   ('00000000-0000-0000-0000-000000009231', '00000000-0000-0000-0000-000000009211', '00000000-0000-0000-0000-000000009221', 'member', 'Member A'),
   ('00000000-0000-0000-0000-000000009232', '00000000-0000-0000-0000-000000009211', '00000000-0000-0000-0000-000000009222', 'member', 'Member A2'),
-  ('00000000-0000-0000-0000-000000009233', '00000000-0000-0000-0000-000000009212', '00000000-0000-0000-0000-000000009223', 'member', 'Member D');
+  ('00000000-0000-0000-0000-000000009233', '00000000-0000-0000-0000-000000009212', '00000000-0000-0000-0000-000000009223', 'member', 'Member D'),
+  ('00000000-0000-0000-0000-000000009234', '00000000-0000-0000-0000-000000009211', '00000000-0000-0000-0000-000000009224', 'coach', 'Coach A'),
+  ('00000000-0000-0000-0000-000000009235', '00000000-0000-0000-0000-000000009211', '00000000-0000-0000-0000-000000009225', 'member', 'Member A-Ended'),
+  ('00000000-0000-0000-0000-000000009236', '00000000-0000-0000-0000-000000009212', '00000000-0000-0000-0000-000000009226', 'coach', 'Coach B');
+
+-- Story 10.2: Coach A actively assigned to Member A; Coach A's prior
+-- assignment to Member A-Ended has already ended (ended_at set).
+insert into coach_assignments (id, gym_id, member_id, coach_id, started_at, ended_at) values
+  ('00000000-0000-0000-0000-000000009251', '00000000-0000-0000-0000-000000009211', '00000000-0000-0000-0000-000000009231', '00000000-0000-0000-0000-000000009234', now() - interval '30 days', null),
+  ('00000000-0000-0000-0000-000000009252', '00000000-0000-0000-0000-000000009211', '00000000-0000-0000-0000-000000009235', '00000000-0000-0000-0000-000000009234', now() - interval '60 days', now() - interval '30 days');
+
+-- Story 10.2: Member A-Ended's own entry, used only for the ended-assignment
+-- coach-denial assertion below (not otherwise exercised by this file).
+insert into progress_entries (id, member_id, gym_id, weight_kg, client_entry_id) values
+  ('00000000-0000-0000-0000-000000009245', '00000000-0000-0000-0000-000000009235', '00000000-0000-0000-0000-000000009211', 60, '00000000-0000-0000-0000-000000009245');
 
 -- ============================================================================
 -- Task 2 RED contract: table shape, RLS enabled, indexes.
@@ -85,9 +102,9 @@ select lives_ok(
 );
 
 select lives_ok(
-  $$insert into progress_entries (member_id, gym_id, photo_path, client_entry_id)
-    values ('00000000-0000-0000-0000-000000009231', '00000000-0000-0000-0000-000000009211', '00000000-0000-0000-0000-000000009221/09242.jpg', '00000000-0000-0000-0000-000000009242')$$,
-  'Member A can self-insert an entry with only a photo_path populated'
+  $$insert into progress_entries (member_id, gym_id, note, client_entry_id)
+    values ('00000000-0000-0000-0000-000000009231', '00000000-0000-0000-0000-000000009211', 'Second entry', '00000000-0000-0000-0000-000000009242')$$,
+  'Member A can self-insert a second entry'
 );
 
 select lives_ok(
@@ -331,6 +348,46 @@ select lives_ok(
   $$delete from storage.objects
     where bucket_id = 'progress-photos' and name = '00000000-0000-0000-0000-000000009221/09243.jpg'$$,
   'Member A can DELETE their own progress-photos object'
+);
+reset role;
+
+-- ============================================================================
+-- Story 10.2 AC #1/#2: the new coach_read_assigned_progress_entries policy.
+-- An actively-assigned coach can read weight/measurements/note; a coach
+-- whose assignment has ended, and a coach at a different gym, cannot --
+-- re-verified live on every request, no caching window (AC #2).
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009224","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009211","app_role":"coach"}',
+  true
+);
+
+select is(
+  (select count(*)::int from progress_entries where member_id = '00000000-0000-0000-0000-000000009231'),
+  3,
+  'Coach A (actively assigned) can SELECT all 3 of Member A''s progress_entries rows'
+);
+
+select is(
+  (select count(*)::int from progress_entries where member_id = '00000000-0000-0000-0000-000000009235'),
+  0,
+  'Coach A gets 0 rows for Member A-Ended -- their assignment to that member has already ended'
+);
+reset role;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009226","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009212","app_role":"coach"}',
+  true
+);
+
+select is(
+  (select count(*)::int from progress_entries where member_id = '00000000-0000-0000-0000-000000009231'),
+  0,
+  'Coach B (different gym, never assigned) gets 0 rows for Member A -- cross-gym denial'
 );
 reset role;
 
