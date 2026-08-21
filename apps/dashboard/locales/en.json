@@ -25,7 +25,10 @@
     "loggingOut": "Logging out…",
     "logoutConfirmTitle": "Log out of GymOS?",
     "unknownUser": "Unknown User",
-    "navigationMenu": "Navigation menu"
+    "navigationMenu": "Navigation menu",
+    "switchGym": "Switch gym",
+    "switchingGym": "Switching…",
+    "gymSwitchError": "Couldn't switch gyms. Try again."
   },
   "topbar": {
     "openNavigationMenu": "Open navigation menu"

@@ -23,6 +23,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LanguageToggle } from "./LanguageToggle";
+import { GymSwitcher } from "./GymSwitcher";
 
 // Role visibility matrix (EXPERIENCE.md, Admin Dashboard -- Sidebar). Kept
 // as a flat, explicit table -- no derived "role level" abstraction that
@@ -66,14 +67,18 @@ const ROLE_LABEL_KEY: Record<MemberRole, string> = {
  */
 function SidebarContent({
   role,
+  gymId,
   gymName,
   memberName,
+  availableGyms,
   railAware,
   onNavigate,
 }: {
   role: MemberRole;
+  gymId: string;
   gymName: string;
   memberName: string;
+  availableGyms: { gymId: string; gymName: string; role: MemberRole }[];
   railAware: boolean;
   onNavigate: () => void;
 }) {
@@ -86,15 +91,24 @@ function SidebarContent({
     <div className="flex h-full flex-col bg-primary text-primary-foreground">
       <div className="flex flex-col gap-1 border-b border-primary-foreground/10 p-4">
         <span className={cn("text-lg font-semibold", railAware && "hidden lg:inline")}>GymOS</span>
-        <span
-          className={cn(
-            "max-w-[200px] truncate text-sm text-primary-foreground/70",
-            railAware && "hidden lg:inline",
-          )}
-          title={gymName}
-        >
-          {gymName}
-        </span>
+        {availableGyms.length > 1 ? (
+          <GymSwitcher
+            currentGymId={gymId}
+            currentGymName={gymName}
+            availableGyms={availableGyms}
+            railAware={railAware}
+          />
+        ) : (
+          <span
+            className={cn(
+              "max-w-[200px] truncate text-sm text-primary-foreground/70",
+              railAware && "hidden lg:inline",
+            )}
+            title={gymName}
+          >
+            {gymName}
+          </span>
+        )}
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
@@ -128,14 +142,18 @@ function SidebarContent({
 
 export function Sidebar({
   role,
+  gymId,
   gymName,
   memberName,
+  availableGyms,
   isMobileOpen,
   onCloseMobile,
 }: {
   role: MemberRole;
+  gymId: string;
   gymName: string;
   memberName: string;
+  availableGyms: { gymId: string; gymName: string; role: MemberRole }[];
   isMobileOpen: boolean;
   onCloseMobile: () => void;
 }) {
@@ -161,8 +179,10 @@ export function Sidebar({
       <aside className="sticky top-0 hidden h-screen shrink-0 md:block md:w-16 lg:w-60">
         <SidebarContent
           role={role}
+          gymId={gymId}
           gymName={gymName}
           memberName={memberName}
+          availableGyms={availableGyms}
           railAware
           onNavigate={onCloseMobile}
         />
@@ -180,8 +200,10 @@ export function Sidebar({
           <aside className="absolute inset-y-0 left-0 w-60">
             <SidebarContent
               role={role}
+              gymId={gymId}
               gymName={gymName}
               memberName={memberName}
+              availableGyms={availableGyms}
               railAware={false}
               onNavigate={onCloseMobile}
             />

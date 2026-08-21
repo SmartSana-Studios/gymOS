@@ -35,6 +35,7 @@
     "staffDeactivationNotPermitted": "You don't have permission to deactivate this staff member",
     "staffTargetNotFound": "This staff member could not be found or is no longer eligible for this action.",
     "staffTargetRoleProtected": "You don't have permission to make this change to this staff member.",
+    "gymSwitchNotPermitted": "You no longer have access to that gym.",
     "unknown": "Something went wrong on our end."
   },
   "auth": {

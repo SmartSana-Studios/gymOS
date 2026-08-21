@@ -387,6 +387,18 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // switch_active_gym()'s rejection (0065_multi_gym_session_switching.sql,
+  // Story 9.6, AC #4) -- reachable through a stale switcher option (a
+  // binding deactivated moments earlier) or a direct RPC call bypassing the
+  // switcher UI entirely. Same "structural, not just UI-hidden" rejection
+  // shape as every other Epic 9 RPC's ceiling/target checks above.
+  if (message.includes("switch_active_gym:") && message.includes("caller has no active membership at target gym")) {
+    return {
+      code: "gym_switch_not_permitted",
+      message: copy.gymSwitchNotPermitted,
+    };
+  }
+
   // No console/logging call here: packages/types targets ES2022 only (no
   // DOM/Node lib -- consumed by both Next.js apps and, eventually, Expo),
   // and is meant to stay a pure, side-effect-free mapping utility. Callers

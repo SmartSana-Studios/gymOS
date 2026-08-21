@@ -62,6 +62,14 @@ export interface DashboardShellContext {
    * this to redirect to `/auth/update-password` before any other route.
    */
   mustChangePassword: boolean;
+  /**
+   * Story 9.6: every gym the caller holds an *active* binding at, including
+   * the current one -- the actual mechanism satisfying AC #3 ("no switcher
+   * for single-gym"). Populated only when the caller holds 2+ distinct
+   * active `gym_id` memberships; empty for the common single-gym case, so
+   * the Sidebar's presence check is a trivial `length > 1`.
+   */
+  availableGyms: { gymId: string; gymName: string; role: MemberRole }[];
 }
 
 
@@ -115,7 +123,7 @@ export async function getDashboardShellContext(): Promise<{
     return { data: null, error: null };
   }
 
-  const [gymResult, memberResult, userResult] = await Promise.all([
+  const [gymResult, memberResult, userResult, allMembershipsResult] = await Promise.all([
     supabase.from("gyms").select("name").eq("id", gymId).single(),
     supabase
       .from("members")
@@ -125,6 +133,16 @@ export async function getDashboardShellContext(): Promise<{
       .is("deactivated_at", null)
       .maybeSingle(),
     supabase.from("users").select("must_change_password").eq("id", claims.sub).single(),
+    // Story 9.6: unfiltered by gym_id (unlike memberResult above) -- covered by
+    // the pre-existing self_read_own_membership RLS policy
+    // (0013_dashboard_shell_self_read.sql), whose own comment already
+    // anticipated this exact multi-gym read. This is the data layer's half of
+    // AC #3 (Task 5's UI-side check just reads its length).
+    supabase
+      .from("members")
+      .select("gym_id, role")
+      .eq("user_id", claims.sub)
+      .is("deactivated_at", null),
   ]);
 
   if (gymResult.error) {
@@ -158,6 +176,37 @@ export async function getDashboardShellContext(): Promise<{
   const { t } = await getServerTranslation(await getRequestLocale());
   const memberName = memberResult.data?.name ?? claims.email ?? t("sidebar.unknownUser");
 
+  // Story 9.6: same "display nicety, not a security boundary" reasoning as
+  // memberResult above -- a failed lookup here just means no switcher shows,
+  // it does not affect what any RLS-scoped query returns.
+  if (allMembershipsResult.error) {
+    console.error("[getDashboardShellContext] memberships-across-gyms lookup failed", allMembershipsResult.error);
+  }
+
+  const memberships = allMembershipsResult.data ?? [];
+  const distinctGymIds = [...new Set(memberships.map((m) => m.gym_id))];
+
+  let availableGyms: DashboardShellContext["availableGyms"] = [];
+  if (distinctGymIds.length > 1) {
+    // Only fetched for the minority multi-gym case -- no extra round trip
+    // for the common single-gym session. The new "read gyms of own active
+    // memberships" RLS policy (0065) is what makes this return every
+    // relevant row instead of just the current claims gym.
+    const gymsResult = await supabase.from("gyms").select("id, name").in("id", distinctGymIds);
+    if (gymsResult.error) {
+      console.error("[getDashboardShellContext] available-gyms name lookup failed", gymsResult.error);
+    } else {
+      const gymNameById = new Map(gymsResult.data.map((g) => [g.id, g.name]));
+      availableGyms = memberships
+        .map((m) => ({
+          gymId: m.gym_id,
+          gymName: gymNameById.get(m.gym_id) ?? m.gym_id,
+          role: m.role as MemberRole,
+        }))
+        .filter((g) => gymNameById.has(g.gymId));
+    }
+  }
+
   return {
     data: {
       gymId,
@@ -166,9 +215,43 @@ export async function getDashboardShellContext(): Promise<{
       memberName,
       role,
       mustChangePassword: userResult.data.must_change_password,
+      availableGyms,
     },
     error: null,
   };
+}
+
+/**
+ * Story 9.6: switches the caller's session to a different gym they hold an
+ * active binding at. `switch_active_gym()` (0065) validates the binding
+ * server-side (AC #4) -- this function only calls `refreshSession()` on
+ * success, so a rejected switch never mints a token refresh for a change
+ * that never actually happened server-side.
+ *
+ * Review finding: once the RPC succeeds, `active_gym_id` has already durably
+ * changed -- a `refreshSession()` failure at that point must not be reported
+ * the same way as an RPC rejection (nothing to roll back, and the DB-side
+ * preference is already correct). Retried once before surfacing an error, so
+ * a single transient network blip doesn't leave the user believing the
+ * switch never happened when it actually did.
+ */
+export async function switchActiveGym(gymId: string): Promise<{ error: AppError | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("switch_active_gym", { p_gym_id: gymId });
+
+  if (error) {
+    return { error: await mapAndLog(error) };
+  }
+
+  let { error: refreshError } = await supabase.auth.refreshSession();
+  if (refreshError) {
+    ({ error: refreshError } = await supabase.auth.refreshSession());
+  }
+  if (refreshError) {
+    return { error: await mapAndLog(refreshError) };
+  }
+
+  return { error: null };
 }
 
 /**

@@ -14,14 +14,18 @@ import { useState } from "react";
  */
 export function DashboardChrome({
   role,
+  gymId,
   gymName,
   memberName,
+  availableGyms,
   title,
   children,
 }: {
   role: MemberRole;
+  gymId: string;
   gymName: string;
   memberName: string;
+  availableGyms: { gymId: string; gymName: string; role: MemberRole }[];
   title?: string;
   children: React.ReactNode;
 }) {
@@ -31,8 +35,10 @@ export function DashboardChrome({
     <div className="flex min-h-screen">
       <Sidebar
         role={role}
+        gymId={gymId}
         gymName={gymName}
         memberName={memberName}
+        availableGyms={availableGyms}
         isMobileOpen={mobileNavOpen}
         onCloseMobile={() => setMobileNavOpen(false)}
       />

@@ -25,7 +25,10 @@
     "loggingOut": "Déconnexion…",
     "logoutConfirmTitle": "Se déconnecter de GymOS ?",
     "unknownUser": "Utilisateur inconnu",
-    "navigationMenu": "Menu de navigation"
+    "navigationMenu": "Menu de navigation",
+    "switchGym": "Changer de salle",
+    "switchingGym": "Changement en cours…",
+    "gymSwitchError": "Impossible de changer de salle. Réessayez."
   },
   "topbar": {
     "openNavigationMenu": "Ouvrir le menu de navigation"

@@ -17,6 +17,7 @@ export * from "./schemas/sessionNote";
 export * from "./schemas/devicePushToken";
 export * from "./schemas/memberPreferences";
 export * from "./schemas/staff";
+export * from "./schemas/session";
 export * from "./errors";
 export * from "./analytics";
 

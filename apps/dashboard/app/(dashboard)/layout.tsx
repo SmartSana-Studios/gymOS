@@ -69,7 +69,13 @@ async function DashboardLayoutData({
   }
 
   return (
-    <DashboardChrome role={shell.role} gymName={shell.gymName} memberName={shell.memberName}>
+    <DashboardChrome
+      role={shell.role}
+      gymId={shell.gymId}
+      gymName={shell.gymName}
+      memberName={shell.memberName}
+      availableGyms={shell.availableGyms}
+    >
       {children}
     </DashboardChrome>
   );
