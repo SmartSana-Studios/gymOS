@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "env PROJECT_ROOT=/workspaces/gym_os /usr/bin/python3 -m story_automator stop-hook",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
