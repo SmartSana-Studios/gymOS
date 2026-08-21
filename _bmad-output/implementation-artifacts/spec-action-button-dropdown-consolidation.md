@@ -5,7 +5,7 @@ created: '2026-08-21'
 status: 'done'
 review_loop_iteration: 2
 followup_review_recommended: false
-final_revision: 'PENDING'
+final_revision: '279c50ed4d5ac753754e28d62313264fa1884d8a'
 context: []
 warnings: []
 baseline_revision: 'e2025546c8ceb6cd6bfb04bd4f1bf3a79baa42e6'
