@@ -155,8 +155,10 @@ export function Sidebar({
 
   return (
     <>
-      {/* >=1024px: fixed 240px sidebar. 768-1023px: 64px icon rail. */}
-      <aside className="hidden shrink-0 md:block md:w-16 lg:w-60">
+      {/* >=1024px: fixed 240px sidebar. 768-1023px: 64px icon rail. Sticky +
+          h-screen keeps it pinned to the viewport instead of stretching to
+          match (and scrolling away with) the main content column's height. */}
+      <aside className="sticky top-0 hidden h-screen shrink-0 md:block md:w-16 lg:w-60">
         <SidebarContent
           role={role}
           gymName={gymName}

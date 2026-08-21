@@ -191,7 +191,8 @@
       "resending": "Resending…",
       "edit": "Edit",
       "deactivate": "Deactivate",
-      "menu": "Actions for {{name}}"
+      "menu": "Actions for {{name}}",
+      "button": "Action :"
     },
     "resend": {
       "confirm": "Generate a new temporary password for {{name}} and send it via WhatsApp? Their password will stop working for new logins immediately (any session they're already logged into is unaffected)."
@@ -271,7 +272,8 @@
       "auditLogFailedCreate": "The plan was created, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedEdit": "The plan was updated, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedDelete": "The plan was deleted, but the audit log entry failed to write. Please contact support."
-    }
+    },
+    "actionsButton": "Action :"
   },
   "classes": {
     "title": "Classes",
@@ -362,7 +364,8 @@
       "edit": "Edit",
       "invite": "Invite",
       "deactivate": "Deactivate",
-      "menu": "Actions for {{name}}"
+      "menu": "Actions for {{name}}",
+      "button": "Action :"
     },
     "pagination": {
       "previous": "Previous page",
@@ -721,7 +724,8 @@
       },
       "amountMismatchLine": "{{internal}} (reported: {{reported}})",
       "wrongAccountSettlementLine": "Expected {{expected}}, settled to {{actual}}"
-    }
+    },
+    "actionsButton": "Action :"
   },
   "frontDeskAlert": {
     "panelLabel": "Front-desk alerts",

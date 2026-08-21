@@ -153,12 +153,12 @@ export function PaymentsPageClient({
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            title={t("payments.actionsMenu", { name: row.memberName || "—" })}
+                            variant="outline"
+                            size="sm"
                             aria-label={t("payments.actionsMenu", { name: row.memberName || "—" })}
                           >
-                            <MoreVertical size={16} aria-hidden="true" />
+                            {t("payments.actionsButton")}
+                            <MoreVertical size={14} aria-hidden="true" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">

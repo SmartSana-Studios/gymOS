@@ -360,12 +360,12 @@ export function MembersPageClient({
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              title={t("members.actions.menu", { name: member.name })}
+                              variant="outline"
+                              size="sm"
                               aria-label={t("members.actions.menu", { name: member.name })}
                             >
-                              <MoreVertical size={16} aria-hidden="true" />
+                              {t("members.actions.button")}
+                              <MoreVertical size={14} aria-hidden="true" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">

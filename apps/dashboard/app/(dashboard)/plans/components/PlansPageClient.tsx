@@ -151,12 +151,12 @@ export function PlansPageClient({ initialPlans }: { initialPlans: PlanRow[] }) {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    title={t("plans.actionsMenu", { name: plan.name })}
+                    variant="outline"
+                    size="sm"
                     aria-label={t("plans.actionsMenu", { name: plan.name })}
                   >
-                    <MoreVertical size={16} aria-hidden="true" />
+                    {t("plans.actionsButton")}
+                    <MoreVertical size={14} aria-hidden="true" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

@@ -191,7 +191,8 @@
       "resending": "Envoi…",
       "edit": "Modifier",
       "deactivate": "Désactiver",
-      "menu": "Actions pour {{name}}"
+      "menu": "Actions pour {{name}}",
+      "button": "Action :"
     },
     "resend": {
       "confirm": "Générer un nouveau mot de passe temporaire pour {{name}} et l'envoyer par WhatsApp ? Son mot de passe cessera de fonctionner immédiatement pour toute nouvelle connexion (une session déjà ouverte n'est pas affectée)."
@@ -271,7 +272,8 @@
       "auditLogFailedCreate": "La formule a été créée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedEdit": "La formule a été modifiée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedDelete": "La formule a été supprimée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
-    }
+    },
+    "actionsButton": "Action :"
   },
   "classes": {
     "title": "Cours",
@@ -362,7 +364,8 @@
       "edit": "Modifier",
       "invite": "Inviter",
       "deactivate": "Désactiver",
-      "menu": "Actions pour {{name}}"
+      "menu": "Actions pour {{name}}",
+      "button": "Action :"
     },
     "pagination": {
       "previous": "Page précédente",
@@ -721,7 +724,8 @@
       },
       "amountMismatchLine": "{{internal}} (signalé : {{reported}})",
       "wrongAccountSettlementLine": "Attendu {{expected}}, réglé sur {{actual}}"
-    }
+    },
+    "actionsButton": "Action :"
   },
   "frontDeskAlert": {
     "panelLabel": "Alertes à l'accueil",

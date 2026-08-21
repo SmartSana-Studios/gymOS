@@ -161,12 +161,12 @@ export function StaffPageClient({
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
-                              variant="ghost"
-                              size="icon"
-                              title={t("staff.actions.menu", { name: row.name })}
+                              variant="outline"
+                              size="sm"
                               aria-label={t("staff.actions.menu", { name: row.name })}
                             >
-                              <MoreVertical size={16} aria-hidden="true" />
+                              {t("staff.actions.button")}
+                              <MoreVertical size={14} aria-hidden="true" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">

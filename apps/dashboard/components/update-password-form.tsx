@@ -52,6 +52,7 @@ export function UpdatePasswordForm({
           "[update-password-form] no user returned after password update",
         );
         setError(t("common.somethingWentWrong"));
+        setIsLoading(false);
         return;
       }
 
@@ -72,6 +73,7 @@ export function UpdatePasswordForm({
           clearFlagError,
         );
         setError(t("common.somethingWentWrong"));
+        setIsLoading(false);
         return;
       }
 
@@ -79,10 +81,21 @@ export function UpdatePasswordForm({
       // route, so the starter kit's original target 404ed here for every
       // owner who actually completed a password reset (invite link or
       // forgot-password). See docs/manual-walkthrough-findings-2026-07-13.md.
+      //
+      // Deliberately NOT resetting isLoading here (unlike the catch/early-
+      // return paths below): router.push() only *starts* the navigation, it
+      // doesn't wait for it. Re-enabling the button immediately left this
+      // same form fully interactive for however long the (dashboard) layout
+      // took to redirect away, and a user who didn't see an instant page
+      // change would resubmit the same password -- which GoTrue then
+      // rejects with "New password should be different from the old
+      // password" (bug report: "reset password always comes twice"). The
+      // button/input stay disabled through the transition; isLoading is
+      // reset in every other path since those keep the user on this page.
       router.push("/");
+      return;
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t("common.somethingWentWrong"));
-    } finally {
       setIsLoading(false);
     }
   };
@@ -103,6 +116,7 @@ export function UpdatePasswordForm({
                   id="password"
                   type="password"
                   placeholder={t("auth.newPassword")}
+                  disabled={isLoading}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
