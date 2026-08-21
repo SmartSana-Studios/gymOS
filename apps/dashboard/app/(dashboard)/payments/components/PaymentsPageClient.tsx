@@ -3,10 +3,16 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, CheckCircle2, Flag } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Flag, MoreVertical } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import type { PendingPaymentRow, PaymentDiscrepancyRow } from "@/services/payments";
 import type { MemberRole } from "@/services/session";
 import {
@@ -144,28 +150,36 @@ export function PaymentsPageClient({
                       </Badge>
                     </td>
                     <td className="p-3">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
-                          disabled={isRefreshing}
-                          onClick={() => setVerifyingPayment(row)}
-                        >
-                          <CheckCircle2 size={14} />
-                          {t("payments.verifyButton")}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
-                          disabled={isRefreshing}
-                          onClick={() => setFlaggingPayment(row)}
-                        >
-                          <Flag size={14} />
-                          {t("payments.flagButton")}
-                        </Button>
-                      </div>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title={t("payments.actionsMenu", { name: row.memberName || "—" })}
+                            aria-label={t("payments.actionsMenu", { name: row.memberName || "—" })}
+                          >
+                            <MoreVertical size={16} aria-hidden="true" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            className="text-green-700 focus:text-green-800"
+                            disabled={isRefreshing}
+                            onClick={() => setVerifyingPayment(row)}
+                          >
+                            <CheckCircle2 size={14} />
+                            {t("payments.verifyButton")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-orange-700 focus:text-orange-800"
+                            disabled={isRefreshing}
+                            onClick={() => setFlaggingPayment(row)}
+                          >
+                            <Flag size={14} />
+                            {t("payments.flagButton")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 );

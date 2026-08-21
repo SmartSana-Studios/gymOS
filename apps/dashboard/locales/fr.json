@@ -190,7 +190,8 @@
       "resend": "Renvoyer le mot de passe",
       "resending": "Envoi…",
       "edit": "Modifier",
-      "deactivate": "Désactiver"
+      "deactivate": "Désactiver",
+      "menu": "Actions pour {{name}}"
     },
     "resend": {
       "confirm": "Générer un nouveau mot de passe temporaire pour {{name}} et l'envoyer par WhatsApp ? Son mot de passe cessera de fonctionner immédiatement pour toute nouvelle connexion (une session déjà ouverte n'est pas affectée)."
@@ -218,6 +219,7 @@
     "addPlanButton": "Ajouter une formule",
     "edit": "Modifier",
     "delete": "Supprimer",
+    "actionsMenu": "Actions pour {{name}}",
     "priceLabel": "XAF {{price}} / {{interval}}",
     "discountSuffix": "(remise de {{percent}} %)",
     "intervalMonthly": "mensuel",
@@ -359,7 +361,8 @@
       "view": "Voir",
       "edit": "Modifier",
       "invite": "Inviter",
-      "deactivate": "Désactiver"
+      "deactivate": "Désactiver",
+      "menu": "Actions pour {{name}}"
     },
     "pagination": {
       "previous": "Page précédente",
@@ -618,6 +621,7 @@
     "recordPaymentButton": "+ Enregistrer un paiement",
     "recordRefundButton": "+ Enregistrer un remboursement",
     "emptyQueue": "Aucun paiement enregistré pour le moment.",
+    "actionsMenu": "Actions pour {{name}}",
     "table": {
       "member": "Membre",
       "amount": "Montant",

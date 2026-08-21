@@ -3,12 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Eye, Pencil, Send, Ban } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Pencil, Send, Ban, MoreVertical } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import type { MemberListRow } from "@/services/members";
 import type { PlanRow } from "@/services/plans";
 import type { CoachRow } from "@/services/coaches";
@@ -346,55 +352,62 @@ export function MembersPageClient({
                     <td className="p-3">{expiryLabel(member)}</td>
                     <td className="p-3 text-muted-foreground">{"—"}</td>
                     <td className="p-3">
-                      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
-                          onClick={() => openView(member)}
-                        >
-                          <Eye size={14} />
-                          {t("members.actions.view")}
-                        </Button>
-                        {canManage && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800"
-                            onClick={() => openEdit(member)}
-                          >
-                            <Pencil size={14} />
-                            {t("members.actions.edit")}
-                          </Button>
-                        )}
-                        {canManage && !member.deactivatedAt && member.phone && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
-                            disabled={sendingInviteId === member.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void handleSendInvite(member);
-                            }}
-                          >
-                            <Send size={14} />
-                            {sendingInviteId === member.id
-                              ? t("members.invite.sending")
-                              : t("members.actions.invite")}
-                          </Button>
-                        )}
-                        {canManage && !member.deactivatedAt && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
-                            onClick={() => setDeactivatingMember(member)}
-                          >
-                            <Ban size={14} />
-                            {t("members.actions.deactivate")}
-                          </Button>
-                        )}
+                      {/* DropdownMenuContent renders through a Radix Portal outside this div's
+                          DOM subtree -- this guard only works because React's synthetic events
+                          bubble along the component tree, not the DOM tree. Do not remove this
+                          as apparently-dead code. */}
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title={t("members.actions.menu", { name: member.name })}
+                              aria-label={t("members.actions.menu", { name: member.name })}
+                            >
+                              <MoreVertical size={16} aria-hidden="true" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              className="text-blue-700 focus:text-blue-800"
+                              onClick={() => openView(member)}
+                            >
+                              <Eye size={14} />
+                              {t("members.actions.view")}
+                            </DropdownMenuItem>
+                            {canManage && (
+                              <DropdownMenuItem
+                                className="text-indigo-700 focus:text-indigo-800"
+                                onClick={() => openEdit(member)}
+                              >
+                                <Pencil size={14} />
+                                {t("members.actions.edit")}
+                              </DropdownMenuItem>
+                            )}
+                            {canManage && !member.deactivatedAt && member.phone && (
+                              <DropdownMenuItem
+                                className="text-blue-700 focus:text-blue-800"
+                                disabled={sendingInviteId === member.id}
+                                onClick={() => void handleSendInvite(member)}
+                              >
+                                <Send size={14} />
+                                {sendingInviteId === member.id
+                                  ? t("members.invite.sending")
+                                  : t("members.actions.invite")}
+                              </DropdownMenuItem>
+                            )}
+                            {canManage && !member.deactivatedAt && (
+                              <DropdownMenuItem
+                                className="text-red-700 focus:text-red-800"
+                                onClick={() => setDeactivatingMember(member)}
+                              >
+                                <Ban size={14} />
+                                {t("members.actions.deactivate")}
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </td>
                   </tr>

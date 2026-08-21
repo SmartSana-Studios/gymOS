@@ -3,8 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import type { PlanRow } from "@/services/plans";
 import { PlanModal } from "./PlanModal";
 import { deletePlan } from "../actions";
@@ -141,14 +148,31 @@ export function PlansPageClient({ initialPlans }: { initialPlans: PlanRow[] }) {
                   {priceLabel(plan)} · {durationLabel(plan)}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => openEdit(plan)}>
-                  {t("plans.edit")}
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => openDeleteConfirm(plan)}>
-                  {t("plans.delete")}
-                </Button>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title={t("plans.actionsMenu", { name: plan.name })}
+                    aria-label={t("plans.actionsMenu", { name: plan.name })}
+                  >
+                    <MoreVertical size={16} aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => openEdit(plan)}>
+                    <Pencil size={14} />
+                    {t("plans.edit")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-red-700 focus:text-red-800"
+                    onClick={() => openDeleteConfirm(plan)}
+                  >
+                    <Trash2 size={14} />
+                    {t("plans.delete")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           ))}
         </div>

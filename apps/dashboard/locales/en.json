@@ -190,7 +190,8 @@
       "resend": "Resend password",
       "resending": "Resending…",
       "edit": "Edit",
-      "deactivate": "Deactivate"
+      "deactivate": "Deactivate",
+      "menu": "Actions for {{name}}"
     },
     "resend": {
       "confirm": "Generate a new temporary password for {{name}} and send it via WhatsApp? Their password will stop working for new logins immediately (any session they're already logged into is unaffected)."
@@ -218,6 +219,7 @@
     "addPlanButton": "Add Plan",
     "edit": "Edit",
     "delete": "Delete",
+    "actionsMenu": "Actions for {{name}}",
     "priceLabel": "XAF {{price}} / {{interval}}",
     "discountSuffix": "({{percent}}% discount)",
     "intervalMonthly": "monthly",
@@ -359,7 +361,8 @@
       "view": "View",
       "edit": "Edit",
       "invite": "Invite",
-      "deactivate": "Deactivate"
+      "deactivate": "Deactivate",
+      "menu": "Actions for {{name}}"
     },
     "pagination": {
       "previous": "Previous page",
@@ -618,6 +621,7 @@
     "recordPaymentButton": "+ Record Payment",
     "recordRefundButton": "+ Record Refund",
     "emptyQueue": "No payments recorded yet.",
+    "actionsMenu": "Actions for {{name}}",
     "table": {
       "member": "Member",
       "amount": "Amount",

@@ -36,6 +36,7 @@ vi.mock("react-i18next", () => ({
       if (key === "members.invite.sendFailedFallback") return "Automated send failed -- fallback shown";
       if (key === "members.invite.sending") return "Sending...";
       if (key === "members.actions.invite") return "Invite";
+      if (key === "members.actions.menu") return `Actions for ${vars?.name}`;
       return key;
     },
     i18n: { language: "en" },
@@ -86,16 +87,32 @@ async function renderPage() {
   return { member };
 }
 
+// The dropdown's content isn't mounted until the row's trigger is opened
+// (Radix renders `role="menuitem"`, not `role="button"`, for its items), so
+// every interaction with "Invite" now goes through this helper instead of
+// querying a button directly. The item's accessible name is "Invite" while
+// idle and "Sending..." while in flight, so the regex matches both --
+// otherwise a lookup mid-flight would fail to find the (still-present, just
+// relabeled) item.
+async function openInviteMenuItem(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: /actions for/i }));
+  return screen.findByRole("menuitem", { name: /invite|sending/i });
+}
+
 describe("MembersPageClient - Send Invite (Story 2.10)", () => {
   it("AC #1/#2: a successful automated send shows a confirmation toast and never opens the fallback modal", async () => {
     sendMemberInvite.mockResolvedValue({ data: { sent: true }, error: null });
     const user = userEvent.setup();
     await renderPage();
 
-    await user.click(screen.getByRole("button", { name: /invite/i }));
+    const inviteItem = await openInviteMenuItem(user);
+    await user.click(inviteItem);
 
     await waitFor(() => expect(sendMemberInvite).toHaveBeenCalledWith("member-1"));
-    const toast = await screen.findByRole("status");
+    // { hidden: true } guards against the toast rendering while Radix's modal
+    // DropdownMenu hasn't yet finished restoring aria-hidden on the rest of
+    // the tree from the item click that just closed it.
+    const toast = await screen.findByRole("status", { hidden: true });
     expect(within(toast).getByText("Invite sent to Alice via WhatsApp")).toBeInTheDocument();
     expect(screen.queryByTestId("invite-fallback-modal")).not.toBeInTheDocument();
   });
@@ -105,9 +122,10 @@ describe("MembersPageClient - Send Invite (Story 2.10)", () => {
     const user = userEvent.setup();
     await renderPage();
 
-    await user.click(screen.getByRole("button", { name: /invite/i }));
+    const inviteItem = await openInviteMenuItem(user);
+    await user.click(inviteItem);
 
-    const toast = await screen.findByRole("status");
+    const toast = await screen.findByRole("status", { hidden: true });
     expect(within(toast).getByText("Automated send failed -- fallback shown")).toBeInTheDocument();
     expect(await screen.findByTestId("invite-fallback-modal")).toBeInTheDocument();
   });
@@ -120,9 +138,10 @@ describe("MembersPageClient - Send Invite (Story 2.10)", () => {
     const user = userEvent.setup();
     await renderPage();
 
-    await user.click(screen.getByRole("button", { name: /invite/i }));
+    const inviteItem = await openInviteMenuItem(user);
+    await user.click(inviteItem);
 
-    const toast = await screen.findByRole("status");
+    const toast = await screen.findByRole("status", { hidden: true });
     expect(within(toast).getByText("This member could not be found.")).toBeInTheDocument();
     expect(screen.queryByTestId("invite-fallback-modal")).not.toBeInTheDocument();
   });
@@ -132,28 +151,33 @@ describe("MembersPageClient - Send Invite (Story 2.10)", () => {
     const user = userEvent.setup();
     await renderPage();
 
-    await user.click(screen.getByRole("button", { name: /invite/i }));
+    const inviteItem = await openInviteMenuItem(user);
+    await user.click(inviteItem);
 
-    const toast = await screen.findByRole("status");
+    const toast = await screen.findByRole("status", { hidden: true });
     expect(within(toast).getByText("Automated send failed -- fallback shown")).toBeInTheDocument();
     expect(await screen.findByTestId("invite-fallback-modal")).toBeInTheDocument();
   });
 
-  it("AC #4: the Send Invite button remains clickable after a send, allowing an immediate resend", async () => {
+  it("AC #4: the Invite item remains clickable after a send, allowing an immediate resend", async () => {
     sendMemberInvite.mockResolvedValue({ data: { sent: true }, error: null });
     const user = userEvent.setup();
     await renderPage();
 
-    const button = screen.getByRole("button", { name: /invite/i });
-    await user.click(button);
+    let inviteItem = await openInviteMenuItem(user);
+    await user.click(inviteItem);
     await waitFor(() => expect(sendMemberInvite).toHaveBeenCalledTimes(1));
 
-    expect(button).not.toBeDisabled();
-    await user.click(button);
+    // The menu closed immediately on selection (it no longer stays open
+    // through the async call) -- reopen it to observe that the item is not
+    // left disabled once the send has resolved.
+    inviteItem = await openInviteMenuItem(user);
+    expect(inviteItem).not.toHaveAttribute("aria-disabled", "true");
+    await user.click(inviteItem);
     await waitFor(() => expect(sendMemberInvite).toHaveBeenCalledTimes(2));
   });
 
-  it("shows a distinct in-flight state on the button while the send is pending", async () => {
+  it("shows a distinct in-flight state on the menu item while the send is pending, visible on reopening the menu", async () => {
     let resolveSend!: (value: { data: { sent: boolean }; error: null }) => void;
     sendMemberInvite.mockReturnValue(
       new Promise((resolve) => {
@@ -163,10 +187,23 @@ describe("MembersPageClient - Send Invite (Story 2.10)", () => {
     const user = userEvent.setup();
     await renderPage();
 
-    await user.click(screen.getByRole("button", { name: /invite/i }));
+    const inviteItem = await openInviteMenuItem(user);
+    await user.click(inviteItem);
+    await waitFor(() => expect(sendMemberInvite).toHaveBeenCalledTimes(1));
 
-    expect(await screen.findByRole("button", { name: "Sending..." })).toBeDisabled();
+    // The menu closes immediately on selection, so the in-flight/disabled
+    // state is only observable by reopening the menu while the send is
+    // still pending -- not by the menu staying open through the async call.
+    const pendingItem = await openInviteMenuItem(user);
+    expect(pendingItem).toHaveTextContent("Sending...");
+    expect(pendingItem).toHaveAttribute("aria-disabled", "true");
+
     resolveSend({ data: { sent: true }, error: null });
-    await waitFor(() => expect(screen.getByRole("button", { name: /invite/i })).not.toBeDisabled());
+    await screen.findByRole("status", { hidden: true });
+
+    await user.keyboard("{Escape}");
+    const resolvedItem = await openInviteMenuItem(user);
+    expect(resolvedItem).not.toHaveAttribute("aria-disabled", "true");
+    expect(resolvedItem).toHaveTextContent("Invite");
   });
 });

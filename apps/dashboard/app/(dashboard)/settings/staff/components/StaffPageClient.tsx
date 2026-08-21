@@ -3,10 +3,17 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
+import { MoreVertical, KeyRound, Pencil, Ban } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import type { MemberRole } from "@/services/session";
 import type { StaffListRow, StaffStatus } from "@/services/staff";
 import { getStaffList, resendStaffTempPasswordAction } from "../actions";
@@ -149,39 +156,44 @@ export function StaffPageClient({
                   </td>
                   <td className="px-4 py-2">{t(STATUS_LABEL_KEY[row.status])}</td>
                   {canCreate && (
-                    <td className="px-4 py-2 space-x-2">
+                    <td className="px-4 py-2">
                       {row.status !== "deactivated" && (
-                        <>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={resendingId !== null}
-                            onClick={() => handleResend(row)}
-                          >
-                            {resendingId === row.id ? t("staff.actions.resending") : t("staff.actions.resend")}
-                          </Button>
-                          {(row.id === callerMemberId || (ACTIONABLE_TARGET_ROLES[role] ?? []).includes(row.role)) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditingRow(row)}
+                              variant="ghost"
+                              size="icon"
+                              title={t("staff.actions.menu", { name: row.name })}
+                              aria-label={t("staff.actions.menu", { name: row.name })}
                             >
-                              {t("staff.actions.edit")}
+                              <MoreVertical size={16} aria-hidden="true" />
                             </Button>
-                          )}
-                          {row.id !== callerMemberId && (ACTIONABLE_TARGET_ROLES[role] ?? []).includes(row.role) && (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setDeactivatingRow(row)}
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              disabled={resendingId !== null}
+                              onClick={() => handleResend(row)}
                             >
-                              {t("staff.actions.deactivate")}
-                            </Button>
-                          )}
-                        </>
+                              <KeyRound size={14} />
+                              {resendingId === row.id ? t("staff.actions.resending") : t("staff.actions.resend")}
+                            </DropdownMenuItem>
+                            {(row.id === callerMemberId || (ACTIONABLE_TARGET_ROLES[role] ?? []).includes(row.role)) && (
+                              <DropdownMenuItem onClick={() => setEditingRow(row)}>
+                                <Pencil size={14} />
+                                {t("staff.actions.edit")}
+                              </DropdownMenuItem>
+                            )}
+                            {row.id !== callerMemberId && (ACTIONABLE_TARGET_ROLES[role] ?? []).includes(row.role) && (
+                              <DropdownMenuItem
+                                className="text-red-700 focus:text-red-800"
+                                onClick={() => setDeactivatingRow(row)}
+                              >
+                                <Ban size={14} />
+                                {t("staff.actions.deactivate")}
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </td>
                   )}
