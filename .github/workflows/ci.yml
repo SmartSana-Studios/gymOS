@@ -46,6 +46,13 @@ jobs:
   rls-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # `supabase start` validates the entire config.toml at boot, including
+      # auth.hook.send_sms's secret format (Story 2.1), even though no pgTAP
+      # test in this job ever exercises that hook -- a syntactically-valid
+      # dummy value (never used against a real webhook, never sent anywhere)
+      # satisfies the CLI's own startup validation gate.
+      SEND_SMS_HOOK_SECRET: "v1,whsec_Y2ktZHVtbXktbm90LWEtcmVhbC1zZWNyZXQtdmFsdWU="
     steps:
       - uses: actions/checkout@v4
 
