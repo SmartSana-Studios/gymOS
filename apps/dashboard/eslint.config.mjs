@@ -65,6 +65,11 @@ const eslintConfig = [
               "[A-Z_-]+",
               "^GymOS$",
               "^·$",
+              // The exclude range above only covers ASCII punctuation
+              // (0x21-0x7E) -- an em dash (U+2014), used the same
+              // decorative-separator way "·" already is, falls outside it
+              // and needs its own explicit entry.
+              "^—$",
               /^\p{Emoji}+$/u,
             ],
           },

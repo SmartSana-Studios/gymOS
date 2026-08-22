@@ -166,6 +166,11 @@ export function RenewalModal({
 
   useEffect(() => {
     let active = true;
+    // `memberId` is a prop -- this instance can stay mounted across a
+    // memberId change (FrontDeskAlertPanel/SubscriptionsPageClient don't
+    // remount via key), so the preview must reset to loading for the new
+    // member rather than briefly showing the previous member's stale data.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingPreview(true);
     getRenewalPreviewAction(memberId)
       .then(({ data, error }) => {

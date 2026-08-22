@@ -84,11 +84,11 @@ export function RecordRefundModal({
   }, [memberQuery, memberId]);
 
   // Step 2: fetch refund-eligible payments once a member is selected.
+  // `eligiblePayments` already starts `null` and `clearMember()` resets it
+  // directly on the only other path back to `!memberId` -- no synchronous
+  // setState needed here (react-hooks/set-state-in-effect).
   useEffect(() => {
-    if (!memberId) {
-      setEligiblePayments(null);
-      return;
-    }
+    if (!memberId) return;
     let active = true;
     listRefundEligiblePaymentsAction(memberId).then(({ data, error }) => {
       if (!active) return;
