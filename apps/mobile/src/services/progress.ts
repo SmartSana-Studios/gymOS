@@ -1,4 +1,10 @@
-import { ANALYTICS_EVENT, logProgressEntrySchema, updateProgressPhotoSharingSchema } from '@gymos/types';
+import {
+  ANALYTICS_EVENT,
+  deleteProgressEntrySchema,
+  logProgressEntrySchema,
+  updateProgressPhotoSharingSchema,
+  type MemberGoalInput,
+} from '@gymos/types';
 
 import { captureEvent } from '@/lib/analytics';
 import {
@@ -347,10 +353,180 @@ export async function setProgressPhotoSharing(photoId: string, shared: boolean) 
     return { data: null, error: parsed.error };
   }
 
-  return supabase
+  const result = await supabase
     .from('progress_photos')
     .update({ shared_with_coach: parsed.data.shared })
     .eq('id', parsed.data.photoId)
     .select()
     .single();
+
+  // Review finding: keep the in-memory cache consistent with the write --
+  // otherwise the Progress screen's photo-grid lock icon can show stale
+  // state after navigating back from this toggle.
+  if (!result.error && cachedProgressPayload) {
+    cachedProgressPayload = {
+      ...cachedProgressPayload,
+      data: {
+        ...cachedProgressPayload.data,
+        photos: cachedProgressPayload.data.photos.map((photo) =>
+          photo.id === parsed.data.photoId ? { ...photo, sharedWithCoach: parsed.data.shared } : photo,
+        ),
+      },
+    };
+  }
+
+  return result;
+}
+
+export interface ProgressEntryRow {
+  id: string;
+  weightKg: number | null;
+  waistCm: number | null;
+  chestCm: number | null;
+  hipsCm: number | null;
+  armsCm: number | null;
+  thighsCm: number | null;
+  note: string | null;
+  loggedAt: string;
+}
+
+export interface ProgressPhotoRow {
+  id: string;
+  photoPath: string;
+  sharedWithCoach: boolean;
+  progressEntryId: string;
+  createdAt: string;
+}
+
+export interface ProgressScreenData {
+  goal: MemberGoalInput | null;
+  startingWeightKg: number | null;
+  entries: ProgressEntryRow[];
+  photos: ProgressPhotoRow[];
+}
+
+// Story 10.3: mirrors use-gym-accent-color.tsx's exact module-level-cache
+// shape -- session-lifetime only, no TTL/expiry, cleared only on app
+// restart (or an explicit sign-out, see `clearCachedProgressPayload`). Read
+// by the Progress screen when a fresh fetch fails or `isConnected === false`
+// (AC #3); this codebase has no persistent cross-app-restart read cache
+// anywhere, see the story's Dev Notes ("What 'Local Cache' Means Here").
+// Keyed by memberId (Review finding) -- an un-keyed cache would survive a
+// same-device member switch and could briefly leak one member's weight/
+// photos to another before a fresh fetch overwrites it.
+let cachedProgressPayload: { memberId: string; data: ProgressScreenData } | null = null;
+
+export function getCachedProgressPayload(memberId: string): ProgressScreenData | null {
+  return cachedProgressPayload?.memberId === memberId ? cachedProgressPayload.data : null;
+}
+
+/** Review finding: called from the sign-out flow so a subsequent sign-in as
+ * a different member on the same device never sees a stale cache. */
+export function clearCachedProgressPayload(): void {
+  cachedProgressPayload = null;
+}
+
+const PROGRESS_PHOTOS_LIMIT = 60;
+
+/** Story 10.3 Task 3: the Progress screen's single on-mount fetch --
+ * member's goal/starting weight, all of their own progress entries
+ * (oldest-first, for the chart), and up to their most recent 60 photos
+ * (reverse-chronological, no pagination UI at pilot scale, mirrors
+ * `history/index.tsx`'s PAGE_SIZE precedent in spirit only). Soft-deleted
+ * entries are filtered client-side (`deactivated_at === null`) -- RLS's
+ * `self_read_own_progress_entries` deliberately does not hide them from
+ * their own owner (Story 10.2's documented precedent), so this is not a bug
+ * to "fix" at the RLS layer. On success, refreshes the in-memory cache. */
+export async function loadProgressScreenData(
+  memberId: string,
+): Promise<{ data: ProgressScreenData | null; error: unknown }> {
+  const [memberResult, entriesResult, photosResult] = await Promise.all([
+    supabase.from('members').select('goal, starting_weight_kg').eq('id', memberId).single(),
+    supabase
+      .from('progress_entries')
+      .select('id, weight_kg, waist_cm, chest_cm, hips_cm, arms_cm, thighs_cm, note, logged_at, deactivated_at')
+      .eq('member_id', memberId)
+      .order('logged_at', { ascending: true }),
+    supabase
+      .from('progress_photos')
+      .select('id, photo_path, shared_with_coach, progress_entry_id, created_at')
+      .eq('member_id', memberId)
+      .order('created_at', { ascending: false })
+      .limit(PROGRESS_PHOTOS_LIMIT),
+  ]);
+
+  if (memberResult.error || !memberResult.data) return { data: null, error: memberResult.error };
+
+  // Review finding: entries/photos are two independent, secondary reads --
+  // a transient failure on either one alone shouldn't block the whole
+  // screen (including the weight chart, which only needs entries). Degrade
+  // to an empty list for whichever query failed instead of failing the
+  // entire payload.
+  const entriesRows = entriesResult.error || !entriesResult.data ? [] : entriesResult.data;
+  const photosRows = photosResult.error || !photosResult.data ? [] : photosResult.data;
+
+  const data: ProgressScreenData = {
+    goal: (memberResult.data.goal as MemberGoalInput | null) ?? null,
+    startingWeightKg: memberResult.data.starting_weight_kg,
+    entries: entriesRows
+      .filter((row) => row.deactivated_at === null)
+      .map((row) => ({
+        id: row.id,
+        weightKg: row.weight_kg,
+        waistCm: row.waist_cm,
+        chestCm: row.chest_cm,
+        hipsCm: row.hips_cm,
+        armsCm: row.arms_cm,
+        thighsCm: row.thighs_cm,
+        note: row.note,
+        loggedAt: row.logged_at,
+      })),
+    photos: photosRows.map((row) => ({
+      id: row.id,
+      photoPath: row.photo_path,
+      sharedWithCoach: row.shared_with_coach,
+      progressEntryId: row.progress_entry_id,
+      createdAt: row.created_at,
+    })),
+  };
+
+  cachedProgressPayload = { memberId, data };
+  return { data, error: null };
+}
+
+/** Story 10.3: soft-deletes an entry (`deactivated_at`), resolving Story
+ * 10.1 AC #4's deferred delete affordance. Same zero-row-update guard
+ * discipline as `profile.tsx`'s `handleSaveProfile` -- a 0-row result
+ * (already-deleted, or an RLS-denied cross-member id, which this screen's
+ * own UI can't actually produce) is a failure to surface, not a silent
+ * success, even though `error` is null under PostgREST for a 0-row update. */
+export async function deleteProgressEntry(entryId: string) {
+  const parsed = deleteProgressEntrySchema.safeParse({ entryId });
+  if (!parsed.success) {
+    return { data: null, error: parsed.error };
+  }
+
+  const { data, error } = await supabase
+    .from('progress_entries')
+    .update({ deactivated_at: new Date().toISOString() })
+    .eq('id', parsed.data.entryId)
+    .select('id');
+
+  if (error) return { data: null, error };
+  if (!data || data.length === 0) return { data: null, error: new Error('No matching progress entry to delete') };
+
+  // Review finding: keep the in-memory cache consistent with the write --
+  // otherwise a later cache-fallback read (offline, or a stale online read)
+  // can resurrect an entry that was just deleted.
+  if (cachedProgressPayload) {
+    cachedProgressPayload = {
+      ...cachedProgressPayload,
+      data: {
+        ...cachedProgressPayload.data,
+        entries: cachedProgressPayload.data.entries.filter((entry) => entry.id !== entryId),
+      },
+    };
+  }
+
+  return { data, error: null };
 }

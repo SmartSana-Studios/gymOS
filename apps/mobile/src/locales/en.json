@@ -263,6 +263,52 @@
       "save": "Save entry",
       "errorSaveFailed": "Couldn't save your entry. Check your connection and try again.",
       "errorInvalidInput": "Check the values you entered and try again."
+    },
+    "screen": {
+      "title": "Progress",
+      "currentWeightLabel": "Current weight",
+      "noWeightYet": "No weight logged yet",
+      "sinceStart": "({{delta}} since start)",
+      "logAction": "+ Log",
+      "chartEmptyState": "Log at least two weight entries to see your trend chart.",
+      "measurementsTitle": "Measurements",
+      "waistLabel": "Waist",
+      "chestLabel": "Chest",
+      "hipsLabel": "Hips",
+      "armsLabel": "Arms",
+      "thighsLabel": "Thighs",
+      "photosTitle": "Photos",
+      "photosEmptyState": "No photos yet.",
+      "viewAllEntries": "View all entries",
+      "emptyState": "Log your first entry to start tracking your progress.",
+      "errorLoadFailed": "Couldn't load your progress. Check your connection and try again.",
+      "offlineSyncPending": "Some entries haven't synced yet. They'll upload once you're back online.",
+      "showingCachedData": "Showing your last synced data. Reconnect to refresh."
+    },
+    "photoDetail": {
+      "shareLabel": "Share with coach",
+      "shareDescription": "Your assigned coach can see this photo while sharing is on.",
+      "errorLoadFailed": "Couldn't load this photo.",
+      "errorToggleFailed": "Couldn't update sharing. Check your connection and try again."
+    },
+    "entries": {
+      "title": "All entries",
+      "empty": "No entries yet.",
+      "fieldWeight": "Weight",
+      "fieldWaist": "Waist",
+      "fieldChest": "Chest",
+      "fieldHips": "Hips",
+      "fieldArms": "Arms",
+      "fieldThighs": "Thighs",
+      "fieldNote": "Note",
+      "fieldNone": "No details",
+      "deleteConfirmTitle": "Delete this entry?",
+      "deleteConfirmBody": "This can't be undone.",
+      "deleteConfirmAction": "Delete",
+      "deleteErrorTitle": "Couldn't delete",
+      "deleteErrorBody": "Check your connection and try again.",
+      "requiresConnectivity": "You're offline. Reconnect to delete entries.",
+      "errorLoadFailed": "Couldn't load your entries. Check your connection and try again."
     }
   },
   "renew": {

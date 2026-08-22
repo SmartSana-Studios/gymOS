@@ -47,3 +47,13 @@ export const logProgressEntrySchema = z
   );
 
 export type LogProgressEntryInput = z.infer<typeof logProgressEntrySchema>;
+
+// Story 10.3: trivial shape, but this codebase's Consistency Convention
+// still requires it live here rather than inline at the write boundary
+// (mirrors progressPhoto.ts's own explicit precedent comment for the same
+// rule).
+export const deleteProgressEntrySchema = z.object({
+  entryId: z.string().uuid(),
+});
+
+export type DeleteProgressEntryInput = z.infer<typeof deleteProgressEntrySchema>;

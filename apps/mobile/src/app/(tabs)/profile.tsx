@@ -18,6 +18,7 @@ import type { MobileLocale } from '@/lib/i18n';
 import { openPhotoPicker, pickPhoto, uploadPhoto } from '@/lib/photo-upload';
 import { supabase } from '@/lib/supabase';
 import { getMemberPreferences, updateMemberPreferences } from '@/services/notificationPreferences';
+import { clearCachedProgressPayload } from '@/services/progress';
 
 // Narrows the untyped embedded-select response, same discipline as
 // onboarding/plan.tsx's `isSubscriptionRow` (Review finding there) -- a
@@ -345,6 +346,10 @@ export default function ProfileScreen() {
         text: t('profile.logOut'),
         style: 'destructive',
         onPress: () => {
+          // Review finding: clears the Progress screen's in-memory cache so
+          // a different member signing in on the same device never sees a
+          // prior member's cached weight/measurements/photos.
+          clearCachedProgressPayload();
           void supabase.auth.signOut().catch(() => Alert.alert(t('profile.errorSaveFailed')));
         },
       },
