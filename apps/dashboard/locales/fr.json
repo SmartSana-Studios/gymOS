@@ -568,6 +568,10 @@
         "intermediate": "Intermédiaire",
         "advanced": "Avancé"
       },
+      "tabs": {
+        "sessionNotes": "Notes de séance",
+        "progress": "Progression"
+      },
       "notes": {
         "heading": "Notes de séance",
         "addButton": "+ Ajouter une note",
@@ -585,6 +589,35 @@
           "required": "Saisissez une note avant d'enregistrer",
           "tooLong": "La note est trop longue (2000 caractères maximum)"
         }
+      },
+      "progressTab": {
+        "weightTrendHeading": "Évolution du poids",
+        "currentWeightLabel": "Poids actuel",
+        "currentWeightOnly": "{{weight}} kg",
+        "sinceStartDelta": "{{delta}} depuis le début",
+        "noWeightLogged": "Aucun poids enregistré.",
+        "chartEmptyState": "Enregistrez au moins deux pesées pour voir une courbe de progression.",
+        "measurementsHeading": "Mesures",
+        "measurementValue": "{{value}} cm",
+        "measurementLabels": {
+          "waist": "Taille",
+          "chest": "Poitrine",
+          "hips": "Hanches",
+          "arms": "Bras",
+          "thighs": "Cuisses"
+        },
+        "units": {
+          "kg": "kg",
+          "cm": "cm"
+        },
+        "sharedPhotosHeading": "Photos partagées",
+        "sharedPhotoAlt": "Photo de progression partagée, {{date}}",
+        "notesHeading": "Notes du coach",
+        "notesEmpty": "Aucune note pour le moment. Ajoutez la première note ci-dessus.",
+        "closePhotoViewer": "Fermer",
+        "previousPhoto": "Photo précédente",
+        "nextPhoto": "Photo suivante",
+        "empty": "Aucune donnée de progression enregistrée pour le moment."
       }
     }
   },

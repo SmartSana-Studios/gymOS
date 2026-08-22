@@ -268,25 +268,52 @@ export async function listAssignedMembers(params: {
 export interface CoachPortalMemberDetail {
   memberId: string;
   memberName: string;
-  phone: string | null;
+  phoneMasked: string | null;
   goal: string | null;
   experienceLevel: string | null;
+  startingWeightKg: number | null;
   planName: string;
   planType: string;
   status: CoachPortalMemberRow["status"];
   expiryDate: string | null;
 }
 
+/** Mirrors `gym-payment-credentials.ts`'s `maskBusinessId()` masking shape
+ * (dot-prefix + a short visible suffix) for the same reason: a coach can
+ * read a member's `phone` column via RLS (`coach_read_assigned_members`
+ * scopes the *row*, not this one column), but a member's contact number is
+ * not something a coach needs to see in full to do their job -- the
+ * relationship is one-directional (a member can reach their coach; a coach
+ * reaching a member goes through staff, not a raw dialable number on this
+ * screen). Masked server-side, not just hidden in the UI, so the full
+ * number never reaches the coach's browser at all.
+ *
+ * Masks by digit count, not raw string length -- a formatted number
+ * (`"+1 555-123-4567"`) and its stripped equivalent (`"15551234567"`) must
+ * reveal the same amount of the real number, not different amounts because
+ * one has more punctuation characters. Returns `null` for a value with no
+ * digits at all (e.g. whitespace-only), so the caller's existing
+ * null-phone handling ("not set") applies instead of masking nothing into
+ * a fixed-length placeholder. */
+function maskPhone(phone: string): string | null {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 0) return null;
+  if (digits.length <= 6) return "••••••";
+  return `${digits.slice(0, 4)} •••• ${digits.slice(-2)}`;
+}
+
 /** AC #1: a member's header fields for AD-15's detail view. Two independent
  * RLS-scoped reads combined into one row -- `members` (name/phone/goal/
- * experience_level, not carried by `subscriptions_current`) plus
- * `subscriptions_current` (Story 4.8's view, already used by
- * `listAssignedMembers`) for plan/status/expiry. Both reads are
- * independently scoped by `coach_read_assigned_members`/
+ * experience_level/starting_weight_kg, not carried by
+ * `subscriptions_current`) plus `subscriptions_current` (Story 4.8's view,
+ * already used by `listAssignedMembers`) for plan/status/expiry. Both reads
+ * are independently scoped by `coach_read_assigned_members`/
  * `coach_read_assigned_subscriptions` (0040) -- an unassigned member yields
  * `null` from both, mapped to `coachNotFoundError` here, matching this
  * file's existing not-found discipline (never a data leak or a crash on a
- * direct URL to an unassigned member's id -- this story's implicit AC). */
+ * direct URL to an unassigned member's id -- this story's implicit AC).
+ * `starting_weight_kg` (Story 10.4) is a free addition to this already-
+ * issued `members` select -- no new round-trip, no new RLS. */
 export async function getMemberDetail(
   memberId: string,
 ): Promise<{ data: CoachPortalMemberDetail | null; error: AppError | null }> {
@@ -298,7 +325,7 @@ export async function getMemberDetail(
 
   const { data: memberRow, error: memberError } = await supabase
     .from("members")
-    .select("id, name, phone, goal, experience_level")
+    .select("id, name, phone, goal, experience_level, starting_weight_kg")
     .eq("id", memberId)
     .eq("gym_id", gymId)
     .is("deactivated_at", null)
@@ -328,9 +355,10 @@ export async function getMemberDetail(
     data: {
       memberId: memberRow.id,
       memberName: memberRow.name,
-      phone: memberRow.phone,
+      phoneMasked: memberRow.phone ? maskPhone(memberRow.phone) : null,
       goal: memberRow.goal,
       experienceLevel: memberRow.experience_level,
+      startingWeightKg: memberRow.starting_weight_kg,
       planName: subRow.plan_name,
       planType: subRow.plan_type,
       status: subRow.status,
@@ -437,4 +465,142 @@ export async function editSessionNote(
     return { data: null, error: await mapAndLog(error) };
   }
   return { data: null, error: null };
+}
+
+// ============================================================================
+// Story 10.4: Coach Portal -- Progress Tab. Reads only -- `progress_entries`/
+// `progress_photos` grant `coach` role read-only access
+// (`coach_read_assigned_progress_entries`/`coach_read_shared_progress_photos`,
+// 0067) with no coach-role UPDATE/DELETE policy on either table, so a
+// coach can never edit/delete a member's own progress data regardless of
+// what this file does or doesn't expose (AC #2).
+// ============================================================================
+
+export interface ProgressEntryRow {
+  id: string;
+  weightKg: number | null;
+  waistCm: number | null;
+  chestCm: number | null;
+  hipsCm: number | null;
+  armsCm: number | null;
+  thighsCm: number | null;
+  note: string | null;
+  loggedAt: string;
+}
+
+interface ProgressEntryRowFromDb {
+  id: string;
+  weight_kg: number | null;
+  waist_cm: number | null;
+  chest_cm: number | null;
+  hips_cm: number | null;
+  arms_cm: number | null;
+  thighs_cm: number | null;
+  note: string | null;
+  logged_at: string;
+}
+
+function toProgressEntryRow(row: ProgressEntryRowFromDb): ProgressEntryRow {
+  return {
+    id: row.id,
+    weightKg: row.weight_kg,
+    waistCm: row.waist_cm,
+    chestCm: row.chest_cm,
+    hipsCm: row.hips_cm,
+    armsCm: row.arms_cm,
+    thighsCm: row.thighs_cm,
+    note: row.note,
+    loggedAt: row.logged_at,
+  };
+}
+
+export interface SharedProgressPhoto {
+  id: string;
+  signedUrl: string | null; // null if signing failed for this one photo -- degrade that single thumbnail, don't fail the page
+  createdAt: string;
+}
+
+export interface MemberProgressData {
+  entries: ProgressEntryRow[]; // active only (deactivated_at is null), chronological ascending
+  sharedPhotos: SharedProgressPhoto[]; // reverse-chronological
+}
+
+/** AC #1/#2/#3: a member's progress entries + shared photos for the Coach
+ * Portal's Progress tab. `coach_read_assigned_progress_entries`/
+ * `coach_read_shared_progress_photos` (0067) already scope both reads to
+ * exactly what an assigned coach may see -- an unassigned coach or a member
+ * with no shared photos gets zero rows back from RLS, not a filtered
+ * subset. Signed URLs are resolved server-side in one batch call
+ * (`createSignedUrls`), matching this Server Component's one-round-trip-
+ * per-load shape -- unlike `apps/mobile`'s per-thumbnail client-side
+ * `getProgressPhotoSignedUrl`. */
+export async function getMemberProgressData(
+  memberId: string,
+): Promise<{ data: MemberProgressData | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const [entriesResult, photosResult] = await Promise.all([
+    supabase
+      .from("progress_entries")
+      .select("id, weight_kg, waist_cm, chest_cm, hips_cm, arms_cm, thighs_cm, note, logged_at, deactivated_at")
+      .eq("gym_id", gymId)
+      .eq("member_id", memberId)
+      .order("logged_at", { ascending: true }),
+    supabase
+      .from("progress_photos")
+      .select("id, photo_path, created_at")
+      .eq("gym_id", gymId)
+      .eq("member_id", memberId)
+      .order("created_at", { ascending: false })
+      .limit(60), // bounded, no pagination -- mirrors progress.ts's own loadProgressScreenData (Story 10.3) precedent
+  ]);
+
+  if (entriesResult.error) {
+    return { data: null, error: await mapAndLog(entriesResult.error) };
+  }
+  if (photosResult.error) {
+    return { data: null, error: await mapAndLog(photosResult.error) };
+  }
+
+  // RLS doesn't filter deactivated_at (0066's self-read policy never
+  // has, coach_read_assigned_progress_entries inherits that same
+  // convention per 0067's own comment) -- client-side filter, same
+  // discipline Story 10.3 documented for the member's own screen.
+  const activeEntries = (entriesResult.data ?? []).filter((row) => row.deactivated_at === null);
+
+  const photoPaths = (photosResult.data ?? []).map((row) => row.photo_path);
+  let signedUrlByPath = new Map<string, string>();
+  if (photoPaths.length > 0) {
+    const { data: signedUrls, error: signError } = await supabase.storage
+      .from("progress-photos")
+      .createSignedUrls(photoPaths, 3600);
+    if (signError) {
+      // Degrade gracefully -- the chart/measurements are more
+      // important than the photo grid; log and continue with no
+      // signed URLs rather than failing the whole tab.
+      console.warn(`[coaches] createSignedUrls failed for member ${memberId}: ${signError.message}`);
+    } else {
+      signedUrlByPath = new Map(
+        (signedUrls ?? [])
+          .filter((entry) => !entry.error && entry.signedUrl)
+          .map((entry) => [entry.path ?? "", entry.signedUrl as string]),
+      );
+    }
+  }
+
+  return {
+    data: {
+      entries: (activeEntries as ProgressEntryRowFromDb[]).map(toProgressEntryRow),
+      sharedPhotos: (photosResult.data ?? []).map((row) => ({
+        id: row.id,
+        signedUrl: signedUrlByPath.get(row.photo_path) ?? null,
+        createdAt: row.created_at,
+      })),
+    },
+    error: null,
+  };
 }

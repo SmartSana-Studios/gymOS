@@ -568,6 +568,10 @@
         "intermediate": "Intermediate",
         "advanced": "Advanced"
       },
+      "tabs": {
+        "sessionNotes": "Session Notes",
+        "progress": "Progress"
+      },
       "notes": {
         "heading": "Session Notes",
         "addButton": "+ Add note",
@@ -585,6 +589,35 @@
           "required": "Enter a note before saving",
           "tooLong": "Note is too long (max 2000 characters)"
         }
+      },
+      "progressTab": {
+        "weightTrendHeading": "Weight Trend",
+        "currentWeightLabel": "Current weight",
+        "currentWeightOnly": "{{weight}} kg",
+        "sinceStartDelta": "{{delta}} since start",
+        "noWeightLogged": "No weight logged yet.",
+        "chartEmptyState": "Log at least two weight entries to see a trend chart.",
+        "measurementsHeading": "Measurements",
+        "measurementValue": "{{value}} cm",
+        "measurementLabels": {
+          "waist": "Waist",
+          "chest": "Chest",
+          "hips": "Hips",
+          "arms": "Arms",
+          "thighs": "Thighs"
+        },
+        "units": {
+          "kg": "kg",
+          "cm": "cm"
+        },
+        "sharedPhotosHeading": "Shared Photos",
+        "sharedPhotoAlt": "Shared progress photo, {{date}}",
+        "notesHeading": "Coach Notes",
+        "notesEmpty": "No notes yet. Add the first note above.",
+        "closePhotoViewer": "Close",
+        "previousPhoto": "Previous photo",
+        "nextPhoto": "Next photo",
+        "empty": "No progress data logged yet."
       }
     }
   },

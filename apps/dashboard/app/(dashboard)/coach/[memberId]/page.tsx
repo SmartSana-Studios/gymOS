@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { getMemberDetail, listSessionNotes } from "@/services/coaches";
+import { getMemberDetail, getMemberProgressData, listSessionNotes } from "@/services/coaches";
 import { CoachMemberDetailPageClient } from "./components/CoachMemberDetailPageClient";
 import CoachMemberDetailLoading from "./loading";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -31,10 +31,11 @@ export default function CoachMemberDetailPage({
 
 async function CoachMemberDetailData({ params }: { params: Promise<{ memberId: string }> }) {
   const { memberId } = await params;
-  const [{ data: member, error: memberError }, { data: notes, error: notesError }] = await Promise.all([
-    getMemberDetail(memberId),
-    listSessionNotes(memberId),
-  ]);
+  const [
+    { data: member, error: memberError },
+    { data: notes, error: notesError },
+    { data: progressData, error: progressError },
+  ] = await Promise.all([getMemberDetail(memberId), listSessionNotes(memberId), getMemberProgressData(memberId)]);
 
   // Not a Next.js notFound() 404 -- matches this app's established pattern
   // of every other page rendering its own inline error state
@@ -49,6 +50,10 @@ async function CoachMemberDetailData({ params }: { params: Promise<{ memberId: s
     const { t } = await getServerTranslation(await getRequestLocale());
     return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
   }
+  if (progressError || !progressData) {
+    const { t } = await getServerTranslation(await getRequestLocale());
+    return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
+  }
 
-  return <CoachMemberDetailPageClient member={member} notes={notes ?? []} />;
+  return <CoachMemberDetailPageClient member={member} notes={notes ?? []} progressData={progressData} />;
 }

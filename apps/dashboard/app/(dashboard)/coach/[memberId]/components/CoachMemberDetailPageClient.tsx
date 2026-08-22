@@ -3,13 +3,19 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { MessageSquare } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { CoachPortalMemberDetail, SessionNoteRow } from "@/services/coaches";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import type { CoachPortalMemberDetail, MemberProgressData, SessionNoteRow } from "@/services/coaches";
 import { PLAN_TYPE_LABEL_KEY } from "@/app/(dashboard)/plans/planLabels";
 import { STATUS_BADGE_CONFIG } from "@/app/(dashboard)/subscriptions/subscriptionLabels";
+import { ProgressTabContent } from "./ProgressTabContent";
+import { SectionHeader } from "./SectionHeader";
 import { SessionNoteModal } from "./SessionNoteModal";
+import { SessionNotesSection } from "./SessionNotesSection";
 
 // Keyed on memberGoalSchema/experienceLevelSchema's exact enum values
 // (packages/types/src/schemas/memberOnboarding.ts) -- not imported from
@@ -41,9 +47,11 @@ type ModalState = { note: { id: string; noteText: string } | null } | null;
 export function CoachMemberDetailPageClient({
   member,
   notes,
+  progressData,
 }: {
   member: CoachPortalMemberDetail;
   notes: SessionNoteRow[];
+  progressData: MemberProgressData;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -73,14 +81,6 @@ export function CoachMemberDetailPageClient({
   function expiryLabel(): string {
     if (!member.expiryDate) return "—";
     return formatLocalDate(member.expiryDate, i18n.language);
-  }
-
-  function noteTimestamp(iso: string): string {
-    const d = new Date(iso);
-    return `${d.toLocaleDateString(i18n.language)} ${d.toLocaleTimeString(i18n.language, {
-      hour: "2-digit",
-      minute: "2-digit",
-    })}`;
   }
 
   function handleSaved() {
@@ -115,7 +115,7 @@ export function CoachMemberDetailPageClient({
           </div>
           <div>
             <span className="text-muted-foreground">{t("coachPortal.detail.phoneLabel")}</span>
-            <p>{member.phone ?? t("coachPortal.detail.phoneNotSet")}</p>
+            <p>{member.phoneMasked ?? t("coachPortal.detail.phoneNotSet")}</p>
           </div>
           <div>
             <span className="text-muted-foreground">{t("coachPortal.detail.goalLabel")}</span>
@@ -134,39 +134,57 @@ export function CoachMemberDetailPageClient({
         )}
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{t("coachPortal.detail.notes.heading")}</h2>
-          <Button type="button" size="sm" onClick={() => setModalState({ note: null })}>
-            {t("coachPortal.detail.notes.addButton")}
-          </Button>
-        </div>
+      <Tabs defaultValue="session-notes">
+        <TabsList>
+          <TabsTrigger value="session-notes">{t("coachPortal.detail.tabs.sessionNotes")}</TabsTrigger>
+          <TabsTrigger value="progress">{t("coachPortal.detail.tabs.progress")}</TabsTrigger>
+        </TabsList>
 
-        {notes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("coachPortal.detail.notes.empty")}</p>
-        ) : (
-          <div className="space-y-3">
-            {notes.map((note) => (
-              <div key={note.id} className="space-y-1 rounded-md border p-3">
-                <p className="whitespace-pre-wrap break-words text-sm">{note.noteText}</p>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>
-                    {note.coachName} · {noteTimestamp(note.createdAt)}
-                    {note.editedAt && ` · ${t("coachPortal.detail.notes.edited", { timestamp: noteTimestamp(note.editedAt) })}`}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setModalState({ note: { id: note.id, noteText: note.noteText } })}
-                    className="text-primary hover:underline"
-                  >
-                    {t("coachPortal.detail.notes.edit")}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+        <TabsContent value="session-notes">
+          <Card>
+            <SectionHeader
+              icon={MessageSquare}
+              accent="rose"
+              title={t("coachPortal.detail.notes.heading")}
+              action={
+                <Button type="button" size="sm" onClick={() => setModalState({ note: null })}>
+                  {t("coachPortal.detail.notes.addButton")}
+                </Button>
+              }
+            />
+            <CardContent>
+              <SessionNotesSection
+                notes={notes}
+                onEditClick={(note) => setModalState({ note })}
+                emptyLabel={t("coachPortal.detail.notes.empty")}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="progress" className="space-y-6">
+          <ProgressTabContent progressData={progressData} startingWeightKg={member.startingWeightKg} />
+          <Card>
+            <SectionHeader
+              icon={MessageSquare}
+              accent="rose"
+              title={t("coachPortal.detail.progressTab.notesHeading")}
+              action={
+                <Button type="button" size="sm" onClick={() => setModalState({ note: null })}>
+                  {t("coachPortal.detail.notes.addButton")}
+                </Button>
+              }
+            />
+            <CardContent>
+              <SessionNotesSection
+                notes={notes}
+                onEditClick={(note) => setModalState({ note })}
+                emptyLabel={t("coachPortal.detail.progressTab.notesEmpty")}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {modalState && (
         <SessionNoteModal

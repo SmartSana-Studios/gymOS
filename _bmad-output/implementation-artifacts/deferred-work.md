@@ -592,3 +592,7 @@
 - Measurement deltas (`buildMeasurementRows`) show no timeframe label, so a delta could silently span a large, uneven gap between sparse recordings of a given field. [apps/mobile/src/app/(tabs)/progress/index.tsx] — UX polish beyond this story's literal AC scope
 - Zero automated test coverage for new logic (`deleteProgressEntry`'s zero-row guard, `loadProgressScreenData`'s partial-failure handling, `resolveDeltaColor`, `buildWeightChartGeometry`). [apps/mobile/src/services/progress.ts; apps/mobile/src/app/(tabs)/progress/index.tsx] — pre-existing: apps/mobile has no test runner anywhere in the codebase, not introduced by this diff
 - `Alert.alert`'s reliability on the web tab-bar target for the delete-confirm flow is unverified. [apps/mobile/src/app/(tabs)/progress/entries.tsx] — pre-existing pattern already used throughout the codebase (profile.tsx, LogEntrySheet), not introduced by this diff
+
+## Deferred from: code review of story-10-4-coach-portal-progress-tab (2026-08-22)
+
+- `getMemberProgressData()`'s `progress_entries` query has no cap, unlike the sibling `progress_photos` query's `.limit(60)`. [apps/dashboard/services/coaches.ts:537-551] — real scalability concern for long-tenured members but matches the story's own "Do not build: pagination on progress entries/photos (pilot scale)" scope exclusion; not actionable within this story's scope.
