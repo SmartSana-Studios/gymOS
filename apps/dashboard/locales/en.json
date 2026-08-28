@@ -50,6 +50,7 @@
       "frontDeskAlerts": "Front-Desk Alerts",
       "qrCode": "QR Code",
       "payments": "Payment Account",
+      "billing": "Billing",
       "staff": "Staff"
     },
     "sectionDescriptions": {
@@ -60,6 +61,7 @@
       "frontDeskAlerts": "Auto-dismiss timing for alerts",
       "qrCode": "Check-in code for your gym",
       "payments": "Connect your Tara Money account for mobile-money payments",
+      "billing": "Your GymOS subscription",
       "staff": "Manage staff accounts and roles"
     },
     "staffSummary_one": "{{count}} staff member",
@@ -122,6 +124,29 @@
       "disconnectedToast": "Payment account disconnected.",
       "disconnectFailedToast": "Couldn't disconnect. Try again.",
       "needsAttention": "Your Tara Money connection needs attention — reconnect below to resume automated mobile-money payments."
+    },
+    "billing": {
+      "intervalMonthly": "Monthly",
+      "intervalAnnual": "Annual",
+      "nextBillingDate": "Next billing date: {{date}}",
+      "status": {
+        "active": "Active",
+        "past_due": "Past due",
+        "grace_period": "Grace period",
+        "suspended": "Suspended"
+      },
+      "payNow": "Pay Now",
+      "payNowDialogTitle": "Pay Now",
+      "payNowDialogBody": "Confirm the mobile-money number to charge. A payment prompt will be sent to this number.",
+      "payerPhoneLabel": "Payer phone number",
+      "payNowLoading": "Starting payment…",
+      "payPending": "Waiting for payment confirmation…",
+      "payStillWaiting": "Still waiting — this can take a minute. Check your phone for the payment prompt.",
+      "payFailed": "The payment didn't go through. You can try again.",
+      "paymentConfirmedToast": "Payment confirmed — your subscription is active.",
+      "emailLabel": "Notification email",
+      "emailHint": "Optional. Used as a best-effort third channel for billing reminders, alongside SMS and WhatsApp.",
+      "emailSavedToast": "Notification email saved."
     },
     "errors": {
       "gymNotFound": "Gym not found",
@@ -860,5 +885,8 @@
       "checkInAutoTimeoutJobFailure": "Check-in job failure",
       "paymentReconciliationJobFailure": "Payment reconciliation job failure"
     }
+  },
+  "saasBilling": {
+    "reminderMessage": "Your GymOS subscription payment is due {{date}}. Pay now: {{url}}"
   }
 }

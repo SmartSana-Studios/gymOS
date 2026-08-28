@@ -481,3 +481,110 @@ Deno.test("payment-webhook taramoney initiate route: TARAMONEY_INITIATION_ENABLE
     stub.restore();
   }
 });
+
+// --- payment-webhook initiate route: Flow B fallback (Story 11.3, Task 5) ----------------------
+
+const INITIATE_SAAS_PAYMENT_ROW = {
+  id: "saas-pay1",
+  status: "processing",
+  provider_transaction_ref: null,
+  amount: 8000,
+  currency: "XAF",
+};
+
+/**
+ * Serves a `payments` lookup that finds nothing (the fallback trigger),
+ * then a `saas_billing_payments` lookup returning `saasPaymentRow`, then
+ * whatever TaraMoneyProvider.initiate()'s platform branch touches --
+ * TARAMONEY_API_KEY/BUSINESS_ID are asserted unset by the caller, so
+ * initiate() never makes a further DB/RPC call, returning
+ * `credentials_not_connected` directly. Also serves the
+ * `saas_billing_payments` DELETE the failed-initiate cleanup issues, and
+ * would throw on a `mark_gym_payment_credentials_needs_attention` call --
+ * that RPC is gym-only and must never be reached for a platform payment.
+ */
+function stubFetchSaasFallbackFlow(saasPaymentRow: unknown) {
+  const calls: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    const method = init?.method ?? "GET";
+    calls.push(`${method} ${href}`);
+    if (href.includes("/rest/v1/payments?") && method === "GET") {
+      return Promise.resolve(new Response(JSON.stringify(null), { status: 200, headers: { "Content-Type": "application/json" } }));
+    }
+    if (href.includes("/rest/v1/saas_billing_payments?") && method === "GET") {
+      return Promise.resolve(
+        new Response(JSON.stringify(saasPaymentRow), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    if (href.includes("/rest/v1/saas_billing_payments?") && method === "DELETE") {
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+    throw new Error(`stubFetch: unexpected DB access ${method} ${href}`);
+  }) as typeof fetch;
+  return { calls, restore: () => (globalThis.fetch = original) };
+}
+
+Deno.test("payment-webhook taramoney initiate route: a saas_billing_payments-only paymentId (no matching payments row) resolves via the fallback and constructs the platform routing context", async () => {
+  const priorApiKey = Deno.env.get("TARAMONEY_API_KEY");
+  const priorBusinessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
+  Deno.env.delete("TARAMONEY_API_KEY");
+  Deno.env.delete("TARAMONEY_BUSINESS_ID");
+  const stub = stubFetchSaasFallbackFlow(INITIATE_SAAS_PAYMENT_ROW);
+  try {
+    const req = initiateRequest({ paymentId: "saas-pay1", phoneNumber: "237600000000" });
+    const res = await handler.fetch(req);
+    assertEquals(res.status, 502);
+    const body = await res.json();
+    // No `code` field -- the platform branch's own credentials_not_connected
+    // never maps to gym_credentials_unavailable (that mapping, and its
+    // mark_gym_payment_credentials_needs_attention RPC call, is gym-only;
+    // stubFetchSaasFallbackFlow would have thrown if that RPC were reached).
+    assertEquals(body.code, undefined);
+    assertEquals(
+      stub.calls.some((c) => c.startsWith("GET") && c.includes("/rest/v1/payments?")),
+      true,
+      "the payments table must still be tried first",
+    );
+    assertEquals(
+      stub.calls.some((c) => c.startsWith("GET") && c.includes("/rest/v1/saas_billing_payments?")),
+      true,
+      "the saas_billing_payments fallback lookup must be attempted after the payments miss",
+    );
+    assertEquals(
+      stub.calls.some((c) => c.startsWith("DELETE") && c.includes("/rest/v1/saas_billing_payments?")),
+      true,
+      "cleanup on a failed initiate must delete from the table the row was actually found in (saas_billing_payments), not payments",
+    );
+    assertEquals(
+      stub.calls.some((c) => c.startsWith("DELETE") && c.includes("/rest/v1/payments?")),
+      false,
+      "cleanup must never delete from payments for a row that was never found there",
+    );
+  } finally {
+    stub.restore();
+    if (priorApiKey === undefined) Deno.env.delete("TARAMONEY_API_KEY");
+    else Deno.env.set("TARAMONEY_API_KEY", priorApiKey);
+    if (priorBusinessId === undefined) Deno.env.delete("TARAMONEY_BUSINESS_ID");
+    else Deno.env.set("TARAMONEY_BUSINESS_ID", priorBusinessId);
+  }
+});
+
+Deno.test("payment-webhook taramoney initiate route: regression -- a payments row found on the first lookup never attempts the saas_billing_payments fallback", async () => {
+  const stub = stubFetchEnabledPathReachesProvider(INITIATE_PAYMENT_ROW);
+  try {
+    const req = initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" });
+    const res = await handler.fetch(req);
+    assertEquals(res.status, 502);
+    const body = await res.json();
+    assertEquals(body.code, "gym_credentials_unavailable", "the existing gym-routing path is completely unchanged");
+    assertEquals(
+      stub.calls.some((c) => c.includes("/rest/v1/saas_billing_payments?")),
+      false,
+      "a payments-table hit on the first lookup must never attempt the saas_billing_payments fallback lookup",
+    );
+  } finally {
+    stub.restore();
+  }
+});

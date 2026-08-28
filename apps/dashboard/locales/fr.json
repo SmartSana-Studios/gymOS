@@ -50,6 +50,7 @@
       "frontDeskAlerts": "Alertes accueil",
       "qrCode": "Code QR",
       "payments": "Compte de paiement",
+      "billing": "Facturation",
       "staff": "Personnel"
     },
     "sectionDescriptions": {
@@ -60,6 +61,7 @@
       "frontDeskAlerts": "Délai de disparition automatique des alertes",
       "qrCode": "Code de présence de votre salle",
       "payments": "Connectez votre compte Tara Money pour les paiements mobile money",
+      "billing": "Votre abonnement GymOS",
       "staff": "Gérez les comptes et les rôles du personnel"
     },
     "staffSummary_one": "{{count}} membre du personnel",
@@ -122,6 +124,29 @@
       "disconnectedToast": "Compte de paiement déconnecté.",
       "disconnectFailedToast": "Impossible de déconnecter. Réessayez.",
       "needsAttention": "Votre connexion Tara Money nécessite votre attention — reconnectez-vous ci-dessous pour reprendre les paiements automatiques par mobile money."
+    },
+    "billing": {
+      "intervalMonthly": "Mensuel",
+      "intervalAnnual": "Annuel",
+      "nextBillingDate": "Prochaine date de facturation : {{date}}",
+      "status": {
+        "active": "Actif",
+        "past_due": "En retard",
+        "grace_period": "Délai de grâce",
+        "suspended": "Suspendu"
+      },
+      "payNow": "Payer maintenant",
+      "payNowDialogTitle": "Payer maintenant",
+      "payNowDialogBody": "Confirmez le numéro mobile money à débiter. Une invite de paiement sera envoyée à ce numéro.",
+      "payerPhoneLabel": "Numéro de téléphone du payeur",
+      "payNowLoading": "Démarrage du paiement…",
+      "payPending": "En attente de confirmation du paiement…",
+      "payStillWaiting": "Toujours en attente — cela peut prendre une minute. Vérifiez votre téléphone pour l'invite de paiement.",
+      "payFailed": "Le paiement n'a pas abouti. Vous pouvez réessayer.",
+      "paymentConfirmedToast": "Paiement confirmé — votre abonnement est actif.",
+      "emailLabel": "E-mail de notification",
+      "emailHint": "Facultatif. Utilisé comme troisième canal, au mieux, pour les rappels de facturation, en plus du SMS et de WhatsApp.",
+      "emailSavedToast": "E-mail de notification enregistré."
     },
     "errors": {
       "gymNotFound": "Salle introuvable",
@@ -860,5 +885,8 @@
       "checkInAutoTimeoutJobFailure": "Échec de la tâche d'enregistrement",
       "paymentReconciliationJobFailure": "Échec de la tâche de rapprochement des paiements"
     }
+  },
+  "saasBilling": {
+    "reminderMessage": "Le paiement de votre abonnement GymOS est dû le {{date}}. Payez maintenant : {{url}}"
   }
 }

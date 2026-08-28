@@ -63,14 +63,14 @@ async function handleInitiate(
     return jsonResponse(400, { error: "paymentId and phoneNumber are required" });
   }
 
-  const { data: paymentRow, error: fetchError } = await supabase
+  const { data: gymPaymentRow, error: gymFetchError } = await supabase
     .from("payments")
     .select("id, status, provider_transaction_ref, amount, currency, gym_id")
     .eq("id", paymentId)
     .maybeSingle();
 
-  if (fetchError) {
-    console.error(`payment-webhook: ${providerKey} initiate lookup failed for payment ${paymentId} — ${fetchError.message}`);
+  if (gymFetchError) {
+    console.error(`payment-webhook: ${providerKey} initiate lookup failed for payment ${paymentId} — ${gymFetchError.message}`);
     // Nothing was charged yet (this lookup runs before provider.initiate()),
     // so clean up the same way the failed-initiate/failed-signature paths do
     // -- otherwise this leaves an orphaned `processing` row indistinguishable
@@ -84,10 +84,67 @@ async function handleInitiate(
     return jsonResponse(500);
   }
 
-  // Guards against calling initiate twice for the same row: not found, not
-  // `processing` (already verified/being-processed), or already carries a
-  // provider_transaction_ref from a prior initiate call.
-  if (!paymentRow || paymentRow.status !== "processing" || paymentRow.provider_transaction_ref !== null) {
+  // Story 11.3: table-conditional resolution -- `payments` (existing,
+  // unchanged code path, the common case) is tried first; on a miss (no
+  // error, just no row), fall back to a `saas_billing_payments` lookup by
+  // the same globally-unique `paymentId` (Flow B, the platform's own
+  // "Pay Now" initiation, `initiate_saas_billing_payment()`). Trying
+  // `payments` first is purely "more common case first" -- unlike
+  // `verifyWebhookSignature()`'s own platform-first order (a collision-
+  // safety requirement specific to a shared `businessId` field), there is
+  // no equivalent ordering requirement here since `paymentId` is a
+  // globally-unique UUID primary key in only one of the two tables at a
+  // time.
+  let table: "payments" | "saas_billing_payments" = "payments";
+  let payment: { id: string; status: string; provider_transaction_ref: string | null; amount: number; currency: string; gymId: string | null } | null =
+    gymPaymentRow
+      ? {
+          id: gymPaymentRow.id,
+          status: gymPaymentRow.status,
+          provider_transaction_ref: gymPaymentRow.provider_transaction_ref,
+          amount: gymPaymentRow.amount,
+          currency: gymPaymentRow.currency,
+          gymId: gymPaymentRow.gym_id,
+        }
+      : null;
+
+  if (!payment) {
+    const { data: saasPaymentRow, error: saasFetchError } = await supabase
+      .from("saas_billing_payments")
+      .select("id, status, provider_transaction_ref, amount, currency")
+      .eq("id", paymentId)
+      .maybeSingle();
+
+    if (saasFetchError) {
+      console.error(
+        `payment-webhook: ${providerKey} initiate saas_billing_payments lookup failed for payment ${paymentId} — ${saasFetchError.message}`,
+      );
+      const { error: deleteError } = await supabase.from("saas_billing_payments").delete().eq("id", paymentId);
+      if (deleteError) {
+        console.error(
+          `payment-webhook: ${providerKey} failed to delete saas_billing_payments ${paymentId} after a failed eligibility lookup — ${deleteError.message}`,
+        );
+      }
+      return jsonResponse(500);
+    }
+
+    if (saasPaymentRow) {
+      table = "saas_billing_payments";
+      payment = {
+        id: saasPaymentRow.id,
+        status: saasPaymentRow.status,
+        provider_transaction_ref: saasPaymentRow.provider_transaction_ref,
+        amount: saasPaymentRow.amount,
+        currency: saasPaymentRow.currency,
+        gymId: null,
+      };
+    }
+  }
+
+  // Guards against calling initiate twice for the same row: not found in
+  // either table, not `processing` (already verified/being-processed), or
+  // already carries a provider_transaction_ref from a prior initiate call.
+  if (!payment || payment.status !== "processing" || payment.provider_transaction_ref !== null) {
     return jsonResponse(400, { error: "payment is not eligible for initiation" });
   }
 
@@ -114,10 +171,10 @@ async function handleInitiate(
     // initiate()-throw branches above) -- this short-circuit was the sole
     // exception, leaving a permanently orphaned row a member's next
     // `getPendingMemberPayment()` check would resume into a dead-end.
-    const { error: deleteError } = await supabase.from("payments").delete().eq("id", paymentId);
+    const { error: deleteError } = await supabase.from(table).delete().eq("id", paymentId);
     if (deleteError) {
       console.error(
-        `payment-webhook: ${providerKey} failed to delete payment ${paymentId} after the mobile-money-disabled short-circuit — ${deleteError.message}`,
+        `payment-webhook: ${providerKey} failed to delete ${table} ${paymentId} after the mobile-money-disabled short-circuit — ${deleteError.message}`,
       );
     }
     return jsonResponse(502, { error: "mobile money initiation is disabled", code: "mobile_money_disabled" });
@@ -129,15 +186,16 @@ async function handleInitiate(
       // A real UUID, globally unique, already exists before the provider call
       // -- replaces the Story 4.1 spike's throwaway
       // <gymId>:<memberId>:<suffix> convention entirely.
-      reference: paymentRow.id,
-      amount: paymentRow.amount,
-      currency: paymentRow.currency,
+      reference: payment.id,
+      amount: payment.amount,
+      currency: payment.currency,
       callbackUrl,
       phoneNumber,
       // AD-14/Story 4.14: Flow A always routes through the payment's own
       // gym -- payments.gym_id already exists at initiate time, no lookup
-      // needed.
-      routingContext: { type: "gym", gymId: paymentRow.gym_id },
+      // needed. Story 11.3: Flow B (payment.gymId === null, matched from
+      // saas_billing_payments) routes to the platform context instead.
+      routingContext: payment.gymId !== null ? { type: "gym", gymId: payment.gymId } : { type: "platform" },
     });
   } catch (err) {
     // A thrown (not returned) error -- e.g. a non-timeout network failure
@@ -147,10 +205,10 @@ async function handleInitiate(
     console.error(
       `payment-webhook: ${providerKey} initiate() threw — ${err instanceof Error ? err.message : String(err)}`,
     );
-    const { error: deleteError } = await supabase.from("payments").delete().eq("id", paymentId);
+    const { error: deleteError } = await supabase.from(table).delete().eq("id", paymentId);
     if (deleteError) {
       console.error(
-        `payment-webhook: ${providerKey} failed to delete payment ${paymentId} after initiate() threw — ${deleteError.message}`,
+        `payment-webhook: ${providerKey} failed to delete ${table} ${paymentId} after initiate() threw — ${deleteError.message}`,
       );
     }
     return jsonResponse(502, { error: "payment provider initiation failed" });
@@ -159,10 +217,10 @@ async function handleInitiate(
   if (!result.success) {
     // AC #2: nothing was actually charged, so no orphaned `processing` row
     // is left behind.
-    const { error: deleteError } = await supabase.from("payments").delete().eq("id", paymentId);
+    const { error: deleteError } = await supabase.from(table).delete().eq("id", paymentId);
     if (deleteError) {
       console.error(
-        `payment-webhook: ${providerKey} failed to delete payment ${paymentId} after a failed initiate() — ${deleteError.message}`,
+        `payment-webhook: ${providerKey} failed to delete ${table} ${paymentId} after a failed initiate() — ${deleteError.message}`,
       );
     }
     // The provider's raw error string is logged, not returned -- this route
@@ -171,18 +229,22 @@ async function handleInitiate(
     // of provider/internal error text.
     console.error(`payment-webhook: ${providerKey} initiate() failed for payment ${paymentId} — ${result.error}`);
 
-    if (result.code === "credentials_not_connected") {
+    if (result.code === "credentials_not_connected" && payment.gymId !== null) {
       // Task 5 (AC #3): a no-op for a gym that was never connected (Story
       // 4.13's ordinary case, already surfaced in Settings) -- the RPC only
       // flips needs_attention when a gym_payment_credentials row actually
-      // exists, i.e. a prior connection that is now failing.
+      // exists, i.e. a prior connection that is now failing. Story 11.3:
+      // this RPC is gym-scoped -- a platform (Flow B) payment's own
+      // "credentials_not_connected" (missing TARAMONEY_* env vars) has no
+      // gym_payment_credentials row to flag, so this branch is skipped
+      // entirely for payment.gymId === null.
       const { error: attentionError } = await supabase.rpc("mark_gym_payment_credentials_needs_attention", {
-        p_gym_id: paymentRow.gym_id,
+        p_gym_id: payment.gymId,
         p_provider_key: providerKey,
       });
       if (attentionError) {
         console.error(
-          `payment-webhook: ${providerKey} failed to mark needs_attention for gym ${paymentRow.gym_id} — ${attentionError.message}`,
+          `payment-webhook: ${providerKey} failed to mark needs_attention for gym ${payment.gymId} — ${attentionError.message}`,
         );
       }
       return jsonResponse(502, { error: "payment provider initiation failed", code: "gym_credentials_unavailable" });
@@ -199,7 +261,7 @@ async function handleInitiate(
   let updateError: { message: string } | null = null;
   for (let attempt = 1; attempt <= 3; attempt++) {
     const { error } = await supabase
-      .from("payments")
+      .from(table)
       .update({ provider_transaction_ref: result.providerTransactionRef })
       .eq("id", paymentId);
     updateError = error;
