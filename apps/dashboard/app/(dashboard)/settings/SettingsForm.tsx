@@ -25,12 +25,11 @@ import { Label } from "@/components/ui/label";
 import type { GymSettingsRow } from "@/services/gym-settings";
 import type { GymPaymentConnectionStatus } from "@/services/gym-payment-credentials";
 import type { GymBillingInfo } from "@/services/billing";
-import { fetchSaasBillingPaymentStatus } from "@/lib/realtime/paymentStatus";
+import { PayNowButton } from "@/components/shared/PayNowButton";
 import {
   connectPaymentProvider,
   disconnectPaymentProvider,
   getBillingInfo,
-  payNow,
   regenerateQrCode,
   saveGymSettings,
   saveNotificationEmail,
@@ -208,17 +207,6 @@ export function SettingsForm({
   const [notificationEmail, setNotificationEmail] = useState(initialBillingInfo?.notificationEmail ?? "");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [savingEmail, setSavingEmail] = useState(false);
-  const [payNowError, setPayNowError] = useState<string | null>(null);
-  const [payNowLoading, setPayNowLoading] = useState(false);
-  const [watchedPaymentId, setWatchedPaymentId] = useState<string | null>(null);
-  const [paymentPhase, setPaymentPhase] = useState<"idle" | "pending" | "stillWaiting" | "failed">("idle");
-  // Real-user-testing finding: the Owner's own on-file phone isn't always
-  // the right mobile-money payer line -- "Pay Now" opens a dialog with an
-  // editable field (pre-filled from billingInfo.ownerPhone) instead of
-  // silently using the on-file number with no confirmation.
-  const [payNowOpen, setPayNowOpen] = useState(false);
-  const [payNowPhone, setPayNowPhone] = useState("");
-  const payNowDialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     return () => {
@@ -246,70 +234,26 @@ export function SettingsForm({
   }, [disconnectOpen]);
 
   useEffect(() => {
-    if (payNowOpen) {
-      payNowDialogRef.current?.showModal();
-    }
-  }, [payNowOpen]);
-
-  useEffect(() => {
     QRCode.toDataURL(gymToken).then(setQrDataUrl).catch(() => setQrDataUrl(null));
   }, [gymToken]);
 
-  // Story 11.3 (Task 6): polling-only pending-payment watch for the new
-  // Billing section's "Pay Now" -- `RenewalModal`'s
-  // subscribeToPaymentStatus/fetchPaymentStatus pattern, minus the realtime
-  // fast path (saas_billing_payments is deliberately not yet added to the
-  // supabase_realtime publication -- see this story's Dev Notes).
-  useEffect(() => {
-    if (!watchedPaymentId) return;
-
-    let active = true;
-    const pollTimer = setInterval(() => {
-      void fetchSaasBillingPaymentStatus(watchedPaymentId)
-        .then((row) => {
-          if (!active || !row) return;
-          if (row.status === "verified") {
-            clearInterval(pollTimer);
-            setWatchedPaymentId(null);
-            setPaymentPhase("idle");
-            showToast(t("settings.billing.paymentConfirmedToast"));
-            // Refetches this client component's own copy of billingInfo --
-            // router.refresh() alone re-renders the Server Component tree,
-            // but this component's local useState (seeded from
-            // initialBillingInfo) would not pick that up without an explicit
-            // refetch, same as paymentConnection's own established pattern.
-            getBillingInfo()
-              .then(({ data }) => {
-                if (active && data) setBillingInfo(data);
-              })
-              .catch((err) => console.error("[settings] failed to refetch billing info after payment confirmation", err));
-          } else if (row.status === "flagged") {
-            clearInterval(pollTimer);
-            setWatchedPaymentId(null);
-            setPaymentPhase("failed");
-          }
-          // "processing" is a no-op here -- still waiting.
-        })
-        .catch((err) => {
-          // A thrown/rejected status check must not leave the UI stuck on
-          // "pending" with a silent recurring failure -- log and keep
-          // polling (a transient network blip shouldn't give up after one
-          // failed tick; the real send/webhook is still the authority).
-          console.error("[settings] failed to check pending saas billing payment status", err);
-        });
-    }, 5000);
-
-    const stillWaitingTimer = setTimeout(() => {
-      setPaymentPhase((current) => (current === "pending" ? "stillWaiting" : current));
-    }, 45000);
-
-    return () => {
-      active = false;
-      clearInterval(pollTimer);
-      clearTimeout(stillWaitingTimer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchedPaymentId]);
+  // Story 11.4: "Pay Now" (dialog + submit + pending-payment poll) is now
+  // owned by the extracted <PayNowButton>, shared with the suspended-gym
+  // Owner recovery screen -- see its own file for the polling logic.
+  async function handlePaymentConfirmed() {
+    showToast(t("settings.billing.paymentConfirmedToast"));
+    // Refetches this client component's own copy of billingInfo --
+    // router.refresh() alone re-renders the Server Component tree, but this
+    // component's local useState (seeded from initialBillingInfo) would not
+    // pick that up without an explicit refetch, same as paymentConnection's
+    // own established pattern.
+    try {
+      const { data } = await getBillingInfo();
+      if (data) setBillingInfo(data);
+    } catch (err) {
+      console.error("[settings] failed to refetch billing info after payment confirmation", err);
+    }
+  }
 
   function showToast(message: string) {
     setToast(message);
@@ -540,38 +484,6 @@ export function SettingsForm({
       disconnectDialogRef.current?.close();
       setDisconnecting(false);
       setDisconnectOpen(false);
-    }
-  }
-
-  // Story 11.3 (Task 6, revised per Task 7's live-evidence finding): "Pay
-  // Now" opens a confirmation dialog with an editable payer-phone field
-  // (pre-filled from billingInfo.ownerPhone) -- the Owner's own on-file
-  // number isn't always the right mobile-money payer line, so this is no
-  // longer the original no-input design.
-  function openPayNowDialog() {
-    setPayNowError(null);
-    setPayNowPhone(billingInfo?.ownerPhone ?? "");
-    setPayNowOpen(true);
-  }
-
-  async function handlePayNowSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setPayNowError(null);
-    setPayNowLoading(true);
-    try {
-      const { data, error } = await payNow({ phoneNumber: payNowPhone.trim() });
-      if (error || !data) {
-        setPayNowError(error?.message ?? t("common.somethingWentWrong"));
-        return;
-      }
-      setPaymentPhase("pending");
-      setWatchedPaymentId(data.paymentId);
-      payNowDialogRef.current?.close();
-      setPayNowOpen(false);
-    } catch {
-      setPayNowError(t("common.somethingWentWrong"));
-    } finally {
-      setPayNowLoading(false);
     }
   }
 
@@ -963,26 +875,10 @@ export function SettingsForm({
                   </div>
 
                   {billingInfo.billingStatus !== "active" && (
-                    <div className="flex flex-col gap-2">
-                      {paymentPhase === "pending" && (
-                        <p className="text-sm text-muted-foreground">{t("settings.billing.payPending")}</p>
-                      )}
-                      {paymentPhase === "stillWaiting" && (
-                        <p className="text-sm text-muted-foreground">{t("settings.billing.payStillWaiting")}</p>
-                      )}
-                      {paymentPhase === "failed" && (
-                        <p className="text-sm text-red-600">{t("settings.billing.payFailed")}</p>
-                      )}
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="w-fit"
-                        disabled={paymentPhase === "pending" || paymentPhase === "stillWaiting"}
-                        onClick={openPayNowDialog}
-                      >
-                        {t("settings.billing.payNow")}
-                      </Button>
-                    </div>
+                    <PayNowButton
+                      initialOwnerPhone={billingInfo.ownerPhone}
+                      onPaymentConfirmed={handlePaymentConfirmed}
+                    />
                   )}
 
                   <div className="space-y-2 border-t pt-4">
@@ -1154,47 +1050,6 @@ export function SettingsForm({
             </Button>
           </div>
         </div>
-      </dialog>
-
-      <dialog
-        ref={payNowDialogRef}
-        onClose={() => setPayNowOpen(false)}
-        onCancel={(e) => {
-          if (payNowLoading) e.preventDefault();
-        }}
-        className="w-full max-w-[420px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
-      >
-        <form onSubmit={handlePayNowSubmit} className="space-y-4 p-6">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold">{t("settings.billing.payNowDialogTitle")}</h2>
-            <p className="text-sm text-muted-foreground">{t("settings.billing.payNowDialogBody")}</p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="payNowPhone">{t("settings.billing.payerPhoneLabel")}</Label>
-            <Input
-              id="payNowPhone"
-              type="tel"
-              value={payNowPhone}
-              onChange={(e) => setPayNowPhone(e.target.value)}
-              placeholder="+237600000000"
-              disabled={payNowLoading}
-            />
-          </div>
-          {payNowError && <p className="text-sm text-red-600">{payNowError}</p>}
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={payNowLoading}
-              onClick={() => payNowDialogRef.current?.close()}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button type="submit" disabled={payNowLoading}>
-              {payNowLoading ? t("settings.billing.payNowLoading") : t("settings.billing.payNow")}
-            </Button>
-          </div>
-        </form>
       </dialog>
 
       {toast && (

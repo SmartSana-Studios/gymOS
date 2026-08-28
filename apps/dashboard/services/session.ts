@@ -72,6 +72,51 @@ export interface DashboardShellContext {
   availableGyms: { gymId: string; gymName: string; role: MemberRole }[];
 }
 
+/**
+ * Story 11.4: the distinct "your gym is suspended/deactivated" result --
+ * deliberately not overloaded onto `data === null`, which already means
+ * something else ("no valid gym-scoped staff session at all"). The layout
+ * uses `role`/`isBillingSuspension` to pick between the Owner's Pay-Now
+ * screen and the neutral "temporarily unavailable" screen every other case
+ * gets.
+ */
+export interface DashboardSuspendedContext {
+  gymName: string;
+  role: MemberRole;
+  /**
+   * True only for `gyms.status === 'suspended'` (the billing-lapse state
+   * Story 11.2/11.3 already round-trip). `'deactivated'` is a distinct,
+   * more severe Super-Admin lifecycle action (0011) that
+   * `initiate_saas_billing_payment()` (0072) already explicitly rejects --
+   * showing the Owner a Pay-Now button that would just fail is worse than
+   * the neutral screen, so a deactivated gym's Owner sees the same neutral
+   * copy as every other role, not the billing-aware one.
+   */
+  isBillingSuspension: boolean;
+  /**
+   * Review finding: the suspended short-circuit previously skipped the
+   * `users.must_change_password` read entirely, letting a temp-password
+   * Owner reach the Pay-Now screen (including submitting a real payment)
+   * without ever completing Story 1.11's forced password change. `users` is
+   * not gym-scoped and carries no `tenant_active_gate` policy, so this read
+   * is unaffected by the suspension gate.
+   */
+  mustChangePassword: boolean;
+  /**
+   * Review finding: `private.current_gym_status()` evaluates the session's
+   * *currently claimed* gym, not each row's own `gym_id` -- so once that gym
+   * is suspended, the ordinary `self_read_own_membership`-backed query
+   * (`DashboardShellContext.availableGyms`'s own mechanism) returns zero
+   * rows for *every* gym the caller belongs to, not just the suspended one.
+   * Populated instead via `list_own_active_gym_memberships()` (0074), a
+   * SECURITY DEFINER read mirroring `switch_active_gym()`'s own RLS bypass
+   * -- same data `self_read_own_membership` would already expose for an
+   * active gym, just available regardless of the current gym's status.
+   */
+  gymId: string;
+  availableGyms: { gymId: string; gymName: string; role: MemberRole }[];
+}
+
 
 /**
  * Backs the (dashboard) route group's layout: gym name (Sidebar header),
@@ -89,6 +134,7 @@ export interface DashboardShellContext {
 export async function getDashboardShellContext(): Promise<{
   data: DashboardShellContext | null;
   error: AppError | null;
+  suspended: DashboardSuspendedContext | null;
 }> {
   const supabase = await createClient();
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
@@ -97,12 +143,12 @@ export async function getDashboardShellContext(): Promise<{
     // A genuine auth-server error, not just "no session" -- worth mapping
     // and logging (Review finding: this branch previously also fired, via
     // mapAndLog(null), for the ordinary logged-out case below).
-    return { data: null, error: await mapAndLog(claimsError) };
+    return { data: null, error: await mapAndLog(claimsError), suspended: null };
   }
 
   if (!claimsData?.claims) {
     // Ordinary "not logged in" case -- not an error, nothing to log.
-    return { data: null, error: null };
+    return { data: null, error: null, suspended: null };
   }
 
   const claims = claimsData.claims as {
@@ -120,11 +166,68 @@ export async function getDashboardShellContext(): Promise<{
     // or a non-staff role (e.g. "member") that has no place on this
     // dashboard (Review finding). The caller's own layout guard is the
     // real gate; this is a defensive no-context result, not an error.
-    return { data: null, error: null };
+    return { data: null, error: null, suspended: null };
   }
 
-  const [gymResult, memberResult, userResult, allMembershipsResult] = await Promise.all([
-    supabase.from("gyms").select("name").eq("id", gymId).single(),
+  // Story 11.4: read gym name/status via the still-open "read own gym"
+  // policy (0009) *before* the members lookup below, which the new
+  // tenant_active_gate RESTRICTIVE policy (0073) denies outright for any
+  // non-active gym. Short-circuiting here -- rather than letting that now-
+  // gated query silently return empty and fall through to the existing
+  // `!shell` -> redirect("/auth/login") branch in (dashboard)/layout.tsx --
+  // is what keeps a suspended gym's Owner out of a login-redirect loop and
+  // on the Pay-Now recovery screen instead.
+  const gymStatusResult = await supabase.from("gyms").select("name, status").eq("id", gymId).single();
+
+  if (gymStatusResult.error) {
+    return { data: null, error: await mapAndLog(gymStatusResult.error), suspended: null };
+  }
+
+  if (gymStatusResult.data.status !== "active") {
+    // Review finding: `users` is not gym-scoped and carries no
+    // `tenant_active_gate` policy, so this read is unaffected by the
+    // suspension gate above -- safe to run here even though the `members`
+    // lookup below is not. `list_own_active_gym_memberships()` (0074) is a
+    // SECURITY DEFINER RPC for the same reason `members` itself can't be
+    // queried directly here (see `availableGyms`'s own doc comment above).
+    const [userStatusResult, membershipsResult] = await Promise.all([
+      supabase.from("users").select("must_change_password").eq("id", claims.sub).single(),
+      supabase.rpc("list_own_active_gym_memberships"),
+    ]);
+
+    if (userStatusResult.error) {
+      return { data: null, error: await mapAndLog(userStatusResult.error), suspended: null };
+    }
+
+    if (membershipsResult.error) {
+      // Same "display nicety, not a security boundary" reasoning as the
+      // active-path availableGyms computation below -- a failed lookup just
+      // means no switcher shows on the suspended screen, it does not affect
+      // any RLS-scoped access.
+      console.error("[getDashboardShellContext] suspended-branch memberships lookup failed", membershipsResult.error);
+    }
+
+    return {
+      data: null,
+      error: null,
+      suspended: {
+        gymName: gymStatusResult.data.name,
+        role,
+        isBillingSuspension: gymStatusResult.data.status === "suspended",
+        mustChangePassword: userStatusResult.data.must_change_password,
+        gymId,
+        availableGyms: (membershipsResult.data ?? []).map(
+          (m: { gym_id: string; gym_name: string; role: string }) => ({
+            gymId: m.gym_id,
+            gymName: m.gym_name,
+            role: m.role as MemberRole,
+          }),
+        ),
+      },
+    };
+  }
+
+  const [memberResult, userResult, allMembershipsResult] = await Promise.all([
     supabase
       .from("members")
       .select("id, name")
@@ -145,10 +248,6 @@ export async function getDashboardShellContext(): Promise<{
       .is("deactivated_at", null),
   ]);
 
-  if (gymResult.error) {
-    return { data: null, error: await mapAndLog(gymResult.error) };
-  }
-
   if (memberResult.error) {
     // A genuine DB/RLS error here was previously indistinguishable from
     // "no row found" (Review finding). Log it so it's not silently masked,
@@ -165,7 +264,7 @@ export async function getDashboardShellContext(): Promise<{
     // password reach the dashboard). Every authenticated `users` row exists
     // via `handle_new_user()` (0003), so a genuine error here is a real
     // backend failure, treated the same as the gym lookup above.
-    return { data: null, error: await mapAndLog(userResult.error) };
+    return { data: null, error: await mapAndLog(userResult.error), suspended: null };
   }
 
   // A failed/null member lookup is a display nicety, not a security
@@ -210,7 +309,7 @@ export async function getDashboardShellContext(): Promise<{
   return {
     data: {
       gymId,
-      gymName: gymResult.data.name,
+      gymName: gymStatusResult.data.name,
       memberId: memberResult.data?.id ?? null,
       memberName,
       role,
@@ -218,6 +317,7 @@ export async function getDashboardShellContext(): Promise<{
       availableGyms,
     },
     error: null,
+    suspended: null,
   };
 }
 

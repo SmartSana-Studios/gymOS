@@ -1716,6 +1716,14 @@ export type Database = {
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
       initiate_member_payment: { Args: never; Returns: string }
       initiate_saas_billing_payment: { Args: never; Returns: string }
+      list_own_active_gym_memberships: {
+        Args: never
+        Returns: {
+          gym_id: string
+          gym_name: string
+          role: Database["public"]["Enums"]["member_role"]
+        }[]
+      }
       log_audit_event: {
         Args: {
           p_action_type: string

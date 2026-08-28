@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { getDashboardShellContext } from "@/services/session";
 import { DashboardChrome } from "@/components/shared/DashboardChrome";
+import { OwnerSuspendedScreen, NeutralSuspendedScreen } from "@/components/shared/SuspendedGymScreen";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
@@ -36,7 +37,7 @@ async function DashboardLayoutData({
 }: {
   children: React.ReactNode;
 }) {
-  const { data: shell, error: shellError } = await getDashboardShellContext();
+  const { data: shell, error: shellError, suspended } = await getDashboardShellContext();
 
   if (shellError) {
     // A genuine backend error (e.g. the gym row lookup failed) for an
@@ -50,6 +51,27 @@ async function DashboardLayoutData({
       <div className="flex min-h-screen items-center justify-center p-6 text-sm text-destructive">
         {t("common.loadError")}
       </div>
+    );
+  }
+
+  if (suspended) {
+    // Review finding: must_change_password (Story 1.11) also gates ahead of
+    // the suspended screens -- a temp-password Owner must not reach Pay-Now
+    // (including submitting a real payment) without completing that flow
+    // first, same reasoning as the `!suspended` branch below.
+    if (suspended.mustChangePassword) {
+      redirect("/auth/update-password");
+    }
+
+    // Story 11.4 (AC #1, #3): checked before the `!shell` -> redirect
+    // branch below -- a suspended gym's Owner must reach the Pay-Now
+    // recovery screen here, not bounce into a login-redirect loop (`shell`
+    // is `null` in this case too, since the now-gated `members` lookup was
+    // deliberately never attempted).
+    return suspended.isBillingSuspension && suspended.role === "owner" ? (
+      <OwnerSuspendedScreen gymName={suspended.gymName} gymId={suspended.gymId} availableGyms={suspended.availableGyms} />
+    ) : (
+      <NeutralSuspendedScreen gymId={suspended.gymId} availableGyms={suspended.availableGyms} />
     );
   }
 

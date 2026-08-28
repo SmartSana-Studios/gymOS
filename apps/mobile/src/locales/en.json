@@ -340,5 +340,8 @@
       "mobileMoneyDisabled": "Mobile money renewal isn't available right now. See front desk to renew with cash.",
       "payerPhoneInvalid": "Enter a valid phone number"
     }
+  },
+  "suspended": {
+    "message": "GymOS is temporarily unavailable for this gym. Please check back later."
   }
 }

@@ -2083,6 +2083,33 @@ So that a bug can't quietly settle a gym's Flow B billing payment into a member-
 **When** the reconciliation job evaluates that gym's cycle
 **Then** the credited period is correctly excluded from `past_due` calculations — a credit is not mistaken for a missed payment
 
+### Story 11.7: Pay Now — Tier Selection & Alternate Payment Methods *(backlog stub — added 2026-08-28, not yet elaborated via create-story)*
+
+As a gym Owner paying my GymOS subscription,
+I want to change my tier at payment time and pay through more than one method,
+So that Pay Now isn't limited to whatever tier is already on file, paid only by the mobile-money number I happen to be holding.
+
+**Context:** Surfaced live during Story 11.4's manual verification of the suspended-gym Owner recovery screen (`<PayNowButton>`, `apps/dashboard/components/shared/PayNowButton.tsx`, extracted from Story 11.3's Settings Billing card). Today's flow is Story 11.3's shipped shape only: `initiate_saas_billing_payment()` charges whatever tier/interval is already on `gyms.tier_id`/`saas_billing_interval`, via one direct mobile-money USSD prompt to a single phone number — no tier change, no alternate method. Three real gaps identified:
+1. **No tier/interval selection at Pay Now time** — an Owner who wants to change plans has no path to do that from this screen; they'd need a separate, not-yet-built tier-change flow.
+2. **No hosted-checkout fallback.** TaraMoney's real API (confirmed via `https://dikalosarl.mintlify.site/` — this project had no prior documentation of this beyond the direct mobile-money collection endpoint already implemented in `TaraMoneyProvider.ts`) exposes a `createPaymentLink()` method returning a hosted URL (`https://pay.taramoney.com/link/{id}`) and an `EmbedPay` iframe component (`https://taramoney.com/pay/{collectionId}`), both distinct from the direct `mobilePay()` API call this codebase currently uses exclusively. Tara's own marketing pages (`taramoney.com/business`) additionally claim Bank Card acceptance as a merchant capability — **this specific claim is unconfirmed at the API/technical-docs level** (the `/sdk/react-sdk` page explicitly says its own embedded UI supports "Mobile Money payments only... No card payments, alternative wallets... mentioned"), so whether the hosted payment *link* (as opposed to the SDK's embedded component) actually surfaces card/Stripe/Google Pay/Alipay needs direct verification against a real Tara dashboard/account before this story's design is finalized — do not assume it from the marketing copy alone.
+3. **No country/operator selector.** The direct mobile-money API supports 14+ countries with specific per-country operators (confirmed via `/api/mobile-pay`: Benin (MTN, Moov), Burkina Faso (Moov, Orange), Cameroon (MTN, Orange), Congo-Brazzaville (Airtel, MTN), Congo-Kinshasa (Vodacom, Airtel, Orange), Côte d'Ivoire (MTN, Orange, Wave), Gabon (Airtel), Ghana (MTN, AirtelTigo, Vodafone), Kenya (MPesa), Rwanda (Airtel, MTN), Senegal (Free, Orange, Wave), Sierra Leone (Orange), Tanzania (Airtel, Vodacom, Tigo, Halotel), Uganda (Airtel, MTN), Zambia (operators undocumented)) — today's Pay Now dialog has no way to pick a country, defaulting to whatever number the Owner types with no operator/country context or flag iconography.
+
+**Also worth reconciling at create-story time, not required by this stub:** the fetched webhook docs (`/api/webhooks`) describe an `X-Tara-Signature` HMAC-SHA256 verification scheme, but this codebase's actual, real-production-verified `TaraMoneyProvider.verifyWebhookSignature()` (Story 4.1, 2026-07-31 live test) uses a plain shared-secret `tara-webhook-secret` header match instead — either the docs describe a newer/different API version, or a legacy verification mode is still in effect for this account. Confirm which is actually live before touching that code path.
+
+**Acceptance Criteria (draft — needs full create-story elaboration before dev, including direct confirmation against a real Tara dashboard/account of which payment methods the hosted checkout link actually surfaces):**
+
+**Given** the Pay Now dialog (Settings Billing card and/or the suspended-gym Owner screen)
+**When** the Owner opens it
+**Then** they can select a tier/interval to pay for, not just re-pay whatever is already on file
+
+**Given** the Pay Now dialog
+**When** the Owner wants to pay via mobile money
+**Then** a country selector (with flags, scoped to Tara's actually-supported country list) drives which operators are offered, rather than a bare phone-number field with no country context
+
+**Given** the Pay Now dialog
+**When** the Owner doesn't want to (or can't) pay via mobile money
+**Then** a "Continue on Tara" link/action is offered, routing to Tara's own hosted checkout product (`createPaymentLink()`/`EmbedPay`) for whatever alternate methods that surface actually supports — confirmed against real Tara docs/dashboard, not assumed
+
 ---
 
 ## Epic 10: Client Progress Tracking

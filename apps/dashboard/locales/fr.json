@@ -888,6 +888,9 @@
   },
   "saasBilling": {
     "reminderMessage": "Le paiement de votre abonnement GymOS est dû le {{date}}. Payez maintenant : {{url}}",
-    "reminderMessageNoLink": "Le paiement de votre abonnement GymOS est dû le {{date}}. Connectez-vous à GymOS pour payer maintenant."
+    "reminderMessageNoLink": "Le paiement de votre abonnement GymOS est dû le {{date}}. Connectez-vous à GymOS pour payer maintenant.",
+    "ownerSuspendedMessage": "Le paiement de votre abonnement GymOS est en retard. Payez maintenant pour rétablir l'accès pour toute votre équipe.",
+    "neutralSuspendedMessage": "GymOS est temporairement indisponible pour cette salle. Veuillez réessayer plus tard.",
+    "switchGymPrompt": "Vous appartenez à une autre salle vers laquelle vous pouvez basculer :"
   }
 }

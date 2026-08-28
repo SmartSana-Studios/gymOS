@@ -340,5 +340,8 @@
       "mobileMoneyDisabled": "Le renouvellement par mobile money n'est pas disponible actuellement. Voir l'accueil pour renouveler en espèces.",
       "payerPhoneInvalid": "Entrez un numéro de téléphone valide"
     }
+  },
+  "suspended": {
+    "message": "GymOS est temporairement indisponible pour cette salle. Veuillez réessayer plus tard."
   }
 }
