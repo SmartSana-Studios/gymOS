@@ -228,6 +228,141 @@ Deno.test("payment-webhook taramoney receive route: unrecognized businessId (zer
   }
 });
 
+// --- payment-webhook receive route: platform path (Story 11.1, Flow B, Task 3) ----------------
+
+const PLATFORM_BUSINESS_ID = "platform-biz-id";
+const PLATFORM_SECRET = "test-taramoney-platform-webhook-secret";
+
+// Mirrors TaraMoneyProvider.test.ts's own withPlatformEnv -- awaits fn()
+// before restoring the env vars, since fn()'s real work happens after its
+// first `await` (the gym-lookup RPC call).
+async function withPlatformEnv<T>(fn: () => Promise<T>): Promise<T> {
+  const priorBusinessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
+  const priorSecret = Deno.env.get("TARAMONEY_WEBHOOK_SECRET");
+  Deno.env.set("TARAMONEY_BUSINESS_ID", PLATFORM_BUSINESS_ID);
+  Deno.env.set("TARAMONEY_WEBHOOK_SECRET", PLATFORM_SECRET);
+  try {
+    return await fn();
+  } finally {
+    if (priorBusinessId === undefined) Deno.env.delete("TARAMONEY_BUSINESS_ID");
+    else Deno.env.set("TARAMONEY_BUSINESS_ID", priorBusinessId);
+    if (priorSecret === undefined) Deno.env.delete("TARAMONEY_WEBHOOK_SECRET");
+    else Deno.env.set("TARAMONEY_WEBHOOK_SECRET", priorSecret);
+  }
+}
+
+/**
+ * Serves a full platform-path receive-route flow past signature verification: the gym-lookup RPC
+ * (zero rows -- forces the platform-match branch), a `saas_billing_payments` select returning
+ * `saasPaymentRow`, and a `payment_webhook_events` upsert -- then records whether
+ * `complete_verified_saas_billing_payment`/`complete_flagged_saas_billing_payment` were called,
+ * and captures the payment_webhook_events upsert body so a test can assert
+ * matched_saas_billing_payment_id (not matched_payment_id) was written.
+ */
+function stubFetchPlatformFullFlow(saasPaymentRow: { id: string } | null) {
+  const calls: string[] = [];
+  let completeVerifiedCalled = false;
+  let completeFlaggedCalled = false;
+  let eventLogBody: Record<string, unknown> | undefined;
+  const original = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    calls.push(href);
+    if (href.includes("/rest/v1/rpc/get_gym_payment_credentials_by_business_id")) {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    if (href.includes("/rest/v1/saas_billing_payments?")) {
+      return Promise.resolve(
+        new Response(JSON.stringify(saasPaymentRow), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    if (href.includes("/rest/v1/payment_webhook_events")) {
+      eventLogBody = init?.body ? JSON.parse(init.body as string) : undefined;
+      return Promise.resolve(new Response(null, { status: 201 }));
+    }
+    if (href.includes("/rest/v1/rpc/complete_verified_saas_billing_payment")) {
+      completeVerifiedCalled = true;
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }
+    if (href.includes("/rest/v1/rpc/complete_flagged_saas_billing_payment")) {
+      completeFlaggedCalled = true;
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }
+    throw new Error(`stubFetch: unexpected DB access ${href}`);
+  }) as typeof fetch;
+  return {
+    calls,
+    completeVerifiedPaymentCalled: () => completeVerifiedCalled,
+    completeFlaggedPaymentCalled: () => completeFlaggedCalled,
+    eventLogBody: () => eventLogBody,
+    restore: () => (globalThis.fetch = original),
+  };
+}
+
+Deno.test("payment-webhook taramoney receive route: platform path -- a signature-verified platform webhook resolves against saas_billing_payments, logs matched_saas_billing_payment_id, and completes via complete_verified_saas_billing_payment", async () => {
+  await withPlatformEnv(async () => {
+    const stub = stubFetchPlatformFullFlow({ id: "saas-payment-1" });
+    try {
+      const req = receiveRequest({ "tara-webhook-secret": PLATFORM_SECRET }, {
+        businessId: PLATFORM_BUSINESS_ID,
+        paymentId: "pay-platform-1",
+        status: "SUCCESS",
+        amount: "5000000",
+      });
+      const res = await handler.fetch(req);
+      assertEquals(res.status, 200);
+      assertEquals(stub.completeVerifiedPaymentCalled(), true);
+      assertEquals(stub.completeFlaggedPaymentCalled(), false);
+      assertEquals(stub.eventLogBody()?.matched_saas_billing_payment_id, "saas-payment-1");
+      assertEquals(stub.eventLogBody()?.matched_payment_id, undefined, "the platform path must never write matched_payment_id");
+    } finally {
+      stub.restore();
+    }
+  });
+});
+
+Deno.test("payment-webhook taramoney receive route: platform path -- a status:FAILURE platform webhook calls complete_flagged_saas_billing_payment instead of completing", async () => {
+  await withPlatformEnv(async () => {
+    const stub = stubFetchPlatformFullFlow({ id: "saas-payment-2" });
+    try {
+      const req = receiveRequest({ "tara-webhook-secret": PLATFORM_SECRET }, {
+        businessId: PLATFORM_BUSINESS_ID,
+        paymentId: "pay-platform-2",
+        status: "FAILURE",
+      });
+      const res = await handler.fetch(req);
+      assertEquals(res.status, 200);
+      assertEquals(stub.completeFlaggedPaymentCalled(), true);
+      assertEquals(stub.completeVerifiedPaymentCalled(), false);
+    } finally {
+      stub.restore();
+    }
+  });
+});
+
+Deno.test("payment-webhook taramoney receive route: platform path -- AC #3(b) analogue -- a verified platform webhook matched no saas_billing_payments row completes nothing and still returns 200", async () => {
+  await withPlatformEnv(async () => {
+    const stub = stubFetchPlatformFullFlow(null);
+    try {
+      const req = receiveRequest({ "tara-webhook-secret": PLATFORM_SECRET }, {
+        businessId: PLATFORM_BUSINESS_ID,
+        paymentId: "pay-platform-3",
+        status: "SUCCESS",
+        amount: "100",
+      });
+      const res = await handler.fetch(req);
+      assertEquals(res.status, 200);
+      assertEquals(stub.completeVerifiedPaymentCalled(), false);
+      assertEquals(stub.completeFlaggedPaymentCalled(), false);
+      assertEquals(stub.eventLogBody()?.matched_saas_billing_payment_id, null);
+    } finally {
+      stub.restore();
+    }
+  });
+});
+
 // Story 4.15 Task 3: handleInitiate()'s new kill-switch check. Scoped
 // strictly to that check's own short-circuit behavior -- a full
 // happy-path/DB-write route-level test suite for handleInitiate() is a

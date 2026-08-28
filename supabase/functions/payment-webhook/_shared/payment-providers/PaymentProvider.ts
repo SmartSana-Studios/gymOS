@@ -8,9 +8,9 @@
  * AD-14's discriminated routing context. Flow A (Story 4.14) introduces the
  * `gym` variant — a gym's own Vault-stored Tara Money credentials, resolved
  * via a service-role-only RPC (never a client-supplied credential blob).
- * `platform` is additive forward-compatibility for Epic 11's SaaS billing
- * (GymOS's own platform-level account) — this story's PaymentProvider
- * implementations do not implement its behavior, only the type constant.
+ * `platform` (Story 11.1) is Epic 11's SaaS billing account — GymOS's own
+ * platform-level Tara Money credentials, read from env vars rather than a
+ * per-gym Vault lookup.
  */
 export type PaymentRoutingContext = { type: "gym"; gymId: string } | { type: "platform" };
 
@@ -81,6 +81,16 @@ export interface NormalizedPaymentEvent {
    * verification (every real TaraMoneyProvider webhook).
    */
   resolvedGymId?: string;
+  /**
+   * AD-14/Story 11.1: which account (gym or platform) verifyWebhookSignature()
+   * actually resolved this delivery against — required, not optional, since
+   * every code path that returns `{valid: true, event}` now knows which one
+   * it resolved. index.ts (Task 3) reads this to decide whether to dispatch
+   * against `payments` or `saas_billing_payments`; it must not infer routing
+   * from resolvedGymId's presence/absence alone, which is also legitimately
+   * absent on unrelated defensive paths.
+   */
+  resolvedRoutingContext: PaymentRoutingContext;
   /** Maps to the existing payment_status enum, 0001_extensions_and_enums.sql. */
   status: "processing" | "verified" | "flagged";
   amount: number;

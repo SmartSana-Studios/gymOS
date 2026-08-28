@@ -264,33 +264,162 @@ export default {
 
     const event = verification.event;
 
-    // AC #3(a)/Story 4.4 Task 2: matched to the pre-existing payments row by
-    // provider_transaction_ref (set at initiate time) -- no new row is ever
-    // inserted by the webhook handler. Moved ahead of the
-    // `event.status !== "verified"` branch (below) so a declined delivery's
-    // matched_payment_id is available to the payment_webhook_events insert
-    // too -- previously a declined delivery never even attempted this
-    // lookup.
-    const { data: paymentRow, error: lookupError } = await supabase
-      .from("payments")
-      .select("id, gym_id")
+    // Story 11.1/AD-14: dispatch on which account verifyWebhookSignature()
+    // resolved this delivery against -- Flow A (gym) against `payments`
+    // (unchanged from before this story), Flow B (platform) against the new
+    // `saas_billing_payments`. One shared Edge Function, one shared
+    // `payment_webhook_events` idempotency log for both (AC #3) -- only the
+    // target table/columns/RPCs differ between the two branches below.
+    if (event.resolvedRoutingContext.type === "gym") {
+      // AC #3(a)/Story 4.4 Task 2: matched to the pre-existing payments row by
+      // provider_transaction_ref (set at initiate time) -- no new row is ever
+      // inserted by the webhook handler. Moved ahead of the
+      // `event.status !== "verified"` branch (below) so a declined delivery's
+      // matched_payment_id is available to the payment_webhook_events insert
+      // too -- previously a declined delivery never even attempted this
+      // lookup.
+      const { data: paymentRow, error: lookupError } = await supabase
+        .from("payments")
+        .select("id, gym_id")
+        .eq("provider_transaction_ref", event.providerTransactionRef)
+        .maybeSingle();
+
+      if (lookupError) {
+        console.error(`payment-webhook: ${providerKey} payments lookup failed — ${lookupError.message}`);
+        return jsonResponse(500);
+      }
+
+      // Story 4.4 Task 2: persist one payment_webhook_events row per
+      // signature-verified delivery, matched or not -- the reconciliation
+      // job's only source of truth for AC #1 (an event with no matching
+      // payments row). `ignoreDuplicates` relies on the table's own
+      // (provider_key, provider_transaction_ref) unique index to make a
+      // retried delivery a no-op rather than a second log row. A failure here
+      // is logged but never blocks the completion path below -- reconciliation
+      // -log durability is a nice-to-have, real payment completion is not.
+      const { error: eventLogError } = await supabase
+        .from("payment_webhook_events")
+        .upsert(
+          {
+            provider_key: providerKey,
+            provider_transaction_ref: event.providerTransactionRef,
+            reference: event.reference ?? null,
+            amount: event.amount,
+            currency: event.currency,
+            status: event.status,
+            matched_payment_id: paymentRow?.id ?? null,
+            raw_payload: JSON.parse(payloadText),
+          },
+          { onConflict: "provider_key,provider_transaction_ref", ignoreDuplicates: true },
+        );
+
+      if (eventLogError) {
+        console.error(
+          `payment-webhook: ${providerKey} failed to persist payment_webhook_events row for ${event.providerTransactionRef} — ${eventLogError.message}`,
+        );
+      }
+
+      if (event.status !== "verified") {
+        // Story 6.3: a declined/failed delivery now has a real, observable
+        // completion path. complete_flagged_payment() only transitions a row
+        // that is still `processing` (idempotency guard for a retried
+        // delivery) -- the payments AFTER INSERT OR UPDATE trigger (migration
+        // 0046) fires N-05 on exactly that processing -> flagged transition,
+        // distinct from a staff "Flag for Review" (pending -> flagged), which
+        // stays silent. When no matching payments row was found, there is
+        // nothing to transition -- Story 4.4's reconciliation job remains the
+        // catch-all for that case.
+        console.error(
+          `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} reported status "${event.status}"`,
+        );
+
+        if (paymentRow) {
+          console.error(
+            `payment-webhook: ${providerKey} flagging payment ${paymentRow.id} for ${event.providerTransactionRef}`,
+          );
+
+          const { error: flagError } = await supabase.rpc("complete_flagged_payment", {
+            p_payment_id: paymentRow.id,
+          });
+
+          if (flagError) {
+            console.error(
+              `payment-webhook: ${providerKey} complete_flagged_payment failed for payment ${paymentRow.id} — ${flagError.message}`,
+            );
+            return jsonResponse(500);
+          }
+        }
+
+        return jsonResponse(200);
+      }
+
+      if (!paymentRow) {
+        // AC #3(b): defensive -- should not occur in normal operation, since
+        // initiate always sets provider_transaction_ref before any webhook
+        // for it can arrive.
+        console.error(
+          `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} matched no payments row -- nothing to do`,
+        );
+        return jsonResponse(200);
+      }
+
+      // Review finding: verifyWebhookSignature resolves gym_id from the
+      // payload's businessId internally, but the payments-row match above is
+      // purely by provider_transaction_ref -- a synchronous cross-check
+      // closes the gap where a signature-verified delivery for gym A's
+      // account could otherwise complete a payment row that actually belongs
+      // to a different gym (a provider_transaction_ref collision/anomaly).
+      // Previously this was only ever caught after the fact, and only for
+      // gyms already connected, by run_payment_reconciliation_job()'s
+      // wrong_account_settlement category -- this prevents it synchronously
+      // instead of merely detecting it later.
+      if (event.resolvedGymId && event.resolvedGymId !== paymentRow.gym_id) {
+        console.error(
+          `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} resolved to gym ${event.resolvedGymId} but matched payment ${paymentRow.id} belongs to gym ${paymentRow.gym_id} -- refusing to complete, leaving for reconciliation`,
+        );
+        return jsonResponse(200);
+      }
+
+      // AC #6: fee capture, when derivable (TaraMoney's originalAmount vs.
+      // amount delta). null when the provider's payload didn't carry enough
+      // to compute it -- complete_verified_payment stores whatever is passed.
+      const feeAmount = event.feeAmount ?? null;
+
+      const { error: completeError } = await supabase.rpc("complete_verified_payment", {
+        p_payment_id: paymentRow.id,
+        p_fee_amount: feeAmount,
+      });
+
+      if (completeError) {
+        console.error(
+          `payment-webhook: ${providerKey} complete_verified_payment failed for payment ${paymentRow.id} — ${completeError.message}`,
+        );
+        return jsonResponse(500);
+      }
+
+      return jsonResponse(200);
+    }
+
+    // event.resolvedRoutingContext.type === "platform" (Story 11.1, Flow B):
+    // mirrors the gym branch above 1:1 against saas_billing_payments -- same
+    // shape, same one shared payment_webhook_events log (writing
+    // matched_saas_billing_payment_id instead of matched_payment_id), same
+    // completion-RPC idempotency contract. No gym_id exists on a matched
+    // saas_billing_payments row, so the gym branch's cross-tenant cross-check
+    // does not apply here -- there is no cross-tenant case to guard against
+    // (Task 3's own scope note).
+    const { data: saasPaymentRow, error: saasLookupError } = await supabase
+      .from("saas_billing_payments")
+      .select("id")
       .eq("provider_transaction_ref", event.providerTransactionRef)
       .maybeSingle();
 
-    if (lookupError) {
-      console.error(`payment-webhook: ${providerKey} payments lookup failed — ${lookupError.message}`);
+    if (saasLookupError) {
+      console.error(`payment-webhook: ${providerKey} saas_billing_payments lookup failed — ${saasLookupError.message}`);
       return jsonResponse(500);
     }
 
-    // Story 4.4 Task 2: persist one payment_webhook_events row per
-    // signature-verified delivery, matched or not -- the reconciliation
-    // job's only source of truth for AC #1 (an event with no matching
-    // payments row). `ignoreDuplicates` relies on the table's own
-    // (provider_key, provider_transaction_ref) unique index to make a
-    // retried delivery a no-op rather than a second log row. A failure here
-    // is logged but never blocks the completion path below -- reconciliation
-    // -log durability is a nice-to-have, real payment completion is not.
-    const { error: eventLogError } = await supabase
+    const { error: saasEventLogError } = await supabase
       .from("payment_webhook_events")
       .upsert(
         {
@@ -300,44 +429,35 @@ export default {
           amount: event.amount,
           currency: event.currency,
           status: event.status,
-          matched_payment_id: paymentRow?.id ?? null,
+          matched_saas_billing_payment_id: saasPaymentRow?.id ?? null,
           raw_payload: JSON.parse(payloadText),
         },
         { onConflict: "provider_key,provider_transaction_ref", ignoreDuplicates: true },
       );
 
-    if (eventLogError) {
+    if (saasEventLogError) {
       console.error(
-        `payment-webhook: ${providerKey} failed to persist payment_webhook_events row for ${event.providerTransactionRef} — ${eventLogError.message}`,
+        `payment-webhook: ${providerKey} failed to persist payment_webhook_events row for ${event.providerTransactionRef} — ${saasEventLogError.message}`,
       );
     }
 
     if (event.status !== "verified") {
-      // Story 6.3: a declined/failed delivery now has a real, observable
-      // completion path. complete_flagged_payment() only transitions a row
-      // that is still `processing` (idempotency guard for a retried
-      // delivery) -- the payments AFTER INSERT OR UPDATE trigger (migration
-      // 0046) fires N-05 on exactly that processing -> flagged transition,
-      // distinct from a staff "Flag for Review" (pending -> flagged), which
-      // stays silent. When no matching payments row was found, there is
-      // nothing to transition -- Story 4.4's reconciliation job remains the
-      // catch-all for that case.
       console.error(
         `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} reported status "${event.status}"`,
       );
 
-      if (paymentRow) {
+      if (saasPaymentRow) {
         console.error(
-          `payment-webhook: ${providerKey} flagging payment ${paymentRow.id} for ${event.providerTransactionRef}`,
+          `payment-webhook: ${providerKey} flagging saas billing payment ${saasPaymentRow.id} for ${event.providerTransactionRef}`,
         );
 
-        const { error: flagError } = await supabase.rpc("complete_flagged_payment", {
-          p_payment_id: paymentRow.id,
+        const { error: flagError } = await supabase.rpc("complete_flagged_saas_billing_payment", {
+          p_payment_id: saasPaymentRow.id,
         });
 
         if (flagError) {
           console.error(
-            `payment-webhook: ${providerKey} complete_flagged_payment failed for payment ${paymentRow.id} — ${flagError.message}`,
+            `payment-webhook: ${providerKey} complete_flagged_saas_billing_payment failed for payment ${saasPaymentRow.id} — ${flagError.message}`,
           );
           return jsonResponse(500);
         }
@@ -346,46 +466,23 @@ export default {
       return jsonResponse(200);
     }
 
-    if (!paymentRow) {
-      // AC #3(b): defensive -- should not occur in normal operation, since
-      // initiate always sets provider_transaction_ref before any webhook
-      // for it can arrive.
+    if (!saasPaymentRow) {
       console.error(
-        `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} matched no payments row -- nothing to do`,
+        `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} matched no saas_billing_payments row -- nothing to do`,
       );
       return jsonResponse(200);
     }
 
-    // Review finding: verifyWebhookSignature resolves gym_id from the
-    // payload's businessId internally, but the payments-row match above is
-    // purely by provider_transaction_ref -- a synchronous cross-check
-    // closes the gap where a signature-verified delivery for gym A's
-    // account could otherwise complete a payment row that actually belongs
-    // to a different gym (a provider_transaction_ref collision/anomaly).
-    // Previously this was only ever caught after the fact, and only for
-    // gyms already connected, by run_payment_reconciliation_job()'s
-    // wrong_account_settlement category -- this prevents it synchronously
-    // instead of merely detecting it later.
-    if (event.resolvedGymId && event.resolvedGymId !== paymentRow.gym_id) {
-      console.error(
-        `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} resolved to gym ${event.resolvedGymId} but matched payment ${paymentRow.id} belongs to gym ${paymentRow.gym_id} -- refusing to complete, leaving for reconciliation`,
-      );
-      return jsonResponse(200);
-    }
-
-    // AC #6: fee capture, when derivable (TaraMoney's originalAmount vs.
-    // amount delta). null when the provider's payload didn't carry enough
-    // to compute it -- complete_verified_payment stores whatever is passed.
     const feeAmount = event.feeAmount ?? null;
 
-    const { error: completeError } = await supabase.rpc("complete_verified_payment", {
-      p_payment_id: paymentRow.id,
+    const { error: completeError } = await supabase.rpc("complete_verified_saas_billing_payment", {
+      p_payment_id: saasPaymentRow.id,
       p_fee_amount: feeAmount,
     });
 
     if (completeError) {
       console.error(
-        `payment-webhook: ${providerKey} complete_verified_payment failed for payment ${paymentRow.id} — ${completeError.message}`,
+        `payment-webhook: ${providerKey} complete_verified_saas_billing_payment failed for payment ${saasPaymentRow.id} — ${completeError.message}`,
       );
       return jsonResponse(500);
     }

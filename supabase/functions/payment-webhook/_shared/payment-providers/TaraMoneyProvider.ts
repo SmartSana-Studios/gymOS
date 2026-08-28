@@ -5,6 +5,7 @@ import type {
   InitiatePaymentResult,
   NormalizedPaymentEvent,
   PaymentProvider,
+  PaymentRoutingContext,
   WebhookVerificationResult,
 } from "./PaymentProvider.ts";
 import { errorResult, postJsonWithTimeout } from "./httpHelpers.ts";
@@ -249,12 +250,26 @@ export class TaraMoneyProvider implements PaymentProvider {
    * (this adds the first DB *read* to this path, not a write):
    *   1. Parse the payload just far enough to type-guard-check
    *      businessId/paymentId are present -- malformed payload, no DB call.
-   *   2. Look up gym_id + decrypted credentials by businessId (a single RPC
-   *      does both -- get_gym_payment_credentials_by_business_id).
-   *   3. Unrecognized businessId (zero rows) -- {valid:false}, same 401
-   *      outcome as today's "no secret configured" case, no DB write.
-   *   4. Row found -- constant-time-compare the header against *that gym's*
-   *      webhookSecret (not the env var).
+   *   2. Check the payload's businessId against TARAMONEY_BUSINESS_ID
+   *      (GymOS's own platform account) FIRST -- a pure env-var comparison,
+   *      no DB call. This must run and win unconditionally before the gym
+   *      lookup: a gym's own connected business_id_plain (Story 4.13,
+   *      self-service, no uniqueness guarantee against GymOS's own platform
+   *      businessId) must never be able to shadow a genuine platform
+   *      webhook. (Review finding: an earlier version ran the gym lookup
+   *      first, so a single gym registering the platform's businessId --
+   *      by accident or otherwise -- would have permanently broken Flow B
+   *      webhook verification for every gym.)
+   *   3. No platform match -- look up gym_id + decrypted credentials by
+   *      businessId (a single RPC does both --
+   *      get_gym_payment_credentials_by_business_id).
+   *   4. Platform match found -- constant-time-compare the header against
+   *      TARAMONEY_WEBHOOK_SECRET. Gym row found -- constant-time-compare
+   *      the header against *that gym's* webhookSecret (not the env var)
+   *      (same constant-time-compare discipline, not a second, weaker
+   *      comparison).
+   *   5. Neither resolves -- {valid:false}, same 401 outcome as today's "no
+   *      secret configured" case, no DB write.
    */
   async verifyWebhookSignature(payload: string, headers: Record<string, string>): Promise<WebhookVerificationResult> {
     let rawPayload: unknown;
@@ -268,17 +283,35 @@ export class TaraMoneyProvider implements PaymentProvider {
       return { valid: false };
     }
 
-    const { data, error } = await this.supabase.rpc("get_gym_payment_credentials_by_business_id", {
-      p_business_id: rawPayload.businessId,
-      p_provider_key: this.providerKey,
-    });
-    const row = Array.isArray(data) ? data[0] : undefined;
-    if (error || !row) {
-      // Unrecognized businessId -- could be a missing_internal_record case
-      // (a real gym that was never connected/since disconnected) or a
-      // forged payload. Either way, no gym secret can be resolved, so this
-      // is a verification failure -- not a DB write.
-      return { valid: false };
+    let routingContext: PaymentRoutingContext;
+    let webhookSecret: string;
+    let resolvedGymId: string | undefined;
+
+    const platformBusinessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
+    const platformWebhookSecret = Deno.env.get("TARAMONEY_WEBHOOK_SECRET");
+
+    if (platformBusinessId && platformWebhookSecret && rawPayload.businessId === platformBusinessId) {
+      routingContext = { type: "platform" };
+      webhookSecret = platformWebhookSecret;
+    } else {
+      const { data, error } = await this.supabase.rpc("get_gym_payment_credentials_by_business_id", {
+        p_business_id: rawPayload.businessId,
+        p_provider_key: this.providerKey,
+      });
+      const row = Array.isArray(data) ? data[0] : undefined;
+
+      if (error || !row) {
+        // Neither the platform account nor any gym resolves -- could be a
+        // missing_internal_record case (a real gym that was never
+        // connected/since disconnected) or a forged payload. Either way, no
+        // secret can be resolved, so this is a verification failure -- not
+        // a DB write.
+        return { valid: false };
+      }
+
+      routingContext = { type: "gym", gymId: row.gym_id };
+      webhookSecret = row.webhook_secret;
+      resolvedGymId = row.gym_id;
     }
 
     // Confirmed via Task 9's real spike (2026-07-31): TaraMoney's "Webhook
@@ -288,20 +321,23 @@ export class TaraMoneyProvider implements PaymentProvider {
     // project's configured TARAMONEY_WEBHOOK_SECRET exactly. See
     // docs/decisions.md for the full captured request.
     const received = headers["tara-webhook-secret"];
-    if (!received || !constantTimeEqual(received, row.webhook_secret)) {
+    if (!received || !constantTimeEqual(received, webhookSecret)) {
       return { valid: false };
     }
 
-    const event = normalizeTaraMoneyWebhook(rawPayload);
-    if (!event) {
+    const normalized = normalizeTaraMoneyWebhook(rawPayload);
+    if (!normalized) {
       return { valid: false };
     }
 
     // Surfaced so index.ts can synchronously confirm the payments row it
     // matches by provider_transaction_ref actually belongs to this same
     // gym before completing it (review finding) -- row.gym_id is exactly
-    // the gym whose secret just verified this delivery.
-    event.resolvedGymId = row.gym_id;
+    // the gym whose secret just verified this delivery. Absent on the
+    // platform path (no gym_id to cross-check against). resolvedRoutingContext
+    // is the field index.ts (Story 11.1) reads to decide dispatch between
+    // `payments` and `saas_billing_payments`.
+    const event: NormalizedPaymentEvent = { ...normalized, resolvedGymId, resolvedRoutingContext: routingContext };
 
     return { valid: true, event };
   }
@@ -309,11 +345,15 @@ export class TaraMoneyProvider implements PaymentProvider {
 
 /**
  * Normalizes a raw, already-signature-verified TaraMoney webhook body into
- * NormalizedPaymentEvent. Kept as a standalone export (not inlined into
- * verifyWebhookSignature) so index.ts and tests can exercise payload parsing
- * independently of the still-unconfirmed signature step.
+ * NormalizedPaymentEvent, minus resolvedRoutingContext -- that field depends
+ * on which account verifyWebhookSignature() resolved the payload against
+ * (gym vs. platform, Story 11.1), which this pure function has no way to
+ * know; verifyWebhookSignature() adds it before returning. Kept as a
+ * standalone export (not inlined into verifyWebhookSignature) so index.ts
+ * and tests can exercise payload parsing independently of the
+ * still-unconfirmed signature step.
  */
-export function normalizeTaraMoneyWebhook(rawPayload: unknown): NormalizedPaymentEvent | null {
+export function normalizeTaraMoneyWebhook(rawPayload: unknown): Omit<NormalizedPaymentEvent, "resolvedRoutingContext"> | null {
   if (!isTaraMoneyWebhookPayload(rawPayload)) {
     return null;
   }

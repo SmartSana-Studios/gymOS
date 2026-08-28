@@ -13,7 +13,7 @@
 -- amount_mismatch (see the updated per-role counts below).
 
 begin;
-select plan(27);
+select plan(28);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000009501', 'Reconciliation Test Tier', 5000, 50000, 30);
@@ -106,6 +106,20 @@ insert into payment_webhook_events (id, provider_key, provider_transaction_ref, 
   ('00000000-0000-0000-0000-000000009707', 'taramoney', 'recon-test-pre-connection', 4000, 'XAF', 'verified', '00000000-0000-0000-0000-000000009608', '{"businessId": "some-other-business-id"}'::jsonb);
 
 -- ============================================================================
+-- Story 11.1 code review (Patch): e8 is a Flow B (platform) webhook event,
+-- matched via matched_saas_billing_payment_id (not matched_payment_id, which
+-- stays NULL for every Flow B row by construction). Before the reconciliation
+-- fix, this row's NULL matched_payment_id alone would have made AC #1's
+-- query misclassify it as missing_internal_record despite being correctly
+-- matched -- p9 below proves it is not.
+-- ============================================================================
+insert into saas_billing_payments (id, gym_id, amount, currency, status, provider, provider_transaction_ref) values
+  ('00000000-0000-0000-0000-000000009901', '00000000-0000-0000-0000-000000009511', 3000, 'XAF', 'verified', 'taramoney', 'recon-test-platform-matched');
+
+insert into payment_webhook_events (id, provider_key, provider_transaction_ref, amount, currency, status, matched_saas_billing_payment_id, raw_payload) values
+  ('00000000-0000-0000-0000-000000009708', 'taramoney', 'recon-test-platform-matched', 3000, 'XAF', 'verified', '00000000-0000-0000-0000-000000009901', '{"businessId": "platform-biz-id"}'::jsonb);
+
+-- ============================================================================
 -- Call the job directly -- no waiting on real cron timing.
 -- ============================================================================
 select lives_ok(
@@ -131,6 +145,16 @@ select is(
   (select gym_id from payment_discrepancies where webhook_event_id = '00000000-0000-0000-0000-000000009701' and discrepancy_type = 'missing_internal_record'),
   null,
   'the missing_internal_record discrepancy has gym_id = NULL -- unattributable by construction'
+);
+
+-- Story 11.1 code review (Patch): a Flow B (platform) webhook event matched
+-- via matched_saas_billing_payment_id must NOT be flagged missing_internal_record
+-- just because its matched_payment_id is NULL.
+select is(
+  (select count(*)::int from payment_discrepancies
+    where discrepancy_type = 'missing_internal_record' and webhook_event_id = '00000000-0000-0000-0000-000000009708'),
+  0,
+  'a legitimately-matched Flow B (platform) webhook event is not flagged missing_internal_record'
 );
 
 -- AC #2: the stale processing payment (created 11 minutes ago) is flagged.

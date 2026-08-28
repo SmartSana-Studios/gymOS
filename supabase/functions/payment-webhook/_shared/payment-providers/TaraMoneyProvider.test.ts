@@ -89,6 +89,7 @@ Deno.test("verifyWebhookSignature: valid header + valid payload + matching gym r
       providerTransactionRef: "pay1",
       businessId: "biz1",
       resolvedGymId: "gym-a",
+      resolvedRoutingContext: { type: "gym", gymId: "gym-a" },
       status: "verified",
       amount: 100,
       currency: "XAF",
@@ -169,6 +170,122 @@ Deno.test("verifyWebhookSignature: a valid header for one gym replayed against a
   assertEquals(result, { valid: false });
 });
 
+// --- verifyWebhookSignature: platform routing resolution (Story 11.1, Flow B) -----------------
+
+const PLATFORM_BUSINESS_ID = "platform-biz-id";
+const PLATFORM_SECRET = "test-taramoney-platform-webhook-secret";
+
+// Awaits fn() before restoring the env vars -- fn() is always an async
+// closure whose real work happens after its first `await` (the RPC call),
+// so restoring synchronously right after invoking (not awaiting) fn() would
+// revert the env vars before verifyWebhookSignature ever reads them.
+async function withPlatformEnv<T>(fn: () => Promise<T>): Promise<T> {
+  const priorBusinessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
+  const priorSecret = Deno.env.get("TARAMONEY_WEBHOOK_SECRET");
+  Deno.env.set("TARAMONEY_BUSINESS_ID", PLATFORM_BUSINESS_ID);
+  Deno.env.set("TARAMONEY_WEBHOOK_SECRET", PLATFORM_SECRET);
+  try {
+    return await fn();
+  } finally {
+    if (priorBusinessId === undefined) Deno.env.delete("TARAMONEY_BUSINESS_ID");
+    else Deno.env.set("TARAMONEY_BUSINESS_ID", priorBusinessId);
+    if (priorSecret === undefined) Deno.env.delete("TARAMONEY_WEBHOOK_SECRET");
+    else Deno.env.set("TARAMONEY_WEBHOOK_SECRET", priorSecret);
+  }
+}
+
+Deno.test("verifyWebhookSignature: a businessId matching the platform account (gym lookup misses) resolves resolvedRoutingContext:{type:'platform'}, correct platform secret accepted", async () => {
+  await withPlatformEnv(async () => {
+    const { provider, calls } = providerWithByBusinessIdResponse({ data: [], error: null });
+    const payload = JSON.stringify({ businessId: PLATFORM_BUSINESS_ID, paymentId: "pay-platform-1", status: "SUCCESS", amount: "100" });
+
+    const result = await provider.verifyWebhookSignature(payload, headers(PLATFORM_SECRET));
+
+    assertEquals(result, {
+      valid: true,
+      event: {
+        providerTransactionRef: "pay-platform-1",
+        businessId: PLATFORM_BUSINESS_ID,
+        resolvedGymId: undefined,
+        resolvedRoutingContext: { type: "platform" },
+        status: "verified",
+        amount: 100,
+        currency: "XAF",
+        reference: undefined,
+        vendor: undefined,
+        feeAmount: undefined,
+      },
+    });
+    // The platform businessId match is checked first (pure env-var comparison, no DB call) --
+    // confirmed the gym lookup RPC is never even attempted when the platform match wins.
+    assertEquals(calls.length, 0);
+  });
+});
+
+Deno.test("verifyWebhookSignature: a businessId matching the platform account with the wrong secret returns valid:false", async () => {
+  await withPlatformEnv(async () => {
+    const { provider } = providerWithByBusinessIdResponse({ data: [], error: null });
+    const payload = JSON.stringify({ businessId: PLATFORM_BUSINESS_ID, paymentId: "pay-platform-2", status: "SUCCESS" });
+
+    const result = await provider.verifyWebhookSignature(payload, headers("not-the-platform-secret"));
+
+    assertEquals(result, { valid: false });
+  });
+});
+
+Deno.test("verifyWebhookSignature: TARAMONEY_BUSINESS_ID/TARAMONEY_WEBHOOK_SECRET unset (gym lookup misses) returns valid:false, not a platform match", async () => {
+  const priorBusinessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
+  const priorSecret = Deno.env.get("TARAMONEY_WEBHOOK_SECRET");
+  Deno.env.delete("TARAMONEY_BUSINESS_ID");
+  Deno.env.delete("TARAMONEY_WEBHOOK_SECRET");
+  try {
+    const { provider } = providerWithByBusinessIdResponse({ data: [], error: null });
+    const payload = JSON.stringify({ businessId: "some-unrecognized-business-id", paymentId: "pay-1", status: "SUCCESS" });
+    const result = await provider.verifyWebhookSignature(payload, headers(SECRET));
+    assertEquals(result, { valid: false });
+  } finally {
+    if (priorBusinessId !== undefined) Deno.env.set("TARAMONEY_BUSINESS_ID", priorBusinessId);
+    if (priorSecret !== undefined) Deno.env.set("TARAMONEY_WEBHOOK_SECRET", priorSecret);
+  }
+});
+
+Deno.test("verifyWebhookSignature: TARAMONEY_BUSINESS_ID set but TARAMONEY_WEBHOOK_SECRET unset falls through to the gym lookup (not treated as a platform match)", async () => {
+  const priorBusinessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
+  const priorSecret = Deno.env.get("TARAMONEY_WEBHOOK_SECRET");
+  Deno.env.set("TARAMONEY_BUSINESS_ID", PLATFORM_BUSINESS_ID);
+  Deno.env.delete("TARAMONEY_WEBHOOK_SECRET");
+  try {
+    const { provider, calls } = providerWithByBusinessIdResponse({ data: [], error: null });
+    const payload = JSON.stringify({ businessId: PLATFORM_BUSINESS_ID, paymentId: "pay-1", status: "SUCCESS" });
+    const result = await provider.verifyWebhookSignature(payload, headers(SECRET));
+    assertEquals(result, { valid: false });
+    assertEquals(calls.length, 1, "a half-configured platform env must not short-circuit the gym lookup");
+    assertEquals(calls[0].fn, "get_gym_payment_credentials_by_business_id");
+  } finally {
+    if (priorBusinessId === undefined) Deno.env.delete("TARAMONEY_BUSINESS_ID");
+    else Deno.env.set("TARAMONEY_BUSINESS_ID", priorBusinessId);
+    if (priorSecret !== undefined) Deno.env.set("TARAMONEY_WEBHOOK_SECRET", priorSecret);
+  }
+});
+
+Deno.test("verifyWebhookSignature: TARAMONEY_WEBHOOK_SECRET set but TARAMONEY_BUSINESS_ID unset falls through to the gym lookup (not treated as a platform match)", async () => {
+  const priorBusinessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
+  const priorSecret = Deno.env.get("TARAMONEY_WEBHOOK_SECRET");
+  Deno.env.delete("TARAMONEY_BUSINESS_ID");
+  Deno.env.set("TARAMONEY_WEBHOOK_SECRET", PLATFORM_SECRET);
+  try {
+    const { provider, calls } = providerWithByBusinessIdResponse({ data: [], error: null });
+    const payload = JSON.stringify({ businessId: "some-unrecognized-business-id", paymentId: "pay-1", status: "SUCCESS" });
+    const result = await provider.verifyWebhookSignature(payload, headers(SECRET));
+    assertEquals(result, { valid: false });
+    assertEquals(calls.length, 1, "a half-configured platform env must not short-circuit the gym lookup");
+  } finally {
+    if (priorBusinessId !== undefined) Deno.env.set("TARAMONEY_BUSINESS_ID", priorBusinessId);
+    if (priorSecret === undefined) Deno.env.delete("TARAMONEY_WEBHOOK_SECRET");
+    else Deno.env.set("TARAMONEY_WEBHOOK_SECRET", priorSecret);
+  }
+});
+
 // --- verifyWebhookSignature: malformed/structurally invalid payloads (no DB call at all) ------
 
 Deno.test("verifyWebhookSignature: malformed JSON body returns valid:false and never calls the lookup RPC", async () => {
@@ -236,6 +353,7 @@ Deno.test("verifyWebhookSignature: amount entirely absent defaults to 0 and stil
       providerTransactionRef: "pay1",
       businessId: "biz1",
       resolvedGymId: "gym-a",
+      resolvedRoutingContext: { type: "gym", gymId: "gym-a" },
       status: "verified",
       amount: 0,
       currency: "XAF",
@@ -256,6 +374,7 @@ Deno.test("verifyWebhookSignature: status FAILURE normalizes to event.status 'fl
       providerTransactionRef: "pay1",
       businessId: "biz1",
       resolvedGymId: "gym-a",
+      resolvedRoutingContext: { type: "gym", gymId: "gym-a" },
       status: "flagged",
       amount: 100,
       currency: "XAF",
@@ -361,6 +480,7 @@ Deno.test("verifyWebhookSignature: parses the real 2026-07-31 stand-in-account w
       providerTransactionRef: "643539724",
       businessId: "wxND8vZv5v",
       resolvedGymId: "gym-a",
+      resolvedRoutingContext: { type: "gym", gymId: "gym-a" },
       status: "verified",
       amount: 50,
       currency: "XAF",
@@ -400,6 +520,7 @@ Deno.test("verifyWebhookSignature: parses the real 2026-08-13 real-account webho
       providerTransactionRef: "165126343",
       businessId: "9FmIZg9GBB",
       resolvedGymId: "gym-a",
+      resolvedRoutingContext: { type: "gym", gymId: "gym-a" },
       status: "verified",
       amount: 100,
       currency: "XAF",
