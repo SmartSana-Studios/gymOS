@@ -158,11 +158,14 @@ alter table saas_billing_payments add constraint saas_billing_payments_amount_no
 -- requires the full billing machinery to keep running at the 0 XAF price
 -- point).
 --
--- No DB-level guard against a second concurrent `processing` row for the
--- same gym -- flagged, not fixed, matching initiate_member_payment()'s own
--- already-documented identical gap (Story 4.15 code review, never fixed
--- there either). Task 6's UI-level button-disable-while-pending is the only
--- mitigation; see this story's Dev Notes.
+-- Guarded against a second concurrent `processing` row for the same gym --
+-- mirrors initiate_member_payment()'s own identical guard (0055, added
+-- there as an explicit review-finding fix: "without this, a double-tap, a
+-- retry after a client-side failure, or two devices on the same account
+-- could each create their own `processing` row and fire a second real USSD
+-- prompt"). That guard exists and was fixed in Flow A, so it is not left
+-- unguarded here either -- Task 6's UI-level button-disable-while-pending is
+-- a secondary mitigation, not the only one.
 -- ----------------------------------------------------------------------------
 create function initiate_saas_billing_payment()
 returns uuid
@@ -172,6 +175,7 @@ set search_path = public
 as $$
 declare
   v_gym_id uuid;
+  v_gym_status gym_status;
   v_interval billing_interval;
   v_monthly_price integer;
   v_annual_price integer;
@@ -188,11 +192,21 @@ begin
     raise exception 'permission denied: caller is not this gym''s owner';
   end if;
 
-  select g.saas_billing_interval, t.monthly_price, t.annual_price
-  into v_interval, v_monthly_price, v_annual_price
+  select g.status, g.saas_billing_interval, t.monthly_price, t.annual_price
+  into v_gym_status, v_interval, v_monthly_price, v_annual_price
   from gyms g
   join tiers t on t.id = g.tier_id
   where g.id = v_gym_id;
+
+  if v_gym_status = 'deactivated' then
+    raise exception 'initiate_saas_billing_payment: gym % is deactivated', v_gym_id;
+  end if;
+
+  if exists (
+    select 1 from saas_billing_payments where gym_id = v_gym_id and status = 'processing'
+  ) then
+    raise exception 'initiate_saas_billing_payment: payment_already_pending for gym %', v_gym_id;
+  end if;
 
   v_amount := case v_interval when 'annual' then v_annual_price else v_monthly_price end;
 
@@ -327,13 +341,13 @@ grant execute on function update_own_owner_notification_email to authenticated;
 create table saas_billing_notices (
   id uuid primary key default gen_random_uuid(),
   gym_id uuid not null references gyms(id),
-  notice_day_offset integer not null, -- 0 (due date), 1, 3, or 5
+  notice_day_offset integer not null check (notice_day_offset in (0, 1, 3, 5)),
   billing_anchor_date_at_notice date not null,
-  sms_status text not null, -- 'sent' | 'failed'
+  sms_status text not null check (sms_status in ('sent', 'failed')),
   sms_error text,
-  whatsapp_status text not null, -- 'sent' | 'failed'
+  whatsapp_status text not null check (whatsapp_status in ('sent', 'failed')),
   whatsapp_error text,
-  email_status text not null, -- 'sent' | 'failed' | 'skipped_no_email_on_file' | 'skipped_no_provider'
+  email_status text not null check (email_status in ('sent', 'failed', 'skipped_no_email_on_file', 'skipped_no_provider')),
   email_error text,
   created_at timestamptz not null default now()
 );

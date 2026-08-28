@@ -620,3 +620,12 @@
 ## Deferred from: code review of story-10-4-coach-portal-progress-tab (2026-08-22)
 
 - `getMemberProgressData()`'s `progress_entries` query has no cap, unlike the sibling `progress_photos` query's `.limit(60)`. [apps/dashboard/services/coaches.ts:537-551] — real scalability concern for long-tenured members but matches the story's own "Do not build: pagination on progress entries/photos (pilot scale)" scope exclusion; not actionable within this story's scope.
+
+## Deferred from: code review of story-11-3-payment-due-reminders-one-tap-pay (2026-08-28)
+
+- The Vercel Cron reminder job (`apps/dashboard/app/api/cron/saas-billing-reminders/route.ts`) processes owners sequentially within each gym and gyms sequentially overall, with no `maxDuration` route-segment export and no batching/`Promise.all`. At current gym counts this is fine, but as due-gym/multi-owner counts grow, this risks exceeding Vercel's function execution limit mid-run with no recovery beyond the next day's retry via the offset schedule. Real follow-up: add `maxDuration`, and/or parallelize per-owner sends with a bounded concurrency limit.
+
+## Deferred from: code review of story-11-3-payment-due-reminders-one-tap-pay, Group 3 (2026-08-28)
+
+- `apps/dashboard/services/billing.ts` (RPC calls, `FunctionsHttpError`/`gym_credentials_unavailable` parsing) and the new `payNow`/`getBillingInfo`/`saveNotificationEmail` Server Actions have no dedicated unit/action-level tests, unlike the analogous Flow A precedents (`payments.initiatePayment.test.ts`, `actions.paymentProvider.test.ts`). Only indirectly exercised via `SettingsForm.billing.test.tsx`'s mocked `./actions`. Real follow-up: add `services/billing.test.ts` and an actions-level test file mirroring those precedents.
+- A page reload mid-payment loses the client-side polling watch (`watchedPaymentId` is plain `useState`, not persisted). Re-triggering Pay Now then hits the RPC's `payment_already_pending` guard, but `initiateSaasBillingPayment()` only special-cases `gym_credentials_unavailable` from the Edge Function response — the RPC rejection falls through to a generic error with no indication a payment is already in flight and no way to resume watching it. Narrow (requires a reload during the ~5-45s pending window) and non-destructive, but a real UX gap. [apps/dashboard/services/billing.ts:156-159]

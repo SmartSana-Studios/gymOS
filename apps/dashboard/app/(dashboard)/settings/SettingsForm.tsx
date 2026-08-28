@@ -78,6 +78,17 @@ function SectionHeader({
   );
 }
 
+// Story 11.3 (review fix): `saas_billing_anchor_date` is a bare "YYYY-MM-DD"
+// date column -- `new Date(dateOnly)` parses it as UTC midnight, which then
+// renders a day early for a negative-UTC-offset viewer. Mirrors this exact
+// codebase's own established fix (RenewalModal.tsx/MembersPageClient.tsx/
+// CoachPortalPageClient.tsx/SubscriptionsPageClient.tsx/FrontDeskAlertPanel.tsx):
+// build the Date from local Y/M/D components instead.
+function formatLocalDate(dateOnly: string, locale: string): string {
+  const [year, month, day] = dateOnly.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString(locale);
+}
+
 const TIMEZONE_OPTIONS = [
   { value: "Africa/Douala", label: "Africa/Douala (GMT+1)" },
   { value: "Africa/Lagos", label: "Africa/Lagos (GMT+1)" },
@@ -136,7 +147,7 @@ export function SettingsForm({
   initialBillingInfo: GymBillingInfo | null;
   staffCount: number;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const NAN_FIELD_MESSAGE_KEYS: Partial<Record<keyof FieldErrors, string>> = {
     gracePeriodDays: "settings.errors.gracePeriodRange",
@@ -254,28 +265,38 @@ export function SettingsForm({
 
     let active = true;
     const pollTimer = setInterval(() => {
-      void fetchSaasBillingPaymentStatus(watchedPaymentId).then((row) => {
-        if (!active || !row) return;
-        if (row.status === "verified") {
-          clearInterval(pollTimer);
-          setWatchedPaymentId(null);
-          setPaymentPhase("idle");
-          showToast(t("settings.billing.paymentConfirmedToast"));
-          // Refetches this client component's own copy of billingInfo --
-          // router.refresh() alone re-renders the Server Component tree,
-          // but this component's local useState (seeded from
-          // initialBillingInfo) would not pick that up without an explicit
-          // refetch, same as paymentConnection's own established pattern.
-          void getBillingInfo().then(({ data }) => {
-            if (data) setBillingInfo(data);
-          });
-        } else if (row.status === "flagged") {
-          clearInterval(pollTimer);
-          setWatchedPaymentId(null);
-          setPaymentPhase("failed");
-        }
-        // "processing" is a no-op here -- still waiting.
-      });
+      void fetchSaasBillingPaymentStatus(watchedPaymentId)
+        .then((row) => {
+          if (!active || !row) return;
+          if (row.status === "verified") {
+            clearInterval(pollTimer);
+            setWatchedPaymentId(null);
+            setPaymentPhase("idle");
+            showToast(t("settings.billing.paymentConfirmedToast"));
+            // Refetches this client component's own copy of billingInfo --
+            // router.refresh() alone re-renders the Server Component tree,
+            // but this component's local useState (seeded from
+            // initialBillingInfo) would not pick that up without an explicit
+            // refetch, same as paymentConnection's own established pattern.
+            getBillingInfo()
+              .then(({ data }) => {
+                if (active && data) setBillingInfo(data);
+              })
+              .catch((err) => console.error("[settings] failed to refetch billing info after payment confirmation", err));
+          } else if (row.status === "flagged") {
+            clearInterval(pollTimer);
+            setWatchedPaymentId(null);
+            setPaymentPhase("failed");
+          }
+          // "processing" is a no-op here -- still waiting.
+        })
+        .catch((err) => {
+          // A thrown/rejected status check must not leave the UI stuck on
+          // "pending" with a silent recurring failure -- log and keep
+          // polling (a transient network blip shouldn't give up after one
+          // failed tick; the real send/webhook is still the authority).
+          console.error("[settings] failed to check pending saas billing payment status", err);
+        });
     }, 5000);
 
     const stillWaitingTimer = setTimeout(() => {
@@ -522,10 +543,11 @@ export function SettingsForm({
     }
   }
 
-  // Story 11.3 (Task 6): "Pay Now". No confirmation dialog -- the button
-  // only ever shows when there's actually something to pay
-  // (billingStatus !== 'active'), unlike Payments' connect/disconnect
-  // dialogs which gate a destructive/credential-bearing action.
+  // Story 11.3 (Task 6, revised per Task 7's live-evidence finding): "Pay
+  // Now" opens a confirmation dialog with an editable payer-phone field
+  // (pre-filled from billingInfo.ownerPhone) -- the Owner's own on-file
+  // number isn't always the right mobile-money payer line, so this is no
+  // longer the original no-input design.
   function openPayNowDialog() {
     setPayNowError(null);
     setPayNowPhone(billingInfo?.ownerPhone ?? "");
@@ -923,7 +945,7 @@ export function SettingsForm({
                       </p>
                       <p className="text-muted-foreground">
                         {t("settings.billing.nextBillingDate", {
-                          date: new Date(billingInfo.anchorDate).toLocaleDateString(),
+                          date: formatLocalDate(billingInfo.anchorDate, i18n.language),
                         })}
                       </p>
                     </div>
@@ -971,7 +993,11 @@ export function SettingsForm({
                         id="billingNotificationEmail"
                         type="email"
                         value={notificationEmail}
-                        onChange={(e) => setNotificationEmail(e.target.value)}
+                        onChange={(e) => {
+                          setNotificationEmail(e.target.value);
+                          setEmailError(null);
+                        }}
+                        disabled={savingEmail}
                         className="sm:max-w-xs"
                       />
                       <Button type="button" variant="outline" size="sm" disabled={savingEmail} onClick={handleSaveNotificationEmail}>
@@ -1151,6 +1177,7 @@ export function SettingsForm({
               value={payNowPhone}
               onChange={(e) => setPayNowPhone(e.target.value)}
               placeholder="+237600000000"
+              disabled={payNowLoading}
             />
           </div>
           {payNowError && <p className="text-sm text-red-600">{payNowError}</p>}

@@ -887,6 +887,7 @@
     }
   },
   "saasBilling": {
-    "reminderMessage": "Your GymOS subscription payment is due {{date}}. Pay now: {{url}}"
+    "reminderMessage": "Your GymOS subscription payment is due {{date}}. Pay now: {{url}}",
+    "reminderMessageNoLink": "Your GymOS subscription payment is due {{date}}. Log in to GymOS to pay now."
   }
 }

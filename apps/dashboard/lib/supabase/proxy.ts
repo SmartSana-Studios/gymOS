@@ -59,7 +59,7 @@ export async function updateSession(request: NextRequest) {
     // job in production. Any future /api/cron/* route inherits this same
     // exemption -- each one is responsible for its own auth (CRON_SECRET),
     // matching this route's own established pattern.
-    !request.nextUrl.pathname.startsWith("/api/cron")
+    !request.nextUrl.pathname.startsWith("/api/cron/")
   ) {
     // `/` is AD-02 Overview (protected, Receptionist+) -- not the starter's
     // public marketing page anymore, so it is deliberately no longer

@@ -104,7 +104,10 @@ async function resolveWhatsappNumber(
     if (primaryMatch) {
       return bareDigitPhone;
     }
-    const variantMatch = results.find((r) => r.exists);
+    // Only trust a variant this call actually submitted -- review finding:
+    // `results.find((r) => r.exists)` alone would adopt any exists:true
+    // entry in the response with no check it's one of our own candidates.
+    const variantMatch = results.find((r) => r.exists && candidates.has(r.number));
     return variantMatch?.number ?? bareDigitPhone;
   } catch {
     // Network error, timeout, or unparseable response -- fail open, the

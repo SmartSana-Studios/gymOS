@@ -62,6 +62,7 @@ vi.mock("react-i18next", () => ({
       if (key === "settings.billing.nextBillingDate") return `Next billing date: ${vars?.date}`;
       return TRANSLATIONS[key] ?? key;
     },
+    i18n: { language: "en" },
   }),
 }));
 

@@ -169,11 +169,11 @@ export class TaraMoneyProvider implements PaymentProvider {
       apiKey = row.api_key;
       businessId = row.business_id;
     } else {
-      // {type:"platform"}: unused by this story (Flow A always resolves a
-      // gym), kept alive for Epic 11/Flow B, not yet designed, which may
-      // repurpose the platform-wide env vars as the platform-level
-      // credential source -- deleting them now would be out of this
-      // story's scope.
+      // {type:"platform"}: reached by Flow B (Story 11.3's
+      // initiate_saas_billing_payment() + handleInitiate()'s
+      // saas_billing_payments fallback lookup), which routes here with no
+      // gym context -- these platform-wide env vars are the credential
+      // source for GymOS's own SaaS billing charges.
       apiKey = Deno.env.get("TARAMONEY_API_KEY");
       businessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
       if (!apiKey || !businessId) {

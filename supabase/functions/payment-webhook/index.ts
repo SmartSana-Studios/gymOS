@@ -74,11 +74,21 @@ async function handleInitiate(
     // Nothing was charged yet (this lookup runs before provider.initiate()),
     // so clean up the same way the failed-initiate/failed-signature paths do
     // -- otherwise this leaves an orphaned `processing` row indistinguishable
-    // from a real in-flight payment.
-    const { error: deleteError } = await supabase.from("payments").delete().eq("id", paymentId);
-    if (deleteError) {
+    // from a real in-flight payment. `paymentId` may belong to either table
+    // (Story 11.3) and this lookup erroring tells us nothing about which one
+    // -- deleting from both is a no-op on whichever table doesn't hold the row.
+    const [{ error: deletePaymentsError }, { error: deleteSaasError }] = await Promise.all([
+      supabase.from("payments").delete().eq("id", paymentId),
+      supabase.from("saas_billing_payments").delete().eq("id", paymentId),
+    ]);
+    if (deletePaymentsError) {
       console.error(
-        `payment-webhook: ${providerKey} failed to delete payment ${paymentId} after a failed eligibility lookup — ${deleteError.message}`,
+        `payment-webhook: ${providerKey} failed to delete payment ${paymentId} after a failed eligibility lookup — ${deletePaymentsError.message}`,
+      );
+    }
+    if (deleteSaasError) {
+      console.error(
+        `payment-webhook: ${providerKey} failed to delete saas_billing_payments ${paymentId} after a failed eligibility lookup — ${deleteSaasError.message}`,
       );
     }
     return jsonResponse(500);

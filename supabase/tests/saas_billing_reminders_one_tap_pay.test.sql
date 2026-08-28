@@ -10,7 +10,7 @@
 -- completion RPC).
 
 begin;
-select plan(51);
+select plan(58);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000009501', 'Reminders Test Tier A', 8000, 80000, 40),
@@ -34,7 +34,8 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000009606'), -- Gym 1 supervisor (rejection)
   ('00000000-0000-0000-0000-000000009607'), -- Gym 2 owner (cross-gym isolation)
   ('00000000-0000-0000-0000-000000009608'), -- Gym 3 owner (Free/Test)
-  ('00000000-0000-0000-0000-000000009609'); -- Gym 7 owner (bypass-scope proof)
+  ('00000000-0000-0000-0000-000000009609'), -- Gym 7 owner (bypass-scope proof)
+  ('00000000-0000-0000-0000-000000009610'); -- Gym 4 owner (deactivated-gym rejection)
 
 insert into members (id, gym_id, user_id, role, name, email) values
   ('00000000-0000-0000-0000-000000009701', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009601', 'owner', 'Reminders Gym 1 Owner', null),
@@ -45,7 +46,8 @@ insert into members (id, gym_id, user_id, role, name, email) values
   ('00000000-0000-0000-0000-000000009706', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009606', 'supervisor', 'Reminders Gym 1 Supervisor', null),
   ('00000000-0000-0000-0000-000000009707', '00000000-0000-0000-0000-000000009512', '00000000-0000-0000-0000-000000009607', 'owner', 'Reminders Gym 2 Owner', null),
   ('00000000-0000-0000-0000-000000009708', '00000000-0000-0000-0000-000000009513', '00000000-0000-0000-0000-000000009608', 'owner', 'Reminders Gym 3 Owner', null),
-  ('00000000-0000-0000-0000-000000009709', '00000000-0000-0000-0000-000000009517', '00000000-0000-0000-0000-000000009609', 'owner', 'Reminders Gym 7 Owner', null);
+  ('00000000-0000-0000-0000-000000009709', '00000000-0000-0000-0000-000000009517', '00000000-0000-0000-0000-000000009609', 'owner', 'Reminders Gym 7 Owner', null),
+  ('00000000-0000-0000-0000-000000009710', '00000000-0000-0000-0000-000000009514', '00000000-0000-0000-0000-000000009610', 'owner', 'Reminders Gym 4 Owner', null);
 
 -- ============================================================================
 -- initiate_saas_billing_payment()
@@ -93,6 +95,48 @@ select is(
   (select status::text from saas_billing_payments where id = (select id from sbp_1)),
   'processing',
   'the new row starts in processing status'
+);
+
+-- (a2) A second call for the same gym while the (a) row is still `processing`
+-- is rejected -- the double-submit guard mirroring initiate_member_payment()'s
+-- own identical guard (0055).
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009601","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009511","app_role":"owner"}',
+  true
+);
+select throws_like(
+  $$select initiate_saas_billing_payment()$$,
+  '%payment_already_pending%',
+  'a second initiate call for a gym with an already-processing payment is rejected'
+);
+reset role;
+select is(
+  (select count(*)::int from saas_billing_payments where gym_id = '00000000-0000-0000-0000-000000009511'),
+  1,
+  'the rejected double-submit attempt inserted no second row'
+);
+
+-- (a3) A deactivated gym's owner is rejected outright -- mirrors
+-- complete_verified_saas_billing_payment()'s own deactivated-gym exclusion,
+-- applied symmetrically on the initiation side.
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009610","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009514","app_role":"owner"}',
+  true
+);
+select throws_like(
+  $$select initiate_saas_billing_payment()$$,
+  '%is deactivated%',
+  'a deactivated gym''s owner cannot initiate a saas billing payment'
+);
+reset role;
+select is(
+  (select count(*)::int from saas_billing_payments where gym_id = '00000000-0000-0000-0000-000000009514' and status = 'processing'),
+  0,
+  'no processing row was inserted for the rejected deactivated-gym attempt'
 );
 
 -- (b) A non-owner role is rejected, with zero rows inserted for each.
@@ -207,6 +251,32 @@ select is(
   15000,
   'Gym 2''s owner is priced from Gym 2''s own tier, not Gym 1''s'
 );
+
+-- (e) No active payment provider rejects the call with no row inserted --
+-- run last in this section since it deactivates the platform's only active
+-- provider for every test that follows.
+update payment_providers set is_active = false;
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009609","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009517","app_role":"owner"}',
+  true
+);
+select throws_like(
+  $$select initiate_saas_billing_payment()$$,
+  '%no_active_provider%',
+  'initiate_saas_billing_payment() rejects the call when no payment provider is active'
+);
+reset role;
+
+select is(
+  (select count(*)::int from saas_billing_payments where gym_id = '00000000-0000-0000-0000-000000009517'),
+  0,
+  'no row was inserted for the rejected no-active-provider attempt'
+);
+
+update payment_providers set is_active = true where provider_key = 'taramoney';
 
 -- ============================================================================
 -- update_own_owner_notification_email()
@@ -479,7 +549,8 @@ with updated as (
       saas_billing_anchor_date = current_date - 1,
       tier_id = '00000000-0000-0000-0000-000000009502',
       saas_billing_interval = 'annual',
-      saas_grace_period_days = 1
+      saas_grace_period_days = 1,
+      member_cap_override = 999
   where id = '00000000-0000-0000-0000-000000009517'
   returning id
 )
@@ -510,6 +581,12 @@ select is(
   (select tier_id from gyms where id = '00000000-0000-0000-0000-000000009517'),
   '00000000-0000-0000-0000-000000009501'::uuid,
   'tier_id is still pinned back even with the payment-reset bypass GUC set -- the bypass does not extend to it'
+);
+
+select is(
+  (select member_cap_override from gyms where id = '00000000-0000-0000-0000-000000009517'),
+  null::int,
+  'member_cap_override is still pinned back even with the payment-reset bypass GUC set -- the bypass does not extend to it'
 );
 
 select is(

@@ -16,6 +16,7 @@ type CallLogEntry = { table: string; op: string; args: unknown[] };
 let queues: Record<string, QueryResponse[]>;
 let callLog: CallLogEntry[];
 let insertCalls: { table: string; payload: unknown }[];
+let updateCalls: { table: string; payload: unknown }[];
 
 function popResponse(table: string): QueryResponse {
   const q = queues[table];
@@ -25,6 +26,11 @@ function popResponse(table: string): QueryResponse {
   return q.shift()!;
 }
 
+// `insert`/`update` are chainable (not directly async) so callers can do
+// `.insert(x).select("id").single()` or `.update(x).eq("id", y)` -- both
+// forms still resolve correctly since the returned `builder` itself is
+// thenable, so a bare `await admin.from(t).insert(x)` (job_runs' own usage)
+// keeps working unchanged.
 function makeAdminStub() {
   return {
     from: (table: string) => {
@@ -35,7 +41,9 @@ function makeAdminStub() {
         is: (...args: unknown[]) => typeof builder;
         in: (...args: unknown[]) => typeof builder;
         maybeSingle: () => Promise<QueryResponse>;
-        insert: (payload: unknown) => Promise<QueryResponse>;
+        single: () => Promise<QueryResponse>;
+        insert: (payload: unknown) => typeof builder;
+        update: (payload: unknown) => typeof builder;
         then: (resolve: (v: QueryResponse) => unknown, reject: (e: unknown) => unknown) => unknown;
       } = {
         select: (...args) => {
@@ -59,9 +67,14 @@ function makeAdminStub() {
           return builder;
         },
         maybeSingle: async () => popResponse(table),
-        insert: async (payload: unknown) => {
+        single: async () => popResponse(table),
+        insert: (payload: unknown) => {
           insertCalls.push({ table, payload });
-          return popResponse(table);
+          return builder;
+        },
+        update: (payload: unknown) => {
+          updateCalls.push({ table, payload });
+          return builder;
         },
         then: (resolve, reject) => Promise.resolve(popResponse(table)).then(resolve, reject),
       };
@@ -115,6 +128,7 @@ describe("GET /api/cron/saas-billing-reminders", () => {
     queues = {};
     callLog = [];
     insertCalls = [];
+    updateCalls = [];
     sendEvolutionApiMessage.mockReset();
     sendTwilioSms.mockReset();
     process.env.CRON_SECRET = CRON_SECRET;
@@ -203,15 +217,17 @@ describe("GET /api/cron/saas-billing-reminders", () => {
     expect(suspendedExclusions).toHaveLength(4);
   });
 
-  it("skips a gym already notified for the same (gym, cycle, offset) -- no messages sent, no second notice inserted", async () => {
+  it("skips a gym already notified for the same (gym, cycle, offset) -- the claim insert conflicts, no messages sent", async () => {
     queues.gyms = [
       { data: [{ id: "gym-1", saas_billing_anchor_date: "2026-08-27" }], error: null },
       { data: [], error: null },
       { data: [], error: null },
       { data: [], error: null },
     ];
-    // alreadyNotified() finds an existing row.
-    queues.saas_billing_notices = [{ data: { id: "notice-existing" }, error: null }];
+    queues.members = [{ data: [{ phone: "+237680000001", email: null, user_id: "user-1" }], error: null }];
+    // The claim insert loses the race -- a concurrent/earlier invocation
+    // already holds this exact (gym, cycle, offset) slot.
+    queues.saas_billing_notices = [{ data: null, error: { code: "23505", message: "duplicate key value violates unique constraint" } }];
     queues.job_runs = [{ data: null, error: null }];
     const { GET } = await import("./route");
 
@@ -221,7 +237,7 @@ describe("GET /api/cron/saas-billing-reminders", () => {
     expect(body).toEqual({ success: true, sent: 0, skipped: 1, failed: 0 });
     expect(sendEvolutionApiMessage).not.toHaveBeenCalled();
     expect(sendTwilioSms).not.toHaveBeenCalled();
-    expect(insertCalls.filter((c) => c.table === "saas_billing_notices")).toHaveLength(0);
+    expect(updateCalls.filter((c) => c.table === "saas_billing_notices")).toHaveLength(0);
   });
 
   it("sends to every active owner-role member (multi-owner fan-out), and records one aggregated notice row with sent status", async () => {
@@ -232,8 +248,8 @@ describe("GET /api/cron/saas-billing-reminders", () => {
       { data: [], error: null },
     ];
     queues.saas_billing_notices = [
-      { data: null, error: null }, // alreadyNotified() -- not yet notified
-      { data: null, error: null }, // insert
+      { data: { id: "notice-1" }, error: null }, // claim insert wins
+      { data: null, error: null }, // final update
     ];
     queues.members = [
       {
@@ -277,11 +293,15 @@ describe("GET /api/cron/saas-billing-reminders", () => {
     expect(phone2).toBe("+237680000002");
     expect(message2).toContain("GymOS subscription payment");
 
-    const noticeInsert = insertCalls.find((c) => c.table === "saas_billing_notices");
-    expect(noticeInsert?.payload).toMatchObject({
+    const claimInsert = insertCalls.find((c) => c.table === "saas_billing_notices");
+    expect(claimInsert?.payload).toMatchObject({
       gym_id: "gym-1",
       notice_day_offset: 0,
       billing_anchor_date_at_notice: "2026-08-27",
+    });
+
+    const noticeUpdate = updateCalls.find((c) => c.table === "saas_billing_notices");
+    expect(noticeUpdate?.payload).toMatchObject({
       sms_status: "sent",
       whatsapp_status: "sent",
       // Owner 1 has an email on file -- best-effort email is "attempted"
@@ -298,10 +318,7 @@ describe("GET /api/cron/saas-billing-reminders", () => {
       { data: [], error: null },
       { data: [], error: null },
     ];
-    queues.saas_billing_notices = [
-      { data: null, error: null },
-      { data: null, error: null },
-    ];
+    queues.saas_billing_notices = [{ data: { id: "notice-1" }, error: null }, { data: null, error: null }];
     queues.members = [{ data: [{ phone: "+237680000001", email: null, user_id: "user-1" }], error: null }];
     queues.users = [{ data: [{ id: "user-1", preferred_language: "en" }], error: null }];
     queues.job_runs = [{ data: null, error: null }];
@@ -311,8 +328,8 @@ describe("GET /api/cron/saas-billing-reminders", () => {
 
     await GET(makeRequest(CRON_SECRET) as never);
 
-    const noticeInsert = insertCalls.find((c) => c.table === "saas_billing_notices");
-    expect((noticeInsert?.payload as { email_status: string }).email_status).toBe("skipped_no_email_on_file");
+    const noticeUpdate = updateCalls.find((c) => c.table === "saas_billing_notices");
+    expect((noticeUpdate?.payload as { email_status: string }).email_status).toBe("skipped_no_email_on_file");
   });
 
   it("records a channel as failed (with the first real error) when every owner's send on that channel fails -- never a fabricated success", async () => {
@@ -322,10 +339,7 @@ describe("GET /api/cron/saas-billing-reminders", () => {
       { data: [], error: null },
       { data: [], error: null },
     ];
-    queues.saas_billing_notices = [
-      { data: null, error: null },
-      { data: null, error: null },
-    ];
+    queues.saas_billing_notices = [{ data: { id: "notice-1" }, error: null }, { data: null, error: null }];
     queues.members = [{ data: [{ phone: "+237680000001", email: null, user_id: "user-1" }], error: null }];
     queues.users = [{ data: [{ id: "user-1", preferred_language: "en" }], error: null }];
     queues.job_runs = [{ data: null, error: null }];
@@ -335,13 +349,68 @@ describe("GET /api/cron/saas-billing-reminders", () => {
 
     await GET(makeRequest(CRON_SECRET) as never);
 
-    const noticeInsert = insertCalls.find((c) => c.table === "saas_billing_notices");
-    expect(noticeInsert?.payload).toMatchObject({
+    const noticeUpdate = updateCalls.find((c) => c.table === "saas_billing_notices");
+    expect(noticeUpdate?.payload).toMatchObject({
       whatsapp_status: "failed",
       whatsapp_error: "Evolution API 500: gateway error",
       sms_status: "sent",
       sms_error: null,
     });
+  });
+
+  it("records a descriptive error (not null) when no active owner has a phone on file", async () => {
+    queues.gyms = [
+      { data: [{ id: "gym-1", saas_billing_anchor_date: "2026-08-27" }], error: null },
+      { data: [], error: null },
+      { data: [], error: null },
+      { data: [], error: null },
+    ];
+    queues.saas_billing_notices = [{ data: { id: "notice-1" }, error: null }, { data: null, error: null }];
+    queues.members = [{ data: [{ phone: null, email: "owner@example.com", user_id: "user-1" }], error: null }];
+    queues.users = [{ data: [{ id: "user-1", preferred_language: "en" }], error: null }];
+    queues.job_runs = [{ data: null, error: null }];
+    const { GET } = await import("./route");
+
+    await GET(makeRequest(CRON_SECRET) as never);
+
+    expect(sendEvolutionApiMessage).not.toHaveBeenCalled();
+    expect(sendTwilioSms).not.toHaveBeenCalled();
+    const noticeUpdate = updateCalls.find((c) => c.table === "saas_billing_notices");
+    expect(noticeUpdate?.payload).toMatchObject({
+      whatsapp_status: "failed",
+      whatsapp_error: "no active owner-role member has a phone on file",
+      sms_status: "failed",
+      sms_error: "no active owner-role member has a phone on file",
+    });
+  });
+
+  it("claims and records a notice for a due gym with zero active owner-role members, counted as sent", async () => {
+    queues.gyms = [
+      { data: [{ id: "gym-1", saas_billing_anchor_date: "2026-08-27" }], error: null },
+      { data: [], error: null },
+      { data: [], error: null },
+      { data: [], error: null },
+    ];
+    queues.saas_billing_notices = [{ data: { id: "notice-1" }, error: null }];
+    queues.members = [{ data: [], error: null }];
+    queues.job_runs = [{ data: null, error: null }];
+    const { GET } = await import("./route");
+
+    const response = await GET(makeRequest(CRON_SECRET) as never);
+    const body = await response.json();
+
+    expect(body).toEqual({ success: true, sent: 1, skipped: 0, failed: 0 });
+    expect(sendEvolutionApiMessage).not.toHaveBeenCalled();
+    expect(sendTwilioSms).not.toHaveBeenCalled();
+    const claimInsert = insertCalls.find((c) => c.table === "saas_billing_notices");
+    expect(claimInsert?.payload).toMatchObject({
+      whatsapp_error: "no active owner-role member on file",
+      sms_error: "no active owner-role member on file",
+    });
+    // No owners to fetch a locale for -- users is never queried.
+    expect(callLog.some((c) => c.table === "users")).toBe(false);
+    // No update follows a zero-owner claim -- the claim row is already final.
+    expect(updateCalls.filter((c) => c.table === "saas_billing_notices")).toHaveLength(0);
   });
 
   it("continues processing other due gyms when one gym's processing throws (per-gym isolation)", async () => {
@@ -351,14 +420,16 @@ describe("GET /api/cron/saas-billing-reminders", () => {
       { data: [], error: null },
       { data: [], error: null },
     ];
-    // gym-broken's own dedup check errors out; gym-2's own dedup + full
+    // gym-broken's own owner lookup errors out; gym-2's own claim + full
     // send flow succeeds.
-    queues.saas_billing_notices = [
+    queues.members = [
       { data: null, error: { message: "connection reset" } }, // gym-broken -- throws
-      { data: null, error: null }, // gym-2 -- not yet notified
-      { data: null, error: null }, // gym-2 -- insert
+      { data: [{ phone: "+237680000009", email: null, user_id: "user-9" }], error: null }, // gym-2
     ];
-    queues.members = [{ data: [{ phone: "+237680000009", email: null, user_id: "user-9" }], error: null }];
+    queues.saas_billing_notices = [
+      { data: { id: "notice-2" }, error: null }, // gym-2's claim insert
+      { data: null, error: null }, // gym-2's final update
+    ];
     queues.users = [{ data: [{ id: "user-9", preferred_language: "en" }], error: null }];
     queues.job_runs = [{ data: null, error: null }];
     sendEvolutionApiMessage.mockResolvedValue({ success: true, channel: "whatsapp" });
@@ -371,8 +442,13 @@ describe("GET /api/cron/saas-billing-reminders", () => {
     expect(body).toEqual({ success: true, sent: 1, skipped: 0, failed: 1 });
   });
 
-  it("records a job_runs failure row and returns 500 when the due-gym query itself fails", async () => {
-    queues.gyms = [{ data: null, error: { message: "connection refused" } }];
+  it("records a job_runs failure row and returns 500 only when every offset's due-gym query fails", async () => {
+    queues.gyms = [
+      { data: null, error: { message: "connection refused" } },
+      { data: null, error: { message: "connection refused" } },
+      { data: null, error: { message: "connection refused" } },
+      { data: null, error: { message: "connection refused" } },
+    ];
     queues.job_runs = [{ data: null, error: null }];
     const { GET } = await import("./route");
 
@@ -381,5 +457,26 @@ describe("GET /api/cron/saas-billing-reminders", () => {
     expect(response.status).toBe(500);
     const jobRunInsert = insertCalls.find((c) => c.table === "job_runs");
     expect((jobRunInsert?.payload as { status: string }).status).toBe("failure");
+  });
+
+  it("a single offset's due-gym query failure does not discard gyms already found at other offsets (review finding)", async () => {
+    queues.gyms = [
+      { data: [{ id: "gym-1", saas_billing_anchor_date: "2026-08-27" }], error: null }, // offset 0 -- succeeds
+      { data: null, error: { message: "connection reset" } }, // offset 1 -- fails
+      { data: [], error: null },
+      { data: [], error: null },
+    ];
+    queues.saas_billing_notices = [{ data: { id: "notice-1" }, error: null }];
+    queues.members = [{ data: [], error: null }];
+    queues.job_runs = [{ data: null, error: null }];
+    const { GET } = await import("./route");
+
+    const response = await GET(makeRequest(CRON_SECRET) as never);
+    const body = await response.json();
+
+    // gym-1 (found at the still-successful offset 0) is still processed
+    // and claimed, despite offset 1's query failing.
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ success: true, sent: 1, skipped: 0, failed: 0 });
   });
 });
