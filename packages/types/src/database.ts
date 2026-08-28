@@ -7,31 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       attendance_events: {
@@ -131,6 +106,7 @@ export type Database = {
       }
       class_bookings: {
         Row: {
+          attended_at: string | null
           class_session_id: string
           created_at: string
           gym_id: string
@@ -138,6 +114,7 @@ export type Database = {
           member_id: string
         }
         Insert: {
+          attended_at?: string | null
           class_session_id: string
           created_at?: string
           gym_id: string
@@ -145,6 +122,7 @@ export type Database = {
           member_id: string
         }
         Update: {
+          attended_at?: string | null
           class_session_id?: string
           created_at?: string
           gym_id?: string
@@ -477,6 +455,10 @@ export type Database = {
           name: string
           opening_time: string | null
           primary_color: string | null
+          saas_billing_anchor_date: string
+          saas_billing_interval: Database["public"]["Enums"]["billing_interval"]
+          saas_billing_status: Database["public"]["Enums"]["saas_billing_status"]
+          saas_grace_period_days: number
           status: Database["public"]["Enums"]["gym_status"]
           tier_id: string
           timezone: string
@@ -497,6 +479,10 @@ export type Database = {
           name: string
           opening_time?: string | null
           primary_color?: string | null
+          saas_billing_anchor_date?: string
+          saas_billing_interval?: Database["public"]["Enums"]["billing_interval"]
+          saas_billing_status?: Database["public"]["Enums"]["saas_billing_status"]
+          saas_grace_period_days?: number
           status?: Database["public"]["Enums"]["gym_status"]
           tier_id: string
           timezone?: string
@@ -517,6 +503,10 @@ export type Database = {
           name?: string
           opening_time?: string | null
           primary_color?: string | null
+          saas_billing_anchor_date?: string
+          saas_billing_interval?: Database["public"]["Enums"]["billing_interval"]
+          saas_billing_status?: Database["public"]["Enums"]["saas_billing_status"]
+          saas_grace_period_days?: number
           status?: Database["public"]["Enums"]["gym_status"]
           tier_id?: string
           timezone?: string
@@ -610,6 +600,7 @@ export type Database = {
           experience_level: string | null
           goal: string | null
           gym_id: string
+          height_cm: number | null
           id: string
           join_date: string
           name: string
@@ -617,6 +608,7 @@ export type Database = {
           phone: string | null
           photo_url: string | null
           role: Database["public"]["Enums"]["member_role"]
+          starting_weight_kg: number | null
           user_id: string
         }
         Insert: {
@@ -628,6 +620,7 @@ export type Database = {
           experience_level?: string | null
           goal?: string | null
           gym_id: string
+          height_cm?: number | null
           id?: string
           join_date?: string
           name: string
@@ -635,6 +628,7 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           role: Database["public"]["Enums"]["member_role"]
+          starting_weight_kg?: number | null
           user_id: string
         }
         Update: {
@@ -646,6 +640,7 @@ export type Database = {
           experience_level?: string | null
           goal?: string | null
           gym_id?: string
+          height_cm?: number | null
           id?: string
           join_date?: string
           name?: string
@@ -653,6 +648,7 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           role?: Database["public"]["Enums"]["member_role"]
+          starting_weight_kg?: number | null
           user_id?: string
         }
         Relationships: [
@@ -798,6 +794,7 @@ export type Database = {
           currency: string
           id: string
           matched_payment_id: string | null
+          matched_saas_billing_payment_id: string | null
           provider_key: string
           provider_transaction_ref: string
           raw_payload: Json
@@ -810,6 +807,7 @@ export type Database = {
           currency: string
           id?: string
           matched_payment_id?: string | null
+          matched_saas_billing_payment_id?: string | null
           provider_key: string
           provider_transaction_ref: string
           raw_payload: Json
@@ -822,6 +820,7 @@ export type Database = {
           currency?: string
           id?: string
           matched_payment_id?: string | null
+          matched_saas_billing_payment_id?: string | null
           provider_key?: string
           provider_transaction_ref?: string
           raw_payload?: Json
@@ -834,6 +833,12 @@ export type Database = {
             foreignKeyName: "payment_webhook_events_matched_payment_id_fkey"
             columns: ["matched_payment_id"]
             referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_webhook_events_matched_saas_billing_payment_id_fkey"
+            columns: ["matched_saas_billing_payment_id"]
+            referencedRelation: "saas_billing_payments"
             referencedColumns: ["id"]
           },
           {
@@ -978,6 +983,116 @@ export type Database = {
           },
         ]
       }
+      progress_entries: {
+        Row: {
+          arms_cm: number | null
+          chest_cm: number | null
+          client_entry_id: string | null
+          deactivated_at: string | null
+          gym_id: string
+          hips_cm: number | null
+          id: string
+          logged_at: string
+          member_id: string
+          note: string | null
+          thighs_cm: number | null
+          waist_cm: number | null
+          weight_kg: number | null
+        }
+        Insert: {
+          arms_cm?: number | null
+          chest_cm?: number | null
+          client_entry_id?: string | null
+          deactivated_at?: string | null
+          gym_id: string
+          hips_cm?: number | null
+          id?: string
+          logged_at?: string
+          member_id: string
+          note?: string | null
+          thighs_cm?: number | null
+          waist_cm?: number | null
+          weight_kg?: number | null
+        }
+        Update: {
+          arms_cm?: number | null
+          chest_cm?: number | null
+          client_entry_id?: string | null
+          deactivated_at?: string | null
+          gym_id?: string
+          hips_cm?: number | null
+          id?: string
+          logged_at?: string
+          member_id?: string
+          note?: string | null
+          thighs_cm?: number | null
+          waist_cm?: number | null
+          weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "progress_entries_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progress_entries_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      progress_photos: {
+        Row: {
+          created_at: string
+          gym_id: string
+          id: string
+          member_id: string
+          photo_path: string
+          progress_entry_id: string
+          shared_with_coach: boolean
+        }
+        Insert: {
+          created_at?: string
+          gym_id: string
+          id?: string
+          member_id: string
+          photo_path: string
+          progress_entry_id: string
+          shared_with_coach?: boolean
+        }
+        Update: {
+          created_at?: string
+          gym_id?: string
+          id?: string
+          member_id?: string
+          photo_path?: string
+          progress_entry_id?: string
+          shared_with_coach?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "progress_photos_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progress_photos_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "progress_photos_progress_entry_id_fkey"
+            columns: ["progress_entry_id"]
+            referencedRelation: "progress_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       refunds: {
         Row: {
           actor_id: string
@@ -1027,6 +1142,104 @@ export type Database = {
             columns: ["payment_id"]
             referencedRelation: "payments"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      saas_billing_notices: {
+        Row: {
+          billing_anchor_date_at_notice: string
+          created_at: string
+          email_error: string | null
+          email_status: string
+          gym_id: string
+          id: string
+          notice_day_offset: number
+          sms_error: string | null
+          sms_status: string
+          whatsapp_error: string | null
+          whatsapp_status: string
+        }
+        Insert: {
+          billing_anchor_date_at_notice: string
+          created_at?: string
+          email_error?: string | null
+          email_status: string
+          gym_id: string
+          id?: string
+          notice_day_offset: number
+          sms_error?: string | null
+          sms_status: string
+          whatsapp_error?: string | null
+          whatsapp_status: string
+        }
+        Update: {
+          billing_anchor_date_at_notice?: string
+          created_at?: string
+          email_error?: string | null
+          email_status?: string
+          gym_id?: string
+          id?: string
+          notice_day_offset?: number
+          sms_error?: string | null
+          sms_status?: string
+          whatsapp_error?: string | null
+          whatsapp_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saas_billing_notices_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saas_billing_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          gym_id: string
+          id: string
+          provider: string | null
+          provider_fee_amount: number | null
+          provider_transaction_ref: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          gym_id: string
+          id?: string
+          provider?: string | null
+          provider_fee_amount?: number | null
+          provider_transaction_ref?: string | null
+          status: Database["public"]["Enums"]["payment_status"]
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          gym_id?: string
+          id?: string
+          provider?: string | null
+          provider_fee_amount?: number | null
+          provider_transaction_ref?: string | null
+          status?: Database["public"]["Enums"]["payment_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saas_billing_payments_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saas_billing_payments_provider_fkey"
+            columns: ["provider"]
+            referencedRelation: "payment_providers"
+            referencedColumns: ["provider_key"]
           },
         ]
       }
@@ -1148,6 +1361,7 @@ export type Database = {
           member_cap: number | null
           monthly_price: number
           name: string
+          price_locked: boolean
         }
         Insert: {
           annual_price: number
@@ -1156,6 +1370,7 @@ export type Database = {
           member_cap?: number | null
           monthly_price: number
           name: string
+          price_locked?: boolean
         }
         Update: {
           annual_price?: number
@@ -1164,11 +1379,13 @@ export type Database = {
           member_cap?: number | null
           monthly_price?: number
           name?: string
+          price_locked?: boolean
         }
         Relationships: []
       }
       users: {
         Row: {
+          active_gym_id: string | null
           created_at: string
           display_name: string | null
           id: string
@@ -1179,6 +1396,7 @@ export type Database = {
           preferred_language: string
         }
         Insert: {
+          active_gym_id?: string | null
           created_at?: string
           display_name?: string | null
           id: string
@@ -1189,6 +1407,7 @@ export type Database = {
           preferred_language?: string
         }
         Update: {
+          active_gym_id?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
@@ -1198,7 +1417,14 @@ export type Database = {
           photo_url?: string | null
           preferred_language?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "users_active_gym_id_fkey"
+            columns: ["active_gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -1258,6 +1484,7 @@ export type Database = {
       book_class_session: {
         Args: { p_class_session_id: string }
         Returns: {
+          attended_at: string | null
           class_session_id: string
           created_at: string
           gym_id: string
@@ -1344,9 +1571,17 @@ export type Database = {
         Args: { p_payment_id: string }
         Returns: undefined
       }
+      complete_flagged_saas_billing_payment: {
+        Args: { p_payment_id: string }
+        Returns: undefined
+      }
       complete_verified_payment: {
         Args: { p_fee_amount: number; p_payment_id: string }
         Returns: string
+      }
+      complete_verified_saas_billing_payment: {
+        Args: { p_fee_amount: number; p_payment_id: string }
+        Returns: undefined
       }
       confirm_renewal: {
         Args: {
@@ -1396,6 +1631,7 @@ export type Database = {
           experience_level: string | null
           goal: string | null
           gym_id: string
+          height_cm: number | null
           id: string
           join_date: string
           name: string
@@ -1403,6 +1639,7 @@ export type Database = {
           phone: string | null
           photo_url: string | null
           role: Database["public"]["Enums"]["member_role"]
+          starting_weight_kg: number | null
           user_id: string
         }
         SetofOptions: {
@@ -1424,6 +1661,7 @@ export type Database = {
           experience_level: string | null
           goal: string | null
           gym_id: string
+          height_cm: number | null
           id: string
           join_date: string
           name: string
@@ -1431,6 +1669,7 @@ export type Database = {
           phone: string | null
           photo_url: string | null
           role: Database["public"]["Enums"]["member_role"]
+          starting_weight_kg: number | null
           user_id: string
         }
         SetofOptions: {
@@ -1476,6 +1715,7 @@ export type Database = {
       gym_effective_member_cap: { Args: never; Returns: number }
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
       initiate_member_payment: { Args: never; Returns: string }
+      initiate_saas_billing_payment: { Args: never; Returns: string }
       log_audit_event: {
         Args: {
           p_action_type: string
@@ -1486,6 +1726,23 @@ export type Database = {
           p_target_entity_type?: string
         }
         Returns: string
+      }
+      mark_class_attendance: {
+        Args: { p_booking_id: string }
+        Returns: {
+          attended_at: string | null
+          class_session_id: string
+          created_at: string
+          gym_id: string
+          id: string
+          member_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "class_bookings"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       mark_gym_payment_credentials_needs_attention: {
         Args: { p_gym_id: string; p_provider_key: string }
@@ -1525,6 +1782,7 @@ export type Database = {
       run_class_session_materializer_job: { Args: never; Returns: undefined }
       run_payment_reconciliation_job: { Args: never; Returns: undefined }
       run_quiet_gym_alert_job: { Args: never; Returns: undefined }
+      run_saas_billing_lifecycle_job: { Args: never; Returns: undefined }
       run_subscription_lifecycle_job: { Args: never; Returns: undefined }
       staff_account_for_reset: {
         Args: { p_member_id: string }
@@ -1544,6 +1802,7 @@ export type Database = {
           started_at: string
         }[]
       }
+      switch_active_gym: { Args: { p_gym_id: string }; Returns: undefined }
       update_class: {
         Args: {
           p_capacity: number
@@ -1563,6 +1822,10 @@ export type Database = {
         Args: { p_instance_id: string }
         Returns: undefined
       }
+      update_own_owner_notification_email: {
+        Args: { p_email: string }
+        Returns: undefined
+      }
       update_staff_role: {
         Args: {
           p_member_id: string
@@ -1578,6 +1841,7 @@ export type Database = {
           experience_level: string | null
           goal: string | null
           gym_id: string
+          height_cm: number | null
           id: string
           join_date: string
           name: string
@@ -1585,6 +1849,7 @@ export type Database = {
           phone: string | null
           photo_url: string | null
           role: Database["public"]["Enums"]["member_role"]
+          starting_weight_kg: number | null
           user_id: string
         }
         SetofOptions: {
@@ -1618,6 +1883,7 @@ export type Database = {
         | "monthly"
         | "coach_inclusive"
         | "class_only"
+      saas_billing_status: "active" | "past_due" | "grace_period" | "suspended"
       subscription_status:
         | "active"
         | "expiring_soon"
@@ -1748,16 +2014,20 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       billing_interval: ["monthly", "annual"],
       device_platform: ["ios", "android"],
       gym_status: ["active", "suspended", "deactivated"],
       job_status: ["success", "failure"],
-      member_role: ["member", "coach", "receptionist", "manager", "owner", "supervisor"],
+      member_role: [
+        "member",
+        "coach",
+        "receptionist",
+        "manager",
+        "owner",
+        "supervisor",
+      ],
       payment_discrepancy_type: [
         "missing_internal_record",
         "stale_processing",
@@ -1771,6 +2041,7 @@ export const Constants = {
         "coach_inclusive",
         "class_only",
       ],
+      saas_billing_status: ["active", "past_due", "grace_period", "suspended"],
       subscription_status: [
         "active",
         "expiring_soon",

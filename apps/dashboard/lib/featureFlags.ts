@@ -76,3 +76,17 @@ export async function canOfferMobileMoneyPayment(): Promise<boolean> {
   const availability = await getMobileMoneyAvailability();
   return availability.available;
 }
+
+/**
+ * Story 11.3: the reversibility kill switch for the saas-billing-reminders
+ * Vercel Cron job -- decided with the user before merging (this story's own
+ * Task 7 flag). Every existing gym was backfilled to a 3-month runway in
+ * Story 11.2, so once this ships, real Owners of already-past-due gyms
+ * start receiving real automated SMS/WhatsApp billing texts on the job's
+ * own schedule with no other gate in front of it. Same env-var shape as
+ * `isMobileMoneyInitiationEnabled()` above -- default enabled (`true`)
+ * unless explicitly set to `"false"` (case/whitespace-insensitive).
+ */
+export function isSaasBillingRemindersEnabled(): boolean {
+  return process.env.SAAS_BILLING_REMINDERS_ENABLED?.trim().toLowerCase() !== "false";
+}

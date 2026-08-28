@@ -50,7 +50,16 @@ export async function updateSession(request: NextRequest) {
   if (
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
+    !request.nextUrl.pathname.startsWith("/auth") &&
+    // Story 11.3: found via live-evidence testing -- without this
+    // exemption, Vercel's own cron invocation (genuinely unauthenticated at
+    // the session-cookie layer, authenticated only via the route's own
+    // CRON_SECRET bearer check) would be redirected to /auth/login before
+    // the route handler ever runs, silently breaking the entire scheduled
+    // job in production. Any future /api/cron/* route inherits this same
+    // exemption -- each one is responsible for its own auth (CRON_SECRET),
+    // matching this route's own established pattern.
+    !request.nextUrl.pathname.startsWith("/api/cron")
   ) {
     // `/` is AD-02 Overview (protected, Receptionist+) -- not the starter's
     // public marketing page anymore, so it is deliberately no longer

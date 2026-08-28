@@ -1,5 +1,6 @@
 import { getGymSettings } from "@/services/gym-settings";
 import { getGymPaymentConnectionStatus } from "@/services/gym-payment-credentials";
+import { getGymBillingInfo } from "@/services/billing";
 import { listStaff } from "@/services/staff";
 import { SettingsForm } from "./SettingsForm";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -39,12 +40,18 @@ export default async function SettingsPage() {
   // than blocking Settings.
   const { data: staff } = await listStaff();
 
+  // Story 11.3: same "don't fail the whole page" treatment as the payment
+  // connection lookup above -- an error here just hides the Billing
+  // section (SettingsForm's own null-check) rather than blocking Settings.
+  const { data: billingInfo } = await getGymBillingInfo();
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">{t("settings.title")}</h1>
       <SettingsForm
         initial={settings}
         initialPaymentConnection={paymentConnection}
+        initialBillingInfo={billingInfo}
         staffCount={staff?.length ?? 0}
       />
     </div>

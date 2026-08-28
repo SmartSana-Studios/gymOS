@@ -30,6 +30,20 @@ export const initiatePaymentSchema = z.object({
 
 export type InitiatePaymentInput = z.infer<typeof initiatePaymentSchema>;
 
+// Story 11.3: validates apps/dashboard/services/billing.ts's
+// initiateSaasBillingPayment input ("Pay Now"). Real-evidence finding
+// (live-tested with the user): the Owner's own on-file `members.phone`
+// isn't always the right mobile-money payer number (e.g. testing, or a
+// different line than their account phone) -- the UI presents an editable
+// field pre-filled from that on-file number rather than assuming it
+// unconditionally, so this schema validates whatever the Owner actually
+// submits.
+export const initiateSaasBillingPaymentSchema = z.object({
+  phoneNumber: e164Phone,
+});
+
+export type InitiateSaasBillingPaymentInput = z.infer<typeof initiateSaasBillingPaymentSchema>;
+
 // Story 4.3: validates apps/dashboard/services/payments.ts's
 // recordManualPayment input (the Record Payment modal, AD-10). `method`'s
 // 3-value enum stays closed and manual-only (cash/bank_transfer/

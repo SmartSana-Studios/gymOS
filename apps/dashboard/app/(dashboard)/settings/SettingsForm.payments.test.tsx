@@ -23,6 +23,13 @@ vi.mock("./actions", () => ({
   regenerateQrCode: vi.fn(),
   saveGymSettings: vi.fn(),
   uploadLogo: vi.fn(),
+  payNow: vi.fn(),
+  saveNotificationEmail: vi.fn(),
+  getBillingInfo: vi.fn(),
+}));
+
+vi.mock("@/lib/realtime/paymentStatus", () => ({
+  fetchSaasBillingPaymentStatus: vi.fn(),
 }));
 
 const TRANSLATIONS: Record<string, string> = {
@@ -84,7 +91,12 @@ async function renderForm(
 ) {
   const { SettingsForm } = await import("./SettingsForm");
   return render(
-    <SettingsForm initial={INITIAL_SETTINGS} initialPaymentConnection={initialPaymentConnection} staffCount={0} />,
+    <SettingsForm
+      initial={INITIAL_SETTINGS}
+      initialPaymentConnection={initialPaymentConnection}
+      initialBillingInfo={null}
+      staffCount={0}
+    />,
   );
 }
 

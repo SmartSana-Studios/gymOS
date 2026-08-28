@@ -13,8 +13,30 @@
  * A plain async function, not a class: this app has no `OtpDeliveryProvider`-style
  * chain/registry (unlike `send-sms-hook`'s `PROVIDER_CHAIN`) -- there is exactly one
  * caller (`sendMemberInvite`) and no polymorphism need.
+ *
+ * Story 11.3: live-evidence testing surfaced a real, recurring class of
+ * false negative -- a genuinely WhatsApp-active number can still fail
+ * Evolution API's own JID-existence check when the caller's own numbering
+ * plan has changed its national significant number's length (confirmed
+ * live: a Cameroon number dialable as 237695233625 was still indexed by
+ * WhatsApp's own backend under its pre-2022-migration 8-digit form,
+ * 23795233625 -- WhatsApp's own contact index lagging the numbering-plan
+ * change, not an Evolution API or GymOS defect). `resolveWhatsappNumber()`
+ * below checks the number's existence before sending and, if the primary
+ * form isn't found, tries a national-number-length variant (one digit
+ * shorter, right after the country calling code) -- general to any
+ * country's own historical "added one leading digit" numbering-plan change
+ * (Cameroon's is the one this story observed directly, but the pattern
+ * itself isn't Cameroon-specific), using `libphonenumber-js` to correctly
+ * split calling-code from national-number for whichever country the
+ * caller's number belongs to, rather than a hardcoded per-country digit
+ * rule. The check is fail-open: if it errors, times out, or finds neither
+ * form, the send still proceeds with the original number exactly as before
+ * -- this is a best-effort improvement, never a new way for a send to be
+ * silently skipped.
  */
 
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type EvolutionApiMessageResult =
@@ -22,6 +44,76 @@ export type EvolutionApiMessageResult =
   | { success: false; error: string };
 
 const FETCH_TIMEOUT_MS = 10_000;
+const NUMBER_CHECK_TIMEOUT_MS = 5_000;
+
+interface WhatsappNumberCheckResult {
+  jid: string;
+  exists: boolean;
+  number: string;
+}
+
+/**
+ * Queries Evolution API's own `/chat/whatsappNumbers/{instance}` endpoint
+ * with the primary bare-digit number and, when a national-number-length
+ * variant is computable and distinct, that variant too -- returns whichever
+ * one Evolution API confirms `exists: true` for (primary preferred), or the
+ * original `bareDigitPhone` unchanged if the check can't confirm either
+ * (endpoint error/timeout, or genuinely neither form exists -- the real
+ * send attempt is still the final authority, this is only a best-effort
+ * pre-check).
+ */
+async function resolveWhatsappNumber(
+  baseUrl: string,
+  apiKey: string,
+  instance: string,
+  bareDigitPhone: string,
+): Promise<string> {
+  const candidates = new Set<string>([bareDigitPhone]);
+
+  const parsed = parsePhoneNumberFromString(`+${bareDigitPhone}`);
+  if (parsed?.countryCallingCode && parsed.nationalNumber.length > 1) {
+    candidates.add(`${parsed.countryCallingCode}${parsed.nationalNumber.slice(1)}`);
+  }
+
+  if (candidates.size < 2) {
+    // No distinct variant to check against -- skip the extra round trip
+    // entirely, matching this function's own fail-open discipline.
+    return bareDigitPhone;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), NUMBER_CHECK_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${baseUrl}/chat/whatsappNumbers/${encodeURIComponent(instance)}`, {
+      method: "POST",
+      headers: {
+        apikey: apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ numbers: Array.from(candidates) }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      return bareDigitPhone;
+    }
+
+    const results = (await response.json()) as WhatsappNumberCheckResult[];
+    const primaryMatch = results.find((r) => r.number === bareDigitPhone && r.exists);
+    if (primaryMatch) {
+      return bareDigitPhone;
+    }
+    const variantMatch = results.find((r) => r.exists);
+    return variantMatch?.number ?? bareDigitPhone;
+  } catch {
+    // Network error, timeout, or unparseable response -- fail open, the
+    // real send attempt below is still the final authority.
+    return bareDigitPhone;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export async function sendEvolutionApiMessage(
   phone: string,
@@ -53,6 +145,9 @@ export async function sendEvolutionApiMessage(
   }
   const instance = data.instance_id;
 
+  const bareDigitPhone = phone.replace(/^\+/, "");
+  const resolvedNumber = await resolveWhatsappNumber(baseUrl, apiKey, instance, bareDigitPhone);
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
@@ -71,7 +166,7 @@ export async function sendEvolutionApiMessage(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          number: phone.replace(/^\+/, ""),
+          number: resolvedNumber,
           text: message,
         }),
         signal: controller.signal,

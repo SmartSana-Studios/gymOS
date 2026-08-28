@@ -12,10 +12,11 @@ import {
   Globe,
   Palette,
   QrCode,
+  Receipt,
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { connectGymPaymentCredentialsSchema, gymSettingsSchema } from "@gymos/types";
+import { connectGymPaymentCredentialsSchema, emailSchema, gymSettingsSchema } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,11 +24,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { GymSettingsRow } from "@/services/gym-settings";
 import type { GymPaymentConnectionStatus } from "@/services/gym-payment-credentials";
+import type { GymBillingInfo } from "@/services/billing";
+import { fetchSaasBillingPaymentStatus } from "@/lib/realtime/paymentStatus";
 import {
   connectPaymentProvider,
   disconnectPaymentProvider,
+  getBillingInfo,
+  payNow,
   regenerateQrCode,
   saveGymSettings,
+  saveNotificationEmail,
   uploadLogo,
 } from "./actions";
 
@@ -122,10 +128,12 @@ const PAYMENT_FIELD_MESSAGE_KEYS: Record<keyof PaymentFieldErrors, { required: s
 export function SettingsForm({
   initial,
   initialPaymentConnection,
+  initialBillingInfo,
   staffCount,
 }: {
   initial: GymSettingsRow;
   initialPaymentConnection: GymPaymentConnectionStatus | null;
+  initialBillingInfo: GymBillingInfo | null;
   staffCount: number;
 }) {
   const { t } = useTranslation();
@@ -184,6 +192,23 @@ export function SettingsForm({
   const [disconnecting, setDisconnecting] = useState(false);
   const disconnectDialogRef = useRef<HTMLDialogElement>(null);
 
+  // Story 11.3 (Task 6): the Owner's own GymOS (Flow B) billing section.
+  const [billingInfo, setBillingInfo] = useState(initialBillingInfo);
+  const [notificationEmail, setNotificationEmail] = useState(initialBillingInfo?.notificationEmail ?? "");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [payNowError, setPayNowError] = useState<string | null>(null);
+  const [payNowLoading, setPayNowLoading] = useState(false);
+  const [watchedPaymentId, setWatchedPaymentId] = useState<string | null>(null);
+  const [paymentPhase, setPaymentPhase] = useState<"idle" | "pending" | "stillWaiting" | "failed">("idle");
+  // Real-user-testing finding: the Owner's own on-file phone isn't always
+  // the right mobile-money payer line -- "Pay Now" opens a dialog with an
+  // editable field (pre-filled from billingInfo.ownerPhone) instead of
+  // silently using the on-file number with no confirmation.
+  const [payNowOpen, setPayNowOpen] = useState(false);
+  const [payNowPhone, setPayNowPhone] = useState("");
+  const payNowDialogRef = useRef<HTMLDialogElement>(null);
+
   useEffect(() => {
     return () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -210,8 +235,60 @@ export function SettingsForm({
   }, [disconnectOpen]);
 
   useEffect(() => {
+    if (payNowOpen) {
+      payNowDialogRef.current?.showModal();
+    }
+  }, [payNowOpen]);
+
+  useEffect(() => {
     QRCode.toDataURL(gymToken).then(setQrDataUrl).catch(() => setQrDataUrl(null));
   }, [gymToken]);
+
+  // Story 11.3 (Task 6): polling-only pending-payment watch for the new
+  // Billing section's "Pay Now" -- `RenewalModal`'s
+  // subscribeToPaymentStatus/fetchPaymentStatus pattern, minus the realtime
+  // fast path (saas_billing_payments is deliberately not yet added to the
+  // supabase_realtime publication -- see this story's Dev Notes).
+  useEffect(() => {
+    if (!watchedPaymentId) return;
+
+    let active = true;
+    const pollTimer = setInterval(() => {
+      void fetchSaasBillingPaymentStatus(watchedPaymentId).then((row) => {
+        if (!active || !row) return;
+        if (row.status === "verified") {
+          clearInterval(pollTimer);
+          setWatchedPaymentId(null);
+          setPaymentPhase("idle");
+          showToast(t("settings.billing.paymentConfirmedToast"));
+          // Refetches this client component's own copy of billingInfo --
+          // router.refresh() alone re-renders the Server Component tree,
+          // but this component's local useState (seeded from
+          // initialBillingInfo) would not pick that up without an explicit
+          // refetch, same as paymentConnection's own established pattern.
+          void getBillingInfo().then(({ data }) => {
+            if (data) setBillingInfo(data);
+          });
+        } else if (row.status === "flagged") {
+          clearInterval(pollTimer);
+          setWatchedPaymentId(null);
+          setPaymentPhase("failed");
+        }
+        // "processing" is a no-op here -- still waiting.
+      });
+    }, 5000);
+
+    const stillWaitingTimer = setTimeout(() => {
+      setPaymentPhase((current) => (current === "pending" ? "stillWaiting" : current));
+    }, 45000);
+
+    return () => {
+      active = false;
+      clearInterval(pollTimer);
+      clearTimeout(stillWaitingTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedPaymentId]);
 
   function showToast(message: string) {
     setToast(message);
@@ -445,6 +522,60 @@ export function SettingsForm({
     }
   }
 
+  // Story 11.3 (Task 6): "Pay Now". No confirmation dialog -- the button
+  // only ever shows when there's actually something to pay
+  // (billingStatus !== 'active'), unlike Payments' connect/disconnect
+  // dialogs which gate a destructive/credential-bearing action.
+  function openPayNowDialog() {
+    setPayNowError(null);
+    setPayNowPhone(billingInfo?.ownerPhone ?? "");
+    setPayNowOpen(true);
+  }
+
+  async function handlePayNowSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setPayNowError(null);
+    setPayNowLoading(true);
+    try {
+      const { data, error } = await payNow({ phoneNumber: payNowPhone.trim() });
+      if (error || !data) {
+        setPayNowError(error?.message ?? t("common.somethingWentWrong"));
+        return;
+      }
+      setPaymentPhase("pending");
+      setWatchedPaymentId(data.paymentId);
+      payNowDialogRef.current?.close();
+      setPayNowOpen(false);
+    } catch {
+      setPayNowError(t("common.somethingWentWrong"));
+    } finally {
+      setPayNowLoading(false);
+    }
+  }
+
+  async function handleSaveNotificationEmail() {
+    setEmailError(null);
+    const trimmed = notificationEmail.trim();
+    const parsed = emailSchema.safeParse(trimmed === "" ? null : trimmed);
+    if (!parsed.success) {
+      setEmailError(parsed.error.issues[0]?.message ?? t("common.invalidInput"));
+      return;
+    }
+    setSavingEmail(true);
+    try {
+      const { error } = await saveNotificationEmail(parsed.data ?? null);
+      if (error) {
+        setEmailError(error.message);
+        return;
+      }
+      setBillingInfo((current) => (current ? { ...current, notificationEmail: parsed.data ?? null } : current));
+      showToast(t("settings.billing.emailSavedToast"));
+    } catch {
+      setEmailError(t("common.somethingWentWrong"));
+    } finally {
+      setSavingEmail(false);
+    }
+  }
 
   return (
     <div ref={formTopRef} className="space-y-6">
@@ -771,6 +902,88 @@ export function SettingsForm({
               </CardContent>
             </Card>
 
+            {billingInfo && (
+              <Card>
+                <SectionHeader
+                  icon={Receipt}
+                  accent="amber"
+                  title={t("settings.sections.billing")}
+                  description={t("settings.sectionDescriptions.billing")}
+                />
+                <CardContent className="space-y-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-sm">
+                      <p className="font-medium">
+                        {billingInfo.tierName} —{" "}
+                        {t(
+                          billingInfo.interval === "annual"
+                            ? "settings.billing.intervalAnnual"
+                            : "settings.billing.intervalMonthly",
+                        )}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {t("settings.billing.nextBillingDate", {
+                          date: new Date(billingInfo.anchorDate).toLocaleDateString(),
+                        })}
+                      </p>
+                    </div>
+                    <span
+                      className={`w-fit rounded-full px-3 py-1 text-xs font-medium ${
+                        billingInfo.billingStatus === "active"
+                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                          : billingInfo.billingStatus === "suspended"
+                            ? "bg-red-500/10 text-red-700 dark:text-red-400"
+                            : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                      }`}
+                    >
+                      {t(`settings.billing.status.${billingInfo.billingStatus}`)}
+                    </span>
+                  </div>
+
+                  {billingInfo.billingStatus !== "active" && (
+                    <div className="flex flex-col gap-2">
+                      {paymentPhase === "pending" && (
+                        <p className="text-sm text-muted-foreground">{t("settings.billing.payPending")}</p>
+                      )}
+                      {paymentPhase === "stillWaiting" && (
+                        <p className="text-sm text-muted-foreground">{t("settings.billing.payStillWaiting")}</p>
+                      )}
+                      {paymentPhase === "failed" && (
+                        <p className="text-sm text-red-600">{t("settings.billing.payFailed")}</p>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="w-fit"
+                        disabled={paymentPhase === "pending" || paymentPhase === "stillWaiting"}
+                        onClick={openPayNowDialog}
+                      >
+                        {t("settings.billing.payNow")}
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 border-t pt-4">
+                    <Label htmlFor="billingNotificationEmail">{t("settings.billing.emailLabel")}</Label>
+                    <p className="text-xs text-muted-foreground">{t("settings.billing.emailHint")}</p>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        id="billingNotificationEmail"
+                        type="email"
+                        value={notificationEmail}
+                        onChange={(e) => setNotificationEmail(e.target.value)}
+                        className="sm:max-w-xs"
+                      />
+                      <Button type="button" variant="outline" size="sm" disabled={savingEmail} onClick={handleSaveNotificationEmail}>
+                        {savingEmail ? t("common.saving") : t("common.save")}
+                      </Button>
+                    </div>
+                    {emailError && <p className="text-sm text-red-600">{emailError}</p>}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <SectionHeader
                 icon={Users}
@@ -915,6 +1128,46 @@ export function SettingsForm({
             </Button>
           </div>
         </div>
+      </dialog>
+
+      <dialog
+        ref={payNowDialogRef}
+        onClose={() => setPayNowOpen(false)}
+        onCancel={(e) => {
+          if (payNowLoading) e.preventDefault();
+        }}
+        className="w-full max-w-[420px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
+      >
+        <form onSubmit={handlePayNowSubmit} className="space-y-4 p-6">
+          <div className="space-y-1">
+            <h2 className="text-lg font-semibold">{t("settings.billing.payNowDialogTitle")}</h2>
+            <p className="text-sm text-muted-foreground">{t("settings.billing.payNowDialogBody")}</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="payNowPhone">{t("settings.billing.payerPhoneLabel")}</Label>
+            <Input
+              id="payNowPhone"
+              type="tel"
+              value={payNowPhone}
+              onChange={(e) => setPayNowPhone(e.target.value)}
+              placeholder="+237600000000"
+            />
+          </div>
+          {payNowError && <p className="text-sm text-red-600">{payNowError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={payNowLoading}
+              onClick={() => payNowDialogRef.current?.close()}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button type="submit" disabled={payNowLoading}>
+              {payNowLoading ? t("settings.billing.payNowLoading") : t("settings.billing.payNow")}
+            </Button>
+          </div>
+        </form>
       </dialog>
 
       {toast && (

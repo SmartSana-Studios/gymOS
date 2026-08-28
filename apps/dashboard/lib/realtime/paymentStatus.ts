@@ -60,3 +60,28 @@ export async function fetchPaymentStatus(paymentId: string): Promise<PaymentStat
   }
   return data as PaymentStatusRow;
 }
+
+/**
+ * Story 11.3 (Task 6): Flow B's own pending-payment watch, for the Billing
+ * section's "Pay Now" button. `saas_billing_payments` is not (yet) added to
+ * the `supabase_realtime` publication `payments` already has
+ * (0051_payments_realtime_publication.sql) -- a deliberate scope decision,
+ * not an oversight (see this story's Dev Notes) -- so this is polling-only,
+ * no `subscribeToSaasBillingPaymentStatus` realtime counterpart. AD-20's
+ * own polling-degrade path still applies: this function is exactly what
+ * `fetchPaymentStatus` above would be doing anyway if Realtime were
+ * unavailable, just without ever attempting the fast path first.
+ */
+export async function fetchSaasBillingPaymentStatus(paymentId: string): Promise<PaymentStatusRow | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("saas_billing_payments")
+    .select("id, status")
+    .eq("id", paymentId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+  return data as PaymentStatusRow;
+}

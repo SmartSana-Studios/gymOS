@@ -1,6 +1,12 @@
 "use server";
 
-import { connectGymPaymentCredentialsSchema, gymSettingsSchema, type AppError } from "@gymos/types";
+import {
+  connectGymPaymentCredentialsSchema,
+  emailSchema,
+  gymSettingsSchema,
+  initiateSaasBillingPaymentSchema,
+  type AppError,
+} from "@gymos/types";
 import {
   ALLOWED_LOGO_MIME_TYPES,
   MAX_LOGO_BYTES,
@@ -16,6 +22,12 @@ import {
   maskBusinessId,
   type GymPaymentConnectionStatus,
 } from "@/services/gym-payment-credentials";
+import {
+  getGymBillingInfo,
+  initiateSaasBillingPayment,
+  updateOwnerNotificationEmail,
+  type GymBillingInfo,
+} from "@/services/billing";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { TARAMONEY_PROVIDER_KEY } from "@/lib/featureFlags";
@@ -178,4 +190,54 @@ export async function disconnectPaymentProvider(): Promise<{
     return { data: null, error };
   }
   return { data: { ok: true }, error: null };
+}
+
+/**
+ * Story 11.3: "Pay Now" -- the Flow B analogue of Flow A's
+ * `initiatePayment()`. Takes a caller-editable payer phone number (a real
+ * user-testing finding: the Owner's own on-file number isn't always the
+ * right mobile-money payer line) -- validated here via
+ * `initiateSaasBillingPaymentSchema`, same "parse first, matching
+ * `saveGymSettings`'s pattern" discipline as every other validated action
+ * in this file.
+ */
+export async function payNow(input: unknown): Promise<{ data: { paymentId: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = initiateSaasBillingPaymentSchema.safeParse(input);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return {
+      data: null,
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+    };
+  }
+  return initiateSaasBillingPayment(parsed.data.phoneNumber);
+}
+
+/**
+ * Story 11.3: re-fetches the Owner's own billing info after a "Pay Now"
+ * payment is confirmed (Task 6's polling watch) -- the client component
+ * holds its own copy of `initialBillingInfo` in local state (same pattern
+ * as `paymentConnection`/`initialPaymentConnection` above), which a Server
+ * Component re-render (`router.refresh()`) alone would not update.
+ */
+export async function getBillingInfo(): Promise<{ data: GymBillingInfo | null; error: AppError | null }> {
+  return getGymBillingInfo();
+}
+
+/**
+ * Story 11.3: saves the Owner's own SaaS-billing notification email.
+ * Reuses the exported `emailSchema` (packages/types) instead of duplicating
+ * a second email-format schema -- the real authorization/target-column
+ * enforcement is `update_own_owner_notification_email()`'s own RPC body.
+ */
+export async function saveNotificationEmail(
+  input: unknown,
+): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = emailSchema.safeParse(input);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  return updateOwnerNotificationEmail(parsed.data ?? null);
 }

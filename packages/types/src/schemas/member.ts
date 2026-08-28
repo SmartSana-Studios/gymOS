@@ -69,7 +69,9 @@ const dobSchema = z
   });
 
 const nameSchema = z.string().trim().min(2, "Name is required").max(100, "Name is too long");
-const emailSchema = z.email("Enter a valid email address").optional().nullable();
+// Exported (Story 11.3): reused by the Owner notification-email save Server
+// Action instead of a second, duplicate email-format schema.
+export const emailSchema = z.email("Enter a valid email address").optional().nullable();
 const photoUrlSchema = z.url("Enter a valid URL").max(2048, "URL is too long").optional().nullable();
 const emergencyContactSchema = z.string().trim().max(200, "Emergency contact is too long").optional().nullable();
 
