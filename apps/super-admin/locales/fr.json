@@ -154,6 +154,7 @@
       "memberCap": "Plafond de membres (vide = illimité)",
       "monthlyPrice": "Prix mensuel (XAF) *",
       "annualPrice": "Prix annuel (XAF) *",
+      "priceLocked": "Il s'agit du palier Gratuit/Test — son prix est fixé à 0 XAF et ne peut pas être modifié.",
       "saveChanges": "Enregistrer les modifications",
       "errors": {
         "memberCapPositive": "Saisissez un plafond de membres positif",

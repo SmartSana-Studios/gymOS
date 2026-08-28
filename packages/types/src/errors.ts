@@ -89,6 +89,19 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // tiers_price_locked_implies_zero_price (0071_saas_subscription_lifecycle.sql,
+  // Story 11.2): an attempted price edit on the Free/Test tier. TierModal
+  // already disables the price inputs when priceLocked is true (UX guard),
+  // but this is the DB-level enforcement of record -- reachable via a
+  // direct/bypassed request, or a stale client that loaded the tier before
+  // it became price-locked.
+  if (pgErrorCode === "23514" && message.includes("tiers_price_locked_implies_zero_price")) {
+    return {
+      code: "tier_price_locked",
+      message: copy.tierPriceLocked,
+    };
+  }
+
   // gyms_tier_id_fkey violated by *updating a gym's own* tier_id to point at
   // a tier that no longer exists (e.g. deleted concurrently between page
   // load and submit). Postgres's message reads `insert or update on table

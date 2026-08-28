@@ -19,6 +19,7 @@ export interface TierRow {
   monthlyPrice: number;
   annualPrice: number;
   gymCount: number;
+  priceLocked: boolean;
 }
 
 /**
@@ -34,7 +35,7 @@ export async function listTiersWithGymCounts(): Promise<{
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("tiers")
-    .select("id, name, member_cap, monthly_price, annual_price, gyms(count)")
+    .select("id, name, member_cap, monthly_price, annual_price, price_locked, gyms(count)")
     .order("monthly_price", { ascending: true });
 
   if (error) {
@@ -47,6 +48,7 @@ export async function listTiersWithGymCounts(): Promise<{
     memberCap: tier.member_cap,
     monthlyPrice: tier.monthly_price,
     annualPrice: tier.annual_price,
+    priceLocked: tier.price_locked,
     gymCount:
       (tier.gyms as unknown as { count: number }[] | null)?.[0]?.count ?? 0,
   }));

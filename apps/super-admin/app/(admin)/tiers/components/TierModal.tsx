@@ -89,7 +89,11 @@ export function TierModal({
       preErrors.memberCap = t("tiers.modal.errors.memberCapPositive");
     }
 
-    const monthlyPriceRaw = form.monthlyPrice.trim();
+    // priceLocked (Free/Test tier): the DB CHECK constraint is the real
+    // enforcement (packages/types/src/errors.ts's tier_price_locked
+    // mapping) -- these inputs are rendered disabled/read-only below, so
+    // form.monthlyPrice/annualPrice are always "0" here, not user-editable.
+    const monthlyPriceRaw = editingTier?.priceLocked ? "0" : form.monthlyPrice.trim();
     const monthlyPriceNum = Number(monthlyPriceRaw);
     if (monthlyPriceRaw === "") {
       preErrors.monthlyPrice = t("tiers.modal.errors.monthlyPriceRequired");
@@ -97,7 +101,7 @@ export function TierModal({
       preErrors.monthlyPrice = t("tiers.modal.errors.monthlyPriceInvalid");
     }
 
-    const annualPriceRaw = form.annualPrice.trim();
+    const annualPriceRaw = editingTier?.priceLocked ? "0" : form.annualPrice.trim();
     const annualPriceNum = Number(annualPriceRaw);
     if (annualPriceRaw === "") {
       preErrors.annualPrice = t("tiers.modal.errors.annualPriceRequired");
@@ -216,7 +220,8 @@ export function TierModal({
             id="monthlyPrice"
             type="number"
             min={0}
-            value={form.monthlyPrice}
+            disabled={editingTier?.priceLocked}
+            value={editingTier?.priceLocked ? 0 : form.monthlyPrice}
             onChange={(e) => setForm({ ...form, monthlyPrice: e.target.value })}
           />
           {fieldErrors.monthlyPrice && (
@@ -230,13 +235,18 @@ export function TierModal({
             id="annualPrice"
             type="number"
             min={0}
-            value={form.annualPrice}
+            disabled={editingTier?.priceLocked}
+            value={editingTier?.priceLocked ? 0 : form.annualPrice}
             onChange={(e) => setForm({ ...form, annualPrice: e.target.value })}
           />
           {fieldErrors.annualPrice && (
             <p className="text-sm text-red-600">{fieldErrors.annualPrice}</p>
           )}
         </div>
+
+        {editingTier?.priceLocked && (
+          <p className="text-muted-foreground text-sm">{t("tiers.modal.priceLocked")}</p>
+        )}
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
 

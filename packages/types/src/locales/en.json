@@ -15,6 +15,7 @@
     "tierNameTaken": "This name is already in use",
     "planNameTaken": "A plan with this name already exists at your gym",
     "tierNotFound": "That tier no longer exists. Choose a different one.",
+    "tierPriceLocked": "This tier's price is fixed at 0 XAF and cannot be changed.",
     "ownerEmailTaken": "This email address is already registered",
     "ownerPhoneTaken": "This phone number is already registered",
     "memberPhoneTaken": "This phone number already belongs to an active member at this gym",

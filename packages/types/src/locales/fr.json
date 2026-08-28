@@ -15,6 +15,7 @@
     "tierNameTaken": "Ce nom est déjà utilisé",
     "planNameTaken": "Une formule portant ce nom existe déjà dans votre salle",
     "tierNotFound": "Ce palier n'existe plus. Choisissez-en un autre.",
+    "tierPriceLocked": "Le prix de ce palier est fixé à 0 XAF et ne peut pas être modifié.",
     "ownerEmailTaken": "Cette adresse e-mail est déjà enregistrée",
     "ownerPhoneTaken": "Ce numéro de téléphone est déjà enregistré",
     "memberPhoneTaken": "Ce numéro de téléphone appartient déjà à un membre actif de cette salle",

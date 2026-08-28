@@ -341,6 +341,15 @@ export async function updateGymStatus(
  * existing members are never automatically reclassified (AC #1); this is
  * purely an UPDATE of gyms.tier_id, no cascading member/subscription
  * changes. Same before-read / rows-affected pattern as updateGymStatus. */
+/** No proration on a mid-cycle tier change (Story 11.2 AC #2, OQ-15):
+ * deliberate by construction, not a gap -- this is a bare tier_id UPDATE
+ * with no price caching. run_saas_billing_lifecycle_job() itself never
+ * resolves a price (it's purely a clock, driven only by
+ * saas_billing_anchor_date); it's whichever future payment-initiation code
+ * (Story 11.3) actually charges a gym that must resolve
+ * gyms.tier_id -> tiers.monthly_price/annual_price live at billing time
+ * rather than snapshotting a price ahead of time, so a change here simply
+ * takes effect at the *next* read of that join. */
 export async function updateGymTier(
   gymId: string,
   tierId: string,

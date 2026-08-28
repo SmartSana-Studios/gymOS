@@ -68,10 +68,12 @@ select is(
 );
 
 select is(
-  (select count(*) from tiers)::int, 4,
-  -- 3 default tiers seeded by 0010_super_admin_gym_provisioning.sql itself
-  -- (Hustle/Grind/Elite, FR-073) + the 1 this test file inserts above.
-  'super_admin can SELECT tiers (3 migration-seeded defaults + 1 seeded by this test)'
+  (select count(*) from tiers)::int, 5,
+  -- 4 default tiers seeded by migrations (Hustle/Grind/Elite from
+  -- 0010_super_admin_gym_provisioning.sql, FR-073; Free/Test from
+  -- 0071_saas_subscription_lifecycle.sql, FR-139) + the 1 this test file
+  -- inserts above.
+  'super_admin can SELECT tiers (4 migration-seeded defaults + 1 seeded by this test)'
 );
 
 select lives_ok(

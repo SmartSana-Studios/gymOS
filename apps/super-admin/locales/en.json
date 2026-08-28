@@ -154,6 +154,7 @@
       "memberCap": "Member Cap (blank = unlimited)",
       "monthlyPrice": "Monthly Price (XAF) *",
       "annualPrice": "Annual Price (XAF) *",
+      "priceLocked": "This is the Free/Test tier — its price is fixed at 0 XAF and cannot be changed.",
       "saveChanges": "Save Changes",
       "errors": {
         "memberCapPositive": "Enter a positive member cap",
