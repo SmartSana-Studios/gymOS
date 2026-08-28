@@ -43,7 +43,14 @@ const NAV_ITEMS: {
   { labelKey: "nav.subscriptions", href: "/subscriptions", icon: CreditCard, roles: ["manager", "owner"] },
   { labelKey: "nav.payments", href: "/payments", icon: Wallet, roles: ["receptionist", "manager", "owner"] },
   { labelKey: "nav.attendance", href: "/attendance", icon: ClipboardList, roles: ["receptionist", "manager", "owner"] },
-  { labelKey: "nav.classes", href: "/classes", icon: CalendarDays, roles: ["receptionist", "manager", "owner"] },
+  // Story 12.3: widened to include supervisor -- EXPERIENCE.md's Role
+  // visibility matrix grants Supervisor "Classes -- view/attendance
+  // (AD-18)" the same as Receptionist/Manager/Owner, and this story's own
+  // AC #1 requires Supervisor to reach /classes at all (the RLS policy and
+  // RPC role check were already widened for the same reason -- see
+  // migration 0068). Scoped to only this one nav item, not nav.attendance
+  // above (a pre-existing, separately-tracked gap, deferred-work.md).
+  { labelKey: "nav.classes", href: "/classes", icon: CalendarDays, roles: ["receptionist", "manager", "owner", "supervisor"] },
   { labelKey: "nav.auditLog", href: "/audit", icon: ScrollText, roles: ["manager", "owner"] },
   { labelKey: "nav.settings", href: "/settings", icon: Settings, roles: ["owner", "supervisor"] },
   { labelKey: "nav.coachPortal", href: "/coach", icon: Dumbbell, roles: ["coach"] },

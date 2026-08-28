@@ -330,6 +330,14 @@
       "classNotFound": "Class not found",
       "auditLogFailedCreate": "The class was created, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedEdit": "The class was updated, but the audit log entry failed to write. Please contact support."
+    },
+    "attendance": {
+      "markAttended": "Mark attended",
+      "attended": "Attended",
+      "memberExpired": "This member's subscription has expired -- attendance was not recorded. A front-desk alert has been raised.",
+      "noBookings": "No members booked for this session.",
+      "noSession": "This class has no upcoming session to mark attendance for.",
+      "loadingBookings": "Loading booked members…"
     }
   },
   "members": {

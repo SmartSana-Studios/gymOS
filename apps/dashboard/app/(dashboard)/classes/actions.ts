@@ -1,7 +1,14 @@
 "use server";
 
 import { classSchema, type AppError } from "@gymos/types";
-import { insertClass, logClassChange, updateClass } from "@/services/classes";
+import {
+  insertClass,
+  listSessionBookings,
+  logClassChange,
+  markAttendance,
+  updateClass,
+  type SessionBookingRow,
+} from "@/services/classes";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
@@ -113,3 +120,21 @@ export async function editClass(
 }
 
 // No deleteClass action -- not in scope (no delete feature, no AC asks for one).
+
+/** Story 12.3: thin wrapper over listSessionBookings(), no Zod schema --
+ * takes a single uuid-shaped string with no user-authored free-text input
+ * to validate, matching dismissAlert-style thin-wrapper actions elsewhere
+ * in this app rather than createClass/editClass's schema-validated shape. */
+export async function getSessionBookingsAction(
+  classSessionId: string,
+): Promise<{ data: SessionBookingRow[] | null; error: AppError | null }> {
+  return listSessionBookings(classSessionId);
+}
+
+/** Story 12.3: thin wrapper over markAttendance() -- same no-schema
+ * reasoning as getSessionBookingsAction above. */
+export async function markAttendanceAction(
+  bookingId: string,
+): Promise<{ data: SessionBookingRow | null; rejected: boolean; error: AppError | null }> {
+  return markAttendance(bookingId);
+}

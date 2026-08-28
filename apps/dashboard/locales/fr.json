@@ -330,6 +330,14 @@
       "classNotFound": "Cours introuvable",
       "auditLogFailedCreate": "Le cours a été créé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedEdit": "Le cours a été modifié, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
+    },
+    "attendance": {
+      "markAttended": "Marquer présent",
+      "attended": "Présent",
+      "memberExpired": "L'abonnement de ce membre a expiré -- la présence n'a pas été enregistrée. Une alerte a été envoyée à l'accueil.",
+      "noBookings": "Aucun membre inscrit pour cette séance.",
+      "noSession": "Ce cours n'a aucune séance à venir pour laquelle marquer la présence.",
+      "loadingBookings": "Chargement des membres inscrits…"
     }
   },
   "members": {
