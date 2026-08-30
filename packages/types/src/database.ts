@@ -1477,6 +1477,13 @@ export type Database = {
         Args: { p_member_id: string; p_note_text: string }
         Returns: string
       }
+      apply_saas_billing_credit: {
+        Args: { p_days: number; p_gym_id: string }
+        Returns: {
+          new_anchor_date: string
+          previous_anchor_date: string
+        }[]
+      }
       assign_coach: {
         Args: { p_coach_id: string; p_member_id: string }
         Returns: string
@@ -1779,6 +1786,15 @@ export type Database = {
           allowed: boolean
           attempts_remaining: number
           locked_until: string
+        }[]
+      }
+      record_out_of_band_saas_billing_payment: {
+        Args: { p_gym_id: string }
+        Returns: {
+          amount: number
+          id: string
+          new_anchor_date: string
+          previous_anchor_date: string
         }[]
       }
       renew_subscription: {

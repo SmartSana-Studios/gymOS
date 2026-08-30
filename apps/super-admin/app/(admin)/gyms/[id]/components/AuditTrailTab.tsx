@@ -10,6 +10,9 @@ const ACTION_LABEL_KEY: Record<string, string> = {
   gym_tier_changed: "gyms.auditTrail.action.gym_tier_changed",
   gym_cap_overridden: "gyms.auditTrail.action.gym_cap_overridden",
   gym_data_escalation: "gyms.auditTrail.action.gym_data_escalation",
+  saas_payment_marked_received: "gyms.auditTrail.action.saas_payment_marked_received",
+  saas_billing_credit_applied: "gyms.auditTrail.action.saas_billing_credit_applied",
+  saas_billing_retry_triggered: "gyms.auditTrail.action.saas_billing_retry_triggered",
 };
 
 function describeEntry(entry: AuditTrailEntry, t: TFunction): string {

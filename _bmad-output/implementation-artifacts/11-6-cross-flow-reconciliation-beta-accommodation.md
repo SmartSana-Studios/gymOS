@@ -1,0 +1,115 @@
+---
+baseline_commit: 7fbcf1a934adc2c8e51d1c0dc0dafed11b0a6ded
+---
+
+# Story 11.6: Cross-Flow Reconciliation & Beta Accommodation
+
+Status: ready-for-dev
+
+<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+
+## Story
+
+As GymOS,
+I want Flow A and Flow B reconciliation to share one discrepancy-detection module and catch cross-account misrouting,
+so that a bug can't quietly settle a gym's Flow B billing payment into a member-payment account or vice versa.
+
+**Context — read this before touching any AC below.** This story is backend-only — no dashboard/super-admin/mobile UI (confirmed: `EXPERIENCE.md` has no Super Admin reconciliation/discrepancy mockup anywhere, and `docs/decisions.md`'s 2026-07-31 entry records a deliberate V1 decision that `missing_internal_record` — and by the same reasoning every discrepancy type with no FR/mockup backing a viewer — gets no dashboard surface. Flow A's own existing discrepancy display is the gym-scoped Payments page, already shipped in Story 4.4, untouched by this story). Deep research below found two of this story's three ACs are **already satisfied by already-shipped code** — verify and lock in with tests, don't rebuild. The real remaining work is narrower than the epic text implies.
+
+**AC #2 (Free/Test tier runs the full lifecycle) is already built and already tested.** `run_saas_billing_lifecycle_job()` (`0071_saas_subscription_lifecycle.sql`) has no Free/Test special-case — its own migration comment says so explicitly: *"Free/Test tier gyms are NOT special-cased or skipped... AC #3 and epics.md's Story 11.6 both require the full lifecycle to keep running."* `supabase/tests/saas_billing_lifecycle_job.test.sql` already has a Free/Test-tier fixture (Gym 8) with an assertion: *"a Free/Test-tier gym transitions to suspended identically to a paying gym (AC #3)"*. Task 3 below only needs to confirm this existing test's coverage is actually complete (does it prove the intermediate `past_due`/`grace_period` transitions too, or only the final `suspended` one?) and close any real gap found — not write this from scratch.
+
+**AC #3 (credited period excluded from past_due) is already correct by construction — needs a regression test, not new logic.** `apply_saas_billing_credit()` (`0075_super_admin_billing_view.sql`, Story 11.5) resets `saas_billing_status`/`status` to `'active'` and advances `saas_billing_anchor_date` forward. `run_saas_billing_lifecycle_job()`'s `past_due` transition is a pure `saas_billing_anchor_date < current_date` check — advancing the anchor date already prevents a false `past_due` re-trigger by construction. **No production code needs to change for AC #3.** What's missing is a test that actually chains the two functions together (apply a credit to an already-overdue gym, then run the lifecycle job, assert the gym stays `active`) — nobody has tested that specific interaction yet. Task 3 adds it.
+
+**AC #1 (shared 4-category classification, Flow B included) is the real work — and even here, one of the four categories needs no new code.**
+
+`payment_discrepancies`' 4 categories today (`0032_payment_reconciliation_job.sql`, extended by `0054`/`0070`), and their Flow-B status:
+
+1. **`missing_internal_record`** — already flow-agnostic since `0070_saas_billing_reconciliation_fix.sql` (Story 11.1's own patch): the predicate is `matched_payment_id is null and matched_saas_billing_payment_id is null`. **Do not touch this block.**
+2. **`stale_processing`** — Flow-A-only today (`payments.status = 'processing'` for >10 min). No equivalent query exists against `saas_billing_payments`. **Needs a new, symmetric block.**
+3. **`amount_mismatch`** — Flow-A-only today (`payment_webhook_events` joined to `payments`). No equivalent against `saas_billing_payments`. **Needs a new, symmetric block.**
+4. **`wrong_account_settlement`** (FR-137's "4th category," added by Story 4.14) — **structurally cannot recur for Flow B under the current routing design, and adding a query for it would be theater, not detection.** See the dedicated note below. This is the story's one real open design call — resolve it before writing Task 1's migration.
+
+**Why `wrong_account_settlement` doesn't need a new Flow-B query (confirm this reading, or override it, before Task 1):** FR-137 defines the 4th category as *"a payment whose settled account does not match its declared routing context... i.e. a Flow A collect that landed in or credited against the platform account, or a Flow B collect that landed in a gym account."* Traced `TaraMoneyProvider.verifyWebhookSignature()` (`supabase/functions/payment-webhook/_shared/payment-providers/TaraMoneyProvider.ts`, lines ~274–315): routing is resolved by matching the webhook payload's `businessId` against `TARAMONEY_BUSINESS_ID` (platform) **first**, before any gym lookup — the function's own doc comment explains this ordering was itself a code-review fix ("a gym's own connected `business_id_plain`... must never be able to shadow a genuine platform webhook"). `payment-webhook/index.ts` then branches on `event.resolvedRoutingContext.type` and queries *only* `payments` for a `'gym'` result or *only* `saas_billing_payments` for a `'platform'` result — the two tables are never cross-queried. Given this, a Flow A webhook can never complete a `saas_billing_payments` row and a Flow B webhook can never complete a `payments` row — the exact scenario FR-137 describes is prevented at the routing layer, not left to a nightly job to catch after the fact. (Flow A's *existing* `wrong_account_settlement` check is a narrower, still-valid thing: it catches a webhook whose `businessId`, while still resolving to *some* gym's `payments` row via a `provider_transaction_ref` match, disagrees with *that specific gym's* connected `business_id_plain` — relevant because Story 4.13 lets gyms self-connect Tara Money accounts with no uniqueness guarantee across gyms. There is no Flow-B analog of this, since Flow B has exactly one platform account, not many self-connected ones.) **Recommended resolution: add a migration comment documenting this finding in place of a new query** — satisfies AD-14's "one shared function/module, 4-category classification" intent by explicitly reasoning through why category 4 needs no Flow-B branch, the same "verified, not built" resolution this project's other 11.x stories have repeatedly reached for ACs already satisfied by earlier work. If real production evidence later shows a `businessId`-resolution bug, that is a bug fix to `verifyWebhookSignature()`, not a job to add here. **If dev-story's own investigation disagrees with this reading, raise it before writing the migration — do not silently pick either path.**
+
+**A real, previously-unflagged security gap this story must fix while adding the Flow-B blocks:** `saas_billing_payments.gym_id` is `not null` (`0069`) — so new Flow B discrepancy rows (`stale_processing`/`amount_mismatch`) will carry a real `gym_id`, unlike `missing_internal_record`'s always-`null` case. `payment_discrepancies`' only existing read policy, `gym_staff_read_own_payment_discrepancies` (`0032`), is `gym_id = private.gym_id() and role in (owner, manager, receptionist)` — with no flow discriminator. **Left as-is, this would let a gym's own Owner/Manager/Receptionist read platform-internal SaaS-billing integrity flags about their own gym**, via a policy written for their own member-payment discrepancies — directly contradicting AD-14's "Super-Admin-scoped RLS, distinct from gym-scoped payments... never sharing RLS audience." Task 1 must close this: exclude Flow-B rows from the gym-staff policy, and add a Super-Admin read policy (mirroring `saas_billing_payments`' own `super_admin_read_saas_billing_payments` shape) — closing, as a side effect, the pre-existing "nobody can read `missing_internal_record` rows at all" gap for at least Super Admin, with no new UI required (a read policy existing ahead of any UI has precedent throughout this project's history).
+
+**Architecture-doc drift, noted so dev-story doesn't chase a phantom requirement:** `ARCHITECTURE-SPINE.md` AD-14 says discrepancy detection is *"implemented as one shared function/module called by both cron jobs"* (plural). In the actual shipped implementation, there is only **one** cron job (`run_payment_reconciliation_job`, unified since Story 11.1's `0070` patch) — Flow A and Flow B categories both live in the same function already. **Recommendation: keep the single-job design** (lower risk, already shipped and tested, satisfies AD-19's "each cron trigger is its own function/transaction" trivially since it already is one) rather than splitting into two jobs to literally match the architecture doc's plural wording — the "shared classification, not duplicated per flow" *intent* is what AD-14 actually protects against, and one function with symmetric per-flow blocks achieves that. Flag this drift in the migration comment; do not silently "fix" AD-14's wording without the user's sign-off (out of this story's scope).
+
+## Acceptance Criteria
+
+1. **Given** the reconciliation job, **when** it runs for either flow, **then** it uses one shared function/module for the 4-category discrepancy classification (missing internal record, unconfirmed-in-time, amount mismatch, wrong-account-settlement per FR-137) — Flow B reconciles against the platform account, Flow A against each gym's account, but the classification logic itself is not duplicated per flow. [Source: epics.md#Story 11.6, L2066–2080; prd.md#FR-137, FR-138, L695–697; ARCHITECTURE-SPINE.md#AD-14, L107–111]
+2. **Given** a Free/Test tier gym (Story 11.2) with a 0 XAF billing cycle, **when** its billing cycle runs, **then** the full reminder/reconciliation machinery executes at the 0 XAF price point — exercising the same code paths as a paying gym, per FR-136. [Source: epics.md#Story 11.6, L2078–2080; prd.md#FR-136, FR-139, L691, L699]
+3. **Given** a beta gym Super Admin has credited via Story 11.5, **when** the reconciliation job evaluates that gym's cycle, **then** the credited period is correctly excluded from `past_due` calculations — a credit is not mistaken for a missed payment. [Source: epics.md#Story 11.6, L2082–2084; supabase/migrations/0075_super_admin_billing_view.sql#apply_saas_billing_credit]
+
+## Tasks / Subtasks
+
+- [ ] **Task 1 — Migration `0076_cross_flow_reconciliation_beta_accommodation.sql`: schema, RLS, and job extension (AC #1)**
+  - [ ] Confirm `0076` is still the next-free migration number on disk at implementation time (standard coordination check this project always does).
+  - [ ] `alter table payment_discrepancies add column saas_billing_payment_id uuid references saas_billing_payments(id);` plus `add constraint payment_discrepancies_target_exclusive check (payment_id is null or saas_billing_payment_id is null);` — mirrors `payment_webhook_events.matched_target_exclusive`'s exact shape (`0069`).
+  - [ ] New partial unique index: `idx_payment_discrepancies_stale_processing_saas on payment_discrepancies (saas_billing_payment_id) where discrepancy_type = 'stale_processing'`. **`amount_mismatch` needs no new index** — its existing `idx_payment_discrepancies_amount_mismatch` is keyed on `webhook_event_id`, which is the same flow-agnostic `payment_webhook_events.id` for both flows, so it already de-dupes Flow B rows correctly. **`missing_internal_record`'s existing index needs no change** (already flow-agnostic, see Context).
+  - [ ] Modify `gym_staff_read_own_payment_discrepancies`: add `and saas_billing_payment_id is null` to its `using` clause via `alter policy ... using (...)` — this project's established pattern for narrowing an existing policy's predicate (e.g. `0040_coach_portal_member_list_rls.sql`, `0061_staff_creation_role_ceiling_enforcement.sql`, `0063_staff_edit_deactivation.sql` all do this against `gym_staff_read_own_members`), not drop+recreate.
+  - [ ] Add `super_admin_read_payment_discrepancies`: `for select using (private.is_super_admin())` — mirrors `saas_billing_payments`' `super_admin_read_saas_billing_payments` (`0069`) exactly. Note in the migration comment that this composes correctly with `payment_discrepancies`' existing `tenant_active_gate` RESTRICTIVE policy (`0073`) without any change there, since that policy's own `or private.is_super_admin()` clause already exempts Super Admin.
+  - [ ] `create or replace function run_payment_reconciliation_job()` — copy the full existing body from `0070_saas_billing_reconciliation_fix.sql` verbatim (do not touch the `missing_internal_record`, existing `stale_processing`, existing `amount_mismatch`, or `wrong_account_settlement` blocks), and add two new blocks:
+    - A `stale_processing` block against `saas_billing_payments` (`status = 'processing' and created_at < now() - interval '10 minutes'`), inserting `(saas_billing_payment_id, gym_id, discrepancy_type, details)`, `on conflict (saas_billing_payment_id) where discrepancy_type = 'stale_processing' do nothing`.
+    - An `amount_mismatch` block joining `payment_webhook_events` (`matched_saas_billing_payment_id`) to `saas_billing_payments`, inserting `(saas_billing_payment_id, gym_id, webhook_event_id, discrepancy_type, details)`, `on conflict (webhook_event_id) where discrepancy_type = 'amount_mismatch' do nothing` (reuses the existing index, per above).
+  - [ ] Add a migration comment documenting the `wrong_account_settlement`-needs-no-new-query finding (Context section) and the single-job-vs-architecture-doc-plural-wording drift (Context section) — both need to be discoverable from the migration itself, not just this story file, matching this project's documentation discipline.
+  - [ ] pgTAP for the two new RLS policy changes belongs in Task 2, not here.
+
+- [ ] **Task 2 — Extend `supabase/tests/payment_reconciliation_job.test.sql` with Flow B coverage (AC #1)**
+  - [ ] Add Flow B fixtures: a gym with `saas_billing_payments` rows in the same shapes Flow A's existing fixtures use (a stale `processing` row >10 min old; a `verified`/matched `payment_webhook_events` row with a mismatched amount).
+  - [ ] Assert both new discrepancy rows are created with the expected `saas_billing_payment_id`/`gym_id`/`discrepancy_type`/`details`, and that re-running the job doesn't duplicate them (`ON CONFLICT` idempotency, same style as the file's existing Flow A assertions).
+  - [ ] Assert the RLS fix: the credited/billed gym's own `owner`/`manager`/`receptionist` sessions **cannot** see the new Flow-B discrepancy rows (0-row `select`), while a `super_admin` session **can** see them — and, while at it, assert `super_admin` can now also see a `missing_internal_record` row (closing that pre-existing untested gap, since a Super-Admin read policy now exists for it).
+  - [ ] Update the file's own plan count and header comment (it currently documents itself as "extended with the 4th category, Story 4.14" — extend that history note for this story's own extension).
+
+- [ ] **Task 3 — pgTAP: lock in AC #2 and AC #3 with tests (AC #2, #3)**
+  - [ ] Read `supabase/tests/saas_billing_lifecycle_job.test.sql`'s existing Free/Test-tier (Gym 8) assertion in full. If it only proves the final `active → suspended` jump (not the intermediate `past_due`/`grace_period` stops), add the missing intermediate-state assertions for a Free/Test-tier fixture — mirroring whatever assertion style the file already uses for a paying gym's equivalent transitions. If it already proves the full path, note that in this story's Completion Notes instead of adding a redundant test.
+  - [ ] New assertion (this file or a new one — dev's call, document the choice) proving AC #3: seed a gym already past its `saas_billing_anchor_date` (would trip `past_due` on the next lifecycle run), call `apply_saas_billing_credit()`, then run `run_saas_billing_lifecycle_job()`, and assert the gym's `saas_billing_status` is still `'active'` (not `'past_due'`) — the cross-function interaction nobody has tested yet.
+
+- [ ] **Task 4 — Regression + docs (all ACs)**
+  - [ ] `supabase db reset` + full pgTAP suite (expect 1567 + this story's new assertions, all green); `pnpm run typecheck`; lint on touched files; `pnpm run check:i18n` (should be a no-op — no i18n keys touched, confirm rather than assume).
+  - [ ] Regenerate `packages/types/src/database.ts` via this devcontainer's documented pg-meta HTTP-endpoint workaround (see any recent story's Debug Log References, e.g. 11-5's, for the exact command) — this migration is column/policy-level only, no new function signatures, so the diff should show exactly the new `payment_discrepancies.saas_billing_payment_id` column and nothing else; verify via the same set-comparison discipline prior stories used.
+  - [ ] `docs/decisions.md` entry recording: the `wrong_account_settlement`-needs-no-Flow-B-query resolution (or the override, if dev-story's investigation disagrees), the single-job-vs-AD-14-plural-wording drift note, and the RLS-audience-leak fix and reasoning — future stories touching `payment_discrepancies` need this context.
+  - [ ] No manual browser verification needed — this story ships no UI.
+
+## Dev Notes
+
+- **This story is backend-only.** No dashboard/super-admin/mobile file should be touched. If a task here starts to look like it needs a UI change, stop — that's out of scope (see Context section for why: no FR/mockup backs a reconciliation viewer anywhere in this project).
+- **Do not touch** `run_saas_billing_lifecycle_job()`, `apply_saas_billing_credit()`, `record_out_of_band_saas_billing_payment()`, `initiate_saas_billing_payment()`, `complete_verified_saas_billing_payment()`, or any `tenant_active_gate` policy — this story only extends `run_payment_reconciliation_job()` and `payment_discrepancies`' schema/RLS. Every AC #2/#3 finding above is "verify with a test," never "modify the underlying function."
+- **AD-14 binding**: the "one shared function/module" requirement is satisfied by extending the existing single `run_payment_reconciliation_job()`, not by creating a second job — see the architecture-drift note above.
+- **AD-19 binding**: still one function, one transaction, one `job_runs` row per run — unchanged by this story.
+- **AD-16 (money is integer + currency)**: the new Flow-B `amount_mismatch` block reads `saas_billing_payments.amount`/`.currency`, both already the same shape as `payments`' — no new type.
+- **Naming**: this project's one-`CREATE POLICY`/`CREATE FUNCTION`-statement-per-object style, no dynamic DDL loops (explicit rejection precedent since `0073`).
+- **`payment_id`/`saas_billing_payment_id`/`gym_id` are all nullable on `payment_discrepancies`** — `missing_internal_record` rows have neither `payment_id` nor `saas_billing_payment_id` nor `gym_id` populated (unattributable by construction); every other category populates exactly one of `payment_id`/`saas_billing_payment_id` plus `gym_id`. Keep this invariant — it's what the new `payment_discrepancies_target_exclusive` CHECK enforces.
+
+### Project Structure Notes
+
+- New: `supabase/migrations/0076_cross_flow_reconciliation_beta_accommodation.sql` (verify number), possibly a new pgTAP file for Task 3's AC #3 test (or extend an existing one — dev's call).
+- Modified: `supabase/tests/payment_reconciliation_job.test.sql` (Flow B fixtures/assertions, RLS assertions, plan count), `supabase/tests/saas_billing_lifecycle_job.test.sql` (only if Task 3 finds a real intermediate-state gap), `packages/types/src/database.ts` (regenerated — new column only), `docs/decisions.md` (new entry).
+- **Not modified, confirm this stays true**: anything under `apps/dashboard/`, `apps/mobile/`, `apps/super-admin/` (this story ships no UI); `run_saas_billing_lifecycle_job()`/`apply_saas_billing_credit()`/any completion RPC (Context section — already correct); `payment_webhook_events` (its own `matched_target_exclusive` CHECK already covers both flows, added by `0069`, nothing here needs to change it).
+
+### References
+
+- [Source: _bmad-output/planning-artifacts/epics.md#Story 11.6, L2066–2084]
+- [Source: _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md#FR-036, FR-136, FR-137, FR-138, FR-139, L368, L691, L695–699]
+- [Source: _bmad-output/planning-artifacts/architecture/architecture-gym_os-2026-08-11/ARCHITECTURE-SPINE.md#AD-14, AD-19, L107–111, L137–141]
+- [Source: supabase/migrations/0032_payment_reconciliation_job.sql, 0054_flow_a_gym_routing.sql, 0069_saas_billing_payments.sql, 0070_saas_billing_reconciliation_fix.sql, 0071_saas_subscription_lifecycle.sql, 0073_tenant_suspension_enforcement.sql, 0075_super_admin_billing_view.sql — exact current schema/RPC/policy shapes this story extends]
+- [Source: supabase/functions/payment-webhook/index.ts, supabase/functions/payment-webhook/_shared/payment-providers/TaraMoneyProvider.ts#verifyWebhookSignature — confirms routing is resolved by businessId match before any table write, the basis for the wrong_account_settlement finding]
+- [Source: supabase/tests/payment_reconciliation_job.test.sql, saas_billing_lifecycle_job.test.sql — existing coverage this story extends, not replaces]
+- [Source: docs/decisions.md#2026-07-31 — "missing_internal_record discrepancy type gets no dashboard UI surface in V1" decision, basis for this story's own no-new-UI reasoning]
+- [Source: _bmad-output/implementation-artifacts/11-5-super-admin-billing-view.md — prior story in this epic; confirms apply_saas_billing_credit()'s exact anchor-date-advance shape this story's AC #3 test depends on, and the next-free migration number convention]
+
+## Change Log
+
+- 2026-08-30: create-story — story file created, status backlog → ready-for-dev.
+
+## Dev Agent Record
+
+### Agent Model Used
+
+Claude Sonnet 5
+
+### Debug Log References
+
+### Completion Notes List
+
+### File List

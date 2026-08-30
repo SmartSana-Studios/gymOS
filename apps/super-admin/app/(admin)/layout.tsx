@@ -54,7 +54,7 @@ async function AdminLayoutData({
           Flat links, not the responsive icon-rail/hamburger sidebar
           (UX-DR4/UX-DR13) -- that component is specified for the
           multi-role gym-admin dashboard (apps/dashboard); Super Admin has
-          exactly one role and four flat destinations besides the brand link,
+          exactly one role and five flat destinations besides the brand link,
           which already points to /gyms -- no separate "Gyms" link needed.
         */}
         <Link href="/metrics" className="text-sm text-muted-foreground hover:text-foreground">
@@ -68,6 +68,9 @@ async function AdminLayoutData({
         </Link>
         <Link href="/messaging" className="text-sm text-muted-foreground hover:text-foreground">
           {t("nav.messaging")}
+        </Link>
+        <Link href="/billing" className="text-sm text-muted-foreground hover:text-foreground">
+          {t("nav.billing")}
         </Link>
         <LanguageToggle />
         <LogoutButton />

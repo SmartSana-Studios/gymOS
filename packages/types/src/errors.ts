@@ -412,6 +412,25 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // record_out_of_band_saas_billing_payment()/apply_saas_billing_credit()'s
+  // shared deactivated-gym raise (0075_super_admin_billing_view.sql, Story
+  // 11.5) -- unlike most permission-denied raises in this file, this one IS
+  // reachable through the normal UI path: the Billing view lists every gym
+  // regardless of `gyms.status` (SA-07 has no deactivated-gym exclusion,
+  // unlike the automated reminder job's own `.neq("status", "deactivated")`
+  // filter), so a Super Admin can genuinely click an override action on an
+  // already-deactivated gym's row.
+  if (
+    (message.includes("record_out_of_band_saas_billing_payment:") ||
+      message.includes("apply_saas_billing_credit:")) &&
+    message.includes("is deactivated")
+  ) {
+    return {
+      code: "saas_billing_gym_deactivated",
+      message: copy.saasBillingGymDeactivated,
+    };
+  }
+
   // No console/logging call here: packages/types targets ES2022 only (no
   // DOM/Node lib -- consumed by both Next.js apps and, eventually, Expo),
   // and is meant to stay a pure, side-effect-free mapping utility. Callers

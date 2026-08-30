@@ -29,10 +29,11 @@ export const createGymSchema = z.object({
 export type CreateGymInput = z.infer<typeof createGymSchema>;
 
 // Shared minimum length for every free-text audit "reason" field in this
-// schema file (gymStatusChangeSchema, escalateGymAccessSchema below) --
-// factored into one constant so the length policy can't drift between them
-// while each still keeps its own action-specific error copy.
-const REASON_MIN_LENGTH = 5;
+// schema file (gymStatusChangeSchema, escalateGymAccessSchema,
+// applyCreditSchema below) -- factored into one constant so the length
+// policy can't drift between them while each still keeps its own
+// action-specific error copy. Exported for Story 11.5's applyCreditSchema.
+export const REASON_MIN_LENGTH = 5;
 
 // Story 1.6: suspend/deactivate/reinstate all require a reason (AC #3,
 // audit-logged). The target status isn't part of this schema -- it's implied
@@ -118,3 +119,26 @@ export const gymSettingsSchema = z.object({
 });
 
 export type GymSettingsInput = z.infer<typeof gymSettingsSchema>;
+
+// Story 11.5 (FR-134/FR-136): Super Admin grants a gym a credit / free
+// period. `days` is always a resolved day count by the time this schema
+// validates it -- SA-07's "grants N days or one billing cycle free" is
+// resolved to a concrete number by the UI/Server Action layer before this
+// schema ever sees it (e.g. "one cycle" -> 30/365 or the gym's own
+// saas_billing_interval); `apply_saas_billing_credit()` itself has no
+// notion of "one cycle", only a day count. Reason is mandatory, matching
+// SA-07's confirm-dialog copy ("Reason: [________]") and
+// gymStatusChangeSchema's identical reason-required pattern.
+// Review fix: 90 days (one quarter) is the ceiling a Super Admin can grant in
+// a single credit -- user decision at code review, closing an unbounded
+// "typed 3000 instead of 30" risk the original schema left open. A repeat
+// grant beyond a quarter is a deliberate, visible action rather than one
+// unbounded confirm click.
+export const APPLY_CREDIT_MAX_DAYS = 90;
+
+export const applyCreditSchema = z.object({
+  days: z.number().int().positive().max(APPLY_CREDIT_MAX_DAYS, "Enter a positive number of days"),
+  reason: z.string().trim().min(REASON_MIN_LENGTH, "Add a reason describing this credit"),
+});
+
+export type ApplyCreditInput = z.infer<typeof applyCreditSchema>;

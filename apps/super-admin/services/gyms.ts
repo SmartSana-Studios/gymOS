@@ -441,7 +441,10 @@ export async function logGymLifecycleEvent(
     | "gym_reinstated"
     | "gym_tier_changed"
     | "gym_cap_overridden"
-    | "gym_data_escalation",
+    | "gym_data_escalation"
+    | "saas_payment_marked_received"
+    | "saas_billing_credit_applied"
+    | "saas_billing_retry_triggered",
   gymId: string,
   metadata: Record<string, unknown>,
 ): Promise<{ error: AppError | null }> {

@@ -4,7 +4,8 @@
     "metrics": "Statistiques",
     "tiers": "Paliers",
     "paymentProviders": "Fournisseurs de paiement",
-    "messaging": "Messagerie"
+    "messaging": "Messagerie",
+    "billing": "Facturation"
   },
   "auth": {
     "description": "Saisissez votre e-mail ci-dessous pour vous connecter à votre compte",
@@ -98,7 +99,10 @@
         "gym_reinstated": "Salle réactivée",
         "gym_tier_changed": "Palier modifié",
         "gym_cap_overridden": "Plafond forcé modifié",
-        "gym_data_escalation": "Données de la salle consultées"
+        "gym_data_escalation": "Données de la salle consultées",
+        "saas_payment_marked_received": "Paiement SaaS marqué comme reçu (hors ligne)",
+        "saas_billing_credit_applied": "Crédit de facturation SaaS appliqué",
+        "saas_billing_retry_triggered": "Relance de paiement déclenchée"
       }
     },
     "changeTier": {
@@ -195,6 +199,80 @@
     "save": "Enregistrer",
     "errors": {
       "instanceIdRequired": "L'ID d'instance est requis"
+    }
+  },
+  "billing": {
+    "title": "Facturation",
+    "searchPlaceholder": "Rechercher une salle",
+    "filters": {
+      "status": "Statut"
+    },
+    "statusAll": "Tous les statuts",
+    "statusUnknown": "Inconnu",
+    "status": {
+      "active": "Actif",
+      "past_due": "En retard",
+      "grace_period": "Période de grâce",
+      "suspended": "Suspendu"
+    },
+    "interval": {
+      "monthly": "Mensuel",
+      "annual": "Annuel"
+    },
+    "noValue": "—",
+    "emptyNoGyms": "Aucune salle sur la plateforme pour le moment.",
+    "emptyNoMatch": "Aucune salle ne correspond à votre recherche ou filtre.",
+    "table": {
+      "gym": "Salle",
+      "tier": "Palier",
+      "interval": "Intervalle",
+      "status": "Statut",
+      "nextBilling": "Prochaine facturation",
+      "lastPayment": "Dernier paiement",
+      "failed": "Échoués"
+    },
+    "actions": {
+      "markPaymentReceived": "Marquer le paiement reçu",
+      "applyCredit": "Appliquer un crédit",
+      "triggerRetry": "Déclencher une relance",
+      "suspend": "Suspendre",
+      "reinstate": "Réactiver"
+    },
+    "markPaymentReceived": {
+      "confirmText": "Marquer le paiement de {{gymName}} comme reçu ? Cela ne créera pas d'enregistrement de transaction Tara Money.",
+      "confirmButton": "Marquer comme reçu",
+      "marking": "Enregistrement…"
+    },
+    "applyCredit": {
+      "title": "Accorder une période gratuite à {{gymName}}",
+      "daysLabel": "Jours *",
+      "oneCycle": "Un cycle de facturation ({{days}} jours)",
+      "customDays": "Nombre de jours personnalisé",
+      "reasonLabel": "Motif *",
+      "confirmButton": "Appliquer le crédit",
+      "applying": "Application…",
+      "errors": {
+        "daysPositive": "Entrez un nombre de jours entier entre 1 et 90"
+      }
+    },
+    "triggerRetry": {
+      "confirmText": "Envoyer maintenant un rappel de paiement à {{gymName}}, en dehors du calendrier normal ?",
+      "confirmButton": "Envoyer le rappel",
+      "sending": "Envoi…"
+    },
+    "toast": {
+      "paymentReceived": "Paiement marqué comme reçu pour {{gymName}}.",
+      "creditApplied": "Crédit appliqué à {{gymName}}.",
+      "retryTriggered": "Rappel envoyé à {{gymName}}."
+    },
+    "retryMessage": "Le paiement de votre abonnement GymOS est dû le {{date}}. Payez maintenant : {{url}}",
+    "retryMessageNoLink": "Le paiement de votre abonnement GymOS est dû le {{date}}. Connectez-vous à GymOS pour payer maintenant.",
+    "errors": {
+      "auditLogFailedPaymentReceived": "Le paiement a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "auditLogFailedCredit": "Le crédit a été appliqué, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "auditLogFailedRetry": "Le rappel a été envoyé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "noOwnerPhone": "Le propriétaire de cette salle n'a pas de numéro de téléphone enregistré — rien n'a été envoyé.",
+      "retrySendFailed": "Le rappel n'a pu être envoyé sur aucun canal. Veuillez réessayer plus tard."
     }
   },
   "metrics": {

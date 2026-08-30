@@ -4,7 +4,8 @@
     "metrics": "Metrics",
     "tiers": "Tiers",
     "paymentProviders": "Payment Providers",
-    "messaging": "Messaging"
+    "messaging": "Messaging",
+    "billing": "Billing"
   },
   "auth": {
     "description": "Enter your email below to login to your account",
@@ -98,7 +99,10 @@
         "gym_reinstated": "Gym reinstated",
         "gym_tier_changed": "Tier changed",
         "gym_cap_overridden": "Cap override changed",
-        "gym_data_escalation": "Accessed gym data"
+        "gym_data_escalation": "Accessed gym data",
+        "saas_payment_marked_received": "Marked SaaS payment as received (out-of-band)",
+        "saas_billing_credit_applied": "Applied SaaS billing credit",
+        "saas_billing_retry_triggered": "Triggered a payment-due retry"
       }
     },
     "changeTier": {
@@ -195,6 +199,80 @@
     "save": "Save",
     "errors": {
       "instanceIdRequired": "Instance ID is required"
+    }
+  },
+  "billing": {
+    "title": "Billing",
+    "searchPlaceholder": "Search gym",
+    "filters": {
+      "status": "Status"
+    },
+    "statusAll": "All statuses",
+    "statusUnknown": "Unknown",
+    "status": {
+      "active": "Active",
+      "past_due": "Past due",
+      "grace_period": "Grace period",
+      "suspended": "Suspended"
+    },
+    "interval": {
+      "monthly": "Monthly",
+      "annual": "Annual"
+    },
+    "noValue": "—",
+    "emptyNoGyms": "No gyms on the platform yet.",
+    "emptyNoMatch": "No gyms match your search or filter.",
+    "table": {
+      "gym": "Gym",
+      "tier": "Tier",
+      "interval": "Interval",
+      "status": "Status",
+      "nextBilling": "Next billing",
+      "lastPayment": "Last payment",
+      "failed": "Failed"
+    },
+    "actions": {
+      "markPaymentReceived": "Mark payment received",
+      "applyCredit": "Apply credit",
+      "triggerRetry": "Trigger retry",
+      "suspend": "Suspend",
+      "reinstate": "Reactivate"
+    },
+    "markPaymentReceived": {
+      "confirmText": "Mark {{gymName}}'s payment as received? This will not create a Tara Money transaction record.",
+      "confirmButton": "Mark received",
+      "marking": "Marking…"
+    },
+    "applyCredit": {
+      "title": "Grant {{gymName}} a free period",
+      "daysLabel": "Days *",
+      "oneCycle": "One billing cycle ({{days}} days)",
+      "customDays": "Custom number of days",
+      "reasonLabel": "Reason *",
+      "confirmButton": "Apply credit",
+      "applying": "Applying…",
+      "errors": {
+        "daysPositive": "Enter a whole number of days between 1 and 90"
+      }
+    },
+    "triggerRetry": {
+      "confirmText": "Send {{gymName}} a payment reminder now, outside the normal schedule?",
+      "confirmButton": "Send reminder",
+      "sending": "Sending…"
+    },
+    "toast": {
+      "paymentReceived": "Payment marked as received for {{gymName}}.",
+      "creditApplied": "Credit applied to {{gymName}}.",
+      "retryTriggered": "Reminder sent to {{gymName}}."
+    },
+    "retryMessage": "Your GymOS subscription payment is due {{date}}. Pay now: {{url}}",
+    "retryMessageNoLink": "Your GymOS subscription payment is due {{date}}. Log in to GymOS to pay now.",
+    "errors": {
+      "auditLogFailedPaymentReceived": "The payment was recorded, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedCredit": "The credit was applied, but the audit log entry failed to write. Please contact support.",
+      "auditLogFailedRetry": "The reminder was sent, but the audit log entry failed to write. Please contact support.",
+      "noOwnerPhone": "This gym's owner has no phone on file — nothing was sent.",
+      "retrySendFailed": "The reminder could not be sent on any channel. Please try again later."
     }
   },
   "metrics": {

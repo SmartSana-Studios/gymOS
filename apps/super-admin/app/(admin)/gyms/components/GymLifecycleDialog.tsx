@@ -37,7 +37,13 @@ export function GymLifecycleDialog({
   onDone,
   runAction,
 }: {
-  gym: GymListRow;
+  // Review fix: narrowed from the full GymListRow to just the fields this
+  // component actually reads (gym.id/gym.name) -- lets any caller with a
+  // GymListRow-shaped superset (e.g. BillingPageClient's GymBillingRow) pass
+  // its row through directly, with the compiler still catching a real
+  // structural mismatch, instead of an `as unknown as GymListRow` cast that
+  // suppressed all type-checking at the call site.
+  gym: Pick<GymListRow, "id" | "name" | "status">;
   action: "suspend" | "deactivate" | "reinstate";
   onClose: () => void;
   onDone: (warning?: string) => void;
