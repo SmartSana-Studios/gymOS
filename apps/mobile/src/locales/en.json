@@ -95,6 +95,7 @@
     "language": "Language",
     "languageEn": "EN",
     "languageFr": "FR",
+    "history": "History",
     "logOut": "Log out",
     "logOutConfirmTitle": "Log out of GymOS?",
     "noActivePlan": "No active plan",
@@ -156,7 +157,38 @@
     },
     "errorLoadFailed": "Couldn't load your data. Check your connection and try again.",
     "offlineSyncPending": "Offline check-in pending sync…",
-    "renew": "Renew"
+    "renew": "Renew",
+    "upcomingClasses": "Upcoming Classes"
+  },
+  "classes": {
+    "title": "Classes",
+    "tabAvailable": "Available",
+    "tabMyBookings": "My Bookings",
+    "offlineBanner": "You're offline — classes can't be booked right now",
+    "available": {
+      "empty": "No upcoming classes scheduled. Check back soon.",
+      "errorLoadFailed": "Couldn't load classes. Check your connection and try again.",
+      "capacityFormat": "{{booked}}/{{capacity}}",
+      "book": "Book",
+      "full": "Full",
+      "booked": "Booked",
+      "raceLost": "That spot was just taken — try another session.",
+      "ineligible": "You need an active plan to book classes.",
+      "bookError": "Something went wrong. Try again.",
+      "refreshError": "Couldn't refresh classes. Showing your last loaded list."
+    },
+    "bookings": {
+      "empty": "You haven't booked any classes yet.",
+      "browseAvailable": "Browse available classes",
+      "errorLoadFailed": "Couldn't load your bookings. Check your connection and try again.",
+      "cancel": "Cancel",
+      "cancellationClosed": "Cancellation closed",
+      "cancelConfirmTitle": "Cancel this booking?",
+      "cancelConfirmAction": "Cancel booking",
+      "cancelConfirmKeep": "Keep",
+      "cancelError": "Couldn't cancel this booking. Try again.",
+      "refreshError": "Couldn't refresh your bookings. Showing your last loaded list."
+    }
   },
   "history": {
     "title": "History",

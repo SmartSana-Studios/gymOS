@@ -86,3 +86,98 @@ export async function cancelClassBooking(bookingId: string): Promise<CancelClass
     return { status: 'error' };
   }
 }
+
+// ============================================================================
+// Story 12.4: member-facing list reads backing the Classes tab
+// (list_bookable_class_sessions()/list_my_class_bookings(), 0078 migration).
+// Follows payments.ts's loadPaymentsPage() exact `T[] | null` contract
+// (`null` = real load error for the caller to show a retry state; `[]` =
+// legitimately empty) -- not checkin.ts's best-effort-swallow-to-`[]`
+// contract above -- the Classes tab itself needs a real error/retry state
+// (mirrors history/index.tsx), unlike Home's best-effort widgets.
+// ============================================================================
+
+export interface BookableClassSession {
+  classSessionId: string;
+  className: string;
+  description: string | null;
+  coachName: string;
+  scheduledAt: string;
+  capacity: number;
+  bookedCount: number;
+  myBookingId: string | null;
+}
+
+interface BookableClassSessionRow {
+  class_session_id: string;
+  class_name: string;
+  description: string | null;
+  coach_name: string;
+  scheduled_at: string;
+  capacity: number;
+  booked_count: number;
+  my_booking_id: string | null;
+}
+
+/** Lists upcoming, bookable class sessions for the caller's own gym via
+ * list_bookable_class_sessions() -- a SECURITY DEFINER RPC, since a plain
+ * scoped read can't aggregate every member's bookings on a session (RLS
+ * only ever returns the caller's own rows) or read a coach's name
+ * (member_read_gym_staff_members deliberately excludes coach-role rows). */
+export async function listBookableClassSessions(): Promise<BookableClassSession[] | null> {
+  try {
+    const { data, error } = await supabase.rpc('list_bookable_class_sessions');
+    if (error || !data) return null;
+
+    const rows = data as unknown as BookableClassSessionRow[];
+    return rows.map((row) => ({
+      classSessionId: row.class_session_id,
+      className: row.class_name,
+      description: row.description,
+      coachName: row.coach_name,
+      scheduledAt: row.scheduled_at,
+      capacity: row.capacity,
+      bookedCount: row.booked_count,
+      myBookingId: row.my_booking_id,
+    }));
+  } catch {
+    return null;
+  }
+}
+
+export interface MyClassBooking {
+  bookingId: string;
+  className: string;
+  scheduledAt: string;
+  canCancel: boolean;
+}
+
+interface MyClassBookingRow {
+  booking_id: string;
+  class_name: string;
+  scheduled_at: string;
+  can_cancel: boolean;
+}
+
+/** Lists the caller's own upcoming class bookings via
+ * list_my_class_bookings() -- `can_cancel` is computed server-side against
+ * the same cutoff formula cancel_class_booking() itself enforces, so the
+ * client never needs its own read access to
+ * gyms.class_booking_cancellation_cutoff_minutes or duplicated cutoff
+ * math. */
+export async function listMyClassBookings(): Promise<MyClassBooking[] | null> {
+  try {
+    const { data, error } = await supabase.rpc('list_my_class_bookings');
+    if (error || !data) return null;
+
+    const rows = data as unknown as MyClassBookingRow[];
+    return rows.map((row) => ({
+      bookingId: row.booking_id,
+      className: row.class_name,
+      scheduledAt: row.scheduled_at,
+      canCancel: row.can_cancel,
+    }));
+  } catch {
+    return null;
+  }
+}

@@ -95,6 +95,7 @@
     "language": "Langue",
     "languageEn": "EN",
     "languageFr": "FR",
+    "history": "Historique",
     "logOut": "Se déconnecter",
     "logOutConfirmTitle": "Se déconnecter de GymOS ?",
     "noActivePlan": "Aucun forfait actif",
@@ -156,7 +157,38 @@
     },
     "errorLoadFailed": "Impossible de charger vos données. Vérifiez votre connexion et réessayez.",
     "offlineSyncPending": "Enregistrement hors ligne en attente de synchronisation…",
-    "renew": "Renouveler"
+    "renew": "Renouveler",
+    "upcomingClasses": "Cours à venir"
+  },
+  "classes": {
+    "title": "Cours",
+    "tabAvailable": "Disponibles",
+    "tabMyBookings": "Mes réservations",
+    "offlineBanner": "Vous êtes hors ligne — impossible de réserver un cours pour le moment",
+    "available": {
+      "empty": "Aucun cours programmé à venir. Revenez bientôt.",
+      "errorLoadFailed": "Impossible de charger les cours. Vérifiez votre connexion et réessayez.",
+      "capacityFormat": "{{booked}}/{{capacity}}",
+      "book": "Réserver",
+      "full": "Complet",
+      "booked": "Réservé",
+      "raceLost": "Cette place vient d'être prise — essayez une autre séance.",
+      "ineligible": "Vous avez besoin d'un forfait actif pour réserver des cours.",
+      "bookError": "Un problème est survenu. Réessayez.",
+      "refreshError": "Impossible d'actualiser les cours. Affichage de la dernière liste chargée."
+    },
+    "bookings": {
+      "empty": "Vous n'avez encore réservé aucun cours.",
+      "browseAvailable": "Voir les cours disponibles",
+      "errorLoadFailed": "Impossible de charger vos réservations. Vérifiez votre connexion et réessayez.",
+      "cancel": "Annuler",
+      "cancellationClosed": "Annulation fermée",
+      "cancelConfirmTitle": "Annuler cette réservation ?",
+      "cancelConfirmAction": "Annuler la réservation",
+      "cancelConfirmKeep": "Garder",
+      "cancelError": "Impossible d'annuler cette réservation. Réessayez.",
+      "refreshError": "Impossible d'actualiser vos réservations. Affichage de la dernière liste chargée."
+    }
   },
   "history": {
     "title": "Historique",

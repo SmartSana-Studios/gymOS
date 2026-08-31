@@ -475,6 +475,17 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
 
+            {/* Story 12.4: completes Story 10.3's explicitly deferred
+                History->Profile-row move -- the tab-bar's own `history`
+                trigger is removed in this same story, this row is its
+                replacement entry point. */}
+            <View style={[styles.row, { borderTopColor: theme.border }]}>
+              <Pressable accessibilityRole="button" onPress={() => router.push('/history')} style={styles.rowContent}>
+                <ThemedText type="default">{t('profile.history')}</ThemedText>
+                <ThemedText type="default">→</ThemedText>
+              </Pressable>
+            </View>
+
             <View style={[styles.row, { borderTopColor: theme.border }]}>
               <View style={styles.rowContent}>
                 <ThemedText type="default">{t('profile.language')}</ThemedText>

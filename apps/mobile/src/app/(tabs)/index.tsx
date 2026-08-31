@@ -13,6 +13,7 @@ import { STATUS_COLORS, statusLabelKey, type BadgeStatus, type SubscriptionStatu
 import { useTheme } from '@/hooks/use-theme';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import { getRecentCheckIns, type RecentCheckIn } from '@/services/checkin';
+import { listMyClassBookings, type MyClassBooking } from '@/services/classes';
 import { getOccupancyBand, type OccupancyBand } from '@/services/occupancy';
 import { getGymTaraMoneyConnectionStatus, getRecentPayments, type RecentPayment } from '@/services/payments';
 import { getOwnSubscriptionWithPlan } from '@/services/subscriptions';
@@ -21,6 +22,9 @@ import { supabase } from '@/lib/supabase';
 // Bounds the merged check-in + payment feed (Story 4.9 AC #3) -- renamed
 // from RECENT_CHECK_INS_LIMIT now that it no longer bounds check-ins alone.
 const RECENT_ACTIVITY_LIMIT = 3;
+// AC #1: "up to 2 nearest sessions," a smaller bound than the general
+// activity feed above -- this is a schedule preview, not a feed.
+const UPCOMING_CLASSES_LIMIT = 2;
 
 // Tagged union so the render below can distinguish a check-in row (existing
 // appearance/behavior, unchanged) from a payment row (new, Story 4.9 AC #3)
@@ -85,6 +89,9 @@ export default function HomeScreen() {
   // non-blocking contract as occupancyBand -- a real RPC failure and "not
   // connected" both resolve to false (no charge risk either way).
   const [taraMoneyConnected, setTaraMoneyConnected] = useState(false);
+  // Story 12.4 (AC #1): best-effort, non-blocking -- same treatment as
+  // occupancyBand/taraMoneyConnected above.
+  const [upcomingClasses, setUpcomingClasses] = useState<MyClassBooking[]>([]);
 
   // Review finding: rapid tab switching can fire loadHome() again before an
   // earlier call resolves; without this, an older/slower response could
@@ -110,6 +117,7 @@ export default function HomeScreen() {
     setRecentActivity([]);
     setOccupancyBand(null);
     setTaraMoneyConnected(false);
+    setUpcomingClasses([]);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!isCurrent()) return;
@@ -204,6 +212,19 @@ export default function HomeScreen() {
       // (services/payments.ts's own contract), so no local try/catch needed.
       const connected = await getGymTaraMoneyConnectionStatus();
       if (isCurrent()) setTaraMoneyConnected(connected);
+
+      // Story 12.4 (AC #1): best-effort, non-blocking -- locally guarded
+      // (unlike getRecentCheckIns, which already wraps itself) so a failure
+      // here can't propagate to the outer catch and incorrectly trip
+      // loadError. Unlike listMyClassBookings()'s own Classes-tab contract
+      // (null on error), Home treats any failure identically to "no
+      // upcoming classes": render nothing.
+      try {
+        const bookings = await listMyClassBookings();
+        if (isCurrent()) setUpcomingClasses((bookings ?? []).slice(0, UPCOMING_CLASSES_LIMIT));
+      } catch {
+        if (isCurrent()) setUpcomingClasses([]);
+      }
     } catch {
       if (isCurrent()) setLoadError(true);
     } finally {
@@ -357,6 +378,26 @@ export default function HomeScreen() {
                 </View>
               </View>
 
+              {upcomingClasses.length > 0 && (
+                <View style={styles.activitySection}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => router.push({ pathname: '/classes', params: { tab: 'bookings' } })}
+                    style={styles.sectionHeader}>
+                    <ThemedText type="smallBold">{t('home.upcomingClasses')}</ThemedText>
+                    <ThemedText type="default">→</ThemedText>
+                  </Pressable>
+                  {upcomingClasses.map((booking) => (
+                    <View key={booking.bookingId} style={[styles.activityRow, { borderTopColor: theme.border }]}>
+                      <ThemedText type="small">{booking.className}</ThemedText>
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {formatCheckInTimestamp(booking.scheduledAt, i18n.language)}
+                      </ThemedText>
+                    </View>
+                  ))}
+                </View>
+              )}
+
               <View style={styles.activitySection}>
                 <ThemedText type="smallBold">{t('home.recentActivity')}</ThemedText>
                 {recentActivity.length === 0 ? (
@@ -493,6 +534,11 @@ const styles = StyleSheet.create({
   },
   activitySection: {
     gap: Spacing.two,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   activityRow: {
     flexDirection: 'row',

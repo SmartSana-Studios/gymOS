@@ -28,6 +28,9 @@ export default function AppTabs() {
           <TabTrigger name="checkin" href="/checkin" asChild>
             <TabButton>Check In</TabButton>
           </TabTrigger>
+          <TabTrigger name="classes" href="/classes" asChild>
+            <TabButton>Classes</TabButton>
+          </TabTrigger>
           <TabTrigger name="progress" href="/progress" asChild>
             <TabButton>Progress</TabButton>
           </TabTrigger>

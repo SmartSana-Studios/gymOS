@@ -1741,6 +1741,28 @@ export type Database = {
         }
         Returns: string
       }
+      list_bookable_class_sessions: {
+        Args: never
+        Returns: {
+          booked_count: number
+          capacity: number
+          class_name: string
+          class_session_id: string
+          coach_name: string
+          description: string
+          my_booking_id: string
+          scheduled_at: string
+        }[]
+      }
+      list_my_class_bookings: {
+        Args: never
+        Returns: {
+          booking_id: string
+          can_cancel: boolean
+          class_name: string
+          scheduled_at: string
+        }[]
+      }
       list_own_active_gym_memberships: {
         Args: never
         Returns: {
