@@ -1466,6 +1466,113 @@ export type Database = {
           },
         ]
       }
+      workout_plan_exercises: {
+        Row: {
+          exercise_id: string
+          gym_id: string
+          id: string
+          member_id: string
+          note: string | null
+          order_index: number
+          plan_id: string
+          reps: number
+          sets: number
+        }
+        Insert: {
+          exercise_id: string
+          gym_id: string
+          id?: string
+          member_id: string
+          note?: string | null
+          order_index: number
+          plan_id: string
+          reps: number
+          sets: number
+        }
+        Update: {
+          exercise_id?: string
+          gym_id?: string
+          id?: string
+          member_id?: string
+          note?: string | null
+          order_index?: number
+          plan_id?: string
+          reps?: number
+          sets?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_plan_exercises_exercise_id_fkey"
+            columns: ["exercise_id"]
+            referencedRelation: "exercise_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_plan_exercises_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_plan_exercises_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_plan_exercises_plan_id_fkey"
+            columns: ["plan_id"]
+            referencedRelation: "workout_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workout_plans: {
+        Row: {
+          coach_id: string
+          created_at: string
+          gym_id: string
+          id: string
+          member_id: string
+          name: string
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          gym_id: string
+          id?: string
+          member_id: string
+          name: string
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          gym_id?: string
+          id?: string
+          member_id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_plans_coach_id_fkey"
+            columns: ["coach_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_plans_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_plans_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       subscriptions_current: {
@@ -1695,6 +1802,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      create_workout_plan: {
+        Args: { p_exercises: Json; p_member_id: string; p_name: string }
+        Returns: string
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       deactivate_staff_member: {
@@ -1959,6 +2070,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      update_workout_plan: {
+        Args: { p_exercises: Json; p_name: string; p_plan_id: string }
+        Returns: undefined
       }
     }
     Enums: {

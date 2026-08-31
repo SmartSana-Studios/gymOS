@@ -252,6 +252,11 @@
       "gymNotFound": "Gym not found"
     }
   },
+  "workoutPlans": {
+    "errors": {
+      "gymNotFound": "Gym not found"
+    }
+  },
   "plans": {
     "title": "Plans",
     "addPlan": "+ Add Plan",
@@ -614,7 +619,8 @@
       },
       "tabs": {
         "sessionNotes": "Session Notes",
-        "progress": "Progress"
+        "progress": "Progress",
+        "workoutPlan": "Workout Plan"
       },
       "notes": {
         "heading": "Session Notes",
@@ -662,6 +668,44 @@
         "previousPhoto": "Previous photo",
         "nextPhoto": "Next photo",
         "empty": "No progress data logged yet."
+      },
+      "workoutPlanTab": {
+        "heading": "Workout Plan",
+        "addButton": "+ New plan",
+        "editButton": "Edit",
+        "emptyState": "No workout plan yet.",
+        "setsReps": "{{sets}} sets × {{reps}} reps",
+        "noteLine": "Note: \"{{note}}\"",
+        "addTitle": "New Workout Plan",
+        "editTitle": "Edit Workout Plan",
+        "nameLabel": "Plan name",
+        "exercisesLabel": "Exercises",
+        "exercisePlaceholder": "Select an exercise",
+        "setsLabel": "Sets",
+        "repsLabel": "Reps",
+        "noteLabel": "Note (optional)",
+        "addExerciseButton": "+ Add exercise",
+        "addNewExerciseLabel": "+ Add new exercise",
+        "newExercisePlaceholder": "New exercise name",
+        "confirmNewExercise": "Add",
+        "unnamedRow": "this exercise",
+        "moveUp": "Move {{exercise}} up",
+        "moveDown": "Move {{exercise}} down",
+        "removeRow": "Remove {{exercise}}",
+        "save": "Save",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "errors": {
+          "nameRequired": "Plan name is required",
+          "exercisesRequired": "At least one exercise is required",
+          "tooManyExercises": "A plan can have at most 100 exercises",
+          "exerciseRequired": "Select an exercise",
+          "setsInvalid": "Enter at least 1 set",
+          "setsTooLarge": "Enter a smaller number of sets",
+          "repsInvalid": "Enter at least 1 rep",
+          "repsTooLarge": "Enter a smaller number of reps",
+          "noteTooLong": "Note is too long (max 200 characters)"
+        }
       }
     }
   },

@@ -7,7 +7,7 @@
 -- established throws_like pattern.
 
 begin;
-select plan(9);
+select plan(11);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000009901', 'Shared Exercise Library Negative Test Tier', 5000, 50000, 30);
@@ -31,6 +31,12 @@ insert into members (id, gym_id, user_id, role, name) values
   ('00000000-0000-0000-0000-000000009934', '00000000-0000-0000-0000-000000009911', '00000000-0000-0000-0000-000000009924', 'receptionist', 'Negative Test Receptionist'),
   ('00000000-0000-0000-0000-000000009935', '00000000-0000-0000-0000-000000009911', '00000000-0000-0000-0000-000000009925', 'coach', 'Negative Test Coach'),
   ('00000000-0000-0000-0000-000000009936', '00000000-0000-0000-0000-000000009911', '00000000-0000-0000-0000-000000009926', 'member', 'Negative Test Member');
+
+-- This gym's own existing custom entry, seeded directly as postgres --
+-- target for the case-variant-duplicate assertion below (Story 13.2,
+-- Subtask 5.3, idx_exercise_library_gym_name_unique).
+insert into exercise_library (id, gym_id, name) values
+  ('00000000-0000-0000-0000-000000009941', '00000000-0000-0000-0000-000000009911', 'Negative Test Existing Custom Exercise');
 
 -- ============================================================================
 -- (a) Every non-Coach staff role is RLS-denied on INSERT.
@@ -178,6 +184,33 @@ select throws_like(
   $$select 1 from exercise_library limit 1$$,
   '%permission denied%',
   'anon cannot SELECT from exercise_library (no table-level grant at all)'
+);
+
+reset role;
+
+-- ============================================================================
+-- (g) idx_exercise_library_gym_name_unique (Story 13.2, Subtask 1.7): a
+-- Coach inserting a case-variant duplicate of an existing platform-default
+-- name, and a case-variant duplicate of their own gym's existing custom
+-- entry, are both rejected.
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009925","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009911","app_role":"coach"}',
+  true
+);
+
+select throws_like(
+  $$insert into exercise_library (gym_id, name) values ('00000000-0000-0000-0000-000000009911', 'squat')$$,
+  '%idx_exercise_library_gym_name_unique%',
+  'a Coach cannot INSERT a case-variant duplicate of an existing platform-default name ("squat" vs seeded "Squat")'
+);
+
+select throws_like(
+  $$insert into exercise_library (gym_id, name) values ('00000000-0000-0000-0000-000000009911', '  negative test existing custom exercise  ')$$,
+  '%idx_exercise_library_gym_name_unique%',
+  'a Coach cannot INSERT a case-variant, whitespace-padded duplicate of their own gym''s existing custom entry'
 );
 
 reset role;

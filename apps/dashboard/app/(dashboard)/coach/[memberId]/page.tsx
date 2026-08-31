@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 
 import { getMemberDetail, getMemberProgressData, listSessionNotes } from "@/services/coaches";
+import { getWorkoutPlan } from "@/services/workoutPlans";
+import { listExerciseLibrary } from "@/services/exercises";
 import { CoachMemberDetailPageClient } from "./components/CoachMemberDetailPageClient";
 import CoachMemberDetailLoading from "./loading";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -35,7 +37,15 @@ async function CoachMemberDetailData({ params }: { params: Promise<{ memberId: s
     { data: member, error: memberError },
     { data: notes, error: notesError },
     { data: progressData, error: progressError },
-  ] = await Promise.all([getMemberDetail(memberId), listSessionNotes(memberId), getMemberProgressData(memberId)]);
+    { data: plan, error: planError },
+    { data: exerciseLibrary, error: exerciseLibraryError },
+  ] = await Promise.all([
+    getMemberDetail(memberId),
+    listSessionNotes(memberId),
+    getMemberProgressData(memberId),
+    getWorkoutPlan(memberId),
+    listExerciseLibrary(),
+  ]);
 
   // Not a Next.js notFound() 404 -- matches this app's established pattern
   // of every other page rendering its own inline error state
@@ -54,6 +64,22 @@ async function CoachMemberDetailData({ params }: { params: Promise<{ memberId: s
     const { t } = await getServerTranslation(await getRequestLocale());
     return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
   }
+  if (planError) {
+    const { t } = await getServerTranslation(await getRequestLocale());
+    return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
+  }
+  if (exerciseLibraryError) {
+    const { t } = await getServerTranslation(await getRequestLocale());
+    return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
+  }
 
-  return <CoachMemberDetailPageClient member={member} notes={notes ?? []} progressData={progressData} />;
+  return (
+    <CoachMemberDetailPageClient
+      member={member}
+      notes={notes ?? []}
+      progressData={progressData}
+      plan={plan}
+      exerciseLibrary={exerciseLibrary ?? []}
+    />
+  );
 }

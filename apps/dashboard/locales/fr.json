@@ -252,6 +252,11 @@
       "gymNotFound": "Salle introuvable"
     }
   },
+  "workoutPlans": {
+    "errors": {
+      "gymNotFound": "Salle introuvable"
+    }
+  },
   "plans": {
     "title": "Formules",
     "addPlan": "+ Ajouter une formule",
@@ -614,7 +619,8 @@
       },
       "tabs": {
         "sessionNotes": "Notes de séance",
-        "progress": "Progression"
+        "progress": "Progression",
+        "workoutPlan": "Programme d'entraînement"
       },
       "notes": {
         "heading": "Notes de séance",
@@ -662,6 +668,44 @@
         "previousPhoto": "Photo précédente",
         "nextPhoto": "Photo suivante",
         "empty": "Aucune donnée de progression enregistrée pour le moment."
+      },
+      "workoutPlanTab": {
+        "heading": "Programme d'entraînement",
+        "addButton": "+ Nouveau programme",
+        "editButton": "Modifier",
+        "emptyState": "Aucun programme d'entraînement pour le moment.",
+        "setsReps": "{{sets}} séries × {{reps}} répétitions",
+        "noteLine": "Note : « {{note}} »",
+        "addTitle": "Nouveau programme d'entraînement",
+        "editTitle": "Modifier le programme d'entraînement",
+        "nameLabel": "Nom du programme",
+        "exercisesLabel": "Exercices",
+        "exercisePlaceholder": "Sélectionner un exercice",
+        "setsLabel": "Séries",
+        "repsLabel": "Répétitions",
+        "noteLabel": "Note (facultatif)",
+        "addExerciseButton": "+ Ajouter un exercice",
+        "addNewExerciseLabel": "+ Ajouter un nouvel exercice",
+        "newExercisePlaceholder": "Nom du nouvel exercice",
+        "confirmNewExercise": "Ajouter",
+        "unnamedRow": "cet exercice",
+        "moveUp": "Déplacer {{exercise}} vers le haut",
+        "moveDown": "Déplacer {{exercise}} vers le bas",
+        "removeRow": "Supprimer {{exercise}}",
+        "save": "Enregistrer",
+        "saving": "Enregistrement…",
+        "cancel": "Annuler",
+        "errors": {
+          "nameRequired": "Le nom du programme est requis",
+          "exercisesRequired": "Au moins un exercice est requis",
+          "tooManyExercises": "Un programme peut contenir au maximum 100 exercices",
+          "exerciseRequired": "Sélectionnez un exercice",
+          "setsInvalid": "Entrez au moins 1 série",
+          "setsTooLarge": "Entrez un nombre de séries plus petit",
+          "repsInvalid": "Entrez au moins 1 répétition",
+          "repsTooLarge": "Entrez un nombre de répétitions plus petit",
+          "noteTooLong": "La note est trop longue (200 caractères maximum)"
+        }
       }
     }
   },

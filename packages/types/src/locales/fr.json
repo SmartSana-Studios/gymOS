@@ -39,6 +39,8 @@
     "gymSwitchNotPermitted": "Vous n'avez plus accès à cette salle.",
     "saasBillingGymDeactivated": "Cette salle est désactivée. Réactivez-la avant d'appliquer une dérogation de facturation.",
     "tierNotSelectableByOwner": "Cette formule n'est pas disponible à la sélection. Choisissez-en une autre.",
+    "exerciseNameTaken": "Un exercice portant ce nom existe déjà",
+    "workoutPlanAlreadyExists": "Ce membre a déjà un programme d'entraînement",
     "unknown": "Une erreur est survenue de notre côté."
   },
   "auth": {

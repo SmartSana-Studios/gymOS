@@ -120,6 +120,28 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // idx_exercise_library_gym_name_unique (0080_coach_authored_workout_plans.sql,
+  // Story 13.2, closing Story 13.1's own deferred-work.md item): a
+  // case-insensitive duplicate exercise name, either re-duplicating another
+  // custom entry in the caller's own gym or shadowing an existing platform
+  // default.
+  if (pgErrorCode === "23505" && message.includes("idx_exercise_library_gym_name_unique")) {
+    return {
+      code: "exercise_name_taken",
+      message: copy.exerciseNameTaken,
+    };
+  }
+
+  // idx_workout_plans_member_unique (0080_coach_authored_workout_plans.sql,
+  // Story 13.2, AC #3): a double-click/two-tab race against
+  // create_workout_plan() for a member who already has a plan.
+  if (pgErrorCode === "23505" && message.includes("idx_workout_plans_member_unique")) {
+    return {
+      code: "workout_plan_already_exists",
+      message: copy.workoutPlanAlreadyExists,
+    };
+  }
+
   // supabase.auth.admin.createUser's duplicate-email/-phone errors. GoTrue
   // returns a structured `code` field (confirmed via manual testing during
   // Story 1.5: e.g. `{"code":"phone_exists", "message":"Phone number

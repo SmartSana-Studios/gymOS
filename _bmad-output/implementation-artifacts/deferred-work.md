@@ -672,3 +672,9 @@
 ## Deferred from: code review of story-12-4-member-app-classes-surfaces (2026-08-31)
 
 - `bookRowState()`'s Booked > Full > Book priority logic (`apps/mobile/src/app/(tabs)/classes/index.tsx:28-32`) — the one genuinely new piece of client-side UI logic beyond the MA-16 mockup — ships with no automated test coverage. Pre-existing, project-wide gap: the mobile app has no test framework/runner anywhere in this codebase, the same systemic gap every prior mobile story since Epic 9 has disclosed, not introduced or worsened by this story. [apps/mobile/src/app/(tabs)/classes/index.tsx:28-32]
+
+## Deferred from: code review of story-13-2-coach-authored-workout-plans (2026-08-31)
+
+- `getWorkoutPlan()`'s missing-`gym_id`-claim branch reports the generic `not_found`/"Gym not found" copy for what is actually a session/auth problem — pre-existing pattern, matches `exercises.ts`/`plans.ts`/`coaches.ts`'s identical convention. [apps/dashboard/services/workoutPlans.ts:32]
+- New Server Actions (`createWorkoutPlanAction`/`updateWorkoutPlanAction`/`addCustomExerciseAction`) have no dedicated action-layer tests — pre-existing project-wide gap, matches `addSessionNoteAction`/`editSessionNoteAction`'s identical, already-accepted gap. [apps/dashboard/app/(dashboard)/coach/[memberId]/actions.ts]
+- `WorkoutPlanModal.tsx`/`WorkoutPlanTabContent.tsx` have zero component-level (RTL/Vitest) test coverage — pre-existing project-wide gap, no dashboard modal in this codebase has component-level tests today. [apps/dashboard/app/(dashboard)/coach/[memberId]/components/WorkoutPlanModal.tsx; apps/dashboard/app/(dashboard)/coach/[memberId]/components/WorkoutPlanTabContent.tsx]

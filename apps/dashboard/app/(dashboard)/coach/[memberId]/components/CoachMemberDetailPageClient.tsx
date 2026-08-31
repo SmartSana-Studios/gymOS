@@ -10,12 +10,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CoachPortalMemberDetail, MemberProgressData, SessionNoteRow } from "@/services/coaches";
+import type { ExerciseLibraryRow } from "@/services/exercises";
+import type { WorkoutPlanRow } from "@/services/workoutPlans";
 import { PLAN_TYPE_LABEL_KEY } from "@/app/(dashboard)/plans/planLabels";
 import { STATUS_BADGE_CONFIG } from "@/app/(dashboard)/subscriptions/subscriptionLabels";
 import { ProgressTabContent } from "./ProgressTabContent";
 import { SectionHeader } from "./SectionHeader";
 import { SessionNoteModal } from "./SessionNoteModal";
 import { SessionNotesSection } from "./SessionNotesSection";
+import { WorkoutPlanModal } from "./WorkoutPlanModal";
+import { WorkoutPlanTabContent } from "./WorkoutPlanTabContent";
 
 // Keyed on memberGoalSchema/experienceLevelSchema's exact enum values
 // (packages/types/src/schemas/memberOnboarding.ts) -- not imported from
@@ -44,19 +48,31 @@ function formatLocalDate(dateOnly: string, locale: string): string {
 // null = modal closed. { note: null } = add mode. { note: row } = edit mode.
 type ModalState = { note: { id: string; noteText: string } | null } | null;
 
+// Second, independent modal-state slot -- not folded into `ModalState`,
+// which is session-notes-specific, mirroring this component's existing
+// one-slot-per-modal-type pattern. `true` = open (plan prop resolved from
+// the `plan` prop at render time, same create/edit dual-purpose shape as
+// `WorkoutPlanModal` itself expects).
+type WorkoutPlanModalState = boolean;
+
 export function CoachMemberDetailPageClient({
   member,
   notes,
   progressData,
+  plan,
+  exerciseLibrary,
 }: {
   member: CoachPortalMemberDetail;
   notes: SessionNoteRow[];
   progressData: MemberProgressData;
+  plan: WorkoutPlanRow | null;
+  exerciseLibrary: ExerciseLibraryRow[];
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
 
   const [modalState, setModalState] = useState<ModalState>(null);
+  const [workoutPlanModalOpen, setWorkoutPlanModalOpen] = useState<WorkoutPlanModalState>(false);
 
   const badge = STATUS_BADGE_CONFIG[member.status] ?? STATUS_BADGE_CONFIG.active;
   const StatusIcon = badge.icon;
@@ -85,6 +101,11 @@ export function CoachMemberDetailPageClient({
 
   function handleSaved() {
     setModalState(null);
+    router.refresh();
+  }
+
+  function handleWorkoutPlanSaved() {
+    setWorkoutPlanModalOpen(false);
     router.refresh();
   }
 
@@ -138,6 +159,7 @@ export function CoachMemberDetailPageClient({
         <TabsList>
           <TabsTrigger value="session-notes">{t("coachPortal.detail.tabs.sessionNotes")}</TabsTrigger>
           <TabsTrigger value="progress">{t("coachPortal.detail.tabs.progress")}</TabsTrigger>
+          <TabsTrigger value="workout-plan">{t("coachPortal.detail.tabs.workoutPlan")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="session-notes">
@@ -184,6 +206,13 @@ export function CoachMemberDetailPageClient({
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="workout-plan">
+          <WorkoutPlanTabContent
+            plan={plan}
+            onCreateClick={() => setWorkoutPlanModalOpen(true)}
+            onEditClick={() => setWorkoutPlanModalOpen(true)}
+          />
+        </TabsContent>
       </Tabs>
 
       {modalState && (
@@ -192,6 +221,23 @@ export function CoachMemberDetailPageClient({
           note={modalState.note}
           onClose={() => setModalState(null)}
           onSaved={handleSaved}
+        />
+      )}
+
+      {workoutPlanModalOpen && (
+        <WorkoutPlanModal
+          memberId={member.memberId}
+          plan={plan}
+          exerciseLibrary={exerciseLibrary}
+          onClose={() => {
+            setWorkoutPlanModalOpen(false);
+            // A closed-after-failure case (e.g. a two-tab create_workout_plan()
+            // race) can leave the `plan` prop stale -- refresh so reopening
+            // reflects the real current state instead of repeating the
+            // same failure.
+            router.refresh();
+          }}
+          onSaved={handleWorkoutPlanSaved}
         />
       )}
     </div>
