@@ -1,17 +1,24 @@
 -- Story 11.1: PaymentProvider Routing Context & SaaS Billing Table. Covers
--- saas_billing_payments' RLS (Super-Admin-scoped SELECT, deny-all for every
--- other role/no-session, no direct client INSERT/UPDATE/DELETE for any
--- role) and the two new completion RPCs' service_role-only grant + idempotent
--- processing -> verified/flagged transition, mirroring
--- payment_providers_rls.test.sql's and payments_rls_and_renewal.test.sql's
--- own structure/conventions for these same shapes.
+-- saas_billing_payments' RLS (Super-Admin-scoped SELECT, no direct client
+-- INSERT/UPDATE/DELETE for any role) and the two new completion RPCs'
+-- service_role-only grant + idempotent processing -> verified/flagged
+-- transition, mirroring payment_providers_rls.test.sql's and
+-- payments_rls_and_renewal.test.sql's own structure/conventions for these
+-- same shapes.
+--
+-- Story 11.7 (AC #4): the gym-owner-claim case below now expects to SEE its
+-- own gym's row, not 0 -- owner_read_own_gym_saas_billing_payments
+-- (0077_pay_now_tier_selection_alternate_payment.sql) closes the RLS gap
+-- deferred-work.md:6,643 flagged, which otherwise silently broke
+-- PayNowButton's own polling watch for every real Owner session.
 
 begin;
 select plan(14);
 
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000009401'), -- super_admin caller
-  ('00000000-0000-0000-0000-000000009402'); -- owner, non-super-admin
+  ('00000000-0000-0000-0000-000000009402'), -- owner, non-super-admin
+  ('00000000-0000-0000-0000-000000009403'); -- genuine member (customer), non-staff
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000009304', 'SaaS Billing Test Tier', 5000, 50000, 30);
@@ -20,16 +27,18 @@ insert into gyms (id, name, tier_id, status, capacity) values
   ('00000000-0000-0000-0000-000000009410', 'SaaS Billing Test Gym', '00000000-0000-0000-0000-000000009304', 'active', 30);
 
 insert into members (id, gym_id, user_id, role, name) values
-  ('00000000-0000-0000-0000-000000009602', '00000000-0000-0000-0000-000000009410', '00000000-0000-0000-0000-000000009402', 'owner', 'Test Gym Owner');
+  ('00000000-0000-0000-0000-000000009602', '00000000-0000-0000-0000-000000009410', '00000000-0000-0000-0000-000000009402', 'owner', 'Test Gym Owner'),
+  ('00000000-0000-0000-0000-000000009603', '00000000-0000-0000-0000-000000009410', '00000000-0000-0000-0000-000000009403', 'member', 'Test Gym Member');
 
 reset role;
 insert into saas_billing_payments (id, gym_id, amount, currency, status, provider, provider_transaction_ref)
 values ('00000000-0000-0000-0000-000000009701', '00000000-0000-0000-0000-000000009410', 5000000, 'XAF', 'processing', 'taramoney', 'saas-test-ref-001');
 
 -- ============================================================================
--- RLS: super_admin can SELECT; every other role/no-session sees 0 rows, not
--- an exception (RLS SELECT semantics, matching super_admin_read_tiers/
--- super_admin_read_payment_providers precedent).
+-- RLS: super_admin sees every gym's rows; a gym's own owner sees only their
+-- own gym's rows (Story 11.7, AC #4); every other role/no-session sees 0
+-- rows, not an exception (RLS SELECT semantics, matching
+-- super_admin_read_tiers/super_admin_read_payment_providers precedent).
 -- ============================================================================
 set local role authenticated;
 select set_config(
@@ -51,20 +60,20 @@ select set_config(
 );
 
 select is(
-  (select count(*) from saas_billing_payments)::int, 0,
-  'a gym-owner claim session sees 0 rows from saas_billing_payments -- deny-all, not an exception'
+  (select count(*) from saas_billing_payments)::int, 1,
+  'a gym-owner claim session sees exactly its own gym''s row -- owner_read_own_gym_saas_billing_payments (Story 11.7), not deny-all'
 );
 
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-000000009402","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009410","app_role":"member"}',
+  '{"sub":"00000000-0000-0000-0000-000000009403","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009410","app_role":"member"}',
   true
 );
 
 select is(
   (select count(*) from saas_billing_payments)::int, 0,
-  'a member claim session sees 0 rows from saas_billing_payments -- deny-all, not an exception'
+  'a genuine (non-owner) member-claim session sees 0 rows from saas_billing_payments -- deny-all still holds for every other role'
 );
 
 -- anon has no table-level GRANT on saas_billing_payments at all (only

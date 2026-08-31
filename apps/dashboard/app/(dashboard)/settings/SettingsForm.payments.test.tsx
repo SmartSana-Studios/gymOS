@@ -95,6 +95,7 @@ async function renderForm(
       initial={INITIAL_SETTINGS}
       initialPaymentConnection={initialPaymentConnection}
       initialBillingInfo={null}
+      selectableTiers={[]}
       staffCount={0}
     />,
   );

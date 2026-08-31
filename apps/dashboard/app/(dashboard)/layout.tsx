@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import { getDashboardShellContext } from "@/services/session";
+import { listSelectableTiers } from "@/services/billing";
 import { DashboardChrome } from "@/components/shared/DashboardChrome";
 import { OwnerSuspendedScreen, NeutralSuspendedScreen } from "@/components/shared/SuspendedGymScreen";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -68,11 +69,22 @@ async function DashboardLayoutData({
     // recovery screen here, not bounce into a login-redirect loop (`shell`
     // is `null` in this case too, since the now-gated `members` lookup was
     // deliberately never attempted).
-    return suspended.isBillingSuspension && suspended.role === "owner" ? (
-      <OwnerSuspendedScreen gymName={suspended.gymName} gymId={suspended.gymId} availableGyms={suspended.availableGyms} />
-    ) : (
-      <NeutralSuspendedScreen gymId={suspended.gymId} availableGyms={suspended.availableGyms} />
-    );
+    if (suspended.isBillingSuspension && suspended.role === "owner") {
+      // Story 11.7 (Task 4): the Pay-Now tier selector's own data -- only
+      // fetched on this branch (never for NeutralSuspendedScreen/the normal
+      // dashboard) since it's the only screen that renders <PayNowButton>
+      // here.
+      const { data: selectableTiers } = await listSelectableTiers();
+      return (
+        <OwnerSuspendedScreen
+          gymName={suspended.gymName}
+          gymId={suspended.gymId}
+          availableGyms={suspended.availableGyms}
+          selectableTiers={selectableTiers ?? []}
+        />
+      );
+    }
+    return <NeutralSuspendedScreen gymId={suspended.gymId} availableGyms={suspended.availableGyms} />;
   }
 
   if (!shell) {

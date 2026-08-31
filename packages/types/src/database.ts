@@ -723,6 +723,7 @@ export type Database = {
           gym_id: string | null
           id: string
           payment_id: string | null
+          saas_billing_payment_id: string | null
           webhook_event_id: string | null
         }
         Insert: {
@@ -732,6 +733,7 @@ export type Database = {
           gym_id?: string | null
           id?: string
           payment_id?: string | null
+          saas_billing_payment_id?: string | null
           webhook_event_id?: string | null
         }
         Update: {
@@ -741,6 +743,7 @@ export type Database = {
           gym_id?: string | null
           id?: string
           payment_id?: string | null
+          saas_billing_payment_id?: string | null
           webhook_event_id?: string | null
         }
         Relationships: [
@@ -754,6 +757,12 @@ export type Database = {
             foreignKeyName: "payment_discrepancies_payment_id_fkey"
             columns: ["payment_id"]
             referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_discrepancies_saas_billing_payment_id_fkey"
+            columns: ["saas_billing_payment_id"]
+            referencedRelation: "saas_billing_payments"
             referencedColumns: ["id"]
           },
           {
@@ -1197,6 +1206,7 @@ export type Database = {
       saas_billing_payments: {
         Row: {
           amount: number
+          billing_interval: Database["public"]["Enums"]["billing_interval"] | null
           created_at: string
           currency: string
           gym_id: string
@@ -1205,9 +1215,11 @@ export type Database = {
           provider_fee_amount: number | null
           provider_transaction_ref: string | null
           status: Database["public"]["Enums"]["payment_status"]
+          tier_id: string | null
         }
         Insert: {
           amount: number
+          billing_interval?: Database["public"]["Enums"]["billing_interval"] | null
           created_at?: string
           currency?: string
           gym_id: string
@@ -1216,9 +1228,11 @@ export type Database = {
           provider_fee_amount?: number | null
           provider_transaction_ref?: string | null
           status: Database["public"]["Enums"]["payment_status"]
+          tier_id?: string | null
         }
         Update: {
           amount?: number
+          billing_interval?: Database["public"]["Enums"]["billing_interval"] | null
           created_at?: string
           currency?: string
           gym_id?: string
@@ -1227,6 +1241,7 @@ export type Database = {
           provider_fee_amount?: number | null
           provider_transaction_ref?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
+          tier_id?: string | null
         }
         Relationships: [
           {
@@ -1240,6 +1255,12 @@ export type Database = {
             columns: ["provider"]
             referencedRelation: "payment_providers"
             referencedColumns: ["provider_key"]
+          },
+          {
+            foreignKeyName: "saas_billing_payments_tier_id_fkey"
+            columns: ["tier_id"]
+            referencedRelation: "tiers"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1722,13 +1743,28 @@ export type Database = {
       gym_effective_member_cap: { Args: never; Returns: number }
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
       initiate_member_payment: { Args: never; Returns: string }
-      initiate_saas_billing_payment: { Args: never; Returns: string }
+      initiate_saas_billing_payment: {
+        Args: {
+          p_interval?: Database["public"]["Enums"]["billing_interval"]
+          p_tier_id?: string
+        }
+        Returns: string
+      }
       list_own_active_gym_memberships: {
         Args: never
         Returns: {
           gym_id: string
           gym_name: string
           role: Database["public"]["Enums"]["member_role"]
+        }[]
+      }
+      list_selectable_saas_billing_tiers: {
+        Args: never
+        Returns: {
+          annual_price: number
+          id: string
+          monthly_price: number
+          name: string
         }[]
       }
       log_audit_event: {

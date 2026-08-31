@@ -38,6 +38,7 @@
     "staffTargetRoleProtected": "You don't have permission to make this change to this staff member.",
     "gymSwitchNotPermitted": "You no longer have access to that gym.",
     "saasBillingGymDeactivated": "This gym is deactivated. Reactivate it before applying a billing override.",
+    "tierNotSelectableByOwner": "That plan isn't available to select. Choose a different one.",
     "unknown": "Something went wrong on our end."
   },
   "auth": {

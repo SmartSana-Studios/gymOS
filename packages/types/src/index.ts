@@ -22,4 +22,5 @@ export * from "./schemas/staff";
 export * from "./schemas/session";
 export * from "./errors";
 export * from "./analytics";
+export * from "./constants/taraMoneySupportedCountries";
 

@@ -531,6 +531,46 @@ Deno.test("verifyWebhookSignature: parses the real 2026-08-13 real-account webho
   });
 });
 
+// Real captured payload shape from docs/decisions.md's 2026-08-30 entry (Story 11.7, real
+// GymOS business account 9FmIZg9GBB, a real WhatsApp-completed createHostedCheckoutLink()
+// payment-link payment) -- genuinely different from the direct mobilePay() webhook shape
+// above, not just missing a few optional fields: no productId, no amount, no phoneNumber,
+// no mobileOperator. `paymentId` here directly echoes back whatever was sent as `productId`
+// when creating the link (payment-webhook/index.ts's id-fallback matching relies on this).
+Deno.test("verifyWebhookSignature: parses the real 2026-08-30 payment-link webhook shape (docs/decisions.md, platform-routed)", async () => {
+  await withPlatformEnv(async () => {
+    const { provider, calls } = providerWithByBusinessIdResponse({ data: [], error: null });
+    const payload = JSON.stringify({
+      businessId: PLATFORM_BUSINESS_ID,
+      paymentId: "gymos-story-11-7-live-webhook-test-3-100xaf",
+      collectionId: "589124990",
+      creationDate: "2026-08-30T21:34:37.514-03:00",
+      changeDate: "2026-08-30T21:34:37.514-03:00",
+      status: "SUCCESS",
+    });
+
+    const result = await provider.verifyWebhookSignature(payload, headers(PLATFORM_SECRET));
+
+    assertEquals(result, {
+      valid: true,
+      event: {
+        providerTransactionRef: "gymos-story-11-7-live-webhook-test-3-100xaf",
+        businessId: PLATFORM_BUSINESS_ID,
+        resolvedGymId: undefined,
+        resolvedRoutingContext: { type: "platform" },
+        status: "verified",
+        amount: 0,
+        currency: "XAF",
+        reference: undefined,
+        vendor: undefined,
+        feeAmount: undefined,
+      },
+    });
+    // The platform businessId match is checked first, no gym lookup RPC needed.
+    assertEquals(calls.length, 0);
+  });
+});
+
 // --- initiate(): per-gym credential resolution (Story 4.14, Task 4) ---------------------------
 
 function stubFetchNoCallsExpected() {
@@ -641,6 +681,155 @@ Deno.test("initiate(): a gym credentials row with a blank businessId returns a t
 // Sanity check that assertRejects stays imported/used -- kept minimal since initiate()'s HTTP
 // happy path is out of this story's scope (no prior test coverage existed for it either; only
 // the two new gym-routing failure paths above are this story's concern per its own Task 7).
+// --- createHostedCheckoutLink(): Story 11.7's "Continue on Tara" fallback ---------------------
+
+function stubFetchJson(status: number, body: unknown) {
+  const original = globalThis.fetch;
+  globalThis.fetch = (() =>
+    Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }))) as typeof fetch;
+  return { restore: () => (globalThis.fetch = original) };
+}
+
+async function withPlatformCreds<T>(fn: () => Promise<T>): Promise<T> {
+  const priorApiKey = Deno.env.get("TARAMONEY_API_KEY");
+  const priorBusinessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
+  Deno.env.set("TARAMONEY_API_KEY", "test-platform-api-key");
+  Deno.env.set("TARAMONEY_BUSINESS_ID", "test-platform-business-id");
+  try {
+    return await fn();
+  } finally {
+    if (priorApiKey === undefined) Deno.env.delete("TARAMONEY_API_KEY");
+    else Deno.env.set("TARAMONEY_API_KEY", priorApiKey);
+    if (priorBusinessId === undefined) Deno.env.delete("TARAMONEY_BUSINESS_ID");
+    else Deno.env.set("TARAMONEY_BUSINESS_ID", priorBusinessId);
+  }
+}
+
+Deno.test("createHostedCheckoutLink(): a {type:'gym'} routing context is rejected -- this story's scope is platform-routed (Flow B) only", async () => {
+  const { supabase } = makeMockSupabase({});
+  const provider = new TaraMoneyProvider(supabase);
+
+  const result = await provider.createHostedCheckoutLink({
+    amount: 8000,
+    currency: "XAF",
+    reference: "saas-payment-1",
+    productName: "GymOS subscription",
+    callbackUrl: "https://example.com/callback",
+    routingContext: { type: "gym", gymId: "gym-a" },
+  });
+
+  assertEquals(result, {
+    success: false,
+    error: "TaraMoney createHostedCheckoutLink is only implemented for platform-routed (Flow B) payments",
+  });
+});
+
+Deno.test("createHostedCheckoutLink(): missing platform credentials returns a typed-message failure, no HTTP call attempted", async () => {
+  const priorApiKey = Deno.env.get("TARAMONEY_API_KEY");
+  const priorBusinessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
+  Deno.env.delete("TARAMONEY_API_KEY");
+  Deno.env.delete("TARAMONEY_BUSINESS_ID");
+  const fetchStub = stubFetchNoCallsExpected();
+
+  try {
+    const { supabase } = makeMockSupabase({});
+    const provider = new TaraMoneyProvider(supabase);
+
+    const result = await provider.createHostedCheckoutLink({
+      amount: 8000,
+      currency: "XAF",
+      reference: "saas-payment-1",
+      productName: "GymOS subscription",
+      callbackUrl: "https://example.com/callback",
+      routingContext: { type: "platform" },
+    });
+
+    assertEquals(result, { success: false, error: "TaraMoney credentials are not configured" });
+    assertEquals(fetchStub.wasCalled(), false);
+  } finally {
+    fetchStub.restore();
+    if (priorApiKey !== undefined) Deno.env.set("TARAMONEY_API_KEY", priorApiKey);
+    if (priorBusinessId !== undefined) Deno.env.set("TARAMONEY_BUSINESS_ID", priorBusinessId);
+  }
+});
+
+Deno.test("createHostedCheckoutLink(): a successful response surfaces generalLink as checkoutUrl", async () => {
+  await withPlatformCreds(async () => {
+    const fetchStub = stubFetchJson(200, {
+      whatsappLink: "https://wa.me/...",
+      generalLink: "https://pay.taramoney.com/link/abc123",
+      cardLink: "https://pay.taramoney.com/link/abc123?method=card",
+    });
+    try {
+      const { supabase } = makeMockSupabase({});
+      const provider = new TaraMoneyProvider(supabase);
+
+      const result = await provider.createHostedCheckoutLink({
+        amount: 8000,
+        currency: "XAF",
+        reference: "saas-payment-1",
+        productName: "GymOS subscription",
+        callbackUrl: "https://example.com/callback",
+        routingContext: { type: "platform" },
+      });
+
+      assertEquals(result, { success: true, checkoutUrl: "https://pay.taramoney.com/link/abc123" });
+    } finally {
+      fetchStub.restore();
+    }
+  });
+});
+
+Deno.test("createHostedCheckoutLink(): a response missing generalLink returns an unrecognized-shape failure", async () => {
+  await withPlatformCreds(async () => {
+    const fetchStub = stubFetchJson(200, { cardLink: "https://pay.taramoney.com/link/abc123?method=card" });
+    try {
+      const { supabase } = makeMockSupabase({});
+      const provider = new TaraMoneyProvider(supabase);
+
+      const result = await provider.createHostedCheckoutLink({
+        amount: 8000,
+        currency: "XAF",
+        reference: "saas-payment-1",
+        productName: "GymOS subscription",
+        callbackUrl: "https://example.com/callback",
+        routingContext: { type: "platform" },
+      });
+
+      assertEquals(result, {
+        success: false,
+        error: "TaraMoney returned an unrecognized createPaymentLink response shape",
+      });
+    } finally {
+      fetchStub.restore();
+    }
+  });
+});
+
+Deno.test("createHostedCheckoutLink(): a non-2xx response surfaces the status and body as the error", async () => {
+  await withPlatformCreds(async () => {
+    const fetchStub = stubFetchJson(500, { message: "internal error" });
+    try {
+      const { supabase } = makeMockSupabase({});
+      const provider = new TaraMoneyProvider(supabase);
+
+      const result = await provider.createHostedCheckoutLink({
+        amount: 8000,
+        currency: "XAF",
+        reference: "saas-payment-1",
+        productName: "GymOS subscription",
+        callbackUrl: "https://example.com/callback",
+        routingContext: { type: "platform" },
+      });
+
+      assertEquals((result as { success: false; error: string }).success, false);
+      assertEquals((result as { success: false; error: string }).error.startsWith("TaraMoney 500:"), true);
+    } finally {
+      fetchStub.restore();
+    }
+  });
+});
+
 Deno.test("initiate(): a rejected fetch (thrown, not returned) still only happens after credentials resolve successfully", async () => {
   const { supabase } = makeMockSupabase({
     get_gym_payment_credentials_for_service: {

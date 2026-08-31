@@ -38,6 +38,7 @@
     "staffTargetRoleProtected": "Vous n'êtes pas autorisé à apporter cette modification à ce membre du personnel.",
     "gymSwitchNotPermitted": "Vous n'avez plus accès à cette salle.",
     "saasBillingGymDeactivated": "Cette salle est désactivée. Réactivez-la avant d'appliquer une dérogation de facturation.",
+    "tierNotSelectableByOwner": "Cette formule n'est pas disponible à la sélection. Choisissez-en une autre.",
     "unknown": "Une erreur est survenue de notre côté."
   },
   "auth": {

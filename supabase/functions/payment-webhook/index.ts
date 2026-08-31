@@ -294,12 +294,133 @@ async function handleInitiate(
   });
 }
 
+/**
+ * Story 11.7 (AC #3): POST /payment-webhook/initiate-link/<providerKey> --
+ * the "Continue on Tara" alternate-method fallback. Mirrors handleInitiate's
+ * eligibility checks (row exists, still `processing`, not already
+ * provider-linked) but calls `createHostedCheckoutLink()` instead of
+ * `initiate()`, needs no `phoneNumber` (the hosted page collects payment
+ * details itself), and does not persist a `provider_transaction_ref` --
+ * unlike the direct mobile-money flow, a payment link's response carries no
+ * transaction reference up front (only checkout links); the real reference
+ * is first learned when the webhook itself arrives.
+ *
+ * Only ever reached for Flow B (`saas_billing_payments`, gymId === null) in
+ * practice -- this story's own scope (AD-14: never Flow A) -- but table
+ * resolution mirrors handleInitiate's own payments-then-saas_billing_payments
+ * fallback for symmetry/consistency rather than hardcoding one table.
+ */
+async function handleInitiateLink(
+  req: Request,
+  providerKey: string,
+  provider: PaymentProvider,
+  url: URL,
+  pathSegments: string[],
+): Promise<Response> {
+  if (req.method !== "POST") {
+    return jsonResponse(405);
+  }
+
+  if (!provider.createHostedCheckoutLink) {
+    return jsonResponse(400, { error: `${providerKey} does not support hosted checkout links` });
+  }
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return jsonResponse(400, { error: "invalid JSON body" });
+  }
+
+  const { paymentId } = (body ?? {}) as { paymentId?: string };
+  if (!paymentId) {
+    return jsonResponse(400, { error: "paymentId is required" });
+  }
+
+  const { data: gymPaymentRow, error: gymFetchError } = await supabase
+    .from("payments")
+    .select("id, status, provider_transaction_ref, amount, currency, gym_id")
+    .eq("id", paymentId)
+    .maybeSingle();
+
+  if (gymFetchError) {
+    console.error(`payment-webhook: ${providerKey} initiate-link lookup failed for payment ${paymentId} — ${gymFetchError.message}`);
+    return jsonResponse(500);
+  }
+
+  let table: "payments" | "saas_billing_payments" = "payments";
+  let payment: { id: string; status: string; provider_transaction_ref: string | null; amount: number; currency: string; gymId: string | null } | null =
+    gymPaymentRow
+      ? {
+          id: gymPaymentRow.id,
+          status: gymPaymentRow.status,
+          provider_transaction_ref: gymPaymentRow.provider_transaction_ref,
+          amount: gymPaymentRow.amount,
+          currency: gymPaymentRow.currency,
+          gymId: gymPaymentRow.gym_id,
+        }
+      : null;
+
+  if (!payment) {
+    const { data: saasPaymentRow, error: saasFetchError } = await supabase
+      .from("saas_billing_payments")
+      .select("id, status, provider_transaction_ref, amount, currency")
+      .eq("id", paymentId)
+      .maybeSingle();
+
+    if (saasFetchError) {
+      console.error(
+        `payment-webhook: ${providerKey} initiate-link saas_billing_payments lookup failed for payment ${paymentId} — ${saasFetchError.message}`,
+      );
+      return jsonResponse(500);
+    }
+
+    if (saasPaymentRow) {
+      table = "saas_billing_payments";
+      payment = {
+        id: saasPaymentRow.id,
+        status: saasPaymentRow.status,
+        provider_transaction_ref: saasPaymentRow.provider_transaction_ref,
+        amount: saasPaymentRow.amount,
+        currency: saasPaymentRow.currency,
+        gymId: null,
+      };
+    }
+  }
+
+  if (!payment || payment.status !== "processing" || payment.provider_transaction_ref !== null) {
+    return jsonResponse(400, { error: "payment is not eligible for initiation" });
+  }
+
+  // Same reconstruction as handleInitiate's own callbackUrl, dropping
+  // "initiate-link/<providerKey>" instead of "initiate/<providerKey>".
+  const basePathSegments = pathSegments.slice(0, pathSegments.length - 2);
+  const callbackUrl = `${url.origin}/${[...basePathSegments, providerKey].join("/")}`;
+
+  const result = await provider.createHostedCheckoutLink({
+    reference: payment.id,
+    amount: payment.amount,
+    currency: payment.currency,
+    productName: "GymOS subscription",
+    callbackUrl,
+    routingContext: payment.gymId !== null ? { type: "gym", gymId: payment.gymId } : { type: "platform" },
+  });
+
+  if (!result.success) {
+    console.error(`payment-webhook: ${providerKey} createHostedCheckoutLink() failed for payment ${paymentId} — ${result.error}`);
+    return jsonResponse(502, { error: "payment provider link creation failed" });
+  }
+
+  return jsonResponse(200, { checkoutUrl: result.checkoutUrl });
+}
+
 export default {
   fetch: async (req: Request): Promise<Response> => {
     const url = new URL(req.url);
     const pathSegments = url.pathname.split("/").filter(Boolean);
     const providerKey = pathSegments[pathSegments.length - 1];
     const isInitiateRoute = pathSegments[pathSegments.length - 2] === "initiate";
+    const isInitiateLinkRoute = pathSegments[pathSegments.length - 2] === "initiate-link";
     const provider = providerKey ? PROVIDERS[providerKey] : undefined;
 
     if (!provider) {
@@ -308,6 +429,10 @@ export default {
 
     if (isInitiateRoute) {
       return handleInitiate(req, providerKey, provider, url, pathSegments);
+    }
+
+    if (isInitiateLinkRoute) {
+      return handleInitiateLink(req, providerKey, provider, url, pathSegments);
     }
 
     const payloadText = await req.text();
@@ -480,7 +605,7 @@ export default {
     // saas_billing_payments row, so the gym branch's cross-tenant cross-check
     // does not apply here -- there is no cross-tenant case to guard against
     // (Task 3's own scope note).
-    const { data: saasPaymentRow, error: saasLookupError } = await supabase
+    let { data: saasPaymentRow, error: saasLookupError } = await supabase
       .from("saas_billing_payments")
       .select("id")
       .eq("provider_transaction_ref", event.providerTransactionRef)
@@ -489,6 +614,65 @@ export default {
     if (saasLookupError) {
       console.error(`payment-webhook: ${providerKey} saas_billing_payments lookup failed — ${saasLookupError.message}`);
       return jsonResponse(500);
+    }
+
+    // Story 11.7 (AC #3): a payment-link-initiated row
+    // (handleInitiateLink()) never learns a provider_transaction_ref up
+    // front -- createHostedCheckoutLink()'s response carries only checkout
+    // links, no transaction reference, unlike initiate()'s direct
+    // mobile-money flow.
+    //
+    // CONFIRMED live against the real 9FmIZg9GBB account (2026-08-30, a
+    // real WhatsApp-completed payment-link payment): a payment-link
+    // webhook's shape is genuinely different from the direct mobilePay()
+    // webhook, not just missing a few optional fields. Real captured
+    // payload: {"businessId":"9FmIZg9GBB","paymentId":"<our own
+    // createHostedCheckoutLink() productId>","collectionId":"<Tara's own
+    // numeric order id>","creationDate":"...","changeDate":"...","status":"SUCCESS"}
+    // -- no `productId` field at all (so `event.reference`, which reads
+    // `rawPayload.productId`, is always undefined for this flow -- an
+    // earlier version of this fallback matched on `event.reference` and
+    // would never have fired), no `amount`/`phoneNumber`/`mobileOperator`.
+    // Critically, this webhook's own `paymentId` field -- which
+    // `normalizeTaraMoneyWebhook()` already maps to
+    // `event.providerTransactionRef` -- directly echoes back whatever
+    // *we* sent as `productId` when creating the link
+    // (`createHostedCheckoutLink()` sends `productId: params.reference`,
+    // the payment's own `saas_billing_payments.id`). So for this flow
+    // specifically, `event.providerTransactionRef` already equals the
+    // row's own primary key -- the fallback matches on `id`, not on a
+    // separate `reference` field, and it is safe for the direct
+    // mobile-money flow too (its own `providerTransactionRef` is a
+    // TaraMoney-generated numeric id that can never equal one of our
+    // uuids, so this fallback simply never matches anything for it).
+    if (!saasPaymentRow) {
+      const { data: linkRow, error: linkLookupError } = await supabase
+        .from("saas_billing_payments")
+        .select("id")
+        .eq("id", event.providerTransactionRef)
+        .is("provider_transaction_ref", null)
+        .maybeSingle();
+
+      if (linkLookupError) {
+        console.error(`payment-webhook: ${providerKey} saas_billing_payments link-fallback lookup failed — ${linkLookupError.message}`);
+        return jsonResponse(500);
+      }
+
+      if (linkRow) {
+        const { error: refUpdateError } = await supabase
+          .from("saas_billing_payments")
+          .update({ provider_transaction_ref: event.providerTransactionRef })
+          .eq("id", linkRow.id);
+
+        if (refUpdateError) {
+          console.error(
+            `payment-webhook: ${providerKey} failed to persist provider_transaction_ref for link-originated payment ${linkRow.id} — ${refUpdateError.message}`,
+          );
+          return jsonResponse(500);
+        }
+
+        saasPaymentRow = linkRow;
+      }
     }
 
     const { error: saasEventLogError } = await supabase

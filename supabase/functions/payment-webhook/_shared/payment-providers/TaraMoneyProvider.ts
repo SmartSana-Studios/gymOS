@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
+  CreateHostedCheckoutLinkParams,
+  CreateHostedCheckoutLinkResult,
   InitiatePaymentParams,
   InitiatePaymentResult,
   NormalizedPaymentEvent,
@@ -14,6 +16,22 @@ import { errorResult, postJsonWithTimeout } from "./httpHelpers.ts";
 // by the user 2026-07-31 (Story 4.1 Task 1). Auth is a plain apiKey+businessId
 // pair inside the JSON body — not a bearer token / signed-request scheme.
 const MOBILEPAY_URL = "https://www.dklo.co/api/tara/mobilepay";
+
+// Story 11.7 (Task 7): CONFIRMED live against the real 9FmIZg9GBB account
+// (2026-08-30) -- a real POST here returns HTTP 200 with a real
+// generalLink/cardLink/whatsappLink/etc. set, matching
+// TaraMoneyPaymentLinkResponse below exactly. No `Authorization: Bearer`
+// header is needed -- confirmed by two live calls, one with and one
+// without it, both returning an identical successful response; this
+// endpoint uses the same body-only apiKey/businessId auth as
+// MOBILEPAY_URL, not the two-key Bearer scheme the docs site's own
+// /api/authentication page describes as available for "most" endpoints.
+// `status` in a real response is `"SUCCESS"` (uppercase), matching
+// mobilePay()'s own convention -- not the lowercase `"success"` the docs
+// site's example shows (another confirmed docs/reality divergence, same
+// class as the webhook-signature-scheme one already documented for
+// mobilePay()'s own webhook).
+const PAYMENT_LINK_URL = "https://www.dklo.co/api/tara/paymentlinks";
 
 interface TaraMoneyInitiateResponse {
   message: string;
@@ -32,6 +50,32 @@ interface TaraMoneyInitiateResponse {
   transactionId?: string;
   /** USSD code the payer must dial to confirm a mobile-money collection (e.g. "#150*50#"). Not needed for correlation — informational only. */
   ussdCode?: string;
+}
+
+// Story 11.7 (Task 7): CONFIRMED live against the real 9FmIZg9GBB account
+// (2026-08-30) -- a real successful call returns exactly this shape, e.g.
+// {"status":"SUCCESS","message":"API_ORDER_SUCESSFULL","whatsappLink":"https://wa.me/...","telegramLink":"https://t.me/tarasmartbot?start=...","cardLink":"https://taramoney.com/cardpay/@<id>@<amount>","dikaloLink":"https://www.dklo.co/taraOrder/@<id>","smsLink":"sms://+...","generalLink":"https://taramoney.com/pay/<id>"}
+// -- note `generalLink`/`cardLink` resolve under `taramoney.com`, NOT the
+// `pay.taramoney.com` domain the docs site's own earlier-fetched response
+// example showed (another confirmed docs/reality divergence). A real
+// business-not-found error also returns HTTP 200 (never a non-2xx status),
+// with `{"status":"ERROR","message":"BUSINESS_NONEXISTENT"}` and no
+// `generalLink` at all -- `createHostedCheckoutLink()` below correctly
+// treats this as a failure purely via `generalLink`'s absence, without
+// needing to special-case the `status` string's exact value (which uses
+// "ERROR" here, not the "FAILURE" `TaraMoneyInitiateResponse` uses).
+// `generalLink` is the only field this provider currently surfaces (see
+// createHostedCheckoutLink()) -- the others are kept here only to document
+// the full confirmed response shape.
+interface TaraMoneyPaymentLinkResponse {
+  status?: string;
+  message?: string;
+  whatsappLink?: string;
+  telegramLink?: string;
+  dikaloLink?: string;
+  generalLink: string;
+  cardLink?: string;
+  smsLink?: string;
 }
 
 function isTaraMoneyInitiateResponse(value: unknown): value is TaraMoneyInitiateResponse {
@@ -61,7 +105,14 @@ interface TaraMoneyWebhookPayload {
   originalAmount?: string;
   mobileOperator?: string;
   collectionId?: string;
-  phoneNumber: string;
+  /**
+   * Optional as of Story 11.7 -- confirmed absent entirely on a real
+   * payment-link-originated webhook (2026-08-30 live capture, a
+   * WhatsApp-completed payment), unlike the direct mobilePay() flow's
+   * webhook, which always carries it. Never actually read by
+   * `normalizeTaraMoneyWebhook()` below regardless.
+   */
+  phoneNumber?: string;
   creationDate: string;
   changeDate: string;
   status: "SUCCESS" | "FAILURE";
@@ -234,6 +285,76 @@ export class TaraMoneyProvider implements PaymentProvider {
       providerTransactionRef: body.transactionId ?? params.reference,
       authorizationUrl: body.authUrl,
     };
+  }
+
+  /**
+   * Story 11.7 (AC #3): "Continue on Tara" -- the alternate-method fallback
+   * for a payer who doesn't want to (or can't) pay via mobile money.
+   * Reuses the existing {type:"platform"} credential-resolution branch
+   * (env vars) unconditionally -- this story's scope is Owner-paying-GymOS
+   * only (Flow B), never Flow A's gym-credential branch, so the {type:"gym"}
+   * variant is deliberately not implemented here (AD-14 binding).
+   *
+   * Only `generalLink` is surfaced (this story's own Task 2 scope: one
+   * "Continue on Tara" action, not a per-link-type chooser UI) -- the
+   * request URL and response shape are confirmed live (Task 7,
+   * 2026-08-30, see PAYMENT_LINK_URL/TaraMoneyPaymentLinkResponse's own
+   * comments); what the resulting hosted page actually renders to a real
+   * payer (does `generalLink` really let them choose card, vs. only
+   * mobile money) is a client-side-rendered SPA this session could not
+   * inspect via an unauthenticated HTTP fetch (no JS execution) -- still
+   * requires a real browser visit, disclosed in this story's Completion
+   * Notes.
+   */
+  async createHostedCheckoutLink(params: CreateHostedCheckoutLinkParams): Promise<CreateHostedCheckoutLinkResult> {
+    if (params.routingContext.type !== "platform") {
+      return { success: false, error: "TaraMoney createHostedCheckoutLink is only implemented for platform-routed (Flow B) payments" };
+    }
+
+    const apiKey = Deno.env.get("TARAMONEY_API_KEY");
+    const businessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
+    if (!apiKey || !businessId) {
+      return { success: false, error: "TaraMoney credentials are not configured" };
+    }
+
+    const result = await postJsonWithTimeout("TaraMoney", PAYMENT_LINK_URL, {
+      apiKey,
+      businessId,
+      productId: params.reference,
+      productName: params.productName,
+      productDescription: params.description,
+      productPrice: params.amount,
+      webHookUrl: params.callbackUrl,
+      returnUrl: params.returnUrl,
+    });
+
+    if (!(result instanceof Response)) {
+      // postJsonWithTimeout's non-Response branch is always its own
+      // {success:false, error} failure shape (network error/timeout) --
+      // narrowed via a plain property check rather than InitiatePaymentResult's
+      // wider success:true variant, which this function's own result type
+      // doesn't share.
+      return { success: false, error: "error" in result ? result.error : "TaraMoney request failed" };
+    }
+
+    if (!result.ok) {
+      const body = await result.text();
+      return { success: false, error: `TaraMoney ${result.status}: ${body}` };
+    }
+
+    let rawBody: unknown;
+    try {
+      rawBody = await result.json();
+    } catch {
+      return { success: false, error: "TaraMoney returned a non-JSON response" };
+    }
+
+    const body = rawBody as Partial<TaraMoneyPaymentLinkResponse> | null | undefined;
+    if (!body?.generalLink || typeof body.generalLink !== "string") {
+      return { success: false, error: "TaraMoney returned an unrecognized createPaymentLink response shape" };
+    }
+
+    return { success: true, checkoutUrl: body.generalLink };
   }
 
   /**

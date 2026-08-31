@@ -2,12 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { TARAMONEY_SUPPORTED_COUNTRIES } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fetchSaasBillingPaymentStatus } from "@/lib/realtime/paymentStatus";
-import { payNow } from "@/app/(dashboard)/settings/actions";
+import { payNow, payNowWithHostedCheckoutLink } from "@/app/(dashboard)/settings/actions";
+import type { SelectableTier } from "@/services/billing";
+
+const DEFAULT_COUNTRY_CODE = "CM";
 
 /**
  * Story 11.3's "Pay Now" flow (dialog + polling watch), extracted out of
@@ -30,18 +34,29 @@ import { payNow } from "@/app/(dashboard)/settings/actions";
  * -- `SettingsForm.tsx` refetches its own `billingInfo` and shows a toast;
  * the suspended screen calls `router.refresh()` so the layout re-reads
  * `gyms.status` and swaps back to the normal dashboard shell.
+ *
+ * Story 11.7 (AC #1, #2, #3): `selectableTiers` drives a tier/interval
+ * override (excluding Free/Test -- already excluded server-side by
+ * `list_selectable_saas_billing_tiers()`), a country selector drives the
+ * phone input's leading calling code only (never sent to TaraMoney -- it
+ * already auto-detects the operator server-side), and "Continue on Tara"
+ * shares the same dialog/tier-interval selection/polling-watch machinery as
+ * the direct mobile-money submit button.
  */
 export function PayNowButton({
   initialOwnerPhone,
+  selectableTiers = [],
   onPaymentConfirmed,
 }: {
   initialOwnerPhone?: string | null;
+  selectableTiers?: SelectableTier[];
   onPaymentConfirmed: () => void;
 }) {
   const { t } = useTranslation();
 
   const [payNowError, setPayNowError] = useState<string | null>(null);
   const [payNowLoading, setPayNowLoading] = useState(false);
+  const [hostedCheckoutLoading, setHostedCheckoutLoading] = useState(false);
   const [watchedPaymentId, setWatchedPaymentId] = useState<string | null>(null);
   const [paymentPhase, setPaymentPhase] = useState<"idle" | "pending" | "stillWaiting" | "failed">("idle");
   // Real-user-testing finding (Story 11.3): the Owner's own on-file phone
@@ -50,6 +65,9 @@ export function PayNowButton({
   // number with no confirmation.
   const [payNowOpen, setPayNowOpen] = useState(false);
   const [payNowPhone, setPayNowPhone] = useState(initialOwnerPhone ?? "");
+  const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
+  const [tierId, setTierId] = useState("");
+  const [billingInterval, setBillingInterval] = useState("");
   const payNowDialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -102,7 +120,23 @@ export function PayNowButton({
   function openPayNowDialog() {
     setPayNowError(null);
     setPayNowPhone(initialOwnerPhone ?? "");
+    setCountryCode(DEFAULT_COUNTRY_CODE);
+    setTierId("");
+    setBillingInterval("");
     setPayNowOpen(true);
+  }
+
+  function handleCountryChange(newCode: string) {
+    const previousCountry = TARAMONEY_SUPPORTED_COUNTRIES.find((c) => c.code === countryCode);
+    const newCountry = TARAMONEY_SUPPORTED_COUNTRIES.find((c) => c.code === newCode);
+    setCountryCode(newCode);
+    if (!newCountry) return;
+    // Only replaces the leading calling code when the field is empty or
+    // still exactly the previous country's own bare prefix -- never
+    // clobbers a number the Owner has actually started typing.
+    if (!payNowPhone.trim() || (previousCountry && payNowPhone === `+${previousCountry.callingCode}`)) {
+      setPayNowPhone(`+${newCountry.callingCode}`);
+    }
   }
 
   async function handlePayNowSubmit(e: React.FormEvent) {
@@ -110,7 +144,11 @@ export function PayNowButton({
     setPayNowError(null);
     setPayNowLoading(true);
     try {
-      const { data, error } = await payNow({ phoneNumber: payNowPhone.trim() });
+      const { data, error } = await payNow({
+        phoneNumber: payNowPhone.trim(),
+        tierId: tierId || undefined,
+        interval: billingInterval || undefined,
+      });
       if (error || !data) {
         setPayNowError(error?.message ?? t("common.somethingWentWrong"));
         return;
@@ -125,6 +163,32 @@ export function PayNowButton({
       setPayNowLoading(false);
     }
   }
+
+  async function handleContinueOnTara() {
+    setPayNowError(null);
+    setHostedCheckoutLoading(true);
+    try {
+      const { data, error } = await payNowWithHostedCheckoutLink({
+        tierId: tierId || undefined,
+        interval: billingInterval || undefined,
+      });
+      if (error || !data) {
+        setPayNowError(error?.message ?? t("common.somethingWentWrong"));
+        return;
+      }
+      window.open(data.checkoutUrl, "_blank", "noopener,noreferrer");
+      setPaymentPhase("pending");
+      setWatchedPaymentId(data.paymentId);
+      payNowDialogRef.current?.close();
+      setPayNowOpen(false);
+    } catch {
+      setPayNowError(t("common.somethingWentWrong"));
+    } finally {
+      setHostedCheckoutLoading(false);
+    }
+  }
+
+  const busy = payNowLoading || hostedCheckoutLoading;
 
   return (
     <>
@@ -151,7 +215,7 @@ export function PayNowButton({
         ref={payNowDialogRef}
         onClose={() => setPayNowOpen(false)}
         onCancel={(e) => {
-          if (payNowLoading) e.preventDefault();
+          if (busy) e.preventDefault();
         }}
         className="w-full max-w-[420px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
       >
@@ -160,29 +224,90 @@ export function PayNowButton({
             <h2 className="text-lg font-semibold">{t("settings.billing.payNowDialogTitle")}</h2>
             <p className="text-sm text-muted-foreground">{t("settings.billing.payNowDialogBody")}</p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="payNowPhone">{t("settings.billing.payerPhoneLabel")}</Label>
-            <Input
-              id="payNowPhone"
-              type="tel"
-              value={payNowPhone}
-              onChange={(e) => setPayNowPhone(e.target.value)}
-              placeholder="+237600000000"
-              disabled={payNowLoading}
-            />
+
+          {selectableTiers.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="payNowTier">{t("settings.billing.tierLabel")}</Label>
+                <select
+                  id="payNowTier"
+                  value={tierId}
+                  onChange={(e) => setTierId(e.target.value)}
+                  disabled={busy}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="">{t("settings.billing.tierKeepCurrent")}</option>
+                  {selectableTiers.map((tier) => (
+                    <option key={tier.id} value={tier.id}>
+                      {tier.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="payNowInterval">{t("settings.billing.intervalLabel")}</Label>
+                <select
+                  id="payNowInterval"
+                  value={billingInterval}
+                  onChange={(e) => setBillingInterval(e.target.value)}
+                  disabled={busy}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="">{t("settings.billing.tierKeepCurrent")}</option>
+                  <option value="monthly">{t("settings.billing.intervalMonthly")}</option>
+                  <option value="annual">{t("settings.billing.intervalAnnual")}</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-[minmax(0,140px)_1fr] gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="payNowCountry">{t("settings.billing.countryLabel")}</Label>
+              <select
+                id="payNowCountry"
+                value={countryCode}
+                onChange={(e) => handleCountryChange(e.target.value)}
+                disabled={busy}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-2 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {TARAMONEY_SUPPORTED_COUNTRIES.map((country) => (
+                  <option key={country.code} value={country.code}>
+                    +{country.callingCode} {country.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="payNowPhone">{t("settings.billing.payerPhoneLabel")}</Label>
+              <Input
+                id="payNowPhone"
+                type="tel"
+                value={payNowPhone}
+                onChange={(e) => setPayNowPhone(e.target.value)}
+                placeholder="+237600000000"
+                disabled={busy}
+              />
+            </div>
           </div>
+
           {payNowError && <p className="text-sm text-red-600">{payNowError}</p>}
-          <div className="flex justify-end gap-2">
+
+          <div className="flex flex-col gap-2 border-t pt-4">
+            <Button type="submit" disabled={busy}>
+              {payNowLoading ? t("settings.billing.payNowLoading") : t("settings.billing.payNow")}
+            </Button>
+            <Button type="button" variant="outline" disabled={busy} onClick={handleContinueOnTara}>
+              {hostedCheckoutLoading ? t("settings.billing.payNowLoading") : t("settings.billing.continueOnTara")}
+            </Button>
             <Button
               type="button"
-              variant="outline"
-              disabled={payNowLoading}
+              variant="ghost"
+              size="sm"
+              disabled={busy}
               onClick={() => payNowDialogRef.current?.close()}
             >
               {t("common.cancel")}
-            </Button>
-            <Button type="submit" disabled={payNowLoading}>
-              {payNowLoading ? t("settings.billing.payNowLoading") : t("settings.billing.payNow")}
             </Button>
           </div>
         </form>

@@ -431,6 +431,23 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // initiate_saas_billing_payment()'s new tier-override guard
+  // (0077_pay_now_tier_selection_alternate_payment.sql, Story 11.7) --
+  // reachable through normal use (a stale tier list -- the tier was
+  // price-locked or deleted after the dialog loaded) or a direct RPC call
+  // bypassing the UI's own <select> exclusion entirely. One mapping covers
+  // both "price_locked" and "doesn't exist" (the RPC raises the identical
+  // message for both, deliberately -- see the migration's own comment).
+  if (
+    message.includes("initiate_saas_billing_payment:") &&
+    message.includes("tier_not_selectable_by_owner")
+  ) {
+    return {
+      code: "tier_not_selectable_by_owner",
+      message: copy.tierNotSelectableByOwner,
+    };
+  }
+
   // No console/logging call here: packages/types targets ES2022 only (no
   // DOM/Node lib -- consumed by both Next.js apps and, eventually, Expo),
   // and is meant to stay a pure, side-effect-free mapping utility. Callers

@@ -588,3 +588,246 @@ Deno.test("payment-webhook taramoney initiate route: regression -- a payments ro
     stub.restore();
   }
 });
+
+// --- payment-webhook initiate-link route (Story 11.7, AC #3) -----------------------------------
+
+const INITIATE_LINK_SAAS_PAYMENT_ROW = {
+  id: "saas-pay-link-1",
+  status: "processing",
+  provider_transaction_ref: null,
+  amount: 8000,
+  currency: "XAF",
+  gym_id: null,
+};
+
+function initiateLinkRequest(body: unknown) {
+  return new Request("https://example.com/functions/v1/payment-webhook/initiate-link/taramoney", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function stubFetchInitiateLinkFlow(paymentsRow: unknown, saasRow: unknown) {
+  const calls: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    const method = init?.method ?? "GET";
+    calls.push(`${method} ${href}`);
+    if (href.includes("/rest/v1/payments?") && method === "GET") {
+      return Promise.resolve(
+        new Response(JSON.stringify(paymentsRow), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    if (href.includes("/rest/v1/saas_billing_payments?") && method === "GET") {
+      return Promise.resolve(
+        new Response(JSON.stringify(saasRow), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    throw new Error(`stubFetch: unexpected DB access ${method} ${href}`);
+  }) as typeof fetch;
+  return { calls, restore: () => (globalThis.fetch = original) };
+}
+
+Deno.test("payment-webhook taramoney initiate-link route: a processing saas_billing_payments row succeeds, returns checkoutUrl, no phoneNumber required, never writes provider_transaction_ref", async () => {
+  await withPlatformEnv(async () => {
+    const stub = stubFetchInitiateLinkFlow(null, INITIATE_LINK_SAAS_PAYMENT_ROW);
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+      const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+      if (href.includes("dklo.co")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ generalLink: "https://pay.taramoney.com/link/xyz" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+      return (originalFetch as typeof fetch)(url as never, init);
+    }) as typeof fetch;
+
+    try {
+      const req = initiateLinkRequest({ paymentId: "saas-pay-link-1" });
+      const res = await handler.fetch(req);
+      assertEquals(res.status, 200);
+      const body = await res.json();
+      assertEquals(body.checkoutUrl, "https://pay.taramoney.com/link/xyz");
+      assertEquals(
+        stub.calls.some((c) => c.startsWith("PATCH") || (c.startsWith("PUT") && c.includes("provider_transaction_ref"))),
+        false,
+        "initiate-link never persists provider_transaction_ref up front -- no transaction exists yet",
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+      stub.restore();
+    }
+  });
+});
+
+Deno.test("payment-webhook taramoney initiate-link route: a non-processing payment is rejected with 400, no provider call attempted", async () => {
+  const stub = stubFetchInitiateLinkFlow(null, { ...INITIATE_LINK_SAAS_PAYMENT_ROW, status: "verified" });
+  try {
+    const req = initiateLinkRequest({ paymentId: "saas-pay-link-1" });
+    const res = await handler.fetch(req);
+    assertEquals(res.status, 400);
+  } finally {
+    stub.restore();
+  }
+});
+
+Deno.test("payment-webhook taramoney initiate-link route: a missing paymentId is rejected with 400 before any DB call", async () => {
+  const stub = stubFetchNoCallsExpected();
+  try {
+    const req = initiateLinkRequest({});
+    const res = await handler.fetch(req);
+    assertEquals(res.status, 400);
+    assertEquals(stub.calls.length, 0);
+  } finally {
+    stub.restore();
+  }
+});
+
+// --- payment-webhook receive route: platform path, payment-link id fallback (Story 11.7) -------
+//
+// CONFIRMED live against the real 9FmIZg9GBB account (2026-08-30, a real
+// WhatsApp-completed payment-link payment). The real captured webhook body
+// was: {"businessId":"9FmIZg9GBB","paymentId":"<our own createHostedCheckoutLink()
+// productId>","collectionId":"<Tara's own numeric order id>","creationDate":"...",
+// "changeDate":"...","status":"SUCCESS"} -- no `productId` field at all (an
+// earlier version of this fallback matched on `event.reference`, which reads
+// `rawPayload.productId` and would therefore never have fired for this real
+// shape), no `amount`/`phoneNumber`/`mobileOperator` either. The webhook's
+// own `paymentId` -- already mapped to `event.providerTransactionRef` by
+// `normalizeTaraMoneyWebhook()` -- directly echoes back whatever *we* sent
+// as `productId` (the payment's own `saas_billing_payments.id`), so the
+// fallback matches by `id`, not by a separate `reference` field.
+
+/**
+ * A payment-link-originated row has provider_transaction_ref = null at
+ * webhook time -- the primary lookup (by provider_transaction_ref) always
+ * misses for it. Serves: primary lookup (0 rows), fallback lookup by id
+ * (the row), the PATCH that persists the now-learned
+ * provider_transaction_ref, the payment_webhook_events upsert, and the
+ * completion RPC.
+ */
+function stubFetchPlatformLinkFallbackFlow(linkRow: { id: string } | null) {
+  const calls: string[] = [];
+  let completeVerifiedCalled = false;
+  let patchedRefTo: string | undefined;
+  const original = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    const method = init?.method ?? "GET";
+    calls.push(`${method} ${href}`);
+    if (href.includes("/rest/v1/rpc/get_gym_payment_credentials_by_business_id")) {
+      return Promise.resolve(
+        new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    if (href.includes("/rest/v1/saas_billing_payments?") && href.includes("provider_transaction_ref=eq.") && method === "GET") {
+      // Primary lookup -- always a miss for a link-originated payment.
+      return Promise.resolve(new Response(JSON.stringify(null), { status: 200, headers: { "Content-Type": "application/json" } }));
+    }
+    if (href.includes("/rest/v1/saas_billing_payments?") && href.includes("id=eq.") && method === "GET") {
+      // Fallback lookup by id, provider_transaction_ref is.null.
+      return Promise.resolve(
+        new Response(JSON.stringify(linkRow), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    if (href.includes("/rest/v1/saas_billing_payments?") && method === "PATCH") {
+      patchedRefTo = init?.body ? (JSON.parse(init.body as string).provider_transaction_ref as string) : undefined;
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+    if (href.includes("/rest/v1/payment_webhook_events")) {
+      return Promise.resolve(new Response(null, { status: 201 }));
+    }
+    if (href.includes("/rest/v1/rpc/complete_verified_saas_billing_payment")) {
+      completeVerifiedCalled = true;
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }
+    throw new Error(`stubFetch: unexpected DB access ${method} ${href}`);
+  }) as typeof fetch;
+  return {
+    calls,
+    completeVerifiedPaymentCalled: () => completeVerifiedCalled,
+    patchedRefTo: () => patchedRefTo,
+    restore: () => (globalThis.fetch = original),
+  };
+}
+
+Deno.test("payment-webhook taramoney receive route: platform path -- the real payment-link webhook shape (no productId field, paymentId IS our own reference) is matched via the id fallback and completes", async () => {
+  await withPlatformEnv(async () => {
+    const stub = stubFetchPlatformLinkFallbackFlow({ id: "saas-pay-link-1" });
+    try {
+      // Exact shape of the real 2026-08-30 captured webhook (see the
+      // header comment above), with paymentId/collectionId swapped to this
+      // test's own fixture id -- no productId, no amount, no phoneNumber.
+      const req = receiveRequest({ "tara-webhook-secret": PLATFORM_SECRET }, {
+        businessId: PLATFORM_BUSINESS_ID,
+        paymentId: "saas-pay-link-1",
+        collectionId: "589124990",
+        creationDate: "2026-08-30T21:34:37.514-03:00",
+        changeDate: "2026-08-30T21:34:37.514-03:00",
+        status: "SUCCESS",
+      });
+      const res = await handler.fetch(req);
+      assertEquals(res.status, 200);
+      assertEquals(stub.completeVerifiedPaymentCalled(), true);
+      assertEquals(stub.patchedRefTo(), "saas-pay-link-1", "provider_transaction_ref is persisted to the same value as the row's own id");
+    } finally {
+      stub.restore();
+    }
+  });
+});
+
+Deno.test("payment-webhook taramoney receive route: platform path -- a genuine miss (both primary and fallback lookups empty) completes nothing, still returns 200", async () => {
+  await withPlatformEnv(async () => {
+    const stub = stubFetchPlatformLinkFallbackFlow(null);
+    try {
+      const req = receiveRequest({ "tara-webhook-secret": PLATFORM_SECRET }, {
+        businessId: PLATFORM_BUSINESS_ID,
+        paymentId: "no-such-payment-anywhere",
+        status: "SUCCESS",
+      });
+      const res = await handler.fetch(req);
+      assertEquals(res.status, 200);
+      assertEquals(stub.completeVerifiedPaymentCalled(), false);
+      assertEquals(
+        stub.calls.filter((c) => c.includes("/rest/v1/saas_billing_payments?") && !c.startsWith("PATCH")).length,
+        2,
+        "both the primary and the id-fallback lookup are attempted unconditionally when the primary misses",
+      );
+    } finally {
+      stub.restore();
+    }
+  });
+});
+
+Deno.test("payment-webhook taramoney receive route: platform path -- a direct mobile-money webhook's own numeric providerTransactionRef never spuriously matches the id fallback", async () => {
+  await withPlatformEnv(async () => {
+    // stubFetchPlatformFullFlow serves the primary lookup with a real hit
+    // (a direct mobile-money-flow payment, matched by provider_transaction_ref)
+    // -- the id fallback must never even be attempted once the primary
+    // lookup already succeeds.
+    const stub = stubFetchPlatformFullFlow({ id: "saas-payment-direct-1" });
+    try {
+      const req = receiveRequest({ "tara-webhook-secret": PLATFORM_SECRET }, {
+        businessId: PLATFORM_BUSINESS_ID,
+        paymentId: "165126343",
+        status: "SUCCESS",
+        amount: "8000",
+      });
+      const res = await handler.fetch(req);
+      assertEquals(res.status, 200);
+      assertEquals(stub.completeVerifiedPaymentCalled(), true);
+      assertEquals(
+        stub.calls.filter((c) => c.includes("/rest/v1/saas_billing_payments?")).length,
+        1,
+        "a primary-lookup hit never attempts the id fallback",
+      );
+    } finally {
+      stub.restore();
+    }
+  });
+});

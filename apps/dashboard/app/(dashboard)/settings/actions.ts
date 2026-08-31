@@ -2,6 +2,7 @@
 
 import {
   connectGymPaymentCredentialsSchema,
+  createSaasBillingHostedCheckoutLinkSchema,
   emailSchema,
   gymSettingsSchema,
   initiateSaasBillingPaymentSchema,
@@ -23,6 +24,7 @@ import {
   type GymPaymentConnectionStatus,
 } from "@/services/gym-payment-credentials";
 import {
+  createSaasBillingHostedCheckoutLink,
   getGymBillingInfo,
   initiateSaasBillingPayment,
   updateOwnerNotificationEmail,
@@ -211,7 +213,27 @@ export async function payNow(input: unknown): Promise<{ data: { paymentId: strin
       error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
     };
   }
-  return initiateSaasBillingPayment(parsed.data.phoneNumber);
+  return initiateSaasBillingPayment(parsed.data.phoneNumber, parsed.data.tierId, parsed.data.interval);
+}
+
+/**
+ * Story 11.7 (AC #3): "Continue on Tara" -- the hosted-checkout-link
+ * alternate-method fallback, same tier/interval override input as `payNow`,
+ * no `phoneNumber` (the hosted page collects payment details itself).
+ */
+export async function payNowWithHostedCheckoutLink(
+  input: unknown,
+): Promise<{ data: { paymentId: string; checkoutUrl: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = createSaasBillingHostedCheckoutLinkSchema.safeParse(input);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return {
+      data: null,
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+    };
+  }
+  return createSaasBillingHostedCheckoutLink(parsed.data.tierId, parsed.data.interval);
 }
 
 /**

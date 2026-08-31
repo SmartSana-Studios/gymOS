@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { GymSettingsRow } from "@/services/gym-settings";
 import type { GymPaymentConnectionStatus } from "@/services/gym-payment-credentials";
-import type { GymBillingInfo } from "@/services/billing";
+import type { GymBillingInfo, SelectableTier } from "@/services/billing";
 import { PayNowButton } from "@/components/shared/PayNowButton";
 import {
   connectPaymentProvider,
@@ -139,11 +139,13 @@ export function SettingsForm({
   initial,
   initialPaymentConnection,
   initialBillingInfo,
+  selectableTiers,
   staffCount,
 }: {
   initial: GymSettingsRow;
   initialPaymentConnection: GymPaymentConnectionStatus | null;
   initialBillingInfo: GymBillingInfo | null;
+  selectableTiers: SelectableTier[];
   staffCount: number;
 }) {
   const { t, i18n } = useTranslation();
@@ -877,6 +879,7 @@ export function SettingsForm({
                   {billingInfo.billingStatus !== "active" && (
                     <PayNowButton
                       initialOwnerPhone={billingInfo.ownerPhone}
+                      selectableTiers={selectableTiers}
                       onPaymentConfirmed={handlePaymentConfirmed}
                     />
                   )}

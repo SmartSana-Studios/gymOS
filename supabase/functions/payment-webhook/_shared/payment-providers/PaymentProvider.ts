@@ -129,6 +129,24 @@ export interface NormalizedPaymentEvent {
   feeAmount?: number;
 }
 
+export interface CreateHostedCheckoutLinkParams {
+  /** Integer, smallest currency unit — same convention as InitiatePaymentParams.amount. */
+  amount: number;
+  currency: string;
+  /** Our own idempotency reference (maps to TaraMoney's productId) — the saas_billing_payments.id this link is for. */
+  reference: string;
+  productName: string;
+  description?: string;
+  callbackUrl: string;
+  returnUrl?: string;
+  /** AD-14 routing — Story 11.7 only ever calls this with {type:"platform"} (Owner-paying-GymOS, Flow B); kept general for interface symmetry with initiate(). */
+  routingContext: PaymentRoutingContext;
+}
+
+export type CreateHostedCheckoutLinkResult =
+  | { success: true; checkoutUrl: string }
+  | { success: false; error: string };
+
 export interface PaymentProvider {
   /** Must match a payment_providers.provider_key row. */
   readonly providerKey: string;
@@ -142,4 +160,13 @@ export interface PaymentProvider {
    * the full design rationale.
    */
   verifyWebhookSignature(payload: string, headers: Record<string, string>): Promise<WebhookVerificationResult>;
+  /**
+   * Story 11.7: an alternate-method fallback ("Continue on Tara") for a
+   * payer who doesn't want to (or can't) pay via mobile money — opens a
+   * provider-hosted checkout page instead of triggering a direct USSD
+   * prompt. Optional/capability-checked (AD-13: a future second provider
+   * might not implement hosted checkout at all) — TaraMoney is currently
+   * the only implementer, via createPaymentLink()'s real cardLink.
+   */
+  createHostedCheckoutLink?(params: CreateHostedCheckoutLinkParams): Promise<CreateHostedCheckoutLinkResult>;
 }

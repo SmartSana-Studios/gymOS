@@ -1,6 +1,6 @@
 import { getGymSettings } from "@/services/gym-settings";
 import { getGymPaymentConnectionStatus } from "@/services/gym-payment-credentials";
-import { getGymBillingInfo } from "@/services/billing";
+import { getGymBillingInfo, listSelectableTiers } from "@/services/billing";
 import { listStaff } from "@/services/staff";
 import { SettingsForm } from "./SettingsForm";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -45,6 +45,11 @@ export default async function SettingsPage() {
   // section (SettingsForm's own null-check) rather than blocking Settings.
   const { data: billingInfo } = await getGymBillingInfo();
 
+  // Story 11.7 (Task 4): the Pay-Now tier selector's own data -- same
+  // "don't fail the whole page" treatment, defaulting to an empty list
+  // (PayNowButton's own selector degrades to "keep current tier" only).
+  const { data: selectableTiers } = await listSelectableTiers();
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">{t("settings.title")}</h1>
@@ -52,6 +57,7 @@ export default async function SettingsPage() {
         initial={settings}
         initialPaymentConnection={paymentConnection}
         initialBillingInfo={billingInfo}
+        selectableTiers={selectableTiers ?? []}
         staffCount={staff?.length ?? 0}
       />
     </div>

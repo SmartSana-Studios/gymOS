@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { billingIntervalSchema } from "./plan";
+
 // Story 4.2: validates apps/dashboard/services/payments.ts's initiatePayment
 // input. No actions.ts exists yet (Scope Note) -- this is the outermost
 // boundary receiving this input, same precedent as subscription.ts's
@@ -38,11 +40,33 @@ export type InitiatePaymentInput = z.infer<typeof initiatePaymentSchema>;
 // field pre-filled from that on-file number rather than assuming it
 // unconditionally, so this schema validates whatever the Owner actually
 // submits.
+//
+// Story 11.7: gains optional tierId/interval (a Pay-Now tier/interval
+// override, AC #1) -- both undefined falls back to the gym's own current
+// tier/interval, matching initiate_saas_billing_payment()'s own
+// `coalesce(p_tier_id, ...)` defaulting. Reuses plan.ts's own
+// `billingIntervalSchema` (identical `billing_interval` DB enum shape,
+// 0071) rather than redefining it -- no price_locked-tier check here,
+// that's the RPC's own DB-layer enforcement (tier_not_selectable_by_owner),
+// this schema only validates shape.
 export const initiateSaasBillingPaymentSchema = z.object({
   phoneNumber: e164Phone,
+  tierId: z.uuid("Invalid tier id").optional(),
+  interval: billingIntervalSchema.optional(),
 });
 
 export type InitiateSaasBillingPaymentInput = z.infer<typeof initiateSaasBillingPaymentSchema>;
+
+// Story 11.7 (AC #3): validates the "Continue on Tara" hosted-checkout-link
+// Server Action's input -- the same tier/interval override as Pay Now's
+// mobile-money path, no phoneNumber (the hosted page collects payment
+// details itself).
+export const createSaasBillingHostedCheckoutLinkSchema = z.object({
+  tierId: z.uuid("Invalid tier id").optional(),
+  interval: billingIntervalSchema.optional(),
+});
+
+export type CreateSaasBillingHostedCheckoutLinkInput = z.infer<typeof createSaasBillingHostedCheckoutLinkSchema>;
 
 // Story 4.3: validates apps/dashboard/services/payments.ts's
 // recordManualPayment input (the Record Payment modal, AD-10). `method`'s

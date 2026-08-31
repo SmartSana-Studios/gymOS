@@ -11,6 +11,7 @@ import { PayNowButton } from "@/components/shared/PayNowButton";
 import { createClient } from "@/lib/supabase/client";
 import { switchActiveGym } from "@/app/(dashboard)/actions";
 import type { MemberRole } from "@/services/session";
+import type { SelectableTier } from "@/services/billing";
 
 /**
  * Review finding: neither suspended screen rendered `DashboardChrome`
@@ -117,10 +118,12 @@ export function OwnerSuspendedScreen({
   gymName,
   gymId,
   availableGyms,
+  selectableTiers,
 }: {
   gymName: string;
   gymId: string;
   availableGyms: { gymId: string; gymName: string; role: MemberRole }[];
+  selectableTiers: SelectableTier[];
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -132,7 +135,7 @@ export function OwnerSuspendedScreen({
           <AlertTriangle className="size-10 text-amber-500" aria-hidden="true" />
           <h1 className="text-base font-semibold">{gymName}</h1>
           <p className="text-sm text-muted-foreground">{t("saasBilling.ownerSuspendedMessage")}</p>
-          <PayNowButton onPaymentConfirmed={() => router.refresh()} />
+          <PayNowButton selectableTiers={selectableTiers} onPaymentConfirmed={() => router.refresh()} />
           <SwitchGymList currentGymId={gymId} availableGyms={availableGyms} />
           <SignOutLink />
         </CardContent>

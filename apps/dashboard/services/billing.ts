@@ -40,6 +40,37 @@ async function getCallerGymId(
 export type SaasBillingStatus = "active" | "past_due" | "grace_period" | "suspended";
 export type SaasBillingInterval = "monthly" | "annual";
 
+export interface SelectableTier {
+  id: string;
+  name: string;
+  monthlyPrice: number;
+  annualPrice: number;
+}
+
+/**
+ * Story 11.7 (Task 4): the Pay-Now tier selector's read path.
+ * `list_selectable_saas_billing_tiers()` (0077) is a SECURITY DEFINER RPC,
+ * not a direct `tiers` table read -- `tiers` has no SELECT policy for a
+ * gym-scoped session (super_admin_read_tiers is the only one, 0010).
+ * price_locked (Free/Test) rows are excluded server-side, not filtered here.
+ */
+export async function listSelectableTiers(): Promise<{ data: SelectableTier[] | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("list_selectable_saas_billing_tiers");
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return {
+    data: (data ?? []).map((row: { id: string; name: string; monthly_price: number; annual_price: number }) => ({
+      id: row.id,
+      name: row.name,
+      monthlyPrice: row.monthly_price,
+      annualPrice: row.annual_price,
+    })),
+    error: null,
+  };
+}
+
 export interface GymBillingInfo {
   tierName: string;
   interval: SaasBillingInterval;
@@ -132,8 +163,17 @@ export async function getGymBillingInfo(): Promise<{ data: GymBillingInfo | null
  * editable field (pre-filled from `getGymBillingInfo()`'s `ownerPhone`)
  * instead of Story 4.15's original "member's own number, no input needed"
  * precedent.
+ *
+ * `tierId`/`interval` (Story 11.7, AC #1): an optional Pay-Now tier/interval
+ * override, passed straight through to `initiate_saas_billing_payment()`'s
+ * own `coalesce(p_tier_id, gym's own tier_id)` defaulting -- undefined means
+ * "re-pay whatever's already on `gyms`", matching the pre-11.7 behavior.
  */
-export async function initiateSaasBillingPayment(phoneNumber: string): Promise<{
+export async function initiateSaasBillingPayment(
+  phoneNumber: string,
+  tierId?: string,
+  interval?: SaasBillingInterval,
+): Promise<{
   data: { paymentId: string } | null;
   error: AppError | null;
 }> {
@@ -153,7 +193,10 @@ export async function initiateSaasBillingPayment(phoneNumber: string): Promise<{
     return { data: null, error: { code: "not_found", message: t("common.somethingWentWrong") } };
   }
 
-  const { data: paymentId, error: rpcError } = await supabase.rpc("initiate_saas_billing_payment");
+  const { data: paymentId, error: rpcError } = await supabase.rpc("initiate_saas_billing_payment", {
+    p_tier_id: tierId ?? null,
+    p_interval: interval ?? null,
+  });
   if (rpcError || !paymentId) {
     return { data: null, error: await mapAndLog(rpcError) };
   }
@@ -190,6 +233,61 @@ export async function initiateSaasBillingPayment(phoneNumber: string): Promise<{
   }
 
   return { data: { paymentId }, error: null };
+}
+
+/**
+ * Story 11.7 (AC #3): "Continue on Tara" -- creates the same `processing`
+ * row `initiateSaasBillingPayment` does (tier/interval recording, the
+ * double-submit guard, all shared via the same `initiate_saas_billing_payment()`
+ * RPC), then calls the new `payment-webhook/initiate-link/<providerKey>`
+ * route instead of `initiate/<providerKey>` -- dispatches to
+ * `createHostedCheckoutLink()` instead of `initiate()`, no `phoneNumber`
+ * (the hosted page collects payment details itself).
+ */
+export async function createSaasBillingHostedCheckoutLink(
+  tierId?: string,
+  interval?: SaasBillingInterval,
+): Promise<{
+  data: { paymentId: string; checkoutUrl: string } | null;
+  error: AppError | null;
+}> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data: providerKey, error: providerError } = await supabase.rpc("active_payment_provider");
+  if (providerError) {
+    return { data: null, error: await mapAndLog(providerError) };
+  }
+  if (!providerKey) {
+    console.error("[billing] createSaasBillingHostedCheckoutLink: no active_payment_provider() configured");
+    return { data: null, error: { code: "not_found", message: t("common.somethingWentWrong") } };
+  }
+
+  const { data: paymentId, error: rpcError } = await supabase.rpc("initiate_saas_billing_payment", {
+    p_tier_id: tierId ?? null,
+    p_interval: interval ?? null,
+  });
+  if (rpcError || !paymentId) {
+    return { data: null, error: await mapAndLog(rpcError) };
+  }
+
+  const { data: invokeData, error: invokeError } = await supabase.functions.invoke(`payment-webhook/initiate-link/${providerKey}`, {
+    body: { paymentId },
+  });
+
+  if (invokeError || !invokeData?.checkoutUrl) {
+    console.error(
+      `[billing] createSaasBillingHostedCheckoutLink: payment-webhook initiate-link failed for payment ${paymentId}`,
+      invokeError,
+    );
+    return { data: null, error: await mapAndLog(invokeError) };
+  }
+
+  return { data: { paymentId, checkoutUrl: invokeData.checkoutUrl }, error: null };
 }
 
 /**

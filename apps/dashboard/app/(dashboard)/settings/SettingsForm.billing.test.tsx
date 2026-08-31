@@ -99,6 +99,7 @@ async function renderForm(
       initialBillingInfo={
         initialBillingInfo ? { ...initialBillingInfo, ownerPhone: initialBillingInfo.ownerPhone ?? null } : null
       }
+      selectableTiers={[]}
       staffCount={0}
     />,
   );

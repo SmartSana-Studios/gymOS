@@ -528,10 +528,15 @@ select is(
 );
 
 -- ============================================================================
--- app.saas_billing_payment_reset_bypass: narrowly scoped to exactly
--- status/saas_billing_status/saas_billing_anchor_date (mirrors
--- saas_subscription_lifecycle.test.sql's 4-assertion proof pattern for its
--- own sibling bypass GUC).
+-- app.saas_billing_payment_reset_bypass: scoped to
+-- status/saas_billing_status/saas_billing_anchor_date/tier_id/
+-- saas_billing_interval (mirrors saas_subscription_lifecycle.test.sql's own
+-- proof pattern for its sibling bypass GUC). tier_id/saas_billing_interval
+-- joined this bypass's exemption set in Story 11.7
+-- (0077_pay_now_tier_selection_alternate_payment.sql) -- previously
+-- unconditionally pinned back for every non-Super-Admin write regardless of
+-- this GUC; member_cap_override/saas_grace_period_days remain pinned back
+-- even with this bypass set, proven below.
 -- ============================================================================
 set local role authenticated;
 select set_config(
@@ -579,8 +584,8 @@ select is(
 
 select is(
   (select tier_id from gyms where id = '00000000-0000-0000-0000-000000009517'),
-  '00000000-0000-0000-0000-000000009501'::uuid,
-  'tier_id is still pinned back even with the payment-reset bypass GUC set -- the bypass does not extend to it'
+  '00000000-0000-0000-0000-000000009502'::uuid,
+  'Story 11.7: with the bypass GUC set, tier_id DOES go through now -- it joined this bypass''s exemption set'
 );
 
 select is(
@@ -591,8 +596,8 @@ select is(
 
 select is(
   (select saas_billing_interval::text from gyms where id = '00000000-0000-0000-0000-000000009517'),
-  'monthly',
-  'saas_billing_interval is still pinned back even with the payment-reset bypass GUC set'
+  'annual',
+  'Story 11.7: with the bypass GUC set, saas_billing_interval DOES go through now -- it joined this bypass''s exemption set'
 );
 
 select is(
