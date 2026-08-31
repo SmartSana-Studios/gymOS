@@ -673,6 +673,8 @@
         "heading": "Workout Plan",
         "addButton": "+ New plan",
         "editButton": "Edit",
+        "takeOwnershipButton": "Take ownership",
+        "handoffBanner": "This plan was written by {{coachName}}. Take ownership to make changes.",
         "emptyState": "No workout plan yet.",
         "setsReps": "{{sets}} sets × {{reps}} reps",
         "noteLine": "Note: \"{{note}}\"",

@@ -8,13 +8,20 @@
  * Story 13.3 adds a second `.from("workout_plan_completions")` query --
  * the stub below dispatches on the table name so both query shapes can be
  * independently configured per test.
+ *
+ * Story 13.4 adds a `.rpc("get_workout_plan_viewer_context", ...)` call,
+ * gated on the caller's `role` (read from the same claims payload
+ * `getCallerGymId()` fetches) -- `rpcResult`/`rpc` below let each test
+ * configure and assert on that call independently.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let claimsResult: { data: { claims: Record<string, unknown> | null } | null; error: unknown };
 let maybeSingleResult: { data: Record<string, unknown> | null; error: unknown };
 let completionsResult: { data: Array<{ exercise_id: string; completed_at: string }> | null; error: unknown };
+let viewerContextResult: { data: Array<{ is_authoring_coach: boolean; author_name: string | null }> | null; error: unknown };
 let orderCalls: Array<{ column: string; options: Record<string, unknown> }>;
+let rpcMock: ReturnType<typeof vi.fn>;
 
 function makeSupabaseStub() {
   return {
@@ -53,6 +60,7 @@ function makeSupabaseStub() {
         })),
       };
     }),
+    rpc: rpcMock,
   };
 }
 
@@ -77,7 +85,9 @@ describe("getWorkoutPlan", () => {
     claimsResult = { data: { claims: { gym_id: "gym-1" } }, error: null };
     maybeSingleResult = { data: null, error: null };
     completionsResult = { data: [], error: null };
+    viewerContextResult = { data: [{ is_authoring_coach: true, author_name: null }], error: null };
     orderCalls = [];
+    rpcMock = vi.fn(async () => viewerContextResult);
   });
 
   it("maps a found plan and its ordered exercises with zero completions", async () => {
@@ -109,6 +119,8 @@ describe("getWorkoutPlan", () => {
         id: "plan-1",
         name: "Strength Basics",
         coachId: "coach-1",
+        viewerCanEdit: false,
+        handoffCoachName: null,
         exercises: [
           {
             id: "wpe-1",
@@ -129,6 +141,9 @@ describe("getWorkoutPlan", () => {
       { column: "order_index", options: { referencedTable: "workout_plan_exercises", ascending: true } },
       { column: "completed_at", options: { ascending: false } },
     ]);
+    // Caller role is not "coach" in this test's claims -- Story 13.4's
+    // short-circuit (Task 2.1) means the viewer-context RPC is never called.
+    expect(rpcMock).not.toHaveBeenCalled();
   });
 
   it("groups multiple completions for one exercise_id and leaves an uncompleted exercise at zero", async () => {
@@ -243,5 +258,70 @@ describe("getWorkoutPlan", () => {
 
     expect(result.data).toBeNull();
     expect(result.error?.code).toBe("not_found");
+  });
+
+  // Story 13.4: viewer-context resolution (get_workout_plan_viewer_context).
+
+  const planFixture = {
+    id: "plan-1",
+    name: "Strength Basics",
+    coach_id: "coach-1",
+    workout_plan_exercises: [
+      {
+        id: "wpe-1",
+        exercise_id: "ex-1",
+        order_index: 0,
+        sets: 3,
+        reps: 10,
+        note: null,
+        exercise_library: { name: "Squat" },
+      },
+    ],
+  };
+
+  it("sets viewerCanEdit: true when the caller is the authoring coach", async () => {
+    claimsResult = { data: { claims: { gym_id: "gym-1", app_role: "coach" } }, error: null };
+    maybeSingleResult = { data: planFixture, error: null };
+    viewerContextResult = { data: [{ is_authoring_coach: true, author_name: null }], error: null };
+    const { getWorkoutPlan } = await import("./workoutPlans");
+
+    const result = await getWorkoutPlan("member-1");
+
+    expect(result.data).toMatchObject({ viewerCanEdit: true, handoffCoachName: null });
+    expect(rpcMock).toHaveBeenCalledWith("get_workout_plan_viewer_context", { p_plan_id: "plan-1" });
+  });
+
+  it("sets viewerCanEdit: false with handoffCoachName populated when the caller is a reassigned coach", async () => {
+    claimsResult = { data: { claims: { gym_id: "gym-1", app_role: "coach" } }, error: null };
+    maybeSingleResult = { data: planFixture, error: null };
+    viewerContextResult = { data: [{ is_authoring_coach: false, author_name: "Jane Coach" }], error: null };
+    const { getWorkoutPlan } = await import("./workoutPlans");
+
+    const result = await getWorkoutPlan("member-1");
+
+    expect(result.data).toMatchObject({ viewerCanEdit: false, handoffCoachName: "Jane Coach" });
+  });
+
+  it("sets viewerCanEdit: false, handoffCoachName: null for an Owner/Manager caller, without calling the viewer-context RPC", async () => {
+    claimsResult = { data: { claims: { gym_id: "gym-1", app_role: "owner" } }, error: null };
+    maybeSingleResult = { data: planFixture, error: null };
+    const { getWorkoutPlan } = await import("./workoutPlans");
+
+    const result = await getWorkoutPlan("member-1");
+
+    expect(result.data).toMatchObject({ viewerCanEdit: false, handoffCoachName: null });
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it("degrades to viewerCanEdit: false, handoffCoachName: null without failing the whole plan fetch when get_workout_plan_viewer_context fails", async () => {
+    claimsResult = { data: { claims: { gym_id: "gym-1", app_role: "coach" } }, error: null };
+    maybeSingleResult = { data: planFixture, error: null };
+    viewerContextResult = { data: null, error: { message: "connection reset" } };
+    const { getWorkoutPlan } = await import("./workoutPlans");
+
+    const result = await getWorkoutPlan("member-1");
+
+    expect(result.error).toBeNull();
+    expect(result.data).toMatchObject({ viewerCanEdit: false, handoffCoachName: null });
   });
 });

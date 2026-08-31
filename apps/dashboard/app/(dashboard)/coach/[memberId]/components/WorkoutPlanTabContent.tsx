@@ -22,17 +22,58 @@ import { SectionHeader } from "./SectionHeader";
  * convention -- "Session Notes", "Coach Notes" -- rather than the mockup's
  * literal `[Plan Name]` header row); the plan's own name renders as a
  * sub-heading in the card body instead.
+ *
+ * Story 13.4 -- adds a third render state on top of the plan/empty states
+ * above, selected by `plan.viewerCanEdit`/`plan.handoffCoachName`:
+ *   - `viewerCanEdit === true` (authoring coach): unchanged -- `[Edit]`.
+ *   - `viewerCanEdit === false && handoffCoachName !== null` (reassigned
+ *     coach, plan not yet owned): no `[Edit]`, a `[Take ownership]` button
+ *     in its place, plus the mockup's verbatim handoff banner
+ *     (EXPERIENCE.md line 1715) above the (still read-only) exercise list.
+ *   - `viewerCanEdit === false && handoffCoachName === null` (Owner/Manager,
+ *     or any other non-author non-reassigned-coach case): read-only, no
+ *     button at all -- also closes the rough edge Story 13.4's new
+ *     Owner/Manager read grant would otherwise introduce on its own (a live
+ *     `[Edit]` button that fails when clicked, since `update_workout_plan()`
+ *     rejects any non-coach caller outright).
  */
 export function WorkoutPlanTabContent({
   plan,
   onCreateClick,
   onEditClick,
+  onTakeOwnershipClick,
 }: {
   plan: WorkoutPlanRow | null;
   onCreateClick: () => void;
   onEditClick: () => void;
+  onTakeOwnershipClick: () => void;
 }) {
   const { t, i18n } = useTranslation();
+
+  function renderAction() {
+    if (!plan) {
+      return (
+        <Button type="button" size="sm" onClick={onCreateClick}>
+          {t("coachPortal.detail.workoutPlanTab.addButton")}
+        </Button>
+      );
+    }
+    if (plan.viewerCanEdit) {
+      return (
+        <Button type="button" size="sm" variant="outline" onClick={onEditClick}>
+          {t("coachPortal.detail.workoutPlanTab.editButton")}
+        </Button>
+      );
+    }
+    if (plan.handoffCoachName !== null) {
+      return (
+        <Button type="button" size="sm" variant="outline" onClick={onTakeOwnershipClick}>
+          {t("coachPortal.detail.workoutPlanTab.takeOwnershipButton")}
+        </Button>
+      );
+    }
+    return null;
+  }
 
   return (
     <Card>
@@ -40,21 +81,16 @@ export function WorkoutPlanTabContent({
         icon={Dumbbell}
         accent="violet"
         title={t("coachPortal.detail.workoutPlanTab.heading")}
-        action={
-          plan ? (
-            <Button type="button" size="sm" variant="outline" onClick={onEditClick}>
-              {t("coachPortal.detail.workoutPlanTab.editButton")}
-            </Button>
-          ) : (
-            <Button type="button" size="sm" onClick={onCreateClick}>
-              {t("coachPortal.detail.workoutPlanTab.addButton")}
-            </Button>
-          )
-        }
+        action={renderAction()}
       />
       <CardContent>
         {plan ? (
           <div className="space-y-3">
+            {!plan.viewerCanEdit && plan.handoffCoachName !== null && (
+              <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                {t("coachPortal.detail.workoutPlanTab.handoffBanner", { coachName: plan.handoffCoachName })}
+              </p>
+            )}
             <p className="font-medium">{plan.name}</p>
             <ol className="space-y-3">
               {plan.exercises.map((exercise) => (

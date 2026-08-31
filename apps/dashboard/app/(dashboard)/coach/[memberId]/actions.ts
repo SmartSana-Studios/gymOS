@@ -9,7 +9,7 @@ import {
 } from "@gymos/types";
 import { addSessionNote, editSessionNote } from "@/services/coaches";
 import { addCustomExercise, type ExerciseLibraryRow } from "@/services/exercises";
-import { createWorkoutPlan, updateWorkoutPlan } from "@/services/workoutPlans";
+import { createWorkoutPlan, takeOwnershipOfWorkoutPlan, updateWorkoutPlan } from "@/services/workoutPlans";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
@@ -75,6 +75,19 @@ export async function updateWorkoutPlanAction(
     return { error: { code: "validation_error", message: t("common.invalidInput") } };
   }
   return updateWorkoutPlan(planId, parsed.data);
+}
+
+// Story 13.4: Plan Handoff on Coach Reassignment. Same thin plain-string-
+// `planId` shape as `updateWorkoutPlanAction` -- no new Zod import needed.
+export async function takeOwnershipOfWorkoutPlanAction(
+  input: unknown,
+): Promise<{ error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const planId = (input as { planId?: unknown } | null)?.planId;
+  if (typeof planId !== "string" || planId.length === 0) {
+    return { error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  return takeOwnershipOfWorkoutPlan(planId);
 }
 
 export async function addCustomExerciseAction(

@@ -1925,6 +1925,13 @@ export type Database = {
           webhook_secret: string
         }[]
       }
+      get_workout_plan_viewer_context: {
+        Args: { p_plan_id: string }
+        Returns: {
+          author_name: string
+          is_authoring_coach: boolean
+        }[]
+      }
       gym_effective_member_cap: { Args: never; Returns: number }
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
       initiate_member_payment: { Args: never; Returns: string }
@@ -2070,6 +2077,10 @@ export type Database = {
         }[]
       }
       switch_active_gym: { Args: { p_gym_id: string }; Returns: undefined }
+      take_ownership_of_workout_plan: {
+        Args: { p_plan_id: string }
+        Returns: undefined
+      }
       update_class: {
         Args: {
           p_capacity: number

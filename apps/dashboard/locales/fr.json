@@ -673,6 +673,8 @@
         "heading": "Programme d'entraînement",
         "addButton": "+ Nouveau programme",
         "editButton": "Modifier",
+        "takeOwnershipButton": "Prendre en charge",
+        "handoffBanner": "Ce programme a été rédigé par {{coachName}}. Prenez-le en charge pour le modifier.",
         "emptyState": "Aucun programme d'entraînement pour le moment.",
         "setsReps": "{{sets}} séries × {{reps}} répétitions",
         "noteLine": "Note : « {{note}} »",

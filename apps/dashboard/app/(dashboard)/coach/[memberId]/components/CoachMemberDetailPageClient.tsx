@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CoachPortalMemberDetail, MemberProgressData, SessionNoteRow } from "@/services/coaches";
 import type { ExerciseLibraryRow } from "@/services/exercises";
 import type { WorkoutPlanRow } from "@/services/workoutPlans";
+import { takeOwnershipOfWorkoutPlanAction } from "../actions";
 import { PLAN_TYPE_LABEL_KEY } from "@/app/(dashboard)/plans/planLabels";
 import { STATUS_BADGE_CONFIG } from "@/app/(dashboard)/subscriptions/subscriptionLabels";
 import { ProgressTabContent } from "./ProgressTabContent";
@@ -106,6 +107,12 @@ export function CoachMemberDetailPageClient({
 
   function handleWorkoutPlanSaved() {
     setWorkoutPlanModalOpen(false);
+    router.refresh();
+  }
+
+  async function handleTakeOwnership() {
+    if (!plan) return;
+    await takeOwnershipOfWorkoutPlanAction({ planId: plan.id });
     router.refresh();
   }
 
@@ -211,6 +218,7 @@ export function CoachMemberDetailPageClient({
             plan={plan}
             onCreateClick={() => setWorkoutPlanModalOpen(true)}
             onEditClick={() => setWorkoutPlanModalOpen(true)}
+            onTakeOwnershipClick={handleTakeOwnership}
           />
         </TabsContent>
       </Tabs>

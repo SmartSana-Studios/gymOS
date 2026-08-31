@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { type AppError, type WorkoutPlanInput, workoutPlanSchema } from "@gymos/types";
-import { mapAndLog } from "@/services/session";
+import { mapAndLog, type MemberRole } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
@@ -17,22 +17,28 @@ async function workoutPlanNotFoundError(context: string): Promise<AppError> {
 /** Every function in this file needs the caller's own `gym_id`, read from
  * claims -- copied verbatim from plans.ts/coaches.ts's own (unexported)
  * helper rather than reaching across service files, matching this app's
- * established per-file-copy discipline. */
+ * established per-file-copy discipline. Extended beyond that copy to also
+ * return `role` (`claims.app_role as MemberRole`, per auditLog.ts's own
+ * identical extension) -- Story 13.4's `getWorkoutPlan()` needs it to decide
+ * whether to call `get_workout_plan_viewer_context`, without a second
+ * `getClaims()` round trip. */
 async function getCallerGymId(
   supabase: Awaited<ReturnType<typeof createClient>>,
-): Promise<{ gymId: string | null; error: AppError | null }> {
+): Promise<{ gymId: string | null; role: MemberRole | null; error: AppError | null }> {
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
 
   if (claimsError) {
-    return { gymId: null, error: await mapAndLog(claimsError) };
+    return { gymId: null, role: null, error: await mapAndLog(claimsError) };
   }
 
-  const gymId = (claimsData?.claims as { gym_id?: string } | undefined)?.gym_id;
+  const claims = claimsData?.claims as { gym_id?: string; app_role?: string } | undefined;
+  const gymId = claims?.gym_id ?? null;
+  const role = (claims?.app_role as MemberRole | undefined) ?? null;
   if (!gymId) {
-    return { gymId: null, error: await workoutPlanNotFoundError("no gym_id claim on caller's session") };
+    return { gymId: null, role, error: await workoutPlanNotFoundError("no gym_id claim on caller's session") };
   }
 
-  return { gymId, error: null };
+  return { gymId, role, error: null };
 }
 
 export interface WorkoutPlanExerciseRow {
@@ -56,6 +62,15 @@ export interface WorkoutPlanRow {
   name: string;
   coachId: string;
   exercises: WorkoutPlanExerciseRow[];
+  /** Story 13.4: whether the current viewer may edit this plan. `false` for
+   * every non-authoring-coach viewer, including Owner/Manager (who never
+   * edit) and a reassigned coach who has not yet taken ownership. */
+  viewerCanEdit: boolean;
+  /** Story 13.4: the previous coach's name, populated only for a reassigned
+   * coach viewing a plan they have not yet taken ownership of -- drives the
+   * handoff banner. `null` for the authoring coach and for every non-coach
+   * viewer. */
+  handoffCoachName: string | null;
 }
 
 interface WorkoutPlanExerciseRowFromDb {
@@ -84,11 +99,17 @@ interface WorkoutPlanRowFromDb {
  * `toWorkoutPlanRow()` stays a pure per-row lookup. */
 type CompletionSummaryByExerciseId = Map<string, { count: number; latest: string }>;
 
-function toWorkoutPlanRow(row: WorkoutPlanRowFromDb, completions: CompletionSummaryByExerciseId): WorkoutPlanRow {
+function toWorkoutPlanRow(
+  row: WorkoutPlanRowFromDb,
+  completions: CompletionSummaryByExerciseId,
+  viewerContext: { viewerCanEdit: boolean; handoffCoachName: string | null },
+): WorkoutPlanRow {
   return {
     id: row.id,
     name: row.name,
     coachId: row.coach_id,
+    viewerCanEdit: viewerContext.viewerCanEdit,
+    handoffCoachName: viewerContext.handoffCoachName,
     exercises: row.workout_plan_exercises.map((ex) => {
       const exercise = Array.isArray(ex.exercise_library) ? ex.exercise_library[0] : ex.exercise_library;
       const summary = completions.get(ex.exercise_id);
@@ -116,7 +137,7 @@ export async function getWorkoutPlan(
   memberId: string,
 ): Promise<{ data: WorkoutPlanRow | null; error: AppError | null }> {
   const supabase = await createClient();
-  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  const { gymId, role, error: gymIdError } = await getCallerGymId(supabase);
   if (gymIdError || !gymId) {
     return { data: null, error: gymIdError };
   }
@@ -179,7 +200,37 @@ export async function getWorkoutPlan(
     }
   }
 
-  return { data: toWorkoutPlanRow(data, completions), error: null };
+  // Story 13.4: viewer-relative edit/ownership state, resolved via
+  // get_workout_plan_viewer_context() -- a coach has no RLS path to read
+  // another coach's `members` row (see the RPC's own migration comment), so
+  // this must go through the SECURITY DEFINER helper, not a PostgREST embed.
+  // Only a coach viewer ever needs this: Owner/Manager never edit or take
+  // ownership, and the member-app has its own separate read path
+  // (untouched by this story). Same degrade-on-failure discipline as the
+  // completions query above -- a coach who can't determine ownership state
+  // sees the safe, read-only-with-no-banner state, not a broken page.
+  let viewerCanEdit = false;
+  let handoffCoachName: string | null = null;
+
+  if (role === "coach") {
+    const { data: viewerContextRows, error: viewerContextError } = await supabase.rpc(
+      "get_workout_plan_viewer_context",
+      { p_plan_id: data.id },
+    );
+
+    if (viewerContextError) {
+      console.error(
+        "[workoutPlans] get_workout_plan_viewer_context query failed, degrading to read-only with no banner",
+        viewerContextError,
+      );
+    } else if (viewerContextRows && viewerContextRows.length > 0) {
+      const viewerContext = viewerContextRows[0] as { is_authoring_coach: boolean; author_name: string | null };
+      viewerCanEdit = viewerContext.is_authoring_coach ?? false;
+      handoffCoachName = viewerContext.author_name ?? null;
+    }
+  }
+
+  return { data: toWorkoutPlanRow(data, completions, { viewerCanEdit, handoffCoachName }), error: null };
 }
 
 /** Calls `create_workout_plan` (0080) -- a single SECURITY DEFINER
@@ -246,6 +297,24 @@ export async function updateWorkoutPlan(
       note: e.note,
     })),
   });
+
+  if (error) {
+    return { error: await mapAndLog(error) };
+  }
+
+  return { error: null };
+}
+
+/** Calls `take_ownership_of_workout_plan` (0082) -- reassigns a plan's
+ * authoring coach to the caller, unlocking `updateWorkoutPlan()` for them.
+ * Same thin `mapAndLog` shape as `updateWorkoutPlan()`. No Zod schema --
+ * `planId` is a plain, unvalidated function argument matching
+ * `updateWorkoutPlan()`'s own precedent; the RPC itself is the authority on
+ * existence/assignment. */
+export async function takeOwnershipOfWorkoutPlan(planId: string): Promise<{ error: AppError | null }> {
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc("take_ownership_of_workout_plan", { p_plan_id: planId });
 
   if (error) {
     return { error: await mapAndLog(error) };
