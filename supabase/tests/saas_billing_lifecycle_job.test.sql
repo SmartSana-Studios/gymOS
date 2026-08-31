@@ -8,9 +8,16 @@
 -- here, same rationale as subscription_lifecycle_cron.test.sql (forcing it
 -- needs a test-only hook this project's conventions avoid adding to
 -- production code).
+--
+-- Story 11.6, Task 3 (AC #2): G8 above only proved the final active ->
+-- suspended jump for a Free/Test-tier gym. G9/G10 below close the gap by
+-- proving the two intermediate stops (past_due, grace_period) too --
+-- mirroring G3's and G5's own paying-gym boundary fixtures exactly, just on
+-- the Free/Test tier -- so every stop along the lifecycle is proven to run
+-- identically at the 0 XAF price point, not just the terminal state.
 
 begin;
-select plan(15);
+select plan(21);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000009306', 'Billing Job Test Tier', 5000, 50000, 100);
@@ -44,7 +51,9 @@ insert into gyms (id, name, tier_id, status, capacity, saas_billing_status, saas
   ('00000000-0000-0000-0000-000000009815', 'Billing Job Gym 5 (crosses into grace)', '00000000-0000-0000-0000-000000009306', 'active', 30, 'active', current_date - 6, 7),
   ('00000000-0000-0000-0000-000000009816', 'Billing Job Gym 6 (suspend boundary)', '00000000-0000-0000-0000-000000009306', 'active', 30, 'grace_period', current_date - 12, 7),
   ('00000000-0000-0000-0000-000000009817', 'Billing Job Gym 7 (crosses into suspended)', '00000000-0000-0000-0000-000000009306', 'active', 30, 'grace_period', current_date - 13, 7),
-  ('00000000-0000-0000-0000-000000009818', 'Billing Job Gym 8 (Free/Test parity)', '00000000-0000-4000-8000-000000000104', 'active', 30, 'active', current_date - 13, 7);
+  ('00000000-0000-0000-0000-000000009818', 'Billing Job Gym 8 (Free/Test parity)', '00000000-0000-4000-8000-000000000104', 'active', 30, 'active', current_date - 13, 7),
+  ('00000000-0000-0000-0000-000000009819', 'Billing Job Gym 9 (Free/Test, just past due)', '00000000-0000-4000-8000-000000000104', 'active', 30, 'active', current_date - 1, 7),
+  ('00000000-0000-0000-0000-000000009820', 'Billing Job Gym 10 (Free/Test, crosses into grace)', '00000000-0000-4000-8000-000000000104', 'active', 30, 'active', current_date - 6, 7);
 
 -- ============================================================================
 -- Call the job directly -- no waiting on real cron timing.
@@ -105,6 +114,16 @@ select is(
 );
 
 select is(
+  (select saas_billing_status from gyms where id = '00000000-0000-0000-0000-000000009819')::text, 'past_due',
+  'Story 11.6 (AC #2): a Free/Test-tier gym with anchor = current_date - 1 becomes past_due identically to a paying gym (G3) -- the intermediate stop, not just the terminal suspended state'
+);
+
+select is(
+  (select saas_billing_status from gyms where id = '00000000-0000-0000-0000-000000009820')::text, 'grace_period',
+  'Story 11.6 (AC #2): a Free/Test-tier gym with anchor + 5 = current_date - 1 crosses straight from active to grace_period identically to a paying gym (G5)'
+);
+
+select is(
   (select count(*) from gyms
    where id in (
      '00000000-0000-0000-0000-000000009811', '00000000-0000-0000-0000-000000009812',
@@ -133,10 +152,55 @@ select is(
      '00000000-0000-0000-0000-000000009811', '00000000-0000-0000-0000-000000009812',
      '00000000-0000-0000-0000-000000009813', '00000000-0000-0000-0000-000000009814',
      '00000000-0000-0000-0000-000000009815', '00000000-0000-0000-0000-000000009816',
-     '00000000-0000-0000-0000-000000009817', '00000000-0000-0000-0000-000000009818'
+     '00000000-0000-0000-0000-000000009817', '00000000-0000-0000-0000-000000009818',
+     '00000000-0000-0000-0000-000000009819', '00000000-0000-0000-0000-000000009820'
    ))::text,
-  (array['active', 'active', 'past_due', 'past_due', 'grace_period', 'grace_period', 'suspended', 'suspended']::saas_billing_status[])::text,
-  'a second consecutive run leaves every gym in the same end state -- no row flips twice'
+  (array['active', 'active', 'past_due', 'past_due', 'grace_period', 'grace_period', 'suspended', 'suspended', 'past_due', 'grace_period']::saas_billing_status[])::text,
+  'a second consecutive run leaves every gym in the same end state -- no row flips twice (Story 11.6: now including the Free/Test-tier G9/G10 boundary fixtures)'
+);
+
+-- ============================================================================
+-- Story 11.6, Task 3 (AC #3): apply_saas_billing_credit() (0075) resets a
+-- gym's saas_billing_status to 'active' and advances the anchor date
+-- forward -- but nobody had yet tested that this actually prevents
+-- run_saas_billing_lifecycle_job()'s own past_due transition from
+-- re-triggering afterward. G11: seeded already past its anchor date (would
+-- trip past_due on the next lifecycle run, exactly like G3 above) --
+-- credited before that next run gets a chance to flip it.
+-- ============================================================================
+insert into auth.users (id) values
+  ('00000000-0000-0000-0000-000000009825'); -- super_admin caller (Story 11.6, AC #3)
+
+insert into gyms (id, name, tier_id, status, capacity, saas_billing_status, saas_billing_anchor_date, saas_grace_period_days) values
+  ('00000000-0000-0000-0000-000000009821', 'Billing Job Gym 11 (AC #3: credit prevents false past_due)', '00000000-0000-0000-0000-000000009306', 'active', 30, 'active', current_date - 1, 7);
+
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009825","role":"authenticated","app_role":"super_admin"}',
+  true
+);
+
+select lives_ok(
+  $$ select * from apply_saas_billing_credit('00000000-0000-0000-0000-000000009821'::uuid, 30) $$,
+  'a super_admin can apply a 30-day credit to Gym 11 before the lifecycle job would otherwise flag it past_due'
+);
+
+reset role;
+
+select is(
+  (select saas_billing_status from gyms where id = '00000000-0000-0000-0000-000000009821')::text, 'active',
+  'apply_saas_billing_credit() itself resets saas_billing_status to active immediately'
+);
+
+select lives_ok(
+  $$ select run_saas_billing_lifecycle_job() $$,
+  'run_saas_billing_lifecycle_job() can be called a third time without error, after Gym 11''s credit'
+);
+
+select is(
+  (select saas_billing_status from gyms where id = '00000000-0000-0000-0000-000000009821')::text, 'active',
+  'Story 11.6 (AC #3): Gym 11 stays active after the lifecycle job runs -- the credit''s anchor-date advance (current_date - 1 + 30 days) already prevents the false past_due re-trigger; a credit is not mistaken for a missed payment'
 );
 
 select * from finish();

@@ -11,9 +11,16 @@
 -- FR-137) -- unlike missing_internal_record, this one IS gym-attributable,
 -- so it's visible under the same RLS policy as stale_processing/
 -- amount_mismatch (see the updated per-role counts below).
+--
+-- Story 11.6: extended with Flow-B (platform/saas_billing_payments)
+-- coverage for stale_processing/amount_mismatch (wrong_account_settlement
+-- has no Flow-B analog -- see 0076's migration comment), plus RLS coverage
+-- for the new saas_billing_payment_id-scoped policy narrowing
+-- (gym_staff_read_own_payment_discrepancies now excludes Flow-B rows) and
+-- the new super_admin_read_payment_discrepancies policy.
 
 begin;
-select plan(28);
+select plan(39);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000009501', 'Reconciliation Test Tier', 5000, 50000, 30);
@@ -27,6 +34,7 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000009522'), -- Gym A manager
   ('00000000-0000-0000-0000-000000009523'), -- Gym A receptionist
   ('00000000-0000-0000-0000-000000009524'), -- Gym A coach
+  ('00000000-0000-0000-0000-000000009525'), -- super_admin actor (Story 11.6)
   ('00000000-0000-0000-0000-000000009526'), -- Gym B owner
   ('00000000-0000-0000-0000-000000009551'), -- Gym A payer
   ('00000000-0000-0000-0000-000000009552'); -- Gym B payer (Story 4.14: now used, see p7 below)
@@ -118,6 +126,22 @@ insert into saas_billing_payments (id, gym_id, amount, currency, status, provide
 
 insert into payment_webhook_events (id, provider_key, provider_transaction_ref, amount, currency, status, matched_saas_billing_payment_id, raw_payload) values
   ('00000000-0000-0000-0000-000000009708', 'taramoney', 'recon-test-platform-matched', 3000, 'XAF', 'verified', '00000000-0000-0000-0000-000000009901', '{"businessId": "platform-biz-id"}'::jsonb);
+
+-- ============================================================================
+-- Story 11.6: Flow-B fixtures for the two new symmetric blocks. sp2: stuck
+-- in 'processing' for over 10 minutes with no completing webhook (mirrors
+-- p1's Flow-A stale_processing shape). sp3: a verified saas_billing_payment
+-- whose matched webhook event (e9) disagrees on amount (mirrors p3/e2's
+-- Flow-A amount_mismatch shape). Both on Gym A, so the RLS assertions below
+-- can reuse the same owner/manager/receptionist sessions already set up for
+-- Flow-A coverage.
+-- ============================================================================
+insert into saas_billing_payments (id, gym_id, amount, currency, status, provider, provider_transaction_ref, created_at) values
+  ('00000000-0000-0000-0000-000000009902', '00000000-0000-0000-0000-000000009511', 5000, 'XAF', 'processing', 'taramoney', 'recon-test-saas-stale', now() - interval '11 minutes'),
+  ('00000000-0000-0000-0000-000000009903', '00000000-0000-0000-0000-000000009511', 15000, 'XAF', 'verified', 'taramoney', 'recon-test-saas-mismatch', now());
+
+insert into payment_webhook_events (id, provider_key, provider_transaction_ref, amount, currency, status, matched_saas_billing_payment_id, raw_payload) values
+  ('00000000-0000-0000-0000-000000009709', 'taramoney', 'recon-test-saas-mismatch', 15500, 'XAF', 'verified', '00000000-0000-0000-0000-000000009903', '{"businessId": "platform-biz-id"}'::jsonb);
 
 -- ============================================================================
 -- Call the job directly -- no waiting on real cron timing.
@@ -259,8 +283,51 @@ select is(
 );
 
 -- ============================================================================
+-- Story 11.6: Flow-B coverage -- the two new symmetric blocks against
+-- saas_billing_payments produce the same discrepancy shapes as their Flow-A
+-- counterparts, targeted via saas_billing_payment_id instead of payment_id.
+-- ============================================================================
+select is(
+  (select count(*)::int from payment_discrepancies
+    where discrepancy_type = 'stale_processing' and saas_billing_payment_id = '00000000-0000-0000-0000-000000009902'),
+  1,
+  'a Flow B (platform) payment stuck in processing for over 10 minutes produces a stale_processing discrepancy'
+);
+
+select is(
+  (select gym_id from payment_discrepancies where saas_billing_payment_id = '00000000-0000-0000-0000-000000009902' and discrepancy_type = 'stale_processing'),
+  '00000000-0000-0000-0000-000000009511',
+  'the Flow B stale_processing discrepancy carries the saas_billing_payment''s own gym_id'
+);
+
+select is(
+  (select payment_id from payment_discrepancies where saas_billing_payment_id = '00000000-0000-0000-0000-000000009902' and discrepancy_type = 'stale_processing'),
+  null,
+  'the Flow B stale_processing discrepancy has payment_id = NULL -- target-exclusive by construction (payment_discrepancies_target_exclusive)'
+);
+
+select is(
+  (select count(*)::int from payment_discrepancies
+    where discrepancy_type = 'amount_mismatch' and saas_billing_payment_id = '00000000-0000-0000-0000-000000009903'),
+  1,
+  'a Flow B webhook event whose amount disagrees with its matched saas_billing_payments row produces an amount_mismatch discrepancy'
+);
+
+select is(
+  (select details ->> 'webhookAmount' from payment_discrepancies where saas_billing_payment_id = '00000000-0000-0000-0000-000000009903' and discrepancy_type = 'amount_mismatch'),
+  '15500',
+  'the Flow B amount_mismatch discrepancy''s details captures the webhook-reported amount'
+);
+
+select is(
+  (select details ->> 'internalAmount' from payment_discrepancies where saas_billing_payment_id = '00000000-0000-0000-0000-000000009903' and discrepancy_type = 'amount_mismatch'),
+  '15000',
+  'the Flow B amount_mismatch discrepancy''s details captures the internal saas_billing_payments amount'
+);
+
+-- ============================================================================
 -- Idempotency: calling the function twice in a row produces the same row
--- count the second time -- the four partial unique indexes' ON CONFLICT DO
+-- count the second time -- the partial unique indexes' ON CONFLICT DO
 -- NOTHING holding, not a duplicate-detection bug.
 -- ============================================================================
 select lives_ok(
@@ -270,14 +337,20 @@ select lives_ok(
 
 select is(
   (select count(*)::int from payment_discrepancies),
-  4,
-  'a second consecutive run leaves the total discrepancy row count unchanged -- no re-flagging of already-known discrepancies (1 missing_internal_record + 1 stale_processing + 1 amount_mismatch + 1 wrong_account_settlement)'
+  6,
+  'a second consecutive run leaves the total discrepancy row count unchanged -- no re-flagging of already-known discrepancies (1 missing_internal_record + 1 Flow A stale_processing + 1 Flow B stale_processing + 1 Flow A amount_mismatch + 1 Flow B amount_mismatch + 1 wrong_account_settlement)'
 );
 
 select is(
   (select count(*)::int from payment_discrepancies where discrepancy_type = 'wrong_account_settlement'),
   1,
   'the 4th category''s own partial unique index holds across the second run too -- no duplicate wrong_account_settlement rows'
+);
+
+select is(
+  (select count(*)::int from payment_discrepancies where saas_billing_payment_id is not null),
+  2,
+  'the new Flow-B stale_processing partial unique index (plus the reused, already flow-agnostic amount_mismatch index) hold across the second run too -- no duplicate Flow-B rows'
 );
 
 -- ============================================================================
@@ -308,6 +381,12 @@ select is(
   (select count(*)::int from payment_discrepancies),
   3,
   'an owner-claim session sees exactly its own gym''s 3 discrepancies -- the gym_id-NULL missing_internal_record row stays invisible even to its own gym''s staff'
+);
+
+select is(
+  (select count(*)::int from payment_discrepancies where saas_billing_payment_id is not null),
+  0,
+  'Story 11.6: an owner-claim session sees 0 Flow-B discrepancies for its own gym -- SaaS-billing integrity flags are Super-Admin-scoped only, never gym-staff-visible (gym_staff_read_own_payment_discrepancies now excludes saas_billing_payment_id is not null rows)'
 );
 
 set local role authenticated;
@@ -360,6 +439,38 @@ select is(
   (select count(*)::int from payment_discrepancies),
   0,
   'a Gym B owner-claim session sees 0 discrepancies -- Gym B never connected so its payment is no longer flagged (review-finding fix), and Gym A''s 3 discrepancies stay invisible (cross-gym read deny)'
+);
+
+-- ============================================================================
+-- Story 11.6: super_admin_read_payment_discrepancies -- a super_admin-claim
+-- session (no gym_id claim at all) sees every row across every gym,
+-- including the two new Flow-B rows AND the pre-existing gym_id-NULL
+-- missing_internal_record row, which no role could read at all before this
+-- story (0076 is the first policy ever to grant it).
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009525","role":"authenticated","app_role":"super_admin"}',
+  true
+);
+
+select is(
+  (select count(*)::int from payment_discrepancies),
+  6,
+  'a super_admin-claim session sees every discrepancy row across every gym (all 6: Gym A''s 3 Flow-A + 2 Flow-B + the unattributable, gym_id-NULL missing_internal_record row)'
+);
+
+select is(
+  (select count(*)::int from payment_discrepancies where saas_billing_payment_id is not null),
+  2,
+  'a super_admin-claim session sees both Flow-B discrepancies -- invisible to gym staff, visible here'
+);
+
+select is(
+  (select count(*)::int from payment_discrepancies where discrepancy_type = 'missing_internal_record'),
+  1,
+  'a super_admin-claim session sees the missing_internal_record row -- no role could read this at all before this story''s super_admin_read_payment_discrepancies policy'
 );
 
 select * from finish();
