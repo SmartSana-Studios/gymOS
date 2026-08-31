@@ -148,6 +148,7 @@
       "payPending": "En attente de confirmation du paiement…",
       "payStillWaiting": "Toujours en attente — cela peut prendre une minute. Vérifiez votre téléphone pour l'invite de paiement.",
       "payFailed": "Le paiement n'a pas abouti. Vous pouvez réessayer.",
+      "payNowPopupBlocked": "Votre navigateur a bloqué la page de paiement. Autorisez les fenêtres pop-up pour ce site et réessayez.",
       "paymentConfirmedToast": "Paiement confirmé — votre abonnement est actif.",
       "emailLabel": "E-mail de notification",
       "emailHint": "Facultatif. Utilisé comme troisième canal, au mieux, pour les rappels de facturation, en plus du SMS et de WhatsApp.",

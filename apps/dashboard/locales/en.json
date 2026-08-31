@@ -148,6 +148,7 @@
       "payPending": "Waiting for payment confirmation…",
       "payStillWaiting": "Still waiting — this can take a minute. Check your phone for the payment prompt.",
       "payFailed": "The payment didn't go through. You can try again.",
+      "payNowPopupBlocked": "Your browser blocked the checkout page. Allow pop-ups for this site and try again.",
       "paymentConfirmedToast": "Payment confirmed — your subscription is active.",
       "emailLabel": "Notification email",
       "emailHint": "Optional. Used as a best-effort third channel for billing reminders, alongside SMS and WhatsApp.",

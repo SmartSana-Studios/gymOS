@@ -11,7 +11,7 @@
 -- + `set_config('request.jwt.claims', ...)`).
 
 begin;
-select plan(23);
+select plan(24);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000009901', 'Pay Now Test Tier A', 8000, 80000, 40),
@@ -198,6 +198,26 @@ select is(
   200000,
   'a zero-arg call prices from the gym''s own current tier/interval (annual_price)'
 );
+
+-- ============================================================================
+-- Review finding fix: tier validation now runs BEFORE the double-submit
+-- guard, so an already-processing payment (pn_2, still 'processing' at this
+-- point -- never completed) does not mask an invalid-tier override behind
+-- the unrelated payment_already_pending message.
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000009921","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009911","app_role":"owner"}',
+  true
+);
+
+select throws_like(
+  $$select initiate_saas_billing_payment('00000000-0000-4000-8000-000000000104'::uuid, null)$$,
+  '%tier_not_selectable_by_owner%',
+  'an invalid tier override surfaces tier_not_selectable_by_owner, not payment_already_pending, even while a payment is already processing for this gym'
+);
+reset role;
 
 -- ============================================================================
 -- The trigger extension does NOT let a non-bypassed, non-Super-Admin

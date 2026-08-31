@@ -723,7 +723,6 @@ export type Database = {
           gym_id: string | null
           id: string
           payment_id: string | null
-          saas_billing_payment_id: string | null
           webhook_event_id: string | null
         }
         Insert: {
@@ -733,7 +732,6 @@ export type Database = {
           gym_id?: string | null
           id?: string
           payment_id?: string | null
-          saas_billing_payment_id?: string | null
           webhook_event_id?: string | null
         }
         Update: {
@@ -743,7 +741,6 @@ export type Database = {
           gym_id?: string | null
           id?: string
           payment_id?: string | null
-          saas_billing_payment_id?: string | null
           webhook_event_id?: string | null
         }
         Relationships: [
@@ -757,12 +754,6 @@ export type Database = {
             foreignKeyName: "payment_discrepancies_payment_id_fkey"
             columns: ["payment_id"]
             referencedRelation: "payments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_discrepancies_saas_billing_payment_id_fkey"
-            columns: ["saas_billing_payment_id"]
-            referencedRelation: "saas_billing_payments"
             referencedColumns: ["id"]
           },
           {

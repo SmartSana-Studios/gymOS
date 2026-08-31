@@ -131,21 +131,26 @@ begin
     raise exception 'initiate_saas_billing_payment: gym % is deactivated', v_gym_id;
   end if;
 
-  if exists (
-    select 1 from saas_billing_payments where gym_id = v_gym_id and status = 'processing'
-  ) then
-    raise exception 'initiate_saas_billing_payment: payment_already_pending for gym %', v_gym_id;
-  end if;
-
   -- A missing tier (deleted/never existed) and an existing-but-price_locked
   -- tier both surface the same tier_not_selectable_by_owner exception --
   -- deliberate, matching packages/types/src/errors.ts's single mapping for
   -- both cases rather than a second, narrower "tier not found" code.
+  --
+  -- Runs BEFORE the double-submit guard below (review finding) -- otherwise
+  -- a gym with an already-processing payment that also passes an invalid
+  -- p_tier_id would see the misleading payment_already_pending message
+  -- instead of tier_not_selectable_by_owner, masking the real input error.
   if p_tier_id is not null then
     select price_locked into v_price_locked from tiers where id = p_tier_id;
     if v_price_locked is null or v_price_locked then
       raise exception 'initiate_saas_billing_payment: tier_not_selectable_by_owner for tier %', p_tier_id;
     end if;
+  end if;
+
+  if exists (
+    select 1 from saas_billing_payments where gym_id = v_gym_id and status = 'processing'
+  ) then
+    raise exception 'initiate_saas_billing_payment: payment_already_pending for gym %', v_gym_id;
   end if;
 
   v_tier_id := coalesce(p_tier_id, v_gym_tier_id);

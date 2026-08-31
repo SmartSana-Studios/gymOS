@@ -176,7 +176,15 @@ export function PayNowButton({
         setPayNowError(error?.message ?? t("common.somethingWentWrong"));
         return;
       }
-      window.open(data.checkoutUrl, "_blank", "noopener,noreferrer");
+      const opened = window.open(data.checkoutUrl, "_blank", "noopener,noreferrer");
+      if (!opened) {
+        // Popup blocked -- don't close the dialog on a checkout page the
+        // Owner never actually saw (review finding: previously this
+        // silently proceeded to poll for a payment the Owner had no way to
+        // complete).
+        setPayNowError(t("settings.billing.payNowPopupBlocked"));
+        return;
+      }
       setPaymentPhase("pending");
       setWatchedPaymentId(data.paymentId);
       payNowDialogRef.current?.close();
@@ -225,8 +233,8 @@ export function PayNowButton({
             <p className="text-sm text-muted-foreground">{t("settings.billing.payNowDialogBody")}</p>
           </div>
 
-          {selectableTiers.length > 0 && (
-            <div className="grid grid-cols-2 gap-3">
+          <div className={selectableTiers.length > 0 ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3"}>
+            {selectableTiers.length > 0 && (
               <div className="space-y-2">
                 <Label htmlFor="payNowTier">{t("settings.billing.tierLabel")}</Label>
                 <select
@@ -244,22 +252,22 @@ export function PayNowButton({
                   ))}
                 </select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="payNowInterval">{t("settings.billing.intervalLabel")}</Label>
-                <select
-                  id="payNowInterval"
-                  value={billingInterval}
-                  onChange={(e) => setBillingInterval(e.target.value)}
-                  disabled={busy}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                  <option value="">{t("settings.billing.tierKeepCurrent")}</option>
-                  <option value="monthly">{t("settings.billing.intervalMonthly")}</option>
-                  <option value="annual">{t("settings.billing.intervalAnnual")}</option>
-                </select>
-              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="payNowInterval">{t("settings.billing.intervalLabel")}</Label>
+              <select
+                id="payNowInterval"
+                value={billingInterval}
+                onChange={(e) => setBillingInterval(e.target.value)}
+                disabled={busy}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">{t("settings.billing.tierKeepCurrent")}</option>
+                <option value="monthly">{t("settings.billing.intervalMonthly")}</option>
+                <option value="annual">{t("settings.billing.intervalAnnual")}</option>
+              </select>
             </div>
-          )}
+          </div>
 
           <div className="grid grid-cols-[minmax(0,140px)_1fr] gap-3">
             <div className="space-y-2">
