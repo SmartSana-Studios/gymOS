@@ -31,6 +31,16 @@ export interface OfflineProgressEntry {
   loggedAt: string;
 }
 
+/** Story 13.3: the offline-queue intent for a workout-plan exercise
+ * completion. `id` is the client_completion_id, doubling as the
+ * idempotency key -- same convention as the other two tables. */
+export interface OfflineWorkoutCompletion {
+  id: string;
+  planId: string;
+  exerciseId: string;
+  completedAt: string;
+}
+
 let dbPromise: ReturnType<typeof SQLite.openDatabaseAsync> | null = null;
 
 function getDb() {
@@ -56,6 +66,18 @@ function getDb() {
             note TEXT,
             photo_local_uri TEXT,
             logged_at TEXT NOT NULL
+          )`,
+        );
+        // Story 13.3: third queue-item type in the same DB/connection
+        // (AD-23 requires reusing the same infra, one queue-item type per
+        // domain) -- id is the client_completion_id, doubling as the
+        // idempotency key exactly like the other two tables' id columns.
+        await db.execAsync(
+          `CREATE TABLE IF NOT EXISTS offline_workout_completions (
+            id TEXT PRIMARY KEY,
+            plan_id TEXT NOT NULL,
+            exercise_id TEXT NOT NULL,
+            completed_at TEXT NOT NULL
           )`,
         );
         return db;
@@ -157,5 +179,51 @@ export async function deleteOfflineProgressEntry(id: string): Promise<void> {
 export async function countOfflineProgressEntries(): Promise<number> {
   const db = await getDb();
   const row = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM offline_progress_entries');
+  return row?.count ?? 0;
+}
+
+interface OfflineWorkoutCompletionRow {
+  id: string;
+  plan_id: string;
+  exercise_id: string;
+  completed_at: string;
+}
+
+function toOfflineWorkoutCompletion(row: OfflineWorkoutCompletionRow): OfflineWorkoutCompletion {
+  return {
+    id: row.id,
+    planId: row.plan_id,
+    exerciseId: row.exercise_id,
+    completedAt: row.completed_at,
+  };
+}
+
+export async function insertOfflineWorkoutCompletion(completion: OfflineWorkoutCompletion): Promise<void> {
+  const db = await getDb();
+  await db.runAsync(
+    'INSERT INTO offline_workout_completions (id, plan_id, exercise_id, completed_at) VALUES (?, ?, ?, ?)',
+    completion.id,
+    completion.planId,
+    completion.exerciseId,
+    completion.completedAt,
+  );
+}
+
+export async function getOfflineWorkoutCompletions(): Promise<OfflineWorkoutCompletion[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<OfflineWorkoutCompletionRow>(
+    'SELECT * FROM offline_workout_completions ORDER BY completed_at ASC',
+  );
+  return rows.map(toOfflineWorkoutCompletion);
+}
+
+export async function deleteOfflineWorkoutCompletion(id: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM offline_workout_completions WHERE id = ?', id);
+}
+
+export async function countOfflineWorkoutCompletions(): Promise<number> {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM offline_workout_completions');
   return row?.count ?? 0;
 }

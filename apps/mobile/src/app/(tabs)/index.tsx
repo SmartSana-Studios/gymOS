@@ -92,6 +92,7 @@ export default function HomeScreen() {
   // Story 12.4 (AC #1): best-effort, non-blocking -- same treatment as
   // occupancyBand/taraMoneyConnected above.
   const [upcomingClasses, setUpcomingClasses] = useState<MyClassBooking[]>([]);
+  const [workoutPlanName, setWorkoutPlanName] = useState<string | null>(null);
 
   // Review finding: rapid tab switching can fire loadHome() again before an
   // earlier call resolves; without this, an older/slower response could
@@ -118,6 +119,7 @@ export default function HomeScreen() {
     setOccupancyBand(null);
     setTaraMoneyConnected(false);
     setUpcomingClasses([]);
+    setWorkoutPlanName(null);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!isCurrent()) return;
@@ -224,6 +226,21 @@ export default function HomeScreen() {
         if (isCurrent()) setUpcomingClasses((bookings ?? []).slice(0, UPCOMING_CLASSES_LIMIT));
       } catch {
         if (isCurrent()) setUpcomingClasses([]);
+      }
+
+      // Story 13.3: best-effort, non-blocking, same discipline as the
+      // upcomingClasses fetch above -- a lightweight existence check (just
+      // the plan name), not the full exercise list workout-plan.tsx itself
+      // fetches on its own mount.
+      try {
+        const { data: plan } = await supabase
+          .from('workout_plans')
+          .select('name')
+          .eq('member_id', memberResult.data.id)
+          .maybeSingle();
+        if (isCurrent()) setWorkoutPlanName(plan?.name ?? null);
+      } catch {
+        if (isCurrent()) setWorkoutPlanName(null);
       }
     } catch {
       if (isCurrent()) setLoadError(true);
@@ -377,6 +394,26 @@ export default function HomeScreen() {
                   <Button label={t('home.viewPlan')} variant="secondary" onPress={handleViewPlan} />
                 </View>
               </View>
+
+              {/* Story 13.3: no mockup covers a workout-plan entry point on
+                  the member app (see the story's own Dev Notes) -- mirrors
+                  upcomingClasses' own conditional-section precedent
+                  (shown only when applicable, not an always-visible empty
+                  state) rather than a third quickActions button. */}
+              {workoutPlanName !== null && (
+                <View style={styles.activitySection}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => router.push('/workout-plan')}
+                    style={styles.sectionHeader}>
+                    <ThemedText type="smallBold">{t('home.myWorkoutPlan')}</ThemedText>
+                    <ThemedText type="default">→</ThemedText>
+                  </Pressable>
+                  <View style={[styles.activityRow, { borderTopColor: theme.border }]}>
+                    <ThemedText type="small">{workoutPlanName}</ThemedText>
+                  </View>
+                </View>
+              )}
 
               {upcomingClasses.length > 0 && (
                 <View style={styles.activitySection}>

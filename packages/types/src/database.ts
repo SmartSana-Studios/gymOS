@@ -1466,6 +1466,61 @@ export type Database = {
           },
         ]
       }
+      workout_plan_completions: {
+        Row: {
+          client_completion_id: string | null
+          completed_at: string
+          exercise_id: string
+          gym_id: string
+          id: string
+          member_id: string
+          plan_id: string
+        }
+        Insert: {
+          client_completion_id?: string | null
+          completed_at?: string
+          exercise_id: string
+          gym_id: string
+          id?: string
+          member_id: string
+          plan_id: string
+        }
+        Update: {
+          client_completion_id?: string | null
+          completed_at?: string
+          exercise_id?: string
+          gym_id?: string
+          id?: string
+          member_id?: string
+          plan_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_plan_completions_exercise_id_fkey"
+            columns: ["exercise_id"]
+            referencedRelation: "exercise_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_plan_completions_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_plan_completions_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_plan_completions_plan_id_fkey"
+            columns: ["plan_id"]
+            referencedRelation: "workout_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workout_plan_exercises: {
         Row: {
           exercise_id: string

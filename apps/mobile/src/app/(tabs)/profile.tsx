@@ -19,6 +19,7 @@ import { openPhotoPicker, pickPhoto, uploadPhoto } from '@/lib/photo-upload';
 import { supabase } from '@/lib/supabase';
 import { getMemberPreferences, updateMemberPreferences } from '@/services/notificationPreferences';
 import { clearCachedProgressPayload } from '@/services/progress';
+import { clearCachedWorkoutPlan } from '@/services/workoutPlan';
 
 // Narrows the untyped embedded-select response, same discipline as
 // onboarding/plan.tsx's `isSubscriptionRow` (Review finding there) -- a
@@ -350,6 +351,7 @@ export default function ProfileScreen() {
           // a different member signing in on the same device never sees a
           // prior member's cached weight/measurements/photos.
           clearCachedProgressPayload();
+          clearCachedWorkoutPlan();
           void supabase.auth.signOut().catch(() => Alert.alert(t('profile.errorSaveFailed')));
         },
       },

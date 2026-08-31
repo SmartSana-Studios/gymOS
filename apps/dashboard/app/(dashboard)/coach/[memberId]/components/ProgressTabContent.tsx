@@ -89,7 +89,9 @@ function buildWeightChartPoints(entries: ProgressEntryRow[]): ChartPoint[] {
   }));
 }
 
-function formatChartDate(iso: string, locale: string): string {
+// Exported for reuse by WorkoutPlanTabContent.tsx's own completion-date badge
+// (Story 13.3) -- same locale-aware, short-date pattern, one implementation.
+export function formatChartDate(iso: string, locale: string): string {
   return new Date(iso).toLocaleDateString(locale, { month: "short", day: "numeric" });
 }
 

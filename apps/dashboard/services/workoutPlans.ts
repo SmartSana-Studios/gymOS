@@ -43,6 +43,12 @@ export interface WorkoutPlanExerciseRow {
   reps: number;
   note: string | null;
   orderIndex: number;
+  /** Story 13.3: grouped by exercise_id, not workout_plan_exercises.id (see
+   * getWorkoutPlan()'s own comment) -- when a plan has two rows sharing the
+   * same exerciseId, both rows carry the identical completionCount/
+   * lastCompletedAt. Documented, accepted limitation, not a bug. */
+  completionCount: number;
+  lastCompletedAt: string | null;
 }
 
 export interface WorkoutPlanRow {
@@ -72,13 +78,20 @@ interface WorkoutPlanRowFromDb {
   workout_plan_exercises: WorkoutPlanExerciseRowFromDb[];
 }
 
-function toWorkoutPlanRow(row: WorkoutPlanRowFromDb): WorkoutPlanRow {
+/** Story 13.3: keyed by exercise_id (workout_plan_completions' own join
+ * key -- see the migration's Dev Notes for why it can't be
+ * workout_plan_exercises.id). `count`/`latest` are pre-aggregated here so
+ * `toWorkoutPlanRow()` stays a pure per-row lookup. */
+type CompletionSummaryByExerciseId = Map<string, { count: number; latest: string }>;
+
+function toWorkoutPlanRow(row: WorkoutPlanRowFromDb, completions: CompletionSummaryByExerciseId): WorkoutPlanRow {
   return {
     id: row.id,
     name: row.name,
     coachId: row.coach_id,
     exercises: row.workout_plan_exercises.map((ex) => {
       const exercise = Array.isArray(ex.exercise_library) ? ex.exercise_library[0] : ex.exercise_library;
+      const summary = completions.get(ex.exercise_id);
       return {
         id: ex.id,
         exerciseId: ex.exercise_id,
@@ -87,6 +100,8 @@ function toWorkoutPlanRow(row: WorkoutPlanRowFromDb): WorkoutPlanRow {
         reps: ex.reps,
         note: ex.note,
         orderIndex: ex.order_index,
+        completionCount: summary?.count ?? 0,
+        lastCompletedAt: summary?.latest ?? null,
       };
     }),
   };
@@ -120,7 +135,51 @@ export async function getWorkoutPlan(
     return { data: null, error: await mapAndLog(error) };
   }
 
-  return { data: data ? toWorkoutPlanRow(data) : null, error: null };
+  if (!data) {
+    return { data: null, error: null };
+  }
+
+  // Story 13.3: a second, independent query -- no FK from
+  // workout_plan_exercises to workout_plan_completions for PostgREST to
+  // auto-embed (completions are keyed by exercise_id, not
+  // workout_plan_exercises.id, per the migration's own design). Grouped
+  // in-memory by exercise_id, not a DB view. A failure here degrades to
+  // "no completions" for every row rather than failing the whole plan
+  // fetch, matching apps/mobile/src/services/progress.ts's
+  // loadProgressScreenData's own "entries/photos are independent,
+  // secondary reads" precedent.
+  const { data: completionRows, error: completionsError } = await supabase
+    .from("workout_plan_completions")
+    .select("exercise_id, completed_at")
+    .eq("gym_id", gymId)
+    .eq("plan_id", data.id)
+    .order("completed_at", { ascending: false })
+    // Safety cap on an otherwise-unbounded history; "latest" per exercise_id
+    // stays exact regardless (newest-first ordering means the first row seen
+    // for each exercise_id is already its latest), only "count" could
+    // undercount for a single plan with 200+ completions across all its
+    // exercises combined -- an edge case at realistic usage.
+    .limit(200);
+
+  if (completionsError) {
+    console.error("[workoutPlans] workout_plan_completions query failed, degrading to zero completions", completionsError);
+  }
+
+  const completions: CompletionSummaryByExerciseId = new Map();
+  if (!completionsError && completionRows) {
+    for (const row of completionRows) {
+      const existing = completions.get(row.exercise_id);
+      if (existing) {
+        existing.count += 1;
+        // Rows arrive newest-first, so the first one seen per exercise_id
+        // is already the latest -- no comparison needed.
+      } else {
+        completions.set(row.exercise_id, { count: 1, latest: row.completed_at });
+      }
+    }
+  }
+
+  return { data: toWorkoutPlanRow(data, completions), error: null };
 }
 
 /** Calls `create_workout_plan` (0080) -- a single SECURITY DEFINER

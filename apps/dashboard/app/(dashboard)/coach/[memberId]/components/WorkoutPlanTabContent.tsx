@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { WorkoutPlanRow } from "@/services/workoutPlans";
+import { formatChartDate } from "./ProgressTabContent";
 import { SectionHeader } from "./SectionHeader";
 
 /**
@@ -31,7 +32,7 @@ export function WorkoutPlanTabContent({
   onCreateClick: () => void;
   onEditClick: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   return (
     <Card>
@@ -67,6 +68,14 @@ export function WorkoutPlanTabContent({
                   {exercise.note && (
                     <p className="pl-4 text-xs text-muted-foreground">
                       {t("coachPortal.detail.workoutPlanTab.noteLine", { note: exercise.note })}
+                    </p>
+                  )}
+                  {exercise.completionCount > 0 && exercise.lastCompletedAt && (
+                    <p className="pl-4 text-xs text-emerald-600">
+                      {t("coachPortal.detail.workoutPlanTab.completedCount", {
+                        count: exercise.completionCount,
+                        date: formatChartDate(exercise.lastCompletedAt, i18n.language),
+                      })}
                     </p>
                   )}
                 </li>

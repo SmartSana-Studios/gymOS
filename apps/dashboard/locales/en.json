@@ -676,6 +676,8 @@
         "emptyState": "No workout plan yet.",
         "setsReps": "{{sets}} sets × {{reps}} reps",
         "noteLine": "Note: \"{{note}}\"",
+        "completedCount_one": "Completed {{count}}×, last {{date}}",
+        "completedCount_other": "Completed {{count}}×, last {{date}}",
         "addTitle": "New Workout Plan",
         "editTitle": "Edit Workout Plan",
         "nameLabel": "Plan name",

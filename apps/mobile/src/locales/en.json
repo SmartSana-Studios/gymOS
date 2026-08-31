@@ -158,7 +158,8 @@
     "errorLoadFailed": "Couldn't load your data. Check your connection and try again.",
     "offlineSyncPending": "Offline check-in pending sync…",
     "renew": "Renew",
-    "upcomingClasses": "Upcoming Classes"
+    "upcomingClasses": "Upcoming Classes",
+    "myWorkoutPlan": "My Workout Plan"
   },
   "classes": {
     "title": "Classes",
@@ -341,6 +342,21 @@
       "deleteErrorBody": "Check your connection and try again.",
       "requiresConnectivity": "You're offline. Reconnect to delete entries.",
       "errorLoadFailed": "Couldn't load your entries. Check your connection and try again."
+    }
+  },
+  "workoutPlan": {
+    "screen": {
+      "title": "Workout Plan",
+      "emptyState": "No workout plan yet.",
+      "setsReps": "{{sets}} sets × {{reps}} reps",
+      "noteLine": "Note: \"{{note}}\"",
+      "markComplete": "Mark complete",
+      "markAllComplete": "Mark all complete",
+      "completedCount_one": "Completed {{count}}×, last {{date}}",
+      "completedCount_other": "Completed {{count}}×, last {{date}}",
+      "errorLoadFailed": "Couldn't load your plan. Check your connection and try again.",
+      "errorMarkFailed": "Couldn't mark that complete. Try again.",
+      "showingCachedData": "Showing your last synced data. Reconnect to refresh."
     }
   },
   "renew": {

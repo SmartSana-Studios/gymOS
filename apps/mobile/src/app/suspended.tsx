@@ -7,6 +7,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { clearCachedProgressPayload } from '@/services/progress';
+import { clearCachedWorkoutPlan } from '@/services/workoutPlan';
 
 /**
  * Story 11.4 (AC #1, #3): the mobile-only neutral suspension state.
@@ -30,6 +31,7 @@ export default function SuspendedScreen() {
         style: 'destructive',
         onPress: () => {
           clearCachedProgressPayload();
+          clearCachedWorkoutPlan();
           void supabase.auth.signOut().catch(() => Alert.alert(t('profile.errorSaveFailed')));
         },
       },

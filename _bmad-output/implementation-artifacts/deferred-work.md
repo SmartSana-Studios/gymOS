@@ -678,3 +678,7 @@
 - `getWorkoutPlan()`'s missing-`gym_id`-claim branch reports the generic `not_found`/"Gym not found" copy for what is actually a session/auth problem — pre-existing pattern, matches `exercises.ts`/`plans.ts`/`coaches.ts`'s identical convention. [apps/dashboard/services/workoutPlans.ts:32]
 - New Server Actions (`createWorkoutPlanAction`/`updateWorkoutPlanAction`/`addCustomExerciseAction`) have no dedicated action-layer tests — pre-existing project-wide gap, matches `addSessionNoteAction`/`editSessionNoteAction`'s identical, already-accepted gap. [apps/dashboard/app/(dashboard)/coach/[memberId]/actions.ts]
 - `WorkoutPlanModal.tsx`/`WorkoutPlanTabContent.tsx` have zero component-level (RTL/Vitest) test coverage — pre-existing project-wide gap, no dashboard modal in this codebase has component-level tests today. [apps/dashboard/app/(dashboard)/coach/[memberId]/components/WorkoutPlanModal.tsx; apps/dashboard/app/(dashboard)/coach/[memberId]/components/WorkoutPlanTabContent.tsx]
+
+## Deferred from: code review of story-13-3-member-plan-view-completion-tracking (2026-08-31)
+
+- `markAllComplete` issues one sequential awaited round-trip per exercise instead of a single batched write — real but non-blocking (the loading spinner covers the whole operation, so it's slow rather than silently broken); batching safely would need to work out per-row `23505`/conflict handling across both the online and offline branches, which is more than a one-line patch. [apps/mobile/src/app/workout-plan.tsx:173-190]

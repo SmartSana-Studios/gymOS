@@ -7,6 +7,7 @@ export const ANALYTICS_EVENT = {
   STAFF_CREATED: "staff_created",
   APP_OPENED: "app_opened",
   PROGRESS_ENTRY_LOGGED: "progress_entry_logged",
+  WORKOUT_PLAN_EXERCISE_COMPLETED: "workout_plan_exercise_completed",
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENT)[keyof typeof ANALYTICS_EVENT];
@@ -39,6 +40,14 @@ export interface ProgressEntryLoggedEventProperties {
   loggedOffline: boolean;
 }
 
+// Story 13.3: closed, minimal payload -- no exercise name/id (this domain
+// has no body-measurement content to guard against, but keep the same
+// closed-shape rigor ProgressEntryLoggedEventProperties establishes).
+export interface WorkoutPlanExerciseCompletedEventProperties {
+  gymId: string;
+  loggedOffline: boolean;
+}
+
 // Review finding: without this mapping, `capture()` wrapper functions typed
 // `properties` as `Record<string, unknown>`, so the closed interfaces above
 // were defined but never actually enforced at the one place that matters --
@@ -48,4 +57,5 @@ export interface AnalyticsEventProperties {
   [ANALYTICS_EVENT.STAFF_CREATED]: StaffCreatedEventProperties;
   [ANALYTICS_EVENT.APP_OPENED]: AppOpenedEventProperties;
   [ANALYTICS_EVENT.PROGRESS_ENTRY_LOGGED]: ProgressEntryLoggedEventProperties;
+  [ANALYTICS_EVENT.WORKOUT_PLAN_EXERCISE_COMPLETED]: WorkoutPlanExerciseCompletedEventProperties;
 }

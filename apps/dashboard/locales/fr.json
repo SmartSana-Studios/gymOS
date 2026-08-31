@@ -676,6 +676,8 @@
         "emptyState": "Aucun programme d'entraînement pour le moment.",
         "setsReps": "{{sets}} séries × {{reps}} répétitions",
         "noteLine": "Note : « {{note}} »",
+        "completedCount_one": "Terminé {{count}} fois, dernière fois le {{date}}",
+        "completedCount_other": "Terminé {{count}} fois, dernière fois le {{date}}",
         "addTitle": "Nouveau programme d'entraînement",
         "editTitle": "Modifier le programme d'entraînement",
         "nameLabel": "Nom du programme",

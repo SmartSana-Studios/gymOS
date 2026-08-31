@@ -2,13 +2,17 @@ import { useNetworkState } from 'expo-network';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform } from 'react-native';
 
-import { countOfflineCheckIns, countOfflineProgressEntries } from '@/lib/sqlite';
+import { countOfflineCheckIns, countOfflineProgressEntries, countOfflineWorkoutCompletions } from '@/lib/sqlite';
 import { queueOfflineCheckIn as queueOfflineCheckInService, syncPendingCheckIns } from '@/services/checkin';
 import {
   queueOfflineProgressEntry as queueOfflineProgressEntryService,
   syncPendingProgressEntries,
   type ProgressEntryFields,
 } from '@/services/progress';
+import {
+  queueOfflineWorkoutCompletion as queueOfflineWorkoutCompletionService,
+  syncPendingWorkoutCompletions,
+} from '@/services/workoutPlan';
 
 /** expo-sqlite's web VFS (OPFS SyncAccessHandles) has no meaningful use on
  * web anyway -- there's no persistent native storage to queue offline
@@ -26,10 +30,16 @@ interface OfflineSyncValue {
   isConnected: boolean;
   pendingCheckInCount: number;
   pendingProgressEntryCount: number;
+  pendingWorkoutCompletionCount: number;
   queueOfflineCheckIn: () => Promise<{ id: string; scannedAt: string }>;
   queueOfflineProgressEntry: (
     fields: ProgressEntryFields,
     clientEntryId: string,
+  ) => Promise<{ success: true; id: string } | { success: false }>;
+  queueOfflineWorkoutCompletion: (
+    planId: string,
+    exerciseId: string,
+    clientCompletionId: string,
   ) => Promise<{ success: true; id: string } | { success: false }>;
 }
 
@@ -47,6 +57,7 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 
   const [pendingCheckInCount, setPendingCheckInCount] = useState(0);
   const [pendingProgressEntryCount, setPendingProgressEntryCount] = useState(0);
+  const [pendingWorkoutCompletionCount, setPendingWorkoutCompletionCount] = useState(0);
   const syncInFlightRef = useRef(false);
 
   const refreshPendingCount = useCallback(async () => {
@@ -61,18 +72,24 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.error('[offline-sync] failed to read pending progress-entry count', err);
     }
+    try {
+      setPendingWorkoutCompletionCount(await countOfflineWorkoutCompletions());
+    } catch (err) {
+      console.error('[offline-sync] failed to read pending workout-completion count', err);
+    }
   }, []);
 
   // Guards against the reconnect effect below and queueOfflineCheckIn's/
-  // queueOfflineProgressEntry's opportunistic re-sync firing close together
-  // and both processing the same queued rows concurrently. Story 10.1: the
-  // two domains' syncs run independently (Promise.allSettled) -- one
-  // domain's failure must not block the other's sync.
+  // queueOfflineProgressEntry's/queueOfflineWorkoutCompletion's
+  // opportunistic re-sync firing close together and both processing the
+  // same queued rows concurrently. Three independent domains now
+  // (Promise.allSettled) -- one domain's failure must not block the
+  // others' sync.
   const runSync = useCallback(async () => {
     if (isWeb || syncInFlightRef.current) return;
     syncInFlightRef.current = true;
     try {
-      await Promise.allSettled([syncPendingCheckIns(), syncPendingProgressEntries()]);
+      await Promise.allSettled([syncPendingCheckIns(), syncPendingProgressEntries(), syncPendingWorkoutCompletions()]);
     } finally {
       syncInFlightRef.current = false;
     }
@@ -120,15 +137,40 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
     [refreshPendingCount, runSync],
   );
 
+  const queueOfflineWorkoutCompletion = useCallback(
+    async (planId: string, exerciseId: string, clientCompletionId: string) => {
+      if (isWeb) {
+        throw new Error('Offline workout-completion queueing is not supported on web.');
+      }
+      const result = await queueOfflineWorkoutCompletionService(planId, exerciseId, clientCompletionId);
+      if (result.success) {
+        await refreshPendingCount();
+        void runSync();
+      }
+      return result;
+    },
+    [refreshPendingCount, runSync],
+  );
+
   const value = useMemo(
     () => ({
       isConnected,
       pendingCheckInCount,
       pendingProgressEntryCount,
+      pendingWorkoutCompletionCount,
       queueOfflineCheckIn,
       queueOfflineProgressEntry,
+      queueOfflineWorkoutCompletion,
     }),
-    [isConnected, pendingCheckInCount, pendingProgressEntryCount, queueOfflineCheckIn, queueOfflineProgressEntry],
+    [
+      isConnected,
+      pendingCheckInCount,
+      pendingProgressEntryCount,
+      pendingWorkoutCompletionCount,
+      queueOfflineCheckIn,
+      queueOfflineProgressEntry,
+      queueOfflineWorkoutCompletion,
+    ],
   );
 
   return <OfflineSyncContext.Provider value={value}>{children}</OfflineSyncContext.Provider>;

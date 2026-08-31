@@ -158,7 +158,8 @@
     "errorLoadFailed": "Impossible de charger vos données. Vérifiez votre connexion et réessayez.",
     "offlineSyncPending": "Enregistrement hors ligne en attente de synchronisation…",
     "renew": "Renouveler",
-    "upcomingClasses": "Cours à venir"
+    "upcomingClasses": "Cours à venir",
+    "myWorkoutPlan": "Mon programme d'entraînement"
   },
   "classes": {
     "title": "Cours",
@@ -341,6 +342,21 @@
       "deleteErrorBody": "Vérifiez votre connexion et réessayez.",
       "requiresConnectivity": "Vous êtes hors ligne. Reconnectez-vous pour supprimer des entrées.",
       "errorLoadFailed": "Impossible de charger vos entrées. Vérifiez votre connexion et réessayez."
+    }
+  },
+  "workoutPlan": {
+    "screen": {
+      "title": "Programme d'entraînement",
+      "emptyState": "Aucun programme d'entraînement pour le moment.",
+      "setsReps": "{{sets}} séries × {{reps}} répétitions",
+      "noteLine": "Note : « {{note}} »",
+      "markComplete": "Marquer comme terminé",
+      "markAllComplete": "Tout marquer comme terminé",
+      "completedCount_one": "Terminé {{count}} fois, dernière fois le {{date}}",
+      "completedCount_other": "Terminé {{count}} fois, dernière fois le {{date}}",
+      "errorLoadFailed": "Impossible de charger votre programme. Vérifiez votre connexion et réessayez.",
+      "errorMarkFailed": "Impossible de marquer cet exercice comme terminé. Réessayez.",
+      "showingCachedData": "Affichage des dernières données synchronisées. Reconnectez-vous pour actualiser."
     }
   },
   "renew": {
