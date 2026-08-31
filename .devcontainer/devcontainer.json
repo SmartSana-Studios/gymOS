@@ -1,6 +1,9 @@
 {
   "name": "GymOS Development",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
 
   "features": {
     "ghcr.io/devcontainers/features/node:2": {
@@ -12,8 +15,7 @@
       "version": "latest",
       "moby": true,
       "dockerDashComposeVersion": "v2"
-    },
-    "ghcr.io/anthropics/devcontainer-features/claude-code:1.0": {}
+    }
   },
 
   "workspaceFolder": "/workspaces/gym_os",
@@ -24,18 +26,18 @@
   ],
 
   "mounts": [
-  "source=gymos-pnpm-store,target=/home/vscode/.local/share/pnpm/store,type=volume",
-  "source=claude-code-config,target=/home/vscode/.claude,type=volume"
-],
+    "source=gymos-pnpm-store,target=/home/vscode/.local/share/pnpm/store,type=volume",
+    "source=claude-code-config,target=/home/vscode/.claude,type=volume"
+  ],
 
-"containerEnv": {
-  "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
-},
+  "containerEnv": {
+    "CLAUDE_CONFIG_DIR": "/home/vscode/.claude"
+  },
 
   "remoteUser": "vscode",
   "updateRemoteUserUID": true,
 
-"postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.local/share/pnpm /home/vscode/.claude && pnpm install --frozen-lockfile",
+  "postCreateCommand": "sudo chown -R vscode:vscode /home/vscode/.local/share/pnpm /home/vscode/.claude && pnpm install --frozen-lockfile",
 
   "customizations": {
     "vscode": {
