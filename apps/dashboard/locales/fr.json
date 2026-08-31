@@ -247,6 +247,11 @@
       "loadFailed": "Échec du chargement du personnel"
     }
   },
+  "exercises": {
+    "errors": {
+      "gymNotFound": "Salle introuvable"
+    }
+  },
   "plans": {
     "title": "Formules",
     "addPlan": "+ Ajouter une formule",

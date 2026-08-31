@@ -2,6 +2,7 @@ export * from "./schemas/gym";
 export * from "./schemas/tier";
 export * from "./schemas/plan";
 export * from "./schemas/class";
+export * from "./schemas/exercise";
 export * from "./schemas/member";
 export * from "./schemas/coachAssignment";
 export * from "./schemas/subscription";

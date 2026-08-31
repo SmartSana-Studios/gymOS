@@ -247,6 +247,11 @@
       "loadFailed": "Failed to load staff"
     }
   },
+  "exercises": {
+    "errors": {
+      "gymNotFound": "Gym not found"
+    }
+  },
   "plans": {
     "title": "Plans",
     "addPlan": "+ Add Plan",

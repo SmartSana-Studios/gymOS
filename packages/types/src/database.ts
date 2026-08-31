@@ -328,6 +328,34 @@ export type Database = {
           },
         ]
       }
+      exercise_library: {
+        Row: {
+          created_at: string
+          gym_id: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          gym_id?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          gym_id?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_library_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       front_desk_alerts: {
         Row: {
           created_at: string
