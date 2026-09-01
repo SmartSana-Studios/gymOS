@@ -39,19 +39,34 @@ import { SectionHeader } from "./SectionHeader";
  */
 export function WorkoutPlanTabContent({
   plan,
+  canCreatePlan,
   onCreateClick,
   onEditClick,
   onTakeOwnershipClick,
+  takeOwnershipPending = false,
+  takeOwnershipError = null,
 }: {
   plan: WorkoutPlanRow | null;
+  /** Story 13.4: only a coach may ever create a plan (`create_workout_plan()`
+   * rejects any non-coach caller) -- gates the empty-state "+ New plan"
+   * button so an Owner/Manager viewing a plan-less member (now reachable to
+   * them via this story's own new read grant) doesn't see a button that
+   * fails when clicked. */
+  canCreatePlan: boolean;
   onCreateClick: () => void;
   onEditClick: () => void;
   onTakeOwnershipClick: () => void;
+  /** Story 13.4: mirrors WorkoutPlanModal.tsx's own `submitting`/`formError`
+   * convention -- disables the button mid-flight and surfaces a rejected
+   * take_ownership_of_workout_plan() call instead of failing silently. */
+  takeOwnershipPending?: boolean;
+  takeOwnershipError?: string | null;
 }) {
   const { t, i18n } = useTranslation();
 
   function renderAction() {
     if (!plan) {
+      if (!canCreatePlan) return null;
       return (
         <Button type="button" size="sm" onClick={onCreateClick}>
           {t("coachPortal.detail.workoutPlanTab.addButton")}
@@ -67,8 +82,10 @@ export function WorkoutPlanTabContent({
     }
     if (plan.handoffCoachName !== null) {
       return (
-        <Button type="button" size="sm" variant="outline" onClick={onTakeOwnershipClick}>
-          {t("coachPortal.detail.workoutPlanTab.takeOwnershipButton")}
+        <Button type="button" size="sm" variant="outline" onClick={onTakeOwnershipClick} disabled={takeOwnershipPending}>
+          {takeOwnershipPending
+            ? t("coachPortal.detail.workoutPlanTab.saving")
+            : t("coachPortal.detail.workoutPlanTab.takeOwnershipButton")}
         </Button>
       );
     }
@@ -91,6 +108,7 @@ export function WorkoutPlanTabContent({
                 {t("coachPortal.detail.workoutPlanTab.handoffBanner", { coachName: plan.handoffCoachName })}
               </p>
             )}
+            {takeOwnershipError && <p className="text-sm text-red-600">{takeOwnershipError}</p>}
             <p className="font-medium">{plan.name}</p>
             <ol className="space-y-3">
               {plan.exercises.map((exercise) => (

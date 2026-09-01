@@ -682,3 +682,7 @@
 ## Deferred from: code review of story-13-3-member-plan-view-completion-tracking (2026-08-31)
 
 - `markAllComplete` issues one sequential awaited round-trip per exercise instead of a single batched write — real but non-blocking (the loading spinner covers the whole operation, so it's slow rather than silently broken); batching safely would need to work out per-row `23505`/conflict handling across both the online and offline branches, which is more than a one-line patch. [apps/mobile/src/app/workout-plan.tsx:173-190]
+
+## Deferred from: code review of story-13-4-plan-handoff-on-coach-reassignment (2026-08-31)
+
+- `take_ownership_of_workout_plan()` and `get_workout_plan_viewer_context()` copy forward the pre-existing non-`STRICT` `select ... into` coach-lookup (`where user_id = auth.uid() and gym_id = v_gym_id and role = 'coach'`, no `deactivated_at is null` filter, no `LIMIT`) from `create_workout_plan()`/`update_workout_plan()` (0080:131,224) — a re-hired coach with two `role = 'coach'` `members` rows in the same gym could nondeterministically resolve to a stale row. Real, but not introduced by this diff. [supabase/migrations/0082_plan_handoff_on_coach_reassignment.sql:83-85,150-152]

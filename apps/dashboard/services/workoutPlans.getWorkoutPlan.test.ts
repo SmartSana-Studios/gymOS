@@ -135,6 +135,7 @@ describe("getWorkoutPlan", () => {
           },
         ],
       },
+      canCreatePlan: false,
       error: null,
     });
     expect(orderCalls).toEqual([
@@ -234,7 +235,7 @@ describe("getWorkoutPlan", () => {
 
     const result = await getWorkoutPlan("member-1");
 
-    expect(result).toEqual({ data: null, error: null });
+    expect(result).toEqual({ data: null, canCreatePlan: false, error: null });
     expect(orderCalls).toEqual([
       { column: "order_index", options: { referencedTable: "workout_plan_exercises", ascending: true } },
     ]);
@@ -323,5 +324,29 @@ describe("getWorkoutPlan", () => {
 
     expect(result.error).toBeNull();
     expect(result.data).toMatchObject({ viewerCanEdit: false, handoffCoachName: null });
+  });
+
+  // Story 13.4: canCreatePlan gating (WorkoutPlanTabContent's empty-state
+  // "+ New plan" button -- create_workout_plan() rejects any non-coach
+  // caller, so only a coach viewer should ever see it).
+
+  it("sets canCreatePlan: true for a coach viewer with no plan yet", async () => {
+    claimsResult = { data: { claims: { gym_id: "gym-1", app_role: "coach" } }, error: null };
+    maybeSingleResult = { data: null, error: null };
+    const { getWorkoutPlan } = await import("./workoutPlans");
+
+    const result = await getWorkoutPlan("member-1");
+
+    expect(result).toEqual({ data: null, canCreatePlan: true, error: null });
+  });
+
+  it("sets canCreatePlan: false for an Owner/Manager viewer with no plan yet", async () => {
+    claimsResult = { data: { claims: { gym_id: "gym-1", app_role: "owner" } }, error: null };
+    maybeSingleResult = { data: null, error: null };
+    const { getWorkoutPlan } = await import("./workoutPlans");
+
+    const result = await getWorkoutPlan("member-1");
+
+    expect(result).toEqual({ data: null, canCreatePlan: false, error: null });
   });
 });

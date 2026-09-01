@@ -1928,7 +1928,7 @@ export type Database = {
       get_workout_plan_viewer_context: {
         Args: { p_plan_id: string }
         Returns: {
-          author_name: string
+          author_name: string | null
           is_authoring_coach: boolean
         }[]
       }

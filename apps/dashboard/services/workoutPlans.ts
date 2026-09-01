@@ -135,11 +135,17 @@ function toWorkoutPlanRow(
  * one-plan-per-member invariant. */
 export async function getWorkoutPlan(
   memberId: string,
-): Promise<{ data: WorkoutPlanRow | null; error: AppError | null }> {
+): Promise<{ data: WorkoutPlanRow | null; canCreatePlan: boolean; error: AppError | null }> {
   const supabase = await createClient();
   const { gymId, role, error: gymIdError } = await getCallerGymId(supabase);
+  // Story 13.4: only a coach may ever create a plan (create_workout_plan()
+  // rejects any non-coach caller) -- resolved here, alongside viewerCanEdit/
+  // handoffCoachName below, so WorkoutPlanTabContent's empty-state "+ New
+  // plan" button can be gated for an Owner/Manager viewing a plan-less
+  // member (now reachable to them via this story's own new read grant).
+  const canCreatePlan = role === "coach";
   if (gymIdError || !gymId) {
-    return { data: null, error: gymIdError };
+    return { data: null, canCreatePlan, error: gymIdError };
   }
 
   const { data, error } = await supabase
@@ -153,11 +159,11 @@ export async function getWorkoutPlan(
     .maybeSingle();
 
   if (error) {
-    return { data: null, error: await mapAndLog(error) };
+    return { data: null, canCreatePlan, error: await mapAndLog(error) };
   }
 
   if (!data) {
-    return { data: null, error: null };
+    return { data: null, canCreatePlan, error: null };
   }
 
   // Story 13.3: a second, independent query -- no FK from
@@ -230,7 +236,7 @@ export async function getWorkoutPlan(
     }
   }
 
-  return { data: toWorkoutPlanRow(data, completions, { viewerCanEdit, handoffCoachName }), error: null };
+  return { data: toWorkoutPlanRow(data, completions, { viewerCanEdit, handoffCoachName }), canCreatePlan, error: null };
 }
 
 /** Calls `create_workout_plan` (0080) -- a single SECURITY DEFINER

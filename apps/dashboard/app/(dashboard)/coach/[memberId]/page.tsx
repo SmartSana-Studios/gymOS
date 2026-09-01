@@ -37,7 +37,7 @@ async function CoachMemberDetailData({ params }: { params: Promise<{ memberId: s
     { data: member, error: memberError },
     { data: notes, error: notesError },
     { data: progressData, error: progressError },
-    { data: plan, error: planError },
+    { data: plan, canCreatePlan, error: planError },
     { data: exerciseLibrary, error: exerciseLibraryError },
   ] = await Promise.all([
     getMemberDetail(memberId),
@@ -79,6 +79,7 @@ async function CoachMemberDetailData({ params }: { params: Promise<{ memberId: s
       notes={notes ?? []}
       progressData={progressData}
       plan={plan}
+      canCreatePlan={canCreatePlan}
       exerciseLibrary={exerciseLibrary ?? []}
     />
   );

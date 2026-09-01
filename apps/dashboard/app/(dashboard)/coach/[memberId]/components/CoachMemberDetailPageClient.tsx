@@ -61,12 +61,14 @@ export function CoachMemberDetailPageClient({
   notes,
   progressData,
   plan,
+  canCreatePlan,
   exerciseLibrary,
 }: {
   member: CoachPortalMemberDetail;
   notes: SessionNoteRow[];
   progressData: MemberProgressData;
   plan: WorkoutPlanRow | null;
+  canCreatePlan: boolean;
   exerciseLibrary: ExerciseLibraryRow[];
 }) {
   const { t, i18n } = useTranslation();
@@ -74,6 +76,8 @@ export function CoachMemberDetailPageClient({
 
   const [modalState, setModalState] = useState<ModalState>(null);
   const [workoutPlanModalOpen, setWorkoutPlanModalOpen] = useState<WorkoutPlanModalState>(false);
+  const [takingOwnership, setTakingOwnership] = useState(false);
+  const [takeOwnershipError, setTakeOwnershipError] = useState<string | null>(null);
 
   const badge = STATUS_BADGE_CONFIG[member.status] ?? STATUS_BADGE_CONFIG.active;
   const StatusIcon = badge.icon;
@@ -111,9 +115,19 @@ export function CoachMemberDetailPageClient({
   }
 
   async function handleTakeOwnership() {
-    if (!plan) return;
-    await takeOwnershipOfWorkoutPlanAction({ planId: plan.id });
-    router.refresh();
+    if (!plan || takingOwnership) return;
+    setTakingOwnership(true);
+    setTakeOwnershipError(null);
+    try {
+      const { error } = await takeOwnershipOfWorkoutPlanAction({ planId: plan.id });
+      if (error) {
+        setTakeOwnershipError(error.message);
+        return;
+      }
+      router.refresh();
+    } finally {
+      setTakingOwnership(false);
+    }
   }
 
   return (
@@ -216,9 +230,12 @@ export function CoachMemberDetailPageClient({
         <TabsContent value="workout-plan">
           <WorkoutPlanTabContent
             plan={plan}
+            canCreatePlan={canCreatePlan}
             onCreateClick={() => setWorkoutPlanModalOpen(true)}
             onEditClick={() => setWorkoutPlanModalOpen(true)}
             onTakeOwnershipClick={handleTakeOwnership}
+            takeOwnershipPending={takingOwnership}
+            takeOwnershipError={takeOwnershipError}
           />
         </TabsContent>
       </Tabs>
