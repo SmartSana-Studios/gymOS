@@ -32,7 +32,7 @@ a service you sign up for independently.
 | Safety | Emergency contact (optional) | Provided to gym staff only in case of emergency |
 | Fitness onboarding | Goal and experience level you select during onboarding | Personalizing your plan-confirmation experience |
 | Attendance | Check-in and check-out timestamps at your gym | Gym occupancy tracking, your own attendance history |
-| Payments | Payment amount, currency, method, and status | Billing and subscription management. **We do not store your card number or other raw payment credentials** — payments are processed by our payment partner, Notch Pay, who handles that data directly |
+| Payments | Payment amount, currency, method, and status | Billing and subscription management. **We do not store your card number or other raw payment credentials** — payments are processed by our payment partner, Tara Money, who handles that data directly |
 | Coach notes | Session notes written by your assigned coach (if your gym uses this feature) | Shared between you, your coach, and gym staff who need it for your training |
 | Device | A push-notification token tied to your device | Delivering app notifications (subscription reminders, payment confirmations, etc.) via Expo's push notification service |
 
@@ -41,7 +41,7 @@ search history, or any audio/microphone data.
 
 ## 3. Who we share information with
 
-- **Notch Pay** — our payment processor, to complete transactions you initiate
+- **Tara Money** — our payment processor, to complete transactions you initiate
 - **Expo** — our push notification infrastructure provider, to deliver notifications to your device
 - **[SMS provider — Twilio]** — to send one-time login codes to your phone number
 - **Your gym** — gym staff (owners, managers, coaches per their role) can see the information relevant to running your membership and training
