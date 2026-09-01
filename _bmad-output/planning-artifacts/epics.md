@@ -437,6 +437,8 @@ FR-137: Epic 11, Story 11.6 - Shared integrity machinery + 4th discrepancy categ
 FR-138: Epic 4, Story 4.14 - PaymentProvider routing context, `{type:'gym'}` variant introduced for Flow A; extended with `{type:'platform'}` by Epic 11, Story 11.1 for Flow B
 FR-139: Epic 11, Story 11.2 - Free/Test tier (amends FR-073)
 FR-140: Epic 4, Story 4.15 - Member self-service renewal from app (Flow A)
+NFR-007: Epic 14, Story 14.1 - Sentry error monitoring (dashboard, super-admin, mobile) — added 2026-09-01, closes a gap architecture.md had described as already shipped
+NFR-017 (hardening): Epic 4, Story 4.16 - Platform business ID collision guard, closing the reverse-collision gap flagged in Story 11.6's review — added 2026-09-01
 
 ## Epic List
 
@@ -510,6 +512,21 @@ Existing Epic 6 (Push Notifications) gains new stories activating the two reserv
 **New FRs covered:** FR-113, FR-114, FR-115, FR-116
 
 **V1.5 dependency order:** Epic 9 first (no new deps beyond V1.0 auth/RLS foundation) → Epic 4 extension (unblocks Epic 11 via the FR-138 `PaymentProvider` routing context) → Epic 11 → Epic 10 and Epic 12 in parallel (independent of each other and of 9/11) → Epic 6 extension (needs Epic 12's booking data for N-07) → Epic 13 last (its E2E baseline needs the other flows already built). Not renaming Epic 4's stale "Notch Pay..." story titles here — that cleanup is assigned directly to the developer per the sprint-change-proposal, not to this planning pass.
+
+---
+
+## Release Hardening (2026-09-01 sprint-change-proposal)
+
+Epics 1–13 above are the fully shipped V1.0 + V1.5 scope — Epic 13 closed the last backlog story with nothing planned behind it. The items below were surfaced by a post-Epic-13 release-readiness review, not by any single story's implementation.
+
+**Epic 4 extension: Story 4.16** — closes a narrow, already-deferred hardening gap in Story 4.13's connect flow (a gym could register a `business_id_plain` colliding with the platform's own `TARAMONEY_BUSINESS_ID`). No new epic; appended to the existing Epic 4 block.
+
+### Epic 14: Observability & Release Hardening
+`architecture.md` has described Sentry as "the sole V1 observability tool" since the original architecture pass, but it was never implemented — zero `@sentry/*` packages, zero SDK calls, anywhere in the codebase (confirmed during Story 9.5's PostHog research). This epic finally delivers NFR-007.
+**NFRs covered:** NFR-007
+
+### Epic 15: Mobile Experience Quality Pass
+**Placeholder — blocked on a `bmad-ux` pass, no story written yet.** Stories 8.3–8.6 shipped the mobile design-system foundation and screen restyles, but a 2026-08-05 real-device verification found the result "reads as a color/theme swap only — general interface quality/layout still doesn't match what was expected from the Figma reference" (`sprint-status.yaml`, epic-8 action items, still `open`). This epic exists to keep that gap tracked, not to prescribe a fix — what's actually wrong (spacing, typography, component fidelity, or something else) hasn't been diagnosed. Writing acceptance criteria against "doesn't match Figma" today would just repeat Epic 8's own outcome; a UX pass has to happen first.
 
 ---
 
@@ -1949,6 +1966,26 @@ So that I don't have to wait for a receptionist when my membership is expiring o
 **When** it completes
 **Then** my subscription resets per FR-032 (new expiry, alert dismissed, appears in payment history immediately) and I see an immediate in-app confirmation — the same outcome as the front-desk renewal panel (FR-050), just self-initiated
 
+### Story 4.16: Platform Business ID Collision Guard
+
+As GymOS,
+I want the per-gym "Connect payment account" flow (Story 4.13) to reject a `business_id_plain` equal to the platform's own `TARAMONEY_BUSINESS_ID`,
+So that a gym can't connect an account whose ID collides with the platform's own — which would let that gym's webhook deliveries be misidentified as platform-account traffic (or vice versa) by `TaraMoneyProvider.ts`'s businessId-based routing (Story 4.14).
+
+**Acceptance Criteria:**
+
+**Given** a gym Owner submitting a `business_id_plain` via `connect_gym_payment_credentials` (initial connect or Settings' reconnect flow)
+**When** the submitted value equals the platform's own `TARAMONEY_BUSINESS_ID`
+**Then** the RPC rejects it with a clear error, and no credentials row is written or updated
+
+**Given** the existing `provider_key` + `business_id_plain` unique index (migration 0054)
+**When** this story ships
+**Then** it is left unchanged — that index already prevents one gym from registering another gym's business ID; this story closes only the platform-collision gap, which the index can't cover since the platform's ID lives in an env var, not a table row
+
+**Given** the `deferred-work.md` entry this story closes (Story 11.6 review, 2026-08-30)
+**When** this story ships
+**Then** that entry is marked resolved with a reference to this story
+
 ---
 
 ## Epic 11: SaaS Billing (Gym → GymOS)
@@ -2449,3 +2486,47 @@ So that regressions in privilege escalation, payment cutover, progress-data priv
 **Given** the staff-provisioning privilege-escalation guarantee specifically (NFR-013)
 **When** the E2E suite runs
 **Then** it asserts an Owner cannot mint or promote-to Super Admin, a Supervisor cannot mint or promote-to Supervisor or Owner (including on themselves), and a Manager cannot mint or edit staff roles at all — dedicated coverage before this guarantee ships, per the sprint-change-proposal's success criteria
+
+---
+
+## Epic 14: Observability & Release Hardening
+
+`architecture.md` names Sentry as "the sole V1 observability tool," present across all four surfaces (dashboard, super-admin, mobile, Edge Functions) with dev/staging/prod environment tagging. It was never built. This epic delivers NFR-007.
+
+### Story 14.1: Sentry Error Monitoring
+
+As the development team,
+I want unhandled exceptions across the dashboard, super-admin, and mobile app captured to Sentry with dev/staging/prod environment tagging,
+So that a production error is surfaced automatically instead of discovered only when a user reports it (NFR-007).
+
+**Acceptance Criteria:**
+
+**Given** a real `SENTRY_DSN` configured per app
+**When** an unhandled exception occurs in `apps/dashboard`, `apps/super-admin`, or `apps/mobile`
+**Then** it is captured to Sentry, tagged using the same three-value environment convention Story 9.5 already established for PostHog — `VERCEL_ENV` → `prod`/`staging`/`dev` for the two Next.js apps, `EXPO_PUBLIC_APP_ENV` for mobile — not a new convention invented from scratch
+
+**Given** no `SENTRY_DSN` is configured (e.g. local dev)
+**When** the app runs
+**Then** Sentry initialization no-ops safely, matching the existing PostHog module's own no-DSN-configured fallback pattern (`apps/dashboard/lib/analytics.ts`) — never blocking or crashing local dev or CI
+
+**Given** `architecture.md`'s existing error-handling convention (Server Actions/service functions return `{ data, error }` for expected, user-facing errors; only genuine bugs throw)
+**When** Sentry is wired
+**Then** it captures exactly those genuine-bug throws (React error boundaries, unhandled promise rejections, Server Action crashes) — not the expected `{ error }` returns the UI already handles, avoiding alert noise
+
+**Given** Edge Functions are named in `architecture.md` as a fourth Sentry surface
+**When** this story ships
+**Then** Edge Function instrumentation (a separate Deno SDK, a different runtime) is explicitly out of scope, flagged as a follow-up — matching this codebase's existing precedent of narrowing scope when a surface's toolchain genuinely differs (e.g. Story 9.5 excluding `apps/super-admin` from PostHog)
+
+**Given** a captured error reaches Sentry
+**When** this story ships
+**Then** it delivers capture only — alerting rules, on-call routing, and dashboards are an operational follow-up, not part of this story's scope
+
+---
+
+## Epic 15: Mobile Experience Quality Pass
+
+**Placeholder — blocked on a `bmad-ux` pass. No story exists yet; do not create one against this epic without a UX pass first.**
+
+Stories 8.3–8.6 shipped the mobile design-system foundation and screen restyles. A 2026-08-05 real-device verification (`sprint-status.yaml`, epic-8 action items, still `open`) found the result "reads as a color/theme swap only — general interface quality/layout still doesn't match what was expected from the Figma reference." This epic exists so that finding stays tracked in the sprint plan instead of sitting only in an action-item comment. It does not define a fix: what's actually wrong — spacing, typography, component fidelity, information density, something else — hasn't been diagnosed, only that the outcome fell short of the Figma reference. Writing acceptance criteria against "doesn't match Figma" today would just repeat Epic 8's own outcome.
+
+**Next step:** run `bmad-ux` against the current mobile app and the Figma reference to produce a real diagnosis and design spec; only then run `bmad-create-epics-and-stories` or `bmad-create-story` to turn this epic into buildable stories.
