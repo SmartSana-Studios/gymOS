@@ -37,6 +37,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# e2e (Story 13.5)
+/e2e/.fixtures.json
+/playwright-report/
+/test-results/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

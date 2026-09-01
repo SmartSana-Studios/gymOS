@@ -69,3 +69,83 @@ jobs:
       - name: Stop local Supabase
         if: always()
         run: supabase stop
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    # A full local run (supabase db reset + next build + all 8 specs) timed
+    # at ~1 minute end-to-end; 15 minutes matches rls-tests' own budget,
+    # generous margin over CI's extra install/Docker-pull/browser-download
+    # overhead a local run doesn't pay.
+    timeout-minutes: 15
+    env:
+      SEND_SMS_HOOK_SECRET: "v1,whsec_Y2ktZHVtbXktbm90LWEtcmVhbC1zZWNyZXQtdmFsdWU="
+      # Story 13.5: this repo's first E2E investment, additive alongside
+      # typecheck/rls-tests (neither existing job is modified). No
+      # `supabase functions serve` step here -- the only spec that needs it
+      # (Flow 2's payment-webhook replay) self-skips unless real,
+      # gym-connectable TaraMoney credentials are supplied via
+      # E2E_TARAMONEY_GYM_* secrets (not present by default, including
+      # here); see docs/decisions.md's Story 13.5 entry and
+      # payment-cutover.spec.ts's own top-of-file comment.
+      DASHBOARD_APP_URL: "http://127.0.0.1:3100"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.0
+
+      - name: Start local Supabase and apply migrations
+        run: supabase start
+
+      - name: Export local Supabase keys as dashboard env vars
+        # The same fixed, non-secret local-dev demo keys `supabase start`
+        # always prints (deterministic given config.toml's own committed
+        # JWT_SECRET) -- mirrors apps/dashboard/.env.local's own values,
+        # regenerated here since CI has no .env.local file (gitignored).
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          # Fail loudly here rather than silently exporting empty values if
+          # supabase status -o env's variable names ever change between CLI
+          # versions -- this job is unverified on a real runner as of this
+          # story (see docs/decisions.md), so this is the first real chance
+          # to catch a naming mismatch instead of a confusing downstream
+          # dashboard-boot failure.
+          : "${API_URL:?supabase status -o env did not export API_URL}"
+          : "${PUBLISHABLE_KEY:?supabase status -o env did not export PUBLISHABLE_KEY}"
+          : "${SERVICE_ROLE_KEY:?supabase status -o env did not export SERVICE_ROLE_KEY}"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: apps/dashboard
+
+      - name: Run E2E suite
+        run: npx turbo run test:e2e --filter=@gymos/dashboard
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/dashboard/playwright-report/
+          retention-days: 14
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop
