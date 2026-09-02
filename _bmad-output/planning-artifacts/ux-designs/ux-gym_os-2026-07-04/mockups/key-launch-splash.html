@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/*
+  Governed by: DESIGN.md (Brand & Style — Icon & Launch identity; Colors)
+  and EXPERIENCE.md (Cross-Cutting Components — App Launch / Splash Screen).
+  Mark is a stand-in for the bar-glyph cropped from
+  apps/dashboard/public/gymos-logo-full-white.webp — exact glyph geometry
+  is a production/export task, not redrawn here.
+*/
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #e9e9ec; display: flex; justify-content: center; padding: 40px 20px; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+.caption { text-align: center; margin-top: 12px; font-size: 13px; color: #555; }
+.frame-wrap { display: flex; flex-direction: column; align-items: center; }
+.device { width: 375px; height: 812px; background: #0A0F17; border-radius: 44px; border: 10px solid #1a1a1a; overflow: hidden; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+.notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 150px; height: 26px; background: #1a1a1a; border-radius: 0 0 16px 16px; z-index: 10; }
+.screen { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.mark { display: flex; gap: 8px; margin-bottom: 18px; }
+.bar { width: 14px; height: 56px; background: #E0971F; border-radius: 4px; }
+.bar.tall { height: 72px; }
+.wordmark { font-weight: 800; font-size: 26px; letter-spacing: 1px; text-transform: uppercase; }
+.wordmark .gym { color: #F5F6F7; }
+.wordmark .os { color: #E0971F; }
+</style>
+</head>
+<body>
+<div class="frame-wrap">
+<div class="device">
+  <div class="notch"></div>
+  <div class="screen">
+    <div class="mark">
+      <div class="bar"></div>
+      <div class="bar tall"></div>
+    </div>
+    <div class="wordmark"><span class="gym">Gym</span><span class="os">OS</span></div>
+  </div>
+</div>
+<div class="caption">App Launch — dark theme background (was Expo-starter blue #208AEF), accent-orange mark cropped from the existing brand wordmark (was a generic template icon)</div>
+</div>
+</body>
+</html>

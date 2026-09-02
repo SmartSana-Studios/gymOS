@@ -4,7 +4,7 @@ baseline_commit: b8e6755b713ec4be091bf661389c43e80e66e600
 
 # Story 14.1: Sentry Error Monitoring
 
-Status: review
+Status: done
 
 ## Story
 
@@ -57,6 +57,26 @@ so that a production error is surfaced automatically instead of discovered only 
   - [x] `docs/decisions.md`: new dated entry recording the DSN env-var-naming decision (resolves `deferred-work.md`'s existing flagged gap, see below), the newly-created `instrumentation.ts`/`global-error.tsx` files (none existed before this story), the Edge-Function-out-of-scope confirmation, and the source-map-token build-verification result from Task 1/2.
   - [x] `docs/deploy-runbook.md`: update the §5 env var list (`SENTRY_DSN` placeholder line → `NEXT_PUBLIC_SENTRY_DSN` / `EXPO_PUBLIC_SENTRY_DSN`) and rewrite the §7 Observability section to reflect Sentry now being wired (still note that alerting/on-call/dashboards remain unbuilt, per AC #5).
   - [x] Remove or update `deferred-work.md` line 546 (the SENTRY_DSN-naming gap) now that this story resolves it.
+
+### Review Findings
+
+- [x] [Review][Decision] No PII-scrubbing policy configured across any of the six `Sentry.init()` call sites — this platform handles gym-member PII and a live payment-provider (Tara Money) integration, yet no `sendDefaultPii`/`beforeSend` scrubbing option is set or documented anywhere in this diff (`apps/dashboard/{instrumentation-client.ts,sentry.server.config.ts,sentry.edge.config.ts}`, the matching `apps/super-admin` files, `apps/mobile/src/app/_layout.tsx`). **Resolved:** user chose to accept the SDK default (`sendDefaultPii: false`) as sufficient — matches this story's explicitly narrow "capture only" scope (AC #5); an explicit `beforeSend` scrubbing policy is deferred as a follow-up rather than blocking this story. No code change.
+
+- [x] [Review][Patch] `Sentry.init()` lacks the try/catch guard used elsewhere in this same diff [apps/dashboard/sentry.server.config.ts:8-13] — fixed: wrapped `Sentry.init()` in try/catch (matching the existing `instrumentation-client.ts` pattern, `console.error` fallback) in `apps/dashboard/sentry.server.config.ts`, `apps/dashboard/sentry.edge.config.ts`, `apps/super-admin/sentry.server.config.ts`, `apps/super-admin/sentry.edge.config.ts`, and `apps/mobile/src/app/_layout.tsx`. Verified via `pnpm --filter dashboard/super-admin/mobile typecheck` (all clean) and `eslint` on the touched Next.js files (clean).
+
+- [x] [Review][Patch] `error.digest` is typed on the props but never attached to the Sentry capture [apps/dashboard/app/global-error.tsx:14-17, apps/super-admin/app/global-error.tsx:9-12] — fixed: `Sentry.captureException(error, { tags: { digest: error.digest } })` in both apps' `global-error.tsx`.
+
+- [x] [Review][Patch] `.env.example`'s updated Sentry comment doesn't say which var belongs to which app [.env.example:11] — fixed: inline per-var comments (`# dashboard, super-admin` / `# mobile`) replace the single ambiguous header comment.
+
+- [x] [Review][Defer] Manual live verification never exercised a real `global-error.tsx` React-boundary catch or a Server Action crash (`onRequestError`'s `'action'` routeType) [_bmad-output/implementation-artifacts/14-1-sentry-error-monitoring.md:201-209] — deferred, pre-existing. Only a generic Route Handler throw (`'route'` routeType) was tested end-to-end against a real Sentry project; the other two surfaces AC #3 names by name were verified structurally (typecheck/build) but not exercised live. Recommend a short follow-up verification pass before relying on this in an incident.
+
+- [x] [Review][Defer] No `release`/`dist` identifier set on any `Sentry.init()` call — deferred, pre-existing. Without a release tag, a captured error can't be correlated to the deploy/commit that produced it, weakening NFR-007's diagnostic value once more than one deploy has shipped. Deliberately out of this story's "capture only" scope (AC #5); worth a near-term follow-up once a release-naming convention (commit SHA vs. EAS build ID vs. Vercel deployment ID) is chosen.
+
+- [x] [Review][Defer] `withSentryConfig(...)` sets `silent: true` unconditionally in both `next.config.ts` files — deferred, pre-existing. This suppresses all future Sentry build-plugin warnings, not just the disclosed missing-`SENTRY_AUTH_TOKEN` case, which could hide a genuine future misconfiguration.
+
+- [x] [Review][Defer] No tracked follow-up ensures the new DSNs actually get added to Vercel/EAS production project settings — deferred, pre-existing. Per `docs/deploy-runbook.md`'s own updated text, production hosting still has no DSN configured after this diff merges; the only record of that gap is doc prose, with nothing in `deferred-work.md` or a new story tracking it.
+
+- [x] [Review][Defer] No automated test coverage exercises any of the six no-DSN-no-crash init guards (AC #2) — deferred, pre-existing. A future regression (e.g. someone removing a guard) would only be caught by manual verification, not CI.
 
 ## Dev Notes
 

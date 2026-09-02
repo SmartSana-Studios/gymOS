@@ -2525,8 +2525,119 @@ So that a production error is surfaced automatically instead of discovered only 
 
 ## Epic 15: Mobile Experience Quality Pass
 
-**Placeholder — blocked on a `bmad-ux` pass. No story exists yet; do not create one against this epic without a UX pass first.**
+Stories 8.3–8.6 shipped the mobile design-system foundation and screen restyles. A 2026-08-05 real-device verification (`sprint-status.yaml`, epic-8 action items) found the result "reads as a color/theme swap only." A 2026-09-02 `bmad-ux` pass (`_bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/DESIGN.md` + `EXPERIENCE.md`, updated in place) diagnosed the real cause by comparing shipped code against reference craft: the dark theme and Barlow condensed-header typography (Story 8.3) were already correct — the actual gap is that `Card.tsx` has no elevation/shadow and isn't used on Home/Profile (which hand-roll bare bordered rows instead), there's no iconography anchoring list rows, and the launch (splash/icon) assets were never rebranded from Expo-starter defaults. This epic fixes those four things. It does not add photography — GymOS is white-label multi-tenant, so per-gym stock imagery would look generic across different tenants' real facilities; the fix stays icon + data-forward (`.memlog.md`, 2026-09-02 decisions).
 
-Stories 8.3–8.6 shipped the mobile design-system foundation and screen restyles. A 2026-08-05 real-device verification (`sprint-status.yaml`, epic-8 action items, still `open`) found the result "reads as a color/theme swap only — general interface quality/layout still doesn't match what was expected from the Figma reference." This epic exists so that finding stays tracked in the sprint plan instead of sitting only in an action-item comment. It does not define a fix: what's actually wrong — spacing, typography, component fidelity, information density, something else — hasn't been diagnosed, only that the outcome fell short of the Figma reference. Writing acceptance criteria against "doesn't match Figma" today would just repeat Epic 8's own outcome.
+### Story 15.1: Splash Screen & App Icon Fix
 
-**Next step:** run `bmad-ux` against the current mobile app and the Figma reference to produce a real diagnosis and design spec; only then run `bmad-create-epics-and-stories` or `bmad-create-story` to turn this epic into buildable stories.
+As a gym member,
+I want the app's launch screen and icon to reflect GymOS's actual brand instead of an unbranded default,
+So that my first impression of the app looks intentional rather than like an unfinished template.
+
+**Acceptance Criteria:**
+
+**Given** `apps/mobile/app.json`'s `expo-splash-screen` config currently sets `backgroundColor: "#208AEF"` — an Expo-starter default unrelated to `Brand.primary` (`#1B2A41`) or the mobile dark theme's actual background (`#0A0F17`)
+**When** this story ships
+**Then** `backgroundColor` is updated to `#0A0F17` (DESIGN.md's App Launch spec), matching the dark theme the rest of the app already uses
+
+**Given** `apps/mobile`'s icon is defined across **three separate surfaces**, not one file — `app.json`'s top-level `icon` (`assets/images/icon.png`), `ios.icon` (`assets/expo.icon`, an Xcode 16 Icon Composer bundle: `icon.json` layer config + `Assets/expo-symbol 2.svg` + `Assets/grid.png`), and `android.adaptiveIcon` (`foregroundImage`/`backgroundImage`/`monochromeImage` PNGs plus its own separate `backgroundColor: "#E6F4FE"`) — and all three are currently the unbranded Expo starter default (generic blue "A" glyph / "expo-symbol" layer / light-blue adaptive background), confirmed via inspection of `app.json` and each asset, not assumed
+**When** this story ships
+**Then** all three surfaces are rebranded consistently from the same source mark (the accent-orange bar-glyph cropped from `apps/dashboard/public/gymos-logo-full-white.webp` — no new brand design needed): `icon.png` replaced (1024×1024); `expo.icon/icon.json`'s `fill` changed from the default Expo-blue gradient to a GymOS token (`primary` `#1B2A41` solid or a `primary`→`accent` gradient) and its `expo-symbol`/`grid` layers replaced with the GymOS mark, keeping the bundle's Icon Composer JSON structure valid; `android.adaptiveIcon.backgroundColor` changed from `#E6F4FE` to `primary` (`#1B2A41`) and its three PNG layers regenerated from the same mark
+**Then also** `splash-icon.png` (currently a blank placeholder, separate from all three icon surfaces above) is replaced with the same mark, sized per Expo's splash `imageWidth` convention, on the `#0A0F17` background from this story's first AC
+
+**Given** `react-logo*.png`, `expo-logo.png`, `expo-badge*.png`, and `tutorial-web.png` are unreferenced Expo-starter template leftovers (verify via grep across `apps/mobile/src` and `app.json` before deleting — confirm zero references, don't assume)
+**When** this story ships
+**Then** any confirmed-unreferenced file among them is deleted as part of the same asset cleanup
+
+**Given** the app is launched cold on a real device or simulator
+**When** the splash appears then transitions to the first screen
+**Then** the transition reads as one continuous brand (dark background, accent mark) rather than a blue flash followed by a color change — verified manually, this story doesn't ship without on-device confirmation (per this project's manual-QA convention, `sprint-status.yaml` action items)
+
+---
+
+### Story 15.2: Shared Component Library — Card Elevation, Icon Chip, List Item, Stat Tile
+
+As a mobile app developer,
+I want the shared UI primitives DESIGN.md now specifies (Card `raised`, Icon Chip, List Item, Stat Tile) built as reusable components,
+So that Home and Profile — and future screens — can apply them without each screen hand-rolling its own bordered-row treatment.
+
+**Acceptance Criteria:**
+
+**Given** `apps/mobile/src/components/ui/Card.tsx`'s `elevated` prop currently only swaps background color, with no shadow/elevation styling defined
+**When** this story ships
+**Then** Card gains a `raised` variant applying DESIGN.md's Elevation & Depth spec (iOS `shadowColor/Opacity/Radius/Offset`, Android `elevation: 4`, no border) while the existing bordered default (`flat`) behavior is unchanged for every existing caller (`Card.tsx`'s current consumers in `(tabs)/profile.tsx` etc. must render identically to before)
+
+**Given** no Icon Chip component exists yet
+**When** this story ships
+**Then** a new `IconChip.tsx` exists at `apps/mobile/src/components/ui/`, taking a MaterialIcons glyph name and a semantic tint (`accent`/`success`/`warning`/`danger`/`primary`), rendering per DESIGN.md's `iconChip` spec (36×36, radius 8, 1px border)
+
+**Given** no List Item component exists yet (Home/Profile currently hand-roll bordered rows per-screen)
+**When** this story ships
+**Then** a new `ListItem.tsx` exists, composing IconChip + title + trailing meta text, matching EXPERIENCE.md's Member App Component Library List Item spec, with a tap target ≥44×44pt per the existing Interaction Primitives / Accessibility Floor rule
+
+**Given** no Stat Tile component exists yet, and `ThemedText`'s `type` prop has no numeral-emphasis variant
+**When** this story ships
+**Then** `ThemedText` gains a `statNumeral` type (Barlow ExtraBold 800, 32/36, no uppercase/letter-spacing — distinct from `title`/`subtitle`'s uppercase treatment) and a new `StatTile.tsx` composes it with a `small` caption inside a `raised` Card
+
+**Given** these are new shared primitives with no existing screen consuming them yet
+**When** this story ships
+**Then** it ships the four components with their own isolated coverage (matching this repo's existing component-testing convention) but does **not** modify Home or Profile screens — that's Stories 15.3/15.4, kept separate so a primitives regression and a screen-layout regression are never bisected together
+
+---
+
+### Story 15.3: Home Screen Craft Pass (MA-09)
+
+As a gym member,
+I want the Home screen's status card, upcoming classes, and recent activity to look like a designed product surface instead of a flat list of bordered text rows,
+So that the app feels finished rather than a color swap over a starter template.
+
+*Depends on Story 15.2 (Card `raised`, IconChip, ListItem, StatTile must exist first).*
+
+**Acceptance Criteria:**
+
+**Given** the subscription status card in `apps/mobile/src/app/(tabs)/index.tsx` currently renders as a hand-rolled bordered `View` (`styles.statusCard`)
+**When** this story ships
+**Then** it renders as the new Card `raised` variant — the one `raised` card on this screen per EXPERIENCE.md's Card-usage rule — with a leading IconChip tinted to the same status color the Status Badge already uses (the existing `grace_period` warning glyph moves into the chip, not duplicated)
+
+**Given** `expiring_soon`/`grace_period` states currently show "Expires [date]" as plain prose (`home.expiresOn`/`home.gracePeriodNote` i18n keys, existing `expiryDate` value already computed client-side)
+**When** the day-count framing applies
+**Then** the numeric day count renders with `statNumeral` emphasis inline in the same sentence — no new data fetched or computed, this is a typographic change to an existing value
+
+**Given** Recent Activity and Upcoming Classes currently render as bare rows (`styles.activityRow`, `borderTopWidth: 1`, no icon)
+**When** this story ships
+**Then** each section's rows render as ListItem components (IconChip tint: check-in → `accent`, payment → `success`, class → `accent`) wrapped in one `flat` Card per section, per EXPERIENCE.md's updated MA-09 spec
+
+**Given** existing navigation (status card → MA-13, activity rows → History/MA-14, upcoming classes → MA-16) and all existing `onPress` handlers are correct today
+**When** this story ships
+**Then** every route and handler stays wired exactly as before — this is a presentational-only change; no IA, destination, or data-fetching logic changes
+
+**Given** the offline sync banner, loading skeletons, and the "No activity yet…" empty state are pre-existing and correctly specified
+**When** this story ships
+**Then** their copy and trigger conditions are unchanged — only the loaded/non-empty activity-row container changes visually
+
+---
+
+### Story 15.4: Profile Screen Craft Pass (MA-12)
+
+As a gym member,
+I want Profile's settings rows grouped and iconified instead of a flat stack of hairline-divided text rows,
+So that it's easier to scan and feels consistent with the rest of the redesigned app.
+
+*Depends on Story 15.2.*
+
+**Acceptance Criteria:**
+
+**Given** `apps/mobile/src/app/(tabs)/profile.tsx` currently renders Edit profile / Body Profile+Log entry / History / Language as separate bordered rows (`styles.row`, `borderTopWidth: 1`, no icons)
+**When** this story ships
+**Then** Edit profile, History, and Language rows are grouped into one `flat` Card with leading IconChips (`person`/`history`/`language` glyphs, `primary` tint), per EXPERIENCE.md's updated MA-12 spec; the Body Profile / Log Progress Entry row (a Story 10.1/12.4 addition not currently documented in EXPERIENCE.md's MA-12 layout — a pre-existing spine gap, not introduced by this story) keeps its current position and behavior, gaining only the same Card-grouping treatment as its neighbors, not a new IA slot
+
+**Given** the Notifications section currently renders inline within the same undifferentiated row stack, with exactly two `Switch` controls (`quietGymAlertsOptedOut`, `classReminderOptedOut` — EXPERIENCE.md's spine additionally describes a third "Renewal & payment reminders" toggle that is not present in shipped code; this pre-existing spine/code drift is out of scope for this story, which does not add a third toggle)
+**When** this story ships
+**Then** the two existing notification rows render inside their own separate `flat` Card, each gaining a `bell`-glyph IconChip, with the existing `Switch` controls, optimistic-toggle-with-rollback behavior, and description text unchanged
+
+**Given** "Log out" currently renders as just another row in the same stack
+**When** this story ships
+**Then** it renders standalone (outside both Cards) with a `danger`-tinted IconChip, per EXPERIENCE.md's updated MA-12 spec — the existing confirmation `Alert` and sign-out behavior (including the Progress/Workout-Plan cache clears on sign-out) are unchanged
+
+**Given** navigation destinations, edit-mode behavior, the language-toggle optimistic update, and the notification-toggle optimistic update are all pre-existing and correct today
+**When** this story ships
+**Then** none of that logic changes — this is a presentational/containment-only pass, the same discipline as Story 15.3

@@ -2,7 +2,7 @@
 name: GymOS
 status: final
 created: 2026-07-04
-updated: 2026-08-11
+updated: 2026-09-02
 sources:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
 design_spine: DESIGN.md
@@ -581,6 +581,8 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 
 **Purpose:** Member's primary hub — subscription status at a glance, quick actions, recent activity.
 
+**Mock:** [mockups/key-ma09-home.html](mockups/key-ma09-home.html) *(grace-period state)*
+
 **Layout:**
 ```
 ┌──────────────────────────────────┐
@@ -588,23 +590,24 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 ├──────────────────────────────────┤
 │  "Welcome back, [First Name]"    │  ← muted subtitle
 │                                  │
-│  ┌────────────────────────────┐  │
-│  │  [Status badge]            │  │
-│  │  Monthly Plan              │  │
-│  │  Expires: 31 Aug 2026      │  │
+│  ┌────────────────────────────┐  │  ← raised Card (this screen's one)
+│  │ (●) [Status badge]         │  │     leading Icon Chip, status-tinted
+│  │  Monthly Plan               │  │
+│  │  Expires in 12 days         │  │  ← statNumeral emphasis on "12"
 │  └────────────────────────────┘  │
 │                                  │
 │  [Check In]        [View Plan]   │  ← quick actions (icon + label)
 │                                  │
 │  Upcoming Classes            →   │  ← V1.5; only if ≥1 booking exists
-│  ─────────────────────────────── │
-│  [Class name]   [day, time]      │
+│  ┌────────────────────────────┐  │  ← flat Card wrapping the group
+│  │(♪)[Class name]  [day, time]│  │     Icon Chip per row
+│  └────────────────────────────┘  │
 │                                  │
 │  Recent Activity                 │
-│  ─────────────────────────────── │
-│  [event row]              [date] │
-│  [event row]              [date] │
-│                                  │
+│  ┌────────────────────────────┐  │  ← flat Card wrapping the group
+│  │(✓)[event row]        [date]│  │     Icon Chip: check-in=accent,
+│  │($)[event row]        [date]│  │     payment=success
+│  └────────────────────────────┘  │
 ├──────────────────────────────────┤
 │ [Home][Check In][Classes][Progress][Me] │  ← bottom tab bar, 5 tabs (V1.5)
 └──────────────────────────────────┘
@@ -613,14 +616,15 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 **Components:**
 - **Branded header:** gym logo (left, max 40px height), gym name (center or right of logo), member avatar (right, 36px, tappable → navigates to MA-12)
 - **Welcome text:** "Welcome back, [First Name]" in muted style
-- **Subscription status card:**
+- **Subscription status card** *(Epic 15: now a `raised` Card — the screen's one)*:
+  - Leading Icon Chip, tinted to the same status color as the badge (warning glyph for `grace_period`, unchanged from before — now inside a chip rather than bare)
   - Status badge: see Status Badge states below
   - Plan name
-  - Expiry date formatted per locale
+  - Expiry date: when a "days until expiry" framing applies (`expiring_soon`/`grace_period`), the day count renders as a `statNumeral` inline within the sentence (e.g., "Expires in **12** days") rather than plain prose — reuses existing `expiryDate` data, no new field
   - Tapping the card navigates to MA-13 (Plan Details)
-- **Quick action buttons:** "Check In" (navigates to MA-10) + "View Plan" (navigates to MA-13); row of two equal-width buttons
-- **Upcoming Classes section** *(V1.5, FR-108)*: shown only when the member has ≥1 upcoming booking; up to 2 nearest sessions (name, day/time); "→" navigates to MA-16 (Classes) Booked tab; section is absent entirely (not an empty state) when there are zero bookings, to avoid crowding Home with an unused feature
-- **Recent activity section:** last 2–3 combined events (check-ins + payments, reverse chronological); each row tappable; check-in rows navigate to History (now under Profile), payment rows navigate to MA-14
+- **Quick action buttons:** "Check In" (navigates to MA-10) + "View Plan" (navigates to MA-13); row of two equal-width buttons — unchanged
+- **Upcoming Classes section** *(V1.5, FR-108; Epic 15: rows now live inside one `flat` Card with Icon Chips)*: shown only when the member has ≥1 upcoming booking; up to 2 nearest sessions (name, day/time); "→" navigates to MA-16 (Classes) Booked tab; section is absent entirely (not an empty state) when there are zero bookings, to avoid crowding Home with an unused feature
+- **Recent activity section** *(Epic 15: rows now live inside one `flat` Card with Icon Chips, tinted per item kind)*: last 2–3 combined events (check-ins + payments, reverse chronological); each row tappable; check-in rows navigate to History (now under Profile), payment rows navigate to MA-14
 
 **Status badge states:**
 
@@ -794,6 +798,8 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 
 **V1.5 change:** gains a "History" row (→ MA-11, moved off the tab bar) and a "Notification Preferences" section (in-page — this section documents the already-shipped V1.0 Story 6.4 behavior, undocumented until this update, plus the two new V1.5 toggles).
 
+**Mock:** [mockups/key-ma12-profile.html](mockups/key-ma12-profile.html)
+
 **Layout:**
 ```
 ┌──────────────────────────────────┐
@@ -803,19 +809,19 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 │  [Member Full Name]              │
 │  [Gym Name]  ·  [Plan Name]      │
 │                                  │
-├──────────────────────────────────┤
-│  Edit profile                  → │
-│  ─────────────────────────────── │
-│  History                       → │  ← V1.5: moved here from tab bar
-│  ─────────────────────────────── │
-│  Language          [EN] [FR]     │
-│  ─────────────────────────────── │
-│  Notifications                   │
-│    Renewal & payment reminders  ⊙ │
-│    Quiet-gym alerts        ⊙(off)│  ← V1.5, default off (FR-113)
-│    Class reminders         ⊙(on) │  ← V1.5, default on, opt-out (FR-116)
-│  ─────────────────────────────── │
-│  Log out                         │
+│  ┌────────────────────────────┐  │  ← flat Card: account section
+│  │(person) Edit profile      →│  │
+│  │(clock)  History            →│  │  ← V1.5: moved here from tab bar
+│  │(globe)  Language  [EN][FR] │  │
+│  └────────────────────────────┘  │
+│                                  │
+│  ┌────────────────────────────┐  │  ← flat Card: notifications section
+│  │(bell) Renewal & payment  ⊙ │  │
+│  │(bell) Quiet-gym alerts ⊙off│  │  ← V1.5, default off (FR-113)
+│  │(bell) Class reminders  ⊙on │  │  ← V1.5, default on, opt-out (FR-116)
+│  └────────────────────────────┘  │
+│                                  │
+│  (logout) Log out                │  ← standalone row, danger-tinted chip
 ├──────────────────────────────────┤
 │ [Home][Check In][Classes][Progress][Me] │
 └──────────────────────────────────┘
@@ -824,11 +830,12 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 **Components:**
 - Avatar (tappable only in edit mode)
 - Name, gym name, plan name (read-only display)
+- *(Epic 15)* Account rows (Edit profile / History / Language) grouped into one `flat` Card, each row gaining a leading Icon Chip (`person`/`history`/`language` MaterialIcons glyphs, `primary`-tinted) — replaces the previous bare hairline-divided rows; navigation destinations and tap targets unchanged
 - "Edit profile" row → inline edit section: name field (pre-filled, editable) + photo upload circle; phone number shown as non-editable with label "Contact your gym to change your number"
 - "History" row → pushes MA-11
 - Language row: segmented EN | FR toggle — tapping the non-active option switches immediately; no reload required
-- **Notifications section:** one toggle row per notification category. Existing V1.0 categories (subscription lifecycle N-01–N-03, payment N-04–N-05) already ship as a single "Renewal & payment reminders" toggle (this documents current shipped behavior). V1.5 adds two more rows: "Quiet-gym alerts" (default **off** — opt-in, FR-113) and "Class reminders" (default **on** — opt-out, FR-116); each is an independent toggle, saved immediately on change (no separate Save action)
-- "Log out" row → bottom sheet: "Log out of GymOS?" [Log out] [Cancel]
+- **Notifications section** *(Epic 15: own `flat` Card, separate from the account Card above — grouping already-independent toggles doesn't imply they share a save action)*: one toggle row per notification category, each with a leading `bell`-glyph Icon Chip. Existing V1.0 categories (subscription lifecycle N-01–N-03, payment N-04–N-05) already ship as a single "Renewal & payment reminders" toggle (this documents current shipped behavior). V1.5 adds two more rows: "Quiet-gym alerts" (default **off** — opt-in, FR-113) and "Class reminders" (default **on** — opt-out, FR-116); each is an independent toggle, saved immediately on change (no separate Save action)
+- "Log out" row *(Epic 15: standalone, outside both Cards, `danger`-tinted Icon Chip — visually separated so it doesn't read as just another settings row)* → bottom sheet: "Log out of GymOS?" [Log out] [Cancel]
 
 **Interactions:**
 - Language change: immediately re-renders all app strings; preference saved to account; screen reader announces the change in the new language
@@ -1867,6 +1874,28 @@ Billing
 ---
 
 ## Cross-Cutting Components
+
+### App Launch (Splash Screen)
+
+*(Epic 15)* Fixes an unbranded default: `apps/mobile`'s current splash `backgroundColor` (`#208AEF`) and `icon.png`/`splash-icon.png` are Expo-starter placeholders, never replaced — not a prior design decision.
+
+- Background: mobile dark theme's `background` (`#0A0F17`), not the platform light `background` token — the splash is the app's own chrome, not a gym-branded member surface, so it does not take a per-gym override
+- Mark: the bar-glyph cropped from `apps/dashboard/public/gymos-logo-full-white.webp`, rendered in `accent` orange, centered, sized per Expo's splash `imageWidth` convention (existing config key)
+- No gym logo, no gym name — the splash renders before any gym context is known (matches onboarding's own platform-shell-only rule, Foundation)
+- No animation beyond Expo's default splash → app cross-fade
+- Mock: [mockups/key-launch-splash.html](mockups/key-launch-splash.html)
+
+### Member App Component Library
+
+*(Epic 15)* Behavioral rules for the shared components introduced to fix the "reads as a color swap" finding (`.memlog.md`) — root cause was never missing color, but missing elevation/iconography/containment. Visual specs (radius, shadow, spacing) live in `DESIGN.md`'s Elevation & Depth / Shapes / Components.
+
+**Card — flat vs. raised:** `flat` (bordered, no shadow) is for passive containers grouping related read-only content. `raised` (shadow, no border) is for the single most important actionable element on a screen — used sparingly, not on every card, or nothing "lifts" relative to anything else. A screen has at most one `raised` card in its primary content area.
+
+**Icon Chip:** every List Item and section header gains a leading icon chip. Icon choice is semantic, not decorative — reuses `MaterialIcons` (already the app's icon set) with a tint keyed to the same semantic colors as Status Badge (`success`/`warning`/`danger`/`neutral`) where the item has a status; `accent`/`primary` tint for non-status items (e.g., a class booking).
+
+**List Item:** replaces bare hairline-divided rows (Recent Activity, Upcoming Classes, Profile's settings rows) with: Icon Chip + title + trailing meta (timestamp, chevron), the group wrapped in one `flat` Card rather than sitting directly on the screen background. Tap targets and navigation destinations are unchanged from the pre-Epic-15 spec — this is a containment/legibility change, not a new IA.
+
+**Stat Tile:** a `raised` Card containing one `statNumeral` + one `small` caption. Reserved for data the member already sees in prose elsewhere on the screen (e.g., "Expires in 12 days" — the status card's existing expiry text, given numeral emphasis) — this pass does not introduce new metrics or new backend queries.
 
 ### Front-Desk Alert Panel
 

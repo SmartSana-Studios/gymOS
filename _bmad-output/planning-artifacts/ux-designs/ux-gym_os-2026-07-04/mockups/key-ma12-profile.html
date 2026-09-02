@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/*
+  Governed by: DESIGN.md (Colors, Typography, Elevation & Depth, Shapes, Components)
+  and EXPERIENCE.md (MA-12 · Profile; Member App Component Library).
+  System-font stand-in for Barlow (offline mock).
+*/
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #e9e9ec; display: flex; justify-content: center; padding: 40px 20px; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; }
+.caption { text-align: center; margin-top: 12px; font-size: 13px; color: #555; }
+.frame-wrap { display: flex; flex-direction: column; align-items: center; }
+.device { width: 375px; height: 812px; background: #0A0F17; border-radius: 44px; border: 10px solid #1a1a1a; overflow: hidden; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+.notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 150px; height: 26px; background: #1a1a1a; border-radius: 0 0 16px 16px; z-index: 10; }
+.screen { height: 100%; overflow-y: auto; padding: 40px 20px 100px; }
+
+.title { color: #F5F6F7; font-weight: 800; font-size: 22px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px; }
+
+.identity { text-align: center; margin-bottom: 20px; }
+.avatar-lg { width: 64px; height: 64px; border-radius: 32px; background: linear-gradient(135deg,#26374F,#141F30); border: 1px solid #26374F; margin: 0 auto 10px; }
+.name { color: #F5F6F7; font-weight: 700; font-size: 17px; }
+.subline { color: #9AA5B1; font-size: 13px; margin-top: 2px; }
+
+.flat-card { border: 1px solid #26374F; border-radius: 16px; overflow: hidden; margin-bottom: 16px; }
+.row { display: flex; align-items: center; gap: 10px; padding: 13px 14px; border-top: 1px solid #212225; }
+.row:first-child { border-top: none; }
+.icon-chip { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.chip-primary { background: #1B2A41; color: #E0971F; }
+.chip-danger { background: #3A1414; color: #F87171; }
+.row-text { flex: 1; color: #F5F6F7; font-size: 14px; font-weight: 600; }
+.row-trailing { color: #9AA5B1; font-size: 13px; }
+.segmented { display: flex; border: 1px solid #26374F; border-radius: 999px; overflow: hidden; }
+.seg { padding: 4px 10px; font-size: 11px; color: #9AA5B1; }
+.seg.active { background: #E0971F; color: #1B2A41; font-weight: 700; }
+
+.toggle { width: 38px; height: 22px; border-radius: 999px; position: relative; flex-shrink: 0; }
+.toggle.on { background: #E0971F; }
+.toggle.off { background: #2E3135; }
+.toggle .knob { width: 18px; height: 18px; border-radius: 9px; background: #F5F6F7; position: absolute; top: 2px; }
+.toggle.on .knob { right: 2px; }
+.toggle.off .knob { left: 2px; }
+
+.logout-row { display: flex; align-items: center; gap: 10px; padding: 4px 2px; margin-top: 4px; }
+.logout-text { color: #F87171; font-size: 14px; font-weight: 700; }
+
+.tabbar { position: absolute; bottom: 0; left: 0; right: 0; height: 82px; background: #0A0F17; border-top: 1px solid #212225; display: flex; align-items: flex-start; padding-top: 10px; }
+.tab { flex: 1; text-align: center; font-size: 10px; color: #9AA5B1; }
+.tab-icon { font-size: 18px; display:block; margin-bottom: 3px; }
+.tab.active { color: #E0971F; }
+</style>
+</head>
+<body>
+<div class="frame-wrap">
+<div class="device">
+  <div class="notch"></div>
+  <div class="screen">
+    <div class="title">Profile</div>
+
+    <div class="identity">
+      <div class="avatar-lg"></div>
+      <div class="name">Amara Kamdem</div>
+      <div class="subline">Flexx Fitness · Monthly Plan</div>
+    </div>
+
+    <div class="flat-card">
+      <div class="row">
+        <div class="icon-chip chip-primary">◐</div>
+        <div class="row-text">Edit profile</div>
+        <div class="row-trailing">→</div>
+      </div>
+      <div class="row">
+        <div class="icon-chip chip-primary">◷</div>
+        <div class="row-text">History</div>
+        <div class="row-trailing">→</div>
+      </div>
+      <div class="row">
+        <div class="icon-chip chip-primary">◎</div>
+        <div class="row-text">Language</div>
+        <div class="segmented"><div class="seg active">EN</div><div class="seg">FR</div></div>
+      </div>
+    </div>
+
+    <div class="flat-card">
+      <div class="row">
+        <div class="icon-chip chip-primary">◈</div>
+        <div class="row-text">Renewal &amp; payment reminders</div>
+        <div class="toggle on"><div class="knob"></div></div>
+      </div>
+      <div class="row">
+        <div class="icon-chip chip-primary">◈</div>
+        <div class="row-text">Quiet-gym alerts</div>
+        <div class="toggle off"><div class="knob"></div></div>
+      </div>
+      <div class="row">
+        <div class="icon-chip chip-primary">◈</div>
+        <div class="row-text">Class reminders</div>
+        <div class="toggle on"><div class="knob"></div></div>
+      </div>
+    </div>
+
+    <div class="logout-row">
+      <div class="icon-chip chip-danger">⏻</div>
+      <div class="logout-text">Log out</div>
+    </div>
+  </div>
+
+  <div class="tabbar">
+    <div class="tab"><span class="tab-icon">⌂</span>Home</div>
+    <div class="tab"><span class="tab-icon">▣</span>Check In</div>
+    <div class="tab"><span class="tab-icon">▤</span>Classes</div>
+    <div class="tab"><span class="tab-icon">▲</span>Progress</div>
+    <div class="tab active"><span class="tab-icon">●</span>Me</div>
+  </div>
+</div>
+<div class="caption">MA-12 · Profile — account/notifications grouped into flat Cards, Log out visually separated</div>
+</div>
+</body>
+</html>
