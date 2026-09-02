@@ -17,9 +17,10 @@ import * as Sentry from '@sentry/react-native';
 import { ANALYTICS_EVENT } from '@gymos/types';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import { useSession } from '@/hooks/use-session';
+import { SessionProvider, useSession } from '@/hooks/use-session';
 import { i18n } from '@/lib/i18n';
 import { captureEvent, posthogClient, resolveAnalyticsEnvironment } from '@/lib/analytics';
+import { OfflineSyncProvider } from '@/lib/offline-sync-context';
 import { registerPushToken, subscribeToPushTokenChanges } from '@/services/pushTokens';
 
 // Story 14.1 (AC #1, #2): mirrors this file's own `if (!posthogClient)`
@@ -128,6 +129,13 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="plan" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="renew" options={{ presentation: 'modal', headerShown: false }} />
+        {/* Review finding: was never registered here despite being reachable
+            via router.push('/workout-plan') from Home -- an unregistered
+            top-level route still resolves via expo-router's file-based
+            routing, but renders outside every Stack.Protected group's own
+            JSX subtree, which is what let it reach useOfflineSync() without
+            OfflineSyncProvider actually being an ancestor. */}
+        <Stack.Screen name="workout-plan" />
       </Stack.Protected>
 
       <Stack.Protected guard={showSuspended}>
@@ -148,11 +156,27 @@ function RootNavigator() {
 function RootLayout() {
   const content = (
     <I18nextProvider i18n={i18n}>
-      <ThemeProvider value={DarkTheme}>
-        <StatusBar style="light" />
-        <AnimatedSplashOverlay />
-        <RootNavigator />
-      </ThemeProvider>
+      <SessionProvider>
+        {/* Review finding: previously scoped to (tabs) only, on the stated
+            rationale that "the sync engine has no reason to run before a
+            member is signed in and onboarded" -- true, but the app has two
+            real call sites that reach useOfflineSync() from outside that
+            wrapper (workout-plan.tsx as an unregistered top-level route, and
+            LogEntrySheet when opened from onboarding/body-profile.tsx),
+            which crashed instead of the intended graceful "nothing to sync
+            yet." Hoisted to the root instead of chasing each call site
+            individually -- the provider itself doesn't depend on an
+            authenticated session to construct (network state + local SQLite
+            queue counts only), so mounting it before sign-in is harmless,
+            not just tolerated. */}
+        <OfflineSyncProvider>
+          <ThemeProvider value={DarkTheme}>
+            <StatusBar style="light" />
+            <AnimatedSplashOverlay />
+            <RootNavigator />
+          </ThemeProvider>
+        </OfflineSyncProvider>
+      </SessionProvider>
     </I18nextProvider>
   );
 

@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 import { supabase } from '@/lib/supabase';
 
@@ -25,8 +25,17 @@ import { supabase } from '@/lib/supabase';
  * the root `Stack.Protected` guard to `(tabs)` before onboarding completes
  * (Review finding, 2026-07-17, Story 2.6). `isOnboarded` defaults to
  * `false`, so the gate always favors onboarding until
- * `onboarding_completed_at` is actually set. */
-export function useSession() {
+ * `onboarding_completed_at` is actually set.
+ *
+ * Story 15.x (Review finding): wrapped in a Context (`SessionProvider`,
+ * below) rather than left as a plain hook -- `onboarding/body-profile.tsx`'s
+ * `goHome()` needs to wait for *this exact* `isOnboarded` state (the one
+ * driving the root `Stack.Protected` guard in `_layout.tsx`) to flip before
+ * it's safe to consider the member routed to `(tabs)`. A second,
+ * independent `useSession()` call would fetch its own separate copy on its
+ * own timeline -- reading the same Context instance instead is what makes
+ * that wait meaningful. */
+function useSessionState() {
   const [session, setSession] = useState<Session | null>(null);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [gymId, setGymId] = useState<string | null>(null);
@@ -138,4 +147,23 @@ export function useSession() {
   }, []);
 
   return { session, isOnboarded, gymId, isLoading, isSuspended };
+}
+
+type SessionValue = ReturnType<typeof useSessionState>;
+
+const SessionContext = createContext<SessionValue | null>(null);
+
+/** Mounted once in `_layout.tsx`, above `RootNavigator` -- every `useSession()`
+ * call below reads this single instance's state. */
+export function SessionProvider({ children }: { children: ReactNode }) {
+  const value = useSessionState();
+  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
+}
+
+export function useSession(): SessionValue {
+  const value = useContext(SessionContext);
+  if (!value) {
+    throw new Error('useSession must be used within SessionProvider');
+  }
+  return value;
 }

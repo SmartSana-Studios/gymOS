@@ -284,7 +284,8 @@
       "save": "Save",
       "skip": "Skip",
       "errorSaveFailed": "Couldn't save. Check your connection and try again.",
-      "errorInvalidInput": "Enter a valid value."
+      "errorInvalidInput": "Enter a valid value.",
+      "errorRedirectTimedOut": "This is taking longer than expected. Check your connection and try again."
     },
     "logEntry": {
       "title": "Log progress",

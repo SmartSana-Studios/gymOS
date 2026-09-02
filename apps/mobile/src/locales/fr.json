@@ -284,7 +284,8 @@
       "save": "Enregistrer",
       "skip": "Passer",
       "errorSaveFailed": "Impossible d'enregistrer. Vérifiez votre connexion et réessayez.",
-      "errorInvalidInput": "Entrez une valeur valide."
+      "errorInvalidInput": "Entrez une valeur valide.",
+      "errorRedirectTimedOut": "Cela prend plus de temps que prévu. Vérifiez votre connexion et réessayez."
     },
     "logEntry": {
       "title": "Enregistrer une progression",

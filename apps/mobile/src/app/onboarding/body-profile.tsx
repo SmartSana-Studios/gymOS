@@ -1,8 +1,8 @@
 import { bodyProfileSchema } from '@gymos/types';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
@@ -10,9 +10,15 @@ import { LogEntrySheet } from '@/components/LogEntrySheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useSession } from '@/hooks/use-session';
 import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
 import { getCurrentMember } from '@/services/progress';
+
+// Review finding: how long goHome() waits for the shared `isOnboarded`
+// state (see below) to flip before showing a retry option instead of a
+// silent, indefinite spinner.
+const REDIRECT_TIMEOUT_MS = 8000;
 
 /** Story 10.1 Task 6. No MA screen ID assigned in EXPERIENCE.md -- a genuine
  * UX gap (see the story's Dev Notes "Open UX Gap"), resolved here with a
@@ -32,12 +38,39 @@ export default function BodyProfileScreen() {
   // route as a later, non-onboarding entry point (Review finding) -- lets
   // goHome() return the member to Profile instead of forcing them to Home.
   const { from } = useLocalSearchParams<{ from?: string }>();
+  const { isOnboarded } = useSession();
 
   const [heightCm, setHeightCm] = useState('');
   const [startingWeightKg, setStartingWeightKg] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [sheetVisible, setSheetVisible] = useState(false);
+  // Review finding: replaces an unconditional `router.replace('/(tabs)')`
+  // immediately after `refreshSession()` -- that resolving only means the
+  // token refresh network call finished, not that `useSession()`'s own
+  // `onAuthStateChange`-triggered re-fetch of `isOnboarded` (a separate
+  // async chain: getClaims() + a gym-status query + a members query) has
+  // completed and re-rendered yet. Racing that (especially over a slow
+  // connection) let `router.replace` fire while the root `Stack.Protected`
+  // guard was still pointed at `onboarding`, crashing `(tabs)` screens that
+  // assume their providers (e.g. `OfflineSyncProvider`) are already mounted.
+  // Waiting for the *same* shared `isOnboarded` state to flip, then letting
+  // `Stack.Protected` swap groups on its own, is the fix -- no imperative
+  // navigation across that boundary at all.
+  const [redirecting, setRedirecting] = useState(false);
+  const [redirectTimedOut, setRedirectTimedOut] = useState(false);
+  // Review finding: bumped on every goHome() attempt so the timeout effect
+  // below re-runs (and reschedules a fresh timer) even when `redirecting`
+  // was already `true` from a prior attempt -- otherwise a second stall
+  // after a "Try Again" tap had no timer left to ever flip
+  // `redirectTimedOut` again, spinning forever with no way back.
+  const [redirectAttempt, setRedirectAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!redirecting || isOnboarded) return;
+    const timeout = setTimeout(() => setRedirectTimedOut(true), REDIRECT_TIMEOUT_MS);
+    return () => clearTimeout(timeout);
+  }, [redirecting, isOnboarded, redirectAttempt]);
 
   async function goHome() {
     if (from === 'profile') {
@@ -46,14 +79,30 @@ export default function BodyProfileScreen() {
       router.back();
       return;
     }
-    // Story 10.1 (Review finding): the auth-gate refresh moved here from
-    // plan.tsx's handleConfirm -- forces a `TOKEN_REFRESHED` auth event so
-    // the root layout's `useSession()` re-runs `refreshOnboardedState` and
-    // picks up `onboarding_completed_at` immediately before this screen's
-    // own `router.replace('/(tabs)')`, instead of racing that flip against
-    // the member's time on this still-optional step.
-    await supabase.auth.refreshSession();
-    router.replace('/(tabs)');
+    // Forces a `TOKEN_REFRESHED` auth event so `useSession()` re-runs its
+    // onboarded-state fetch -- `redirecting` below is what actually waits
+    // for that fetch's *result*, not this call's own resolution.
+    setRedirectTimedOut(false);
+    setRedirecting(true);
+    setRedirectAttempt((attempt) => attempt + 1);
+    try {
+      await supabase.auth.refreshSession();
+    } catch {
+      // Review finding: refreshSession() can reject (e.g. offline). Without
+      // this catch, the exception either surfaced as a handleSave()-caught
+      // error the user could never see (redirecting was already true, so
+      // only the redirecting branch below renders) or an unhandled
+      // rejection from the Skip button's un-awaited call site. Falling back
+      // to the normal form with a visible error gives the user an
+      // immediate, specific path forward instead of an 8s wait for a
+      // generic timeout message.
+      setRedirecting(false);
+      setError(t('progress.bodyProfile.errorSaveFailed'));
+    }
+    // Once `isOnboarded` flips true (picked up by the effect above via the
+    // shared session context), the root `Stack.Protected` guard swaps from
+    // `onboarding` to `(tabs)` on its own -- this screen unmounts as part of
+    // that swap, so there is nothing further to do here.
   }
 
   async function handleSave() {
@@ -111,6 +160,27 @@ export default function BodyProfileScreen() {
     }
   }
 
+  if (redirecting) {
+    return (
+      <ThemedView style={styles.container}>
+        <SafeAreaView style={[styles.safeArea, styles.redirectingContainer]}>
+          {redirectTimedOut ? (
+            <>
+              <ThemedText type="small" style={styles.error}>
+                {t('progress.bodyProfile.errorRedirectTimedOut')}
+              </ThemedText>
+              <Pressable accessibilityRole="button" onPress={() => void goHome()}>
+                <ThemedText type="link">{t('common.tryAgain')}</ThemedText>
+              </Pressable>
+            </>
+          ) : (
+            <ActivityIndicator />
+          )}
+        </SafeAreaView>
+      </ThemedView>
+    );
+  }
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -155,7 +225,7 @@ export default function BodyProfileScreen() {
           <View style={styles.saveButton}>
             <Button label={t('progress.bodyProfile.save')} loading={saving} onPress={handleSave} />
           </View>
-          <Pressable accessibilityRole="button" onPress={goHome} disabled={saving}>
+          <Pressable accessibilityRole="button" onPress={() => void goHome()} disabled={saving}>
             <ThemedText type="link">{t('progress.bodyProfile.skip')}</ThemedText>
           </Pressable>
         </View>
@@ -174,6 +244,11 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.four,
     gap: Spacing.three,
+  },
+  redirectingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
   },
   field: {
     gap: Spacing.one,
