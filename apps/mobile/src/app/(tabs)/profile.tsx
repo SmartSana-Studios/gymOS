@@ -8,6 +8,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { LogEntrySheet } from '@/components/LogEntrySheet';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { ListItem } from '@/components/ui/ListItem';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
@@ -409,15 +410,14 @@ export default function ProfileScreen() {
               {gymName} · {noActivePlan ? t('profile.noActivePlan') : planName}
             </ThemedText>
 
-            <View style={[styles.row, { borderTopColor: theme.border }]}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t(editing ? 'common.cancel' : 'profile.editProfile')}
+            <Card variant="flat">
+              <ListItem
+                icon="person"
+                tint="primary"
+                title={t(editing ? 'common.cancel' : 'profile.editProfile')}
+                meta={editing ? '×' : '→'}
                 onPress={editing ? handleCancelEdit : handleStartEdit}
-                style={styles.rowContent}>
-                <ThemedText type="default">{t(editing ? 'common.cancel' : 'profile.editProfile')}</ThemedText>
-                <ThemedText type="default">{editing ? '×' : '→'}</ThemedText>
-              </Pressable>
+              />
 
               {editing && (
                 <View style={styles.editSection}>
@@ -456,80 +456,88 @@ export default function ProfileScreen() {
                   </View>
                 </View>
               )}
-            </View>
+
+              {/* Story 12.4: completes Story 10.3's explicitly deferred
+                  History->Profile-row move -- the tab-bar's own `history`
+                  trigger is removed in this same story, this row is its
+                  replacement entry point. */}
+              <View style={[styles.rowDivider, { borderTopColor: theme.border }]}>
+                <ListItem icon="history" tint="primary" title={t('profile.history')} meta="→" onPress={() => router.push('/history')} />
+              </View>
+
+              <View style={[styles.rowDivider, { borderTopColor: theme.border }]}>
+                <ListItem
+                  icon="language"
+                  tint="primary"
+                  title={t('profile.language')}
+                  trailing={
+                    <View style={styles.languageToggle}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: i18n.language === 'en', disabled: langPending }}
+                        disabled={langPending}
+                        onPress={() => void handleLanguageChange('en')}
+                        style={[
+                          styles.languageOption,
+                          { backgroundColor: theme.surfaceElevated },
+                          i18n.language === 'en' && { backgroundColor: accent },
+                        ]}>
+                        <ThemedText
+                          type="smallBold"
+                          style={i18n.language === 'en' && { color: getContrastTextColor(accent) }}>
+                          {t('profile.languageEn')}
+                        </ThemedText>
+                      </Pressable>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: i18n.language === 'fr', disabled: langPending }}
+                        disabled={langPending}
+                        onPress={() => void handleLanguageChange('fr')}
+                        style={[
+                          styles.languageOption,
+                          { backgroundColor: theme.surfaceElevated },
+                          i18n.language === 'fr' && { backgroundColor: accent },
+                        ]}>
+                        <ThemedText
+                          type="smallBold"
+                          style={i18n.language === 'fr' && { color: getContrastTextColor(accent) }}>
+                          {t('profile.languageFr')}
+                        </ThemedText>
+                      </Pressable>
+                    </View>
+                  }
+                />
+              </View>
+            </Card>
 
             {/* Story 10.1 AC #2's "or visit Progress at any later time" --
                 an interim entry point before Story 10.3 formally adds this
                 to the Progress tab. Reuses /onboarding/body-profile itself
                 (skippable-safe to revisit; no dependency on
                 onboarding_completed_at). A second row underneath opens
-                LogEntrySheet directly for AC #3's "log an entry." */}
-            <View style={[styles.row, { borderTopColor: theme.border }]}>
-              <Pressable
-                accessibilityRole="button"
+                LogEntrySheet directly for AC #3's "log an entry." Its own
+                Card, separate from the account settings Card above (Story
+                15.4 AC #1) -- not a new IA slot inside it. */}
+            <Card variant="flat">
+              <ListItem
+                icon="monitor-weight"
+                tint="primary"
+                title={t('profile.bodyProfile')}
+                meta="→"
                 onPress={() => router.push({ pathname: '/onboarding/body-profile', params: { from: 'profile' } })}
-                style={styles.rowContent}>
-                <ThemedText type="default">{t('profile.bodyProfile')}</ThemedText>
-                <ThemedText type="default">→</ThemedText>
-              </Pressable>
-              <Pressable accessibilityRole="button" onPress={() => setLogEntrySheetVisible(true)} style={styles.logEntryRow}>
-                <ThemedText type="link">{t('profile.logProgressEntry')}</ThemedText>
-              </Pressable>
-            </View>
-
-            {/* Story 12.4: completes Story 10.3's explicitly deferred
-                History->Profile-row move -- the tab-bar's own `history`
-                trigger is removed in this same story, this row is its
-                replacement entry point. */}
-            <View style={[styles.row, { borderTopColor: theme.border }]}>
-              <Pressable accessibilityRole="button" onPress={() => router.push('/history')} style={styles.rowContent}>
-                <ThemedText type="default">{t('profile.history')}</ThemedText>
-                <ThemedText type="default">→</ThemedText>
-              </Pressable>
-            </View>
-
-            <View style={[styles.row, { borderTopColor: theme.border }]}>
-              <View style={styles.rowContent}>
-                <ThemedText type="default">{t('profile.language')}</ThemedText>
-                <View style={styles.languageToggle}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: i18n.language === 'en', disabled: langPending }}
-                    disabled={langPending}
-                    onPress={() => void handleLanguageChange('en')}
-                    style={[
-                      styles.languageOption,
-                      { backgroundColor: theme.surfaceElevated },
-                      i18n.language === 'en' && { backgroundColor: accent },
-                    ]}>
-                    <ThemedText
-                      type="smallBold"
-                      style={i18n.language === 'en' && { color: getContrastTextColor(accent) }}>
-                      {t('profile.languageEn')}
-                    </ThemedText>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: i18n.language === 'fr', disabled: langPending }}
-                    disabled={langPending}
-                    onPress={() => void handleLanguageChange('fr')}
-                    style={[
-                      styles.languageOption,
-                      { backgroundColor: theme.surfaceElevated },
-                      i18n.language === 'fr' && { backgroundColor: accent },
-                    ]}>
-                    <ThemedText
-                      type="smallBold"
-                      style={i18n.language === 'fr' && { color: getContrastTextColor(accent) }}>
-                      {t('profile.languageFr')}
-                    </ThemedText>
-                  </Pressable>
-                </View>
+              />
+              <View style={[styles.rowDivider, { borderTopColor: theme.border }]}>
+                <ListItem
+                  icon="add-circle"
+                  tint="accent"
+                  title={t('profile.logProgressEntry')}
+                  onPress={() => setLogEntrySheetVisible(true)}
+                />
               </View>
-            </View>
+            </Card>
 
             {memberId && (
-              <View style={[styles.row, { borderTopColor: theme.border }]}>
+              <View style={styles.activitySection}>
                 <ThemedText type="default">{t('profile.notifications.title')}</ThemedText>
 
                 {notificationsLoadError ? (
@@ -542,46 +550,52 @@ export default function ProfileScreen() {
                     </Pressable>
                   </View>
                 ) : (
-                  <>
-                    <View style={[styles.rowContent, styles.notificationRow]}>
-                      <ThemedText type="small">{t('profile.notifications.quietGymAlerts')}</ThemedText>
-                      <Switch
-                        accessibilityRole="switch"
-                        accessibilityLabel={t('profile.notifications.quietGymAlerts')}
-                        accessibilityState={{ checked: !quietGymAlertsOptedOut, disabled: quietGymAlertsPending }}
-                        disabled={quietGymAlertsPending}
-                        value={!quietGymAlertsOptedOut}
-                        onValueChange={() => void handleToggleQuietGymAlerts()}
-                      />
-                    </View>
+                  <Card variant="flat">
+                    <ListItem
+                      icon="notifications"
+                      tint="primary"
+                      title={t('profile.notifications.quietGymAlerts')}
+                      trailing={
+                        <Switch
+                          accessibilityRole="switch"
+                          accessibilityLabel={t('profile.notifications.quietGymAlerts')}
+                          accessibilityState={{ checked: !quietGymAlertsOptedOut, disabled: quietGymAlertsPending }}
+                          disabled={quietGymAlertsPending}
+                          value={!quietGymAlertsOptedOut}
+                          onValueChange={() => void handleToggleQuietGymAlerts()}
+                        />
+                      }
+                    />
                     <ThemedText type="small" themeColor="textSecondary">
                       {t('profile.notifications.quietGymAlertsDescription')}
                     </ThemedText>
 
-                    <View style={[styles.rowContent, styles.notificationRow]}>
-                      <ThemedText type="small">{t('profile.notifications.classReminder')}</ThemedText>
-                      <Switch
-                        accessibilityRole="switch"
-                        accessibilityLabel={t('profile.notifications.classReminder')}
-                        accessibilityState={{ checked: !classReminderOptedOut, disabled: classReminderPending }}
-                        disabled={classReminderPending}
-                        value={!classReminderOptedOut}
-                        onValueChange={() => void handleToggleClassReminder()}
+                    <View style={[styles.rowDivider, { borderTopColor: theme.border }]}>
+                      <ListItem
+                        icon="notifications"
+                        tint="primary"
+                        title={t('profile.notifications.classReminder')}
+                        trailing={
+                          <Switch
+                            accessibilityRole="switch"
+                            accessibilityLabel={t('profile.notifications.classReminder')}
+                            accessibilityState={{ checked: !classReminderOptedOut, disabled: classReminderPending }}
+                            disabled={classReminderPending}
+                            value={!classReminderOptedOut}
+                            onValueChange={() => void handleToggleClassReminder()}
+                          />
+                        }
                       />
                     </View>
                     <ThemedText type="small" themeColor="textSecondary">
                       {t('profile.notifications.classReminderDescription')}
                     </ThemedText>
-                  </>
+                  </Card>
                 )}
               </View>
             )}
 
-            <View style={[styles.row, { borderTopColor: theme.border }]}>
-              <Pressable accessibilityRole="button" onPress={handleLogOut} style={styles.rowContent}>
-                <ThemedText type="default">{t('profile.logOut')}</ThemedText>
-              </Pressable>
-            </View>
+            <ListItem icon="logout" tint="danger" title={t('profile.logOut')} onPress={handleLogOut} />
           </>
           )}
         </ScrollView>
@@ -635,19 +649,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: Spacing.one,
   },
-  row: {
-    borderTopWidth: 1,
-    paddingTop: Spacing.three,
+  activitySection: {
+    gap: Spacing.two,
   },
-  rowContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  rowDivider: {
+    borderTopWidth: 1,
+    paddingTop: Spacing.two,
   },
   notificationRow: {
-    marginTop: Spacing.two,
-  },
-  logEntryRow: {
     marginTop: Spacing.two,
   },
   editSection: {
