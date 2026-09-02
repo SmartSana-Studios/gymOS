@@ -4,7 +4,7 @@ import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code' | 'statNumeral';
   themeColor?: ThemeColor;
 };
 
@@ -23,6 +23,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
         type === 'link' && styles.link,
         type === 'linkPrimary' && styles.linkPrimary,
         type === 'code' && styles.code,
+        type === 'statNumeral' && styles.statNumeral,
         style,
       ]}
       {...rest}
@@ -66,6 +67,12 @@ const styles = StyleSheet.create({
     lineHeight: 32,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  statNumeral: {
+    fontFamily: 'Barlow_800ExtraBold',
+    fontSize: 32,
+    lineHeight: 36,
+    fontVariant: ['tabular-nums'],
   },
   link: {
     fontFamily: 'Barlow_500Medium',

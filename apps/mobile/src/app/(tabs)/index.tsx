@@ -1,11 +1,14 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MaterialIcons } from '@react-native-vector-icons/material-icons';
+import type { MaterialIconsIconName } from '@react-native-vector-icons/material-icons';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { IconChip, type IconChipTint } from '@/components/ui/IconChip';
+import { ListItem } from '@/components/ui/ListItem';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
@@ -36,14 +39,40 @@ type ActivityItem =
 // Date-only string ("YYYY-MM-DD") -- same local-Y/M/D construction as
 // onboarding/plan.tsx's `formatDateOnly`, duplicated rather than imported
 // since no shared date-utils module exists in this app yet.
-function formatDateOnly(value: string, locale: string): string {
+function parseDateOnly(value: string): Date {
   const [year, month, day] = value.split('-').map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString(locale);
+  return new Date(year, month - 1, day);
+}
+
+function formatDateOnly(value: string, locale: string): string {
+  return parseDateOnly(value).toLocaleDateString(locale);
 }
 
 function formatCheckInTimestamp(value: string, locale: string): string {
   return new Date(value).toLocaleString(locale, { dateStyle: 'medium', timeStyle: 'short' });
 }
+
+// Epic 15 (Story 15.3): same local-midnight date construction as
+// formatDateOnly above -- both operands are day-aligned, so the diff is
+// already a whole number of days, no fractional edge case to round away.
+function daysUntil(value: string): number {
+  const target = parseDateOnly(value);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86400000);
+}
+
+// Epic 15 (Story 15.3): only grace_period's `warning` icon is inherited from
+// the pre-existing inline glyph -- the other four are new choices (see the
+// story's own Dev Notes table for rationale). IconChip has no "neutral"
+// tint (Story 15.2 built exactly 5), so no_plan uses `primary`.
+const STATUS_ICON_CHIP: Record<BadgeStatus, { icon: MaterialIconsIconName; tint: IconChipTint }> = {
+  active: { icon: 'check-circle', tint: 'success' },
+  expiring_soon: { icon: 'schedule', tint: 'warning' },
+  grace_period: { icon: 'warning', tint: 'warning' },
+  expired: { icon: 'error', tint: 'danger' },
+  no_plan: { icon: 'info', tint: 'primary' },
+};
 
 // Story 8.5: re-tuned for the dark theme, same semantic hues as
 // constants/subscription-status.ts's STATUS_COLORS.
@@ -274,15 +303,36 @@ export default function HomeScreen() {
   // the Check In shortcut alongside Renew, not lose it.
   const showCheckInAction = badgeStatus !== 'expired';
 
-  let statusNote: string | null = null;
+  // Epic 15 (Story 15.3): expiring_soon/grace_period get a "days until
+  // expiry" framing (day count in statNumeral emphasis) instead of a plain
+  // date, per EXPERIENCE.md's MA-09 spec -- active is unaffected. A <= 0 day
+  // count (expiry lands today, or a data race before status flips to
+  // expired) falls back to the existing plain-date phrasing.
+  const dayCount = expiryDate ? daysUntil(expiryDate) : null;
+  const isDayCountEligible =
+    (badgeStatus === 'expiring_soon' || badgeStatus === 'grace_period') && dayCount !== null && dayCount > 0;
+
+  let statusNoteContent: ReactNode = null;
   if (badgeStatus === 'no_plan') {
-    statusNote = t('home.noPlanNote');
+    statusNoteContent = t('home.noPlanNote');
   } else if (badgeStatus === 'expired') {
-    statusNote = t('home.expiredNote');
+    statusNoteContent = t('home.expiredNote');
+  } else if (isDayCountEligible) {
+    statusNoteContent = (
+      <>
+        {t('home.expiresInDaysPrefix')}
+        <ThemedText type="statNumeral" style={{ color: statusColors.text }}>
+          {dayCount}
+        </ThemedText>
+        {t(badgeStatus === 'grace_period' ? 'home.gracePeriodDaysSuffix' : 'home.expiresInDaysSuffix', {
+          count: dayCount as number,
+        })}
+      </>
+    );
   } else if (badgeStatus === 'grace_period') {
-    statusNote = expiryLabel ? t('home.gracePeriodNote', { date: expiryLabel }) : null;
+    statusNoteContent = expiryLabel ? t('home.gracePeriodNote', { date: expiryLabel }) : null;
   } else if (expiryLabel) {
-    statusNote = t('home.expiresOn', { date: expiryLabel });
+    statusNoteContent = t('home.expiresOn', { date: expiryLabel });
   }
 
   function handleViewPlan() {
@@ -347,24 +397,21 @@ export default function HomeScreen() {
                 {firstName ? t('home.welcomeBack', { name: firstName }) : t('home.welcomeBackNoName')}
               </ThemedText>
 
-              <Pressable
-                accessibilityRole="button"
-                onPress={handleViewPlan}
-                style={[styles.statusCard, { backgroundColor: statusColors.bg, borderColor: statusColors.border }]}>
-                <View style={styles.statusLabelRow}>
-                  {badgeStatus === 'grace_period' && (
-                    <MaterialIcons name="warning" size={16} color={statusColors.text} />
-                  )}
-                  <ThemedText type="smallBold" style={{ color: statusColors.text }}>
-                    {t(statusLabelKey[badgeStatus])}
-                  </ThemedText>
-                </View>
-                {planName && <ThemedText type="default">{planName}</ThemedText>}
-                {statusNote && (
-                  <ThemedText type="small" style={{ color: statusColors.text }}>
-                    {statusNote}
-                  </ThemedText>
-                )}
+              <Pressable accessibilityRole="button" onPress={handleViewPlan}>
+                <Card variant="raised" style={styles.statusCard}>
+                  <IconChip icon={STATUS_ICON_CHIP[badgeStatus].icon} tint={STATUS_ICON_CHIP[badgeStatus].tint} />
+                  <View style={styles.statusTextGroup}>
+                    <ThemedText type="smallBold" style={{ color: statusColors.text }}>
+                      {t(statusLabelKey[badgeStatus])}
+                    </ThemedText>
+                    {planName && <ThemedText type="default">{planName}</ThemedText>}
+                    {statusNoteContent && (
+                      <ThemedText type="small" style={{ color: statusColors.text }}>
+                        {statusNoteContent}
+                      </ThemedText>
+                    )}
+                  </View>
+                </Card>
               </Pressable>
 
               {occupancyBand && (
@@ -409,9 +456,9 @@ export default function HomeScreen() {
                     <ThemedText type="smallBold">{t('home.myWorkoutPlan')}</ThemedText>
                     <ThemedText type="default">→</ThemedText>
                   </Pressable>
-                  <View style={[styles.activityRow, { borderTopColor: theme.border }]}>
-                    <ThemedText type="small">{workoutPlanName}</ThemedText>
-                  </View>
+                  <Card variant="flat">
+                    <ListItem icon="fitness-center" tint="primary" title={workoutPlanName} />
+                  </Card>
                 </View>
               )}
 
@@ -424,14 +471,20 @@ export default function HomeScreen() {
                     <ThemedText type="smallBold">{t('home.upcomingClasses')}</ThemedText>
                     <ThemedText type="default">→</ThemedText>
                   </Pressable>
-                  {upcomingClasses.map((booking) => (
-                    <View key={booking.bookingId} style={[styles.activityRow, { borderTopColor: theme.border }]}>
-                      <ThemedText type="small">{booking.className}</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {formatCheckInTimestamp(booking.scheduledAt, i18n.language)}
-                      </ThemedText>
-                    </View>
-                  ))}
+                  <Card variant="flat">
+                    {upcomingClasses.map((booking, index) => (
+                      <View
+                        key={booking.bookingId}
+                        style={index > 0 ? [styles.rowDivider, { borderTopColor: theme.border }] : undefined}>
+                        <ListItem
+                          icon="event"
+                          tint="primary"
+                          title={booking.className}
+                          meta={formatCheckInTimestamp(booking.scheduledAt, i18n.language)}
+                        />
+                      </View>
+                    ))}
+                  </Card>
                 </View>
               )}
 
@@ -442,33 +495,31 @@ export default function HomeScreen() {
                     {t('home.recentActivityEmpty')}
                   </ThemedText>
                 ) : (
-                  recentActivity.map((item) =>
-                    item.kind === 'checkin' ? (
-                      <Pressable
-                        key={`checkin-${item.id}`}
-                        accessibilityRole="button"
-                        onPress={() => router.push('/history')}
-                        style={[styles.activityRow, { borderTopColor: theme.border }]}>
-                        <ThemedText type="small">{t('home.checkedIn')}</ThemedText>
-                        <ThemedText type="small" themeColor="textSecondary">
-                          {formatCheckInTimestamp(item.checkedInAt, i18n.language)}
-                        </ThemedText>
-                      </Pressable>
-                    ) : (
-                      <Pressable
-                        key={`payment-${item.id}`}
-                        accessibilityRole="button"
-                        onPress={() => router.push(`/history/payment/${item.id}`)}
-                        style={[styles.activityRow, { borderTopColor: theme.border }]}>
-                        <ThemedText type="small">
-                          {t('home.paymentRecorded', { amount: item.amount, currency: item.currency })}
-                        </ThemedText>
-                        <ThemedText type="small" themeColor="textSecondary">
-                          {formatCheckInTimestamp(item.createdAt, i18n.language)}
-                        </ThemedText>
-                      </Pressable>
-                    ),
-                  )
+                  <Card variant="flat">
+                    {recentActivity.map((item, index) => (
+                      <View
+                        key={item.kind === 'checkin' ? `checkin-${item.id}` : `payment-${item.id}`}
+                        style={index > 0 ? [styles.rowDivider, { borderTopColor: theme.border }] : undefined}>
+                        {item.kind === 'checkin' ? (
+                          <ListItem
+                            icon="check-circle"
+                            tint="accent"
+                            title={t('home.checkedIn')}
+                            meta={formatCheckInTimestamp(item.checkedInAt, i18n.language)}
+                            onPress={() => router.push('/history')}
+                          />
+                        ) : (
+                          <ListItem
+                            icon="payments"
+                            tint="success"
+                            title={t('home.paymentRecorded', { amount: item.amount, currency: item.currency })}
+                            meta={formatCheckInTimestamp(item.createdAt, i18n.language)}
+                            onPress={() => router.push(`/history/payment/${item.id}`)}
+                          />
+                        )}
+                      </View>
+                    ))}
+                  </Card>
                 )}
               </View>
             </>
@@ -545,15 +596,12 @@ const styles = StyleSheet.create({
     color: '#F87171',
   },
   statusCard: {
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-    gap: Spacing.half,
-  },
-  statusLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.three,
+  },
+  statusTextGroup: {
+    flex: 1,
     gap: Spacing.half,
   },
   occupancyPill: {
@@ -577,10 +625,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  activityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  rowDivider: {
     borderTopWidth: 1,
     paddingTop: Spacing.two,
   },
