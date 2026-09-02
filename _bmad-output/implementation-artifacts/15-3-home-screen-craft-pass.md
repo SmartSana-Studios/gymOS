@@ -4,7 +4,7 @@ baseline_commit: 69c348ffeec2400515dbba6ab7b487a0ed05e646
 
 # Story 15.3: Home Screen Craft Pass (MA-09)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -54,6 +54,16 @@ so that the app feels finished rather than a color swap over a starter template.
   - [x] `git diff --stat` shows changes scoped to `(tabs)/index.tsx` + the 2 locale files only (no other screens, no `ui/` component changes — this story is a pure consumer of Story 15.2's primitives).
   - [x] On-device visual confirmation (does the day-count sentence read correctly in both EN/FR, does the status card read as one coherent raised surface, do the three new Card-wrapped sections look consistent with each other) is the user's own manual QA step, per this project's established convention — not simulated here.
 
+### Review Findings
+
+- [x] [Review][Patch] `STATUS_ICON_CHIP.no_plan` used the wrong `IconChip` tint, based on a stale premise [apps/mobile/src/app/(tabs)/index.tsx] — the story's own Dev Notes table (and the code's matching comment) claimed `IconChip` has no `neutral` tint, so `no_plan` shipped as `primary` (blue chip next to the status label's existing gray text — a visible mismatch, and a deviation from EXPERIENCE.md's "Gray" no-plan color signal). That premise was true when this story was authored but stale by the time it shipped: Story 15.2's own code review (2026-09-02) added a 6th `neutral` tint to `IconChip.tsx`, byte-identical to `STATUS_COLORS.no_plan`. Fixed: `no_plan` now uses `tint: 'neutral'` (already applied to the working tree ahead of this review pass — this review corrected the code's comment and this story file's Dev Notes/Completion Notes to match, and re-verified `pnpm --filter mobile typecheck` is clean).
+- [x] [Review][Patch] Status card's leading `IconChip` wasn't hidden from screen readers, unlike `ListItem.tsx`'s identical decorative usage [apps/mobile/src/app/(tabs)/index.tsx:467] — `ListItem.tsx` wraps its own leading `IconChip` in `accessibilityElementsHidden`/`importantForAccessibility="no-hide-descendants"` (added by Story 15.2's code review) since the icon is redundant with adjacent text; this diff's new status-card `IconChip` usage was left bare. Fixed: wrapped it the same way.
+- [x] [Review][Patch] `dayCount as number` cast wasn't a real type narrowing [apps/mobile/src/app/(tabs)/index.tsx] — `isDayCountEligible` was a separately-computed boolean; TypeScript couldn't actually prove `dayCount` was non-null inside the branch that cast it, so a future refactor reordering this logic could silently reintroduce a null-as-number bug with no compiler warning. Fixed: replaced the boolean with `eligibleDayCount: number | null`, computed once and narrowed through directly — no cast needed.
+- [x] [Review][Patch] `daysUntil`'s comment overstated why `Math.round` is needed [apps/mobile/src/app/(tabs)/index.tsx] — claimed both operands are "day-aligned... no fractional edge case to round away," but a DST transition between `today` and `target` can make the raw ms diff land a few minutes off a full day, so the rounding is load-bearing, not a formality. Fixed: corrected the comment.
+- [x] [Review][Defer] `dayCount` (client-local-midnight date-diff) and `badgeStatus` (server-computed `subscriptionStatus`) aren't reconciled against the same clock [apps/mobile/src/app/(tabs)/index.tsx:359-361] — deferred, narrow and pre-existing in shape (the status label itself has always been server-computed while dates rendered client-side via `formatDateOnly`); a client with a skewed clock or near a day boundary in a different timezone than the server could see a day count that doesn't quite agree with the status label it's paired with. Self-corrects the next day; fixing it properly would mean having the server return the day count, out of scope for this craft-pass story.
+
+Findings dismissed as noise (reviewed, no action): the whole-card per-status background/border wash being gone is this story's own deliberate AC #1 change, not a regression; the day-count i18n prefix/suffix-key split instead of `<Trans>` (and its consequent trailing-space locale strings) is this story's own deliberately-reasoned Dev Notes decision; zero unit-test coverage for the new date logic matches this app's established, disclosed no-test-runner convention; a malformed `expiryDate` falling back to the same pre-existing "Invalid Date" `formatDateOnly` behavior is not a new regression; three independent per-status `Record<BadgeStatus, …>` maps is a pre-existing pattern this diff extends, not new debt; unverified list-row visual spacing and the status card's lack of a pressed-state affordance are both left to the user's own established manual on-device QA convention.
+
 ## Dev Notes
 
 ### Status card icon/tint table (resolves an ambiguity neither epics.md nor DESIGN.md spells out per-status)
@@ -66,7 +76,7 @@ Only `grace_period`'s icon (`warning`) is named explicitly anywhere in the sourc
 | `expiring_soon` | `schedule` | `warning` | matches the orange "Expiring soon" signal; distinct glyph from `grace_period` so the two orange states still read as different urgency levels |
 | `grace_period` | `warning` | `warning` | the pre-existing glyph, moved from inline text into the chip per AC #1 |
 | `expired` | `error` | `danger` | matches the red "Membership expired" signal |
-| `no_plan` | `info` | `primary` | `IconChip` has no "neutral" tint (Story 15.2 built exactly 5: `accent`/`success`/`warning`/`danger`/`primary`) — `primary` is the closest non-alarming, non-positive choice |
+| `no_plan` | `info` | `neutral` | matches `STATUS_COLORS.no_plan`'s own muted/no-active-signal hex triad — resolved to `neutral` once Story 15.2's code review added that 6th `IconChip` tint (this table originally said `primary`, written before that tint existed; corrected by this story's own code review, 2026-09-02) |
 
 All 5 glyph names confirmed present in the installed `@react-native-vector-icons/material-icons` glyphmap.
 
@@ -129,7 +139,7 @@ Claude Sonnet 5 (claude-sonnet-5)
 ### Completion Notes List
 
 - **Status card redesign is a real visual change, not just a wrapper swap:** the per-status background color wash (today's shipped behavior) is gone — `Card`'s `raised` variant (Story 15.2) has a fixed neutral background, so the per-status signal now lives entirely in the leading `IconChip` + the status label's own existing text tint. This matches the MA-09 mockup and was called out explicitly in the story's own Dev Notes as deliberate, not a regression.
-- **Icon/tint choices for `active`/`expiring_soon`/`expired`/`no_plan`** (only `grace_period`'s `warning` icon was inherited from existing code) implemented exactly per the story's own resolution table: `check-circle`/`success`, `schedule`/`warning`, `error`/`danger`, `info`/`primary` respectively.
+- **Icon/tint choices for `active`/`expiring_soon`/`expired`/`no_plan`** (only `grace_period`'s `warning` icon was inherited from existing code) implemented per the story's resolution table: `check-circle`/`success`, `schedule`/`warning`, `error`/`danger`, `info`/`neutral` respectively (`no_plan`'s tint corrected from `primary` to `neutral` by this story's own code review, 2026-09-02 — see Dev Notes table).
 - **`class` tint resolved as `primary`**, per the story's explicit DESIGN.md-over-epics.md resolution (the two source docs disagreed; DESIGN.md's dedicated List Item spec was treated as authoritative).
 - **Day-count edge case:** when the computed day count is `<= 0` (expiry today, or a data race before the status flips to `expired`), the code falls through to the pre-existing plain-date phrasing (`home.expiresOn`/`home.gracePeriodNote`) rather than showing "0 days" or a negative number — the fallback path was kept in the locale files rather than deleted, per the story's instruction.
 - **Row dividers** implemented as a plain wrapping `View` (`styles.rowDivider`, reusing the exact old `activityRow` border/padding values) at the Home-screen call site for `index > 0` rows — `ListItem.tsx` itself was not modified, per Story 15.2's explicit deferral of this decision.

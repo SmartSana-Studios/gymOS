@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { MaterialIconsIconName } from '@react-native-vector-icons/material-icons';
+import { MaterialIcons, type MaterialIconsIconName } from '@react-native-vector-icons/material-icons';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -53,8 +53,11 @@ function formatCheckInTimestamp(value: string, locale: string): string {
 }
 
 // Epic 15 (Story 15.3): same local-midnight date construction as
-// formatDateOnly above -- both operands are day-aligned, so the diff is
-// already a whole number of days, no fractional edge case to round away.
+// formatDateOnly above -- both operands are local midnight, so the diff is
+// normally a whole number of days. `Math.round` isn't a formality: a DST
+// transition between `today` and `target` makes the raw ms diff land a few
+// minutes off a full day (23h/25h), and rounding is what keeps that an exact
+// day count.
 function daysUntil(value: string): number {
   const target = parseDateOnly(value);
   const today = new Date();
@@ -64,14 +67,15 @@ function daysUntil(value: string): number {
 
 // Epic 15 (Story 15.3): only grace_period's `warning` icon is inherited from
 // the pre-existing inline glyph -- the other four are new choices (see the
-// story's own Dev Notes table for rationale). IconChip has no "neutral"
-// tint (Story 15.2 built exactly 5), so no_plan uses `primary`.
+// story's own Dev Notes table for rationale). no_plan uses IconChip's
+// `neutral` tint (added during Story 15.2's code review, 2026-09-02),
+// matching STATUS_COLORS.no_plan's own muted/no-active-signal treatment.
 const STATUS_ICON_CHIP: Record<BadgeStatus, { icon: MaterialIconsIconName; tint: IconChipTint }> = {
   active: { icon: 'check-circle', tint: 'success' },
   expiring_soon: { icon: 'schedule', tint: 'warning' },
   grace_period: { icon: 'warning', tint: 'warning' },
   expired: { icon: 'error', tint: 'danger' },
-  no_plan: { icon: 'info', tint: 'primary' },
+  no_plan: { icon: 'info', tint: 'neutral' },
 };
 
 // Story 8.5: re-tuned for the dark theme, same semantic hues as
@@ -100,6 +104,19 @@ export default function HomeScreen() {
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  // See loadHome()'s own comment below -- gates the blocking spinner/error
+  // screen to first-load-only, so a background refresh never discards data
+  // already on screen. Mirrored into a ref (read inside loadHome) so
+  // loadHome's own identity stays stable across the flip -- `hasLoadedOnce`
+  // in loadHome's dependency array would otherwise change loadHome's
+  // identity mid-flight, re-triggering the useFocusEffect below a second
+  // time for the same visit.
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const hasLoadedOnceRef = useRef(false);
+  function markLoadedOnce() {
+    hasLoadedOnceRef.current = true;
+    setHasLoadedOnce(true);
+  }
 
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -130,30 +147,38 @@ export default function HomeScreen() {
   // `isCurrent()`, which stays true only for the most recently started call.
   const requestIdRef = useRef(0);
 
+  // Review finding (on-device QA, 2026-09-02): `loadHome()` used to blank
+  // every field back to null/[] at the top of every call, including the
+  // `useFocusEffect` refetch that fires on every tab revisit -- since React
+  // Navigation keeps tab screens mounted (not remounted) across switches,
+  // that meant a full spinner + blank flash on every single visit to Home,
+  // not just cold app launch. `hasLoadedOnce` gates that: the blocking
+  // spinner and the dedicated error screen only show before the first
+  // successful load this session: once there is data on screen, a
+  // background refresh (or a background failure) leaves it visible instead
+  // of discarding it. This is intentionally session-lifetime only (no
+  // AsyncStorage/cross-restart persistence) -- matches this codebase's
+  // existing documented stance (services/progress.ts's cachedProgressPayload
+  // comment) against a persistent cache for subscription/payment-adjacent
+  // data. Every field below is set unconditionally on its own success path
+  // rather than relying on a blanket reset, so a field that becomes newly
+  // false/null on a real refetch (e.g. a plan lapsing) is still correctly
+  // updated -- see the explicit `else` branches added below.
   const loadHome = useCallback(async () => {
     const requestId = ++requestIdRef.current;
     const isCurrent = () => requestIdRef.current === requestId;
 
-    setLoading(true);
+    if (!hasLoadedOnceRef.current) setLoading(true);
     setLoadError(false);
-    setNoActivePlan(false);
-    setDisplayName(null);
-    setAvatarUrl(null);
-    setGymName(null);
-    setGymLogoUrl(null);
-    setSubscriptionStatus(null);
-    setExpiryDate(null);
-    setPlanName(null);
-    setRecentActivity([]);
-    setOccupancyBand(null);
-    setTaraMoneyConnected(false);
-    setUpcomingClasses([]);
-    setWorkoutPlanName(null);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!isCurrent()) return;
       const userId = sessionData.session?.user.id;
       if (!userId) {
+        // Review finding: same reasoning as the subscriptionResult 'error'
+        // branch below -- a session becoming invalid on a background
+        // refetch must not silently leave stale, possibly trust-critical
+        // data on screen past the first load.
         setLoadError(true);
         return;
       }
@@ -181,6 +206,10 @@ export default function HomeScreen() {
         memberResult.error ||
         !memberResult.data
       ) {
+        // Review finding: same reasoning as the subscriptionResult 'error'
+        // branch below -- a member lookup failing on a background refetch
+        // (e.g. the member is deactivated mid-session) must not silently
+        // leave stale data on screen past the first load.
         setLoadError(true);
         return;
       }
@@ -189,6 +218,7 @@ export default function HomeScreen() {
       setAvatarUrl(userResult.data.photo_url);
       setGymName(gymResult.data.name);
       setGymLogoUrl(gymResult.data.logo_url);
+      markLoadedOnce();
 
       // Story 4.15: shared with the Renew screen (services/subscriptions.ts)
       // -- same distinction onboarding/plan.tsx's loadPlan already makes
@@ -198,10 +228,20 @@ export default function HomeScreen() {
       if (!isCurrent()) return;
       if (subscriptionResult.kind === 'no_subscription') {
         setNoActivePlan(true);
+        setSubscriptionStatus(null);
+        setExpiryDate(null);
+        setPlanName(null);
       } else if (subscriptionResult.kind === 'error') {
+        // Review finding: a background refresh's subscription-status fetch
+        // failing must not silently leave a stale status/expiry showing --
+        // unlike the "nothing to show yet" case above, this specific field
+        // is trust-critical (a member must never see a stale "Active" after
+        // a real expiry), so it always surfaces the error screen, even past
+        // the first load.
         setLoadError(true);
         return;
       } else {
+        setNoActivePlan(false);
         setSubscriptionStatus(subscriptionResult.data.status);
         setExpiryDate(subscriptionResult.data.expiryDate);
         setPlanName(subscriptionResult.data.planName);
@@ -272,7 +312,7 @@ export default function HomeScreen() {
         if (isCurrent()) setWorkoutPlanName(null);
       }
     } catch {
-      if (isCurrent()) setLoadError(true);
+      if (isCurrent() && !hasLoadedOnceRef.current) setLoadError(true);
     } finally {
       if (isCurrent()) setLoading(false);
     }
@@ -309,23 +349,29 @@ export default function HomeScreen() {
   // count (expiry lands today, or a data race before status flips to
   // expired) falls back to the existing plain-date phrasing.
   const dayCount = expiryDate ? daysUntil(expiryDate) : null;
-  const isDayCountEligible =
-    (badgeStatus === 'expiring_soon' || badgeStatus === 'grace_period') && dayCount !== null && dayCount > 0;
+  // Review finding: was a separately-computed boolean (`isDayCountEligible`)
+  // paired with an `as number` cast on `dayCount` below -- TS couldn't
+  // actually prove the two agreed, so the cast was silently trusting it.
+  // Narrowing through this value directly removes the cast.
+  const eligibleDayCount =
+    (badgeStatus === 'expiring_soon' || badgeStatus === 'grace_period') && dayCount !== null && dayCount > 0
+      ? dayCount
+      : null;
 
   let statusNoteContent: ReactNode = null;
   if (badgeStatus === 'no_plan') {
     statusNoteContent = t('home.noPlanNote');
   } else if (badgeStatus === 'expired') {
     statusNoteContent = t('home.expiredNote');
-  } else if (isDayCountEligible) {
+  } else if (eligibleDayCount !== null) {
     statusNoteContent = (
       <>
         {t('home.expiresInDaysPrefix')}
         <ThemedText type="statNumeral" style={{ color: statusColors.text }}>
-          {dayCount}
+          {eligibleDayCount}
         </ThemedText>
         {t(badgeStatus === 'grace_period' ? 'home.gracePeriodDaysSuffix' : 'home.expiresInDaysSuffix', {
-          count: dayCount as number,
+          count: eligibleDayCount,
         })}
       </>
     );
@@ -378,9 +424,9 @@ export default function HomeScreen() {
           )}
 
 
-          {loading && <ActivityIndicator style={styles.loadingIndicator} />}
+          {loading && !hasLoadedOnce && !loadError && <ActivityIndicator style={styles.loadingIndicator} />}
 
-          {!loading && loadError && (
+          {loadError && (
             <View style={[styles.card, { borderColor: theme.border }]}>
               <ThemedText type="small" style={styles.error}>
                 {t('home.errorLoadFailed')}
@@ -391,7 +437,7 @@ export default function HomeScreen() {
             </View>
           )}
 
-          {!loading && !loadError && (
+          {!loadError && hasLoadedOnce && (
             <>
               <ThemedText type="small" themeColor="textSecondary">
                 {firstName ? t('home.welcomeBack', { name: firstName }) : t('home.welcomeBackNoName')}
@@ -399,7 +445,12 @@ export default function HomeScreen() {
 
               <Pressable accessibilityRole="button" onPress={handleViewPlan}>
                 <Card variant="raised" style={styles.statusCard}>
-                  <IconChip icon={STATUS_ICON_CHIP[badgeStatus].icon} tint={STATUS_ICON_CHIP[badgeStatus].tint} />
+                  {/* Review finding: decorative, redundant with the status
+                      label text right below it -- ListItem.tsx hides its own
+                      leading IconChip from screen readers the same way. */}
+                  <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                    <IconChip icon={STATUS_ICON_CHIP[badgeStatus].icon} tint={STATUS_ICON_CHIP[badgeStatus].tint} />
+                  </View>
                   <View style={styles.statusTextGroup}>
                     <ThemedText type="smallBold" style={{ color: statusColors.text }}>
                       {t(statusLabelKey[badgeStatus])}
@@ -454,7 +505,7 @@ export default function HomeScreen() {
                     onPress={() => router.push('/workout-plan')}
                     style={styles.sectionHeader}>
                     <ThemedText type="smallBold">{t('home.myWorkoutPlan')}</ThemedText>
-                    <ThemedText type="default">→</ThemedText>
+                    <MaterialIcons name="chevron-right" size={20} color={theme.textSecondary} />
                   </Pressable>
                   <Card variant="flat">
                     <ListItem icon="fitness-center" tint="primary" title={workoutPlanName} />
@@ -469,7 +520,7 @@ export default function HomeScreen() {
                     onPress={() => router.push({ pathname: '/classes', params: { tab: 'bookings' } })}
                     style={styles.sectionHeader}>
                     <ThemedText type="smallBold">{t('home.upcomingClasses')}</ThemedText>
-                    <ThemedText type="default">→</ThemedText>
+                    <MaterialIcons name="chevron-right" size={20} color={theme.textSecondary} />
                   </Pressable>
                   <Card variant="flat">
                     {upcomingClasses.map((booking, index) => (

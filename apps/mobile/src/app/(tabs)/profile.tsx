@@ -672,6 +672,7 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     marginTop: Spacing.two,
+    marginBottom: Spacing.two,
   },
   languageToggle: {
     flexDirection: 'row',

@@ -1,6 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -172,8 +173,13 @@ export function LogEntrySheet({ visible, onClose, onSaved }: LogEntrySheetProps)
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <View style={styles.header}>
               <ThemedText type="subtitle">{t('progress.logEntry.title')}</ThemedText>
-              <Pressable accessibilityRole="button" accessibilityLabel={t('common.close')} onPress={handleClose}>
-                <ThemedText type="default">×</ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+                onPress={handleClose}
+                hitSlop={Spacing.two}
+                style={styles.closeButton}>
+                <MaterialIcons name="close" size={22} color={theme.textSecondary} />
               </Pressable>
             </View>
 
@@ -239,6 +245,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: Spacing.two,
+  },
+  closeButton: {
+    padding: Spacing.one,
   },
   field: {
     gap: Spacing.one,
