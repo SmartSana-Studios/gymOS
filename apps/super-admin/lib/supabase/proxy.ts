@@ -48,12 +48,19 @@ export async function updateSession(request: NextRequest) {
   const user = data?.claims;
 
   if (
-    request.nextUrl.pathname !== "/" &&
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/auth")
   ) {
-    // no user, potentially respond by redirecting the user to the login page
+    // `/` is the (admin) route group's own real landing page (redirects to
+    // /gyms) as of this cleanup -- not the starter's public marketing page
+    // anymore, so it is deliberately no longer exempted here, mirroring
+    // apps/dashboard's identical Story 1.8 fix. Defense-in-depth, not the
+    // sole gate: app/(admin)/layout.tsx does the authoritative
+    // claims/app_role check. No `?next=` param -- unlike apps/dashboard,
+    // login-form.tsx always pushes to the single real destination (/gyms)
+    // regardless of where the redirect originated, since every (admin)
+    // route needs the same app_role, not a deep-linkable per-page return.
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);

@@ -37,8 +37,7 @@ async function GymDetailData({ params }: { params: Promise<{ id: string }> }) {
     listGymAuditTrail(id),
     // getClaims() (local JWT decode) rather than getUser() (a network round
     // trip to the Auth server) -- matches this app's established convention
-    // ((admin)/layout.tsx, components/auth-button.tsx) for reading the
-    // current actor's identity.
+    // ((admin)/layout.tsx) for reading the current actor's identity.
     supabase.auth.getClaims(),
   ]);
 
