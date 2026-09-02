@@ -34,14 +34,17 @@ Pulled from `turbo.json`'s `build` task env allowlist and `.github/workflows/ci.
 before publishing this runbook further):
 
 - `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (CI/turbo name — `.env.example`
-  still says `NEXT_PUBLIC_SUPABASE_ANON_KEY`; **[NEEDS]** reconcile which
-  is current)
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (confirmed current via
+  `apps/dashboard/lib/supabase/client.ts`, `apps/super-admin/lib/supabase/client.ts`,
+  `turbo.json`, and `.github/workflows/ci.yml` — root `.env.example` was
+  reconciled to match, 2026-09-02; per-app `.env.example` files already
+  had it right)
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `DASHBOARD_APP_URL`
-- Mobile: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`,
-  `EXPO_PUBLIC_APP_ENV` (set per EAS build profile in `eas.json`, not a
-  loose env var)
+- Mobile: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` (Expo
+  names this pair differently from the Next.js apps above — confirmed via
+  `apps/mobile/src/lib/supabase.ts`, not a typo), `EXPO_PUBLIC_APP_ENV`
+  (set per EAS build profile in `eas.json`, not a loose env var)
 - `NEXT_PUBLIC_SENTRY_DSN` (dashboard, super-admin), `EXPO_PUBLIC_SENTRY_DSN`
   (mobile) — Story 14.1 wired capture-only error monitoring, tagged with the
   same `VERCEL_ENV`/`EXPO_PUBLIC_APP_ENV` → `prod`/`staging`/`dev` convention
@@ -102,10 +105,10 @@ still need an owner and a rotation policy).
   exercised outside local `supabase start` yet).
 - Migrations are the source of truth for schema — do not hand-edit a
   production schema outside a committed migration file.
-- **[NEEDS]** confirm the rollback story: this repo has no down-migrations
-  convention today. A bad migration on a production Supabase project needs
-  either a forward-fix migration or a documented manual recovery step —
-  decide and record this before the first real production migration run.
+- No down-migrations convention exists — see §6 for the recommended
+  forward-fix policy and the two open decisions (mobile hotfix strategy,
+  production backup tier) that still need real answers before the first
+  production migration run.
 
 ## 4. CI gates (must be green before deploy)
 
@@ -146,10 +149,71 @@ Three jobs in `.github/workflows/ci.yml`, triggered on every push and PR:
 
 ## 6. Rollback
 
-**[NEEDS]** — no rollback procedure exists yet for either the app layer
-(revert to prior Vercel/EAS build?) or the database layer (see §3's
-migration rollback gap). Do not treat this runbook as deploy-ready until
-this section has real answers.
+### App layer
+
+**Dashboard / Super Admin (Vercel):** every deploy is an immutable,
+independently-addressable build — roll back via the Vercel dashboard
+("Instant Rollback" on the Deployments tab) or `vercel rollback` from the
+CLI, both of which repoint production traffic at a prior deployment
+without a rebuild. This is close to instant. The one thing it does
+**not** undo is a database migration applied alongside that deploy (see
+below) — a schema change and its consuming code should be assumed to
+travel together, so rolling back the app without also addressing the
+migration can leave the old code pointed at a newer schema.
+
+**Mobile (EAS / App Store / Play Store):** there is no fast path here —
+**[NEEDS]** confirm before relying on any of this, but as of this writing
+`apps/mobile` has no `expo-updates`/OTA channel configured (`app.json`,
+`package.json` — grep-confirmed, 2026-09-02), so a bad release cannot be
+patched over-the-air; every fix, including a rollback, is a new build
+that goes back through platform review. The two real levers, both
+slower than Vercel's:
+- **Google Play:** if the production release uses a staged rollout
+  (not yet decided — see §1's `eas.json` submit config, currently
+  `track: "internal"`, not a production staged rollout), the rollout can
+  be halted from Play Console before it reaches 100% of users.
+- **Apple App Store:** a live release can be pulled from sale from App
+  Store Connect, or a phased release paused within its first 7 days — it
+  cannot be reverted to the prior binary; the only way back is
+  submitting that prior version as a new build and waiting on review
+  (or requesting expedited review for a critical fix).
+
+Given this asymmetry, **[NEEDS]** a decision before the first store
+submission: adopt `expo-updates` for JS-only hotfixes (the standard
+mitigation for exactly this gap), or accept store-review turnaround as
+the mobile rollback SLA.
+
+### Database layer
+
+This repo has no down-migration convention (see §3) and, for an
+RLS/trigger-heavy Postgres schema like this one, hand-written down
+migrations are themselves a real source of drift risk — they're rarely
+exercised until the one time they're needed, and by then the schema has
+usually moved further than the down migration accounts for. The
+practical policy this runbook recommends:
+
+1. **Forward-fix by default.** A bad migration is corrected by a new,
+   reviewed migration that undoes or repairs the change — never by
+   hand-editing the production schema or force-pushing history. This
+   matches how this project already treats every other schema change
+   (migrations are the source of truth, per §3).
+2. **Data recovery is the production Supabase project's backup
+   mechanism, not migration rollback.** Point-in-time recovery (PITR)
+   and daily backups are Supabase *platform* features tied to the
+   project's pricing tier — **[NEEDS]** confirm the tier the production
+   project is created on and that PITR (or at minimum daily backups) is
+   actually enabled before the first real migration runs against it; a
+   Free-tier project has materially weaker guarantees here.
+3. **Destructive migrations (`drop column`/`drop table`/irreversible
+   data transforms) get a manual pre-flight step**: confirm a recent
+   backup exists (or trigger one) immediately before applying, in
+   addition to whatever the standard CI gates already checked in
+   staging/local.
+
+Do not treat this runbook as fully deploy-ready until the two
+**[NEEDS]** above (mobile hotfix strategy, production Supabase backup
+tier) have real answers — everything else in this section is a
+documented, available mechanism, not a placeholder.
 
 ## 7. Observability
 
