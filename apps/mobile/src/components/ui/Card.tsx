@@ -34,6 +34,10 @@ export function Card({ style, variant = 'flat', ...rest }: CardProps) {
               },
               android: { elevation: 4 },
               web: { boxShadow: '0 4px 8px rgba(0, 0, 0, 0.24)' },
+              // Platforms outside ios/android/web (react-native-windows/macos)
+              // fall back to the `flat` border treatment rather than
+              // rendering with neither a shadow nor a border.
+              default: { borderWidth: 1, borderColor: theme.border },
             })
           : { borderWidth: 1, borderColor: theme.border },
         style,
