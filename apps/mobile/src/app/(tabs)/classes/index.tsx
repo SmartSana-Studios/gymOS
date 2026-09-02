@@ -4,11 +4,15 @@ import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Card } from '@/components/ui/Card';
+import { IconChip } from '@/components/ui/IconChip';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
+import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 import { useTheme } from '@/hooks/use-theme';
+import { getContrastTextColor } from '@/lib/color-contrast';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import {
   bookClassSession,
@@ -50,6 +54,7 @@ export default function ClassesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const accent = useGymAccentColor();
   const { isConnected } = useOfflineSync();
   const params = useLocalSearchParams<{ tab?: string }>();
 
@@ -261,8 +266,12 @@ export default function ClassesScreen() {
       );
     }
     return (
-      <Pressable accessibilityRole="button" disabled={!isConnected} onPress={() => void handleBook(session)}>
-        <ThemedText type="link" style={!isConnected && styles.disabledText}>
+      <Pressable
+        accessibilityRole="button"
+        disabled={!isConnected}
+        onPress={() => void handleBook(session)}
+        style={[styles.pillButton, { backgroundColor: accent }, !isConnected && styles.disabledText]}>
+        <ThemedText type="small" style={{ color: getContrastTextColor(accent) }}>
           {t('classes.available.book')}
         </ThemedText>
       </Pressable>
@@ -329,26 +338,29 @@ export default function ClassesScreen() {
                   </View>
                 }
                 renderItem={({ item }) => (
-                  <View style={[styles.row, { borderTopColor: theme.border }]}>
-                    <Pressable
-                      accessibilityRole="button"
-                      onPress={() => toggleExpanded(item.classSessionId)}
-                      style={styles.rowInfo}>
-                      <ThemedText type="smallBold">{item.className}</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {formatSessionTimestamp(item.scheduledAt, i18n.language)} · {item.coachName}
-                      </ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {t('classes.available.capacityFormat', { booked: item.bookedCount, capacity: item.capacity })}
-                      </ThemedText>
-                      {expandedSessionId === item.classSessionId && item.description && (
-                        <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
-                          {item.description}
+                  <Card variant="flat">
+                    <View style={styles.row}>
+                      <IconChip icon="event" tint="primary" />
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => toggleExpanded(item.classSessionId)}
+                        style={styles.rowInfo}>
+                        <ThemedText type="smallBold">{item.className}</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {formatSessionTimestamp(item.scheduledAt, i18n.language)} · {item.coachName}
                         </ThemedText>
-                      )}
-                    </Pressable>
-                    <View style={styles.rowAction}>{renderBookAction(item)}</View>
-                  </View>
+                        <ThemedText type="small" themeColor="textSecondary">
+                          {t('classes.available.capacityFormat', { booked: item.bookedCount, capacity: item.capacity })}
+                        </ThemedText>
+                        {expandedSessionId === item.classSessionId && item.description && (
+                          <ThemedText type="small" themeColor="textSecondary" style={styles.description}>
+                            {item.description}
+                          </ThemedText>
+                        )}
+                      </Pressable>
+                      <View style={styles.rowAction}>{renderBookAction(item)}</View>
+                    </View>
+                  </Card>
                 )}
               />
             )}
@@ -392,29 +404,36 @@ export default function ClassesScreen() {
                   </View>
                 }
                 renderItem={({ item }) => (
-                  <View style={[styles.row, { borderTopColor: theme.border }]}>
-                    <View style={styles.rowInfo}>
-                      <ThemedText type="smallBold">{item.className}</ThemedText>
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {formatSessionTimestamp(item.scheduledAt, i18n.language)}
-                      </ThemedText>
-                    </View>
-                    <View style={styles.rowAction}>
-                      {cancelBusyId === item.bookingId ? (
-                        <ActivityIndicator size="small" color={theme.textSecondary} />
-                      ) : item.canCancel ? (
-                        <Pressable accessibilityRole="button" disabled={!isConnected} onPress={() => handleCancelPress(item)}>
-                          <ThemedText type="link" style={!isConnected && styles.disabledText}>
-                            {t('classes.bookings.cancel')}
-                          </ThemedText>
-                        </Pressable>
-                      ) : (
+                  <Card variant="flat">
+                    <View style={styles.row}>
+                      <IconChip icon="event" tint="primary" />
+                      <View style={styles.rowInfo}>
+                        <ThemedText type="smallBold">{item.className}</ThemedText>
                         <ThemedText type="small" themeColor="textSecondary">
-                          {t('classes.bookings.cancellationClosed')}
+                          {formatSessionTimestamp(item.scheduledAt, i18n.language)}
                         </ThemedText>
-                      )}
+                      </View>
+                      <View style={styles.rowAction}>
+                        {cancelBusyId === item.bookingId ? (
+                          <ActivityIndicator size="small" color={theme.textSecondary} />
+                        ) : item.canCancel ? (
+                          <Pressable
+                            accessibilityRole="button"
+                            disabled={!isConnected}
+                            onPress={() => handleCancelPress(item)}
+                            style={[styles.pillButton, styles.pillButtonDanger, !isConnected && styles.disabledText]}>
+                            <ThemedText type="small" style={styles.pillButtonDangerText}>
+                              {t('classes.bookings.cancel')}
+                            </ThemedText>
+                          </Pressable>
+                        ) : (
+                          <ThemedText type="small" themeColor="textSecondary">
+                            {t('classes.bookings.cancellationClosed')}
+                          </ThemedText>
+                        )}
+                      </View>
                     </View>
-                  </View>
+                  </Card>
                 )}
               />
             )}
@@ -489,8 +508,6 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderTopWidth: 1,
-    paddingTop: Spacing.two,
     gap: Spacing.two,
   },
   rowInfo: {
@@ -505,6 +522,21 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     opacity: 0.5,
+  },
+  pillButton: {
+    borderRadius: 999,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.one,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillButtonDanger: {
+    borderWidth: 1,
+    borderColor: '#5C1F1F',
+    backgroundColor: '#3A1414',
+  },
+  pillButtonDangerText: {
+    color: '#F87171',
   },
   toast: {
     position: 'absolute',
