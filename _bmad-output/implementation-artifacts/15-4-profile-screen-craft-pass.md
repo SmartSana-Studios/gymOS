@@ -4,7 +4,7 @@ baseline_commit: 69c348ffeec2400515dbba6ab7b487a0ed05e646
 
 # Story 15.4: Profile Screen Craft Pass (MA-12)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -18,7 +18,7 @@ so that it's easier to scan and feels consistent with the rest of the redesigned
 
 ## Acceptance Criteria
 
-1. **Given** `apps/mobile/src/app/(tabs)/profile.tsx` currently renders Edit profile / Body Profile+Log entry / History / Language as separate bordered rows (`styles.row`, `borderTopWidth: 1`, no icons), **when** this story ships, **then** Edit profile, History, and Language rows are grouped into one `flat` Card with leading `IconChip`s (`person`/`history`/`language` MaterialIcons glyphs, `primary` tint), per EXPERIENCE.md's updated MA-12 spec; the Body Profile / Log Progress Entry row (a Story 10.1/12.4 addition not currently documented in EXPERIENCE.md's MA-12 layout — a pre-existing spine gap, not introduced by this story) keeps its current position and behavior, gaining only the same Card-grouping treatment as its neighbors (its own separate `flat` Card, two rows), not a new IA slot inside the account Card.
+1. **Given** `apps/mobile/src/app/(tabs)/profile.tsx` currently renders Edit profile / Body Profile+Log entry / History / Language as separate bordered rows (`styles.row`, `borderTopWidth: 1`, no icons), **when** this story ships, **then** Edit profile, History, and Language rows are grouped into one `flat` Card with leading `IconChip`s (`person`/`history`/`language` MaterialIcons glyphs, `primary` tint), per EXPERIENCE.md's updated MA-12 spec; the Body Profile / Log Progress Entry row (a Story 10.1/12.4 addition not currently documented in EXPERIENCE.md's MA-12 layout — a pre-existing spine gap, not introduced by this story) keeps its current behavior, gaining only the same Card-grouping treatment as its neighbors (its own separate `flat` Card, two rows), not a new IA slot inside the account Card. **Note (code review, 2026-09-02):** "keeps its current position" (as originally written) is not literally satisfiable once History/Language merge into one contiguous Card with Edit profile — the row's pre-story position was *between* Edit profile and History, which no longer exists as a gap once those three are one uninterrupted Card. Resolved: Body Profile / Log Progress Entry's own Card renders immediately after the merged account Card (still directly below account settings, still above Notifications/Log Out) — the closest satisfiable reading, and the one that doesn't break this AC's own explicit single-Card grouping instruction. Confirmed by the user; no code change.
 
 2. **Given** the Notifications section currently renders inline within the same undifferentiated row stack, with exactly two `Switch` controls (`quietGymAlertsOptedOut`, `classReminderOptedOut` — EXPERIENCE.md's spine additionally describes a third "Renewal & payment reminders" toggle that is not present in shipped code; this pre-existing spine/code drift is out of scope for this story, which does not add a third toggle), **when** this story ships, **then** the two existing notification rows render inside their own separate `flat` Card, each gaining a leading `IconChip` (icon `notifications` — EXPERIENCE.md's mockup literally says "bell-glyph"; MaterialIcons has no glyph named `bell`, `notifications` is the actual bell-shaped icon in this set, see Dev Notes — `primary` tint), with the existing `Switch` controls, optimistic-toggle-with-rollback behavior, and description text unchanged.
 
@@ -31,7 +31,7 @@ so that it's easier to scan and feels consistent with the rest of the redesigned
 ## Tasks / Subtasks
 
 - [x] **Task 1: Extend `ListItem` with a `trailing` slot** (AC: #5)
-  - [x] `apps/mobile/src/components/ui/ListItem.tsx`: add `trailing?: ReactNode` to `ListItemProps`. Render logic: `{trailing ?? (meta && <ThemedText type="small" themeColor="textSecondary">{meta}</ThemedText>)}` — `trailing` takes precedence, `meta`'s existing rendering (used by Story 15.3's call sites) is otherwise untouched.
+  - [x] `apps/mobile/src/components/ui/ListItem.tsx`: add `trailing?: ReactNode` to `ListItemProps`. Render logic: `{trailing ?? (meta && <ThemedText type="small" themeColor="textSecondary">{meta}</ThemedText>)}` — `trailing` takes precedence, `meta`'s existing rendering (used by Story 15.3's call sites) is otherwise untouched. **Correction (code review, 2026-09-02):** this was actually already shipped in the prior commit (`876e2af`, Story 15.2/15.3) — added ahead of this story's need, per `ListItem.tsx`'s own in-file comment. This story's own commit (`74714f6`) touches only `profile.tsx`; it consumes the already-existing `trailing` prop rather than adding it. The checkbox/Debug-Log/File-List claims below were written as if this story added it — left checked since the behavior this task describes genuinely exists and works, but attributed to the wrong commit.
   - [x] Confirm Story 15.3's existing `ListItem` call sites (`(tabs)/index.tsx`) still typecheck/render identically — they don't pass `trailing`, so nothing changes for them.
 
 - [x] **Task 2: Account Card — Edit profile / History / Language** (AC: #1, #4)
@@ -55,9 +55,17 @@ so that it's easier to scan and feels consistent with the rest of the redesigned
 
 - [x] **Task 6: Verify** (AC: #1–#5)
   - [x] `pnpm --filter mobile typecheck` clean.
-  - [x] `git diff --stat` shows `(tabs)/profile.tsx` + `components/ui/ListItem.tsx` only (no other screens, no other `ui/` components, no i18n key changes — this story adds zero new copy).
+  - [x] `git diff --stat` shows `(tabs)/profile.tsx` + `components/ui/ListItem.tsx` only (no other screens, no other `ui/` components, no i18n key changes — this story adds zero new copy). **Correction (code review, 2026-09-02):** this story's own commit (`74714f6`) is `profile.tsx` only — `ListItem.tsx`'s last change was Story 15.2/15.3's commit (`876e2af`); see File List correction below.
   - [x] Confirm every handler/route from the AC #4 list above still appears unchanged (`grep`/read-diff, not a rewrite) in the final file.
   - [x] On-device visual confirmation is the user's own manual QA step, per this project's established convention — not simulated here.
+
+### Review Findings
+
+- [x] [Review][Decision] Body Profile / Log Progress Entry's Card moved from position 2 (right after Edit Profile) to position 3 (after History+Language), contradicting AC #1's original "keeps its current position" wording [apps/mobile/src/app/(tabs)/profile.tsx] — AC #1 has two clauses that can't both be satisfied literally: merging History+Language into one contiguous Card with Edit Profile necessarily removes the gap Body Profile used to sit in. **Resolved by the user: accept the shipped order** (account Card, then Body Profile/Log Progress Entry Card, then Notifications, then Log Out) — the closest satisfiable reading, and the one that preserves AC #1's explicit, EXPERIENCE.md-backed single-Card grouping instruction. AC #1's text corrected to document this rather than claim literal position preservation; no code change.
+- [x] [Review][Patch] Story file's File List/Task 1/Debug Log falsely attributed `ListItem.tsx`'s `trailing` prop to this story's own commit [apps/mobile/src/components/ui/ListItem.tsx] — `git log` shows `ListItem.tsx` was last touched by Story 15.2/15.3's commit (`876e2af`), which already shipped the `trailing` prop ahead of this story needing it; this story's own commit (`74714f6`) is `profile.tsx` only, confirmed by the diff under review. Fixed: corrected Task 1, the Debug Log's `git status`/`git diff --stat` claims, and the File List to attribute the prop to its real commit — this story consumes it, didn't add it.
+- [x] [Review][Patch] History row written as one unbroken long line, inconsistent with every sibling `ListItem` call's multi-line formatting in the same diff [apps/mobile/src/app/(tabs)/profile.tsx:467]. Fixed: reformatted to match.
+
+Findings dismissed as noise (reviewed, no action): the Edit/Cancel row's dropped explicit `accessibilityLabel` is a no-op loss — the old label was byte-identical to the row's own visible title text, which RN's implicit accessibility composition already announces; the language toggle's unguarded non-en/fr fallback is pre-existing, unchanged by this diff; the trailing meta-icon not being accessibility-hidden like the leading `IconChip`, and the `META_ICONS` string-keyed mapping, are both about `ListItem.tsx`'s own design, a file this story's commit doesn't touch — out of this story's scope; the near-total `primary` tint usage, the Quiet-gym-alerts/Class-reminder icon pairing, History's merge into the account Card, and Log Out's standalone (no-Card) treatment are all explicitly specified in this story's own Dev Notes icon/tint table and EXPERIENCE.md's MA-12 spec, not arbitrary choices; the repeated `rowDivider` wrapper boilerplate matches Story 15.3's already-reviewed, already-accepted convention; `Card` having no built-in `gap` (relying on each divider's own padding) is a speculative future-maintenance concern, not a current defect; `notificationRow`'s name reading oddly post-refactor is pre-existing, unchanged code; zero test coverage matches this app's established no-test-runner convention; the `trailing` prop being added ahead of this story's actual need is background history, not a defect in this diff.
 
 ## Dev Notes
 
@@ -118,7 +126,7 @@ Claude Sonnet 5 (claude-sonnet-5)
 - `pnpm --filter mobile typecheck` and `pnpm -r typecheck` (all 4 workspace packages) — both clean, 0 errors.
 - `pnpm run check:i18n` — clean, unchanged key count (314, en/fr in parity) — confirms zero new copy was introduced, matching AC #4's "presentational-only" framing.
 - `grep -c` for each of the 7 handlers named in AC #4 (`handleStartEdit`/`handleCancelEdit`/`handleSaveProfile`/`handleLanguageChange`/`handleToggleQuietGymAlerts`/`handleToggleClassReminder`/`handleLogOut`) — all still present with their original definitions and call sites, none rewritten.
-- `git status --short apps/mobile/src` post-implementation: `(tabs)/profile.tsx` + `components/ui/ListItem.tsx` — matches this story's File List exactly.
+- `git status --short apps/mobile/src` post-implementation: `(tabs)/profile.tsx` + `components/ui/ListItem.tsx` modified. **Correction (code review, 2026-09-02):** `git log -- components/ui/ListItem.tsx` shows exactly one commit ever touching that file (`876e2af`, Story 15.2/15.3) — this story's own commit (`74714f6`) is a 1-file change, `profile.tsx` only. The working tree showing both as modified reflected the pre-commit state (both had uncommitted changes at the time this was checked), not this story's own diff.
 
 ### Completion Notes List
 
@@ -133,6 +141,8 @@ Claude Sonnet 5 (claude-sonnet-5)
 
 ### File List
 
-**Modified:**
+**Modified by this story's own commit (`74714f6`):**
 - `apps/mobile/src/app/(tabs)/profile.tsx`
+
+**Modified earlier, by Story 15.2/15.3's commit (`876e2af`) — consumed, not changed, by this story (correction, code review 2026-09-02):**
 - `apps/mobile/src/components/ui/ListItem.tsx`

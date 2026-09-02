@@ -462,7 +462,13 @@ export default function ProfileScreen() {
                   trigger is removed in this same story, this row is its
                   replacement entry point. */}
               <View style={[styles.rowDivider, { borderTopColor: theme.border }]}>
-                <ListItem icon="history" tint="primary" title={t('profile.history')} meta="→" onPress={() => router.push('/history')} />
+                <ListItem
+                  icon="history"
+                  tint="primary"
+                  title={t('profile.history')}
+                  meta="→"
+                  onPress={() => router.push('/history')}
+                />
               </View>
 
               <View style={[styles.rowDivider, { borderTopColor: theme.border }]}>
