@@ -4,7 +4,7 @@
 -- matches class_booking_with_capacity_enforcement.test.sql (Story 12.2).
 
 begin;
-select plan(37);
+select plan(40);
 
 -- ============================================================================
 -- Task 1 RED contract: dispatch/delivery ledgers.
@@ -236,6 +236,12 @@ select is(
 );
 
 select is(
+  (select count(*)::int from public.notifications where member_id = '00000000-0000-0000-0000-000000009951'),
+  1,
+  'Story 6.7: the second cron tick does not duplicate the notifications history row either -- same idempotency boundary'
+);
+
+select is(
   (select count(*)::int from private.class_reminder_dispatches where member_id = '00000000-0000-0000-0000-000000009952'),
   0,
   'AC #1: a booked session more than 60 minutes out has no dispatch yet'
@@ -327,6 +333,21 @@ select ok(
    join private.class_reminder_dispatches x on x.id = d.dispatch_id
    where x.member_id = '00000000-0000-0000-0000-000000009951'),
   'English N-07 copy is exact, with the class name interpolated'
+);
+
+-- Story 6.7: the same dispatch also writes a member-facing history row --
+-- including for a member with zero registered tokens (AC #2's "written
+-- unconditionally" requirement).
+select ok(
+  (select type = 'N-07' and title = 'Class reminder'
+      and body = 'Your class "Reminder Test Class" starts in 60 minutes.' and read_at is null
+   from public.notifications where member_id = '00000000-0000-0000-0000-000000009951'),
+  'N-07 dispatch also writes a matching, unread public.notifications row'
+);
+
+select ok(
+  exists (select 1 from public.notifications where member_id = '00000000-0000-0000-0000-000000009961' and type = 'N-07'),
+  'a no-token N-07 dispatch still writes a notifications history row'
 );
 
 select ok(

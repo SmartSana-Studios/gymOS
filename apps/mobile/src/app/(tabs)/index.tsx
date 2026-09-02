@@ -19,6 +19,7 @@ import { getRecentCheckIns, type RecentCheckIn } from '@/services/checkin';
 import { listMyClassBookings, type MyClassBooking } from '@/services/classes';
 import { getOccupancyBand, type OccupancyBand } from '@/services/occupancy';
 import { getGymTaraMoneyConnectionStatus, getRecentPayments, type RecentPayment } from '@/services/payments';
+import { getUnreadNotificationCount } from '@/services/notificationHistory';
 import { getOwnSubscriptionWithPlan } from '@/services/subscriptions';
 import { supabase } from '@/lib/supabase';
 
@@ -139,6 +140,10 @@ export default function HomeScreen() {
   // occupancyBand/taraMoneyConnected above.
   const [upcomingClasses, setUpcomingClasses] = useState<MyClassBooking[]>([]);
   const [workoutPlanName, setWorkoutPlanName] = useState<string | null>(null);
+  // Story 6.7 (AC #3): the Home header's bell badge -- same best-effort,
+  // non-blocking discipline as occupancyBand/upcomingClasses above, does not
+  // participate in hasLoadedOnce/loadError gating.
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   // Review finding: rapid tab switching can fire loadHome() again before an
   // earlier call resolves; without this, an older/slower response could
@@ -311,6 +316,12 @@ export default function HomeScreen() {
       } catch {
         if (isCurrent()) setWorkoutPlanName(null);
       }
+
+      // Story 6.7 (AC #3): also best-effort/non-blocking -- never throws
+      // (services/notificationHistory.ts's own contract), same pattern as
+      // taraMoneyConnected above.
+      const unreadCount = await getUnreadNotificationCount(memberResult.data.id);
+      if (isCurrent()) setUnreadNotificationCount(unreadCount);
     } catch {
       if (isCurrent() && !hasLoadedOnceRef.current) setLoadError(true);
     } finally {
@@ -406,13 +417,30 @@ export default function HomeScreen() {
                 </ThemedText>
               )}
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('profile.title')}
-              onPress={() => router.push('/profile')}
-              style={[styles.avatar, { backgroundColor: theme.surfaceElevated }]}>
-              {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : null}
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('notifications.title')}
+                onPress={() => router.push('/notifications')}
+                hitSlop={Spacing.two}
+                style={styles.bellButton}>
+                <MaterialIcons name="notifications" size={24} color={theme.text} />
+                {unreadNotificationCount > 0 && (
+                  <View style={styles.bellBadge}>
+                    <ThemedText type="small" style={styles.bellBadgeText}>
+                      {unreadNotificationCount > 9 ? '9+' : unreadNotificationCount}
+                    </ThemedText>
+                  </View>
+                )}
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('profile.title')}
+                onPress={() => router.push('/profile')}
+                style={[styles.avatar, { backgroundColor: theme.surfaceElevated }]}>
+                {avatarUrl ? <Image source={{ uri: avatarUrl }} style={styles.avatarImage} /> : null}
+              </Pressable>
+            </View>
           </View>
 
           {pendingCheckInCount > 0 && (
@@ -611,6 +639,32 @@ const styles = StyleSheet.create({
   },
   gymName: {
     flexShrink: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  bellButton: {
+    padding: Spacing.one,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F87171',
+  },
+  bellBadgeText: {
+    color: '#0A0F17',
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '700',
   },
   avatar: {
     width: 36,

@@ -6,7 +6,7 @@
 -- manual_payment_verification_queue.test.sql.
 
 begin;
-select plan(53);
+select plan(56);
 
 -- Task 1 RED contract: internal logical-dispatch and per-device ledgers.
 select ok(
@@ -217,6 +217,14 @@ select ok(
   'Expo payload data is keyed by payment_id (not subscription_id), camelCase, exact'
 );
 
+-- Story 6.7: the same dispatch also writes a member-facing history row.
+select ok(
+  (select type = 'N-04' and title = 'Payment confirmed'
+      and body = 'Your payment of 15000 XAF to Bastos Gym was confirmed.' and read_at is null
+   from public.notifications where member_id = '00000000-0000-0000-0000-000000006410'),
+  'N-04 dispatch also writes a matching, unread public.notifications row'
+);
+
 -- AC #4's second clause: an unrelated column-only UPDATE on the same
 -- already-verified row must not trigger a stray notification.
 select lives_ok(
@@ -397,12 +405,26 @@ select ok(
   'English N-05 copy and notificationCode are exact'
 );
 
+-- Story 6.7: the same N-05 dispatch also writes a matching history row.
+select ok(
+  (select type = 'N-05' and title = 'Payment failed'
+      and body = 'Your payment to Bastos Gym could not be completed. Please try again or contact the front desk.'
+   from public.notifications where member_id = '00000000-0000-0000-0000-000000006416'),
+  'N-05 dispatch also writes a matching public.notifications row'
+);
+
 set local role service_role;
 select lives_ok(
   $$select complete_flagged_payment('00000000-0000-0000-0000-000000006606'::uuid)$$,
   'a retried webhook delivery calling complete_flagged_payment again is a safe no-op (status already flagged)'
 );
 reset role;
+
+select is(
+  (select count(*)::int from public.notifications where member_id = '00000000-0000-0000-0000-000000006416' and type = 'N-05'),
+  1,
+  'the retried webhook does not duplicate the notifications history row either'
+);
 
 select is(
   (select count(*)::int from private.payment_notification_dispatches where payment_id = '00000000-0000-0000-0000-000000006606'),

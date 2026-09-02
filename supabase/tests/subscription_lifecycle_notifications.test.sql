@@ -2,7 +2,7 @@
 -- dispatch, Expo ticket/receipt processing, and idempotency coverage.
 
 begin;
-select plan(80);
+select plan(84);
 
 -- Task 1 RED contract: internal logical-dispatch and per-device ledgers.
 select ok(
@@ -155,6 +155,15 @@ select is(
   'a token-backed logical dispatch is marked queued'
 );
 
+-- Story 6.7: the same dispatch also writes a member-facing history row,
+-- using the exact same idempotency boundary.
+select ok(
+  (select type = 'N-01' and title = 'Membership expiring — 7 days'
+      and body = 'Your Bonamoussadi Gym membership expires in 7 days.' and read_at is null
+   from public.notifications where member_id = '00000000-0000-0000-0000-000000006220'),
+  'N-01 dispatch also writes a matching, unread public.notifications row'
+);
+
 select is(
   (select count(*)::int from private.notification_deliveries d join private.notification_dispatches x on x.id = d.dispatch_id where x.subscription_id = '00000000-0000-0000-0000-000000006240'),
   2,
@@ -214,6 +223,7 @@ select lives_ok(
 select is((select count(*)::int from private.notification_dispatches where subscription_id = '00000000-0000-0000-0000-000000006240'), 1, 'rerun does not duplicate the logical dispatch');
 select is((select count(*)::int from private.notification_deliveries d join private.notification_dispatches x on x.id = d.dispatch_id where x.subscription_id = '00000000-0000-0000-0000-000000006240'), 2, 'rerun does not duplicate per-device deliveries');
 select is((select count(*)::int from net.http_request_queue), 2, 'rerun issues no additional pg_net request');
+select is((select count(*)::int from public.notifications where member_id = '00000000-0000-0000-0000-000000006220'), 1, 'rerun does not duplicate the notifications history row either -- same idempotency boundary');
 
 select lives_ok(
   $$select private.send_push_notification('00000000-0000-0000-0000-000000006241', 'N-02')$$,
@@ -228,6 +238,13 @@ select ok(
    join private.notification_dispatches x on x.id = d.dispatch_id
    where x.subscription_id = '00000000-0000-0000-0000-000000006241'),
   'preferred_language fr produces exact French N-02 copy'
+);
+
+select ok(
+  (select type = 'N-02' and title = 'Abonnement bientôt expiré — 1 jour'
+      and body = 'Votre abonnement à Bonamoussadi Gym expire demain.'
+   from public.notifications where member_id = '00000000-0000-0000-0000-000000006221'),
+  'French N-02 copy is also exact in the notifications history row'
 );
 
 select lives_ok(
@@ -260,6 +277,13 @@ select is(
   (select count(*)::int from private.notification_deliveries d join private.notification_dispatches x on x.id = d.dispatch_id where x.subscription_id = '00000000-0000-0000-0000-000000006243'),
   0,
   'a no-token dispatch creates no device delivery'
+);
+
+-- Story 6.7 AC #2: the history row is written unconditionally -- a member
+-- with zero registered devices still sees the notification in-app.
+select ok(
+  exists (select 1 from public.notifications where member_id = '00000000-0000-0000-0000-000000006223' and type = 'N-01'),
+  'a no-token dispatch still writes a notifications history row'
 );
 
 select lives_ok(

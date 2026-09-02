@@ -2385,6 +2385,34 @@ So that I don't forget to show up.
 **When** I view them
 **Then** N-07 is opt-out, not opt-in — it's non-critical per FR-076, so it's on by default but I can turn it off
 
+### Story 6.7: Notification History Screen
+
+As a member,
+I want to see my past notifications in one place,
+So that I can review what I've been sent without digging through Profile.
+
+**Acceptance Criteria:**
+
+**Given** no member-facing notification history exists today — `private.class_reminder_dispatches`/`private.quiet_gym_alert_dispatches`/`private.payment_notification_dispatches` are internal delivery-tracking bookkeeping only (no RLS, no message content, `private` schema)
+**When** this story ships
+**Then** a new `public.notifications` table stores one row per notification actually sent to a member (copy already resolved in the member's language, a `type` matching the existing N-01–N-07 taxonomy, `created_at`, nullable `read_at`), gated by RLS so a member can only read their own rows and can only update their own rows' `read_at` column
+
+**Given** each existing dispatch call site (lifecycle cron N-01–N-03, the `payments` trigger N-04/N-05, quiet-gym-alert N-06, class-reminder N-07)
+**When** it sends a push
+**Then** it also inserts one matching row into `public.notifications`, so the in-app history reflects exactly what was pushed — no new notification types, no change to any existing send condition/rate-limit/opt-out logic
+
+**Given** the mobile app's Home screen
+**When** a member is on Home
+**Then** a bell icon in the header opens a new Notifications screen, badged with the count of rows where `read_at is null`
+
+**Given** the Notifications screen
+**When** it loads
+**Then** it shows a reverse-chronological history list only, each row marked read on view — **amended same day, on-device QA:** the two existing opt-out toggles (Quiet-gym alerts, Class reminders) were originally planned to relocate here into a Preferences section, but stay in `apps/mobile/src/app/(tabs)/profile.tsx` unchanged instead, per explicit user request; no Preferences section exists on this screen
+
+**Given** N-01–N-05 are non-opt-out lifecycle/payment notifications (Story 6.4)
+**When** the history list renders them
+**Then** they appear (so a member can review why they were charged or reminded) but never gain a toggle in Preferences — opt-out continues to apply only to N-06/N-07, unchanged
+
 ---
 
 ## Epic 13: Workout Plans

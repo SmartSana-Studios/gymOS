@@ -129,6 +129,7 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="plan" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="renew" options={{ presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ presentation: 'modal', headerShown: false }} />
         {/* Review finding: was never registered here despite being reachable
             via router.push('/workout-plan') from Home -- an unregistered
             top-level route still resolves via expo-router's file-based

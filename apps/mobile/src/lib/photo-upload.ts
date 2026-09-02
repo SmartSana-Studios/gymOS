@@ -30,7 +30,7 @@ const EXTENSION_TO_MIME: Record<string, string> = {
 
 export type PickPhotoResult =
   | { uri: string }
-  | { error: 'permission_denied' | 'too_large' }
+  | { error: 'permission_denied' | 'too_large' | 'read_failed' }
   | { canceled: true };
 
 /** MA-05/MA-12 shared photo-picker logic (Story 2.8, Task 1), lifted
@@ -86,7 +86,16 @@ export async function pickPhoto(source: 'camera' | 'library'): Promise<PickPhoto
 
   // Re-checked against the (possibly resized) `uri`, not the picker's own
   // stale `asset.fileSize`, which still reflects the pre-resize original.
-  const fileSize = new File(uri).size ?? 0;
+  // Review finding: `new File(uri)` (expo-file-system) can throw for a
+  // picked-but-unreadable URI -- unguarded, this was an unhandled rejection
+  // at all 3 call sites, with no error ever shown to the user.
+  let fileSize: number;
+  try {
+    fileSize = new File(uri).size ?? 0;
+  } catch (err) {
+    console.error('[photo-upload] file size check failed', err);
+    return { error: 'read_failed' };
+  }
   if (fileSize > MAX_PHOTO_BYTES) {
     return { error: 'too_large' };
   }

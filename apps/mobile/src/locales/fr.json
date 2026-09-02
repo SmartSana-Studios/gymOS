@@ -109,6 +109,11 @@
       "classReminderDescription": "Recevez un rappel avant le début de vos cours réservés."
     }
   },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "Aucune notification pour le moment.",
+    "errorLoadFailed": "Impossible de charger vos notifications. Vérifiez votre connexion et réessayez."
+  },
   "checkin": {
     "title": "Enregistrement",
     "instruction": "Visez le QR code de votre salle",

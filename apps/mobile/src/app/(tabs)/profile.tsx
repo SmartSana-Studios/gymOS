@@ -213,11 +213,13 @@ export default function ProfileScreen() {
   async function handlePickPhoto(source: 'camera' | 'library') {
     const result = await pickPhoto(source);
     if ('error' in result) {
-      setEditError(
-        result.error === 'permission_denied'
-          ? t('onboarding.profile.errorPhotoPermissionDenied')
-          : t('onboarding.profile.errorPhotoTooLarge'),
-      );
+      if (result.error === 'permission_denied') {
+        setEditError(t('onboarding.profile.errorPhotoPermissionDenied'));
+      } else if (result.error === 'too_large') {
+        setEditError(t('onboarding.profile.errorPhotoTooLarge'));
+      } else {
+        setEditError(t('onboarding.profile.errorPhotoUploadFailed'));
+      }
       return;
     }
     if ('canceled' in result) return;

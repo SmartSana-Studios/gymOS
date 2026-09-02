@@ -101,11 +101,13 @@ export function LogEntrySheet({ visible, onClose, onSaved }: LogEntrySheetProps)
   async function handlePickPhoto(source: 'camera' | 'library') {
     const result = await pickPhoto(source);
     if ('error' in result) {
-      setError(
-        result.error === 'permission_denied'
-          ? t('onboarding.profile.errorPhotoPermissionDenied')
-          : t('onboarding.profile.errorPhotoTooLarge'),
-      );
+      if (result.error === 'permission_denied') {
+        setError(t('onboarding.profile.errorPhotoPermissionDenied'));
+      } else if (result.error === 'too_large') {
+        setError(t('onboarding.profile.errorPhotoTooLarge'));
+      } else {
+        setError(t('onboarding.profile.errorPhotoUploadFailed'));
+      }
       return;
     }
     if ('canceled' in result) return;

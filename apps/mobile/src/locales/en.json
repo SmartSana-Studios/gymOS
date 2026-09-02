@@ -109,6 +109,11 @@
       "classReminderDescription": "Get a reminder before your booked classes start."
     }
   },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet.",
+    "errorLoadFailed": "Couldn't load your notifications. Check your connection and try again."
+  },
   "checkin": {
     "title": "Check In",
     "instruction": "Point at your gym's QR code",

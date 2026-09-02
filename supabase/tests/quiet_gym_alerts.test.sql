@@ -7,7 +7,7 @@
 -- (Story 3.6).
 
 begin;
-select plan(41);
+select plan(42);
 
 -- ============================================================================
 -- Task 1 RED contract: dispatch/delivery ledgers, opening-hours columns,
@@ -393,6 +393,14 @@ select ok(
    join private.quiet_gym_alert_dispatches x on x.id = d.dispatch_id
    where x.member_id = '00000000-0000-0000-0000-000000009731'),
   'Expo payload data is keyed by memberId/gymId, camelCase, exact'
+);
+
+-- Story 6.7: the same dispatch also writes a member-facing history row.
+select ok(
+  (select type = 'N-06' and title = 'Your gym is quiet right now'
+      and body = 'It''s a great time to train at Low Band Gym — occupancy is low.' and read_at is null
+   from public.notifications where member_id = '00000000-0000-0000-0000-000000009731'),
+  'N-06 dispatch also writes a matching, unread public.notifications row'
 );
 
 -- ============================================================================
