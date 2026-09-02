@@ -122,11 +122,17 @@ Three jobs in `.github/workflows/ci.yml`, triggered on every push and PR:
    against a fresh local Supabase + dashboard build, covering staff
    provisioning, payment cutover (self-skips without real credentials),
    progress-data privacy, and class-booking capacity.
-   **This job has not yet been confirmed to pass on a real GitHub Actions
-   runner** — only local runs are verified as of this writing (see
-   `_bmad-output/implementation-artifacts/deferred-work.md`). Confirm a
-   green run on `origin/master` before treating this job as a real deploy
-   gate.
+   **Confirmed passing on a real GitHub Actions runner as of 2026-09-02**
+   (run [33668339830](https://github.com/SmartSana-Studios/gymOS/actions/runs/33668339830)).
+   The first real run (33667259967) genuinely failed — not flakiness —
+   with `e2e: missing required env var SUPABASE_SERVICE_ROLE_KEY` thrown
+   from Playwright's `globalSetup`: `turbo.json`'s `test:e2e` task had no
+   `env` allowlist declared, so Turborepo's default strict env mode
+   stripped `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`/
+   `SUPABASE_SERVICE_ROLE_KEY`/`DASHBOARD_APP_URL` from the child process
+   before the test suite ever saw them, even though they were genuinely
+   set at the GitHub Actions step level. Fixed by declaring the same env
+   list `build` already had. Now a real deploy gate.
 
 ## 5. Deploy steps (fill in once hosting is provisioned)
 

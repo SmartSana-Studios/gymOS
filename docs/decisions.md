@@ -4,6 +4,18 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-09-02 — `e2e-tests` CI job confirmed on a real runner; root cause was `turbo.json`, not the workflow — recorded during release-readiness prep
+
+**What happened:** Story 13.5 (2026-09-01) added the `e2e-tests` job to `.github/workflows/ci.yml` but never confirmed it against a real GitHub Actions runner (deferred at the time — see `deferred-work.md`). The first real push (`origin/master`, run `33667259967`) failed with `e2e: missing required env var SUPABASE_SERVICE_ROLE_KEY`, thrown from Playwright's `globalSetup` (`apps/dashboard/e2e/fixtures/seed.ts`).
+
+**Root cause:** not the CI workflow's own "export Supabase keys to `$GITHUB_ENV`" step, which worked correctly — `SUPABASE_SERVICE_ROLE_KEY` was genuinely present in the `e2e-tests` job's step-level env (visible, masked, in the Actions log). The actual cause was `turbo.json`: the `test:e2e` task declared no `env` allowlist, so Turborepo's default strict env mode stripped `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`/`SUPABASE_SERVICE_ROLE_KEY`/`DASHBOARD_APP_URL` from the child process it spawns for `pnpm run test:e2e`, before Playwright's `globalSetup` (running inside that stripped process) ever saw them. The `build` task already declared this exact env list; `test:e2e` never inherited or duplicated it.
+
+**Fix:** added the same 4-var `env` array to `test:e2e` in `turbo.json`. Second push (run `33668339830`) passed all 3 jobs (`typecheck`, `rls-tests`, `e2e-tests`) clean.
+
+**Why recorded here:** Turborepo's env-stripping is silent and easy to reintroduce — any new task added to `turbo.json` that touches `apps/dashboard`'s Supabase/build env and doesn't explicitly declare its `env` allowlist will fail the same way, with a misleading error that looks like the CI workflow itself is wrong rather than `turbo.json`.
+
+---
+
 ## 2026-09-02 — IconChip's `primary` tint uses a dedicated hex, not `Brand.primary` — recorded during code review of Story 15.2
 
 **Decision:** `apps/mobile/src/components/ui/IconChip.tsx`'s `primary` tint fills with `#2E4568`/`#3F587F`/`#FFFFFF` (bg/border/icon), not `Brand.primary` (`#1B2A41`) as Story 15.2's original Dev Notes table specified.
