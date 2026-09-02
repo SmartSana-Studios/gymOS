@@ -6,6 +6,16 @@ import { supabase } from '@/lib/supabase';
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
+// A modern phone's camera sensor (30-100+MP) can produce an original whose
+// JPEG quality alone can't bound file size under MAX_PHOTO_BYTES -- the
+// `quality: 0.8` passed to the picker below only controls compression
+// ratio, not pixel dimensions. Downscaling the longest edge to a size
+// that's already ample for how these photos are actually displayed (a
+// small avatar, a progress-photo thumbnail/lightbox -- never full-bleed)
+// keeps file size bounded regardless of source resolution, instead of
+// rejecting a legitimate high-res photo outright.
+const MAX_PHOTO_DIMENSION = 1600;
+
 // Bucket's allowed_mime_types (0019_member_onboarding_otp.sql) lists
 // 'image/jpeg', never 'image/jpg' -- a bare extension-to-mime-type mapping
 // would mislabel the most common real-world upload and get it rejected by
@@ -43,10 +53,44 @@ export async function pickPhoto(source: 'camera' | 'library'): Promise<PickPhoto
   if (result.canceled || !result.assets[0]) return { canceled: true };
 
   const asset = result.assets[0];
-  if (asset.fileSize && asset.fileSize > MAX_PHOTO_BYTES) {
+
+  // width/height are 0 when the system didn't report them -- in that case
+  // longestEdge is 0, which never exceeds MAX_PHOTO_DIMENSION, so resizing
+  // is safely skipped and the original falls through to the size check
+  // below unchanged, same as before this fix.
+  let uri = asset.uri;
+  const longestEdge = Math.max(asset.width, asset.height);
+  if (longestEdge > MAX_PHOTO_DIMENSION) {
+    // Dynamic import + try/catch, deliberately not a static top-level
+    // import: expo-image-manipulator is a native module, and this file is
+    // transitively imported by nearly every screen (LogEntrySheet,
+    // profile.tsx, onboarding/profile.tsx). A static import throws at
+    // module-evaluation time if the native side isn't compiled into the
+    // running binary yet (e.g. a dev client built before this dependency
+    // was added) -- which would crash every one of those screens, not just
+    // the photo picker. Falling back to the pre-resize behavior (skip
+    // straight to the size check below) degrades gracefully instead.
+    try {
+      const { ImageManipulator, SaveFormat } = await import('expo-image-manipulator');
+      const isLandscape = asset.width >= asset.height;
+      const context = ImageManipulator.manipulate(asset.uri).resize(
+        isLandscape ? { width: MAX_PHOTO_DIMENSION } : { height: MAX_PHOTO_DIMENSION },
+      );
+      const rendered = await context.renderAsync();
+      const saved = await rendered.saveAsync({ compress: 0.8, format: SaveFormat.JPEG });
+      uri = saved.uri;
+    } catch (err) {
+      console.error('[photo-upload] resize failed, falling back to original', err);
+    }
+  }
+
+  // Re-checked against the (possibly resized) `uri`, not the picker's own
+  // stale `asset.fileSize`, which still reflects the pre-resize original.
+  const fileSize = new File(uri).size ?? 0;
+  if (fileSize > MAX_PHOTO_BYTES) {
     return { error: 'too_large' };
   }
-  return { uri: asset.uri };
+  return { uri };
 }
 
 /** Uploads to the member-photos bucket at {user_id}/photo.{ext} with
