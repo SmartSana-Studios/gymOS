@@ -8,9 +8,14 @@
 -- with no session-derived gym scoping, so `authenticated` (any role,
 -- including the connecting gym's own Owner) must be provably unable to call
 -- either -- plus business_id_plain's uniqueness constraint.
+--
+-- Story 4.16: extended with the platform business-id collision guard
+-- (0083_platform_business_id_collision_guard.sql) -- a gym cannot connect a
+-- business_id_plain matching the platform's own account (Vault-seeded
+-- secret), and the guard must no-op when that secret is unseeded.
 
 begin;
-select plan(37);
+select plan(44);
 
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000000901'), -- owner, gym A
@@ -371,6 +376,93 @@ select throws_like(
   $$ select connect_gym_payment_credentials('taramoney', 'key-b-dup', 'ab', 'secret-b-dup') $$,
   '%idx_gym_payment_credentials_provider_business_id%',
   'a second gym cannot connect using a business_id another gym (under the same provider_key) already has -- the partial unique index rejects it'
+);
+
+reset role;
+
+-- ============================================================================
+-- Story 4.16: platform business-id collision guard (0083). Seeds a Vault
+-- secret named 'platform:taramoney:business_id', mirroring 0083's real
+-- lookup. Gym C (connected above at line ~244, business_id_plain = 'ab') is
+-- reused as the fixture -- a reconnect attempt runs through the exact same
+-- guard as a fresh connect (0083 places the check before the
+-- insert-vs-update branch either way).
+-- ============================================================================
+select vault.create_secret('platform-test-biz-id', 'platform:taramoney:business_id');
+
+-- AC #1: a rejected attempt must not write an audit_log row -- structurally
+-- true because the guard's raise exception aborts before log_audit_event()
+-- is ever reached, but asserted directly here (before/after count delta, not
+-- content-filtered -- metadata only ever stores the masked value, never
+-- business_id_plain, so a content filter on the plain value could never
+-- match) so a future reordering of the guard relative to the audit call
+-- would fail this test rather than ship silently.
+select count(*)::int as audit_count_before from audit_log where action_type = 'gym_payment_credentials_connected' \gset
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000904","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000000407","app_role":"owner"}', true);
+
+select throws_like(
+  $$ select connect_gym_payment_credentials('taramoney', 'key-c-platform', 'platform-test-biz-id', 'secret-c-platform') $$,
+  '%platform''s own account%',
+  'a gym cannot connect a business_id_plain matching the platform''s own account (resolved via the Vault-seeded secret)'
+);
+
+reset role;
+
+select is(
+  (select business_id_plain from gym_payment_credentials where gym_id = '00000000-0000-0000-0000-000000000407' and provider_key = 'taramoney')::text, 'ab',
+  'the rejected platform-collision attempt leaves gym C''s existing connection untouched'
+);
+
+select is(
+  (select count(*)::int from audit_log where action_type = 'gym_payment_credentials_connected'),
+  :audit_count_before,
+  'the rejected platform-collision attempt writes no audit_log row'
+);
+
+-- The guard sits before the insert-vs-update branch split, so a fresh
+-- connect (no pre-existing row) must be rejected identically to gym C's
+-- reconnect above. Gym A (disconnected earlier in this file, no
+-- gym_payment_credentials row since) is the fixture for this INSERT-branch case.
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000901","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000000405","app_role":"owner"}', true);
+
+select throws_like(
+  $$ select connect_gym_payment_credentials('taramoney', 'key-a-platform', 'platform-test-biz-id', 'secret-a-platform') $$,
+  '%platform''s own account%',
+  'a gym with no pre-existing connection (fresh connect / INSERT branch) is also rejected for a business_id_plain matching the platform''s own account'
+);
+
+reset role;
+
+select is(
+  (select count(*)::int from gym_payment_credentials where gym_id = '00000000-0000-0000-0000-000000000405'),
+  0,
+  'the rejected fresh-connect attempt leaves gym A with no gym_payment_credentials row'
+);
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000904","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000000407","app_role":"owner"}', true);
+
+select lives_ok(
+  $$ select connect_gym_payment_credentials('taramoney', 'key-c-2', 'gym-c-different-id', 'secret-c-2') $$,
+  'a non-colliding business_id still connects successfully with the platform secret seeded (control case)'
+);
+
+reset role;
+
+-- AC #2: the guard must no-op, not hard-fail, when the platform secret is
+-- unseeded in the current environment -- explicit, separate coverage, not
+-- inferred from the absence of a failure above.
+delete from vault.secrets where name = 'platform:taramoney:business_id';
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000000904","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000000407","app_role":"owner"}', true);
+
+select lives_ok(
+  $$ select connect_gym_payment_credentials('taramoney', 'key-c-3', 'platform-test-biz-id', 'secret-c-3') $$,
+  'AC #2: with the platform Vault secret unseeded, connecting the same value that would otherwise collide now succeeds -- the guard no-ops rather than blocking every connect'
 );
 
 reset role;

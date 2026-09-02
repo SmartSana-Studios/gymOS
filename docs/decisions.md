@@ -4,6 +4,20 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-09-01 — Platform Business ID Collision Guard: Vault over a GUC/env-var mirror for reading `TARAMONEY_BUSINESS_ID` inside Postgres — recorded during Story 4.16
+
+Closes a gap flagged in Story 11.6's code review (2026-08-30, `deferred-work.md:661`): nothing in `connect_gym_payment_credentials()` (Story 4.13) stopped a gym from registering `business_id_plain` equal to the platform's own `TARAMONEY_BUSINESS_ID`, which would let that gym's webhook deliveries collide with platform-account traffic under `TaraMoneyProvider.ts`'s businessId-based routing (Story 4.14). The existing `idx_gym_payment_credentials_provider_business_id` unique index (0054) only prevents gym-vs-gym collisions — the platform's own ID lives outside any table row, so no index can see it.
+
+**The core problem:** `TARAMONEY_BUSINESS_ID` is a Supabase Edge Function secret (`Deno.env.get(...)`, set via `supabase secrets set`) — Postgres functions have no built-in way to read it, and it is not exposed to `apps/dashboard` either (confirmed absent from `apps/dashboard/.env.example`; it's Supabase-secret-only per `docs/deploy-runbook.md`). Neither reading `process.env` in the Server Action nor reading an unset GUC's `current_setting()` gets the real value into Postgres.
+
+**Decision — store the platform's own business ID as a Supabase Vault secret** (`platform:taramoney:business_id`), mirroring AD-15's existing per-gym-credentials pattern and reusing the `vault.decrypted_secrets` lookup shape `get_gym_payment_credentials_by_business_id` (0054) already established. AD-13 ("payment provider is DB-row + RPC-driven runtime switching, not an env var") independently argues against inventing a GUC-mirrors-env-var side channel for this. `business_id_plain` is explicitly not a secret (0054's own comment — TaraMoney's webhook payloads carry it in cleartext on every delivery); Vault here is just this codebase's sanctioned place for a runtime-supplied value, not a confidentiality requirement.
+
+The new guard (migration `0083`) reads the Vault secret inside `connect_gym_payment_credentials()` immediately after computing `v_plain`, before any row/secret is touched or the audit log is written — a rejected connect leaves the database in exactly the state it was in before the call. **If the secret is unseeded in a given environment, the guard no-ops rather than failing every connect** (matches this codebase's existing tolerance for `TARAMONEY_INITIATION_ENABLED` defaulting enabled when unset) — seeding is a documented, out-of-band per-environment step (`docs/deploy-runbook.md`), same class of operation as `supabase secrets set` for the Edge Function secrets.
+
+The existing `idx_gym_payment_credentials_provider_business_id` cross-gym unique index is untouched — this is a second, independent guard (gym vs. platform), not a replacement for the first (gym vs. gym).
+
+---
+
 ## 2026-09-01 — E2E Test Automation Baseline: Playwright chosen (resolves ARCHITECTURE-SPINE.md's own "not yet chosen" Deferred item), dashboard-UI/mobile-API hybrid scope split, a real pre-existing HIGH SEVERITY gap found in the fixture-design phase, and Flow 2's real-external-payment-provider CI limitation — recorded during Story 13.5
 
 **Decision 1 — Playwright, `apps/dashboard`-scoped, driving `next build && next start` (production mode).** This is the project's first E2E investment; every other gate (pgTAP, Vitest, `check:i18n`) is unit/integration-level. Compatibility risk against this app's Next.js 16.3.4 (`AGENTS.md`'s own "training-data-defying breaking changes" warning) turned out to be a non-issue — Playwright drives a real browser against a real running server, no framework-internal API surface to break against. `npx playwright install --with-deps chromium` succeeded cleanly in this devcontainer on the first attempt; no fallback-to-CI-only path was needed (Subtask 1.1 flagged this as a real possibility given this devcontainer's own repeated Docker/network quirks, but it did not reproduce here).

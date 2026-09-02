@@ -57,10 +57,28 @@ Supabase project secrets (`supabase/.env`, gitignored, set via
 - `SENT_DM_API_KEY`, `SENT_DM_OTP_TEMPLATE_ID`
 - `SEND_SMS_HOOK_SECRET` — Supabase Auth SMS-hook signing secret
 - `TARAMONEY_API_KEY`, `TARAMONEY_BUSINESS_ID`, `TARAMONEY_WEBHOOK_SECRET` —
-  payment provider. **Today this is one global credential set** — per-gym
-  Tara Money credentials (FR-126) are not yet built; see the 2026-08-27
-  party-mode memlog and `docs/decisions.md`.
+  the platform's own Tara Money credential set (used for Flow B/SaaS
+  billing). Per-gym Tara Money credentials (FR-126) now exist as of Story
+  4.13, stored per-gym in Supabase Vault rather than as env vars; see the
+  2026-08-27 party-mode memlog and `docs/decisions.md`.
 - `REVIEW_TEST_PHONE` — app-store review bypass phone number
+
+**[NEEDS]** the Supabase Vault secret `platform:taramoney:business_id`
+seeded in every environment (Story 4.16) — mirrors the value of this
+project's own `TARAMONEY_BUSINESS_ID` Edge Function secret above, but read
+from inside Postgres by `connect_gym_payment_credentials()` to reject a gym
+connecting a `business_id_plain` that collides with the platform's own
+account (see `docs/decisions.md`'s Story 4.16 entry). Seed once per
+environment (local dev, CI, staging, prod) via:
+
+```sql
+select vault.create_secret('<value>', 'platform:taramoney:business_id');
+```
+
+Keep `<value>` in sync with that environment's `TARAMONEY_BUSINESS_ID`
+secret — if they drift, the guard silently stops matching. If this secret
+is unseeded in a given environment, the guard no-ops (connect succeeds as
+before this story shipped) rather than blocking every connect attempt.
 
 **[NEEDS]** a real secrets-management decision for production (Supabase
 Vault was the agreed direction for the *per-gym* credentials once FR-126

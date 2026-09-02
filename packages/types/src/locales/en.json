@@ -27,6 +27,7 @@
     "noOpenCheckIn": "This member doesn't have an open check-in to close.",
     "paymentAlreadyRefunded": "This payment has already been refunded.",
     "paymentBusinessIdAlreadyConnected": "This Tara Money account is already connected to another gym.",
+    "paymentBusinessIdIsPlatformAccount": "This account can't be connected — it belongs to GymOS's own platform account.",
     "backdateNotEligible": "This subscription can't be back-dated.",
     "memberNotAssigned": "This member is no longer assigned to you.",
     "noteNotEditable": "This note can't be edited.",

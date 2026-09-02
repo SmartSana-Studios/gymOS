@@ -89,6 +89,17 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // connect_gym_payment_credentials's platform-collision guard (0083,
+  // Story 4.16): a gym attempting to connect the platform's own
+  // TARAMONEY_BUSINESS_ID (resolved via the 'platform:taramoney:business_id'
+  // Vault secret).
+  if (message.includes("connect_gym_payment_credentials:") && message.includes("platform's own account")) {
+    return {
+      code: "payment_business_id_is_platform_account",
+      message: copy.paymentBusinessIdIsPlatformAccount,
+    };
+  }
+
   // tiers_price_locked_implies_zero_price (0071_saas_subscription_lifecycle.sql,
   // Story 11.2): an attempted price edit on the Free/Test tier. TierModal
   // already disables the price inputs when priceLocked is true (UX guard),
