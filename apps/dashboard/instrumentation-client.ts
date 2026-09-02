@@ -1,4 +1,6 @@
 import posthog from "posthog-js";
+import * as Sentry from "@sentry/nextjs";
+import { resolveAnalyticsEnvironment } from "./lib/analytics-environment";
 
 // Confirmed current for Next.js 16.3.0 (apps/dashboard/node_modules/next/dist/docs/
 // 01-app/03-api-reference/03-file-conventions/instrumentation-client.md) --
@@ -32,11 +34,38 @@ if (apiKey) {
   }
 }
 
-export function onRouterTransitionStart(url: string) {
-  if (!apiKey) return;
+// Story 14.1 (AC #1, #2): mirrors PostHog's own no-DSN-configured guard
+// immediately above -- Sentry.init must never run (and never throw) when no
+// DSN is configured, e.g. local dev.
+const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+
+if (sentryDsn) {
   try {
-    posthog.capture("$pageview", { $current_url: url });
+    Sentry.init({
+      dsn: sentryDsn,
+      environment: resolveAnalyticsEnvironment(),
+    });
   } catch (err) {
-    console.error("[analytics] failed to capture $pageview", err);
+    console.error("[sentry] failed to initialize", err);
+  }
+}
+
+// Composed export (Dev Notes "instrumentation-client.ts -- dashboard already
+// has one, don't clobber it"): both PostHog's existing pageview capture and
+// Sentry's own router-transition capture share this single exported hook
+// rather than two conflicting exports of the same name.
+export function onRouterTransitionStart(
+  url: string,
+  navigationType: "push" | "replace" | "traverse",
+) {
+  if (apiKey) {
+    try {
+      posthog.capture("$pageview", { $current_url: url });
+    } catch (err) {
+      console.error("[analytics] failed to capture $pageview", err);
+    }
+  }
+  if (sentryDsn) {
+    Sentry.captureRouterTransitionStart(url, navigationType);
   }
 }

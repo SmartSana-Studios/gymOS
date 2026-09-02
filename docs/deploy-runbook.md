@@ -42,8 +42,14 @@ before publishing this runbook further):
 - Mobile: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`,
   `EXPO_PUBLIC_APP_ENV` (set per EAS build profile in `eas.json`, not a
   loose env var)
-- `SENTRY_DSN` — placeholder only; NFR-007 (Sentry wiring) is unstarted,
-  see `docs/decisions.md`'s 2026-08-20 entry
+- `NEXT_PUBLIC_SENTRY_DSN` (dashboard, super-admin), `EXPO_PUBLIC_SENTRY_DSN`
+  (mobile) — Story 14.1 wired capture-only error monitoring, tagged with the
+  same `VERCEL_ENV`/`EXPO_PUBLIC_APP_ENV` → `prod`/`staging`/`dev` convention
+  as PostHog below. Real DSNs exist (see `docs/decisions.md`'s Story 14.1
+  entry) but are only set in each app's gitignored local `.env.local` today
+  — Sentry.init no-ops safely wherever the value is unset.
+  `SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/`SENTRY_PROJECT` are optional,
+  source-map-upload-only build-time vars, unset everywhere.
 - `NEXT_PUBLIC_POSTHOG_KEY`, `NEXT_PUBLIC_POSTHOG_HOST` (dashboard, mobile
   — not super-admin, by design, see Story 9.5's Dev Notes)
 
@@ -147,9 +153,30 @@ this section has real answers.
 
 ## 7. Observability
 
-There is currently **no production error monitoring** — Sentry (NFR-007)
-is unstarted; see `docs/decisions.md`'s 2026-08-20 entry and
-`.env.example`'s placeholder-only `SENTRY_DSN`. Until it's wired, a
-production incident will only surface via a user report or a manual
-`job_runs`/`audit_log` query, not an alert. PostHog is wired for product
-analytics (dashboard, mobile) but is not a substitute for error tracking.
+Sentry (NFR-007) is wired as of Story 14.1 across `apps/dashboard`,
+`apps/super-admin`, and `apps/mobile` — unhandled exceptions (React error
+boundaries, unhandled promise rejections, Server Action/Route
+Handler/Server Component crashes) are captured and environment-tagged, but
+only when `NEXT_PUBLIC_SENTRY_DSN`/`EXPO_PUBLIC_SENTRY_DSN` is actually set
+for a given deploy. Real DSNs (3 Sentry projects, one organization —
+`gymos-dashboard`, `gymos-super-admin`, `gymos-mobile`) exist and are
+live-verified end-to-end as of 2026-09-02, but are only set in each app's
+gitignored local `.env.local` today — **no hosting environment (Vercel,
+EAS) has these DSNs configured yet**, so production error capture remains
+inactive until they're added there too (see `docs/decisions.md`'s Story
+14.1 entry for the Sentry project names/org; the DSN values themselves live
+only in each app's local `.env.local`, not committed anywhere).
+Edge Functions (`payment-webhook`, `send-sms-hook`, `gym-qr-display`) are
+explicitly out of scope (a separate Deno SDK, a different runtime) and
+still have no error monitoring — a genuine gap, not an oversight, tracked
+as a follow-up. This story ships **capture only**: alerting rules, on-call
+routing, and Sentry dashboards are still unbuilt, so even once a DSN is
+set, a captured error will only surface via someone actively checking the
+Sentry project, not a page/notification. Source-map upload (readable stack
+traces in Sentry) also needs `SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/
+`SENTRY_PROJECT` set, which is likewise unconfigured everywhere today. See
+`docs/decisions.md`'s Story 14.1 entry. Until alerting exists, a production
+incident will still only surface via a user report, someone checking
+Sentry, or a manual `job_runs`/`audit_log` query. PostHog is wired for
+product analytics (dashboard, mobile) but is not a substitute for error
+tracking.

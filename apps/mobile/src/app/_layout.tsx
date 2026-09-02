@@ -13,13 +13,26 @@ import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { I18nextProvider } from 'react-i18next';
 import { PostHogProvider } from 'posthog-react-native';
+import * as Sentry from '@sentry/react-native';
 import { ANALYTICS_EVENT } from '@gymos/types';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { useSession } from '@/hooks/use-session';
 import { i18n } from '@/lib/i18n';
-import { captureEvent, posthogClient } from '@/lib/analytics';
+import { captureEvent, posthogClient, resolveAnalyticsEnvironment } from '@/lib/analytics';
 import { registerPushToken, subscribeToPushTokenChanges } from '@/services/pushTokens';
+
+// Story 14.1 (AC #1, #2): mirrors this file's own `if (!posthogClient)`
+// guard style below -- Sentry.init must never run when no DSN is
+// configured, e.g. local dev.
+const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+
+if (sentryDsn) {
+  Sentry.init({
+    dsn: sentryDsn,
+    environment: resolveAnalyticsEnvironment(),
+  });
+}
 
 SplashScreen.preventAutoHideAsync();
 
@@ -128,7 +141,7 @@ function RootNavigator() {
 // unconditionally-dark content theme (see hooks/use-theme.ts) instead of
 // following the device color scheme -- device scheme is intentionally
 // ignored app-wide until a real light-mode toggle is built.
-export default function RootLayout() {
+function RootLayout() {
   const content = (
     <I18nextProvider i18n={i18n}>
       <ThemeProvider value={DarkTheme}>
@@ -148,3 +161,8 @@ export default function RootLayout() {
 
   return <PostHogProvider client={posthogClient}>{content}</PostHogProvider>;
 }
+
+// Story 14.1: Sentry.wrap is safe to apply even when Sentry.init was never
+// called (DSN unset, e.g. local dev) -- the SDK no-ops -- so it does not
+// need its own conditional guard, unlike Sentry.init itself above.
+export default Sentry.wrap(RootLayout);

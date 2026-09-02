@@ -1,6 +1,9 @@
-const { getDefaultConfig } = require('expo/metro-config');
+const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 
-const config = getDefaultConfig(__dirname);
+// Story 14.1: swaps the plain expo/metro-config base for Sentry's wrapper
+// (source-map/debug-id injection for error symbolication) -- both
+// pre-existing customizations below survive the swap untouched.
+const config = getSentryExpoConfig(__dirname);
 
 // expo-sqlite's web implementation (wa-sqlite) ships a .wasm binary that
 // Metro doesn't recognize as a bundleable asset by default -- without this,

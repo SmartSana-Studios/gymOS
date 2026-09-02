@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   // app/(admin)/layout.tsx, app/layout.tsx, and gyms/[id]/page.tsx all read
@@ -13,4 +14,13 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@gymos/types"],
 };
 
-export default nextConfig;
+// Story 14.1: mirrors apps/dashboard/next.config.ts's own rationale -- no
+// SENTRY_AUTH_TOKEN/ORG/PROJECT exist in this repo's CI or local env,
+// `silent: true` keeps the source-map-upload step's absence from becoming a
+// build warning-as-error (AC #2).
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+});
