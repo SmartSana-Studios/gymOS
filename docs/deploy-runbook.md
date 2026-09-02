@@ -230,12 +230,11 @@ Handler/Server Component crashes) are captured and environment-tagged, but
 only when `NEXT_PUBLIC_SENTRY_DSN`/`EXPO_PUBLIC_SENTRY_DSN` is actually set
 for a given deploy. Real DSNs (3 Sentry projects, one organization —
 `gymos-dashboard`, `gymos-super-admin`, `gymos-mobile`) exist and are
-live-verified end-to-end as of 2026-09-02, but are only set in each app's
-gitignored local `.env.local` today — **no hosting environment (Vercel,
-EAS) has these DSNs configured yet**, so production error capture remains
-inactive until they're added there too (see `docs/decisions.md`'s Story
-14.1 entry for the Sentry project names/org; the DSN values themselves live
-only in each app's local `.env.local`, not committed anywhere).
+live-verified end-to-end. **Configured as of 2026-09-02**: both Vercel
+projects (`gymos_dashboard`, `gymos-super-admin`, production + preview)
+and the EAS `production` environment now have their real DSN set —
+production error capture is active on all three apps as of the deploys/
+builds made that day.
 Edge Functions (`payment-webhook`, `send-sms-hook`, `gym-qr-display`) are
 explicitly out of scope (a separate Deno SDK, a different runtime) and
 still have no error monitoring — a genuine gap, not an oversight, tracked
@@ -244,9 +243,19 @@ routing, and Sentry dashboards are still unbuilt, so even once a DSN is
 set, a captured error will only surface via someone actively checking the
 Sentry project, not a page/notification. Source-map upload (readable stack
 traces in Sentry) also needs `SENTRY_AUTH_TOKEN`/`SENTRY_ORG`/
-`SENTRY_PROJECT` set, which is likewise unconfigured everywhere today. See
-`docs/decisions.md`'s Story 14.1 entry. Until alerting exists, a production
-incident will still only surface via a user report, someone checking
-Sentry, or a manual `job_runs`/`audit_log` query. PostHog is wired for
-product analytics (dashboard, mobile) but is not a substitute for error
-tracking.
+`SENTRY_PROJECT` set, which is likewise unconfigured everywhere today —
+on Vercel this degrades gracefully (`withSentryConfig({silent: true})`
+just skips the upload); **on EAS it does not**: `@sentry/react-native/expo`'s
+Xcode build phase hard-fails the entire iOS build with `XCODE_BUILD_ERROR`
+when `SENTRY_ORG` is unset, discovered the hard way on this project's
+first production build attempt (2026-09-02). Worked around by setting
+`SENTRY_DISABLE_AUTO_UPLOAD=true` in the EAS `production` environment,
+matching the same "capture only, no source maps yet" stance already
+accepted for the two Next.js apps — **[NEEDS]** re-enable once a real
+Sentry auth token is provisioned, since captured mobile errors will show
+minified/unreadable stack traces until then. See `docs/decisions.md`'s
+Story 14.1 entry and its 2026-09-02 mobile-build addendum. Until alerting
+exists, a production incident will still only surface via a user report,
+someone checking Sentry, or a manual `job_runs`/`audit_log` query.
+PostHog is wired for product analytics (dashboard, mobile) but is not a
+substitute for error tracking.

@@ -4,6 +4,18 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-09-02 — First production EAS build requires `SENTRY_DISABLE_AUTO_UPLOAD=true` — recorded during Story 14.1's first real mobile build
+
+**What happened:** the first-ever `eas build --profile production --platform ios` for this project failed with `XCODE_BUILD_ERROR` — `@sentry/react-native/expo`'s injected Xcode build phase runs `sentry-cli` for source-map upload, which hard-errors ("An organization ID or slug is required") when `SENTRY_ORG` is unset, and that error fails the entire build, not just the upload step.
+
+**Why this differs from the Next.js apps:** `apps/dashboard`/`apps/super-admin`'s `withSentryConfig(nextConfig, { silent: true, authToken: process.env.SENTRY_AUTH_TOKEN })` already degrades gracefully when the token is absent — this was verified working during Story 14.1 itself. The Expo Sentry config plugin has no equivalent silent-skip behavior; an unset `SENTRY_ORG` is fatal to the whole build, not just the upload.
+
+**Decision:** set `SENTRY_DISABLE_AUTO_UPLOAD=true` as an EAS `production` environment variable (`eas env:set`, project-scoped). This is the same "capture only, no source maps yet" position already accepted for the Next.js apps — Sentry itself still captures errors at runtime via the DSN, only the readable-stack-trace source-map upload is skipped.
+
+**Outcome / follow-up:** unblocks production builds immediately. **Real source maps require a Sentry auth token** (`SENTRY_ORG`/`SENTRY_PROJECT`/`SENTRY_AUTH_TOKEN`) to be provisioned and set both here (for the flag to be safely removed) and on Vercel (still unset there too, per `docs/deploy-runbook.md` §7) — until then, captured mobile crash reports in Sentry will show minified, hard-to-read stack traces.
+
+---
+
 ## 2026-09-02 — `e2e-tests` CI job confirmed on a real runner; root cause was `turbo.json`, not the workflow — recorded during release-readiness prep
 
 **What happened:** Story 13.5 (2026-09-01) added the `e2e-tests` job to `.github/workflows/ci.yml` but never confirmed it against a real GitHub Actions runner (deferred at the time — see `deferred-work.md`). The first real push (`origin/master`, run `33667259967`) failed with `e2e: missing required env var SUPABASE_SERVICE_ROLE_KEY`, thrown from Playwright's `globalSetup` (`apps/dashboard/e2e/fixtures/seed.ts`).
