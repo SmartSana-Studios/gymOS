@@ -5,8 +5,12 @@ import { resolveAnalyticsEnvironment } from "./lib/analytics-environment";
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
 
 if (dsn) {
-  Sentry.init({
-    dsn,
-    environment: resolveAnalyticsEnvironment(),
-  });
+  try {
+    Sentry.init({
+      dsn,
+      environment: resolveAnalyticsEnvironment(),
+    });
+  } catch (err) {
+    console.error("[sentry] failed to initialize", err);
+  }
 }

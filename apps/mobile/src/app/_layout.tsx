@@ -28,10 +28,14 @@ import { registerPushToken, subscribeToPushTokenChanges } from '@/services/pushT
 const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
 
 if (sentryDsn) {
-  Sentry.init({
-    dsn: sentryDsn,
-    environment: resolveAnalyticsEnvironment(),
-  });
+  try {
+    Sentry.init({
+      dsn: sentryDsn,
+      environment: resolveAnalyticsEnvironment(),
+    });
+  } catch (err) {
+    console.error('[sentry] failed to initialize', err);
+  }
 }
 
 SplashScreen.preventAutoHideAsync();

@@ -14,7 +14,7 @@ import * as Sentry from "@sentry/nextjs";
 // #5): no retry telemetry, no user feedback dialog.
 export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
   useEffect(() => {
-    Sentry.captureException(error);
+    Sentry.captureException(error, { tags: { digest: error.digest } });
   }, [error]);
 
   /* eslint-disable i18next/no-literal-string -- global-error.tsx cannot
