@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review of story-15-1-splash-screen-app-icon-fix (2026-09-02)
+
+- Ad-hoc `sharp`-based Node scripts used to produce every rebranded icon/splash asset (`icon.png`, `splash-icon.png`, all three Android adaptive layers, `gymos-mark.png`) were never committed to the repo — the exact crop bounds, upscale factor, and color conversion are not reproducible or auditable from the repo itself; a future brand-mark change would need to reverse-engineer the pipeline from scratch rather than re-run a script. Deferred, not a defect in the shipped assets — matches this project's established one-off-asset-production pattern. [apps/mobile/assets/expo.icon/Assets/gymos-mark.png and sibling regenerated assets]
+
 ## Deferred from: code review of story-13-5-e2e-test-automation-baseline (2026-09-01)
 
 - Task 8.2 marked complete despite its own explicit "verify via `supabase test db`, don't assume" instruction not being satisfied — `supabase test db` could not be run due to this devcontainer's documented Docker flakiness (same as Story 11.3), so the "pgTAP count unchanged" claim is inferred from "no migrations touched" rather than actually re-run. Honestly disclosed in Completion Notes and `docs/decisions.md` already; deferred because the blocker is this devcontainer's pre-existing Supabase CLI/Docker flakiness, not something this story or a code patch can fix. [story-13-5's Task 8.2]

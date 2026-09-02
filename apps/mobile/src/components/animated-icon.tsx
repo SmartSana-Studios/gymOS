@@ -6,6 +6,7 @@ import Animated, { Easing, Keyframe } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { Brand } from '@/constants/brand';
+import { Colors } from '@/constants/theme';
 
 const INITIAL_SCALE_FACTOR = Dimensions.get('screen').height / 90;
 const DURATION = 600;
@@ -35,7 +36,13 @@ export function AnimatedSplashOverlay() {
     },
   });
 
-  const image = <Image style={styles.image} source={require('@/assets/images/expo-logo.png')} />;
+  // Reuses splash-icon.png (Story 15.1) rather than a fresh crop: its background is
+  // already baked in at Colors.dark.background, so it seams cleanly with the native
+  // splash this overlay takes over from -- a transparent asset would show whatever
+  // this view's own background renders as instead.
+  const image = (
+    <Image style={styles.splashOverlayImage} source={require('@/assets/images/splash-icon.png')} />
+  );
 
   return animate ? (
     <Animated.View
@@ -133,6 +140,13 @@ const styles = StyleSheet.create({
     width: 76,
     height: 71,
   },
+  splashOverlayImage: {
+    // Matches splash-icon.png's 228x133 aspect ratio and app.json's
+    // expo-splash-screen imageWidth (76), so the overlay picks up at the
+    // same on-screen size the native splash left off at.
+    width: 76,
+    height: 44,
+  },
   background: {
     borderRadius: 40,
     experimental_backgroundImage: `linear-gradient(180deg, ${Brand.accent}, ${Brand.primary})`,
@@ -142,7 +156,7 @@ const styles = StyleSheet.create({
   },
   splashOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: Brand.primary,
+    backgroundColor: Colors.dark.background,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1000,
