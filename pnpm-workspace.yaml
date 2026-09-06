@@ -10,6 +10,15 @@ packages:
 # dependency resolution, e.g. apps/mobile) declares this dependency only
 # for eslint-config-next itself. Story 1.10 -- first story to actually run
 # `pnpm lint`, which surfaced this pre-existing gap.
+# pnpm 10 blocks postinstall scripts unless a package is listed here.
+# @sentry/cli's postinstall (scripts/install.js) is what puts the real native
+# binary in place; `bin/sentry-cli` alone is just a JS shim that execs it.
+# Sentry's Xcode "Upload Debug Symbols" build phase invokes that binary
+# directly, so leaving the script blocked would swap the build's
+# MODULE_NOT_FOUND for a missing-executable failure one step later.
+onlyBuiltDependencies:
+  - "@sentry/cli"
+
 packageExtensions:
   eslint-config-next:
     dependencies:
