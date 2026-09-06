@@ -951,5 +951,8 @@
     "ownerSuspendedMessage": "Le paiement de votre abonnement GymOS est en retard. Payez maintenant pour rétablir l'accès pour toute votre équipe.",
     "neutralSuspendedMessage": "GymOS est temporairement indisponible pour cette salle. Veuillez réessayer plus tard.",
     "switchGymPrompt": "Vous appartenez à une autre salle vers laquelle vous pouvez basculer :"
+  },
+  "auth": {
+    "privacyPolicy": "Politique de confidentialité"
   }
 }

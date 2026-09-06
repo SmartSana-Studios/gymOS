@@ -1,85 +1,121 @@
-# GymOS Privacy Policy (DRAFT)
+# GymOS Privacy Policy — where it lives
 
-**Status: draft for legal review — not yet published or linked from any store listing.**
+**The policy text is no longer maintained in this file.** It moved into the
+dashboard app on 2026-09-06 so that it could be served at a real public URL,
+which is what App Store Connect and Play Console require.
 
-This draft is grounded in what the GymOS codebase actually does (see
-`docs/play-store-data-safety.md` for the underlying data inventory). Before
-publishing: have it reviewed by counsel familiar with applicable data
-protection law in the jurisdictions you operate in, fill in the bracketed
-placeholders, and host it at a stable public URL.
+| | |
+|---|---|
+| **Canonical text (EN + FR)** | `apps/dashboard/lib/legal/privacy-policy.ts` |
+| **Operator-supplied values** | `apps/dashboard/lib/legal/details.ts` |
+| **Page** | `apps/dashboard/app/privacy/page.tsx` |
+| **Public URL** | `https://<dashboard-domain>/privacy` |
 
----
+This file is now a pointer only. Editing it changes nothing that a member or
+a store reviewer sees — edit `privacy-policy.ts` instead.
 
-_Last updated: [DATE]_
+## Why it moved
 
-GymOS ("we", "us", "the App") is a gym management platform used by gym
-staff and members. This policy explains what information GymOS collects,
-why, and how it's handled.
+A markdown draft in `docs/` cannot be submitted to a store: both stores want
+a URL they can fetch, unauthenticated, at review time and periodically
+afterwards. Keeping a second prose copy here as well would guarantee drift
+between what counsel reviewed and what is actually served, so the draft was
+replaced by this pointer rather than kept in parallel.
 
-## 1. Who this applies to
+## What changed in the text when it moved
 
-This policy covers the GymOS mobile app (member-facing) and the GymOS
-dashboard (staff-facing web app). If you're a gym member, your gym is the
-one that enrolled you — GymOS is the software platform your gym uses, not
-a service you sign up for independently.
+The draft in this file predated three shipped epics and understated what
+GymOS collects. The hosted version adds:
 
-## 2. Information we collect
+- **Body measurements** (`progress_entries`, Story 10.1) — weight, waist,
+  chest, hips, arms, thighs, and the member's own note.
+- **Progress photos** (`progress_photos`, Story 10.2) — including that they
+  are private by default and shared with a coach only per-photo, revocably.
+- **Class bookings and workout-plan completions** (Epics 12, 13).
+- **Notification history and preferences** (Story 6.7).
+- **Analytics and error reporting** — a new section covering PostHog
+  (Story 9.5) and Sentry (Story 14.1), both of which the draft omitted
+  entirely, including the specific guarantee that no measurement value,
+  photo, note text, or contact detail is sent to PostHog.
+- **Phone-number sharing with the messaging providers** (Evolution API,
+  Twilio, sent.dm) — the draft named only a bracketed "[SMS provider]".
 
-| Category | What | Why |
-|---|---|---|
-| Identity | Name, phone number, optional email, optional date of birth | Account creation, login (SMS one-time-code), identifying you at check-in |
-| Profile | Profile photo | Displayed to gym staff for identification |
-| Safety | Emergency contact (optional) | Provided to gym staff only in case of emergency |
-| Fitness onboarding | Goal and experience level you select during onboarding | Personalizing your plan-confirmation experience |
-| Attendance | Check-in and check-out timestamps at your gym | Gym occupancy tracking, your own attendance history |
-| Payments | Payment amount, currency, method, and status | Billing and subscription management. **We do not store your card number or other raw payment credentials** — payments are processed by our payment partner, Tara Money, who handles that data directly |
-| Coach notes | Session notes written by your assigned coach (if your gym uses this feature) | Shared between you, your coach, and gym staff who need it for your training |
-| Device | A push-notification token tied to your device | Delivering app notifications (subscription reminders, payment confirmations, etc.) via Expo's push notification service |
+It also resolves the draft's open data-deletion question: see below.
 
-We do **not** collect: your location/GPS, your contacts, your browsing or
-search history, or any audio/microphone data.
+## Resolved: data deletion (2026-09-06)
 
-## 3. Who we share information with
+GymOS declares **Yes** to Play's "users can request data deletion", satisfied
+by a **documented manual process** rather than an in-app delete button —
+which Play explicitly permits provided the instructions are published and the
+contact route works. The policy's §6 states the process: the member contacts
+their gym or writes to the support address, GymOS confirms identity via the
+gym, deletes what it is not legally required to keep, and confirms completion.
 
-- **Tara Money** — our payment processor, to complete transactions you initiate
-- **Expo** — our push notification infrastructure provider, to deliver notifications to your device
-- **[SMS provider — Twilio]** — to send one-time login codes to your phone number
-- **Your gym** — gym staff (owners, managers, coaches per their role) can see the information relevant to running your membership and training
+An in-app account-deletion flow was considered and deliberately not built for
+V1: erasure would have to cross ~40 tables and conflicts directly with
+`audit_log`'s append-only design (Story 1.4) and with financial-record
+retention. That remains available as a future story if the manual process
+proves insufficient in practice.
 
-We do not sell your information to third parties, and we do not share it
-for advertising purposes.
+## Operator details (supplied 2026-09-06)
 
-## 4. How long we keep information
+| Field | Value |
+|---|---|
+| `legalEntity` | GetSocial Inc |
+| `address` | Yaoundé, Melen |
+| `supportEmail` | info@smartsana.com |
+| `retentionPeriod` | EN: "for as long as your membership is active, and for one year after it ends" · FR: "tant que votre adhésion est active, puis pendant un an après sa fin" |
+| `minimumAge` | 18 |
 
-[NEEDS A DECISION: state your actual retention period — e.g., "for as long
-as your membership is active, plus N years for financial/audit record
-requirements," or reference your jurisdiction's record-keeping
-requirements for gym/fitness businesses.]
+All five are filled, so `/privacy` no longer renders the unpublished-draft
+banner. `retentionPeriod` is the one field held per-locale rather than as a
+single shared string — it is prose, not a language-neutral fact, and a shared
+string would have put an untranslated English clause into the French policy.
 
-## 5. Your choices
+## Resolved: minimum age is 18 (2026-09-06)
 
-- You can update your language preference and some profile details yourself in the app.
-- To request a correction or deletion of your information, contact your gym directly, or contact us at **[SUPPORT EMAIL]**. [NEEDS A DECISION: confirm the actual process — see the open question in `docs/play-store-data-safety.md` about whether deletion is a real automated flow or a manual request process.]
+Set to **18**, i.e. GymOS declares itself an adults-only product. This is the
+simpler answer for both stores: Play's "Target audience and content" section
+takes the 18+ bracket only, avoiding the 13–17 branch's additional
+child-safety, ads and content-rating requirements, and Apple's age-rating
+questions follow the same shape.
 
-## 6. Children's privacy
+One consequence worth knowing: nothing in the app enforces this. There is no
+age gate, `members.dob` is optional, and a gym can enrol whoever it likes. If
+a gym in practice signs up a 16-year-old, the published policy will say the
+app is not directed at them. That is a policy/ops mismatch rather than a
+store-review blocker, but it is the kind of thing worth settling before the
+first real gym onboards minors.
 
-GymOS is not directed at children under [AGE — confirm your gym's actual
-minimum membership age] and we do not knowingly collect information from
-children below that age.
+## Open items — deferred by the operator (2026-09-06)
 
-## 7. Security
+Deferred deliberately, not overlooked. None of them blocks deploying the page;
+items 1 and 2 should be closed before the URL is submitted to a store console.
 
-Information is transmitted using industry-standard encryption (HTTPS/TLS).
-Access within the app is restricted by role — gym staff only see
-information relevant to their role at their own gym.
+1. **Entity name vs. product branding — deferred.** The policy names
+   *GetSocial Inc*, while the support domain is `smartsana.com`, the Expo
+   owner account is `smartsana-studios`, and the bundle ID is
+   `com.smartsana.gymos`. Store reviewers do check that the developer
+   account, the app, and the privacy policy point at the same organisation —
+   if the Play/App Store developer account is not registered to GetSocial
+   Inc, either the policy or the account needs to change, or the relationship
+   between the two names should be stated in the policy.
+2. **Address completeness — deferred.** "Yaoundé, Melen" is a locality, not a
+   full registered postal address (no street/PO box, no country line). The
+   spelling was normalised to "Yaoundé" with the accent, since the same
+   string is served on the French page.
+3. **Counsel review of both language versions** of `privacy-policy.ts`. The
+   French was authored alongside the English rather than translated from a
+   reviewed source, so it needs the same review, not a lighter one.
+4. **Retention vs. what the code actually does — still open.** The policy
+   promises deletion one year after a membership ends. Nothing in the
+   codebase enforces that: there is no retention job, and `deactivated_at` is
+   a soft-delete. The promise is currently kept by the manual process, not by
+   the system; a scheduled purge would be a future story.
 
-## 8. Changes to this policy
+## Keeping it honest
 
-We may update this policy from time to time. We'll update the "Last
-updated" date above when we do.
-
-## 9. Contact us
-
-**[COMPANY NAME / LEGAL ENTITY]**
-**[ADDRESS]**
-**[SUPPORT EMAIL]**
+`docs/play-store-data-safety.md` and `privacy-policy.ts` are derived from the
+same underlying facts (the migrations, the wired SDKs, `apps/mobile/app.json`).
+A divergence between the two is what a store review flags — when the schema,
+a third-party SDK, or a permission changes, update both in the same pass.

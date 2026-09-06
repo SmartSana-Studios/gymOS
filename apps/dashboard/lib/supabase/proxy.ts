@@ -59,7 +59,15 @@ export async function updateSession(request: NextRequest) {
     // job in production. Any future /api/cron/* route inherits this same
     // exemption -- each one is responsible for its own auth (CRON_SECRET),
     // matching this route's own established pattern.
-    !request.nextUrl.pathname.startsWith("/api/cron/")
+    !request.nextUrl.pathname.startsWith("/api/cron/") &&
+    // The published privacy policy (app/privacy/page.tsx) is a store-listing
+    // requirement: App Store Connect and Play Console fetch this URL
+    // unauthenticated at submission time and re-check it periodically after
+    // the listing is live. Without this exemption the proxy answers both of
+    // them with a 307 to /auth/login, which reads as "no privacy policy" and
+    // fails review -- the page itself renders fine, so this would only ever
+    // have surfaced from outside a logged-in browser session.
+    !request.nextUrl.pathname.startsWith("/privacy")
   ) {
     // `/` is AD-02 Overview (protected, Receptionist+) -- not the starter's
     // public marketing page anymore, so it is deliberately no longer

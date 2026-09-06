@@ -156,6 +156,17 @@ export function LoginForm({
           </form>
         </CardContent>
       </Card>
+      {/* Sits outside the Card, over the auth layout's darkened background
+          image -- hence the white-on-overlay colours rather than the
+          `text-muted-foreground` used for links inside the card. Both stores
+          expect the policy to be reachable without signing in, and this is
+          the only screen a signed-out visitor ever sees. */}
+      <Link
+        href="/privacy"
+        className="self-center text-sm text-white/70 underline-offset-4 hover:text-white hover:underline"
+      >
+        {t("auth.privacyPolicy")}
+      </Link>
     </div>
   );
 }

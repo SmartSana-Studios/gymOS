@@ -951,5 +951,8 @@
     "ownerSuspendedMessage": "Your GymOS subscription payment is overdue. Pay now to restore access for your whole team.",
     "neutralSuspendedMessage": "GymOS is temporarily unavailable for this gym. Please check back later.",
     "switchGymPrompt": "You belong to another gym you can switch to:"
+  },
+  "auth": {
+    "privacyPolicy": "Privacy Policy"
   }
 }
