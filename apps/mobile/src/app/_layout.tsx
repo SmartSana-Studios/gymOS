@@ -10,7 +10,7 @@ import { DarkTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
-import { Alert, AppState } from 'react-native';
+import { AppState } from 'react-native';
 import { I18nextProvider } from 'react-i18next';
 import { PostHogProvider } from 'posthog-react-native';
 import * as Sentry from '@sentry/react-native';
@@ -21,7 +21,6 @@ import { SessionProvider, useSession } from '@/hooks/use-session';
 import { i18n } from '@/lib/i18n';
 import { captureEvent, posthogClient, resolveAnalyticsEnvironment } from '@/lib/analytics';
 import { OfflineSyncProvider } from '@/lib/offline-sync-context';
-import { clearPhotoStep, readPhotoStep, type PhotoDebugMark } from '@/lib/photo-debug';
 import { registerPushToken, subscribeToPushTokenChanges } from '@/services/pushTokens';
 
 // Story 14.1 (AC #1, #2): mirrors this file's own `if (!posthogClient)`
@@ -72,25 +71,6 @@ function RootNavigator() {
     hasCapturedColdLaunch.current = true;
     captureEvent(ANALYTICS_EVENT.APP_OPENED, { gymId });
   }, [isLoading, gymId]);
-
-  // TEMPORARY diagnostic -- remove with lib/photo-debug.ts once the iOS
-  // photo-picker WatchdogTermination is identified. If the previous launch
-  // died partway through the photo flow, the last step it completed is still
-  // on disk; surface it here, on the launch straight after the crash, since
-  // that is the only moment the information is both available and useful.
-  // Deliberately an Alert rather than a screen: it cannot be missed, needs no
-  // navigation, and disappears for good once the marker is cleared.
-  const hasReportedPhotoStep = useRef(false);
-  useEffect(() => {
-    if (hasReportedPhotoStep.current) return;
-    hasReportedPhotoStep.current = true;
-    void readPhotoStep().then((mark: PhotoDebugMark | null) => {
-      if (!mark) return;
-      Alert.alert('Photo debug', `Last step reached:\n\n${mark.step}\n\nat ${mark.at}`, [
-        { text: 'OK', onPress: () => void clearPhotoStep() },
-      ]);
-    });
-  }, []);
 
   const appStateRef = useRef(AppState.currentState);
   useEffect(() => {
