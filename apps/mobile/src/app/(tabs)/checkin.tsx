@@ -2,7 +2,7 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'ex
 import { useIsFocused, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Animated, AppState, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Animated, AppState, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
@@ -333,24 +333,10 @@ export default function CheckInScreen() {
             </View>
           ) : (
             <View style={styles.cameraContainer}>
-              {/* iOS keeps CameraView mounted across tab blurs and stops the
-                  session via `active` instead; Android has no `active` prop
-                  (expo-camera types mark it @platform ios), so it keeps the
-                  original unmount-on-blur behavior.
-
-                  Why: conditionally rendering CameraView tore down and rebuilt
-                  the whole AVCaptureSession -- device discovery, input/output
-                  wiring, session start -- on *every* visit to this tab, not
-                  just the first, which is the delay before the preview appears.
-                  `active={false}` still stops the session, so this does not
-                  leave the camera running behind other tabs: no green privacy
-                  indicator and no battery cost while blurred, which is the
-                  property the unmount was there to guarantee. */}
-              {(Platform.OS === 'ios' || isFocused) && (
+              {isFocused && (
                 <CameraView
                   style={StyleSheet.absoluteFill}
                   facing="back"
-                  active={isFocused}
                   barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                   onBarcodeScanned={resultShowing ? undefined : handleBarcodeScanned}
                 />

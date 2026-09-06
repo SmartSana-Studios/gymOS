@@ -7,13 +7,14 @@ import { supabase } from '@/lib/supabase';
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 // A modern phone's camera sensor (30-100+MP) can produce an original whose
-// JPEG quality alone can't bound file size under MAX_PHOTO_BYTES -- the
-// `quality: 0.8` passed to the picker below only controls compression
-// ratio, not pixel dimensions. Downscaling the longest edge to a size
-// that's already ample for how these photos are actually displayed (a
-// small avatar, a progress-photo thumbnail/lightbox -- never full-bleed)
-// keeps file size bounded regardless of source resolution, instead of
-// rejecting a legitimate high-res photo outright.
+// JPEG compression ratio alone can't bound file size under MAX_PHOTO_BYTES --
+// compression quality does not change pixel dimensions. Downscaling the
+// longest edge to a size that's already ample for how these photos are
+// actually displayed (a small avatar, a progress-photo thumbnail/lightbox --
+// never full-bleed) keeps file size bounded regardless of source resolution,
+// instead of rejecting a legitimate high-res photo outright. It is also the
+// only place compression happens now: the picker is no longer asked to
+// re-encode (see pickPhoto), so this save is the single encode in the path.
 const MAX_PHOTO_DIMENSION = 1600;
 
 // Bucket's allowed_mime_types (0019_member_onboarding_otp.sql) lists
@@ -45,22 +46,45 @@ export async function pickPhoto(source: 'camera' | 'library'): Promise<PickPhoto
     return { error: 'permission_denied' };
   }
 
+  // `quality` is deliberately NOT passed here, and that is a performance fix,
+  // not an oversight. Any quality < 1 makes the picker decode the original at
+  // full sensor resolution and re-encode it -- on a 48MP photo that is a
+  // ~190MB bitmap -- and the resize step below then decodes the result a
+  // second time and throws that first encode away. Paying for a full-resolution
+  // JPEG we immediately discard was the bulk of the delay on Edit Profile, and
+  // holding two full-resolution decodes is the most likely cause of the
+  // intermittent crash (iOS jetsam-kills on memory pressure, which surfaces as
+  // the app simply disappearing).
+  //
+  // `preferredAssetRepresentationMode: Compatible` replaces what `quality` was
+  // incidentally guaranteeing: it asks iOS for the most compatible
+  // representation, so a HEIC library asset arrives transcoded rather than as
+  // .heic -- which EXTENSION_TO_MIME cannot map and the member-photos bucket's
+  // allowed_mime_types (0019) would reject outright.
+  const pickerOptions: ImagePicker.ImagePickerOptions = {
+    mediaTypes: ['images'],
+    preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+  };
   const result =
     source === 'camera'
-      ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+      ? await ImagePicker.launchCameraAsync(pickerOptions)
+      : await ImagePicker.launchImageLibraryAsync(pickerOptions);
 
   if (result.canceled || !result.assets[0]) return { canceled: true };
 
   const asset = result.assets[0];
 
-  // width/height are 0 when the system didn't report them -- in that case
-  // longestEdge is 0, which never exceeds MAX_PHOTO_DIMENSION, so resizing
-  // is safely skipped and the original falls through to the size check
-  // below unchanged, same as before this fix.
+  // width/height are 0 when the system didn't report them. That case used to
+  // skip resizing entirely, described as "safely skipped" -- safe for the
+  // *size check* below, which still ran, but not for memory: an unreported
+  // full-resolution original went on to be read whole into a JS ArrayBuffer by
+  // uploadPhoto(). Unknown dimensions now take the resize path too, since
+  // bounding an image that might already be small costs far less than not
+  // bounding one that isn't.
   let uri = asset.uri;
   const longestEdge = Math.max(asset.width, asset.height);
-  if (longestEdge > MAX_PHOTO_DIMENSION) {
+  const dimensionsUnknown = longestEdge === 0;
+  if (longestEdge > MAX_PHOTO_DIMENSION || dimensionsUnknown) {
     // Dynamic import + try/catch, deliberately not a static top-level
     // import: expo-image-manipulator is a native module, and this file is
     // transitively imported by nearly every screen (LogEntrySheet,
@@ -72,9 +96,13 @@ export async function pickPhoto(source: 'camera' | 'library'): Promise<PickPhoto
     // straight to the size check below) degrades gracefully instead.
     try {
       const { ImageManipulator, SaveFormat } = await import('expo-image-manipulator');
+      // With dimensions unknown we cannot tell portrait from landscape, so
+      // constrain the width: that bounds the longest edge for a landscape
+      // source and still meaningfully bounds a portrait one, without needing
+      // an orientation we do not have.
       const isLandscape = asset.width >= asset.height;
       const context = ImageManipulator.manipulate(asset.uri).resize(
-        isLandscape ? { width: MAX_PHOTO_DIMENSION } : { height: MAX_PHOTO_DIMENSION },
+        dimensionsUnknown || isLandscape ? { width: MAX_PHOTO_DIMENSION } : { height: MAX_PHOTO_DIMENSION },
       );
       const rendered = await context.renderAsync();
       const saved = await rendered.saveAsync({ compress: 0.8, format: SaveFormat.JPEG });
