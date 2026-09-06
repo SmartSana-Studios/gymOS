@@ -61,7 +61,17 @@ jobs:
           version: 2.109.0
 
       - name: Start local Supabase and apply migrations
-        run: supabase start
+        # `-x` excludes containers this job never uses. Not an optimization --
+        # `edge-runtime` crashed with "Bus error (core dumped)" on a real
+        # runner (2026-09-06), which fails `supabase start`'s health check and
+        # takes the whole job down with "Error status 503" before a single
+        # test runs. pgTAP only ever talks to Postgres, and neither job runs
+        # `supabase functions serve`, so the edge runtime was never reachable
+        # even when it did boot. studio/imgproxy/inbucket/vector are UI, image
+        # transformation, a mail catcher and a log shipper -- all equally
+        # unused here, and every extra container is one more thing that can
+        # fail a health check on a shared runner.
+        run: supabase start -x edge-runtime,functions,studio,imgproxy,inbucket,vector
 
       - name: Run pgTAP RLS tests
         run: supabase test db
@@ -103,7 +113,13 @@ jobs:
           version: 2.109.0
 
       - name: Start local Supabase and apply migrations
-        run: supabase start
+        # See rls-tests' own note above for why these are excluded. The one
+        # spec that posts to an Edge Function (payment-cutover.spec.ts's
+        # payment-webhook replay) is `test.skip`-gated on E2E_TARAMONEY_GYM_*
+        # secrets that are deliberately absent here, and this job never runs
+        # `supabase functions serve`, so excluding the edge runtime removes a
+        # container that could only ever crash the job, never serve it.
+        run: supabase start -x edge-runtime,functions,studio,imgproxy,inbucket,vector
 
       - name: Export local Supabase keys as dashboard env vars
         # The same fixed, non-secret local-dev demo keys `supabase start`
