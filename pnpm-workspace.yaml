@@ -14,3 +14,16 @@ packageExtensions:
   eslint-config-next:
     dependencies:
       next: "*"
+  # @sentry/react-native's Expo config plugin (plugin/build/withSentry*.js)
+  # does `require('@expo/config-plugins')` without declaring it as its own
+  # dependency -- the same undeclared-dependency shape as eslint-config-next
+  # above, and it fails the same way under pnpm's isolated layout: any
+  # `expo config` / `expo prebuild` / `expo-doctor` run dies with
+  # "PluginError: Cannot find module '@expo/config-plugins'" the moment it
+  # tries to evaluate the plugin. Surfaced by the 2026-09-06 SDK 57
+  # dependency alignment, which moved Sentry from 8.24.0 (a major version
+  # ahead of what SDK 57 supports, and which vendored its own copy) down to
+  # the SDK-expected 7.11.0, which does not.
+  "@sentry/react-native":
+    dependencies:
+      "@expo/config-plugins": "*"

@@ -46,7 +46,8 @@
         "expo-image-picker",
         {
           "photosPermission": "Allow GymOS to access your photos so you can set a profile picture.",
-          "cameraPermission": "Allow GymOS to access your camera so you can take a profile picture."
+          "cameraPermission": "Allow GymOS to access your camera so you can take a profile picture.",
+          "microphonePermission": false
         }
       ],
       [
@@ -58,7 +59,10 @@
       ],
       "expo-sqlite",
       "expo-notifications",
-      "@sentry/react-native/expo"
+      "expo-font",
+      "expo-image",
+      "expo-web-browser",
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true,

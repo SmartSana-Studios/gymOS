@@ -120,12 +120,15 @@ for the build.
 - **Location** — no GPS/location permission is requested anywhere in `app.json`
 - **Health info** (clinical/medical sense) — see Health and fitness above; only self-logged body measurements are collected, declared as Fitness info
 - **Contacts, calendar, web browsing history, search history**
-- **Audio/voice recordings** — no microphone usage; `expo-camera` is configured with `recordAudioAndroid: false`, and `RECORD_AUDIO` is not among `app.json`'s declared Android permissions
+- **Audio/voice recordings** — no microphone usage anywhere in the app. **Corrected 2026-09-06:** an earlier revision of this file claimed `RECORD_AUDIO` was "not among `app.json`'s declared Android permissions". That was true of the static config but *false of the built app* — `expo-image-picker`'s config plugin adds `android.permission.RECORD_AUDIO` unless `microphonePermission: false` is set explicitly, and it was not, so every build up to and including TestFlight build 5 shipped a microphone permission the app never uses. `microphonePermission: false` is now set (which also *blocks* any other plugin from re-adding it), and `npx expo config --json --full` confirms the resolved Android manifest declares `android.permission.CAMERA` only. Verify against the **resolved** config, not `app.json`, when re-deriving this section
 - **Messages** — OTP and invite delivery happens server-side in Edge Functions; the app itself never reads or sends SMS/WhatsApp
 - **Payment instrument numbers** — see Financial info above
 
 ## Permissions declared (grounding for the answers above)
-From `apps/mobile/app.json`:
+Taken from the **resolved** Expo config (`npx expo config --json --full`), not
+from `app.json` alone — config plugins add permissions of their own, and
+reading only the static file is what produced the `RECORD_AUDIO` error
+corrected below:
 - `android.permission.CAMERA` — QR check-in scanning (`expo-camera`) and taking a profile/progress photo (`expo-image-picker`)
 - Photo library access (`expo-image-picker`'s `photosPermission`) — choosing an existing profile/progress photo
 - Notifications (`expo-notifications`) — delivering the notification types in `public.notifications`
