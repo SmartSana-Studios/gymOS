@@ -1,15 +1,35 @@
 # GymOS Deploy Runbook (DRAFT)
 
-**Status: draft, assembled from the codebase's actual build tooling and CI
-config — not yet exercised against a real production deploy target.**
-No production hosting has been provisioned in this repo as of this
-writing: there's no `vercel.json`, no recorded production Supabase
-project, and no App Store / Play Store submission has shipped yet (an App
-Store Connect app ID and a Play Store service-account path are configured
-in `apps/mobile/eas.json`, but production `google-play-service-account.json`
-is gitignored and not present in this checkout). Treat every `[NEEDS]`
-below as a real open decision, not a formality — fill these in with
-whoever owns the hosting accounts before the first real production deploy.
+**Status: partially exercised. Updated 2026-09-06 — several statements in
+the original draft are no longer true, corrected below.**
+
+What has actually happened since this was first written:
+
+- **The dashboard is deployed and auto-deploys on push.** `apps/dashboard/vercel.json`
+  exists (it registers the SaaS-billing reminder cron). The original claim
+  that "there's no `vercel.json`" is stale.
+- **The privacy policy is live** at `/privacy` on the deployed dashboard,
+  public and unauthenticated, EN + FR (see `docs/privacy-policy.md`). This
+  is a hard prerequisite for both store listings.
+- **`apps/mobile/google-play-service-account.json` is present** (gitignored,
+  developer-owned). The original claim that it "is not present in this
+  checkout" is stale — but it is still worth confirming before a submit run,
+  since it is gitignored and therefore absent on any fresh clone and on CI.
+- **iOS builds have reached TestFlight.** Build 5 was delivered and then
+  crashed at launch on every device (dyld symbol mismatch, ITMS-90863); the
+  cause was duplicate native module versions under pnpm, fixed 2026-09-06 —
+  see `docs/decisions.md` and `sprint-status.yaml`.
+
+Still true, and still blocking:
+
+- **No App Store or Play Store submission has shipped.** Reaching TestFlight
+  is not the same as passing review.
+- **No production Supabase project is recorded here**, and no migration has
+  ever been applied outside a local `supabase start`.
+
+Treat every `[NEEDS]` below as a real open decision, not a formality — fill
+these in with whoever owns the hosting accounts before the first real
+production deploy.
 
 ---
 
@@ -138,17 +158,28 @@ Three jobs in `.github/workflows/ci.yml`, triggered on every push and PR:
 
 **[NEEDS]** — this section is intentionally a skeleton, not a guess:
 
-1. Dashboard / Super Admin: **[NEEDS hosting target — Vercel is implied by
-   `NEXT_PUBLIC`/`VERCEL_ENV`-based env-tagging conventions already in the
-   codebase (`apps/dashboard/lib/analytics.ts`), but no `vercel.json` or
-   linked project exists in this checkout — confirm and document the
-   actual deploy trigger: git push to a Vercel-linked branch, or a manual
-   `vercel --prod`]**.
+1. Dashboard / Super Admin: **deployed on Vercel, auto-deploying on push to
+   master** (confirmed 2026-09-06 — a push to master reached the live
+   dashboard without any manual step). `apps/dashboard/vercel.json` exists
+   and registers the SaaS-billing reminder cron. **[NEEDS]** the production
+   domain recorded here: the URL in use as of 2026-09-06 is a
+   Vercel-generated one, and moving to a custom domain means updating the
+   privacy-policy URL in **both** store consoles, since a dead policy URL
+   after review is itself a compliance problem.
 2. Database: `supabase db push` against the production project (see §3).
 3. Mobile: `eas build --profile production` then `eas submit` (App Store
    ascAppId `6798403711` and a Play Store internal track are already
-   configured in `apps/mobile/eas.json`; confirm the `google-play-service-account.json`
-   the submit profile references is actually provisioned before running this).
+   configured in `apps/mobile/eas.json`; `google-play-service-account.json`
+   is present in the developer's checkout but gitignored, so confirm it
+   exists wherever you run the submit from).
+
+   **Build, then verify launch, then submit — not build-then-submit.**
+   Build 5 was delivered to TestFlight successfully and crashed at launch on
+   every device; a successful upload proves nothing about whether the app
+   runs. Install from TestFlight and confirm it opens before promoting
+   anything to review. Prefer `--clear-cache` on the first build after any
+   dependency change, so a previous build's compiled Pods cannot survive
+   into it.
 4. **[NEEDS]** post-deploy smoke test checklist — at minimum: staff login,
    a member check-in, a class booking, and a payment-webhook round-trip
    against production Tara Money credentials.
@@ -254,7 +285,16 @@ matching the same "capture only, no source maps yet" stance already
 accepted for the two Next.js apps — **[NEEDS]** re-enable once a real
 Sentry auth token is provisioned, since captured mobile errors will show
 minified/unreadable stack traces until then. See `docs/decisions.md`'s
-Story 14.1 entry and its 2026-09-02 mobile-build addendum. Until alerting
+Story 14.1 entry and its 2026-09-02 mobile-build addendum.
+
+**Revisit this flag (2026-09-06).** That Xcode hard-fail happened while
+`@sentry/react-native` was pinned at 8.24.0 — a full major version ahead of
+the `~7.11.0` Expo SDK 57 actually supports, installed via a plain package
+add rather than `npx expo install`. The 2026-09-06 dependency alignment
+moved it to 7.11.0, so the workaround may no longer be needed. Do **not**
+test that on the same build as any other change: get one clean, launching
+build first, then drop `SENTRY_DISABLE_AUTO_UPLOAD` on the next one, so a
+failure is attributable to exactly one variable. Until alerting
 exists, a production incident will still only surface via a user report,
 someone checking Sentry, or a manual `job_runs`/`audit_log` query.
 PostHog is wired for product analytics (dashboard, mobile) but is not a
