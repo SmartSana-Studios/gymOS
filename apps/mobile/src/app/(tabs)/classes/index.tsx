@@ -63,9 +63,20 @@ export default function ClassesScreen() {
   // The screen stays mounted across native-tab switches, so a second visit
   // to Home's Upcoming Classes deep link (AC #1) must also re-sync activeTab
   // -- the useState initializer above only fires on first mount.
-  useEffect(() => {
+  //
+  // Adjusted during render rather than in an effect, per React's "adjusting
+  // state when a prop changes" pattern: a synchronous setState in an effect
+  // body is what react-hooks/set-state-in-effect flags, and it also meant the
+  // screen painted the old tab once before correcting itself. Comparing
+  // against the previous param value is what keeps this firing only on an
+  // actual deep-link change rather than on every render. Dropping the
+  // mount-time run changes nothing -- the useState initializer above already
+  // handles the first visit.
+  const [prevTabParam, setPrevTabParam] = useState(params.tab);
+  if (prevTabParam !== params.tab) {
+    setPrevTabParam(params.tab);
     if (params.tab === 'bookings') setActiveTab('bookings');
-  }, [params.tab]);
+  }
 
   const [available, setAvailable] = useState<AvailableRow[]>([]);
   const [availableLoaded, setAvailableLoaded] = useState(false);

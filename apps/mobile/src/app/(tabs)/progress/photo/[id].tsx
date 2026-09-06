@@ -36,7 +36,21 @@ export default function ProgressPhotoDetailScreen() {
   }, []);
 
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
-  const [loadingImage, setLoadingImage] = useState(true);
+  // Initialised from photoPath, and re-derived during render if it ever
+  // changes, rather than reset inside the effect below -- those were two
+  // synchronous setStates in an effect body (react-hooks/set-state-in-effect)
+  // and they also meant the screen painted a spinner for one frame before the
+  // "no photoPath" guard turned it off. The prev-value comparison keeps this
+  // exactly equivalent to the effect it replaces, including the param-change
+  // case (which a route param on a detail screen does not actually hit --
+  // a different photo pushes a new screen -- but equivalence is cheaper to
+  // keep than to reason about).
+  const [loadingImage, setLoadingImage] = useState(!!photoPath);
+  const [prevPhotoPath, setPrevPhotoPath] = useState(photoPath);
+  if (prevPhotoPath !== photoPath) {
+    setPrevPhotoPath(photoPath);
+    setLoadingImage(!!photoPath);
+  }
   const [shared, setShared] = useState(sharedWithCoach === '1');
   const [togglePending, setTogglePending] = useState(false);
   const [toggleError, setToggleError] = useState(false);
@@ -47,11 +61,9 @@ export default function ProgressPhotoDetailScreen() {
     // docs/decisions.md entry already flags, not just normal internal
     // navigation (which always supplies photoPath).
     if (!photoPath) {
-      setLoadingImage(false);
       return;
     }
     let cancelled = false;
-    setLoadingImage(true);
     getProgressPhotoSignedUrl(photoPath)
       .then((url) => {
         if (cancelled) return;

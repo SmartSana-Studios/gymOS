@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Animated, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -48,21 +48,18 @@ export default function OtpScreen() {
   const [verifying, setVerifying] = useState(false);
   const [countdown, setCountdown] = useState(INITIAL_COUNTDOWN_SECONDS);
   const [resending, setResending] = useState(false);
-  const shake = useRef(new Animated.Value(0)).current;
+  // Lazy useState initialiser rather than `useRef(...).current`: this value is
+  // read during render (the shake transform, below), and reading a ref's
+  // `.current` during render is what react-hooks/refs forbids. The
+  // initialiser runs once and the value is never reassigned, so the
+  // Animated.Value's identity is as stable as the ref's was.
+  const [shake] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (countdown <= 0) return;
     const timer = setInterval(() => setCountdown((c) => Math.max(0, c - 1)), 1000);
     return () => clearInterval(timer);
   }, [countdown]);
-
-  // Auto-submit on the 6th digit -- no confirm button (EXPERIENCE.md).
-  useEffect(() => {
-    if (code.length === CODE_LENGTH && !verifying) {
-      void verifyCode();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code]);
 
   function playShake() {
     Animated.sequence([
@@ -73,14 +70,18 @@ export default function OtpScreen() {
     ]).start();
   }
 
-  async function verifyCode() {
+  // Takes the code to verify as an argument rather than reading the `code`
+  // state. It is now called straight from the input's onChangeText, where the
+  // six-digit value exists as a local before setCode has been applied -- so
+  // reading state here would verify the five-digit previous value.
+  async function verifyCode(codeToVerify: string) {
     if (!phone) return;
     setVerifying(true);
     setError(null);
     try {
       const { data, error: verifyError } = await supabase.auth.verifyOtp({
         phone,
-        token: code,
+        token: codeToVerify,
         type: 'sms',
       });
 
@@ -115,6 +116,31 @@ export default function OtpScreen() {
       playShake();
     } finally {
       setVerifying(false);
+    }
+  }
+
+  // Auto-submit on the 6th digit -- no confirm button (EXPERIENCE.md).
+  //
+  // This was a `useEffect` keyed on [code], with an eslint-disable to keep
+  // `verifying` out of the dependency list. It is now driven from the input's
+  // own change handler, which is where React wants a user-initiated side
+  // effect to live: typing the sixth digit IS the submit gesture, so it does
+  // not need to round-trip through render and an effect to be expressed.
+  //
+  // Two things this fixes beyond the lint rule. The effect could re-fire on
+  // any render where `code` happened to be six digits, so it needed the
+  // disable comment to avoid double-submitting; a handler fires exactly once
+  // per keystroke, so the deliberate dependency omission disappears with it.
+  // And `code` is the only route to six digits -- every other write in this
+  // file sets it to '' -- so triggering on the transition is equivalent.
+  //
+  // `verifying` is still checked, guarding a paste that lands while a
+  // previous verification is in flight.
+  function handleCodeChange(next: string) {
+    const digits = next.replace(/[^0-9]/g, '').slice(0, CODE_LENGTH);
+    setCode(digits);
+    if (digits.length === CODE_LENGTH && !verifying) {
+      void verifyCode(digits);
     }
   }
 
@@ -180,7 +206,7 @@ export default function OtpScreen() {
 
         <OtpInput
           value={code}
-          onChangeText={(v) => setCode(v.replace(/[^0-9]/g, '').slice(0, CODE_LENGTH))}
+          onChangeText={handleCodeChange}
           length={CODE_LENGTH}
           editable={!verifying}
           autoFocus

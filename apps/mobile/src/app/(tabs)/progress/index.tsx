@@ -229,9 +229,17 @@ export default function ProgressScreen() {
   // new payload loads (not on every render -- `screenData` only changes
   // reference on an actual reload), so a stale tooltip can't survive a
   // reload where the underlying entries shifted.
-  useEffect(() => {
+  //
+  // Adjusted during render rather than in an effect (react-hooks/
+  // set-state-in-effect). This is strictly better here than the effect was:
+  // the reset now happens before the chart paints, so a stale tooltip can no
+  // longer be visible for one frame against the new data. The reference
+  // comparison is the same one the effect's dependency array was doing.
+  const [prevScreenData, setPrevScreenData] = useState(screenData);
+  if (prevScreenData !== screenData) {
+    setPrevScreenData(screenData);
     setSelectedPointIndex(null);
-  }, [screenData]);
+  }
 
   useEffect(() => {
     if (!screenData || screenData.photos.length === 0) return;

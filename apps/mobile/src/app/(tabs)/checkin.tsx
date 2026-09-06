@@ -59,10 +59,14 @@ export default function CheckInScreen() {
   const processingRef = useRef(false);
   const mountedRef = useRef(true);
   const isFocusedRef = useRef(isFocused);
-  const nudgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  // Lazy useState initialiser rather than `useRef(...).current`: reading a
+  // ref's `.current` during render is what react-hooks/refs forbids, and this
+  // value IS read during render (the scan target's opacity, below). useState's
+  // initialiser runs exactly once and its value is never reassigned, so the
+  // Animated.Value's identity is as stable as the ref's was.
+  const [pulseAnim] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
     mountedRef.current = true;
@@ -83,15 +87,25 @@ export default function CheckInScreen() {
   // forever. Only fires on an actual focus transition, not on every
   // deniedExpired change, so it never clears the overlay out from under the
   // member while it's still being shown.
-  useEffect(() => {
+  //
+  // Adjusted during render rather than in an effect, per React's
+  // "adjusting state when a prop changes" pattern -- a synchronous setState
+  // inside an effect body queues a second render pass and is what
+  // react-hooks/set-state-in-effect flags. Semantics are unchanged: the
+  // comparison against the previous value is what makes this fire on an
+  // actual focus transition rather than on every render. It no longer runs
+  // on mount, which changes nothing -- `deniedExpired` already initialises
+  // to false.
+  const [wasFocused, setWasFocused] = useState(isFocused);
+  if (wasFocused !== isFocused) {
+    setWasFocused(isFocused);
     if (isFocused) {
       setDeniedExpired(false);
     }
-  }, [isFocused]);
+  }
 
   useEffect(() => {
     return () => {
-      if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
     };
@@ -119,13 +133,19 @@ export default function CheckInScreen() {
 
   // 15s-with-no-scan nudge -- only counts down while actively scanning
   // (focused tab, permission granted, no result showing).
+  // The nudge is only ever turned ON here, by the timer; it is turned OFF by
+  // this effect's own cleanup, which React runs before re-running the effect
+  // on any dependency change and again on unmount. Resetting it in the effect
+  // body instead (as this did) is a synchronous setState in an effect --
+  // react-hooks/set-state-in-effect -- and queued an extra render pass on
+  // every dependency change. The timer is now a local rather than a ref,
+  // since owning its own cleanup is what makes the reset correct.
   useEffect(() => {
-    if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
-    setShowNudge(false);
     if (!isFocused || resultShowing || !permission?.granted) return;
-    nudgeTimerRef.current = setTimeout(() => setShowNudge(true), NUDGE_DELAY_MS);
+    const timer = setTimeout(() => setShowNudge(true), NUDGE_DELAY_MS);
     return () => {
-      if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
+      clearTimeout(timer);
+      setShowNudge(false);
     };
   }, [isFocused, resultShowing, permission?.granted]);
 
