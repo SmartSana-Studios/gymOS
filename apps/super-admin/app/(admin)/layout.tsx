@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { AdminNavLink } from "@/components/AdminNavLink";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { LogoutButton } from "@/components/logout-button";
 
@@ -54,24 +55,18 @@ async function AdminLayoutData({
           Flat links, not the responsive icon-rail/hamburger sidebar
           (UX-DR4/UX-DR13) -- that component is specified for the
           multi-role gym-admin dashboard (apps/dashboard); Super Admin has
-          exactly one role and five flat destinations besides the brand link,
-          which already points to /gyms -- no separate "Gyms" link needed.
+          exactly one role and six flat destinations besides the brand link.
+          Gyms is listed explicitly rather than left implicit behind the
+          brand wordmark: it is the app's primary destination, and without
+          its own link it was the one route where the active-state highlight
+          below had nothing to attach to.
         */}
-        <Link href="/metrics" className="text-sm text-muted-foreground hover:text-foreground">
-          {t("nav.metrics")}
-        </Link>
-        <Link href="/tiers" className="text-sm text-muted-foreground hover:text-foreground">
-          {t("nav.tiers")}
-        </Link>
-        <Link href="/payment-providers" className="text-sm text-muted-foreground hover:text-foreground">
-          {t("nav.paymentProviders")}
-        </Link>
-        <Link href="/messaging" className="text-sm text-muted-foreground hover:text-foreground">
-          {t("nav.messaging")}
-        </Link>
-        <Link href="/billing" className="text-sm text-muted-foreground hover:text-foreground">
-          {t("nav.billing")}
-        </Link>
+        <AdminNavLink href="/gyms">{t("nav.gyms")}</AdminNavLink>
+        <AdminNavLink href="/metrics">{t("nav.metrics")}</AdminNavLink>
+        <AdminNavLink href="/tiers">{t("nav.tiers")}</AdminNavLink>
+        <AdminNavLink href="/payment-providers">{t("nav.paymentProviders")}</AdminNavLink>
+        <AdminNavLink href="/messaging">{t("nav.messaging")}</AdminNavLink>
+        <AdminNavLink href="/billing">{t("nav.billing")}</AdminNavLink>
         <LanguageToggle />
         <LogoutButton />
       </nav>

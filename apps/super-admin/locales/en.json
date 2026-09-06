@@ -1,6 +1,7 @@
 {
   "nav": {
     "brand": "GymOS Super Admin",
+    "gyms": "Gyms",
     "metrics": "Metrics",
     "tiers": "Tiers",
     "paymentProviders": "Payment Providers",

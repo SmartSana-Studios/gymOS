@@ -1,6 +1,7 @@
 {
   "nav": {
     "brand": "GymOS Super Admin",
+    "gyms": "Salles",
     "metrics": "Statistiques",
     "tiers": "Paliers",
     "paymentProviders": "Fournisseurs de paiement",
