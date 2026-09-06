@@ -151,8 +151,15 @@ select lives_ok(
   'run_payment_reconciliation_job() executes without error against seeded fixtures'
 );
 
+-- `started_at = now()` scopes this to this test's own invocation: 0032
+-- schedules this same function on pg_cron inside the container the suite runs
+-- against, so an unqualified count can pick up a concurrently-committed
+-- cron-fired row. Works because `now()` is the transaction timestamp and the
+-- function records `started_at := now()` -- see the fuller explanation in
+-- check_out_manual_auto_timeout.test.sql, where this raced in real CI.
 select is(
-  (select count(*) from job_runs where job_name = 'payment_reconciliation' and status = 'success')::int, 1,
+  (select count(*) from job_runs
+    where job_name = 'payment_reconciliation' and status = 'success' and started_at = now())::int, 1,
   'a success row is written to job_runs'
 );
 

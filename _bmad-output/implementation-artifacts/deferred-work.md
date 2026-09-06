@@ -728,3 +728,53 @@
 ## Deferred from: release-readiness CI hardening (2026-09-02)
 
 - `rls-tests` genuinely failed once on a real GitHub Actions run (`check_out_manual_auto_timeout.test.sql`, assertion 21 — `job_runs` success-row count expected 1, got a different count) with no code change of ours anywhere near it; passed clean on an immediate retry. Root cause suspected, not confirmed: `run_check_in_auto_timeout_job()` is wired to `pg_cron` (migration 0024), and this test's own explicit call to that function races the cron schedule inside the same `supabase start` container — depending on how much wall-clock time has elapsed since boot when this specific test file runs, a cron-triggered invocation can land an extra `job_runs` row before or during the test's own count assertion. Deferred rather than fixed: the real fix (scoping the count to a specific run, e.g. by `created_at` window or a job-run id captured immediately after the test's own call) is a test-isolation change to a passing, pre-existing test, out of scope for this session's deploy-hardening work. [supabase/tests/check_out_manual_auto_timeout.test.sql:285-289; supabase/migrations/0024_check_out_manual_auto_timeout.sql]
+
+## Resolved: the `check_out_manual_auto_timeout.test.sql` cron race (2026-09-06)
+
+Resolves the "Deferred from: release-readiness CI hardening (2026-09-02)" item
+above (kept in place as the original record, per this file's append-only
+convention). It recurred on the 2026-09-06 push to master -- same file, same
+assertion 21 -- and the suspected root cause was confirmed rather than
+re-guessed.
+
+**Confirmed cause.** `0024_check_out_manual_auto_timeout.sql` schedules
+`run_check_in_auto_timeout_job()` on pg_cron at `*/15 * * * *`, and that
+scheduler is live inside the same `supabase start` container the pgTAP suite
+runs against. The assertion counted *every* `job_runs` success row for that
+job name, so a cron-fired invocation committed by another session -- visible
+to the test's transaction under READ COMMITTED -- pushed the count past 1
+whenever a run's wall-clock crossed a 15-minute boundary.
+
+**Fix.** Every affected assertion now filters on `started_at = now()`, scoping
+the count to the test's own invocation. This works because `now()` is the
+*transaction* timestamp: the job records `started_at := now()`, so the row
+written by the test's own call inside the test transaction carries exactly
+that transaction's timestamp, while a cron-fired invocation runs in its own
+transaction with a different one. `cron.unschedule` was rejected as the fix --
+inside a rolled-back test transaction it is never committed, so the background
+worker never sees it, and committing it would break the sibling assertions
+that verify the schedule still exists.
+
+**Scope widened beyond the reported failure.** Four sibling tests had the
+identical latent race against their own pg_cron-scheduled jobs and were fixed
+in the same pass, rather than waiting for each to flake in turn:
+`subscription_lifecycle_cron.test.sql`, `payment_reconciliation_job.test.sql`,
+`saas_billing_lifecycle_job.test.sql`, and
+`subscription_lifecycle_notifications.test.sql` (the last expects 2, since
+both of its invocations share the one test transaction's timestamp).
+
+**Verified by reproducing it, not by reasoning.** Against a local container
+holding 125 stray committed success rows, the pre-fix assertion reproduced the
+exact CI signature (`Tests: 24 Failed: 1`, failed test 21); restoring the fix
+turned the same file green with those rows still present, and all five job
+tests pass. Three unrelated failures remain in that local run
+(`cleanup_invalid_device_push_token`, super-admin gym visibility,
+`platform_metrics`) -- all stale-state artifacts of a long-lived local volume,
+in files this change never touches, and all green on CI's fresh container per
+the 2026-09-06 run that reported this one failure alone.
+
+**Not fixed here.** Those three tests assert unqualified global counts and so
+cannot run against a dirty local database, though nothing concurrent mutates
+their subjects during a CI run, so they are not CI-flaky the way this one was.
+Making the suite runnable against a non-pristine local DB is a separate piece
+of work.

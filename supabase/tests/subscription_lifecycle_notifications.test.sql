@@ -626,8 +626,16 @@ select ok(
   'original 02:00 Africa/Douala lifecycle schedule and postgres owner are preserved'
 );
 
+-- `started_at = now()` scopes this to this test's own two invocations: 0021
+-- schedules this same function on pg_cron inside the container the suite runs
+-- against, so an unqualified count can pick up a concurrently-committed
+-- cron-fired row. Both of this test's calls run inside this one transaction,
+-- so both carry this transaction's timestamp and the expected count stays 2 --
+-- see the fuller explanation in check_out_manual_auto_timeout.test.sql, where
+-- this raced in real CI.
 select is(
-  (select count(*)::int from job_runs where job_name = 'subscription_lifecycle' and status = 'success'),
+  (select count(*)::int from job_runs
+    where job_name = 'subscription_lifecycle' and status = 'success' and started_at = now()),
   2,
   'both lifecycle invocations retain success job logging'
 );

@@ -282,8 +282,27 @@ select ok(
   'the control Gym D session (within its own gym''s longer timeout) is still open'
 );
 
+-- `started_at = now()` scopes this count to *this test's own* invocation, and
+-- is load-bearing rather than decorative. 0024 schedules this same function on
+-- pg_cron at '*/15 * * * *', and that scheduler is live inside the very
+-- `supabase start` container the suite runs against -- so a CI run whose
+-- wall-clock crosses a 15-minute boundary gets a second, cron-fired
+-- `job_runs` success row committed by another session, which READ COMMITTED
+-- makes visible to this transaction mid-test. That is a real observed CI
+-- failure (2026-09-02, assertion 21: expected 1, got 2), not a hypothetical.
+--
+-- The equality works because `now()` is the *transaction* timestamp, not
+-- wall-clock: the function records `started_at := now()`, so the row written
+-- by our call inside this test transaction carries exactly this
+-- transaction's timestamp, while a cron-fired invocation runs in its own
+-- transaction with a different one. Counting unqualified rows asserts
+-- something about the whole container's history instead of about this call.
 select is(
-  (select count(*)::int from job_runs where job_name = 'check_in_auto_timeout' and status = 'success'),
+  (select count(*)::int
+     from job_runs
+    where job_name = 'check_in_auto_timeout'
+      and status = 'success'
+      and started_at = now()),
   1,
   'exactly one success row is written to job_runs'
 );
