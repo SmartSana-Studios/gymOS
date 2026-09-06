@@ -67,14 +67,34 @@ export function GymMembersTable({ members }: { members: GymMemberPage | null }) 
     router.push(`?${params.toString()}`);
   }
 
+  // `joinDate` is a date-only column ("YYYY-MM-DD", no time component).
+  // `new Date(dateOnly)` parses it as UTC midnight, which renders a day
+  // early in any timezone west of UTC -- build the Date from local Y/M/D
+  // components instead, matching this codebase's established
+  // formatLocalDate pattern (e.g. RenewalModal.tsx, SettingsForm.tsx).
+  function formatJoinDate(dateOnly: string): string {
+    const [year, month, day] = dateOnly.split("-").map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString(i18n.language);
+  }
+
   return (
     <div className="space-y-3 rounded-md border p-6">
       <h2 className="text-sm font-semibold text-muted-foreground">
         {t("gyms.memberRecords.title")}
       </h2>
 
-      {members.rows.length === 0 ? (
+      {members.total === 0 ? (
         <p className="text-sm text-muted-foreground">{t("gyms.memberRecords.empty")}</p>
+      ) : members.rows.length === 0 ? (
+        // total > 0 but this page has no rows -- a stale mpage param past
+        // the last page (e.g. after a member count shrank), not "no
+        // members." Same distinction GymsPageClient.tsx:170-190 makes.
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
+          <p className="text-sm text-muted-foreground">{t("gyms.memberRecords.emptyPage")}</p>
+          <Button variant="outline" size="sm" onClick={() => goToPage(1)}>
+            {t("gyms.backToPage1")}
+          </Button>
+        </div>
       ) : (
         <>
           <div className="overflow-x-auto rounded-md border">
@@ -106,9 +126,7 @@ export function GymMembersTable({ members }: { members: GymMemberPage | null }) 
                     <td className="p-3">
                       {ROLE_LABEL_KEY[member.role] ? t(ROLE_LABEL_KEY[member.role]) : member.role}
                     </td>
-                    <td className="p-3">
-                      {new Date(member.joinDate).toLocaleDateString(i18n.language)}
-                    </td>
+                    <td className="p-3">{formatJoinDate(member.joinDate)}</td>
                     <td className="p-3">
                       {member.deactivatedAt === null
                         ? t("gyms.memberRecords.status.active")

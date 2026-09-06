@@ -112,6 +112,7 @@
     "memberRecords": {
       "title": "Member records",
       "empty": "No member records for this gym.",
+      "emptyPage": "No member records on this page.",
       "columns": {
         "name": "Name",
         "phone": "Phone",
@@ -135,6 +136,7 @@
     "paymentRecords": {
       "title": "Payment records",
       "empty": "No payment records for this gym.",
+      "emptyPage": "No payment records on this page.",
       "columns": {
         "member": "Member",
         "amount": "Amount",

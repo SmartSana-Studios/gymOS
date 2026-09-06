@@ -4,7 +4,7 @@ baseline_commit: d770f6798a381b1f94b8504cd1eae559354a7e79
 
 # Story 1.14: Super Admin — Escalated Member & Payment Data View
 
-Status: review
+Status: done
 
 > **Depends on Story 1.15 (Escalation Grant Expiry & Revocation) — implement 1.15 first.**
 > 1.15 changes what "escalated" means (24-hour TTL + revocation) and replaces the `escalated`
@@ -89,7 +89,15 @@ Story 1.7 built the gate and said so explicitly in its own Scope Boundary: it do
 - [x] **Task 8: `docs/decisions.md`** (housekeeping, matches every prior Epic 1 story)
   - [x] One dated entry, newest-first at the top: the members+payments-only scope and the four tables deliberately left out; the column allow-list and its FR-072 reasoning; the no-per-view-audit-entry decision (Open Question 1) and its interaction with 1.7's permanent grant; that this story closes 1.7's deliberately-deferred consumer.
 
-## Dev Notes
+### Review Findings
+
+- [x] [Review][Patch] Out-of-range `mpage`/`ppage` renders a misleading "no records" empty state with no recovery path [apps/super-admin/app/(admin)/gyms/[id]/components/GymMembersTable.tsx:76, GymPaymentsTable.tsx:79] — `resolvedPage` in `listGymMembers`/`listGymPayments` (`services/gyms.ts:538,623`) accepts any positive integer without clamping to the actual page count, and both table components branch solely on `rows.length === 0` to show "No member/payment records for this gym.", with the entire pagination control block (including any "back to page 1" affordance) nested inside the non-empty branch. A stale bookmark, shared link, or manually edited URL past the last page shows a false empty state with zero way back — no prior/first-page button reachable. The precedent file this story was told to copy from, `GymsPageClient.tsx:170-190`, already distinguishes "genuinely zero total" from "no rows on this out-of-range page" with its own recovery button; this diff collapsed that distinction. Fix: clamp the requested page to `[1, totalPages]` (service layer or page.tsx) and/or render a distinct "invalid page" state with a link back to page 1.
+- [x] [Review][Patch] `join_date` rendered with `new Date(string).toLocaleDateString()`, reintroducing a UTC-parsing off-by-one bug this codebase already fixed six times elsewhere [apps/super-admin/app/(admin)/gyms/[id]/components/GymMembersTable.tsx:110] — `join_date` is a Postgres `date` column (`supabase/migrations/0003_members_and_users.sql:26`, e.g. `"2026-09-06"` with no time component). `new Date("2026-09-06")` parses as UTC midnight, so `.toLocaleDateString(i18n.language)` in any browser timezone west of UTC renders the day before the actual join date. `apps/dashboard`'s `RenewalModal.tsx`, `SettingsForm.tsx`, `CoachPortalPageClient.tsx`, `CoachMemberDetailPageClient.tsx` (and others) each define an identical local `formatLocalDate(dateOnly, locale)` helper (`split("-")` + `new Date(year, month-1, day)`) specifically to avoid this class of bug — Task 3's own instruction to "define local `formatAmount`/`formatDate` helpers inside each component" was followed in `GymPaymentsTable.tsx` (whose `createdAt` is a `timestamptz`, correctly handled by a direct `toLocaleDateString` call) but `GymMembersTable.tsx` inlined the date-only field without the local-date-components helper. Fix: add a `formatLocalDate` helper to `GymMembersTable.tsx` matching the established pattern and use it for `joinDate`.
+- [x] [Review][Defer] Loading skeleton always renders both new record-table placeholders, causing a layout shift for every non-escalated Super Admin once data resolves [apps/super-admin/app/(admin)/gyms/[id]/loading.tsx:10-19] — deferred: `loading.tsx` is the `<Suspense>` fallback and renders before escalation status is known, so it cannot conditionally omit these blocks without either violating Task 5's "plain presentational, no logic" requirement or adding a second nested `<Suspense>` boundary around just the member/payment fetches (an architectural change, not a one-line fix). Cosmetic only (a brief layout shift on non-escalated page loads). Revisit if this page's Suspense structure is ever split further.
+- [x] [Review][Defer] Pager active-page button has no `aria-current="page"` (or equivalent), relying on visual-only styling [apps/super-admin/app/(admin)/gyms/[id]/components/GymMembersTable.tsx:135-142, GymPaymentsTable.tsx] — deferred, pre-existing gap in the copied `GymsPageClient.tsx` precedent, not introduced by this diff.
+- [x] [Review][Defer] No automated regression test guards the security-relevant `.select()` column allow-list in `listGymMembers`/`listGymPayments` [apps/super-admin/services/gyms.ts:526-585] — deferred, pre-existing: `apps/super-admin` has no test runner at all (no Vitest/Playwright), a standing open decision already on the retro action list per this story's own Testing Standards section, not this story's call to fix.
+
+
 
 ### Origin & Authority (read first)
 
@@ -198,6 +206,7 @@ Two consequences for this story's verification: Task 7 must additionally confirm
 
 - 2026-09-06: Story created. Status backlog → ready-for-dev.
 - 2026-09-06: Implementation complete (Tasks 1-8, all ACs verified). Status ready-for-dev → in-progress → review.
+- 2026-09-06: Code review (bmad-code-review). 3 layers (Blind Hunter, Edge Case Hunter, Acceptance Auditor) run against master...HEAD. 0 decision-needed, 3 patch (2 fixed, 1 reclassified to defer), 2 defer, 14 dismissed as noise. Fixed: out-of-range `mpage`/`ppage` showing a misleading "no records" empty state with no recovery path (both tables now distinguish genuinely-zero-total from stale-page, with a "Back to page 1" affordance, matching `GymsPageClient.tsx`'s own precedent); `join_date` UTC-parsing off-by-one bug reintroduced from a class of bug this codebase already fixed six times elsewhere (added a local `formatJoinDate` helper). Deferred: loading-skeleton layout shift for non-escalated viewers (would need a second nested `<Suspense>` boundary, out of scope for a cosmetic fix), missing `aria-current` on the pager and no automated test on the column allow-list (both pre-existing gaps, not introduced by this diff). `tsc --noEmit`, `eslint`, and `check-i18n-key-parity.mjs` (265 keys, en/fr in parity) all clean after fixes. Status review → done.
 
 ## Dev Agent Record
 

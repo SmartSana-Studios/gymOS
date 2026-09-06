@@ -76,8 +76,18 @@ export function GymPaymentsTable({ payments }: { payments: GymPaymentPage | null
         {t("gyms.paymentRecords.title")}
       </h2>
 
-      {payments.rows.length === 0 ? (
+      {payments.total === 0 ? (
         <p className="text-sm text-muted-foreground">{t("gyms.paymentRecords.empty")}</p>
+      ) : payments.rows.length === 0 ? (
+        // total > 0 but this page has no rows -- a stale ppage param past
+        // the last page, not "no payments." Same distinction
+        // GymsPageClient.tsx:170-190 makes.
+        <div className="flex flex-col items-center gap-3 py-8 text-center">
+          <p className="text-sm text-muted-foreground">{t("gyms.paymentRecords.emptyPage")}</p>
+          <Button variant="outline" size="sm" onClick={() => goToPage(1)}>
+            {t("gyms.backToPage1")}
+          </Button>
+        </div>
       ) : (
         <>
           <div className="overflow-x-auto rounded-md border">
