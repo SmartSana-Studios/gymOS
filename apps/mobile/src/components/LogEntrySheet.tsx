@@ -1,6 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Image } from 'expo-image';
 import { MaterialIcons } from '@react-native-vector-icons/material-icons';
 import { Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -204,14 +205,41 @@ export function LogEntrySheet({ visible, onClose, onSaved }: LogEntrySheetProps)
               />
             </View>
 
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => openPhotoPicker(handlePickPhoto, t)}
-              style={[styles.photoButton, { borderColor: theme.border }]}>
-              <ThemedText type="default">
-                {photoUri ? t('progress.logEntry.photoAdded') : t('progress.logEntry.addPhoto')}
-              </ThemedText>
-            </Pressable>
+            {/* A thumbnail, not just a label. Before this, the only signal that a
+                photo had been attached was this button's own text flipping to
+                "Photo added" -- which reads as nothing happening, gives no way
+                to tell *which* photo was captured, and no way to undo a bad
+                shot short of picking again. profile.tsx already previews the
+                picked avatar (its `displayPhotoUri`); this brings the progress
+                sheet in line with that. */}
+            {photoUri ? (
+              <View style={[styles.photoPreview, { borderColor: theme.border }]}>
+                <Image source={{ uri: photoUri }} style={styles.photoPreviewImage} contentFit="cover" />
+                <View style={styles.photoPreviewActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('progress.logEntry.changePhoto')}
+                    onPress={() => openPhotoPicker(handlePickPhoto, t)}>
+                    <ThemedText type="default">{t('progress.logEntry.changePhoto')}</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t('progress.logEntry.removePhoto')}
+                    onPress={() => setPhotoUri(null)}>
+                    <ThemedText type="default" themeColor="textSecondary">
+                      {t('progress.logEntry.removePhoto')}
+                    </ThemedText>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => openPhotoPicker(handlePickPhoto, t)}
+                style={[styles.photoButton, { borderColor: theme.border }]}>
+                <ThemedText type="default">{t('progress.logEntry.addPhoto')}</ThemedText>
+              </Pressable>
+            )}
 
             {error && (
               <ThemedText type="small" style={styles.error}>
@@ -275,6 +303,21 @@ const styles = StyleSheet.create({
     borderRadius: Spacing.two,
     paddingVertical: Spacing.three,
     alignItems: 'center',
+  },
+  photoPreview: {
+    borderWidth: 1,
+    borderRadius: Spacing.two,
+    overflow: 'hidden',
+  },
+  photoPreviewImage: {
+    width: '100%',
+    height: 180,
+  },
+  photoPreviewActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
   },
   error: {
     color: '#F87171',

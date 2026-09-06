@@ -303,7 +303,8 @@
       "noteLabel": "Note",
       "notePlaceholder": "How are you feeling?",
       "addPhoto": "Add photo",
-      "photoAdded": "Photo added",
+      "changePhoto": "Change photo",
+      "removePhoto": "Remove photo",
       "save": "Save entry",
       "errorSaveFailed": "Couldn't save your entry. Check your connection and try again.",
       "errorInvalidInput": "Check the values you entered and try again."

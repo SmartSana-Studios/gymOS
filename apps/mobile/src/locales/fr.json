@@ -303,7 +303,8 @@
       "noteLabel": "Note",
       "notePlaceholder": "Comment vous sentez-vous ?",
       "addPhoto": "Ajouter une photo",
-      "photoAdded": "Photo ajoutée",
+      "changePhoto": "Changer la photo",
+      "removePhoto": "Supprimer la photo",
       "save": "Enregistrer l'entrée",
       "errorSaveFailed": "Impossible d'enregistrer votre entrée. Vérifiez votre connexion et réessayez.",
       "errorInvalidInput": "Vérifiez les valeurs saisies et réessayez."
