@@ -101,13 +101,27 @@ values ('00000000-0000-0000-0000-000000009965', '00000000-0000-0000-0000-0000000
 insert into front_desk_alerts (id, gym_id, member_id, status, expiry_date)
 values ('00000000-0000-0000-0000-000000009966', '00000000-0000-0000-0000-000000009911', '00000000-0000-0000-0000-000000009932', 'expiring_soon', current_date + 3);
 
--- Super Admin escalation grant for Gym (suspended) -- a real
--- 'gym_data_escalation' audit_log row IS the grant (0012's own design,
--- see super_admin_escalated_read_members/payments). Needed for Section D's
+-- Super Admin escalation grant for Gym (suspended). Needed for Section D's
 -- escalated-read assertions (members/payments beyond the unconditional
 -- owner-row/audit_log policies).
-insert into audit_log (id, gym_id, actor_id, actor_display_name, action_type)
-values ('00000000-0000-0000-0000-000000009958', '00000000-0000-0000-0000-000000009911', '00000000-0000-0000-0000-000000009924', 'Super Admin', 'gym_data_escalation');
+--
+-- Story 1.15 update: this used to be an audit_log row, because under 0012
+-- the 'gym_data_escalation' audit row itself WAS the grant. 0085 moved the
+-- grant to gym_data_escalations so it could carry a 24-hour TTL and be
+-- revoked, and the members/payments policies now read that table instead --
+-- so a bare audit row grants nothing and Section D's two escalated-read
+-- assertions failed against it. Seeded live (unexpired, unrevoked) here:
+-- this file is about the tenant-suspension gate, and a grant that had
+-- lapsed for an unrelated reason would silently stop testing what these
+-- two assertions are actually for.
+insert into gym_data_escalations (id, gym_id, actor_id, reason, expires_at)
+values ('00000000-0000-0000-0000-000000009967', '00000000-0000-0000-0000-000000009911', '00000000-0000-0000-0000-000000009924', 'suspension test escalation', now() + interval '24 hours');
+
+-- The matching accountability record, as escalate_gym_data_access() would
+-- have written it in the same transaction. Kept because Section D also
+-- asserts on audit_log readability for this gym.
+insert into audit_log (id, gym_id, actor_id, actor_display_name, action_type, target_entity_id, target_entity_type)
+values ('00000000-0000-0000-0000-000000009958', '00000000-0000-0000-0000-000000009911', '00000000-0000-0000-0000-000000009924', 'Super Admin', 'gym_data_escalation', '00000000-0000-0000-0000-000000009967', 'gym_data_escalations');
 
 -- ============================================================================
 -- Section A: suspended gym, member-eligible tables all denied for the

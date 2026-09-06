@@ -1,6 +1,7 @@
 {
   "nav": {
     "brand": "GymOS Super Admin",
+    "gyms": "Salles",
     "metrics": "Statistiques",
     "tiers": "Paliers",
     "paymentProviders": "Fournisseurs de paiement",
@@ -83,7 +84,8 @@
       "memberCountWithCap": "{{count}} / {{cap}}",
       "memberCountNoCap": "{{count}} / sans plafond",
       "status": "Statut :",
-      "accessGranted": "Accès accordé — vous pouvez consulter les membres et paiements de cette salle.",
+      "accessGranted": "Accès accordé — vous pouvez consulter les membres et paiements de cette salle jusqu'au {{expires}}.",
+      "renewAccess": "Renouveler pour 24 heures",
       "accessGymData": "Accéder aux données de la salle — motif requis (journalisé)",
       "overrideCap": "Forcer le plafond",
       "overrideCapPlaceholder": "Vide = plafond du palier",
@@ -92,6 +94,7 @@
     "auditTrail": {
       "title": "Journal d'audit",
       "empty": "Aucune activité d'audit enregistrée pour cette salle pour le moment.",
+      "revokedTarget": "{{label}} — {{holder}}",
       "action": {
         "gym_created": "Salle créée",
         "gym_suspended": "Salle suspendue",
@@ -100,6 +103,7 @@
         "gym_tier_changed": "Palier modifié",
         "gym_cap_overridden": "Plafond forcé modifié",
         "gym_data_escalation": "Données de la salle consultées",
+        "gym_data_escalation_revoked": "Accès aux données révoqué pour un super administrateur",
         "saas_payment_marked_received": "Paiement SaaS marqué comme reçu (hors ligne)",
         "saas_billing_credit_applied": "Crédit de facturation SaaS appliqué",
         "saas_billing_retry_triggered": "Relance de paiement déclenchée"
@@ -117,9 +121,28 @@
     },
     "escalate": {
       "title": "Accéder aux données de la salle",
-      "body": "Consulter les membres et paiements de {{gymName}} nécessite un motif. Ceci est journalisé avec votre identité et un horodatage.",
+      "body": "Consulter les membres et paiements de {{gymName}} nécessite un motif. Ceci est journalisé avec votre identité et un horodatage. L'accès expire automatiquement au bout de 24 heures.",
       "requesting": "Demande en cours…",
       "accessButton": "Accéder aux données de {{gymName}}"
+    },
+    "dataAccess": {
+      "title": "Accès aux données en cours",
+      "grantedAndExpires": "Accordé le {{granted}} · expire le {{expires}}",
+      "grantCount": "{{count}} accès distincts",
+      "holderSelf": "{{holder}} (vous)",
+      "unknownHolder": "Super Admin inconnu",
+      "revokeButton": "Révoquer l'accès",
+      "revokeTitle": "Révoquer l'accès aux données",
+      "revokeBody": "Ceci met immédiatement fin à l'accès de {{holder}} aux membres et paiements de {{gymName}}. Un motif est obligatoire, et l'opération est journalisée avec votre identité et un horodatage. Cette personne pourra demander un nouvel accès si elle en a encore besoin.",
+      "revokeTitleSelf": "Révoquer votre propre accès aux données",
+      "revokeBodySelf": "Ceci met immédiatement fin à votre propre accès aux membres et paiements de {{gymName}}. Un motif est obligatoire, et l'opération est journalisée avec votre identité et un horodatage. Vous pourrez demander un nouvel accès si vous en avez encore besoin.",
+      "revokeReason": "Motif *",
+      "revoking": "Révocation…",
+      "revokeConfirm": "Révoquer l'accès de {{holder}} à {{gymName}}",
+      "revokeConfirmSelf": "Révoquer mon accès à {{gymName}}",
+      "alreadyEndedTitle": "Cet accès avait déjà pris fin",
+      "alreadyEndedBody": "{{holder}} n'avait plus accès à {{gymName}} — l'accès avait déjà expiré, ou un autre super administrateur l'a révoqué avant vous. Rien n'a été modifié. Votre motif a tout de même été enregistré dans le journal d'audit.",
+      "alreadyEndedBodySelf": "Vous n'aviez plus accès à {{gymName}} — l'accès avait déjà expiré, ou un autre super administrateur l'a révoqué avant vous. Rien n'a été modifié. Votre motif a tout de même été enregistré dans le journal d'audit."
     },
     "pagination": {
       "previous": "Page précédente",
@@ -127,6 +150,7 @@
     },
     "errors": {
       "invalidGymId": "Identifiant de salle invalide",
+      "invalidActorId": "Identifiant de super administrateur invalide",
       "gymNotFound": "Salle introuvable",
       "alreadyStatus": "Cette salle est déjà {{status}}.",
       "auditLogFailedStatus": "Le changement de statut a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",

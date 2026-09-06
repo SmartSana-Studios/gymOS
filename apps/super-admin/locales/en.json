@@ -1,6 +1,7 @@
 {
   "nav": {
     "brand": "GymOS Super Admin",
+    "gyms": "Gyms",
     "metrics": "Metrics",
     "tiers": "Tiers",
     "paymentProviders": "Payment Providers",
@@ -83,7 +84,8 @@
       "memberCountWithCap": "{{count}} / {{cap}}",
       "memberCountNoCap": "{{count}} / no cap",
       "status": "Status:",
-      "accessGranted": "Access granted — you can view this gym's member and payment records.",
+      "accessGranted": "Access granted — you can view this gym's member and payment records until {{expires}}.",
+      "renewAccess": "Renew for another 24 hours",
       "accessGymData": "Access gym data — requires reason (audit-logged)",
       "overrideCap": "Override cap",
       "overrideCapPlaceholder": "Blank = use tier cap",
@@ -92,6 +94,7 @@
     "auditTrail": {
       "title": "Audit trail",
       "empty": "No audit activity recorded for this gym yet.",
+      "revokedTarget": "{{label}} — {{holder}}",
       "action": {
         "gym_created": "Gym created",
         "gym_suspended": "Gym suspended",
@@ -100,6 +103,7 @@
         "gym_tier_changed": "Tier changed",
         "gym_cap_overridden": "Cap override changed",
         "gym_data_escalation": "Accessed gym data",
+        "gym_data_escalation_revoked": "Revoked a Super Admin's gym data access",
         "saas_payment_marked_received": "Marked SaaS payment as received (out-of-band)",
         "saas_billing_credit_applied": "Applied SaaS billing credit",
         "saas_billing_retry_triggered": "Triggered a payment-due retry"
@@ -117,9 +121,28 @@
     },
     "escalate": {
       "title": "Access gym data",
-      "body": "Viewing {{gymName}}'s member and payment records requires a reason. This is audit-logged with your identity and a timestamp.",
+      "body": "Viewing {{gymName}}'s member and payment records requires a reason. This is audit-logged with your identity and a timestamp. Access expires automatically after 24 hours.",
       "requesting": "Requesting…",
       "accessButton": "Access {{gymName}}'s data"
+    },
+    "dataAccess": {
+      "title": "Active data access",
+      "grantedAndExpires": "Granted {{granted}} · expires {{expires}}",
+      "grantCount": "{{count}} separate grants",
+      "holderSelf": "{{holder}} (you)",
+      "unknownHolder": "Unknown Super Admin",
+      "revokeButton": "Revoke access",
+      "revokeTitle": "Revoke data access",
+      "revokeBody": "This ends {{holder}}'s access to {{gymName}}'s member and payment records immediately. A reason is required, and this is audit-logged with your identity and a timestamp. They can escalate again if they still need access.",
+      "revokeTitleSelf": "Revoke your own data access",
+      "revokeBodySelf": "This ends your own access to {{gymName}}'s member and payment records immediately. A reason is required, and this is audit-logged with your identity and a timestamp. You can escalate again if you still need access.",
+      "revokeReason": "Reason *",
+      "revoking": "Revoking…",
+      "revokeConfirm": "Revoke {{holder}}'s access to {{gymName}}",
+      "revokeConfirmSelf": "Revoke my access to {{gymName}}",
+      "alreadyEndedTitle": "That access had already ended",
+      "alreadyEndedBody": "{{holder}} no longer had access to {{gymName}} — the grant had already expired, or another Super Admin revoked it first. Nothing was changed. Your reason was still recorded in the audit trail.",
+      "alreadyEndedBodySelf": "You no longer had access to {{gymName}} — the grant had already expired, or another Super Admin revoked it first. Nothing was changed. Your reason was still recorded in the audit trail."
     },
     "pagination": {
       "previous": "Previous page",
@@ -127,6 +150,7 @@
     },
     "errors": {
       "invalidGymId": "Invalid gym id",
+      "invalidActorId": "Invalid Super Admin id",
       "gymNotFound": "Gym not found",
       "alreadyStatus": "This gym is already {{status}}.",
       "auditLogFailedStatus": "The status change was saved, but the audit log entry failed to write. Please contact support.",

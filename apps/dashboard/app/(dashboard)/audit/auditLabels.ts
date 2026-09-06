@@ -19,6 +19,13 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   coach_assigned: "audit.actionTypes.coachAssigned",
   coach_reassigned: "audit.actionTypes.coachReassigned",
   gym_data_escalation: "audit.actionTypes.gymDataEscalation",
+  // Story 1.15 (added by its code review, 2026-09-06). Written by
+  // revoke_gym_data_access() with p_gym_id set (0085:256), so the row is
+  // gym-scoped and reaches this page through
+  // manager_or_owner_read_own_audit_log (0049) exactly as the escalation row
+  // above does. Without the mapping it rendered as the raw action_type string
+  // via this map's defensive fallback.
+  gym_data_escalation_revoked: "audit.actionTypes.gymDataEscalationRevoked",
   subscription_lifecycle_job_failure: "audit.actionTypes.subscriptionLifecycleJobFailure",
   check_in_auto_timeout_job_failure: "audit.actionTypes.checkInAutoTimeoutJobFailure",
   payment_reconciliation_job_failure: "audit.actionTypes.paymentReconciliationJobFailure",

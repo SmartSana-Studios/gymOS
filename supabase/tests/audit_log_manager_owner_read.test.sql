@@ -39,11 +39,14 @@ insert into members (id, gym_id, user_id, role, name) values
 -- never be visible to any gym-scoped session.
 set local role service_role;
 
-insert into audit_log (gym_id, actor_id, actor_display_name, action_type) values
-  ('00000000-0000-0000-0000-000000014011', '00000000-0000-0000-0000-000000014021', 'Audit Log Read Gym A Owner', 'member_deactivated'),
-  ('00000000-0000-0000-0000-000000014011', '00000000-0000-0000-0000-000000014022', 'Audit Log Read Gym A Manager', 'coach_assigned'),
-  ('00000000-0000-0000-0000-000000014012', '00000000-0000-0000-0000-000000014025', 'Audit Log Read Gym B Owner', 'refund_recorded'),
-  (null, null, 'system:subscription_lifecycle_cron', 'subscription_lifecycle_job_failure');
+-- Explicit ids (previously auto-generated) purely so the platform-wide
+-- assertion at the bottom of this file can count exactly these four rows
+-- instead of every row in the database. See that assertion's own comment.
+insert into audit_log (id, gym_id, actor_id, actor_display_name, action_type) values
+  ('00000000-0000-0000-0000-000000014081', '00000000-0000-0000-0000-000000014011', '00000000-0000-0000-0000-000000014021', 'Audit Log Read Gym A Owner', 'member_deactivated'),
+  ('00000000-0000-0000-0000-000000014082', '00000000-0000-0000-0000-000000014011', '00000000-0000-0000-0000-000000014022', 'Audit Log Read Gym A Manager', 'coach_assigned'),
+  ('00000000-0000-0000-0000-000000014083', '00000000-0000-0000-0000-000000014012', '00000000-0000-0000-0000-000000014025', 'Audit Log Read Gym B Owner', 'refund_recorded'),
+  ('00000000-0000-0000-0000-000000014084', null, null, 'system:subscription_lifecycle_cron', 'subscription_lifecycle_job_failure');
 
 reset role;
 
@@ -143,8 +146,31 @@ select set_config(
   true
 );
 
+-- Scoped to this file's own four fixture rows by id, rather than the bare
+-- `count(*) from audit_log` this assertion used to run. The unfiltered
+-- version counted every committed row in the database, so any real local use
+-- of the app (manual testing, a provisioning-CLI run) broke it permanently
+-- until someone ran `supabase db reset` -- exactly the fragility
+-- gym_data_escalation_rls.test.sql already documents and scopes around, and
+-- the same class Story 1.6 hit with tier-name fixture collisions.
+--
+-- Scoping by id rather than by gym_id specifically because one of the four
+-- (the cron row) has gym_id = null on purpose: a `gym_id in (A, B)` filter
+-- silently drops it and turns this into a 3-row assertion, quietly losing
+-- the "sees the null-gym system row too" half of what it proves.
+--
+-- The assertion's meaning is unchanged: a super_admin-claim session sees all
+-- four -- both gyms plus the gym-agnostic system row -- which is what
+-- "platform-wide, no row filter" means; the gym-scoped sessions above see
+-- only their own.
 select is(
-  (select count(*)::int from audit_log),
+  (select count(*)::int from audit_log
+   where id in (
+     '00000000-0000-0000-0000-000000014081',
+     '00000000-0000-0000-0000-000000014082',
+     '00000000-0000-0000-0000-000000014083',
+     '00000000-0000-0000-0000-000000014084'
+   )),
   4,
   'a super_admin-claim session still sees all 4 audit_log rows across gyms -- super_admin_read_audit_log (0012) is unaffected'
 );
