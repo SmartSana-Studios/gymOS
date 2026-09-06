@@ -1,8 +1,23 @@
+import * as Sentry from '@sentry/react-native';
 import { File } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { ActionSheetIOS, Alert, Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
+
+/** Records where the photo flow got to, so a WatchdogTermination arrives in
+ * Sentry with the last completed step attached. A watchdog kill produces no JS
+ * stack and no catchable error -- without breadcrumbs the report cannot say
+ * which call never returned, which is exactly what made this bug expensive to
+ * chase. Never throws: instrumentation must not be able to break the flow it
+ * measures, and Sentry may not be initialised at all (no DSN in local dev). */
+function breadcrumb(message: string) {
+  try {
+    Sentry.addBreadcrumb({ category: 'photo-upload', message, level: 'info' });
+  } catch {
+    // deliberately ignored -- see above
+  }
+}
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
@@ -38,6 +53,7 @@ export type PickPhotoResult =
  * verbatim from onboarding/profile.tsx so both call sites share identical
  * permission/size-check behavior instead of drifting independently. */
 export async function pickPhoto(source: 'camera' | 'library'): Promise<PickPhotoResult> {
+  breadcrumb(`requesting ${source} permission`);
   const permission =
     source === 'camera'
       ? await ImagePicker.requestCameraPermissionsAsync()
@@ -46,32 +62,32 @@ export async function pickPhoto(source: 'camera' | 'library'): Promise<PickPhoto
     return { error: 'permission_denied' };
   }
 
-  // `quality` is deliberately NOT passed here. Any quality < 1 makes the
-  // picker decode the original at full sensor resolution and re-encode it --
-  // on a 48MP photo that is a ~190MB bitmap -- and the resize step below then
-  // decodes the result a second time and throws that first encode away.
+  breadcrumb(`permission granted (${source})`);
+
+  // Neither `quality` nor `preferredAssetRepresentationMode` is passed, and
+  // both omissions are deliberate memory decisions on a device that has been
+  // reporting WatchdogTermination -- the OS killing the app for hanging or
+  // overusing RAM.
   //
-  // Correction worth keeping: this was NOT the cause of the reported
-  // "photo picker takes minutes" problem, which turned out to be view
-  // controller presentation on iOS (see openPhotoPicker below) -- the delay
-  // happened before the picker ever appeared, and affected the library source
-  // too, where no camera capture is involved. Dropping the redundant encode
-  // is still worth doing on its own terms: it halves the peak memory of the
-  // path that runs after a photo is chosen, on both platforms.
+  // `quality` < 1 makes the picker decode the original at full sensor
+  // resolution and re-encode it (a ~190MB bitmap for a 48MP photo), which the
+  // resize below then decodes a second time and discards.
   //
-  // `preferredAssetRepresentationMode: Compatible` replaces what `quality` was
-  // incidentally guaranteeing: it asks iOS for the most compatible
-  // representation, so a HEIC library asset arrives transcoded rather than as
-  // .heic -- which EXTENSION_TO_MIME cannot map and the member-photos bucket's
-  // allowed_mime_types (0019) would reject outright.
-  const pickerOptions: ImagePicker.ImagePickerOptions = {
-    mediaTypes: ['images'],
-    preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-  };
+  // `preferredAssetRepresentationMode: Compatible` was added earlier the same
+  // day to guarantee a non-HEIC asset, and is removed again here: Compatible
+  // asks iOS to *transcode* the asset in-process, at full resolution, before
+  // handing it over -- precisely the kind of work that gets an app watchdogged.
+  // JPEG output is now guaranteed the cheap way instead: the manipulator below
+  // always runs and always saves as JPEG, so the picker is never relied on to
+  // convert anything.
+  const pickerOptions: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'] };
+
+  breadcrumb(`launching picker (${source})`);
   const result =
     source === 'camera'
       ? await ImagePicker.launchCameraAsync(pickerOptions)
       : await ImagePicker.launchImageLibraryAsync(pickerOptions);
+  breadcrumb(`picker returned (canceled=${result.canceled})`);
 
   if (result.canceled || !result.assets[0]) return { canceled: true };
 
@@ -87,7 +103,16 @@ export async function pickPhoto(source: 'camera' | 'library'): Promise<PickPhoto
   let uri = asset.uri;
   const longestEdge = Math.max(asset.width, asset.height);
   const dimensionsUnknown = longestEdge === 0;
-  if (longestEdge > MAX_PHOTO_DIMENSION || dimensionsUnknown) {
+  const needsDownscale = longestEdge > MAX_PHOTO_DIMENSION || dimensionsUnknown;
+  breadcrumb(`asset ${asset.width}x${asset.height}`);
+  // This block now runs unconditionally, where it used to be gated on
+  // needsDownscale. Since the picker is no longer asked to transcode (see
+  // above), this save is the only thing guaranteeing the file is a JPEG -- and
+  // an .heic reaching uploadPhoto() would be mislabelled by EXTENSION_TO_MIME
+  // and rejected by the member-photos bucket's allowed_mime_types. The resize
+  // itself is still conditional: applying it to an already-small image would
+  // upscale it.
+  {
     // Dynamic import + try/catch, deliberately not a static top-level
     // import: expo-image-manipulator is a native module, and this file is
     // transitively imported by nearly every screen (LogEntrySheet,
@@ -104,12 +129,17 @@ export async function pickPhoto(source: 'camera' | 'library'): Promise<PickPhoto
       // source and still meaningfully bounds a portrait one, without needing
       // an orientation we do not have.
       const isLandscape = asset.width >= asset.height;
-      const context = ImageManipulator.manipulate(asset.uri).resize(
-        dimensionsUnknown || isLandscape ? { width: MAX_PHOTO_DIMENSION } : { height: MAX_PHOTO_DIMENSION },
-      );
+      breadcrumb(`manipulate start (downscale=${needsDownscale})`);
+      let context = ImageManipulator.manipulate(asset.uri);
+      if (needsDownscale) {
+        context = context.resize(
+          dimensionsUnknown || isLandscape ? { width: MAX_PHOTO_DIMENSION } : { height: MAX_PHOTO_DIMENSION },
+        );
+      }
       const rendered = await context.renderAsync();
       const saved = await rendered.saveAsync({ compress: 0.8, format: SaveFormat.JPEG });
       uri = saved.uri;
+      breadcrumb('manipulate done');
     } catch (err) {
       console.error('[photo-upload] resize failed, falling back to original', err);
     }
@@ -123,6 +153,7 @@ export async function pickPhoto(source: 'camera' | 'library'): Promise<PickPhoto
   let fileSize: number;
   try {
     fileSize = new File(uri).size ?? 0;
+    breadcrumb(`size ${fileSize}`);
   } catch (err) {
     console.error('[photo-upload] file size check failed', err);
     return { error: 'read_failed' };
