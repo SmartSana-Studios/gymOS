@@ -3,6 +3,7 @@ import { File } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { ActionSheetIOS, Alert, Platform } from 'react-native';
 
+import { recordPhotoStep, clearPhotoStep } from '@/lib/photo-debug';
 import { supabase } from '@/lib/supabase';
 
 /** Records where the photo flow got to, so a WatchdogTermination arrives in
@@ -17,6 +18,9 @@ function breadcrumb(message: string) {
   } catch {
     // deliberately ignored -- see above
   }
+  // Also persisted to disk, because a WatchdogTermination on this device has
+  // not been reaching Sentry at all -- see lib/photo-debug.ts. TEMPORARY.
+  recordPhotoStep(message);
 }
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -159,8 +163,10 @@ export async function pickPhoto(source: 'camera' | 'library'): Promise<PickPhoto
     return { error: 'read_failed' };
   }
   if (fileSize > MAX_PHOTO_BYTES) {
+    void clearPhotoStep();
     return { error: 'too_large' };
   }
+  void clearPhotoStep();
   return { uri };
 }
 
