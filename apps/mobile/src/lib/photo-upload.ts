@@ -1,6 +1,6 @@
 import { File } from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
-import { Alert } from 'react-native';
+import { ActionSheetIOS, Alert, Platform } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 
@@ -46,15 +46,18 @@ export async function pickPhoto(source: 'camera' | 'library'): Promise<PickPhoto
     return { error: 'permission_denied' };
   }
 
-  // `quality` is deliberately NOT passed here, and that is a performance fix,
-  // not an oversight. Any quality < 1 makes the picker decode the original at
-  // full sensor resolution and re-encode it -- on a 48MP photo that is a
-  // ~190MB bitmap -- and the resize step below then decodes the result a
-  // second time and throws that first encode away. Paying for a full-resolution
-  // JPEG we immediately discard was the bulk of the delay on Edit Profile, and
-  // holding two full-resolution decodes is the most likely cause of the
-  // intermittent crash (iOS jetsam-kills on memory pressure, which surfaces as
-  // the app simply disappearing).
+  // `quality` is deliberately NOT passed here. Any quality < 1 makes the
+  // picker decode the original at full sensor resolution and re-encode it --
+  // on a 48MP photo that is a ~190MB bitmap -- and the resize step below then
+  // decodes the result a second time and throws that first encode away.
+  //
+  // Correction worth keeping: this was NOT the cause of the reported
+  // "photo picker takes minutes" problem, which turned out to be view
+  // controller presentation on iOS (see openPhotoPicker below) -- the delay
+  // happened before the picker ever appeared, and affected the library source
+  // too, where no camera capture is involved. Dropping the redundant encode
+  // is still worth doing on its own terms: it halves the peak memory of the
+  // path that runs after a photo is chosen, on both platforms.
   //
   // `preferredAssetRepresentationMode: Compatible` replaces what `quality` was
   // incidentally guaranteeing: it asks iOS for the most compatible
@@ -192,14 +195,50 @@ export async function getProgressPhotoSignedUrl(path: string): Promise<string | 
   return data.signedUrl;
 }
 
-/** The Alert-as-action-sheet pattern (Take Photo / Choose from Library /
- * Cancel) -- `onPick` receives the chosen source; callers run `pickPhoto`
- * themselves so error-state handling (which i18n key, which local state)
- * stays screen-specific. */
+/** Source chooser (Take Photo / Choose from Library / Cancel) -- `onPick`
+ * receives the chosen source; callers run `pickPhoto` themselves so
+ * error-state handling (which i18n key, which local state) stays
+ * screen-specific.
+ *
+ * iOS uses ActionSheetIOS rather than Alert, and that is a bug fix, not a
+ * cosmetic preference. On iOS `Alert.alert` is a UIAlertController, and its
+ * button handler fires while that alert is still running its dismissal
+ * transition. Presenting the image picker from inside that handler means
+ * asking UIKit to present a view controller from one that is mid-transition,
+ * which iOS does not do promptly -- on device this showed up as tapping
+ * either option and then waiting minutes for the picker to appear, sometimes
+ * taking the app down with it. It reproduced on both Take Photo and Choose
+ * from Library and not at all on Android, which is the signature of a
+ * presentation problem rather than anything to do with the image itself:
+ * Android's Alert is a Dialog and has no equivalent constraint.
+ *
+ * ActionSheetIOS invokes its callback from the sheet's own completion
+ * handler, i.e. after dismissal has finished, so the picker is presented
+ * from a settled view controller. Android keeps Alert, which works correctly
+ * there and matches the platform's own convention. */
 export function openPhotoPicker(onPick: (source: 'camera' | 'library') => void, t: (key: string) => string) {
+  const takePhoto = t('onboarding.profile.photoSourceTakePhoto');
+  const chooseFromLibrary = t('onboarding.profile.photoSourceChooseFromLibrary');
+  const cancel = t('common.close');
+
+  if (Platform.OS === 'ios') {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: t('onboarding.profile.addPhoto'),
+        options: [takePhoto, chooseFromLibrary, cancel],
+        cancelButtonIndex: 2,
+      },
+      (buttonIndex) => {
+        if (buttonIndex === 0) onPick('camera');
+        else if (buttonIndex === 1) onPick('library');
+      },
+    );
+    return;
+  }
+
   Alert.alert(t('onboarding.profile.addPhoto'), undefined, [
-    { text: t('onboarding.profile.photoSourceTakePhoto'), onPress: () => onPick('camera') },
-    { text: t('onboarding.profile.photoSourceChooseFromLibrary'), onPress: () => onPick('library') },
-    { text: t('common.close'), style: 'cancel' },
+    { text: takePhoto, onPress: () => onPick('camera') },
+    { text: chooseFromLibrary, onPress: () => onPick('library') },
+    { text: cancel, style: 'cancel' },
   ]);
 }
