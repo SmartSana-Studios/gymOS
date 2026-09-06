@@ -7,6 +7,8 @@ import {
   getGymDetail,
   listActiveEscalations,
   listGymAuditTrail,
+  listGymMembers,
+  listGymPayments,
   listTiers,
   type AuditTrailEntry,
 } from "@/services/gyms";
@@ -19,23 +21,45 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 // gyms/page.tsx (Story 1.5's cacheComponents: true requirement). Story 1.7
 // adds the "Access gym data" escalation and the Audit trail tab (FR-072);
 // Story 1.15 adds the grant's 24-hour expiry and the Active data access
-// list. Every read below stays inside this <Suspense> boundary -- the two
-// new escalation reads are cookie-dependent like the rest, and hoisting one
+// list; Story 1.14 adds the escalated Member/Payment records sections
+// (AC #2, #3) -- the feature 1.7 explicitly deferred ("the RLS policies this
+// story adds make that data reachable once escalated, for whichever future
+// feature needs it," 1-7-...md:75-77). Every read below stays inside this
+// <Suspense> boundary -- all of them are cookie-dependent, and hoisting one
 // out would trip cacheComponents.
+//
+// `searchParams` carries `mpage`/`ppage`: two independent tables on one
+// route need two independent page params, since a shared `page` would move
+// both at once. Forwarded unawaited into GymDetailData, where it is awaited
+// alongside `params` -- exactly gyms/page.tsx's own shape (:20-35). Awaiting
+// it here, in the outer component, would pull dynamic data outside the
+// Suspense boundary and trip cacheComponents.
 export default function GymDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ mpage?: string; ppage?: string }>;
 }) {
   return (
     <Suspense fallback={<GymDetailLoading />}>
-      <GymDetailData params={params} />
+      <GymDetailData params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function GymDetailData({ params }: { params: Promise<{ id: string }> }) {
+async function GymDetailData({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ mpage?: string; ppage?: string }>;
+}) {
   const { id } = await params;
+  const { mpage, ppage } = await searchParams;
+  const memberPage = mpage ? Number(mpage) : 1;
+  const paymentPage = ppage ? Number(ppage) : 1;
+
   const supabase = await createClient();
   const [
     { data: gym, error: gymError },
@@ -78,6 +102,49 @@ async function GymDetailData({ params }: { params: Promise<{ id: string }> }) {
     notFound();
   }
 
+  // Story 1.14 AC #1: the Member/Payment records fetches are conditional on
+  // `escalated` and issued ONLY after it resolves -- they deliberately do
+  // NOT join the Promise.all above, which runs before `escalated` is known.
+  // When `escalated` is false, `members`/`payments` stay `null` and
+  // GymMembersTable/GymPaymentsTable render nothing at all: the server never
+  // even attempts to send this data to a non-escalated actor's browser. This
+  // is defence in depth, not the primary control -- RLS's
+  // `super_admin_escalated_read_members`/`_payments` policies (0012,
+  // rewritten by 0085/0086) already return zero rows for a non-escalated
+  // actor on their own. Do not "simplify" this into an unconditional fetch
+  // on the theory that RLS makes it safe either way; AC #1 requires that the
+  // rendered HTML / RSC payload itself carry no such rows, which an
+  // unconditional fetch (even one RLS filters to empty) would still satisfy
+  // technically but the intent here is belt-and-braces, stated explicitly so
+  // a later reader does not remove it as redundant.
+  const escalated = ownEscalation !== null;
+
+  type MembersResult = Awaited<ReturnType<typeof listGymMembers>>;
+  type PaymentsResult = Awaited<ReturnType<typeof listGymPayments>>;
+
+  const [membersResult, paymentsResult]: [MembersResult, PaymentsResult] = escalated
+    ? await Promise.all([
+        listGymMembers(id, { page: memberPage }),
+        listGymPayments(id, { page: paymentPage }),
+      ])
+    : [
+        { data: null, error: null },
+        { data: null, error: null },
+      ];
+
+  const { data: membersPage, error: membersError } = membersResult;
+  const { data: paymentsPage, error: paymentsError } = paymentsResult;
+
+  // A second, separate check rather than folded into the block above: these
+  // two results don't exist until after `escalated` is known, which itself
+  // depends on the first batch having come back clean. Same rendering as
+  // the first check either way -- a failed member/payment read must not
+  // render a half-page.
+  if (membersError || paymentsError) {
+    const { t } = await getServerTranslation(await getRequestLocale());
+    return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
+  }
+
   const currentActorId = claimsData?.claims?.sub ?? null;
   const entries = auditTrail ?? [];
 
@@ -115,6 +182,8 @@ async function GymDetailData({ params }: { params: Promise<{ id: string }> }) {
       expiresAt={ownEscalation?.expiresAt ?? null}
       activeEscalations={activeEscalations ?? []}
       currentActorId={currentActorId}
+      members={membersPage}
+      payments={paymentsPage}
     />
   );
 }

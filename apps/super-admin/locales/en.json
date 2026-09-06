@@ -109,6 +109,47 @@
         "saas_billing_retry_triggered": "Triggered a payment-due retry"
       }
     },
+    "memberRecords": {
+      "title": "Member records",
+      "empty": "No member records for this gym.",
+      "columns": {
+        "name": "Name",
+        "phone": "Phone",
+        "role": "Role",
+        "joined": "Joined",
+        "status": "Status"
+      },
+      "role": {
+        "member": "Member",
+        "coach": "Coach",
+        "receptionist": "Receptionist",
+        "manager": "Manager",
+        "owner": "Owner",
+        "supervisor": "Supervisor"
+      },
+      "status": {
+        "active": "Active",
+        "deactivated": "Deactivated"
+      }
+    },
+    "paymentRecords": {
+      "title": "Payment records",
+      "empty": "No payment records for this gym.",
+      "columns": {
+        "member": "Member",
+        "amount": "Amount",
+        "method": "Method",
+        "status": "Status",
+        "date": "Date",
+        "reason": "Reason"
+      },
+      "status": {
+        "pending": "Pending",
+        "processing": "Processing",
+        "verified": "Verified",
+        "flagged": "Flagged"
+      }
+    },
     "changeTier": {
       "title": "Change Tier",
       "newTier": "New Tier",
