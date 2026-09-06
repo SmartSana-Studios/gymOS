@@ -4,6 +4,33 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-09-06 — Escalation grants gain a 24-hour TTL and revocation; this reverses Story 1.7's Decision 1 — recorded during Story 1.15
+
+**This entry and the 2026-07-10 Story 1.7 entry below (`Decision 1`, `Decision 2`) should be read as a pair, not as a contradiction.** 1.7 Decision 2 explicitly wrote its own revisit condition — "revisit with a TTL/revocation mechanism only if a future security review calls for it" — and this is that revisit, raised by the user on 2026-09-06 after reading Story 1.14's Open Question 1.
+
+**The risk that triggered it.** Under 1.7 Decision 1, a `gym_data_escalation` `audit_log` row *was* the grant, and `0007_audit_log.sql:108` revokes `update, delete, truncate` from every role including `service_role`. A grant written once could therefore never be removed by anyone, by any means, ever. Combined with the absence of per-view audit logging (1.14's Open Question 1), a single escalation in June yielded unlimited, unlogged reads of that gym's member and payment data indefinitely.
+
+**Decision 1 — the grant moves to a real `gym_data_escalations` table (`0085_escalation_grant_expiry_and_revocation.sql`), reversing 1.7's Decision 1.** 1.7's reasoning (one event not two; no second table needing RLS; the append-only trail as single source of truth) was sound *for a grant with no lifecycle*. Giving the grant a lifecycle breaks it in two concrete ways:
+
+1. **Append-only is the wrong substrate for mutable state.** Revocation cannot modify or delete an `audit_log` row, so it could only be expressed as a *newer superseding row* with a "latest row wins" predicate — mutable state emulated on a substrate deliberately built to forbid it.
+2. **Decisively: the superseding-row approach cannot express third-party revocation at all.** `log_audit_event()` derives `actor_id` from `auth.uid()` and never accepts it as a parameter (deliberate, so authorship cannot be forged). When Super Admin B revokes A's grant, the revocation row carries `actor_id = B` — but the escalation predicate matches `actor_id = auth.uid()`, so **A's own session would never see B's revocation**. Making it work would require matching escalations on `actor_id` and revocations on `target_entity_id` inside one ordered predicate: two differently-keyed row types, two more composite indexes, and semantics no future reader would reconstruct correctly.
+
+`audit_log` therefore returns to being a pure accountability record — what `0007`'s own header says it is for. Both new RPCs still call `log_audit_event()`, so every escalation *and* every revocation remains visible in SA-03's Audit trail tab. **This strengthens 1.7's intent rather than undermining it.**
+
+**Decision 2 — 24-hour TTL and manual revocation, both binding user decisions (2026-09-06); any Super Admin may revoke any grant, not only their own.** All Super Admins are peers with no role above them, and every revocation is audit-logged with the revoker's identity, so this is self-policing rather than hierarchical. It does also mean a Super Admin can revoke another's access mid-investigation, and nothing prevents immediate re-escalation — accepted, and the reason revocation is not a ban (AC #5).
+
+**Decision 3 — 24 hours is hardcoded in `escalate_gym_data_access()`; changing it later requires a migration.** The intended trade is an explicit, auditable, migration-gated security control over a runtime-tunable one. If the window needs tuning during the pilot, the replacement is a `messaging_provider_config`-style single-row config table, not a magic number moved to an env var.
+
+**Decision 4 — legacy grants go inert, deliberately and one-way (AC #7), and are NOT backfilled.** After `0085`, the predicate reads only `gym_data_escalations`, which starts empty, so every pre-existing `gym_data_escalation` audit row stops granting anything the moment the migration applies. Not backfilled for two reasons: any legacy grant is by definition older than 24 hours, so a faithful backfill would produce nothing but already-expired rows; and silently re-granting historical access without a fresh reason is the exact opposite of this story's purpose. Anyone who still needs access re-escalates in one click. Stated in the migration itself too, because a future reader finding an empty table beside years of escalation audit rows would otherwise reasonably assume data loss.
+
+**Decision 5 — the "Active data access" list resolves holder names from `audit_log`, not from a join to `public.users`.** There is no Super Admin SELECT policy on `public.users` (only `0015`'s `self_read_own_user`), verified during implementation — a join would have silently returned `null` for every holder but yourself. `audit_log.actor_display_name` is denormalized at write time precisely so an identity survives independently (`0007:38`), and `escalate_gym_data_access()` writes the grant and its audit row in one transaction with `target_entity_id` set to the grant's id, so the mapping is 1:1 by construction. The considered alternative — a `security definer` read RPC joining `users` — was rejected as a strictly wider bypass than needed, consistent with the same reasoning that keeps `private.has_active_gym_data_escalation()` *not* `security definer`.
+
+**Beyond the story's own plan:** `tenant_suspension_enforcement.test.sql` (Story 11.4) also seeded an audit-row grant and its two escalated-read assertions failed against the new predicate. The story text only anticipated `gym_data_escalation_rls.test.sql`. Fixed the same mechanical way (seed a live `gym_data_escalations` row alongside the audit row); both files keep every assertion they had.
+
+**Why this is recorded here, not just in code comments:** it reverses a prior entry in this same log, and a future reader comparing `0012` against `0085` needs the two-way reasoning in one place rather than reconstructing it from two migrations written eight weeks apart.
+
+---
+
 ## 2026-09-02 — First production EAS build requires `SENTRY_DISABLE_AUTO_UPLOAD=true` — recorded during Story 14.1's first real mobile build
 
 **What happened:** the first-ever `eas build --profile production --platform ios` for this project failed with `XCODE_BUILD_ERROR` — `@sentry/react-native/expo`'s injected Xcode build phase runs `sentry-cli` for source-map upload, which hard-errors ("An organization ID or slug is required") when `SENTRY_ORG` is unset, and that error fails the entire build, not just the upload step.

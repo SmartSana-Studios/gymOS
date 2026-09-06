@@ -7,6 +7,7 @@ import {
   gymIdSchema,
   gymStatusChangeSchema,
   overrideGymCapSchema,
+  revokeGymAccessSchema,
   type AppError,
 } from "@gymos/types";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -23,6 +24,7 @@ import {
   logGymDataEscalation,
   logGymLifecycleEvent,
   mapAndLog,
+  revokeGymDataAccess,
   updateGymCapOverride,
   updateGymStatus,
   updateGymTier,
@@ -410,18 +412,20 @@ export async function overrideGymCap(
 
 /**
  * SA-03 "Access gym data" escalation (FR-072). Unlike every other action in
- * this file, there is no separate mutation followed by an audit-log call --
- * the `gym_data_escalation` audit_log row itself is the access grant (0012
- * migration's design note). If the write fails, nothing was granted, so the
- * error propagates directly as a real, blocking error -- never the benign
- * `audit_log_failed` shape the lifecycle/tier/cap actions use, since there
- * that code means "the real change already saved" and here there is no
- * other change that could have already saved.
+ * this file, there is no separate mutation followed by an audit-log call:
+ * `escalate_gym_data_access()` writes the grant row and its audit entry in
+ * one transaction (Story 1.15's 0085; before that the audit row itself was
+ * the grant, per 0012's design note). If it fails, nothing was granted, so
+ * the error propagates directly as a real, blocking error -- never the
+ * benign `audit_log_failed` shape the lifecycle/tier/cap actions use, since
+ * there that code means "the real change already saved" and here there is
+ * no other change that could have already saved.
  *
  * Deliberately no no-op guard: a repeat escalation for a gym the caller has
  * already escalated to is still a legitimate, distinct, audit-worthy event
  * (a new reason, a new point-in-time record), not a meaningless duplicate
- * state transition.
+ * state transition. As of Story 1.15 it also starts a fresh 24-hour window,
+ * which is exactly what someone re-escalating after a lapse wants.
  */
 export async function escalateGymAccess(
   gymId: string,
@@ -441,4 +445,46 @@ export async function escalateGymAccess(
   }
 
   return logGymDataEscalation(gymId, parsed.data.reason);
+}
+
+/**
+ * SA-03 "Revoke access" (Story 1.15 AC #4). Any Super Admin may revoke any
+ * other's active grant on a gym -- all Super Admins are peers, and every
+ * revocation is audit-logged with the revoker's identity, so this is
+ * self-policing rather than hierarchical.
+ *
+ * `actorId` is the grant HOLDER (the admin losing access), not the caller.
+ * It is validated with `gymIdSchema` -- the same bare `z.uuid()` the gym id
+ * uses -- because that is all the shape validation a user id needs here;
+ * the real authorization check is `revoke_gym_data_access()`'s own internal
+ * `private.is_super_admin()` gate, and a well-formed uuid that matches no
+ * grant simply revokes 0 rows.
+ *
+ * `revokedCount: 0` is surfaced rather than swallowed: it means the grant
+ * had already lapsed or been revoked by someone else, and the UI should say
+ * so instead of claiming to have just stopped access that was already gone.
+ */
+export async function revokeGymAccess(
+  gymId: string,
+  actorId: string,
+  input: unknown,
+): Promise<{ data: { revokedCount: number } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { data: null, error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
+  }
+  if (!gymIdSchema.safeParse(actorId).success) {
+    return { data: null, error: { code: "validation_error", message: t("gyms.errors.invalidActorId") } };
+  }
+
+  const parsed = revokeGymAccessSchema.safeParse(input);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return {
+      data: null,
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+    };
+  }
+
+  return revokeGymDataAccess(gymId, actorId, parsed.data.reason);
 }

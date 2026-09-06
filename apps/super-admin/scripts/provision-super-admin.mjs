@@ -116,14 +116,57 @@ async function findUserByEmail(admin, targetEmail) {
   }
 }
 
+/**
+ * Derives a human display name from an email local part:
+ * `amara.ndiaye@gymos.cm` -> `Amara Ndiaye`. A placeholder, not an identity
+ * claim -- it exists so the name is a distinguishable label rather than a
+ * constant, and the holder can correct it later.
+ */
+function displayNameFromEmail(email) {
+  return email
+    .split("@")[0]
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 // AC #2: a service-role client has no auth.uid() session at all, so
 // private.protect_self_managed_user_columns()'s `auth.uid() = new.id` guard
 // (supabase/migrations/0015_users_self_service_language_preference.sql:32-46)
 // is never true here -- is_super_admin is written through unmodified.
-async function setSuperAdmin(admin, userId) {
+//
+// `display_name` is set here as of Story 1.15's code review. It was never
+// written for a Super Admin by any code path: log_audit_event() coalesces a
+// null display_name to the literal 'Unknown User' (0007_audit_log.sql:184)
+// and denormalizes that into every audit row the account authors, so Story
+// 1.15's "Active data access" list rendered every holder as 'Unknown User'
+// and its revoke dialog could not tell two admins apart -- exactly what
+// UX-DR12's named-target rule exists to prevent. Only the two mobile profile
+// screens write this column, and a Super Admin never opens the mobile app.
+//
+// Existing Super Admins are backfilled by migration 0086. Audit rows already
+// written keep 'Unknown User' forever: audit_log is append-only by design
+// (0007:108) and correctly records what was known at write time.
+//
+// Never overwrites a name the holder already has -- promotion of an existing
+// account (setSuperAdmin's other call site) must not clobber a real one.
+async function setSuperAdmin(admin, userId, email) {
+  const { data: existing, error: readError } = await admin
+    .from("users")
+    .select("display_name")
+    .eq("id", userId)
+    .maybeSingle();
+  if (readError) throw readError;
+
+  const patch = { is_super_admin: true };
+  if (!existing?.display_name?.trim()) {
+    patch.display_name = displayNameFromEmail(email);
+  }
+
   const { data, error } = await admin
     .from("users")
-    .update({ is_super_admin: true })
+    .update(patch)
     .eq("id", userId)
     .select("id");
   if (error) throw error;
@@ -190,7 +233,7 @@ async function promoteExistingUser(admin, authUser, skipConfirm) {
     return;
   }
 
-  await setSuperAdmin(admin, userId);
+  await setSuperAdmin(admin, userId, email);
 
   try {
     await writeAuditLog(admin, "super_admin_promoted", userId);
@@ -221,7 +264,7 @@ async function createAndProvisionUser(admin, email) {
   const userId = data.user.id;
 
   try {
-    await setSuperAdmin(admin, userId);
+    await setSuperAdmin(admin, userId, email);
     await writeAuditLog(admin, "super_admin_provisioned", userId);
   } catch (err) {
     // AC #4 rollback -- mirrors deleteAuthUserAndLog's compensating-cleanup

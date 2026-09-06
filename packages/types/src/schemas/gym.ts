@@ -35,6 +35,16 @@ export type CreateGymInput = z.infer<typeof createGymSchema>;
 // action-specific error copy. Exported for Story 11.5's applyCreditSchema.
 export const REASON_MIN_LENGTH = 5;
 
+// Ceiling for the two escalation-lifecycle reasons (Story 1.15 code review).
+// Neither had a maximum at any layer, so unbounded text could be stored in
+// gym_data_escalations.reason/revoke_reason and in audit_log metadata, then
+// rendered raw in the trail. Mirrored in 0086's RPCs, because both are
+// reachable directly over PostgREST by any authenticated Super Admin session
+// and not only through the app's forms. Deliberately NOT applied to the other
+// reason fields in this file: those predate the rule and widening it is a
+// separate change with its own copy decisions.
+export const REASON_MAX_LENGTH = 500;
+
 // Story 1.6: suspend/deactivate/reinstate all require a reason (AC #3,
 // audit-logged). The target status isn't part of this schema -- it's implied
 // by which Server Action is called (suspendGym/deactivateGym/reinstateGym),
@@ -78,10 +88,33 @@ export const gymIdSchema = z.uuid("Invalid gym id");
 // action-intent (why you're viewing a gym's private data) reads differently
 // from a lifecycle status change at every call site.
 export const escalateGymAccessSchema = z.object({
-  reason: z.string().trim().min(REASON_MIN_LENGTH, "Add a reason describing why you need access"),
+  reason: z
+    .string()
+    .trim()
+    .min(REASON_MIN_LENGTH, "Add a reason describing why you need access")
+    .max(REASON_MAX_LENGTH, "Reason is too long"),
 });
 
 export type EscalateGymAccessInput = z.infer<typeof escalateGymAccessSchema>;
+
+// Story 1.15: revoking another Super Admin's active escalation grant also
+// requires a mandatory reason, audit-logged with the revoking admin's
+// identity and the target admin as the subject. Deliberately its own schema
+// rather than reusing escalateGymAccessSchema, following this file's
+// one-schema-per-action-intent convention (see the note above): "why you
+// need access" and "why you are taking someone else's access away" are
+// different questions, read at different call sites, and their error copy
+// should be free to diverge. The REASON_MIN_LENGTH policy stays shared so
+// the length rule cannot drift between them.
+export const revokeGymAccessSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(REASON_MIN_LENGTH, "Add a reason describing why you are revoking this access")
+    .max(REASON_MAX_LENGTH, "Reason is too long"),
+});
+
+export type RevokeGymAccessInput = z.infer<typeof revokeGymAccessSchema>;
 
 // Story 1.9 (FR-069): Settings page field validation, copy taken
 // character-for-character from EXPERIENCE.md's AD-13 field table. `capacity`

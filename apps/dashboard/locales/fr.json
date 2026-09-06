@@ -940,6 +940,7 @@
       "coachAssigned": "Coach assigné",
       "coachReassigned": "Coach réassigné",
       "gymDataEscalation": "Accès aux données de la salle",
+      "gymDataEscalationRevoked": "Accès aux données de la salle révoqué",
       "subscriptionLifecycleJobFailure": "Échec de la tâche d'abonnement",
       "checkInAutoTimeoutJobFailure": "Échec de la tâche d'enregistrement",
       "paymentReconciliationJobFailure": "Échec de la tâche de rapprochement des paiements"

@@ -171,8 +171,11 @@ export interface GymDetail {
  * `listGymAuditTrail`'s (page.tsx already fetches the gym's full audit
  * trail separately), swallowed its own error indistinguishably from "not
  * escalated", and an unguarded `getUser()` throw could reject this whole
- * `Promise.all`. The caller now derives `escalated` from the already-fetched
- * audit trail instead (see `gyms/[id]/page.tsx`).
+ * `Promise.all`. Story 1.15 gave the grant a real lifecycle, so the caller
+ * now gets it from `getActiveEscalationForCurrentActor()` below -- which
+ * keeps every one of those properties (own function, `getClaims()`, error
+ * distinguishable from "not escalated") while being able to see expiry and
+ * revocation, which an audit-trail derivation structurally cannot.
  */
 export async function getGymDetail(gymId: string): Promise<{
   data: GymDetail | null;
@@ -233,6 +236,16 @@ export interface AuditTrailEntry {
   actorId: string | null;
   actorDisplayName: string;
   actionType: string;
+  /**
+   * The subject of the entry, not its author. Selected as of the Story 1.15
+   * review: `gym_data_escalation_revoked` rows carry the REVOKED admin here
+   * (0085:257), and without it the trail rendered "Revoked a Super Admin's
+   * gym data access" with nothing saying whose -- ambiguous by construction
+   * once a gym has more than one holder, in a table that can never be
+   * corrected (0007:108).
+   */
+  targetEntityId: string | null;
+  targetEntityType: string | null;
   metadata: Record<string, unknown>;
   createdAt: string;
 }
@@ -244,8 +257,10 @@ const AUDIT_TRAIL_MAX_ROWS = 200;
  * type, not just escalations -- Dev Notes Open Question 2), newest first,
  * capped at `AUDIT_TRAIL_MAX_ROWS`. No date-range/actor filter, unlike Epic
  * 7's fuller AD-12 page. `actorId` is selected (not just
- * `actorDisplayName`) so the caller can derive "did the current Super Admin
- * escalate to this gym" from this same result set instead of a second query.
+ * `actorDisplayName`) so the caller can tell its own entries apart from
+ * other admins' -- it backed Story 1.7's `escalated` derivation (gone as of
+ * 1.15, see `getActiveEscalationForCurrentActor`) and still backs page.tsx's
+ * redaction of other admins' escalation reasons.
  */
 export async function listGymAuditTrail(gymId: string): Promise<{
   data: AuditTrailEntry[] | null;
@@ -258,7 +273,9 @@ export async function listGymAuditTrail(gymId: string): Promise<{
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("audit_log")
-    .select("id, actor_id, actor_display_name, action_type, metadata, created_at")
+    .select(
+      "id, actor_id, actor_display_name, action_type, target_entity_id, target_entity_type, metadata, created_at",
+    )
     .eq("gym_id", gymId)
     .order("created_at", { ascending: false })
     .limit(AUDIT_TRAIL_MAX_ROWS);
@@ -272,6 +289,8 @@ export async function listGymAuditTrail(gymId: string): Promise<{
     actorId: row.actor_id,
     actorDisplayName: row.actor_display_name,
     actionType: row.action_type,
+    targetEntityId: row.target_entity_id,
+    targetEntityType: row.target_entity_type,
     metadata: (row.metadata as Record<string, unknown>) ?? {},
     createdAt: row.created_at,
   }));
@@ -279,19 +298,244 @@ export async function listGymAuditTrail(gymId: string): Promise<{
   return { data: rows, error: null };
 }
 
+export interface ActiveEscalation {
+  /**
+   * ONE ENTRY PER HOLDER, not per grant -- so the holder's id is the identity
+   * of the row (and its React key). See `listActiveEscalations` for why.
+   */
+  actorId: string;
+  actorDisplayName: string;
+  /**
+   * How many separate live grants this holder currently has. Repeat
+   * escalation is legitimate (0085:176-182) and revoking takes them all, so
+   * the count is shown rather than silently collapsed.
+   */
+  grantCount: number;
+  /** Earliest live grant: when this holder's current run of access began. */
+  grantedAt: string;
+  /** Latest deadline: when their access actually ends. */
+  expiresAt: string;
+}
+
 /**
- * Story 1.7 (FR-072): writes the `gym_data_escalation` audit_log row that
- * *is* the access grant (0012 migration's design note -- one event, not a
- * grant record plus a separate audit record). Thin wrapper over
- * `logGymLifecycleEvent`, which already surfaces (never swallows) an audit
- * RPC failure -- critical here, since unlike the lifecycle/tier/cap events
- * it wraps, a failed write here means no access was granted at all.
+ * SA-03's "Active data access" list (Story 1.15 AC #3): every Super Admin
+ * currently holding a live grant on this gym, so any other Super Admin can
+ * see who has access and revoke it. Platform-wide by design -- the
+ * `super_admin_read_gym_data_escalations` policy (0085) is deliberately not
+ * scoped to `actor_id = auth.uid()`, since a list that only ever showed you
+ * your own grant could not back a revoke action at all.
+ *
+ * Goes through the `list_active_gym_data_escalations` RPC (0086) rather than
+ * querying the table directly, for two reasons the Story 1.15 review found:
+ *
+ *  1. THE CLOCK. This filter used `new Date().toISOString()` -- the Next.js
+ *     server's clock -- while RLS compares `expires_at` against Postgres
+ *     `now()`. Any skew made the list disagree with what RLS actually
+ *     permits: a grant omitted here could not be revoked from the UI while it
+ *     was still granting reads. The RPC compares on the one clock that
+ *     decides.
+ *
+ *  2. ONE ROW PER HOLDER. Repeat escalation inserts a new grant row every
+ *     time (0085:176-182) while `revoke_gym_data_access()` revokes every
+ *     active grant for the (gym, actor) pair. A per-grant list therefore
+ *     showed one admin as N identical rows where revoking any one silently
+ *     revoked all N, and let a single admin's repeat escalations push other
+ *     admins' live grants past the row cap and out of reach of the only UI
+ *     that can revoke them. The RPC groups by actor.
+ *
+ * The holder's display name still comes from the grant's audit_log rows, NOT
+ * from a join to `public.users`: there is no Super Admin SELECT policy on
+ * that table (only 0015's `self_read_own_user`), so a join would silently
+ * return null for every holder but yourself. `audit_log.actor_display_name`
+ * is denormalized at write time precisely so an identity survives
+ * independently (0007). Matched on `actor_id` rather than the grant id,
+ * since the list is now per-holder; the newest escalation row wins.
+ *
+ * The 'Unknown User' fallback is now an i18n key, not a hard-coded English
+ * string in a rendered path. Note that it is also no longer the ordinary
+ * case: 0086 backfills `users.display_name` for existing Super Admins and
+ * `provision-super-admin.mjs` sets it for new ones, so a real name is
+ * expected here. Audit rows written BEFORE that backfill keep the literal
+ * 'Unknown User' that `log_audit_event()` stored (0007:184) -- audit_log is
+ * append-only and is deliberately not rewritten.
+ */
+export async function listActiveEscalations(gymId: string): Promise<{
+  data: ActiveEscalation[] | null;
+  error: AppError | null;
+}> {
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { data: null, error: null };
+  }
+
+  const supabase = await createClient();
+  // Annotated explicitly: this app's Supabase clients are constructed without
+  // the `Database` generic (lib/supabase/server.ts), so a set-returning rpc()
+  // yields no row type to infer from. Mirrors 0086's RETURNS TABLE columns.
+  const { data: grants, error } = await supabase.rpc("list_active_gym_data_escalations", {
+    p_gym_id: gymId,
+  });
+  const activeGrants = (grants ?? []) as {
+    actor_id: string;
+    grant_count: number;
+    granted_at: string;
+    expires_at: string;
+  }[];
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  if (activeGrants.length === 0) {
+    return { data: [], error: null };
+  }
+
+  const { data: auditRows, error: auditError } = await supabase
+    .from("audit_log")
+    .select("actor_id, actor_display_name, created_at")
+    .eq("gym_id", gymId)
+    .eq("action_type", "gym_data_escalation")
+    .in(
+      "actor_id",
+      activeGrants.map((grant) => grant.actor_id),
+    )
+    .order("created_at", { ascending: false });
+
+  if (auditError) {
+    return { data: null, error: await mapAndLog(auditError) };
+  }
+
+  // Ordered newest-first above, so the first row seen for an actor is their
+  // most recent escalation -- and therefore the freshest name recorded for
+  // them. `Map.set` would let older rows overwrite it; this does not.
+  const nameByActorId = new Map<string, string>();
+  for (const row of auditRows ?? []) {
+    if (row.actor_id && !nameByActorId.has(row.actor_id)) {
+      nameByActorId.set(row.actor_id, row.actor_display_name);
+    }
+  }
+
+  const { t } = await getServerTranslation(await getRequestLocale());
+
+  const rows: ActiveEscalation[] = activeGrants.map((grant) => ({
+    actorId: grant.actor_id,
+    actorDisplayName: nameByActorId.get(grant.actor_id) ?? t("gyms.dataAccess.unknownHolder"),
+    grantCount: grant.grant_count,
+    grantedAt: grant.granted_at,
+    expiresAt: grant.expires_at,
+  }));
+
+  return { data: rows, error: null };
+}
+
+/**
+ * Backs the page's own escalated/not-escalated state and its expiry
+ * countdown (Story 1.15). Replaces Story 1.7's audit-trail-derived
+ * `escalated` boolean, which could not see expiry or revocation.
+ *
+ * This is deliberately NOT the deleted `isGymDataAccessEscalated()` coming
+ * back (see this file's `getGymDetail` note for why that one went): it
+ * queries the grant table rather than `audit_log`, it uses `getClaims()`
+ * (a local JWT decode) rather than `getUser()`'s network round trip, and --
+ * the reason that function was genuinely unsafe -- it distinguishes a real
+ * failure from "not escalated" in its return type instead of collapsing
+ * both into `false`. A caller that treats an error as "not escalated" would
+ * hide the section behind what looks like a lapsed grant; a caller that
+ * treats "not escalated" as an error would break the ordinary first visit.
+ */
+export async function getActiveEscalationForCurrentActor(gymId: string): Promise<{
+  data: { expiresAt: string } | null;
+  error: AppError | null;
+}> {
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { data: null, error: null };
+  }
+
+  const supabase = await createClient();
+
+  // Goes through `get_active_escalation_expiry` (0086) rather than filtering
+  // here. This used `new Date().toISOString()` -- the Next.js server's clock
+  // -- while RLS compares against Postgres `now()`; skew between the two made
+  // the "Access granted -- expires {time}" indicator disagree with what RLS
+  // actually permits at the boundary, in either direction. The RPC derives
+  // the actor from `auth.uid()` on the same clock and in the same place the
+  // access decision is made, which also drops the getClaims() round trip.
+  //
+  // It returns the LATEST deadline, not the latest grant: repeat escalation
+  // is allowed (0085 inserts a new row every time), so an actor can hold
+  // several live grants at once, and the one that decides when their access
+  // actually ends is the one expiring last -- which is what the RLS `exists`
+  // predicate effectively agrees with.
+  const { data, error } = await supabase.rpc("get_active_escalation_expiry", {
+    p_gym_id: gymId,
+  });
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  if (!data) {
+    return { data: null, error: null };
+  }
+
+  return { data: { expiresAt: data }, error: null };
+}
+
+/**
+ * Story 1.7 (FR-072), rewritten for Story 1.15: calls
+ * `escalate_gym_data_access()`, which inserts the grant row AND writes its
+ * `gym_data_escalation` audit entry in one transaction. Before 1.15 this
+ * called `log_audit_event()` directly, because the audit row itself WAS the
+ * grant (0012's design note); 0085 moved the grant to its own table so it
+ * could carry a TTL and be revoked.
+ *
+ * Its "never report success if the write failed" contract is now even more
+ * load-bearing than it was: a swallowed error here means the caller shows
+ * "Access granted" over a grant that does not exist, and RLS then correctly
+ * returns nothing -- which reads as a data bug rather than a failed action.
  */
 export async function logGymDataEscalation(
   gymId: string,
   reason: string,
 ): Promise<{ error: AppError | null }> {
-  return logGymLifecycleEvent("gym_data_escalation", gymId, { reason });
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("escalate_gym_data_access", {
+    p_gym_id: gymId,
+    p_reason: reason,
+  });
+
+  if (error) {
+    console.error(`[logGymDataEscalation] escalation write failed for gym ${gymId}`, error);
+    return { error: await mapAndLog(error) };
+  }
+  return { error: null };
+}
+
+/**
+ * Story 1.15 AC #4: revokes every active grant held by `actorId` on this
+ * gym and audit-logs the revocation with the *revoking* admin's identity.
+ * Returns the number of grants actually revoked -- 0 is a legitimate
+ * outcome (the grant expired, or another Super Admin revoked it moments
+ * earlier), not an error, so the caller can word its confirmation honestly
+ * instead of claiming to have stopped access that had already stopped.
+ */
+export async function revokeGymDataAccess(
+  gymId: string,
+  actorId: string,
+  reason: string,
+): Promise<{ data: { revokedCount: number } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("revoke_gym_data_access", {
+    p_gym_id: gymId,
+    p_actor_id: actorId,
+    p_reason: reason,
+  });
+
+  if (error) {
+    console.error(
+      `[revokeGymDataAccess] revocation failed for gym ${gymId}, actor ${actorId}`,
+      error,
+    );
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: { revokedCount: Number(data ?? 0) }, error: null };
 }
 
 /**
@@ -431,9 +675,10 @@ export async function updateGymCapOverride(
  * functions per action type. Returns the RPC's own error (instead of only
  * console.error-ing it) so the caller can surface "the change saved, but the
  * audit entry failed to write" rather than silently reporting a plain
- * success -- for `gym_data_escalation` specifically, `logGymDataEscalation`'s
- * caller treats this as a real blocking error, not a benign "saved anyway"
- * outcome, since there the audit write is the only effect of the action. */
+ * success. `gym_data_escalation` was removed from this union in Story 1.15:
+ * escalation no longer writes a bare audit row at all -- it goes through
+ * `escalate_gym_data_access()`, which writes the grant and the audit entry
+ * together (see `logGymDataEscalation` above). */
 export async function logGymLifecycleEvent(
   actionType:
     | "gym_suspended"
@@ -441,7 +686,6 @@ export async function logGymLifecycleEvent(
     | "gym_reinstated"
     | "gym_tier_changed"
     | "gym_cap_overridden"
-    | "gym_data_escalation"
     | "saas_payment_marked_received"
     | "saas_billing_credit_applied"
     | "saas_billing_retry_triggered",

@@ -6,13 +6,20 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import type { AuditTrailEntry, GymDetail, TierOption } from "@/services/gyms";
+import type {
+  ActiveEscalation,
+  AuditTrailEntry,
+  GymDetail,
+  TierOption,
+} from "@/services/gyms";
 import { GymLifecycleDialog } from "../../components/GymLifecycleDialog";
 import { deactivateGym, reinstateGym, suspendGym } from "../../actions";
 import { ChangeTierDialog } from "./ChangeTierDialog";
 import { CapOverrideEditor } from "./CapOverrideEditor";
 import { EscalateAccessDialog } from "./EscalateAccessDialog";
+import { ActiveAccessList } from "./ActiveAccessList";
 import { AuditTrailTab } from "./AuditTrailTab";
+import { hasLapsed, useNow } from "./use-now";
 
 const STATUS_LABEL_KEY: Record<string, string> = {
   active: "gyms.create.statusActive",
@@ -21,20 +28,38 @@ const STATUS_LABEL_KEY: Record<string, string> = {
 };
 
 /** SA-03 Gym Detail (Story 1.7 adds the "Access gym data" escalation and
- * the Audit trail tab from SA-03's mockup, FR-072). */
+ * the Audit trail tab from SA-03's mockup, FR-072; Story 1.15 adds the
+ * grant's expiry deadline and the Active data access list). */
 export function GymDetailPageClient({
   gym,
   tiers,
   auditTrail,
-  escalated,
+  expiresAt,
+  activeEscalations,
+  currentActorId,
 }: {
   gym: GymDetail;
   tiers: TierOption[];
   auditTrail: AuditTrailEntry[];
-  escalated: boolean;
+  /**
+   * When the current Super Admin's own live grant on this gym expires, or
+   * null if they hold none. A timestamp rather than Story 1.7's `escalated`
+   * boolean, because the indicator now has to state the deadline -- and
+   * because a boolean is exactly what could not distinguish a live grant
+   * from a lapsed one in the first place.
+   */
+  expiresAt: string | null;
+  activeEscalations: ActiveEscalation[];
+  /**
+   * The viewing Super Admin's own id, so the Active data access list can tell
+   * their grant apart from everyone else's and switch the revoke dialog to
+   * second-person copy (Story 1.15 review).
+   */
+  currentActorId: string | null;
 }) {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const now = useNow();
   const [lifecycleAction, setLifecycleAction] = useState<
     "suspend" | "deactivate" | "reinstate" | null
   >(null);
@@ -126,9 +151,29 @@ export function GymDetailPageClient({
           </span>
         </div>
 
-        <div className="border-t pt-4">
-          {escalated ? (
-            <span className="text-sm text-muted-foreground">{t("gyms.detail.accessGranted")}</span>
+        {/* Story 1.15 review: `expiresAt` is a server render, so a tab left
+            open past the deadline kept asserting that access was live while
+            RLS had already stopped honouring the grant. `hasLapsed` drops the
+            indicator back to the escalate button once the clock passes it.
+            The database remains the authority either way -- this only stops
+            the UI contradicting it. */}
+        <div className="flex flex-wrap items-center gap-3 border-t pt-4">
+          {expiresAt !== null && !hasLapsed(expiresAt, now) ? (
+            <>
+              <span className="text-sm text-muted-foreground">
+                {t("gyms.detail.accessGranted", {
+                  expires: new Date(expiresAt).toLocaleString(i18n.language),
+                })}
+              </span>
+              {/* Renewal (Story 1.15 review decision, 2026-09-06). Repeat
+                  escalation already mints a fresh 24-hour window
+                  (0085:176-182); only the UI withheld it, so an admin
+                  mid-investigation had to let access lapse before they could
+                  ask for it back. */}
+              <Button variant="outline" size="sm" onClick={() => setEscalating(true)}>
+                {t("gyms.detail.renewAccess")}
+              </Button>
+            </>
           ) : (
             <Button variant="outline" size="sm" onClick={() => setEscalating(true)}>
               {t("gyms.detail.accessGymData")}
@@ -136,6 +181,13 @@ export function GymDetailPageClient({
           )}
         </div>
       </div>
+
+      <ActiveAccessList
+        gym={gym}
+        escalations={activeEscalations}
+        currentActorId={currentActorId}
+        onRevoked={() => router.refresh()}
+      />
 
       <AuditTrailTab entries={auditTrail} />
 

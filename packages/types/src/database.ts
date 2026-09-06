@@ -408,6 +408,61 @@ export type Database = {
           },
         ]
       }
+      gym_data_escalations: {
+        Row: {
+          actor_id: string
+          expires_at: string
+          granted_at: string
+          gym_id: string
+          id: string
+          reason: string
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+        }
+        Insert: {
+          actor_id: string
+          expires_at: string
+          granted_at?: string
+          gym_id: string
+          id?: string
+          reason: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Update: {
+          actor_id?: string
+          expires_at?: string
+          granted_at?: string
+          gym_id?: string
+          id?: string
+          reason?: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gym_data_escalations_actor_id_fkey"
+            columns: ["actor_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gym_data_escalations_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gym_data_escalations_revoked_by_fkey"
+            columns: ["revoked_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gym_payment_credentials: {
         Row: {
           business_id_masked: string
@@ -1948,6 +2003,14 @@ export type Database = {
         Args: { p_note_id: string; p_note_text: string }
         Returns: undefined
       }
+      escalate_gym_data_access: {
+        Args: { p_gym_id: string; p_reason: string }
+        Returns: string
+      }
+      get_active_escalation_expiry: {
+        Args: { p_gym_id: string }
+        Returns: string
+      }
       get_gym_payment_connection_status: {
         Args: { p_provider_key: string }
         Returns: {
@@ -1989,6 +2052,15 @@ export type Database = {
           p_tier_id?: string
         }
         Returns: string
+      }
+      list_active_gym_data_escalations: {
+        Args: { p_gym_id: string }
+        Returns: {
+          actor_id: string
+          expires_at: string
+          grant_count: number
+          granted_at: string
+        }[]
       }
       list_bookable_class_sessions: {
         Args: never
@@ -2098,6 +2170,10 @@ export type Database = {
       renew_subscription: {
         Args: { p_member_id: string; p_reason: string }
         Returns: string
+      }
+      revoke_gym_data_access: {
+        Args: { p_actor_id: string; p_gym_id: string; p_reason: string }
+        Returns: number
       }
       run_check_in_auto_timeout_job: { Args: never; Returns: undefined }
       run_class_reminder_job: { Args: never; Returns: undefined }
