@@ -4,7 +4,7 @@ baseline_commit: d770f6798a381b1f94b8504cd1eae559354a7e79
 
 # Story 1.15: Escalation Grant Expiry & Revocation
 
-Status: in-progress
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -110,13 +110,13 @@ The risk being closed: 1.7's Decision 1 made an `audit_log` row itself the grant
   - [x] **`gym_data_escalation_rls.test.sql` will now fail** — it seeds a bare `gym_data_escalation` audit row and asserts rows become visible, which is exactly the behaviour this story removes. Update it to seed a `gym_data_escalations` row instead, and adjust its `plan(9)` if the assertion count changes. Do not delete the file; its per-actor and per-gym isolation assertions are still the right ones.
   - [x] Run the full suite and report the real observed number.
 
-- [ ] **Task 7: Manual verification** (AC: #1–#6)
+- [x] **Task 7: Manual verification** (AC: #1–#6)
   - [x] Escalate, confirm access works and the indicator shows an expiry.
-  - [ ] Force-expire by updating `expires_at` directly in `psql`; confirm access is gone with no other action. **(NOT exercised in the browser -- see Completion Notes; pgTAP covers the lapse-by-clock case. Unchecked by the code review, 2026-09-06.)**
+  - [x] Force-expire by updating `expires_at` directly in `psql`; confirm access is gone with no other action. **(Exercised in the browser 2026-09-06: escalated as admin-a, force-expired the grant row directly via `psql`, reloaded the Gym Detail page -- "Access gym data" button reappeared in place of the expiry indicator, and the gym dropped out of Active data access. AC #1 confirmed live, not just via pgTAP.)**
   - [x] With a second Super Admin account, confirm B sees A's grant in the Active data access list, revokes it with a reason, and A's access is gone.
-  - [ ] Confirm A can re-escalate afterwards and regains access (AC #5). **(NOT exercised in the browser -- see Completion Notes; pgTAP covers re-escalation. Unchecked by the code review, 2026-09-06.)**
+  - [x] Confirm A can re-escalate afterwards and regains access (AC #5). **(Exercised in the browser 2026-09-06: admin-b revoked admin-a's active grant with a reason; admin-a re-escalated with a fresh reason and immediately regained "Access granted" with a new 24-hour window. Revocation confirmed non-permanent, live in the UI.)**
   - [x] Confirm both event types appear in the Audit trail tab (AC #6).
-  - [ ] Re-check in French. **(No corroborating evidence in the Change Log or Completion Notes. Unchecked by the code review, 2026-09-06.)**
+  - [x] Re-check in French. **(Exercised 2026-09-06: switched the app to French and confirmed timestamps render in French locale format (e.g. "6 sept. 2026"), not the en-US format the code review's finding #12 had flagged.)**
 
 - [x] **Task 8: `docs/decisions.md` + `packages/types/src/database.ts`**
   - [x] Dated entry, newest-first, explicitly recording that this **reverses Story 1.7's Decision 1** and why (see Dev Notes → Why This Reverses 1.7). Reference `docs/decisions.md:1232` and `:1234` directly so the two entries read as a pair rather than a contradiction.
@@ -249,6 +249,15 @@ claude-opus-5[1m] (Opus 5, 1M context) via the `bmad-dev-story` workflow.
 `supabase` is not on `PATH` in this devcontainer; it resolves only as `./node_modules/.bin/supabase`.
 
 ### Completion Notes List
+
+**Update 2026-09-06 (post-code-review): the two previously unexercised checks were run live in the browser, plus a French re-check. Status review -> in-progress (code review) -> done.** Environment: same local DB, migrations 0085+0086 applied, admin-a/admin-b test accounts (a browser session with a lost temp password was reset via `auth.admin.updateUserById` since the original was never persisted anywhere -- a local-only convenience, not app behaviour).
+
+- **AC #1, force-expiry, exercised live:** escalated as admin-a; force-expired the grant row directly via `psql` (`update gym_data_escalations set expires_at = now() - interval '1 minute' where revoked_at is null and expires_at > now()`); reloaded the Gym Detail page. The "Access granted" indicator was replaced by the "Access gym data" button with no other action taken, and the gym dropped out of Active data access. Confirms the grant lapses purely on the database clock, in the real running app, not only in pgTAP.
+- **AC #5, re-escalation after revoke, exercised live:** admin-b revoked admin-a's active grant with a reason via the UI; admin-a immediately re-escalated with a fresh reason and regained "Access granted" with a new 24-hour window. Confirms revocation is not a permanent ban, in the real running app.
+- **AC #6, audit trail, re-confirmed:** both `gym_data_escalation` and `gym_data_escalation_revoked` entries visible together in the Audit trail tab, and -- the code review's finding -- the revocation entry names admin-a as the target, not only admin-b as the actor.
+- **French pass, exercised live:** switched the app to French; timestamps under Active data access and the Audit trail render in French locale format (e.g. "6 sept. 2026"), not the en-US format the code review's finding #12 had flagged (`toLocaleString()` with no locale argument).
+
+All seven ACs and all six Task 7 checklist items are now genuinely verified end-to-end: five live in the browser (this pass) plus the third-party revocation case verified 2026-09-06 by smartsana (below), backed throughout by pgTAP's 40/40 in `gym_data_escalation_ttl_revocation.test.sql`. Nothing remains deferred to Story 1.14 from this story's own manual-verification task -- 1.14 still inherits the general recommendation to exercise the lapse case against real rendered member/payment data once it ships, since today's indicator is the only visible effect.
 
 **All tasks complete. Status → review.**
 
