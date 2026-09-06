@@ -478,6 +478,188 @@ export async function getActiveEscalationForCurrentActor(gymId: string): Promise
   return { data: { expiresAt: data }, error: null };
 }
 
+export interface GymMemberRow {
+  id: string;
+  name: string;
+  phone: string | null;
+  role: string;
+  joinDate: string;
+  deactivatedAt: string | null;
+}
+
+export interface GymMemberPage {
+  rows: GymMemberRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** AD-03's stated page size (EXPERIENCE.md:1100). */
+export const GYM_MEMBER_LIST_PAGE_SIZE = 25;
+
+/**
+ * Story 1.14 AC #2: every member at every role (not just `owner`), once
+ * escalated. This function does NOT check whether the caller is escalated,
+ * and must not -- `super_admin_escalated_read_members` (0012, rewritten by
+ * 0085/0086) is the sole reason a Super Admin session ever sees a non-owner
+ * row here; RLS is the authorization, this is just the query (Dev Notes ->
+ * Critical Guardrails #1/#2). The caller (`page.tsx`) decides *whether* to
+ * call this at all, as defence in depth for AC #1 -- but RLS is what
+ * actually stops the data, so calling this for a non-escalated actor is safe
+ * (it returns zero rows), just wasteful.
+ *
+ * Column allow-list is deliberate (Dev Notes -> Data Minimization): every
+ * other `members` column -- `email`, `dob`, `emergency_contact`,
+ * `height_cm`, `starting_weight_kg`, `photo_url`, `goal`,
+ * `experience_level`, `user_id` -- exists on this table and is equally
+ * readable once escalated. FR-072 authorizes support escalation, not a full
+ * profile export.
+ *
+ * `join_date desc, id desc`: `join_date` is a `date`, not a timestamp, so
+ * same-day joins would otherwise page non-deterministically -- the `id`
+ * tiebreak is required, not decorative.
+ *
+ * No Actor/display-name column: there is no Super Admin SELECT policy on
+ * `public.users` (Dev Notes -> Scope Boundary), so a join would silently
+ * return null for every row.
+ */
+export async function listGymMembers(
+  gymId: string,
+  { page }: { page: number },
+): Promise<{
+  data: GymMemberPage | null;
+  error: AppError | null;
+}> {
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { data: null, error: null };
+  }
+
+  const supabase = await createClient();
+  const resolvedPage = Number.isInteger(page) && page > 0 ? page : 1;
+  const from = (resolvedPage - 1) * GYM_MEMBER_LIST_PAGE_SIZE;
+  const to = from + GYM_MEMBER_LIST_PAGE_SIZE - 1;
+
+  const { data, error, count } = await supabase
+    .from("members")
+    .select("id, name, phone, role, join_date, deactivated_at", { count: "exact" })
+    .eq("gym_id", gymId)
+    .order("join_date", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  const rows: GymMemberRow[] = (data ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    phone: row.phone,
+    role: row.role,
+    joinDate: row.join_date,
+    deactivatedAt: row.deactivated_at,
+  }));
+
+  return {
+    data: { rows, total: count ?? 0, page: resolvedPage, pageSize: GYM_MEMBER_LIST_PAGE_SIZE },
+    error: null,
+  };
+}
+
+export interface GymPaymentRow {
+  id: string;
+  amount: number;
+  currency: string;
+  method: string;
+  status: string;
+  createdAt: string;
+  reason: string | null;
+  memberName: string | null;
+}
+
+export interface GymPaymentPage {
+  rows: GymPaymentRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** AD-09's stated page size (EXPERIENCE.md:1314). */
+export const GYM_PAYMENT_LIST_PAGE_SIZE = 50;
+
+/**
+ * Story 1.14 AC #3, same posture as `listGymMembers` above: no escalation
+ * check here, RLS (`super_admin_escalated_read_payments`) is the real gate.
+ *
+ * The member's name comes via a nested `members ( name )` embed -- the FK
+ * `payments.member_id -> members.id` makes this one round trip rather than a
+ * second query, and `members` is readable under the same escalation grant.
+ * PostgREST returns this as a single object (payments.member_id -> exactly
+ * one member), the same shape `getGymDetail`'s `tiers ( name )` embed
+ * already uses (`:214`), not an array.
+ *
+ * No Actor column, no `actor_id` selected: resolving it to a display name
+ * needs a `public.users` read, and there is no Super Admin SELECT policy on
+ * that table -- it would silently return null for every row. AD-09's own
+ * Actor column is a gym-admin-side feature backed by different policies.
+ *
+ * `method` is rendered as the raw stored value, never mapped through a
+ * closed enum: `payments.method` is `text`, not an enum (0036 widened it and
+ * dropped the `payment_method` enum), so an exhaustive label map would
+ * silently go stale the moment a new method value is written.
+ */
+export async function listGymPayments(
+  gymId: string,
+  { page }: { page: number },
+): Promise<{
+  data: GymPaymentPage | null;
+  error: AppError | null;
+}> {
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { data: null, error: null };
+  }
+
+  const supabase = await createClient();
+  const resolvedPage = Number.isInteger(page) && page > 0 ? page : 1;
+  const from = (resolvedPage - 1) * GYM_PAYMENT_LIST_PAGE_SIZE;
+  const to = from + GYM_PAYMENT_LIST_PAGE_SIZE - 1;
+
+  const { data, error, count } = await supabase
+    .from("payments")
+    .select("id, amount, currency, method, status, created_at, reason, members ( name )", {
+      count: "exact",
+    })
+    .eq("gym_id", gymId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(from, to);
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  const rows: GymPaymentRow[] = (data ?? []).map((row) => ({
+    id: row.id,
+    amount: row.amount,
+    currency: row.currency,
+    method: row.method,
+    status: row.status,
+    createdAt: row.created_at,
+    reason: row.reason,
+    memberName: (row.members as unknown as { name: string } | null)?.name ?? null,
+  }));
+
+  return {
+    data: {
+      rows,
+      total: count ?? 0,
+      page: resolvedPage,
+      pageSize: GYM_PAYMENT_LIST_PAGE_SIZE,
+    },
+    error: null,
+  };
+}
+
 /**
  * Story 1.7 (FR-072), rewritten for Story 1.15: calls
  * `escalate_gym_data_access()`, which inserts the grant row AND writes its

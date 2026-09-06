@@ -10,6 +10,8 @@ import type {
   ActiveEscalation,
   AuditTrailEntry,
   GymDetail,
+  GymMemberPage,
+  GymPaymentPage,
   TierOption,
 } from "@/services/gyms";
 import { GymLifecycleDialog } from "../../components/GymLifecycleDialog";
@@ -19,6 +21,8 @@ import { CapOverrideEditor } from "./CapOverrideEditor";
 import { EscalateAccessDialog } from "./EscalateAccessDialog";
 import { ActiveAccessList } from "./ActiveAccessList";
 import { AuditTrailTab } from "./AuditTrailTab";
+import { GymMembersTable } from "./GymMembersTable";
+import { GymPaymentsTable } from "./GymPaymentsTable";
 import { hasLapsed, useNow } from "./use-now";
 
 const STATUS_LABEL_KEY: Record<string, string> = {
@@ -37,6 +41,8 @@ export function GymDetailPageClient({
   expiresAt,
   activeEscalations,
   currentActorId,
+  members,
+  payments,
 }: {
   gym: GymDetail;
   tiers: TierOption[];
@@ -56,6 +62,15 @@ export function GymDetailPageClient({
    * second-person copy (Story 1.15 review).
    */
   currentActorId: string | null;
+  /**
+   * Story 1.14 AC #1/#2: `null` means "not escalated" -- page.tsx only
+   * fetches these once `escalated` resolves, and GymMembersTable/
+   * GymPaymentsTable render nothing at all when their prop is null. This is
+   * distinct from "escalated but zero rows," which is its own empty-state
+   * copy inside each table.
+   */
+  members: GymMemberPage | null;
+  payments: GymPaymentPage | null;
 }) {
   const router = useRouter();
   const { t, i18n } = useTranslation();
@@ -190,6 +205,10 @@ export function GymDetailPageClient({
       />
 
       <AuditTrailTab entries={auditTrail} />
+
+      <GymMembersTable members={members} />
+
+      <GymPaymentsTable payments={payments} />
 
       {escalating && (
         <EscalateAccessDialog

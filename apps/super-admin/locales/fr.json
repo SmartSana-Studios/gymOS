@@ -109,6 +109,49 @@
         "saas_billing_retry_triggered": "Relance de paiement déclenchée"
       }
     },
+    "memberRecords": {
+      "title": "Registre des membres",
+      "empty": "Aucun membre enregistré pour cette salle.",
+      "emptyPage": "Aucun membre sur cette page.",
+      "columns": {
+        "name": "Nom",
+        "phone": "Téléphone",
+        "role": "Rôle",
+        "joined": "Inscrit le",
+        "status": "Statut"
+      },
+      "role": {
+        "member": "Membre",
+        "coach": "Coach",
+        "receptionist": "Réceptionniste",
+        "manager": "Manager",
+        "owner": "Propriétaire",
+        "supervisor": "Superviseur"
+      },
+      "status": {
+        "active": "Actif",
+        "deactivated": "Désactivé"
+      }
+    },
+    "paymentRecords": {
+      "title": "Registre des paiements",
+      "empty": "Aucun paiement enregistré pour cette salle.",
+      "emptyPage": "Aucun paiement sur cette page.",
+      "columns": {
+        "member": "Membre",
+        "amount": "Montant",
+        "method": "Méthode",
+        "status": "Statut",
+        "date": "Date",
+        "reason": "Motif"
+      },
+      "status": {
+        "pending": "En attente",
+        "processing": "En cours de traitement",
+        "verified": "Vérifié",
+        "flagged": "Signalé"
+      }
+    },
     "changeTier": {
       "title": "Changer de palier",
       "newTier": "Nouveau palier",
