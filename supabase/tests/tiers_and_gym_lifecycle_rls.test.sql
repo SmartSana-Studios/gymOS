@@ -7,6 +7,41 @@
 begin;
 select plan(29);
 
+-- ============================================================================
+-- platform_metrics() baseline, captured BEFORE this file seeds anything.
+--
+-- Unlike every other assertion here, platform_metrics() reports database-wide
+-- aggregates and takes no arguments, so there is no WHERE clause that can
+-- scope it to this test's own fixtures. Asserting absolute values
+-- (total_gyms = 1) therefore asserted that the entire database contained
+-- exactly one gym -- true only against a freshly-migrated container, and a
+-- false failure against any database that already holds data. The assertions
+-- below instead check this test's own *delta* against this baseline, which is
+-- the actual claim being made ("seeding one suspended gym with one member
+-- moves these counters by exactly this much") and holds on any database state.
+--
+-- Stored in transaction-local GUCs rather than a temp table because the
+-- snapshot has to be taken inside a super_admin session -- platform_metrics()
+-- raises 'permission denied' otherwise -- and the `authenticated` role cannot
+-- be assumed to hold TEMP privilege on the database.
+-- ============================================================================
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000000501","role":"authenticated","app_role":"super_admin"}',
+  true
+);
+
+select
+  set_config('gymos_test.pm_total_gyms', total_gyms::text, true),
+  set_config('gymos_test.pm_total_members', total_members::text, true),
+  set_config('gymos_test.pm_total_payments', total_payments_processed::text, true),
+  set_config('gymos_test.pm_active_gyms', active_gyms::text, true),
+  set_config('gymos_test.pm_suspended_gyms', suspended_gyms::text, true)
+from platform_metrics();
+
+reset role;
+
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000000301', 'Lifecycle Test Tier', 5000, 50000, 30);
 
@@ -216,28 +251,33 @@ select set_config(
 );
 
 select is(
-  (select total_gyms from platform_metrics())::int, 1,
-  'platform_metrics() reports the correct total_gyms count'
+  (select total_gyms from platform_metrics())::int,
+  current_setting('gymos_test.pm_total_gyms')::int + 1,
+  'platform_metrics() reports the correct total_gyms count (baseline + this test''s one gym)'
 );
 
 select is(
-  (select total_members from platform_metrics())::int, 1,
-  'platform_metrics() reports the correct total_members count'
+  (select total_members from platform_metrics())::int,
+  current_setting('gymos_test.pm_total_members')::int + 1,
+  'platform_metrics() reports the correct total_members count (baseline + this test''s one member)'
 );
 
 select is(
-  (select total_payments_processed from platform_metrics())::int, 0,
-  'platform_metrics() reports 0 total_payments_processed -- no verified payments seeded, matching this story''s Epic 4 note'
+  (select total_payments_processed from platform_metrics())::int,
+  current_setting('gymos_test.pm_total_payments')::int,
+  'platform_metrics() total_payments_processed is unmoved -- no verified payments seeded, matching this story''s Epic 4 note'
 );
 
 select is(
-  (select suspended_gyms from platform_metrics())::int, 1,
-  'platform_metrics() reports the correct suspended_gyms count'
+  (select suspended_gyms from platform_metrics())::int,
+  current_setting('gymos_test.pm_suspended_gyms')::int + 1,
+  'platform_metrics() reports the correct suspended_gyms count (baseline + this test''s now-suspended gym)'
 );
 
 select is(
-  (select active_gyms from platform_metrics())::int, 0,
-  'platform_metrics() reports the correct active_gyms count (the only gym is suspended)'
+  (select active_gyms from platform_metrics())::int,
+  current_setting('gymos_test.pm_active_gyms')::int,
+  'platform_metrics() reports the correct active_gyms count -- unmoved from baseline, since this test''s only gym is suspended'
 );
 
 select is(

@@ -196,8 +196,20 @@ select lives_ok(
   'private.cleanup_invalid_device_push_token() does not raise for a non-matching token'
 );
 
+-- Scoped to this test's own two fixture users rather than counting the whole
+-- table. The claim being made is "the no-op call deleted nothing of ours",
+-- which an unqualified `count(*)` overstates into "this table contains
+-- exactly one row in the entire database" -- true only against a pristine
+-- container, and a false failure against any database that already holds
+-- unrelated push tokens. Every sibling assertion in this section already
+-- scopes by user_id or token; this one was the outlier.
 select is(
-  (select count(*)::int from device_push_tokens),
+  (select count(*)::int
+     from device_push_tokens
+    where user_id in (
+      '00000000-0000-0000-0000-000000016021', -- User A
+      '00000000-0000-0000-0000-000000016022'  -- User B (row deleted above)
+    )),
   1,
   'private.cleanup_invalid_device_push_token() is a true no-op for a non-matching token -- row count unchanged'
 );

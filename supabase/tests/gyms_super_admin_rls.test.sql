@@ -62,8 +62,20 @@ select set_config(
   true
 );
 
+-- Scoped to this test's own fixtures. The claim is "a super_admin sees gyms
+-- belonging to more than one tenant, rather than being scoped to a single
+-- gym_id like every other role" -- which counting this test's own two gyms
+-- proves exactly. An unqualified `count(*) = 2` additionally asserted that
+-- the entire database contains only these two gyms, which holds on a
+-- pristine container and fails on any database that already has gyms in it.
+-- The tiers assertion just below already reasons this way ("4 migration-
+-- seeded defaults + 1 seeded by this test").
 select is(
-  (select count(*) from gyms)::int, 2,
+  (select count(*) from gyms
+    where id in (
+      '00000000-0000-0000-0000-0000000000d1', -- SA RLS Gym A
+      '00000000-0000-0000-0000-0000000000d2'  -- SA RLS Gym B (a different tenant)
+    ))::int, 2,
   'super_admin sees every gym across every tenant, not scoped to one gym_id'
 );
 
@@ -82,7 +94,12 @@ select lives_ok(
 );
 
 select is(
-  (select count(*) from gyms)::int, 3,
+  (select count(*) from gyms
+    where id in (
+      '00000000-0000-0000-0000-0000000000d1', -- SA RLS Gym A
+      '00000000-0000-0000-0000-0000000000d2', -- SA RLS Gym B
+      '00000000-0000-0000-0000-0000000000d3'  -- SA RLS Gym C, inserted just above
+    ))::int, 3,
   'the newly inserted gym is visible to the same super_admin session'
 );
 
