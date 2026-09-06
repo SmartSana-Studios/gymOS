@@ -14,32 +14,38 @@ module.exports = defineConfig([
     ignores: ["dist/*", ".expo/*", "android/*", "ios/*"],
   },
   {
-    // The React Compiler rules that ship in eslint-config-expo 57 report 26
-    // findings across 17 existing screens. They are recorded as warnings
-    // rather than silenced, and rather than being "fixed" in the same change
-    // that first made linting possible at all.
+    // React Compiler rules from eslint-config-expo 57. Turning eslint on for
+    // this workspace at all surfaced 26 findings across 17 screens; they were
+    // parked at "warn" so that the tooling fix and the code fixes stayed
+    // separate changes. `refs` and `immutability` have since been fixed and
+    // are back at "error", which is what keeps them fixed.
     //
-    // This is a deliberate baseline, not a suppression:
+    // `set-state-in-effect` stays at "warn" for 12 remaining findings, and
+    // they are NOT all the same thing:
     //
-    //  * Until now `expo lint` could not run in this repo at all (no eslint
-    //    dependency), so none of this code has ever been linted. These are
-    //    pre-existing findings surfaced by turning the tool on, not
-    //    regressions introduced by anything.
+    //  * NINE are the plain `useEffect(() => { void loadThing(); }, [load])`
+    //    data-load idiom (history, profile, progress/entries, payment/[id],
+    //    notifications, plan, onboarding/plan, renew, offline-sync-context).
+    //    Every setState in those is after an `await`; the rule simply cannot
+    //    prove it. There is no better pattern available without adopting a
+    //    data-fetching library or Suspense, which is an architecture decision
+    //    and not a lint fix. Rewriting them to satisfy the rule would make
+    //    the code worse, so they are deliberately left alone.
     //
-    //  * Most are legitimate, conservative-rule cases rather than bugs --
-    //    `set-state-in-effect` fires on ordinary load-data-on-mount effects
-    //    and on the hydration flag in use-color-scheme.web.ts. Rewriting 17
-    //    production screens' effect and ref patterns is a real behavioural
-    //    change to an app whose verification is a manual device pass, so it
-    //    belongs in its own change with its own testing, not bundled into a
-    //    tooling fix.
+    //  * THREE are genuine synchronous setStates: the lazy-load-on-tab-
+    //    activation effects in classes/index.tsx (x2) and history/index.tsx.
+    //    The rule's own advice -- move it to the event handler -- is right,
+    //    but the active tab can also be set by a deep-link param rather than
+    //    a press, so the fix has to keep a param-driven path. That needs its
+    //    own change and its own device pass on both tab flows.
     //
-    // Raise these back to "error" screen by screen as they are fixed and
-    // device-tested. `pnpm --filter @gymos/mobile lint` prints all 26.
+    // Do not raise set-state-in-effect to "error" until those three are done;
+    // the other nine would have to be suppressed individually, which is worse
+    // than one honest rule-level warning.
     rules: {
       "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/refs": "warn",
-      "react-hooks/immutability": "warn",
+      "react-hooks/refs": "error",
+      "react-hooks/immutability": "error",
     },
   },
 ]);
