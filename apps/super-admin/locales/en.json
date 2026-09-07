@@ -59,7 +59,7 @@
       "gymName": "Gym Name *",
       "ownerName": "Owner Name *",
       "ownerPhone": "Owner Phone *",
-      "ownerPhonePlaceholder": "+237600000000",
+      "ownerPhonePlaceholder": "600000000",
       "ownerEmail": "Owner Email *",
       "tier": "Subscription Tier *",
       "selectTier": "Select a tier",

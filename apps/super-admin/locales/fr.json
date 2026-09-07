@@ -59,7 +59,7 @@
       "gymName": "Nom de la salle *",
       "ownerName": "Nom du propriétaire *",
       "ownerPhone": "Téléphone du propriétaire *",
-      "ownerPhonePlaceholder": "+237600000000",
+      "ownerPhonePlaceholder": "600000000",
       "ownerEmail": "E-mail du propriétaire *",
       "tier": "Palier d'abonnement *",
       "selectTier": "Sélectionnez un palier",

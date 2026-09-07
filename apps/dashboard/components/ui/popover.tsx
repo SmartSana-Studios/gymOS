@@ -23,19 +23,28 @@ function PopoverContent({
   sideOffset = 4,
   ...props
 }: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+  // Story 16.1 (bug fix): deliberately NOT wrapped in <PopoverPrimitive.Portal>.
+  // This codebase's every modal (MemberModal, AddStaffModal, CreateGymModal,
+  // RenewalModal, PayNowButton) is a native <dialog> shown via showModal() --
+  // per the HTML spec, everything outside a modal <dialog>'s own DOM subtree
+  // becomes inert (not just visually, but non-interactive at the browser
+  // level) while it's open. Radix's default Portal renders PopoverContent as
+  // a sibling of <body>, i.e. outside the dialog, so the picker opened but
+  // clicking any option silently did nothing (bug found in manual QA).
+  // Rendering in-place keeps it inside the dialog's subtree; Radix's Popper
+  // positioning still uses `position: fixed` internally so it continues to
+  // float correctly above surrounding content without the portal.
   return (
-    <PopoverPrimitive.Portal>
-      <PopoverPrimitive.Content
-        data-slot="popover-content"
-        align={align}
-        sideOffset={sideOffset}
-        className={cn(
-          "z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-hidden data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
-          className
-        )}
-        {...props}
-      />
-    </PopoverPrimitive.Portal>
+    <PopoverPrimitive.Content
+      data-slot="popover-content"
+      align={align}
+      sideOffset={sideOffset}
+      className={cn(
+        "z-50 w-72 origin-(--radix-popover-content-transform-origin) rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-hidden data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+        className
+      )}
+      {...props}
+    />
   )
 }
 

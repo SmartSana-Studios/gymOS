@@ -4,6 +4,16 @@
 
 @layer base {
   :root {
+    /* Bug fix (manual QA during Story 16.1): native form controls (the
+       tier/interval/status <select> dropdowns, browser scrollbars, etc.)
+       are rendered by the OS/browser chrome, not this app's CSS -- without
+       an explicit color-scheme, the browser assumes light and paints a
+       select's popup list with a light background regardless of the page's
+       actual theme, while the <option> text still inherits this page's
+       (possibly white, in .dark) --foreground color, producing invisible
+       white-on-white options. next-themes toggles the `.dark` class here,
+       so color-scheme is declared per-theme to match, not just once. */
+    color-scheme: light;
     /* GymOS brand tokens (DESIGN.md): background #FAFAF7, primary #1B2A41,
        accent #E0971F. Only these three are overridden from the shadcn
        starter defaults -- DESIGN.md specifies exactly these tokens and no
@@ -35,6 +45,7 @@
     --radius: 0.5rem;
   }
   .dark {
+    color-scheme: dark;
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
     --card: 0 0% 3.9%;
@@ -68,5 +79,16 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* Bug fix (manual QA during Story 16.1): `color-scheme` alone (above)
+     does not reliably reach a native <select>'s popup <option> rows in
+     Chromium -- confirmed live: the popup opened dark-themed overall, but
+     every option below the currently-hovered one rendered as invisible
+     white-on-white. <option> elements DO respect an explicit
+     background-color/color, unlike inheriting color-scheme, so set them
+     directly from the same --popover tokens used everywhere else. */
+  select option {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
   }
 }
