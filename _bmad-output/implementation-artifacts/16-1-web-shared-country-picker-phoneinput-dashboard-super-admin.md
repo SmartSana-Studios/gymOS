@@ -4,7 +4,7 @@ baseline_commit: c49a7763f8228c94a36589946967a6f2143e9186
 
 # Story 16.1: Web — Shared Country-Picker PhoneInput (Dashboard + Super-Admin)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
