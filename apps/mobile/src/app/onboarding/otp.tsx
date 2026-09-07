@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActivityIndicator, Animated, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 import { OtpInput } from '@/components/ui/OtpInput';
 import { ThemedText } from '@/components/themed-text';
@@ -14,10 +15,12 @@ import { useOnboardingProgress } from '@/lib/onboarding-context';
 const CODE_LENGTH = 6;
 const INITIAL_COUNTDOWN_SECONDS = 60;
 
-// "+237" -- matches phone.tsx's own fixed COUNTRY_PREFIX (Cameroon-only
-// pilot scope, deferred-work.md); kept local since this file has no import
-// path back to phone.tsx's module-private const.
-const COUNTRY_CODE_LENGTH = 4;
+// Cameroon's own "+237" is 4 chars -- the only fallback length this app ever
+// had before Story 16.2, kept as the fallback for the (should-be-unreachable)
+// case where `phone` somehow fails to parse here, since it already passed
+// E.164 validation upstream (phone.tsx/phoneEntrySchema) before reaching this
+// screen.
+const FALLBACK_COUNTRY_CODE_LENGTH = 4;
 
 function maskPhone(phone: string): string {
   // "Sent to +237 ***** XXXX" (country code + last 4 digits shown, rest
@@ -27,9 +30,17 @@ function maskPhone(phone: string): string {
   // function's own original comment (Review finding, 2026-07-17). Works on
   // the raw E.164 digit string, not a formatted display value (this app has
   // no phone formatting library).
-  const visibleStart = phone.slice(0, COUNTRY_CODE_LENGTH);
+  //
+  // Story 16.2: the country-code length can no longer be hardcoded to 4 --
+  // that assumed every number was Cameroon's "+237". Derived per-number from
+  // its actual parsed calling code (`+1` is 2 chars, `+33`/`+254` are 3-4),
+  // falling back to the old constant only if parsing unexpectedly fails.
+  const parsedCallingCodeLength = parsePhoneNumberFromString(phone)?.countryCallingCode.length;
+  // +1 for the leading "+" itself, which isn't part of countryCallingCode.
+  const countryCodeLength = parsedCallingCodeLength !== undefined ? parsedCallingCodeLength + 1 : FALLBACK_COUNTRY_CODE_LENGTH;
+  const visibleStart = phone.slice(0, countryCodeLength);
   const visibleEnd = phone.slice(-4);
-  const masked = phone.slice(COUNTRY_CODE_LENGTH, -4).replace(/\d/g, '*');
+  const masked = phone.slice(countryCodeLength, -4).replace(/\d/g, '*');
   return `${visibleStart}${masked}${visibleEnd}`;
 }
 

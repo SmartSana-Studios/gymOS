@@ -8,6 +8,11 @@
     "tryAgain": "Try again",
     "ok": "OK"
   },
+  "phoneInput": {
+    "selectCountry": "Select country",
+    "searchCountry": "Search country...",
+    "noCountryFound": "No country found"
+  },
   "onboarding": {
     "language": {
       "headingEn": "Choose your language",

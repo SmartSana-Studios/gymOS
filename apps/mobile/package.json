@@ -35,6 +35,7 @@
     "expo-system-ui": "~57.0.3",
     "expo-web-browser": "~57.0.2",
     "i18next": "^26.3.6",
+    "libphonenumber-js": "^1.13.12",
     "posthog-react-native": "^4.63.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",

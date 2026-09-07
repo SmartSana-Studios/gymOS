@@ -2,16 +2,16 @@ import { initiatePaymentSchema } from '@gymos/types';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { GymAccentColorProvider } from '@/hooks/use-gym-accent-color';
-import { useTheme } from '@/hooks/use-theme';
 import { subscribeToPaymentStatus, fetchPaymentStatus, type WatchedPaymentStatus } from '@/lib/realtime/paymentStatus';
 import { supabase } from '@/lib/supabase';
 import {
@@ -56,7 +56,6 @@ export default function RenewScreen() {
 function RenewScreenContent() {
   const { t } = useTranslation();
   const router = useRouter();
-  const theme = useTheme();
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -304,12 +303,11 @@ function RenewScreenContent() {
                 <ThemedText type="small" themeColor="textSecondary">
                   {t('renew.payerPhone')}
                 </ThemedText>
-                <TextInput
+                <PhoneInput
+                  countries="tara-money"
                   value={payerPhone}
-                  onChangeText={setPayerPhone}
-                  keyboardType="phone-pad"
-                  editable={phase !== 'sending'}
-                  style={[styles.phoneInput, { color: theme.text, borderColor: theme.border }]}
+                  onChange={(v) => setPayerPhone(v ?? '')}
+                  disabled={phase === 'sending'}
                 />
                 <ThemedText type="small" themeColor="textSecondary">
                   {t('renew.payerPhoneHint')}
@@ -392,13 +390,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  phoneInput: {
-    borderWidth: 1,
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    fontSize: 16,
   },
   error: {
     color: '#F87171',

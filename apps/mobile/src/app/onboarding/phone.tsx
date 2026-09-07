@@ -2,36 +2,30 @@ import { phoneEntrySchema } from '@gymos/types';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
 import { useOnboardingProgress } from '@/lib/onboarding-context';
-
-// Cameroon-only prefix (fixed, not a searchable country-code picker) --
-// deliberate scope reduction from EXPERIENCE.md's mockup (a full
-// bottom-sheet country list): the pilot and NFR-009 are Cameroon-only, and
-// no FR requires multi-country support in V1. Recorded in
-// docs/decisions.md, not silently done.
-const COUNTRY_PREFIX = '+237';
 
 export default function PhoneScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const theme = useTheme();
   const { phone: prefillPhone, setPhone } = useOnboardingProgress();
-  const [digits, setDigits] = useState(() => (prefillPhone?.startsWith(COUNTRY_PREFIX) ? prefillPhone.slice(COUNTRY_PREFIX.length) : ''));
+  // Story 16.2: PhoneInput itself parses `prefillPhone` (any country, not
+  // just Cameroon) into country + national number on mount -- no prefix
+  // check needed here anymore.
+  const [phone, setPhoneValue] = useState<string | null>(prefillPhone ?? null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleContinue() {
-    const fullPhone = `${COUNTRY_PREFIX}${digits}`;
-    const parsed = phoneEntrySchema.safeParse({ phone: fullPhone });
+    const parsed = phoneEntrySchema.safeParse({ phone });
     if (!parsed.success) {
       setError(t('onboarding.phone.errorInvalidFormat'));
       return;
@@ -87,20 +81,7 @@ export default function PhoneScreen() {
           {t('onboarding.phone.subtitle')}
         </ThemedText>
 
-        <ThemedView style={[styles.inputRow, { borderColor: theme.border }]}>
-          <ThemedText type="default" style={styles.prefix}>
-            {COUNTRY_PREFIX}
-          </ThemedText>
-          <TextInput
-            value={digits}
-            onChangeText={(value) => setDigits(value.replace(/[^0-9]/g, ''))}
-            keyboardType="number-pad"
-            autoFocus
-            placeholder={t('onboarding.phone.helper')}
-            placeholderTextColor={theme.textSecondary}
-            style={[styles.input, { color: theme.text }]}
-          />
-        </ThemedView>
+        <PhoneInput countries="global" value={phone} onChange={setPhoneValue} autoFocus />
         <ThemedText type="small" themeColor="textSecondary">
           {t('onboarding.phone.helper')}
         </ThemedText>
@@ -112,12 +93,7 @@ export default function PhoneScreen() {
         )}
 
         <View style={styles.continueButton}>
-          <Button
-            label={t('common.continue')}
-            disabled={digits.length === 0}
-            loading={submitting}
-            onPress={handleContinue}
-          />
+          <Button label={t('common.continue')} disabled={!phone} loading={submitting} onPress={handleContinue} />
         </View>
       </SafeAreaView>
     </ThemedView>
@@ -135,21 +111,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     paddingVertical: Spacing.two,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-  },
-  prefix: {
-    marginRight: Spacing.two,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: Spacing.three,
-    fontSize: 16,
   },
   error: {
     color: '#F87171',
