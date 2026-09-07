@@ -6,6 +6,7 @@
  * that PhoneInput's own strings come from real locale files) since this is
  * the first component in the app to exercise those two new primitives.
  */
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -101,5 +102,35 @@ describe("PhoneInput (Story 16.1)", () => {
 
     expect(screen.getByText("Cameroon")).toBeInTheDocument();
     expect(screen.queryByText("France")).not.toBeInTheDocument();
+  });
+
+  it("bug fix: selecting a country before typing any digits doesn't snap back to the default (MemberModal's `+237`-seeded, `value ?? \"\"` round-trip pattern)", async () => {
+    // Reproduces every real call site exactly: a controlled parent whose
+    // form state starts as a non-empty placeholder (MemberModal's
+    // DEFAULT_PHONE_PREFIX) and coerces PhoneInput's `null` emission back to
+    // `""` before feeding it back in as `value` -- the mismatch between the
+    // `null` PhoneInput itself tracked and the `""` it receives back is what
+    // caused the just-picked country to be discarded (confirmed live in a
+    // real browser against MemberModal before this fix).
+    function ControlledWrapper() {
+      const [phone, setPhone] = useState<string>("+237");
+      return <PhoneInput id="testPhone" value={phone} onChange={(v) => setPhone(v ?? "")} />;
+    }
+    const user = userEvent.setup();
+    render(
+      <I18nextProvider i18n={createTestI18n()}>
+        <label htmlFor="testPhone">{"Phone"}</label>
+        <ControlledWrapper />
+      </I18nextProvider>,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: /select country/i }));
+    await user.type(screen.getByPlaceholderText(/search country/i), "Ghana");
+    await user.click(await screen.findByText("Ghana"));
+
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: /select country/i })).toHaveTextContent("+233"),
+    );
+    expect(screen.getByLabelText("Phone")).toHaveValue("");
   });
 });

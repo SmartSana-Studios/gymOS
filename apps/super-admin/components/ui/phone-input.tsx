@@ -110,15 +110,33 @@ export function PhoneInput({
 
   const [{ country, nationalNumber }, setFieldState] = React.useState(() => deriveFromValue(value));
 
+  // Bug fix (manual QA): every call site coerces the `null` this component
+  // emits for an invalid/empty number into `""` before storing it in its
+  // own form state and passing it back down as `value` (`onChange={(v) =>
+  // setForm({..., phone: v ?? ""})}`, this codebase's established
+  // convention). `null` and `""` must therefore be treated as the same
+  // "empty" value on both sides of this comparison -- otherwise, whenever
+  // the field's starting `value` is a non-empty placeholder (e.g.
+  // MemberModal's `DEFAULT_PHONE_PREFIX = "+237"`), selecting a country
+  // before typing any digits emits `null`, the caller round-trips it back
+  // as `""`, and `"" !== null` reads as an external reset -- snapping the
+  // just-picked country straight back to the default before the user ever
+  // sees it stick. Confirmed live: reproduced in MemberModal, fixed and
+  // reverified with a real Playwright session.
+  function normalizeEmpty(v: string | null): string | null {
+    return v === "" ? null : v;
+  }
+
   // Tracks the last value this component itself emitted via onChange, so an
   // external reset of the `value` prop (parent clearing/re-seeding form
   // state, e.g. on modal close/reopen) re-derives country + national number,
   // without this component's own onChange round-trip clobbering what the
   // user is still mid-typing.
-  const lastEmitted = React.useRef<string | null>(value);
+  const lastEmitted = React.useRef<string | null>(normalizeEmpty(value));
   React.useEffect(() => {
-    if (value === lastEmitted.current) return;
-    lastEmitted.current = value;
+    const normalizedValue = normalizeEmpty(value);
+    if (normalizedValue === lastEmitted.current) return;
+    lastEmitted.current = normalizedValue;
     setFieldState(deriveFromValue(value));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
@@ -130,7 +148,7 @@ export function PhoneInput({
       ? parsePhoneNumberFromString(nextNationalNumber, nextCountry)
       : undefined;
     const next = parsed?.isValid() ? parsed.number : null;
-    lastEmitted.current = next;
+    lastEmitted.current = normalizeEmpty(next);
     onChange(next);
   }
 
