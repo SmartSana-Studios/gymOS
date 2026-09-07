@@ -74,6 +74,9 @@ const TRANSLATIONS: Record<string, string> = {
   "payments.methods.manualMomo": "Manual Mobile Money",
   "payments.methods.mobileMoney": "Mobile Money (Tara Money)",
   "common.cancel": "Cancel",
+  "phoneInput.selectCountry": "Select country",
+  "phoneInput.searchCountry": "Search country...",
+  "phoneInput.noCountryFound": "No country found",
 };
 
 vi.mock("react-i18next", () => ({
@@ -122,14 +125,14 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
   it("AC #4: does not offer the Mobile Money option when mobileMoneyEnabled is false", async () => {
     await renderModal({ mobileMoneyEnabled: false });
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Payment method" })).toBeEnabled());
     expect(screen.queryByRole("option", { name: "Mobile Money (Tara Money)" })).not.toBeInTheDocument();
   });
 
   it("AC #1: offers the Mobile Money option when mobileMoneyEnabled is true", async () => {
     await renderModal({ mobileMoneyEnabled: true });
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Payment method" })).toBeEnabled());
     expect(screen.getByRole("option", { name: "Mobile Money (Tara Money)" })).toBeInTheDocument();
   });
 
@@ -145,7 +148,7 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
   it("Review finding (Story 4.12): does not check for an existing payment when Mobile Money is disabled", async () => {
     await renderModal({ mobileMoneyEnabled: false });
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Payment method" })).toBeEnabled());
     expect(getPendingMobileMoneyPaymentAction).not.toHaveBeenCalled();
   });
 
@@ -166,11 +169,11 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Payment method" })).toBeEnabled());
     await user.click(screen.getByRole("button", { name: /confirm renewal/i }));
     await waitFor(() => expect(screen.getByRole("button", { name: /confirm renewal/i })).toBeDisabled());
 
-    await user.selectOptions(screen.getByRole("combobox"), "mobile_money");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Payment method" }), "mobile_money");
 
     expect(screen.getByRole("button", { name: /send payment request/i })).toBeEnabled();
   });
@@ -180,8 +183,8 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
     const user = userEvent.setup();
     await renderModal();
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
-    await user.selectOptions(screen.getByRole("combobox"), "mobile_money");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Payment method" })).toBeEnabled());
+    await user.selectOptions(screen.getByRole("combobox", { name: "Payment method" }), "mobile_money");
     await user.click(screen.getByRole("button", { name: /send payment request/i }));
 
     await waitFor(() =>
@@ -200,10 +203,14 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
   it("pre-fills the payer phone field with the member's registered number", async () => {
     await renderModal();
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
-    await userEvent.setup().selectOptions(screen.getByRole("combobox"), "mobile_money");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Payment method" })).toBeEnabled());
+    await userEvent.setup().selectOptions(screen.getByRole("combobox", { name: "Payment method" }), "mobile_money");
 
-    expect(screen.getByLabelText(/payer's phone number/i)).toHaveValue("+237680811041");
+    // Story 16.1: PhoneInput splits the field into a country-picker button
+    // (showing "+237") and a national-number-only text input -- the visible
+    // input no longer carries the full E.164 string.
+    expect(screen.getByRole("combobox", { name: /select country/i })).toHaveTextContent("+237");
+    expect(screen.getByLabelText(/payer's phone number/i)).toHaveValue("680811041");
   });
 
   it("shows a field error and never calls initiatePaymentAction when the member has no phone on file and the front desk submits without entering one", async () => {
@@ -214,8 +221,8 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
     const user = userEvent.setup();
     await renderModal();
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
-    await user.selectOptions(screen.getByRole("combobox"), "mobile_money");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Payment method" })).toBeEnabled());
+    await user.selectOptions(screen.getByRole("combobox", { name: "Payment method" }), "mobile_money");
     // Defaults to just the "+237" prefix with no subscriber number -- too
     // short to pass validation, same as leaving the field untouched.
     await user.click(screen.getByRole("button", { name: /send payment request/i }));
@@ -229,8 +236,8 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
     const user = userEvent.setup();
     await renderModal();
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
-    await user.selectOptions(screen.getByRole("combobox"), "mobile_money");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Payment method" })).toBeEnabled());
+    await user.selectOptions(screen.getByRole("combobox", { name: "Payment method" }), "mobile_money");
 
     const phoneInput = screen.getByLabelText(/payer's phone number/i);
     await user.clear(phoneInput);
@@ -251,12 +258,12 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
     const user = userEvent.setup();
     await renderModal();
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
-    await user.selectOptions(screen.getByRole("combobox"), "mobile_money");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Payment method" })).toBeEnabled());
+    await user.selectOptions(screen.getByRole("combobox", { name: "Payment method" }), "mobile_money");
     await user.click(screen.getByRole("button", { name: /send payment request/i }));
 
     expect(await screen.findByText("disabled")).toBeInTheDocument();
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Payment method" })).toBeInTheDocument();
   });
 
   it("AC #1: a Realtime 'verified' update calls onRenewed and dismisses the front-desk alert", async () => {
@@ -276,8 +283,8 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
-    await user.selectOptions(screen.getByRole("combobox"), "mobile_money");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Payment method" })).toBeEnabled());
+    await user.selectOptions(screen.getByRole("combobox", { name: "Payment method" }), "mobile_money");
     await user.click(screen.getByRole("button", { name: /send payment request/i }));
     await waitFor(() => expect(capturedOnUpdate).not.toBeNull());
 
@@ -302,8 +309,8 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
       />,
     );
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
-    await user.selectOptions(screen.getByRole("combobox"), "mobile_money");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Payment method" })).toBeEnabled());
+    await user.selectOptions(screen.getByRole("combobox", { name: "Payment method" }), "mobile_money");
     await user.click(screen.getByRole("button", { name: /send payment request/i }));
     await waitFor(() => expect(capturedOnUpdate).not.toBeNull());
 
@@ -322,8 +329,8 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
       <RenewalModal memberId={MEMBER_ID} memberName="Alice" mobileMoneyEnabled onClose={onClose} onRenewed={vi.fn()} />,
     );
 
-    await waitFor(() => expect(screen.getByRole("combobox")).toBeEnabled());
-    await user.selectOptions(screen.getByRole("combobox"), "mobile_money");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Payment method" })).toBeEnabled());
+    await user.selectOptions(screen.getByRole("combobox", { name: "Payment method" }), "mobile_money");
     await user.click(screen.getByRole("button", { name: /send payment request/i }));
     await screen.findByText(/waiting for alice to approve/i);
 

@@ -8,6 +8,7 @@ import { createStaffMemberSchema, type CreateStaffMemberInput } from "@gymos/typ
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import type { MemberRole } from "@/services/session";
 import { createStaffMemberAction } from "../actions";
 
@@ -177,11 +178,11 @@ export function AddStaffModal({
 
         <div className="space-y-2">
           <Label htmlFor="staffPhone">{t("staff.modal.phone")}</Label>
-          <Input
+          <PhoneInput
             id="staffPhone"
+            countries="global"
             value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            placeholder="+237"
+            onChange={(value) => setForm({ ...form, phone: value ?? "" })}
           />
           {fieldErrors.phone && <p className="text-sm text-red-600">{fieldErrors.phone}</p>}
         </div>

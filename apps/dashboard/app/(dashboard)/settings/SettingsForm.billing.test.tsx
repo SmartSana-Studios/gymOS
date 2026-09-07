@@ -54,6 +54,9 @@ const TRANSLATIONS: Record<string, string> = {
   "common.cancel": "Cancel",
   "common.invalidInput": "Invalid input",
   "common.somethingWentWrong": "Something went wrong.",
+  "phoneInput.selectCountry": "Select country",
+  "phoneInput.searchCountry": "Search country...",
+  "phoneInput.noCountryFound": "No country found",
 };
 
 vi.mock("react-i18next", () => ({
@@ -162,11 +165,14 @@ describe("SettingsForm billing section", () => {
 
     await user.click(screen.getByRole("button", { name: "Pay Now" }));
     const dialog = screen.getByRole("dialog");
+    // Story 16.1: PhoneInput splits the field into a country-picker button
+    // (showing "+237") and a national-number-only text input.
+    expect(within(dialog).getByRole("combobox", { name: /select country/i })).toHaveTextContent("+237");
     const phoneInput = within(dialog).getByLabelText("Payer phone number") as HTMLInputElement;
-    expect(phoneInput.value).toBe("+237600000001");
+    expect(phoneInput.value).toBe("600000001");
 
     await user.clear(phoneInput);
-    await user.type(phoneInput, "+237600000099");
+    await user.type(phoneInput, "600000099");
     await user.click(within(dialog).getByRole("button", { name: "Pay Now" }));
 
     await waitFor(() => expect(payNow).toHaveBeenCalledWith({ phoneNumber: "+237600000099" }));

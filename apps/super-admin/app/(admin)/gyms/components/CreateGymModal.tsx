@@ -8,6 +8,7 @@ import { createGymSchema } from "@gymos/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import type { TierOption } from "@/services/gyms";
 import { createGym } from "../actions";
 
@@ -167,11 +168,12 @@ export function CreateGymModal({
 
         <div className="space-y-2">
           <Label htmlFor="ownerPhone">{t("gyms.create.ownerPhone")}</Label>
-          <Input
+          <PhoneInput
             id="ownerPhone"
+            countries="global"
             placeholder={t("gyms.create.ownerPhonePlaceholder")}
             value={form.ownerPhone}
-            onChange={(e) => setForm({ ...form, ownerPhone: e.target.value })}
+            onChange={(value) => setForm({ ...form, ownerPhone: value ?? "" })}
           />
           {fieldErrors.ownerPhone && (
             <p className="text-sm text-red-600">{fieldErrors.ownerPhone}</p>

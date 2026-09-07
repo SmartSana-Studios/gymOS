@@ -141,7 +141,6 @@
       "tierLabel": "Plan",
       "tierKeepCurrent": "Keep current",
       "intervalLabel": "Billing interval",
-      "countryLabel": "Country",
       "payerPhoneLabel": "Payer phone number",
       "continueOnTara": "Continue on Tara (card & more)",
       "payNowLoading": "Starting payment…",
@@ -955,5 +954,10 @@
   },
   "auth": {
     "privacyPolicy": "Privacy Policy"
+  },
+  "phoneInput": {
+    "selectCountry": "Select country",
+    "searchCountry": "Search country...",
+    "noCountryFound": "No country found"
   }
 }

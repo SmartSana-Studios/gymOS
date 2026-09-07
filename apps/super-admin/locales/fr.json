@@ -392,5 +392,10 @@
       "unauthorized": "Vous devez être connecté en tant que Super Admin pour effectuer cette action.",
       "incorrectPassword": "Ce mot de passe est incorrect."
     }
+  },
+  "phoneInput": {
+    "selectCountry": "Sélectionner le pays",
+    "searchCountry": "Rechercher un pays...",
+    "noCountryFound": "Aucun pays trouvé"
   }
 }

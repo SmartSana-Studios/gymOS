@@ -6,8 +6,8 @@ import { ArrowRight, X } from "lucide-react";
 import { confirmRenewalSchema, initiatePaymentSchema, type ConfirmRenewalInput } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { dismissFrontDeskAlert } from "@/lib/realtime/frontDeskAlerts";
 import {
   fetchPaymentStatus,
@@ -539,11 +539,11 @@ export function RenewalModal({
             {method === "mobile_money" ? (
               <div className="space-y-2">
                 <Label htmlFor={`renewalPayerPhone-${domIdSuffix}`}>{t("renewalPanel.payerPhone")}</Label>
-                <Input
+                <PhoneInput
                   id={`renewalPayerPhone-${domIdSuffix}`}
-                  type="tel"
+                  countries="tara-money"
                   value={payerPhone}
-                  onChange={(e) => setPayerPhone(e.target.value)}
+                  onChange={(value) => setPayerPhone(value ?? "")}
                   disabled={mobileMoneyPhase === "sending" || !preview}
                 />
                 <p className="text-xs text-muted-foreground">{t("renewalPanel.payerPhoneHint")}</p>

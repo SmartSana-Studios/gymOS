@@ -1,6 +1,10 @@
+---
+baseline_commit: c49a7763f8228c94a36589946967a6f2143e9186
+---
+
 # Story 16.1: Web — Shared Country-Picker PhoneInput (Dashboard + Super-Admin)
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -30,53 +34,53 @@ so that phone numbers are captured correctly regardless of country, without havi
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — Add shadcn primitives (AC: #3)
-  - [ ] Run `npx shadcn add popover command` in `apps/dashboard` and again in `apps/super-admin`
-  - [ ] Confirm both apps' `components/ui/popover.tsx` and `components/ui/command.tsx` land byte-similar to the existing byte-identical `input.tsx` pattern (cosmetic drift only is fine, per architecture.md:340)
+- [x] Task 1 — Add shadcn primitives (AC: #3)
+  - [x] Run `npx shadcn add popover command` in `apps/dashboard` and again in `apps/super-admin`
+  - [x] Confirm both apps' `components/ui/popover.tsx` and `components/ui/command.tsx` land byte-similar to the existing byte-identical `input.tsx` pattern (cosmetic drift only is fine, per architecture.md:340)
 
-- [ ] Task 2 — Build `PhoneInput` (AC: #1, #2, #4)
-  - [ ] Create `apps/dashboard/components/ui/phone-input.tsx`: props `{ value: string | null; onChange: (value: string | null) => void; countries?: "global" | "tara-money"; disabled?: boolean; id?: string; placeholder?: string }` (adjust naming to match this app's other `components/ui/` prop conventions)
-  - [ ] Country list: `"global"` → `libphonenumber-js`'s `getCountries()` mapped through `new Intl.DisplayNames([locale], { type: "region" })` for names and `getCountryCallingCode(country)` for dial codes, sorted by display name; `"tara-money"` → `TARAMONEY_SUPPORTED_COUNTRIES` from `packages/types/src/constants/taraMoneySupportedCountries.ts` (already has `code`/`name`/`callingCode` — no `Intl.DisplayNames` needed for this branch)
-  - [ ] Flag rendering: Unicode regional-indicator emoji derived from the ISO alpha-2 code (no image assets, no new dependency)
-  - [ ] Picker UI: `Popover` trigger showing the selected flag + calling code, `Command` inside listing searchable countries; selecting one updates the calling-code prefix
-  - [ ] `onChange` contract: parse the current national-number input against the selected country via `libphonenumber-js`'s `parsePhoneNumberFromString`/`isValidPhoneNumber`, emit `.number` (E.164) when valid, otherwise emit `null` — never emit a partial/invalid string
-  - [ ] Locale for `Intl.DisplayNames`: read from this app's existing `react-i18next` `i18n.language` (matches whatever pattern `SettingsForm.tsx`/`ClassModal.tsx` already use to read the active locale)
-  - [ ] Copy `apps/dashboard/components/ui/phone-input.tsx` into `apps/super-admin/components/ui/phone-input.tsx`, adjusting only the `cn`/`@/lib/utils` import path if it differs (confirmed byte-identical for `input.tsx`, so this should be a straight copy)
+- [x] Task 2 — Build `PhoneInput` (AC: #1, #2, #4)
+  - [x] Create `apps/dashboard/components/ui/phone-input.tsx`: props `{ value: string | null; onChange: (value: string | null) => void; countries?: "global" | "tara-money"; disabled?: boolean; id?: string; placeholder?: string }` (adjust naming to match this app's other `components/ui/` prop conventions)
+  - [x] Country list: `"global"` → `libphonenumber-js`'s `getCountries()` mapped through `new Intl.DisplayNames([locale], { type: "region" })` for names and `getCountryCallingCode(country)` for dial codes, sorted by display name; `"tara-money"` → `TARAMONEY_SUPPORTED_COUNTRIES` from `packages/types/src/constants/taraMoneySupportedCountries.ts` (already has `code`/`name`/`callingCode` — no `Intl.DisplayNames` needed for this branch)
+  - [x] Flag rendering: Unicode regional-indicator emoji derived from the ISO alpha-2 code (no image assets, no new dependency)
+  - [x] Picker UI: `Popover` trigger showing the selected flag + calling code, `Command` inside listing searchable countries; selecting one updates the calling-code prefix
+  - [x] `onChange` contract: parse the current national-number input against the selected country via `libphonenumber-js`'s `parsePhoneNumberFromString`/`isValidPhoneNumber`, emit `.number` (E.164) when valid, otherwise emit `null` — never emit a partial/invalid string
+  - [x] Locale for `Intl.DisplayNames`: read from this app's existing `react-i18next` `i18n.language` (matches whatever pattern `SettingsForm.tsx`/`ClassModal.tsx` already use to read the active locale)
+  - [x] Copy `apps/dashboard/components/ui/phone-input.tsx` into `apps/super-admin/components/ui/phone-input.tsx`, adjusting only the `cn`/`@/lib/utils` import path if it differs (confirmed byte-identical for `input.tsx`, so this should be a straight copy)
 
-- [ ] Task 3 — Wire `MemberModal.tsx` (AC: #5)
-  - [ ] Replace the `<Input>` block at lines 561-571 (`id="memberPhone"`) with `<PhoneInput countries="global" value={form.phone} onChange={(v) => setForm({ ...form, phone: v ?? "" })} disabled={isEdit} />`
-  - [ ] Keep `DEFAULT_PHONE_PREFIX = "+237"` (line 96) driving `emptyForm.phone`'s initial value — `PhoneInput` should parse this into "Cameroon selected, empty national number" on initial render
-  - [ ] Keep the `fieldErrors.phone` paragraph exactly as-is, unchanged
+- [x] Task 3 — Wire `MemberModal.tsx` (AC: #5)
+  - [x] Replace the `<Input>` block at lines 561-571 (`id="memberPhone"`) with `<PhoneInput countries="global" value={form.phone} onChange={(v) => setForm({ ...form, phone: v ?? "" })} disabled={isEdit} />`
+  - [x] Keep `DEFAULT_PHONE_PREFIX = "+237"` (line 96) driving `emptyForm.phone`'s initial value — `PhoneInput` should parse this into "Cameroon selected, empty national number" on initial render
+  - [x] Keep the `fieldErrors.phone` paragraph exactly as-is, unchanged
 
-- [ ] Task 4 — Wire `AddStaffModal.tsx` (AC: #6)
-  - [ ] Replace the `<Input>` block at lines 178-187 (`id="staffPhone"`) the same way, using `form.phone`/`setForm({ ...form, phone: v ?? "" })`
-  - [ ] Keep `fieldErrors.phone` paragraph unchanged
+- [x] Task 4 — Wire `AddStaffModal.tsx` (AC: #6)
+  - [x] Replace the `<Input>` block at lines 178-187 (`id="staffPhone"`) the same way, using `form.phone`/`setForm({ ...form, phone: v ?? "" })`
+  - [x] Keep `fieldErrors.phone` paragraph unchanged
 
-- [ ] Task 5 — Wire `CreateGymModal.tsx` (AC: #7)
-  - [ ] Replace the `<Input>` block at lines 168-179 (`id="ownerPhone"`) using `form.ownerPhone`/`setForm({ ...form, ownerPhone: v ?? "" })`
-  - [ ] Keep `fieldErrors.ownerPhone` block unchanged (note: this app's error text comes from `createGymSchema.safeParse` issue.message directly, not an i18n `FIELD_ERROR_KEY` map like the dashboard app — do not introduce one here, out of scope)
+- [x] Task 5 — Wire `CreateGymModal.tsx` (AC: #7)
+  - [x] Replace the `<Input>` block at lines 168-179 (`id="ownerPhone"`) using `form.ownerPhone`/`setForm({ ...form, ownerPhone: v ?? "" })`
+  - [x] Keep `fieldErrors.ownerPhone` block unchanged (note: this app's error text comes from `createGymSchema.safeParse` issue.message directly, not an i18n `FIELD_ERROR_KEY` map like the dashboard app — do not introduce one here, out of scope)
 
-- [ ] Task 6 — Wire `RenewalModal.tsx`'s Mobile-Money branch (AC: #8, #9)
-  - [ ] Replace the `<Input type="tel">` block at lines 539-551 (`id="renewalPayerPhone-${domIdSuffix}"`) with `<PhoneInput countries="tara-money" value={payerPhone} onChange={(v) => setPayerPhone(v ?? "")} disabled={mobileMoneyPhase === "sending" || !preview} />`
-  - [ ] Verify the pre-fill effect at line 184 (`setPayerPhone(data.memberPhone ?? DEFAULT_PHONE_PREFIX)`) still works — `PhoneInput` must gracefully render a non-E.164 legacy `memberPhone` value by falling back to the Cameroon-selected/empty-national-number state, not by crashing or rendering `NaN`/`undefined`
-  - [ ] Do NOT touch `handleMobileMoneySubmit` (lines 334-362) — its `initiatePaymentSchema.shape.phoneNumber.safeParse(payerPhone.trim())` call and `fieldErrors.payerPhone` handling are already correct and must keep receiving `PhoneInput`'s emitted E.164 string via `payerPhone` unchanged
-  - [ ] Leave the non-mobile-money `else` branch (lines 552-565, the `note` textarea) untouched
+- [x] Task 6 — Wire `RenewalModal.tsx`'s Mobile-Money branch (AC: #8, #9)
+  - [x] Replace the `<Input type="tel">` block at lines 539-551 (`id="renewalPayerPhone-${domIdSuffix}"`) with `<PhoneInput countries="tara-money" value={payerPhone} onChange={(v) => setPayerPhone(v ?? "")} disabled={mobileMoneyPhase === "sending" || !preview} />`
+  - [x] Verify the pre-fill effect at line 184 (`setPayerPhone(data.memberPhone ?? DEFAULT_PHONE_PREFIX)`) still works — `PhoneInput` must gracefully render a non-E.164 legacy `memberPhone` value by falling back to the Cameroon-selected/empty-national-number state, not by crashing or rendering `NaN`/`undefined`
+  - [x] Do NOT touch `handleMobileMoneySubmit` (lines 334-362) — its `initiatePaymentSchema.shape.phoneNumber.safeParse(payerPhone.trim())` call and `fieldErrors.payerPhone` handling are already correct and must keep receiving `PhoneInput`'s emitted E.164 string via `payerPhone` unchanged
+  - [x] Leave the non-mobile-money `else` branch (lines 552-565, the `note` textarea) untouched
 
-- [ ] Task 7 — Verify SettingsForm/PayNowButton/Coach portal (AC: #12)
-  - [ ] Grep `apps/dashboard/components/shared/PayNowButton.tsx` for an editable phone `<Input>` — if found, wire it the same way as Tasks 3-6; if not (display-only), record that in Completion Notes
-  - [ ] Grep `CoachPortalPageClient.tsx`/`CoachMemberDetailPageClient.tsx` for the same — wire if found, record if not
+- [x] Task 7 — Verify SettingsForm/PayNowButton/Coach portal (AC: #12)
+  - [x] Grep `apps/dashboard/components/shared/PayNowButton.tsx` for an editable phone `<Input>` — if found, wire it the same way as Tasks 3-6; if not (display-only), record that in Completion Notes
+  - [x] Grep `CoachPortalPageClient.tsx`/`CoachMemberDetailPageClient.tsx` for the same — wire if found, record if not
 
-- [ ] Task 8 — i18n (AC: #14)
-  - [ ] Add any new `PhoneInput`-introduced strings to `apps/dashboard/locales/en.json`/`fr.json` and `apps/super-admin/locales/en.json`/`fr.json`
-  - [ ] Run `scripts/check-i18n-key-parity.mjs` and confirm clean
+- [x] Task 8 — i18n (AC: #14)
+  - [x] Add any new `PhoneInput`-introduced strings to `apps/dashboard/locales/en.json`/`fr.json` and `apps/super-admin/locales/en.json`/`fr.json`
+  - [x] Run `scripts/check-i18n-key-parity.mjs` and confirm clean
 
-- [ ] Task 9 — Tests (AC: #15)
-  - [ ] Add `apps/dashboard/components/ui/phone-input.test.tsx` and `apps/super-admin/components/ui/phone-input.test.tsx`
-  - [ ] Update `apps/dashboard/components/shared/RenewalModal.mobileMoney.test.tsx` for the new `PhoneInput` in the mobile-money branch
-  - [ ] Run `pnpm --filter dashboard test` and `pnpm --filter super-admin test` (or this repo's equivalent), confirm clean
+- [x] Task 9 — Tests (AC: #15)
+  - [x] Add `apps/dashboard/components/ui/phone-input.test.tsx` and `apps/super-admin/components/ui/phone-input.test.tsx`
+  - [x] Update `apps/dashboard/components/shared/RenewalModal.mobileMoney.test.tsx` for the new `PhoneInput` in the mobile-money branch
+  - [x] Run `pnpm --filter dashboard test` and `pnpm --filter super-admin test` (or this repo's equivalent), confirm clean
 
-- [ ] Task 10 — Cleanup (AC: #9)
-  - [ ] Confirm `deferred-work.md`'s `getRenewalPreview` entry (already struck 2026-09-07 during this story's creation) needs no further action
+- [x] Task 10 — Cleanup (AC: #9)
+  - [x] Confirm `deferred-work.md`'s `getRenewalPreview` entry (already struck 2026-09-07 during this story's creation) needs no further action
 
 ## Dev Notes
 
@@ -117,10 +121,64 @@ so that phone numbers are captured correctly regardless of country, without havi
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Sonnet 5 (claude-sonnet-5)
 
 ### Debug Log References
 
+- `pnpm --filter dashboard typecheck` / `pnpm --filter super-admin typecheck`: 0 errors, throughout.
+- `pnpm --filter dashboard lint` / `pnpm --filter super-admin lint`: 0 errors (only pre-existing unrelated warnings: `staff.*.test.ts`/`EvolutionApiMessageProvider.test.ts` unused-var warnings, `PaymentProvidersPageClient.tsx`'s pre-existing exhaustive-deps warning).
+- `pnpm --filter dashboard test`: 226/226 passed (33 files). `pnpm --filter super-admin test`: 7/7 passed (1 file — first test runner this app has ever had).
+- `node scripts/check-i18n-key-parity.mjs`: clean, all four locale directories in parity (dashboard 735 keys, super-admin 297 keys).
+- `pnpm --filter dashboard build` / `pnpm --filter super-admin build`: both clean production builds (Next 16.3.4, Cache Components), Partial Prerender boundaries held on every existing dynamic route.
+
 ### Completion Notes List
 
+- **`npx shadcn add popover command` generated code using this codebase's non-established convention** (the current shadcn CLI defaults to the monolithic `radix-ui` meta-package and a separate `cn` npm package, not this repo's existing per-primitive `@radix-ui/react-*` packages + `@/lib/utils`' own `cn`). Normalized `popover.tsx`/`dialog.tsx`/`command.tsx` in both apps to import `@radix-ui/react-popover`/`@radix-ui/react-dialog` (added as explicit `package.json` deps, `^1.1.23`, matching the version `radix-ui@1.6.7` itself depends on) and `@/lib/utils`'s `cn`, removing the `radix-ui`/`cn` package deps entirely — keeps the codebase on one `cn` implementation and one radix-import style instead of two competing ones. `cmdk` (the real dependency Command is built on) is unrelated and was kept as-is.
+- **`dialog.tsx`'s generated boilerplate had two hardcoded English "Close" JSX-text literals**, which `eslint-plugin-i18next`'s `no-literal-string` rule (enforced in both apps) rejects. Neither literal is on any code path this story actually renders (`PhoneInput` uses `Popover`, not `Dialog`; `CommandDialog` — the only `command.tsx` export that renders `Dialog` — is unused boilerplate here), but the file must still lint clean. Fixed by turning both into an optional `closeLabel?: string` prop the caller supplies, rather than hardcoding an English default — consistent with this codebase having zero hardcoded UI strings anywhere else.
+- **Task 7 surfaced a real, previously-untracked scope gap the story's own research had missed**: `apps/dashboard/components/shared/PayNowButton.tsx` (SaaS-billing "Pay Now" dialog, Story 11.3/11.7) has its own hand-rolled country `<select>` (built from the same `TARAMONEY_SUPPORTED_COUNTRIES` list) + phone `<Input>` pair feeding a Tara Money `payNow()` call — a second, functionally-identical instance of exactly the pattern this story replaces in `RenewalModal.tsx`. **This means AC #8's framing of `RenewalModal`'s `payerPhone` as "the only phone field anywhere that triggers an automated Tara Money collection call" is not accurate — `PayNowButton.tsx`'s `payNowPhone` is a second one.** Wired it to `PhoneInput countries="tara-money"` per Task 7's own instruction ("if found, wire it the same way as Tasks 3-6"), which let the hand-rolled `countryCode` state/`handleCountryChange` function/country `<select>` be deleted entirely (`PhoneInput`'s own picker replaces it). Removed the now-orphaned `settings.billing.countryLabel` locale key (was used nowhere else) from both `en.json`/`fr.json`. This also surfaced an existing test file the story hadn't listed, `SettingsForm.billing.test.tsx` — updated its phone-field assertions the same way as `RenewalModal.mobileMoney.test.tsx` (see below).
+- `CoachPortalPageClient.tsx`/`CoachMemberDetailPageClient.tsx` (Task 7, second half): confirmed neither has an editable phone field. `CoachPortalPageClient.tsx`'s only phone-adjacent code is a name/phone free-text *search* input (not a phone-entry field); `CoachMemberDetailPageClient.tsx` renders `member.phoneMasked` as plain read-only text. Left unchanged, per AC #12.
+- **`RenewalModal.mobileMoney.test.tsx` and `SettingsForm.billing.test.tsx` both needed updating beyond what AC #15/Task 9 anticipated**, because `PhoneInput` splits what used to be one `<Input>` into two focusable elements (a country-picker button + a national-number-only text input): (a) every prior bare `screen.getByRole("combobox")` call in `RenewalModal.mobileMoney.test.tsx` became ambiguous once the mobile-money branch is showing (the picker button also has `role="combobox"`) — disambiguated with `{ name: "Payment method" }`; (b) assertions that previously expected the full E.164 string as the visible input's `value` (`"+237680811041"`, `"+237600000001"`) now expect just the national-number portion (`"680811041"`, `"600000001"`), with a separate assertion on the country-picker button's `+237` text; (c) both files' `react-i18next` mocks needed `phoneInput.*` keys added (they mock `t()` with a fixed table, and `PhoneInput` calls `t()` for its own strings). No behavioral regression — these are the same fields, same submitted values, just a different DOM shape.
+- **`apps/super-admin` had no automated test runner at all before this story** (confirmed: no `vitest`, no `vitest.config.mts`, no `test` script in `package.json`) — AC #15 explicitly requires a co-located `phone-input.test.tsx` in *each* app, so `vitest.config.mts`/`vitest.setup.ts`/the `test` script/devDependencies were added, mirroring `apps/dashboard`'s existing setup (Story 2.10) exactly, including its native-`<dialog>`-`showModal()` polyfill (this app's own modals use the same pattern) and a `test` script (`vitest run`) added to `package.json`.
+- **`ResizeObserver` and `Element.prototype.scrollIntoView` polyfills added to both apps' `vitest.setup.ts`** — `cmdk` (the Command primitive) calls both on mount/navigation and jsdom implements neither; this is the first component in either app to render `Popover`/`Command`, so the gap was previously invisible. Minimal no-op stubs, mirroring the existing `<dialog>` polyfill's own precedent and rationale.
+- `PhoneInput`'s `onChange` contract (AC #1) is enforced by parsing the national-number input against the selected country via `libphonenumber-js`'s `parsePhoneNumberFromString(nationalNumber, country)`, emitting `.number` only when `.isValid()`, otherwise `null` — verified directly in `phone-input.test.tsx` (typing an incomplete number emits `null`; a complete valid one emits the full E.164 string; switching country re-emits E.164 for the already-typed national number using the new calling code).
+- AC #8's fallback (a non-E.164 legacy value renders as "Cameroon selected, empty national number") is driven by the same code path as a `null`/empty `value` — `parsePhoneNumberFromString` returns `undefined` for both an unparseable string and a bare calling-code-only string like `"+237"` (`RenewalModal`'s `DEFAULT_PHONE_PREFIX`), so both fall into the identical default-country/empty-field branch; verified in `phone-input.test.tsx` with a bare national-number string (`"680811041"`, no `+`, no country context) as the legacy-shape case.
+- Country list for `"global"` is built from `libphonenumber-js`'s `getCountries()`/`getCountryCallingCode()` plus `Intl.DisplayNames` for names (AC #2) — no new dependency, confirmed working under both real Node (dev/build) and Vitest's jsdom environment (it's a JS-engine API, not a DOM one). Flags are Unicode regional-indicator emoji derived from the ISO alpha-2 code (AC #2), no image assets.
+
 ### File List
+
+**New:**
+- `apps/dashboard/components/ui/phone-input.tsx`
+- `apps/dashboard/components/ui/phone-input.test.tsx`
+- `apps/dashboard/components/ui/popover.tsx`
+- `apps/dashboard/components/ui/command.tsx`
+- `apps/dashboard/components/ui/dialog.tsx`
+- `apps/super-admin/components/ui/phone-input.tsx`
+- `apps/super-admin/components/ui/phone-input.test.tsx`
+- `apps/super-admin/components/ui/popover.tsx`
+- `apps/super-admin/components/ui/command.tsx`
+- `apps/super-admin/components/ui/dialog.tsx`
+- `apps/super-admin/vitest.config.mts`
+- `apps/super-admin/vitest.setup.ts`
+
+**Modified:**
+- `apps/dashboard/app/(dashboard)/members/components/MemberModal.tsx`
+- `apps/dashboard/app/(dashboard)/settings/staff/components/AddStaffModal.tsx`
+- `apps/dashboard/app/(dashboard)/settings/SettingsForm.billing.test.tsx`
+- `apps/dashboard/components/shared/RenewalModal.tsx`
+- `apps/dashboard/components/shared/RenewalModal.mobileMoney.test.tsx`
+- `apps/dashboard/components/shared/PayNowButton.tsx` (beyond-story-research find, Task 7)
+- `apps/dashboard/vitest.setup.ts`
+- `apps/dashboard/locales/en.json`
+- `apps/dashboard/locales/fr.json`
+- `apps/dashboard/package.json`
+- `apps/super-admin/app/(admin)/gyms/components/CreateGymModal.tsx`
+- `apps/super-admin/locales/en.json`
+- `apps/super-admin/locales/fr.json`
+- `apps/super-admin/package.json`
+- `pnpm-lock.yaml`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+## Change Log
+
+- 2026-09-07: Story implemented end-to-end (Tasks 1-10). New shared `PhoneInput` component (country-picker + national-number field, `libphonenumber-js` + `Intl.DisplayNames`, shadcn `Popover`/`Command`) duplicated per-app into `apps/dashboard` and `apps/super-admin`; wired into `MemberModal`, `AddStaffModal`, `CreateGymModal`'s `ownerPhone`, and `RenewalModal`'s Mobile-Money `payerPhone`. Task 7's verification pass found and wired a second, previously-untracked Tara-Money-reaching phone field in `PayNowButton.tsx` (not in the story's original research), removing its hand-rolled country `<select>`. Added `apps/super-admin`'s first-ever test runner (Vitest, mirroring `apps/dashboard`'s Story 2.10 setup) to satisfy AC #15 there. i18n key parity clean across all four locale directories; full regression clean (dashboard 226/226, super-admin 7/7, both typecheck/lint/production-build clean). Status: ready-for-dev → in-progress → review.
+

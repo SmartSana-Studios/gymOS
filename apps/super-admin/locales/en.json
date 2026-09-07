@@ -392,5 +392,10 @@
       "unauthorized": "You must be signed in as a Super Admin to do this.",
       "incorrectPassword": "That password is incorrect."
     }
+  },
+  "phoneInput": {
+    "selectCountry": "Select country",
+    "searchCountry": "Search country...",
+    "noCountryFound": "No country found"
   }
 }

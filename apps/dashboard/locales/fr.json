@@ -141,7 +141,6 @@
       "tierLabel": "Formule",
       "tierKeepCurrent": "Conserver l'actuelle",
       "intervalLabel": "Périodicité de facturation",
-      "countryLabel": "Pays",
       "payerPhoneLabel": "Numéro de téléphone du payeur",
       "continueOnTara": "Continuer sur Tara (carte et plus)",
       "payNowLoading": "Démarrage du paiement…",
@@ -955,5 +954,10 @@
   },
   "auth": {
     "privacyPolicy": "Politique de confidentialité"
+  },
+  "phoneInput": {
+    "selectCountry": "Sélectionner le pays",
+    "searchCountry": "Rechercher un pays...",
+    "noCountryFound": "Aucun pays trouvé"
   }
 }

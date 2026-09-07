@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import type { MemberListRow, MemberSubscriptionStatus } from "@/services/members";
 import type { PlanRow } from "@/services/plans";
 import type { CoachRow, CoachAssignmentRow } from "@/services/coaches";
@@ -560,12 +561,12 @@ export function MemberModal({
 
             <div className="space-y-2">
               <Label htmlFor="memberPhone">{t("members.modal.phone")}</Label>
-              <Input
+              <PhoneInput
                 id="memberPhone"
+                countries="global"
                 value={form.phone}
                 disabled={isEdit}
-                placeholder="+237600000000"
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(value) => setForm({ ...form, phone: value ?? "" })}
               />
               {fieldErrors.phone && <p className="text-sm text-red-600">{fieldErrors.phone}</p>}
             </div>
