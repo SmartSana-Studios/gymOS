@@ -11,6 +11,10 @@
 //   pnpm --filter @gymos/super-admin provision-super-admin -- --email=someone@example.com
 //   pnpm --filter @gymos/super-admin provision-super-admin -- --email=someone@example.com --yes
 //
+// See also the Admins page in the Super Admin dashboard (Story 1.16) for the
+// ordinary, in-app way to do this -- this CLI remains the bootstrap path for
+// creating the first Super Admin where none yet exists.
+//
 // - No existing auth.users row for --email: creates one (Admin API,
 //   generated temp password printed once to stdout) and sets
 //   is_super_admin = true on the resulting public.users row.
@@ -28,7 +32,11 @@
 import { parseArgs } from "node:util";
 import { createInterface } from "node:readline/promises";
 import { createClient } from "@supabase/supabase-js";
-import { generateTempPassword } from "../lib/temp-password.mjs";
+import {
+  createSuperAdmin,
+  findUserByEmail,
+  promoteToSuperAdmin,
+} from "../lib/super-admin-provisioning.mjs";
 
 // Deliberately not zod's z.email() from @gymos/types: this plain-Node CLI
 // (run via bare `node`, no bundler) cannot import that package -- its `main`
@@ -99,82 +107,6 @@ async function main() {
   await createAndProvisionUser(admin, email);
 }
 
-async function findUserByEmail(admin, targetEmail) {
-  const perPage = 1000;
-  let page = 1;
-  for (;;) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
-    if (error) throw error;
-
-    const match = data.users.find(
-      (u) => u.email?.toLowerCase() === targetEmail.toLowerCase(),
-    );
-    if (match) return match;
-
-    if (!data.nextPage) return null;
-    page = data.nextPage;
-  }
-}
-
-/**
- * Derives a human display name from an email local part:
- * `amara.ndiaye@gymos.cm` -> `Amara Ndiaye`. A placeholder, not an identity
- * claim -- it exists so the name is a distinguishable label rather than a
- * constant, and the holder can correct it later.
- */
-function displayNameFromEmail(email) {
-  return email
-    .split("@")[0]
-    .split(/[._-]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-// AC #2: a service-role client has no auth.uid() session at all, so
-// private.protect_self_managed_user_columns()'s `auth.uid() = new.id` guard
-// (supabase/migrations/0015_users_self_service_language_preference.sql:32-46)
-// is never true here -- is_super_admin is written through unmodified.
-//
-// `display_name` is set here as of Story 1.15's code review. It was never
-// written for a Super Admin by any code path: log_audit_event() coalesces a
-// null display_name to the literal 'Unknown User' (0007_audit_log.sql:184)
-// and denormalizes that into every audit row the account authors, so Story
-// 1.15's "Active data access" list rendered every holder as 'Unknown User'
-// and its revoke dialog could not tell two admins apart -- exactly what
-// UX-DR12's named-target rule exists to prevent. Only the two mobile profile
-// screens write this column, and a Super Admin never opens the mobile app.
-//
-// Existing Super Admins are backfilled by migration 0086. Audit rows already
-// written keep 'Unknown User' forever: audit_log is append-only by design
-// (0007:108) and correctly records what was known at write time.
-//
-// Never overwrites a name the holder already has -- promotion of an existing
-// account (setSuperAdmin's other call site) must not clobber a real one.
-async function setSuperAdmin(admin, userId, email) {
-  const { data: existing, error: readError } = await admin
-    .from("users")
-    .select("display_name")
-    .eq("id", userId)
-    .maybeSingle();
-  if (readError) throw readError;
-
-  const patch = { is_super_admin: true };
-  if (!existing?.display_name?.trim()) {
-    patch.display_name = displayNameFromEmail(email);
-  }
-
-  const { data, error } = await admin
-    .from("users")
-    .update(patch)
-    .eq("id", userId)
-    .select("id");
-  if (error) throw error;
-  if (!data || data.length === 0) {
-    throw new Error(`no public.users row found for auth user ${userId}`);
-  }
-}
-
 async function writeAuditLog(admin, actionType, userId) {
   const { error } = await admin.rpc("log_audit_event", {
     p_action_type: actionType,
@@ -233,7 +165,13 @@ async function promoteExistingUser(admin, authUser, skipConfirm) {
     return;
   }
 
-  await setSuperAdmin(admin, userId, email);
+  // promoteToSuperAdmin (lib/super-admin-provisioning.mjs, Story 1.16) owns
+  // only the identity mutation; this script keeps its own audit-log call and
+  // revert-on-failure step, since audit logging is deliberately not shared
+  // between this CLI (no real session -- logs via the admin client with a
+  // system actor label) and the Admins page's Server Action (logs via the
+  // real caller's session) -- see that module's header comment.
+  await promoteToSuperAdmin(admin, userId, email);
 
   try {
     await writeAuditLog(admin, "super_admin_promoted", userId);
@@ -249,28 +187,19 @@ async function promoteExistingUser(admin, authUser, skipConfirm) {
 }
 
 async function createAndProvisionUser(admin, email) {
-  const tempPassword = generateTempPassword();
-
-  const { data, error: createError } = await admin.auth.admin.createUser({
-    email,
-    password: tempPassword,
-    email_confirm: true,
-  });
-
-  if (createError || !data?.user) {
-    throw createError ?? new Error("createUser returned no user");
-  }
-
-  const userId = data.user.id;
+  // createSuperAdmin already rolls back (deletes the auth user) and rethrows
+  // if it fails after createUser succeeds -- nothing extra to do here for
+  // that failure window.
+  const { userId, tempPassword } = await createSuperAdmin(admin, email);
 
   try {
-    await setSuperAdmin(admin, userId, email);
     await writeAuditLog(admin, "super_admin_provisioned", userId);
   } catch (err) {
-    // AC #4 rollback -- mirrors deleteAuthUserAndLog's compensating-cleanup
-    // pattern (apps/super-admin/app/(admin)/gyms/actions.ts:239-250): don't
-    // leave a half-provisioned auth user behind if the is_super_admin
-    // UPDATE or the audit-log RPC fails after createUser already succeeded.
+    // AC #4 rollback -- mirrors createSuperAdmin's own createUser-failure
+    // rollback, one layer up: audit logging now happens outside the shared
+    // module (Story 1.16), so this caller owns its own revert when ITS step
+    // fails after the account was otherwise fully created. Same shape as
+    // deleteAuthUserAndLog (apps/super-admin/app/(admin)/gyms/actions.ts).
     const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
     if (deleteError) {
       console.error(

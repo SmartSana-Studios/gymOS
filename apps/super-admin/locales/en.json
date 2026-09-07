@@ -6,7 +6,13 @@
     "tiers": "Tiers",
     "paymentProviders": "Payment Providers",
     "messaging": "Messaging",
-    "billing": "Billing"
+    "billing": "Billing",
+    "admins": "Admins",
+    "switchToLightTheme": "Switch to light theme",
+    "switchToDarkTheme": "Switch to dark theme",
+    "openMenu": "Open navigation menu",
+    "closeMenu": "Close navigation menu",
+    "navigationMenu": "Navigation menu"
   },
   "auth": {
     "description": "Enter your email below to login to your account",
@@ -353,5 +359,38 @@
     "jobFailuresStartedAt": "Started",
     "jobFailuresFinishedAt": "Finished",
     "jobFailuresError": "Error"
+  },
+  "admins": {
+    "title": "Admins",
+    "addAdmin": "+ Add Admin",
+    "empty": "No Super Admins found.",
+    "columns": {
+      "email": "Email",
+      "displayName": "Name",
+      "since": "Since",
+      "noDisplayName": "—",
+      "sinceUnknown": "Unknown"
+    },
+    "create": {
+      "title": "Add Admin",
+      "close": "Close",
+      "email": "Email *",
+      "currentPassword": "Your password *",
+      "submit": "Add {{email}} as Super Admin",
+      "submitEmpty": "Add Admin",
+      "submitting": "Adding…"
+    },
+    "toast": {
+      "created": "{{email}} created as a new Super Admin.",
+      "promoted": "{{email}} promoted to Super Admin.",
+      "alreadySuperAdmin": "{{email}} is already a Super Admin — no change made.",
+      "copyPassword": "Copy temp password",
+      "passwordCopied": "Copied!",
+      "dismiss": "Dismiss"
+    },
+    "errors": {
+      "unauthorized": "You must be signed in as a Super Admin to do this.",
+      "incorrectPassword": "That password is incorrect."
+    }
   }
 }

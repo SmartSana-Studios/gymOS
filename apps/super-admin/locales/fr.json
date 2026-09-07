@@ -6,7 +6,13 @@
     "tiers": "Paliers",
     "paymentProviders": "Fournisseurs de paiement",
     "messaging": "Messagerie",
-    "billing": "Facturation"
+    "billing": "Facturation",
+    "admins": "Administrateurs",
+    "switchToLightTheme": "Passer au thème clair",
+    "switchToDarkTheme": "Passer au thème sombre",
+    "openMenu": "Ouvrir le menu de navigation",
+    "closeMenu": "Fermer le menu de navigation",
+    "navigationMenu": "Menu de navigation"
   },
   "auth": {
     "description": "Saisissez votre e-mail ci-dessous pour vous connecter à votre compte",
@@ -353,5 +359,38 @@
     "jobFailuresStartedAt": "Démarrée",
     "jobFailuresFinishedAt": "Terminée",
     "jobFailuresError": "Erreur"
+  },
+  "admins": {
+    "title": "Administrateurs",
+    "addAdmin": "+ Ajouter un administrateur",
+    "empty": "Aucun Super Admin trouvé.",
+    "columns": {
+      "email": "E-mail",
+      "displayName": "Nom",
+      "since": "Depuis",
+      "noDisplayName": "—",
+      "sinceUnknown": "Inconnu"
+    },
+    "create": {
+      "title": "Ajouter un administrateur",
+      "close": "Fermer",
+      "email": "E-mail *",
+      "currentPassword": "Votre mot de passe *",
+      "submit": "Ajouter {{email}} comme Super Admin",
+      "submitEmpty": "Ajouter un administrateur",
+      "submitting": "Ajout…"
+    },
+    "toast": {
+      "created": "{{email}} créé comme nouveau Super Admin.",
+      "promoted": "{{email}} promu Super Admin.",
+      "alreadySuperAdmin": "{{email}} est déjà Super Admin — aucun changement effectué.",
+      "copyPassword": "Copier le mot de passe temporaire",
+      "passwordCopied": "Copié !",
+      "dismiss": "Ignorer"
+    },
+    "errors": {
+      "unauthorized": "Vous devez être connecté en tant que Super Admin pour effectuer cette action.",
+      "incorrectPassword": "Ce mot de passe est incorrect."
+    }
   }
 }

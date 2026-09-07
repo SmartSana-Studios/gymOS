@@ -9,6 +9,16 @@ export default {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  // Tailwind's content-based purge doesn't only strip generated utilities --
+  // it also strips hand-authored selectors in `@layer` blocks (globals.css's
+  // `.dark { ... }` theme-variable override) if that literal class name
+  // string never appears in any scanned file. This app uses zero `dark:`
+  // variant utilities anywhere, so `.dark` was being purged from every build
+  // (same bug confirmed and fixed in apps/super-admin's identical config),
+  // silently breaking dark mode app-wide since the initial scaffold.
+  // Safelisting it keeps the rule regardless of whether any `dark:` utility
+  // is ever written.
+  safelist: ["dark"],
   theme: {
     extend: {
       colors: {

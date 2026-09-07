@@ -2101,6 +2101,14 @@ export type Database = {
           name: string
         }[]
       }
+      list_super_admins: {
+        Args: never
+        Returns: {
+          display_name: string | null
+          id: string
+          since: string | null
+        }[]
+      }
       log_audit_event: {
         Args: {
           p_action_type: string
@@ -2150,6 +2158,13 @@ export type Database = {
           total_payments_processed: number
         }[]
       }
+      promote_to_super_admin: {
+        Args: { p_fallback_display_name: string; p_user_id: string }
+        Returns: {
+          already_super_admin: boolean
+          display_name_set: boolean
+        }[]
+      }
       record_otp_resend: {
         Args: { p_phone: string }
         Returns: {
@@ -2170,6 +2185,10 @@ export type Database = {
       renew_subscription: {
         Args: { p_member_id: string; p_reason: string }
         Returns: string
+      }
+      revert_super_admin_promotion: {
+        Args: { p_revert_display_name: boolean; p_user_id: string }
+        Returns: undefined
       }
       revoke_gym_data_access: {
         Args: { p_actor_id: string; p_gym_id: string; p_reason: string }

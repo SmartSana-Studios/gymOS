@@ -546,6 +546,8 @@ Members with `expired` status remain visible in the coach's list with their stat
 
 Tier definitions — names, price points, member thresholds, and the ability to add new tiers — are managed entirely by the Super Admin (see FR-071). The three tiers above are the platform defaults seeded at launch; the Super Admin can edit their prices, adjust member thresholds, or create additional tiers without a code deployment.
 
+**FR-141** — Amendment to FR-071. In-app Super Admin account management is added to the Super Admin dashboard: a Super Admin can view the list of current Super Admins, create a new Super Admin account, or promote an existing platform-staff user (matched by email) to Super Admin — entirely in-app, no CLI/database access required. This supersedes Story 1.12's CLI-only decision (`docs/decisions.md`, 2026-08-05); the CLI script (`provision-super-admin.mjs`) is retained as the bootstrap path for creating the very first Super Admin in an environment where none yet exists (the in-app flow is necessarily gated behind an existing Super Admin session).
+
 **FR-086** — Member cap enforcement: when a gym reaches the maximum member count for their tier, new member creation is blocked at the API level. The dashboard shows: "You've reached your plan limit ([N]/[Max] members). Contact GymOS to upgrade." Active and deactivated members both count toward the cap. The Super Admin can override the cap for a specific gym or move the gym to a higher tier.
 
 ---
@@ -795,6 +797,8 @@ The same `PaymentProvider` interface serves both; the difference is whose creden
 **NFR-018** — Tenant suspension for SaaS non-payment (FR-131/FR-132) is enforced at the authorization layer, not only the UI: a suspended gym's staff and members are denied at the RLS/auth-hook layer, so suspension cannot be bypassed by a client ignoring UI state. Takes effect on the next request; no tenant data is deleted or mutated.
 
 **NFR-019** — FR-125's "GymOS takes no commission on member→gym payments" is auditable, not merely asserted: every Flow A payment's settlement account is verifiable against its gym's connected credentials (FR-126) via the audit log, so a platform-account credit from a Flow A transaction is detectable after the fact, not just prevented in theory.
+
+**NFR-020** — In-app Super Admin creation/promotion (FR-141) must make privilege escalation impossible: the action is only reachable by an authenticated Super Admin session, the underlying RPC self-enforces the caller's `is_super_admin` status server-side (not merely hidden in the UI), no self-promotion path exists for a non-Super-Admin, and every create/promote action is audit-logged with actor, target, and timestamp — mirroring NFR-013's discipline for staff-role provisioning.
 
 ### 7.3 Availability
 
