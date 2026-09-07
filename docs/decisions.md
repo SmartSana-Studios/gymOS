@@ -18,6 +18,14 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-09-07 — Phone-input country picker: global by default, Tara Money-restricted only on the Mobile-Money payer field — recorded during Epic 16 sprint-change-proposal
+
+**Decision — every phone input gets a country picker with auto-prefixed calling code, sourced from `libphonenumber-js`'s full country list (already a server-side dependency).** One field is the exception: `RenewalModal`'s Mobile-Money `payerPhone`, which is the only phone field that actually triggers an automated Tara Money collection call (`initiatePayment` → Tara Money provider — verified by tracing the call chain). That field uses `packages/types/src/constants/taraMoneySupportedCountries.ts`'s 15-country list instead of the global one, since Tara Money cannot collect from unsupported countries. `RecordPaymentModal` has no phone field and is unaffected either way.
+
+**Why recorded here:** `taraMoneySupportedCountries.ts`'s own comment already stated an intent to drive phone-input UX; without this entry, a future reader could reasonably "simplify" by making every phone field use that 15-country list (breaking non-Tara-Money contact phones for diaspora members/staff) or making all fields global (silently breaking Mobile-Money collection for unsupported countries). Both directions are plausible-looking mistakes this entry forecloses.
+
+---
+
 ## 2026-09-07 — Super Admin Provisioning: in-app UI added, CLI retained for bootstrap — recorded during Story 1.16
 
 **Supersedes Decision 1 of the 2026-08-05 entry** ("Super Admin Provisioning CLI: CLI over in-app UI"). That decision is left unedited below as historical record, per this project's established convention (see Story 1.15's supersession of Story 1.7's Decision 1).

@@ -245,7 +245,7 @@ Chidi, back at GymOS HQ, re-runs the Tara Money round-trip that already passed o
 | Column | Format | Required |
 |--------|--------|----------|
 | member_name | Text | Yes |
-| phone | E.164 format (e.g. +237XXXXXXXXX) | Yes |
+| phone | E.164 format, entered via a country-code picker (global for contact phones; Tara Money's supported countries only for the Mobile-Money payer-phone field — FR-142) | Yes |
 | plan_type | Must match a plan configured for this gym | Yes |
 | join_date | YYYY-MM-DD | Yes |
 | subscription_status | active / expiring_soon / grace_period / expired | Yes |
@@ -453,7 +453,7 @@ Members with `expired` status remain visible in the coach's list with their stat
 | Step | Screen | Notes |
 |------|--------|-------|
 | 0 | Language selection | English / French; defaults to device locale; appears before any other screen |
-| 1 | Phone number entry | E.164 format enforced |
+| 1 | Phone number entry | E.164 format enforced via country-code picker with auto-prefixed calling code (FR-142) |
 | 1a | OTP verification | 60-second countdown before "Resend OTP" is enabled; max 3 resend attempts; 5-minute lockout after all attempts exhausted; lockout screen shows "Contact your gym for assistance." If OTP does not arrive within 60 seconds, resend is one tap — no navigation away from the screen. |
 | 2 | Profile setup | Name (required), profile photo (optional) |
 | 3 | Goal selection | Lose Weight / Build Muscle / Improve Fitness / General Wellness; visible to assigned coach in coach portal |
@@ -547,6 +547,8 @@ Members with `expired` status remain visible in the coach's list with their stat
 Tier definitions — names, price points, member thresholds, and the ability to add new tiers — are managed entirely by the Super Admin (see FR-071). The three tiers above are the platform defaults seeded at launch; the Super Admin can edit their prices, adjust member thresholds, or create additional tiers without a code deployment.
 
 **FR-141** — Amendment to FR-071. In-app Super Admin account management is added to the Super Admin dashboard: a Super Admin can view the list of current Super Admins, create a new Super Admin account, or promote an existing platform-staff user (matched by email) to Super Admin — entirely in-app, no CLI/database access required. This supersedes Story 1.12's CLI-only decision (`docs/decisions.md`, 2026-08-05); the CLI script (`provision-super-admin.mjs`) is retained as the bootstrap path for creating the very first Super Admin in an environment where none yet exists (the in-app flow is necessarily gated behind an existing Super Admin session).
+
+**FR-142** — Every phone-number input across the platform (member, staff, gym owner, coach, and the Mobile-Money payer-phone field) offers a country picker that auto-prefixes the correct calling code as the user types, always producing a valid E.164 value. Coverage is global for contact phones; the Mobile-Money payer-phone field in the renewal flow (FR-050/FR-140) is restricted to Tara Money's supported-country list (`taraMoneySupportedCountries.ts`) since only that field triggers an automated Tara Money collection call.
 
 **FR-086** — Member cap enforcement: when a gym reaches the maximum member count for their tier, new member creation is blocked at the API level. The dashboard shows: "You've reached your plan limit ([N]/[Max] members). Contact GymOS to upgrade." Active and deactivated members both count toward the cap. The Super Admin can override the cap for a specific gym or move the gym to a higher tier.
 

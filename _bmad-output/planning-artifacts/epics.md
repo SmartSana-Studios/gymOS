@@ -530,6 +530,104 @@ Epics 1–13 above are the fully shipped V1.0 + V1.5 scope — Epic 13 closed th
 
 ---
 
+## Phone Country Picker (2026-09-07 sprint-change-proposal)
+
+Every phone-number input across the platform is a plain text field today — no country picker, inconsistent `+237` hardcoding (some forms default it, `AddStaffModal` doesn't at all), and no format-shape check before `RenewalModal`'s Mobile-Money branch offers Tara Money collection. `packages/types/src/constants/taraMoneySupportedCountries.ts` already carries a 15-country calling-code list whose own comment states it exists to drive exactly this UX, never wired up. This epic closes that gap.
+
+### Epic 16: Phone Number Country Picker & Auto Country-Code Entry
+Every phone-number input (member, staff, gym owner, coach, and the Mobile-Money payer-phone field) gains a country picker that auto-prefixes the correct calling code as the user types, always producing valid E.164. Coverage is global for contact phones, sourced from `libphonenumber-js` (already a dependency); the Mobile-Money payer-phone field in `RenewalModal` is restricted to Tara Money's 15 supported countries, since it's the only field that triggers an automated Tara Money collection call.
+**FRs covered:** FR-142
+
+### Story 16.1: Web — Shared Country-Picker PhoneInput (Dashboard + Super-Admin)
+
+As a gym staff member, owner, or Super Admin,
+I want every phone field to offer a country picker that auto-fills the correct calling code as I type,
+So that phone numbers are captured correctly regardless of country, without having to remember to type a `+` and calling code myself.
+
+**Acceptance Criteria:**
+
+**Given** a new `PhoneInput` component built once and duplicated into `apps/dashboard/components/ui/` and `apps/super-admin/components/ui/` (matching this codebase's existing per-app duplication of `components/ui/input.tsx` — this duplication follows the architecture's own stated convention, it is not a new exception, and does NOT warrant creating a shared `packages/ui` package, which the architecture explicitly defers "until duplication actually hurts")
+**When** it renders
+**Then** it shows a country picker (flag + dial code + searchable country name) next to the phone field, auto-prefixes the selected country's calling code into the value on selection, and its `onChange` always emits a valid E.164 string or `null`
+
+**Given** country/calling-code data is needed
+**When** the component is built
+**Then** it sources calling codes from `libphonenumber-js`'s metadata (already a dependency in both `apps/dashboard/package.json` and `apps/super-admin/package.json` at `^1.13.12` — usable client-side, not just the existing server-side `EvolutionApiMessageProvider.ts` use) and country display names from the built-in `Intl.DisplayNames` API (zero new dependency — `libphonenumber-js` only exposes ISO codes and calling codes, not names) — no new country-list package is introduced
+
+**Given** neither app has a `popover` or `command` (cmdk) shadcn primitive installed yet (only `button`, `input`, `label`, `checkbox`, `card`, `badge`, `tabs`, `dropdown-menu` exist in `components/ui/` today)
+**When** the searchable country dropdown is built
+**Then** shadcn's standard `Popover` + `Command` combo is added to both apps (`npx shadcn add popover command`) and used for the dropdown, rather than hand-rolling a custom dropdown/portal/keyboard-navigation implementation
+
+**Given** this codebase's established controlled-field convention (`useState` + Zod, explicitly NOT react-hook-form — see `MemberModal.tsx`'s own comment on this)
+**When** `PhoneInput` is implemented
+**Then** it is built as a plain controlled component (`value`/`onChange` props), not wired to any form library, consistent with every call site it's used in
+
+**Given** this codebase's i18n gate (`scripts/check-i18n-key-parity.mjs`, run in CI)
+**When** `PhoneInput` introduces new user-facing strings (e.g. "Search country...", "No country found")
+**Then** matching keys are added to both `apps/dashboard/locales/{en,fr}.json` and `apps/super-admin/locales/{en,fr}.json` (one key set per app, duplicated like the component itself — not promoted to `packages/types/src/locales`, which this project reserves for security-sensitive shared logic, not cosmetic UI strings) via `react-i18next`'s `useTranslation()`/`t()`, matching every existing call site's pattern
+
+**Given** this codebase's testing convention (Vitest + `@testing-library/react`, co-located `*.test.tsx`, no E2E baseline exists yet)
+**When** `PhoneInput` and its rollout into the four fields above are implemented
+**Then** a co-located `PhoneInput.test.tsx` is added in each app testing country selection, calling-code auto-prefix, and E.164 emission, plus the existing per-modal test files (if any exist for `MemberModal`/`AddStaffModal`/`CreateGymModal`/`RenewalModal`) are updated to account for the new component, mocking `react-i18next` and Server Actions per this codebase's established pattern
+
+**Given** the two dashboard forms with a real, user-editable phone `<Input>` today — `MemberModal` (create mode only; phone is `disabled` in edit mode and shown as plain text in view mode, both unchanged by this story) and `AddStaffModal`
+**When** this story ships
+**Then** each is wired to `PhoneInput` with the global country list, defaulting to Cameroon (`+237`) as the pre-selected country, preserving each field's existing `fieldErrors`-driven inline error display
+
+**Given** the one super-admin form with a real, user-editable phone `<Input>` today — `CreateGymModal`'s `ownerPhone` field
+**When** this story ships
+**Then** it is wired to `PhoneInput` with the global country list, same default, preserving its existing `fieldErrors.ownerPhone` inline error display
+
+**Given** `RenewalModal`'s Mobile-Money branch specifically (`payerPhone`, the only phone field that calls `initiatePaymentAction`)
+**When** the payer-phone field renders
+**Then** it uses `PhoneInput` restricted to `TARAMONEY_SUPPORTED_COUNTRIES` (not the global list) — the picker only offers those 15 countries — and when the pre-filled value from `getRenewalPreview`'s `memberPhone` doesn't parse as valid E.164 (a legacy pre-convention record), `PhoneInput` falls back to the default Cameroon selection with an empty/raw national-number field, matching today's `DEFAULT_PHONE_PREFIX` fallback behavior, rather than rendering in a broken or unparseable state
+
+**Given** `handleMobileMoneySubmit`'s existing `initiatePaymentSchema.shape.phoneNumber.safeParse(...)` client-side check (already blocks a malformed `payerPhone` with an inline `fieldErrors.payerPhone` before calling `initiatePaymentAction` — confirmed already resolved, see `deferred-work.md`'s struck 2026-08-17 entry)
+**When** `PhoneInput` is wired into this field
+**Then** that existing validation call is preserved as-is (still fed `PhoneInput`'s emitted E.164 string) — this story does not add new submission-blocking validation, since none is missing
+
+**Given** `EditStaffModal`'s phone field, which is `readOnly`/`disabled` and never submitted (staff phone cannot be edited after creation)
+**When** this story ships
+**Then** it is explicitly left unchanged — no functional or visual benefit to wiring a non-interactive field into a picker component
+
+**Given** `CsvImportModal` (phone is read-only preview-table text sourced from parsed CSV rows, no `<Input>` exists), `InviteMemberModal` (no phone field, only reads an existing E.164 value for a `wa.me` link), `RecordPaymentModal` (no phone field at all), and super-admin's `GymMembersTable`/`GymDetailPageClient` (phone shown as read-only display text, no `<Input>`)
+**When** this story ships
+**Then** all are left unchanged — none has an editable phone input to wire
+
+**Given** `SettingsForm.tsx` has no owner/staff phone `<Input>` of its own — billing's `ownerPhone` is only passed as a display prop into a separate `PayNowButton.tsx` component not covered by this story's research — and the Coach portal files (`CoachPortalPageClient`/`CoachMemberDetailPageClient`) were not confirmed to contain an editable phone field either
+**When** this story is implemented
+**Then** the dev agent verifies both during Task execution (grep for a phone `<Input>` in `PayNowButton.tsx` and the Coach portal files) and either wires them in following this story's same pattern if a real editable field is found, or explicitly notes in Completion Notes that none exists — this gap is flagged here rather than silently dropped
+
+**Given** the existing Zod `e164Phone` schemas (independently redeclared per-file in `payment.ts`, `staff.ts`, `gym.ts`, `csvImport.ts`, `memberOnboarding.ts`, `member.ts` — a deliberate "no shared cross-file consts" project convention, not an oversight)
+**When** `PhoneInput` is wired in
+**Then** those schemas are unchanged and NOT consolidated into a shared validator — `PhoneInput` is a UI layer producing values those schemas already accept
+
+### Story 16.2: Mobile — Country-Picker Phone Input (Expo)
+
+As a gym member or staff user of the mobile app,
+I want the phone-entry screen to offer a country picker instead of a fixed `+237` prefix,
+So that I can enter my real phone number correctly regardless of country.
+
+**Acceptance Criteria:**
+
+**Given** `apps/mobile/src/app/onboarding/phone.tsx`'s hardcoded `COUNTRY_PREFIX = '+237'` and single fixed-prefix `TextInput`
+**When** this story ships
+**Then** they are replaced with a country-picker-enabled input, defaulting to Cameroon, backed by the same calling-code data source used in Story 16.1 (`libphonenumber-js` metadata) via an Expo/React-Native-compatible picker
+
+**Given** the equivalent phone field in `(tabs)/profile.tsx`
+**When** this story ships
+**Then** it is updated the same way
+
+**Given** `onboarding-context.tsx` and `otp.tsx`
+**When** the new picker is wired in
+**Then** they continue to receive a fully E.164-formatted phone value unchanged in shape — no downstream OTP or Supabase `signInWithOtp` contract changes
+
+**Given** mobile onboarding/profile phone is a contact field, not a Mobile-Money trigger
+**When** the country list is chosen
+**Then** it uses global coverage, not the 15-country Tara Money list
+
+---
+
 ## Epic 1: Platform Foundation & Gym Onboarding
 
 GymOS staff can create a new gym tenant end-to-end — the owner logs in, configures branding and settings, and the platform enforces strict per-gym data isolation from day one. Delivers UJ-5 (Chidi onboards a new gym) in full.
