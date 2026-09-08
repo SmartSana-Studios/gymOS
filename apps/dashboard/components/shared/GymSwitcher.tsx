@@ -87,7 +87,11 @@ export function GymSwitcher({
             title={currentGymName}
             aria-label={t("sidebar.switchGym")}
             className={cn(
-              "-mx-1.5 flex items-center gap-1 rounded px-1.5 py-0.5 text-left text-sm text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground disabled:opacity-50",
+              // Sidebar-surface tokens, not primary-foreground: this trigger
+              // sits on --sidebar, which is dark in BOTH themes, whereas
+              // --primary-foreground inverts to near-black in .dark and would
+              // be invisible here.
+              "-mx-1.5 flex items-center gap-1 rounded px-1.5 py-0.5 text-left text-sm text-sidebar-foreground/70 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground disabled:opacity-50",
               railAware && "hidden lg:flex",
             )}
           >
@@ -109,7 +113,10 @@ export function GymSwitcher({
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      {error && <p className="text-xs text-destructive">{t("sidebar.gymSwitchError")}</p>}
+      {/* --destructive darkens to 30.6% lightness in .dark, which on the
+          (now correctly dark) sidebar is unreadable; --sidebar-destructive
+          stays legible against it in both themes. */}
+      {error && <p className="text-xs text-sidebar-destructive">{t("sidebar.gymSwitchError")}</p>}
     </div>
   );
 }

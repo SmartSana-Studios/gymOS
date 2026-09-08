@@ -27,6 +27,7 @@ export default {
         sidebar: {
           DEFAULT: "hsl(var(--sidebar))",
           foreground: "hsl(var(--sidebar-foreground))",
+          destructive: "hsl(var(--sidebar-destructive))",
         },
         card: {
           DEFAULT: "hsl(var(--card))",

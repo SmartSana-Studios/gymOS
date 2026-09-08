@@ -50,6 +50,11 @@
        stay dark in both themes; only the exact shade changes. */
     --sidebar: 216 41% 18%;
     --sidebar-foreground: 0 0% 98%;
+    /* Errors shown ON the sidebar surface. Defined once rather than per
+       theme because --sidebar is dark in both, so one light red reads
+       correctly against either shade -- unlike --destructive, which darkens
+       to 30.6% lightness in .dark and disappears against it. */
+    --sidebar-destructive: 0 84% 72%;
   }
   .dark {
     color-scheme: dark;
