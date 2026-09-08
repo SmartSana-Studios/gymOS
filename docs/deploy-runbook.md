@@ -1,6 +1,6 @@
 # GymOS Deploy Runbook (DRAFT)
 
-**Status: partially exercised. Updated 2026-09-06 — several statements in
+**Status: partially exercised. Updated 2026-09-08 — several statements in
 the original draft are no longer true, corrected below.**
 
 What has actually happened since this was first written:
@@ -20,12 +20,31 @@ What has actually happened since this was first written:
   cause was duplicate native module versions under pnpm, fixed 2026-09-06 —
   see `docs/decisions.md` and `sprint-status.yaml`.
 
+- **The production Supabase project IS recorded and live** (corrected
+  2026-09-08): ref `vfxezibagiznrirdwkwh`, name `gym_os`, region
+  `eu-west-1`, Postgres 17.6 — the same ref in EAS production's
+  `EXPO_PUBLIC_SUPABASE_URL`, so every TestFlight/Play-internal build talks
+  to it. All 88 migrations are applied there (0001-0084 had been applied
+  long before anyone recorded it; 0085-0088 were applied by hand on
+  2026-09-08). The original claim that "no migration has ever been applied
+  outside a local `supabase start`" was stale and actively dangerous — it
+  invited treating a live database as empty.
+- **Its data was fully reset on 2026-09-08** down to a single super admin,
+  at the owner's request. Pre-reset backup lives OUTSIDE this repo at
+  `~/gymos-backups/2026-09-08/` (it holds real emails and phone numbers).
+- **`supabase db dump` CANNOT BE TRUSTED in the devcontainer.** It runs
+  `pg_dump` inside a Docker container; containers here have no outbound
+  network, so it writes an empty file and still exits 0 with a success
+  message. The same applies to `db reset` and `db push`. Use host-side
+  `pg_dump`/`psql` (postgresql-client-17, PGDG apt repo) through the IPv4
+  session pooler `aws-0-eu-west-1.pooler.supabase.com:5432` as user
+  `postgres.vfxezibagiznrirdwkwh` — the direct `db.<ref>.supabase.co` host
+  is IPv6-only and unreachable from here.
+
 Still true, and still blocking:
 
 - **No App Store or Play Store submission has shipped.** Reaching TestFlight
   is not the same as passing review.
-- **No production Supabase project is recorded here**, and no migration has
-  ever been applied outside a local `supabase start`.
 
 Treat every `[NEEDS]` below as a real open decision, not a formality — fill
 these in with whoever owns the hosting accounts before the first real
@@ -92,9 +111,15 @@ Supabase project secrets (`supabase/.env`, gitignored, set via
   2026-08-27 party-mode memlog and `docs/decisions.md`.
 - `REVIEW_TEST_PHONE` — app-store review bypass phone number
 
-**[NEEDS]** the Supabase Vault secret `platform:taramoney:business_id`
-seeded in every environment (Story 4.16) — mirrors the value of this
-project's own `TARAMONEY_BUSINESS_ID` Edge Function secret above, but read
+**[DONE in production 2026-09-08; still [NEEDS] elsewhere]** the Supabase
+Vault secret `platform:taramoney:business_id` seeded in every environment
+(Story 4.16). Seeded on `vfxezibagiznrirdwkwh` on 2026-09-08 — until then it
+had NEVER been seeded there, and because the guard no-ops when the secret is
+absent (see below) it had been silently not-protecting since it shipped, with
+nothing surfacing that. When auditing this, check `vault.decrypted_secrets`
+directly rather than assuming a shipped migration means an active guard.
+It mirrors the value of this
+project's own `TARAMONEY_BUSINESS_ID` Edge Function secret above, but is read
 from inside Postgres by `connect_gym_payment_credentials()` to reject a gym
 connecting a `business_id_plain` that collides with the platform's own
 account (see `docs/decisions.md`'s Story 4.16 entry). Seed once per
@@ -172,6 +197,16 @@ Three jobs in `.github/workflows/ci.yml`, triggered on every push and PR:
    configured in `apps/mobile/eas.json`; `google-play-service-account.json`
    is present in the developer's checkout but gitignored, so confirm it
    exists wherever you run the submit from).
+
+   **A zero exit from `eas submit` does NOT mean the upload succeeded.**
+   Observed 2026-09-08: the CLI exited 0 while the submission was still
+   `IN_QUEUE`, because its own status-polling GraphQL call to
+   `api.expo.dev` failed. Confirm the real outcome by polling
+   `eas submit:list` to a terminal state. That endpoint is intermittently
+   flaky in general — several `eas` commands in one session failed with
+   `Network error: request to https://api.expo.dev/graphql failed` and
+   succeeded on retry, so wrap them in a retry loop rather than treating
+   the first failure as real.
 
    **Build, then verify launch, then submit — not build-then-submit.**
    Build 5 was delivered to TestFlight successfully and crashed at launch on
