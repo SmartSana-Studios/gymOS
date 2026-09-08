@@ -62,7 +62,14 @@
       "expo-font",
       "expo-image",
       "expo-web-browser",
-      "@sentry/react-native"
+      [
+        "@sentry/react-native",
+        {
+          "organization": "smartsana-technologies-os",
+          "project": "gymos-mobile",
+          "url": "https://de.sentry.io/"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
