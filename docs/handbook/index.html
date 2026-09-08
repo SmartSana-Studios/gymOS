@@ -1,0 +1,460 @@
+<title>GymOS Handbook</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@600;800&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground:      #F2F4F7;
+    --paper:       #FFFFFF;
+    --sunken:      #E7EBF0;
+    --ink:         #111A26;
+    --ink-soft:    #4A5768;
+    --ink-faint:   #77839A;
+    --rule:        #D5DCE5;
+    --rule-soft:   #E4E9EF;
+    --navy:        #1B2A41;
+    --accent:      #9A6412;
+    --accent-edge: #D9B26B;
+    --ok:          #1F6B45;
+    --ok-fill:     #DFF0E6;
+    --warn:        #8A5A10;
+    --warn-fill:   #F8ECD4;
+    --crit:        #9B2C2C;
+    --crit-fill:   #F7E0E0;
+    --shadow:      0 1px 2px rgba(17, 26, 38, .06), 0 8px 24px -12px rgba(17, 26, 38, .18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0A0F17; --paper: #141C28; --sunken: #1B2534;
+      --ink: #E9EDF3; --ink-soft: #A9B4C4; --ink-faint: #7C8899;
+      --rule: #2A3648; --rule-soft: #212C3C; --navy: #C6D4E8;
+      --accent: #E0AC5C; --accent-edge: #6B5228;
+      --ok: #6FD39B; --ok-fill: #16281F;
+      --warn: #E5B463; --warn-fill: #2B2416;
+      --crit: #F09090; --crit-fill: #2E1A1A;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0A0F17; --paper: #141C28; --sunken: #1B2534;
+    --ink: #E9EDF3; --ink-soft: #A9B4C4; --ink-faint: #7C8899;
+    --rule: #2A3648; --rule-soft: #212C3C; --navy: #C6D4E8;
+    --accent: #E0AC5C; --accent-edge: #6B5228;
+    --ok: #6FD39B; --ok-fill: #16281F;
+    --warn: #E5B463; --warn-fill: #2B2416;
+    --crit: #F09090; --crit-fill: #2E1A1A;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 64rem; margin: 0 auto;
+    padding: clamp(1.75rem, 4vw, 3.5rem) clamp(1.1rem, 3vw, 2rem) 5rem;
+    display: flex; flex-direction: column; gap: 3.25rem;
+  }
+
+  h1, h2, h3, h4 { font-family: Barlow, "IBM Plex Sans", system-ui, sans-serif; text-wrap: balance; margin: 0; }
+  h1 { font-weight: 800; font-size: clamp(2.1rem, 5.5vw, 3rem); letter-spacing: -.02em; line-height: 1.05; }
+  h2 { font-weight: 800; font-size: 1.5rem; letter-spacing: -.01em; }
+  h3 { font-weight: 600; font-size: 1.02rem; letter-spacing: .01em; color: var(--navy); }
+  h4 { font-weight: 600; font-size: .95rem; }
+  p  { margin: 0; max-width: 68ch; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .7rem; font-weight: 600; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--accent);
+  }
+
+  header { display: flex; flex-direction: column; gap: 1rem; }
+  .lede { color: var(--ink-soft); font-size: 1.08rem; }
+  .stamps { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .35rem; }
+  .stamp {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .73rem;
+    padding: .28rem .6rem; border: 1px solid var(--rule); border-radius: 3px;
+    color: var(--ink-soft); background: var(--paper); white-space: nowrap;
+  }
+  .stamp b { color: var(--ink); font-weight: 600; }
+
+  section { display: flex; flex-direction: column; gap: 1.15rem; }
+  .sec-head { display: flex; flex-direction: column; gap: .3rem; border-bottom: 2px solid var(--navy); padding-bottom: .6rem; }
+  .sub { font-size: .9rem; color: var(--ink-soft); }
+
+  /* credentials */
+  .creds { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1rem; }
+  .cred {
+    background: var(--paper); border: 1px solid var(--rule); border-radius: 5px;
+    padding: 1.05rem 1.1rem 1.15rem; box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: .85rem;
+  }
+  .cred-role { font-size: .82rem; color: var(--ink-faint); }
+  .fields { display: flex; flex-direction: column; gap: .5rem; }
+  .field { display: flex; flex-direction: column; gap: .18rem; }
+  .field-k { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  .field-v {
+    display: flex; align-items: center; gap: .4rem;
+    background: var(--sunken); border: 1px solid var(--rule-soft);
+    border-radius: 4px; padding: .32rem .3rem .32rem .55rem;
+  }
+  .field-v code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .84rem;
+    color: var(--ink); overflow-x: auto; white-space: nowrap; flex: 1; scrollbar-width: thin;
+  }
+  .copy {
+    flex: none; font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: .66rem; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--ink-soft); background: var(--paper);
+    border: 1px solid var(--rule); border-radius: 3px;
+    padding: .2rem .42rem; cursor: pointer; transition: color .15s, border-color .15s;
+  }
+  .copy:hover { color: var(--accent); border-color: var(--accent-edge); }
+  .copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .copy[data-done="1"] { color: var(--ok); border-color: var(--ok); }
+
+  /* role cards */
+  .roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: .8rem; }
+  .role {
+    border: 1px solid var(--rule); border-left: 3px solid var(--accent-edge);
+    border-radius: 4px; background: var(--paper); padding: .8rem .95rem;
+    display: flex; flex-direction: column; gap: .25rem;
+  }
+  .role-name { font-family: Barlow, sans-serif; font-weight: 600; font-size: 1rem; color: var(--navy); }
+  .role-desc { font-size: .87rem; color: var(--ink-soft); }
+
+  /* tables */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 5px; background: var(--paper); }
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: .55rem .8rem; border-bottom: 1px solid var(--rule-soft); white-space: nowrap; }
+  thead th {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .66rem;
+    letter-spacing: .09em; text-transform: uppercase; color: var(--ink-faint);
+    font-weight: 600; background: var(--sunken);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num-col { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  td.name-col { font-weight: 600; color: var(--navy); }
+  .yes { color: var(--ok); font-weight: 600; }
+  .no  { color: var(--ink-faint); }
+  th.rot { text-align: center; }
+  td.mark { text-align: center; }
+
+  /* feature lists */
+  .features { display: flex; flex-direction: column; }
+  .feature {
+    display: grid; grid-template-columns: 11rem 1fr; gap: .3rem .95rem;
+    padding: .75rem 0; border-bottom: 1px solid var(--rule-soft); align-items: baseline;
+  }
+  .feature:last-child { border-bottom: none; }
+  .feature-name { font-family: Barlow, sans-serif; font-weight: 600; color: var(--navy); font-size: .98rem; }
+  .feature-desc { font-size: .91rem; color: var(--ink-soft); }
+  .who {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .68rem;
+    color: var(--ink-faint); letter-spacing: .04em; display: block; margin-top: .2rem;
+  }
+  @media (max-width: 34rem) { .feature { grid-template-columns: 1fr; } }
+
+  /* steps */
+  ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  ol.steps > li {
+    display: grid; grid-template-columns: 2.3rem 1fr; gap: 0 .9rem;
+    padding: .75rem 0; border-bottom: 1px solid var(--rule-soft); align-items: baseline;
+  }
+  ol.steps > li:last-child { border-bottom: none; }
+  .num {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .8rem;
+    font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums;
+  }
+  .step-body { display: flex; flex-direction: column; gap: .28rem; }
+  .step-note { font-size: .87rem; color: var(--ink-soft); }
+  .circuit-meta { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; font-size: .84rem; color: var(--ink-faint); }
+
+  /* notes */
+  .notes { display: flex; flex-direction: column; gap: .7rem; }
+  .note {
+    display: grid; grid-template-columns: auto 1fr; gap: .75rem; align-items: start;
+    padding: .8rem .95rem; border-radius: 5px; border: 1px solid var(--rule);
+    background: var(--paper); font-size: .92rem;
+  }
+  .tag {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .64rem;
+    font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+    padding: .16rem .44rem; border-radius: 3px; white-space: nowrap; margin-top: .12rem;
+  }
+  .t-ok { color: var(--ok); background: var(--ok-fill); }
+  .t-warn { color: var(--warn); background: var(--warn-fill); }
+  .t-crit { color: var(--crit); background: var(--crit-fill); }
+  .note strong { color: var(--ink); }
+
+  code.inline {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: .87em;
+    background: var(--sunken); border: 1px solid var(--rule-soft);
+    border-radius: 3px; padding: .04em .3em;
+  }
+
+  footer {
+    border-top: 1px solid var(--rule); padding-top: 1.1rem;
+    font-size: .82rem; color: var(--ink-faint);
+    display: flex; flex-direction: column; gap: .3rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Operating manual &amp; test plan</div>
+    <h1>GymOS Handbook</h1>
+    <p class="lede">What each role can do across the Super Admin console, the gym dashboard and the member app — plus a guided walkthrough. Credentials and permissions below were checked against the live environment on 8 September 2026.</p>
+    <div class="stamps">
+      <span class="stamp">Environment reset <b>8 Sep 2026</b></span>
+      <span class="stamp">Gym <b>SmartSana Fitness</b></span>
+      <span class="stamp">Mobile <b>build 14</b></span>
+    </div>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <h2>Access</h2>
+      <p class="sub">Credentials are deliberately not published here. Request them from the platform owner and keep them out of shared documents.</p>
+    </div>
+    <div class="creds">
+      <div class="cred">
+        <h3>Super Admin Console</h3>
+        <span class="cred-role">Platform operator — runs the whole estate</span>
+        <div class="fields">
+          <div class="field"><span class="field-k">URL</span><span class="field-v"><code>super-admin-phi-jade.vercel.app</code><button class="copy" data-copy="https://super-admin-phi-jade.vercel.app">Copy</button></span></div>
+          <div class="field"><span class="field-k">Email</span><span class="field-v"><code>issued on request</code></span></div>
+          <div class="field"><span class="field-k">Password</span><span class="field-v"><code>issued on request</code></span></div>
+        </div>
+      </div>
+      <div class="cred">
+        <h3>Gym Dashboard</h3>
+        <span class="cred-role">Owner and staff — runs one gym</span>
+        <div class="fields">
+          <div class="field"><span class="field-k">URL</span><span class="field-v"><code>dashboard-tau-three-31.vercel.app</code><button class="copy" data-copy="https://dashboard-tau-three-31.vercel.app">Copy</button></span></div>
+          <div class="field"><span class="field-k">Login</span><span class="field-v"><code>from the gym's invite link</code></span></div>
+          <div class="field"><span class="field-k">Password</span><span class="field-v"><code>set on first sign-in</code></span></div>
+        </div>
+      </div>
+      <div class="cred">
+        <h3>Store Review Account</h3>
+        <span class="cred-role">App Store / Play reviewers — skips real SMS</span>
+        <div class="fields">
+          <div class="field"><span class="field-k">Phone</span><span class="field-v"><code>supplied with the submission</code></span></div>
+          <div class="field"><span class="field-k">OTP code</span><span class="field-v"><code>supplied with the submission</code></span></div>
+          <div class="field"><span class="field-k">Builds</span><span class="field-v"><code>TestFlight · Play internal</code></span></div>
+        </div>
+      </div>
+    </div>
+    <p class="sub">Reviewers: the phone number and fixed code travel in the App Store Connect and Play Console review notes, not in this document.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Who does what</h2>
+      <p class="sub">Six roles. A person's role decides which sections exist for them — hidden sections are blocked in the database too, not just in the menu.</p>
+    </div>
+    <div class="roles">
+      <div class="role"><span class="role-name">Super Admin</span><span class="role-desc">Platform staff. Creates gyms and tiers, sets pricing, manages the payment and messaging providers. Not a member of any gym.</span></div>
+      <div class="role"><span class="role-name">Owner</span><span class="role-desc">Runs one gym end to end, including staff and settings. The only role that can appoint a Supervisor.</span></div>
+      <div class="role"><span class="role-name">Supervisor</span><span class="role-desc">Deputy to the Owner: staff, settings and classes. Deliberately has no access to members, money or the audit log.</span></div>
+      <div class="role"><span class="role-name">Manager</span><span class="role-desc">Day-to-day operations: members, plans, subscriptions, payments, attendance, classes and the audit log.</span></div>
+      <div class="role"><span class="role-name">Receptionist</span><span class="role-desc">Front desk: check members in, take payments, look people up. No pricing or staff control.</span></div>
+      <div class="role"><span class="role-name">Coach</span><span class="role-desc">Sees only the Coach Portal — assigned members, their plans and session notes.</span></div>
+      <div class="role"><span class="role-name">Member</span><span class="role-desc">Uses the mobile app only. No dashboard access of any kind.</span></div>
+    </div>
+
+    <h4>Dashboard access by role</h4>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Section</th><th class="rot">Owner</th><th class="rot">Supervisor</th><th class="rot">Manager</th><th class="rot">Receptionist</th><th class="rot">Coach</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="name-col">Overview</td><td class="mark yes">✓</td><td class="mark no">—</td><td class="mark yes">✓</td><td class="mark yes">✓</td><td class="mark no">—</td></tr>
+          <tr><td class="name-col">Members</td><td class="mark yes">✓</td><td class="mark no">—</td><td class="mark yes">✓</td><td class="mark yes">✓</td><td class="mark no">—</td></tr>
+          <tr><td class="name-col">Staff</td><td class="mark yes">✓</td><td class="mark yes">✓</td><td class="mark no">—</td><td class="mark no">—</td><td class="mark no">—</td></tr>
+          <tr><td class="name-col">Plans</td><td class="mark yes">✓</td><td class="mark no">—</td><td class="mark yes">✓</td><td class="mark no">—</td><td class="mark no">—</td></tr>
+          <tr><td class="name-col">Subscriptions</td><td class="mark yes">✓</td><td class="mark no">—</td><td class="mark yes">✓</td><td class="mark no">—</td><td class="mark no">—</td></tr>
+          <tr><td class="name-col">Payments</td><td class="mark yes">✓</td><td class="mark no">—</td><td class="mark yes">✓</td><td class="mark yes">✓</td><td class="mark no">—</td></tr>
+          <tr><td class="name-col">Attendance</td><td class="mark yes">✓</td><td class="mark no">—</td><td class="mark yes">✓</td><td class="mark yes">✓</td><td class="mark no">—</td></tr>
+          <tr><td class="name-col">Classes</td><td class="mark yes">✓</td><td class="mark yes">✓</td><td class="mark yes">✓</td><td class="mark yes">✓</td><td class="mark no">—</td></tr>
+          <tr><td class="name-col">Audit Log</td><td class="mark yes">✓</td><td class="mark no">—</td><td class="mark yes">✓</td><td class="mark no">—</td><td class="mark no">—</td></tr>
+          <tr><td class="name-col">Settings</td><td class="mark yes">✓</td><td class="mark yes">✓</td><td class="mark no">—</td><td class="mark no">—</td><td class="mark no">—</td></tr>
+          <tr><td class="name-col">Coach Portal</td><td class="mark no">—</td><td class="mark no">—</td><td class="mark no">—</td><td class="mark no">—</td><td class="mark yes">✓</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>Who can appoint whom</h4>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Appointer</th><th>May create</th></tr></thead>
+        <tbody>
+          <tr><td class="name-col">Owner</td><td>Supervisor, Manager, Receptionist, Coach</td></tr>
+          <tr><td class="name-col">Supervisor</td><td>Manager, Receptionist, Coach</td></tr>
+          <tr><td class="name-col">Everyone else</td><td class="no">Cannot add staff</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sub">Nobody can create an Owner from inside a gym — a gym's Owner is set when the Super Admin creates the gym. Nobody can change their own role.</p>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Super Admin manual</h2>
+      <p class="sub">Seven sections, in the order you will typically need them.</p>
+    </div>
+    <div class="features">
+      <div class="feature"><span class="feature-name">Gyms</span><span class="feature-desc">Create a gym with its owner's details and starting tier, then browse and filter by status. Open a gym to change its tier, suspend it, or reinstate it — suspension and reinstatement both require a typed justification, and a suspended gym's staff see a lock screen instead of the dashboard.</span></div>
+      <div class="feature"><span class="feature-name">Tiers</span><span class="feature-desc">Create and edit the subscription tiers gyms are sold on: monthly price, annual price and member cap. A tier that gyms already sit on can be price-locked so existing customers keep their agreed rate.</span></div>
+      <div class="feature"><span class="feature-name">Billing</span><span class="feature-desc">Each gym's SaaS billing state — paid, due, or past due — and the payments they have made for their own subscription. A past-due gym gets a Pay Now prompt inside its dashboard.</span></div>
+      <div class="feature"><span class="feature-name">Metrics</span><span class="feature-desc">Platform-wide totals across all gyms.</span></div>
+      <div class="feature"><span class="feature-name">Admins</span><span class="feature-desc">Add another Super Admin by email, or promote an existing account. Every change is attributed to the person who made it in the audit log.</span></div>
+      <div class="feature"><span class="feature-name">Messaging</span><span class="feature-desc">Holds the WhatsApp sending instance used for both staff invites and member sign-in codes. The field is labelled Instance ID but expects the instance <em>name</em>, matched exactly as it appears in the messaging provider — including spaces and capitalisation. A mismatch silently stops both invites and sign-in codes.</span></div>
+      <div class="feature"><span class="feature-name">Payment Providers</span><span class="feature-desc">Which mobile-money provider is active platform-wide. Individual gyms then connect their own account under their dashboard settings.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Gym staff manual</h2>
+      <p class="sub">The dashboard. Each entry notes which roles see it — anything not listed for your role will not appear in your sidebar.</p>
+    </div>
+    <div class="features">
+      <div class="feature"><span class="feature-name">Overview</span><span class="feature-desc">Today at a glance: who is currently in the gym, expiring memberships, and front-desk alerts that need attention.<span class="who">Owner · Manager · Receptionist</span></span></div>
+      <div class="feature"><span class="feature-name">Members</span><span class="feature-desc">Add and edit members, look someone up, and open a member to see their subscription, attendance and payment history. Phone numbers use a country picker — choose the country, then type the national number without the calling code.<span class="who">Owner · Manager · Receptionist</span></span></div>
+      <div class="feature"><span class="feature-name">Staff</span><span class="feature-desc">Add staff, change roles, and deactivate people who have left. A new staff member gets a temporary password over WhatsApp and is forced to change it on first sign-in.<span class="who">Owner · Supervisor</span></span></div>
+      <div class="feature"><span class="feature-name">Plans</span><span class="feature-desc">The membership plans you sell to members — name, price and duration. Distinct from the Super Admin's tiers, which are what <em>you</em> pay to use GymOS.<span class="who">Owner · Manager</span></span></div>
+      <div class="feature"><span class="feature-name">Subscriptions</span><span class="feature-desc">Who is active, expiring or lapsed. Renew a member here — by cash, or by sending a mobile-money request to their phone.<span class="who">Owner · Manager</span></span></div>
+      <div class="feature"><span class="feature-name">Payments</span><span class="feature-desc">Every payment taken, its method and status, with refunds and any flagged discrepancies.<span class="who">Owner · Manager · Receptionist</span></span></div>
+      <div class="feature"><span class="feature-name">Attendance</span><span class="feature-desc">Check-in history and who is in the building now. Members check themselves in by scanning the gym's QR code in the app.<span class="who">Owner · Manager · Receptionist</span></span></div>
+      <div class="feature"><span class="feature-name">Classes</span><span class="feature-desc">Schedule classes and sessions and see who has booked. Members book from the app and get a reminder before it starts.<span class="who">Owner · Supervisor · Manager · Receptionist</span></span></div>
+      <div class="feature"><span class="feature-name">Audit Log</span><span class="feature-desc">A record of who changed what and when, including suspensions, role changes and refunds.<span class="who">Owner · Manager</span></span></div>
+      <div class="feature"><span class="feature-name">Settings</span><span class="feature-desc">Gym branding and logo, the check-in QR code, language, membership and attendance rules, front-desk alerts, and the Payment Account where the gym connects its own mobile-money credentials so members can pay.<span class="who">Owner · Supervisor</span></span></div>
+      <div class="feature"><span class="feature-name">Coach Portal</span><span class="feature-desc">A coach's own view: assigned members, their workout plans, and session notes. Coaches see a masked phone number rather than the full one.<span class="who">Coach only</span></span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Member manual</h2>
+      <p class="sub">The mobile app, on iOS and Android.</p>
+    </div>
+    <h4>Getting in</h4>
+    <div class="features">
+      <div class="feature"><span class="feature-name">Sign in</span><span class="feature-desc">Choose a language, pick your country and enter your phone number, then type the code sent to you. There is no password — the code is how you sign in every time. Too many wrong attempts locks the screen briefly.</span></div>
+      <div class="feature"><span class="feature-name">Set up</span><span class="feature-desc">Add your name and photo, optionally your body measurements, then your goal and experience level. Finally confirm your plan. You are only fully signed up once you reach the main tabs.</span></div>
+    </div>
+    <h4>Day to day</h4>
+    <div class="features">
+      <div class="feature"><span class="feature-name">Home</span><span class="feature-desc">Your membership status, when it expires, and what is coming up.</span></div>
+      <div class="feature"><span class="feature-name">Check in</span><span class="feature-desc">Scan the QR code at the gym entrance. It works without a signal — scans are queued and sent when you are back online.</span></div>
+      <div class="feature"><span class="feature-name">Classes</span><span class="feature-desc">Browse the timetable and book a place. You get a reminder before the session.</span></div>
+      <div class="feature"><span class="feature-name">Progress</span><span class="feature-desc">Log weight and measurements over time, and keep progress photos. Photos are private unless you choose to share them with your coach.</span></div>
+      <div class="feature"><span class="feature-name">History</span><span class="feature-desc">Your past visits and payments, with a receipt for each one.</span></div>
+      <div class="feature"><span class="feature-name">Workout plan</span><span class="feature-desc">The plan your coach set for you, with exercises to tick off as you complete them.</span></div>
+      <div class="feature"><span class="feature-name">Renew</span><span class="feature-desc">Renew when your membership is running out. Pay by mobile money from your phone — pick your country, enter the number, and approve the prompt on your handset.</span></div>
+      <div class="feature"><span class="feature-name">Profile</span><span class="feature-desc">Your details, language and notification preferences. Your phone number is your sign-in identity, so the gym changes it for you rather than you editing it here.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Guided walkthrough</h2>
+      <div class="circuit-meta"><span>20 steps</span><span>≈ 20 minutes</span><span>Start signed out</span></div>
+    </div>
+
+    <h4>Circuit 1 — Super Admin console</h4>
+    <ol class="steps">
+      <li><span class="num">01</span><div class="step-body"><span>Sign in to the Super Admin console.</span></div></li>
+      <li><span class="num">02</span><div class="step-body"><span>Browse gyms and filter by status.</span><span class="step-note">On a freshly reset environment, <strong>SmartSana Fitness</strong> is the only gym.</span></div></li>
+      <li><span class="num">03</span><div class="step-body"><span>Create a gym — name, owner details, phone, email, tier.</span></div></li>
+      <li><span class="num">04</span><div class="step-body"><span>Open its detail page and confirm the creation shows in the audit trail.</span></div></li>
+      <li><span class="num">05</span><div class="step-body"><span>Suspend the gym, then reinstate it.</span><span class="step-note">Both need a typed justification before they submit.</span></div></li>
+      <li><span class="num">06</span><div class="step-body"><span>Visit Tiers and Metrics.</span></div></li>
+      <li><span class="num">07</span><div class="step-body"><span>Switch the interface to French and confirm labels change immediately.</span></div></li>
+      <li><span class="num">08</span><div class="step-body"><span>Copy the invite link from the success notification.</span><span class="step-note">Carry it into Circuit 2. In production it arrives over WhatsApp.</span></div></li>
+    </ol>
+
+    <h4>Circuit 2 — Owner invite &amp; dashboard</h4>
+    <ol class="steps">
+      <li><span class="num">09</span><div class="step-body"><span>Open the invite link in a private window.</span><span class="step-note">It should land on password reset, not a login screen.</span></div></li>
+      <li><span class="num">10</span><div class="step-body"><span>Set a password and continue to Overview as the owner.</span></div></li>
+      <li><span class="num">11</span><div class="step-body"><span>Log out and back in to confirm the credentials persisted.</span></div></li>
+      <li><span class="num">12</span><div class="step-body"><span>Check the sidebar matches the Owner row of the access table above.</span><span class="step-note">Coach Portal should be absent — it is Coach-only.</span></div></li>
+      <li><span class="num">13</span><div class="step-body"><span>Edit branding in Settings — upload a logo, save, reload.</span></div></li>
+      <li><span class="num">14</span><div class="step-body"><span>Add a staff member and confirm the role list offers only what an Owner may appoint.</span></div></li>
+      <li><span class="num">15</span><div class="step-body"><span>Switch language and confirm it survives a new session.</span></div></li>
+    </ol>
+
+    <h4>Circuit 3 — Member app</h4>
+    <ol class="steps">
+      <li><span class="num">16</span><div class="step-body"><span>Install from TestFlight or Play internal and choose a language.</span></div></li>
+      <li><span class="num">17</span><div class="step-body"><span>Enter a phone number and request the code.</span><span class="step-note">Reviewers: use the number in the store review notes, which never sends a real message.</span></div></li>
+      <li><span class="num">18</span><div class="step-body"><span>Enter the code to verify.</span><span class="step-note">Reviewers use the fixed code from those same notes. Real numbers receive theirs over WhatsApp.</span></div></li>
+      <li><span class="num">19</span><div class="step-body"><span>Complete profile setup, then the goal and experience questions.</span></div></li>
+      <li><span class="num">20</span><div class="step-body"><span>Confirm the plan and land on the tabs, then scan the gym's QR code to check in.</span><span class="step-note">The QR code is in the dashboard under Settings.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Subscription tiers</h2>
+      <p class="sub">What a gym pays to use GymOS. Live values, in XAF.</p>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Tier</th><th>Monthly</th><th>Annual</th><th>Member cap</th></tr></thead>
+        <tbody>
+          <tr><td class="name-col">Hustle</td><td class="num-col">15,000</td><td class="num-col">150,000</td><td class="num-col">30</td></tr>
+          <tr><td class="name-col">Grind</td><td class="num-col">35,000</td><td class="num-col">350,000</td><td class="num-col">100</td></tr>
+          <tr><td class="name-col">Elite</td><td class="num-col">75,000</td><td class="num-col">750,000</td><td class="num-col">unlimited</td></tr>
+          <tr><td class="name-col">Starter</td><td class="num-col">0</td><td class="num-col">0</td><td class="num-col">50</td></tr>
+          <tr><td class="name-col">Free/Test</td><td class="num-col">0</td><td class="num-col">0</td><td class="num-col">30</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Before you demo</h2></div>
+    <div class="notes">
+      <div class="note"><span class="tag t-crit">Live money</span><span>Mobile money is configured with <strong>production</strong> credentials. A payment started here is a real transaction — do not run the payment flow as a demo step.</span></div>
+      <div class="note"><span class="tag t-warn">Empty start</span><span>The environment was reset on 8 September 2026. It holds one Super Admin and one gym, with no historical member, payment or attendance data to browse.</span></div>
+      <div class="note"><span class="tag t-ok">Sign-in codes</span><span>Codes go out over WhatsApp first and fall back to SMS. The store-review number skips delivery entirely and always accepts its fixed code.</span></div>
+      <div class="note"><span class="tag t-warn">Superseded</span><span>The July 2026 version of this page said Members, Subscriptions, Payments and Attendance were navigation-only. That is no longer true — those modules are built, and Coach Portal is role-gated rather than hidden.</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Roles, permissions, tier prices and credentials verified against the live environment and source on 8 September 2026.</span>
+    <span>Supersedes the 13 July 2026 walkthrough, whose demo login no longer exists.</span>
+  </footer>
+
+</div>
+
+<script>
+  document.querySelectorAll(".copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var text = btn.getAttribute("data-copy");
+      var restore = function () { btn.textContent = "Copy"; btn.removeAttribute("data-done"); };
+      var ok = function () { btn.textContent = "Copied"; btn.setAttribute("data-done", "1"); setTimeout(restore, 1400); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(ok, function () {
+          btn.textContent = "Select it"; setTimeout(restore, 1400);
+        });
+      } else {
+        btn.textContent = "Select it"; setTimeout(restore, 1400);
+      }
+    });
+  });
+</script>
