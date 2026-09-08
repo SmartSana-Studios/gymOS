@@ -9,15 +9,22 @@ import type { Locale } from "@/lib/i18n/config";
 import { updateLanguagePreference } from "@/app/(dashboard)/actions";
 
 /**
- * EXPERIENCE.md, Admin Dashboard -- Sidebar: "EN | FR language toggle" in
- * the footer's bottom section. `i18n.changeLanguage()` re-renders every
- * mounted Client Component instantly (both locales' resources are already
- * preloaded, lib/i18n/client-provider.tsx) -- the Server Action + router
- * refresh persist the choice and re-render the Server Component tree
- * (e.g. Overview's heading) against the now-updated `users.preferred_language`
- * row, matching FR-063's "no reload" language-change UX.
+ * EN | FR language toggle. `i18n.changeLanguage()` re-renders every mounted
+ * Client Component instantly (both locales' resources are already preloaded,
+ * lib/i18n/client-provider.tsx) -- the Server Action + router refresh persist
+ * the choice and re-render the Server Component tree (e.g. Overview's
+ * heading) against the now-updated `users.preferred_language` row, matching
+ * FR-063's "no reload" language-change UX.
+ *
+ * Lives in the TopBar rather than the Sidebar footer, alongside the theme
+ * switch and profile. That move is why the button colours are theme tokens
+ * (`muted-foreground`/`foreground`) rather than the `primary-foreground`
+ * shades the original sidebar placement used: on the top bar's --background
+ * surface those near-white shades were effectively invisible in light mode.
+ * The `railAware` prop went with the move -- there is no icon rail to
+ * collapse into up here.
  */
-export function LanguageToggle({ railAware }: { railAware: boolean }) {
+export function LanguageToggle() {
   const { i18n } = useTranslation();
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -40,7 +47,7 @@ export function LanguageToggle({ railAware }: { railAware: boolean }) {
   }
 
   return (
-    <div className={cn("flex items-center gap-1 text-xs", railAware && "lg:justify-center")}>
+    <div className="flex items-center gap-0.5 text-xs">
       {(["en", "fr"] as const).map((code) => (
         <button
           key={code}
@@ -49,8 +56,8 @@ export function LanguageToggle({ railAware }: { railAware: boolean }) {
           disabled={pending}
           aria-pressed={i18n.language === code}
           className={cn(
-            "rounded px-1.5 py-0.5 uppercase text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground",
-            i18n.language === code && "bg-primary-foreground/20 font-semibold text-primary-foreground",
+            "rounded px-1.5 py-1 uppercase text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
+            i18n.language === code && "bg-muted font-semibold text-foreground",
           )}
         >
           {code}

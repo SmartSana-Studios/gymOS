@@ -31,7 +31,9 @@
     "gymSwitchError": "Impossible de changer de salle. Réessayez."
   },
   "topbar": {
-    "openNavigationMenu": "Ouvrir le menu de navigation"
+    "openNavigationMenu": "Ouvrir le menu de navigation",
+    "switchToLightTheme": "Passer au thème clair",
+    "switchToDarkTheme": "Passer au thème sombre"
   },
   "overview": {
     "title": "Aperçu",

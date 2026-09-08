@@ -1,40 +1,50 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { LanguageToggle } from "@/components/shared/LanguageToggle";
+import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import type { MemberRole } from "@/services/session";
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+const ROLE_LABEL_KEY: Record<MemberRole, string> = {
+  member: "role.member",
+  coach: "role.coach",
+  receptionist: "role.receptionist",
+  manager: "role.manager",
+  supervisor: "role.supervisor",
+  owner: "role.owner",
+};
+
 /**
- * Slim bar at the top of the content area (not inside the Sidebar). Two
- * jobs: host the hamburger toggle that reveals the Sidebar as an overlay
- * at <768px, and an optional page-title slot -- gym name / user name /
- * role pill already live in the Sidebar itself (see Sidebar.tsx), so this
- * bar does not duplicate them.
+ * Persistent bar across the top of the content area, holding the account
+ * controls: who is signed in, the language switch and the theme switch.
  *
- * The hamburger is `md:hidden` (hidden at >=768px), matching the Sidebar
- * overlay's own `md:hidden` breakpoint exactly. Review finding: this
- * previously used `lg:hidden` on the whole bar, making the hamburger
- * visible but non-functional in the 768-1023px icon-rail range, where the
- * overlay it's meant to open never appears (it's `md:hidden`). No current
- * page passes `title`, so the bar itself stays hidden at >=1024px in that
- * case -- once a page does, the bar renders at every width to show it.
+ * It used to be `lg:hidden` unless a page passed a `title`, existing only to
+ * host the mobile hamburger -- so on desktop there was no top bar at all and
+ * these controls lived in the Sidebar footer. It is now always rendered,
+ * because the controls it carries have to be reachable at every width.
+ *
+ * Log out deliberately stays in the Sidebar: it is a destructive action with
+ * its own confirmation dialog, and keeping it out of a row of one-tap
+ * switches makes it harder to hit by accident.
  */
 export function TopBar({
   onOpenMobileNav,
+  memberName,
+  role,
   title,
 }: {
   onOpenMobileNav: () => void;
+  memberName: string;
+  role: MemberRole;
   title?: string;
 }) {
   const { t } = useTranslation();
+
   return (
-    <div
-      className={cn(
-        "flex h-14 items-center gap-3 border-b px-4",
-        !title && "lg:hidden",
-      )}
-    >
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4">
       <Button
         type="button"
         variant="ghost"
@@ -45,7 +55,33 @@ export function TopBar({
       >
         <Menu size={20} />
       </Button>
-      {title && <h1 className="text-sm font-medium">{title}</h1>}
-    </div>
+
+      {title && <h1 className="truncate text-sm font-medium">{title}</h1>}
+
+      <div className="ml-auto flex items-center gap-1 sm:gap-2">
+        <LanguageToggle />
+        <ThemeToggle />
+
+        <div className="ml-1 flex items-center gap-2 border-l pl-2 sm:ml-2 sm:pl-3">
+          {/* Name and role are hidden on the narrowest screens, where the
+              avatar alone identifies the session -- the full name stays
+              available through its `title`. */}
+          <div className="hidden min-w-0 flex-col items-end sm:flex">
+            <span className="max-w-[160px] truncate text-sm font-medium leading-tight">
+              {memberName}
+            </span>
+            <Badge variant="secondary" className="mt-0.5 text-[10px]">
+              {t(ROLE_LABEL_KEY[role])}
+            </Badge>
+          </div>
+          <div
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground"
+            title={memberName}
+          >
+            {memberName.slice(0, 1).toUpperCase()}
+          </div>
+        </div>
+      </div>
+    </header>
   );
 }

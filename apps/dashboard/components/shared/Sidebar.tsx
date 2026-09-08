@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -22,7 +21,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LanguageToggle } from "./LanguageToggle";
 import { GymSwitcher } from "./GymSwitcher";
 
 // Role visibility matrix (EXPERIENCE.md, Admin Dashboard -- Sidebar). Kept
@@ -56,15 +54,6 @@ const NAV_ITEMS: {
   { labelKey: "nav.coachPortal", href: "/coach", icon: Dumbbell, roles: ["coach"] },
 ];
 
-const ROLE_LABEL_KEY: Record<MemberRole, string> = {
-  member: "role.member",
-  coach: "role.coach",
-  receptionist: "role.receptionist",
-  manager: "role.manager",
-  supervisor: "role.supervisor",
-  owner: "role.owner",
-};
-
 /**
  * Rendered twice: once inside the fixed `<aside>` (which becomes a 64px
  * icon-only rail at 768-1023px -- `railAware` hides labels below the `lg`
@@ -76,7 +65,6 @@ function SidebarContent({
   role,
   gymId,
   gymName,
-  memberName,
   availableGyms,
   railAware,
   onNavigate,
@@ -84,7 +72,6 @@ function SidebarContent({
   role: MemberRole;
   gymId: string;
   gymName: string;
-  memberName: string;
   availableGyms: { gymId: string; gymName: string; role: MemberRole }[];
   railAware: boolean;
   onNavigate: () => void;
@@ -95,8 +82,8 @@ function SidebarContent({
   const labelClass = railAware ? "hidden truncate lg:inline" : "truncate";
 
   return (
-    <div className="flex h-full flex-col bg-primary text-primary-foreground">
-      <div className="flex flex-col gap-1 border-b border-primary-foreground/10 p-4">
+    <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+      <div className="flex flex-col gap-1 border-b border-sidebar-foreground/10 p-4">
         <span className={cn("text-lg font-semibold", railAware && "hidden lg:inline")}>GymOS</span>
         {availableGyms.length > 1 ? (
           <GymSwitcher
@@ -108,7 +95,7 @@ function SidebarContent({
         ) : (
           <span
             className={cn(
-              "max-w-[200px] truncate text-sm text-primary-foreground/70",
+              "max-w-[200px] truncate text-sm text-sidebar-foreground/70",
               railAware && "hidden lg:inline",
             )}
             title={gymName}
@@ -130,9 +117,9 @@ function SidebarContent({
               onClick={onNavigate}
               title={label}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm text-primary-foreground/80 hover:bg-primary-foreground/10 hover:text-primary-foreground",
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
                 isActive &&
-                  "border-l-[3px] border-accent bg-primary-foreground/10 pl-[9px] font-bold text-primary-foreground",
+                  "border-l-[3px] border-accent bg-sidebar-foreground/10 pl-[9px] font-bold text-sidebar-foreground",
               )}
             >
               <Icon size={18} className="shrink-0" />
@@ -142,7 +129,7 @@ function SidebarContent({
         })}
       </nav>
 
-      <SidebarFooter role={role} memberName={memberName} railAware={railAware} />
+      <SidebarFooter railAware={railAware} />
     </div>
   );
 }
@@ -151,7 +138,6 @@ export function Sidebar({
   role,
   gymId,
   gymName,
-  memberName,
   availableGyms,
   isMobileOpen,
   onCloseMobile,
@@ -159,7 +145,6 @@ export function Sidebar({
   role: MemberRole;
   gymId: string;
   gymName: string;
-  memberName: string;
   availableGyms: { gymId: string; gymName: string; role: MemberRole }[];
   isMobileOpen: boolean;
   onCloseMobile: () => void;
@@ -188,7 +173,6 @@ export function Sidebar({
           role={role}
           gymId={gymId}
           gymName={gymName}
-          memberName={memberName}
           availableGyms={availableGyms}
           railAware
           onNavigate={onCloseMobile}
@@ -209,7 +193,6 @@ export function Sidebar({
               role={role}
               gymId={gymId}
               gymName={gymName}
-              memberName={memberName}
               availableGyms={availableGyms}
               railAware={false}
               onNavigate={onCloseMobile}
@@ -221,15 +204,7 @@ export function Sidebar({
   );
 }
 
-function SidebarFooter({
-  role,
-  memberName,
-  railAware,
-}: {
-  role: MemberRole;
-  memberName: string;
-  railAware: boolean;
-}) {
+function SidebarFooter({ railAware }: { railAware: boolean }) {
   const { t } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [confirming, setConfirming] = useState(false);
@@ -259,32 +234,19 @@ function SidebarFooter({
     router.push("/auth/login");
   }
 
+  // Identity (name, role) and the language/theme switches moved to the
+  // TopBar, which is now persistent at every width. Log out stays here on
+  // purpose: it is destructive and confirmation-gated, so it does not belong
+  // in a row of one-tap switches.
   return (
-    <div className="flex flex-col gap-3 border-t border-primary-foreground/10 p-4">
-      <div className="flex items-center gap-2">
-        <div
-          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-foreground/20 text-xs font-semibold"
-          title={memberName}
-        >
-          {memberName.slice(0, 1).toUpperCase()}
-        </div>
-        <div className={cn("flex min-w-0 flex-col", railAware && "hidden lg:flex")}>
-          <span className="truncate text-sm font-medium">{memberName}</span>
-          <Badge variant="secondary" className="w-fit text-[10px]">
-            {t(ROLE_LABEL_KEY[role])}
-          </Badge>
-        </div>
-      </div>
-
-      <LanguageToggle railAware={railAware} />
-
+    <div className="flex flex-col gap-3 border-t border-sidebar-foreground/10 p-4">
       <Button
         type="button"
         variant="outline"
         size="sm"
         title={t("sidebar.logout")}
         className={cn(
-          "bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground",
+          "bg-transparent text-sidebar-foreground hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
           railAware && "lg:w-full",
         )}
         onClick={() => setConfirming(true)}

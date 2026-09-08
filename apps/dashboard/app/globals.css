@@ -43,9 +43,21 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 0.5rem;
+    /* The sidebar is a persistent brand surface, so it needs its own tokens
+       rather than borrowing --primary. --primary is shadcn's *button* colour
+       and deliberately inverts between themes (near-white in .dark), which
+       is what previously rendered a white sidebar against a dark page. These
+       stay dark in both themes; only the exact shade changes. */
+    --sidebar: 216 41% 18%;
+    --sidebar-foreground: 0 0% 98%;
   }
   .dark {
     color-scheme: dark;
+    /* Slightly lifted off --background (3.9%) and brand-tinted, so the
+       sidebar still reads as a distinct surface in dark mode instead of
+       merging into the page. */
+    --sidebar: 216 30% 11%;
+    --sidebar-foreground: 0 0% 95%;
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
     --card: 0 0% 3.9%;

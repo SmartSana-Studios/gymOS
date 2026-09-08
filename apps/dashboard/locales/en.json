@@ -31,7 +31,9 @@
     "gymSwitchError": "Couldn't switch gyms. Try again."
   },
   "topbar": {
-    "openNavigationMenu": "Open navigation menu"
+    "openNavigationMenu": "Open navigation menu",
+    "switchToLightTheme": "Switch to light theme",
+    "switchToDarkTheme": "Switch to dark theme"
   },
   "overview": {
     "title": "Overview",

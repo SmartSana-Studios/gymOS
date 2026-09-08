@@ -37,13 +37,17 @@ export function DashboardChrome({
         role={role}
         gymId={gymId}
         gymName={gymName}
-        memberName={memberName}
         availableGyms={availableGyms}
         isMobileOpen={mobileNavOpen}
         onCloseMobile={() => setMobileNavOpen(false)}
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar onOpenMobileNav={() => setMobileNavOpen(true)} title={title} />
+        <TopBar
+          onOpenMobileNav={() => setMobileNavOpen(true)}
+          memberName={memberName}
+          role={role}
+          title={title}
+        />
         <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
