@@ -92,6 +92,22 @@ This story inserts a branch before Step 3 and makes Steps 3 and 5 conditional. *
 
 **`insertOwnerMember`** (`apps/super-admin/services/gyms.ts:969-983`) inserts `role: "owner"` through the **session-scoped** client, not the admin client, and deliberately omits `.select()` (its own comment explains: Super Admin's members-SELECT policy only covers `role='owner'` rows they can already re-derive). Unchanged by this story — it already takes a `userId` and does not care where it came from.
 
+### The working precedent: staff already do this (read before designing anything)
+
+**Do not design the reuse behaviour from scratch — an equivalent already ships for staff roles and should be mirrored.** Story 9.4 solved the identical "this person may already have an account" problem:
+
+- `createStaffMember` (`apps/dashboard/services/staff.ts:194+`) looks up an existing account **before** creating one, then lets the RPC decide what the situation is. Its lookup normalises the phone by stripping the leading `+`, because GoTrue persists `auth.users.phone` as `237…` not `+237…` while every Zod `e164Phone` schema requires the `+` — a mismatch that previously fell through to `createUser()` and surfaced a confusing "already registered" error instead of reusing the account. **The email path has no equivalent normalisation problem, but the shape of the fix — look up first, branch server-side, never let a duplicate reach `createUser` — is the pattern to copy.**
+- `create_staff_member()` (`0064_multi_gym_staff_binding.sql:61-70`) matches on `(gym_id, user_id) where deactivated_at is null`, **role-agnostically**, and either inserts a new binding (different gym) or replaces in place (same gym).
+
+Two consequences for this story:
+
+1. **A person can already be an Owner at gym A and a Manager at gym B today**, with no code change — gym B's Owner/Supervisor adds them through Add Staff. Ownership is the *only* role that cannot be granted to an existing account. This story closes that one remaining hole; it does not introduce multi-gym membership, which has shipped since Epic 9.
+2. **AC #6's partial unique index formalises a rule `0064` already enforces in application logic** (one active binding per `(gym_id, user_id)`). It is a database-level backstop for an existing invariant, not a new constraint — which is also why pre-existing violations are unlikely, though Task 1 still checks.
+
+### What happens today, exactly (the behaviour being replaced)
+
+Given an `ownerEmail` that already exists: Step 2 inserts the gym, Step 3's `createUser` returns GoTrue's structured `email_exists` code, `mapAuthAdminError` (`packages/types/src/errors.ts:163`) maps it to `owner_email_taken`, and the failure branch runs `deleteGym(gymRow.id)`. **The cleanup is correct — no orphaned gym survives.** The Super Admin simply gets "owner email is taken" and no gym. Preserve `owner_email_taken` for the cases that still warrant it; it must no longer fire for the ordinary link case.
+
 ### Why this is a provisioning change and not a schema change
 
 Everything below already exists and must be **reused, not rebuilt**:
@@ -141,6 +157,10 @@ Story 1.16 solved a structurally identical problem — "an email might already h
 - `apps/super-admin/app/(admin)/gyms/actions.ts:66-210` (`createGym`)
 - `apps/super-admin/services/gyms.ts:969-983` (`insertOwnerMember`)
 - `apps/super-admin/lib/super-admin-provisioning.mjs` (`findUserByEmail`)
+- `supabase/migrations/0064_multi_gym_staff_binding.sql:61-70` (role-agnostic `(gym_id, user_id)` match; new-binding vs replace-in-place)
+- `apps/dashboard/services/staff.ts:194+` (`createStaffMember` -- the look-up-before-create precedent)
+- `packages/types/src/errors.ts:155-170` (`email_exists` -> `owner_email_taken`)
+- `_bmad-output/implementation-artifacts/9-4-multi-gym-staff-binding-rules.md`
 - `_bmad-output/planning-artifacts/epics.md:26` (FR-001, multi-gym membership)
 
 ## Dev Agent Record
