@@ -17,10 +17,21 @@ export async function getMessagingInstance(): Promise<{
   const { data, error } = await supabase
     .from("messaging_provider_config")
     .select("instance_id, updated_at")
-    .single();
+    .maybeSingle();
 
   if (error) {
     return { data: null, error: await mapAndLog(error) };
+  }
+
+  // `.maybeSingle()`, not `.single()`: the singleton row is seeded by
+  // migration 0050, not by this code, so "the row is absent" is a reachable
+  // state this function's own contract already promises to handle ("or null
+  // if not yet configured"). `.single()` raises PGRST116 on zero rows, which
+  // turned the whole page into the generic error state after the 2026-09-08
+  // production data reset cleared the row -- the contract was only ever
+  // satisfied by the seed happening to be present.
+  if (!data) {
+    return { data: { instanceId: null, updatedAt: null }, error: null };
   }
 
   return {
