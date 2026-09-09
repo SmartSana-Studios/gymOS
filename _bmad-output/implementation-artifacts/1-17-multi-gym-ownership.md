@@ -4,7 +4,7 @@ baseline_commit: c99192eae0f7b8cb87a971b3272c2b7a1d907fae
 
 # Story 1.17: Multi-Gym Ownership — Assign a Gym to an Existing Owner
 
-Status: review
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
