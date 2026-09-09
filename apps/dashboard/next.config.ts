@@ -7,6 +7,16 @@ const nextConfig: NextConfig = {
   // context inside explicit <Suspense> boundaries (Suspense-wrap fix
   // applied), so Cache Components no longer hard-fails a real `next build`.
   cacheComponents: true,
+  // Next 16 blocks cross-origin requests to dev-only endpoints, treating any
+  // host other than the one the dev server initialized with (`localhost`) as
+  // cross-origin. Browsing dev over `127.0.0.1` therefore got the HMR
+  // WebSocket upgrade at `/_next/hmr` rejected with a malformed non-HTTP
+  // response, which the browser reports as `ERR_INVALID_HTTP_RESPONSE`.
+  // Because Turbopack's dev runtime bootstraps the client through that
+  // socket, React then never hydrated: every page rendered as inert HTML, so
+  // the login form fell through to a native GET and no auth request was ever
+  // made. Dev-only; `next build` ignores it.
+  allowedDevOrigins: ["127.0.0.1", "[::1]"],
   // VERCEL_ENV isn't NEXT_PUBLIC_-prefixed, so it isn't inlined into the
   // client bundle by default -- `env` here inlines it under a
   // NEXT_PUBLIC_ name so instrumentation-client.ts (Story 9.5) can tag
