@@ -37,11 +37,20 @@ const ROLE_LABEL_KEY: Record<MemberRole, string> = {
  * the current org/workspace name, not buried in a footer utility row).
  *
  * Pending/optimistic/error-revert/`router.refresh()` shape mirrors
- * LanguageToggle.tsx exactly. `router.refresh()` alone is sufficient for
- * every Server-Component/Server-Action-fetched page in this app (AD-7/AD-8)
- * -- FrontDeskAlertPanel's React Query cache (keyed by `gymId`, passed down
- * as a prop) naturally re-keys onto the new gym once its prop changes,
- * since `gymId` is part of its query key.
+ * LanguageToggle.tsx exactly. FrontDeskAlertPanel's React Query cache (keyed
+ * by `gymId`, passed down as a prop) naturally re-keys onto the new gym once
+ * its prop changes, since `gymId` is part of its query key.
+ *
+ * Story 1.19 correction: this comment previously claimed `router.refresh()`
+ * alone was sufficient for every Server-Component/Server-Action-fetched page
+ * in this app (AD-7/AD-8). It is not. `refresh()` re-renders Server
+ * Components but deliberately PRESERVES client-component state, so any page
+ * seeding `useState` from server props (SettingsForm does so ~10 times) kept
+ * rendering the previous gym's data while this switcher's own label -- a
+ * plain prop with no local state -- correctly updated. The fix lives in
+ * `(dashboard)/layout.tsx`, which keys the page subtree on `gymId` so a
+ * switch remounts rather than re-renders; `handleSwitch` below is unchanged
+ * and still only needs `router.refresh()`.
  */
 export function GymSwitcher({
   currentGymId,

@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Fragment, Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import { getDashboardShellContext } from "@/services/session";
@@ -110,7 +110,23 @@ async function DashboardLayoutData({
       memberName={shell.memberName}
       availableGyms={shell.availableGyms}
     >
-      {children}
+      {/*
+        Story 9.6 gym switching: `GymSwitcher` calls `router.refresh()`, which
+        re-renders Server Components and delivers this layout's new gym props
+        -- that part works, which is why the switcher's own label updates. But
+        `refresh()` deliberately PRESERVES client-component state, and a page
+        like Settings seeds ~10 `useState` values from its server props
+        (`SettingsForm`'s `initial`). `useState` initialisers only run on
+        mount, so those components kept rendering the previous gym's data
+        while the chrome around them showed the new gym.
+
+        Keying the page subtree on `gymId` makes a gym switch a remount rather
+        than a re-render, so every client component below re-seeds from the
+        new gym's props. A `Fragment` key adds no DOM node. The key is
+        deliberately NOT on `DashboardChrome`: the chrome holds only
+        `mobileNavOpen`, which is gym-independent and shouldn't be reset here.
+      */}
+      <Fragment key={shell.gymId}>{children}</Fragment>
     </DashboardChrome>
   );
 }
