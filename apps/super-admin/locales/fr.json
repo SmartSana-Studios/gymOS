@@ -53,7 +53,7 @@
       "passwordCopied": "Copié !",
       "dismiss": "Ignorer",
       "createdLinked": "Salle créée et attribuée à un compte GymOS existant. Le propriétaire se connecte avec son mot de passe actuel — aucun mot de passe temporaire n'a été créé.",
-      "createdLinkedNeverSignedIn": "Salle créée et attribuée à un compte GymOS existant. Ce compte ne s'est jamais connecté — demandez au propriétaire d'utiliser « Mot de passe oublié » sur le tableau de bord pour en définir un."
+      "createdLinkedNeverSignedIn": "Salle créée et attribuée à un compte GymOS existant. Ce compte ne s'est jamais connecté : son mot de passe temporaire est peut-être inconnu — de nouveaux identifiants seront nécessaires avant que le propriétaire puisse utiliser cette salle."
     },
     "create": {
       "title": "Créer une salle",

@@ -53,7 +53,7 @@
       "passwordCopied": "Copied!",
       "dismiss": "Dismiss",
       "createdLinked": "Gym created and assigned to an existing GymOS account. The owner signs in with their current password — no temporary password was created.",
-      "createdLinkedNeverSignedIn": "Gym created and assigned to an existing GymOS account. That account has never signed in — ask the owner to use Forgot password on the dashboard to set one."
+      "createdLinkedNeverSignedIn": "Gym created and assigned to an existing GymOS account. That account has never signed in, so its temporary password may be unknown — it will need new credentials before the owner can use this gym."
     },
     "create": {
       "title": "Create Gym",

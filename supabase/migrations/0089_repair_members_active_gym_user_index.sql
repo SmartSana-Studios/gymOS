@@ -47,12 +47,20 @@ do $$
 declare
   v_is_unique boolean;
   v_pred text;
+  v_usable boolean;
+  v_cols text[];
 begin
-  select i.indisunique, pg_get_expr(i.indpred, i.indrelid)
-    into v_is_unique, v_pred
+  select i.indisunique, pg_get_expr(i.indpred, i.indrelid), i.indisvalid and i.indisready,
+         (select array_agg(a.attname order by k.ord)
+            from unnest(i.indkey) with ordinality k(attnum, ord)
+            join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum)
+    into v_is_unique, v_pred, v_usable, v_cols
     from pg_index i
     join pg_class c on c.oid = i.indexrelid
-   where c.relname = 'idx_members_active_gym_user';
+    join pg_namespace n on n.oid = c.relnamespace
+   where c.relname = 'idx_members_active_gym_user'
+     and n.nspname = 'public'
+     and i.indrelid = 'public.members'::regclass;
 
   if v_is_unique is null then
     raise exception 'idx_members_active_gym_user missing after create -- index was not built';
@@ -62,5 +70,14 @@ begin
   end if;
   if v_pred is null then
     raise exception 'idx_members_active_gym_user exists but is NOT PARTIAL -- it would block the 0063 rehire path';
+  end if;
+  if v_pred <> '(deactivated_at IS NULL)' then
+    raise exception 'idx_members_active_gym_user has predicate % -- expected (deactivated_at IS NULL)', v_pred;
+  end if;
+  if v_cols is distinct from array['gym_id','user_id'] then
+    raise exception 'idx_members_active_gym_user covers % -- expected {gym_id,user_id}', v_cols;
+  end if;
+  if not v_usable then
+    raise exception 'idx_members_active_gym_user exists but is INVALID or NOT READY -- drop it and re-run';
   end if;
 end $$;

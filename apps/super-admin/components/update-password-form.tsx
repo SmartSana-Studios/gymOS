@@ -46,10 +46,15 @@ export function UpdatePasswordForm({
       // under the pre-reset session. replace() rather than assign() so Back
       // cannot return to a live reset form -- same reasoning as the
       // apps/dashboard twin.
+      // isLoading is deliberately NOT reset here, matching the dashboard twin:
+      // replace() only STARTS the navigation, so re-enabling the button leaves
+      // the form interactive until the document unloads, and a resubmit hits
+      // GoTrue's "New password should be different from the old password".
+      // Every other path below keeps the user on this page and so does reset it.
       window.location.replace("/gyms");
+      return;
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t("common.somethingWentWrong"));
-    } finally {
       setIsLoading(false);
     }
   };

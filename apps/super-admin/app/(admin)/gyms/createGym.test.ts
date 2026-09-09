@@ -20,40 +20,61 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 let findUserByEmailResult: { id: string; last_sign_in_at: string | null } | null;
 let profileResult: { data: { is_super_admin: boolean; display_name: string | null } | null; error: unknown };
 let phoneOwnerResult: { data: { id: string } | null; error: unknown };
+let membershipResult: { data: { name: string } | null; error: unknown };
+let findUserByEmailQueue: (typeof findUserByEmailResult)[];
 let createUserResult: { data: { user: { id: string } } | null; error: unknown };
 let insertGymResult: { data: { id: string } | null; error: unknown };
 let insertOwnerMemberResult: { error: unknown };
 
 const createUserMock = vi.fn(async () => createUserResult);
-const deleteGymMock = vi.fn(async () => {});
+const deleteGymMock = vi.fn<(id: string) => Promise<void>>(async () => {});
 const deleteUserMock = vi.fn(async () => ({ error: null }));
 const sendTempPasswordMessageMock = vi.fn(async () => ({ success: true as const }));
-const logGymCreatedMock = vi.fn(async () => {});
-const insertOwnerMemberMock = vi.fn(async () => insertOwnerMemberResult);
+const logGymCreatedMock = vi.fn<(id: string, meta: Record<string, unknown>) => Promise<void>>(async () => {});
+const insertGymMock = vi.fn<() => Promise<typeof insertGymResult>>(async () => insertGymResult);
+const insertOwnerMemberMock = vi.fn<(input: { userId: string }) => Promise<typeof insertOwnerMemberResult>>(
+  async () => insertOwnerMemberResult,
+);
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     auth: { admin: { createUser: createUserMock, deleteUser: deleteUserMock } },
     from: (table: string) => ({
       select: () => ({
-        eq: (col: string) => ({
-          maybeSingle: async () => (table === "users" && col === "phone" ? phoneOwnerResult : profileResult),
-        }),
+        eq: (col: string) => {
+          // Chainable so the members lookup (.eq().is().limit().maybeSingle())
+          // and the users lookups (.eq().maybeSingle()) share one stub.
+          const result = async () =>
+            table === "members"
+              ? membershipResult
+              : col === "phone"
+                ? phoneOwnerResult
+                : profileResult;
+          const node = {
+            maybeSingle: result,
+            is: () => node,
+            limit: () => node,
+          };
+          return node;
+        },
       }),
     }),
   }),
 }));
 
 vi.mock("@/lib/super-admin-provisioning.mjs", () => ({
-  findUserByEmail: async () => findUserByEmailResult,
+  // Queue-aware so the email_exists race can be modelled: the first lookup
+  // misses, the post-createUser re-query finds the account that won the race.
+  findUserByEmail: async () =>
+    findUserByEmailQueue.length ? findUserByEmailQueue.shift()! : findUserByEmailResult,
 }));
 
 vi.mock("@/services/gyms", () => ({
   gymNameExists: async () => false,
-  insertGym: async () => insertGymResult,
-  insertOwnerMember: () => insertOwnerMemberMock(),
+  insertGym: () => insertGymMock(),
+  insertOwnerMember: (input: { userId: string }) => insertOwnerMemberMock(input),
   deleteGym: (id: string) => deleteGymMock(id),
-  logGymCreated: (...args: unknown[]) => logGymCreatedMock(...(args as [])),
+  logGymCreated: (id: string, meta: Record<string, unknown>) => logGymCreatedMock(id, meta),
   mapAndLog: async (e: unknown) => ({ code: "mapped", message: String(e) }),
   logGymDataEscalation: async () => {},
   logGymLifecycleEvent: async () => {},
@@ -87,8 +108,10 @@ const VALID = {
 beforeEach(() => {
   vi.clearAllMocks();
   findUserByEmailResult = null;
+  findUserByEmailQueue = [];
   profileResult = { data: { is_super_admin: false, display_name: "Paul Nkusu" }, error: null };
   phoneOwnerResult = { data: null, error: null };
+  membershipResult = { data: { name: "Paul Nkusu" }, error: null };
   createUserResult = { data: { user: { id: "new-user" } }, error: null };
   insertGymResult = { data: { id: "gym-1" }, error: null };
   insertOwnerMemberResult = { error: null };
@@ -113,6 +136,41 @@ describe("createGym — owner resolution", () => {
     expect(data?.ownerNeverSignedIn).toBe(false);
     expect(createUserMock).not.toHaveBeenCalled();
     expect(sendTempPasswordMessageMock).not.toHaveBeenCalled();
+    // The whole point of Story 1.17: the membership must be written for the
+    // EXISTING account. Without this the suite would pass while linking the
+    // gym to a freshly created id.
+    expect(insertOwnerMemberMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "existing-user" }),
+    );
+  });
+
+  it("screens a raced account for Super Admin before linking it", async () => {
+    // The email_exists race branch previously skipped the Super Admin check,
+    // which would have granted a platform account a tenant membership.
+    createUserResult = { data: null, error: { code: "email_exists" } };
+    profileResult = { data: { is_super_admin: true, display_name: "Platform Staff" }, error: null };
+    // First lookup misses (so createUser runs and loses the race); the
+    // re-query then finds the account that won it.
+    findUserByEmailQueue = [null, { id: "super-user", last_sign_in_at: null }];
+    const { data, error } = await createGym({ ...VALID, confirmLinkExistingOwner: true });
+    expect(data).toBeNull();
+    expect(error?.code).toBe("owner_is_super_admin");
+  });
+
+  it("refuses a linked owner whose submitted phone belongs to someone else", async () => {
+    findUserByEmailResult = { id: "existing-user", last_sign_in_at: "2026-01-01T00:00:00Z" };
+    phoneOwnerResult = { data: { id: "a-different-person" }, error: null };
+    const { data, error } = await createGym({ ...VALID, confirmLinkExistingOwner: true });
+    expect(data).toBeNull();
+    expect(error?.code).toBe("owner_phone_belongs_to_other_account");
+    expect(insertOwnerMemberMock).not.toHaveBeenCalled();
+  });
+
+  it("allows a linked owner whose submitted phone is their own", async () => {
+    findUserByEmailResult = { id: "existing-user", last_sign_in_at: "2026-01-01T00:00:00Z" };
+    phoneOwnerResult = { data: { id: "existing-user" }, error: null };
+    const { error } = await createGym({ ...VALID, confirmLinkExistingOwner: true });
+    expect(error).toBeNull();
   });
 
   it("reports an existing account that has never signed in", async () => {
@@ -126,7 +184,7 @@ describe("createGym — owner resolution", () => {
     const { data, error } = await createGym(VALID);
     expect(data).toBeNull();
     expect(error?.code).toBe("owner_link_requires_confirmation");
-    expect(insertGymResult.data).toEqual({ id: "gym-1" }); // stub untouched
+    expect(insertGymMock).not.toHaveBeenCalled(); // the real AC #5 property
     expect(insertOwnerMemberMock).not.toHaveBeenCalled();
     expect(deleteGymMock).not.toHaveBeenCalled(); // nothing was written, so nothing to clean up
   });
@@ -152,6 +210,27 @@ describe("createGym — owner resolution", () => {
 });
 
 describe("createGym — compensating cleanup", () => {
+  it("deletes the auth user it created when the GYM insert fails", async () => {
+    // Regression guard. Hoisting owner resolution above insertGym (to make
+    // AC #5 true by construction) inverted the write order: the auth user is
+    // now created FIRST, so a failing gym insert can strand a real account
+    // holding the owner's email and phone forever -- and the retry then hits
+    // the confirmation gate naming an account this very request created.
+    // The old ordering was immune because deleteGym was the compensator.
+    insertGymResult = { data: null, error: { code: "gym_name_taken", message: "taken" } };
+    const { error } = await createGym(VALID);
+    expect(error).not.toBeNull();
+    expect(createUserMock).toHaveBeenCalledTimes(1);
+    expect(deleteUserMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT delete a linked account when the gym insert fails", async () => {
+    findUserByEmailResult = { id: "existing-user", last_sign_in_at: "2026-01-01T00:00:00Z" };
+    insertGymResult = { data: null, error: { code: "gym_name_taken", message: "taken" } };
+    await createGym({ ...VALID, confirmLinkExistingOwner: true });
+    expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
   it("deletes the auth user it created when the membership insert fails", async () => {
     insertOwnerMemberResult = { error: { code: "boom", message: "boom" } };
     const { error } = await createGym(VALID);

@@ -113,7 +113,7 @@ export function UpdatePasswordForm({
       // cache from the picture entirely instead of racing it.
       // replace(), not assign(): assign() leaves this page in history, so Back
       // returns to a still-live form with a valid session. Resubmitting there
-      // hits GoTrue.s "New password should be different from the old password"
+      // hits GoTrue's "New password should be different from the old password"
       // -- reproducing, through the back button, the exact double-password
       // symptom this change exists to remove.
       window.location.replace("/");

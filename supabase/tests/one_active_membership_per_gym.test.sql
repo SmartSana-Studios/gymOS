@@ -1,13 +1,12 @@
 -- Story 1.17: idx_members_active_gym_user -- created by 0003_members_and_users.sql:39
 -- and repaired where missing by 0089_repair_members_active_gym_user_index.sql.
 --
--- Three properties, because the index is PARTIAL and getting that wrong in
--- either direction is a real regression:
---   1. a second ACTIVE row for the same (gym_id, user_id) is rejected
+-- Two properties, both about the index being PARTIAL rather than total --
+-- getting that wrong in either direction is a real regression:
+--   1. the same user in a DIFFERENT gym is untouched -- multi-gym membership
+--      (FR-001) is the whole point and must not be constrained
 --   2. a second row is ALLOWED once the first is deactivated -- the rehire
 --      path 0063/0064 depend on, which a total unique index would break
---   3. the same user in a DIFFERENT gym is untouched -- multi-gym membership
---      (FR-001) is the whole point and must not be constrained
 
 -- Scope note (code review): the "a second active row is rejected" assertion
 -- deliberately does NOT live here -- multi_gym_staff_binding_rules.test.sql:332
