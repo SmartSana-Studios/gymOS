@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
@@ -205,88 +206,112 @@ export function PayNowButton({
         </Button>
       </div>
 
-      <dialog
-        ref={payNowDialogRef}
-        onClose={() => setPayNowOpen(false)}
-        onCancel={(e) => {
-          if (busy) e.preventDefault();
-        }}
-        className="w-full max-w-[420px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
-      >
-        <form onSubmit={handlePayNowSubmit} className="space-y-4 p-6">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold">{t("settings.billing.payNowDialogTitle")}</h2>
-            <p className="text-sm text-muted-foreground">{t("settings.billing.payNowDialogBody")}</p>
-          </div>
+      {/*
+        Story 1.20: portaled to <body> and rendered only while open.
+        This component is used inside SettingsForm's main <form> (the
+        Billing section), and a <form> cannot legally descend from
+        another <form> -- the HTML parser drops the inner one, which
+        surfaced as a hydration error on /settings for any gym whose
+        billing status is not `active`. Portaling moves the dialog out
+        of that subtree entirely, so both forms stand alone.
 
-          <div className={selectableTiers.length > 0 ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3"}>
-            {selectableTiers.length > 0 && (
-              <div className="space-y-2">
-                <Label htmlFor="payNowTier">{t("settings.billing.tierLabel")}</Label>
-                <select
-                  id="payNowTier"
-                  value={tierId}
-                  onChange={(e) => setTierId(e.target.value)}
-                  disabled={busy}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                  <option value="">{t("settings.billing.tierKeepCurrent")}</option>
-                  {selectableTiers.map((tier) => (
-                    <option key={tier.id} value={tier.id}>
-                      {tier.name}
-                    </option>
-                  ))}
-                </select>
+        PhoneInput's country-picker popover still renders IN PLACE
+        inside this dialog (Story 16.1) -- portaling the dialog itself
+        keeps the popover within the dialog's own subtree, so it stays
+        interactive under showModal()'s inertness rules.
+
+        Gated on `payNowOpen` rather than a `mounted` flag: it is
+        already false during SSR (where document.body does not exist),
+        and every field the dialog edits is component state, so
+        unmounting it while closed loses nothing -- openPayNowDialog()
+        resets those values anyway.
+      */}
+      {payNowOpen &&
+        createPortal(
+          <dialog
+            ref={payNowDialogRef}
+            onClose={() => setPayNowOpen(false)}
+            onCancel={(e) => {
+              if (busy) e.preventDefault();
+            }}
+            className="w-full max-w-[420px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
+          >
+            <form onSubmit={handlePayNowSubmit} className="space-y-4 p-6">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold">{t("settings.billing.payNowDialogTitle")}</h2>
+                <p className="text-sm text-muted-foreground">{t("settings.billing.payNowDialogBody")}</p>
               </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="payNowInterval">{t("settings.billing.intervalLabel")}</Label>
-              <select
-                id="payNowInterval"
-                value={billingInterval}
-                onChange={(e) => setBillingInterval(e.target.value)}
-                disabled={busy}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="">{t("settings.billing.tierKeepCurrent")}</option>
-                <option value="monthly">{t("settings.billing.intervalMonthly")}</option>
-                <option value="annual">{t("settings.billing.intervalAnnual")}</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="payNowPhone">{t("settings.billing.payerPhoneLabel")}</Label>
-            <PhoneInput
-              id="payNowPhone"
-              countries="tara-money"
-              value={payNowPhone}
-              onChange={(value) => setPayNowPhone(value ?? "")}
-              disabled={busy}
-            />
-          </div>
-
-          {payNowError && <p className="text-sm text-red-600">{payNowError}</p>}
-
-          <div className="flex flex-col gap-2 border-t pt-4">
-            <Button type="submit" disabled={busy}>
-              {payNowLoading ? t("settings.billing.payNowLoading") : t("settings.billing.payNow")}
-            </Button>
-            <Button type="button" variant="outline" disabled={busy} onClick={handleContinueOnTara}>
-              {hostedCheckoutLoading ? t("settings.billing.payNowLoading") : t("settings.billing.continueOnTara")}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={busy}
-              onClick={() => payNowDialogRef.current?.close()}
-            >
-              {t("common.cancel")}
-            </Button>
-          </div>
-        </form>
-      </dialog>
+    
+              <div className={selectableTiers.length > 0 ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3"}>
+                {selectableTiers.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="payNowTier">{t("settings.billing.tierLabel")}</Label>
+                    <select
+                      id="payNowTier"
+                      value={tierId}
+                      onChange={(e) => setTierId(e.target.value)}
+                      disabled={busy}
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    >
+                      <option value="">{t("settings.billing.tierKeepCurrent")}</option>
+                      {selectableTiers.map((tier) => (
+                        <option key={tier.id} value={tier.id}>
+                          {tier.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="payNowInterval">{t("settings.billing.intervalLabel")}</Label>
+                  <select
+                    id="payNowInterval"
+                    value={billingInterval}
+                    onChange={(e) => setBillingInterval(e.target.value)}
+                    disabled={busy}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="">{t("settings.billing.tierKeepCurrent")}</option>
+                    <option value="monthly">{t("settings.billing.intervalMonthly")}</option>
+                    <option value="annual">{t("settings.billing.intervalAnnual")}</option>
+                  </select>
+                </div>
+              </div>
+    
+              <div className="space-y-2">
+                <Label htmlFor="payNowPhone">{t("settings.billing.payerPhoneLabel")}</Label>
+                <PhoneInput
+                  id="payNowPhone"
+                  countries="tara-money"
+                  value={payNowPhone}
+                  onChange={(value) => setPayNowPhone(value ?? "")}
+                  disabled={busy}
+                />
+              </div>
+    
+              {payNowError && <p className="text-sm text-red-600">{payNowError}</p>}
+    
+              <div className="flex flex-col gap-2 border-t pt-4">
+                <Button type="submit" disabled={busy}>
+                  {payNowLoading ? t("settings.billing.payNowLoading") : t("settings.billing.payNow")}
+                </Button>
+                <Button type="button" variant="outline" disabled={busy} onClick={handleContinueOnTara}>
+                  {hostedCheckoutLoading ? t("settings.billing.payNowLoading") : t("settings.billing.continueOnTara")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => payNowDialogRef.current?.close()}
+                >
+                  {t("common.cancel")}
+                </Button>
+              </div>
+            </form>
+          </dialog>,
+          document.body,
+        )}
     </>
   );
 }
