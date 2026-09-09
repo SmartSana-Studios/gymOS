@@ -114,17 +114,28 @@ select throws_like(
   'super_admin INSERT of a members row with role != owner is rejected by the WITH CHECK clause'
 );
 
+-- These two assertions previously read `count(*) from members` = 2 and
+-- `array_agg(name)` = exactly this file's two fixture owners. That assumed an
+-- otherwise EMPTY database: any pre-existing owner row -- a local dev seed, a
+-- leftover fixture -- made them fail with "have: 5 / want: 2" even though
+-- nothing was wrong with the policy. The two claims being made are (a) only
+-- owner-role rows are visible and (b) the scope is platform-wide rather than
+-- session-scoped; both are expressible without counting unrelated rows, so
+-- they are now written that way. Do not "simplify" them back to a bare count.
+
 select is(
-  (select count(*) from members)::int, 2,
-  -- The role=owner SELECT scope is not "rows this session inserted" -- it's
-  -- every owner row across every gym: the pre-seeded Gym A owner (seeded as
-  -- postgres, before any RLS applied) AND the one just inserted above.
-  'super_admin sees every owner-role members row across every gym (pre-seeded Gym A owner + the one just inserted), never a coach/receptionist/member row'
+  (select count(*) from members where role <> 'owner')::int, 0,
+  'super_admin sees ONLY owner-role members rows -- never a coach/receptionist/member row, whatever else exists in the database'
 );
 
 select is(
-  (select array_agg(name order by name) from members), array['Gym A Owner', 'New Owner'],
-  'the two visible members rows are exactly the two owner rows -- confirming the SELECT scope is role=owner platform-wide, not "first row" or "rows this session created"'
+  (select array_agg(name order by name) from members where name in ('Gym A Owner', 'New Owner')),
+  array['Gym A Owner', 'New Owner'],
+  -- The role=owner SELECT scope is not "rows this session inserted" -- it is
+  -- every owner row across every gym: the pre-seeded Gym A owner (seeded as
+  -- postgres, before any RLS applied) AND the one just inserted above. Seeing
+  -- BOTH is what proves that.
+  'both owner rows are visible -- the pre-seeded one and the one just inserted -- confirming the SELECT scope is role=owner platform-wide, not "first row" or "rows this session created"'
 );
 
 -- ============================================================================

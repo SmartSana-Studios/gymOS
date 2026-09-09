@@ -41,6 +41,17 @@ export function isPhoneIdentifier(identifier: string): boolean {
   return E164_LOOSE.test(stripPhoneFormatting(identifier.trim()));
 }
 
+/** Canonical E.164 (always "+"-prefixed) for an identifier already known to be
+ * a phone. `members.phone` is written by the Zod `e164Phone` schemas, which
+ * mandate the "+", so this is the form to compare against that column and the
+ * form to hand to `signInWithOtp` -- distinct from
+ * `toPasswordCredentials`, which passes through whatever the user typed
+ * because GoTrue's own sign-in normalizes either way. */
+export function toE164Phone(identifier: string): string {
+  const stripped = stripPhoneFormatting(identifier.trim());
+  return stripped.startsWith("+") ? stripped : `+${stripped}`;
+}
+
 export const loginSchema = z
   .object({
     identifier: z.string().trim().min(1, "Enter your email address or phone number"),

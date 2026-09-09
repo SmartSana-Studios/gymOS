@@ -62,7 +62,11 @@
     "errors": {
       "network": "Couldn't connect. Check your internet connection.",
       "invalidCredentials": "Email, phone number or password is incorrect.",
-      "accountLocked": "Your account has been locked. Contact your gym administrator."
+      "accountLocked": "Your account has been locked. Contact your gym administrator.",
+      "phoneNotStaff": "No active staff account uses that phone number.",
+      "otpSendFailed": "Couldn’t send the code. Try again.",
+      "otpIncorrect": "That code is incorrect or has expired.",
+      "otpLockedOut": "Too many attempts. Try again later."
     },
     "emailLabelSimple": "Email",
     "emailPlaceholderSimple": "m@example.com",
@@ -73,7 +77,7 @@
     "passwordResetSent": "Password reset instructions sent",
     "passwordResetSentBody": "If you registered using your email and password, you will receive a password reset email.",
     "resetPasswordTitle": "Reset Your Password",
-    "resetPasswordDescription": "Type in your email and we'll send you a link to reset your password",
+    "resetPasswordDescription": "Type in your email and we’ll send you a link to reset your password",
     "resetPasswordBody2": "Please enter your new password below.",
     "sendingEmail": "Sending...",
     "sendResetEmail": "Send reset email",
@@ -92,6 +96,17 @@
     "errorCode": "Code error: {{code}}",
     "unspecifiedError": "An unspecified error occurred.",
     "identifierLabel": "Email address or phone number *",
-    "identifierPlaceholder": "you@example.com or +237…"
+    "identifierPlaceholder": "you@example.com or +237…",
+    "resetSendCode": "Send code",
+    "resetSendingCode": "Sending…",
+    "otpTitle": "Enter your code",
+    "otpSentTo": "We sent a 6-digit code to {{phone}}",
+    "otpLabel": "6-digit code",
+    "otpVerify": "Verify code",
+    "otpVerifying": "Verifying…",
+    "otpResend": "Resend code",
+    "otpResendCountdown": "Resend in {{seconds}}s",
+    "otpChangeNumber": "Use a different email or number",
+    "resetIdentifierDescription": "Enter your email address or phone number and we’ll send you a way to reset your password"
   }
 }

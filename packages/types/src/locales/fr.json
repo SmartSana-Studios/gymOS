@@ -62,7 +62,11 @@
     "errors": {
       "network": "Connexion impossible. Vérifiez votre connexion internet.",
       "invalidCredentials": "E-mail, numéro de téléphone ou mot de passe incorrect.",
-      "accountLocked": "Votre compte a été verrouillé. Contactez l'administrateur de votre salle."
+      "accountLocked": "Votre compte a été verrouillé. Contactez l'administrateur de votre salle.",
+      "phoneNotStaff": "Aucun compte personnel actif n’utilise ce numéro de téléphone.",
+      "otpSendFailed": "Impossible d’envoyer le code. Réessayez.",
+      "otpIncorrect": "Ce code est incorrect ou a expiré.",
+      "otpLockedOut": "Trop de tentatives. Réessayez plus tard."
     },
     "emailLabelSimple": "E-mail",
     "emailPlaceholderSimple": "vous@exemple.com",
@@ -92,6 +96,17 @@
     "errorCode": "Code d'erreur : {{code}}",
     "unspecifiedError": "Une erreur non spécifiée est survenue.",
     "identifierLabel": "Adresse e-mail ou numéro de téléphone *",
-    "identifierPlaceholder": "vous@exemple.com ou +237…"
+    "identifierPlaceholder": "vous@exemple.com ou +237…",
+    "resetSendCode": "Envoyer le code",
+    "resetSendingCode": "Envoi en cours…",
+    "otpTitle": "Saisissez votre code",
+    "otpSentTo": "Nous avons envoyé un code à 6 chiffres au {{phone}}",
+    "otpLabel": "Code à 6 chiffres",
+    "otpVerify": "Vérifier le code",
+    "otpVerifying": "Vérification…",
+    "otpResend": "Renvoyer le code",
+    "otpResendCountdown": "Renvoyer dans {{seconds}} s",
+    "otpChangeNumber": "Utiliser un autre e-mail ou numéro",
+    "resetIdentifierDescription": "Saisissez votre adresse e-mail ou votre numéro de téléphone et nous vous enverrons un moyen de réinitialiser votre mot de passe"
   }
 }
