@@ -37,9 +37,17 @@ const ROLE_LABEL_KEY: Record<MemberRole, string> = {
  * the current org/workspace name, not buried in a footer utility row).
  *
  * Pending/optimistic/error-revert/`router.refresh()` shape mirrors
- * LanguageToggle.tsx exactly. FrontDeskAlertPanel's React Query cache (keyed
- * by `gymId`, passed down as a prop) naturally re-keys onto the new gym once
- * its prop changes, since `gymId` is part of its query key.
+ * LanguageToggle.tsx exactly.
+ *
+ * Story 1.20 review correction: this comment used to argue that
+ * FrontDeskAlertPanel stays correct because its React Query cache is keyed
+ * by a `gymId` prop. That was true before Story 1.19, and is no longer the
+ * mechanism: FrontDeskAlertPanel renders from `(dashboard)/page.tsx` -- i.e.
+ * inside `children`, inside the Fragment that `(dashboard)/layout.tsx` now
+ * keys on `gymId` -- so a gym switch unmounts and remounts it wholesale,
+ * cache and all. The query key is still correct, it is just no longer what
+ * is doing the work. Reasoning from the old rationale would mislead anyone
+ * debugging that panel, which is the exact failure Story 1.19 existed to fix.
  *
  * Story 1.19 correction: this comment previously claimed `router.refresh()`
  * alone was sufficient for every Server-Component/Server-Action-fetched page
@@ -57,11 +65,20 @@ export function GymSwitcher({
   currentGymName,
   availableGyms,
   railAware,
+  onNavigate,
 }: {
   currentGymId: string;
   currentGymName: string;
   availableGyms: { gymId: string; gymName: string; role: MemberRole }[];
   railAware: boolean;
+  // Story 1.19 review finding: closes the <768px nav overlay after a switch,
+  // exactly as every nav <Link> in Sidebar.tsx already does. Without it this
+  // was the only interactive control in the drawer that left it open -- on
+  // mobile the page behind remounted onto the new gym while the user stared
+  // at an unchanged full-screen drawer, with nothing indicating the switch
+  // had worked. Distinct from resetting `mobileNavOpen` via a remount key,
+  // which (dashboard)/layout.tsx deliberately does not do.
+  onNavigate?: () => void;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -79,6 +96,7 @@ export function GymSwitcher({
         return;
       }
       router.refresh();
+      onNavigate?.();
     } catch {
       setError(true);
     } finally {

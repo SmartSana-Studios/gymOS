@@ -91,6 +91,7 @@ function SidebarContent({
             currentGymName={gymName}
             availableGyms={availableGyms}
             railAware={railAware}
+            onNavigate={onNavigate}
           />
         ) : (
           <span

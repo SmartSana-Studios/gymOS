@@ -77,6 +77,19 @@ export function PayNowButton({
     }
   }, [payNowOpen]);
 
+  // Story 1.19 review decision: this watch is INTENTIONALLY not preserved
+  // across a gym switch. Keying the page subtree on `gymId`
+  // ((dashboard)/layout.tsx) remounts this component, which cancels the poll
+  // below -- whereas before that fix `router.refresh()` left it running.
+  // That is the behaviour we want: polling gym A's payment while the user is
+  // looking at gym B was never right. Nothing is lost financially -- the
+  // send/webhook is the authority (`saas_billing_payments` is deliberately
+  // off the `supabase_realtime` publication, Story 11.3), so a payment that
+  // verifies after a switch still lands server-side and shows on the next
+  // load of that gym. Only the live in-page confirmation is forfeited.
+  // Do not "fix" this by persisting `watchedPaymentId` across the switch
+  // without first deciding what the confirmation banner should say when it
+  // fires on a different gym than the one that was paid for.
   useEffect(() => {
     if (!watchedPaymentId) return;
 
@@ -128,6 +141,16 @@ export function PayNowButton({
 
   async function handlePayNowSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Story 1.20 review finding: `preventDefault()` alone is not enough here.
+    // Story 1.20 portaled this dialog to <body> so its <form> is no longer a
+    // DOM descendant of SettingsForm's own <form> -- but React propagates
+    // events along the REACT tree, not the DOM tree, and <PayNowButton> is
+    // still rendered inside that form (SettingsForm.tsx:880). Without this,
+    // submitting Pay Now also runs SettingsForm's full validate-and-save
+    // path, silently persisting whatever unsaved edits the Owner had in the
+    // gym-settings fields. Verified against React 19.2.7 with the exact
+    // post-portal shape: handlers fired ["INNER", "OUTER"].
+    e.stopPropagation();
     setPayNowError(null);
     setPayNowLoading(true);
     try {
@@ -241,7 +264,7 @@ export function PayNowButton({
                 <h2 className="text-lg font-semibold">{t("settings.billing.payNowDialogTitle")}</h2>
                 <p className="text-sm text-muted-foreground">{t("settings.billing.payNowDialogBody")}</p>
               </div>
-    
+
               <div className={selectableTiers.length > 0 ? "grid grid-cols-2 gap-3" : "grid grid-cols-1 gap-3"}>
                 {selectableTiers.length > 0 && (
                   <div className="space-y-2">
@@ -277,7 +300,7 @@ export function PayNowButton({
                   </select>
                 </div>
               </div>
-    
+
               <div className="space-y-2">
                 <Label htmlFor="payNowPhone">{t("settings.billing.payerPhoneLabel")}</Label>
                 <PhoneInput
@@ -288,9 +311,9 @@ export function PayNowButton({
                   disabled={busy}
                 />
               </div>
-    
+
               {payNowError && <p className="text-sm text-red-600">{payNowError}</p>}
-    
+
               <div className="flex flex-col gap-2 border-t pt-4">
                 <Button type="submit" disabled={busy}>
                   {payNowLoading ? t("settings.billing.payNowLoading") : t("settings.billing.payNow")}

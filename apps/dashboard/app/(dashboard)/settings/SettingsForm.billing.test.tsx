@@ -163,6 +163,13 @@ describe("SettingsForm billing section", () => {
       ownerPhone: "+237600000001",
     });
 
+    // Story 1.20 review finding: since the dialog is now portaled AND
+    // unmounted when `payNowOpen` flips false, asserting `not.toHaveAttribute
+    // ("open")` on a captured node proves nothing -- a detached node has no
+    // attributes either way, so the assertion passed identically whether or
+    // not `close()` was ever called. Spy on `close()` so this test fails if a
+    // future change tears the dialog out of the top layer without closing it.
+    const closeSpy = vi.spyOn(HTMLDialogElement.prototype, "close");
     await user.click(screen.getByRole("button", { name: "Pay Now" }));
     const dialog = screen.getByRole("dialog");
     // Story 16.1: PhoneInput splits the field into a country-picker button
@@ -177,8 +184,12 @@ describe("SettingsForm billing section", () => {
 
     await waitFor(() => expect(payNow).toHaveBeenCalledWith({ phoneNumber: "+237600000099" }));
     await waitFor(() => expect(screen.getByText("Waiting for payment confirmation…")).toBeVisible());
-    // A successful submit must actually close the native <dialog>.
-    await waitFor(() => expect(dialog).not.toHaveAttribute("open"));
+    // A successful submit must actually close the native <dialog>, not merely
+    // unmount it -- and it must then be gone from the document.
+    await waitFor(() => expect(closeSpy).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(dialog.isConnected).toBe(false);
+    closeSpy.mockRestore();
   });
 
   it("Pay Now: shows a generic error inside the dialog and does not enter the pending state when the action fails", async () => {

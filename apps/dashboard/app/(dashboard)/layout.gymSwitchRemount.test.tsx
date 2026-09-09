@@ -45,10 +45,29 @@ function makeShell() {
 // into the next test (observed while red-green-checking this file).
 let shell = makeShell();
 
+/**
+ * Story 1.19 review finding: the suspended branch returns BEFORE the keyed
+ * Fragment, and carries its own gym switcher (`SwitchGymList`), so it needs
+ * the same remount guarantee. Previously hard-coded to `null` here, which is
+ * exactly why the gap went unnoticed.
+ */
+function makeSuspended() {
+  return {
+    isBillingSuspension: true,
+    role: "owner" as const,
+    gymId: "gym-a",
+    gymName: "Gym A",
+    mustChangePassword: false,
+    availableGyms: AVAILABLE_GYMS,
+  };
+}
+
+let suspended: ReturnType<typeof makeSuspended> | null = null;
+
 const getDashboardShellContext = vi.fn(async () => ({
-  data: shell,
+  data: suspended ? null : shell,
   error: null,
-  suspended: null,
+  suspended,
 }));
 
 vi.mock("@/services/session", () => ({
@@ -91,6 +110,7 @@ async function renderLayout(): Promise<ReactElement> {
 describe("(dashboard) layout — gym switch remount", () => {
   beforeEach(() => {
     shell = makeShell();
+    suspended = null;
   });
 
   it("keys the page subtree on gymId so a gym switch remounts client state", async () => {
@@ -127,5 +147,37 @@ describe("(dashboard) layout — gym switch remount", () => {
 
     expect(props.gymId).toBe("gym-a");
     expect(props.gymName).toBe("Gym A");
+  });
+
+  /**
+   * Story 1.19 review finding: the suspended screens sit on a branch that
+   * returns before the keyed Fragment, yet they render `SwitchGymList` and a
+   * full `PayNowButton`. Unkeyed, a suspended -> suspended switch re-rendered
+   * the same instances and preserved `PayNowButton`'s in-flight payment
+   * watch, leaving the Pay Now button disabled against the previous gym's
+   * payment -- so an Owner of two suspended gyms could not pay for the
+   * second without a full reload.
+   */
+  it("keys the owner suspended screen on gymId so a suspended -> suspended switch remounts", async () => {
+    suspended = makeSuspended();
+    const first = await renderLayout();
+
+    suspended = { ...makeSuspended(), gymId: "gym-b", gymName: "Gym B" };
+    const second = await renderLayout();
+
+    expect(first.key).toBe("gym-a");
+    expect(second.key).toBe("gym-b");
+    expect(first.key).not.toBe(second.key);
+  });
+
+  it("keys the neutral suspended screen on gymId too", async () => {
+    suspended = { ...makeSuspended(), role: "staff" as never };
+    const first = await renderLayout();
+
+    suspended = { ...makeSuspended(), role: "staff" as never, gymId: "gym-b", gymName: "Gym B" };
+    const second = await renderLayout();
+
+    expect(first.key).toBe("gym-a");
+    expect(second.key).toBe("gym-b");
   });
 });

@@ -75,8 +75,19 @@ async function DashboardLayoutData({
       // dashboard) since it's the only screen that renders <PayNowButton>
       // here.
       const { data: selectableTiers } = await listSelectableTiers();
+      // Story 1.19 review finding: keyed for the same reason the normal
+      // dashboard subtree is (see the comment further down). These screens
+      // carry their own gym switcher (`SwitchGymList`), so a suspended ->
+      // suspended switch is reachable here without ever passing through the
+      // keyed Fragment below. Unkeyed, React re-renders the same instances
+      // and preserves their client state: `SwitchGymList`'s own pending/
+      // error flags, and `PayNowButton`'s whole in-flight payment watch --
+      // leaving the Pay Now button disabled against the PREVIOUS gym's
+      // payment, so an Owner of two suspended gyms could not pay for the
+      // second one without a full page reload.
       return (
         <OwnerSuspendedScreen
+          key={suspended.gymId}
           gymName={suspended.gymName}
           gymId={suspended.gymId}
           availableGyms={suspended.availableGyms}
@@ -84,7 +95,13 @@ async function DashboardLayoutData({
         />
       );
     }
-    return <NeutralSuspendedScreen gymId={suspended.gymId} availableGyms={suspended.availableGyms} />;
+    return (
+      <NeutralSuspendedScreen
+        key={suspended.gymId}
+        gymId={suspended.gymId}
+        availableGyms={suspended.availableGyms}
+      />
+    );
   }
 
   if (!shell) {
