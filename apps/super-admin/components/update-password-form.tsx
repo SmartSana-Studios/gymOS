@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -24,7 +23,6 @@ export function UpdatePasswordForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,8 +33,20 @@ export function UpdatePasswordForm({
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/protected");
+      // "/gyms" is this app's authenticated landing route. The starter kit's
+      // original "/protected" does not exist here, so every Super Admin who
+      // completed a password reset landed on a 404 -- the identical bug
+      // apps/dashboard hit and fixed in July
+      // (docs/manual-walkthrough-findings-2026-07-13.md), never fixed in this
+      // twin. Found by code review of Story 1.17.
+      //
+      // A full document navigation, not router.push(): updateUser() rotates
+      // the session, and with `cacheComponents: true` (next.config.ts) a
+      // client-side push can be served from the Router Cache entry rendered
+      // under the pre-reset session. replace() rather than assign() so Back
+      // cannot return to a live reset form -- same reasoning as the
+      // apps/dashboard twin.
+      window.location.replace("/gyms");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t("common.somethingWentWrong"));
     } finally {

@@ -9,8 +9,19 @@
 --   3. the same user in a DIFFERENT gym is untouched -- multi-gym membership
 --      (FR-001) is the whole point and must not be constrained
 
+-- Scope note (code review): the "a second active row is rejected" assertion
+-- deliberately does NOT live here -- multi_gym_staff_binding_rules.test.sql:332
+-- already owns it as create_staff_member()'s race-window backstop. This file
+-- covers only the two properties nothing else asserts, both of which are about
+-- the index being PARTIAL rather than total.
+--
+-- Known limitation: local and CI always have this index from 0003, so this
+-- file passes identically with or without 0089. It cannot detect the
+-- production divergence 0089 exists to repair -- that is what the migration's
+-- own assertion block checks, at apply time, where the divergence lives.
+
 begin;
-select plan(3);
+select plan(2);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000017001', 'One Active Membership Test Tier', 5000, 50000, 20);
@@ -24,14 +35,6 @@ insert into auth.users (id) values
 
 insert into members (id, gym_id, user_id, role, name) values
   ('00000000-0000-0000-0000-000000017071', '00000000-0000-0000-0000-000000017011', '00000000-0000-0000-0000-000000017021', 'owner', 'One Active Membership Owner');
-
--- 1. Second ACTIVE row in the same gym is rejected.
-select throws_like(
-  $$insert into members (id, gym_id, user_id, role, name) values
-      ('00000000-0000-0000-0000-000000017072', '00000000-0000-0000-0000-000000017011', '00000000-0000-0000-0000-000000017021', 'manager', 'Duplicate Active Row')$$,
-  '%idx_members_active_gym_user%',
-  'a second active membership for the same (gym_id, user_id) is rejected'
-);
 
 -- 3. The SAME user in a DIFFERENT gym is allowed -- asserted before the
 -- deactivation below so it proves multi-gym membership works while the gym A

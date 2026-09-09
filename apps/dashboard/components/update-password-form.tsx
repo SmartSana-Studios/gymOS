@@ -104,14 +104,19 @@ export function UpdatePasswordForm({
       // by smartsana 2026-09-09; the earlier "reset password always comes
       // twice" note above is the same area biting for a different reason).
       //
-      // Every other client-side mutation in this app pairs its write with
-      // `router.refresh()` (login-form.tsx, LanguageToggle.tsx,
-      // GymSwitcher.tsx, PayNowButton.tsx) -- this form was the only one
-      // that didn't. `refresh()` would likely be enough, but this is a
+      // The other client-side mutations in this app pair their write with
+      // `router.refresh()` (login-form.tsx:89, LanguageToggle.tsx:43,
+      // GymSwitcher.tsx:72) -- this form did not. `refresh()` would likely
+      // be enough, but this is a
       // once-per-account auth transition where correctness matters far more
       // than avoiding one full page load, and a hard navigation removes the
       // cache from the picture entirely instead of racing it.
-      window.location.assign("/");
+      // replace(), not assign(): assign() leaves this page in history, so Back
+      // returns to a still-live form with a valid session. Resubmitting there
+      // hits GoTrue.s "New password should be different from the old password"
+      // -- reproducing, through the back button, the exact double-password
+      // symptom this change exists to remove.
+      window.location.replace("/");
       return;
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t("common.somethingWentWrong"));

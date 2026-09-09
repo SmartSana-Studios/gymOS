@@ -43,7 +43,9 @@
     "exerciseNameTaken": "An exercise with this name already exists",
     "workoutPlanAlreadyExists": "This member already has a workout plan",
     "unknown": "Something went wrong on our end.",
-    "ownerIsSuperAdmin": "This email belongs to a Super Admin account, which cannot also own a gym."
+    "ownerIsSuperAdmin": "This email belongs to a Super Admin account, which cannot also own a gym.",
+    "ownerLinkRequiresConfirmation": "This email already belongs to {{owner}}. Confirm below to create the gym and assign it to that account.",
+    "ownerPhoneBelongsToOtherAccount": "This phone number already belongs to another GymOS account. Use the phone number for this owner, or a different one."
   },
   "auth": {
     "title": "Sign in to GymOS",

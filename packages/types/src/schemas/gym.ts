@@ -24,6 +24,15 @@ export const createGymSchema = z.object({
   ownerEmail: z.email("Enter a valid email address"),
   tierId: z.uuid("Select a subscription tier"),
   status: gymStatusSchema.default("active"),
+  /**
+   * Story 1.17 code review. Proof the Super Admin was shown WHICH existing
+   * account the gym would be assigned to, and accepted it. `createGym`
+   * refuses to link without this, because linking cannot be undone through
+   * the UI: `super_admin_delete_orphaned_gyms` (0010) only permits deleting
+   * gyms with no members, and linking creates one. Absent/false on the
+   * ordinary new-owner path, which needs no confirmation.
+   */
+  confirmLinkExistingOwner: z.boolean().optional().default(false),
 });
 
 export type CreateGymInput = z.infer<typeof createGymSchema>;

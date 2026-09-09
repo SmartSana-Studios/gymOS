@@ -35,3 +35,32 @@
 create unique index if not exists idx_members_active_gym_user
   on members (gym_id, user_id)
   where deactivated_at is null;
+
+-- Code review hardening. `create unique index if not exists` matches on NAME
+-- only -- Postgres gives no guarantee the existing index resembles the
+-- intended one. Since the cause of the production drift is unknown, a
+-- same-named but non-unique or non-partial index would make the statement
+-- above a silent no-op while every reader assumes the invariant is restored.
+-- Assert the shape actually present, so a divergent index fails loudly here
+-- rather than surfacing later as a duplicate-membership bug.
+do $$
+declare
+  v_is_unique boolean;
+  v_pred text;
+begin
+  select i.indisunique, pg_get_expr(i.indpred, i.indrelid)
+    into v_is_unique, v_pred
+    from pg_index i
+    join pg_class c on c.oid = i.indexrelid
+   where c.relname = 'idx_members_active_gym_user';
+
+  if v_is_unique is null then
+    raise exception 'idx_members_active_gym_user missing after create -- index was not built';
+  end if;
+  if not v_is_unique then
+    raise exception 'idx_members_active_gym_user exists but is NOT UNIQUE -- drop it and re-run';
+  end if;
+  if v_pred is null then
+    raise exception 'idx_members_active_gym_user exists but is NOT PARTIAL -- it would block the 0063 rehire path';
+  end if;
+end $$;

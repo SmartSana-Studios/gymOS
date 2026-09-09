@@ -109,10 +109,19 @@ export function GymsPageClient({
     smsSent: boolean,
     tempPassword: string | null,
     ownerOutcome: "created" | "linked",
+    ownerNeverSignedIn: boolean,
   ) {
     setModalOpen(false);
-    if (ownerOutcome === "linked") {
-      showToast(t("gyms.toast.createdLinked"));
+    // Tested as `!== "created"`, not `=== "linked"`: an unrecognised value
+    // (a newer server action against a stale client bundle, say) must fall
+    // to the copy that promises nothing rather than to "share it below",
+    // which would render with no password beneath it.
+    if (ownerOutcome !== "created") {
+      showToast(
+        ownerNeverSignedIn
+          ? t("gyms.toast.createdLinkedNeverSignedIn")
+          : t("gyms.toast.createdLinked"),
+      );
     } else {
       showToast(
         smsSent

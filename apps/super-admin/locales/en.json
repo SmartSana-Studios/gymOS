@@ -52,7 +52,8 @@
       "copyPassword": "Copy temp password",
       "passwordCopied": "Copied!",
       "dismiss": "Dismiss",
-      "createdLinked": "Gym created and assigned to an existing GymOS account. The owner signs in with their current password — no temporary password was created."
+      "createdLinked": "Gym created and assigned to an existing GymOS account. The owner signs in with their current password — no temporary password was created.",
+      "createdLinkedNeverSignedIn": "Gym created and assigned to an existing GymOS account. That account has never signed in — ask the owner to use Forgot password on the dashboard to set one."
     },
     "create": {
       "title": "Create Gym",
@@ -68,7 +69,8 @@
       "statusActive": "Active",
       "statusSuspended": "Suspended",
       "statusDeactivated": "Deactivated",
-      "creating": "Creating…"
+      "creating": "Creating…",
+      "confirmAssign": "Create and assign to this account"
     },
     "lifecycle": {
       "suspendTitle": "Suspend {{name}}",

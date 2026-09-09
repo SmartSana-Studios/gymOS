@@ -42,6 +42,7 @@ export function CreateGymModal({
     smsSent: boolean,
     tempPassword: string | null,
     ownerOutcome: "created" | "linked",
+    ownerNeverSignedIn: boolean,
   ) => void;
   tiers: TierOption[];
 }) {
@@ -51,6 +52,11 @@ export function CreateGymModal({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Non-null once the server has told us this email resolves to an existing
+  // account; holds the message naming that account. Its presence both renders
+  // the confirmation panel and, on the next submit, supplies the explicit
+  // consent createGym requires before linking.
+  const [linkConfirmation, setLinkConfirmation] = useState<string | null>(null);
 
   // Native <dialog> gives focus-trapping + Escape-to-close + backdrop for
   // free (UX-DR12's "focus-trapped modals"), no extra dependency needed.
@@ -68,6 +74,7 @@ export function CreateGymModal({
     setForm(initialForm);
     setFieldErrors({});
     setFormError(null);
+    setLinkConfirmation(null);
     onClose();
   }
 
@@ -89,7 +96,10 @@ export function CreateGymModal({
 
     setSubmitting(true);
     try {
-      const { data, error } = await createGym(parsed.data);
+      const { data, error } = await createGym({
+        ...parsed.data,
+        confirmLinkExistingOwner: linkConfirmation !== null,
+      });
 
       if (error) {
         if (error.code === "gym_name_taken") {
@@ -98,6 +108,24 @@ export function CreateGymModal({
           setFieldErrors({ ownerEmail: error.message });
         } else if (error.code === "owner_phone_taken") {
           setFieldErrors({ ownerPhone: error.message });
+        } else if (
+          error.code === "owner_is_super_admin" ||
+          error.code === "owner_phone_belongs_to_other_account"
+        ) {
+          // Both are entirely about a submitted identity field, so they
+          // belong on it -- matching owner_email_taken/owner_phone_taken
+          // rather than falling into the generic banner, where the offending
+          // input still renders as valid.
+          setFieldErrors(
+            error.code === "owner_is_super_admin"
+              ? { ownerEmail: error.message }
+              : { ownerPhone: error.message },
+          );
+        } else if (error.code === "owner_link_requires_confirmation") {
+          // Not a failure: the email resolves to an existing account and the
+          // server is asking us to name it and get an explicit yes before
+          // assigning a gym that cannot afterwards be unassigned.
+          setLinkConfirmation(error.message);
         } else {
           setFormError(error.message);
         }
@@ -105,9 +133,16 @@ export function CreateGymModal({
       }
 
       if (data) {
-        onCreated(data.ownerPhone, data.smsSent, data.tempPassword, data.ownerOutcome);
+        onCreated(
+          data.ownerPhone,
+          data.smsSent,
+          data.tempPassword,
+          data.ownerOutcome,
+          data.ownerNeverSignedIn,
+        );
         setForm(initialForm);
         setFieldErrors({});
+        setLinkConfirmation(null);
       }
     } catch {
       // createGym is contracted to always return { data, error } and never
@@ -191,7 +226,13 @@ export function CreateGymModal({
             id="ownerEmail"
             type="email"
             value={form.ownerEmail}
-            onChange={(e) => setForm({ ...form, ownerEmail: e.target.value })}
+            onChange={(e) => {
+              // Any edit to the address invalidates a confirmation obtained
+              // for the previous one -- otherwise a yes given for account A
+              // would silently authorise linking a re-typed address B.
+              setLinkConfirmation(null);
+              setForm({ ...form, ownerEmail: e.target.value });
+            }}
           />
           {fieldErrors.ownerEmail && (
             <p className="text-sm text-red-600">{fieldErrors.ownerEmail}</p>
@@ -236,12 +277,29 @@ export function CreateGymModal({
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
 
+        {linkConfirmation && (
+          <div
+            role="status"
+            className="rounded-md border border-amber-500/40 bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+          >
+            {linkConfirmation}
+          </div>
+        )}
+
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={resetAndClose} disabled={submitting}>
             {t("common.cancel")}
           </Button>
+          {/* The submit button names what it will do once an existing account
+              is in play, per Story 1.16's named-target convention (UX-DR12) --
+              the admin should never confirm an irreversible assignment from a
+              button that just says "Create gym". */}
           <Button type="submit" disabled={submitting}>
-            {submitting ? t("gyms.create.creating") : t("gyms.create.title")}
+            {submitting
+              ? t("gyms.create.creating")
+              : linkConfirmation
+                ? t("gyms.create.confirmAssign")
+                : t("gyms.create.title")}
           </Button>
         </div>
       </form>

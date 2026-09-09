@@ -71,6 +71,185 @@ export interface CreateGymResult {
    * password that was never set on any account.
    */
   ownerOutcome: "created" | "linked";
+  /**
+   * Story 1.17 code review. True when a LINKED account has never signed in,
+   * meaning it still holds the temp password issued at its first gym's
+   * creation -- which nobody may know if that WhatsApp send failed. Always
+   * `false` on the created path, where the password is returned above.
+   * The UI uses this to avoid asserting "signs in with their current
+   * password" to an admin whose owner has no usable credential.
+   */
+  ownerNeverSignedIn: boolean;
+}
+
+/**
+ * Resolves which `auth.users` account will own the new gym, WITHOUT writing
+ * anything. Extracted from `createGym`'s body during code review so that
+ * every rejection it can produce happens before the gym row exists (AC #5).
+ *
+ * Returns the account to use plus everything the caller needs to branch:
+ * whether it was created or linked, the temp password (created path only --
+ * AC #1 requires none be generated when linking), and whether a linked
+ * account has never signed in.
+ */
+async function resolveOwnerAccount(
+  gym: {
+    ownerEmail: string;
+    ownerPhone: string;
+    confirmLinkExistingOwner?: boolean;
+  },
+  t: (key: string, vars?: Record<string, string>) => string,
+): Promise<
+  | {
+      ok: true;
+      admin: ReturnType<typeof createAdminClient>;
+      userId: string;
+      outcome: "created" | "linked";
+      temporaryPassword: string | null;
+      ownerNeverSignedIn: boolean;
+    }
+  | { ok: false; error: AppError }
+> {
+  try {
+    const admin = createAdminClient();
+    // `findUserByEmail` is reused from lib/super-admin-provisioning.mjs
+    // (extracted there by Story 1.16 for exactly this cross-caller reason)
+    // rather than a second lookup being written here -- it handles
+    // listUsers() pagination.
+    const existing = await findUserByEmail(admin, gym.ownerEmail);
+
+    if (existing) {
+      const { data: profile, error: profileError } = await admin
+        .from("users")
+        .select("is_super_admin, display_name")
+        .eq("id", existing.id)
+        .maybeSingle();
+
+      if (profileError) {
+        return { ok: false as const, error: await mapAndLog(profileError) };
+      }
+
+      // A Super Admin must not also hold a tenant membership: it puts one
+      // identity on both sides of the platform/tenant boundary that
+      // getDashboardShellContext() and the (admin) layout guard enforce in
+      // opposite directions. Story 1.7/1.15's time-boxed escalation grants
+      // exist precisely so platform staff reach gym data WITHOUT a
+      // permanent membership.
+      if (profile?.is_super_admin) {
+        return {
+          ok: false as const,
+          error: {
+            code: "owner_is_super_admin",
+            message: t("errors.ownerIsSuperAdmin"),
+          } satisfies AppError,
+        };
+      }
+
+      // Linking is irreversible in practice: once the membership row exists,
+      // `super_admin_delete_orphaned_gyms` (0010:65-70) only permits deleting
+      // gyms with NO members, so a gym assigned to the wrong account by a
+      // mistyped address cannot be cleaned up. Before this gate a typo landing
+      // on another real account succeeded silently; it now requires an explicit
+      // confirmation that names the account, following Story 1.16's
+      // named-target convention (UX-DR12) rather than adding a second screen.
+      if (!gym.confirmLinkExistingOwner) {
+        return {
+          ok: false as const,
+          error: {
+            code: "owner_link_requires_confirmation",
+            message: t("errors.ownerLinkRequiresConfirmation", {
+              owner: profile?.display_name?.trim() || gym.ownerEmail,
+            }),
+          } satisfies AppError,
+        };
+      }
+
+      return {
+        ok: true as const,
+        admin,
+        userId: existing.id,
+        outcome: "linked" as const,
+        temporaryPassword: null,
+        // An account that has never signed in still holds the temp password
+        // issued when its FIRST gym was created -- which nobody may know, if
+        // that WhatsApp send failed. The linked path sends nothing, so the UI
+        // must not claim "signs in with their current password" here.
+        ownerNeverSignedIn: !existing.last_sign_in_at,
+      };
+    }
+
+    // No account for this email. The phone may still collide -- members and
+    // staff are provisioned phone-only with NO email (members.ts:386,
+    // staff.ts:234), so `findUserByEmail` cannot see them. Detect that here
+    // and say so plainly, instead of letting createUser fail with GoTrue's
+    // `phone_exists` -> `owner_phone_taken`, which reads as "pick another
+    // phone" when the real situation is "this person already has an account".
+    // Deliberately NOT linked by phone: phone is the members' identity key,
+    // so matching on it would let one mistyped digit hand a gym to an
+    // arbitrary gym member -- the exact hazard the confirmation gate above
+    // exists to prevent.
+    const { data: phoneOwner, error: phoneLookupError } = await admin
+      .from("users")
+      .select("id")
+      .eq("phone", gym.ownerPhone.replace(/^\+/, ""))
+      .maybeSingle();
+
+    if (phoneLookupError) {
+      return { ok: false as const, error: await mapAndLog(phoneLookupError) };
+    }
+    if (phoneOwner) {
+      return {
+        ok: false as const,
+        error: {
+          code: "owner_phone_belongs_to_other_account",
+          message: t("errors.ownerPhoneBelongsToOtherAccount"),
+        } satisfies AppError,
+      };
+    }
+
+    const temporaryPassword = generateTempPassword();
+    const { data, error: authError } = await admin.auth.admin.createUser({
+      email: gym.ownerEmail,
+      phone: gym.ownerPhone,
+      password: temporaryPassword,
+      email_confirm: true,
+      phone_confirm: true,
+    });
+
+    if (authError || !data?.user) {
+      // Race window: a concurrent createGym for this same brand-new email won
+      // between our lookup and this insert. Self-heal by re-querying rather
+      // than reporting `owner_email_taken` for an address we are willing to
+      // link -- same shape as members.ts:397-410's `phone_exists` recovery.
+      // Still gated on confirmation, since the admin never saw who this is.
+      const raced =
+        (authError as { code?: string } | null)?.code === "email_exists"
+          ? await findUserByEmail(admin, gym.ownerEmail)
+          : null;
+      if (raced && gym.confirmLinkExistingOwner) {
+        return {
+          ok: true as const,
+          admin,
+          userId: raced.id,
+          outcome: "linked" as const,
+          temporaryPassword: null,
+          ownerNeverSignedIn: !raced.last_sign_in_at,
+        };
+      }
+      return { ok: false as const, error: await mapAndLog(authError) };
+    }
+
+    return {
+      ok: true as const,
+      admin,
+      userId: data.user.id,
+      outcome: "created" as const,
+      temporaryPassword,
+      ownerNeverSignedIn: false,
+    };
+  } catch (err) {
+    return { ok: false as const, error: await mapAndLog(err) };
+  }
 }
 
 /**
@@ -102,7 +281,19 @@ export async function createGym(
     };
   }
 
-  // Step 2: insert the gym.
+  // Step 2: RESOLVE THE OWNER BEFORE WRITING ANYTHING.
+  //
+  // This block used to sit after the gym insert. Code review moved it here:
+  // every rejection below is pure input validation, and running it first
+  // makes AC #5's "nothing is written" true BY CONSTRUCTION instead of by a
+  // compensating `deleteGym()` that only console.errors when it fails --
+  // which would leave an ownerless gym permanently holding the gym name.
+  const resolution = await resolveOwnerAccount(gym, t);
+  if (!resolution.ok) {
+    return { data: null, error: resolution.error };
+  }
+
+  // Step 3: insert the gym. Nothing above this line writes.
   const { data: gymRow, error: gymError } = await insertGym({
     name: gym.gymName,
     tierId: gym.tierId,
@@ -112,92 +303,13 @@ export async function createGym(
     return { data: null, error: gymError };
   }
 
-  // Step 3: create the owner's auth.users account (admin client -- the only
-  // step in this flow that structurally requires it). Both email and phone
-  // are set: email is the Supabase Auth login identifier (matching AD-01/
-  // SA-01's existing signInWithPassword({ email, password }) form), phone is
-  // stored for display (SA-03's "Owner: Paul Nkusu (+237 6XX XXX XXX)"). A
-  // real temp password is generated and sent as plain text over WhatsApp
-  // (Step 5, Story 1.11) -- no recovery link is generated anymore (Story
-  // 1.5's generateLink mechanism is superseded, see docs/decisions.md).
-  // `email_confirm: true` is still set, but its justification changes:
-  // previously the recovery link's own GoTrue verify step proved email
-  // ownership implicitly; with no link at all, this flag is now the only
-  // thing establishing the account as usable (AC #1).
-  //
-  // createAdminClient() itself (env var non-null assertions) and the first
-  // admin call are wrapped together: a misconfigured deployment throwing
-  // here must still trigger the same compensating cleanup as every other
-  // failure branch, not bypass it via an uncaught exception (code review
-  // finding -- this was previously unguarded, after the gym row already
-  // existed). An IIFE keeps the try/catch's inferred success type flowing
-  // naturally into `admin`/`authUser` below, instead of hand-writing their
-  // (fairly gnarly) generic types.
-  //
-  // Story 1.17: the email is looked up FIRST. An address that already has an
-  // account is the multi-gym-ownership case, not an error -- previously it
-  // reached createUser(), came back as GoTrue's `email_exists`, mapped to
-  // `owner_email_taken`, and the gym row was rolled back. `findUserByEmail`
-  // is reused from lib/super-admin-provisioning.mjs (extracted there by
-  // Story 1.16 for exactly this cross-caller reason) rather than a second
-  // lookup being written here -- it handles listUsers() pagination.
-  const temporaryPassword = generateTempPassword();
-  const provisioned = await (async () => {
-    try {
-      const admin = createAdminClient();
-      const existing = await findUserByEmail(admin, gym.ownerEmail);
-
-      if (existing) {
-        // A Super Admin must not also hold a tenant membership: it puts one
-        // identity on both sides of the platform/tenant boundary that
-        // getDashboardShellContext() and the (admin) layout guard enforce in
-        // opposite directions. Story 1.7/1.15's time-boxed escalation grants
-        // exist precisely so platform staff reach gym data WITHOUT a
-        // permanent membership.
-        const { data: profile, error: profileError } = await admin
-          .from("users")
-          .select("is_super_admin")
-          .eq("id", existing.id)
-          .maybeSingle();
-
-        if (profileError) {
-          return { ok: false as const, error: await mapAndLog(profileError) };
-        }
-        if (profile?.is_super_admin) {
-          return {
-            ok: false as const,
-            error: {
-              code: "owner_is_super_admin",
-              message: t("errors.ownerIsSuperAdmin"),
-            } satisfies AppError,
-          };
-        }
-
-        return { ok: true as const, admin, userId: existing.id, outcome: "linked" as const };
-      }
-
-      const { data, error: authError } = await admin.auth.admin.createUser({
-        email: gym.ownerEmail,
-        phone: gym.ownerPhone,
-        password: temporaryPassword,
-        email_confirm: true,
-        phone_confirm: true,
-      });
-
-      if (authError || !data?.user) {
-        return { ok: false as const, error: await mapAndLog(authError) };
-      }
-      return { ok: true as const, admin, userId: data.user.id, outcome: "created" as const };
-    } catch (err) {
-      return { ok: false as const, error: await mapAndLog(err) };
-    }
-  })();
-
-  if (!provisioned.ok) {
-    await deleteGym(gymRow.id); // compensating cleanup: no orphaned gym
-    return { data: null, error: provisioned.error };
-  }
-  const { admin, userId: ownerUserId, outcome: ownerOutcome } = provisioned;
+  const {
+    admin,
+    userId: ownerUserId,
+    outcome: ownerOutcome,
+    temporaryPassword,
+    ownerNeverSignedIn,
+  } = resolution;
 
   // Step 4: insert the owner's membership row. `must_change_password`
   // defaults `true` at the `users` level (0016 migration's DB default) --
@@ -247,7 +359,7 @@ export async function createGym(
   };
   if (ownerOutcome === "created") {
     try {
-      sendResult = await sendTempPasswordMessage(gym.ownerPhone, temporaryPassword);
+      sendResult = await sendTempPasswordMessage(gym.ownerPhone, temporaryPassword!);
     } catch (err) {
       sendResult = {
         success: false,
@@ -281,7 +393,10 @@ export async function createGym(
     owner_name: gym.ownerName,
     owner_phone: gym.ownerPhone,
     tier_id: gym.tierId,
-    sms_sent: smsSent,
+    // null, not false, on the linked path: no send was attempted, and `false`
+    // is indistinguishable from a real WhatsApp failure in any aggregate over
+    // the audit trail.
+    sms_sent: ownerOutcome === "created" ? smsSent : null,
     owner_outcome: ownerOutcome,
   });
 
@@ -290,8 +405,9 @@ export async function createGym(
       gymId: gymRow.id,
       ownerPhone: gym.ownerPhone,
       smsSent,
-      tempPassword: ownerOutcome === "created" ? temporaryPassword : null,
+      tempPassword: temporaryPassword,
       ownerOutcome,
+      ownerNeverSignedIn,
     },
     error: null,
   };

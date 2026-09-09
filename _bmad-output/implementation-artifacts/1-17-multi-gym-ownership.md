@@ -213,6 +213,10 @@ Other notes:
 - `apps/super-admin/locales/fr.json` (modified)
 - `packages/types/src/locales/en.json` (modified)
 - `packages/types/src/locales/fr.json` (modified)
+- `packages/types/src/schemas/gym.ts` (modified — `confirmLinkExistingOwner`)
+- `apps/super-admin/app/(admin)/gyms/createGym.test.ts` (new — code review)
+- `apps/super-admin/components/update-password-form.tsx` (modified — code review, /protected 404)
+- `apps/dashboard/components/update-password-form.tsx` (modified — NOT part of this story; separate password-bounce fix that shares the commit range)
 
 ## Change Log
 
@@ -222,3 +226,30 @@ Other notes:
 
 1. **Should the Create Gym form say anything before submit?** Today the Super Admin gets no signal that an email belongs to an existing account until the server responds. An inline "this email already has an account — the gym will be assigned to it" hint would remove the surprise, but needs a lookup-on-blur endpoint. Scoped **out** for now; the post-submit copy in AC #3 carries the message instead.
 2. **Should `ownerName`/`ownerPhone` stay editable when linking?** They currently write to the new `members` row, so a branch's contact details can differ per gym — which seems right for real operators. Confirm that matches your intent rather than wanting the existing account's details reused.
+
+### Review Findings
+
+<!-- Code review 2026-09-09. Three parallel layers (Blind Hunter, Edge Case
+Hunter, Acceptance Auditor), all claims re-verified against the repo before
+severity was assigned. -->
+
+- [ ] [Review][Decision] **Phone-only accounts cannot be linked as owners (high)** — `members.ts:386` and `staff.ts:234` provision auth users with **phone only, no email**, so `findUserByEmail` can never find a gym member or staff member. Making one the owner of a new gym still fails: `createUser({email, phone})` returns `phone_exists` → `owner_phone_taken` → gym rolled back. This is the exact failure mode the story set out to remove, reached through the phone key instead of the email key. Owner→owner (the primary case) works. Fixing needs a decision: dedup on phone as well, and if email and phone resolve to *different* accounts, which wins?
+- [ ] [Review][Decision] **A mistyped owner email silently assigns the gym to the wrong person (high)** — `actions.ts` linked path + `GymsPageClient.tsx:114`. Previously a typo landing on another existing account was loud (`owner_email_taken`, gym rolled back). Now it succeeds silently, the toast names no account, and no message is sent. Recovery is blocked: `0010:65-70`'s `super_admin_delete_orphaned_gyms` only permits deleting gyms with **no members**, and the link just created one. Options: show the resolved account (email/name) in the toast, add a confirm step naming the target, or accept as-is.
+- [ ] [Review][Decision] **A linked owner may have no password anyone knows (medium)** — `actions.ts` linked path. If the first gym's WhatsApp send failed and the admin dismissed the toast, the account holds an unknown temp password. This flow sends nothing and the copy asserts "the owner signs in with their current password". No resend/reset action exists anywhere in `apps/super-admin`. Options: add a resend action, detect never-activated accounts (`last_sign_in_at` null) and reissue, or document the forgot-password route as the answer.
+- [ ] [Review][Decision] **`apps/super-admin`'s own update-password form 404s (high, pre-existing)** — `apps/super-admin/components/update-password-form.tsx:39` still pushes to `/protected`, which does not exist in that app (`apps/super-admin/next.config.ts:9` also sets `cacheComponents: true`). Every Super Admin completing a password reset lands on a 404 — the identical bug the dashboard twin's own comment says was fixed there in July. Out of this diff's scope but a two-line fix. Options: fix now, or file as its own story.
+- [ ] [Review][Decision] **`0089` is not applied to production (high)** — the repair migration exists in the repo only. `create_staff_member()` (`0064:59`) is documented as depending on `idx_members_active_gym_user`, and on the deployed project that index is absent, so its insert-vs-replace backstop is currently unenforced. Story 1.17's own feature is safe (createGym always targets a brand-new `gym_id`). Options: apply now, or schedule with the next deploy.
+
+- [x] [Review][Patch] Add Vitest coverage for created/linked/refusal and the `deleteAuthUserAndLog` gate — the branch the story itself calls its most destructive possible mistake has no test; precedent exists at `apps/dashboard/services/staff.createStaffMember.test.ts` [apps/super-admin/app/(admin)/gyms/actions.ts]
+- [x] [Review][Patch] `window.location.assign("/")` leaves the reset form in history — Back returns to it with a live session and reproduces the double-password symptom the fix targets; use `replace()` [apps/dashboard/components/update-password-form.tsx:114]
+- [x] [Review][Patch] Hoist the email lookup and Super Admin check above `insertGym` so AC #5's "nothing is written" is true by construction rather than by a cleanup that only `console.error`s on failure [apps/super-admin/app/(admin)/gyms/actions.ts]
+- [x] [Review][Patch] Comment cites `PayNowButton.tsx` as a `router.refresh()` precedent; it never calls it — only a doc comment mentions it [apps/dashboard/components/update-password-form.tsx:107-110]
+- [x] [Review][Patch] `owner_is_super_admin` renders as a form-level banner while its siblings (`owner_email_taken`, `owner_phone_taken`) attach to their field; bind it to `ownerEmail` [apps/super-admin/app/(admin)/gyms/components/CreateGymModal.tsx:101-103]
+- [x] [Review][Patch] `sms_sent: false` is audit-logged on the linked path, indistinguishable from a real delivery failure in any aggregate over the trail; use null or omit the key [apps/super-admin/app/(admin)/gyms/actions.ts]
+- [x] [Review][Patch] `generateTempPassword()` still runs unconditionally, violating AC #1's literal "no temp password generated" on the linked path; move it into the created branch [apps/super-admin/app/(admin)/gyms/actions.ts]
+- [x] [Review][Patch] `else` treats any non-`"linked"` outcome as `"created"`, so deploy skew (undefined) shows "share it below" with no password rendered; invert to `!== "created"` [apps/super-admin/app/(admin)/gyms/components/GymsPageClient.tsx:114-121]
+- [x] [Review][Patch] No self-heal on a concurrent `email_exists` race — the loser gets a rolled-back gym instead of a link; precedent at `members.ts:397-410` [apps/super-admin/app/(admin)/gyms/actions.ts]
+- [x] [Review][Patch] Migration `if not exists` matches by index **name only**, so a same-named divergent index is a silent no-op; add a definition assertion, a pre-flight duplicate-pair guard, and document the non-concurrent SHARE lock [supabase/migrations/0089_repair_members_active_gym_user_index.sql]
+- [x] [Review][Patch] pgTAP assertion #1 duplicates `multi_gym_staff_binding_rules.test.sql:332`, and the file passes identically with or without `0089` so it cannot detect the divergence the migration exists to repair [supabase/tests/one_active_membership_per_gym.test.sql:29-34]
+- [x] [Review][Patch] Story record is inaccurate: File List omits `update-password-form.tsx`, and AC #6/#7 still assert premises the implementation disproved (index name; `custom_access_token_hook` claim resolution) [_bmad-output/implementation-artifacts/1-17-multi-gym-ownership.md]
+
+- [x] [Review][Defer] `findUserByEmail` pages every auth user on the platform on every gym creation [apps/super-admin/lib/super-admin-provisioning.mjs:51-66] — deferred, pre-existing
