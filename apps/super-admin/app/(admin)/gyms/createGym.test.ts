@@ -50,9 +50,17 @@ vi.mock("@/lib/supabase/admin", () => ({
               : col === "phone"
                 ? phoneOwnerResult
                 : profileResult;
-          const node = {
+          const node: {
+            maybeSingle: typeof result;
+            eq: () => typeof node;
+            is: () => typeof node;
+            order: () => typeof node;
+            limit: () => typeof node;
+          } = {
             maybeSingle: result,
+            eq: () => node,
             is: () => node,
+            order: () => node,
             limit: () => node,
           };
           return node;
@@ -90,7 +98,14 @@ vi.mock("@/lib/messaging/sendTempPasswordMessage", () => ({
 
 vi.mock("@/lib/i18n/get-request-locale", () => ({ getRequestLocale: async () => "en" }));
 vi.mock("@/lib/i18n/get-server-translation", () => ({
-  getServerTranslation: async () => ({ t: (key: string) => key }),
+  // Interpolating stub. With a bare `(key) => key` the confirmation label was
+  // untestable, and review proved it: the whole members.name/display_name/email
+  // fallback chain could be replaced by the raw email with every test still
+  // passing. Interpolation makes the label assertable.
+  getServerTranslation: async () => ({
+    t: (key: string, vars?: Record<string, string>) =>
+      vars ? key + ":" + Object.values(vars).join(",") : key,
+  }),
 }));
 vi.mock("@/lib/temp-password.mjs", () => ({ generateTempPassword: () => "TempPass123" }));
 
@@ -184,6 +199,11 @@ describe("createGym — owner resolution", () => {
     const { data, error } = await createGym(VALID);
     expect(data).toBeNull();
     expect(error?.code).toBe("owner_link_requires_confirmation");
+    // The label must name the ACCOUNT (members.name), not echo back the
+    // possibly-mistyped email -- an anti-typo control that confirms a typo
+    // against itself is worthless.
+    expect(error?.message).toContain("Paul Nkusu");
+    expect(error?.message).not.toContain(VALID.ownerEmail);
     expect(insertGymMock).not.toHaveBeenCalled(); // the real AC #5 property
     expect(insertOwnerMemberMock).not.toHaveBeenCalled();
     expect(deleteGymMock).not.toHaveBeenCalled(); // nothing was written, so nothing to clean up
@@ -199,6 +219,36 @@ describe("createGym — owner resolution", () => {
     expect(deleteGymMock).not.toHaveBeenCalled();
   });
 
+  it("FAILS CLOSED when the account has no public.users profile", async () => {
+    // `profile?.is_super_admin` is falsy when profile is null, so the earlier
+    // form let an unclassifiable account through as "not a Super Admin".
+    findUserByEmailResult = { id: "ghost-user", last_sign_in_at: null };
+    profileResult = { data: null, error: null };
+    const { data, error } = await createGym({ ...VALID, confirmLinkExistingOwner: true });
+    expect(data).toBeNull();
+    expect(error?.code).toBe("owner_profile_missing");
+    expect(insertGymMock).not.toHaveBeenCalled();
+    expect(insertOwnerMemberMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a profile-lookup failure instead of proceeding", async () => {
+    findUserByEmailResult = { id: "existing-user", last_sign_in_at: null };
+    profileResult = { data: null, error: { code: "boom" } };
+    const { data, error } = await createGym({ ...VALID, confirmLinkExistingOwner: true });
+    expect(data).toBeNull();
+    expect(error).not.toBeNull();
+    expect(insertGymMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a phone-lookup failure instead of proceeding", async () => {
+    phoneOwnerResult = { data: null, error: { code: "boom" } };
+    const { data, error } = await createGym(VALID);
+    expect(data).toBeNull();
+    expect(error).not.toBeNull();
+    expect(createUserMock).not.toHaveBeenCalled();
+    expect(insertGymMock).not.toHaveBeenCalled();
+  });
+
   it("refuses when the phone belongs to another account, writing nothing", async () => {
     phoneOwnerResult = { data: { id: "member-user" }, error: null };
     const { data, error } = await createGym(VALID);
@@ -210,18 +260,16 @@ describe("createGym — owner resolution", () => {
 });
 
 describe("createGym — compensating cleanup", () => {
-  it("deletes the auth user it created when the GYM insert fails", async () => {
-    // Regression guard. Hoisting owner resolution above insertGym (to make
-    // AC #5 true by construction) inverted the write order: the auth user is
-    // now created FIRST, so a failing gym insert can strand a real account
-    // holding the owner's email and phone forever -- and the retry then hits
-    // the confirmation gate naming an account this very request created.
-    // The old ordering was immune because deleteGym was the compensator.
+  it("creates NO auth user at all when the gym insert fails", async () => {
+    // Round-2 hoisted account creation above insertGym, which stranded a real
+    // auth.users row on a failed gym insert -- unrecoverable, since no admin
+    // path deletes an auth user. Round 3 moved provisioning back after the
+    // gym insert, so the account is never minted in the first place.
     insertGymResult = { data: null, error: { code: "gym_name_taken", message: "taken" } };
     const { error } = await createGym(VALID);
     expect(error).not.toBeNull();
-    expect(createUserMock).toHaveBeenCalledTimes(1);
-    expect(deleteUserMock).toHaveBeenCalledTimes(1);
+    expect(createUserMock).not.toHaveBeenCalled();
+    expect(deleteUserMock).not.toHaveBeenCalled();
   });
 
   it("does NOT delete a linked account when the gym insert fails", async () => {

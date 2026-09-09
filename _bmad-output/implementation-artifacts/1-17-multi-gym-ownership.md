@@ -63,7 +63,7 @@ The only thing missing is a way to *create* that second owner membership. Two in
 - [x] **Task 3: Types and result shape** (AC: #2)
   - [x] Extend `CreateGymResult` (`gyms/actions.ts:56`) with `ownerOutcome`. Narrow `tempPassword` to `string | null`.
   - [x] Update every consumer — `CreateGymModal.tsx` and any success-toast/dialog reading `tempPassword`. `tsc --noEmit` across all four workspace packages is the gate.
-  - [x] No new Zod schema is needed: `createGymSchema` (`packages/types/src/schemas/gym.ts:21-26`) is unchanged — this story changes what the server does with `ownerEmail`, not what the form accepts.
+  - [x] ~~No new Zod schema is needed~~ SUPERSEDED by code review: `createGymSchema` (`packages/types/src/schemas/gym.ts`) DID gain `confirmLinkExistingOwner` when the confirmation gate was added. The original reasoning below held only until that gate existed. is unchanged — this story changes what the server does with `ownerEmail`, not what the form accepts.
 
 - [x] **Task 4: UI copy and i18n** (AC: #3, #5)
   - [x] Branch the Create Gym success state on `ownerOutcome`. `"created"` keeps today's temp-password display; `"linked"` shows the assigned-to-existing-account message.
@@ -200,7 +200,7 @@ Other notes:
 - **AC #3's new copy avoids interpolation.** `gyms.toast.createdLinked` names no phone number: on the linked path the submitted phone belongs to the *new membership row*, not necessarily to the account being signed into, so echoing it back risked implying a message went there.
 - **Manual verification is outstanding and is smartsana's**, per this project's established practice. Task 6's two manual subtasks are deliberately left unchecked rather than marked done — the automated gates all pass, but nobody has yet created two gyms for one owner in a browser.
 
-**Verification results:** typecheck 0 errors across all 4 workspace packages · super-admin lint 0 errors / 1 pre-existing warning · super-admin tests 8/8 · dashboard tests 227/227 (regression) · super-admin production build clean · i18n parity `packages/types` 81/81 and `apps/super-admin` 298/298 en+fr · pgTAP 87/89 files passing, the 2 failures confirmed pre-existing (see Debug Log) · new pgTAP file 3/3.
+**Verification results (updated after code-review rounds 1-3):** typecheck 0 errors across all 4 workspace packages · super-admin lint 0 errors / 1 pre-existing warning · super-admin tests 25/25 (8 before this story) · dashboard tests 227/227 (regression) · both production builds clean, verified by exit code · i18n parity `packages/types` 84/84 and `apps/super-admin` 300/300 en+fr · pgTAP 87/89 files passing, the 2 failures confirmed pre-existing at baseline (see Debug Log) · new pgTAP file 2/2.
 
 ### File List
 
@@ -253,3 +253,82 @@ severity was assigned. -->
 - [x] [Review][Patch] Story record is inaccurate: File List omits `update-password-form.tsx`, and AC #6/#7 still assert premises the implementation disproved (index name; `custom_access_token_hook` claim resolution) [_bmad-output/implementation-artifacts/1-17-multi-gym-ownership.md]
 
 - [x] [Review][Defer] `findUserByEmail` pages every auth user on the platform on every gym creation [apps/super-admin/lib/super-admin-provisioning.mjs:51-66] — deferred, pre-existing
+
+### AC reconciliation (code review rounds 1-3)
+
+AC text is left unedited per this project's convention of not rewriting ACs
+post-hoc. Where the implementation diverged, the divergence is recorded here.
+
+- **AC #1 — superseded in part.** It says that when `ownerEmail` matches an
+  existing row "the gym is created and an `owner` membership row is inserted".
+  Since the confirmation gate was added (smartsana's decision, review round 1),
+  the FIRST submission always refuses with `owner_link_requires_confirmation`
+  and writes nothing; creation needs a second submission carrying
+  `confirmLinkExistingOwner`. The end state matches the AC; the number of steps
+  does not. AC #1's "no temp password generated" half is now literally true --
+  `generateTempPassword()` is reached only on the create path.
+- **AC #5 — holds, by a different mechanism than round 1 claimed.** Refusals
+  write nothing because owner screening is read-only and runs first. Round 2
+  additionally hoisted account CREATION above the gym insert, which was wrong:
+  it stranded an unrecoverable `auth.users` row on a failed gym insert. Round 3
+  moved provisioning back after the gym insert, so the compensator is
+  `deleteGym` and an orphan is removable via `super_admin_delete_orphaned_gyms`.
+- **AC #6 — index name deviates.** `0003_members_and_users.sql:39` already owns
+  an equivalent index under the name `idx_members_active_gym_user`, cited by ten
+  later migrations, and `packages/types/src/errors.ts` string-matches that exact
+  name. `0089` repairs THAT index rather than creating the differently-named one
+  the AC specifies.
+- **AC #7 — its stated mechanism is FALSE and the manual test script inherits
+  the error.** The AC says the owner's next login lands in the new gym "because
+  `custom_access_token_hook()` resolves claims to the most recently created
+  membership". `0065_multi_gym_session_switching.sql:117-127` superseded that:
+  the hook now PREFERS `public.users.active_gym_id` whenever it still resolves
+  to an active membership, falling back to most-recent only when it is null. So
+  an owner who has never used the gym switcher lands in the new gym (AC holds);
+  one who has ever switched lands back in their previously-selected gym. Task 6's
+  manual step "You'll land in the new gym" is correct only for the first case.
+- **Behaviours shipped that no AC covers:** `owner_link_requires_confirmation`
+  + `confirmLinkExistingOwner` + the confirmation panel and named submit button;
+  `owner_phone_belongs_to_other_account`; `owner_profile_missing`;
+  `gym_insert_failed`; `ownerNeverSignedIn` and its toast variant; `sms_sent`
+  becoming nullable in audit metadata; and the `apps/super-admin`
+  update-password redirect fix. All are recorded in the Change Log below.
+
+### Decisions taken (review round 1)
+
+The five `[Review][Decision]` items above are resolved; they remain unchecked
+only because item 5 is a deploy action still outstanding.
+
+1. **Phone-only accounts** — NOT linked by phone. Matching on phone would let a
+   mistyped digit hand a gym to an arbitrary gym member. The collision is
+   detected and reported instead. Promoting an existing member/coach to owner
+   needs its own story: it means giving a phone-only account an email, changing
+   their login identity.
+2. **Mistyped owner email** — confirmation gate added, naming the account.
+3. **Linked owner with no known password** — detected via `last_sign_in_at` and
+   surfaced in distinct copy. No resend action built (out of scope). Note the
+   project rejected email-link delivery for owner credentials in
+   `sprint-change-proposal-2026-07-14` §4.2, so there is currently NO
+   in-product recovery path; that gap is real and unresolved.
+4. **`apps/super-admin` `/protected` 404** — fixed, redirects to `/gyms`.
+5. **Apply `0089` to production** — approved, NOT YET DONE.
+
+## Change Log
+
+- **2026-09-09** — Story 1.17 implemented (see Completion Notes).
+- **2026-09-09** — Code review round 1: 19 findings, 12 patches. Added the
+  confirmation gate (`confirmLinkExistingOwner`), the phone-collision guard,
+  `ownerNeverSignedIn`, `createGym.test.ts`, and the `apps/super-admin`
+  `/protected` → `/gyms` fix. Hoisted owner resolution above the gym insert.
+- **2026-09-09** — Code review round 2: repaired a regression round 1 caused
+  (account minted before the gym insert, with no cleanup on gym-insert failure),
+  fixed broken typecheck and partly-vacuous test assertions, extracted
+  `screenExistingOwner` so the race path could not skip the Super Admin screen.
+- **2026-09-09** — Code review round 3: split screening (read-only) from
+  provisioning so refusals write nothing AND cleanup stays recoverable; fixed a
+  fail-OPEN Super Admin guard (`profile?.is_super_admin` passes when the profile
+  row is missing); made the confirmation label deterministic and assertable;
+  hardened `0089` (key-column-only comparison so `INCLUDE` cannot block a
+  healthy deploy, expression-column detection, schema-qualified CREATE,
+  apply-time duplicate pre-flight, lock documentation). Status: review →
+  in-progress.

@@ -35,7 +35,7 @@ insert into auth.users (id) values
 insert into members (id, gym_id, user_id, role, name) values
   ('00000000-0000-0000-0000-000000017071', '00000000-0000-0000-0000-000000017011', '00000000-0000-0000-0000-000000017021', 'owner', 'One Active Membership Owner');
 
--- 3. The SAME user in a DIFFERENT gym is allowed -- asserted before the
+-- 1. The SAME user in a DIFFERENT gym is allowed -- asserted before the
 -- deactivation below so it proves multi-gym membership works while the gym A
 -- row is still active, which is the real-world shape Story 1.17 creates.
 select lives_ok(

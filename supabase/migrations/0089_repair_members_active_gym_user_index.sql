@@ -21,19 +21,50 @@
 -- index -- local dev and CI, which build from migrations and therefore always
 -- do -- so this is safe to run everywhere and safe to re-run.
 --
--- SAFE TO APPLY: checked for violations on the deployed project before
--- writing this (`select gym_id, user_id from members where deactivated_at is
--- null group by 1,2 having count(*) > 1` returned zero rows), so the index
--- builds without a data-repair step. Re-run that check before applying to any
--- other environment -- a duplicate pair anywhere will fail the build.
+-- SAFE TO APPLY as of 2026-09-08: the deployed project had zero duplicate
+-- active pairs. That is a point-in-time observation with a shelf life, not a
+-- guarantee, so the pre-flight block below re-checks at APPLY time and names
+-- the offending pairs -- without it a duplicate arriving in the meantime dies
+-- as a bare `unique_violation` from the CREATE with nothing to act on.
+--
+-- LOCKING: this is a plain `create unique index`, NOT `concurrently` (which
+-- cannot run inside a migration's transaction). It takes a SHARE lock on
+-- `public.members` for the duration of the build, blocking every write to that
+-- table -- check-ins, member creation, staff changes. At the current table size
+-- that is milliseconds; on a large production table, build it out of band with
+-- `create unique index concurrently` first, after which this migration becomes
+-- the no-op it already is everywhere else.
 --
 -- PARTIAL on `deactivated_at is null`, matching 0003 exactly:
 -- `0063_staff_edit_deactivation.sql` made deactivation a SOFT state, so a
 -- total unique index would permanently block re-adding a once-deactivated
 -- staff member and break 0064's rehire path.
 
+-- Pre-flight (AC #6: "check for pre-existing violations before adding the
+-- index"). Fails with the offending pairs listed, instead of an opaque
+-- unique_violation from the CREATE below.
+do $$
+declare v_dupes text;
+begin
+  select string_agg(format('(gym %s, user %s) x%s', gym_id, user_id, n), '; ')
+    into v_dupes
+    from (
+      select gym_id, user_id, count(*) as n
+        from public.members
+       where deactivated_at is null
+       group by gym_id, user_id
+      having count(*) > 1
+    ) d;
+
+  if v_dupes is not null then
+    raise exception
+      'cannot build idx_members_active_gym_user -- duplicate active memberships must be resolved first: %',
+      v_dupes;
+  end if;
+end $$;
+
 create unique index if not exists idx_members_active_gym_user
-  on members (gym_id, user_id)
+  on public.members (gym_id, user_id)
   where deactivated_at is null;
 
 -- Code review hardening. `create unique index if not exists` matches on NAME
@@ -49,12 +80,13 @@ declare
   v_pred text;
   v_usable boolean;
   v_cols text[];
+  v_expr_keys int;
 begin
   select i.indisunique, pg_get_expr(i.indpred, i.indrelid), i.indisvalid and i.indisready,
          (select array_agg(a.attname order by k.ord)
-            from unnest(i.indkey) with ordinality k(attnum, ord)
+            from unnest(i.indkey[0:i.indnkeyatts-1]) with ordinality k(attnum, ord)
             join pg_attribute a on a.attrelid = i.indrelid and a.attnum = k.attnum)
-    into v_is_unique, v_pred, v_usable, v_cols
+    into v_is_unique, v_pred, v_usable, v_cols, v_expr_keys
     from pg_index i
     join pg_class c on c.oid = i.indexrelid
     join pg_namespace n on n.oid = c.relnamespace
@@ -79,5 +111,11 @@ begin
   end if;
   if not v_usable then
     raise exception 'idx_members_active_gym_user exists but is INVALID or NOT READY -- drop it and re-run';
+  end if;
+  -- An EXPRESSION key column has attnum 0, which the join above silently drops
+  -- rather than reporting -- so `lower(name), user_id` would agg to {user_id}
+  -- and, without this, a divergent index could still slip through.
+  if v_expr_keys > 0 then
+    raise exception 'idx_members_active_gym_user has % expression key column(s) -- expected plain (gym_id, user_id)', v_expr_keys;
   end if;
 end $$;

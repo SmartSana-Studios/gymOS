@@ -45,7 +45,8 @@
     "unknown": "Une erreur est survenue de notre côté.",
     "ownerIsSuperAdmin": "Cette adresse e-mail appartient à un compte Super Admin, qui ne peut pas aussi posséder une salle.",
     "ownerLinkRequiresConfirmation": "Cette adresse e-mail appartient déjà à {{owner}}. Confirmez ci-dessous pour créer la salle et l'attribuer à ce compte.",
-    "ownerPhoneBelongsToOtherAccount": "Ce numéro de téléphone appartient déjà à un autre compte GymOS. Utilisez le numéro de ce propriétaire ou un autre numéro."
+    "ownerPhoneBelongsToOtherAccount": "Ce numéro de téléphone appartient déjà à un autre compte GymOS. Utilisez le numéro de ce propriétaire ou un autre numéro.",
+    "ownerProfileMissing": "Ce compte existe mais n'a pas de profil GymOS : il ne peut pas être vérifié. Contactez le support avant de lui attribuer une salle."
   },
   "auth": {
     "title": "Connexion à GymOS",
