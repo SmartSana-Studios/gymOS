@@ -89,6 +89,20 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // STAFF/MEMBER PHONE SEPARATION (0094) -- DB-level backstop. services/
+  // members.ts checks before inserting so the common path gets good copy;
+  // this catches the paths that never go through it (CSV import, direct
+  // writes) and the race where a conflicting row lands in between. The
+  // trigger distinguishes the two directions in its own raise text.
+  if (message.includes("staff_member_phone_separation")) {
+    return {
+      code: "phone_membership_conflict",
+      message: message.includes("staff account")
+        ? copy.phoneBelongsToStaffAccount
+        : copy.phoneBelongsToMemberAccount,
+    };
+  }
+
   // refunds.payment_id unique constraint (0033_refund_recording.sql, Story
   // 4.5): a concurrent duplicate-refund race against the same payment.
   if (pgErrorCode === "23505" && message.includes("refunds_payment_id_key")) {

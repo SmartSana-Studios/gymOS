@@ -41,6 +41,7 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000007025'), -- Gym B owner
   ('00000000-0000-0000-0000-000000007026'), -- Gym C owner
   ('00000000-0000-0000-0000-000000007027'), -- the "new member" account created mid-test
+  ('00000000-0000-0000-0000-000000007028'), -- untouched account, INSERT target for the role-pinning assertion below
   ('00000000-0000-0000-0000-000000007029'); -- Gym C's at-cap member (role = 'member', the one that actually fills the cap)
 
 insert into members (id, gym_id, user_id, role, name) values
@@ -138,9 +139,14 @@ select is(
 -- super_admin_insert_owner_member's role-pinning shape, 0010). A denied
 -- INSERT raises a real RLS error (no existing row to silently filter).
 -- ============================================================================
+-- Targets ...7028, an account with NO membership of any kind, deliberately.
+-- ...7027 gains a member row earlier in this file, so aiming at it would trip
+-- 0094's staff/member separation trigger first and this assertion would pass
+-- on the wrong error -- proving nothing about the RLS role pinning it exists
+-- to check.
 select throws_like(
   $$insert into members (gym_id, user_id, role, name)
-    values ('00000000-0000-0000-0000-000000007011', '00000000-0000-0000-0000-000000007027', 'manager', 'Sneaky Staff Row')$$,
+    values ('00000000-0000-0000-0000-000000007011', '00000000-0000-0000-0000-000000007028', 'manager', 'Sneaky Staff Row')$$,
   '%row-level security%',
   'a manager-claim session cannot INSERT a member with role <> ''member'' (RLS-violation error)'
 );

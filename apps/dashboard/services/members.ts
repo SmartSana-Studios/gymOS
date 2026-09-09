@@ -399,6 +399,36 @@ export async function findOrCreateUserByPhone(
     return { data: null, error: await mapAndLog(lookupError) };
   }
   if (existing) {
+    // STAFF/MEMBER PHONE SEPARATION (migration 0094). A phone that already
+    // holds an active STAFF row may not also become a member -- a session
+    // carries one app_role, so one account being both is ambiguous.
+    //
+    // Reuse across gyms stays correct and is NOT blocked: FR-001 says "a user
+    // may be a member at multiple gyms via separate `members` rows"
+    // (epics.md:26), and per-gym notification preferences and the gym-named
+    // expiry copy both implement it.
+    //
+    // Checked here rather than left to the database purely for the copy --
+    // 0094's trigger is the real enforcement and also covers CSV import,
+    // direct writes and the race between this read and the insert, but a raw
+    // check_violation is not something to show a receptionist.
+    const { data: conflicts, error: conflictError } = await admin
+      .from("members")
+      .select("role")
+      .eq("user_id", existing.id)
+      .is("deactivated_at", null);
+    if (conflictError) {
+      return { data: null, error: await mapAndLog(conflictError) };
+    }
+
+    if (conflicts?.some((row) => row.role !== "member")) {
+      const { t } = await getServerTranslation(await getRequestLocale());
+      return {
+        data: null,
+        error: { code: "phone_belongs_to_staff", message: t("members.errors.phoneBelongsToStaffAccount") },
+      };
+    }
+
     return { data: { userId: existing.id, created: false }, error: null };
   }
 

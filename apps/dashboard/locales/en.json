@@ -499,7 +499,8 @@
       "exportTooLarge": "Apply a filter to narrow results",
       "auditLogFailedCreate": "The member was created, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedEdit": "The member was updated, but the audit log entry failed to write. Please contact support.",
-      "auditLogFailedDeactivate": "The member was deactivated, but the audit log entry failed to write. Please contact support."
+      "auditLogFailedDeactivate": "The member was deactivated, but the audit log entry failed to write. Please contact support.",
+      "phoneBelongsToStaffAccount": "This phone number belongs to a staff account. A staff member who also wants to train needs to use a different number."
     },
     "csvImport": {
       "title": "CSV Import",

@@ -47,7 +47,9 @@
     "ownerLinkRequiresConfirmation": "Cette adresse e-mail appartient déjà à {{owner}}. Confirmez ci-dessous pour créer la salle et l'attribuer à ce compte.",
     "ownerPhoneBelongsToOtherAccount": "Ce numéro de téléphone appartient déjà à un autre compte GymOS. Utilisez le numéro de ce propriétaire ou un autre numéro.",
     "ownerProfileMissing": "Ce compte existe mais n'a pas de profil GymOS : il ne peut pas être vérifié. Contactez le support avant de lui attribuer une salle.",
-    "gymSuspended": "GymOS est temporairement indisponible pour cette salle. Veuillez réessayer plus tard."
+    "gymSuspended": "GymOS est temporairement indisponible pour cette salle. Veuillez réessayer plus tard.",
+    "phoneBelongsToStaffAccount": "Ce numéro de téléphone appartient à un compte du personnel. Un membre du personnel qui souhaite aussi s’entraîner doit utiliser un autre numéro.",
+    "phoneBelongsToMemberAccount": "Ce numéro de téléphone appartient à un compte membre. Un compte du personnel doit utiliser un autre numéro."
   },
   "auth": {
     "title": "Connexion à GymOS",

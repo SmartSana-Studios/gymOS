@@ -10,9 +10,12 @@
  * existing row: the find fell through to `createUser()`, GoTrue's own
  * consistently-normalized uniqueness check rejected it with `phone_exists`, and
  * the race-recovery re-query missed for the same reason -- so the caller got a
- * confusing "already registered" error instead of the existing account being
- * reused. Practical effect: adding an already-registered person as a member at
- * a second gym failed, which is the thing multi-gym support exists for.
+ * confusing "already registered" error instead of a deliberate outcome.
+ *
+ * Reuse across gyms is CORRECT and stays that way -- FR-001 (epics.md:26): "a
+ * user may be a member at multiple gyms via separate `members` rows". Migration
+ * 0094 adds one narrow exception, covered in the second describe block below:
+ * a phone holding an active STAFF row may not also become a member.
  *
  * Reproduced directly against this project's local Supabase before fixing (not
  * inferred from the sibling bug): `createUser({ phone: "+237699000777" })`
@@ -32,6 +35,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let usersLookupResults: Array<{ data: { id: string } | null; error: unknown }>;
 let usersLookupCalls: Array<{ table: string; column: string; value: string }>;
+/** Rows the 0094 conflict check sees for the matched account. */
+let membershipRows: { data: Array<{ role: string }> | null; error: unknown };
 let createUserResult: { data: { user: { id: string } } | null; error: unknown };
 let createUserCalls: Array<{ phone: string; phone_confirm: boolean }>;
 
@@ -52,6 +57,8 @@ function makeAdminStub() {
             // and the race-recovery re-query can be driven independently.
             return usersLookupResults.shift() ?? { data: null, error: null };
           },
+          // The 0094 conflict check: .eq("user_id", id).is("deactivated_at", null)
+          is: async () => membershipRows,
         }),
       }),
     })),
@@ -60,6 +67,12 @@ function makeAdminStub() {
 
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => makeAdminStub()),
+}));
+
+vi.mock("@/lib/i18n/get-request-locale", () => ({ getRequestLocale: vi.fn(async () => "en") }));
+
+vi.mock("@/lib/i18n/get-server-translation", () => ({
+  getServerTranslation: vi.fn(async () => ({ t: (key: string) => key })),
 }));
 
 vi.mock("@/services/session", () => ({
@@ -79,6 +92,7 @@ describe("findOrCreateUserByPhone -- E.164 lookup normalization", () => {
     usersLookupCalls = [];
     createUserCalls = [];
     createUserResult = { data: { user: { id: "new-user-1" } }, error: null };
+    membershipRows = { data: [], error: null };
   });
 
   it("strips the leading '+' before comparing against public.users.phone -- the raw input would never match GoTrue's stored format", async () => {
@@ -163,5 +177,72 @@ describe("findOrCreateUserByPhone -- E.164 lookup normalization", () => {
       code: "unknown",
       message: `mapped: ${JSON.stringify({ message: "boom" })}`,
     });
+  });
+});
+
+/**
+ * Staff/member phone separation (migration 0094). A phone that already holds
+ * an active STAFF row may not also become a member -- a session carries one
+ * app_role, so one account being both is ambiguous.
+ *
+ * Reuse ACROSS GYMS is deliberately still allowed: FR-001 (epics.md:26) says
+ * "a user may be a member at multiple gyms via separate `members` rows", and
+ * per-gym notification preferences and the gym-named expiry copy both
+ * implement it. A one-membership-per-user rule was drafted and dropped for
+ * contradicting that -- the reuse test below is the guard against it coming
+ * back without the requirement being amended first.
+ */
+describe("findOrCreateUserByPhone -- staff/member phone separation (0094)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    usersLookupResults = [{ data: { id: "existing-user-1" }, error: null }];
+    usersLookupCalls = [];
+    createUserCalls = [];
+    createUserResult = { data: { user: { id: "new-user-1" } }, error: null };
+    membershipRows = { data: [], error: null };
+  });
+
+  it("refuses a phone that holds a STAFF row -- a staff member who also trains needs another number", async () => {
+    membershipRows = { data: [{ role: "coach" }], error: null };
+    const { findOrCreateUserByPhone } = await import("@/services/members");
+
+    const result = await findOrCreateUserByPhone(PHONE_WITH_PLUS);
+
+    expect(result.data).toBeNull();
+    expect(result.error).toEqual({
+      code: "phone_belongs_to_staff",
+      message: "members.errors.phoneBelongsToStaffAccount",
+    });
+    expect(createUserMock).not.toHaveBeenCalled();
+  });
+
+  it("REUSES an account already a member at ANOTHER gym -- FR-001, and what per-gym preferences depend on", async () => {
+    membershipRows = { data: [{ role: "member" }], error: null };
+    const { findOrCreateUserByPhone } = await import("@/services/members");
+
+    const result = await findOrCreateUserByPhone(PHONE_WITH_PLUS);
+
+    expect(result).toEqual({ data: { userId: "existing-user-1", created: false }, error: null });
+    expect(createUserMock).not.toHaveBeenCalled();
+  });
+
+  it("reuses an account whose memberships are all deactivated -- a former member or ex-coach returning", async () => {
+    membershipRows = { data: [], error: null };
+    const { findOrCreateUserByPhone } = await import("@/services/members");
+
+    expect(await findOrCreateUserByPhone(PHONE_WITH_PLUS)).toEqual({
+      data: { userId: "existing-user-1", created: false },
+      error: null,
+    });
+  });
+
+  it("surfaces a failure of the separation check itself rather than falling through to a reuse", async () => {
+    membershipRows = { data: null, error: { message: "check exploded" } };
+    const { findOrCreateUserByPhone } = await import("@/services/members");
+
+    const result = await findOrCreateUserByPhone(PHONE_WITH_PLUS);
+
+    expect(result.data).toBeNull();
+    expect(result.error?.code).toBe("unknown");
   });
 });

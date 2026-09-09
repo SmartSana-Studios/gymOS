@@ -499,7 +499,8 @@
       "exportTooLarge": "Appliquez un filtre pour réduire les résultats",
       "auditLogFailedCreate": "Le membre a été créé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedEdit": "Le membre a été modifié, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
-      "auditLogFailedDeactivate": "Le membre a été désactivé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
+      "auditLogFailedDeactivate": "Le membre a été désactivé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "phoneBelongsToStaffAccount": "Ce numéro de téléphone appartient à un compte du personnel. Un membre du personnel qui souhaite aussi s’entraîner doit utiliser un autre numéro."
     },
     "csvImport": {
       "title": "Importation CSV",
