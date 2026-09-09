@@ -67,6 +67,16 @@ The rest of the codebase already avoids this: `SettingsForm`'s own Tara-connect 
   - [x] Add a regression test; confirm red without the fix and green with it
   - [x] Typecheck, lint, full suite
 
+### Review Findings
+
+Adversarial code review, 2026-09-09 (Blind Hunter + Edge Case Hunter + Acceptance Auditor, diff `0acecb2^..b04f11f`).
+
+- [x] [Review][Patch] **The portal removed the invalid markup but not the coupling it caused** — submitting the Pay Now dialog still runs `SettingsForm`'s full validate-and-save path, because React propagates events along the React tree, not the DOM tree. `handlePayNowSubmit` calls `preventDefault()` but never `stopPropagation()` [apps/dashboard/components/shared/PayNowButton.tsx:129]
+- [x] [Review][Patch] `SettingsForm.billing.test.tsx`'s "a successful submit must actually close the native `<dialog>`" assertion now runs against a detached node and would pass even if `close()` were never called [apps/dashboard/app/(dashboard)/settings/SettingsForm.billing.test.tsx:181]
+- [x] [Review][Patch] The `selectableTiers.length > 0` branch — ~20 lines rewritten wholesale by the re-indent — is rendered by no assertion in either test file, both of which pass `selectableTiers={[]}` [apps/dashboard/components/shared/PayNowButton.nestedForm.test.tsx:266]
+- [x] [Review][Patch] Four whitespace-only lines left by the mechanical re-indent, contradicting the "everything else is re-indentation" claim; no lint rule catches them [apps/dashboard/components/shared/PayNowButton.tsx:244,280,291,293]
+- [x] [Review][Defer] Both `settings.billing.payNow` and `settings.billing.payNowDialogTitle` map to the literal "Pay Now" in the fixture, so any post-open `getByRole("button", { name: "Pay Now" })` will throw "found multiple elements" [apps/dashboard/components/shared/PayNowButton.nestedForm.test.tsx:244-245] — deferred, pre-existing
+
 ## Dev Notes
 
 ### The fix

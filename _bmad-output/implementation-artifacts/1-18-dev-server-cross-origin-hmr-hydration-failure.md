@@ -71,6 +71,14 @@ The reason the HMR failure looked intermittent and un-reproducible from the shel
   - [x] Confirm no `/_next/hmr` errors remain in the console
   - [x] Typecheck, lint and the full test suite pass on both apps
 
+### Review Findings
+
+Adversarial code review, 2026-09-09 (Blind Hunter + Edge Case Hunter + Acceptance Auditor, diff `0acecb2^..b04f11f`).
+
+- [x] [Review][Defer] `allowedDevOrigins` covers loopback only, not the other hosts this repo is actually browsed from — `next dev` is invoked with no `-H` in both apps' `package.json:5`, so the server listens on every interface. Browsing dev over a LAN IP (phone testing), the devcontainer's forwarded host, or a Codespaces `*.app.github.dev` URL reproduces the identical silently-inert-page failure under a different hostname. — deferred: **decided 2026-09-09 — keep loopback only.** Widening the allowlist is the wrong safeguard. Next already prints the exact remedy (`add it to "allowedDevOrigins" …`) to the dev-server terminal whenever it blocks a request, for *any* host — including ones we would never think to pre-list — so the failure is already self-diagnosing and the real gap was that nobody read the `pnpm dev` output. That pointer is now in both `proxy.ts` files. Widening also adds dev-time attack surface with no demonstrated need (WSL2 devcontainer; mobile QA goes through TestFlight, not the Next dev server).
+- [x] [Review][Patch] AC #7 is only half met — the two artefacts most likely to mislead the next person still assert the disproved hypothesis [apps/dashboard/proxy.ts:14-18, apps/super-admin/proxy.ts:14-18, docs/manual-walkthrough-findings-2026-07-13.md:174-187]
+- [x] [Review][Defer] `next: "latest"` makes both config edits version-fragile with a silent failure mode [apps/dashboard/package.json:32] — deferred, pre-existing
+
 ## Dev Notes
 
 ### Reproduction, for anyone who sees this again

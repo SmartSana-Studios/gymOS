@@ -76,6 +76,18 @@ The `?_rsc` fetch confirms fresh server data was delivered and then discarded by
   - [x] Add a regression test; confirm it fails without the fix (red) and passes with it (green)
   - [x] Typecheck, lint, full suite
 
+### Review Findings
+
+Adversarial code review, 2026-09-09 (Blind Hunter + Edge Case Hunter + Acceptance Auditor, diff `0acecb2^..b04f11f`).
+
+- [x] [Review][Patch] The new remount destroys `PayNowButton`'s in-flight payment watch — `watchedPaymentId`/`paymentPhase` previously survived `router.refresh()`; they no longer survive a gym switch. **Decided 2026-09-09 — cancel deliberately, and say so in code** [apps/dashboard/components/shared/PayNowButton.tsx:80-92]. Nothing is lost financially: the send/webhook is the authority (`saas_billing_payments` is off the `supabase_realtime` publication, Story 11.3), so a payment verifying after a switch still lands server-side and shows on the next load of that gym — only the live in-page confirmation is forfeited. Blocking the switch would trap a multi-gym Owner behind a poll that runs 45s before it even says "still waiting"; persisting the watch buys a cross-gym confirmation-banner problem. Polling gym A's payment from gym B's screen was never right, so the remount's behaviour is correct — it was just undocumented, which is what the comment fixes.
+- [x] [Review][Patch] The keyed subtree does not cover the layout's suspended-gym branch, where the same staleness bug is live and money-adjacent [apps/dashboard/app/(dashboard)/layout.tsx:79,87] — also add suspended/error-branch cases to the regression test, which hard-codes `suspended: null`
+- [x] [Review][Patch] A gym switch on mobile leaves the nav drawer open — `GymSwitcher` is the only interactive element in the sidebar not given `onNavigate` [apps/dashboard/components/shared/Sidebar.tsx:87-93]
+- [x] [Review][Patch] The corrected comment promotes a rationale this very diff invalidated — `FrontDeskAlertPanel` is now remounted wholesale, so its React-Query re-keying is no longer the mechanism keeping it correct [apps/dashboard/components/shared/GymSwitcher.tsx:40-43]
+- [x] [Review][Defer] The regression test pins an element-tree shape, not the re-seeding behaviour, and dies on `undefined.key` if `DashboardChrome` ever gets a second child [apps/dashboard/app/(dashboard)/layout.gymSwitchRemount.test.tsx:89-110] — deferred, pre-existing
+- [x] [Review][Defer] Dev Notes' "only three components seed state this way" inventory is wrong — at least seven more do [_bmad-output/implementation-artifacts/1-19-gym-switch-stale-page-content.md:100] — deferred, pre-existing
+- [x] [Review][Defer] Unsaved edits on any `(dashboard)` page are now silently discarded by the remount, with no dirty-check confirm [apps/dashboard/app/(dashboard)/layout.tsx:129] — deferred, pre-existing
+
 ## Dev Notes
 
 ### Why the key goes where it goes
