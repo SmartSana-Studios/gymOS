@@ -8,6 +8,25 @@ export interface AppError {
 
 export type ErrorLocale = "en" | "fr";
 
+/** True when `error` is the suspension raise shared by all 18 gated write-RPCs
+ * (0090_suspension_enforcement_in_rpcs.sql, Story 11.8). Every one raises the
+ * same shape -- `<function_name>: gym <uuid> is not active`.
+ *
+ * Exported as its own predicate, not inlined into mapSupabaseError below,
+ * because `apps/mobile` cannot use mapSupabaseError: it carries its own
+ * locale bundles (apps/mobile/src/locales) rather than packages/types', so it
+ * needs the *test* without the copy. Mobile is also the only member-facing
+ * surface, and AC #4's neutral copy is a member-facing requirement -- so this
+ * predicate, not the mapper, is what makes AC #4 reachable where it matters.
+ * One matcher shared by both apps means the `is not active` phrase is pinned
+ * in exactly one place on the TypeScript side; `suspension_raise_text_contract`
+ * in supabase/tests/suspension_rpc_coverage.test.sql pins the SQL side to the
+ * same phrase. */
+export function isGymSuspendedError(error: unknown): boolean {
+  const message = (error as { message?: string } | null)?.message ?? "";
+  return message.includes(": gym ") && message.includes("is not active");
+}
+
 const ERROR_COPY: Record<ErrorLocale, typeof en.errors> = {
   en: en.errors,
   fr: fr.errors,
@@ -171,6 +190,34 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     return {
       code: "owner_phone_taken",
       message: copy.ownerPhoneTaken,
+    };
+  }
+
+  // The suspension guard shared by all 18 gated write-RPCs
+  // (0090_suspension_enforcement_in_rpcs.sql, Story 11.8, AC #4). Every one
+  // raises the same shape -- `<function_name>: gym <uuid> is not active` -- so
+  // one mapping covers check_in, check_out, book_class_session,
+  // initiate_member_payment, confirm_renewal, create_staff_member and the rest
+  // rather than 18 near-identical branches.
+  //
+  // Placed ahead of the per-RPC message matches below deliberately: several of
+  // those key on a bare function-name prefix, and a suspended gym must never
+  // fall through to copy that names a different cause.
+  //
+  // The copy is the neutral member-facing sentence from EXPERIENCE.md's Error
+  // States table, and FR-132 forbids ever telling a member that their gym owes
+  // money -- that relationship is between GymOS and the Owner alone. So this
+  // must NOT mention billing, payment, subscription or an amount owed, even
+  // though a suspension is always caused by one. The Owner sees the real
+  // reason through the dashboard's own suspended screen and its Pay Now path,
+  // which are gated on the Owner role and deliberately not routed through
+  // here. Staff roles get the same neutral copy: the dashboard's suspended
+  // screen already differentiates by role, and this mapping is the fallback
+  // for a direct RPC call that bypassed it.
+  if (isGymSuspendedError(error)) {
+    return {
+      code: "gym_suspended",
+      message: copy.gymSuspended,
     };
   }
 

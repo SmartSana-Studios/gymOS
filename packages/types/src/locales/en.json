@@ -46,7 +46,8 @@
     "ownerIsSuperAdmin": "This email belongs to a Super Admin account, which cannot also own a gym.",
     "ownerLinkRequiresConfirmation": "This email already belongs to {{owner}}. Confirm below to create the gym and assign it to that account.",
     "ownerPhoneBelongsToOtherAccount": "This phone number already belongs to another GymOS account. Use the phone number for this owner, or a different one.",
-    "ownerProfileMissing": "This account exists but has no GymOS profile, so it cannot be verified. Contact support before assigning a gym to it."
+    "ownerProfileMissing": "This account exists but has no GymOS profile, so it cannot be verified. Contact support before assigning a gym to it.",
+    "gymSuspended": "GymOS is temporarily unavailable for this gym. Please check back later."
   },
   "auth": {
     "title": "Sign in to GymOS",
