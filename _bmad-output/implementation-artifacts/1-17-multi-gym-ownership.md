@@ -311,7 +311,7 @@ only because item 5 is a deploy action still outstanding.
    `sprint-change-proposal-2026-07-14` §4.2, so there is currently NO
    in-product recovery path; that gap is real and unresolved.
 4. **`apps/super-admin` `/protected` 404** — fixed, redirects to `/gyms`.
-5. **Apply `0089` to production** — approved, NOT YET DONE.
+5. **Apply `0089` to production** — DONE 2026-09-09. Pre-flight confirmed the index was genuinely ABSENT on vfxezibagiznrirdwkwh (the drift was real, not a mis-read), zero duplicate active pairs at apply time, 2 member rows so the SHARE lock was instantaneous. Applied atomically with its schema_migrations row; production is now 89/89. Verified by shape (unique, valid, predicate `(deactivated_at IS NULL)`, columns `{gym_id,user_id}`) AND by behaviour -- a real duplicate insert was rejected by name inside a rolled-back transaction. The invariant `create_staff_member()` has assumed since 0064 is now actually enforced in production for the first time.
 
 ## Change Log
 
