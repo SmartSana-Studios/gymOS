@@ -219,7 +219,7 @@ tracking_system: file-system
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
 
 development_status:
-  epic-1: in-progress
+  epic-1: done
   1-1-monorepo-starter-initialization: done
   1-2-supabase-region-verification-spike: done
   1-3-tenant-isolation-foundation-jwt-claims-hook-rls-deny-all: done
@@ -242,7 +242,7 @@ development_status:
   1-20-paynow-dialog-nested-form-hydration-error: done
   epic-1-retrospective: optional
 
-  epic-2: in-progress
+  epic-2: done
   2-1-sms-otp-provider-sandbox-spike: done
   2-2-membership-plan-configuration: done
   2-3-manager-owner-create-edit-deactivate-members: done
@@ -255,7 +255,7 @@ development_status:
   2-10-automated-member-invite-via-evolution-api: done
   epic-2-retrospective: done
 
-  epic-3: in-progress
+  epic-3: done
   3-1-subscription-lifecycle-cron-job: done
   3-2-manual-renewal-reset: done
   3-3-qr-code-generation-gym-token-validation: done
@@ -268,7 +268,7 @@ development_status:
   3-10-member-app-plan-details-check-in-history: done
   epic-3-retrospective: optional
 
-  epic-4: in-progress
+  epic-4: done
   4-1-notch-pay-sandbox-spike: done
   4-2-notch-pay-payment-integration: done
   4-3-manual-payment-entry-verification-queue: done
@@ -293,7 +293,7 @@ development_status:
   5-3-coach-portal-member-detail-session-notes: done
   epic-5-retrospective: optional
 
-  epic-6: in-progress
+  epic-6: done
   6-1-expo-push-token-registration-cleanup: done
   6-2-subscription-lifecycle-notifications-n-01-n-02-n-03: done
   6-3-payment-notifications-n-04-n-05: done
@@ -308,7 +308,7 @@ development_status:
   7-2-audit-log-dashboard-page: done
   epic-7-retrospective: done
 
-  epic-8: in-progress
+  epic-8: done
   8-1-settings-page-redesign-qr-prominence: done
   8-2-e-ink-display-endpoint: done
   8-3-mobile-design-system-foundation: done
@@ -317,7 +317,7 @@ development_status:
   8-6-mobile-screen-restyle-onboarding: done
   epic-8-retrospective: optional
 
-  epic-9: in-progress
+  epic-9: done
   9-1-staff-creation-with-role-ceiling-enforcement: done
   9-2-staff-activation-via-temporary-password: done
   9-3-staff-edit-deactivation-immediate-access-revocation: done
@@ -326,14 +326,14 @@ development_status:
   9-6-multi-gym-session-switching: done
   epic-9-retrospective: optional
 
-  epic-10: in-progress
+  epic-10: done
   10-1-body-profile-progress-entry-logging: done
   10-2-progress-data-photo-privacy: done
   10-3-member-progress-screen: done
   10-4-coach-portal-progress-tab: done
   epic-10-retrospective: optional
 
-  epic-11: in-progress
+  epic-11: done
   11-1-paymentprovider-routing-context-saas-billing-table: done
   11-2-saas-subscription-lifecycle-free-test-tier: done
   11-3-payment-due-reminders-one-tap-pay: done
@@ -345,14 +345,14 @@ development_status:
   11-9-suspension-enforcement-for-workout-plan-tables: done
   epic-11-retrospective: optional
 
-  epic-12: in-progress
+  epic-12: done
   12-1-class-creation-scheduling: done
   12-2-class-booking-with-capacity-enforcement: done
   12-3-class-attendance-marking: done
   12-4-member-app-classes-surfaces: done
   epic-12-retrospective: optional
 
-  epic-13: in-progress
+  epic-13: done
   13-1-shared-exercise-library: done
   13-2-coach-authored-workout-plans: done
   13-3-member-plan-view-completion-tracking: done
@@ -360,18 +360,18 @@ development_status:
   13-5-e2e-test-automation-baseline: done
   epic-13-retrospective: optional
 
-  epic-14: in-progress
+  epic-14: done
   14-1-sentry-error-monitoring: done
   epic-14-retrospective: optional
 
-  epic-15: in-progress
+  epic-15: done
   15-1-splash-screen-app-icon-fix: done
   15-2-shared-component-library-card-elevation-icon-chip-list-item-stat-tile: done
   15-3-home-screen-craft-pass: done
   15-4-profile-screen-craft-pass: done
   epic-15-retrospective: optional
 
-  epic-16: in-progress
+  epic-16: done
   16-1-web-shared-country-picker-phoneinput-dashboard-super-admin: done
   16-2-mobile-country-picker-phone-input-expo: done
   epic-16-retrospective: optional
@@ -482,3 +482,4 @@ action_items:
 # last_updated: 2026-09-09 (ad-hoc, no story: closed BOTH remaining HIGH-severity items in deferred-work.md after reproducing each one directly against local Supabase rather than reasoning from the notes. (1) THE STAFF LOGIN BLOCKER — createStaffMember() (Story 9.1) provisions Supervisor/Manager/Receptionist/Coach accounts via createUser({phone,password,phone_confirm}) with NO email, so they land with email='' while the dashboard's only login field was type="email" bound to signInWithPassword({email}). Owners were unaffected because createGym() sets both email and phone. THE LOGGED DIAGNOSIS WAS WRONG ABOUT SCOPE: it called this "a real product/UX decision... larger changes than a patch", but a probe on an account created exactly the way createStaffMember() creates one showed signInWithPassword({phone,password}) returns an access_token -- with AND without the leading "+", GoTrue normalizes on write -- while {email:""} gives 400 missing-email-or-phone. The accounts were never broken and need no email backfill; only the form could not address them. Fixed as an identifier change: loginSchema (packages/types/src/schemas/auth.ts) now accepts an email OR an E.164 phone, a new toPasswordCredentials() routes to the right GoTrue credential shape, and login-form.tsx's field is #identifier with type="text" (type="email" would have had the browser reject a phone before the form ever ran). EXPERIENCE.md AD-01's mockup and its "Email or password is incorrect." copy were updated with V1.5 annotations rather than left contradicting shipped behaviour, and e2e/helpers/auth.ts's #email locator was updated. Verified end-to-end live: pre-fix shape {email:"+237..."} -> invalid_credentials, post-fix shape {phone:"+237..."} -> access_token. Still open deliberately: "Forgot password?" sends a reset EMAIL, so it stays unusable for a phone-only staff account -- their recovery path remains an Owner triggering resendStaffTempPassword() over WhatsApp; noted in deferred-work.md as worth its own item. (2) THE PHONE-FORMAT LOOKUP BUG in findOrCreateUserByPhone() (members.ts) -- the item explicitly said it had NOT been reproduced and must not be built on; it has now been: createUser({phone:"+237699000777"}) persists as "237699000777", and `where phone = '+237699000777'` returns 0 rows against that same account while the un-prefixed form returns 1. Every Zod e164Phone schema requires the leading "+", so the lookup never matched, createUser() then hit GoTrue's phone_exists, and the caller saw a confusing "already registered" instead of the existing account being reused -- breaking adding an already-registered person as a member at a second gym. Fixed by normalizing with phone.replace(/^\+/,"") in BOTH comparisons, mirroring staff.ts:200-213's Story 9.4 fix; the second one is load-bearing for the symptom, since the race-recovery re-query carried the same raw phone and so the self-heal never fired. New tests: members.findOrCreateUserByPhone.test.ts (5) verified RED first -- 3 of 5 fail with the fix reverted -- and lib/auth.loginIdentifier.test.ts (20). Regression: dashboard vitest 293/293 across 38 files (was 268), typecheck clean, lint 0 errors/15 pre-existing warnings, i18n parity across 4 bundles with packages/types 85 -> 87 keys. All probe accounts deleted afterwards; 0 rows remaining. NOTE ON SPRINT STATE: all 113 tracked stories are done, every epics.md story is tracked, and nothing sits in backlog/ready-for-dev -- but all 16 epics still read in-progress, which is stale and worth a cleanup pass.)
 # last_updated: 2026-09-09 (ad-hoc, no story: added apps/dashboard/scripts/dev-seed.mjs -- a persistent LOCAL dev seed for hand-testing, distinct from e2e/fixtures/seed.ts which is Playwright globalSetup and self-tears-down. Key difference and the reason it exists: the e2e fixture deliberately gives every seeded staff account a SYNTHETIC EMAIL as a workaround for the "no gym-staff role other than Owner can log in" gap, so it never exercised the real staff path. dev-seed.mjs provisions staff exactly the way createStaffMember() does -- createUser({phone,password,phone_confirm}) with NO email -- so signing in as a Coach/Receptionist genuinely exercises the phone-login fix rather than a fixture shortcut; Owners still get email+phone like createGym(), keeping both paths testable side by side. Seeds 3 gyms (Iron Temple active, Downtown Fitness active, Paused Athletics SUSPENDED for the 11.4/11.8/11.9 states), 9 staff across all 6 roles, 4 members with subscriptions, plans and one coach assignment; refuses to run against a non-local Supabase URL since it uses a shared published password; idempotent by phone so re-runs reuse accounts instead of tripping GoTrue's phone-uniqueness check. Downtown's member Ivan (+237670000900) exists specifically so the findOrCreateUserByPhone cross-gym reuse fix can be exercised by hand from Iron Temple. Verified after seeding: staff rows carry no email, and +237670000005 / 237670000005 / owner@irontemple.test all return an access_token. Super Admin bootstrapped via the existing apps/super-admin provision-super-admin.mjs. NOTE: the two long-running `next dev` servers on :3000/:3001 (started 08:44) were serving pre-change code and were restarted; the login page now renders id="identifier" with the "Email address or phone number *" label. FOLLOW-UP WORTH DOING: e2e/fixtures/seed.ts's synthetic-email workaround and its explanatory comment are now stale -- the gap it works around is fixed, and leaving it means Playwright still never covers phone login. Not changed here because the Playwright suite could not be run to verify.)
 # last_updated: 2026-09-09 (ad-hoc, no story: staff self-service password reset -- closes the follow-up the staff-login fix left open, so phone-only Supervisor/Manager/Receptionist/Coach accounts now have a recovery path that is not "ask an Owner". Reuses the phone-OTP rails Story 2.6 already built rather than inventing anything: signInWithOtp -> the send-sms-hook edge function -> the Evolution API / Twilio provider chain -> verifyOtp, which yields a real session, then hands off to the EXISTING /auth/update-password screen -- that screen calls updateUser({password}) and never touches an email, so it needed no change at all. Owners keep resetPasswordForEmail untouched; the form picks the branch from what was typed, reusing loginSchema's isPhoneIdentifier plus a new toE164Phone(). NEW MIGRATION 0092 adds phone_has_staff_membership(text), deliberately NOT a reuse of 0019's phone_has_membership(): that one matches ANY members row, so calling it here would fire a real WhatsApp/SMS send for (a) a plain member, who cannot use the dashboard at all, and (b) a staff account Story 9.3 has already deactivated, whose access is meant to be revoked immediately -- both avoidable sends on a PRE-AUTH surface, which 0019's own comment flags as a cost-abuse concern. The migration is self-asserting in 0090/0091's style: it fails at apply time if the function loses SECURITY DEFINER (members is RLS-gated, so invoker rights would return false for every caller and silently break reset), if either narrowing clause is dropped, or if anon loses execute. signInWithOtp is called with shouldCreateUser:false -- the default would PROVISION an account for any number typed into a logged-out form. i18n: 15 new keys en+fr; resetPasswordDescription was left as-is and a separate resetIdentifierDescription added, because apps/super-admin shares that key and Super Admins are email-only. TESTS: new staff_phone_password_reset.test.sql (9 assertions, every one run as anon, with positive controls proving the two refusals come from the narrowing rather than a missing fixture) and forgot-password-form.test.tsx (11). The resend-lockout test was caught being VACUOUS on first write -- the 30s countdown disables the button, so the "no send happened" assertion would have passed whether the server lockout worked or not; reworked via a resendCooldownSeconds test seam, paired with a positive resend test, and verified RED by deleting the lockout branch. REPAIRED A LATENT TEST DEFECT the new persistent dev seed exposed: gyms_super_admin_rls.test.sql asserted `count(*) from members = 2` and an exact two-name array platform-wide, so it failed ("have: 5, want: 2") against ANY pre-existing owner row -- a local seed, a leftover fixture. Rewritten to assert the two claims it actually makes (no non-owner row is visible; both fixture owners are) without counting unrelated rows. Regression: 92 pgTAP files 1939/1939 with dev seed data present, dashboard vitest 304/304 across 39 files, typecheck clean, lint 0 errors/15 pre-existing warnings, i18n parity across 4 bundles, packages/types 87 -> 102 keys. Verified live end to end on the local stack via the config.toml test_otp bypass: staff check -> OTP -> verify -> password actually rotated -> re-login with the NEW password succeeded -> restored. Manual browser QA remains with smartsana.)
+# last_updated: 2026-09-09 (ad-hoc, no story: sprint-tracking cleanup -- flipped 14 epics from in-progress to done. Audited before mutating rather than assuming: parsed development_status, grouped every key under its epic, and confirmed all 109 story entries are `done` with ZERO blocked epics; epic-5 and epic-7 were already `done` and were left untouched, and they are the precedent confirming `done` is the right value here. Per this file's own STATUS DEFINITIONS the in-progress -> done transition is explicitly manual "when all stories reach done status", which is why every epic had gone stale: nothing automates it, and the last story of each epic landed without anyone closing the epic. `epic-N-retrospective` keys were deliberately excluded from the completeness check -- retrospective status is a separate axis in this file (optional | done), not a story, so an outstanding retrospective must not block an epic from reading done. Diff verified as exactly 14 changed lines, all of them `  epic-N:` status lines, with no story line touched; final tally 127 done (109 stories + 16 epics + 2 completed retrospectives) and 14 retrospectives still `optional`. STATE OF THE SPRINT AFTER THIS: every epic in epics.md is delivered and closed, nothing sits in backlog/ready-for-dev/in-progress/review, and deferred-work.md carries no open HIGH-severity items -- so there is genuinely no next story to pick up. The next move is a planning decision, not an execution one: either run retrospectives on the 14 epics still marked optional, or a planning pass to decide what follows V1.5.)
