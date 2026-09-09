@@ -10,7 +10,7 @@
 -- text would have silently reverted -- see 0061's own header comment).
 
 begin;
-select plan(7);
+select plan(9);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000017201', 'Staff Creation Negative Test Tier', 5000, 50000, 20);
@@ -56,9 +56,11 @@ select throws_like(
 reset role;
 
 -- ============================================================================
--- (b) A supervisor-claim session cannot directly INSERT ANY members row --
--- manager_or_owner_insert_own_members's role check is `['manager','owner']`
--- only, never 'supervisor', even for role = 'member'.
+-- (b) A supervisor-claim session cannot directly INSERT a STAFF-role members
+-- row. Since migration 0093 it CAN insert a `role = 'member'` row (the
+-- "Manager-plus" footprint), but the policy's `with check` still pins
+-- `role = 'member'`, so every staff role remains reachable only through
+-- create_staff_member() and its audited role ceiling.
 -- ============================================================================
 set local role authenticated;
 select set_config(
@@ -67,11 +69,38 @@ select set_config(
   true
 );
 
+-- Migration 0093 widened manager_or_owner_insert_own_members to include
+-- supervisor, so a Supervisor can now create MEMBERS exactly as a Manager can
+-- -- that is the "Manager-plus" footprint, and it is not what this file guards.
+--
+-- What this file guards is the ROLE CEILING (NFR-013): a Supervisor must never
+-- be able to mint a Supervisor or an Owner. That is still enforced, and by a
+-- clause 0093 deliberately left alone -- the policy's WITH CHECK ends in
+-- `AND (role = 'member'::member_role)`, so the widening bought Supervisor the
+-- ability to insert members and nothing else. Staff creation remains reachable
+-- only through create_staff_member(), which applies the ceiling.
+--
+-- The previous assertion here read "cannot directly INSERT into members at all
+-- -- manager_or_owner_insert_own_members never covers 'supervisor'". That was a
+-- description of the pre-0093 gap, not a security requirement; asserting the
+-- escalation attempts directly is both stronger and durable.
 select throws_like(
   $$insert into members (gym_id, user_id, role, name)
-    values ('00000000-0000-0000-0000-000000017211', '00000000-0000-0000-0000-000000017231', 'member', 'Bypassed Member')$$,
+    values ('00000000-0000-0000-0000-000000017211', '00000000-0000-0000-0000-000000017231', 'supervisor', 'Escalation: peer Supervisor')$$,
   '%row-level security%',
-  'a supervisor-claim session cannot directly INSERT into members at all -- manager_or_owner_insert_own_members never covers ''supervisor'''
+  'a supervisor-claim session cannot directly INSERT a SUPERVISOR row -- the role ceiling holds at the RLS layer, not just inside create_staff_member()'
+);
+select throws_like(
+  $$insert into members (gym_id, user_id, role, name)
+    values ('00000000-0000-0000-0000-000000017211', '00000000-0000-0000-0000-000000017231', 'owner', 'Escalation: Owner')$$,
+  '%row-level security%',
+  'a supervisor-claim session cannot directly INSERT an OWNER row'
+);
+select throws_like(
+  $$insert into members (gym_id, user_id, role, name)
+    values ('00000000-0000-0000-0000-000000017211', '00000000-0000-0000-0000-000000017231', 'manager', 'Escalation: Manager')$$,
+  '%row-level security%',
+  'a supervisor-claim session cannot directly INSERT a MANAGER row either -- every staff role must go through create_staff_member(), which is where the ceiling is applied and audited'
 );
 
 reset role;

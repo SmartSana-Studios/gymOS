@@ -343,7 +343,12 @@ select lives_ok(
 );
 
 select is(
-  (select count(*)::int from payment_discrepancies),
+  -- Scoped to this file's own fixtures. An unrestricted count(*) assumed an
+  -- otherwise-empty database and broke the moment any other gym had a real
+  -- discrepancy -- a local dev seed, a payment someone made while testing.
+  -- The rule being asserted is about THIS run's rows, not the platform total.
+  (select count(*)::int from payment_discrepancies
+    where gym_id = '00000000-0000-0000-0000-000000009511' or gym_id is null),
   6,
   'a second consecutive run leaves the total discrepancy row count unchanged -- no re-flagging of already-known discrepancies (1 missing_internal_record + 1 Flow A stale_processing + 1 Flow B stale_processing + 1 Flow A amount_mismatch + 1 Flow B amount_mismatch + 1 wrong_account_settlement)'
 );
@@ -355,7 +360,7 @@ select is(
 );
 
 select is(
-  (select count(*)::int from payment_discrepancies where saas_billing_payment_id is not null),
+  (select count(*)::int from payment_discrepancies where saas_billing_payment_id is not null and gym_id = '00000000-0000-0000-0000-000000009511'),
   2,
   'the new Flow-B stale_processing partial unique index (plus the reused, already flow-agnostic amount_mismatch index) hold across the second run too -- no duplicate Flow-B rows'
 );
@@ -463,13 +468,14 @@ select set_config(
 );
 
 select is(
-  (select count(*)::int from payment_discrepancies),
+  (select count(*)::int from payment_discrepancies
+    where gym_id = '00000000-0000-0000-0000-000000009511' or gym_id is null),
   6,
   'a super_admin-claim session sees every discrepancy row across every gym (all 6: Gym A''s 3 Flow-A + 2 Flow-B + the unattributable, gym_id-NULL missing_internal_record row)'
 );
 
 select is(
-  (select count(*)::int from payment_discrepancies where saas_billing_payment_id is not null),
+  (select count(*)::int from payment_discrepancies where saas_billing_payment_id is not null and gym_id = '00000000-0000-0000-0000-000000009511'),
   2,
   'a super_admin-claim session sees both Flow-B discrepancies -- invisible to gym staff, visible here'
 );

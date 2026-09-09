@@ -237,8 +237,26 @@ select is(
 reset role;
 
 -- ============================================================================
--- (g) Same as (f), for Supervisor -- matching manager_or_owner_read_own_session_notes'
--- own precedent, not widened to Supervisor unlike Story 12.3's grant.
+-- (g) Supervisor, UNLIKE (f)'s Receptionist, CAN read these -- changed by
+-- migration 0093.
+--
+-- This section previously asserted the opposite, on the stated grounds of
+-- "matching manager_or_owner_read_own_session_notes' own precedent". That
+-- precedent was itself part of the gap 0093 closed, not an independent privacy
+-- decision: EXPERIENCE.md:206 defines Supervisor as "everything Manager sees",
+-- and the policy guarding these three tables is
+-- manager_or_owner_read_own_workout_plan -- Manager and Owner both read them
+-- today, so excluding only the role that sits BETWEEN them was incoherent.
+--
+-- Not to be confused with the real privacy rule, which is untouched:
+-- EXPERIENCE.md:946 / FR-095 keeps progress entries and photos visible only to
+-- the member and their assigned coach, "never Receptionist, Manager,
+-- Supervisor, Owner". That rule excludes Manager and Owner as well, and
+-- workout plans are not progress data -- which is exactly why Manager could
+-- always read plans while never reading progress.
+--
+-- Section (f) above is the control: Receptionist must still be denied, so
+-- these three assertions cannot pass because the gate was dropped for everyone.
 -- ============================================================================
 set local role authenticated;
 select set_config(
@@ -249,18 +267,18 @@ select set_config(
 
 select is(
   (select count(*)::int from workout_plans where id = '00000000-0000-0000-0000-000000019181'),
-  0,
-  'a Supervisor cannot SELECT the plan'
+  1,
+  'a Supervisor CAN SELECT the plan -- same as Manager and Owner (0093); the Receptionist section above is the control proving the gate was not simply dropped'
 );
 select is(
   (select count(*)::int from workout_plan_exercises where plan_id = '00000000-0000-0000-0000-000000019181'),
-  0,
-  'a Supervisor cannot SELECT the plan''s exercises'
+  1,
+  'a Supervisor CAN SELECT the plan''s exercises'
 );
 select is(
   (select count(*)::int from workout_plan_completions where plan_id = '00000000-0000-0000-0000-000000019181'),
-  0,
-  'a Supervisor cannot SELECT the plan''s completion row'
+  1,
+  'a Supervisor CAN SELECT the plan''s completion row'
 );
 reset role;
 

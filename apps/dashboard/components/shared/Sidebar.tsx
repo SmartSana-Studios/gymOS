@@ -34,22 +34,19 @@ const NAV_ITEMS: {
   icon: typeof LayoutDashboard;
   roles: MemberRole[];
 }[] = [
-  { labelKey: "nav.overview", href: "/", icon: LayoutDashboard, roles: ["receptionist", "manager", "owner"] },
-  { labelKey: "nav.members", href: "/members", icon: Users, roles: ["receptionist", "manager", "owner"] },
+  { labelKey: "nav.overview", href: "/", icon: LayoutDashboard, roles: ["receptionist", "manager", "supervisor", "owner"] },
+  { labelKey: "nav.members", href: "/members", icon: Users, roles: ["receptionist", "manager", "supervisor", "owner"] },
   { labelKey: "nav.staff", href: "/settings/staff", icon: UserCog, roles: ["owner", "supervisor"] },
-  { labelKey: "nav.plans", href: "/plans", icon: Tag, roles: ["manager", "owner"] },
-  { labelKey: "nav.subscriptions", href: "/subscriptions", icon: CreditCard, roles: ["manager", "owner"] },
-  { labelKey: "nav.payments", href: "/payments", icon: Wallet, roles: ["receptionist", "manager", "owner"] },
-  { labelKey: "nav.attendance", href: "/attendance", icon: ClipboardList, roles: ["receptionist", "manager", "owner"] },
-  // Story 12.3: widened to include supervisor -- EXPERIENCE.md's Role
-  // visibility matrix grants Supervisor "Classes -- view/attendance
-  // (AD-18)" the same as Receptionist/Manager/Owner, and this story's own
-  // AC #1 requires Supervisor to reach /classes at all (the RLS policy and
-  // RPC role check were already widened for the same reason -- see
-  // migration 0068). Scoped to only this one nav item, not nav.attendance
-  // above (a pre-existing, separately-tracked gap, deferred-work.md).
+  { labelKey: "nav.plans", href: "/plans", icon: Tag, roles: ["manager", "supervisor", "owner"] },
+  { labelKey: "nav.subscriptions", href: "/subscriptions", icon: CreditCard, roles: ["manager", "supervisor", "owner"] },
+  { labelKey: "nav.payments", href: "/payments", icon: Wallet, roles: ["receptionist", "manager", "supervisor", "owner"] },
+  { labelKey: "nav.attendance", href: "/attendance", icon: ClipboardList, roles: ["receptionist", "manager", "supervisor", "owner"] },
+  // Story 12.3 widened this one item to include supervisor. The gap it noted
+  // ("scoped to only this nav item, not nav.attendance above") is now closed:
+  // every Manager item above carries supervisor, per EXPERIENCE.md:206's
+  // "Manager-plus" definition, alongside migration 0093's RLS/RPC widening.
   { labelKey: "nav.classes", href: "/classes", icon: CalendarDays, roles: ["receptionist", "manager", "owner", "supervisor"] },
-  { labelKey: "nav.auditLog", href: "/audit", icon: ScrollText, roles: ["manager", "owner"] },
+  { labelKey: "nav.auditLog", href: "/audit", icon: ScrollText, roles: ["manager", "supervisor", "owner"] },
   { labelKey: "nav.settings", href: "/settings", icon: Settings, roles: ["owner", "supervisor"] },
   { labelKey: "nav.coachPortal", href: "/coach", icon: Dumbbell, roles: ["coach"] },
 ];

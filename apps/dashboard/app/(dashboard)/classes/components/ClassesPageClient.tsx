@@ -55,7 +55,7 @@ export function ClassesPageClient({
   // UI-hiding half of AC #3 -- RLS (manager_or_owner_insert_own_classes/
   // manager_or_owner_update_own_classes) is the real enforcement, matching
   // this app's established "Sidebar/button hides, RLS blocks" discipline.
-  const canManage = role === "manager" || role === "owner";
+  const canManage = role === "manager" || role === "supervisor" || role === "owner";
 
   // Story 12.3 AC #1: row-expand/mark-attendance is available to every staff
   // role except Coach -- UI-hiding half, defense-in-depth; the RLS/RPC role

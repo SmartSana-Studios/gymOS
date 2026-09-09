@@ -36,7 +36,11 @@ const STATUS_LABEL_KEY: Record<(typeof STATUS_OPTIONS)[number], string> = {
   deactivated: "members.status.deactivated",
 };
 
-const CAN_MANAGE: MemberRole[] = ["manager", "owner"];
+// Supervisor included per EXPERIENCE.md:206's "Manager-plus" definition -- the
+// role sits ABOVE Manager in the hierarchy (Owner -> Supervisor -> Manager),
+// so anything Manager can do here it can do too. UI-hiding half only; the real
+// enforcement is manager_or_owner_insert/update_own_members, widened alongside.
+const CAN_MANAGE: MemberRole[] = ["manager", "supervisor", "owner"];
 
 // Windows the page-number buttons around the current page (always keeping
 // the first/last page visible) instead of rendering one button per page --
