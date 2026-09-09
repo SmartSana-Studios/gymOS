@@ -186,6 +186,20 @@ artifact of WSL2 + Turbopack, not reachable in a real deployment (no WSL2 in
 the loop) — restarting the local dev servers fresh (not through repeated WSL
 suspend/resume) should clear it.
 
+> **Correction (2026-09-09, Story 1.18).** The diagnosis in the paragraph
+> above is **wrong**, and acting on it wastes time — restarting the dev
+> servers does not clear this. It is not WSL2 networking flakiness and has
+> nothing to do with NAT port-forwarding or clock drift. The real cause is
+> that Next 16 blocks cross-origin requests to dev-only endpoints, treating
+> any host other than the one the dev server initialized with (`localhost`)
+> as cross-origin — so browsing over `127.0.0.1` gets the HMR WebSocket
+> upgrade rejected with a malformed non-HTTP response. Turbopack's dev
+> runtime bootstraps the client through that socket, so React never
+> hydrates, and an inert form falls through to a native GET. The fix is
+> `allowedDevOrigins` in each app's `next.config.ts`. Next prints the exact
+> remedy to the dev-server terminal when it blocks the request, so check the
+> `pnpm dev` output first. Full write-up: Story 1.18.
+
 ## What still works (verified via the same real browser walkthrough)
 
 - Super Admin login, Gyms list, and Gym detail pages render and behave
