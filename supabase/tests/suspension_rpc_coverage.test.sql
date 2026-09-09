@@ -234,7 +234,7 @@ select is(
   --                             the gym is suspended
   --   gym_payment_credentials - RLS enabled but ZERO permissive policies, so a
   --                             restrictive policy would be a structural no-op;
-  --                             recorded in docs/decisions.md:298
+  --                             recorded in docs/decisions.md, 2026-08-28 entry
   --   saas_billing_notices    - the suspension notice itself must stay readable
   --   saas_billing_payments   - the Pay Now escape valve writes here
   --

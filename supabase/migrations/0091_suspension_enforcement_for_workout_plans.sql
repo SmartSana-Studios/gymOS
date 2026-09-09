@@ -90,7 +90,7 @@
 --   tenant_active_insert_gate). Reusing the name `tenant_active_gate` silently
 --   changes assertion 1's count in suspension_rpc_coverage.test.sql, and
 --   converting it to FOR ALL breaks the platform-default reads above.
--- This is a different rationale from gym_payment_credentials (decisions.md:298),
+-- This is a different rationale from gym_payment_credentials (docs/decisions.md, 2026-08-28 entry),
 -- which is ungated because it has ZERO permissive policies, making a restrictive
 -- policy a structural no-op. That reasoning does NOT apply here: the workout
 -- tables DO have permissive SELECT policies, so the gate is not a no-op on them.
@@ -101,10 +101,10 @@
 -- Policy DDL is byte-identical to 0073:117-121 across all 18 existing tables,
 -- changing only the table name. The name repeats verbatim ON PURPOSE so one grep
 -- finds every site -- do not vary it. FOR ALL is a deliberate, disclosed
--- exception to AD-1's "never FOR ALL" (decisions.md:296): AD-1 targets
+-- exception to AD-1's "never FOR ALL" (docs/decisions.md, 2026-08-28 entry): AD-1 targets
 -- differentiated per-action business policies, not a single tenant-liveness
 -- gate. `= 'active'` (not `<> 'suspended'`) denies both 'suspended' and
--- 'deactivated' (decisions.md:300). `or private.is_super_admin()` is
+-- 'deactivated' (docs/decisions.md, 2026-08-28 entry). `or private.is_super_admin()` is
 -- load-bearing and applied uniformly so a future Super-Admin policy cannot
 -- silently regress: a Super Admin has no gym_id claim, so current_gym_status()
 -- is NULL, `NULL = 'active'` is falsy under a RESTRICTIVE USING, and the call

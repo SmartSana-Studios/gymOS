@@ -256,7 +256,7 @@ select throws_ok(
 -- ============================================================================
 -- Section D: a DEACTIVATED gym is denied by the same gate. 0091's policy uses
 -- `= ''active''`, not `<> ''suspended''`, so both non-active states are covered
--- (decisions.md:300).
+-- (docs/decisions.md, 2026-08-28 entry).
 -- ============================================================================
 select set_config(
   'request.jwt.claims',
