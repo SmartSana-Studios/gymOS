@@ -8,7 +8,10 @@ import { FIXTURE_PASSWORD } from "../fixtures/types";
  * proves the real UI/session path, per this story's own Flow 1 design. */
 export async function loginViaUi(page: Page, email: string): Promise<void> {
   await page.goto("/auth/login");
-  await page.locator("#email").fill(email);
+  // `#identifier`, not `#email`: the field accepts an email OR a phone number
+  // since staff accounts are provisioned without an email. Fixtures still sign
+  // in by email, which the same field handles.
+  await page.locator("#identifier").fill(email);
   await page.locator("#password").fill(FIXTURE_PASSWORD);
   await page.getByRole("button", { name: /sign in|connexion/i }).click();
   await expect(page).not.toHaveURL(/\/auth\/login/, { timeout: 15_000 });

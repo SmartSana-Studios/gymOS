@@ -61,7 +61,7 @@
     "signingIn": "Connexion en cours…",
     "errors": {
       "network": "Connexion impossible. Vérifiez votre connexion internet.",
-      "invalidCredentials": "E-mail ou mot de passe incorrect.",
+      "invalidCredentials": "E-mail, numéro de téléphone ou mot de passe incorrect.",
       "accountLocked": "Votre compte a été verrouillé. Contactez l'administrateur de votre salle."
     },
     "emailLabelSimple": "E-mail",
@@ -90,6 +90,8 @@
     "signUpSuccessBody": "Votre inscription a réussi. Veuillez vérifier votre e-mail pour confirmer votre compte avant de vous connecter.",
     "errorTitle": "Désolé, une erreur est survenue.",
     "errorCode": "Code d'erreur : {{code}}",
-    "unspecifiedError": "Une erreur non spécifiée est survenue."
+    "unspecifiedError": "Une erreur non spécifiée est survenue.",
+    "identifierLabel": "Adresse e-mail ou numéro de téléphone *",
+    "identifierPlaceholder": "vous@exemple.com ou +237…"
   }
 }

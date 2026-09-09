@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { loginSchema } from "@gymos/types";
+import { loginSchema, toPasswordCredentials } from "@gymos/types";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -46,7 +46,11 @@ export function LoginForm({
   redirectTo,
   ...props
 }: React.ComponentPropsWithoutRef<"div"> & { redirectTo?: string }) {
-  const [email, setEmail] = useState("");
+  // Story 9.1's staff accounts (Supervisor/Manager/Receptionist/Coach) are
+  // provisioned with a phone and NO email, so an email-only field left every
+  // non-Owner role unable to sign in at all. See loginSchema's own note for the
+  // empirical confirmation that phone sign-in works against those accounts.
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -60,7 +64,7 @@ export function LoginForm({
     setPasswordError(null);
     setFormError(null);
 
-    const parsed = loginSchema.safeParse({ email, password });
+    const parsed = loginSchema.safeParse({ identifier, password });
     if (!parsed.success) {
       setFormError(parsed.error.issues[0]?.message ?? t("common.invalidInput"));
       return;
@@ -70,7 +74,11 @@ export function LoginForm({
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword(parsed.data);
+      // Email vs. phone discrimination lives in @gymos/types alongside the
+      // schema that validated it, so the two cannot drift apart.
+      const { error } = await supabase.auth.signInWithPassword(
+        toPasswordCredentials(parsed.data),
+      );
       if (error) {
         const mapped = mapLoginError(error, t);
         setPasswordError(mapped.passwordError);
@@ -106,14 +114,19 @@ export function LoginForm({
           <form onSubmit={handleLogin}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="email">{t("auth.emailLabel")}</Label>
+                <Label htmlFor="identifier">{t("auth.identifierLabel")}</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder={t("auth.emailPlaceholder")}
+                  id="identifier"
+                  // Deliberately `text`, not `email`: the browser's native
+                  // email validation would reject a phone number before the
+                  // form ever ran, which is the whole bug being fixed here.
+                  type="text"
+                  inputMode="email"
+                  autoComplete="username"
+                  placeholder={t("auth.identifierPlaceholder")}
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                 />
               </div>
               <div className="grid gap-2">

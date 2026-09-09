@@ -371,10 +371,29 @@ export async function findOrCreateUserByPhone(
 ): Promise<{ data: { userId: string; created: boolean } | null; error: AppError | null }> {
   const admin = createAdminClient();
 
+  // GoTrue stores auth.users.phone (and this trigger-copied public.users.phone,
+  // 0003_members_and_users.sql:62-63) in E.164 digits WITHOUT the leading "+"
+  // -- confirmed empirically against this project's local Supabase instance:
+  // createUser({ phone: "+237699000777" }) persists as "237699000777", and
+  // `select ... where phone = '+237699000777'` returns 0 rows against that same
+  // account. Every Zod e164Phone schema in this codebase REQUIRES the leading
+  // "+" (`/^\+[1-9]\d{7,14}$/`, member.ts:9, csvImport.ts:24-26), so a raw
+  // `.eq("phone", phone)` here never matches an existing row: the lookup falls
+  // through to createUser(), GoTrue's own (consistently normalized) uniqueness
+  // check rejects it with `phone_exists`, and the caller sees a confusing
+  // "already registered" rejection instead of the existing account being
+  // reused. That breaks adding an already-registered person as a member at a
+  // second gym, which is precisely what multi-gym support exists for.
+  //
+  // This is the same defect createStaffMember() carried and fixed in Story 9.4
+  // (staff.ts:200-213); members.ts was modelled on it but never received the
+  // fix. Normalize in BOTH lookups below -- see the race-recovery re-query.
+  const normalizedPhoneForLookup = phone.replace(/^\+/, "");
+
   const { data: existing, error: lookupError } = await admin
     .from("users")
     .select("id")
-    .eq("phone", phone)
+    .eq("phone", normalizedPhoneForLookup)
     .maybeSingle();
   if (lookupError) {
     return { data: null, error: await mapAndLog(lookupError) };
@@ -395,10 +414,16 @@ export async function findOrCreateUserByPhone(
     // surfacing it as a failure (Scope Note #1), rather than a genuine
     // provisioning error.
     if ((createError as { code?: string } | null)?.code === "phone_exists") {
+      // Normalized for the same reason as the lookup above. This one is
+      // load-bearing for the SYMPTOM: while both comparisons carried the "+",
+      // the first lookup missed, createUser() raised `phone_exists`, and then
+      // this self-heal re-query missed too -- so the error surfaced rather
+      // than the existing account being reused. Fixing only the first lookup
+      // would leave this path broken under a genuine race.
       const { data: reQueried, error: reQueryError } = await admin
         .from("users")
         .select("id")
-        .eq("phone", phone)
+        .eq("phone", normalizedPhoneForLookup)
         .maybeSingle();
       if (reQueryError) {
         return { data: null, error: await mapAndLog(reQueryError) };

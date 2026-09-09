@@ -61,7 +61,7 @@
     "signingIn": "Signing in…",
     "errors": {
       "network": "Couldn't connect. Check your internet connection.",
-      "invalidCredentials": "Email or password is incorrect.",
+      "invalidCredentials": "Email, phone number or password is incorrect.",
       "accountLocked": "Your account has been locked. Contact your gym administrator."
     },
     "emailLabelSimple": "Email",
@@ -90,6 +90,8 @@
     "signUpSuccessBody": "You've successfully signed up. Please check your email to confirm your account before signing in.",
     "errorTitle": "Sorry, something went wrong.",
     "errorCode": "Code error: {{code}}",
-    "unspecifiedError": "An unspecified error occurred."
+    "unspecifiedError": "An unspecified error occurred.",
+    "identifierLabel": "Email address or phone number *",
+    "identifierPlaceholder": "you@example.com or +237…"
   }
 }

@@ -1006,13 +1006,15 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 [GymOS logo]
 "Sign in to [Gym Name]"
 
-Email address *   [input]
-Password *        [input + show/hide toggle]
+Email address or phone number *   [input]
+Password *                        [input + show/hide toggle]
 
 [          Sign in          ]
 
 "Forgot password?" link
 ```
+
+*(V1.5: the identifier field accepts an email address **or** a phone number — it was email-only. Story 9.1's staff provisioning creates Supervisor/Manager/Receptionist/Coach accounts from a phone number with **no email**, so an email-only field left every non-Owner role unable to sign in at all. Owners are unaffected either way: gym creation sets both an email and a phone. Confirmed against Supabase that those accounts authenticate by phone with or without the leading "+", so this is an identifier change only — staff accounts need no email backfill.)*
 
 **Interactions:**
 - Form submits on Enter key from either field
@@ -1020,7 +1022,7 @@ Password *        [input + show/hide toggle]
 - On success: redirect to AD-02 or originally-requested deep link
 
 **Error states:**
-- Invalid credentials: inline below password — "Email or password is incorrect."
+- Invalid credentials: inline below password — "Email, phone number or password is incorrect." *(V1.5: was "Email or password is incorrect.")*
 - Account locked: "Your account has been locked. Contact your gym administrator."
 - Network error: "Couldn't connect. Check your internet connection."
 
