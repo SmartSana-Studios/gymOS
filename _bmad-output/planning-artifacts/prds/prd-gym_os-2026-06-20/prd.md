@@ -426,7 +426,7 @@ The 91%+ "Full" threshold and raw occupancy counts are visible on the admin dash
 
 ### 6.11 Coach Portal (V1)
 
-**FR-053** — The Coach Portal is a role-gated section within the gym admin dashboard. Users with the Coach role see only the Coach Portal; all other dashboard sections (Payments, Members, Settings, Audit Log) are inaccessible.
+**FR-053** — The Coach Portal is a role-gated section within the gym admin dashboard. Users with the Coach role see only the Coach Portal; all other dashboard sections (Payments, Members, Settings, Audit Log, the admin Classes page) are inaccessible. The Coach Portal is itself composed of multiple sub-surfaces (FR-144); "only the Coach Portal" constrains which *dashboard sections* a Coach reaches, not how many pages the Portal has. *(Amended 2026-09-09 — sprint-change-proposal-2026-09-09.md.)*
 
 **FR-054** — V1 Coach Portal features:
 
@@ -549,6 +549,14 @@ Tier definitions — names, price points, member thresholds, and the ability to 
 **FR-141** — Amendment to FR-071. In-app Super Admin account management is added to the Super Admin dashboard: a Super Admin can view the list of current Super Admins, create a new Super Admin account, or promote an existing platform-staff user (matched by email) to Super Admin — entirely in-app, no CLI/database access required. This supersedes Story 1.12's CLI-only decision (`docs/decisions.md`, 2026-08-05); the CLI script (`provision-super-admin.mjs`) is retained as the bootstrap path for creating the very first Super Admin in an environment where none yet exists (the in-app flow is necessarily gated behind an existing Super Admin session).
 
 **FR-142** — Every phone-number input across the platform (member, staff, gym owner, coach, and the Mobile-Money payer-phone field) offers a country picker that auto-prefixes the correct calling code as the user types, always producing a valid E.164 value. Coverage is global for contact phones; the Mobile-Money payer-phone field in the renewal flow (FR-050/FR-140) is restricted to Tara Money's supported-country list (`taraMoneySupportedCountries.ts`) since only that field triggers an automated Tara Money collection call.
+
+**FR-143** — The staff Overview (AD-02) presents live operational state: stat cards and supporting tables covering current occupancy, memberships needing attention, and month-to-date revenue. Revenue is **net** — verified payments minus refunds recorded in the same period; `payment_status` has four values (`0001:20`) and only `verified` is money the gym actually has, while refunds live in their own table with positive amounts (`0033:11`). Every card links through to the full page for its metric. Values refresh on load and by polling; no card renders a stale or unattributed number, and no figure may be computed by a client-side sum over fetched rows (`max_rows = 1000` truncates silently).
+
+**FR-144** — The Coach Portal has its own navigation with three surfaces: Overview (default landing), My Members (the existing AD-14 list), and My Classes. A Coach signing in lands on the Coach Portal Overview, not the staff Overview.
+
+**FR-145** — A Coach can view the classes they are assigned to teach (`classes.coach_id`), including upcoming sessions and the members booked into each. Read-only: creating, editing, and scheduling classes remain Manager/Supervisor/Owner (FR-104, FR-121); marking class attendance remains Receptionist-and-above (FR-107). The Coach Portal's My Classes surface presents only that Coach's own classes. Class *metadata* (name, schedule, coach, capacity) is readable by every authenticated user of the gym by design — that is what lets members browse and book (FR-105, FR-108) — so the guarantee here is not metadata secrecy. The protected data is the **roster**: who is booked into a given session. A Coach can retrieve a roster only for a session belonging to a class they are assigned to, enforced server-side, never by UI filtering.
+
+**FR-146** — The Coach Portal Overview summarises the Coach's own caseload: their next class sessions, assigned-member count with subscription health, members needing follow-up, and recent progress activity from assigned members. Every figure is scoped by the same assignment rules that scope the rest of the Portal (FR-055) — an ended assignment removes the member from these figures immediately.
 
 **FR-086** — Member cap enforcement: when a gym reaches the maximum member count for their tier, new member creation is blocked at the API level. The dashboard shows: "You've reached your plan limit ([N]/[Max] members). Contact GymOS to upgrade." Active and deactivated members both count toward the cap. The Super Admin can override the cap for a specific gym or move the gym to a higher tier.
 
@@ -764,7 +772,7 @@ The same `PaymentProvider` interface serves both; the difference is whose creden
 
 **FR-121** — A new Classes page (Manager for create/edit; Receptionist for bookings and class attendance) lists classes, sessions, booking counts vs capacity, and the assigned coach.
 
-**FR-122** — The Coach Portal gains Workout Plans and, per assigned member, a Progress tab. No other dashboard section becomes visible to the Coach role.
+**FR-122** — The Coach Portal gains Workout Plans and, per assigned member, a Progress tab. No other dashboard section becomes visible to the Coach role. *(V2: superseded in part by FR-144/FR-145 — the Coach Portal gains its own Overview and My Classes sub-surfaces. No **admin** dashboard section becomes visible to the Coach role; that constraint is unchanged. See sprint-change-proposal-2026-09-09.md.)*
 
 **FR-123** — The member app gains a Progress tab and a Classes tab alongside Home/Check-In/Profile. Notification preferences gain N-06 and N-07 toggles.
 

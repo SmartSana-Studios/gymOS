@@ -82,6 +82,8 @@ design_spine: DESIGN.md
 | AD-17 | Staff — Add / Edit | Modal on AD-16 | Supervisor *(V1.5, FR-087–FR-089)* |
 | AD-18 | Classes — List & Attendance | `/classes` | Receptionist *(V1.5, FR-121)* |
 | AD-19 | Classes — Create / Edit | Modal on AD-18 | Manager *(V1.5, FR-104)* |
+| AD-20 | Coach Portal — Overview | `/coach/overview` | Coach *(V2, FR-146)* |
+| AD-21 | Coach Portal — My Classes | `/coach/classes` | Coach *(V2, FR-145)* |
 
 ### Super Admin Dashboard
 
@@ -146,7 +148,10 @@ Admin Dashboard
 │   ├── Settings          → AD-13
 │   │   └── Staff         → AD-16 → AD-17 (modal)  [Owner/Supervisor] [V1.5]
 │   └── [Coach role only]
-│       └── Coach Portal  → AD-14 → AD-15 (tabs: Session Notes / Progress [V1.5] / Workout Plan [V1.5])
+│       └── Coach Portal                                             [V2]
+│           ├── Overview      → AD-20                                [V2]
+│           ├── My Members    → AD-14 → AD-15 (tabs: Session Notes / Progress [V1.5] / Workout Plan [V1.5])
+│           └── My Classes    → AD-21                                [V2]
 └── Floating / Overlay
     ├── Front-Desk Alert Panel  [on AD-02, AD-11; real-time]
     └── Inline Renewal Panel    [within alert or Subscriptions row]
@@ -219,7 +224,15 @@ Super Admin Dashboard
 | Staff (AD-16/17) | — | — | ✓ | ✓ | — |
 | Coach Portal | — | — | — | — | ✓ |
 
-Coach role: sidebar renders only the "Coach Portal" link. All other items are absent from the DOM.
+Coach role: the sidebar renders only the "Coach Portal" link. All other items are absent from the DOM. Selecting it enters the Portal, which carries its own sub-navigation (V2, FR-144):
+
+| Coach Portal sub-nav | Coach |
+|---|---|
+| Overview (AD-20) | ✓ |
+| My Members (AD-14) | ✓ |
+| My Classes (AD-21) | ✓ |
+
+My Classes is **not** the admin Classes page (AD-18/AD-19) — a Coach never reaches AD-18, cannot create or edit a class, and cannot mark class attendance. AD-21 shows only classes where `classes.coach_id` is that Coach.
 
 **Logout:** Clicking Logout shows a confirmation inline ("Log out of GymOS?" [Log out] [Cancel]) before clearing session.
 
@@ -1069,6 +1082,19 @@ Password *                        [input + show/hide toggle]
 - Checked-in table: "No one is checked in right now."
 - Expiring table: "No members expiring in the next 7 days."
 
+**V2 amendment (FR-143).** The three cards above are joined by a second row of gym-health cards. The original three answer "what is happening right now"; the second row answers "how is the gym doing" — the question an Owner opens the dashboard to ask.
+
+- **Row 2 cards (4):**
+  - "Active members: N" → AD-03 filtered to active
+  - "New this month: N" → AD-03
+  - "Today's classes: N" → AD-18
+  - "At risk: N" → AD-08 filtered to grace_period + expired
+- **"At risk"** counts `grace_period` + `expired` combined, and is the only card that renders in the alert colour when non-zero — a gym with zero at-risk members must not see a red number on its dashboard.
+- **Revenue MTD is net:** verified payments minus refunds recorded in the same calendar month, in gym-local time. Refunds are stored in their own table with positive amounts, not as negative payment rows, so a gross figure would overstate takings to the Owner in any month containing a refund.
+- **Row 2 is Manager-plus.** A Receptionist sees only the original three cards, and row 2 is absent from the DOM rather than CSS-hidden — headcount, growth, and churn-risk figures are management information, not front-desk information. (AD-02's minimum role is Receptionist, so this gate is load-bearing.)
+
+**Loading (row 2):** 4 skeleton cards, streaming in their own boundary independently of row 1 — a slow aggregate must never delay the operational cards above it, which are the ones the front desk needs in real time.
+
 ---
 
 ### AD-03 · Members — List
@@ -1723,6 +1749,79 @@ Coach Notes                                           [+ Add note]
 - A plan belongs to exactly one member — there's no "assign to another member" action anywhere on this screen (FR-110)
 - **Coach reassignment / plan handoff** (Story 13.4): if this plan was authored by a previous coach, this coach sees it (read-only) with a banner — "This plan was written by [Previous Coach Name]. Take ownership to make changes." [Take ownership] — until they explicitly take ownership, Edit/reorder controls are disabled, mirroring the V1.0 session-note handoff pattern
 - **Empty state:** "No workout plan yet." + [+ New plan]
+
+---
+
+### AD-20 · Coach Portal — Overview
+
+**Purpose:** The Coach's portal home. Summarises their own caseload — what they are teaching, who needs them, who has been active. Coach role only. *(V2, FR-146.)*
+
+**Layout:**
+```
+Coach Portal
+[ Overview ] [ My Members ] [ My Classes ]        ← Portal sub-nav (FR-144)
+
+┌──────────────────────────┐ ┌──────────────────────────┐
+│ My Next Sessions         │ │ My Members At A Glance   │
+│ Mon 18:00 · HIIT  8/15   │ │ 12 assigned              │
+│ Wed 07:00 · Core  5/10   │ │ 9 active · 2 expiring    │
+│ Fri 18:00 · HIIT 11/15   │ │ 1 expired                │
+│                [All →]   │ │                [All →]   │
+└──────────────────────────┘ └──────────────────────────┘
+┌──────────────────────────┐ ┌──────────────────────────┐
+│ Needs Follow-Up          │ │ Recent Progress Activity │
+│ Amara K.   no note 21d   │ │ Jean B.   logged 2d ago  │
+│ Jean B.    no note yet   │ │ Amara K.  logged 5d ago  │
+└──────────────────────────┘ └──────────────────────────┘
+```
+
+**Components:**
+- **Portal sub-navigation:** Overview (AD-20) · My Members (AD-14) · My Classes (AD-21); active surface indicated; renders on all three routes plus AD-15
+- **My Next Sessions:** upcoming `class_sessions` for classes where `coach_id` is this Coach, with `scheduled_at` and booked/capacity; row → that class in AD-21
+- **My Members At A Glance:** assigned-member count broken down by subscription status; "All →" links to AD-14
+- **Needs Follow-Up:** assigned members whose most recent session note *authored by this Coach* is older than the follow-up threshold, or who have no note at all; row → AD-15 Session Notes tab
+- **Recent Progress Activity:** assigned members who logged progress entries recently; row → AD-15 Progress tab. **Progress photos are never surfaced here** — `progress_photos` carries its own separate sharing consent, and logging an entry is not consent to appear photographically on a summary screen
+- Check-in recency is deliberately **not** a Needs Follow-Up signal — the Coach role has no read access to attendance events, and this screen does not widen that
+
+**Empty state (no assigned members at all):** the AD-14 copy rather than four empty widgets — "No members have been assigned to you yet. Ask your Manager, Owner, or Supervisor to assign members."
+
+**Loading:** 4 skeleton widget cards. Each widget reads a different source; any one failing renders its own error state while the other three still render.
+
+---
+
+### AD-21 · Coach Portal — My Classes
+
+**Purpose:** The classes this Coach is assigned to teach, and who is booked into each session. Read-only. Coach role only. *(V2, FR-145.)*
+
+**Layout:**
+```
+Coach Portal
+[ Overview ] [ My Members ] [ My Classes ]
+
+┌────────────────────────────────────────────────────────────────┐
+│ HIIT Circuit          Mon/Wed/Fri 18:00      Capacity 15       │
+│  ▾ Fri 12 Sep · 18:00                             11/15 booked │
+│      Amara K.          ✓ attended                              │
+│      Jean B.           —                                       │
+│      Fatima N.         —                                       │
+│  ▸ Mon 15 Sep · 18:00                              8/15 booked │
+├────────────────────────────────────────────────────────────────┤
+│ Core Strength         Wed 07:00               Capacity 10      │
+│  ▸ Wed 17 Sep · 07:00                              5/10 booked │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Components:**
+- Class list: only classes whose `coach_id` resolves to this Coach's own member row, resolved server-side from the session — never from a client-supplied coach ID
+- Per class: name, schedule, capacity; expandable to upcoming sessions with `scheduled_at` and booked count
+- Per session: the booked-member roster — name and attendance status only
+- **The roster is served by a `SECURITY DEFINER` RPC returning exactly `(member_id, member_name, attended_at)`.** It cannot be built from plain RLS reads: a Coach's `members` access is limited to their *assigned* members, and most people booked into a class are not their coaching clients, so a direct read would render blank names. The RPC also avoids exposing member phone numbers, which a row-level widening would have handed over
+- **No write controls anywhere on this screen** — no create, edit, reschedule, or mark-attendance action, absent from the DOM rather than disabled. Class creation/editing is Manager/Supervisor/Owner (AD-19); class attendance is Receptionist-and-above. `attended_at` is displayed as read-only status
+- A Coach reaches a roster only for a session belonging to one of their own classes; another coach's session, another gym's session, and a deactivated Coach all return empty
+
+**Empty state:** "You are not assigned to any classes yet. Your manager schedules classes and assigns a coach."
+
+**Loading:** 3 skeleton class rows.
 
 ---
 

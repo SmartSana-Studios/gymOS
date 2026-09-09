@@ -628,6 +628,287 @@ So that I can enter my real phone number correctly regardless of country.
 
 ---
 
+## Launch Readiness (2026-09-09 sprint-change-proposal)
+
+Epics 1–16 are shipped. This section was surfaced by the first-client (gym) onboarding pass, not by any story's implementation — the same category as the 2026-09-01 Release Hardening entry.
+
+Two gaps, different in kind:
+
+**The Overview was specified and never built.** `EXPERIENCE.md`'s AD-02 spec (stat cards, Currently Checked-In table, Expiring This Week table) has existed since the 2026-07-04 UX pass. `page.tsx` renders a heading, one paragraph, and the Front-Desk Alert Panel — its own comment records the deferral: "no stat cards or tables here -- those remain deferred to a future story." This is not new scope; it is unfinished scope, and it is the first screen a new gym Owner sees. The `overview.body` string still shipping in `en.json`/`fr.json` reads "Your gym's activity summary will appear here as more of GymOS comes online" — a promise now being made to paying customers.
+
+**The Coach Portal is one page.** A Coach's sidebar renders a single link (`Sidebar.tsx:51`). They sign in, land on `/` (`EXPERIENCE.md:1022`), and see the staff Overview with no nav item pointing back to it. Meanwhile `classes.coach_id` is `NOT NULL` and trigger-enforced to a coach-role member of the same gym (`0057:23`, `0057:154`) — every class already has an owning coach who has no way to see it. Closing this required amending FR-053 and FR-122, which forbade any Coach surface beyond the Portal; see `sprint-change-proposal-2026-09-09.md` for the amendment and its rationale.
+
+### Epic 17: Launch Readiness — Overview Build-Out & Coach Portal Depth
+The staff Overview becomes a real dashboard — live occupancy, memberships needing attention, net month-to-date revenue, and gym-health figures gated to Manager-plus. The Coach Portal gains its own navigation, an Overview scoped to the Coach's own caseload, and a read-only view of the classes they are assigned to teach, including who is booked. No Coach gains any admin capability: class creation stays Manager/Supervisor/Owner, class attendance stays Receptionist-and-above.
+**FRs covered:** FR-143, FR-144, FR-145, FR-146
+**Amends:** FR-053, FR-122
+
+**Stories:**
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 17.1 | Staff Overview — Operational Cards & Live Tables | **0095** | — |
+| 17.2 | Staff Overview — Gym Health Cards (Manager-plus) | none | 17.1 |
+| 17.3 | Coach Portal — Sub-Navigation & Landing | none | — |
+| 17.4 | Coach Portal — My Classes & Session Roster | **0096** | 17.3 |
+| 17.5 | Coach Portal — Overview | none | 17.3, 17.4 |
+
+**Dependency order:** 17.1 → 17.2 and 17.3 → 17.4 → 17.5 are two independent chains and can run in parallel. 17.1 and 17.3 are the two launch-blocking stories: 17.1 fixes what a new Owner sees first, 17.3 fixes a Coach landing on a page with no way back. 17.2 and 17.5 are depth, not blockers.
+
+**Scope boundary — what this epic does NOT do.** No Coach gains write access to any class (`manager_or_owner_insert_own_classes` / `manager_or_owner_update_own_classes`, widened to supervisor by `0093:64,67`, are untouched). `mark_class_attendance`'s role check (`0068:41,70`) is untouched, and `ClassesPageClient.tsx:65`'s `canMarkAttendance = role !== "coach"` stays as-is. A Coach never reaches AD-18/AD-19. **This epic modifies zero RLS policies** — its two migrations add one aggregate function and one `SECURITY DEFINER` RPC, nothing else.
+
+### Story 17.1: Staff Overview — Operational Cards & Live Tables (AD-02)
+
+As a gym Owner, Manager, or Receptionist,
+I want the Overview to show what is happening in my gym right now,
+So that the first screen I open answers "who is here, who needs attention, and what have we taken this month" without navigating anywhere.
+
+*Delivers the AD-02 spec written in the 2026-07-04 UX pass and deferred by Story 4.6. No new UX design required. Migration 0095.*
+
+**Acceptance Criteria:**
+
+**Given** `apps/dashboard/app/(dashboard)/page.tsx` today renders only an `<h1>`, the `overview.body` paragraph, and the Front-Desk Alert Panel
+**When** this story ships
+**Then** it renders AD-02's specified content beneath the alert panel — a three-card stat row followed by the Currently Checked-In and Expiring This Week tables — and the `overview.body` placeholder string ("Your gym's activity summary will appear here as more of GymOS comes online") is deleted from `en.json` and `fr.json`, since the thing it promises now exists
+
+**Given** the "Checked in now" and "Expiring this week" cards each need both a count and a table
+**When** their data is fetched
+**Then** each uses ONE existing service call, not two — `getCurrentlyCheckedIn()` (`attendance.ts:145`) and `listSubscriptions({ status: 'expiring_soon' })` (`subscriptions.ts:302`) each already return `{ rows, total }`; `total` feeds the card and the first 10 rows feed the table, per AD-02's "max 10 rows"
+
+**Given** "Expiring this week" must agree with the page it links to
+**When** the count is computed
+**Then** it uses the `expiring_soon` status, not a hand-rolled 7-day date filter — `0021:80` defines `expiring_soon` as "expiry within 7 days", so the card and its AD-08 click-through target read from the same definition and cannot drift apart
+
+**Given** `supabase/config.toml:18` sets `max_rows = 1000`, which silently truncates any row fetch without raising an error
+**When** month-to-date revenue is computed
+**Then** it is computed by a database aggregate (migration 0095, `gym_revenue_mtd()`), NEVER by fetching payment rows and summing them client-side — a gym exceeding 1,000 payments in a month would otherwise be shown an understated revenue figure with no indication anything was wrong
+
+**Given** refunds are stored in their own table with positive amounts (`0033:11`), not as negative payment rows
+**When** `gym_revenue_mtd()` computes its figure
+**Then** it returns SUM(`payments.amount` WHERE status = 'verified') minus SUM(`refunds.amount`), both bounded to the current calendar month in the gym's local timezone — a gross figure would overstate takings to the Owner in any month containing a refund
+
+**Given** `payment_status` is an enum of ('pending','processing','verified','flagged') (`0001:20`)
+**When** revenue is summed
+**Then** only `verified` is counted — `pending` and `processing` are money not yet confirmed, and `flagged` is money under dispute; counting any of them would report revenue the gym does not have
+
+**Given** the three cards are click-through targets per AD-02
+**When** a card is clicked
+**Then** "Checked in now" → `/attendance`, "Expiring this week" → `/subscriptions?status=expiring_soon`, "Revenue this month" → `/payments` filtered to the current month
+
+**Given** AD-02 specifies "values refresh on page load and via polling every 60 seconds"
+**When** the page is open
+**Then** the stat cards poll at 60s; the Front-Desk Alert Panel's existing Supabase Realtime subscription is NOT replaced or duplicated by this polling, and continues to behave exactly as Story 4.6 shipped it
+
+**Given** each surface must fail independently — the discipline `page.tsx`'s own comment already documents for the alert panel
+**When** any one of the revenue aggregate, the checked-in fetch, or the expiring fetch errors
+**Then** that card/table alone renders its error or empty state and the rest of the page still renders; a failed revenue query must never blank the Currently Checked-In table
+
+**Given** AD-02's specified empty states
+**When** a table has no rows
+**Then** the checked-in table shows "No one is checked in right now." and the expiring table shows "No members expiring in the next 7 days."
+
+**Given** loading
+**When** the page is streaming
+**Then** 3 skeleton stat cards and 5 skeleton rows per table render, per AD-02's Loading spec, via the existing `<Suspense>` + `loading.tsx` pattern already used across this app
+
+**Given** this app ships bilingual (Story 1.10)
+**When** the new strings are added
+**Then** `en.json` and `fr.json` both carry every new key and `scripts/check-i18n-key-parity.mjs` passes
+
+**Given** no `StatCard` component exists in `components/ui/` today
+**When** the card row is built
+**Then** a shared `StatCard` is added and used by all three cards — not three bespoke divs — so Story 17.2's second row reuses it unchanged
+
+### Story 17.2: Staff Overview — Gym Health Cards (Manager-plus)
+
+As a gym Owner, Supervisor, or Manager,
+I want a second row of cards showing how the gym is doing, not just what is happening this minute,
+So that I can see membership growth and churn risk without building a report.
+
+*Depends on Story 17.1 (reuses its `StatCard`). Extends AD-02 beyond the original three-card spec — see EXPERIENCE.md's V2 amendment. No migration.*
+
+**Acceptance Criteria:**
+
+**Given** AD-02's minimum role is Receptionist (`EXPERIENCE.md:67`)
+**When** a Receptionist opens the Overview
+**Then** they see Story 17.1's three operational cards ONLY — row 2 is absent from the DOM, not merely hidden by CSS. Headcount, growth, and churn-risk figures are management information, not front-desk information, and this app's established discipline is absence-from-DOM (Story 5.2 AC#1, `ClassesPageClient.tsx:55`)
+
+**Given** row 2 is visible to Manager, Supervisor, and Owner
+**When** it renders
+**Then** it shows four cards: "Active members", "New this month", "Today's classes", and "At risk"
+
+**Given** `max_rows = 1000` truncates row fetches but does NOT affect COUNT queries
+**When** each of the four figures is computed
+**Then** each uses `.select(col, { count: 'exact', head: true })` — the exact pattern `memberCountForGym()` already uses at `members.ts:308` — so no figure can be silently truncated and no row payload is transferred
+
+**Given** "Active members" must mean members who can actually train
+**When** it is counted
+**Then** it counts `subscriptions_current` rows with status `active`, NOT `memberCountForGym()` — that function counts every `role = 'member'` row including deactivated and expired members (`members.ts:307-311`), which would overstate the gym's real active base
+
+**Given** "New this month" counts joins
+**When** it is computed
+**Then** it counts members created within the current calendar month in the gym's local timezone, consistent with 17.1's revenue window, so the two cards describe the same period
+
+**Given** "At risk" is the churn signal
+**When** it is computed
+**Then** it counts `grace_period` and `expired` combined, links to `/subscriptions` filtered to those statuses, and renders in the alert colour ONLY when non-zero — a healthy gym with zero at-risk members must not be shown a red number on its dashboard
+
+**Given** "Today's classes" is operational context for the day
+**When** it is computed
+**Then** it counts `class_sessions` scheduled for today in the gym's local timezone and links to `/classes`
+
+**Given** row 2 may aggregate more slowly than row 1's operational data
+**When** the page loads
+**Then** row 2 streams in its own `<Suspense>` boundary with 4 skeleton cards — a slow health query must never delay the operational cards above it, which are the ones the front desk needs in real time
+
+**Given** bilingual parity
+**When** the new strings are added
+**Then** `en.json` and `fr.json` both carry every new key and `scripts/check-i18n-key-parity.mjs` passes
+
+### Story 17.3: Coach Portal — Sub-Navigation & Landing
+
+As a Coach,
+I want the Coach Portal to have its own navigation and to be where I land when I sign in,
+So that I am not dropped onto a staff page I have no link back from.
+
+*No migration.*
+
+**Acceptance Criteria:**
+
+**Given** a Coach signs in and, per `EXPERIENCE.md:1022`, is sent to `/`
+**When** `(dashboard)/page.tsx` resolves a session whose `shell.role` is `coach`
+**Then** it redirects to `/coach/overview` — a Coach must never land on the staff Overview, which renders Story 17.1/17.2 content they have no nav item to return to. The redirect lives in `page.tsx`, not `(dashboard)/layout.tsx`, because the layout wraps every dashboard route and a redirect there would need path-matching to avoid looping
+
+**Given** `Sidebar.tsx:51`'s single `nav.coachPortal` item
+**When** this story ships
+**Then** the top-level sidebar is UNCHANGED — still exactly one link for a Coach — and the three sub-surfaces are reached from a sub-navigation inside the Portal, per EXPERIENCE.md's amended role matrix. Story 5.2 AC#1 ("Payments, Members, Settings, and Audit Log are absent from the DOM") must remain literally true and is re-verified by this story's tests
+
+**Given** the Portal's three surfaces
+**When** the sub-navigation renders
+**Then** it offers Overview (`/coach/overview`), My Members (`/coach`), and My Classes (`/coach/classes`), with the active surface indicated, and it renders on all three routes plus the member-detail route `/coach/[memberId]`
+
+**Given** `/coach/[memberId]` is a shipped dynamic route linked from Stories 5.3, 10.4, and 13.2
+**When** the two new static routes are added as its siblings
+**Then** `/coach` continues to serve the AD-14 member list at its existing URL and `/coach/[memberId]` is unmoved — no shipped link, bookmark, or test breaks. Next.js resolves static segments before dynamic ones, and member IDs are UUIDs, so `overview` and `classes` cannot collide with a real member ID
+
+**Given** a non-Coach staff session reaching `/coach/*` directly
+**When** it renders
+**Then** behaviour matches the existing documented precedent in `coach/page.tsx`'s header comment — this story introduces no new route-level role guard and no new gap
+
+**Given** bilingual parity
+**When** the sub-nav strings are added
+**Then** `en.json` and `fr.json` both carry every new key and `scripts/check-i18n-key-parity.mjs` passes
+
+### Story 17.4: Coach Portal — My Classes & Session Roster
+
+As a Coach,
+I want to see the classes I am assigned to teach and who is booked into each session,
+So that I know what I am teaching and who to expect, without asking the front desk.
+
+*Depends on Story 17.3. Migration 0096.*
+
+**Acceptance Criteria:**
+
+**Given** `classes.coach_id` is `NOT NULL` and trigger-enforced to a coach-role member of the same gym (`0057:23`, `0057:154`)
+**When** `/coach/classes` renders
+**Then** it lists only classes whose `coach_id` resolves to the calling Coach's own `members.id`, resolved server-side from `auth.uid()` + `private.gym_id()` — never from a client-supplied coach ID
+
+**Given** each listed class
+**When** it is expanded
+**Then** it shows its upcoming `class_sessions` with `scheduled_at`, capacity, and booked count
+
+**Given** `0040:81`'s `coach_read_assigned_members` policy restricts a Coach's `members` reads to their own assigned members, so most people booked into their class are invisible to them
+**When** a session roster is displayed
+**Then** it is served by a new `SECURITY DEFINER` RPC (migration 0096), `list_my_class_session_roster(p_class_session_id uuid)`, which returns ONLY `(member_id, member_name, attended_at)` — NOT by widening any RLS policy. A row-level widening on `members` would hand the Coach every readable column including phone number; an RPC returns exactly the three roster columns and nothing else
+
+**Given** that RPC bypasses RLS by construction
+**When** it executes
+**Then** it first verifies the caller is the coach of the class owning `p_class_session_id` — joining `class_sessions` → `classes` → `members` on `user_id = auth.uid()` and `gym_id = private.gym_id()`, the exact resolution shape `private.is_assigned_coach()` uses (`0040:39-48`) — and returns an empty set for any session belonging to another coach's class or another gym
+
+**Given** a deactivated Coach must lose access immediately (FR-089, Story 9.3)
+**When** the RPC resolves the caller
+**Then** it excludes members with a non-null `deactivated_at`, matching `private.current_member_role()`'s own filter (`0061:42`)
+
+**Given** this app's SECURITY DEFINER grant discipline (`0040:51-52`)
+**When** the RPC is created
+**Then** `revoke execute ... from public` and `grant execute ... to authenticated` are both explicit, not inherited from schema usage
+
+**Given** NO RLS policy is modified by this story
+**When** migration 0096 is reviewed
+**Then** it contains exactly one new function and its grants — `gym_staff_read_own_class_bookings` (`0068:37`), `gym_staff_read_own_classes` (`0057:101`), `gym_staff_read_own_class_sessions` (`0057:172`), and every `manager_or_owner_*` policy are untouched
+
+**Given** FR-145's read-only boundary
+**When** the page renders for a Coach
+**Then** there is no create, edit, reschedule, or mark-attendance control anywhere on it — absent from the DOM, not disabled — and `mark_class_attendance`'s role check (`0068:41,70`) and `ClassesPageClient.tsx:65`'s `canMarkAttendance = role !== "coach"` are both unchanged. `attended_at` is displayed as read-only status
+
+**Given** a Coach assigned to no classes
+**When** they open My Classes
+**Then** they see an empty state consistent with AD-14's tone: "You are not assigned to any classes yet. Your manager schedules classes and assigns a coach."
+
+**Given** this epic's only new privilege
+**When** pgTAP coverage is written
+**Then** it proves: a Coach retrieves their own session's roster; a Coach retrieves an EMPTY set for another coach's session; a cross-gym session returns empty; a deactivated Coach returns empty; and a member/receptionist caller cannot use the RPC to reach data their existing policies deny
+
+**Given** bilingual parity
+**When** the new strings are added
+**Then** `en.json` and `fr.json` both carry every new key and `scripts/check-i18n-key-parity.mjs` passes
+
+### Story 17.5: Coach Portal — Overview
+
+As a Coach,
+I want a portal home that summarises my own caseload,
+So that I can see what I am teaching, who needs me, and who has been active, without opening every client one at a time.
+
+*Depends on Stories 17.3 and 17.4. No migration.*
+
+**Acceptance Criteria:**
+
+**Given** `/coach/overview` is the Coach's landing route (Story 17.3)
+**When** it renders
+**Then** it shows four widgets: My Next Sessions, My Members At A Glance, Needs Follow-Up, and Recent Progress Activity
+
+**Given** every figure on this page describes the Coach's own caseload
+**When** any widget computes a count or list
+**Then** it is scoped by the same assignment rules that scope the rest of the Portal (FR-055) — `private.is_assigned_coach()` for member data, `classes.coach_id` for class data. A member whose assignment was ended with `ended_at` disappears from every widget immediately, with no cache to invalidate
+
+**Given** My Next Sessions
+**When** it renders
+**Then** it lists the next upcoming `class_sessions` for classes where `coach_id` is the calling Coach, each with `scheduled_at` and booked count, reusing Story 17.4's coach-scoped query rather than a second implementation, and each row links to that class in `/coach/classes`
+
+**Given** My Members At A Glance
+**When** it renders
+**Then** it shows the Coach's assigned-member count broken down by subscription status, sourced from `listAssignedMembers()` (`coaches.ts:227`), and links to `/coach`
+
+**Given** Needs Follow-Up identifies clients the Coach has lost touch with
+**When** it is computed
+**Then** it lists assigned members whose most recent session note authored by this Coach is older than a defined threshold, or who have no note at all — read via `coach_read_own_session_notes` (`0041:61`), which already grants exactly this and needs no migration
+
+**Given** `gym_staff_read_own_attendance_events` (`0025:24`) is restricted to `owner, manager, receptionist` and excludes the Coach role
+**When** Needs Follow-Up is built
+**Then** it does NOT use check-in recency as a signal, and no attendance policy is widened by this story. Check-in-based follow-up is deferred to a follow-up story; this AC exists so a future implementer does not "fix" the omission by widening attendance access without a decision
+
+**Given** the threshold that defines "needs follow-up"
+**When** it is chosen
+**Then** it is a single named constant with its rationale in a comment, not a magic number scattered across the query and the UI copy
+
+**Given** Recent Progress Activity
+**When** it renders
+**Then** it lists assigned members who have logged progress entries recently, read via `coach_read_assigned_progress_entries` (`0067:140`), and each row links to that member's Progress tab (AD-15). Progress *photos* are NOT surfaced here — `progress_photos` has its own separate sharing gate (`coach_read_shared_progress_photos`, `0067:92`), and a member who logged an entry has not thereby consented to their photo appearing on a summary screen
+
+**Given** a Coach with no assigned members at all
+**When** they open the Overview
+**Then** they see AD-14's established guidance rather than four empty widgets: "No members have been assigned to you yet. Ask your Manager, Owner, or Supervisor to assign members."
+
+**Given** each widget reads from a different source
+**When** any one query fails
+**Then** that widget alone renders its error state and the other three still render — the same per-surface failure discipline as Story 17.1
+
+**Given** bilingual parity
+**When** the new strings are added
+**Then** `en.json` and `fr.json` both carry every new key and `scripts/check-i18n-key-parity.mjs` passes
+
+---
+
 ## Epic 1: Platform Foundation & Gym Onboarding
 
 GymOS staff can create a new gym tenant end-to-end — the owner logs in, configures branding and settings, and the platform enforces strict per-gym data isolation from day one. Delivers UJ-5 (Chidi onboards a new gym) in full.
