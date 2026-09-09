@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -24,7 +23,6 @@ export function UpdatePasswordForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +90,28 @@ export function UpdatePasswordForm({
       // password" (bug report: "reset password always comes twice"). The
       // button/input stay disabled through the transition; isLoading is
       // reset in every other path since those keep the user on this page.
-      router.push("/");
+      //
+      // A FULL DOCUMENT NAVIGATION, not router.push(). Two things just
+      // changed that Next.js has no way to know about, because both were
+      // written straight through the Supabase browser client rather than a
+      // Server Action: the session (updateUser rotates it) and
+      // `users.must_change_password`. With `cacheComponents: true`
+      // (next.config.ts), `router.push("/")` can be served from the client
+      // Router Cache -- and the cached entry for "/" is the one produced
+      // while the flag was still `true`, which is itself the (dashboard)
+      // layout's redirect back to this page. The user lands here again,
+      // sets a second password, and the flow appears to run twice (reported
+      // by smartsana 2026-09-09; the earlier "reset password always comes
+      // twice" note above is the same area biting for a different reason).
+      //
+      // Every other client-side mutation in this app pairs its write with
+      // `router.refresh()` (login-form.tsx, LanguageToggle.tsx,
+      // GymSwitcher.tsx, PayNowButton.tsx) -- this form was the only one
+      // that didn't. `refresh()` would likely be enough, but this is a
+      // once-per-account auth transition where correctness matters far more
+      // than avoiding one full page load, and a hard navigation removes the
+      // cache from the picture entirely instead of racing it.
+      window.location.assign("/");
       return;
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : t("common.somethingWentWrong"));
