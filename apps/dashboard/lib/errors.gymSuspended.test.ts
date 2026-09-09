@@ -3,7 +3,8 @@
  *
  * 0090_suspension_enforcement_in_rpcs.sql gives all 18 gated write-RPCs the
  * same raise shape -- `<function_name>: gym <uuid> is not active` -- so one
- * mapping serves all of them. The assertions that matter here are the negative
+ * mapping serves all of them. Story 11.9's 0091 added the three workout-plan
+ * writers to that set on the same contract, taking it to 21. The assertions that matter here are the negative
  * ones: FR-132 and EXPERIENCE.md's Error States table forbid ever telling a
  * member that their gym owes money, so the copy must not leak billing wording,
  * and the branch must not swallow unrelated RPC errors that happen to mention
@@ -19,7 +20,7 @@ import { isGymSuspendedError, mapSupabaseError } from "@gymos/types";
 
 const GYM = "00000000-0000-0000-0000-000000009911";
 
-// Every function 0090 gates, with the exact message each one raises.
+// Every function 0090 and 0091 gate, with the exact message each one raises.
 const GATED_RPCS = [
   "check_in",
   "check_out",
@@ -39,6 +40,12 @@ const GATED_RPCS = [
   "assign_coach",
   "add_session_note",
   "edit_session_note",
+  // Story 11.9 (0091). These three are coach-facing and dashboard-only --
+  // apps/mobile calls none of them -- so this app's mapping is the ONLY thing
+  // standing between their raise and a coach seeing a raw Postgres message.
+  "create_workout_plan",
+  "update_workout_plan",
+  "take_ownership_of_workout_plan",
 ];
 
 describe("mapSupabaseError -- gym_suspended (Story 11.8)", () => {

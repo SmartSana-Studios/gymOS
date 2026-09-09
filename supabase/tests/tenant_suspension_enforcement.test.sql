@@ -27,6 +27,18 @@
 -- `is distinct from` vs `<>` trap), H proves the exclusion list still works
 -- -- the half that stops a suspended gym becoming permanently unrecoverable
 -- -- and I proves the RPC-level reversal mirrors Section F's table-level one.
+--
+-- ⚠ COUNTS BELOW ARE HISTORICAL. Every "17"/"18"/"19" in this file's prose
+-- describes the state at the migration being discussed (0073's 17 tables,
+-- 0090's 18 write-RPCs and 19 exclusions) and is left as written, because each
+-- sentence is accurate about the story it documents. The CURRENT totals are
+-- 21 gated tables and 21 guarded write-RPCs: Story 11.9's
+-- 0091_suspension_enforcement_for_workout_plans.sql added workout_plans,
+-- workout_plan_exercises and workout_plan_completions plus their three
+-- SECURITY DEFINER writers. Those three tables are covered by their own file,
+-- supabase/tests/workout_plan_suspension_enforcement.test.sql, not here.
+-- suspension_rpc_coverage.test.sql assertion 1 is the live count of record;
+-- trust it over any number in this comment block.
 
 begin;
 select plan(88);

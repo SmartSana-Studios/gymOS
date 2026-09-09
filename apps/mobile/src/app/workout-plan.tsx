@@ -17,6 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { getCurrentMember } from '@/services/progress';
 import {
   getCachedWorkoutPlan,
+  isCurrentGymSuspended,
   loadWorkoutPlan,
   logWorkoutCompletion,
   type WorkoutPlanExerciseRow,
@@ -56,6 +57,10 @@ function WorkoutPlanScreenContent() {
   const [markingExerciseId, setMarkingExerciseId] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
   const [markError, setMarkError] = useState(false);
+  // Story 11.9 (AC #5): a denial traced to the gym's own suspension must show
+  // the neutral FR-132 copy, never "Check your connection" -- it is not a
+  // connectivity failure and retrying cannot succeed until the gym is active.
+  const [gymSuspended, setGymSuspended] = useState(false);
 
   const memberIdRef = useRef<string | null>(null);
   // Mirrors (tabs)/progress/index.tsx's own requestIdRef/isCurrent()
@@ -69,6 +74,7 @@ function WorkoutPlanScreenContent() {
 
     setLoading(true);
     setLoadError(false);
+    setGymSuspended(false);
     let memberId: string | null = null;
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -81,7 +87,25 @@ function WorkoutPlanScreenContent() {
       const member = await getCurrentMember(userId);
       if (!isCurrent()) return;
       if (!member) {
-        setLoadError(true);
+        // Story 11.9 (AC #5): THIS is the branch a suspended gym actually takes
+        // on load. getCurrentMember() reads `members`, gated since 0073, so it
+        // comes back null and the screen would otherwise show
+        // errorLoadFailed's "Check your connection and try again" -- the
+        // misleading-connection-error class checkin.ts:85-88 calls out by name.
+        // Confirmed against the ungated `gyms` table rather than assumed.
+        const suspended = await isCurrentGymSuspended();
+        if (!isCurrent()) return;
+        if (suspended) {
+          // Clear the same state the sibling branch below clears. Without this,
+          // re-entering the screen after a suspension (loadScreen runs on every
+          // useFocusEffect) leaves the previous plan and the "showing cached
+          // data" banner rendered underneath the neutral copy.
+          setGymSuspended(true);
+          setScreenData(null);
+          setUsingCachedData(false);
+        } else {
+          setLoadError(true);
+        }
         return;
       }
       memberId = member.memberId;
@@ -98,8 +122,14 @@ function WorkoutPlanScreenContent() {
         return;
       }
 
-      const { data, error } = await loadWorkoutPlan(member.memberId);
+      const { data, error, gymSuspended: suspended } = await loadWorkoutPlan(member.memberId);
       if (!isCurrent()) return;
+      if (suspended) {
+        setGymSuspended(true);
+        setScreenData(null);
+        setUsingCachedData(false);
+        return;
+      }
       if (!error) {
         setScreenData(data);
         setUsingCachedData(false);
@@ -159,6 +189,7 @@ function WorkoutPlanScreenContent() {
     if (!screenData || markingExerciseId || markingAll) return;
     setMarkingExerciseId(exercise.id);
     setMarkError(false);
+    setGymSuspended(false);
     try {
       const clientCompletionId = Crypto.randomUUID();
       const completedAt = new Date().toISOString();
@@ -167,6 +198,8 @@ function WorkoutPlanScreenContent() {
         : await queueOfflineWorkoutCompletion(screenData.planId, exercise.exerciseId, clientCompletionId);
       if (result.success) {
         applyOptimisticCompletion(exercise.exerciseId, completedAt);
+      } else if ('reason' in result && result.reason === 'gym_suspended') {
+        setGymSuspended(true);
       } else {
         setMarkError(true);
       }
@@ -187,9 +220,11 @@ function WorkoutPlanScreenContent() {
     if (!screenData || markingExerciseId || markingAll || screenData.exercises.length === 0) return;
     setMarkingAll(true);
     setMarkError(false);
+    setGymSuspended(false);
     try {
       const completedAt = new Date().toISOString();
       let anyFailed = false;
+      let suspendedDuringBatch = false;
       for (const exercise of screenData.exercises) {
         const clientCompletionId = Crypto.randomUUID();
         try {
@@ -198,6 +233,12 @@ function WorkoutPlanScreenContent() {
             : await queueOfflineWorkoutCompletion(screenData.planId, exercise.exerciseId, clientCompletionId);
           if (result.success) {
             applyOptimisticCompletion(exercise.exerciseId, completedAt);
+          } else if ('reason' in result && result.reason === 'gym_suspended') {
+            // One suspension refusal means every remaining exercise will be
+            // refused too -- stop the loop rather than firing N more doomed
+            // requests, and show the neutral copy instead of the generic one.
+            suspendedDuringBatch = true;
+            break;
           } else {
             anyFailed = true;
           }
@@ -205,7 +246,11 @@ function WorkoutPlanScreenContent() {
           anyFailed = true;
         }
       }
-      if (anyFailed) setMarkError(true);
+      if (suspendedDuringBatch) {
+        setGymSuspended(true);
+      } else if (anyFailed) {
+        setMarkError(true);
+      }
     } finally {
       setMarkingAll(false);
     }
@@ -234,7 +279,15 @@ function WorkoutPlanScreenContent() {
 
         {loading && <ActivityIndicator style={styles.loadingIndicator} />}
 
-        {!loading && loadError && (
+        {!loading && gymSuspended && (
+          <Card style={styles.card}>
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('common.gymSuspended')}
+            </ThemedText>
+          </Card>
+        )}
+
+        {!loading && !gymSuspended && loadError && (
           <Card style={styles.card}>
             <ThemedText type="small" style={styles.error}>
               {t('workoutPlan.screen.errorLoadFailed')}
@@ -245,7 +298,7 @@ function WorkoutPlanScreenContent() {
           </Card>
         )}
 
-        {!loading && !loadError && screenData === null && (
+        {!loading && !gymSuspended && !loadError && screenData === null && (
           <Card style={styles.card}>
             <ThemedText type="small" themeColor="textSecondary">
               {t('workoutPlan.screen.emptyState')}
@@ -253,13 +306,13 @@ function WorkoutPlanScreenContent() {
           </Card>
         )}
 
-        {!loading && !loadError && markError && (
+        {!loading && !gymSuspended && !loadError && markError && (
           <ThemedText type="small" style={styles.error}>
             {t('workoutPlan.screen.errorMarkFailed')}
           </ThemedText>
         )}
 
-        {!loading && !loadError && screenData !== null && (
+        {!loading && !gymSuspended && !loadError && screenData !== null && (
           <View style={styles.planHeaderRow}>
             <ThemedText type="subtitle">{screenData.name}</ThemedText>
             {screenData.exercises.length > 0 && (
@@ -275,6 +328,7 @@ function WorkoutPlanScreenContent() {
         )}
 
         {!loading &&
+          !gymSuspended &&
           !loadError &&
           screenData !== null &&
           screenData.exercises.map((exercise) => (

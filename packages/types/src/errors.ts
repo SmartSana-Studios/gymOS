@@ -8,8 +8,9 @@ export interface AppError {
 
 export type ErrorLocale = "en" | "fr";
 
-/** True when `error` is the suspension raise shared by all 18 gated write-RPCs
- * (0090_suspension_enforcement_in_rpcs.sql, Story 11.8). Every one raises the
+/** True when `error` is the suspension raise shared by all 21 gated write-RPCs
+ * (0090_suspension_enforcement_in_rpcs.sql Story 11.8, plus the three
+ * workout-plan writers 0091 added in Story 11.9). Every one raises the
  * same shape -- `<function_name>: gym <uuid> is not active`.
  *
  * Exported as its own predicate, not inlined into mapSupabaseError below,
@@ -193,12 +194,13 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
-  // The suspension guard shared by all 18 gated write-RPCs
-  // (0090_suspension_enforcement_in_rpcs.sql, Story 11.8, AC #4). Every one
+  // The suspension guard shared by all 21 gated write-RPCs
+  // (0090_suspension_enforcement_in_rpcs.sql Story 11.8 AC #4, extended by
+  // 0091_suspension_enforcement_for_workout_plans.sql Story 11.9). Every one
   // raises the same shape -- `<function_name>: gym <uuid> is not active` -- so
   // one mapping covers check_in, check_out, book_class_session,
   // initiate_member_payment, confirm_renewal, create_staff_member and the rest
-  // rather than 18 near-identical branches.
+  // rather than 21 near-identical branches.
   //
   // Placed ahead of the per-RPC message matches below deliberately: several of
   // those key on a bare function-name prefix, and a suspended gym must never

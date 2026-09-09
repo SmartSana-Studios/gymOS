@@ -1,8 +1,9 @@
 -- Story 11.8 (Task 4, AC #6): the guardrail that stops this story's audit
 -- from rotting.
 --
--- tenant_suspension_enforcement.test.sql proves the 18 RPCs that existed when
--- 0090 was written are gated. It cannot prove anything about the 19th. A
+-- tenant_suspension_enforcement.test.sql proves 0090's original 18 RPCs are
+-- gated, and workout_plan_suspension_enforcement.test.sql proves the three
+-- 0091 added -- 21 between them. Neither can prove anything about the 22nd. A
 -- SECURITY DEFINER function executes as the table owner, and RLS does not
 -- apply to the owner unless the table sets FORCE ROW LEVEL SECURITY -- which
 -- no table in this schema does -- so any new write-RPC bypasses
@@ -33,10 +34,13 @@ begin;
 select plan(7);
 
 -- ============================================================================
--- The 18 tables carrying tenant_active_gate. Derived from pg_policies rather
+-- The 21 tables carrying tenant_active_gate. Derived from pg_policies rather
 -- than hard-coded, so a table gaining the policy later is picked up here
 -- automatically -- 0084 added public.notifications to 0073's original 17
 -- exactly that way, and every prior write-up of this gate still said "17".
+-- Story 11.9's 0091 then added the three Epic 13 tables (workout_plans,
+-- workout_plan_exercises, workout_plan_completions) that assertion 5 below had
+-- pinned as the known gap, taking 18 to 21.
 -- ============================================================================
 create temp view gated_tables as
 select distinct tablename::text as t
@@ -45,8 +49,8 @@ where policyname = 'tenant_active_gate';
 
 select is(
   (select count(*)::int from gated_tables),
-  18,
-  'tenant_active_gate covers 18 tables (0073''s 17 + public.notifications from 0084) -- if this changes, the exclusion reasoning below needs re-reading, not just the number'
+  21,
+  'tenant_active_gate covers 21 tables (0073''s 17 + public.notifications from 0084 + the three workout-plan tables from 0091) -- if this changes, the exclusion reasoning below needs re-reading, not just the number'
 );
 
 -- ============================================================================
@@ -200,8 +204,9 @@ select is(
 -- in secdef_gated_writers at all, and nothing here or in 0090 notices. That is
 -- not hypothetical: Epic 13 shipped workout_plans, workout_plan_exercises and
 -- workout_plan_completions after 0073 and none of them picked up the policy, so
--- a coach at a suspended gym can still author and hand off plans today. See the
--- HIGH-severity entry in deferred-work.md.
+-- a coach at a suspended gym could still author and hand off plans. This
+-- assertion is what caught it. Story 11.9 (0091) closed it, and the three names
+-- have moved out of the expected value below.
 --
 -- Pinning the ungated set turns that silence into a failing test the next time
 -- it happens. Adding a gym_id table without the gate is now a deliberate act
@@ -227,13 +232,20 @@ select is(
   --                             exercise names harms nothing (0079)
   --   gym_data_escalations    - Super Admin support access is needed BECAUSE
   --                             the gym is suspended
-  --   gym_payment_credentials - accessed only through SECURITY DEFINER RPCs;
-  --                             ungating is recorded in docs/decisions.md:252-256
+  --   gym_payment_credentials - RLS enabled but ZERO permissive policies, so a
+  --                             restrictive policy would be a structural no-op;
+  --                             recorded in docs/decisions.md:298
   --   saas_billing_notices    - the suspension notice itself must stay readable
   --   saas_billing_payments   - the Pay Now escape valve writes here
-  -- NOT deliberate -- the Epic 13 gap, tracked in deferred-work.md:
-  --   workout_plan_completions, workout_plan_exercises, workout_plans
-  'exercise_library, gym_data_escalations, gym_payment_credentials, saas_billing_notices, saas_billing_payments, workout_plan_completions, workout_plan_exercises, workout_plans',
+  --
+  -- exercise_library is the one that needs re-reading rather than re-deriving:
+  -- its gym_id is NULLABLE and all 15 seeded rows are platform defaults
+  -- (gym_id is null), so gating it would block a suspended gym from reading
+  -- PLATFORM data that was never the tenant's (Story 11.9 §B). If a future story
+  -- ever needs to close its coach INSERT, add a SEPARATE, narrower
+  -- RESTRICTIVE ... FOR INSERT policy under a DIFFERENT name -- reusing
+  -- `tenant_active_gate` would silently change assertion 1's count above.
+  'exercise_library, gym_data_escalations, gym_payment_credentials, saas_billing_notices, saas_billing_payments',
   'the set of gym_id-bearing tables WITHOUT tenant_active_gate is unchanged -- a new one is invisible to the guardrail above, so it must be justified here (Story 11.8 code review)'
 );
 
@@ -293,6 +305,24 @@ select is(
               coalesce(nullif(position('update class_bookings' in lower(p.prosrc)), 0), 2147483647),
               coalesce(nullif(position('update session_notes' in lower(p.prosrc)), 0), 2147483647),
               coalesce(nullif(position('update attendance_events' in lower(p.prosrc)), 0), 2147483647),
+              -- Story 11.9: without this entry take_ownership_of_workout_plan()
+              -- is SILENTLY UNCHECKED by this assertion. Its only write is
+              -- `update workout_plans`, so least() resolved to 2147483647,
+              -- nullif turned that into 0, and the `where x.write_at > 0` filter
+              -- below dropped the row entirely -- guard placement never verified.
+              -- Safe to add: no other currently-guarded function contains this
+              -- string, and for update_workout_plan() least() still resolves to
+              -- its earlier `delete from`.
+              coalesce(nullif(position('update workout_plans' in lower(p.prosrc)), 0), 2147483647),
+              -- Added by the 11.9 code review for the same reason: 0091 gated
+              -- three tables and only one of them was represented above. A
+              -- future writer whose sole write is an UPDATE on either of these
+              -- two would be dropped by the write_at > 0 filter exactly as
+              -- take_ownership_of_workout_plan was. Neither string appears in
+              -- any currently-guarded body, so adding them changes no result
+              -- today -- which is the point: the list must not lag the gate.
+              coalesce(nullif(position('update workout_plan_exercises' in lower(p.prosrc)), 0), 2147483647),
+              coalesce(nullif(position('update workout_plan_completions' in lower(p.prosrc)), 0), 2147483647),
               coalesce(nullif(position('delete from' in lower(p.prosrc)), 0), 2147483647)
             ),
             2147483647

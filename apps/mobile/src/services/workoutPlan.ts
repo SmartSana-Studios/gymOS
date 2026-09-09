@@ -35,6 +35,59 @@ export interface WorkoutPlanScreenData {
   exercises: WorkoutPlanExerciseRow[];
 }
 
+/** Story 11.9: the outcome of a completion submission. `reason` is only ever
+ * set on a failure that was positively traced to the gym's own suspension --
+ * never guessed, so an ordinary network failure keeps the generic retry copy. */
+export interface LogWorkoutCompletionResult {
+  success: boolean;
+  reason?: 'gym_suspended';
+}
+
+/** Story 11.9: confirms whether the caller's own gym is non-active.
+ *
+ * WHY THIS EXISTS INSTEAD OF isGymSuspendedError(). That predicate matches the
+ * `<fn>: gym <uuid> is not active` RAISE text shared by the SECURITY DEFINER
+ * write-RPCs (0090/0091), and its three sibling services use it because they
+ * call those RPCs. This file calls NONE of them -- the three workout-plan RPCs
+ * (create/update/take_ownership) are coach-facing and dashboard-only. Every
+ * path here is direct table access, so no such message is ever produced and
+ * importing that predicate would add a branch that can never fire.
+ *
+ * What actually happens at a suspended gym is subtler than Story 11.9's Open
+ * Question 1 assumed. The 42501 it describes is real but UNREACHABLE from this
+ * service: getCurrentMember() queries `members`, which has been gated since
+ * 0073, so it returns null and every writer below bails out before its INSERT
+ * is ever attempted. The failure therefore arrives with no distinguishing code
+ * or message at all -- which is exactly why the cause has to be confirmed
+ * rather than inferred from the error.
+ *
+ * `gyms` is deliberately never gated (0009's "read own gym" policy) precisely
+ * so both apps can detect and render this state, and the gym_id claim is minted
+ * regardless of status (0009's custom_access_token_hook). This mirrors
+ * use-session.tsx's own claim-then-gyms-read sequence.
+ *
+ * ON FAILURE IT RETURNS `false`, i.e. "not confirmed suspended" -- deliberately,
+ * because a wrong `true` tells a member their gym is suspended on a guess. Note
+ * this is conservative about the CLAIM, not about access: the caller falls back
+ * to the generic retry copy, so an unrelated outage still reads as "Check your
+ * connection". use-session.tsx:85-95 makes the opposite call on the same error
+ * -- it bails out rather than committing to a guess -- because it is choosing a
+ * route, and misrouting a suspended member to onboarding is worse than a
+ * delay. Here the only thing at stake is which message is shown. */
+export async function isCurrentGymSuspended(): Promise<boolean> {
+  try {
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const claimGymId = (claimsData?.claims as { gym_id?: string } | undefined)?.gym_id ?? null;
+    if (!claimGymId) return false;
+
+    const { data, error } = await supabase.from('gyms').select('status').eq('id', claimGymId).maybeSingle();
+    if (error || !data) return false;
+    return data.status !== 'active';
+  } catch {
+    return false;
+  }
+}
+
 /** Story 13.3: the online-immediate path. `clientCompletionId` is supplied
  * by the caller and stays stable across retries of the same submission,
  * matching `logProgressEntry`'s clientEntryId convention. On a unique
@@ -47,13 +100,15 @@ export async function logWorkoutCompletion(
   planId: string,
   exerciseId: string,
   clientCompletionId: string,
-): Promise<{ success: boolean }> {
+): Promise<LogWorkoutCompletionResult> {
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData.session?.user.id;
   if (!userId) return { success: false };
 
   const current = await getCurrentMember(userId);
-  if (!current) return { success: false };
+  // Story 11.9: this is the branch a suspended gym actually takes -- `members`
+  // is gated, so the lookup comes back empty long before the INSERT below.
+  if (!current) return (await isCurrentGymSuspended()) ? { success: false, reason: 'gym_suspended' } : { success: false };
 
   const parsed = logWorkoutCompletionSchema.safeParse({ planId, exerciseId, clientCompletionId });
   if (!parsed.success) return { success: false };
@@ -66,7 +121,20 @@ export async function logWorkoutCompletion(
     client_completion_id: parsed.data.clientCompletionId,
   });
 
-  if (error && error.code !== '23505') return { success: false };
+  if (error && error.code !== '23505') {
+    // Story 11.9: the direct-INSERT half of the gate. Reachable only if the
+    // members lookup above somehow succeeded while the gym is non-active
+    // (a status flip landing between the two statements); 42501 is what
+    // tenant_active_gate's WITH CHECK half raises here. Still confirmed
+    // against `gyms` rather than trusted, because 42501 is a generic
+    // insufficient-privilege code and mislabelling an unrelated RLS denial
+    // as "your gym is suspended" is the failure mode Open Question 1
+    // rejected option (c) for.
+    if (error.code === '42501' && (await isCurrentGymSuspended())) {
+      return { success: false, reason: 'gym_suspended' };
+    }
+    return { success: false };
+  }
 
   captureEvent(ANALYTICS_EVENT.WORKOUT_PLAN_EXERCISE_COMPLETED, { gymId: current.gymId, loggedOffline: false });
   return { success: true };
@@ -105,6 +173,14 @@ async function syncOneWorkoutCompletion(record: OfflineWorkoutCompletion, gymId:
   });
 
   if (error && error.code !== '23505') {
+    // Story 11.9 (Open Question 3), CONFIRMED AND DELIBERATELY UNCHANGED: while
+    // the gym is suspended this insert is refused, the record stays queued, and
+    // the pending badge does not drain until reactivation. That is the CORRECT
+    // outcome -- no completion is lost and it self-heals the moment the gym is
+    // active again. It is the deliberate opposite of the check-in bug Story
+    // 11.8's review fixed, where the queued record was being DELETED on a
+    // suspension refusal and the member's scan was silently discarded.
+    //
     // Any rejection other than the idempotent-replay case (e.g. the
     // exercise was removed from the plan before this queued item ever
     // synced) is left queued for a future sync attempt -- matches
@@ -190,7 +266,9 @@ interface WorkoutPlanRowFromDb {
  * query for completions degrades to an empty history per exercise on
  * failure rather than failing the whole payload, matching
  * `loadProgressScreenData`'s own degrade-not-fail discipline. */
-export async function loadWorkoutPlan(memberId: string): Promise<{ data: WorkoutPlanScreenData | null; error: unknown }> {
+export async function loadWorkoutPlan(
+  memberId: string,
+): Promise<{ data: WorkoutPlanScreenData | null; error: unknown; gymSuspended: boolean }> {
   const { data: planData, error: planError } = await supabase
     .from('workout_plans')
     .select('id, name, workout_plan_exercises(id, exercise_id, order_index, sets, reps, note, exercise_library(name))')
@@ -198,10 +276,28 @@ export async function loadWorkoutPlan(memberId: string): Promise<{ data: Workout
     .order('order_index', { referencedTable: 'workout_plan_exercises', ascending: true })
     .maybeSingle<WorkoutPlanRowFromDb>();
 
-  if (planError) return { data: null, error: planError };
+  // Story 11.9 / Open Question 2: an RLS-denied SELECT returns zero rows with
+  // NO error, so maybeSingle() yields null -- indistinguishable from "no plan
+  // yet" and rendered as the empty state, making a gated plan look DELETED
+  // rather than unavailable. That is inherent to how tenant_active_gate behaves
+  // on all 21 tables it covers and is NOT fixed generally here (teaching every
+  // read surface to tell "denied" from "absent" is its own story). It is fixed
+  // on THIS surface only, and only in the null case, because AC #5 requires a
+  // member who hits the denial on a still-rendered screen to get the neutral
+  // FR-132 copy instead of "Check your connection". Costs one extra indexed
+  // read on `gyms`, and only when there is no plan to show.
+  if (planError) {
+    return { data: null, error: planError, gymSuspended: await isCurrentGymSuspended() };
+  }
   if (!planData) {
+    if (await isCurrentGymSuspended()) {
+      // Deliberately NOT cached: the empty result is an artefact of the gate,
+      // not the member's real plan state, and caching it would outlive the
+      // suspension.
+      return { data: null, error: null, gymSuspended: true };
+    }
     cachedWorkoutPlan = { memberId, data: null };
-    return { data: null, error: null };
+    return { data: null, error: null, gymSuspended: false };
   }
 
   const { data: completionRows, error: completionsError } = await supabase
@@ -247,5 +343,5 @@ export async function loadWorkoutPlan(memberId: string): Promise<{ data: Workout
   };
 
   cachedWorkoutPlan = { memberId, data };
-  return { data, error: null };
+  return { data, error: null, gymSuspended: false };
 }
