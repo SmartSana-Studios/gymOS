@@ -42,7 +42,8 @@
     "tierNotSelectableByOwner": "Cette formule n'est pas disponible à la sélection. Choisissez-en une autre.",
     "exerciseNameTaken": "Un exercice portant ce nom existe déjà",
     "workoutPlanAlreadyExists": "Ce membre a déjà un programme d'entraînement",
-    "unknown": "Une erreur est survenue de notre côté."
+    "unknown": "Une erreur est survenue de notre côté.",
+    "ownerIsSuperAdmin": "Cette adresse e-mail appartient à un compte Super Admin, qui ne peut pas aussi posséder une salle."
   },
   "auth": {
     "title": "Connexion à GymOS",

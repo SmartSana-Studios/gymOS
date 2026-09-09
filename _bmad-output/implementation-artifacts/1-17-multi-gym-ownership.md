@@ -1,6 +1,10 @@
+---
+baseline_commit: c99192eae0f7b8cb87a971b3272c2b7a1d907fae
+---
+
 # Story 1.17: Multi-Gym Ownership — Assign a Gym to an Existing Owner
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -43,33 +47,33 @@ The only thing missing is a way to *create* that second owner membership. Two in
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Migration — one active membership per (gym, user)** (AC: #6)
-  - [ ] Confirm the next migration number is unclaimed (`ls supabase/migrations | tail`).
-  - [ ] Query for existing violations first: `select gym_id, user_id, count(*) from members where deactivated_at is null group by 1,2 having count(*) > 1;` — resolve any before adding the index.
-  - [ ] Add the partial unique index. Partial on `deactivated_at is null` so a deactivated-then-rehired staff member's historical row does not block re-adding them (`0063_staff_edit_deactivation.sql` establishes deactivation as a soft state).
-  - [ ] Add a pgTAP test in `supabase/tests/` asserting a second active row for the same `(gym_id, user_id)` is rejected and a deactivated one is not. Full suite was 1806/1806 at Story 1.16.
+- [x] **Task 1: Migration — one active membership per (gym, user)** (AC: #6)
+  - [x] Confirm the next migration number is unclaimed (`ls supabase/migrations | tail`).
+  - [x] Query for existing violations first: `select gym_id, user_id, count(*) from members where deactivated_at is null group by 1,2 having count(*) > 1;` — resolve any before adding the index.
+  - [x] Add the partial unique index. Partial on `deactivated_at is null` so a deactivated-then-rehired staff member's historical row does not block re-adding them (`0063_staff_edit_deactivation.sql` establishes deactivation as a soft state).
+  - [x] Add a pgTAP test in `supabase/tests/` asserting a second active row for the same `(gym_id, user_id)` is rejected and a deactivated one is not. Full suite was 1806/1806 at Story 1.16.
 
-- [ ] **Task 2: Owner-account resolution in `createGym`** (AC: #1, #2, #4, #5)
-  - [ ] In `apps/super-admin/app/(admin)/gyms/actions.ts`, before Step 3, look up the email with `findUserByEmail(admin, email)` from `apps/super-admin/lib/super-admin-provisioning.mjs` — **reuse it, do not write a second lookup**. Story 1.16 Task 2 extracted it into that shared `.mjs` module precisely so both the CLI and app code could call it; it handles `listUsers()` pagination correctly.
-  - [ ] **Not found** → existing behavior unchanged: `createUser` + temp password + WhatsApp. Return `ownerOutcome: "created"`.
-  - [ ] **Found and `is_super_admin`** → refuse (AC #5). Return an `AppError`; no gym row, no membership.
-  - [ ] **Found, ordinary account** → skip Step 3 and Step 5 entirely. Reuse the existing `user_id` for `insertOwnerMember`. Return `ownerOutcome: "linked"`, `tempPassword: null`, `smsSent: false`.
-  - [ ] **Preserve the compensating-cleanup discipline.** Steps 3/4's existing failure branches call `deleteGym(gymRow.id)` and `deleteAuthUserAndLog(...)`. On the linked path there is **no auth user to delete** — deleting it would destroy an account that existed before this request and owns other gyms. Cleanup on the linked path is `deleteGym` **only**. Getting this wrong is the single most destructive mistake available in this story.
+- [x] **Task 2: Owner-account resolution in `createGym`** (AC: #1, #2, #4, #5)
+  - [x] In `apps/super-admin/app/(admin)/gyms/actions.ts`, before Step 3, look up the email with `findUserByEmail(admin, email)` from `apps/super-admin/lib/super-admin-provisioning.mjs` — **reuse it, do not write a second lookup**. Story 1.16 Task 2 extracted it into that shared `.mjs` module precisely so both the CLI and app code could call it; it handles `listUsers()` pagination correctly.
+  - [x] **Not found** → existing behavior unchanged: `createUser` + temp password + WhatsApp. Return `ownerOutcome: "created"`.
+  - [x] **Found and `is_super_admin`** → refuse (AC #5). Return an `AppError`; no gym row, no membership.
+  - [x] **Found, ordinary account** → skip Step 3 and Step 5 entirely. Reuse the existing `user_id` for `insertOwnerMember`. Return `ownerOutcome: "linked"`, `tempPassword: null`, `smsSent: false`.
+  - [x] **Preserve the compensating-cleanup discipline.** Steps 3/4's existing failure branches call `deleteGym(gymRow.id)` and `deleteAuthUserAndLog(...)`. On the linked path there is **no auth user to delete** — deleting it would destroy an account that existed before this request and owns other gyms. Cleanup on the linked path is `deleteGym` **only**. Getting this wrong is the single most destructive mistake available in this story.
 
-- [ ] **Task 3: Types and result shape** (AC: #2)
-  - [ ] Extend `CreateGymResult` (`gyms/actions.ts:56`) with `ownerOutcome`. Narrow `tempPassword` to `string | null`.
-  - [ ] Update every consumer — `CreateGymModal.tsx` and any success-toast/dialog reading `tempPassword`. `tsc --noEmit` across all four workspace packages is the gate.
-  - [ ] No new Zod schema is needed: `createGymSchema` (`packages/types/src/schemas/gym.ts:21-26`) is unchanged — this story changes what the server does with `ownerEmail`, not what the form accepts.
+- [x] **Task 3: Types and result shape** (AC: #2)
+  - [x] Extend `CreateGymResult` (`gyms/actions.ts:56`) with `ownerOutcome`. Narrow `tempPassword` to `string | null`.
+  - [x] Update every consumer — `CreateGymModal.tsx` and any success-toast/dialog reading `tempPassword`. `tsc --noEmit` across all four workspace packages is the gate.
+  - [x] No new Zod schema is needed: `createGymSchema` (`packages/types/src/schemas/gym.ts:21-26`) is unchanged — this story changes what the server does with `ownerEmail`, not what the form accepts.
 
-- [ ] **Task 4: UI copy and i18n** (AC: #3, #5)
-  - [ ] Branch the Create Gym success state on `ownerOutcome`. `"created"` keeps today's temp-password display; `"linked"` shows the assigned-to-existing-account message.
-  - [ ] Add the linked-success and super-admin-refusal strings to `en.json` and `fr.json`. Run the repo's i18n parity check — en/fr must match exactly.
+- [x] **Task 4: UI copy and i18n** (AC: #3, #5)
+  - [x] Branch the Create Gym success state on `ownerOutcome`. `"created"` keeps today's temp-password display; `"linked"` shows the assigned-to-existing-account message.
+  - [x] Add the linked-success and super-admin-refusal strings to `en.json` and `fr.json`. Run the repo's i18n parity check — en/fr must match exactly.
 
-- [ ] **Task 5: Audit trail** (AC: #1, #2)
-  - [ ] `logGymCreated` already receives a metadata object (`gyms/actions.ts:201-206`: `owner_name`, `owner_phone`, `tier_id`, `sms_sent`). Add `owner_outcome` to it. Do **not** invent a second `action_type` — the gym was created either way, and the audit row's metadata is the right place for the distinction.
+- [x] **Task 5: Audit trail** (AC: #1, #2)
+  - [x] `logGymCreated` already receives a metadata object (`gyms/actions.ts:201-206`: `owner_name`, `owner_phone`, `tier_id`, `sms_sent`). Add `owner_outcome` to it. Do **not** invent a second `action_type` — the gym was created either way, and the audit row's metadata is the right place for the distinction.
 
-- [ ] **Task 6: Verification** (AC: #1, #7)
-  - [ ] Automated: `pnpm --filter super-admin typecheck`, `lint`, `test`; pgTAP suite; i18n parity; production build.
+- [x] **Task 6: Verification** (AC: #1, #7)
+  - [x] Automated: `pnpm --filter super-admin typecheck`, `lint`, `test`; pgTAP suite; i18n parity; production build.
   - [ ] Manual (smartsana, per this project's established practice): create gym A with a new owner; create gym B with **the same email**; sign in as that owner; confirm the `GymSwitcher` appears in the sidebar header and switches between A and B; confirm no forced password change; confirm the gym-B success screen showed no temp password.
   - [ ] **Check the switcher in dark mode.** It was repaired on 2026-09-08 (commit `f7f87dc`) after the sidebar moved onto dedicated `--sidebar` tokens left its trigger near-black on a dark surface. This story is the first to exercise it with a real two-gym account.
 
@@ -167,11 +171,52 @@ Story 1.16 solved a structurally identical problem — "an email might already h
 
 ### Agent Model Used
 
+Claude Opus 5 (1M context) — `claude-opus-5[1m]`
+
 ### Debug Log References
+
+- **`supabase test db` cannot run in this devcontainer.** It exits `error running container: exit 1` — the same container-network limitation recorded in `docs/deploy-runbook.md` for `supabase db dump`/`reset`/`push`. The suite was run instead by piping each file through `docker exec … psql` against the local `supabase_db_gym_os` container, with `set search_path = public, extensions;` prepended because pgTAP is not installed in the dev database by default (`supabase test db` installs it per run; `create extension pgtap with schema extensions` was used here).
+- **Two pre-existing suite failures, not regressions.** `gym_payment_credentials_rls.test.sql` (1 assertion) and `gyms_super_admin_rls.test.sql` (2 assertions) fail with `have: 3, want: 2` row counts. Both assert *platform-wide* row counts and therefore assume a clean database; the local dev DB carries 1 real gym, 1 owner `members` row and 1 `gym_payment_credentials` row left over from Story 16.1's manual Tara Money sandbox QA. **Confirmed pre-existing by re-running both files at baseline** with this story's migration and test stashed and the index dropped — identical failure counts. They pass in CI, which starts from a fresh database.
 
 ### Completion Notes List
 
+**AC #6 was based on a false premise, and the deviation is the most important thing in this record.**
+
+The AC asked for a *new* partial unique index named `idx_members_one_active_membership_per_gym`. That index already exists, under a different name, and has since the beginning: `0003_members_and_users.sql:39` creates `idx_members_active_gym_user on members(gym_id, user_id) where deactivated_at is null` — byte-identical semantics. At least ten later migrations (0023, 0027, 0028, 0034, 0039, 0055, 0058, 0064) cite it by name as a load-bearing invariant, and `create_staff_member()` (0064:59) depends on it. Creating a second index with the same definition under a new name would have been pure duplication.
+
+The story-creation research missed it because it queried `pg_constraint` (which lists *constraints*; a bare `create unique index` is not one) and then checked `pg_indexes` against the **deployed** database — which, as it turns out, is missing the index.
+
+**Which surfaced a real production problem.** `vfxezibagiznrirdwkwh` has `0003` recorded as applied in `supabase_migrations.schema_migrations`, but does **not** have `idx_members_active_gym_user`. Verified via `pg_index`: `public.members` there carries only `members_pkey`, `idx_members_gym_id` and `idx_members_user_id`. So an invariant the codebase treats as guaranteed has not been enforced on production. Cause unknown — no migration in this repo drops it.
+
+Implemented the AC's *intent* (a database-level guarantee) via the correct mechanism: `0089_repair_members_active_gym_user_index.sql` re-creates the **original** index name with `if not exists`, making it a no-op wherever the schema is already correct (local, CI) and a repair where it drifted. AC text left unedited, per this project's convention of not rewriting ACs post-hoc.
+
+⚠️ **The repair is NOT yet applied to production.** Writing the migration does not deploy it — this repo has no automated migration deploy, and applying DDL to the live database is a deliberate act outside this story's scope. Checked and safe to apply whenever you choose: `select gym_id, user_id from members where deactivated_at is null group by 1,2 having count(*) > 1` returns **zero rows** on the deployed project, so the index builds without a data repair.
+
+Other notes:
+
+- **AC #1–#4** implemented as specified. `findUserByEmail` reused from `lib/super-admin-provisioning.mjs` rather than a second lookup being written, per Task 2.
+- **The linked path's cleanup is `deleteGym` only.** `deleteAuthUserAndLog` is now gated on `ownerOutcome === "created"`. This was the story's flagged worst-case mistake: on the linked path the account pre-existed, and `public.users.id` cascades from `auth.users`, so deleting it would have destroyed an unrelated owner's login *and* their profile row.
+- **AC #7 verified by reading, not assumed.** `switch_active_gym` (`0065:34-48`) checks only for an active membership at the target gym and never inspects `role`, so it already works for a multi-gym owner. No RPC change made.
+- **AC #3's new copy avoids interpolation.** `gyms.toast.createdLinked` names no phone number: on the linked path the submitted phone belongs to the *new membership row*, not necessarily to the account being signed into, so echoing it back risked implying a message went there.
+- **Manual verification is outstanding and is smartsana's**, per this project's established practice. Task 6's two manual subtasks are deliberately left unchecked rather than marked done — the automated gates all pass, but nobody has yet created two gyms for one owner in a browser.
+
+**Verification results:** typecheck 0 errors across all 4 workspace packages · super-admin lint 0 errors / 1 pre-existing warning · super-admin tests 8/8 · dashboard tests 227/227 (regression) · super-admin production build clean · i18n parity `packages/types` 81/81 and `apps/super-admin` 298/298 en+fr · pgTAP 87/89 files passing, the 2 failures confirmed pre-existing (see Debug Log) · new pgTAP file 3/3.
+
 ### File List
+
+- `supabase/migrations/0089_repair_members_active_gym_user_index.sql` (new)
+- `supabase/tests/one_active_membership_per_gym.test.sql` (new)
+- `apps/super-admin/app/(admin)/gyms/actions.ts` (modified)
+- `apps/super-admin/app/(admin)/gyms/components/GymsPageClient.tsx` (modified)
+- `apps/super-admin/app/(admin)/gyms/components/CreateGymModal.tsx` (modified)
+- `apps/super-admin/locales/en.json` (modified)
+- `apps/super-admin/locales/fr.json` (modified)
+- `packages/types/src/locales/en.json` (modified)
+- `packages/types/src/locales/fr.json` (modified)
+
+## Change Log
+
+- **2026-09-09** — Story 1.17 implemented. `createGym` now resolves an existing owner account instead of always minting one, returning a `ownerOutcome: "created" | "linked"` discriminator; the WhatsApp temp-password step and auth-user cleanup are gated to the created path. Refuses to link a Super Admin account. Added `0089_repair_members_active_gym_user_index.sql` — a repair of the index `0003` already defines, after finding it missing on the deployed database (see Completion Notes). Status ready-for-dev → review.
 
 ## Open Questions for smartsana
 

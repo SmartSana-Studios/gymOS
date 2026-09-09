@@ -51,7 +51,8 @@
       "createdNoSms": "Salle créée. Échec de l'envoi automatique du mot de passe temporaire à {{phone}} — communiquez-le ci-dessous.",
       "copyPassword": "Copier le mot de passe temporaire",
       "passwordCopied": "Copié !",
-      "dismiss": "Ignorer"
+      "dismiss": "Ignorer",
+      "createdLinked": "Salle créée et attribuée à un compte GymOS existant. Le propriétaire se connecte avec son mot de passe actuel — aucun mot de passe temporaire n'a été créé."
     },
     "create": {
       "title": "Créer une salle",

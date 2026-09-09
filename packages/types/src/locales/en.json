@@ -42,7 +42,8 @@
     "tierNotSelectableByOwner": "That plan isn't available to select. Choose a different one.",
     "exerciseNameTaken": "An exercise with this name already exists",
     "workoutPlanAlreadyExists": "This member already has a workout plan",
-    "unknown": "Something went wrong on our end."
+    "unknown": "Something went wrong on our end.",
+    "ownerIsSuperAdmin": "This email belongs to a Super Admin account, which cannot also own a gym."
   },
   "auth": {
     "title": "Sign in to GymOS",

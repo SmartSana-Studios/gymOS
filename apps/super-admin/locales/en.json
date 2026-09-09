@@ -51,7 +51,8 @@
       "createdNoSms": "Gym created. Could not send the temp password to {{phone}} automatically — share it below.",
       "copyPassword": "Copy temp password",
       "passwordCopied": "Copied!",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "createdLinked": "Gym created and assigned to an existing GymOS account. The owner signs in with their current password — no temporary password was created."
     },
     "create": {
       "title": "Create Gym",

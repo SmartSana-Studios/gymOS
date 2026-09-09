@@ -32,6 +32,7 @@ import {
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { generateTempPassword } from "@/lib/temp-password.mjs";
+import { findUserByEmail } from "@/lib/super-admin-provisioning.mjs";
 
 export interface CreateGymResult {
   gymId: string;
@@ -52,8 +53,24 @@ export interface CreateGymResult {
    * showing the fallback unconditionally, not gated behind `smsSent`: a
    * reported WhatsApp send success doesn't guarantee the owner actually
    * saw the message. Ephemeral -- not persisted beyond this return value.
+   *
+   * `null` when `ownerOutcome === "linked"` (Story 1.17): no account was
+   * created, so no temp password exists. The UI must branch on
+   * `ownerOutcome` rather than reading a missing password as a send failure.
    */
-  tempPassword: string;
+  tempPassword: string | null;
+  /**
+   * Story 1.17. Whether this gym's owner account was newly created, or an
+   * existing account was linked as the owner of an additional gym.
+   *
+   * A discriminator rather than a boolean, following Story 1.16's
+   * `outcome: "created" | "promoted" | "already_super_admin"` -- that story
+   * added it because a no-op was otherwise indistinguishable from a real
+   * write, letting the UI claim something that never happened. The same
+   * hazard applies here: without it the success toast would offer a temp
+   * password that was never set on any account.
+   */
+  ownerOutcome: "created" | "linked";
 }
 
 /**
@@ -116,10 +133,49 @@ export async function createGym(
   // existed). An IIFE keeps the try/catch's inferred success type flowing
   // naturally into `admin`/`authUser` below, instead of hand-writing their
   // (fairly gnarly) generic types.
+  //
+  // Story 1.17: the email is looked up FIRST. An address that already has an
+  // account is the multi-gym-ownership case, not an error -- previously it
+  // reached createUser(), came back as GoTrue's `email_exists`, mapped to
+  // `owner_email_taken`, and the gym row was rolled back. `findUserByEmail`
+  // is reused from lib/super-admin-provisioning.mjs (extracted there by
+  // Story 1.16 for exactly this cross-caller reason) rather than a second
+  // lookup being written here -- it handles listUsers() pagination.
   const temporaryPassword = generateTempPassword();
   const provisioned = await (async () => {
     try {
       const admin = createAdminClient();
+      const existing = await findUserByEmail(admin, gym.ownerEmail);
+
+      if (existing) {
+        // A Super Admin must not also hold a tenant membership: it puts one
+        // identity on both sides of the platform/tenant boundary that
+        // getDashboardShellContext() and the (admin) layout guard enforce in
+        // opposite directions. Story 1.7/1.15's time-boxed escalation grants
+        // exist precisely so platform staff reach gym data WITHOUT a
+        // permanent membership.
+        const { data: profile, error: profileError } = await admin
+          .from("users")
+          .select("is_super_admin")
+          .eq("id", existing.id)
+          .maybeSingle();
+
+        if (profileError) {
+          return { ok: false as const, error: await mapAndLog(profileError) };
+        }
+        if (profile?.is_super_admin) {
+          return {
+            ok: false as const,
+            error: {
+              code: "owner_is_super_admin",
+              message: t("errors.ownerIsSuperAdmin"),
+            } satisfies AppError,
+          };
+        }
+
+        return { ok: true as const, admin, userId: existing.id, outcome: "linked" as const };
+      }
+
       const { data, error: authError } = await admin.auth.admin.createUser({
         email: gym.ownerEmail,
         phone: gym.ownerPhone,
@@ -131,7 +187,7 @@ export async function createGym(
       if (authError || !data?.user) {
         return { ok: false as const, error: await mapAndLog(authError) };
       }
-      return { ok: true as const, admin, authUser: data };
+      return { ok: true as const, admin, userId: data.user.id, outcome: "created" as const };
     } catch (err) {
       return { ok: false as const, error: await mapAndLog(err) };
     }
@@ -141,23 +197,34 @@ export async function createGym(
     await deleteGym(gymRow.id); // compensating cleanup: no orphaned gym
     return { data: null, error: provisioned.error };
   }
-  const { admin, authUser } = provisioned;
+  const { admin, userId: ownerUserId, outcome: ownerOutcome } = provisioned;
 
   // Step 4: insert the owner's membership row. `must_change_password`
   // defaults `true` at the `users` level (0016 migration's DB default) --
   // no explicit set needed here, matching this codebase's existing
   // preference for DB-level defaults over app-level explicit sets.
+  // A linked owner's `public.users` row is deliberately NOT touched --
+  // `must_change_password` is user-level, not per-membership, and resetting
+  // it would bounce an established owner back through /auth/update-password
+  // just for being given a second gym. `name`/`phone` land on this new
+  // `members` row only, which is per-membership by design (a branch may have
+  // its own contact details).
   const { error: memberError } = await insertOwnerMember({
     gymId: gymRow.id,
-    userId: authUser.user.id,
+    userId: ownerUserId,
     name: gym.ownerName,
     phone: gym.ownerPhone,
   });
 
   if (memberError) {
-    // Two-deep compensating cleanup: gym and the just-created auth user.
     await deleteGym(gymRow.id);
-    await deleteAuthUserAndLog(admin, authUser.user.id);
+    // Delete the auth user ONLY when this request created it. On the linked
+    // path the account pre-existed and may own other gyms -- deleting it
+    // would destroy an unrelated owner's login, and `public.users.id`
+    // cascades from `auth.users`, so it would take their profile row with it.
+    if (ownerOutcome === "created") {
+      await deleteAuthUserAndLog(admin, ownerUserId);
+    }
     return { data: null, error: memberError };
   }
 
@@ -170,17 +237,26 @@ export async function createGym(
   // already committed at this point, so an unexpected throw here must not
   // be allowed to propagate out of createGym and turn a partial success
   // into a reported failure, same discipline as getDashboardAppUrl() below.
-  let sendResult: TempPasswordMessageResult;
-  try {
-    sendResult = await sendTempPasswordMessage(gym.ownerPhone, temporaryPassword);
-  } catch (err) {
-    sendResult = {
-      success: false,
-      error: err instanceof Error ? err.message : "temp-password send threw unexpectedly",
-    };
+  //
+  // Skipped entirely on the linked path (Story 1.17): there is no temp
+  // password to send, and messaging an established owner a credential they
+  // never received would be worse than saying nothing.
+  let sendResult: TempPasswordMessageResult = {
+    success: false,
+    error: "not attempted: owner account already existed, no temp password to send",
+  };
+  if (ownerOutcome === "created") {
+    try {
+      sendResult = await sendTempPasswordMessage(gym.ownerPhone, temporaryPassword);
+    } catch (err) {
+      sendResult = {
+        success: false,
+        error: err instanceof Error ? err.message : "temp-password send threw unexpectedly",
+      };
+    }
   }
   const smsSent = sendResult.success;
-  if (!sendResult.success) {
+  if (ownerOutcome === "created" && !sendResult.success) {
     // Best-effort logging only -- gym/owner/member are already successfully
     // created at this point (AC #7), so a throw from getDashboardAppUrl()
     // (e.g. DASHBOARD_APP_URL unset) must not propagate and turn an
@@ -198,15 +274,25 @@ export async function createGym(
   }
 
   // Step 6: audit log entry -- the natural first entry in a gym's trail.
+  // `owner_outcome` rides in the existing metadata rather than becoming a
+  // second action_type: the gym was created either way, so the trail should
+  // read as one event with a distinguishing detail, not two kinds of event.
   await logGymCreated(gymRow.id, {
     owner_name: gym.ownerName,
     owner_phone: gym.ownerPhone,
     tier_id: gym.tierId,
     sms_sent: smsSent,
+    owner_outcome: ownerOutcome,
   });
 
   return {
-    data: { gymId: gymRow.id, ownerPhone: gym.ownerPhone, smsSent, tempPassword: temporaryPassword },
+    data: {
+      gymId: gymRow.id,
+      ownerPhone: gym.ownerPhone,
+      smsSent,
+      tempPassword: ownerOutcome === "created" ? temporaryPassword : null,
+      ownerOutcome,
+    },
     error: null,
   };
 }

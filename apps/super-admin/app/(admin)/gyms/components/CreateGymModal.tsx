@@ -37,7 +37,12 @@ export function CreateGymModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onCreated: (ownerPhone: string, smsSent: boolean, tempPassword: string) => void;
+  onCreated: (
+    ownerPhone: string,
+    smsSent: boolean,
+    tempPassword: string | null,
+    ownerOutcome: "created" | "linked",
+  ) => void;
   tiers: TierOption[];
 }) {
   const { t } = useTranslation();
@@ -100,7 +105,7 @@ export function CreateGymModal({
       }
 
       if (data) {
-        onCreated(data.ownerPhone, data.smsSent, data.tempPassword);
+        onCreated(data.ownerPhone, data.smsSent, data.tempPassword, data.ownerOutcome);
         setForm(initialForm);
         setFieldErrors({});
       }

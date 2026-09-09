@@ -98,14 +98,29 @@ export function GymsPageClient({
     }
   }
 
-  function handleCreated(ownerPhone: string, smsSent: boolean, tempPassword: string) {
+  // Story 1.17: branch on `ownerOutcome`, not on whether `tempPassword` is
+  // present. A linked owner has no temp password because none was created --
+  // reading that absence as a delivery failure would show the "could not
+  // send" copy for a message that was never meant to be sent. Passing
+  // `undefined` for the password also restores the auto-dismiss timer in
+  // showToast(), which is right here: there is nothing to copy.
+  function handleCreated(
+    ownerPhone: string,
+    smsSent: boolean,
+    tempPassword: string | null,
+    ownerOutcome: "created" | "linked",
+  ) {
     setModalOpen(false);
-    showToast(
-      smsSent
-        ? t("gyms.toast.createdSms", { phone: ownerPhone })
-        : t("gyms.toast.createdNoSms", { phone: ownerPhone }),
-      tempPassword,
-    );
+    if (ownerOutcome === "linked") {
+      showToast(t("gyms.toast.createdLinked"));
+    } else {
+      showToast(
+        smsSent
+          ? t("gyms.toast.createdSms", { phone: ownerPhone })
+          : t("gyms.toast.createdNoSms", { phone: ownerPhone }),
+        tempPassword ?? undefined,
+      );
+    }
     router.refresh();
   }
 
