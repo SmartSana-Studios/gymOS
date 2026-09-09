@@ -190,6 +190,11 @@ export default function ClassesScreen() {
       );
       return;
     }
+    // Story 11.8 AC #4: neutral suspension copy, never the generic book error.
+    if (result.status === 'gym_suspended') {
+      showToast(t('common.gymSuspended'));
+      return;
+    }
     if (result.status === 'already_booked') {
       // Idempotent: the server considers this session already booked even
       // though local state hadn't caught up. No real booking id is
@@ -241,6 +246,11 @@ export default function ClassesScreen() {
     }
     if (result.status === 'cutoff_passed') {
       void loadBookings();
+      return;
+    }
+    // Story 11.8 AC #4: neutral suspension copy, never the generic cancel error.
+    if (result.status === 'gym_suspended') {
+      showToast(t('common.gymSuspended'));
       return;
     }
     showToast(t('classes.bookings.cancelError'));

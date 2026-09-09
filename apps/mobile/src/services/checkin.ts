@@ -1,5 +1,7 @@
 import * as Crypto from 'expo-crypto';
 
+import { isGymSuspendedError } from '@gymos/types';
+
 import { supabase } from '@/lib/supabase';
 import { deleteOfflineCheckIn, getOfflineCheckIns, insertOfflineCheckIn } from '@/lib/sqlite';
 
@@ -61,7 +63,7 @@ export async function getRecentCheckIns(memberId: string, limit: number): Promis
 }
 
 export interface RecordCheckInResult {
-  status: 'success' | 'already_checked_in' | 'expired' | 'error';
+  status: 'success' | 'already_checked_in' | 'expired' | 'gym_suspended' | 'error';
   checkedInAt?: string;
 }
 
@@ -80,6 +82,10 @@ export async function recordCheckIn(): Promise<RecordCheckInResult> {
     const { data, error } = await supabase.rpc('check_in');
     if (error) {
       if (error.message?.includes('already has an open check-in')) return { status: 'already_checked_in' };
+      // Story 11.8 AC #4: the suspension raise must reach the member as the
+      // neutral copy, never as the generic 'check your connection' error --
+      // it is not a connectivity failure and retrying immediately won't help.
+      if (isGymSuspendedError(error)) return { status: 'gym_suspended' };
       // 23505 on idx_attendance_events_one_open_per_member: the race-window
       // backstop for the same outcome, not the primary path.
       if (error.code === '23505' && error.message?.includes('idx_attendance_events_one_open_per_member')) {
@@ -113,6 +119,12 @@ export async function queueOfflineCheckIn(): Promise<{ id: string; scannedAt: st
  * - success -> delete from the local queue.
  * - 'already has an open check-in' -> leave queued; recoverable on a later
  *   sync pass once the pre-existing open session closes.
+ * - the gym-suspended raise (Story 11.8's guard, 0090) -> leave queued. This
+ *   scan happened while the gym was still active, and suspension is a
+ *   billing state that is reversed the moment the Owner pays -- so retrying
+ *   CAN fix it, which is exactly the test the branch below applies. Deleting
+ *   here would silently destroy a legitimate attendance event with no
+ *   user-visible error and no way to recover it after reinstatement.
  * - any other RPC error (expired, deactivated, permission denied, no member
  *   record) -> delete anyway, retrying can't fix these.
  * - a thrown/network exception -> leave queued, no deletion. */
@@ -132,7 +144,10 @@ export async function syncPendingCheckIns(): Promise<void> {
         p_client_scan_id: record.id,
       });
 
-      if (!error || !error.message?.includes('already has an open check-in')) {
+      const recoverable =
+        error?.message?.includes('already has an open check-in') || isGymSuspendedError(error);
+
+      if (!error || !recoverable) {
         await deleteOfflineCheckIn(record.id);
       }
     } catch (err) {

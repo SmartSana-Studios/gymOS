@@ -6,7 +6,8 @@
     "cancel": "Cancel",
     "save": "Save",
     "tryAgain": "Try again",
-    "ok": "OK"
+    "ok": "OK",
+    "gymSuspended": "GymOS is temporarily unavailable for this gym. Please check back later."
   },
   "phoneInput": {
     "selectCountry": "Select country",

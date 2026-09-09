@@ -220,6 +220,10 @@ function RenewScreenContent() {
         setInitiateError(t('renew.errors.notEligible'));
       } else if (result.code === 'payment_already_pending') {
         setInitiateError(t('renew.errors.paymentAlreadyPending'));
+      } else if (result.code === 'gym_suspended') {
+        // Story 11.8 AC #4. FR-132: a member must never be told their gym
+        // owes money -- that is between GymOS and the Owner alone.
+        setInitiateError(t('common.gymSuspended'));
       } else {
         setInitiateError(t('renew.errors.initiateFailed'));
       }

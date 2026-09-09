@@ -48,6 +48,10 @@ export default function CheckInScreen() {
 
   const [wrongQr, setWrongQr] = useState(false);
   const [networkError, setNetworkError] = useState(false);
+  // Story 11.8 AC #4: kept separate from networkError -- a suspended gym is
+  // not a connectivity failure, and telling the member to check their
+  // connection sends them to retry something that cannot succeed.
+  const [gymSuspended, setGymSuspended] = useState(false);
   const [alreadyCheckedIn, setAlreadyCheckedIn] = useState(false);
   const [deniedExpired, setDeniedExpired] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -115,7 +119,7 @@ export default function CheckInScreen() {
     return () => subscription.remove();
   }, [permission, requestPermission]);
 
-  const resultShowing = wrongQr || networkError || alreadyCheckedIn || deniedExpired || success;
+  const resultShowing = wrongQr || networkError || gymSuspended || alreadyCheckedIn || deniedExpired || success;
 
   // 15s-with-no-scan nudge -- only counts down while actively scanning
   // (focused tab, permission granted, no result showing).
@@ -153,6 +157,7 @@ export default function CheckInScreen() {
   const resetScanning = useCallback(() => {
     setWrongQr(false);
     setNetworkError(false);
+    setGymSuspended(false);
     setAlreadyCheckedIn(false);
     setDeniedExpired(false);
     setSuccess(false);
@@ -259,6 +264,12 @@ export default function CheckInScreen() {
     if (!mountedRef.current || !isFocusedRef.current) {
       setValidating(false);
       processingRef.current = false;
+      return;
+    }
+
+    if (checkInResult.status === 'gym_suspended') {
+      setValidating(false);
+      setGymSuspended(true);
       return;
     }
 
@@ -400,7 +411,7 @@ export default function CheckInScreen() {
             </View>
           )}
 
-          {(wrongQr || networkError) && (
+          {(wrongQr || networkError || gymSuspended) && (
             <View style={[styles.overlay, styles.overlayWarning]}>
               <ThemedText style={styles.overlayIcon}>⚠</ThemedText>
               {wrongQr ? (
@@ -414,7 +425,7 @@ export default function CheckInScreen() {
                 </>
               ) : (
                 <ThemedText type="default" style={styles.centeredText}>
-                  {t('checkin.errorNetwork')}
+                  {gymSuspended ? t('common.gymSuspended') : t('checkin.errorNetwork')}
                 </ThemedText>
               )}
               <Pressable accessibilityRole="button" onPress={resetScanning} style={styles.overlayButton}>

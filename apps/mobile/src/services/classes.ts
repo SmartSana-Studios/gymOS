@@ -1,3 +1,5 @@
+import { isGymSuspendedError } from '@gymos/types';
+
 import { supabase } from '@/lib/supabase';
 
 /** Story 12.2: mobile service-layer wrapper over book_class_session()/
@@ -38,6 +40,7 @@ export type BookClassSessionResult =
   | { status: 'full' }
   | { status: 'already_booked' }
   | { status: 'ineligible' }
+  | { status: 'gym_suspended' }
   | { status: 'error' };
 
 /** Books the caller's own member row into a class session via
@@ -48,6 +51,10 @@ export async function bookClassSession(classSessionId: string): Promise<BookClas
   try {
     const { data, error } = await supabase.rpc('book_class_session', { p_class_session_id: classSessionId });
     if (error) {
+      // Story 11.8 AC #4: the shared suspension raise from 0090's guard. Must
+      // be distinguished here so the member sees the neutral copy rather than
+      // this surface's generic failure message.
+      if (isGymSuspendedError(error)) return { status: 'gym_suspended' };
       if (error.message?.includes('class is full')) return { status: 'full' };
       if (error.message?.includes('already booked this session')) return { status: 'already_booked' };
       // 23505 on idx_class_bookings_session_member: the race-window backstop
@@ -70,6 +77,7 @@ export type CancelClassBookingResult =
   | { status: 'success' }
   | { status: 'cutoff_passed' }
   | { status: 'not_found' }
+  | { status: 'gym_suspended' }
   | { status: 'error' };
 
 /** Cancels the caller's own booking via cancel_class_booking(). */
@@ -77,6 +85,10 @@ export async function cancelClassBooking(bookingId: string): Promise<CancelClass
   try {
     const { error } = await supabase.rpc('cancel_class_booking', { p_booking_id: bookingId });
     if (error) {
+      // Story 11.8 AC #4: the shared suspension raise from 0090's guard. Must
+      // be distinguished here so the member sees the neutral copy rather than
+      // this surface's generic failure message.
+      if (isGymSuspendedError(error)) return { status: 'gym_suspended' };
       if (error.message?.includes('cancellation cutoff has passed')) return { status: 'cutoff_passed' };
       if (error.message?.includes('not found')) return { status: 'not_found' };
       return { status: 'error' };

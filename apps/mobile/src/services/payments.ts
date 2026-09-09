@@ -1,5 +1,7 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
 
+import { isGymSuspendedError } from '@gymos/types';
+
 import { supabase } from '@/lib/supabase';
 
 export interface PaymentListRow {
@@ -257,6 +259,7 @@ export interface InitiateMemberPaymentResult {
     | 'no_active_plan'
     | 'not_eligible_for_renewal'
     | 'payment_already_pending'
+    | 'gym_suspended'
     | 'error';
 }
 
@@ -268,6 +271,9 @@ export interface InitiateMemberPaymentResult {
  * JWT claim in the first place, per the auth hook, 0009_*.sql). */
 function mapInitiateErrorCode(message: string | undefined): InitiateMemberPaymentResult['code'] {
   if (!message) return 'error';
+  // Story 11.8 AC #4: 0090's suspension guard fires before initiate_member_payment()
+  // reaches any of the distinguishable business-rule raises below.
+  if (isGymSuspendedError({ message })) return 'gym_suspended';
   if (message.includes('no_active_plan')) return 'no_active_plan';
   if (message.includes('not_eligible_for_renewal')) return 'not_eligible_for_renewal';
   if (message.includes('payment_already_pending')) return 'payment_already_pending';
