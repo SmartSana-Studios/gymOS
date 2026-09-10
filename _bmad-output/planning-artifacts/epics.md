@@ -655,7 +655,7 @@ The staff Overview becomes a real dashboard — live occupancy, memberships need
 
 **Dependency order:** 17.1 → 17.2 and 17.3 → 17.4 → 17.5 are two independent chains and can run in parallel. 17.1 and 17.3 are the two launch-blocking stories: 17.1 fixes what a new Owner sees first, 17.3 fixes a Coach landing on a page with no way back. 17.2 and 17.5 are depth, not blockers. *(Amended 2026-09-10, decided with the product owner during story creation: **17.4 ships in the same release as 17.3**, and is therefore release-blocking rather than depth. 17.3 gives the Portal a My Classes sub-nav item per FR-144 and `EXPERIENCE.md:229-233`, and that item must not point at an empty page in front of a paying customer — the exact failure this epic exists to correct. The alternative considered and rejected was holding the item out of the sub-nav until 17.4 landed. Note this also puts migration 0096 in the same deploy as 0095.)*
 
-**Scope boundary — what this epic does NOT do.** No Coach gains write access to any class (`manager_or_owner_insert_own_classes` / `manager_or_owner_update_own_classes`, widened to supervisor by `0093:64,67`, are untouched). `mark_class_attendance`'s role check (`0068:41,70`) is untouched, and `ClassesPageClient.tsx:65`'s `canMarkAttendance = role !== "coach"` stays as-is. A Coach never reaches AD-18/AD-19. **This epic modifies zero RLS policies** — its two migrations add one aggregate function and one `SECURITY DEFINER` RPC, nothing else.
+**Scope boundary — what this epic does NOT do.** No Coach gains write access to any class (`manager_or_owner_insert_own_classes` / `manager_or_owner_update_own_classes`, widened to supervisor by `0093:64,67`, are untouched). `mark_class_attendance`'s role check (`0068:41,70`) is untouched, and `ClassesPageClient.tsx:65`'s `canMarkAttendance = role !== "coach"` stays as-is. A Coach never reaches AD-18/AD-19. **This epic modifies zero RLS policies** — its migrations add functions only: 0095 one invoker-rights aggregate, 0096 two `SECURITY DEFINER` Coach reads (`list_my_classes()`, `list_my_class_session_roster()`), 0097 two invoker-rights period-bound helpers, nothing else. *(Amended 2026-09-10 by Stories 17.2 and 17.4; was "two migrations add one aggregate function and one `SECURITY DEFINER` RPC".)*
 
 ### Story 17.1: Staff Overview — Operational Cards & Live Tables (AD-02)
 
@@ -817,6 +817,8 @@ So that I know what I am teaching and who to expect, without asking the front de
 
 *Depends on Story 17.3. Migration 0096.*
 
+*(Amended 2026-09-10, two decisions made with the product owner during story creation. (1) **0096 adds two functions, not one.** A Coach has no RLS read on `class_bookings` — `gym_staff_read_own_class_bookings` (`0068:37-42`) is owner/manager/receptionist/supervisor only — so the booked count below cannot come from plain reads, and "exactly one new function" could not satisfy it. `list_my_classes()` returns the Coach's classes and sessions with booked counts and no member identity; `list_my_class_session_roster()` is unchanged. Story 17.5's My Next Sessions reuses `list_my_classes()`. (2) **Sessions are listed from 00:00 today in the gym's timezone onward**, not strictly upcoming — `attended_at` is set only once a session has started, so a strictly-upcoming list would hide the class a Coach is teaching right now. Both functions resolve the caller from a live `members` row (`role = 'coach'`, not deactivated) and carry the 0090 suspension guard. The ACs below carry each change inline.)*
+
 **Acceptance Criteria:**
 
 **Given** `classes.coach_id` is `NOT NULL` and trigger-enforced to a coach-role member of the same gym (`0057:23`, `0057:154`)
@@ -825,7 +827,7 @@ So that I know what I am teaching and who to expect, without asking the front de
 
 **Given** each listed class
 **When** it is expanded
-**Then** it shows its upcoming `class_sessions` with `scheduled_at`, capacity, and booked count
+**Then** it shows its `class_sessions` from 00:00 today in the gym's timezone onward *(amended 2026-09-10; was "upcoming")* with `scheduled_at`, capacity, and booked count — served by a `SECURITY DEFINER` function, `list_my_classes()` (migration 0096), that returns the Coach's classes, sessions and booked counts and no member identity, since a Coach has no RLS read on `class_bookings` *(amended 2026-09-10)*
 
 **Given** `0040:81`'s `coach_read_assigned_members` policy restricts a Coach's `members` reads to their own assigned members, so most people booked into their class are invisible to them
 **When** a session roster is displayed
@@ -845,7 +847,7 @@ So that I know what I am teaching and who to expect, without asking the front de
 
 **Given** NO RLS policy is modified by this story
 **When** migration 0096 is reviewed
-**Then** it contains exactly one new function and its grants — `gym_staff_read_own_class_bookings` (`0068:37`), `gym_staff_read_own_classes` (`0057:101`), `gym_staff_read_own_class_sessions` (`0057:172`), and every `manager_or_owner_*` policy are untouched
+**Then** it contains exactly two new functions — `list_my_classes()` and `list_my_class_session_roster()` *(amended 2026-09-10; was one)* — and their grants — `gym_staff_read_own_class_bookings` (`0068:37`), `gym_staff_read_own_classes` (`0057:101`), `gym_staff_read_own_class_sessions` (`0057:172`), and every `manager_or_owner_*` policy are untouched
 
 **Given** FR-145's read-only boundary
 **When** the page renders for a Coach
@@ -885,7 +887,7 @@ So that I can see what I am teaching, who needs me, and who has been active, wit
 
 **Given** My Next Sessions
 **When** it renders
-**Then** it lists the next upcoming `class_sessions` for classes where `coach_id` is the calling Coach, each with `scheduled_at` and booked count, reusing Story 17.4's coach-scoped query rather than a second implementation, and each row links to that class in `/coach/classes`
+**Then** it lists the next upcoming `class_sessions` for classes where `coach_id` is the calling Coach, each with `scheduled_at` and booked count, reusing Story 17.4's `list_my_classes()` (filtered to `scheduled_at > now()`) rather than a second implementation, and each row links to that class in `/coach/classes` (17.4 renders each class section with `id="class-<classId>"`) *(amended 2026-09-10 by Story 17.4)*
 
 **Given** Needs Follow-Up identifies clients the Coach has lost touch with
 **When** it is computed

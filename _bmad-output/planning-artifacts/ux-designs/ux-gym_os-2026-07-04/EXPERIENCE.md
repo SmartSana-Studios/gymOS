@@ -1813,7 +1813,8 @@ Coach Portal
 
 **Components:**
 - Class list: only classes whose `coach_id` resolves to this Coach's own member row, resolved server-side from the session — never from a client-supplied coach ID
-- Per class: name, schedule, capacity; expandable to upcoming sessions with `scheduled_at` and booked count
+- Per class: name, schedule, capacity; expandable to its sessions from 00:00 today in the gym's timezone onward (not strictly future — today's session stays visible with its attendance), each with `scheduled_at` and booked count *(amended 2026-09-10, Story 17.4)*
+- **The class list, sessions and booked counts are served by a `SECURITY DEFINER` function, `list_my_classes()`, returning aggregates only — no member identity.** A Coach has no RLS read on `class_bookings`, so counts cannot come from plain reads. Times are shown in the gym's timezone, 24-hour *(amended 2026-09-10, Story 17.4)*
 - Per session: the booked-member roster — name and attendance status only
 - **The roster is served by a `SECURITY DEFINER` RPC returning exactly `(member_id, member_name, attended_at)`.** It cannot be built from plain RLS reads: a Coach's `members` access is limited to their *assigned* members, and most people booked into a class are not their coaching clients, so a direct read would render blank names. The RPC also avoids exposing member phone numbers, which a row-level widening would have handed over
 - **No write controls anywhere on this screen** — no create, edit, reschedule, or mark-attendance action, absent from the DOM rather than disabled. Class creation/editing is Manager/Supervisor/Owner (AD-19); class attendance is Receptionist-and-above. `attended_at` is displayed as read-only status
