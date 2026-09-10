@@ -147,7 +147,7 @@ so that I know what I am teaching and who to expect, without asking the front de
      - why the caller is resolved from a **live** `members` row (`role = 'coach'`, `deactivated_at is null`) rather than `auth.jwt() ->> 'app_role'` (AD-3 forbids new `app_role` call sites; FR-089 needs immediate revocation);
      - why unauthorized callers get an **empty set**, not an exception;
      - why the suspension guard is present in a read-only function, and why it sits **below** caller resolution (0090's error-precedence refinement, `0090:76-80`);
-     - why the start of today is computed inline rather than by calling 0097's `private.gym_local_day_bounds()` (0096 applies before 0097 in filename order, so it must not depend on it). The expression is identical to that helper's `day_start` and carries no `+ interval`, which is the part 0095/0097 warn about;
+     - why the start of today is computed inline rather than by calling 0097's `private.gym_local_day_bounds()` (0096 applies before 0097 in filename order, so it must not depend on it). The expression is `0097:63`'s `day_start` with `p_at := now()` and `p_timezone := g.timezone`, and carries no `+ interval`, which is the part 0095/0097 warn about;
      - why the roster RPC is not time-bounded;
      - why deactivated **booked** members still appear;
      - that both functions are read-only, so they are neither guarded writers nor exclusion-list entries in the suspension meta-test.
@@ -217,6 +217,7 @@ so that I know what I am teaching and who to expect, without asking the front de
      - another coach's class or session;
      - another gym's session;
      - a nonexistent session id.
+   - **A malformed id is the one exception.** A non-uuid argument (reachable only by tampering with the Server Action) is rejected by Postgres with 22P02 before the function body runs. It surfaces as a mapped error and the panel's inline `common.loadError`. That is acceptable; add no Zod schema for it.
    - **Suspended or deactivated gym:** a caller who **is** a coach there gets `raise exception '<fn>: gym <uuid> is not active'`. The phrase `is not active` is load-bearing (`packages/types/src/errors.ts:14-28`, `0090:55-60`); do not reword it.
    - Never branch on `auth.jwt() ->> 'app_role'` anywhere in 0096 (ARCHITECTURE-SPINE AD-3).
 
@@ -273,7 +274,7 @@ so that I know what I am teaching and who to expect, without asking the front de
      - `supabase.rpc("list_my_classes")`, no args.
      - Groups rows by `class_id`, **preserving the SQL order**.
      - A row with `class_session_id === null` contributes the class with `sessions: []`.
-     - `bookedCount: Number(row.booked_count)`.
+     - `bookedCount: Number(row.booked_count)`, and `scheduleType: row.schedule_type as CoachClassRow["scheduleType"]`, since the RPC types it as `string`.
      - `data: null` or `[]` from the RPC → `{ data: [], error: null }`: zero classes is a result, not an error.
      - Types:
        ```ts
@@ -286,7 +287,8 @@ so that I know what I am teaching and who to expect, without asking the front de
        }
        ```
    - **`listMyClassSessionRoster(classSessionId: string): Promise<{ data: CoachRosterRow[] | null; error }>`**
-     - `supabase.rpc("list_my_class_session_roster", { p_class_session_id: classSessionId })`, mapped to `{ memberId, memberName, attendedAt }`.
+     - `supabase.rpc("list_my_class_session_roster", { p_class_session_id: classSessionId })`, mapped to `export interface CoachRosterRow { memberId: string; memberName: string; attendedAt: string | null }`.
+     - Both functions' `error` is typed `AppError | null`, as everywhere else in this file.
      - `data: null` → `[]`.
    - **Do not reuse** `listClasses()` or `listSessionBookings()`. Under a Coach session their `class_bookings` reads return **zero rows silently**, not an error (`0068:37-42`), so counts would render `0/15` and every roster "No members booked".
 
@@ -313,7 +315,7 @@ so that I know what I am teaching and who to expect, without asking the front de
         hour: "2-digit", minute: "2-digit", hourCycle: "h23",
       })
       ```
-      - 24-hour, per the AD-21 mockup.
+      - 24-hour, per the AD-21 mockup. Locale-native ordering is accepted: `en` produces "Fri, Sep 12, 18:00", not the mockup's "Fri 12 Sep · 18:00". Do not hand-build the string.
       - `gymTimezone` comes from the first row. It is the same on every row; do not add a separate `gyms` read, and do **not** call `getGymSettings()`, which also selects `gym_token`.
     - **Recurring schedule:** `t("classes.recurringSummary", { days, time })`, where `days` is `recurrenceDays.map((d) => t(DAY_KEY[d])).join(", ")` and `time` is `recurrenceTime.slice(0, 5)`.
       - `recurrence_time` is already gym-local wall-clock time (`0057:245`), so it gets no timezone conversion.
@@ -321,7 +323,7 @@ so that I know what I am teaching and who to expect, without asking the front de
     - **Capacity:** `t("coachPortal.classes.capacity", { capacity: capacity.toLocaleString(locale) })`.
     - **Per session:** `t("coachPortal.classes.bookedCount", { booked: bookedCount.toLocaleString(locale), capacity: capacity.toLocaleString(locale) })`.
     - **Never** a bare `toLocaleString()` or a formatter without `timeZone`.
-      - `CheckedInTable.tsx:31`, `ClassesPageClient.tsx:134,151` and `CoachMemberDetailPageClient.tsx`'s `noteTimestamp()` all format in the runtime zone, which is UTC on Vercel's server and the browser's zone in the client. That gives an SSR/client hydration mismatch and, on the server, the wrong hour. Both are already recorded in `deferred-work.md` (17.1 and 5.3 reviews).
+      - `CheckedInTable.tsx:31`, `ClassesPageClient.tsx:134,151` and `coach/[memberId]/components/SessionNotesSection.tsx:9`'s `noteTimestamp()` all format in the runtime zone, which is UTC on Vercel's server and the browser's zone in the client. That gives an SSR/client hydration mismatch and, on the server, the wrong hour. Both are already recorded in `deferred-work.md` (17.1 and 5.3 reviews).
       - Server-side formatting with an explicit gym `timeZone` avoids both.
     - **Client props:**
       ```ts
@@ -334,12 +336,16 @@ so that I know what I am teaching and who to expect, without asking the front de
 11. **`app/(dashboard)/coach/classes/components/CoachClassesPageClient.tsx`** (`"use client"`): read-only and accessible.
     - **Class section:** each class is a `<section id={`class-${classId}`} className="rounded-md border">`.
       - The `id` is the anchor Story 17.5's My Next Sessions links to (`/coach/classes#class-<uuid>`). Do not build hash-driven auto-expansion; that is 17.5's call.
-      - Its header is a `<button type="button" aria-expanded aria-controls>` showing class name, `scheduleLabel` and `capacityLabel`. It toggles that class's session list.
+      - Its header is a `<button type="button" aria-expanded aria-controls={`class-${classId}-sessions`}>` showing class name, `scheduleLabel` and `capacityLabel`, wrapped in an `<h2 className="text-sm font-medium">`. The layout's `<h1>` is the page's only other heading, and without one per class a screen-reader user cannot jump between classes. It toggles that class's session list, whose container has `id={`class-${classId}-sessions`}`.
       - Classes start **collapsed** and expand independently (a `Set` of open class ids).
-    - **Session row:** each session is also a `<button type="button" aria-expanded aria-controls>` showing `label` and `bookedLabel`.
+      - **Collapsing a class** also collapses its expanded session, if any, and invalidates that session's in-flight request (increment the counter). Re-expanding the class shows all its sessions collapsed.
+    - **Session row:** each session is also a `<button type="button" aria-expanded aria-controls={`session-${classSessionId}-roster`}>` showing `label` and `bookedLabel`; its roster panel has `id={`session-${classSessionId}-roster`}`.
       - **One session is expanded at a time** across the page, the same single-expand model as `ClassesPageClient.tsx:37`.
       - Expanding calls `getMySessionRosterAction(classSessionId)` **every time**, with no client cache, so attendance marked at the desk shows on the next expand.
-      - Guard stale responses with a request ref exactly like `ClassesPageClient.tsx:67-101`: a result for a session that is no longer the expanded one is discarded.
+      - **Guard stale responses with a counter, not a session id.** Keep `const requestSeq = useRef(0)`. Each expand does `const seq = ++requestSeq.current`, and after the `await` it does `if (seq !== requestSeq.current) return`. Every collapse also increments the counter.
+        - `ClassesPageClient.tsx:72,92,94` stores the class id instead. That is too weak here: when the **same** session is collapsed and re-expanded, the first, stale response still gets through, and so does A → B → A.
+        - Model the expanded session's state as `{ classSessionId, status: "loading" | "error" | "ready", rows }`.
+        - Errors render inline, not as a toast; `ClassesPageClient` uses a toast (`:96-98`), so do not copy that part.
     - **Roster panel** (inside the expanded session):
       - loading: `classes.attendance.loadingBookings`;
       - error: inline `common.loadError`, not a toast;
@@ -365,7 +371,7 @@ so that I know what I am teaching and who to expect, without asking the front de
       | `coachPortal.classes.emptyNoClasses` | You are not assigned to any classes yet. Your manager schedules classes and assigns a coach. | Aucun cours ne vous est encore assigné. Votre gérant programme les cours et y assigne un coach. |
       | `coachPortal.classes.capacity` | Capacity {{capacity}} | Capacité {{capacity}} |
       | `coachPortal.classes.bookedCount` | {{booked}}/{{capacity}} booked | {{booked}}/{{capacity}} inscrits |
-      | `coachPortal.classes.notAttended` | Not attended | Absent |
+      | `coachPortal.classes.notAttended` | Not marked attended | Présence non enregistrée |
     - **Reuse, do not duplicate:** `classes.days.*`, `classes.recurringSummary`, `classes.noUpcomingSession`, `classes.attendance.{attended,noBookings,loadingBookings}` (`en.json:362-372, 405-410`) and `common.loadError`, which lives in `packages/types/src/locales`, not the app file.
     - `node scripts/check-i18n-key-parity.mjs` passes.
     - The EN empty-state copy is the epic's verbatim AD-21 text. See Dev Notes for the flagged "manager"-only wording.
@@ -379,12 +385,14 @@ so that I know what I am teaching and who to expect, without asking the front de
       - `gym_timezone = 'Africa/Douala'`;
       - the session at exactly `day_start` is included and the one at `day_start − 1 minute` is excluded, with `day_start` taken from `private.gym_local_day_bounds(tz, now())` (0097);
       - another coach's class is absent.
-    - **Gym-local, not UTC, day start:** a `Pacific/Kiritimati` (UTC+14) gym's coach sees the session at its local 00:00 and not the one a minute before, under a UTC session timezone. Also assert `pg_get_functiondef('public.list_my_classes()'::regprocedure)` contains `date_trunc('day', now() at time zone g.timezone) at time zone g.timezone` and does **not** contain `interval`.
+    - **Gym-local, not UTC, day start:** a `Pacific/Kiritimati` (UTC+14) gym's coach sees the session at its local 00:00 and not the one a minute before, under a UTC session timezone. Also assert on `pg_get_functiondef('public.list_my_classes()'::regprocedure)` with `position()`, **not** `matches()` or `alike`: in a regex, `now()`'s parentheses form a group, and in `alike`, `_` is a wildcard. Assert:
+      - `ok(position($x$date_trunc('day', now() at time zone g.timezone) at time zone g.timezone$x$ in pg_get_functiondef('public.list_my_classes()'::regprocedure)) > 0, …)`
+      - `ok(position('interval' in lower(pg_get_functiondef('public.list_my_classes()'::regprocedure))) = 0, …)`
     - **Roster for coach A1:**
       - own today session → Alice, attended;
       - own session yesterday → 1 row (not time-bounded);
       - own future session → 3 rows ordered by name, including the deactivated member;
-      - exactly 3 output columns (`member_id`, `member_name`, `attended_at`).
+      - exactly 3 output columns (`member_id`, `member_name`, `attended_at`): `select count(*) from pg_proc p, unnest(p.proargmodes) m where p.oid = 'public.list_my_class_session_roster(uuid)'::regprocedure and m = 't'` returns 3.
     - **Empty for:**
       - another coach's session;
       - another gym's session;
@@ -396,11 +404,13 @@ so that I know what I am teaching and who to expect, without asking the front de
       - a member whose JWT claims `app_role = coach` (both);
       - coach A1 with no `gym_id` claim;
       - coach A1 carrying Gym B's `gym_id`;
-      - a coach demoted to `manager` whose JWT still says coach. Do this last, as postgres, inside the test, with `update members set role = 'manager'`.
+      - a coach demoted to `manager` whose JWT still says coach. Do this last, inside the test. As postgres, first clear the claims with `select set_config('request.jwt.claims', '', true);`, then run `update members set role = 'manager'`, then re-set the demoted coach's stale `app_role = coach` claims and call both functions. The claims step is load-bearing: a `set_config(..., true)` value lasts until the transaction ends, even after `reset role`, and the `protect_self_managed_member_columns` trigger silently puts the old role back when `auth.uid()` equals the row's `user_id`, so the "0 rows" assertion would fail for no visible reason.
     - **Suspended gym:** `throws_like(..., '%is not active%')` for both functions as that gym's coach. Seed the gym with `status = 'suspended'` **in its INSERT**, never by UPDATE (`0014`'s trigger silently reverts it).
     - **Policies unchanged:** `policies_are('public', <table>, ARRAY[...])` for `classes`, `class_sessions`, `class_bookings` and `members`, using the exact lists in Dev Notes → *Measured*.
     - **Session times** are seeded relative to `private.gym_local_day_bounds(tz, now())`; `now()` is fixed for the transaction, so fixtures cannot straddle midnight.
     - **Every fixture member** gets an explicit `name`; the tier's `member_cap` must be large enough for the fixtures (`enforce_member_cap`).
+    - **Class fixtures** must satisfy `classes_schedule_matches_type` (`0057:43-52`). A recurring class needs `recurrence_days`, `recurrence_time` **and** `recurrence_start_date`; a one-off class needs `one_off_session_at` with all three `recurrence_*` null.
+    - **Sessions are not created for you.** A plain `insert into classes` materializes nothing (the only trigger on `classes` is `classes_validate_coach_trigger`), so insert every fixture `class_sessions` row by hand.
     - **Run** over host psql with `set search_path = public, extensions;` prepended, since `supabase test db` is not runnable here. Then run the **full** suite, including `suspension_rpc_coverage.test.sql`, unmodified.
 
 15. **Vitest.** `globals` is **not** enabled, so import `describe`/`it`/`expect`/`vi` from `vitest`.
@@ -412,12 +422,12 @@ so that I know what I am teaching and who to expect, without asking the front de
       - `null` and `[]` → `{ data: [], error: null }`;
       - an error → the mapped error with `data: null`, and no throw.
     - **`services/classes.listMyClassSessionRoster.test.ts`:** exact args `{ p_class_session_id }`, camelCase mapping including `attendedAt: null`, `null` → `[]`, and the mapped error.
-    - **`coach/classes/page.test.tsx`**, rewritten from 17.3's. Await the async child through the boundary, as `coach/overview/page.test.tsx:37-41` does, with services mocked. Assert:
+    - **`coach/classes/page.test.tsx`**, rewritten from 17.3's. Await the async child through the boundary, as `coach/overview/page.test.tsx:37-41` does, with services mocked. Mock `getServerTranslation` so that interpolation options stay visible: `{ t: (key: string, opts?: Record<string, unknown>) => (opts ? `${key}|${JSON.stringify(opts)}` : key) }`. A bare `(key) => key` mock drops the arguments, so the label assertions below could not be written. Assert:
       - the boundary's fallback is `CoachClassesLoading`;
       - error → text is exactly `["common.loadError"]`;
       - zero classes → exactly `["coachPortal.classes.emptyNoClasses"]` and no `CoachClassesPageClient` element;
       - with rows → one `CoachClassesPageClient` whose `classes` prop has the preformatted labels. `"2026-09-11T17:00:00Z"` in `Africa/Douala` must produce a label containing `18:00`. The same instant for a `UTC` gym must contain `17:00`, which proves the gym zone is used rather than the runtime's;
-      - a recurring class's `scheduleLabel` uses `classes.recurringSummary` with the translated days and `HH:mm`;
+      - a recurring class (`recurrence_days` `{1,3,5}`, `recurrence_time` `"18:00:00"`) has `scheduleLabel === 'classes.recurringSummary|{"days":"classes.days.mon, classes.days.wed, classes.days.fri","time":"18:00"}'`;
       - `listMyClasses` is called once;
       - no text `pendingNote` anywhere.
     - **`coach/classes/components/CoachClassesPageClient.test.tsx`**, with `@testing-library/react` + `@testing-library/user-event` (both in `apps/dashboard/package.json`), `react-i18next` mocked to return keys, and `../actions` mocked. Assert:
@@ -426,6 +436,8 @@ so that I know what I am teaching and who to expect, without asking the front de
       - expanding a session calls `getMySessionRosterAction` once with that id and renders names and the attended badge versus the sr-only `notAttended`;
       - collapsing and re-expanding **calls it again**;
       - expanding session B while A's call is pending renders **only** B's roster (resolve A after B);
+      - expand A, collapse it, re-expand A, then resolve the **first** call last: only the second call's rows render;
+      - collapsing a class with an expanded session, then re-expanding the class, shows every session collapsed, and a late roster response does not render;
       - an action error → `common.loadError` inside that panel;
       - `noBookings` for `[]`;
       - `classes.noUpcomingSession` for a class with no sessions;
@@ -434,7 +446,7 @@ so that I know what I am teaching and who to expect, without asking the front de
 
 16. **Regressions held.**
     - `coach/layout.tsx`, `CoachPortalNav.tsx` and its test, `coach/overview/**`, `coach/page.tsx`, `coach/[memberId]/**` and `Sidebar.tsx` are unmodified.
-    - The admin `classes/**` page, `services/classes.ts`'s existing exports (`listClasses`, `listSessionBookings`, `markAttendance`, `insertClass`, `updateClass`, `countClassSessionsBetween`), 0057/0058/0068/0078/0090/0095/0097 and `suspension_rpc_coverage.test.sql` are unmodified.
+    - The admin `classes/**` page, all existing exports of `services/classes.ts`, 0057/0058/0068/0078/0090/0095/0097 and `suspension_rpc_coverage.test.sql` are unmodified.
     - `pnpm --filter @gymos/dashboard build` exits 0, with `/coach/classes` still Partial Prerender.
 
 17. **Record-keeping, in the same change.**
@@ -450,7 +462,7 @@ so that I know what I am teaching and who to expect, without asking the front de
 ## Tasks / Subtasks
 
 - [ ] **Task 0: branch hygiene (before any code)**
-  - [ ] Story 17.2 is `done` but **uncommitted** on `feat/17-2-gym-health-cards`. This story's file and its `epics.md`/`EXPERIENCE.md`/`sprint-status.yaml` amendments were written into that same working tree. Confirm 17.2 (with these docs) is committed, PR'd and merged to `master`. Then branch `feat/17-4-coach-my-classes` from that `master` and record the commit as `baseline_commit` in this file's frontmatter. Do not stack 17.4 on an uncommitted tree.
+  - [ ] Story 17.2 (`20b06b3`), this story file and its `epics.md`/`EXPERIENCE.md` amendments (`09fbe14`) are committed on `feat/17-2-gym-health-cards` and PR'd as #12. Confirm PR #12 is merged to `master`, then branch `feat/17-4-coach-my-classes` from that `master` and record the commit as `baseline_commit` in this file's frontmatter. Do not start from the 17.2 branch.
 
 - [ ] **Task 1: migration 0096 (AC: #1, #2, #3, #4, #5)**
   - [ ] Create `supabase/migrations/0096_coach_portal_my_classes.sql` with AC #1's exact SQL, the header comment and the verify block, and no comments inside function bodies
@@ -508,9 +520,9 @@ so that I know what I am teaching and who to expect, without asking the front de
 
 - **Why "from start of today" (decided).** `mark_class_attendance()` sets `attended_at = now()` when the desk marks a booked member present (`0068:121`), which happens at or after the session starts. A strictly upcoming list would drop a session the moment it began, so AD-21's "✓ attended" would essentially never render. The admin page solves the same problem with a 3-hour grace (`services/classes.ts:7-12`); the product owner chose gym-local today instead.
 
-- **Why the day start is inlined, not 0097's helper.** Migrations apply in filename order, and `supabase db reset` in CI does too. So 0096 runs **before** 0097 creates `private.gym_local_day_bounds()`. A `language sql` body referencing it would fail at creation, and a plpgsql body would be a hidden forward dependency. The inlined expression is character-for-character that helper's `day_start` (`0097`, AC #9 of 17.2). The DST trap 0095/0097 warn about is `+ interval` placed after the `at time zone` round trip, and there is **no** interval here. AC #14's `pg_get_functiondef` assertion pins that.
+- **Why the day start is inlined, not 0097's helper.** Migrations apply in filename order, and `supabase db reset` in CI does too. So 0096 runs **before** 0097 creates `private.gym_local_day_bounds()`. A `language sql` body referencing it would fail at creation, and a plpgsql body would be a hidden forward dependency. The inlined expression is `0097:63`'s `day_start` with `p_at := now()` and `p_timezone := g.timezone`. The DST trap 0095/0097 warn about is `+ interval` placed after the `at time zone` round trip, and there is **no** interval here. AC #14's `pg_get_functiondef` assertion pins that.
 
-- **Why a suspension guard in a read-only function.** AD-3 binds "every `SECURITY DEFINER` function that gates on role or gym status", and these gate on role. `tenant_active_gate` does nothing inside DEFINER functions (`0090:9-19`). The two existing read-only DEFINER functions, `list_bookable_class_sessions()` and `list_my_class_bookings()` (0078) and `get_workout_plan_viewer_context()`, carry no guard: the first two predate 0090, and the third was deliberately left alone by 11.9 and its review deferred. This is new code, so it follows AD-3.
+- **Why a suspension guard in a read-only function.** AD-3 binds "every `SECURITY DEFINER` function that gates on role or gym status", and these gate on role. `tenant_active_gate` does nothing inside DEFINER functions (`0090:9-19`). The three existing read-only DEFINER functions, `list_bookable_class_sessions()` and `list_my_class_bookings()` (0078) and `get_workout_plan_viewer_context()`, carry no guard: the first two predate 0090, and the third was deliberately left alone by 11.9 and its review deferred. This is new code, so it follows AD-3.
   - **Placement:** the guard sits **below** caller resolution, so a non-coach at a suspended gym learns nothing about the gym's status (`0090:76-80`).
   - **Why it is unreachable in practice:** `(dashboard)/layout.tsx:58-104` renders the suspended screen before any child route. The guard protects direct PostgREST callers, and the service maps the raise to `gym_suspended` via `mapSupabaseError`.
 
@@ -579,7 +591,7 @@ so that I know what I am teaching and who to expect, without asking the front de
   3. The `max_rows` ceiling on `list_my_classes()` above.
   4. Finished one-off classes accumulate in My Classes with "No upcoming session", because classes have no archive (shared with the admin page).
 
-- **Deploy.** Production is at `0094`; `0095` is merged but not deployed; `0097` is in 17.2. **One batch, in order 0095 → 0096 → 0097**, over host `psql` in the shape of `scripts/deploy-0090-0094.sh`: each migration in its own `ON_ERROR_STOP` transaction, with its ledger row inserted in that same transaction. Never `supabase db push`. `sprint-change-proposal-2026-09-09.md` §5 asks the architect to review 0096 before production. Writing the deploy script is **not** this story's job; do not deploy.
+- **Deploy.** Production is at `0094`; `0095` is merged but not deployed; `0097` is in 17.2. **One batch, in order 0095 → 0096 → 0097**, over host `psql` in the shape of `scripts/deploy-0090-0094.sh`: each migration in its own `ON_ERROR_STOP` transaction, with its ledger row inserted in that same transaction. Never `supabase db push`. `sprint-change-proposal-2026-09-09.md` §5 asks the architect to review 0096 before production. Locally, new `public` functions are not auto-granted to `anon`, but production is an older project and may still auto-grant. So the release's post-deploy checks should confirm `has_function_privilege('anon', 'public.list_my_classes()', 'EXECUTE')` and the roster equivalent are both false. Exposure would still be harmless (with no `gym_id` claim both functions return nothing), but AC #2's claim should be checked on production, not only locally. Writing the deploy script is **not** this story's job; do not deploy.
 
 - **Testing stack.** Vitest 4.1.10, `@testing-library/react` 16.3.2 and `@testing-library/user-event` 14.6.4 (jsdom, co-located `*.test.ts(x)`, `globals` off; `vitest.setup.ts` registers `cleanup`). pgTAP lives in `supabase/tests/` and runs over host psql. Async Server Components are tested by awaiting the component function (`coach/overview/page.test.tsx:37-41`).
 
@@ -617,7 +629,7 @@ so that I know what I am teaching and who to expect, without asking the front de
   - `coach/layout.tsx`, `coach/components/CoachPortalNav.tsx`, `coach/overview/**`, `coach/page.tsx`, `coach/[memberId]/**`
   - `components/shared/Sidebar.tsx`
   - `app/(dashboard)/classes/**`, and the existing exports of `services/classes.ts`
-  - every migration before 0096, and `suspension_rpc_coverage.test.sql`
+  - migrations 0001–0095 and 0097, and `suspension_rpc_coverage.test.sql`
   - every RLS policy
 - The per-route `components/` folder convention holds: `coach/components/` for Portal-wide components, and `coach/classes/components/` for this route's own component, mirroring `classes/components/`. The Server Action sits beside the route (`coach/[memberId]/actions.ts` and `classes/actions.ts` are the precedents).
 
@@ -627,7 +639,7 @@ so that I know what I am teaching and who to expect, without asking the front de
 - [Source: _bmad-output/planning-artifacts/epics.md#Epic 17 — story table, dependency order (17.4 release-blocking), scope boundary (zero RLS policies); #Story 17.5 — My Next Sessions reuses list_my_classes()]
 - [Source: _bmad-output/planning-artifacts/sprint-change-proposal-2026-09-09.md — Finding 2 (roster names), Finding 3 (class metadata gym-readable), §5 (architect review of 0096)]
 - [Source: _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md:557 FR-145; :555 FR-144; :429 FR-053 (amended); :605 FR-089; :725 FR-107]
-- [Source: _bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md:1792-1824 AD-21 (as amended 2026-09-10); :1780 AD-20 My Next Sessions; :227-235 role matrix + sub-nav; :33 absent-not-disabled]
+- [Source: _bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md:1792-1825 AD-21 (as amended 2026-09-10); :1780 AD-20 My Next Sessions; :227-235 role matrix + sub-nav; :33 absent-not-disabled]
 - [Source: _bmad-output/planning-artifacts/architecture/architecture-gym_os-2026-08-11/ARCHITECTURE-SPINE.md — AD-3 (live role helpers, no new app_role call sites), AD-7, AD-8, AD-9; Consistency Conventions (dates UTC on the wire, locale formatting at render)]
 - [Source: docs/decisions.md#2026-09-09 — Suspension enforcement inside SECURITY DEFINER RPCs (Story 11.8); #2026-09-09 — Workout-plan tables gated (Story 11.9); #2026-08-31 — Member App Classes Surfaces (Story 12.4); #2026-08-27 — Class Attendance Marking; #2026-08-19 — Class booking with capacity enforcement; #2026-09-10 — Story 17.2 (release batch order)]
 - [Source: _bmad-output/implementation-artifacts/17-3-coach-portal-sub-navigation-landing.md — AC #11 (route shell owned by 17.4), sequencing note, AC #14 (no role guard)]
