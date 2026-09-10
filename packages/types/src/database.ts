@@ -2094,6 +2094,30 @@ export type Database = {
           scheduled_at: string
         }[]
       }
+      list_my_class_session_roster: {
+        Args: { p_class_session_id: string }
+        Returns: {
+          attended_at: string | null
+          member_id: string
+          member_name: string
+        }[]
+      }
+      list_my_classes: {
+        Args: never
+        Returns: {
+          booked_count: number
+          capacity: number
+          class_id: string
+          class_name: string
+          class_session_id: string | null
+          gym_timezone: string
+          one_off_session_at: string | null
+          recurrence_days: number[] | null
+          recurrence_time: string | null
+          schedule_type: string
+          scheduled_at: string | null
+        }[]
+      }
       list_own_active_gym_memberships: {
         Args: never
         Returns: {

@@ -1,6 +1,10 @@
+---
+baseline_commit: b1004b9
+---
+
 # Story 17.4: Coach Portal — My Classes & Session Roster
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -461,48 +465,59 @@ so that I know what I am teaching and who to expect, without asking the front de
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0: branch hygiene (before any code)**
-  - [ ] Story 17.2 (`20b06b3`), this story file and its `epics.md`/`EXPERIENCE.md` amendments (`09fbe14`) are committed on `feat/17-2-gym-health-cards` and PR'd as #12. Confirm PR #12 is merged to `master`, then branch `feat/17-4-coach-my-classes` from that `master` and record the commit as `baseline_commit` in this file's frontmatter. Do not start from the 17.2 branch.
+- [x] **Task 0: branch hygiene (before any code)**
+  - [x] Story 17.2 (`20b06b3`), this story file and its `epics.md`/`EXPERIENCE.md` amendments (`09fbe14`) are committed on `feat/17-2-gym-health-cards` and PR'd as #12. Confirm PR #12 is merged to `master`, then branch `feat/17-4-coach-my-classes` from that `master` and record the commit as `baseline_commit` in this file's frontmatter. Do not start from the 17.2 branch.
 
-- [ ] **Task 1: migration 0096 (AC: #1, #2, #3, #4, #5)**
-  - [ ] Create `supabase/migrations/0096_coach_portal_my_classes.sql` with AC #1's exact SQL, the header comment and the verify block, and no comments inside function bodies
-  - [ ] Apply locally: `PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 -1 -f supabase/migrations/0096_coach_portal_my_classes.sql`. Insert no ledger row, as for 0092–0097 locally (local ledger head is 0091), and say so in the Debug Log. Applying 0096 after 0097 locally is fine, because 0096 does not depend on 0097
-  - [ ] `pg_proc`: both `prosecdef = t`, `provolatile = s`, `proacl = {postgres=X/postgres,authenticated=X/postgres}`, `proconfig = {"search_path=public, pg_temp"}`; `has_function_privilege('anon', …) = f`
+- [x] **Task 1: migration 0096 (AC: #1, #2, #3, #4, #5)**
+  - [x] Create `supabase/migrations/0096_coach_portal_my_classes.sql` with AC #1's exact SQL, the header comment and the verify block, and no comments inside function bodies
+  - [x] Apply locally: `PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 -1 -f supabase/migrations/0096_coach_portal_my_classes.sql`. Insert no ledger row, as for 0092–0097 locally (local ledger head is 0091), and say so in the Debug Log. Applying 0096 after 0097 locally is fine, because 0096 does not depend on 0097
+  - [x] `pg_proc`: both `prosecdef = t`, `provolatile = s`, `proacl = {postgres=X/postgres,authenticated=X/postgres}`, `proconfig = {"search_path=public, pg_temp"}`; `has_function_privilege('anon', …) = f`
 
-- [ ] **Task 2: types (AC: #6)**: hand-add both entries; record that they were hand-added
+- [x] **Task 2: types (AC: #6)**: hand-add both entries; record that they were hand-added
 
-- [ ] **Task 3: services + action (AC: #7, #8)**
-  - [ ] `listMyClasses()`, `listMyClassSessionRoster()` and the three exported types in `services/classes.ts`
-  - [ ] `app/(dashboard)/coach/classes/actions.ts` with `getMySessionRosterAction`
+- [x] **Task 3: services + action (AC: #7, #8)**
+  - [x] `listMyClasses()`, `listMyClassSessionRoster()` and the three exported types in `services/classes.ts`
+  - [x] `app/(dashboard)/coach/classes/actions.ts` with `getMySessionRosterAction`
 
-- [ ] **Task 4: page + client component + loading (AC: #9, #10, #11, #12)**
-  - [ ] Rewrite `coach/classes/page.tsx`: new header comment, server formatting helpers, empty and error states
-  - [ ] Create `coach/classes/components/CoachClassesPageClient.tsx`
-  - [ ] Replace `coach/classes/loading.tsx` with the 3-row skeleton
+- [x] **Task 4: page + client component + loading (AC: #9, #10, #11, #12)**
+  - [x] Rewrite `coach/classes/page.tsx`: new header comment, server formatting helpers, empty and error states
+  - [x] Create `coach/classes/components/CoachClassesPageClient.tsx`
+  - [x] Replace `coach/classes/loading.tsx` with the 3-row skeleton
 
-- [ ] **Task 5: i18n (AC: #13)**: delete `pendingNote`, add the four keys in EN and FR, run the parity script, `git grep pendingNote apps/dashboard` → nothing
+- [x] **Task 5: i18n (AC: #13)**: delete `pendingNote`, add the four keys in EN and FR, run the parity script, `git grep pendingNote apps/dashboard` → nothing
 
-- [ ] **Task 6: tests (AC: #14, #15)**
-  - [ ] `supabase/tests/coach_portal_my_classes.test.sql`, then the full pgTAP suite over host psql
-  - [ ] The four Vitest files, red before green where practical
+- [x] **Task 6: tests (AC: #14, #15)**
+  - [x] `supabase/tests/coach_portal_my_classes.test.sql`, then the full pgTAP suite over host psql
+  - [x] The four Vitest files, red before green where practical
 
-- [ ] **Task 7: record-keeping (AC: #17)**: `docs/decisions.md` top entry; `deferred-work.md` section
+- [x] **Task 7: record-keeping (AC: #17)**: `docs/decisions.md` top entry; `deferred-work.md` section
 
-- [ ] **Task 8: verify (AC: #16)**
-  - [ ] `pnpm --filter @gymos/dashboard typecheck`, `lint` (0 errors, no new warnings in touched files), `test`, `build`
-  - [ ] `node scripts/check-i18n-key-parity.mjs`
-  - [ ] Seed local QA data for smartsana's browser pass. **No local coach has any class today** (checked 2026-09-10). As postgres over host psql, in the "Overview QA Gym" (`coach@overviewqa.test` = Cyril QA Coach, `coach2@overviewqa.test` = Celine New Coach):
+- [x] **Task 8: verify (AC: #16)**
+  - [x] `pnpm --filter @gymos/dashboard typecheck`, `lint` (0 errors, no new warnings in touched files), `test`, `build`
+  - [x] `node scripts/check-i18n-key-parity.mjs`
+  - [x] Seed local QA data for smartsana's browser pass. **No local coach has any class today** (checked 2026-09-10). As postgres over host psql, in the "Overview QA Gym" (`coach@overviewqa.test` = Cyril QA Coach, `coach2@overviewqa.test` = Celine New Coach):
     - for Cyril, one recurring class (e.g. Mon/Wed/Fri 18:00 from today) plus one one-off class in the past;
     - materialize with `select private.materialize_sessions_for_class('<id>')`;
     - on today's and a future session, a few `class_bookings` rows for existing QA members, one with `attended_at = now()`;
     - for Celine, one class of her own.
     - Record the ids in the Debug Log.
-  - [ ] List in Completion Notes for smartsana's manual browser pass (they do browser QA themselves):
+  - [x] List in Completion Notes for smartsana's manual browser pass (they do browser QA themselves):
     - as Cyril: `/coach/classes` shows only his classes, with times in gym-local 24h; the counts match the seeded bookings; expanding a session shows names plus Attended / "—"; no write control anywhere; the past one-off class shows "No upcoming session";
     - as Celine: only her class;
     - as the owner: `/coach/classes` by URL shows the empty state, and `/classes` is unchanged;
     - EN/FR;
     - the skeleton shows while navigating from My Members to My Classes.
+
+### Review Findings
+
+- [x] [Review][Patch] Bound `list_my_class_session_roster()` to sessions from 00:00 today in the gym's timezone, the same window as `list_my_classes()` (decision resolved by smartsana, 2026-09-10: "limit to today onward"). This amends AC #4, and pgTAP's "yesterday's session still returns its booking" case becomes an empty-set assertion. Finding: a class's new coach can read the rosters of every past session of that class. `update_class` lets a manager change `classes.coach_id` (ClassModal's coach select), and `list_my_class_session_roster()` is not time-bounded. A newly assigned coach can therefore fetch names and attendance for past sessions they never taught, and the previous coach loses access to them. Session ids are readable by any gym user through `gym_staff_read_own_class_sessions`. The page never lists past sessions, since its window starts at gym-local 00:00 today, so this is reachable only by calling the RPC directly. It also makes the migration header's "a bound would protect nothing they do not already teach" false. Options: bound the roster to `list_my_classes()`'s window, or keep it unbounded and correct the header. [supabase/migrations/0096_coach_portal_my_classes.sql:94]
+- [x] [Review][Patch] A rejected roster request leaves the panel on "loading" forever. `toggleSession` awaits `getMySessionRosterAction` with no try/catch, so a network drop or a stale action id after a redeploy rejects the promise, the state never leaves `loading`, and the rejection goes unhandled. [apps/dashboard/app/(dashboard)/coach/classes/components/CoachClassesPageClient.tsx:68]
+- [x] [Review][Patch] No pgTAP case proves the suspension guard sits below caller resolution. Only the suspended gym's coach is called; a non-coach at that gym should get an empty set from both functions, not a raise. [supabase/tests/coach_portal_my_classes.test.sql:346]
+- [x] [Review][Patch] The suspended-gym mapping test does not cover the two new raises: `list_my_classes` and `list_my_class_session_roster` are missing from `GATED_RPCS`. [apps/dashboard/lib/errors.gymSuspended.test.ts:24]
+- [x] [Review][Patch] The `max_rows` estimate assumes three sessions a week. The materializer creates one session per matching day over four weeks, so a daily class has about 29 sessions and roughly 35 daily classes reach 1000 rows, not about 80. [supabase/migrations/0096_coach_portal_my_classes.sql:101]
+- [x] [Review][Patch] Dates carry no year. A finished one-off class stays listed indefinitely, and a year later its label reads like an upcoming date. [apps/dashboard/app/(dashboard)/coach/classes/page.tsx:76]
+- [x] [Review][Patch] The grouping test never groups a second class with more than one session, which AC #15 asks for (2 classes × sessions). [apps/dashboard/services/classes.listMyClasses.test.ts:99]
+- [x] [Review][Patch] `docs/decisions.md` cites "the 2026-09-09 workout-plan entry" rather than its dated heading (AC #17). [docs/decisions.md:17]
 
 ## Dev Notes
 
@@ -663,10 +678,155 @@ so that I know what I am teaching and who to expect, without asking the front de
 
 ### Agent Model Used
 
+Claude Opus 5 (`claude-opus-5[1m]`) via Claude Code, `bmad-dev-story` workflow.
+
 ### Debug Log References
+
+- **Task 0:** PR #12 (17.2 plus this story's docs) merged into `master` as merge commit `b1004b9` after all 9 CI checks passed. `feat/17-4-coach-my-classes` was branched from it, and `baseline_commit` is `b1004b9`.
+- **Task 1:** applied `0096` with `psql -h 127.0.0.1 -p 54322 -v ON_ERROR_STOP=1 -1 -f supabase/migrations/0096_coach_portal_my_classes.sql`. All statements succeeded and the verify block passed.
+  - `pg_proc` for both functions: `prosecdef = t`, `provolatile = s`, `proacl = {postgres=X/postgres,authenticated=X/postgres}`, `proconfig = {"search_path=public, pg_temp"}`, and `anon` has no EXECUTE.
+  - No ledger row was inserted. The local ledger head stays `0091`, as for `0092`–`0097`.
+- **Red → green:**
+  - **Services:** all 11 new tests were red on the missing exports, and green after implementation.
+  - **Components:** `page.test.tsx` (rewritten) and `CoachClassesPageClient.test.tsx` were red on the missing modules. All 36 of 17.4's Vitest tests passed on the first run after implementation.
+  - **Typecheck** then caught an implicit `any` in the roster `.map`: the `data ?? []` union loses contextual typing. Fixed with an explicit row type.
+  - **`git grep pendingNote apps/dashboard`** still matched the page test's own negative assertion. Replaced it with an exact-tree assertion that names no key.
+  - **pgTAP** (`coach_portal_my_classes.test.sql`): 54/54 on the first run, but **not red first**. `0096` was already applied in Task 1, so the file was written against existing functions. Its results match Dev Notes → *Measured* exactly.
+- **Final verification:**
+  - `pnpm --filter @gymos/dashboard test`: 59 files / 463 tests, up from 56 / 428 (3 new files, 35 new tests).
+  - `typecheck`: exit 0.
+  - `lint`: 0 errors and the same 15 warnings as before, none in a touched file.
+  - `node scripts/check-i18n-key-parity.mjs`: clean, dashboard 771 keys.
+  - `git grep pendingNote apps/dashboard`: empty.
+  - `pnpm --filter @gymos/dashboard build`: exit 0, with `/coach/classes` Partial Prerender (◐). No dev server was running.
+  - **Full pgTAP suite** over host psql with `set search_path = public, extensions;` prepended: 97 files, 2098 assertions, 0 failures. `suspension_rpc_coverage.test.sql` is unmodified and green.
+- **Task 8, QA seed** (committed to the local DB; "Overview QA Gym" `00000000-0000-4000-9171-000000000001`, Africa/Douala):
+  - **Cyril QA Coach** (`coach@overviewqa.test`, member `…0701`):
+    - `QA HIIT Circuit`: recurring Mon/Wed/Fri 18:00, capacity 15, 12 sessions materialized (`4d54642b-6fbf-4380-b1cc-dde7ac31f68d`);
+    - `QA Lunch Express`: one-off today at 12:00 local (`5a445bfa-3b17-4932-b40b-6f0d95905130`);
+    - `QA Past Workshop`: one-off 10 days ago (`235f075f-3180-46b2-ae6f-dde8030ff742`).
+  - **Celine New Coach** (`coach2@overviewqa.test`, member `…0702`): `QA Morning Yoga`, Tue/Thu 07:00, capacity 12 (`45767791-032d-4141-929f-01687719efd5`).
+  - **Bookings:**
+    - Lunch Express today: Aicha Mbarga (attended) and Blaise Nkodo;
+    - HIIT 2026-09-11 18:00: Aicha, Blaise and Carine Etoa;
+    - Yoga 2026-09-15 07:00: Carine.
+  - **Read back through the RPCs** under each coach's claims, rolled back:
+    - Cyril sees only his three classes: HIIT 3/15 on the next session, and Lunch Express with Aicha attended.
+    - Celine sees only Morning Yoga, including today's already-started 07:00 session.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created. Story created 2026-09-10. Two scope decisions were taken with smartsana during creation and written into `epics.md` and `EXPERIENCE.md`: a second SECURITY DEFINER function, and a window from gym-local start of today. Both functions' SQL and every authorization case were proven on the local DB in a rolled-back transaction.
+- **AC #1–#5, migration `0096`:**
+  - AC #1's SQL and verify block are used verbatim, with no comments inside either function body.
+  - The header covers every point AC #1 lists.
+  - Applied locally, not deployed; the release batch is `0095` → `0096` → `0097`.
+  - No RLS policy was created, altered or dropped. The four tables' policy sets are pinned by `policies_are`.
+- **AC #6, types:** hand-added between `list_my_class_bookings` and `list_own_active_gym_memberships`, with nullable columns typed `| null`. `supabase gen types` was not attempted: 17.1 recorded that it writes 0 bytes here. No other entries were touched.
+- **AC #7–#8, services and action:**
+  - `listMyClasses()` groups rows per class in SQL order, turns a null-session row into `sessions: []`, uses `Number()` for counts, and returns `[]` for zero rows or a null result.
+  - `listMyClassSessionRoster()` maps the three columns to `CoachRosterRow`.
+  - Neither reads claims: the RPC resolves the Coach and the gym.
+  - `getMySessionRosterAction` is the route's only Server Action.
+- **AC #9, #10, #12, page:**
+  - One `listMyClasses()` call.
+  - Inline `common.loadError` on error; AD-21's empty state in AD-14's dashed box when there are no classes.
+  - Otherwise every label is formatted on the server with one `Intl.DateTimeFormat` using the first row's `gymTimezone`, `hourCycle: "h23"`.
+  - A recurring schedule uses `classes.recurringSummary` with a local copy of `DAY_KEY`; one-off schedules and session times use the formatter.
+  - The page test proves the same instant reads 18:00 for an Africa/Douala gym and 17:00 for a UTC gym.
+  - `loading.tsx` is 3 text-free rows with `aria-busy`, and is also the page's Suspense fallback.
+- **AC #11, client component:**
+  - Class headers are `<h2>`-wrapped disclosure buttons; session rows are disclosure buttons.
+  - Classes open independently; one session is expanded at a time.
+  - The roster is fetched on every expand, and stale responses are dropped by a request counter. Collapsing a class that holds the expanded session also invalidates that session's request.
+  - The panel shows inline loading, error and empty states.
+  - Attendance status is read-only: the green Attended badge, or "—" with a `sr-only` "Not marked attended".
+  - **Implementation choice:** the session-list and roster containers are always rendered with the `hidden` attribute rather than mounted conditionally, so every `aria-controls` points at an element that exists. Those containers carry no `display` utility class that could fight `[hidden]`.
+  - The only interactive elements on the page are disclosure buttons, which the component test asserts.
+- **AC #13, i18n:** `pendingNote` deleted; `emptyNoClasses`, `capacity`, `bookedCount` and `notAttended` added in EN and FR. Existing `classes.*` keys are reused.
+- **AC #14, pgTAP:** 54 assertions covering:
+  - shape, privileges and the pinned `search_path`;
+  - the inline day-start expression, and no `interval` anywhere;
+  - exactly three roster columns;
+  - the four policy sets;
+  - the receptionist positive control against the coach's zero plain-RLS reads of bookings and names;
+  - coach A1's rows and rosters;
+  - A2's own class;
+  - empty results for the deactivated coach, manager, receptionist, member, forged claim, no gym claim and a wrong gym claim;
+  - the UTC+14 local-midnight boundary;
+  - the suspended gym's raises;
+  - the demoted coach with a stale JWT, with claims cleared before the role UPDATE.
+- **AC #15, Vitest:** 36 tests across the four files: `listMyClasses` 7, roster 4, page 12, client component 13.
+- **AC #16, regressions:** `coach/layout.tsx`, `CoachPortalNav`, `coach/overview/**`, `coach/page.tsx`, `coach/[memberId]/**`, `Sidebar.tsx`, the admin `classes/**` page, the existing `services/classes.ts` exports, every earlier migration, `0097` and `suspension_rpc_coverage.test.sql` are all untouched. The build passes with `/coach/classes` still ◐.
+- **AC #17:** a `docs/decisions.md` top entry, and a `deferred-work.md` section with the four "found, not fixed" items.
+- **For smartsana's browser pass** (log in at the local dashboard; the data above is seeded):
+  - **As `coach@overviewqa.test`:**
+    - `/coach/classes` lists QA HIIT Circuit, QA Lunch Express and QA Past Workshop, all collapsed;
+    - HIIT expands to sessions from today at 18:00 local, the next one showing 3/15;
+    - expanding it shows Aicha, Blaise and Carine with "—";
+    - Lunch Express shows Aicha Attended and Blaise "—";
+    - Past Workshop shows "No upcoming session";
+    - no button other than the expand toggles;
+    - Coach Portal and My Classes are lit.
+  - **As `coach2@overviewqa.test`:** only QA Morning Yoga, including today's 07:00 session.
+  - **As the owner:** `/coach/classes` by URL shows the empty state, and `/classes` is unchanged.
+  - **Language and loading:** EN and FR; the 3-row skeleton while navigating from My Members.
 
 ### File List
+
+New:
+- `supabase/migrations/0096_coach_portal_my_classes.sql`
+- `supabase/tests/coach_portal_my_classes.test.sql`
+- `apps/dashboard/app/(dashboard)/coach/classes/actions.ts`
+- `apps/dashboard/app/(dashboard)/coach/classes/components/CoachClassesPageClient.tsx`
+- `apps/dashboard/app/(dashboard)/coach/classes/components/CoachClassesPageClient.test.tsx`
+- `apps/dashboard/services/classes.listMyClasses.test.ts`
+- `apps/dashboard/services/classes.listMyClassSessionRoster.test.ts`
+
+Modified:
+- `apps/dashboard/app/(dashboard)/coach/classes/page.tsx` (rewritten)
+- `apps/dashboard/app/(dashboard)/coach/classes/loading.tsx` (replaced)
+- `apps/dashboard/app/(dashboard)/coach/classes/page.test.tsx` (rewritten)
+- `apps/dashboard/services/classes.ts` (additions only)
+- `apps/dashboard/locales/en.json`
+- `apps/dashboard/locales/fr.json`
+- `packages/types/src/database.ts`
+- `docs/decisions.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/17-4-coach-portal-my-classes-session-roster.md`
+
+Code review (2026-09-10):
+- Modified: `apps/dashboard/lib/errors.gymSuspended.test.ts` (the two new functions added to `GATED_RPCS`), plus further edits to `supabase/migrations/0096_coach_portal_my_classes.sql`, `supabase/tests/coach_portal_my_classes.test.sql`, `coach/classes/page.tsx`, `coach/classes/page.test.tsx`, `coach/classes/components/CoachClassesPageClient.tsx` and its test, `services/classes.listMyClasses.test.ts`, `docs/decisions.md` and `deferred-work.md`
+
+## Change Log
+
+- 2026-09-10 — dev-story: Story 17.4 implemented (Tasks 0–8).
+  - **Database:** migration `0096` adds `list_my_classes()` and `list_my_class_session_roster()`, both SECURITY DEFINER, read-only, resolving the caller from a live members row, carrying the suspension guard, and changing no RLS policy. Applied locally.
+  - **Types:** two entries in `database.ts`.
+  - **Services and action:** two services and one Server Action.
+  - **Page:** `/coach/classes` rebuilt from 17.3's shell, with server-formatted gym-local labels, a read-only disclosure list with a lazy roster, and AD-21's skeleton and empty state.
+  - **i18n:** four EN/FR keys, and the placeholder note removed.
+  - **Tests:** 4 Vitest files (36 tests) and 1 pgTAP file (54 assertions).
+  - **Record-keeping:** `decisions.md` and `deferred-work.md` entries.
+  - **Local QA:** classes and bookings seeded.
+  - **Verification:** full Vitest, typecheck, lint, i18n parity, `next build` and the full pgTAP suite all green.
+  - Status → review.
+- 2026-09-10 — manual QA: smartsana's browser pass on the local dev server (Overview QA Gym, seeded classes and bookings) reported "all passing". smartsana also questioned the product value of a Coach having a `/coach/classes` page at all. That question is open with the product owner, and code review has not run. Status stays review.
+- 2026-09-10 — product decisions (smartsana): My Classes stays for the Coach. The concern had been an owner reaching `/coach/classes` by URL, and no route guard is added on `/coach/*`. Owner/supervisor visibility of member progress is a separate future story, created via correct-course with member consent, outside Epic 17.
+- 2026-09-10 — code review: three parallel layers (Blind Hunter, Edge Case Hunter, Acceptance Auditor) over the uncommitted diff against `b1004b9`; none failed.
+  - **Result:** 26 findings. No acceptance criterion violated, 17 dismissed, 0 deferred.
+    - **Dismissed, verified unreachable:** gym timezone is enum-validated on write; the ClassModal saves recurrence days sorted.
+    - **Dismissed, spec-pinned or decided:** the page-load booked count; the owner empty state; attendance markup; no id validation on the action; per-function copies.
+    - **Dismissed, covered elsewhere:** the zone is already proven by the 18:00 vs 17:00 test.
+  - **1 decision, resolved by smartsana ("limit to today onward"):** `list_my_class_session_roster()` is now bounded to sessions from gym-local 00:00 today, the same window as `list_my_classes()`. Otherwise a class's newly assigned coach could read the names and attendance of past sessions they never taught.
+  - **7 patches, all applied:**
+    - a rejected roster call shows the inline error instead of an endless spinner;
+    - pgTAP proves a non-coach at a suspended gym gets an empty set, not the raise;
+    - both functions added to `errors.gymSuspended.test.ts`'s `GATED_RPCS`;
+    - `max_rows` estimate corrected (about 35 daily classes, not 80);
+    - dates outside the current gym-local year show the year;
+    - the grouping test covers a second class with several sessions;
+    - the `decisions.md` citation now uses its dated heading.
+  - **Verification:** `0096` re-applied locally (drop and re-create). pgTAP `coach_portal_my_classes.test.sql` 58/58; full pgTAP 97 files / 2102 assertions / 0 failures; dashboard Vitest 59 files / 469 tests; typecheck 0; lint 0 errors (15 warnings unchanged); i18n parity clean; `next build` exit 0 with `/coach/classes` still ◐.
+  - Status → done.

@@ -644,7 +644,10 @@
       }
     },
     "classes": {
-      "pendingNote": "Les horaires des cours et les listes de participants ne sont pas encore disponibles sur cette page."
+      "emptyNoClasses": "Aucun cours ne vous est encore assigné. Votre gérant programme les cours et y assigne un coach.",
+      "capacity": "Capacité {{capacity}}",
+      "bookedCount": "{{booked}}/{{capacity}} inscrits",
+      "notAttended": "Présence non enregistrée"
     },
     "detail": {
       "notFound": "Ce membre est introuvable.",

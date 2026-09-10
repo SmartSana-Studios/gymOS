@@ -644,7 +644,10 @@
       }
     },
     "classes": {
-      "pendingNote": "Class schedules and session rosters are not available on this page yet."
+      "emptyNoClasses": "You are not assigned to any classes yet. Your manager schedules classes and assigns a coach.",
+      "capacity": "Capacity {{capacity}}",
+      "bookedCount": "{{booked}}/{{capacity}} booked",
+      "notAttended": "Not marked attended"
     },
     "detail": {
       "notFound": "This member could not be found.",
