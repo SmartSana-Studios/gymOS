@@ -506,6 +506,25 @@ export async function searchMembersForPayment(
 // writer of `payment_discrepancies` -- nothing below ever inserts/updates it.
 // ============================================================================
 
+/**
+ * Story 17.1 (AD-02 "Revenue this month"): net month-to-date revenue for the
+ * caller's own gym -- verified payments minus refunds, both in the current
+ * gym-local calendar month. Computed by the `gym_revenue_mtd()` aggregate
+ * (0095), never by fetching payment rows and summing here: `max_rows = 1000`
+ * would truncate that fetch silently. Takes no gym id -- the function is
+ * SECURITY INVOKER and resolves the gym from `private.gym_id()`, so RLS
+ * scopes it. The figure can be negative in a month whose refunds exceed its
+ * takings; callers render it as-is.
+ */
+export async function getRevenueMtd(): Promise<{ data: number | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("gym_revenue_mtd");
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: data ?? 0, error: null };
+}
+
 export interface PaymentDiscrepancyRow {
   id: string;
   discrepancyType: "stale_processing" | "amount_mismatch" | "wrong_account_settlement";

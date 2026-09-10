@@ -4,7 +4,7 @@ baseline_commit: be642d0d547b2b190b513096cc3a125ec8604732
 
 # Story 17.1: Staff Overview — Operational Cards & Live Tables (AD-02)
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -56,9 +56,9 @@ so that the first screen I open answers "who is here, who needs attention, and w
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — Migration `0095_gym_revenue_mtd.sql` (AC: #4, #5, #6, #7)
-  - [ ] `create function gym_revenue_mtd() returns bigint language sql stable set search_path = public, pg_temp` — `create function`, not `create or replace` (new object); no `begin;`/`commit;` wrapper (the applier supplies the transaction — zero migrations in this repo contain them)
-  - [ ] Use this body **exactly** — it was compiled and smoke-tested against this repo's local Supabase schema during story creation. Note it is a pure `language sql` function with the month bounds inlined: an earlier draft used `v_month_start`/`v_month_end` variables, which do not exist in a plain SQL function (they would require `language plpgsql` and a `declare` block). Do not reintroduce them.
+- [x] Task 1 — Migration `0095_gym_revenue_mtd.sql` (AC: #4, #5, #6, #7)
+  - [x] `create function gym_revenue_mtd() returns bigint language sql stable set search_path = public, pg_temp` — `create function`, not `create or replace` (new object); no `begin;`/`commit;` wrapper (the applier supplies the transaction — zero migrations in this repo contain them)
+  - [x] Use this body **exactly** — it was compiled and smoke-tested against this repo's local Supabase schema during story creation. Note it is a pure `language sql` function with the month bounds inlined: an earlier draft used `v_month_start`/`v_month_end` variables, which do not exist in a plain SQL function (they would require `language plpgsql` and a `declare` block). Do not reintroduce them.
 
 ```sql
 create function gym_revenue_mtd()
@@ -90,63 +90,71 @@ revoke execute on function gym_revenue_mtd from public;
 grant execute on function gym_revenue_mtd to authenticated;
 ```
 
-  - [ ] The `at time zone` round-trip is the idiom already used at `0056_quiet_gym_alert_opt_in_delivery.sql:509` and `0057_class_creation_scheduling.sql:245`, and the window is half-open `[start, end)` — never `between`. Verified for Africa/Douala (UTC+1): gym-local September resolves to `2026-08-31 23:00+00` through `2026-09-30 23:00+00`, so a payment at 00:30 local on Sep 1 counts in September and one at 00:30 local on Oct 1 does not
-  - [ ] **Do not** write `security definer`. Do not add a `private.current_gym_status()` guard. Do not touch `suspension_rpc_coverage.test.sql`
-  - [ ] `revoke execute on function gym_revenue_mtd from public;` then `grant execute on function gym_revenue_mtd to authenticated;` — both explicit
-  - [ ] Header comment in the house style (see `0092`/`0094`): what this closes, why the aggregate rather than a client-side sum (`max_rows = 1000`), why `SECURITY INVOKER` rather than `DEFINER`, why `created_at` and what that costs at a month boundary, and why refunds subtract
-  - [ ] Trailing `do $verify$ ... $verify$;` self-assertion block asserting the function exists and that `EXECUTE` is not granted to `PUBLIC`, with messages prefixed `'0095: '` — matching `0094`'s discipline
+  - [x] The `at time zone` round-trip is the idiom already used at `0056_quiet_gym_alert_opt_in_delivery.sql:509` and `0057_class_creation_scheduling.sql:245`, and the window is half-open `[start, end)` — never `between`. Verified for Africa/Douala (UTC+1): gym-local September resolves to `2026-08-31 23:00+00` through `2026-09-30 23:00+00`, so a payment at 00:30 local on Sep 1 counts in September and one at 00:30 local on Oct 1 does not
+  - [x] **Do not** write `security definer`. Do not add a `private.current_gym_status()` guard. Do not touch `suspension_rpc_coverage.test.sql`
+  - [x] `revoke execute on function gym_revenue_mtd from public;` then `grant execute on function gym_revenue_mtd to authenticated;` — both explicit
+  - [x] Header comment in the house style (see `0092`/`0094`): what this closes, why the aggregate rather than a client-side sum (`max_rows = 1000`), why `SECURITY INVOKER` rather than `DEFINER`, why `created_at` and what that costs at a month boundary, and why refunds subtract
+  - [x] Trailing `do $verify$ ... $verify$;` self-assertion block asserting the function exists and that `EXECUTE` is not granted to `PUBLIC`, with messages prefixed `'0095: '` — matching `0094`'s discipline
 
-- [ ] Task 2 — Types (AC: #17)
-  - [ ] Regenerate or hand-add `gym_revenue_mtd` in `packages/types/src/database.ts`; record which path was taken in Completion Notes
+- [x] Task 2 — Types (AC: #17)
+  - [x] Regenerate or hand-add `gym_revenue_mtd` in `packages/types/src/database.ts`; record which path was taken in Completion Notes
 
-- [ ] Task 3 — Service function (AC: #4, #5, #11)
-  - [ ] Add `getRevenueMtd(): Promise<{ data: number | null; error: AppError | null }>` to `apps/dashboard/services/payments.ts`
-  - [ ] `const { data, error } = await supabase.rpc("gym_revenue_mtd");` → on error `return { data: null, error: await mapAndLog(error) }`; no `p_` args (the RPC takes none). Follow `services/billing.ts:50-72`'s exact shape
-  - [ ] Do not pass a gym id — `private.gym_id()` resolves it server-side, matching every other `.rpc()` call site in this app
+- [x] Task 3 — Service function (AC: #4, #5, #11)
+  - [x] Add `getRevenueMtd(): Promise<{ data: number | null; error: AppError | null }>` to `apps/dashboard/services/payments.ts`
+  - [x] `const { data, error } = await supabase.rpc("gym_revenue_mtd");` → on error `return { data: null, error: await mapAndLog(error) }`; no `p_` args (the RPC takes none). Follow `services/billing.ts:50-72`'s exact shape
+  - [x] Do not pass a gym id — `private.gym_id()` resolves it server-side, matching every other `.rpc()` call site in this app
 
-- [ ] Task 4 — `StatCard` (AC: #15)
-  - [ ] Create `apps/dashboard/components/ui/stat-card.tsx`; no `"use client"`
-  - [ ] Props `{ label, value, href, tone? }`; whole tile wrapped in `<Link href={href}>`; `tone="alert"` reserved for 17.2 (render it in the destructive/alert colour, and only when the caller asks — 17.1 never passes it)
+- [x] Task 4 — `StatCard` (AC: #15)
+  - [x] Create `apps/dashboard/components/ui/stat-card.tsx`; no `"use client"`
+  - [x] Props `{ label, value, href, tone? }`; whole tile wrapped in `<Link href={href}>`; `tone="alert"` reserved for 17.2 (render it in the destructive/alert colour, and only when the caller asks — 17.1 never passes it)
 
-- [ ] Task 5 — Rebuild `(dashboard)/page.tsx` (AC: #1, #2, #8, #11, #13, #16)
-  - [ ] Keep the outer `export default function OverviewPage()` → `<Suspense fallback={<OverviewSkeleton />}><OverviewData /></Suspense>` shape (mandatory under `cacheComponents: true`, `next.config.ts:9`)
-  - [ ] Replace `OverviewFallback` with `OverviewSkeleton`: 3 card skeletons + 2 × 5 row skeletons, house `animate-pulse` idiom. Do NOT add `app/(dashboard)/loading.tsx`
-  - [ ] In `OverviewData`, extend the existing `Promise.all` with `getCurrentlyCheckedIn()`, `listSubscriptions({ status: "expiring_soon" })`, and `getRevenueMtd()`; keep `getDashboardShellContext()`, `listActiveFrontDeskAlerts()`, `canOfferMobileMoneyPayment()` exactly as they are
-  - [ ] Render order: `<FrontDeskAlertPanel>` (unchanged, same props, same `{shell && ...}` gating) → `<h1>{t("overview.title")}</h1>` → stat-card row → checked-in table → expiring table. Delete the `overview.body` `<p>`
-  - [ ] Branch on each result's own `error` independently; render a per-card / per-table error state, never a page-level blank
-  - [ ] Leave a clear seam where 17.2's Manager-plus row 2 will slot in (its own `<Suspense>` beneath the row-1 cards) — do not build it here
+- [x] Task 5 — Rebuild `(dashboard)/page.tsx` (AC: #1, #2, #8, #11, #13, #16)
+  - [x] Keep the outer `export default function OverviewPage()` → `<Suspense fallback={<OverviewSkeleton />}><OverviewData /></Suspense>` shape (mandatory under `cacheComponents: true`, `next.config.ts:9`)
+  - [x] Replace `OverviewFallback` with `OverviewSkeleton`: 3 card skeletons + 2 × 5 row skeletons, house `animate-pulse` idiom. Do NOT add `app/(dashboard)/loading.tsx`
+  - [x] In `OverviewData`, extend the existing `Promise.all` with `getCurrentlyCheckedIn()`, `listSubscriptions({ status: "expiring_soon" })`, and `getRevenueMtd()`; keep `getDashboardShellContext()`, `listActiveFrontDeskAlerts()`, `canOfferMobileMoneyPayment()` exactly as they are
+  - [x] Render order: `<FrontDeskAlertPanel>` (unchanged, same props, same `{shell && ...}` gating) → `<h1>{t("overview.title")}</h1>` → stat-card row → checked-in table → expiring table. Delete the `overview.body` `<p>`
+  - [x] Branch on each result's own `error` independently; render a per-card / per-table error state, never a page-level blank
+  - [x] Leave a clear seam where 17.2's Manager-plus row 2 will slot in (its own `<Suspense>` beneath the row-1 cards) — do not build it here
 
-- [ ] Task 6 — The two tables (AC: #2, #12, #16)
-  - [ ] Currently Checked-In: columns Name (with the initial-avatar circle), Check-in time, Status badge, Check Out action, per AD-02. Reuse `attendance/attendanceLabels.ts`'s `STATUS_BADGE_CONFIG` + `resolveBadgeStatus` and the canonical table classes (`overflow-x-auto rounded-md border` / `w-full text-sm` / `border-b bg-muted/50 text-left` / `p-3 font-medium` / `border-b last:border-0` / `p-3`) from `AttendancePageClient.tsx:196-261`. Per this codebase's explicit per-file-copy discipline (`attendanceLabels.ts:4-9`), copy the label map into the Overview's own folder rather than importing across route folders — `subscriptionLabels.ts` was itself copied from `attendanceLabels.ts`, so copying is unambiguously the convention here
-  - [ ] Expiring This Week: columns Name, Plan, Expiry date, Status badge, Renew button, per AD-02, mirroring `SubscriptionsPageClient.tsx:230-320`. Use `subscriptions/subscriptionLabels.ts`'s `STATUS_BADGE_CONFIG` for its badge — a 4-state map over exactly `subscription_status`, already keyed to `members.status.*`. `attendanceLabels.ts`'s 6-state map plus `resolveBadgeStatus` is for the checked-in table only
-  - [ ] "View all →" links: `/attendance` and `/subscriptions?status=expiring_soon`
-  - [ ] Dates: use `formatLocalDate`'s split-and-reconstruct approach (`SubscriptionsPageClient.tsx:63-66`) for `YYYY-MM-DD` expiry values — a bare `new Date("2026-09-30")` shifts a day under UTC parsing
-  - [ ] Both tables are `"use client"` components under `app/(dashboard)/components/`; the server component fetches and passes rows plus `mobileMoneyEnabled` down as props
-  - [ ] The checked-in table keeps `getCurrentlyCheckedIn()`'s existing check-in-time-ascending order (`attendance.ts:165`), per AD-02 — do not re-sort it
-  - [ ] Both tables render at most 10 rows (`rows.slice(0, 10)`) while the cards show the full `total`
-  - [ ] Renew: reuse `components/shared/RenewalModal.tsx` exactly as `SubscriptionsPageClient.tsx:348` already does. It was deliberately built standalone for this (its own header comment says so) and needs no new plumbing — its `mobileMoneyEnabled` prop comes from the `canOfferMobileMoneyPayment()` call already in `OverviewData`. Make `onRenewed` a `useCallback(..., [])`; see `FrontDeskAlertPanel.tsx:103` for why a stable identity matters here. Do not build a second renewal path
-  - [ ] Check Out: reuse `attendance/components/CheckOutMemberConfirmDialog.tsx` with `AttendancePageClient.tsx:86,249,415-417`'s `checkingOutMember` state pattern. Do not build a second check-out path
+- [x] Task 6 — The two tables (AC: #2, #12, #16)
+  - [x] Currently Checked-In: columns Name (with the initial-avatar circle), Check-in time, Status badge, Check Out action, per AD-02. Reuse `attendance/attendanceLabels.ts`'s `STATUS_BADGE_CONFIG` + `resolveBadgeStatus` and the canonical table classes (`overflow-x-auto rounded-md border` / `w-full text-sm` / `border-b bg-muted/50 text-left` / `p-3 font-medium` / `border-b last:border-0` / `p-3`) from `AttendancePageClient.tsx:196-261`. Per this codebase's explicit per-file-copy discipline (`attendanceLabels.ts:4-9`), copy the label map into the Overview's own folder rather than importing across route folders — `subscriptionLabels.ts` was itself copied from `attendanceLabels.ts`, so copying is unambiguously the convention here
+  - [x] Expiring This Week: columns Name, Plan, Expiry date, Status badge, Renew button, per AD-02, mirroring `SubscriptionsPageClient.tsx:230-320`. Use `subscriptions/subscriptionLabels.ts`'s `STATUS_BADGE_CONFIG` for its badge — a 4-state map over exactly `subscription_status`, already keyed to `members.status.*`. `attendanceLabels.ts`'s 6-state map plus `resolveBadgeStatus` is for the checked-in table only
+  - [x] "View all →" links: `/attendance` and `/subscriptions?status=expiring_soon`
+  - [x] Dates: use `formatLocalDate`'s split-and-reconstruct approach (`SubscriptionsPageClient.tsx:63-66`) for `YYYY-MM-DD` expiry values — a bare `new Date("2026-09-30")` shifts a day under UTC parsing
+  - [x] Both tables are `"use client"` components under `app/(dashboard)/components/`; the server component fetches and passes rows plus `mobileMoneyEnabled` down as props
+  - [x] The checked-in table keeps `getCurrentlyCheckedIn()`'s existing check-in-time-ascending order (`attendance.ts:165`), per AD-02 — do not re-sort it
+  - [x] Both tables render at most 10 rows (`rows.slice(0, 10)`) while the cards show the full `total`
+  - [x] Renew: reuse `components/shared/RenewalModal.tsx` exactly as `SubscriptionsPageClient.tsx:348` already does. It was deliberately built standalone for this (its own header comment says so) and needs no new plumbing — its `mobileMoneyEnabled` prop comes from the `canOfferMobileMoneyPayment()` call already in `OverviewData`. Make `onRenewed` a `useCallback(..., [])`; see `FrontDeskAlertPanel.tsx:103` for why a stable identity matters here. Do not build a second renewal path
+  - [x] Check Out: reuse `attendance/components/CheckOutMemberConfirmDialog.tsx` with `AttendancePageClient.tsx:86,249,415-417`'s `checkingOutMember` state pattern. Do not build a second check-out path
 
-- [ ] Task 7 — 60s polling (AC: #10)
-  - [ ] Small `"use client"` component (e.g. `app/(dashboard)/components/OverviewAutoRefresh.tsx`) — `useEffect` + `setInterval(() => router.refresh(), 60_000)` + `clearInterval` on unmount; renders `null`
-  - [ ] Mount it inside `OverviewData`. Do not add `refetchInterval`, do not create a TanStack query key (`["frontDeskAlerts", gymId]` is the panel's and must not be collided with), do not modify `FrontDeskAlertPanel.tsx` or `lib/realtime/frontDeskAlerts.ts` at all
+- [x] Task 7 — 60s polling (AC: #10)
+  - [x] Small `"use client"` component (e.g. `app/(dashboard)/components/OverviewAutoRefresh.tsx`) — `useEffect` + `setInterval(() => router.refresh(), 60_000)` + `clearInterval` on unmount; renders `null`
+  - [x] Mount it inside `OverviewData`. Do not add `refetchInterval`, do not create a TanStack query key (`["frontDeskAlerts", gymId]` is the panel's and must not be collided with), do not modify `FrontDeskAlertPanel.tsx` or `lib/realtime/frontDeskAlerts.ts` at all
 
-- [ ] Task 8 — i18n (AC: #12, #14)
-  - [ ] Delete `overview.body` from `en.json` and `fr.json`; add `overview.cards.*` and `overview.tables.*` to both
-  - [ ] Reuse `attendance.emptyCheckedIn` for the checked-in empty state; add a new key for "No members expiring in the next 7 days."
-  - [ ] `node scripts/check-i18n-key-parity.mjs` → clean. Watch the ESLint `i18next/no-literal-string` gate: it is `jsx-text-only`, so a hardcoded `aria-label` will pass CI silently (`eslint.config.mjs:22-38`) — still don't write one
+- [x] Task 8 — i18n (AC: #12, #14)
+  - [x] Delete `overview.body` from `en.json` and `fr.json`; add `overview.cards.*` and `overview.tables.*` to both
+  - [x] Reuse `attendance.emptyCheckedIn` for the checked-in empty state; add a new key for "No members expiring in the next 7 days."
+  - [x] `node scripts/check-i18n-key-parity.mjs` → clean. Watch the ESLint `i18next/no-literal-string` gate: it is `jsx-text-only`, so a hardcoded `aria-label` will pass CI silently (`eslint.config.mjs:22-38`) — still don't write one
 
-- [ ] Task 9 — Tests (AC: #18)
-  - [ ] `supabase/tests/gym_revenue_mtd.test.sql` per AC #18; run `supabase test db`
-  - [ ] Vitest co-located test for `StatCard` (renders label/value, links to `href`, applies `tone="alert"` styling only when asked). Remember `globals` is NOT enabled — import `describe/it/expect/vi` from `vitest` explicitly (`vitest.setup.ts`)
-  - [ ] If `page.tsx` gets a test, follow `(dashboard)/layout.gymSwitchRemount.test.tsx`'s technique for async Server Components: reach through the `<Suspense>` element to the async child and `await` it — no renderer needed
+- [x] Task 9 — Tests (AC: #18)
+  - [x] `supabase/tests/gym_revenue_mtd.test.sql` per AC #18; run `supabase test db`
+  - [x] Vitest co-located test for `StatCard` (renders label/value, links to `href`, applies `tone="alert"` styling only when asked). Remember `globals` is NOT enabled — import `describe/it/expect/vi` from `vitest` explicitly (`vitest.setup.ts`)
+  - [x] If `page.tsx` gets a test, follow `(dashboard)/layout.gymSwitchRemount.test.tsx`'s technique for async Server Components: reach through the `<Suspense>` element to the async child and `await` it — no renderer needed
 
-- [ ] Task 10 — Verify (AC: all)
-  - [ ] `pnpm --filter @gymos/dashboard typecheck`, `lint`, `test`
-  - [ ] `pnpm --filter @gymos/dashboard build` — must exit 0. Treat it as a general regression gate, not as proof the Suspense structure is right: `(dashboard)/layout.tsx:17` already wraps `children` in `<Suspense fallback={null}>`, and the Next docs accept "the component **or a parent**", so a boundary missing from `page.tsx` would bubble there rather than fail the build — blanking the whole dashboard chrome during streaming instead of erroring
-  - [ ] `git grep overview.body -- apps/` → no hits (unscoped will always hit the planning artifacts)
-  - [ ] `node scripts/check-i18n-key-parity.mjs` → clean
-  - [ ] `supabase test db` → full suite green, not just the new file
+- [x] Task 10 — Verify (AC: all)
+  - [x] `pnpm --filter @gymos/dashboard typecheck`, `lint`, `test`
+  - [x] `pnpm --filter @gymos/dashboard build` — must exit 0. Treat it as a general regression gate, not as proof the Suspense structure is right: `(dashboard)/layout.tsx:17` already wraps `children` in `<Suspense fallback={null}>`, and the Next docs accept "the component **or a parent**", so a boundary missing from `page.tsx` would bubble there rather than fail the build — blanking the whole dashboard chrome during streaming instead of erroring
+  - [x] `git grep overview.body -- apps/` → no hits (unscoped will always hit the planning artifacts)
+  - [x] `node scripts/check-i18n-key-parity.mjs` → clean
+  - [x] `supabase test db` → full suite green, not just the new file
+
+### Review Findings
+
+- [x] [Review][Patch] Month-window regression guard only works in some months — extract the month arithmetic into `private.gym_local_month_bounds(tz, at timestamptz)`, have `gym_revenue_mtd()` call it, and test it at fixed dates (e.g. March 2026 in Africa/Douala ends `2026-03-31 23:00+00`). Today `gym_revenue_mtd.test.sql:55-58` builds `revenue_mtd_bounds` with the function's own expression and `now()` cannot be pinned, so the "`+ interval` outside `at time zone`" bug the migration header warns about is indistinguishable from correct in January, February, April, June, August, September and November. Resolved from a decision (smartsana, 2026-09-10): helper chosen over a `pg_get_functiondef()` text assertion or deferral; this knowingly overrides Task 1's "use this body exactly" (semantics unchanged, `0095` not yet deployed), and 17.2's "New this month" must reuse the helper [supabase/migrations/0095_gym_revenue_mtd.sql:77]
+- [x] [Review][Patch] Expiring This Week shows the first 10 members by name, not the 10 expiring soonest — `listSubscriptions()` defaults to `member_name` ascending, so with more than 10 `expiring_soon` rows a member expiring tomorrow can be cut. Pass `sort: "expiry"` on the same single call (AC #2 still holds), append `&sort=expiry` to both `/subscriptions?status=expiring_soon` links so "View all" continues the same order, and update `page.overview.test.tsx` (the exact `toHaveBeenCalledWith` and the card `href`) [apps/dashboard/app/(dashboard)/page.tsx:76]
+- [x] [Review][Patch] 60s auto-refresh keeps firing in hidden tabs — each tick re-runs all six reads for a front-desk tab left in the background all day; skip the tick when `document.hidden`, alongside the existing `dialog[open]` check, and cover it in `OverviewAutoRefresh.test.tsx` [apps/dashboard/app/(dashboard)/components/OverviewAutoRefresh.tsx:31]
+- [x] [Review][Patch] Mangled build command in the 17-1 sprint-status entry — reads `pnpm --filter /dashboard build`; the `@gymos` was eaten (Perl array interpolation); should be `@gymos/dashboard` [_bmad-output/implementation-artifacts/sprint-status.yaml:511]
+- [x] [Review][Defer] Check-in time formatted with no `timeZone` in an SSR'd client component — server (UTC) and browser (Africa/Douala) render different hours, causing a hydration text mismatch and a visible re-render [apps/dashboard/app/(dashboard)/components/CheckedInTable.tsx:31] — deferred, pre-existing: copied verbatim from `AttendancePageClient.tsx:157` / `PaymentsPageClient.tsx:98`; the same cross-cutting pattern is already recorded in deferred-work.md (`noteTimestamp()`, CoachMemberDetailPageClient)
 
 ## Dev Notes
 
@@ -241,8 +249,53 @@ grant execute on function gym_revenue_mtd to authenticated;
 
 ### Agent Model Used
 
+Claude Opus 5 (`claude-opus-5[1m]`)
+
 ### Debug Log References
+
+- **Local migration ledger is behind the local schema.** `supabase_migrations.schema_migrations` on the dev DB reads head `0091`, yet `0092`–`0094`'s objects are all present (`phone_has_staff_membership`, the phone-separation trigger, `supervisor` in both payments/refunds SELECT policies) — they were applied by hand without a ledger row. `0095` was applied the same way: host `psql`, one transaction, `ON_ERROR_STOP`, no ledger row, to stay consistent with its neighbours. **Production is untouched and still at `0094`**; `0095` deploys in one batch with Story 17.4's `0096`.
+- **`supabase gen types typescript --local` exited 0 and wrote 0 bytes** — the documented container no-network silent failure. `gym_revenue_mtd` was hand-added (Task 2).
+- **`supabase test db` is not runnable here**, so the pgTAP suite was run over host `psql` with `set search_path = public, extensions;` prepended to each file — the same method Stories 1.17 and 11.9 used.
+- **Red phases observed:** the new pgTAP file failed on the missing function before `0095` was applied; `stat-card.test.tsx`, `OverviewAutoRefresh.test.tsx` and `page.overview.test.tsx` each failed on the missing module before their implementation existed. `getRevenueMtd()` was written just before its own unit test, so that one was not a strict red.
 
 ### Completion Notes List
 
+- **Task 1 — `0095_gym_revenue_mtd.sql`.** Function body exactly as pinned. Header covers what it closes, aggregate-vs-client-sum (`max_rows`), invoker-vs-definer, the gyms third read, gym-local half-open window and the `+ interval` placement, `created_at` bucketing cost, verified-only, refund subtraction and refund-date attribution, and the unfiltered currency. Explicit revoke/grant. The `do $verify$` block asserts existence and no PUBLIC `EXECUTE` (a NULL `proacl` is treated as the default ACL, which includes PUBLIC), and additionally that the function is SECURITY INVOKER — AC #6's load-bearing property. `pg_proc` after apply matches the story's five measured results exactly: `prosecdef = f`, `provolatile = s`, `prorettype = bigint`, `proacl = {postgres=X/postgres,authenticated=X/postgres}`.
+- **Task 2 — Types.** Hand-added `gym_revenue_mtd: { Args: never; Returns: number }` beside `gym_member_count` (generation produced nothing; see Debug Log).
+- **Task 3 — `getRevenueMtd()`.** No-arg `.rpc("gym_revenue_mtd")`, `mapAndLog` on error, `billing.ts` shape. 4 unit tests: no-arg call, success figure, negative figure unclamped, mapped error without a throw.
+- **Task 4 — `StatCard`.** `components/ui/stat-card.tsx`, no `"use client"`, props exactly `{ label, value, href, tone? }`, whole tile is the `<Link>`, `cn()` for `tone="alert"` → `text-destructive`. 4 tests.
+- **Task 5 — `page.tsx`.** Outer sync shell + `<Suspense>` preserved; `OverviewFallback` replaced by a text-free `OverviewSkeleton` (3 cards, 2 × 5 rows); no `app/(dashboard)/loading.tsx`. The existing `Promise.all` is extended with the three reads, the original three untouched; the alert panel keeps identical props and `{shell && …}` gating. Each read is branched on independently: a failed read shows `overview.cards.unavailable` in its own card and `common.loadError` in its own table, logs via `console.error`, and affects nothing else. Card numbers use `toLocaleString(locale)` from `getRequestLocale()`; revenue renders `XAF ` + the figure with its minus sign. `rows.slice(0, 10)` at the call site. A commented seam marks where 17.2's row goes.
+- **Task 6 — Tables.** `CheckedInTable` and `ExpiringTable` (`"use client"`, under `app/(dashboard)/components/`), rows keyed by `memberId` / `subscriptionId`, canonical table classes, avatar initial, badge maps copied into `app/(dashboard)/overviewLabels.ts` per the per-file-copy convention. Check Out reuses `CheckOutMemberConfirmDialog` with the `checkingOutMember` pattern; Renew reuses `RenewalModal` exactly as `SubscriptionsPageClient` does. Two small judgement calls: (1) the Plan column shows `planName`, not the Subscriptions page's plan-*type* label — AD-02's column is "Plan" and the Overview has no separate type column; (2) `handleRenewed` is `useCallback(…, [router])` rather than the literal `[]` — `router` is stable so the identity is too, it matches `SubscriptionsPageClient`'s precedent, and `[]` would trip `react-hooks/exhaustive-deps`.
+- **Task 7 — Polling.** `OverviewAutoRefresh` runs `router.refresh()` on a 60s interval, cleared on unmount, and returns early while `document.querySelector("dialog[open]")` matches. Every modal in this app is a native `<dialog>` opened via `showModal()`, so this also covers `FrontDeskAlertPanel`'s own internal `RenewalModal` without touching the panel or `lib/realtime/frontDeskAlerts.ts`. No TanStack key, no `refetchInterval`. 6 fake-timer tests.
+- **Task 8 — i18n.** `overview.body` deleted from `en.json`/`fr.json` and both render sites; `overview.cards.*` and `overview.tables.*` added in real French (vocabulary matched to existing Formule / Statut / Actuellement présents); `attendance.emptyCheckedIn`, `attendance.checkOutButton`, `subscriptions.actions.renew` and `members.status.*` reused. `git grep overview.body -- apps/` → empty.
+- **Task 9 — Tests.** `gym_revenue_mtd.test.sql`, 24 assertions. Fixtures are added **incrementally** with the figure re-asserted after each step, so every exclusion assertion is paired with the inclusion assertion before it. Month bounds are seeded relative to `now()` (a temp table), so the file is valid in any month; the "next month start − 1 minute" row is what catches the `+ interval`-after-`at time zone` bug in the months it manifests (March, May, July, October, December). Gym C is seeded `suspended` in its INSERT. `page.overview.test.tsx` (13 tests) uses the layout test's reach-through-Suspense technique to cover AC #1/#2/#3/#8/#10/#11/#16.
+- **Task 10 — Verification.** Full pgTAP suite over host `psql`: **95 files, 1988 assertions, 0 failures, 0 plan mismatches, 0 errors.** Dashboard Vitest: **43 files, 335 tests** (27 new). `typecheck` clean. `lint` 0 errors, and the touched files are warning-free. i18n parity OK. `pnpm --filter @gymos/dashboard build` exit 0.
+- **Left for the manual browser pass:** AC #10's by-hand check that a pending mobile-money renewal survives a full 60s tick (open Renew from either table or the alert panel, pick mobile money, wait past a minute), plus a visual look at the Overview in EN and FR including an empty gym and a negative-revenue month.
+- **Nothing committed.**
+
 ### File List
+
+- `supabase/migrations/0095_gym_revenue_mtd.sql` (new)
+- `supabase/tests/gym_revenue_mtd.test.sql` (new)
+- `packages/types/src/database.ts` (modified)
+- `apps/dashboard/services/payments.ts` (modified)
+- `apps/dashboard/services/payments.getRevenueMtd.test.ts` (new)
+- `apps/dashboard/components/ui/stat-card.tsx` (new)
+- `apps/dashboard/components/ui/stat-card.test.tsx` (new)
+- `apps/dashboard/app/(dashboard)/page.tsx` (modified)
+- `apps/dashboard/app/(dashboard)/page.overview.test.tsx` (new)
+- `apps/dashboard/app/(dashboard)/overviewLabels.ts` (new)
+- `apps/dashboard/app/(dashboard)/components/CheckedInTable.tsx` (new)
+- `apps/dashboard/app/(dashboard)/components/ExpiringTable.tsx` (new)
+- `apps/dashboard/app/(dashboard)/components/OverviewAutoRefresh.tsx` (new)
+- `apps/dashboard/app/(dashboard)/components/OverviewAutoRefresh.test.tsx` (new)
+- `apps/dashboard/locales/en.json` (modified)
+- `apps/dashboard/locales/fr.json` (modified)
+- `_bmad-output/implementation-artifacts/deferred-work.md` (modified)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (modified)
+
+## Change Log
+
+- 2026-09-10 — Story 17.1 implemented; status ready-for-dev → in-progress → review. Added migration `0095` (`gym_revenue_mtd()`, SECURITY INVOKER) with 24-assertion pgTAP coverage; shared `StatCard`; rebuilt the AD-02 Overview with three stat cards, Currently Checked-In and Expiring This Week tables, per-surface failure isolation and 60s polling; removed the `overview.body` placeholder; recorded the two deliberate deviations in `deferred-work.md`.
+- 2026-09-10 — Code review (Blind Hunter, Edge Case Hunter, Acceptance Auditor; 0 AC violations). 1 decision + 3 patches applied, 1 deferred, 18 dismissed; status review → done. (1) **Task 1's pinned body is knowingly superseded**: the month arithmetic moved into `private.gym_local_month_bounds(p_timezone, p_at)` (IMMUTABLE, SECURITY INVOKER, PUBLIC revoked, granted to `authenticated` because `gym_revenue_mtd()` runs with the caller's rights) — same expression, same semantics — because a test pinned to `now()` cannot see the `+ interval`-outside-`at time zone` bug in seven months of twelve, September included. pgTAP now proves the helper at fixed dates against a `make_timestamptz()` oracle (5 allowed timezones × 12 months × 3 instants, under a UTC and a UTC+14 session), with a positive control showing the wrong form fails in exactly March/May/July/October/December; `0095`'s `do $verify$` also checks March 2026 at apply time. `gym_revenue_mtd.test.sql` 24 → 36 assertions. Story 17.2's "New this month" must call the helper. Local `0095` was dropped and re-applied in one `ON_ERROR_STOP` transaction (still no ledger row, as before). (2) Expiring This Week now reads `listSubscriptions({ status: "expiring_soon", sort: "expiry" })` — the service defaulted to name order, so the 10-row cap could cut a member expiring tomorrow — and both links carry `&sort=expiry`. (3) `OverviewAutoRefresh` skips ticks while `document.hidden` and catches up once on becoming visible (never under an open dialog); 4 new tests. (4) Fixed the mangled `@gymos/dashboard` build command in sprint-status. Deferred: check-in time formatted with no `timeZone` in an SSR'd client component (pre-existing cross-cutting pattern). Verification: full pgTAP over host psql 95 files / 2000 assertions / 0 failures / 0 plan mismatches / 0 errors; dashboard Vitest 43 files / 339 tests; typecheck clean; eslint clean on touched files; `pnpm --filter @gymos/dashboard build` exit 0. Still open for the manual browser pass: AC #10's pending mobile-money renewal across a 60s tick, and the EN/FR visual look.
+- 2026-09-10 — Manual browser pass: smartsana reports all checks passing on the local stack against a seeded "Overview QA Gym" (owner and receptionist logins; 12 checked in, 12 expiring soon with expiry order opposite to name order, XAF 100,000 net revenue): cards and click-throughs, soonest-first expiring table, oldest-first checked-in table, a Renew/Check Out modal surviving a 60s tick, hidden-tab catch-up, receptionist view, and EN/FR. One gap remains unexercised: the *pending mobile-money* variant of AC #10's modal check — the local QA gym has no Tara Money connection, so the mobile-money option is hidden; the modal-skip itself was verified with a non-mobile-money renewal.
