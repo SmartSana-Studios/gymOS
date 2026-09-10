@@ -875,6 +875,8 @@ So that I can see what I am teaching, who needs me, and who has been active, wit
 
 *(Amended 2026-09-10 by Story 17.3: the My Members At A Glance widget and the no-assigned-members empty state moved to Story 17.3, which ships them as `/coach/overview`'s landing content — a Coach lands there on every sign-in, so it could not ship empty. Both ACs were removed from this list. This story adds the other three widgets alongside it, and must keep 17.3's empty state covering the whole page rather than rendering its own widgets empty. It must also grow `coach/overview/loading.tsx` from 17.3's single skeleton card to AD-20's four (added by 17.3's code review, 2026-09-10).)*
 
+*(Amended 2026-09-10, two decisions made with the product owner during story creation. (1) **A Coach with no assigned members but with upcoming sessions sees My Next Sessions plus the AD-14 guidance** in place of the three member widgets. The whole-page AD-14 message remains for a Coach with no assigned members AND no upcoming sessions — a class-only coach lands here on every sign-in, and the literal rule would hide the one widget that is not about assignments. (2) **Thresholds:** Needs Follow-Up flags a member after 14 gym-local calendar days without a note from this Coach; Recent Progress Activity shows members whose latest entry is within the last 7 gym-local calendar days. Both are named constants, per the threshold AC below.)*
+
 **Acceptance Criteria:**
 
 **Given** `/coach/overview` is the Coach's landing route (Story 17.3)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2 } from "lucide-react";
 
@@ -44,12 +44,40 @@ type ExpandedSession = {
  * same session would let the first, stale response through. Every expand and
  * every collapse -- of a session, or of the class holding it -- moves the
  * counter on.
+ *
+ * Story 17.5 (AC #5): arriving with `#class-<id>` -- a My Next Sessions row on
+ * the Portal Overview -- opens that class and scrolls it into view. It runs on
+ * mount and on `hashchange` only, never when `classes` changes, so a
+ * `router.refresh()` cannot re-open a class the Coach collapsed. (Returning
+ * with Back does re-open it: Next keeps visited routes in <Activity> and
+ * re-runs their effects -- expected.) It opens the class only; no session
+ * expands and no roster is fetched.
  */
 export function CoachClassesPageClient({ classes }: { classes: CoachClassView[] }) {
   const { t } = useTranslation();
   const [openClassIds, setOpenClassIds] = useState<Set<string>>(() => new Set());
   const [expanded, setExpanded] = useState<ExpandedSession | null>(null);
   const requestSeq = useRef(0);
+  // The hash effect reads the current class ids through this ref, so it needs
+  // no dependency on `classes`. Never assigned during render.
+  const classIdsRef = useRef(classes.map((cls) => cls.classId));
+
+  useEffect(() => {
+    classIdsRef.current = classes.map((cls) => cls.classId);
+  }, [classes]);
+
+  useEffect(() => {
+    function openFromHash() {
+      const classId = classIdsRef.current.find((id) => window.location.hash === `#class-${id}`);
+      if (!classId) return;
+      setOpenClassIds((prev) => (prev.has(classId) ? prev : new Set(prev).add(classId)));
+      document.getElementById(`class-${classId}`)?.scrollIntoView({ block: "start" });
+    }
+
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
+    return () => window.removeEventListener("hashchange", openFromHash);
+  }, []);
 
   function toggleClass(cls: CoachClassView) {
     const isOpen = openClassIds.has(cls.classId);

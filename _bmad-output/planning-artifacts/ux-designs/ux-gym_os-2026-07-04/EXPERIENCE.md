@@ -1779,11 +1779,11 @@ Coach Portal
 - **Portal sub-navigation:** Overview (AD-20) · My Members (AD-14) · My Classes (AD-21); active surface indicated; renders on all three routes plus AD-15
 - **My Next Sessions:** upcoming `class_sessions` for classes where `coach_id` is this Coach, with `scheduled_at` and booked/capacity; row → that class in AD-21
 - **My Members At A Glance:** assigned-member count broken down by subscription status; "All →" links to AD-14
-- **Needs Follow-Up:** assigned members whose most recent session note *authored by this Coach* is older than the follow-up threshold, or who have no note at all; row → AD-15 Session Notes tab
-- **Recent Progress Activity:** assigned members who logged progress entries recently; row → AD-15 Progress tab. **Progress photos are never surfaced here** — `progress_photos` carries its own separate sharing consent, and logging an entry is not consent to appear photographically on a summary screen
+- **Needs Follow-Up:** assigned members whose most recent session note *authored by this Coach* is older than the follow-up threshold, or who have no note at all; row → AD-15 Session Notes tab. Threshold: 14 gym-local calendar days *(decided 2026-09-10, Story 17.5)*
+- **Recent Progress Activity:** assigned members who logged progress entries recently; row → AD-15 Progress tab. "Recently": latest entry within the last 7 gym-local calendar days *(decided 2026-09-10, Story 17.5)*. **Progress photos are never surfaced here** — `progress_photos` carries its own separate sharing consent, and logging an entry is not consent to appear photographically on a summary screen
 - Check-in recency is deliberately **not** a Needs Follow-Up signal — the Coach role has no read access to attendance events, and this screen does not widen that
 
-**Empty state (no assigned members at all):** the AD-14 copy rather than four empty widgets — "No members have been assigned to you yet. Ask your Manager, Owner, or Supervisor to assign members."
+**Empty state (no assigned members at all):** the AD-14 copy rather than four empty widgets — "No members have been assigned to you yet. Ask your Manager, Owner, or Supervisor to assign members." *(Amended 2026-09-10, Story 17.5, decided with the product owner: when the Coach has no assigned members but does have upcoming sessions, My Next Sessions still renders, with this copy in place of the three member widgets. The page is only this copy when there are no assigned members and no upcoming sessions.)*
 
 **Loading:** 4 skeleton widget cards. Each widget reads a different source; any one failing renders its own error state while the other three still render.
 

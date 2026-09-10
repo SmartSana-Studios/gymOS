@@ -56,6 +56,9 @@ type ModalState = { note: { id: string; noteText: string } | null } | null;
 // `WorkoutPlanModal` itself expects).
 type WorkoutPlanModalState = boolean;
 
+/** Story 17.5 (AC #12): the tab AD-15 opens on, from the page's `?tab=`. */
+export type CoachMemberDetailTab = "session-notes" | "progress" | "workout-plan";
+
 export function CoachMemberDetailPageClient({
   member,
   notes,
@@ -63,6 +66,7 @@ export function CoachMemberDetailPageClient({
   plan,
   canCreatePlan,
   exerciseLibrary,
+  initialTab,
 }: {
   member: CoachPortalMemberDetail;
   notes: SessionNoteRow[];
@@ -70,6 +74,7 @@ export function CoachMemberDetailPageClient({
   plan: WorkoutPlanRow | null;
   canCreatePlan: boolean;
   exerciseLibrary: ExerciseLibraryRow[];
+  initialTab: CoachMemberDetailTab;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -176,7 +181,12 @@ export function CoachMemberDetailPageClient({
         )}
       </div>
 
-      <Tabs defaultValue="session-notes">
+      {/* Keyed on bfcacheId (Story 17.5 review): with cacheComponents, Next
+          keeps this route alive across <Link> clicks, so an uncontrolled tab
+          would ignore a second `?tab=progress` click. The key resets it on a
+          fresh navigation only -- Back/Forward and router.refresh() keep the
+          open tab. */}
+      <Tabs key={router.bfcacheId} defaultValue={initialTab}>
         <TabsList>
           <TabsTrigger value="session-notes">{t("coachPortal.detail.tabs.sessionNotes")}</TabsTrigger>
           <TabsTrigger value="progress">{t("coachPortal.detail.tabs.progress")}</TabsTrigger>

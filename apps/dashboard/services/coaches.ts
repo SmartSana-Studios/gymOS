@@ -430,6 +430,99 @@ export async function listSessionNotes(
   return { data: ((data ?? []) as unknown as SessionNoteRowFromDb[]).map(toSessionNoteRow), error: null };
 }
 
+// ============================================================================
+// Story 17.5: Coach Portal -- Overview (AD-20, FR-146). Two caseload reads,
+// for the Needs Follow-Up and Recent Progress Activity widgets. Both read
+// `members` with ONE embedded latest row per member (`limit(1, {
+// referencedTable })`, members.ts's precedent) rather than fetching note or
+// entry rows: max_rows = 1000 truncates silently and both tables only grow,
+// so a row fetch would eventually misreport a member's latest activity. The
+// result is at most one row per assigned member.
+//
+// Scoping is RLS and nothing else: `coach_read_assigned_members` (0040) keeps
+// only currently assigned members, `coach_read_own_session_notes` (0041) only
+// this Coach's own notes on them, and `coach_read_assigned_progress_entries`
+// (0067) only their entries -- an ended assignment drops the member on the
+// next load. `.eq("role", "member")` is load-bearing:
+// `self_read_own_membership` (0013) also returns the Coach's own row on any
+// `members` select.
+// ============================================================================
+
+/** Story 17.5 (AC #6, #7): one assigned member and the instant of their latest
+ * note from the calling Coach, or of their latest active progress entry;
+ * `lastAt` is null when there is none. The gym's timezone rides along on
+ * every row, so the Overview counts gym-local calendar days with no extra
+ * read. */
+export interface CoachMemberRecencyRow {
+  memberId: string;
+  memberName: string;
+  gymTimezone: string;
+  lastAt: string | null;
+}
+
+// The query builder types the many-to-one `gyms` embed as an array, but
+// PostgREST sends an object -- the same dual-shape acceptance as
+// SessionNoteRowFromDb's `members` field above, plus null.
+type GymTimezoneEmbed = { timezone: string } | { timezone: string }[] | null;
+
+function toMemberRecencyRow(
+  row: { id: string; name: string; gyms: GymTimezoneEmbed },
+  lastAt: string | null | undefined,
+): CoachMemberRecencyRow {
+  const gym = Array.isArray(row.gyms) ? row.gyms[0] : row.gyms;
+  return {
+    memberId: row.id,
+    memberName: row.name,
+    // Never "": Intl.DateTimeFormat throws a RangeError on an empty timezone,
+    // and a throwing read would break the Overview's per-widget isolation.
+    gymTimezone: gym?.timezone || "UTC",
+    lastAt: lastAt ?? null,
+  };
+}
+
+interface MemberNoteRecencyFromDb {
+  id: string;
+  name: string;
+  gyms: GymTimezoneEmbed;
+  session_notes: { created_at: string }[] | null;
+}
+
+/** Story 17.5 (AC #6): each assigned member with their latest note written by
+ * the calling Coach, for Needs Follow-Up. A previous coach's notes never count
+ * -- RLS never returns them (FR-055). The FK hint is required: `session_notes`
+ * has two FKs to `members`. */
+export async function listAssignedMemberNoteRecency(): Promise<{
+  data: CoachMemberRecencyRow[] | null;
+  error: AppError | null;
+}> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data, error } = await supabase
+    .from("members")
+    .select("id, name, gyms(timezone), session_notes!session_notes_member_id_fkey(created_at)")
+    .eq("gym_id", gymId)
+    .eq("role", "member")
+    .is("deactivated_at", null)
+    .order("name", { ascending: true })
+    .order("created_at", { referencedTable: "session_notes", ascending: false })
+    .limit(1, { referencedTable: "session_notes" });
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  return {
+    data: ((data ?? []) as unknown as MemberNoteRecencyFromDb[]).map((row) =>
+      toMemberRecencyRow(row, row.session_notes?.[0]?.created_at),
+    ),
+    error: null,
+  };
+}
+
 /** Thin `add_session_note()` RPC wrapper -- same shape as `assignCoach()`
  * above. No pre-validation duplicated here (the RPC self-checks role/gym/
  * assignment). */
@@ -601,6 +694,52 @@ export async function getMemberProgressData(
         createdAt: row.created_at,
       })),
     },
+    error: null,
+  };
+}
+
+interface MemberProgressRecencyFromDb {
+  id: string;
+  name: string;
+  gyms: GymTimezoneEmbed;
+  progress_entries: { logged_at: string }[] | null;
+}
+
+/** Story 17.5 (AC #7): each assigned member with their latest ACTIVE progress
+ * entry, for Recent Progress Activity. The embedded `deactivated_at` filter is
+ * required -- RLS does not hide soft-deleted entries (0067). Only `logged_at`
+ * is selected: no measurement reaches a summary screen. `progress_photos` is
+ * never read here -- logging an entry is not consent for a photo to appear on
+ * the Overview (`coach_read_shared_progress_photos` has its own gate). */
+export async function listAssignedMemberProgressRecency(): Promise<{
+  data: CoachMemberRecencyRow[] | null;
+  error: AppError | null;
+}> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data, error } = await supabase
+    .from("members")
+    .select("id, name, gyms(timezone), progress_entries(logged_at)")
+    .eq("gym_id", gymId)
+    .eq("role", "member")
+    .is("deactivated_at", null)
+    .is("progress_entries.deactivated_at", null)
+    .order("name", { ascending: true })
+    .order("logged_at", { referencedTable: "progress_entries", ascending: false })
+    .limit(1, { referencedTable: "progress_entries" });
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  return {
+    data: ((data ?? []) as unknown as MemberProgressRecencyFromDb[]).map((row) =>
+      toMemberRecencyRow(row, row.progress_entries?.[0]?.logged_at),
+    ),
     error: null,
   };
 }
