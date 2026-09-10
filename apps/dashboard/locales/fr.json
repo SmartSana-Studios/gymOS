@@ -641,7 +641,26 @@
         "title": "Mes membres en un coup d'œil",
         "assignedLabel": "Membres assignés",
         "viewAll": "Tous →"
-      }
+      },
+      "nextSessions": {
+        "title": "Mes prochaines séances",
+        "viewAll": "Toutes →",
+        "empty": "Aucune séance à venir."
+      },
+      "followUp": {
+        "title": "À relancer",
+        "description": "Aucune note de votre part depuis {{days}} jours ou plus",
+        "noNoteYet": "Aucune note pour l'instant",
+        "lastNote": "Dernière note {{when}}",
+        "empty": "Chacun de vos membres a une note récente de votre part."
+      },
+      "recentProgress": {
+        "title": "Activité de progression récente",
+        "description": "Progression enregistrée ces {{days}} derniers jours",
+        "logged": "Enregistrée {{when}}",
+        "empty": "Aucun de vos membres n'a enregistré de progression ces {{days}} derniers jours."
+      },
+      "moreCount": "+{{count}} de plus"
     },
     "classes": {
       "emptyNoClasses": "Aucun cours ne vous est encore assigné. Votre gérant programme les cours et y assigne un coach.",

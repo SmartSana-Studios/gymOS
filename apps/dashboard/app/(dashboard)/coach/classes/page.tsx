@@ -4,6 +4,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { listMyClasses, type CoachClassRow } from "@/services/classes";
+import { gymDateFormatter } from "../gymTime";
 import { CoachClassesPageClient, type CoachClassView } from "./components/CoachClassesPageClient";
 import CoachClassesLoading from "./loading";
 
@@ -32,7 +33,8 @@ const DAY_KEY = ["classes.days.sun", "classes.days.mon", "classes.days.tue", "cl
  * and the client component receives strings only. Formatting a timestamp in
  * a client component with no `timeZone` renders in UTC on the server and in
  * the browser's zone on the client -- the hydration mismatch deferred-work.md
- * records against CheckedInTable and the admin Classes page.
+ * records against CheckedInTable and the admin Classes page. The formatter
+ * lives in ../gymTime.ts, shared with the Portal's Overview (Story 17.5).
  *
  * Read-only: no create, edit, reschedule or mark-attendance control exists
  * anywhere on this route, and none is gated by a role flag -- they are simply
@@ -91,32 +93,6 @@ function toClassViews(classes: CoachClassRow[], locale: Locale, t: Translate): C
       })),
     };
   });
-}
-
-/** Formats an instant in the gym's timezone: 24-hour, per the AD-21 mockup,
- * keeping the locale's own ordering rather than hand-building a string. The
- * year is added only when the date's gym-local year is not the current one --
- * a finished one-off class stays listed indefinitely, and "Mon, Aug 31" a year
- * on would read like an upcoming date. */
-function gymDateFormatter(locale: Locale, timeZone: string): (iso: string) => string {
-  const options: Intl.DateTimeFormatOptions = {
-    timeZone,
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  };
-  const withoutYear = new Intl.DateTimeFormat(locale, options);
-  const withYear = new Intl.DateTimeFormat(locale, { ...options, year: "numeric" });
-  const yearOf = new Intl.DateTimeFormat("en", { timeZone, year: "numeric" });
-  const currentYear = yearOf.format(new Date());
-
-  return (iso) => {
-    const date = new Date(iso);
-    return (yearOf.format(date) === currentYear ? withoutYear : withYear).format(date);
-  };
 }
 
 function scheduleLabel(cls: CoachClassRow, formatDate: (iso: string) => string, t: Translate): string {

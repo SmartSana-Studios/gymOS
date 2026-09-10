@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { getMemberDetail, getMemberProgressData, listSessionNotes } from "@/services/coaches";
 import { getWorkoutPlan } from "@/services/workoutPlans";
 import { listExerciseLibrary } from "@/services/exercises";
-import { CoachMemberDetailPageClient } from "./components/CoachMemberDetailPageClient";
+import { CoachMemberDetailPageClient, type CoachMemberDetailTab } from "./components/CoachMemberDetailPageClient";
 import CoachMemberDetailLoading from "./loading";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -18,21 +18,40 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
  * No route-level role guard beyond `(dashboard)/layout.tsx`'s existing
  * gym-staff gate -- same "Sidebar hides it, RLS is the real gate" precedent
  * every other page in this app documents on itself.
+ *
+ * Story 17.5 (AC #12): `?tab=progress` or `?tab=workout-plan` opens that tab,
+ * so the Coach Portal Overview's Recent Progress rows land on Progress. The
+ * Tabs stay uncontrolled: switching tabs does not rewrite the URL.
  */
 export default function CoachMemberDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ memberId: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
 }) {
   return (
     <Suspense fallback={<CoachMemberDetailLoading />}>
-      <CoachMemberDetailData params={params} />
+      <CoachMemberDetailData params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function CoachMemberDetailData({ params }: { params: Promise<{ memberId: string }> }) {
-  const { memberId } = await params;
+/** Only an exact, known tab name opens a tab; anything else -- a missing,
+ * repeated, misspelt or differently-cased value -- lands on Session Notes, the
+ * page's default. */
+function resolveInitialTab(tab: string | string[] | undefined): CoachMemberDetailTab {
+  return tab === "progress" || tab === "workout-plan" ? tab : "session-notes";
+}
+
+async function CoachMemberDetailData({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ memberId: string }>;
+  searchParams: Promise<{ tab?: string | string[] }>;
+}) {
+  const [{ memberId }, { tab }] = await Promise.all([params, searchParams]);
   const [
     { data: member, error: memberError },
     { data: notes, error: notesError },
@@ -81,6 +100,7 @@ async function CoachMemberDetailData({ params }: { params: Promise<{ memberId: s
       plan={plan}
       canCreatePlan={canCreatePlan}
       exerciseLibrary={exerciseLibrary ?? []}
+      initialTab={resolveInitialTab(tab)}
     />
   );
 }

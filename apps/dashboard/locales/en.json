@@ -641,7 +641,26 @@
         "title": "My Members At A Glance",
         "assignedLabel": "Assigned members",
         "viewAll": "All →"
-      }
+      },
+      "nextSessions": {
+        "title": "My Next Sessions",
+        "viewAll": "All →",
+        "empty": "No upcoming sessions."
+      },
+      "followUp": {
+        "title": "Needs Follow-Up",
+        "description": "No note from you in {{days}} days or more",
+        "noNoteYet": "No note yet",
+        "lastNote": "Last note {{when}}",
+        "empty": "Every member has a recent note from you."
+      },
+      "recentProgress": {
+        "title": "Recent Progress Activity",
+        "description": "Logged in the last {{days}} days",
+        "logged": "Logged {{when}}",
+        "empty": "None of your members logged progress in the last {{days}} days."
+      },
+      "moreCount": "+{{count}} more"
     },
     "classes": {
       "emptyNoClasses": "You are not assigned to any classes yet. Your manager schedules classes and assigns a coach.",

@@ -1,5 +1,13 @@
 # Deferred Work
 
+## Deferred from: dev-story of story-17-5-coach-portal-overview (2026-09-10)
+
+- **Needs Follow-Up cannot tell a new assignment from a neglected one.** A Coach has no read on `coach_assignments.started_at` (`0039`, manager/owner only), so a member assigned today shows "No note yet" at once, beside members who have been neglected for weeks. Telling them apart needs either a coach read of the assignment start or a grace period, which is a product decision.
+- **The member widgets and My Members At A Glance count different sets.** Needs Follow-Up and Recent Progress read `members`, while `listAssignedMembers()` reads `subscriptions_current`, which drops assignees with no subscription row. Such a member can appear in Needs Follow-Up without being in the At-A-Glance total, and the Overview's no-assignments layout, which is decided from `listAssignedMembers()`, inherits the same gap. Same root as the 17.3 review item below.
+- **A non-coach opening `/coach/overview` by URL sees gym-wide figures.** An owner, supervisor or manager gets Needs Follow-Up built from every coach's notes (`manager_or_owner_read_own_session_notes`) and an empty Recent Progress; on a gym of more than 1000 members the `members` read truncates. No route guard on `/coach/*`, by the product owner's 2026-09-10 decision.
+- **A client-supplied `logged_at` in the future counts as today.** Offline progress entries carry the device's timestamp (`0066`), so a device with a fast clock can keep an entry looking fresh in Recent Progress until its date passes.
+- **A demoted Coach keeps two of the four widgets for up to an hour.** `coach_read_assigned_members` and `coach_read_own_session_notes` gate on the `app_role` claim (`0040`, `0041`), while `coach_read_assigned_progress_entries` gates on the live role (`0067`). A Coach demoted mid-session keeps At A Glance and Needs Follow-Up until the JWT expires but loses Recent Progress at once. Pre-existing AD-3 gap; not retrofitted here.
+
 ## Deferred from: dev-story of story-17-4-coach-portal-my-classes-session-roster (2026-09-10)
 
 - **AD-21's empty-state copy names only the manager.** `coachPortal.classes.emptyNoClasses` ships the epic's verbatim text, "Your manager schedules classes and assigns a coach". Class creation is Manager, Supervisor or Owner (`0093`), and AD-14's equivalent copy was amended in Story 9.4 to name all three. Which wording ships is a product copy decision, not a dev-story side effect.
