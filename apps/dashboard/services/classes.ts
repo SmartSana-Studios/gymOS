@@ -42,6 +42,36 @@ async function getCallerGymId(
   return { gymId, error: null };
 }
 
+/** Story 17.2 (AC #3, #8): the Overview's "Today's classes" card -- every
+ * session scheduled in the half-open range, finished ones included. The
+ * bounds are the UTC instants of the gym-local day from
+ * `getGymLocalPeriodBounds()`. A head COUNT, not `listClasses()`, which
+ * fetches rows and counts in JS. No cancellation filter: `class_sessions` has
+ * no such column, and a reschedule deletes future sessions outright. */
+export async function countClassSessionsBetween(
+  startIso: string,
+  endIsoExclusive: string,
+): Promise<{ data: number | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { count, error } = await supabase
+    .from("class_sessions")
+    .select("id", { count: "exact", head: true })
+    .eq("gym_id", gymId)
+    .gte("scheduled_at", startIso)
+    .lt("scheduled_at", endIsoExclusive);
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  return { data: count ?? 0, error: null };
+}
+
 export interface ClassRow {
   id: string;
   name: string;

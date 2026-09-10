@@ -1,6 +1,10 @@
+---
+baseline_commit: c2163b013a4f4a45bf4138ed8c1aef60957f6535
+---
+
 # Story 17.2: Staff Overview — Gym Health Cards (Manager-plus)
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -214,57 +218,62 @@ so that I can see membership growth and churn risk without building a report.
 
 ## Tasks / Subtasks
 
-- [ ] **Task 0: branch hygiene (before any code)**
-  - [ ] Story 17.3 is `done`, but its work is **uncommitted** on `feat/17-3-coach-portal-nav`, and this story edits the post-17.3 `page.tsx` (its two-boundary `OverviewGate` split). Confirm 17.3 has been committed, PR'd and merged to `master`, then branch `feat/17-2-gym-health-cards` from that `master`. Record that commit as `baseline_commit`. Do **not** stack 17.2 onto 17.3's uncommitted working tree, or both stories' diffs become unreviewable.
+- [x] **Task 0: branch hygiene (before any code)**
+  - [x] Story 17.3 is `done`, but its work is **uncommitted** on `feat/17-3-coach-portal-nav`, and this story edits the post-17.3 `page.tsx` (its two-boundary `OverviewGate` split). Confirm 17.3 has been committed, PR'd and merged to `master`, then branch `feat/17-2-gym-health-cards` from that `master`. Record that commit as `baseline_commit`. Do **not** stack 17.2 onto 17.3's uncommitted working tree, or both stories' diffs become unreviewable.
 
-- [ ] **Task 1: migration 0097 (AC: #9)**
-  - [ ] Create `supabase/migrations/0097_gym_local_period_bounds.sql` with AC #9's exact SQL, the header comment, and the verify block
-  - [ ] Apply locally over host psql, one transaction, `ON_ERROR_STOP`: `PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 -1 -f supabase/migrations/0097_gym_local_period_bounds.sql`. As for 0092–0095 locally, insert no ledger row, and say so in the Debug Log
-  - [ ] Check `pg_proc`: `prosecdef = f` for both; `provolatile` `i` for the helper and `s` for the wrapper; `proacl = {postgres=X/postgres,authenticated=X/postgres}` for both
+- [x] **Task 1: migration 0097 (AC: #9)**
+  - [x] Create `supabase/migrations/0097_gym_local_period_bounds.sql` with AC #9's exact SQL, the header comment, and the verify block
+  - [x] Apply locally over host psql, one transaction, `ON_ERROR_STOP`: `PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 -1 -f supabase/migrations/0097_gym_local_period_bounds.sql`. As for 0092–0095 locally, insert no ledger row, and say so in the Debug Log
+  - [x] Check `pg_proc`: `prosecdef = f` for both; `provolatile` `i` for the helper and `s` for the wrapper; `proacl = {postgres=X/postgres,authenticated=X/postgres}` for both
 
-- [ ] **Task 2: types (AC: #15)**
-  - [ ] Add `gym_local_period_bounds` to `packages/types/src/database.ts`; record whether it was generated or hand-added
+- [x] **Task 2: types (AC: #15)**
+  - [x] Add `gym_local_period_bounds` to `packages/types/src/database.ts`; record whether it was generated or hand-added
 
-- [ ] **Task 3: services (AC: #3–#8, #10)**
-  - [ ] `services/gym-settings.ts`: `export interface GymLocalPeriodBounds` + `getGymLocalPeriodBounds()` per AC #10
-  - [ ] `services/subscriptions.ts`: `SUBSCRIPTION_STATUS_GROUPS`; extend `applySubscriptionFilters` + `ChainableFilter`; export `type SubscriptionStatusFilter = SubscriptionListRow["status"] | keyof typeof SUBSCRIPTION_STATUS_GROUPS`, typing the map with `satisfies` so its keys stay literal; add `countSubscriptions(params: { status: SubscriptionStatusFilter })` built on the same base query as `listSubscriptions` (`subscriptions_current`, `.eq("gym_id", gymId)`, `.is("deactivated_at", null)`) + `applySubscriptionFilters`, with `.select("subscription_id", { count: "exact", head: true })`. Fix the misleading "view already excludes deactivated" wording at `:296-297` while there
-  - [ ] `services/members.ts`: `countMembersJoinedBetween(startDate: string, endDateExclusive: string)`, i.e. `from("members").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("role", "member").gte("join_date", startDate).lt("join_date", endDateExclusive)`
-  - [ ] `services/classes.ts`: `countClassSessionsBetween(startIso: string, endIsoExclusive: string)`, i.e. `from("class_sessions").select("id", { count: "exact", head: true }).eq("gym_id", gymId).gte("scheduled_at", startIso).lt("scheduled_at", endIsoExclusive)`
-  - [ ] Each count uses its own file's `getCallerGymId()` (the per-file-copy convention: `classes.ts:24-43` explains it) and returns `{ data: number | null; error: AppError | null }`, with `count ?? 0` on success only
+- [x] **Task 3: services (AC: #3–#8, #10)**
+  - [x] `services/gym-settings.ts`: `export interface GymLocalPeriodBounds` + `getGymLocalPeriodBounds()` per AC #10
+  - [x] `services/subscriptions.ts`: `SUBSCRIPTION_STATUS_GROUPS`; extend `applySubscriptionFilters` + `ChainableFilter`; export `type SubscriptionStatusFilter = SubscriptionListRow["status"] | keyof typeof SUBSCRIPTION_STATUS_GROUPS`, typing the map with `satisfies` so its keys stay literal; add `countSubscriptions(params: { status: SubscriptionStatusFilter })` built on the same base query as `listSubscriptions` (`subscriptions_current`, `.eq("gym_id", gymId)`, `.is("deactivated_at", null)`) + `applySubscriptionFilters`, with `.select("subscription_id", { count: "exact", head: true })`. Fix the misleading "view already excludes deactivated" wording at `:296-297` while there
+  - [x] `services/members.ts`: `countMembersJoinedBetween(startDate: string, endDateExclusive: string)`, i.e. `from("members").select("id", { count: "exact", head: true }).eq("gym_id", gymId).eq("role", "member").gte("join_date", startDate).lt("join_date", endDateExclusive)`
+  - [x] `services/classes.ts`: `countClassSessionsBetween(startIso: string, endIsoExclusive: string)`, i.e. `from("class_sessions").select("id", { count: "exact", head: true }).eq("gym_id", gymId).gte("scheduled_at", startIso).lt("scheduled_at", endIsoExclusive)`
+  - [x] Each count uses its own file's `getCallerGymId()` (the per-file-copy convention: `classes.ts:24-43` explains it) and returns `{ data: number | null; error: AppError | null }`, with `count ?? 0` on success only
 
-- [ ] **Task 4: `GymHealthRow` (AC: #2, #4, #5, #7, #8, #11, #12, #13)**
-  - [ ] Create `app/(dashboard)/components/GymHealthRow.tsx`: an async Server Component, **no** `"use client"`, props `{ locale }` typed as `getServerTranslation` accepts. Export `GymHealthRow` and `GymHealthRowSkeleton`
-  - [ ] Declare the two group keys once as constants and use each in **both** the `countSubscriptions` call and its card `href`
-  - [ ] Start all reads as early as possible: the two `countSubscriptions` calls and `getGymLocalPeriodBounds()` together, and the two date-bounded counts in parallel as soon as the bounds resolve (e.g. a `.then` on the bounds promise inside one `Promise.all`), not serially after the subscription counts
-  - [ ] Grid `grid gap-4 sm:grid-cols-2 lg:grid-cols-4`, the same responsive family as row 1's `sm:grid-cols-3`
-  - [ ] At risk: `tone={atRiskLoaded && atRisk > 0 ? "alert" : "default"}`
+- [x] **Task 4: `GymHealthRow` (AC: #2, #4, #5, #7, #8, #11, #12, #13)**
+  - [x] Create `app/(dashboard)/components/GymHealthRow.tsx`: an async Server Component, **no** `"use client"`, props `{ locale }` typed as `getServerTranslation` accepts. Export `GymHealthRow` and `GymHealthRowSkeleton`
+  - [x] Declare the two group keys once as constants and use each in **both** the `countSubscriptions` call and its card `href`
+  - [x] Start all reads as early as possible: the two `countSubscriptions` calls and `getGymLocalPeriodBounds()` together, and the two date-bounded counts in parallel as soon as the bounds resolve (e.g. a `.then` on the bounds promise inside one `Promise.all`), not serially after the subscription counts
+  - [x] Grid `grid gap-4 sm:grid-cols-2 lg:grid-cols-4`, the same responsive family as row 1's `sm:grid-cols-3`
+  - [x] At risk: `tone={atRiskLoaded && atRisk > 0 ? "alert" : "default"}`
 
-- [ ] **Task 5: wire into `page.tsx` (AC: #1, #11)**
-  - [ ] One gate helper, e.g. `const GYM_HEALTH_ROLES: readonly MemberRole[] = ["manager", "supervisor", "owner"]` + `canSeeGymHealth(shell)`; `null` shell → `false`. `MemberRole` is exported from `services/session.ts:37`
-  - [ ] `OverviewGate`: pass `showGymHealth={canSeeGymHealth(shell)}` to `OverviewSkeleton`. Leave the redirect, its position, and `OverviewGateSkeleton` untouched
-  - [ ] `OverviewData`: replace the 17.1 seam comment (`:168-170`) with `{canSeeGymHealth(shell) && <Suspense fallback={<GymHealthRowSkeleton />}><GymHealthRow locale={locale} /></Suspense>}`, and add nothing to its existing `Promise.all`
-  - [ ] Update the file's header comment (`:23-61`) to mention row 2, its gate, and its own boundary
+- [x] **Task 5: wire into `page.tsx` (AC: #1, #11)**
+  - [x] One gate helper, e.g. `const GYM_HEALTH_ROLES: readonly MemberRole[] = ["manager", "supervisor", "owner"]` + `canSeeGymHealth(shell)`; `null` shell → `false`. `MemberRole` is exported from `services/session.ts:37`
+  - [x] `OverviewGate`: pass `showGymHealth={canSeeGymHealth(shell)}` to `OverviewSkeleton`. Leave the redirect, its position, and `OverviewGateSkeleton` untouched
+  - [x] `OverviewData`: replace the 17.1 seam comment (`:168-170`) with `{canSeeGymHealth(shell) && <Suspense fallback={<GymHealthRowSkeleton />}><GymHealthRow locale={locale} /></Suspense>}`, and add nothing to its existing `Promise.all`
+  - [x] Update the file's header comment (`:23-61`) to mention row 2, its gate, and its own boundary
 
-- [ ] **Task 6: `/subscriptions` named filters (AC: #6)**
-  - [ ] `SubscriptionsPageClient.tsx`: add `active_or_expiring` and `at_risk` to `STATUS_OPTIONS` (after `expired`) and to `STATUS_LABEL_KEY` → `subscriptions.statusGroups.*`
-  - [ ] Confirm by reading, and by hand in the browser pass, that `/subscriptions?status=at_risk` selects the option, lists only grace/expired rows, and exports only those; `/subscriptions?status=bogus` still lists everything, as today
+- [x] **Task 6: `/subscriptions` named filters (AC: #6)**
+  - [x] `SubscriptionsPageClient.tsx`: add `active_or_expiring` and `at_risk` to `STATUS_OPTIONS` (after `expired`) and to `STATUS_LABEL_KEY` → `subscriptions.statusGroups.*`
+  - [x] Confirm by reading, and by hand in the browser pass, that `/subscriptions?status=at_risk` selects the option, lists only grace/expired rows, and exports only those; `/subscriptions?status=bogus` still lists everything, as today
 
-- [ ] **Task 7: i18n (AC: #14)**
-  - [ ] Add the six keys to `en.json` + `fr.json`; `node scripts/check-i18n-key-parity.mjs` → clean. The `i18next/no-literal-string` gate is `jsx-text-only` (`eslint.config.mjs:22-38`), so a hardcoded `aria-label` passes CI silently; still, don't write one
+- [x] **Task 7: i18n (AC: #14)**
+  - [x] Add the six keys to `en.json` + `fr.json`; `node scripts/check-i18n-key-parity.mjs` → clean. The `i18next/no-literal-string` gate is `jsx-text-only` (`eslint.config.mjs:22-38`), so a hardcoded `aria-label` passes CI silently; still, don't write one
 
-- [ ] **Task 8: tests (AC: #16, #17)**
-  - [ ] `supabase/tests/gym_local_period_bounds.test.sql`, run over host psql with `set search_path = public, extensions;` prepended (`supabase test db` is not runnable here; Story 17.1 Debug Log), then the **full** suite, not just the new file
-  - [ ] The Vitest files listed in AC #17, red before green where practical
+- [x] **Task 8: tests (AC: #16, #17)**
+  - [x] `supabase/tests/gym_local_period_bounds.test.sql`, run over host psql with `set search_path = public, extensions;` prepended (`supabase test db` is not runnable here; Story 17.1 Debug Log), then the **full** suite, not just the new file
+  - [x] The Vitest files listed in AC #17, red before green where practical
 
-- [ ] **Task 9: record-keeping (AC: #19)**
-  - [ ] `docs/decisions.md` top entry; `deferred-work.md` entry
+- [x] **Task 9: record-keeping (AC: #19)**
+  - [x] `docs/decisions.md` top entry; `deferred-work.md` entry
 
-- [ ] **Task 10: verify (AC: all)**
-  - [ ] `pnpm --filter @gymos/dashboard typecheck`, `lint` (0 errors; no new warnings in touched files), `test`
-  - [ ] `pnpm --filter @gymos/dashboard build` exit 0
-  - [ ] `node scripts/check-i18n-key-parity.mjs` clean
-  - [ ] Full pgTAP suite green over host psql
-  - [ ] Leave for smartsana's manual browser pass (they do browser QA themselves; list it in Completion Notes rather than attempting it): owner/supervisor/manager see 7 cards; receptionist sees 3 with no row-2 flash while loading; At risk red only when non-zero; each card's link lands on a page whose count matches (`?status=active_or_expiring` and `?status=at_risk` totals = the card figures); EN/FR
+- [x] **Task 10: verify (AC: all)**
+  - [x] `pnpm --filter @gymos/dashboard typecheck`, `lint` (0 errors; no new warnings in touched files), `test`
+  - [x] `pnpm --filter @gymos/dashboard build` exit 0
+  - [x] `node scripts/check-i18n-key-parity.mjs` clean
+  - [x] Full pgTAP suite green over host psql
+  - [x] Leave for smartsana's manual browser pass (they do browser QA themselves; list it in Completion Notes rather than attempting it): owner/supervisor/manager see 7 cards; receptionist sees 3 with no row-2 flash while loading; At risk red only when non-zero; each card's link lands on a page whose count matches (`?status=active_or_expiring` and `?status=at_risk` totals = the card figures); EN/FR
+
+### Review Findings
+
+- [x] [Review][Defer] "At risk" counts every expired member permanently, so it only grows and is red for almost every real gym — deferred, a product-definition gap (not a code defect). Reason: a recency cutoff is a product number best chosen from a real gym's data, production has no customers yet (2026-09-10), and the definition comes from EXPERIENCE.md AD-02 V2; decided by Claude on smartsana's delegation ("decide"). The code matches AC #5 and EXPERIENCE.md AD-02 V2 (`grace_period` + `expired`), but `expired` is a terminal status. `0021`'s lifecycle job moves rows into `expired` and never out of it, and nothing deactivates a member automatically (only staff deactivation, `0063`/`0090`). A renewal inserts a new current row, so a member who comes back leaves the count; a member who never returns stays in it until staff deactivate them. Any gym that has run for a few months and does not deactivate lapsed members will see a large, red, ever-growing figure, which defeats AC #5's "a healthy gym must not see a red number" and the card's purpose as a churn signal. `/subscriptions?status=at_risk` lists the same set, since both share `SUBSCRIPTION_STATUS_GROUPS.at_risk`. [apps/dashboard/services/subscriptions.ts:287-290]
+- [x] [Review][Defer] "Active members" counts every pay-per-session member permanently — deferred, pre-existing (pay-per-session has no lifecycle). Reason: the fix belongs in a subscription-lifecycle change, not in a filter that would drop these members from both Active and At risk; decided by Claude on smartsana's delegation ("decide"). A pay-per-session subscription has `expiry_date = null` (`0018`'s trigger), all three of `0021`'s lifecycle updates require `expiry_date is not null`, and no session-credit column exists. Its status is therefore `active` from creation until the member is deactivated, so a one-off drop-in registered two years ago still counts in "Active members" today. This matches the letter of AC #4 and the epic ("members who can actually train": a pay-per-session member can still check in), but it inflates the figure for gyms with many drop-ins. `/subscriptions?status=active_or_expiring` lists the same set. It is a pre-existing gap in the data model (pay-per-session has no lifecycle) that this card makes visible. [apps/dashboard/services/subscriptions.ts:287-290]
 
 ## Dev Notes
 
@@ -375,10 +384,103 @@ so that I can see membership growth and churn risk without building a report.
 
 ### Agent Model Used
 
+Claude Opus 5 (`claude-opus-5[1m]`) via Claude Code, `bmad-dev-story` workflow.
+
 ### Debug Log References
+
+- **Task 0:** 17.3 was committed (`13cbfd3` feat, `45fadb1` this story's docs, `586a648` sprint-status), PR'd as #11, merged into `master` as `c2163b0` after all 9 CI checks passed, and deployed (Vercel production `success` for both apps). `feat/17-2-gym-health-cards` was branched from `c2163b0`, and its upstream was unset, because `git checkout -b … origin/master` had pointed it at `master`.
+- **Task 1:** `psql -h 127.0.0.1 -p 54322 -v ON_ERROR_STOP=1 -1 -f supabase/migrations/0097_gym_local_period_bounds.sql`: all statements succeeded and the verify block passed. `pg_proc`: `gym_local_day_bounds` prosecdef `f`, provolatile `i`; `gym_local_period_bounds` prosecdef `f`, provolatile `s`; both proacl `{postgres=X/postgres,authenticated=X/postgres}`; `anon` has no EXECUTE on either. No ledger row was inserted, as for 0092–0095 (the local ledger head is 0091).
+- **Red → green:**
+  - Services: 22 of 24 new tests red on missing functions. The two that passed pin behaviour that was already right: `listSubscriptions` with a single status and with an unknown one. All 24 green after implementation.
+  - `GymHealthRow.test.tsx`: red on the missing module. Green after implementation, apart from two failures in the test itself: `vi.spyOn(console, "error")` returns the existing spy, so call counts carried across tests. Fixed with `mockClear()` in `beforeEach`.
+  - `page.overview.test.tsx`: the 6 new manager-plus assertions (row + boundary, staff skeleton) red before `page.tsx` changed. The receptionist, no-shell and gate-skeleton cases passed before, as absence cases should. All green after.
+- **pgTAP:** `gym_local_period_bounds.test.sql` over host psql with `set search_path = public, extensions;` prepended ran 44 ok and 0 not ok on the first run; only the plan count (43 → 44) needed fixing. Full suite: 96 files, 2044 ok assertions, 0 failures.
+- **Final:**
+  - `pnpm --filter @gymos/dashboard test`: 56 files / 428 tests green, up from 51 / 382 (5 new files, 46 new tests).
+  - `typecheck`: exit 0.
+  - `lint`: exit 0, with 15 warnings, the same count as before and none in a touched file. A 16th, an unused mock parameter in `GymHealthRow.test.tsx`, was fixed.
+  - `node scripts/check-i18n-key-parity.mjs`: clean, dashboard 768 keys.
+  - `pnpm --filter @gymos/dashboard build`: exit 0, with `/`, `/subscriptions` and all four `/coach` routes Partial Prerender.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created. Story created 2026-09-10; four scope decisions taken with smartsana during creation and written into `epics.md` and `EXPERIENCE.md`; migration SQL and all four count predicates proven on the local DB in a rolled-back transaction.
+- **AC #9, migration 0097:** AC #9's SQL is used verbatim, with a header in 0095's style and the four-part verify block. It is applied locally, not deployed. The release batch is 0095 → 0096 → 0097.
+- **AC #15, types:** hand-added to `packages/types/src/database.ts` between `gym_effective_member_cap` and `gym_member_count`. `supabase gen types` was not attempted, since 17.1 recorded that it writes 0 bytes in this devcontainer. No other entries were touched.
+- **AC #10, bounds read:** `getGymLocalPeriodBounds()` calls the RPC with no arguments and no `.single()`. Zero rows, or a null result, returns `not_found` via `gymNotFoundError`; an RPC error goes through `mapAndLog`.
+- **AC #3–#8, counts:** `countSubscriptions()`, `countMembersJoinedBetween()` and `countClassSessionsBetween()` are head counts built with each file's own `getCallerGymId()`, returning `count ?? 0` on success only.
+  - `countSubscriptions()` shares the base query and `applySubscriptionFilters()` with `listSubscriptions()`.
+  - A status group matches with `.in`, a single status with `.eq`, and anything else applies no filter, as before.
+  - **One addition beyond the AC text:** the group lookup uses `Object.hasOwn`, so a hand-edited `?status=constructor` cannot resolve through the prototype chain.
+  - The misleading "the view already excludes deactivated" comment is corrected.
+  - `countMembersJoinedBetween()` deliberately does **not** exclude deactivated members, per AC #7. A reviewer may want `.is("deactivated_at", null)`, which is a one-line change.
+- **AC #2, #5, #11–#13, `GymHealthRow`:** starts the two status counts and the bounds read together, and the two dated counts in a `.then` on the bounds promise, all inside one `Promise.all`.
+  - Each group key is one constant, used for both the count and the card's `href`.
+  - A count that was never attempted (its bounds failed) is not logged a second time; every other failure logs once as `GymHealthRow: <read> failed -- <message>`.
+  - At risk is `alert` only when the count loaded and is `> 0`.
+  - `GymHealthRowSkeleton` is four text-free `h-[86px]` tiles.
+- **AC #1, #11, `page.tsx`:** `GYM_HEALTH_ROLES = ["manager", "supervisor", "owner"]` with `canSeeGymHealth(shell)`, where a `null` shell gets no row.
+  - `OverviewGate` passes `showGymHealth` to `OverviewSkeleton`, which renders the shared skeleton after its 3-card grid.
+  - `OverviewData` replaces 17.1's seam comment with `GymHealthRow` in its own `<Suspense>`, passing the `locale` it already holds.
+  - Unchanged: the coach redirect and its position, `OverviewGateSkeleton`, and `OverviewData`'s own `Promise.all`.
+  - The existing "three AD-02 cards" `toEqual` still passes unchanged, which shows row 2 is streamed rather than inlined.
+- **AC #6, `/subscriptions`:** `STATUS_OPTIONS` gains `active_or_expiring` and `at_risk` after `expired`, tied to the service's `SubscriptionStatusFilter` with `satisfies`. `subscriptions/page.tsx` and `actions.ts` are unmodified; re-reading them confirms `params.status` passes through untouched.
+- **AC #14:** the six keys are in EN and FR with the story's exact wording.
+- **AC #16, pgTAP:** follows `gym_revenue_mtd.test.sql`'s style, with two choices worth a reviewer's eye:
+  - The four figures come from a test-only `SECURITY INVOKER` function, `gym_health_test_figures(gym_id)`, created inside the rolled-back transaction. Every role therefore runs the identical predicates the services send, and each assertion reads `active/at_risk/new/today`.
+  - Gym C is seeded with an active member, an expired member, two joins this month and a session today, all confirmed visible to the superuser. Its owner's `0/0/0/0` therefore cannot pass vacuously, which the story's measured table left open.
+  - Results match Dev Notes → *Measured* exactly: **3/2/3/2** for owner, manager, supervisor and receptionist; 8 without the role filter; 6570 day-oracle cases with 0 mismatches under UTC and UTC+14; the wrong form fails on exactly 2026-03-29 and 2026-10-25 in Europe/Paris; 1 / 0 / 1 bounds rows for the owner, no-claim and suspended cases.
+- **AC #18:** `stat-card.tsx`, `Sidebar.tsx`, `FrontDeskAlertPanel.tsx`, `CheckedInTable`, `ExpiringTable`, `OverviewAutoRefresh`, `(dashboard)/layout.tsx`, `subscriptions/page.tsx`, `subscriptions/actions.ts`, 0095 and `suspension_rpc_coverage.test.sql` are all byte-identical to `c2163b0`. `app/(dashboard)/loading.tsx` still does not exist. No policy is created, altered or dropped, and nothing is `SECURITY DEFINER`.
+- **AC #19:** a `docs/decisions.md` top entry dated 2026-09-10 and a `deferred-work.md` entry for the `/members?status=` mismatch, marked as found by reading the code, not measured.
+- **Left for smartsana's browser pass** (Task 10):
+  - Owner, supervisor and manager see 7 cards; a receptionist sees 3, with no row-2 flash while loading.
+  - At risk is red only when non-zero.
+  - Each card's link lands on a page whose total matches the card: `/subscriptions?status=active_or_expiring` and `?status=at_risk`, including the CSV export.
+  - The status dropdown shows the two new options.
+  - `/subscriptions?status=bogus` still lists everything.
+  - EN/FR.
+  - The existing local "Overview QA Gym" has owner and receptionist logins but no manager or supervisor account.
 
 ### File List
+
+New:
+- `supabase/migrations/0097_gym_local_period_bounds.sql`
+- `supabase/tests/gym_local_period_bounds.test.sql`
+- `apps/dashboard/app/(dashboard)/components/GymHealthRow.tsx`
+- `apps/dashboard/app/(dashboard)/components/GymHealthRow.test.tsx`
+- `apps/dashboard/services/subscriptions.countSubscriptions.test.ts`
+- `apps/dashboard/services/members.countMembersJoinedBetween.test.ts`
+- `apps/dashboard/services/classes.countClassSessionsBetween.test.ts`
+- `apps/dashboard/services/gym-settings.getGymLocalPeriodBounds.test.ts`
+
+Modified:
+- `apps/dashboard/app/(dashboard)/page.tsx`
+- `apps/dashboard/app/(dashboard)/page.overview.test.tsx`
+- `apps/dashboard/app/(dashboard)/page.coachRedirect.test.tsx` (mock only)
+- `apps/dashboard/app/(dashboard)/subscriptions/components/SubscriptionsPageClient.tsx`
+- `apps/dashboard/services/subscriptions.ts`
+- `apps/dashboard/services/members.ts`
+- `apps/dashboard/services/classes.ts`
+- `apps/dashboard/services/gym-settings.ts`
+- `apps/dashboard/locales/en.json`
+- `apps/dashboard/locales/fr.json`
+- `packages/types/src/database.ts`
+- `docs/decisions.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/17-2-staff-overview-gym-health-cards.md`
+
+## Change Log
+
+- 2026-09-10 — dev-story: Story 17.2 implemented (Tasks 0–10).
+  - **Task 0:** 17.3 shipped first (PR #11, merged `c2163b0`), and this branch was cut from that `master`.
+  - **Database:** migration 0097 (`gym_local_period_bounds()` + `private.gym_local_day_bounds()`), applied locally.
+  - **Services:** four head-count/bounds services, and named status groups on `/subscriptions`.
+  - **Overview:** the Manager-plus `GymHealthRow` in its own Suspense boundary, with its skeleton in the staff fallback.
+  - **i18n:** six EN/FR keys.
+  - **Tests:** 5 new Vitest files plus page-test extensions (46 new tests), and 1 new pgTAP file (44 assertions).
+  - **Record-keeping:** `decisions.md` and `deferred-work.md` entries.
+  - **Verification:** full Vitest, typecheck, lint, i18n parity, pgTAP suite and `next build` all green.
+  - Status → review.
+- 2026-09-10 — manual QA: smartsana's browser pass on the local dev server was reported as "working fine", with no item-by-item results. Manager and supervisor views were not exercisable, since the local QA gym has no account for either role. Status stays review; code review has not run.
+- 2026-09-10 — code review: three parallel layers (Blind Hunter, Edge Case Hunter, Acceptance Auditor) over the uncommitted diff against `c2163b0`. 19 findings; 17 dismissed (no AC violations; the rest spec-pinned, verified false, or already deferred); 0 patches; 2 decision-needed, both deferred on smartsana's delegation: "At risk" keeps every expired member, and "Active members" keeps every pay-per-session member (see Review Findings and `deferred-work.md`). Status → done.

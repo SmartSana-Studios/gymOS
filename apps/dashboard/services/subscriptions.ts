@@ -280,10 +280,33 @@ function resolveSortAscending(dir: string | undefined): boolean {
   return dir !== "desc";
 }
 
+// Story 17.2 (AC #6): named multi-status filters, accepted by `?status=`
+// alongside the four single statuses. The Overview's "Active members" and
+// "At risk" cards count by these same keys and link to them, so a card and
+// its target page share one predicate. `satisfies` keeps the keys literal.
+const SUBSCRIPTION_STATUS_GROUPS = {
+  active_or_expiring: ["active", "expiring_soon"],
+  at_risk: ["grace_period", "expired"],
+} satisfies Record<string, SubscriptionListRow["status"][]>;
+
+export type SubscriptionStatusFilter = SubscriptionListRow["status"] | keyof typeof SUBSCRIPTION_STATUS_GROUPS;
+
+// Own-property check: `?status=` is a hand-editable URL param, and a plain
+// object's `in` would resolve "constructor" or "toString" via its prototype.
+function isSubscriptionStatusGroup(status: string): status is keyof typeof SUBSCRIPTION_STATUS_GROUPS {
+  return Object.hasOwn(SUBSCRIPTION_STATUS_GROUPS, status);
+}
+
 function applySubscriptionFilters<T>(query: T, params: { status?: string; planType?: string }): T {
-  type ChainableFilter = { eq(column: string, value: unknown): ChainableFilter };
+  type ChainableFilter = {
+    eq(column: string, value: unknown): ChainableFilter;
+    in(column: string, values: readonly unknown[]): ChainableFilter;
+  };
   let next = query as unknown as ChainableFilter;
-  if (params.status && VALID_SUBSCRIPTION_STATUS_FILTERS.has(params.status)) {
+  // An unrecognised status still applies no filter at all, as before.
+  if (params.status && isSubscriptionStatusGroup(params.status)) {
+    next = next.in("status", SUBSCRIPTION_STATUS_GROUPS[params.status]);
+  } else if (params.status && VALID_SUBSCRIPTION_STATUS_FILTERS.has(params.status)) {
     next = next.eq("status", params.status);
   }
   if (params.planType && VALID_PLAN_TYPE_FILTERS.has(params.planType)) {
@@ -292,10 +315,41 @@ function applySubscriptionFilters<T>(query: T, params: { status?: string; planTy
   return next as unknown as T;
 }
 
-/** AC #1: filter/sort/paginate against `subscriptions_current`. The view
- * already excludes deactivated members' rows unconditionally via
- * `.is("deactivated_at", null)` -- no "deactivated" pseudo-status here,
- * unlike members.ts's `VALID_STATUS_FILTERS`. `.eq("gym_id", gymId)` is
+/** Story 17.2 (AC #3-#6): a head COUNT over the same base query as
+ * `listSubscriptions()` -- `subscriptions_current`, the caller's gym,
+ * deactivated members excluded -- through the same
+ * `applySubscriptionFilters()`, so the Overview's figure always matches the
+ * page its card links to. Never a row fetch: `max_rows` truncates rows
+ * silently, not counts. */
+export async function countSubscriptions(params: {
+  status: SubscriptionStatusFilter;
+}): Promise<{ data: number | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  let query = supabase
+    .from("subscriptions_current")
+    .select("subscription_id", { count: "exact", head: true })
+    .eq("gym_id", gymId)
+    .is("deactivated_at", null);
+  query = applySubscriptionFilters(query, params);
+
+  const { count, error } = await query;
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  return { data: count ?? 0, error: null };
+}
+
+/** AC #1: filter/sort/paginate against `subscriptions_current`. The view does
+ * NOT exclude deactivated members -- it exposes `deactivated_at` as a column
+ * -- so this query excludes them itself with `.is("deactivated_at", null)`;
+ * no "deactivated" pseudo-status here, unlike members.ts's
+ * `VALID_STATUS_FILTERS`. `.eq("gym_id", gymId)` is
  * defense-in-depth (the view's own `security_invoker = true` already
  * enforces this via RLS) -- matches every other service function's own
  * discipline of never relying on RLS alone. */

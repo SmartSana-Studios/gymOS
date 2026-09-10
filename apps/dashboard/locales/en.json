@@ -41,6 +41,10 @@
       "checkedInNow": "Checked in now",
       "expiringThisWeek": "Expiring this week",
       "revenueThisMonth": "Revenue this month",
+      "activeMembers": "Active members",
+      "newThisMonth": "New this month",
+      "todaysClasses": "Today's classes",
+      "atRisk": "At risk",
       "unavailable": "Unavailable"
     },
     "tables": {
@@ -576,6 +580,10 @@
   "subscriptions": {
     "title": "Subscriptions",
     "statusAll": "All",
+    "statusGroups": {
+      "activeOrExpiring": "Active or expiring soon",
+      "atRisk": "At risk (grace period or expired)"
+    },
     "filters": {
       "status": "Status",
       "planType": "Plan Type",

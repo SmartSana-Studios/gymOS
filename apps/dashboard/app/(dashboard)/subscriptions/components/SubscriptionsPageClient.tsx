@@ -9,18 +9,31 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RenewalModal } from "@/components/shared/RenewalModal";
-import type { SubscriptionListRow } from "@/services/subscriptions";
+import type { SubscriptionListRow, SubscriptionStatusFilter } from "@/services/subscriptions";
 import { PLAN_TYPE_LABEL_KEY } from "@/app/(dashboard)/plans/planLabels";
 import { exportSubscriptionsCsvAction } from "../actions";
 import { STATUS_BADGE_CONFIG } from "../subscriptionLabels";
 
-const STATUS_OPTIONS = ["", "active", "expiring_soon", "grace_period", "expired"] as const;
+// Story 17.2: the two named groups follow the four single statuses, so the
+// Overview's "Active members" and "At risk" links echo into the select as
+// real options rather than a blank.
+const STATUS_OPTIONS = [
+  "",
+  "active",
+  "expiring_soon",
+  "grace_period",
+  "expired",
+  "active_or_expiring",
+  "at_risk",
+] as const satisfies readonly ("" | SubscriptionStatusFilter)[];
 const STATUS_LABEL_KEY: Record<(typeof STATUS_OPTIONS)[number], string> = {
   "": "subscriptions.statusAll",
   active: "members.status.active",
   expiring_soon: "members.status.expiringSoon",
   grace_period: "members.status.gracePeriod",
   expired: "members.status.expired",
+  active_or_expiring: "subscriptions.statusGroups.activeOrExpiring",
+  at_risk: "subscriptions.statusGroups.atRisk",
 };
 
 const PLAN_TYPE_OPTIONS = ["", "pay_per_session", "monthly", "coach_inclusive", "class_only"] as const;

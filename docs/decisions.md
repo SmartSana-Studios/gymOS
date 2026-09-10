@@ -4,6 +4,20 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-09-10 — Gym-health cards: a small migration after all, joins counted by join date, "active" includes expiring soon, and named status filters — recorded during Story 17.2
+
+**Gym-local bounds for a COUNT query need a public wrapper.** The Overview's Manager-plus row counts "New this month" and "Today's classes" in the gym's own timezone, as PostgREST head counts (a row fetch would be silently truncated at `max_rows`). Story 17.1's `private.gym_local_month_bounds()` already does the month arithmetic, but PostgREST exposes only the `public` and `graphql_public` schemas (`supabase/config.toml`), so an app-built COUNT query cannot reach it. Migration `0097` adds `gym_local_period_bounds()`, a `SECURITY INVOKER` wrapper that reads only the caller's own `gyms` row, plus `private.gym_local_day_bounds()`. No new privilege, no RLS change. The epic had said "no migration"; the product owner accepted this one. The rejected alternative was computing the bounds in TypeScript from `gyms.timezone` via `Intl`: it would have been the app's first gym-local date arithmetic in TS, with no timezone library, it would have bypassed the helper 0095 requires 17.2 to reuse, and "Today's classes" needs UTC instants, the error-prone half. The release batch becomes `0095` → `0096` → `0097`, in that order, since 0097 calls 0095's helper.
+
+**"New this month" counts `members.join_date`, not `created_at`.** CSV import writes the join date from the file, and every onboarding gym imports its roster in its first month, so a creation-time count would show the whole roster as new. `join_date` is a `date`, so it is compared against gym-local dates with no offset arithmetic. Deactivated members are not excluded: the card counts joins, not headcount.
+
+**"Active members" counts `active` + `expiring_soon`.** Both can check in (`0027`). Counting `active` alone would drop the card by exactly row 1's "Expiring this week" figure every week. With both, Active + At risk covers every non-deactivated member's current subscription.
+
+**Both status cards link to named filters on `/subscriptions`: `active_or_expiring` and `at_risk`.** The page previously filtered one status at a time. They are not routed to `/members?status=`, because that filter can match a member by a subscription row that is no longer their current one after a renewal (recorded in `deferred-work.md`). The card's count and its link share one predicate in the subscriptions service.
+
+**The Manager-plus gate is a UI choice, not an authorization boundary.** A Receptionist's RLS reads exactly the owner's figures (proven in `gym_local_period_bounds.test.sql`). The row is hidden because EXPERIENCE.md's AD-02 V2 calls it management information, not front-desk information. No policy was changed.
+
+---
+
 ## 2026-09-09 — First production deploy of the suspension work; Supervisor access repaired; the one-phone rule narrowed to staff/member separation because FR-001 forbids the rest
 
 **Production was five migrations behind, and nobody knew.** The hosted project sat at `0089` while the repo was at `0094`, which meant the *entire* NFR-018 suspension enforcement — Stories 11.8 and 11.9, both reviewed and merged — had never shipped. On the live database a suspended gym could still write through every `SECURITY DEFINER` RPC. `0090`–`0094` were deployed this session; production now verifies 21 guarded write-RPCs, 21 tables carrying `tenant_active_gate`, zero policies granting manager without supervisor, and both new guards present.

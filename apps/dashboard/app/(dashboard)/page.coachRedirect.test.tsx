@@ -67,6 +67,7 @@ vi.mock("@/components/shared/FrontDeskAlertPanel", () => ({
 vi.mock("./components/CheckedInTable", () => ({ CheckedInTable: () => null }));
 vi.mock("./components/ExpiringTable", () => ({ ExpiringTable: () => null }));
 vi.mock("./components/OverviewAutoRefresh", () => ({ OverviewAutoRefresh: () => null }));
+vi.mock("./components/GymHealthRow", () => ({ GymHealthRow: () => null, GymHealthRowSkeleton: () => null }));
 
 import OverviewPage from "./page";
 
