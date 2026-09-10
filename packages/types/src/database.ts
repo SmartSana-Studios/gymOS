@@ -2045,6 +2045,7 @@ export type Database = {
       }
       gym_effective_member_cap: { Args: never; Returns: number }
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
+      gym_revenue_mtd: { Args: never; Returns: number }
       initiate_member_payment: { Args: never; Returns: string }
       initiate_saas_billing_payment: {
         Args: {

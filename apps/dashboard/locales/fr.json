@@ -37,7 +37,31 @@
   },
   "overview": {
     "title": "Aperçu",
-    "body": "Le résumé de l'activité de votre salle apparaîtra ici à mesure que GymOS se déploie."
+    "cards": {
+      "checkedInNow": "Présents en ce moment",
+      "expiringThisWeek": "Expirent cette semaine",
+      "revenueThisMonth": "Revenus du mois",
+      "unavailable": "Indisponible"
+    },
+    "tables": {
+      "viewAll": "Tout voir →",
+      "checkedIn": {
+        "title": "Actuellement présents",
+        "name": "Nom",
+        "checkInTime": "Heure d'arrivée",
+        "status": "Statut",
+        "actions": "Actions"
+      },
+      "expiring": {
+        "title": "Expirent cette semaine",
+        "name": "Nom",
+        "plan": "Formule",
+        "expiryDate": "Date d'expiration",
+        "status": "Statut",
+        "actions": "Actions",
+        "empty": "Aucun membre n'expire dans les 7 prochains jours."
+      }
+    }
   },
   "settings": {
     "title": "Paramètres",

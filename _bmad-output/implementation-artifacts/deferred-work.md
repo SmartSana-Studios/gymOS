@@ -1,5 +1,12 @@
 # Deferred Work
 
+## Deferred from: dev-story of story-17-1-staff-overview-operational-cards-live-tables (2026-09-10)
+
+Two deliberate, reasoned deviations from the epic's literal Story 17.1 wording, recorded here per the story's AC #8 and AC #13 rather than left implicit in the code.
+
+- **"Revenue this month" links to plain `/payments`, not "filtered to the current month".** `payments/page.tsx` takes no `searchParams` at all and renders only the pending-verification queue; AD-09's "All Payments" ledger is Scope-Note-excluded (Story 4.3), so there is no ledger of verified payments for a month filter to act on. Inventing a `?month=` param would be a dead query string. A real month filter needs that ledger first, which is its own story. Plain `/payments` still satisfies FR-143 ("Every card links through to the full page for its metric"). [apps/dashboard/app/(dashboard)/page.tsx; apps/dashboard/app/(dashboard)/payments/page.tsx]
+- **The Overview skeleton is the `<Suspense fallback>` inside `page.tsx`, not a `loading.tsx`** (the epic AC says "`<Suspense>` + `loading.tsx`"). `app/(dashboard)/loading.tsx` would sit at the route-group ROOT, so its boundary would also cover every child route with no `loading.tsx` of its own (e.g. `/settings`), flashing an Overview skeleton while navigating somewhere else. Every other route's `loading.tsx` sits at a leaf, where that cannot happen. [apps/dashboard/app/(dashboard)/page.tsx]
+
 ## Deferred from: code review of story-15-1-splash-screen-app-icon-fix (2026-09-02)
 
 - Ad-hoc `sharp`-based Node scripts used to produce every rebranded icon/splash asset (`icon.png`, `splash-icon.png`, all three Android adaptive layers, `gymos-mark.png`) were never committed to the repo — the exact crop bounds, upscale factor, and color conversion are not reproducible or auditable from the repo itself; a future brand-mark change would need to reverse-engineer the pipeline from scratch rather than re-run a script. Deferred, not a defect in the shipped assets — matches this project's established one-off-asset-production pattern. [apps/mobile/assets/expo.icon/Assets/gymos-mark.png and sibling regenerated assets]
@@ -857,3 +864,7 @@ of work.
 - **No custom domain on either app.** Both run on Vercel-generated hostnames that cannot be branded and are easy to lose track of. `ultradominon.com` is already on the account.
 - **12 Dependabot vulnerabilities (11 high, 1 moderate)** on the default branch, reported by GitHub on every push. Not a deploy blocker, but they should be reviewed before real customer data exists.
 - **The e2e fixture's synthetic-email workaround is now stale.** `apps/dashboard/e2e/fixtures/seed.ts` gives every seeded staff account a fabricated email specifically to route around the login gap that is now fixed, so Playwright still never exercises phone login. Left unchanged because the suite could not be run here to verify a change.
+
+## Deferred from: code review of 17-1-staff-overview-operational-cards-live-tables (2026-09-10)
+
+- **Overview check-in time is formatted with no `timeZone` in an SSR'd client component** (`apps/dashboard/app/(dashboard)/components/CheckedInTable.tsx:31`). `new Date(iso).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" })` runs once on the server (UTC on Vercel) and again in the browser (Africa/Douala, UTC+1), so the two renders disagree by an hour — React reports a hydration text mismatch and re-renders the cell client-side, visibly jumping the time. Deferred, pre-existing: copied verbatim from `AttendancePageClient.tsx:157` and shared with `PaymentsPageClient.tsx:98`; it is another instance of the cross-cutting pattern already recorded above for `noteTimestamp()` (CoachMemberDetailPageClient). The fix — an explicit gym `timeZone`, or formatting after mount — belongs in one pass over every call site, not in the Overview alone.

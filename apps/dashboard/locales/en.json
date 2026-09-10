@@ -37,7 +37,31 @@
   },
   "overview": {
     "title": "Overview",
-    "body": "Your gym's activity summary will appear here as more of GymOS comes online."
+    "cards": {
+      "checkedInNow": "Checked in now",
+      "expiringThisWeek": "Expiring this week",
+      "revenueThisMonth": "Revenue this month",
+      "unavailable": "Unavailable"
+    },
+    "tables": {
+      "viewAll": "View all →",
+      "checkedIn": {
+        "title": "Currently Checked In",
+        "name": "Name",
+        "checkInTime": "Check-in time",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "expiring": {
+        "title": "Expiring This Week",
+        "name": "Name",
+        "plan": "Plan",
+        "expiryDate": "Expiry date",
+        "status": "Status",
+        "actions": "Actions",
+        "empty": "No members expiring in the next 7 days."
+      }
+    }
   },
   "settings": {
     "title": "Settings",
