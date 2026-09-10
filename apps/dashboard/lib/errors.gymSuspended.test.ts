@@ -20,7 +20,8 @@ import { isGymSuspendedError, mapSupabaseError } from "@gymos/types";
 
 const GYM = "00000000-0000-0000-0000-000000009911";
 
-// Every function 0090 and 0091 gate, with the exact message each one raises.
+// Every function 0090 and 0091 gate, plus 0096's two read-only Coach functions
+// (Story 17.4), with the exact message each one raises.
 const GATED_RPCS = [
   "check_in",
   "check_out",
@@ -38,6 +39,8 @@ const GATED_RPCS = [
   "cancel_class_booking",
   "mark_class_attendance",
   "assign_coach",
+  "list_my_classes",
+  "list_my_class_session_roster",
   "add_session_note",
   "edit_session_note",
   // Story 11.9 (0091). These three are coach-facing and dashboard-only --

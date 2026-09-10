@@ -293,6 +293,114 @@ export async function listSessionBookings(
   };
 }
 
+/** Story 17.4 (AC #7): one session of one of the calling Coach's own
+ * classes, from 00:00 today in the gym's timezone onward. */
+export interface CoachClassSessionRow {
+  classSessionId: string;
+  scheduledAt: string;
+  bookedCount: number;
+}
+
+/** Story 17.4 (AC #7): a class the calling Coach teaches, with its sessions
+ * in the window. `sessions` is empty for a class with none (a finished
+ * one-off class, or a recurring class that has not started yet). */
+export interface CoachClassRow {
+  classId: string;
+  className: string;
+  capacity: number;
+  scheduleType: "one_off" | "recurring";
+  oneOffSessionAt: string | null;
+  recurrenceDays: number[] | null;
+  recurrenceTime: string | null;
+  gymTimezone: string;
+  sessions: CoachClassSessionRow[];
+}
+
+/** Story 17.4 (AC #7): one booking on a session's roster -- exactly the three
+ * columns `list_my_class_session_roster()` returns, never more. */
+export interface CoachRosterRow {
+  memberId: string;
+  memberName: string;
+  attendedAt: string | null;
+}
+
+/** Story 17.4 (AC #7): the Coach Portal's My Classes list, from
+ * `list_my_classes()` (0096). Deliberately NOT `listClasses()`: under a Coach
+ * session its `class_bookings` read returns zero rows without an error
+ * (gym_staff_read_own_class_bookings excludes coach, 0068), so every count
+ * would read 0. The RPC resolves the Coach and the gym server-side from the
+ * session, so there is no getCallerGymId() step and no argument. It returns
+ * one row per (class, session); rows are grouped per class in the SQL's own
+ * order, and a class with no session in the window arrives as a single row
+ * whose session columns are null. Zero rows -- including every non-coach
+ * caller, by design -- is an empty list, not an error. */
+export async function listMyClasses(): Promise<{ data: CoachClassRow[] | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("list_my_classes");
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  const byClassId = new Map<string, CoachClassRow>();
+  for (const row of data ?? []) {
+    let cls = byClassId.get(row.class_id);
+    if (!cls) {
+      cls = {
+        classId: row.class_id,
+        className: row.class_name,
+        capacity: row.capacity,
+        scheduleType: row.schedule_type as CoachClassRow["scheduleType"],
+        oneOffSessionAt: row.one_off_session_at,
+        recurrenceDays: row.recurrence_days,
+        recurrenceTime: row.recurrence_time,
+        gymTimezone: row.gym_timezone,
+        sessions: [],
+      };
+      byClassId.set(row.class_id, cls);
+    }
+    if (row.class_session_id !== null && row.scheduled_at !== null) {
+      cls.sessions.push({
+        classSessionId: row.class_session_id,
+        scheduledAt: row.scheduled_at,
+        // bigint over PostgREST: normally a JSON number, but never trust it.
+        bookedCount: Number(row.booked_count),
+      });
+    }
+  }
+
+  return { data: [...byClassId.values()], error: null };
+}
+
+/** Story 17.4 (AC #7): who is booked into one session, from
+ * `list_my_class_session_roster()` (0096). The RPC is the authorization
+ * boundary: it returns rows only for a session of the calling Coach's own
+ * class, and an empty set for anything else, so an empty roster here can mean
+ * "no one booked" or "not yours" -- the page only ever asks for sessions
+ * `listMyClasses()` returned. A non-uuid id is rejected by Postgres and comes
+ * back as a mapped error. */
+export async function listMyClassSessionRoster(
+  classSessionId: string,
+): Promise<{ data: CoachRosterRow[] | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("list_my_class_session_roster", {
+    p_class_session_id: classSessionId,
+  });
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  return {
+    data: (data ?? []).map((row: { member_id: string; member_name: string; attended_at: string | null }) => ({
+      memberId: row.member_id,
+      memberName: row.member_name,
+      attendedAt: row.attended_at,
+    })),
+    error: null,
+  };
+}
+
 /** Story 12.3: marks one booking attended via `mark_class_attendance()`
  * (AC #2, #3). The RPC's own explicit `null` return (not an `error`) is its
  * documented rejection contract -- an expired/no-subscription member's
