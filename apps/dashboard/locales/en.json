@@ -622,6 +622,22 @@
     "emptyNoAssignments": "No members have been assigned to you yet. Ask your manager, owner, or supervisor to assign members.",
     "emptySearchNoMatch": "No members match '{{term}}'.",
     "clearSearch": "Clear search",
+    "subNav": {
+      "label": "Coach Portal",
+      "overview": "Overview",
+      "myMembers": "My Members",
+      "myClasses": "My Classes"
+    },
+    "overview": {
+      "membersAtAGlance": {
+        "title": "My Members At A Glance",
+        "assignedLabel": "Assigned members",
+        "viewAll": "All →"
+      }
+    },
+    "classes": {
+      "pendingNote": "Class schedules and session rosters are not available on this page yet."
+    },
     "detail": {
       "notFound": "This member could not be found.",
       "planLabel": "Plan",

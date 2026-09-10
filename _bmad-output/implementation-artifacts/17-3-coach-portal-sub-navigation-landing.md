@@ -4,7 +4,7 @@ baseline_commit: be642d0d547b2b190b513096cc3a125ec8604732
 
 # Story 17.3: Coach Portal — Sub-Navigation & Landing
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -56,54 +56,64 @@ so that I am not dropped onto a staff page I have no link back from.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1 — Coach redirect in `page.tsx` (AC: #1, #2)
-  - [ ] `import { redirect } from "next/navigation";` (same import form as `(dashboard)/layout.tsx:2`)
-  - [ ] In `OverviewData`, hoist `const { data: shell } = await getDashboardShellContext();` above the existing `Promise.all`, then `if (shell?.role === "coach") redirect("/coach/overview");`, then run the remaining fetches with the already-resolved `shell`
-  - [ ] Keep the outer `<Suspense fallback={...}><OverviewData /></Suspense>` shape — `redirect()` from inside a Suspense-wrapped async Server Component is supported and is the same mechanism `(dashboard)/layout.tsx` already relies on (`spec-cache-components-suspense-boundary-fix.md`)
+- [x] Task 1 — Coach redirect in `page.tsx` (AC: #1, #2)
+  - [x] `import { redirect } from "next/navigation";` (same import form as `(dashboard)/layout.tsx:2`)
+  - [x] In `OverviewData`, hoist `const { data: shell } = await getDashboardShellContext();` above the existing `Promise.all`, then `if (shell?.role === "coach") redirect("/coach/overview");`, then run the remaining fetches with the already-resolved `shell`
+  - [x] Keep the outer `<Suspense fallback={...}><OverviewData /></Suspense>` shape — `redirect()` from inside a Suspense-wrapped async Server Component is supported and is the same mechanism `(dashboard)/layout.tsx` already relies on (`spec-cache-components-suspense-boundary-fix.md`)
 
-- [ ] Task 2 — `cache()`-wrap the shell read (AC: #3)
-  - [ ] Wrap `getDashboardShellContext` in React `cache()` in `services/session.ts`, mirroring `lib/i18n/get-request-locale.ts:24`
-  - [ ] Re-run `(dashboard)/layout.gymSwitchRemount.test.tsx` and `services/session.switchActiveGym.test.ts`
+- [x] Task 2 — `cache()`-wrap the shell read (AC: #3)
+  - [x] Wrap `getDashboardShellContext` in React `cache()` in `services/session.ts`, mirroring `lib/i18n/get-request-locale.ts:24`
+  - [x] Re-run `(dashboard)/layout.gymSwitchRemount.test.tsx` and `services/session.switchActiveGym.test.ts`
 
-- [ ] Task 3 — Sidebar active-state (AC: #4, #5)
-  - [ ] Replace `Sidebar.tsx:108`'s `pathname === item.href` with the exact-match-wins-else-longest-prefix rule from AC #5, computed once over the filtered `items` list rather than per item
-  - [ ] Do not change `NAV_ITEMS` at all
-  - [ ] Manually confirm: `/` lights Overview only; `/settings/staff` lights Staff only; `/members/new` lights Members; `/coach/overview` and `/coach/[memberId]` light Coach Portal
+- [x] Task 3 — Sidebar active-state (AC: #4, #5)
+  - [x] Replace `Sidebar.tsx:108`'s `pathname === item.href` with the exact-match-wins-else-longest-prefix rule from AC #5, computed once over the filtered `items` list rather than per item
+  - [x] Do not change `NAV_ITEMS` at all
+  - [x] Manually confirm: `/` lights Overview only; `/settings/staff` lights Staff only; `/members/new` lights Members; `/coach/overview` and `/coach/[memberId]` light Coach Portal
 
-- [ ] Task 4 — `coach/layout.tsx` + sub-nav (AC: #6, #7, #8, #9, #13)
-  - [ ] Create `app/(dashboard)/coach/layout.tsx` — Server Component; renders `<h1>{t("coachPortal.title")}</h1>`, then `<Suspense fallback={<CoachPortalNavFallback />}><CoachPortalNav /></Suspense>`, then `{children}`
-  - [ ] Create `app/(dashboard)/coach/components/CoachPortalNav.tsx` — `"use client"`, `useSelectedLayoutSegment()`, three `<Link>`s, `aria-current="page"` on the active one. Reuse `AdminNavLink.tsx`'s active/inactive class pair (`font-medium text-foreground underline underline-offset-8 decoration-2` / `text-muted-foreground hover:text-foreground`) so the two apps stay visually consistent
-  - [ ] Labels via `useTranslation()` inside the client component (it is a client component, so the `t()` hook — not `getServerTranslation`)
-  - [ ] Fallback reserves the row's height/width; not `null`
-  - [ ] Drop the now-duplicated heading skeleton from `coach/loading.tsx:7` (`h-8 w-40`) and decide deliberately about `coach/[memberId]/loading.tsx:10` (`h-6 w-40`) — after the `<h1>` moves into the layout it renders immediately, so a heading placeholder below it is a double heading
-  - [ ] Delete the `<h1>` at `CoachPortalPageClient.tsx:103` (and the now-single-child wrapper `<div>` at :102 if it becomes redundant)
+- [x] Task 4 — `coach/layout.tsx` + sub-nav (AC: #6, #7, #8, #9, #13)
+  - [x] Create `app/(dashboard)/coach/layout.tsx` — Server Component; renders `<h1>{t("coachPortal.title")}</h1>`, then `<Suspense fallback={<CoachPortalNavFallback />}><CoachPortalNav /></Suspense>`, then `{children}`
+  - [x] Create `app/(dashboard)/coach/components/CoachPortalNav.tsx` — `"use client"`, `useSelectedLayoutSegment()`, three `<Link>`s, `aria-current="page"` on the active one. Reuse `AdminNavLink.tsx`'s active/inactive class pair (`font-medium text-foreground underline underline-offset-8 decoration-2` / `text-muted-foreground hover:text-foreground`) so the two apps stay visually consistent
+  - [x] Labels via `useTranslation()` inside the client component (it is a client component, so the `t()` hook — not `getServerTranslation`)
+  - [x] Fallback reserves the row's height/width; not `null`
+  - [x] Drop the now-duplicated heading skeleton from `coach/loading.tsx:7` (`h-8 w-40`) and decide deliberately about `coach/[memberId]/loading.tsx:10` (`h-6 w-40`) — after the `<h1>` moves into the layout it renders immediately, so a heading placeholder below it is a double heading
+  - [x] Delete the `<h1>` at `CoachPortalPageClient.tsx:103` (and the now-single-child wrapper `<div>` at :102 if it becomes redundant)
 
-- [ ] Task 5 — `/coach/overview` (AC: #10)
-  - [ ] Create `app/(dashboard)/coach/overview/page.tsx` following `coach/page.tsx:26-63`'s exact shape: sync default export → `<Suspense fallback={...}>` → async data component → inline `<div className="text-sm text-red-600">{t("common.loadError")}</div>` on error (this app renders inline errors, never `notFound()` — `coach/[memberId]/page.tsx:50-58`)
-  - [ ] One call to `listAssignedMembers({})`; group `row.status` into counts; render total + per-status breakdown + "All →" → `/coach`
-  - [ ] Zero assigned members → `coachPortal.emptyNoAssignments`
-  - [ ] Reuse `members.status.*` label keys and the existing status badge config rather than new copy
-  - [ ] Optional sibling `loading.tsx` matching `coach/loading.tsx`'s shape
+- [x] Task 5 — `/coach/overview` (AC: #10)
+  - [x] Create `app/(dashboard)/coach/overview/page.tsx` following `coach/page.tsx:26-63`'s exact shape: sync default export → `<Suspense fallback={...}>` → async data component → inline `<div className="text-sm text-red-600">{t("common.loadError")}</div>` on error (this app renders inline errors, never `notFound()` — `coach/[memberId]/page.tsx:50-58`)
+  - [x] One call to `listAssignedMembers({})`; group `row.status` into counts; render total + per-status breakdown + "All →" → `/coach`
+  - [x] Zero assigned members → `coachPortal.emptyNoAssignments`
+  - [x] Reuse `members.status.*` label keys and the existing status badge config rather than new copy
+  - [x] Optional sibling `loading.tsx` matching `coach/loading.tsx`'s shape
 
-- [ ] Task 6 — `/coach/classes` route shell (AC: #11)
-  - [ ] Create `app/(dashboard)/coach/classes/page.tsx` with a neutral one-line note (new i18n key) and nothing else
-  - [ ] Add a header comment naming Story 17.4 as the owner of this file's real contents, so the next dev extends rather than rewrites
-  - [ ] Do **not** query `classes`, do **not** resolve the Coach's `members.id`, do **not** render AD-21's empty state
+- [x] Task 6 — `/coach/classes` route shell (AC: #11)
+  - [x] Create `app/(dashboard)/coach/classes/page.tsx` with a neutral one-line note (new i18n key) and nothing else
+  - [x] Add a header comment naming Story 17.4 as the owner of this file's real contents, so the next dev extends rather than rewrites
+  - [x] Do **not** query `classes`, do **not** resolve the Coach's `members.id`, do **not** render AD-21's empty state
 
-- [ ] Task 7 — i18n (AC: #17)
-  - [ ] Add `coachPortal.subNav.{overview,myMembers,myClasses}` and the overview/classes strings to `en.json` and `fr.json`
-  - [ ] `node scripts/check-i18n-key-parity.mjs` → clean
+- [x] Task 7 — i18n (AC: #17)
+  - [x] Add `coachPortal.subNav.{overview,myMembers,myClasses}` and the overview/classes strings to `en.json` and `fr.json`
+  - [x] `node scripts/check-i18n-key-parity.mjs` → clean
 
-- [ ] Task 8 — Tests (AC: #15, #16)
-  - [ ] `components/shared/Sidebar.test.tsx` — coach absence assertions **plus** the owner positive control
-  - [ ] `app/(dashboard)/page.coachRedirect.test.tsx` — redirect called with `/coach/overview` for a coach shell; not called for an owner shell
-  - [ ] Consider a `CoachPortalNav` test mocking `useSelectedLayoutSegment` across `null` / `"overview"` / `"classes"` / a UUID, asserting `aria-current` lands on the right item — this is where AC #8's member-detail case is cheapest to prove
+- [x] Task 8 — Tests (AC: #15, #16)
+  - [x] `components/shared/Sidebar.test.tsx` — coach absence assertions **plus** the owner positive control
+  - [x] `app/(dashboard)/page.coachRedirect.test.tsx` — redirect called with `/coach/overview` for a coach shell; not called for an owner shell
+  - [x] Consider a `CoachPortalNav` test mocking `useSelectedLayoutSegment` across `null` / `"overview"` / `"classes"` / a UUID, asserting `aria-current` lands on the right item — this is where AC #8's member-detail case is cheapest to prove
 
-- [ ] Task 9 — Verify (AC: #12, #18)
-  - [ ] `pnpm --filter @gymos/dashboard typecheck`, `lint`, `test`
-  - [ ] `pnpm --filter @gymos/dashboard build` — must exit 0 (this is what catches a missing Suspense boundary around `useSelectedLayoutSegment`)
-  - [ ] `node scripts/check-i18n-key-parity.mjs` → clean
-  - [ ] Confirm `/coach` still serves AD-14 and `/coach/<uuid>` still serves AD-15; `pnpm --filter @gymos/dashboard test:e2e` if the environment allows, or at minimum re-read `e2e/progress-data-privacy.spec.ts:106` against the new route tree
+- [x] Task 9 — Verify (AC: #12, #18)
+  - [x] `pnpm --filter @gymos/dashboard typecheck`, `lint`, `test`
+  - [x] `pnpm --filter @gymos/dashboard build` — must exit 0 (this is what catches a missing Suspense boundary around `useSelectedLayoutSegment`)
+  - [x] `node scripts/check-i18n-key-parity.mjs` → clean
+  - [x] Confirm `/coach` still serves AD-14 and `/coach/<uuid>` still serves AD-15; `pnpm --filter @gymos/dashboard test:e2e` if the environment allows, or at minimum re-read `e2e/progress-data-privacy.spec.ts:106` against the new route tree
+
+### Review Findings
+
+- [x] [Review][Patch] Give the `/` gate boundary a role-neutral skeleton instead of `fallback={null}` (decision delegated by smartsana, 2026-09-10: option A, AC #2's "role-neutral skeleton"). On a client-side navigation to `/`, the shared layout is not re-rendered, so the `cache()`d shell read misses and staff saw an empty content area for a full shell round trip before 17.1's skeleton. The new fallback must carry no text and no stat-card shape, so a Coach bounced to the Portal still never sees staff content. Update `page.coachRedirect.test.tsx`'s null-fallback assertion to match. [apps/dashboard/app/(dashboard)/page.tsx:58]
+- [x] [Review][Patch] A gym switch always sends the user to `/`, so the landing redirect re-routes by the new gym's role (decision resolved by smartsana, 2026-09-10: option C, every route and every role). Previously a multi-gym user who switched from a coach gym to a staff gym stayed on `/coach/overview`, where RLS-scoped `listAssignedMembers()` counted the whole gym as "My Members". Covers both switch call sites: `GymSwitcher.tsx:98` and `SuspendedGymScreen.tsx:74`. Mind `update-password-form.tsx:94-108`: `router.push("/")` can be served from the client router cache. [apps/dashboard/components/shared/GymSwitcher.tsx:98]
+- [x] [Review][Patch] `/coach/classes` has no `loading.tsx`, so `coach/loading.tsx`'s 4-row member-list skeleton shows while navigating to My Classes [apps/dashboard/app/(dashboard)/coach/classes/page.tsx:1]
+- [x] [Review][Patch] The Portal sub-nav adds a second unlabelled `<nav>` landmark next to the sidebar's; give it a translated `aria-label` [apps/dashboard/app/(dashboard)/coach/components/CoachPortalNav.tsx:37]
+- [x] [Review][Patch] The widget handover is written only on 17.5's side of `epics.md`: Story 17.3's own section lacks the two transferred ACs, and 17.5 is not told to bring `/coach/overview/loading.tsx` from 1 skeleton card to AD-20's 4 [_bmad-output/planning-artifacts/epics.md:768]
+- [x] [Review][Defer] `subscriptions_current` inner-joins `subscriptions` to `members`, so an assigned member with no subscription row is missing from the At-A-Glance total, and a Coach whose assignees all lack one sees "No members have been assigned to you yet" [apps/dashboard/services/coaches.ts:239] — deferred, pre-existing
+- [x] [Review][Defer] The Sidebar marks its active item with classes only, with no `aria-current="page"` [apps/dashboard/components/shared/Sidebar.tsx:131] — deferred, pre-existing
 
 ## Dev Notes
 
@@ -182,8 +192,64 @@ so that I am not dropped onto a staff page I have no link back from.
 
 ### Agent Model Used
 
+Claude Opus 5 (`claude-opus-5[1m]`) via Claude Code, `bmad-dev-story` workflow.
+
 ### Debug Log References
+
+- Red → green per task, each via `npx vitest run <file>`: the Task 1 redirect test was 7/8 red before the change (the no-shell case already passed), then 8/8; `Sidebar.test.tsx` was 5/14 red — exactly the child-route active-state cases; the role-matrix cases already passed, as expected for a first test of shipped Story 5.2 behaviour — then 14/14; `CoachPortalNav` + `coach/layout` tests were red on missing modules, then 9/9; `/coach/overview` test red, then 6/6; `/coach/classes` test red, then 1/1.
+- Baseline before any change: 43 files / 339 tests green. Final: `pnpm --filter @gymos/dashboard test` 49 files / 377 tests green (38 new); `typecheck` exit 0; `lint` exit 0 with 15 warnings, none in a file this story touches (eslint output filtered to touched paths: 0 matches); `node scripts/check-i18n-key-parity.mjs` clean (dashboard 761 keys); `pnpm --filter @gymos/dashboard build` exit 0, with `/coach`, `/coach/overview`, `/coach/classes` and `/coach/[memberId]` all Partial Prerender (◐).
 
 ### Completion Notes List
 
+- **AC #1/#2 — two boundaries on `/`, a deliberate reading of AC #2 now that Story 17.1 has landed.** 17.1 shipped a stat-card skeleton as `OverviewPage`'s fallback, and AC #2 says a Coach must see neither staff copy nor that skeleton. One `null` fallback would have taken 17.1's AD-02 loading state away from staff; keeping the skeleton would flush it to every Coach before the client-side bounce. So: `OverviewPage` → `<Suspense fallback={null}>` → `OverviewGate` (reads the shell, redirects a Coach, nothing else) → `<Suspense fallback={<OverviewSkeleton />}>` → `OverviewData({ shell })`. The redirect runs before `getRequestLocale()` and before the `Promise.all`, which no longer contains `getDashboardShellContext()` and takes the resolved `shell` as a prop. `page.overview.test.tsx`'s helper now awaits both async children; its 13 assertions are unchanged.
+- **AC #3:** `getDashboardShellContext` is now `export const … = cache(async () => …)`, the same form as `getRequestLocale`. `layout.gymSwitchRemount`, `session.switchActiveGym`, `session.getDashboardShellContext` and `members/actions.sendMemberInvite` tests re-run green (22/22).
+- **AC #4/#5:** `NAV_ITEMS` untouched. `resolveActiveHref()` runs once over the role-filtered hrefs: exact match, else the longest `href + "/"` prefix, with `/` never a prefix. Task 3's "manually confirm" cases are pinned in `Sidebar.test.tsx` (`/`, `/members/new`, `/settings/staff`, `/settings`, `/settings/staff/<id>`, `/membersarchive`, and all four Coach Portal routes); smartsana's browser pass can spot-check them too. **PR note owed:** every role now sees a lit item on child routes (`/members/new`, `/settings/staff/<id>`) where nothing lit before — correct behaviour, not a regression.
+- **AC #6–#9, #13:** `coach/layout.tsx` is an async Server Component rendering `<h1>` → `<Suspense fallback={<CoachPortalNavFallback />}><CoachPortalNav /></Suspense>` → `children`. `CoachPortalNav` reads `useSelectedLayoutSegment()`: `overview` and `classes` light their own items, anything else (`null`, a member UUID) lights My Members; `aria-current="page"` lands on exactly one link; classes are AdminNavLink's active/inactive pair. The fallback is three text-free `h-5 w-20` placeholders. Because `next build` passes with or without the nested boundary (the ancestor `fallback={null}` satisfies it), `coach/layout.test.tsx` asserts it on the element tree — the nav sits in its own `Suspense` whose fallback is `CoachPortalNavFallback`, not `null`.
+- **`coach/[memberId]/loading.tsx:10` — decided: left unchanged.** Its `h-6 w-40` bar is not a page-heading placeholder. It sits in the second block, below the `h-24` member-card placeholder, standing in for the section heading of the notes area — `CoachMemberDetailPageClient.tsx:133-147` opens with the member card and has no page heading. With the real `<h1>` now rendering above it from the layout, the skeleton reads heading → sub-nav → member card → section, which matches the loaded page, so there is no double heading to remove. `coach/loading.tsx`'s `h-8 w-40` *was* the page-heading placeholder and is removed; its wrapper collapsed to the 4-row list.
+- **AC #10:** `/coach/overview` renders My Members At A Glance from one `listAssignedMembers({})` call: the locale-formatted total, then one `Badge` per status using `STATUS_BADGE_CONFIG`'s `members.status.*` labels and icons (zero-count statuses omitted), and "All →" → `/coach`. Label and count sit side by side rather than as a composed "9 active" sentence, which would not inflect correctly in French. No assignments → the existing `coachPortal.emptyNoAssignments`, in AD-14's dashed box; a failed read → inline `common.loadError`. A sibling `overview/loading.tsx` (one widget-card skeleton) stops AD-14's member-list rows being the fallback while navigating there. **Bookkeeping done in the same change:** `epics.md` Story 17.5 amended — the At-A-Glance and no-assignments ACs removed, the "four widgets" and "other three still render" ACs reworded, and an amendment note added telling 17.5 to keep 17.3's empty state covering the whole page; the transfer is recorded in `sprint-status.yaml`.
+- **AC #11:** `/coach/classes` renders one neutral note (`coachPortal.classes.pendingNote`) behind a `null` fallback, with a header comment naming Story 17.4 as the owner and restating the release decision (17.4 ships in the same release; otherwise hold My Classes out of `CoachPortalNav`). No query, no `members.id` resolution, no AD-21 empty state — pinned by `classes/page.test.tsx`.
+- **AC #12:** the route tree only gains static siblings `overview/` and `classes/` next to `[memberId]/`; `coach/page.tsx` and `coach/[memberId]/**` are untouched, as are the three `router.push(`/coach/${row.memberId}`)` calls. `e2e/progress-data-privacy.spec.ts:106` re-read against the new tree: it does `page.goto('/coach/<memberId>')` then `getByRole("tab", { name: "Progress" })` — the sub-nav adds links, not tabs, none named Progress — and its `.grid img` locator is unaffected, since the layout adds no `.grid`. `loginViaUi` only asserts the URL has left `/auth/login`, so a Coach fixture landing on `/coach/overview` does not break it. The e2e suite was not run locally; CI's `e2e-tests` job runs it on the PR.
+- **AC #14:** no role guard added anywhere.
+- **AC #17:** `coachPortal.subNav.{overview,myMembers,myClasses}`, `coachPortal.overview.membersAtAGlance.{title,assignedLabel,viewAll}` and `coachPortal.classes.pendingNote` in both locales, with real French — `Aperçu` / `Mes membres` / `Mes cours` follow the existing `nav.overview` ("Aperçu") and `nav.classes` ("Cours"). No duplicate `common` block added.
+- **Flagged, not changed (both in `deferred-work.md`):** the AD-15 breadcrumb (`← Coach Portal / [Member Name]`), deferred per AC #13; and `nav.coachPortal` "Espace Coach" vs `coachPortal.title` "Portail Coach", left for a product copy decision.
+- **Scope held:** no migration, no RLS change; `(dashboard)/layout.tsx`, `proxy.ts`, `ClassesPageClient.tsx` and `NAV_ITEMS` untouched. Nothing committed — the work is on branch `feat/17-3-coach-portal-nav`.
+- **Worth checking in smartsana's browser pass:** sign in as a Coach → land on `/coach/overview` with no Overview skeleton or staff heading flashing first; heading + sub-nav on all four Portal routes, with Coach Portal lit in the sidebar on each; My Members lit on a member's detail page; `/coach/classes` shows the note; EN/FR labels. As an Owner: `/members/new` lights Members, `/settings/staff` lights only Staff.
+
 ### File List
+
+New:
+- `apps/dashboard/app/(dashboard)/coach/layout.tsx`
+- `apps/dashboard/app/(dashboard)/coach/layout.test.tsx`
+- `apps/dashboard/app/(dashboard)/coach/components/CoachPortalNav.tsx`
+- `apps/dashboard/app/(dashboard)/coach/components/CoachPortalNav.test.tsx`
+- `apps/dashboard/app/(dashboard)/coach/overview/page.tsx`
+- `apps/dashboard/app/(dashboard)/coach/overview/page.test.tsx`
+- `apps/dashboard/app/(dashboard)/coach/overview/loading.tsx`
+- `apps/dashboard/app/(dashboard)/coach/classes/page.tsx`
+- `apps/dashboard/app/(dashboard)/coach/classes/page.test.tsx`
+- `apps/dashboard/app/(dashboard)/page.coachRedirect.test.tsx`
+- `apps/dashboard/components/shared/Sidebar.test.tsx`
+
+Modified:
+- `apps/dashboard/app/(dashboard)/page.tsx`
+- `apps/dashboard/app/(dashboard)/page.overview.test.tsx`
+- `apps/dashboard/components/shared/Sidebar.tsx`
+- `apps/dashboard/services/session.ts`
+- `apps/dashboard/app/(dashboard)/coach/components/CoachPortalPageClient.tsx`
+- `apps/dashboard/app/(dashboard)/coach/loading.tsx`
+- `apps/dashboard/locales/en.json`
+- `apps/dashboard/locales/fr.json`
+- `_bmad-output/planning-artifacts/epics.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/17-3-coach-portal-sub-navigation-landing.md`
+
+Code review (2026-09-10):
+- New: `apps/dashboard/app/(dashboard)/coach/classes/loading.tsx`, `apps/dashboard/components/shared/GymSwitcher.test.tsx`, `apps/dashboard/components/shared/SuspendedGymScreen.switchGym.test.tsx`
+- Modified: `apps/dashboard/components/shared/GymSwitcher.tsx`, `apps/dashboard/components/shared/SuspendedGymScreen.tsx`, `apps/dashboard/components/update-password-form.tsx` (comment only), `apps/dashboard/app/(dashboard)/layout.tsx` (comment only; the gymId key is unchanged), `apps/dashboard/app/(dashboard)/layout.gymSwitchRemount.test.tsx` (comment only), plus further edits to `page.tsx`, `page.coachRedirect.test.tsx`, `CoachPortalNav.tsx`, `CoachPortalNav.test.tsx`, `en.json`, `fr.json`, `epics.md`, `deferred-work.md` and `sprint-status.yaml`
+
+## Change Log
+
+- 2026-09-10 — dev-story: Story 17.3 implemented (Tasks 1–9). Coach redirect on `/` behind a null-fallback gate boundary, with 17.1's skeleton kept on an inner staff-only boundary; `getDashboardShellContext` memoized with `cache()`; Sidebar active state is exact-match-else-longest-prefix; new `coach/layout.tsx` with the Portal heading and `CoachPortalNav` in its own Suspense boundary; `/coach/overview` (My Members At A Glance) and `/coach/classes` (route shell for 17.4); EN/FR keys; 6 new test files (38 tests). `epics.md` Story 17.5 amended to hand the At-A-Glance widget and empty state to 17.3; two items added to `deferred-work.md`. Status → review.
+- 2026-09-10 — code-review: three parallel review layers; no AC violated. 2 decisions resolved: the `/` gate boundary now has a role-neutral skeleton, and a gym switch now always lands on `/` via a full navigation, from both switchers. 5 patches applied, 2 findings deferred to `deferred-work.md`, 20 dismissed. Full suite 51 files / 382 tests green, typecheck 0, lint 0 errors, i18n parity clean, `next build` exit 0. Status → done.
+- 2026-09-10 — manual QA: smartsana's browser pass on the local Overview QA Gym reported all passing — Coach sign-in lands on `/coach/overview` with no staff content flashing first; My Members At A Glance shows 7 = 3 active / 2 expiring soon / 1 grace period / 1 expired, with the ended assignment excluded; the no-assignments coach sees `coachPortal.emptyNoAssignments`; heading and sub-nav on all four Portal routes with the right item lit, and Coach Portal lit in the sidebar; My Classes shows only its note; owner child-route highlighting (`/members/new`, `/settings/staff`); receptionist unaffected; EN/FR. Not exercisable with the QA accounts: a gym switch landing on `/`, since every QA account belongs to one gym.

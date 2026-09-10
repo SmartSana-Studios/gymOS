@@ -1,5 +1,15 @@
 # Deferred Work
 
+## Deferred from: code review of story-17-3-coach-portal-sub-navigation-landing (2026-09-10)
+
+- **The Coach's At-A-Glance total and the Portal member list both skip assigned members who have no subscription row.** `listAssignedMembers()` reads `subscriptions_current`. That view (`0037`) selects from `subscriptions` inner-joined to `members`, so an assigned member with no subscription is missing from `/coach/overview`'s total and from `/coach`'s list. A Coach whose assignees all lack one sees "No members have been assigned to you yet", which is false. Pre-existing on `/coach` since Story 5.2; 17.3's widget reuses the same call per its AC #10. Counting assignments from `coach_assignments` would fix both surfaces together. [apps/dashboard/services/coaches.ts:239]
+- **The sidebar's active item is shown by classes only, with no `aria-current="page"`.** Story 17.3 rewrote how the active item is chosen (`resolveActiveHref`) but not how it is exposed, so assistive tech still gets no current-page signal from the sidebar. The new Portal sub-nav does set it. Pre-existing; AC #7 already notes `Sidebar.tsx` omits it. [apps/dashboard/components/shared/Sidebar.tsx:131]
+
+## Deferred from: dev-story of story-17-3-coach-portal-sub-navigation-landing (2026-09-10)
+
+- **AD-15's member-detail breadcrumb (`← Coach Portal / [Member Name]`) is not built.** EXPERIENCE.md's AD-15 mockup gives `/coach/[memberId]` a breadcrumb in place of a plain heading, and that page had no back affordance at all before this story. Story 17.3 renders the shared `coach/layout.tsx` heading and sub-nav there instead, with the lit My Members item as the way back to the list. The breadcrumb needs the member's name up in the layout (or a per-page heading slot), which is its own change. [apps/dashboard/app/(dashboard)/coach/layout.tsx; apps/dashboard/app/(dashboard)/coach/[memberId]/page.tsx]
+- **Two French names for the Coach Portal, now one click apart.** `nav.coachPortal` is "Espace Coach" (the sidebar item) while `coachPortal.title` is "Portail Coach" (the heading this story moved into the Portal layout). Left as shipped: which name wins is a product copy decision, not a dev-story side effect. [apps/dashboard/locales/fr.json]
+
 ## Deferred from: dev-story of story-17-1-staff-overview-operational-cards-live-tables (2026-09-10)
 
 Two deliberate, reasoned deviations from the epic's literal Story 17.1 wording, recorded here per the story's AC #8 and AC #13 rather than left implicit in the code.

@@ -99,10 +99,8 @@ export function CoachPortalPageClient({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{t("coachPortal.title")}</h1>
-      </div>
-
+      {/* The "Coach Portal" heading lives in coach/layout.tsx (Story 17.3),
+          above the Portal sub-nav on every Portal route. */}
       <div className="flex gap-2">
         <Input
           placeholder={t("coachPortal.searchPlaceholder")}

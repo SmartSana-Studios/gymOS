@@ -128,18 +128,21 @@ async function DashboardLayoutData({
       availableGyms={shell.availableGyms}
     >
       {/*
-        Story 9.6 gym switching: `GymSwitcher` calls `router.refresh()`, which
-        re-renders Server Components and delivers this layout's new gym props
-        -- that part works, which is why the switcher's own label updates. But
-        `refresh()` deliberately PRESERVES client-component state, and a page
-        like Settings seeds ~10 `useState` values from its server props
-        (`SettingsForm`'s `initial`). `useState` initialisers only run on
+        Story 9.6 gym switching: `GymSwitcher` used to call `router.refresh()`,
+        which re-renders Server Components and delivers this layout's new gym
+        props but deliberately PRESERVES client-component state. A page like
+        Settings seeds ~10 `useState` values from its server props
+        (`SettingsForm`'s `initial`), and `useState` initialisers only run on
         mount, so those components kept rendering the previous gym's data
         while the chrome around them showed the new gym.
 
-        Keying the page subtree on `gymId` makes a gym switch a remount rather
-        than a re-render, so every client component below re-seeds from the
-        new gym's props. A `Fragment` key adds no DOM node. The key is
+        Since the Story 17.3 review, both switchers (`GymSwitcher`,
+        `SwitchGymList`) do a full navigation to `/` instead. The key stays:
+        a `router.refresh()` can still deliver a new `gymId` without one, when
+        the gym was switched in another tab (e.g. `OverviewAutoRefresh`).
+        Keying the page subtree on `gymId` makes that a remount rather than a
+        re-render, so every client component below re-seeds from the new
+        gym's props. A `Fragment` key adds no DOM node. The key is
         deliberately NOT on `DashboardChrome`: the chrome holds only
         `mobileNavOpen`, which is gym-independent and shouldn't be reset here.
       */}

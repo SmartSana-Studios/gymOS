@@ -52,6 +52,25 @@ const NAV_ITEMS: {
 ];
 
 /**
+ * Story 17.3: which nav item is lit. An exact match wins; otherwise the item
+ * whose href the pathname sits under (followed by "/"), longest first -- so
+ * Coach Portal stays lit on /coach/overview and /coach/[memberId], and
+ * /settings/staff lights Staff rather than both Staff and Settings. "/" is
+ * never a prefix: it would light Overview on every route. Chosen once over
+ * the whole list, because "longest wins" is not a per-item predicate.
+ */
+function resolveActiveHref(hrefs: string[], pathname: string): string | null {
+  if (hrefs.includes(pathname)) return pathname;
+  let active: string | null = null;
+  for (const href of hrefs) {
+    if (href !== "/" && pathname.startsWith(`${href}/`) && href.length > (active?.length ?? 0)) {
+      active = href;
+    }
+  }
+  return active;
+}
+
+/**
  * Rendered twice: once inside the fixed `<aside>` (which becomes a 64px
  * icon-only rail at 768-1023px -- `railAware` hides labels below the `lg`
  * breakpoint there), and once inside the <768px overlay (`railAware=false`
@@ -76,6 +95,10 @@ function SidebarContent({
   const { t } = useTranslation();
   const pathname = usePathname();
   const items = NAV_ITEMS.filter((item) => item.roles.includes(role));
+  const activeHref = resolveActiveHref(
+    items.map((item) => item.href),
+    pathname,
+  );
   const labelClass = railAware ? "hidden truncate lg:inline" : "truncate";
 
   return (
@@ -105,7 +128,7 @@ function SidebarContent({
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
         {items.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = item.href === activeHref;
           const Icon = item.icon;
           const label = t(item.labelKey);
           return (

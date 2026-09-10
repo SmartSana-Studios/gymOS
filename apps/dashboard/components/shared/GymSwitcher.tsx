@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { ChevronsUpDown } from "lucide-react";
 
@@ -36,8 +35,9 @@ const ROLE_LABEL_KEY: Record<MemberRole, string> = {
  * "workspace switcher" UX conventions put this control at the top, next to
  * the current org/workspace name, not buried in a footer utility row).
  *
- * Pending/optimistic/error-revert/`router.refresh()` shape mirrors
- * LanguageToggle.tsx exactly.
+ * Pending/optimistic/error-revert shape mirrors LanguageToggle.tsx. Unlike
+ * it, a successful switch does not `router.refresh()` in place: it does a
+ * full navigation to `/` (Story 17.3 review, see `handleSwitch`).
  *
  * Story 1.20 review correction: this comment used to argue that
  * FrontDeskAlertPanel stays correct because its React Query cache is keyed
@@ -57,8 +57,9 @@ const ROLE_LABEL_KEY: Record<MemberRole, string> = {
  * rendering the previous gym's data while this switcher's own label -- a
  * plain prop with no local state -- correctly updated. The fix lives in
  * `(dashboard)/layout.tsx`, which keys the page subtree on `gymId` so a
- * switch remounts rather than re-renders; `handleSwitch` below is unchanged
- * and still only needs `router.refresh()`.
+ * switch remounts rather than re-renders. (Since Story 17.3's review the
+ * switch is a full page load anyway; the key still guards any later
+ * `router.refresh()` that picks up a gym changed elsewhere.)
  */
 export function GymSwitcher({
   currentGymId,
@@ -81,7 +82,6 @@ export function GymSwitcher({
   onNavigate?: () => void;
 }) {
   const { t } = useTranslation();
-  const router = useRouter();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
 
@@ -93,13 +93,22 @@ export function GymSwitcher({
       const { error: switchError } = await switchActiveGym({ gymId });
       if (switchError) {
         setError(true);
+        setPending(false);
         return;
       }
-      router.refresh();
       onNavigate?.();
+      // Story 17.3 review: a switch always lands on `/`, whose landing
+      // redirect routes by the NEW gym's role. Refreshing in place left a
+      // user who switched from a coach gym to a staff gym on `/coach/overview`,
+      // with the whole gym counted as "My Members". A full document
+      // navigation rather than `router.push("/")`, for the reason
+      // update-password-form.tsx records: the client Router Cache can serve a
+      // `/` rendered under the old session. `replace` keeps Back from
+      // returning to a page that belonged to the old gym's role. `pending`
+      // stays set, since this page is unloading.
+      window.location.replace("/");
     } catch {
       setError(true);
-    } finally {
       setPending(false);
     }
   }
