@@ -1,8 +1,9 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
-import { getDashboardShellContext } from "@/services/session";
+import { getDashboardShellContext, type DashboardShellContext } from "@/services/session";
 import { listActiveFrontDeskAlerts } from "@/services/frontDeskAlerts";
 import { getCurrentlyCheckedIn } from "@/services/attendance";
 import { listSubscriptions } from "@/services/subscriptions";
@@ -37,6 +38,18 @@ const OVERVIEW_TABLE_MAX_ROWS = 10;
  * and table only -- matching payments/page.tsx's discipline. None of these
  * reads is one the page cannot exist without, so none of them blanks it.
  *
+ * Two boundaries, not one (Story 17.3). A Coach is redirected off this page,
+ * and `redirect()` inside a streamed boundary is a client-side bounce: the
+ * fallback is flushed to the browser first. So the OUTER boundary, the only
+ * one a Coach ever reaches, does nothing but read the shell, and its fallback
+ * is role-neutral: a heading bar and one plain block, no text and no
+ * stat-card shape. The AD-02 skeleton sits on the INNER boundary, which only
+ * staff reach. On a full page load the shell read is a `cache()` hit, since
+ * the layout made it in the same request. On a client-side navigation to `/`
+ * the shared layout does not re-render, so the outer boundary pays a real
+ * round trip -- which is why its fallback is a skeleton, not `null` (Story
+ * 17.3 review: staff saw a blank content area there).
+ *
  * The skeleton is this page's own <Suspense> fallback, deliberately NOT an
  * `app/(dashboard)/loading.tsx`: that file would sit at the route-group root
  * and its boundary would also cover child routes that have no loading.tsx of
@@ -48,25 +61,44 @@ const OVERVIEW_TABLE_MAX_ROWS = 10;
  */
 export default function OverviewPage() {
   return (
-    <Suspense fallback={<OverviewSkeleton />}>
-      <OverviewData />
+    <Suspense fallback={<OverviewGateSkeleton />}>
+      <OverviewGate />
     </Suspense>
   );
 }
 
-async function OverviewData() {
+/**
+ * Story 17.3 (AC #1, #2): a Coach lands on the Coach Portal. Decided here,
+ * before any Overview fetch starts, and outside any `Promise.all` or
+ * `try` -- `redirect()` throws a control-flow signal. Not in
+ * `(dashboard)/layout.tsx`: that layout also wraps `/coach/*`, so a redirect
+ * there would loop without path matching.
+ */
+async function OverviewGate() {
+  const { data: shell } = await getDashboardShellContext();
+
+  if (shell?.role === "coach") {
+    redirect("/coach/overview");
+  }
+
+  return (
+    <Suspense fallback={<OverviewSkeleton />}>
+      <OverviewData shell={shell} />
+    </Suspense>
+  );
+}
+
+async function OverviewData({ shell }: { shell: DashboardShellContext | null }) {
   const locale = await getRequestLocale();
   const { t } = await getServerTranslation(locale);
 
   const [
-    { data: shell },
     { data: alertsData },
     mobileMoneyEnabled,
     { data: checkedIn, error: checkedInError },
     { data: expiring, error: expiringError },
     { data: revenueMtd, error: revenueError },
   ] = await Promise.all([
-    getDashboardShellContext(),
     listActiveFrontDeskAlerts(),
     canOfferMobileMoneyPayment(),
     getCurrentlyCheckedIn(),
@@ -152,7 +184,8 @@ async function OverviewData() {
 }
 
 // AD-02 loading: 3 skeleton stat cards and 5 skeleton rows per table. Carries
-// no text, so it reads the same for every role that briefly sees it.
+// no text. Only staff see it -- see OverviewPage's comment on the two
+// boundaries.
 function OverviewSkeleton() {
   return (
     <div className="flex flex-col gap-6">
@@ -172,6 +205,20 @@ function OverviewSkeleton() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// The gate boundary's fallback, shown to every role while the shell -- and so
+// the role -- resolves. Role-neutral by construction: no text and no stat-card
+// grid, so a Coach about to be redirected sees nothing of the staff Overview.
+// Its heading bar lines up with both AD-02's skeleton and the Coach Portal
+// heading.
+function OverviewGateSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="h-8 w-40 animate-pulse rounded bg-muted" />
+      <div className="h-64 w-full animate-pulse rounded-md bg-muted" />
     </div>
   );
 }

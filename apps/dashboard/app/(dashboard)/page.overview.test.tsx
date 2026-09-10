@@ -113,11 +113,20 @@ function expiringRows(count: number) {
   }));
 }
 
+/**
+ * Story 17.3 split the page into two boundaries: the outer one reads the shell
+ * and redirects a Coach (page.coachRedirect.test.tsx), the inner one holds the
+ * Overview itself. Both async children are awaited in turn.
+ */
 async function renderOverviewData(): Promise<ReactElement> {
-  const suspenseEl = OverviewPage() as ReactElement<{ children: ReactElement }>;
-  const dataEl = suspenseEl.props.children;
-  const Component = dataEl.type as (props: unknown) => Promise<ReactElement>;
-  return await Component(dataEl.props);
+  const awaitChild = async (boundary: ReactElement<{ children: ReactElement }>) => {
+    const child = boundary.props.children;
+    return (await (child.type as (props: unknown) => Promise<ReactElement>)(child.props)) as ReactElement<{
+      children: ReactElement;
+    }>;
+  };
+  const outer = OverviewPage() as ReactElement<{ children: ReactElement }>;
+  return await awaitChild(await awaitChild(outer));
 }
 
 function findAll(node: ReactNode, type: unknown): ReactElement[] {

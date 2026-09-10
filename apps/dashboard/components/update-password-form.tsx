@@ -105,8 +105,9 @@ export function UpdatePasswordForm({
       // twice" note above is the same area biting for a different reason).
       //
       // The other client-side mutations in this app pair their write with
-      // `router.refresh()` (login-form.tsx:89, LanguageToggle.tsx:43,
-      // GymSwitcher.tsx:72) -- this form did not. `refresh()` would likely
+      // `router.refresh()` (login-form.tsx:89, LanguageToggle.tsx:43) -- this
+      // form did not. (GymSwitcher has since moved to this same full
+      // navigation, Story 17.3 review.) `refresh()` would likely
       // be enough, but this is a
       // once-per-account auth transition where correctness matters far more
       // than avoiding one full page load, and a hard navigation removes the

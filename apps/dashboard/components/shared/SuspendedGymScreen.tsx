@@ -44,8 +44,8 @@ function SignOutLink() {
  * `DashboardChrome`, which this screen bypasses). A plain button list is
  * enough here -- unlike `GymSwitcher`'s dropdown (built for the Sidebar's
  * dark-header context), this screen has room and no nav chrome to compete
- * with. Reuses the same `switchActiveGym` server action + `router.refresh()`
- * shape.
+ * with. Reuses the same `switchActiveGym` server action and the same
+ * full navigation to `/` on success.
  */
 function SwitchGymList({
   currentGymId,
@@ -55,7 +55,6 @@ function SwitchGymList({
   availableGyms: { gymId: string; gymName: string; role: MemberRole }[];
 }) {
   const { t } = useTranslation();
-  const router = useRouter();
   const [pendingGymId, setPendingGymId] = useState<string | null>(null);
   const [error, setError] = useState(false);
 
@@ -69,12 +68,15 @@ function SwitchGymList({
       const { error: switchError } = await switchActiveGym({ gymId });
       if (switchError) {
         setError(true);
+        setPendingGymId(null);
         return;
       }
-      router.refresh();
+      // Same landing as GymSwitcher (Story 17.3 review): a full navigation to
+      // `/`, so the new gym's role picks the destination. See its
+      // `handleSwitch` for why it is not `router.push`/`refresh`.
+      window.location.replace("/");
     } catch {
       setError(true);
-    } finally {
       setPendingGymId(null);
     }
   }

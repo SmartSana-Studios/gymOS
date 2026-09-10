@@ -622,6 +622,22 @@
     "emptyNoAssignments": "Aucun membre ne vous a encore été assigné. Demandez à votre gérant, votre propriétaire ou votre superviseur d'assigner des membres.",
     "emptySearchNoMatch": "Aucun membre ne correspond à '{{term}}'.",
     "clearSearch": "Effacer la recherche",
+    "subNav": {
+      "label": "Portail Coach",
+      "overview": "Aperçu",
+      "myMembers": "Mes membres",
+      "myClasses": "Mes cours"
+    },
+    "overview": {
+      "membersAtAGlance": {
+        "title": "Mes membres en un coup d'œil",
+        "assignedLabel": "Membres assignés",
+        "viewAll": "Tous →"
+      }
+    },
+    "classes": {
+      "pendingNote": "Les horaires des cours et les listes de participants ne sont pas encore disponibles sur cette page."
+    },
     "detail": {
       "notFound": "Ce membre est introuvable.",
       "planLabel": "Formule",

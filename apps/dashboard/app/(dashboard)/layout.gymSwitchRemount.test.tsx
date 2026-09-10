@@ -4,11 +4,14 @@
  * content kept showing the previous gym -- e.g. Settings' "Gym Name" field
  * still read "Obama Gym" while the chrome said "Martin Fitness".
  *
- * `GymSwitcher` calls `router.refresh()`, which re-renders Server Components
- * and delivers this layout's new gym props (that is why the switcher label
- * DID update), but deliberately PRESERVES client-component state. Pages like
- * Settings seed ~10 `useState` values from their server props, and `useState`
- * initialisers only run on mount -- so those values never re-seeded.
+ * `GymSwitcher` then called `router.refresh()`, which re-renders Server
+ * Components and delivers this layout's new gym props (that is why the
+ * switcher label DID update), but deliberately PRESERVES client-component
+ * state. Pages like Settings seed ~10 `useState` values from their server
+ * props, and `useState` initialisers only run on mount -- so those values
+ * never re-seeded. (Since Story 17.3's review a switch is a full navigation
+ * to `/`; the key still matters for a `router.refresh()` that picks up a gym
+ * switched in another tab.)
  *
  * The fix keys the page subtree on `gymId`, turning a gym switch into a
  * remount. This test asserts that invariant directly on the layout's rendered

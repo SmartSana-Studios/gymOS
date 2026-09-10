@@ -1,3 +1,5 @@
+import { cache } from "react";
+
 import { createClient } from "@/lib/supabase/server";
 import { mapSupabaseError, type AppError } from "@gymos/types";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -130,12 +132,19 @@ export interface DashboardSuspendedContext {
  * `getClaims()` call inside a `Promise.all` can reject the whole batch on a
  * throw-prone SDK path -- reading claims outside the `Promise.all` avoids
  * that class of bug entirely here).
+ *
+ * Wrapped in React `cache()` (Story 17.3), the same wrap
+ * `getRequestLocale()` carries: `(dashboard)/layout.tsx` and most pages under
+ * it each read the shell, and without memoization every one of those reads
+ * repeated the gym, members and users round trips within a single request.
+ * Safe because it takes no arguments and no caller needs a second fresh read
+ * -- `switchActiveGym()` refreshes the session before anything re-reads it.
  */
-export async function getDashboardShellContext(): Promise<{
+export const getDashboardShellContext = cache(async (): Promise<{
   data: DashboardShellContext | null;
   error: AppError | null;
   suspended: DashboardSuspendedContext | null;
-}> {
+}> => {
   const supabase = await createClient();
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
 
@@ -319,7 +328,7 @@ export async function getDashboardShellContext(): Promise<{
     error: null,
     suspended: null,
   };
-}
+});
 
 /**
  * Story 9.6: switches the caller's session to a different gym they hold an

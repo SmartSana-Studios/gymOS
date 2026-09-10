@@ -795,6 +795,14 @@ So that I am not dropped onto a staff page I have no link back from.
 **When** it renders
 **Then** behaviour matches the existing documented precedent in `coach/page.tsx`'s header comment — this story introduces no new route-level role guard and no new gap
 
+**Given** `/coach/overview` is where every Coach sign-in now lands, so it cannot ship empty
+**When** it renders My Members At A Glance *(moved here from Story 17.5, 2026-09-10)*
+**Then** it shows the Coach's assigned-member count broken down by subscription status, sourced from `listAssignedMembers()` (`coaches.ts:227`), and links to `/coach`
+
+**Given** a Coach with no assigned members *(moved here from Story 17.5, 2026-09-10)*
+**When** they open the Overview
+**Then** they see AD-14's established guidance (the existing `coachPortal.emptyNoAssignments` copy) instead of the widget: "No members have been assigned to you yet. Ask your manager, owner, or supervisor to assign members."
+
 **Given** bilingual parity
 **When** the sub-nav strings are added
 **Then** `en.json` and `fr.json` both carry every new key and `scripts/check-i18n-key-parity.mjs` passes
@@ -861,11 +869,13 @@ So that I can see what I am teaching, who needs me, and who has been active, wit
 
 *Depends on Stories 17.3 and 17.4. No migration.*
 
+*(Amended 2026-09-10 by Story 17.3: the My Members At A Glance widget and the no-assigned-members empty state moved to Story 17.3, which ships them as `/coach/overview`'s landing content — a Coach lands there on every sign-in, so it could not ship empty. Both ACs were removed from this list. This story adds the other three widgets alongside it, and must keep 17.3's empty state covering the whole page rather than rendering its own widgets empty. It must also grow `coach/overview/loading.tsx` from 17.3's single skeleton card to AD-20's four (added by 17.3's code review, 2026-09-10).)*
+
 **Acceptance Criteria:**
 
 **Given** `/coach/overview` is the Coach's landing route (Story 17.3)
 **When** it renders
-**Then** it shows four widgets: My Next Sessions, My Members At A Glance, Needs Follow-Up, and Recent Progress Activity
+**Then** it shows three widgets — My Next Sessions, Needs Follow-Up, and Recent Progress Activity — alongside the My Members At A Glance widget Story 17.3 already ships there
 
 **Given** every figure on this page describes the Coach's own caseload
 **When** any widget computes a count or list
@@ -874,10 +884,6 @@ So that I can see what I am teaching, who needs me, and who has been active, wit
 **Given** My Next Sessions
 **When** it renders
 **Then** it lists the next upcoming `class_sessions` for classes where `coach_id` is the calling Coach, each with `scheduled_at` and booked count, reusing Story 17.4's coach-scoped query rather than a second implementation, and each row links to that class in `/coach/classes`
-
-**Given** My Members At A Glance
-**When** it renders
-**Then** it shows the Coach's assigned-member count broken down by subscription status, sourced from `listAssignedMembers()` (`coaches.ts:227`), and links to `/coach`
 
 **Given** Needs Follow-Up identifies clients the Coach has lost touch with
 **When** it is computed
@@ -895,13 +901,9 @@ So that I can see what I am teaching, who needs me, and who has been active, wit
 **When** it renders
 **Then** it lists assigned members who have logged progress entries recently, read via `coach_read_assigned_progress_entries` (`0067:140`), and each row links to that member's Progress tab (AD-15). Progress *photos* are NOT surfaced here — `progress_photos` has its own separate sharing gate (`coach_read_shared_progress_photos`, `0067:92`), and a member who logged an entry has not thereby consented to their photo appearing on a summary screen
 
-**Given** a Coach with no assigned members at all
-**When** they open the Overview
-**Then** they see AD-14's established guidance rather than four empty widgets: "No members have been assigned to you yet. Ask your Manager, Owner, or Supervisor to assign members."
-
 **Given** each widget reads from a different source
 **When** any one query fails
-**Then** that widget alone renders its error state and the other three still render — the same per-surface failure discipline as Story 17.1
+**Then** that widget alone renders its error state and every other widget still renders, Story 17.3's included — the same per-surface failure discipline as Story 17.1
 
 **Given** bilingual parity
 **When** the new strings are added
