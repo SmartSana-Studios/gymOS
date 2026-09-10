@@ -1085,8 +1085,8 @@ Password *                        [input + show/hide toggle]
 **V2 amendment (FR-143).** The three cards above are joined by a second row of gym-health cards. The original three answer "what is happening right now"; the second row answers "how is the gym doing" — the question an Owner opens the dashboard to ask.
 
 - **Row 2 cards (4):**
-  - "Active members: N" → AD-03 filtered to active
-  - "New this month: N" → AD-03
+  - "Active members: N" → AD-08 filtered to active + expiring_soon *(amended 2026-09-10, Story 17.2: was "AD-03 filtered to active". A member in their last 7 days can still check in, and AD-03's status filter can match a non-current subscription row after a renewal, so the card and its target could disagree)*
+  - "New this month: N" → AD-03 *(counted by join date, not record creation — Story 17.2, 2026-09-10)*
   - "Today's classes: N" → AD-18
   - "At risk: N" → AD-08 filtered to grace_period + expired
 - **"At risk"** counts `grace_period` + `expired` combined, and is the only card that renders in the alert colour when non-zero — a gym with zero at-risk members must not see a red number on its dashboard.

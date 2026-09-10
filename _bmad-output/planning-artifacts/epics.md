@@ -648,7 +648,7 @@ The staff Overview becomes a real dashboard — live occupancy, memberships need
 | # | Story | Migration | Depends on |
 |---|---|---|---|
 | 17.1 | Staff Overview — Operational Cards & Live Tables | **0095** | — |
-| 17.2 | Staff Overview — Gym Health Cards (Manager-plus) | none | 17.1 |
+| 17.2 | Staff Overview — Gym Health Cards (Manager-plus) | **0097** *(amended 2026-09-10; was none)* | 17.1 |
 | 17.3 | Coach Portal — Sub-Navigation & Landing | none | — |
 | 17.4 | Coach Portal — My Classes & Session Roster | **0096** | 17.3 |
 | 17.5 | Coach Portal — Overview | none | 17.3, 17.4 |
@@ -725,7 +725,9 @@ As a gym Owner, Supervisor, or Manager,
 I want a second row of cards showing how the gym is doing, not just what is happening this minute,
 So that I can see membership growth and churn risk without building a report.
 
-*Depends on Story 17.1 (reuses its `StatCard`). Extends AD-02 beyond the original three-card spec — see EXPERIENCE.md's V2 amendment. No migration.*
+*Depends on Story 17.1 (reuses its `StatCard`). Extends AD-02 beyond the original three-card spec — see EXPERIENCE.md's V2 amendment. Migration 0097.*
+
+*(Amended 2026-09-10, four decisions made with the product owner during story creation. (1) **Migration 0097, not "no migration".** "New this month" and "Today's classes" are gym-local, but 0095's `private.gym_local_month_bounds()` lives in the `private` schema, which PostgREST does not expose (`supabase/config.toml:13`), so a COUNT query cannot reach it. 0097 adds one `SECURITY INVOKER` wrapper, `gym_local_period_bounds()`, plus a day helper — no new privilege, no RLS change. The release batch becomes 0095 + 0096 + 0097. (2) **"New this month" counts by `join_date`, not creation time** — CSV import (Story 2.4) writes historic join dates, so a gym importing its roster in its first month would otherwise see the whole roster as new. (3) **"Active members" counts `active` + `expiring_soon`**, not `active` alone — both can check in (`0027:22-24`), and excluding the latter would drop the card by exactly row 1's "Expiring this week" figure. (4) **Both status cards link to named filters on `/subscriptions`** (`active_or_expiring`, `at_risk`), which this story adds — the page filtered one status at a time, and `/members?status=` can match a non-current subscription row after a renewal. The ACs below carry each change inline.)*
 
 **Acceptance Criteria:**
 
@@ -743,15 +745,15 @@ So that I can see membership growth and churn risk without building a report.
 
 **Given** "Active members" must mean members who can actually train
 **When** it is counted
-**Then** it counts `subscriptions_current` rows with status `active`, NOT `memberCountForGym()` — that function counts every `role = 'member'` row including deactivated and expired members (`members.ts:307-311`), which would overstate the gym's real active base
+**Then** it counts `subscriptions_current` rows with status `active` or `expiring_soon` *(amended 2026-09-10; was `active` only)* whose member is not deactivated, links to `/subscriptions?status=active_or_expiring`, and does NOT use `memberCountForGym()` — that function counts every `role = 'member'` row including deactivated and expired members (`members.ts:307-311`), which would overstate the gym's real active base
 
 **Given** "New this month" counts joins
 **When** it is computed
-**Then** it counts members created within the current calendar month in the gym's local timezone, consistent with 17.1's revenue window, so the two cards describe the same period
+**Then** it counts `role = 'member'` rows whose `join_date` *(amended 2026-09-10; was creation time)* falls within the current calendar month in the gym's local timezone, taken from the same `private.gym_local_month_bounds()` helper as 17.1's revenue window, so the two cards describe the same period
 
 **Given** "At risk" is the churn signal
 **When** it is computed
-**Then** it counts `grace_period` and `expired` combined, links to `/subscriptions` filtered to those statuses, and renders in the alert colour ONLY when non-zero — a healthy gym with zero at-risk members must not be shown a red number on its dashboard
+**Then** it counts `grace_period` and `expired` combined, links to `/subscriptions?status=at_risk` (a named filter this story adds — the page filtered one status at a time; *amended 2026-09-10*), and renders in the alert colour ONLY when non-zero — a healthy gym with zero at-risk members must not be shown a red number on its dashboard
 
 **Given** "Today's classes" is operational context for the day
 **When** it is computed
