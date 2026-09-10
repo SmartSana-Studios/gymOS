@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
-import { getDashboardShellContext, type DashboardShellContext } from "@/services/session";
+import { getDashboardShellContext, type DashboardShellContext, type MemberRole } from "@/services/session";
 import { listActiveFrontDeskAlerts } from "@/services/frontDeskAlerts";
 import { getCurrentlyCheckedIn } from "@/services/attendance";
 import { listSubscriptions } from "@/services/subscriptions";
@@ -13,6 +13,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { canOfferMobileMoneyPayment } from "@/lib/featureFlags";
 import { CheckedInTable } from "./components/CheckedInTable";
 import { ExpiringTable } from "./components/ExpiringTable";
+import { GymHealthRow, GymHealthRowSkeleton } from "./components/GymHealthRow";
 import { OverviewAutoRefresh } from "./components/OverviewAutoRefresh";
 
 // AD-02: each table shows at most 10 rows. Neither service takes a limit
@@ -20,11 +21,32 @@ import { OverviewAutoRefresh } from "./components/OverviewAutoRefresh";
 // same call whose `total` feeds the matching card -- one call per pair.
 const OVERVIEW_TABLE_MAX_ROWS = 10;
 
+// Story 17.2 (AC #1): who sees the gym-health row. An explicit allowlist, like
+// Sidebar.tsx's role lists -- not `role !== "receptionist"` -- so a future role
+// does not inherit management figures by default. This hides management
+// information from the front desk; it is NOT an authorization boundary: RLS
+// already lets a Receptionist read every figure on the row.
+const GYM_HEALTH_ROLES: readonly MemberRole[] = ["manager", "supervisor", "owner"];
+
+function canSeeGymHealth(shell: DashboardShellContext | null): boolean {
+  return shell != null && GYM_HEALTH_ROLES.includes(shell.role);
+}
+
 /**
  * AD-02 Overview. Story 17.1 builds out what Story 4.6 deferred: beneath the
  * Front-Desk Alert Panel, a three-card stat row (Checked in now / Expiring
  * this week / Revenue this month), then the Currently Checked-In and
  * Expiring This Week tables.
+ *
+ * Story 17.2 adds a second, Manager-plus card row between the first and the
+ * tables: Active members / New this month / Today's classes / At risk
+ * (`GymHealthRow`). It streams in its OWN <Suspense> boundary, so its reads
+ * never hold back row 1 or the tables. It is rendered only for
+ * owner/manager/supervisor (`canSeeGymHealth`), and the staff skeleton
+ * reserves its four tiles for exactly those roles, so they see no layout jump
+ * and a Receptionist never sees a four-card shape. Its reads start once
+ * `OverviewData`'s own reads resolve -- an accepted small waterfall: the
+ * boundary protects row 1 from row 2, not the reverse.
  *
  * Front-Desk Alert Panel (Story 4.6), unchanged: mounted whenever `shell`
  * resolves, regardless of whether the alerts fetch itself succeeded (a Story
@@ -58,6 +80,8 @@ const OVERVIEW_TABLE_MAX_ROWS = 10;
  * async child shape is required under `cacheComponents: true`; a missing
  * boundary here would not fail the build, it would bubble to layout.tsx's
  * `fallback={null}` and blank the whole dashboard chrome while streaming.
+ * The same holds for row 2's boundary: without it, row 2 would suspend to the
+ * inner boundary and hold row 1 back, and the build would still pass.
  */
 export default function OverviewPage() {
   return (
@@ -82,7 +106,7 @@ async function OverviewGate() {
   }
 
   return (
-    <Suspense fallback={<OverviewSkeleton />}>
+    <Suspense fallback={<OverviewSkeleton showGymHealth={canSeeGymHealth(shell)} />}>
       <OverviewData shell={shell} />
     </Suspense>
   );
@@ -165,9 +189,12 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
         />
       </div>
 
-      {/* Story 17.2 seam: the Manager-plus gym-health card row slots in here,
-          in its OWN <Suspense> boundary so a slow aggregate never delays the
-          operational cards above. Not built in 17.1. */}
+      {/* Story 17.2: the Manager-plus gym-health row, in its OWN boundary. */}
+      {canSeeGymHealth(shell) && (
+        <Suspense fallback={<GymHealthRowSkeleton />}>
+          <GymHealthRow locale={locale} />
+        </Suspense>
+      )}
 
       <CheckedInTable
         rows={checkedInFailed ? [] : checkedIn.rows.slice(0, OVERVIEW_TABLE_MAX_ROWS)}
@@ -183,10 +210,10 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
   );
 }
 
-// AD-02 loading: 3 skeleton stat cards and 5 skeleton rows per table. Carries
-// no text. Only staff see it -- see OverviewPage's comment on the two
-// boundaries.
-function OverviewSkeleton() {
+// AD-02 loading: 3 skeleton stat cards and 5 skeleton rows per table, plus row
+// 2's four tiles for the roles that will get it. Carries no text. Only staff
+// see it -- see OverviewPage's comment on the two boundaries.
+function OverviewSkeleton({ showGymHealth }: { showGymHealth: boolean }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="h-8 w-40 animate-pulse rounded bg-muted" />
@@ -195,6 +222,7 @@ function OverviewSkeleton() {
           <div key={i} className="h-[86px] w-full animate-pulse rounded-md bg-muted" />
         ))}
       </div>
+      {showGymHealth && <GymHealthRowSkeleton />}
       {Array.from({ length: 2 }).map((_, table) => (
         <div key={table} className="space-y-3">
           <div className="h-7 w-48 animate-pulse rounded bg-muted" />

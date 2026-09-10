@@ -106,6 +106,50 @@ export async function getGymSettings(): Promise<{
   };
 }
 
+/** Story 17.2 (AC #10): the current gym-local calendar periods, for the
+ * Overview's gym-health counts. Dates for the month, because
+ * `members.join_date` is a `date`; UTC instants for the day, because
+ * `class_sessions.scheduled_at` is a `timestamptz`. Both upper bounds are
+ * exclusive. */
+export interface GymLocalPeriodBounds {
+  monthStartDate: string;
+  nextMonthStartDate: string;
+  dayStart: string;
+  nextDayStart: string;
+}
+
+/** Story 17.2 (AC #10): calls `gym_local_period_bounds()` (0097) with no
+ * arguments -- the gym comes from `private.gym_id()` server-side, so no
+ * `getCallerGymId()` here. Zero rows (no `gym_id` claim, or no visible gym)
+ * is `not_found`, never an invented window; deliberately not `.single()`, so
+ * that branch is logged by this file's own helper. */
+export async function getGymLocalPeriodBounds(): Promise<{
+  data: GymLocalPeriodBounds | null;
+  error: AppError | null;
+}> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("gym_local_period_bounds");
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  const row = data?.[0];
+  if (!row) {
+    return { data: null, error: await gymNotFoundError("gym_local_period_bounds returned no row") };
+  }
+
+  return {
+    data: {
+      monthStartDate: row.month_start_date,
+      nextMonthStartDate: row.next_month_start_date,
+      dayStart: row.day_start,
+      nextDayStart: row.next_day_start,
+    },
+    error: null,
+  };
+}
+
 /** Relies entirely on the `owner_update_own_gym` RLS policy
  * (0014_gym_settings_owner_access.sql) for authorization -- a non-owner
  * caller's UPDATE affects 0 rows, not an error. Chains .select().maybeSingle()

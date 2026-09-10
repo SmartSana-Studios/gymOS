@@ -41,6 +41,10 @@
       "checkedInNow": "Présents en ce moment",
       "expiringThisWeek": "Expirent cette semaine",
       "revenueThisMonth": "Revenus du mois",
+      "activeMembers": "Membres actifs",
+      "newThisMonth": "Nouveaux ce mois-ci",
+      "todaysClasses": "Cours du jour",
+      "atRisk": "À risque",
       "unavailable": "Indisponible"
     },
     "tables": {
@@ -576,6 +580,10 @@
   "subscriptions": {
     "title": "Abonnements",
     "statusAll": "Tous",
+    "statusGroups": {
+      "activeOrExpiring": "Actif ou expire bientôt",
+      "atRisk": "À risque (délai de grâce ou expiré)"
+    },
     "filters": {
       "status": "Statut",
       "planType": "Type de formule",

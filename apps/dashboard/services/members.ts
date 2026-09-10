@@ -323,6 +323,40 @@ export async function memberCountForGym(): Promise<{
   return { count: count ?? 0, cap: cap ?? null, error: null };
 }
 
+/** Story 17.2 (AC #3, #7): the Overview's "New this month" card. Counts
+ * `join_date` -- the business join date CSV import writes from the file --
+ * not `created_at`, so a gym importing its roster in its first month does
+ * not see all of it as new. `join_date` is a `date`: the bounds are the
+ * gym-local YYYY-MM-DD strings from `getGymLocalPeriodBounds()`, the end
+ * exclusive. `role = 'member'` is load-bearing (gym_staff_read_own_members
+ * returns staff rows too). Deactivated members are deliberately NOT excluded:
+ * this counts joins, not current headcount. Not `memberCountForGym()`, which
+ * counts every member ever. */
+export async function countMembersJoinedBetween(
+  startDate: string,
+  endDateExclusive: string,
+): Promise<{ data: number | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { count, error } = await supabase
+    .from("members")
+    .select("id", { count: "exact", head: true })
+    .eq("gym_id", gymId)
+    .eq("role", "member")
+    .gte("join_date", startDate)
+    .lt("join_date", endDateExclusive);
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  return { data: count ?? 0, error: null };
+}
+
 /** `createMember`'s server-side plan_type lookup -- the client never
  * supplies plan_type directly (it isn't a form field, Scope Note #6), but
  * the Server Action still needs it to validate whether `expiryDate` should

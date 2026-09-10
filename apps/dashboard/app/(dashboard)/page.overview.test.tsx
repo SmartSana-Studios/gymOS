@@ -14,9 +14,15 @@
  *  - one failed read degrades only its own surface (AC #11);
  *  - the alert panel still mounts whenever `shell` resolves (AC #10);
  *  - the `overview.body` placeholder is gone (AC #1).
+ *
+ * Story 17.2 adds the Manager-plus gym-health row. `GymHealthRow` is stubbed
+ * too (so this file never imports its services); what is asserted here is
+ * where it goes and who gets it -- its own boundary, between the row-1 cards
+ * and the checked-in table, for owner/manager/supervisor only, with a
+ * matching skeleton in the staff fallback for exactly those roles.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { isValidElement, type ReactElement, type ReactNode } from "react";
+import { Children, Suspense, isValidElement, type ReactElement, type ReactNode } from "react";
 
 let locale: "en" | "fr" = "en";
 
@@ -81,12 +87,22 @@ vi.mock("./components/OverviewAutoRefresh", () => ({
   },
 }));
 
+vi.mock("./components/GymHealthRow", () => ({
+  GymHealthRow: function GymHealthRow() {
+    return null;
+  },
+  GymHealthRowSkeleton: function GymHealthRowSkeleton() {
+    return null;
+  },
+}));
+
 import OverviewPage from "./page";
 import { StatCard } from "@/components/ui/stat-card";
 import { FrontDeskAlertPanel } from "@/components/shared/FrontDeskAlertPanel";
 import { CheckedInTable } from "./components/CheckedInTable";
 import { ExpiringTable } from "./components/ExpiringTable";
 import { OverviewAutoRefresh } from "./components/OverviewAutoRefresh";
+import { GymHealthRow, GymHealthRowSkeleton } from "./components/GymHealthRow";
 
 function checkedInRows(count: number) {
   return Array.from({ length: count }, (_, i) => ({
@@ -113,20 +129,25 @@ function expiringRows(count: number) {
   }));
 }
 
+type Boundary = ReactElement<{ children: ReactElement; fallback: ReactElement }>;
+
+async function awaitChild(boundary: ReactElement<{ children: ReactElement }>): Promise<Boundary> {
+  const child = boundary.props.children;
+  return (await (child.type as (props: unknown) => Promise<ReactElement>)(child.props)) as Boundary;
+}
+
 /**
  * Story 17.3 split the page into two boundaries: the outer one reads the shell
  * and redirects a Coach (page.coachRedirect.test.tsx), the inner one holds the
- * Overview itself. Both async children are awaited in turn.
+ * Overview itself. `renderGate` returns the inner boundary; `renderOverviewData`
+ * awaits both async children in turn.
  */
+async function renderGate(): Promise<Boundary> {
+  return await awaitChild(OverviewPage() as ReactElement<{ children: ReactElement }>);
+}
+
 async function renderOverviewData(): Promise<ReactElement> {
-  const awaitChild = async (boundary: ReactElement<{ children: ReactElement }>) => {
-    const child = boundary.props.children;
-    return (await (child.type as (props: unknown) => Promise<ReactElement>)(child.props)) as ReactElement<{
-      children: ReactElement;
-    }>;
-  };
-  const outer = OverviewPage() as ReactElement<{ children: ReactElement }>;
-  return await awaitChild(await awaitChild(outer));
+  return await awaitChild(await renderGate());
 }
 
 function findAll(node: ReactNode, type: unknown): ReactElement[] {
@@ -153,6 +174,16 @@ function card(tree: ReactElement, label: string): CardProps {
   const found = cards(tree).find((c) => c.label === label);
   if (!found) throw new Error(`no StatCard labelled ${label}`);
   return found;
+}
+
+function shellFor(role: string | null) {
+  return role === null
+    ? { data: null, error: null, suspended: null }
+    : {
+        data: { gymId: "gym-a", gymName: "Gym A", role, memberName: "Someone", mustChangePassword: false, availableGyms: [] },
+        error: null,
+        suspended: null,
+      };
 }
 
 describe("(dashboard) Overview page", () => {
@@ -294,5 +325,64 @@ describe("(dashboard) Overview page", () => {
 
     expect(textContent(tree)).not.toContain("overview.body");
     expect(textContent(tree)).toContain("overview.title");
+  });
+
+  describe("Story 17.2: the Manager-plus gym-health row", () => {
+    it.each(["owner", "manager", "supervisor"])(
+      "gives %s exactly one gym-health row, in its own Suspense boundary between the row-1 cards and the checked-in table",
+      async (role) => {
+        getDashboardShellContext.mockResolvedValue(shellFor(role));
+
+        const tree = await renderOverviewData();
+        expect(findAll(tree, GymHealthRow)).toHaveLength(1);
+
+        const children = Children.toArray((tree.props as { children: ReactNode }).children).filter(isValidElement);
+        const boundaryIndex = children.findIndex((child) => child.type === Suspense);
+        const boundary = children[boundaryIndex] as Boundary;
+        // Its parent is a Suspense of its own, with the row-2 skeleton: rendered
+        // without one it would suspend to the page's boundary and hold row 1
+        // back, which `next build` would not catch.
+        expect(boundary.props.children.type).toBe(GymHealthRow);
+        expect(boundary.props.fallback.type).toBe(GymHealthRowSkeleton);
+        expect(boundary.props.children.props).toEqual({ locale: "en" });
+
+        const cardGridIndex = children.findIndex((child) => findAll(child, StatCard).length > 0);
+        const checkedInIndex = children.findIndex((child) => child.type === CheckedInTable);
+        expect(cardGridIndex).toBeGreaterThanOrEqual(0);
+        expect(cardGridIndex).toBeLessThan(boundaryIndex);
+        expect(boundaryIndex).toBeLessThan(checkedInIndex);
+      },
+    );
+
+    it.each([["receptionist"], [null]])("gives a %s shell no gym-health row and no boundary for one", async (role) => {
+      getDashboardShellContext.mockResolvedValue(shellFor(role));
+
+      const tree = await renderOverviewData();
+
+      expect(findAll(tree, GymHealthRow)).toHaveLength(0);
+      const children = Children.toArray((tree.props as { children: ReactNode }).children).filter(isValidElement);
+      expect(children.some((child) => child.type === Suspense)).toBe(false);
+    });
+
+    it.each([
+      ["owner", 1],
+      ["manager", 1],
+      ["supervisor", 1],
+      ["receptionist", 0],
+    ] as const)("puts %s's staff skeleton at %i row-2 skeletons", async (role, expected) => {
+      getDashboardShellContext.mockResolvedValue(shellFor(role));
+
+      const gate = await renderGate();
+      const skeleton = (gate.props.fallback.type as (props: unknown) => ReactElement)(gate.props.fallback.props);
+
+      expect(findAll(skeleton, GymHealthRowSkeleton)).toHaveLength(expected);
+    });
+
+    it("leaves the role-neutral gate skeleton without a row-2 shape -- the role is unknown there", () => {
+      const outer = OverviewPage() as Boundary;
+      const skeleton = (outer.props.fallback.type as () => ReactElement)();
+
+      expect(findAll(skeleton, GymHealthRowSkeleton)).toHaveLength(0);
+    });
   });
 });
