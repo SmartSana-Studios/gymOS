@@ -134,6 +134,26 @@ secret — if they drift, the guard silently stops matching. If this secret
 is unseeded in a given environment, the guard no-ops (connect succeeds as
 before this story shipped) rather than blocking every connect attempt.
 
+**How to audit the two for drift, without exposing either.** `supabase
+secrets list` prints a **sha256 digest** of each Edge Function secret in its
+`value` field, not the secret itself — so hashing the Vault copy inside
+Postgres and comparing the two hex strings is a complete check that leaks
+nothing:
+
+```bash
+# 1. the Vault copy, hashed inside Postgres
+psql "$PROD" -At -c "select encode(digest(decrypted_secret,'sha256'),'hex') \
+  from vault.decrypted_secrets where name='platform:taramoney:business_id';"
+
+# 2. the Edge Function copy's digest — the 'value' field of TARAMONEY_BUSINESS_ID
+npx supabase@2.109.0 secrets list --project-ref <ref>
+```
+
+Identical hex means the guard is matching. **Verified in sync on
+`vfxezibagiznrirdwkwh` on 2026-10-02** (both seeded 2026-09-08). This is the
+audit the paragraph above asks for; prefer it to re-seeding "just in case",
+which is how the two drift in the first place.
+
 **[NEEDS]** a real secrets-management decision for production (Supabase
 Vault was the agreed direction for the *per-gym* credentials once FR-126
 ships — see `docs/decisions.md` — but the *platform-level* secrets above
