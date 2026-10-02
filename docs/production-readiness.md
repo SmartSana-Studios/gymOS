@@ -9,7 +9,7 @@ A running, honest picture of what is deployed, what is proven, and what is not. 
 | | State | Verified how |
 |---|---|---|
 | **Database** | `0094` — at parity with the repo | Post-deploy checks on production: 21 guarded write-RPCs, 21 tables carrying `tenant_active_gate`, 0 policies granting manager without supervisor, separation trigger present |
-| **Dashboard** | Deployed, on its final domain | `https://app.gymosapps.com` (custom domain attached 2026-10-02; the Vercel-generated `dashboard-tau-three-31.vercel.app` still resolves). Serves `id="identifier"` and "Send code" — the login and reset fixes are live |
+| **Dashboard** | ⚠️ **UNREACHABLE** — deployed, but no domain resolves | Renamed `app.` → `owner.gymosapps.com` on 2026-10-02. **`owner.gymosapps.com` has no DNS record** (`getent hosts` returns nothing), and `app.gymosapps.com` — whose DNS still points at Vercel — now answers `404 DEPLOYMENT_NOT_FOUND` because the domain was detached from the project. `dashboard-tau-three-31.vercel.app` 307-redirects to `owner.gymosapps.com`, so it leads to the same dead host. **Every route to the dashboard is broken until the DNS record is created.** |
 | **Super Admin** | Deployed, on its final domain | `https://portal.gymosapps.com` (custom domain attached 2026-10-02; `super-admin-phi-jade.vercel.app` still resolves), Ready in Production |
 | **Landing page** | In progress | `https://gymosapps.com` — `apps/landing`, added 2026-10-02 |
 | **Mobile** | Published on both stores | App Store "GymOS Member App" (`id6798403711`, released 2026-09-16) and Play "GymOS" (`com.smartsana.gymos`) both resolve publicly — confirmed 2026-10-02. Behaviour still not assessed |
@@ -28,7 +28,32 @@ Production data as of the deploy: **1 gym, 2 members, 3 auth users, 1 subscripti
 ## Before onboarding a first client
 
 1. **Role-by-role smoke test on production.** Create a gym → add staff of each role → sign in as each → add members → take a payment → onboard a member on mobile → check in → renew. Two total blockers were found this session by doing exactly this locally for twenty minutes; neither was caught by a green test suite.
-2. ~~**A real domain.**~~ — **done (2026-10-02)**: `gymosapps.com` is attached to Vercel — `app.gymosapps.com` (dashboard), `portal.gymosapps.com` (super-admin), apex reserved for the landing page. Two follow-ups this creates: the privacy-policy URL registered in **both store consoles** still points at the old Vercel host and must be re-pointed to `https://app.gymosapps.com/privacy` (a dead policy URL is a store-review failure), and `DASHBOARD_APP_URL` must be set to `https://app.gymosapps.com` on **both** Vercel projects — it is what a new owner and new staff receive as their login link over WhatsApp.
+2. **A real domain** — mostly done, but the dashboard's is **currently broken**.
+
+   `gymosapps.com` is attached to Vercel: `owner.gymosapps.com` (dashboard),
+   `portal.gymosapps.com` (super-admin), `www.gymosapps.com` (landing page,
+   with the apex 308-redirecting to it). Super-admin and the landing page
+   both resolve and serve.
+
+   **Blocking, 2026-10-02 — create the DNS record for `owner.gymosapps.com`.**
+   The dashboard was renamed from `app.` to `owner.` in Vercel, but no DNS
+   record was ever created for the new name, so it does not resolve at all.
+   Vercel has it set as the project's primary domain and 307-redirects
+   everything to it, which means the old `app.gymosapps.com` (now
+   `DEPLOYMENT_NOT_FOUND`) and the `dashboard-tau-three-31.vercel.app` URL
+   both dead-end there too. Gym owners cannot sign in by any route.
+
+   Two follow-ups once it resolves:
+
+   - **Re-point the privacy-policy URL in both store consoles** to
+     `https://owner.gymosapps.com/privacy`. It is registered against a host
+     that now 404s, and Play re-fetches it periodically rather than only at
+     review — a dead policy URL is a compliance failure, not just a broken
+     link.
+   - **Set `DASHBOARD_APP_URL=https://owner.gymosapps.com`** on **both**
+     Vercel projects. It is what a new owner and new staff receive as their
+     login link over WhatsApp, so a stale value sends real customers to a
+     dead host.
 3. **Triage the 384 open items** in `deferred-work.md` into before/after first client. Nobody has done that pass. Most are minor; a few are not.
 4. **12 Dependabot vulnerabilities (11 high)** on the default branch.
 

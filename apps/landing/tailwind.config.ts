@@ -5,7 +5,7 @@ import type { Config } from "tailwindcss";
 // throughout by the GymOS orange (#E0971F, DESIGN.md's --accent). The
 // reference's blues and the GymOS brand navy (#1B2A41) are close relatives,
 // so the two properties still read as one product when a gym owner moves
-// from gymosapps.com to app.gymosapps.com.
+// from gymosapps.com to owner.gymosapps.com.
 export default {
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",

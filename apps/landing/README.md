@@ -7,7 +7,7 @@ database, no analytics — every route is static HTML.
 | | |
 |---|---|
 | **Production** | `https://gymosapps.com` |
-| **Dashboard (owners sign in here)** | `https://app.gymosapps.com` |
+| **Dashboard (owners sign in here)** | `https://owner.gymosapps.com` |
 | **Super admin** | `https://portal.gymosapps.com` |
 | **Local dev** | `pnpm --filter @gymos/landing dev` → port 3002 |
 
@@ -17,7 +17,7 @@ database, no analytics — every route is static HTML.
 |---|---|
 | `/` | Redirects (307) to `/en` or `/fr` from the visitor's `Accept-Language` — see `proxy.ts` |
 | `/en`, `/fr` | The page, statically generated per locale |
-| `/privacy` | Redirects (308) to `app.gymosapps.com/privacy` |
+| `/privacy` | Redirects (308) to `owner.gymosapps.com/privacy` |
 
 ## Two things that are easy to get wrong
 
