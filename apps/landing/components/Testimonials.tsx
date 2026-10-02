@@ -21,21 +21,28 @@ export function Testimonials({ copy }: { copy: Copy }) {
   if (!SHOW_TESTIMONIALS || copy.testimonials.items.length === 0) return null;
 
   return (
-    <section className="bg-white">
+    <section className="relative">
       <Container className="py-20 sm:py-24">
-        <SectionHeading title={copy.testimonials.title} subtitle={copy.testimonials.subtitle} />
-        <div className="mt-14 grid gap-6 md:grid-cols-3">
-          {copy.testimonials.items.map((item) => (
+        <div className="reveal">
+          <SectionHeading
+            eyebrow={copy.testimonials.eyebrow}
+            title={copy.testimonials.title}
+            subtitle={copy.testimonials.subtitle}
+          />
+        </div>
+        <div className="mt-16 grid gap-6 md:grid-cols-3">
+          {copy.testimonials.items.map((item, index) => (
             <figure
               key={item.name}
-              className="flex h-full flex-col rounded-2xl border border-ink/10 bg-sand p-7"
+              className="reveal flex h-full flex-col rounded-[1.5rem] border border-line bg-card/60 p-7"
+              style={{ transitionDelay: `${index * 110}ms` }}
             >
-              <blockquote className="flex-1 text-sm leading-relaxed text-ink/75">
+              <blockquote className="flex-1 text-sm leading-relaxed text-muted">
                 {item.quote}
               </blockquote>
-              <figcaption className="mt-6 border-t border-ink/10 pt-4">
-                <span className="block text-sm font-semibold">{item.name}</span>
-                <span className="block text-sm text-ink/55">{item.gym}</span>
+              <figcaption className="mt-6 border-t border-line-soft pt-4">
+                <span className="block text-sm font-semibold text-body">{item.name}</span>
+                <span className="block text-sm text-faint">{item.gym}</span>
               </figcaption>
             </figure>
           ))}

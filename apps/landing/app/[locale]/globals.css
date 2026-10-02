@@ -1,26 +1,63 @@
 @tailwind base;
-@tailwind components;
 @tailwind utilities;
+@tailwind components;
 
 @layer base {
-  /* The landing page is light-only by design. Unlike the dashboard it has no
-     theme toggle, so declaring the scheme explicitly stops a visitor whose OS
-     is set to dark from getting browser-painted form controls and scrollbars
-     that fight the page's own off-white ground. */
+  /* Dark-only by design, matching the reference. Declared explicitly so a
+     visitor whose OS is set to light does not get browser-painted scrollbars
+     and form controls fighting the page's near-black ground. */
   :root {
-    color-scheme: light;
+    color-scheme: dark;
   }
 
   html {
     scroll-behavior: smooth;
   }
 
-  /* Anchor targets sit under the sticky header otherwise. */
+  /* Anchor targets would otherwise land under the sticky header. */
   section[id] {
-    scroll-margin-top: 5rem;
+    scroll-margin-top: 5.5rem;
   }
 
   body {
-    @apply bg-sand text-ink antialiased;
+    @apply bg-bg text-body antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display;
+  }
+}
+
+@layer components {
+  /* Scroll-reveal, driven by the IntersectionObserver in components/Motion.tsx.
+     The no-preference guard below is not decoration: a fade-up on every
+     section is exactly the kind of motion that triggers vestibular symptoms,
+     and a visitor who has asked their OS to stop it must get a page that is
+     fully readable with no animation at all -- which means visible by
+     default, not merely animating faster. */
+  .reveal {
+    @apply translate-y-7 opacity-0 transition-[opacity,transform] duration-700 ease-smooth;
+  }
+
+  .reveal.is-visible {
+    @apply translate-y-0 opacity-100;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal.is-visible {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  /* Same reasoning for the hero's looping ornaments: the scanline, the
+     floating stat chips and the live-pulse all run forever, which is the
+     most common reduced-motion complaint of the lot. */
+  .motion-safe-only {
+    animation: none !important;
   }
 }
