@@ -7,18 +7,25 @@ import type { Locale } from "./i18n";
  * eslint.config.mjs) can make an untranslated sentence a lint error. The
  * shape is a plain typed object, not an i18next runtime: the page is fully
  * static with one dictionary chosen per route, so there is nothing to
- * resolve at request time and no reason to ship a translation library to
- * the browser.
+ * resolve at request time and no reason to ship a translation library.
  *
- * The product claims below are deliberately limited to what GymOS actually
- * ships today -- QR check-in, members and subscriptions, payments, classes,
- * workout plans, coaches, progress tracking, staff roles, and the member
- * app. Nothing here describes a feature that does not exist.
+ * The product claims here are limited to what GymOS actually ships today.
+ * Nothing describes a feature that does not exist, and nothing claims a
+ * customer, a count or an outcome that has not happened -- the page is
+ * modelled on gym.smartsana.com's layout, not on its "Trusted by 500+ gyms"
+ * and its named testimonials, neither of which is true of GymOS yet.
  */
 
 export interface Feature {
   title: string;
   body: string;
+}
+
+export interface Stat {
+  /** Counted up on scroll. 0 renders statically -- see components/Motion.tsx. */
+  value: number;
+  suffix: string;
+  label: string;
 }
 
 export interface Testimonial {
@@ -28,65 +35,78 @@ export interface Testimonial {
 }
 
 export interface Copy {
-  meta: {
-    title: string;
-    description: string;
-  };
+  meta: { title: string; description: string };
   nav: {
     features: string;
     how: string;
     app: string;
-    contact: string;
+    about: string;
     login: string;
     switchTo: string;
     switchLabel: string;
+    openMenu: string;
+    closeMenu: string;
   };
   hero: {
     eyebrow: string;
-    title: string;
+    titleLead: string;
+    titleAccent: string;
     subtitle: string;
     primaryCta: string;
     primaryCtaEmail: string;
     secondaryCta: string;
+    demoTitle: string;
+    demoSubtitle: string;
+    live: string;
+    qrAlt: string;
+    chipMembers: string;
+    chipScans: string;
+    checkedIn: string;
+    samples: { name: string; detail: string }[];
   };
-  earlyAccess: {
-    badge: string;
-    title: string;
-    body: string;
-  };
+  stats: Stat[];
+  earlyAccess: { badge: string; title: string; body: string };
   pillars: {
+    eyebrow: string;
     title: string;
+    titleAccent: string;
     subtitle: string;
-    items: Feature[];
+    items: (Feature & { imageAlt: string })[];
   };
   features: {
+    eyebrow: string;
     title: string;
+    titleAccent: string;
     subtitle: string;
     items: Feature[];
   };
-  how: {
+  how: { eyebrow: string; title: string; subtitle: string; steps: Feature[] };
+  about: {
+    eyebrow: string;
     title: string;
+    titleAccent: string;
+    body: string[];
+    imageAlt: string;
+    points: string[];
+  };
+  proof: {
+    eyebrow: string;
+    title: string;
+    titleAccent: string;
     subtitle: string;
-    steps: Feature[];
+    items: Feature[];
   };
   app: {
+    eyebrow: string;
     title: string;
     body: string;
     appStore: string;
     playStore: string;
     note: string;
   };
-  testimonials: {
-    title: string;
-    subtitle: string;
-    items: Testimonial[];
-  };
-  proof: {
-    title: string;
-    subtitle: string;
-    items: Feature[];
-  };
+  testimonials: { eyebrow: string; title: string; subtitle: string; items: Testimonial[] };
   cta: {
+    eyebrow: string;
     title: string;
     body: string;
     whatsapp: string;
@@ -97,7 +117,6 @@ export interface Copy {
     tagline: string;
     product: string;
     ownerLogin: string;
-    memberApp: string;
     company: string;
     contact: string;
     privacy: string;
@@ -109,28 +128,48 @@ export interface Copy {
 
 const en: Copy = {
   meta: {
-    title: "GymOS — Gym management software for gym owners",
+    title: "GymOS — Gym management software with QR code check-in",
     description:
-      "QR-code check-in, membership and payment tracking, classes, workout plans, and a member app on Android and iPhone. Built for gym owners.",
+      "GymOS is gym management software for gym owners: QR code check-in, membership and payment tracking, classes, workout plans, and a member app on Android and iPhone.",
   },
   nav: {
     features: "Features",
     how: "How it works",
     app: "Member app",
-    contact: "Talk to us",
+    about: "About",
     login: "Owner login",
     switchTo: "Français",
     switchLabel: "Switch language",
+    openMenu: "Open menu",
+    closeMenu: "Close menu",
   },
   hero: {
-    eyebrow: "Gym management software, built for gym owners",
-    title: "Run a smarter gym. Check members in at the speed of a scan.",
+    eyebrow: "Smart gym management platform",
+    titleLead: "Run a smarter gym. Check in at the",
+    titleAccent: "speed of a scan.",
     subtitle:
-      "GymOS replaces the notebook, the spreadsheet and the WhatsApp group with one system: members scan a QR code to check in, subscriptions renew on time, and you can see what is actually happening in your gym from your phone.",
+      "GymOS brings QR code check-in, membership tracking and real-time insight into one clean platform — so you spend less time on admin and more time growing your gym.",
     primaryCta: "Talk to us on WhatsApp",
     primaryCtaEmail: "Email us",
-    secondaryCta: "See what it does",
+    secondaryCta: "Explore features",
+    demoTitle: "Entrance check-in",
+    demoSubtitle: "GymOS scanner · Front desk",
+    live: "Live",
+    qrAlt: "Example member check-in QR code",
+    chipMembers: "Active members",
+    chipScans: "Scans today",
+    checkedIn: "Checked in",
+    samples: [
+      { name: "Awa N.", detail: "Monthly · 6:42 AM" },
+      { name: "Patrick M.", detail: "Quarterly · 6:43 AM" },
+    ],
   },
+  stats: [
+    { value: 100, suffix: "%", label: "Of check-ins recorded automatically, with no register to sign" },
+    { value: 2, suffix: "", label: "Member apps live — on the App Store and Google Play" },
+    { value: 2, suffix: "", label: "Languages across the whole system, English and French" },
+    { value: 0, suffix: "", label: "Paper registers left at your front desk" },
+  ],
   earlyAccess: {
     badge: "Now onboarding our first gyms",
     title: "We are setting up our founding gyms right now.",
@@ -138,29 +177,36 @@ const en: Copy = {
       "GymOS is live and in use, and we are deliberately taking on a small number of gyms first so that each one gets set up properly and shapes what we build next. If you run a gym and want to be one of them, talk to us — you will be dealing with the people who build it.",
   },
   pillars: {
-    title: "Three things that change on day one",
+    eyebrow: "Why GymOS",
+    title: "Three things that change on",
+    titleAccent: "day one.",
     subtitle: "The parts of running a gym that cost you the most time and the most money.",
     items: [
       {
-        title: "Check-in by QR code",
+        title: "QR code check-in",
         body:
-          "A member opens the app, scans the code at your front desk, and is in. No queue, no signing a book, no front-desk staff trying to remember whether someone has paid. An expired membership is caught at the door, not a month later.",
+          "A member opens the app, scans the code at your front desk, and is in. No queue, no signing a book, no one trying to remember whether somebody has paid. An expired membership is caught at the door, not a month later.",
+        imageAlt: "A member scanning a QR code at a gym entrance",
       },
       {
         title: "Memberships that chase themselves",
         body:
           "Every member, plan and expiry date in one place, with renewals and payments recorded as they happen. GymOS tells you who is about to lapse while you can still do something about it, and messages them over WhatsApp for you.",
+        imageAlt: "A gym floor with members training on equipment",
       },
       {
         title: "You can finally see the gym",
         body:
           "Who came in today, which classes filled, what was collected this month, which members have stopped showing up. Real numbers from what actually happened, not an estimate you reconstruct at month end.",
+        imageAlt: "A gym owner reviewing numbers on a laptop",
       },
     ],
   },
   features: {
-    title: "Everything the gym runs on",
-    subtitle: "One system for the front desk, the floor, the coaches and the office.",
+    eyebrow: "Platform features",
+    title: "One dashboard for your",
+    titleAccent: "whole gym.",
+    subtitle: "The front desk, the floor, the coaches and the office — in one system.",
     items: [
       {
         title: "Members and subscriptions",
@@ -171,7 +217,7 @@ const en: Copy = {
         body: "Record a payment the moment it is taken, by cash or mobile money, and keep a history you can actually audit.",
       },
       {
-        title: "Attendance history",
+        title: "Attendance monitoring",
         body: "Every check-in recorded automatically, per member and per day, so attendance questions have an answer.",
       },
       {
@@ -198,13 +244,10 @@ const en: Copy = {
         title: "WhatsApp notifications",
         body: "Renewal reminders and account messages reach members where they already are, instead of in an inbox nobody opens.",
       },
-      {
-        title: "English and French",
-        body: "The whole system, including the member app, works in both languages. Your staff and your members each pick their own.",
-      },
     ],
   },
   how: {
+    eyebrow: "Getting started",
     title: "How it works",
     subtitle: "Three steps, and we do most of the first one with you.",
     steps: [
@@ -222,22 +265,27 @@ const en: Copy = {
       },
     ],
   },
-  app: {
-    title: "Your members get a real app, not a web page",
-    body:
-      "GymOS Member App is on both stores. Members use it to check in by QR code, see their membership and expiry date, book classes, follow the workout plan their coach assigned, and track their own progress.",
-    appStore: "Download on the App Store",
-    playStore: "Get it on Google Play",
-    note: "Free for your members. Included with your gym's subscription.",
-  },
-  testimonials: {
-    title: "What gym owners say",
-    subtitle: "From gyms running GymOS day to day.",
-    items: [],
+  about: {
+    eyebrow: "About GymOS",
+    title: "Built for the way gyms here",
+    titleAccent: "actually work.",
+    body: [
+      "GymOS was not adapted from software written for somewhere else. It was built around the gym floor it serves: payments taken in cash and by mobile money, members reached on WhatsApp rather than email, staff sharing one front desk, and a connection that is not always good.",
+      "That is why check-in is a scan instead of a login, why reminders go out over WhatsApp, and why the whole system — the dashboard and the member app — works in English and in French.",
+    ],
+    imageAlt: "Weights racked on a gym floor",
+    points: [
+      "Cash and mobile money, recorded the same way",
+      "WhatsApp reminders, not email nobody opens",
+      "English and French throughout",
+      "Roles so you can delegate the front desk safely",
+    ],
   },
   proof: {
-    title: "Why gym owners move to GymOS",
-    subtitle: "The three problems we hear in every single conversation with a gym owner.",
+    eyebrow: "What we hear",
+    title: "Why gym owners move to",
+    titleAccent: "GymOS.",
+    subtitle: "The three problems that come up in every conversation with a gym owner.",
     items: [
       {
         title: "“I do not know who has actually paid.”",
@@ -256,8 +304,24 @@ const en: Copy = {
       },
     ],
   },
+  app: {
+    eyebrow: "Member app",
+    title: "Your members get a real app, not a web page",
+    body:
+      "GymOS Member App is on both stores. Members use it to check in by QR code, see their membership and expiry date, book classes, follow the workout plan their coach assigned, and track their own progress.",
+    appStore: "Download on the App Store",
+    playStore: "Get it on Google Play",
+    note: "Free for your members. Included with your gym's subscription.",
+  },
+  testimonials: {
+    eyebrow: "Testimonials",
+    title: "What gym owners say",
+    subtitle: "From gyms running GymOS day to day.",
+    items: [],
+  },
   cta: {
-    title: "Run a gym? Let's talk.",
+    eyebrow: "Get started",
+    title: "Ready to modernise your gym?",
     body:
       "Tell us how your gym works today and we will show you exactly what GymOS would change — no slide deck, no commitment. We will answer on WhatsApp.",
     whatsapp: "Message us on WhatsApp",
@@ -268,7 +332,6 @@ const en: Copy = {
     tagline: "Gym management software for gym owners.",
     product: "Product",
     ownerLogin: "Owner login",
-    memberApp: "Member app",
     company: "Company",
     contact: "Contact",
     privacy: "Privacy policy",
@@ -280,28 +343,48 @@ const en: Copy = {
 
 const fr: Copy = {
   meta: {
-    title: "GymOS — Logiciel de gestion pour salles de sport",
+    title: "GymOS — Logiciel de gestion de salle de sport avec entrée par QR code",
     description:
-      "Entrée par QR code, suivi des abonnements et des paiements, cours, programmes d'entraînement, et une application membre sur Android et iPhone. Conçu pour les gérants de salles.",
+      "GymOS est un logiciel de gestion pour les gérants de salles de sport : entrée par QR code, suivi des abonnements et des paiements, cours, programmes d'entraînement, et une application membre sur Android et iPhone.",
   },
   nav: {
     features: "Fonctionnalités",
     how: "Comment ça marche",
     app: "Application membre",
-    contact: "Nous parler",
+    about: "À propos",
     login: "Espace gérant",
     switchTo: "English",
     switchLabel: "Changer de langue",
+    openMenu: "Ouvrir le menu",
+    closeMenu: "Fermer le menu",
   },
   hero: {
-    eyebrow: "Logiciel de gestion de salle de sport, conçu pour les gérants",
-    title: "Gérez mieux votre salle. Enregistrez vos membres en un scan.",
+    eyebrow: "Plateforme de gestion intelligente pour salles de sport",
+    titleLead: "Gérez mieux votre salle. Enregistrez vos membres à la",
+    titleAccent: "vitesse d'un scan.",
     subtitle:
-      "GymOS remplace le cahier, le tableur et le groupe WhatsApp par un seul système : vos membres scannent un QR code pour entrer, les abonnements se renouvellent à temps, et vous voyez ce qui se passe réellement dans votre salle depuis votre téléphone.",
+      "GymOS réunit l'entrée par QR code, le suivi des abonnements et une vision en temps réel dans une seule plateforme claire — vous passez moins de temps en administration et plus de temps à développer votre salle.",
     primaryCta: "Discuter sur WhatsApp",
     primaryCtaEmail: "Nous écrire",
-    secondaryCta: "Voir ce que ça fait",
+    secondaryCta: "Voir les fonctionnalités",
+    demoTitle: "Entrée à l'accueil",
+    demoSubtitle: "Scanner GymOS · Accueil",
+    live: "En direct",
+    qrAlt: "Exemple de QR code d'entrée d'un membre",
+    chipMembers: "Membres actifs",
+    chipScans: "Scans aujourd'hui",
+    checkedIn: "Entré",
+    samples: [
+      { name: "Awa N.", detail: "Mensuel · 6h42" },
+      { name: "Patrick M.", detail: "Trimestriel · 6h43" },
+    ],
   },
+  stats: [
+    { value: 100, suffix: "%", label: "Des entrées enregistrées automatiquement, sans registre à signer" },
+    { value: 2, suffix: "", label: "Applications membre en ligne — sur l'App Store et Google Play" },
+    { value: 2, suffix: "", label: "Langues dans tout le système, français et anglais" },
+    { value: 0, suffix: "", label: "Registre papier restant à votre accueil" },
+  ],
   earlyAccess: {
     badge: "Nous accueillons nos premières salles",
     title: "Nous installons nos salles fondatrices en ce moment.",
@@ -309,29 +392,36 @@ const fr: Copy = {
       "GymOS est en service aujourd'hui, et nous accueillons volontairement un petit nombre de salles d'abord : chacune est installée correctement et oriente ce que nous construisons ensuite. Si vous gérez une salle et voulez en faire partie, parlons-en — vous aurez affaire à ceux qui construisent le produit.",
   },
   pillars: {
-    title: "Trois choses qui changent dès le premier jour",
+    eyebrow: "Pourquoi GymOS",
+    title: "Trois choses qui changent dès le",
+    titleAccent: "premier jour.",
     subtitle: "Ce qui vous coûte le plus de temps et le plus d'argent dans la gestion d'une salle.",
     items: [
       {
         title: "Entrée par QR code",
         body:
-          "Le membre ouvre l'application, scanne le code à l'accueil, et c'est fait. Pas de file d'attente, pas de registre à signer, pas d'agent d'accueil qui essaie de se souvenir si quelqu'un a payé. Un abonnement expiré est détecté à la porte, pas un mois plus tard.",
+          "Le membre ouvre l'application, scanne le code à l'accueil, et c'est fait. Pas de file d'attente, pas de registre à signer, personne qui essaie de se souvenir si quelqu'un a payé. Un abonnement expiré est détecté à la porte, pas un mois plus tard.",
+        imageAlt: "Un membre scannant un QR code à l'entrée d'une salle de sport",
       },
       {
         title: "Des abonnements qui se relancent seuls",
         body:
           "Chaque membre, chaque formule et chaque date d'échéance au même endroit, avec les renouvellements et les paiements enregistrés au fur et à mesure. GymOS vous signale qui est sur le point d'expirer pendant que vous pouvez encore agir, et les relance sur WhatsApp à votre place.",
+        imageAlt: "Un plateau de salle de sport avec des membres à l'entraînement",
       },
       {
         title: "Vous voyez enfin votre salle",
         body:
           "Qui est venu aujourd'hui, quels cours se sont remplis, ce qui a été encaissé ce mois-ci, quels membres ne viennent plus. Des chiffres réels, issus de ce qui s'est passé, et non une estimation reconstituée en fin de mois.",
+        imageAlt: "Un gérant de salle consultant ses chiffres sur un ordinateur portable",
       },
     ],
   },
   features: {
-    title: "Tout ce qui fait tourner la salle",
-    subtitle: "Un seul système pour l'accueil, le plateau, les coachs et le bureau.",
+    eyebrow: "Fonctionnalités",
+    title: "Un seul tableau de bord pour",
+    titleAccent: "toute la salle.",
+    subtitle: "L'accueil, le plateau, les coachs et le bureau — dans un seul système.",
     items: [
       {
         title: "Membres et abonnements",
@@ -342,7 +432,7 @@ const fr: Copy = {
         body: "Enregistrez un paiement au moment où vous l'encaissez, en espèces ou par mobile money, et gardez un historique réellement vérifiable.",
       },
       {
-        title: "Historique de présence",
+        title: "Suivi des présences",
         body: "Chaque entrée enregistrée automatiquement, par membre et par jour : les questions de présence ont enfin une réponse.",
       },
       {
@@ -362,20 +452,17 @@ const fr: Copy = {
         body: "Les membres enregistrent leurs mesures et leurs photos de progression en privé, et choisissent si un coach peut les voir. Rien n'est partagé par défaut.",
       },
       {
-        title: "Rôles et permissions du personnel",
+        title: "Rôles et permissions",
         body: "Accueil, coach, manager, gérant : chaque rôle voit ce dont il a besoin et rien de plus. Vous déléguez sans céder la salle.",
       },
       {
         title: "Notifications WhatsApp",
         body: "Les rappels de renouvellement et les messages de compte arrivent là où vos membres sont déjà, et non dans une boîte mail que personne n'ouvre.",
       },
-      {
-        title: "Français et anglais",
-        body: "Tout le système, application membre comprise, fonctionne dans les deux langues. Votre personnel et vos membres choisissent chacun la leur.",
-      },
     ],
   },
   how: {
+    eyebrow: "Pour commencer",
     title: "Comment ça marche",
     subtitle: "Trois étapes, et nous faisons l'essentiel de la première avec vous.",
     steps: [
@@ -393,22 +480,27 @@ const fr: Copy = {
       },
     ],
   },
-  app: {
-    title: "Vos membres ont une vraie application, pas une page web",
-    body:
-      "GymOS Member App est disponible sur les deux stores. Les membres s'en servent pour entrer par QR code, consulter leur abonnement et sa date d'échéance, réserver des cours, suivre le programme attribué par leur coach et suivre leurs propres progrès.",
-    appStore: "Télécharger sur l'App Store",
-    playStore: "Disponible sur Google Play",
-    note: "Gratuite pour vos membres. Incluse dans l'abonnement de votre salle.",
-  },
-  testimonials: {
-    title: "Ce qu'en disent les gérants",
-    subtitle: "Des salles qui utilisent GymOS au quotidien.",
-    items: [],
+  about: {
+    eyebrow: "À propos de GymOS",
+    title: "Conçu pour la façon dont les salles d'ici",
+    titleAccent: "fonctionnent vraiment.",
+    body: [
+      "GymOS n'est pas l'adaptation d'un logiciel écrit pour ailleurs. Il a été construit autour du plateau qu'il sert : des paiements en espèces et par mobile money, des membres joignables sur WhatsApp plutôt que par e-mail, un personnel qui partage un même accueil, et une connexion qui n'est pas toujours bonne.",
+      "C'est pour cela que l'entrée est un scan plutôt qu'une connexion, que les rappels partent sur WhatsApp, et que tout le système — le tableau de bord comme l'application membre — fonctionne en français et en anglais.",
+    ],
+    imageAlt: "Des haltères rangés sur un plateau de salle de sport",
+    points: [
+      "Espèces et mobile money, enregistrés de la même façon",
+      "Rappels WhatsApp, pas des e-mails que personne n'ouvre",
+      "Français et anglais partout",
+      "Des rôles pour déléguer l'accueil en toute sécurité",
+    ],
   },
   proof: {
-    title: "Pourquoi les gérants passent à GymOS",
-    subtitle: "Les trois problèmes qui reviennent dans chacune de nos conversations avec un gérant de salle.",
+    eyebrow: "Ce que l'on entend",
+    title: "Pourquoi les gérants passent à",
+    titleAccent: "GymOS.",
+    subtitle: "Les trois problèmes qui reviennent dans chaque conversation avec un gérant de salle.",
     items: [
       {
         title: "« Je ne sais pas qui a réellement payé. »",
@@ -427,8 +519,24 @@ const fr: Copy = {
       },
     ],
   },
+  app: {
+    eyebrow: "Application membre",
+    title: "Vos membres ont une vraie application, pas une page web",
+    body:
+      "GymOS Member App est disponible sur les deux stores. Les membres s'en servent pour entrer par QR code, consulter leur abonnement et sa date d'échéance, réserver des cours, suivre le programme attribué par leur coach et suivre leurs propres progrès.",
+    appStore: "Télécharger sur l'App Store",
+    playStore: "Disponible sur Google Play",
+    note: "Gratuite pour vos membres. Incluse dans l'abonnement de votre salle.",
+  },
+  testimonials: {
+    eyebrow: "Témoignages",
+    title: "Ce qu'en disent les gérants",
+    subtitle: "Des salles qui utilisent GymOS au quotidien.",
+    items: [],
+  },
   cta: {
-    title: "Vous gérez une salle ? Parlons-en.",
+    eyebrow: "Démarrer",
+    title: "Prêt à moderniser votre salle ?",
     body:
       "Dites-nous comment votre salle fonctionne aujourd'hui et nous vous montrerons exactement ce que GymOS y changerait — sans présentation commerciale, sans engagement. Nous répondons sur WhatsApp.",
     whatsapp: "Nous écrire sur WhatsApp",
@@ -439,7 +547,6 @@ const fr: Copy = {
     tagline: "Logiciel de gestion pour les gérants de salles de sport.",
     product: "Produit",
     ownerLogin: "Espace gérant",
-    memberApp: "Application membre",
     company: "Entreprise",
     contact: "Contact",
     privacy: "Politique de confidentialité",

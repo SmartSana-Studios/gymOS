@@ -1,14 +1,22 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Geist } from "next/font/google";
+import { Inter, Sora } from "next/font/google";
 import { COPY } from "@/lib/copy";
 import { isLocale, locales, type Locale, type LocaleRouteParams } from "@/lib/i18n";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gymosapps.com";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Same pairing as the reference site: Sora for headlines, Inter for body.
+const sora = Sora({
+  variable: "--font-sora",
+  display: "swap",
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
   display: "swap",
   subsets: ["latin"],
 });
@@ -25,9 +33,7 @@ export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }
 
-export async function generateMetadata({
-  params,
-}: LocaleRouteParams): Promise<Metadata> {
+export async function generateMetadata({ params }: LocaleRouteParams): Promise<Metadata> {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const copy = COPY[locale];
@@ -41,11 +47,7 @@ export async function generateMetadata({
       // Declared on both locales so a crawler arriving on either is told
       // about the other. x-default is English, the language the domain is
       // handed out in.
-      languages: {
-        en: "/en",
-        fr: "/fr",
-        "x-default": "/en",
-      },
+      languages: { en: "/en", fr: "/fr", "x-default": "/en" },
     },
     openGraph: {
       type: "website",
@@ -70,7 +72,7 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale as Locale}>
-      <body className={`${geistSans.variable} font-sans`}>{children}</body>
+      <body className={`${sora.variable} ${inter.variable} font-sans`}>{children}</body>
     </html>
   );
 }
