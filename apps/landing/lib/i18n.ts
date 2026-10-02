@@ -1,6 +1,26 @@
 /** Mirrors apps/dashboard/lib/i18n/config.ts so the two apps agree on what a
  *  locale is. Kept as its own small module rather than imported, because the
  *  landing page has no dependency on the dashboard package. */
+/**
+ * Route params for the `[locale]` segment.
+ *
+ * Declared by hand rather than using Next's global `PageProps`/`LayoutProps`
+ * helpers, which are real and correctly typed but are *generated* into
+ * `.next/types` by `next build`/`next dev`. A fresh checkout has no `.next`,
+ * so `pnpm typecheck` on its own fails with "Cannot find name 'PageProps'"
+ * -- which passes locally the moment you have built once and fails in CI
+ * every time. This repo's `typecheck` task does not depend on `build`, so
+ * the types have to stand on their own.
+ *
+ * `params` is a Promise because this app targets Next 16, where route params
+ * are async. `locale` is a plain `string`, not `Locale`: the router will
+ * hand this a hand-typed `/de` just as readily as `/fr`, so narrowing is
+ * `isLocale`'s job at the top of each route, not the type's.
+ */
+export interface LocaleRouteParams {
+  params: Promise<{ locale: string }>;
+}
+
 export const locales = ["en", "fr"] as const;
 export type Locale = (typeof locales)[number];
 export const defaultLocale: Locale = "en";

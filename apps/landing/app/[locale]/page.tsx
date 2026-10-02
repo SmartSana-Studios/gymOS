@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { COPY } from "@/lib/copy";
-import { isLocale } from "@/lib/i18n";
+import { isLocale, type LocaleRouteParams } from "@/lib/i18n";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Hero } from "@/components/Hero";
 import { EarlyAccess } from "@/components/EarlyAccess";
@@ -13,7 +13,7 @@ import { Testimonials } from "@/components/Testimonials";
 import { ClosingCta } from "@/components/ClosingCta";
 import { SiteFooter } from "@/components/SiteFooter";
 
-export default async function LandingPage({ params }: PageProps<"/[locale]">) {
+export default async function LandingPage({ params }: LocaleRouteParams) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const copy = COPY[locale];

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Geist } from "next/font/google";
 import { COPY } from "@/lib/copy";
-import { isLocale, locales, type Locale } from "@/lib/i18n";
+import { isLocale, locales, type Locale, type LocaleRouteParams } from "@/lib/i18n";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://gymosapps.com";
@@ -27,7 +27,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({
   params,
-}: LayoutProps<"/[locale]">): Promise<Metadata> {
+}: LocaleRouteParams): Promise<Metadata> {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const copy = COPY[locale];
@@ -61,7 +61,7 @@ export async function generateMetadata({
 export default async function LocaleLayout({
   children,
   params,
-}: LayoutProps<"/[locale]">) {
+}: LocaleRouteParams & { children: React.ReactNode }) {
   const { locale } = await params;
   // A hand-typed /de or /es reaches this layout with an unsupported segment.
   // 404 rather than falling back to English, so a wrong URL is visibly wrong
