@@ -183,20 +183,56 @@ Three jobs in `.github/workflows/ci.yml`, triggered on every push and PR:
 
 **[NEEDS]** — this section is intentionally a skeleton, not a guess:
 
-1. Dashboard / Super Admin: **deployed on Vercel, auto-deploying on push to
-   master** (confirmed 2026-09-06 — a push to master reached the live
+1. Dashboard / Super Admin / Landing: **deployed on Vercel, auto-deploying on
+   push to master** (confirmed 2026-09-06 — a push to master reached the live
    dashboard without any manual step). `apps/dashboard/vercel.json` exists
-   and registers the SaaS-billing reminder cron. **[NEEDS]** the production
-   domain recorded here: the URL in use as of 2026-09-06 is a
-   Vercel-generated one, and moving to a custom domain means updating the
-   privacy-policy URL in **both** store consoles, since a dead policy URL
-   after review is itself a compliance problem.
+   and registers the SaaS-billing reminder cron.
+
+   **Production domains (attached 2026-10-02):**
+
+   | App | Domain |
+   |---|---|
+   | `apps/dashboard` | `https://app.gymosapps.com` |
+   | `apps/super-admin` | `https://portal.gymosapps.com` |
+   | `apps/landing` | `https://gymosapps.com` |
+
+   The Vercel-generated URLs (`dashboard-tau-three-31.vercel.app`,
+   `super-admin-phi-jade.vercel.app`) still resolve and are still what
+   `.vercel/project.json`-era notes refer to; prefer the custom domains
+   everywhere, and never hand a Vercel URL to a gym owner.
+
+   **Two things the domain move requires, neither automatic:**
+
+   - **Re-point the privacy-policy URL in both store consoles** to
+     `https://app.gymosapps.com/privacy`. It was registered against the old
+     Vercel host, and a dead policy URL after review is itself a compliance
+     problem — Play re-fetches it periodically, not only at review time.
+   - **Set `DASHBOARD_APP_URL=https://app.gymosapps.com` on both Vercel
+     projects** (dashboard *and* super-admin — each holds its own copy, see
+     the two `.env.example` files). This value is sent to real people as a
+     clickable login link over WhatsApp when an owner or a staff member is
+     activated, so a stale value is a customer-visible failure, not a
+     cosmetic one.
 2. Database: `supabase db push` against the production project (see §3).
 3. Mobile: `eas build --profile production` then `eas submit` (App Store
    ascAppId `6798403711` and a Play Store internal track are already
    configured in `apps/mobile/eas.json`; `google-play-service-account.json`
    is present in the developer's checkout but gitignored, so confirm it
    exists wherever you run the submit from).
+
+   **Both listings are now public** (confirmed 2026-10-02) — these are the
+   URLs the landing page links to, and the ones to hand a gym owner:
+
+   - App Store — "GymOS Member App", released 2026-09-16:
+     `https://apps.apple.com/app/id6798403711`
+   - Play — "GymOS", `com.smartsana.gymos`:
+     `https://play.google.com/store/apps/details?id=com.smartsana.gymos`
+
+   Note that `eas.json`'s `submit.production.android.track` is still
+   `internal`, so an `eas submit` run promotes to the internal track, not to
+   production — the public listing was promoted in the Play Console by hand.
+   Anyone expecting `eas submit` alone to ship to the public track will be
+   surprised.
 
    **A zero exit from `eas submit` does NOT mean the upload succeeded.**
    Observed 2026-09-08: the CLI exited 0 while the submission was still

@@ -22,7 +22,7 @@ the platform owner.
 
 Re-check before every publish:
 
-    grep -nE "GymOS_Password|info@smartsana|699000001|123456" docs/handbook/index.html
+    grep -nE "GymOS_Password|hello@gymosapps|699000001|123456" docs/handbook/index.html
 
 ## Keeping it accurate
 

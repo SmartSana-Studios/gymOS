@@ -1,6 +1,6 @@
 # Production readiness
 
-_Last updated: 2026-09-09._
+_Last updated: 2026-10-02._
 
 A running, honest picture of what is deployed, what is proven, and what is not. Written so the next person does not have to reconstruct it — and specifically so the gap that opened this session (production five migrations behind, nobody aware) cannot open silently again.
 
@@ -9,9 +9,10 @@ A running, honest picture of what is deployed, what is proven, and what is not. 
 | | State | Verified how |
 |---|---|---|
 | **Database** | `0094` — at parity with the repo | Post-deploy checks on production: 21 guarded write-RPCs, 21 tables carrying `tenant_active_gate`, 0 policies granting manager without supervisor, separation trigger present |
-| **Dashboard** | Deployed | `https://dashboard-tau-three-31.vercel.app` serves `id="identifier"` and "Send code" — the login and reset fixes are live |
-| **Super Admin** | Deployed | `https://super-admin-phi-jade.vercel.app`, Ready in Production |
-| **Mobile** | Not assessed this session | — |
+| **Dashboard** | Deployed, on its final domain | `https://app.gymosapps.com` (custom domain attached 2026-10-02; the Vercel-generated `dashboard-tau-three-31.vercel.app` still resolves). Serves `id="identifier"` and "Send code" — the login and reset fixes are live |
+| **Super Admin** | Deployed, on its final domain | `https://portal.gymosapps.com` (custom domain attached 2026-10-02; `super-admin-phi-jade.vercel.app` still resolves), Ready in Production |
+| **Landing page** | In progress | `https://gymosapps.com` — `apps/landing`, added 2026-10-02 |
+| **Mobile** | Published on both stores | App Store "GymOS Member App" (`id6798403711`, released 2026-09-16) and Play "GymOS" (`com.smartsana.gymos`) both resolve publicly — confirmed 2026-10-02. Behaviour still not assessed |
 | **Deploys** | Automatic on push to `master` via Vercel Git integration | Four production builds observed following pushes |
 
 Production data as of the deploy: **1 gym, 2 members, 3 auth users, 1 subscription, 0 payments.** Effectively empty — no customers to disrupt.
@@ -27,7 +28,7 @@ Production data as of the deploy: **1 gym, 2 members, 3 auth users, 1 subscripti
 ## Before onboarding a first client
 
 1. **Role-by-role smoke test on production.** Create a gym → add staff of each role → sign in as each → add members → take a payment → onboard a member on mobile → check in → renew. Two total blockers were found this session by doing exactly this locally for twenty minutes; neither was caught by a green test suite.
-2. **A real domain.** Current URLs are Vercel-generated (`dashboard-tau-three-31`), not something to hand a gym owner. `ultradominon.com` is already on the account.
+2. ~~**A real domain.**~~ — **done (2026-10-02)**: `gymosapps.com` is attached to Vercel — `app.gymosapps.com` (dashboard), `portal.gymosapps.com` (super-admin), apex reserved for the landing page. Two follow-ups this creates: the privacy-policy URL registered in **both store consoles** still points at the old Vercel host and must be re-pointed to `https://app.gymosapps.com/privacy` (a dead policy URL is a store-review failure), and `DASHBOARD_APP_URL` must be set to `https://app.gymosapps.com` on **both** Vercel projects — it is what a new owner and new staff receive as their login link over WhatsApp.
 3. **Triage the 384 open items** in `deferred-work.md` into before/after first client. Nobody has done that pass. Most are minor; a few are not.
 4. **12 Dependabot vulnerabilities (11 high)** on the default branch.
 

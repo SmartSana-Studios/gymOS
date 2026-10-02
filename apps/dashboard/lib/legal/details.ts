@@ -44,7 +44,7 @@ export interface LegalDetails {
 export const LEGAL_DETAILS: LegalDetails = {
   legalEntity: "GetSocial Inc",
   address: "Yaoundé, Melen",
-  supportEmail: "info@smartsana.com",
+  supportEmail: "hello@gymosapps.com",
   retentionPeriod: {
     en: "for as long as your membership is active, and for one year after it ends",
     fr: "tant que votre adhésion est active, puis pendant un an après sa fin",
@@ -57,8 +57,15 @@ export const LEGAL_DETAILS: LegalDetails = {
  * `privacy-policy.ts`'s prose changes -- deliberately not a build timestamp,
  * which would churn the visible "last updated" date on every redeploy and
  * make it meaningless as a change signal to a member or a store reviewer.
+ *
+ * Also bumped when a `LEGAL_DETAILS` value above changes the *substance* of
+ * what the rendered policy tells a member, even though the prose itself is
+ * untouched. 2026-10-02 is such a bump: `supportEmail` moved from
+ * info@smartsana.com to hello@gymosapps.com, which is the §6 data-deletion
+ * contact route declared to Play (docs/play-store-data-safety.md). A member
+ * who wrote to the old address needs the date to tell them the route moved.
  */
-export const POLICY_LAST_UPDATED = "2026-09-06";
+export const POLICY_LAST_UPDATED = "2026-10-02";
 
 /** Field names still unsupplied, in declaration order. Empty === publishable. */
 export function missingLegalDetails(details: LegalDetails = LEGAL_DETAILS): (keyof LegalDetails)[] {
