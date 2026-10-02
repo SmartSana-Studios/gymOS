@@ -212,7 +212,7 @@ Three jobs in `.github/workflows/ci.yml`, triggered on every push and PR:
 
    | App | Domain |
    |---|---|
-   | `apps/dashboard` | `https://app.gymosapps.com` |
+   | `apps/dashboard` | `https://owner.gymosapps.com` |
    | `apps/super-admin` | `https://portal.gymosapps.com` |
    | `apps/landing` | `https://gymosapps.com` |
 
@@ -224,10 +224,10 @@ Three jobs in `.github/workflows/ci.yml`, triggered on every push and PR:
    **Two things the domain move requires, neither automatic:**
 
    - **Re-point the privacy-policy URL in both store consoles** to
-     `https://app.gymosapps.com/privacy`. It was registered against the old
+     `https://owner.gymosapps.com/privacy`. It was registered against the old
      Vercel host, and a dead policy URL after review is itself a compliance
      problem — Play re-fetches it periodically, not only at review time.
-   - **Set `DASHBOARD_APP_URL=https://app.gymosapps.com` on both Vercel
+   - **Set `DASHBOARD_APP_URL=https://owner.gymosapps.com` on both Vercel
      projects** (dashboard *and* super-admin — each holds its own copy, see
      the two `.env.example` files). This value is sent to real people as a
      clickable login link over WhatsApp when an owner or a staff member is

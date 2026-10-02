@@ -30,7 +30,7 @@ export const SUPPORT_EMAIL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "hello@gym
 
 /** Where a gym owner signs in. The dashboard's own custom domain, not this
  *  site's. */
-export const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://app.gymosapps.com";
+export const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL ?? "https://owner.gymosapps.com";
 
 /**
  * Public store listings for the member app. Both confirmed live 2026-10-02:
