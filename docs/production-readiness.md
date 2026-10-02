@@ -9,7 +9,7 @@ A running, honest picture of what is deployed, what is proven, and what is not. 
 | | State | Verified how |
 |---|---|---|
 | **Database** | `0094` — at parity with the repo | Post-deploy checks on production: 21 guarded write-RPCs, 21 tables carrying `tenant_active_gate`, 0 policies granting manager without supervisor, separation trigger present |
-| **Dashboard** | ⚠️ **UNREACHABLE** — deployed, but no domain resolves | Renamed `app.` → `owner.gymosapps.com` on 2026-10-02. **`owner.gymosapps.com` has no DNS record** (`getent hosts` returns nothing), and `app.gymosapps.com` — whose DNS still points at Vercel — now answers `404 DEPLOYMENT_NOT_FOUND` because the domain was detached from the project. `dashboard-tau-three-31.vercel.app` 307-redirects to `owner.gymosapps.com`, so it leads to the same dead host. **Every route to the dashboard is broken until the DNS record is created.** |
+| **Dashboard** | Deployed, on its final domain | `https://owner.gymosapps.com` — renamed from `app.` on 2026-10-02. For part of that day no route resolved (the DNS record for the new name was missing; `app.` had been detached; the Vercel URL 307'd to the dead host). DNS is in place now: `/auth/login` and `/privacy` both 200, the policy serving `hello.com` in both locales. Supabase auth `site_url`/allow-list were also still on the `vercel.app` hosts until 2026-10-02 — see Traps. |
 | **Super Admin** | Deployed, on its final domain | `https://portal.gymosapps.com` (custom domain attached 2026-10-02; `super-admin-phi-jade.vercel.app` still resolves), Ready in Production |
 | **Landing page** | In progress | `https://gymosapps.com` — `apps/landing`, added 2026-10-02 |
 | **Mobile** | Published on both stores | App Store "GymOS Member App" (`id6798403711`, released 2026-09-16) and Play "GymOS" (`com.smartsana.gymos`) both resolve publicly — confirmed 2026-10-02. Behaviour still not assessed |
@@ -28,32 +28,7 @@ Production data as of the deploy: **1 gym, 2 members, 3 auth users, 1 subscripti
 ## Before onboarding a first client
 
 1. **Role-by-role smoke test on production.** Create a gym → add staff of each role → sign in as each → add members → take a payment → onboard a member on mobile → check in → renew. Two total blockers were found this session by doing exactly this locally for twenty minutes; neither was caught by a green test suite.
-2. **A real domain** — mostly done, but the dashboard's is **currently broken**.
-
-   `gymosapps.com` is attached to Vercel: `owner.gymosapps.com` (dashboard),
-   `portal.gymosapps.com` (super-admin), `www.gymosapps.com` (landing page,
-   with the apex 308-redirecting to it). Super-admin and the landing page
-   both resolve and serve.
-
-   **Blocking, 2026-10-02 — create the DNS record for `owner.gymosapps.com`.**
-   The dashboard was renamed from `app.` to `owner.` in Vercel, but no DNS
-   record was ever created for the new name, so it does not resolve at all.
-   Vercel has it set as the project's primary domain and 307-redirects
-   everything to it, which means the old `app.gymosapps.com` (now
-   `DEPLOYMENT_NOT_FOUND`) and the `dashboard-tau-three-31.vercel.app` URL
-   both dead-end there too. Gym owners cannot sign in by any route.
-
-   Two follow-ups once it resolves:
-
-   - **Re-point the privacy-policy URL in both store consoles** to
-     `https://owner.gymosapps.com/privacy`. It is registered against a host
-     that now 404s, and Play re-fetches it periodically rather than only at
-     review — a dead policy URL is a compliance failure, not just a broken
-     link.
-   - **Set `DASHBOARD_APP_URL=https://owner.gymosapps.com`** on **both**
-     Vercel projects. It is what a new owner and new staff receive as their
-     login link over WhatsApp, so a stale value sends real customers to a
-     dead host.
+2. ~~**A real domain.**~~ — **done (2026-10-02)**: `owner.gymosapps.com` (dashboard), `portal.gymosapps.com` (super-admin), `www.gymosapps.com` (landing; apex 308s to it). All three resolve and serve. Of the follow-ups: `DASHBOARD_APP_URL` reads `https://owner.gymosapps.com` on the dashboard project (verified via `vercel env pull`); on super-admin it is flagged *sensitive* and unreadable from the CLI, confirmed by the owner in the Vercel UI. The store-console privacy URL was re-pointed by the owner the same day (console-side, not verifiable from the repo). Supabase auth `site_url`/allow-list fixed via the management API — see Traps.
 3. **Triage the 384 open items** in `deferred-work.md` into before/after first client. Nobody has done that pass. Most are minor; a few are not.
 4. **12 Dependabot vulnerabilities (11 high)** on the default branch.
 
@@ -63,6 +38,7 @@ Production data as of the deploy: **1 gym, 2 members, 3 auth users, 1 subscripti
 - **`.vercel/project.json` is stale.** It points at a project that returns "deleted, transferred, or you don't have access". The live projects are `gymos_dashboard` and `gymos-super-admin` under `josephfeussis-projects`. Any `vercel` CLI command run from the repo root targets the wrong thing.
 - **`gymosdashboard.vercel.app` is not this app.** It serves a different site (title "GymOS - Ultimate Gym Management", with a `/login` route this repo does not have — ours is `/auth/login`, title "GymOS"). Do not share it as the product.
 - **`docs/decisions.md` is newest-first**, so every new entry shifts every line number. Cite an entry's dated heading, never a line. This broke citations three stories running before the live ones were converted.
+- **Supabase auth `site_url` and the redirect allow-list do not follow a domain move.** They are console-side config on the hosted project, and when the custom domains were attached they still named the two `vercel.app` hosts. GoTrue does not error on a `redirectTo` outside the allow-list — it **silently falls back to `site_url`** — so the dashboard's email password-reset (`forgot-password-form.tsx` passes `window.location.origin`) would have bounced through the old host, and super-admin's would have landed on the dashboard. Phone-OTP never touches this, which is why nothing surfaced it. Fixed 2026-10-02 via `PATCH /v1/projects/<ref>/config/auth`; audit with the matching `GET` after any host change.
 
 ## Why the drift happened, and what now prevents it
 
