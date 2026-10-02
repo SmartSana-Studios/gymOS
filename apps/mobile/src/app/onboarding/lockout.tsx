@@ -65,7 +65,16 @@ export default function LockoutScreen() {
   const router = useRouter();
   const { phone: contextPhone } = useOnboardingProgress();
   const params = useLocalSearchParams<{ lockedUntil?: string }>();
-  const [resolvedPhone, setResolvedPhone] = useState<string | null>(contextPhone);
+  // `resolvedPhone` is derived, not stored: it is the context phone when we
+  // have one, otherwise whatever the persisted hint yielded. Only the hint --
+  // the genuinely asynchronous half -- is state. Previously both halves were
+  // held in one state variable that an effect kept in sync with contextPhone,
+  // which is a synchronous setState in an effect body
+  // (react-hooks/set-state-in-effect) and the classic "state mirroring a
+  // prop" shape: it rendered one frame with the stale phone whenever
+  // contextPhone changed.
+  const [hintPhone, setHintPhone] = useState<string | null>(null);
+  const resolvedPhone = contextPhone ?? hintPhone;
   const [lockedUntil, setLockedUntil] = useState<Date | null>(
     params.lockedUntil ? new Date(params.lockedUntil) : null,
   );
@@ -79,13 +88,10 @@ export default function LockoutScreen() {
   // Falls back to the persisted hint when context/params are both empty --
   // the app-kill-during-lockout case (see LOCKOUT_STORAGE_KEY above).
   useEffect(() => {
-    if (contextPhone) {
-      setResolvedPhone(contextPhone);
-      return;
-    }
+    if (contextPhone) return;
     readLockoutHint().then((hint) => {
       if (hint) {
-        setResolvedPhone(hint.phone);
+        setHintPhone(hint.phone);
         setLockedUntil((current) => current ?? new Date(hint.lockedUntil));
       }
     });
