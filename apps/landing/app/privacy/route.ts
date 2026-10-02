@@ -6,7 +6,7 @@ import { DASHBOARD_URL } from "@/lib/config";
  * store reviewer may try after seeing the marketing domain. It is NOT where
  * the policy lives.
  *
- * The policy is served by apps/dashboard at `app.gymosapps.com/privacy`,
+ * The policy is served by apps/dashboard at `owner.gymosapps.com/privacy`,
  * which is the URL registered in both store consoles. Redirecting rather
  * than copying the text here is deliberate: a second rendering of a legal
  * document is a second thing to keep in sync, and the failure mode is a

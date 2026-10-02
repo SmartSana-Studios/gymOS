@@ -21,7 +21,7 @@ import "./globals.css";
  * real `image/png`.
  *
  * `VERCEL_PROJECT_PRODUCTION_URL` is the project's production domain
- * (`app.gymosapps.com`), is set automatically by Vercel, and is public --
+ * (`owner.gymosapps.com`), is set automatically by Vercel, and is public --
  * so the correct behaviour needs no manual configuration. The explicit
  * override is first for anyone who needs to pin it; `VERCEL_URL` survives
  * last so preview deployments still produce *some* absolute URL rather
