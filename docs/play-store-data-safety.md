@@ -153,12 +153,12 @@ third-party marketing purposes.
   - **Method to declare in Play Console:** account-deletion request via a published contact route (no in-app flow).
   - **Published instructions:** §6 of the hosted policy (`/privacy`) — the member contacts their gym or writes to the support address; GymOS confirms identity via the gym, deletes what it is not legally required to keep, and confirms completion.
   - **What is retained regardless:** payment and audit records required for financial/legal record-keeping (`audit_log` is append-only by design, Story 1.4). The policy states this explicitly rather than promising total erasure.
-  - **Contact route:** `info@smartsana.com` (set 2026-09-06). The declaration is only truthful while that inbox is actually monitored and deletion requests are actioned — treat it as an operational commitment, not just a form field.
+  - **Contact route:** `hello@gymosapps.com` (set 2026-09-06, moved from info@smartsana.com 2026-10-02). The declaration is only truthful while that inbox is actually monitored and deletion requests are actioned — treat it as an operational commitment, not just a form field.
   - No in-app deletion flow was built for V1: erasure would cross ~40 tables and conflicts with `audit_log`'s append-only design and with financial-record retention. Available as a future story if the manual process proves insufficient.
 
 ## Still needed before this form can be submitted
 1. ~~A live **privacy policy URL**~~ — **done (2026-09-06)**: served at `/privacy` from `apps/dashboard` (public, unauthenticated, EN + FR), with all five operator-supplied values filled. The remaining step is deploying the dashboard so the URL resolves publicly.
-2. ~~A decision on the **data-deletion** question~~ — **done (2026-09-06)**: documented manual process via `info@smartsana.com`, see Security practices above.
+2. ~~A decision on the **data-deletion** question~~ — **done (2026-09-06)**: documented manual process via `hello@gymosapps.com` (the address changed 2026-10-02 — see note below), see Security practices above.
 3. Confirm whether **Tara Money's** DPA / data-sharing terms need to be referenced explicitly (this was previously worded against Notch Pay, the wrong provider).
 4. Confirm which **messaging providers** are actually enabled in the production environment, so the phone-number sharing declaration lists the real set rather than all four chain members.
 5. Counsel review of the hosted policy text in **both languages** (`apps/dashboard/lib/legal/privacy-policy.ts`) — the French text was authored alongside the English, not translated from a reviewed source.

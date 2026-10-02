@@ -57,13 +57,13 @@ V1: erasure would have to cross ~40 tables and conflicts directly with
 retention. That remains available as a future story if the manual process
 proves insufficient in practice.
 
-## Operator details (supplied 2026-09-06)
+## Operator details (supplied 2026-09-06; `supportEmail` changed 2026-10-02)
 
 | Field | Value |
 |---|---|
 | `legalEntity` | GetSocial Inc |
 | `address` | Yaoundé, Melen |
-| `supportEmail` | info@smartsana.com |
+| `supportEmail` | hello@gymosapps.com |
 | `retentionPeriod` | EN: "for as long as your membership is active, and for one year after it ends" · FR: "tant que votre adhésion est active, puis pendant un an après sa fin" |
 | `minimumAge` | 18 |
 
@@ -92,14 +92,19 @@ first real gym onboards minors.
 Deferred deliberately, not overlooked. None of them blocks deploying the page;
 items 1 and 2 should be closed before the URL is submitted to a store console.
 
-1. **Entity name vs. product branding — deferred.** The policy names
-   *GetSocial Inc*, while the support domain is `smartsana.com`, the Expo
-   owner account is `smartsana-studios`, and the bundle ID is
-   `com.smartsana.gymos`. Store reviewers do check that the developer
-   account, the app, and the privacy policy point at the same organisation —
-   if the Play/App Store developer account is not registered to GetSocial
-   Inc, either the policy or the account needs to change, or the relationship
-   between the two names should be stated in the policy.
+1. **Entity name vs. product branding — deferred, and now wider (re-checked
+   2026-10-02).** The policy names *GetSocial Inc*, while the support domain
+   is now `gymosapps.com` (moved off `smartsana.com` when the final domains
+   were attached), the Expo owner account is `smartsana-studios`, and the
+   bundle ID is `com.smartsana.gymos`. A fourth name is now visible publicly:
+   the live App Store listing's seller of record is the **individual**
+   "JOSEPH FEUSSI LASSI" (confirmed via `itunes.apple.com/lookup?id=6798403711`
+   on 2026-10-02), not GetSocial Inc. Store reviewers do check that the
+   developer account, the app, and the privacy policy point at the same
+   organisation — so either the policy or the account needs to change, or
+   the relationship between the names should be stated in the policy. Both
+   apps are already published, so this is now a live inconsistency a
+   reviewer can see rather than a pre-submission question.
 2. **Address completeness — deferred.** "Yaoundé, Melen" is a locality, not a
    full registered postal address (no street/PO box, no country line). The
    spelling was normalised to "Yaoundé" with the accent, since the same
