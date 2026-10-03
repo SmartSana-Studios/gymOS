@@ -69,6 +69,16 @@
           "project": "gymos-mobile",
           "url": "https://de.sentry.io/"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keepattributes SourceFile,LineNumberTable"
+          }
+        }
       ]
     ],
     "experiments": {
