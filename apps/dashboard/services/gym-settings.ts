@@ -27,6 +27,7 @@ export interface GymSettingsRow {
   alertAutoDismissMinutes: number;
   checkinTimeoutHours: number;
   gymToken: string;
+  registrationFee: number;
 }
 
 /** Shared by every "0 rows affected" (RLS-denied) / "no gym_id claim" branch
@@ -77,7 +78,7 @@ export async function getGymSettings(): Promise<{
   const { data, error } = await supabase
     .from("gyms")
     .select(
-      "name, logo_url, primary_color, timezone, default_language, grace_period_days, capacity, alert_auto_dismiss_minutes, checkin_timeout_hours, gym_token",
+      "name, logo_url, primary_color, timezone, default_language, grace_period_days, capacity, alert_auto_dismiss_minutes, checkin_timeout_hours, gym_token, registration_fee",
     )
     .eq("id", gymId)
     .maybeSingle();
@@ -101,6 +102,7 @@ export async function getGymSettings(): Promise<{
       alertAutoDismissMinutes: data.alert_auto_dismiss_minutes,
       checkinTimeoutHours: data.checkin_timeout_hours,
       gymToken: data.gym_token,
+      registrationFee: data.registration_fee,
     },
     error: null,
   };
@@ -343,4 +345,22 @@ export async function logGymSettingsChange(
     return { error: await mapAndLog(error) };
   }
   return { error: null };
+}
+
+/** Story 18.1: sets the gym's one-time registration fee through
+ * `set_registration_fee()` (0098) -- the only write path for
+ * `gyms.registration_fee`, which is pinned against direct UPDATEs (including
+ * `updateGymSettings`'s). The RPC is the real authorization boundary
+ * (owner/supervisor, active gym, amount >= 0) and writes the
+ * `registration_fee_changed` audit row itself, so there is no separate
+ * `logGymSettingsChange` call; this function only relays the call. */
+export async function setRegistrationFee(
+  amount: number,
+): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_registration_fee", { p_amount: amount });
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: { ok: true }, error: null };
 }

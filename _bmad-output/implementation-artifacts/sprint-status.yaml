@@ -385,8 +385,8 @@ development_status:
   17-5-coach-portal-overview: done
   epic-17-retrospective: optional
 
-  epic-18: backlog
-  18-1-registration-fee-setting-member-state-first-subscription-gate: backlog
+  epic-18: in-progress
+  18-1-registration-fee-setting-member-state-first-subscription-gate: review
   18-2-payment-purpose-manual-fee-collection-waiver: backlog
   18-3-tara-money-fee-collection: backlog
   18-4-void-refund-block-revenue-line: backlog
@@ -582,3 +582,6 @@ action_items:
 # last_updated: 2026-10-07 (bmad-prd update, ad-hoc, no story yet: reviewer gate run (rubric + adversarial) on the registration-fee PRD change; fee FRs rewritten as FR-147..FR-155 around an "awaiting registration fee" member state -- staff-collected only, no self-service, existing/CSV members grandfathered; FR-151 void path is an unconfirmed PM proposal; OQ-16/17/18 open. Polish pass and epics/stories breakdown still pending.)
 # last_updated: 2026-10-07 (bmad-prd update, ad-hoc, no story yet: registration-fee PRD change finalized -- void path (FR-151) and Tara Money for the fee confirmed by the user; polish pass (structure + prose) applied; addendum section D gained 5 implementation rows. Open: OQ-16 (pay-per-session per-visit charging), OQ-17 (reactivated member), OQ-18 (member cap). Next: epics/stories breakdown (CE) and sprint-status story rows; changes uncommitted on branch docs/spec-devcontainer-codex.)
 # last_updated: 2026-10-07 (bmad-create-epics-and-stories, additive: epic-18 Registration Fee added to epics.md (7 stories 18.1-18.7, migrations 0098-0101 provisional) from PRD FR-147..FR-155; FR inventory 6.27 and coverage map extended; existing epics 1-17 untouched; all stories backlog. 18.1 is the launch-safety story -- backfills every existing member as settled and ships behind a default fee of 0. OQ-16/OQ-17 explicitly out of scope. Next: bmad-create-story/bmad-build on 18.1.)
+# last_updated: 2026-10-07 (bmad-build: 18-1 spec created and approved (spec-18-1-...md, ready-for-dev -> in-progress), baseline f2bc4f3, branch feat/18-1-registration-fee-foundation; epic-18 backlog -> in-progress; epic-18-context.md compiled)
+# last_updated: 2026-10-07 (bmad-build: 18-1 implementation complete on feat/18-1-registration-fee-foundation, status stays in-progress pending review -- migration 0098, pgTAP registration_fee_foundation{,.negative} (50 tests; full suite 99 files / 2152 tests green), types, set_registration_fee action/service, Settings fee field with own Save, EN/FR + audit label, decisions.md entry; typecheck/lint/check:i18n/dashboard vitest (558) green)
+# last_updated: 2026-10-07 (bmad-build: 18-1 review pass complete -- 3 reviewers, 3 patches applied (role gate fail-closed, no-app_role test, real SECURITY DEFINER write test) + decisions.md repair, 4 items deferred (incl. release-sequencing risk: hold 18.1 from prod until 18.2+ or no gym should set a fee); verification green: pgTAP 99 files / 2154 tests via pg_prove, typecheck, lint, check:i18n, dashboard vitest 558; status in-progress -> review)

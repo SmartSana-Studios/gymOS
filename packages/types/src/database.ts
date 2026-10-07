@@ -538,6 +538,7 @@ export type Database = {
           name: string
           opening_time: string | null
           primary_color: string | null
+          registration_fee: number
           saas_billing_anchor_date: string
           saas_billing_interval: Database["public"]["Enums"]["billing_interval"]
           saas_billing_status: Database["public"]["Enums"]["saas_billing_status"]
@@ -562,6 +563,7 @@ export type Database = {
           name: string
           opening_time?: string | null
           primary_color?: string | null
+          registration_fee?: number
           saas_billing_anchor_date?: string
           saas_billing_interval?: Database["public"]["Enums"]["billing_interval"]
           saas_billing_status?: Database["public"]["Enums"]["saas_billing_status"]
@@ -586,6 +588,7 @@ export type Database = {
           name?: string
           opening_time?: string | null
           primary_color?: string | null
+          registration_fee?: number
           saas_billing_anchor_date?: string
           saas_billing_interval?: Database["public"]["Enums"]["billing_interval"]
           saas_billing_status?: Database["public"]["Enums"]["saas_billing_status"]
@@ -690,6 +693,7 @@ export type Database = {
           onboarding_completed_at: string | null
           phone: string | null
           photo_url: string | null
+          registration_fee_settled_at: string | null
           role: Database["public"]["Enums"]["member_role"]
           starting_weight_kg: number | null
           user_id: string
@@ -710,6 +714,7 @@ export type Database = {
           onboarding_completed_at?: string | null
           phone?: string | null
           photo_url?: string | null
+          registration_fee_settled_at?: string | null
           role: Database["public"]["Enums"]["member_role"]
           starting_weight_kg?: number | null
           user_id: string
@@ -730,6 +735,7 @@ export type Database = {
           onboarding_completed_at?: string | null
           phone?: string | null
           photo_url?: string | null
+          registration_fee_settled_at?: string | null
           role?: Database["public"]["Enums"]["member_role"]
           starting_weight_kg?: number | null
           user_id?: string
@@ -2235,6 +2241,7 @@ export type Database = {
       run_quiet_gym_alert_job: { Args: never; Returns: undefined }
       run_saas_billing_lifecycle_job: { Args: never; Returns: undefined }
       run_subscription_lifecycle_job: { Args: never; Returns: undefined }
+      set_registration_fee: { Args: { p_amount: number }; Returns: undefined }
       staff_account_for_reset: {
         Args: { p_member_id: string }
         Returns: {

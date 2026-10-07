@@ -20,6 +20,7 @@ vi.mock("./actions", () => ({
   disconnectPaymentProvider: vi.fn(),
   regenerateQrCode: vi.fn(),
   saveGymSettings: vi.fn(),
+  saveRegistrationFee: vi.fn(),
   uploadLogo: vi.fn(),
   payNow: (...args: unknown[]) => payNow(...args),
   saveNotificationEmail: (...args: unknown[]) => saveNotificationEmail(...args),
@@ -82,6 +83,7 @@ const INITIAL_SETTINGS = {
   alertAutoDismissMinutes: 30,
   checkinTimeoutHours: 12,
   gymToken: "token-1",
+  registrationFee: 0,
 };
 
 async function renderForm(

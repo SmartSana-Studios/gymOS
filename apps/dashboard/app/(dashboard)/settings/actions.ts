@@ -6,6 +6,7 @@ import {
   emailSchema,
   gymSettingsSchema,
   initiateSaasBillingPaymentSchema,
+  registrationFeeSchema,
   type AppError,
 } from "@gymos/types";
 import {
@@ -13,6 +14,7 @@ import {
   MAX_LOGO_BYTES,
   logGymSettingsChange,
   regenerateQrCode as regenerateQrCodeRow,
+  setRegistrationFee,
   updateGymSettings,
   uploadGymLogo,
 } from "@/services/gym-settings";
@@ -262,4 +264,22 @@ export async function saveNotificationEmail(
     return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
   }
   return updateOwnerNotificationEmail(parsed.data ?? null);
+}
+
+/**
+ * Story 18.1: saves the gym's one-time registration fee (whole XAF, 0 = off).
+ * Validated here with `registrationFeeSchema`; `set_registration_fee()` itself
+ * is the real authorization boundary (owner/supervisor, active gym) and
+ * writes the `registration_fee_changed` audit row. Deliberately not part of
+ * `saveGymSettings` -- the column is pinned against that path.
+ */
+export async function saveRegistrationFee(
+  input: unknown,
+): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = registrationFeeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("settings.errors.registrationFeeInvalid") } };
+  }
+  return setRegistrationFee(parsed.data);
 }
