@@ -177,9 +177,9 @@ select is(
 
 select throws_like(
   $$insert into members (gym_id, user_id, role, name)
-    values ('00000000-0000-0000-0000-000000007011', '00000000-0000-0000-0000-000000007027', 'member', 'Receptionist Attempted Member')$$,
+    values ('00000000-0000-0000-0000-000000007012', '00000000-0000-0000-0000-000000007027', 'member', 'Receptionist Cross-Tenant Attempt')$$,
   '%row-level security%',
-  'a receptionist-claim session cannot INSERT a member (RLS-violation error, not a silent no-op)'
+  'a receptionist-claim session cannot INSERT a member into another gym (0102 allows own-gym member rows; RLS-violation error, not a silent no-op)'
 );
 
 with attempted as (

@@ -67,6 +67,11 @@ const STATUS_LABEL_KEY: Record<(typeof STATUS_OPTIONS)[number], string> = {
 // enforcement is manager_or_owner_insert/update_own_members, widened alongside.
 const CAN_MANAGE: MemberRole[] = ["manager", "supervisor", "owner"];
 
+// Migration 0102: the front desk registers walk-ins, so a receptionist may also
+// create a member and assign the first plan (the two INSERT policies). Editing,
+// CSV import, deactivation and waiving stay manager-plus.
+const CAN_CREATE: MemberRole[] = ["receptionist", "manager", "supervisor", "owner"];
+
 // Story 18.6 registration-fee actions. These mirror the RPCs (the RPC is the
 // authority): collect is any staff role that can record payments, waive and
 // assign-plan are Manager-plus, void is owner and supervisor only.
@@ -133,6 +138,7 @@ export function MembersPageClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const canManage = CAN_MANAGE.includes(role);
+  const canCreate = CAN_CREATE.includes(role);
   const canCollectFee = CAN_COLLECT_FEE.includes(role);
   const canVoidFee = CAN_VOID_FEE.includes(role);
 
@@ -317,7 +323,7 @@ export function MembersPageClient({
               {t("members.importCsv")}
             </Button>
           )}
-          {canManage && <Button onClick={openCreate}>{t("members.addMember")}</Button>}
+          {canCreate && <Button onClick={openCreate}>{t("members.addMember")}</Button>}
         </div>
       </div>
 
@@ -356,7 +362,7 @@ export function MembersPageClient({
           {total === 0 && !search && !status ? (
             <>
               <p className="text-sm text-muted-foreground">{t("members.emptyNoMembers")}</p>
-              {canManage && <Button onClick={openCreate}>{t("members.addMemberButton")}</Button>}
+              {canCreate && <Button onClick={openCreate}>{t("members.addMemberButton")}</Button>}
             </>
           ) : (
             <p className="text-sm text-muted-foreground">{t("members.emptySearchNoMatch")}</p>
@@ -392,7 +398,7 @@ export function MembersPageClient({
                   registrationFee > 0;
                 const showCollect = canCollectFee && feeAwaiting && registrationFee > 0;
                 const showWaive = canManage && feeAwaiting;
-                const showAssignPlan = canManage && feeSettledNoPlan;
+                const showAssignPlan = canCreate && feeSettledNoPlan;
                 const showVoid = canVoidFee && feeSettledNoPlan;
                 return (
                   <tr
