@@ -148,7 +148,7 @@ describe("MembersPageClient registration fee actions (Story 18.6)", () => {
 
   describe("settled member with no plan: Assign plan and Void", () => {
     it.each([
-      ["receptionist", false, false],
+      ["receptionist", true, false],
       ["manager", true, false],
       ["supervisor", true, true],
       ["owner", true, true],
@@ -160,6 +160,15 @@ describe("MembersPageClient registration fee actions (Story 18.6)", () => {
       expect(has("members.actions.collectFee")).toBe(false);
       expect(has("members.actions.waiveFee")).toBe(false);
     });
+  });
+
+  it("a receptionist can add a member but not import a CSV (migration 0102)", async () => {
+    await renderPage(settledNoPlan, "receptionist");
+
+    expect(screen.queryByRole("button", { name: "members.addMember", hidden: true })).not.toBeNull();
+    expect(screen.queryByRole("button", { name: "members.importCsv", hidden: true })).toBeNull();
+    expect(has("members.actions.edit")).toBe(false);
+    expect(has("members.actions.deactivate")).toBe(false);
   });
 
   it("a member with a plan gets no fee action at all", async () => {
