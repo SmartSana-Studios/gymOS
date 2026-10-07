@@ -14,7 +14,7 @@ export function JobFailuresTable({ failures, locale }: { failures: JobFailure[];
 
   return (
     <>
-      <TablePagination
+      <TablePagination compact
         page={pagination.page}
         pageSize={pagination.pageSize}
         total={pagination.total}

@@ -88,7 +88,7 @@ export function AdminsPageClient({ initialAdmins }: { initialAdmins: SuperAdminR
            metrics/page.tsx) -- this was the one table missing it, so it was
            the one page whose table content, not just the nav, contributed
            to the reported mobile-overflow issue. */}
-          <TablePagination
+          <TablePagination compact
             page={pagination.page}
             pageSize={pagination.pageSize}
             total={pagination.total}

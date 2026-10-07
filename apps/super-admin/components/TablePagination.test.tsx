@@ -46,6 +46,13 @@ describe("TablePagination", () => {
     expect(onPageSizeChange).toHaveBeenCalledWith(25);
   });
 
+  it("compact mode keeps the size selector and count but hides the page buttons", () => {
+    renderPagination({ compact: true });
+    expect(screen.getByRole("combobox")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "2" })).toBeNull();
+  });
+
   it("keeps a legacy default size (20) selectable", () => {
     renderPagination({ pageSize: 20 });
     expect((screen.getByRole("combobox") as HTMLSelectElement).value).toBe("20");

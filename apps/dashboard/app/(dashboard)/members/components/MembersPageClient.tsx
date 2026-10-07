@@ -331,7 +331,7 @@ export function MembersPageClient({
         </div>
       </div>
 
-      <TablePagination page={page} pageSize={pageSize} total={total} {...pagination} />
+      <TablePagination compact page={page} pageSize={pageSize} total={total} {...pagination} />
 
       {initialMembers.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-md border border-dashed py-16 text-center">

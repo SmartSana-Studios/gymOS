@@ -170,7 +170,7 @@ export function BillingPageClient({
         </div>
       </div>
 
-      <TablePagination
+      <TablePagination compact
         page={page}
         pageSize={pageSize}
         total={total}

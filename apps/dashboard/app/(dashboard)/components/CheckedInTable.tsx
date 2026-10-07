@@ -55,7 +55,7 @@ export function CheckedInTable({ rows, loadError }: { rows: CurrentlyCheckedInRo
         </div>
       ) : (
         <>
-        <TablePagination {...pg} />
+        <TablePagination compact {...pg} />
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">

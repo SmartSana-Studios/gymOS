@@ -181,7 +181,7 @@ export function AttendancePageClient({
           </Button>
         </div>
 
-        <TablePagination
+        <TablePagination compact
           page={checkedInPage}
           pageSize={checkedInPageSize}
           total={checkedInTotal}
@@ -290,7 +290,7 @@ export function AttendancePageClient({
           />
         </div>
 
-        <TablePagination page={page} pageSize={pageSize} total={logTotal} {...logPagination} />
+        <TablePagination compact page={page} pageSize={pageSize} total={logTotal} {...logPagination} />
 
         {logRows.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-md border border-dashed py-16 text-center">

@@ -68,7 +68,7 @@ export function GymMembersTable({ members }: { members: GymMemberPage | null }) 
         </div>
       ) : (
         <>
-          <TablePagination
+          <TablePagination compact
             page={members.page}
             pageSize={members.pageSize}
             total={members.total}

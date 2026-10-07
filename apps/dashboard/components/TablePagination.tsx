@@ -12,6 +12,8 @@ interface TablePaginationProps {
   total: number;
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
+  /** Top-of-table copy: just the size selector and "a-b of N"; page buttons stay below the table. */
+  compact?: boolean;
 }
 
 /**
@@ -20,7 +22,7 @@ interface TablePaginationProps {
  * (`useUrlPagination`), client-only tables to `useClientPagination`. Rendered
  * whenever there is at least one row so the size choice never disappears.
  */
-export function TablePagination({ page, pageSize, total, onPageChange, onPageSizeChange }: TablePaginationProps) {
+export function TablePagination({ page, pageSize, total, onPageChange, onPageSizeChange, compact = false }: TablePaginationProps) {
   const { t } = useTranslation();
   if (total === 0) return null;
 
@@ -52,7 +54,7 @@ export function TablePagination({ page, pageSize, total, onPageChange, onPageSiz
         </label>
         <span>{t("pagination.showing", { from, to, total })}</span>
       </div>
-      {totalPages > 1 && (
+      {!compact && totalPages > 1 && (
         <div className="flex gap-2">
           <Button
             variant="outline"
