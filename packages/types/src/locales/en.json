@@ -60,7 +60,8 @@
     "taraFeeCannotBeVoided": "This fee was paid through Tara Money and cannot be voided here. Correct it outside GymOS.",
     "memberAlreadyHasSubscription": "This member already has a subscription, so the registration fee can no longer be voided.",
     "registrationFeeNotRefundable": "Registration fees are not refundable.",
-    "paymentVoidedNotRefundable": "This payment was voided and cannot be refunded."
+    "paymentVoidedNotRefundable": "This payment was voided and cannot be refunded.",
+    "paymentNotFound": "This payment could not be found. It may already have been voided."
   },
   "auth": {
     "title": "Sign in to GymOS",

@@ -10,10 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
-import type { MemberListRow, MemberSubscriptionStatus } from "@/services/members";
+import type { MemberListRow, MemberRegistrationFeeState, MemberSubscriptionStatus } from "@/services/members";
 import type { PlanRow } from "@/services/plans";
 import type { CoachRow, CoachAssignmentRow } from "@/services/coaches";
 import { createMember, editMember, assignCoach, getCoachAssignments } from "../actions";
+import { getMemberRegistrationFeeStateAction } from "@/app/(dashboard)/payments/actions";
 import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
 
 interface FieldErrors {
@@ -207,6 +208,10 @@ export function MemberModal({
   // the member's stored photoUrl is broken/unreachable, rather than showing
   // a native broken-image icon.
   const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
+  // Story 18.6: the read-only view's registration fee line, loaded on open for
+  // this one member. Keyed by member id so a stale result never shows under a
+  // different member.
+  const [feeLine, setFeeLine] = useState<{ memberId: string; state: MemberRegistrationFeeState } | null>(null);
 
   const isCreate = !editingMember;
   const isFeeGymCreate = isCreate && registrationFee > 0;
@@ -268,6 +273,46 @@ export function MemberModal({
       cancelled = true;
     };
   }, [open, editingMember]);
+
+  // Story 18.6: only a gym that charges a fee (or still has this member
+  // awaiting one) has a fee line; a fee-0 gym fetches nothing and shows nothing.
+  useEffect(() => {
+    // Drop any earlier line first: a reopened View must not flash the previous
+    // state, and a failed fetch must leave no line rather than a wrong one.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFeeLine(null);
+    if (!open || !readOnly || !editingMember) return;
+    if (registrationFee <= 0 && editingMember.registrationFeeSettledAt !== null) return;
+    const memberId = editingMember.id;
+    let cancelled = false;
+    getMemberRegistrationFeeStateAction(memberId)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setFeeLine({ memberId, state: data });
+      })
+      .catch(() => {
+        // The line is informational: a failed read leaves it out.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, readOnly, editingMember, registrationFee]);
+
+  function registrationFeeLineText(state: MemberRegistrationFeeState): string {
+    if (state.kind === "awaiting") return t("members.feeState.awaiting");
+    if (state.kind === "paid") {
+      return t("members.feeState.paid", {
+        amount: state.amount.toLocaleString(i18n.language),
+        date: new Date(state.paidAt).toLocaleDateString(i18n.language),
+      });
+    }
+    if (state.kind === "waived") {
+      return state.waivedByName
+        ? t("members.feeState.waivedBy", { name: state.waivedByName })
+        : t("members.feeState.waived");
+    }
+    return "";
+  }
 
   const selectedPlan = plans.find((p) => p.id === form.planId) ?? null;
   const isPayPerSession = selectedPlan?.planType === "pay_per_session";
@@ -557,6 +602,19 @@ export function MemberModal({
                   t("members.modal.noCoachAssigned")
                 }
               />
+              {feeLine && feeLine.memberId === editingMember.id && feeLine.state.kind !== "none" && (
+                <div className="col-span-2">
+                  <DetailField
+                    label={t("members.modal.view.registrationFee")}
+                    value={registrationFeeLineText(feeLine.state)}
+                  />
+                  {feeLine.state.kind === "waived" && feeLine.state.reason && (
+                    <p className="text-xs text-muted-foreground">
+                      {t("members.feeState.waivedReason", { reason: feeLine.state.reason })}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </>
         ) : (

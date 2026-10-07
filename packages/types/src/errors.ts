@@ -625,6 +625,15 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // void_registration_fee_payment (0101): not a fee, not verified, already voided, or
+  // another gym's payment all raise the same not_found.
+  if (message.includes("not_found: payment")) {
+    return {
+      code: "payment_not_found",
+      message: copy.paymentNotFound,
+    };
+  }
+
   if (message.includes("not_found: member")) {
     return {
       code: "member_not_found",

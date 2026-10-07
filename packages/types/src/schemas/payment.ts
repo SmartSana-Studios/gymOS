@@ -144,6 +144,19 @@ export const waiveRegistrationFeeSchema = z.object({
 
 export type WaiveRegistrationFeeInput = z.infer<typeof waiveRegistrationFeeSchema>;
 
+// Story 18.6: void of a manually recorded registration fee (0101). The payment id
+// is the fee payment, not the member; the reason limits match waive (10-200).
+export const voidRegistrationFeeSchema = z.object({
+  paymentId: z.uuid("Select a payment"),
+  reason: z
+    .string()
+    .trim()
+    .min(10, "Add a reason (at least 10 characters)")
+    .max(REASON_MAX_LENGTH, "Reason is too long"),
+});
+
+export type VoidRegistrationFeeInput = z.infer<typeof voidRegistrationFeeSchema>;
+
 // AD-09 gives no explicit minimum for the "Flag for Review" reason prompt --
 // uses the project's general REASON_MIN_LENGTH = 5 convention instead
 // (matches deactivateMemberSchema/gymStatusChangeSchema).

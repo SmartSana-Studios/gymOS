@@ -5,6 +5,7 @@ import { listPlans } from "@/services/plans";
 import { listCoaches } from "@/services/coaches";
 import { getGymSettings } from "@/services/gym-settings";
 import { getDashboardShellContext } from "@/services/session";
+import { canOfferMobileMoneyPayment } from "@/lib/featureFlags";
 import { MembersPageClient } from "./components/MembersPageClient";
 import MembersLoading from "./loading";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -55,12 +56,17 @@ async function MembersData({
     { data: plans, error: plansError },
     { data: coaches, error: coachesError },
     { data: gymSettings, error: gymSettingsError },
+    mobileMoneyEnabled,
   ] = await Promise.all([
     listMembers({ page, search: params.search, status: params.status }),
     getDashboardShellContext(),
     listPlans(),
     listCoaches(),
     getGymSettings(),
+    // Story 18.6: whether the fee collection dialog offers Tara Money. Only a
+    // UI hint -- initiateRegistrationFeePaymentAction re-checks -- so a failed
+    // read means false rather than failing the page.
+    canOfferMobileMoneyPayment().catch(() => false),
   ]);
 
   if (membersError || shellError || !shell || plansError || coachesError) {
@@ -89,6 +95,7 @@ async function MembersData({
       coaches={coaches ?? []}
       gymName={shell.gymName}
       registrationFee={registrationFee}
+      mobileMoneyEnabled={mobileMoneyEnabled}
     />
   );
 }

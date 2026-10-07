@@ -47,6 +47,11 @@ vi.mock("@/services/session", () => ({
   getDashboardShellContext: (...args: unknown[]) => getDashboardShellContext(...args),
 }));
 
+const canOfferMobileMoneyPayment = vi.fn();
+vi.mock("@/lib/featureFlags", () => ({
+  canOfferMobileMoneyPayment: (...args: unknown[]) => canOfferMobileMoneyPayment(...args),
+}));
+
 vi.mock("./components/MembersPageClient", () => ({
   MembersPageClient: function MembersPageClient() {
     return null;
@@ -85,6 +90,7 @@ describe("members page", () => {
       error: null,
     });
     getGymSettings.mockReset().mockResolvedValue(settingsWithFee(0));
+    canOfferMobileMoneyPayment.mockReset().mockResolvedValue(false);
   });
 
   it("passes the gym's registration fee to MembersPageClient when it is above 0", async () => {
@@ -111,5 +117,28 @@ describe("members page", () => {
     expect(tree.type).toBe(MembersPageClient);
     expect(tree.props.registrationFee).toBe(0);
     expect(console.error).toHaveBeenCalled();
+  });
+
+  it("passes mobileMoneyEnabled true when Tara Money can be offered (Story 18.6)", async () => {
+    canOfferMobileMoneyPayment.mockResolvedValue(true);
+
+    const tree = await renderMembersData();
+
+    expect(tree.props.mobileMoneyEnabled).toBe(true);
+  });
+
+  it("passes mobileMoneyEnabled false when Tara Money cannot be offered", async () => {
+    const tree = await renderMembersData();
+
+    expect(tree.props.mobileMoneyEnabled).toBe(false);
+  });
+
+  it("treats a failed mobile money availability read as false and still renders the list", async () => {
+    canOfferMobileMoneyPayment.mockRejectedValue(new Error("boom"));
+
+    const tree = await renderMembersData();
+
+    expect(tree.type).toBe(MembersPageClient);
+    expect(tree.props.mobileMoneyEnabled).toBe(false);
   });
 });

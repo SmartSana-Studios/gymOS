@@ -25,6 +25,7 @@ const CASES: Array<[string, string]> = [
   [`registration_fee_not_refundable: payment ${MEMBER} is a registration fee, which is not refundable`, "registration_fee_not_refundable"],
   [`registration_fee_not_settled: member ${MEMBER} has not settled the registration fee, so no subscription can be created`, "registration_fee_due"],
   [`payment_voided_not_refundable: payment ${MEMBER} was voided and cannot be refunded`, "payment_voided_not_refundable"],
+  [`not_found: payment ${MEMBER} not found`, "payment_not_found"],
 ];
 
 describe("mapSupabaseError -- registration fee (Stories 18.3, 18.4, 18.5)", () => {

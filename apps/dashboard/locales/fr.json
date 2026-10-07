@@ -455,7 +455,11 @@
       "invite": "Inviter",
       "deactivate": "Désactiver",
       "menu": "Actions pour {{name}}",
-      "button": "Action :"
+      "button": "Action :",
+      "collectFee": "Encaisser les frais",
+      "waiveFee": "Exonérer les frais",
+      "assignPlan": "Attribuer une formule",
+      "voidFee": "Invalider les frais"
     },
     "pagination": {
       "previous": "Page précédente",
@@ -492,7 +496,8 @@
         "plan": "Formule",
         "joinDate": "Date d'adhésion",
         "subscriptionStatus": "Statut de l'abonnement",
-        "expiryDate": "Date d'expiration"
+        "expiryDate": "Date d'expiration",
+        "registrationFee": "Frais d'inscription"
       },
       "errors": {
         "nameInvalid": "Le nom est requis (2 à 100 caractères)",
@@ -587,6 +592,92 @@
         "rowColumnCountMismatch": "Cette ligne contient plus ou moins de champs que prévu — vérifiez une virgule superflue ou une valeur manquante",
         "tooManyRows": "Ce fichier contient {{count}} lignes — le maximum autorisé est {{max}} par importation. Divisez-le en fichiers plus petits et réessayez.",
         "auditLogFailedRows": "Tous les membres ont été importés, mais l'entrée du journal d'audit n'a pas pu être écrite pour {{count}} ligne(s) (lignes : {{rows}}). Veuillez contacter le support."
+      }
+    },
+    "feeState": {
+      "awaiting": "En attente",
+      "paid": "Payés : {{amount}} XAF le {{date}}",
+      "waived": "Exonérés",
+      "waivedBy": "Exonérés par {{name}}",
+      "waivedReason": "Motif : {{reason}}"
+    },
+    "feeCollect": {
+      "title": "Encaisser les frais d'inscription : {{name}}",
+      "amountLabel": "Frais d'inscription",
+      "amountValue": "{{amount}} XAF",
+      "amountHint": "Défini dans les paramètres. Il ne peut pas être modifié ici.",
+      "method": "Moyen de paiement",
+      "reason": "Note *",
+      "reasonPrefill": "Frais d'inscription",
+      "payerPhone": "Numéro de téléphone du payeur",
+      "payerPhoneHint": "Par défaut, le numéro du membre. Modifiez-le s'il paie depuis un autre téléphone.",
+      "collectButton": "Encaisser les frais",
+      "collecting": "Encaissement…",
+      "sendRequestButton": "Envoyer la demande de paiement",
+      "retryRequestButton": "Renvoyer la demande de paiement",
+      "sendingRequest": "Envoi…",
+      "collectedToast": "Frais d'inscription encaissés pour {{name}}.",
+      "pending": {
+        "title": "En attente de l'approbation de {{name}} sur son téléphone…",
+        "description": "Une demande de paiement a été envoyée par SMS. Cet écran se mettra à jour dès la confirmation.",
+        "stillWaiting": "Toujours en attente. Vous pouvez fermer cette fenêtre et revenir plus tard.",
+        "failed": "Le paiement n'a pas été approuvé ou a été refusé.",
+        "expired": "La dernière demande de paiement date de plus de 10 minutes et a expiré. Envoyez une nouvelle demande pour réessayer.",
+        "retryButton": "Réessayer",
+        "closeButton": "Fermer"
+      },
+      "errors": {
+        "reasonInvalid": "Ajoutez une note (10 à 200 caractères)",
+        "payerPhoneInvalid": "Saisissez un numéro de téléphone valide",
+        "collectFailed": "Impossible d'enregistrer les frais d'inscription. Vérifiez votre connexion et réessayez.",
+        "initiateFailed": "Impossible d'envoyer la demande de paiement. Vérifiez votre connexion et réessayez."
+      }
+    },
+    "feeWaive": {
+      "title": "Exonérer {{name}} des frais d'inscription ?",
+      "body": "{{name}} sera considéré comme à jour sans paiement. Cette action ne peut pas être annulée depuis le tableau de bord.",
+      "reason": "Motif *",
+      "reasonHint": "10 à 200 caractères. Il est conservé dans le journal d'audit.",
+      "waiving": "Exonération…",
+      "confirmButton": "Exonérer {{name}}",
+      "waivedToast": "Frais d'inscription exonérés pour {{name}}.",
+      "errors": {
+        "reasonInvalid": "Ajoutez un motif (10 à 200 caractères)",
+        "waiveFailed": "Impossible d'exonérer les frais d'inscription. Vérifiez votre connexion et réessayez."
+      }
+    },
+    "feeVoid": {
+      "title": "Invalider les frais d'inscription de {{name}} ?",
+      "loading": "Chargement…",
+      "body": "À utiliser uniquement pour des frais enregistrés par erreur. Le membre repasse en attente des frais d'inscription.",
+      "notARefund": "Ce n'est pas un remboursement.",
+      "paymentLine": "Paiement enregistré : {{currency}} {{amount}} par {{method}}",
+      "taraHint": "Ces frais ont été payés par Tara Money. Les frais Tara se corrigent en dehors de GymOS : ils ne peuvent pas être annulés ici.",
+      "nothingToVoid": "Ce membre n'a aucun paiement de frais d'inscription à annuler.",
+      "reason": "Motif *",
+      "reasonHint": "10 à 200 caractères. Il est conservé dans le journal d'audit.",
+      "voiding": "Invalidation…",
+      "confirmButton": "Invalider les frais de {{name}}",
+      "voidedToast": "Frais d'inscription invalidés pour {{name}}. Le membre est de nouveau en attente des frais.",
+      "errors": {
+        "loadFailed": "Impossible de charger le paiement des frais d'inscription. Fermez cette fenêtre et réessayez.",
+        "reasonInvalid": "Ajoutez un motif (10 à 200 caractères)",
+        "voidFailed": "Impossible d'invalider les frais d'inscription. Vérifiez votre connexion et réessayez."
+      }
+    },
+    "assignPlan": {
+      "title": "Attribuer une formule à {{name}}",
+      "body": "Les frais d'inscription sont réglés. Choisissez la première formule du membre. Aucun paiement n'est enregistré pour la formule.",
+      "plan": "Formule *",
+      "planPlaceholder": "Sélectionnez une formule",
+      "startDate": "Date de début *",
+      "assigning": "Attribution…",
+      "confirmButton": "Attribuer la formule",
+      "assignedToast": "Formule attribuée à {{name}}.",
+      "errors": {
+        "planRequired": "Sélectionnez une formule",
+        "startDateInvalid": "Saisissez une date de début valide",
+        "assignFailed": "Impossible d'attribuer la formule. Vérifiez votre connexion et réessayez."
       }
     }
   },
@@ -938,7 +1029,11 @@
       "amountMismatchLine": "{{internal}} (signalé : {{reported}})",
       "wrongAccountSettlementLine": "Attendu {{expected}}, réglé sur {{actual}}"
     },
-    "actionsButton": "Action :"
+    "actionsButton": "Action :",
+    "purposes": {
+      "subscription": "Abonnement",
+      "registrationFee": "Frais d'inscription"
+    }
   },
   "frontDeskAlert": {
     "panelLabel": "Alertes à l'accueil",

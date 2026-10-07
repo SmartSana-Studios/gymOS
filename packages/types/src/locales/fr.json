@@ -60,7 +60,8 @@
     "taraFeeCannotBeVoided": "Ces frais ont été payés par Tara Money et ne peuvent pas être annulés ici. Corrigez-les en dehors de GymOS.",
     "memberAlreadyHasSubscription": "Ce membre a déjà un abonnement : les frais d'inscription ne peuvent plus être annulés.",
     "registrationFeeNotRefundable": "Les frais d'inscription ne sont pas remboursables.",
-    "paymentVoidedNotRefundable": "Ce paiement a été annulé et ne peut pas être remboursé."
+    "paymentVoidedNotRefundable": "Ce paiement a été annulé et ne peut pas être remboursé.",
+    "paymentNotFound": "Ce paiement est introuvable. Il a peut-être déjà été annulé."
   },
   "auth": {
     "title": "Connexion à GymOS",

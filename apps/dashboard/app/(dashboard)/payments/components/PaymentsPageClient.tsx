@@ -17,6 +17,7 @@ import type { PendingPaymentRow, PaymentDiscrepancyRow } from "@/services/paymen
 import type { MemberRole } from "@/services/session";
 import {
   PAYMENT_METHOD_LABEL_KEY,
+  PAYMENT_PURPOSE_LABEL_KEY,
   PAYMENT_STATUS_BADGE_CONFIG,
   PAYMENT_DISCREPANCY_TYPE_LABEL_KEY,
 } from "../paymentLabels";
@@ -85,6 +86,14 @@ export function PaymentsPageClient({
     return key ? t(key) : method;
   }
 
+  // Story 18.6: a subscription payment (the common case) keeps its row as it
+  // was; a registration fee names itself under the member.
+  function purposeLabel(purpose: string): string | null {
+    if (purpose === "subscription") return null;
+    const key = PAYMENT_PURPOSE_LABEL_KEY[purpose];
+    return key ? t(key) : purpose;
+  }
+
   function discrepancyTypeLabel(discrepancyType: string): string {
     const key = PAYMENT_DISCREPANCY_TYPE_LABEL_KEY[discrepancyType];
     return key ? t(key) : discrepancyType;
@@ -136,7 +145,12 @@ export function PaymentsPageClient({
                 const Icon = badge.icon;
                 return (
                   <tr key={row.id} className="border-b last:border-0">
-                    <td className="p-3">{row.memberName}</td>
+                    <td className="p-3">
+                      {row.memberName}
+                      {purposeLabel(row.purpose) && (
+                        <span className="block text-xs text-muted-foreground">{purposeLabel(row.purpose)}</span>
+                      )}
+                    </td>
                     <td className="p-3">{formatAmount(row.amount)}</td>
                     <td className="p-3">{methodLabel(row.method)}</td>
                     <td className="p-3">{row.actorName ?? "—"}</td>
@@ -212,7 +226,12 @@ export function PaymentsPageClient({
               <tbody>
                 {discrepancies.map((row) => (
                   <tr key={row.id} className="border-b last:border-0">
-                    <td className="p-3">{row.memberName}</td>
+                    <td className="p-3">
+                      {row.memberName}
+                      {purposeLabel(row.purpose) && (
+                        <span className="block text-xs text-muted-foreground">{purposeLabel(row.purpose)}</span>
+                      )}
+                    </td>
                     <td className="p-3">
                       <Badge variant="outline" className="border-red-200 bg-red-100 text-red-800">
                         <AlertTriangle size={12} className="mr-1" />
