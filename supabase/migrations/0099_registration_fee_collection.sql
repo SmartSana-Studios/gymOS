@@ -161,7 +161,7 @@ begin
     raise exception 'record_registration_fee: invalid_method';
   end if;
 
-  v_reason := btrim(p_reason);
+  v_reason := btrim(p_reason, E' \t\r\n');
   if v_reason is null or v_reason = '' then
     raise exception 'record_registration_fee: reason is required';
   end if;
@@ -264,7 +264,7 @@ begin
     raise exception 'waive_registration_fee: gym % is not active', v_gym_id;
   end if;
 
-  v_reason := btrim(p_reason);
+  v_reason := btrim(p_reason, E' \t\r\n');
   if v_reason is null or v_reason = '' then
     raise exception 'waive_registration_fee: reason is required';
   end if;

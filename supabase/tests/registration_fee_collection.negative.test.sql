@@ -12,7 +12,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000000313xx.
 
 begin;
-select plan(77);
+select plan(79);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000031301', 'RegFee Collect Neg Tier', 6000, 60000, null);
@@ -229,6 +229,7 @@ select throws_like($$ select record_registration_fee('00000000-0000-0000-0000-00
 select throws_like($$ select record_registration_fee('00000000-0000-0000-0000-000000031356', 'Cash', 'Wrong case method') $$, '%invalid_method%', 'a differently-cased method is rejected');
 select throws_like($$ select record_registration_fee('00000000-0000-0000-0000-000000031356', 'cash', '') $$, '%reason is required%', 'an empty reason is rejected');
 select throws_like($$ select record_registration_fee('00000000-0000-0000-0000-000000031356', 'cash', '    ') $$, '%reason is required%', 'a blank reason is rejected');
+select throws_like($$ select record_registration_fee('00000000-0000-0000-0000-000000031356', 'cash', E' \t\r\n ') $$, '%reason is required%', 'a tab/newline-only reason is rejected');
 select throws_like($$ select record_registration_fee('00000000-0000-0000-0000-000000031356', 'cash', null) $$, '%reason is required%', 'a NULL reason is rejected');
 select throws_like($$ select record_registration_fee('00000000-0000-0000-0000-000000031356', 'cash', repeat('x', 201)) $$, '%reason is too long%', 'a 201-character reason is rejected');
 select throws_like($$ select record_registration_fee('00000000-0000-0000-0000-000000031356', 'cash', repeat(' ', 5) || repeat('x', 201) || repeat(' ', 5)) $$, '%reason is too long%', 'a reason that is still 201 characters after trimming is rejected');
@@ -253,6 +254,7 @@ select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000031323","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000031311","app_role":"manager"}', true);
 select throws_like($$ select waive_registration_fee('00000000-0000-0000-0000-000000031357', '') $$, '%reason is required%', 'waive with an empty reason is rejected');
 select throws_like($$ select waive_registration_fee('00000000-0000-0000-0000-000000031357', '   ') $$, '%reason is required%', 'waive with a blank reason is rejected');
+select throws_like($$ select waive_registration_fee('00000000-0000-0000-0000-000000031357', E' \t\r\n ') $$, '%reason is required%', 'waive with a tab/newline-only reason is rejected');
 select throws_like($$ select waive_registration_fee('00000000-0000-0000-0000-000000031357', null) $$, '%reason is required%', 'waive with a NULL reason is rejected');
 select throws_like($$ select waive_registration_fee('00000000-0000-0000-0000-000000031357', repeat('x', 201)) $$, '%reason is too long%', 'waive with a 201-character reason is rejected');
 select throws_like($$ select waive_registration_fee('00000000-0000-0000-0000-000000031357', repeat(' ', 5) || repeat('x', 201) || repeat(' ', 5)) $$, '%reason is too long%', 'waive with a reason that is still 201 characters after trimming is rejected');

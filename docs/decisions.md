@@ -18,7 +18,7 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 **The amount is never a parameter.** `record_registration_fee(p_member_id, p_method, p_reason)` reads `gyms.registration_fee` itself; pgTAP asserts the argument list and that the amount follows a fee change (5000 to 7500). Methods are `cash`, `bank_transfer`, `manual_momo`; `mobile_money` and provider methods are rejected. Role gates: record is owner, manager, supervisor, receptionist; waive is owner, supervisor, manager; both fail closed with `coalesce`, and both carry the `is distinct from 'active'` suspension guard before any write.
 
-**Verification note.** Same workaround as `18.1`: `0099` applied with `psql` through `docker exec` on `supabase_db_gym_os`, suite run with the `pg_prove:3.36` image on `supabase_network_gym_os` (`--ext .sql /tests`): 101 files, 2280 tests, all passing, versus 99 files and 2154 before this story.
+**Verification note.** Same workaround as `18.1`: `0099` applied with `psql` through `docker exec` on `supabase_db_gym_os`, suite run with the `pg_prove:3.36` image on `supabase_network_gym_os` (`--ext .sql /tests`): 101 files, 2282 tests, all passing, versus 99 files and 2154 before this story.
 
 ---
 

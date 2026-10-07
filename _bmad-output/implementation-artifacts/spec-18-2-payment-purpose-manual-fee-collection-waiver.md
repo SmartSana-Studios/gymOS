@@ -89,6 +89,28 @@ context:
 | Notify trigger recreate may widen events vs 0046; `$verify$` pattern weak (Blind) | false | rejected | 0046:267 is `after insert or update ... when (NEW.status in ('verified','flagged'))`; the recreate is identical plus the purpose clause. |
 | Waived vs paid distinguishable only via audit; currency hard-coded; method list repeated; `purpose` typed string; no Zod tests; no client error mapping; audit page metadata (Blind) | low | rejected | Epic design (no payment row on waive, `currency = 'XAF'`, text+check types, 18.6 owns error mapping); `packages/types` has no test suite; auditLabels.ts is the only audit-label consumer. |
 
+### Review Findings
+
+Second independent review (2026-10-07; Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor over `master...HEAD`, commit e062948): 23 raw findings, 1 patch, 0 decision-needed, 0 defer, 22 rejected (distinct claims below).
+
+- [x] [Review][Patch] Reason "non-blank" check passes tab/newline-only input, because `btrim(p_reason)` trims spaces only [supabase/migrations/0099_registration_fee_collection.sql:record_registration_fee, waive_registration_fee `v_reason := btrim(p_reason)`] — Edge Case Hunter. Verified: a reason of `E'\t'` survives `btrim`, passes `v_reason = ''` and is stored and audited, while the Zod schema (`.trim()`) rejects the same input. Low: not reachable from the UI and a one-character reason is also accepted, but the spec's Always says "reason non-blank". Fix is one argument in both RPCs (`btrim(p_reason, E' \t\r\n')`) plus a pgTAP case. Note 0022/0035/0036/0037 use the same plain `btrim`, so this repeats an existing repo habit.
+
+**Rejected**
+
+- `unique_violation` handler too broad (Blind, Edge): `false`. The handler wraps a single INSERT that never sets `provider_transaction_ref` (the only other unique column on `payments`, NULL here) and lets `id` default, so the fee index is the only unique constraint it can hit. A real concern for 18.3's Tara path, not for this function.
+- Fee read without a lock can differ from the fee at commit (Blind, Edge): `false`. READ COMMITTED reads the fee in force at that statement; a `set_registration_fee` committing a moment later is an ordinary ordering, not a wrong amount.
+- Deactivated/demoted staff keep access until JWT expiry (Edge): `false` for this change. `auth.jwt() ->> 'app_role'` gating is the codebase-wide pattern in every RPC (0022, 0035, 0036, 0093); not introduced here.
+- No shape check forcing fee rows to have null `subscription_id` and XAF (Edge): `low`, not worth fixing. No path creates a non-conforming row today, and the guard would be a new constraint for a speculative 18.3 caller.
+- Fee rows visible to `gym_revenue_mtd`, refund picker, history; refundable until 18.4; readers not inventoried (Blind x3, Edge, Auditor): `low`, rejected. Spec Never, epic AC 18.4 and the triage log above already assign this to 18.4; `subscription_id` was already nullable so fee rows are not a new row shape; the notify trigger skips them; Epic 18 is held from master so no live gym can collect a fee. (Already rejected in the first review.)
+- Waive ignores an existing non-voided fee row (Auditor): already deferred to 18.3 in `deferred-work.md` (the "Medium, unreachable in 18.2" entry). Nothing new.
+- Waive audit omits the fee amount (Blind): `low`, rejected. Spec records the audit as carrying the reason; no consumer needs the forgone amount yet and 18.6/18.4 can add it where the screen needs it.
+- `$verify$` checks are substring-only (policy clauses, index predicate, notify trigger) (Blind x2, Auditor): `low`, rejected. Behavior is proven by pgTAP (policy denial matrix, index 23505 and flagged exemption, notification suppression); verify blocks in 0093/0098 use the same substring style.
+- Policy re-pasted from 0093 may revert a later change (Blind): `false`. `gym_staff_insert_own_payments` is last defined in 0093; no migration between 0093 and 0099 touches it (grep), and the Auditor confirmed the clauses against 0093:91.
+- No waived-vs-paid state, no `voided_by`/void reason (Blind): `low`, rejected. Epic design: waive writes no payment row and the audit log is the record; void metadata is 18.4's migration.
+- Spec frontmatter/Implementation Notes/Boundaries out of step with the review patches (Blind, Auditor): rejected. Fix is to edit the spec; the Triage Log records both patches.
+- 200-char limit repeated as a literal; Zod min 10 vs RPC non-blank; `purpose`/`method` typed `string` in `database.ts`; no Zod schema tests (Blind): `low`, rejected. `payments_reason_length_check` is the same 200 and the RPC check exists for a clean error; Zod min mirrors `recordManualPaymentSchema`; `database.ts` follows the generated shape (text columns); `packages/types` has no test suite. (Mostly already rejected in the first review.)
+- Race/serialization not tested (Blind, Auditor, VG): `low`, rejected. The `for update` row lock is the mechanism; pgTAP cannot interleave two sessions, and the index and pre-check paths are asserted. (Already rejected in the first review.)
+
 ## Verification
 
 **Commands:**
