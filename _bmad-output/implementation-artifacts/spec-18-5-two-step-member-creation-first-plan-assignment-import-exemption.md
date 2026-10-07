@@ -92,6 +92,35 @@ context:
 | Fee-0 create and import now fail if the settings read fails (Edge) | low | rejected | A failing `gyms` read would fail the create anyway; harmless extension. |
 | Role probing before RLS denial; denial maps to `unknown`; orphan auth user on settle failure; `importExempt` with no `planId`; `subscriptionStatus` default (Blind, Edge) | low | rejected | RLS is the spec'd authority and reads are gym-scoped; the cleanup path equals the existing subscription-failure path; the last two are internal caller contracts. |
 
+### Review Findings
+
+Code review 2026-10-07 (Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor; diff `274fa1d..a2fe3eb`). 0 decision-needed, 3 patch, 2 defer, 21 rejected.
+
+- [x] [Review][Patch] No test pins `members/page.tsx` passing `registrationFee` to `MembersPageClient`; dropping the prop or the `getGymSettings()` read leaves every Vitest green and defaults a fee gym to the one-step form, which `createMember` then refuses [apps/dashboard/app/(dashboard)/members/page.tsx:54-91]. The earlier review's "page -> client -> modal" patch covered only client -> modal. Add `page.test.tsx` in the style of `page.overview.test.tsx`: fee 5000 reaches the client, fee 0 reaches the client, a failed settings read falls back to 0.  Fixed: `members/page.test.tsx` (3 tests; fails when the prop is dropped).
+- [x] [Review][Patch] `docs/decisions.md` verification note says "Dashboard Vitest 678"; the review pass ended at 680/680 [docs/decisions.md:17] -- fixed (683 after the new page test)
+- [x] [Review][Patch] `getMemberSubscriptionState` doc comment ("RLS alone would let staff of another gym through only if their claim matched") is garbled; say the explicit `gym_id` filter is defence in depth and keeps a cross-gym id on the `not_found` path [apps/dashboard/services/members.ts:400]
+- [x] [Review][Defer] Concurrent `assignInitialPlan` calls can both pass the no-subscription pre-read and insert two first subscriptions (no unique index) [apps/dashboard/app/(dashboard)/members/actions.ts:assignInitialPlan] -- deferred: fix needs a migration or RPC (excluded here) and the only caller is the 18.6 modal, which must disable submit while pending; recorded so that requirement is not lost
+- [x] [Review][Defer] `member_plan_assigned` (and the older Epic 18 action types) have no test that the audit label map resolves in both locales; a missing entry shows the raw string [apps/dashboard/app/(dashboard)/audit/auditLabels.ts] -- deferred: cosmetic and existing practice; one label-map test would cover all Epic 18 entries
+
+#### Rejected
+
+- `getGymSettings` null data with null error makes `createMember` look successful (Edge) -- false: `getGymSettings` maps a missing row to `gymNotFoundError`, so data and error are never both null.
+- Awaiting members still awaiting after the fee is lowered to 0 (Blind) -- already in `deferred-work.md` (18.1 release sequencing: lowering the fee to 0 does not release them).
+- Orphan `auth.users` row not asserted on settle failure (Blind) -- false as a defect: `provisionMemberRow` documents that a new placeholder auth user is deliberately not deleted on this path; the member delete is asserted.
+- Deactivated member / archived plan accepted by `assignInitialPlan`; backdated `startDate`; `toISOString` overflow on a huge `duration_days` (Blind, Edge) -- low, already rejected in the earlier triage; the UI exposing them is 18.6 and the fix adds branches.
+- Stale page-time fee gives a misleading `registration_fee_due` or generic error (Blind, Edge) -- low, needs the owner to change the fee between page load and submit; server stays authoritative.
+- Stale client invite-menu state after settle or void (Edge) -- low, server check in `sendMemberInvite` is authoritative.
+- Extra `getGymSettings()` query on every members page load (Blind) -- low, one cheap indexed read in an existing `Promise.all`; lazy loading adds complexity.
+- CSV export labels awaiting members with a blank status (Blind, Edge) -- low, same blank as a settled member with no plan; the export's status column is the re-import template's, not a display column.
+- CSV import UI does not announce the fee exemption (Blind) -- the exemption is the story's intent (FR-154, frozen spec); a notice is an 18.6-or-later UI decision.
+- Weak "never trusts a client fee flag" test; `createAwaitingMember` duplicates `createMember`; `getServerTranslation` called twice (Blind) -- low, cosmetic or a refactor with no named divergence.
+- Receptionist-denied test asserts `unknown` instead of a forbidden mapping (Blind) -- low, RLS is the spec'd enforcement; mapping belongs with the 18.6 screen.
+- Fee-0 create and import fail closed when the settings read fails (Acceptance) -- low, already rejected earlier; the create would fail on a failing `gyms` read anyway.
+- Awaiting filter has an extra `deactivated_at is null` clause (Acceptance) -- benign and documented in the decisions entry.
+- Attendance page shows awaiting members as "no active plan" (Verification Gap) -- not in the spec; the spec lists only the members list.
+- Spec frontmatter `status: done`, unchecked tasks and `review_loop_iteration: 0` disagree with sprint-status (Blind, Edge, Acceptance) -- the fix edits the spec under review; step 6 syncs status.
+- Server and client define "awaiting" slightly differently (Acceptance) -- false: the difference is unreachable because 0098 blocks a subscription for an awaiting member; the server check is the stricter one.
+
 ## Design Notes
 
 If the fee changes between the action's read and the insert, the 0098 trigger decides. The fee-0 path then hits the gate, which maps to `registration_fee_due`, and the existing cleanup deletes the member. The fee-above-0 path then creates a settled member with no plan, which `assignInitialPlan` handles.

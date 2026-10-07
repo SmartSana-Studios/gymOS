@@ -395,8 +395,8 @@ export async function countMembersJoinedBetween(
  * gym (as an active-or-not `role = 'member'` row) and whether it already has
  * any subscription row at all. Whether the registration fee is settled is not
  * read here: the 0098 gate on `subscriptions` is the authority and rejects an
- * awaiting member's insert. `gym_id` is applied on both reads, since RLS alone
- * would let staff of another gym through only if their claim matched. */
+ * awaiting member's insert. `gym_id` is applied on both reads as defence in
+ * depth behind RLS, so an id from another gym resolves to `not_found`. */
 export async function getMemberSubscriptionState(
   memberId: string,
 ): Promise<{ data: { gymId: string; hasSubscription: boolean } | null; error: AppError | null }> {

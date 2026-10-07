@@ -942,3 +942,13 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-18-4-void-refund-block-revenue-line.md`
   summary: Map `not_found: payment` (and separate "already voided" from "wrong id") in `mapSupabaseError` when Story 18.6 builds the void screen.
   evidence: Low. The void RPC folds five non-voidable conditions into one `not_found: payment`; today it surfaces as generic "unknown" copy.
+
+## Deferred from: code review of spec-18-5-two-step-member-creation-first-plan-assignment-import-exemption (2026-10-07)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-18-5-two-step-member-creation-first-plan-assignment-import-exemption.md`
+  summary: Concurrent `assignInitialPlan` calls for the same member can both pass the no-subscription pre-read and insert two first subscriptions; no unique index prevents it.
+  evidence: Low, unverified by a two-session test. Needs a migration (partial unique index or an RPC with a lock), which 18.5 excluded. The only caller will be the Story 18.6 Assign plan modal, which must disable submit while the call is pending; settle the DB-side guard there or with a two-session test.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-18-5-two-step-member-creation-first-plan-assignment-import-exemption.md`
+  summary: No test asserts that every audit action type the app writes (`member_plan_assigned`, `registration_fee_voided` and the other Epic 18 entries) has a label key that resolves in both locales.
+  evidence: Low. `AuditLogPageClient.actionLabel` falls back to the raw action string, so a missing `AUDIT_ACTION_TYPE_LABEL_KEY` entry shows `member_plan_assigned` unlabelled and fails nothing. One label-map test covers all Epic 18 entries.
