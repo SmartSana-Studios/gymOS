@@ -7,5 +7,5 @@
 export const Brand = {
   primary: '#1B2A41',
   accent: '#E0971F',
-  background: '#FAFAF7',
+  background: '#F4F4EF',
 } as const;
