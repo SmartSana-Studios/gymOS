@@ -124,7 +124,7 @@ interface TaraMoneyWebhookPayload {
   phoneNumber?: string;
   creationDate: string;
   changeDate: string;
-  status: "SUCCESS" | "FAILURE";
+  status: string;
   invoiceUrl?: string;
   transactionId?: string;
 }
@@ -171,13 +171,20 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+// Tara documents SUCCESS / FAILURE, but a payer who cancels the prompt produces
+// `status: "ERROR"` (+ `paymentStatus: "ERROR"`, `type: "DEPOSIT"`) -- seen live
+// 2026-10-07. Every terminal non-success status is a failed payment
+// (normalize maps anything but SUCCESS to "flagged"); an unknown or in-flight
+// status is still rejected rather than guessed at.
+const TARA_FAILED_STATUSES = new Set(["FAILURE", "ERROR", "FAILED", "CANCELLED", "CANCELED", "EXPIRED", "DECLINED", "REJECTED"]);
+
 function isTaraMoneyWebhookPayload(value: unknown): value is TaraMoneyWebhookPayload {
   const v = value as Partial<TaraMoneyWebhookPayload> | null | undefined;
-  return (
-    typeof v?.businessId === "string" &&
-    typeof v?.paymentId === "string" &&
-    (v?.status === "SUCCESS" || v?.status === "FAILURE")
-  );
+  if (typeof v?.businessId !== "string" || typeof v?.paymentId !== "string" || typeof v?.status !== "string") {
+    return false;
+  }
+  const status = v.status.toUpperCase();
+  return status === "SUCCESS" || TARA_FAILED_STATUSES.has(status);
 }
 
 export class TaraMoneyProvider implements PaymentProvider {
@@ -468,7 +475,15 @@ export class TaraMoneyProvider implements PaymentProvider {
     }
 
     if (!isTaraMoneyWebhookPayload(rawPayload)) {
-      console.error("TaraMoney webhook rejected: payload shape not recognized; keys =", Object.keys((rawPayload ?? {}) as object).join(","));
+      {
+        const p = (rawPayload ?? {}) as Record<string, unknown>;
+        // Non-secret discriminator fields only (no ids, phones or amounts).
+        console.error(
+          "TaraMoney webhook rejected: payload shape not recognized; keys =",
+          Object.keys(p).join(","),
+          `| status=${JSON.stringify(p.status)} paymentStatus=${JSON.stringify(p.paymentStatus)} type=${JSON.stringify(p.type)} amountType=${typeof p.amount}`,
+        );
+      }
       return { valid: false };
     }
 
@@ -587,7 +602,7 @@ export function normalizeTaraMoneyWebhook(rawPayload: unknown): Omit<NormalizedP
   return {
     providerTransactionRef: rawPayload.paymentId,
     businessId: rawPayload.businessId,
-    status: rawPayload.status === "SUCCESS" ? "verified" : "flagged",
+    status: rawPayload.status.toUpperCase() === "SUCCESS" ? "verified" : "flagged",
     amount,
     currency: "XAF",
     reference: rawPayload.productId,

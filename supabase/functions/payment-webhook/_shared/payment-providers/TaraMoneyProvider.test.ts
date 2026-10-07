@@ -958,3 +958,21 @@ Deno.test("confirmPaymentStatus: a thrown network error and missing credentials 
   });
   assertEquals(noCreds.state, "unconfirmed");
 });
+
+// A payer who cancels the prompt produces status "ERROR" (seen live 2026-10-07), not the
+// documented "FAILURE". Every terminal non-success status is a failed payment -> "flagged".
+Deno.test("verifyWebhookSignature: a cancelled payment (status ERROR) verifies and normalizes to flagged", async () => {
+  const { provider } = providerWithByBusinessIdResponse({ data: [GYM_A_ROW], error: null });
+  const payload = JSON.stringify({ businessId: "biz1", paymentId: "pay1", status: "ERROR", paymentStatus: "ERROR", type: "DEPOSIT", amount: "50" });
+  const result = await provider.verifyWebhookSignature(payload, headers(SECRET));
+  assertEquals(result.valid, true);
+  assertEquals(result.event?.status, "flagged");
+});
+
+Deno.test("verifyWebhookSignature: an unknown or in-flight status is still rejected, not guessed at", async () => {
+  const { provider } = providerWithByBusinessIdResponse({ data: [GYM_A_ROW], error: null });
+  for (const status of ["PENDING", "PROCESSING", "", "banana"]) {
+    const payload = JSON.stringify({ businessId: "biz1", paymentId: "pay1", status });
+    assertEquals(await provider.verifyWebhookSignature(payload, headers(SECRET)), { valid: false });
+  }
+});
