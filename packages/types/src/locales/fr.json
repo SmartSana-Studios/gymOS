@@ -50,6 +50,7 @@
     "gymSuspended": "GymOS est temporairement indisponible pour cette salle. Veuillez réessayer plus tard.",
     "phoneBelongsToStaffAccount": "Ce numéro de téléphone appartient à un compte du personnel. Un membre du personnel qui souhaite aussi s’entraîner doit utiliser un autre numéro.",
     "phoneBelongsToMemberAccount": "Ce numéro de téléphone appartient à un compte membre. Un compte du personnel doit utiliser un autre numéro.",
+    "registrationFeeDue": "Les frais d'inscription de ce membre n'ont pas encore été réglés.",
     "registrationFeeAlreadyPending": "Un paiement des frais d'inscription est déjà en cours pour ce membre. Attendez qu'il se termine ou réessayez dans environ 10 minutes.",
     "registrationFeeAlreadyRecorded": "Les frais d'inscription de ce membre ont déjà été payés.",
     "registrationFeeNotDue": "Ce membre n'a aucun frais d'inscription à régler.",
@@ -59,7 +60,8 @@
     "taraFeeCannotBeVoided": "Ces frais ont été payés par Tara Money et ne peuvent pas être annulés ici. Corrigez-les en dehors de GymOS.",
     "memberAlreadyHasSubscription": "Ce membre a déjà un abonnement : les frais d'inscription ne peuvent plus être annulés.",
     "registrationFeeNotRefundable": "Les frais d'inscription ne sont pas remboursables.",
-    "paymentVoidedNotRefundable": "Ce paiement a été annulé et ne peut pas être remboursé."
+    "paymentVoidedNotRefundable": "Ce paiement a été annulé et ne peut pas être remboursé.",
+    "paymentNotFound": "Ce paiement est introuvable. Il a peut-être déjà été annulé."
   },
   "auth": {
     "title": "Connexion à GymOS",

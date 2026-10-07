@@ -10,7 +10,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let claimsResult: { data: { claims: Record<string, unknown> | null } | null; error: unknown };
-let memberRow: { name: string; phone: string | null } | null;
+let memberRow: { name: string; phone: string | null; registration_fee_settled_at?: string | null } | null;
+let selectArgs: string[];
 let memberQueryError: unknown;
 let eqCalls: Array<[string, unknown]>;
 let isCalls: Array<[string, unknown]>;
@@ -21,8 +22,10 @@ function makeSupabaseStub() {
       getClaims: vi.fn(async () => claimsResult),
     },
     from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn((column: string, value: unknown) => {
+      select: vi.fn((columns: string) => {
+        selectArgs.push(columns);
+        return {
+          eq: vi.fn((column: string, value: unknown) => {
           eqCalls.push([column, value]);
           return {
             eq: vi.fn((column: string, value: unknown) => {
@@ -43,7 +46,8 @@ function makeSupabaseStub() {
             }),
           };
         }),
-      })),
+        };
+      }),
     })),
   };
 }
@@ -71,8 +75,9 @@ vi.mock("@/lib/i18n/get-server-translation", () => ({
 describe("getMemberForInvite", () => {
   beforeEach(() => {
     claimsResult = { data: { claims: { gym_id: "gym-1" } }, error: null };
-    memberRow = { name: "Alice", phone: "+237680811041" };
+    memberRow = { name: "Alice", phone: "+237680811041", registration_fee_settled_at: "2026-01-01T00:00:00Z" };
     memberQueryError = null;
+    selectArgs = [];
     eqCalls = [];
     isCalls = [];
   });
@@ -82,7 +87,20 @@ describe("getMemberForInvite", () => {
 
     const result = await getMemberForInvite("member-1");
 
-    expect(result).toEqual({ data: { name: "Alice", phone: "+237680811041" }, error: null });
+    expect(result).toEqual({
+      data: { name: "Alice", phone: "+237680811041", awaitingRegistrationFee: false },
+      error: null,
+    });
+  });
+
+  it("Story 18.5: selects registration_fee_settled_at and reports a null value as awaiting the fee", async () => {
+    memberRow = { name: "Alice", phone: "+237680811041", registration_fee_settled_at: null };
+    const { getMemberForInvite } = await import("./members");
+
+    const result = await getMemberForInvite("member-1");
+
+    expect(selectArgs).toEqual(["name, phone, registration_fee_settled_at"]);
+    expect(result.data).toEqual({ name: "Alice", phone: "+237680811041", awaitingRegistrationFee: true });
   });
 
   it("code review fix: scopes the lookup to role='member' and excludes deactivated rows -- a coach/manager/owner id or a deactivated member must not resolve, since gym_staff_read_own_members RLS (0018) alone permits reading every role in the gym", async () => {
@@ -105,7 +123,7 @@ describe("getMemberForInvite", () => {
   });
 
   it("returns not_found when the member has no phone on file (nothing to invite)", async () => {
-    memberRow = { name: "Alice", phone: null };
+    memberRow = { name: "Alice", phone: null, registration_fee_settled_at: null };
     const { getMemberForInvite } = await import("./members");
 
     const result = await getMemberForInvite("member-1");

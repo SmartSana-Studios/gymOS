@@ -18,11 +18,17 @@ vi.mock("@/services/members", () => ({
   // sendMemberInvite, stubbed only so the module doesn't fail to resolve.
   deactivateMember: vi.fn(),
   exportMembersCsv: vi.fn(),
+  getMemberSubscriptionState: vi.fn(),
   getPlanTypeForGym: vi.fn(),
+  insertSubscription: vi.fn(),
   logMemberChange: vi.fn(),
   memberCountForGym: vi.fn(),
   provisionMemberRow: vi.fn(),
   updateMember: vi.fn(),
+}));
+
+vi.mock("@/services/gym-settings", () => ({
+  getGymSettings: vi.fn(),
 }));
 
 vi.mock("@/services/coaches", () => ({
@@ -63,7 +69,10 @@ describe("sendMemberInvite", () => {
     getDashboardShellContext.mockReset();
     sendEvolutionApiMessage.mockReset();
 
-    getMemberForInvite.mockResolvedValue({ data: { name: "Alice", phone: "+237680811041" }, error: null });
+    getMemberForInvite.mockResolvedValue({
+      data: { name: "Alice", phone: "+237680811041", awaitingRegistrationFee: false },
+      error: null,
+    });
     getDashboardShellContext.mockResolvedValue({
       data: { gymId: "gym-1", gymName: "Iron Gym", memberName: "Owner", role: "owner", mustChangePassword: false },
       error: null,
@@ -88,6 +97,21 @@ describe("sendMemberInvite", () => {
 
     expect(result).toEqual({ data: null, error: { code: "not_found", message: "not found" } });
     expect(sendEvolutionApiMessage).not.toHaveBeenCalled();
+  });
+
+  it("Story 18.5: an awaiting member gets registration_fee_due and no WhatsApp message", async () => {
+    getMemberForInvite.mockResolvedValue({
+      data: { name: "Alice", phone: "+237680811041", awaitingRegistrationFee: true },
+      error: null,
+    });
+    const { sendMemberInvite } = await import("./actions");
+
+    const result = await sendMemberInvite(MEMBER_ID);
+
+    expect(result.data).toBeNull();
+    expect(result.error?.code).toBe("registration_fee_due");
+    expect(sendEvolutionApiMessage).not.toHaveBeenCalled();
+    expect(getDashboardShellContext).not.toHaveBeenCalled();
   });
 
   it("AC #1/#2: on a successful gateway send, returns sent:true with no error", async () => {

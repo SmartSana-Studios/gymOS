@@ -3,17 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { createMemberSchema, editMemberSchema } from "@gymos/types";
+import { createFeeGymMemberSchema, createMemberSchema, editMemberSchema } from "@gymos/types";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
-import type { MemberListRow, MemberSubscriptionStatus } from "@/services/members";
+import type { MemberListRow, MemberRegistrationFeeState, MemberSubscriptionStatus } from "@/services/members";
 import type { PlanRow } from "@/services/plans";
 import type { CoachRow, CoachAssignmentRow } from "@/services/coaches";
 import { createMember, editMember, assignCoach, getCoachAssignments } from "../actions";
+import { getMemberRegistrationFeeStateAction } from "@/app/(dashboard)/payments/actions";
 import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
 
 interface FieldErrors {
@@ -170,6 +171,7 @@ export function MemberModal({
   editingMember,
   plans,
   coaches,
+  registrationFee = 0,
   onClose,
   onSaved,
 }: {
@@ -178,6 +180,11 @@ export function MemberModal({
   editingMember: MemberListRow | null;
   plans: PlanRow[];
   coaches: CoachRow[];
+  /** Story 18.5: the gym's registration fee, from the server. Above 0 the
+   * create form omits plan, status and expiry -- the member is created
+   * awaiting the fee and gets the first plan afterward. createMember re-reads
+   * the fee server-side and stays authoritative. */
+  registrationFee?: number;
   onClose: () => void;
   onSaved: (warning?: string) => void;
 }) {
@@ -201,8 +208,13 @@ export function MemberModal({
   // the member's stored photoUrl is broken/unreachable, rather than showing
   // a native broken-image icon.
   const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
+  // Story 18.6: the read-only view's registration fee line, loaded on open for
+  // this one member. Keyed by member id so a stale result never shows under a
+  // different member.
+  const [feeLine, setFeeLine] = useState<{ memberId: string; state: MemberRegistrationFeeState } | null>(null);
 
   const isCreate = !editingMember;
+  const isFeeGymCreate = isCreate && registrationFee > 0;
   const isEdit = Boolean(editingMember) && !readOnly;
 
   // Adjusted during render (React's documented alternative to an
@@ -262,6 +274,46 @@ export function MemberModal({
     };
   }, [open, editingMember]);
 
+  // Story 18.6: only a gym that charges a fee (or still has this member
+  // awaiting one) has a fee line; a fee-0 gym fetches nothing and shows nothing.
+  useEffect(() => {
+    // Drop any earlier line first: a reopened View must not flash the previous
+    // state, and a failed fetch must leave no line rather than a wrong one.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFeeLine(null);
+    if (!open || !readOnly || !editingMember) return;
+    if (registrationFee <= 0 && editingMember.registrationFeeSettledAt !== null) return;
+    const memberId = editingMember.id;
+    let cancelled = false;
+    getMemberRegistrationFeeStateAction(memberId)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setFeeLine({ memberId, state: data });
+      })
+      .catch(() => {
+        // The line is informational: a failed read leaves it out.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, readOnly, editingMember, registrationFee]);
+
+  function registrationFeeLineText(state: MemberRegistrationFeeState): string {
+    if (state.kind === "awaiting") return t("members.feeState.awaiting");
+    if (state.kind === "paid") {
+      return t("members.feeState.paid", {
+        amount: state.amount.toLocaleString(i18n.language),
+        date: new Date(state.paidAt).toLocaleDateString(i18n.language),
+      });
+    }
+    if (state.kind === "waived") {
+      return state.waivedByName
+        ? t("members.feeState.waivedBy", { name: state.waivedByName })
+        : t("members.feeState.waived");
+    }
+    return "";
+  }
+
   const selectedPlan = plans.find((p) => p.id === form.planId) ?? null;
   const isPayPerSession = selectedPlan?.planType === "pay_per_session";
 
@@ -298,18 +350,25 @@ export function MemberModal({
     setFormError(null);
 
     if (isCreate) {
-      const parsed = createMemberSchema.safeParse({
+      const identityFields = {
         name: form.name,
         phone: form.phone,
         email: form.email.trim() === "" ? null : form.email,
         dob: form.dob === "" ? null : form.dob,
         photoUrl: form.photoUrl.trim() === "" ? null : form.photoUrl,
         emergencyContact: form.emergencyContact.trim() === "" ? null : form.emergencyContact,
-        planId: form.planId,
         joinDate: form.joinDate,
-        subscriptionStatus: form.subscriptionStatus,
-        expiryDate: isPayPerSession || form.expiryDate === "" ? null : form.expiryDate,
-      });
+      };
+      // Fee gym: no plan, status or expiry in the parse or the createMember
+      // call below -- the server would reject them with registration_fee_due.
+      const parsed = isFeeGymCreate
+        ? createFeeGymMemberSchema.safeParse(identityFields)
+        : createMemberSchema.safeParse({
+            ...identityFields,
+            planId: form.planId,
+            subscriptionStatus: form.subscriptionStatus,
+            expiryDate: isPayPerSession || form.expiryDate === "" ? null : form.expiryDate,
+          });
 
       if (!parsed.success) {
         const errors: FieldErrors = {};
@@ -543,6 +602,19 @@ export function MemberModal({
                   t("members.modal.noCoachAssigned")
                 }
               />
+              {feeLine && feeLine.memberId === editingMember.id && feeLine.state.kind !== "none" && (
+                <div className="col-span-2">
+                  <DetailField
+                    label={t("members.modal.view.registrationFee")}
+                    value={registrationFeeLineText(feeLine.state)}
+                  />
+                  {feeLine.state.kind === "waived" && feeLine.state.reason && (
+                    <p className="text-xs text-muted-foreground">
+                      {t("members.feeState.waivedReason", { reason: feeLine.state.reason })}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -613,7 +685,26 @@ export function MemberModal({
               </>
             )}
 
-            {isCreate && step === 2 && (
+            {isFeeGymCreate && step === 2 && (
+              <>
+                <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  {t("members.modal.registrationFeeNotice")}
+                </p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="memberJoinDate">{t("members.modal.joinDate")}</Label>
+                  <Input
+                    id="memberJoinDate"
+                    type="date"
+                    value={form.joinDate}
+                    onChange={(e) => setForm({ ...form, joinDate: e.target.value })}
+                  />
+                  {fieldErrors.joinDate && <p className="text-sm text-red-600">{fieldErrors.joinDate}</p>}
+                </div>
+              </>
+            )}
+
+            {isCreate && !isFeeGymCreate && step === 2 && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="memberPlan">{t("members.modal.plan")}</Label>

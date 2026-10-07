@@ -544,6 +544,17 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // The first-subscription gate (0098, Story 18.1): a subscription insert for a member
+  // who has not settled the fee. Surfaces as registration_fee_due for the Story 18.5
+  // plan assignment, and for a fee that was switched on between the action's fee
+  // read and its insert.
+  if (message.includes("registration_fee_not_settled")) {
+    return {
+      code: "registration_fee_due",
+      message: copy.registrationFeeDue,
+    };
+  }
+
   // Registration-fee RPCs (0099 record/waive, 0100 initiate; Epic 18). The
   // raise texts lead with a stable code, so these match on the code itself
   // rather than a function-name prefix (three RPCs share each one). The
@@ -611,6 +622,15 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     return {
       code: "no_active_provider",
       message: copy.noActivePaymentProvider,
+    };
+  }
+
+  // void_registration_fee_payment (0101): not a fee, not verified, already voided, or
+  // another gym's payment all raise the same not_found.
+  if (message.includes("not_found: payment")) {
+    return {
+      code: "payment_not_found",
+      message: copy.paymentNotFound,
     };
   }
 

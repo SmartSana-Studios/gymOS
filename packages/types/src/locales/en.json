@@ -50,6 +50,7 @@
     "gymSuspended": "GymOS is temporarily unavailable for this gym. Please check back later.",
     "phoneBelongsToStaffAccount": "This phone number belongs to a staff account. A staff member who also wants to train needs to use a different number.",
     "phoneBelongsToMemberAccount": "This phone number belongs to a member account. A staff account needs to use a different number.",
+    "registrationFeeDue": "The registration fee has not been collected for this member yet.",
     "registrationFeeAlreadyPending": "A registration fee payment is already in progress for this member. Wait for it to finish, or try again in about 10 minutes.",
     "registrationFeeAlreadyRecorded": "This member's registration fee has already been paid.",
     "registrationFeeNotDue": "This member has no registration fee outstanding.",
@@ -59,7 +60,8 @@
     "taraFeeCannotBeVoided": "This fee was paid through Tara Money and cannot be voided here. Correct it outside GymOS.",
     "memberAlreadyHasSubscription": "This member already has a subscription, so the registration fee can no longer be voided.",
     "registrationFeeNotRefundable": "Registration fees are not refundable.",
-    "paymentVoidedNotRefundable": "This payment was voided and cannot be refunded."
+    "paymentVoidedNotRefundable": "This payment was voided and cannot be refunded.",
+    "paymentNotFound": "This payment could not be found. It may already have been voided."
   },
   "auth": {
     "title": "Sign in to GymOS",

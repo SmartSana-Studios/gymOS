@@ -5,10 +5,16 @@ import {
   initiateRegistrationFeePaymentSchema,
   recordManualPaymentSchema,
   recordRefundSchema,
+  recordRegistrationFeeSchema,
+  voidRegistrationFeeSchema,
+  waiveRegistrationFeeSchema,
   type InitiatePaymentInput,
   type InitiateRegistrationFeePaymentInput,
   type RecordManualPaymentInput,
   type RecordRefundInput,
+  type RecordRegistrationFeeInput,
+  type VoidRegistrationFeeInput,
+  type WaiveRegistrationFeeInput,
   type AppError,
 } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
@@ -333,6 +339,84 @@ export async function getPendingRegistrationFeePayment(
 }
 
 // ============================================================================
+// Story 18.6: the three registration-fee RPCs the dashboard calls directly.
+// Each one is SECURITY DEFINER, reads the fee amount server-side, enforces its
+// own role set and writes its own audit row (0099, 0101), so none of these
+// takes an amount or logs anything here. Refusals come back as raises and are
+// mapped by `mapAndLog` / `mapSupabaseError`.
+// ============================================================================
+
+/** Collects the fee by cash, bank transfer or manual mobile money. Settles the
+ * member immediately. Returns the new payment id. */
+export async function recordRegistrationFee(
+  input: RecordRegistrationFeeInput,
+): Promise<{ data: { paymentId: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = recordRegistrationFeeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("record_registration_fee", {
+    p_member_id: parsed.data.memberId,
+    p_method: parsed.data.method,
+    p_reason: parsed.data.reason,
+  });
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  if (!data) {
+    console.error("[payments] recordRegistrationFee: RPC returned no payment id");
+    return { data: null, error: { code: "not_found", message: t("common.somethingWentWrong") } };
+  }
+  return { data: { paymentId: data }, error: null };
+}
+
+/** Settles an awaiting member without a payment. Not undoable. */
+export async function waiveRegistrationFee(
+  input: WaiveRegistrationFeeInput,
+): Promise<{ error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = waiveRegistrationFeeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("waive_registration_fee", {
+    p_member_id: parsed.data.memberId,
+    p_reason: parsed.data.reason,
+  });
+  if (error) {
+    return { error: await mapAndLog(error) };
+  }
+  return { error: null };
+}
+
+/** Voids a manually recorded fee payment and returns the member to awaiting.
+ * A correction, not a refund. */
+export async function voidRegistrationFeePayment(
+  input: VoidRegistrationFeeInput,
+): Promise<{ error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = voidRegistrationFeeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("void_registration_fee_payment", {
+    p_payment_id: parsed.data.paymentId,
+    p_reason: parsed.data.reason,
+  });
+  if (error) {
+    return { error: await mapAndLog(error) };
+  }
+  return { error: null };
+}
+
+// ============================================================================
 // Story 4.3: manual payment recording + verification queue. This is a
 // payment *ledger* entry, not a renewal -- see the story file's Scope Note.
 // Nothing below ever touches subscriptions or calls renew_subscription().
@@ -368,6 +452,8 @@ export interface PendingPaymentRow {
   amount: number;
   method: string;
   reason: string | null;
+  /** 'subscription' or 'registration_fee' (Story 18.6). */
+  purpose: string;
   createdAt: string;
   actorName: string | null;
 }
@@ -378,6 +464,7 @@ interface PendingPaymentRowFromDb {
   amount: number;
   method: string;
   reason: string | null;
+  purpose: string;
   created_at: string;
   actor_id: string | null;
   members: { name: string; phone: string | null } | null;
@@ -451,7 +538,7 @@ export async function listPendingPayments(): Promise<{
 
   const { data, error } = await supabase
     .from("payments")
-    .select("id, member_id, amount, method, reason, created_at, actor_id, members(name, phone)")
+    .select("id, member_id, amount, method, reason, purpose, created_at, actor_id, members(name, phone)")
     .eq("gym_id", gymId)
     .eq("status", "pending")
     .order("created_at", { ascending: true });
@@ -487,6 +574,7 @@ export async function listPendingPayments(): Promise<{
       amount: row.amount,
       method: row.method,
       reason: row.reason,
+      purpose: row.purpose,
       createdAt: row.created_at,
       actorName: row.actor_id ? (actorNameByUserId.get(row.actor_id) ?? null) : null,
     })),
@@ -673,6 +761,8 @@ export interface PaymentDiscrepancyRow {
   memberName: string;
   amount: number;
   currency: string;
+  /** The discrepant payment's purpose (Story 18.6). */
+  purpose: string;
   details: Record<string, unknown>;
   detectedAt: string;
 }
@@ -682,7 +772,13 @@ interface PaymentDiscrepancyRowFromDb {
   discrepancy_type: string;
   details: unknown;
   detected_at: string;
-  payments: { member_id: string; amount: number; currency: string; members: { name: string } | null } | null;
+  payments: {
+    member_id: string;
+    amount: number;
+    currency: string;
+    purpose: string;
+    members: { name: string } | null;
+  } | null;
 }
 
 function isDisplayableDiscrepancyType(
@@ -714,7 +810,7 @@ export async function listPaymentDiscrepancies(): Promise<{
 
   const { data, error } = await supabase
     .from("payment_discrepancies")
-    .select("id, discrepancy_type, details, detected_at, payments(member_id, amount, currency, members(name))")
+    .select("id, discrepancy_type, details, detected_at, payments(member_id, amount, currency, purpose, members(name))")
     .eq("gym_id", gymId)
     .order("detected_at", { ascending: false });
 
@@ -734,6 +830,7 @@ export async function listPaymentDiscrepancies(): Promise<{
         memberName: row.payments!.members?.name ?? "",
         amount: row.payments!.amount,
         currency: row.payments!.currency,
+        purpose: row.payments!.purpose,
         details: (row.details ?? {}) as Record<string, unknown>,
         detectedAt: row.detected_at,
       })),

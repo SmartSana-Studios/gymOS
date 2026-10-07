@@ -3,7 +3,9 @@ import { Suspense } from "react";
 import { listMembers, MEMBERS_PAGE_SIZE } from "@/services/members";
 import { listPlans } from "@/services/plans";
 import { listCoaches } from "@/services/coaches";
+import { getGymSettings } from "@/services/gym-settings";
 import { getDashboardShellContext } from "@/services/session";
+import { canOfferMobileMoneyPayment } from "@/lib/featureFlags";
 import { MembersPageClient } from "./components/MembersPageClient";
 import MembersLoading from "./loading";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -53,17 +55,32 @@ async function MembersData({
     { data: shell, error: shellError },
     { data: plans, error: plansError },
     { data: coaches, error: coachesError },
+    { data: gymSettings, error: gymSettingsError },
+    mobileMoneyEnabled,
   ] = await Promise.all([
     listMembers({ page, search: params.search, status: params.status }),
     getDashboardShellContext(),
     listPlans(),
     listCoaches(),
+    getGymSettings(),
+    // Story 18.6: whether the fee collection dialog offers Tara Money. Only a
+    // UI hint -- initiateRegistrationFeePaymentAction re-checks -- so a failed
+    // read means false rather than failing the page.
+    canOfferMobileMoneyPayment().catch(() => false),
   ]);
 
   if (membersError || shellError || !shell || plansError || coachesError) {
     const { t } = await getServerTranslation(await getRequestLocale());
     return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
   }
+
+  // Story 18.5: only decides which create form the modal shows. The server
+  // re-reads the fee in createMember and stays authoritative, so a failed read
+  // here falls back to the one-step form (fee 0) and logs; it never fails the page.
+  if (gymSettingsError || !gymSettings) {
+    console.error("[members] gym settings read failed; registration fee defaulted to 0 for the form", gymSettingsError);
+  }
+  const registrationFee = gymSettings?.registrationFee ?? 0;
 
   return (
     <MembersPageClient
@@ -77,6 +94,8 @@ async function MembersData({
       plans={plans ?? []}
       coaches={coaches ?? []}
       gymName={shell.gymName}
+      registrationFee={registrationFee}
+      mobileMoneyEnabled={mobileMoneyEnabled}
     />
   );
 }

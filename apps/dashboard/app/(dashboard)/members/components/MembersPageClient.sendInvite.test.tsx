@@ -69,6 +69,7 @@ async function renderPage() {
     expiryDate: null,
     joinDate: "2026-01-01",
     deactivatedAt: null,
+    registrationFeeSettledAt: "2026-01-01T00:00:00Z",
   };
   render(
     <MembersPageClient

@@ -3,7 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, Eye, Pencil, Send, Ban, MoreVertical } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Pencil,
+  Send,
+  Ban,
+  MoreVertical,
+  Banknote,
+  Gift,
+  Undo2,
+  UserPlus,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,13 +32,25 @@ import type { PlanRow } from "@/services/plans";
 import type { CoachRow } from "@/services/coaches";
 import type { MemberRole } from "@/services/session";
 import { exportMembersCsv, sendMemberInvite } from "../actions";
-import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
+import { isAwaitingRegistrationFee, resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
 import { MemberModal } from "./MemberModal";
 import { DeactivateMemberDialog } from "./DeactivateMemberDialog";
 import { CsvImportModal } from "./CsvImportModal";
 import { InviteMemberModal } from "./InviteMemberModal";
+import { CollectRegistrationFeeDialog } from "./CollectRegistrationFeeDialog";
+import { WaiveRegistrationFeeDialog } from "./WaiveRegistrationFeeDialog";
+import { VoidRegistrationFeeDialog } from "./VoidRegistrationFeeDialog";
+import { AssignInitialPlanDialog } from "./AssignInitialPlanDialog";
 
-const STATUS_OPTIONS = ["", "active", "expiring_soon", "grace_period", "expired", "deactivated"] as const;
+const STATUS_OPTIONS = [
+  "",
+  "active",
+  "expiring_soon",
+  "grace_period",
+  "expired",
+  "deactivated",
+  "awaiting_registration_fee",
+] as const;
 const STATUS_LABEL_KEY: Record<(typeof STATUS_OPTIONS)[number], string> = {
   "": "members.statusAll",
   active: "members.status.active",
@@ -34,6 +58,7 @@ const STATUS_LABEL_KEY: Record<(typeof STATUS_OPTIONS)[number], string> = {
   grace_period: "members.status.gracePeriod",
   expired: "members.status.expired",
   deactivated: "members.status.deactivated",
+  awaiting_registration_fee: "members.status.awaitingRegistrationFee",
 };
 
 // Supervisor included per EXPERIENCE.md:206's "Manager-plus" definition -- the
@@ -41,6 +66,12 @@ const STATUS_LABEL_KEY: Record<(typeof STATUS_OPTIONS)[number], string> = {
 // so anything Manager can do here it can do too. UI-hiding half only; the real
 // enforcement is manager_or_owner_insert/update_own_members, widened alongside.
 const CAN_MANAGE: MemberRole[] = ["manager", "supervisor", "owner"];
+
+// Story 18.6 registration-fee actions. These mirror the RPCs (the RPC is the
+// authority): collect is any staff role that can record payments, waive and
+// assign-plan are Manager-plus, void is owner and supervisor only.
+const CAN_COLLECT_FEE: MemberRole[] = ["receptionist", "manager", "supervisor", "owner"];
+const CAN_VOID_FEE: MemberRole[] = ["supervisor", "owner"];
 
 // Windows the page-number buttons around the current page (always keeping
 // the first/last page visible) instead of rendering one button per page --
@@ -79,6 +110,8 @@ export function MembersPageClient({
   plans,
   coaches,
   gymName,
+  registrationFee = 0,
+  mobileMoneyEnabled = false,
 }: {
   initialMembers: MemberListRow[];
   total: number;
@@ -90,17 +123,27 @@ export function MembersPageClient({
   plans: PlanRow[];
   coaches: CoachRow[];
   gymName: string;
+  registrationFee?: number;
+  /** Story 18.6: whether the collect dialog offers Tara Money. A UI hint only;
+   * the initiate action re-checks availability. */
+  mobileMoneyEnabled?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const canManage = CAN_MANAGE.includes(role);
+  const canCollectFee = CAN_COLLECT_FEE.includes(role);
+  const canVoidFee = CAN_VOID_FEE.includes(role);
 
   const [searchInput, setSearchInput] = useState(search);
   const [modalState, setModalState] = useState<{ member: MemberListRow | null; readOnly: boolean } | null>(null);
   const [deactivatingMember, setDeactivatingMember] = useState<MemberListRow | null>(null);
   const [invitingMember, setInvitingMember] = useState<MemberListRow | null>(null);
+  const [collectingMember, setCollectingMember] = useState<MemberListRow | null>(null);
+  const [waivingMember, setWaivingMember] = useState<MemberListRow | null>(null);
+  const [voidingMember, setVoidingMember] = useState<MemberListRow | null>(null);
+  const [assigningMember, setAssigningMember] = useState<MemberListRow | null>(null);
   const [csvImportOpen, setCsvImportOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -202,6 +245,12 @@ export function MembersPageClient({
   // send: the button stays clickable for a resend (AC #4's explicit
   // "resending is not blocked" requirement).
   async function handleSendInvite(member: MemberListRow) {
+    // Story 18.5: the menu item is disabled for these rows; this is the
+    // backstop (and sendMemberInvite re-checks server-side).
+    if (isAwaitingRegistrationFee(member)) {
+      showToast(t("members.invite.awaitingRegistrationFee"));
+      return;
+    }
     setSendingInviteId(member.id);
     // Shared by both the "gateway unreachable" (`sent: false`) result below and an unexpected
     // thrown exception in the catch block -- both are the same "couldn't confirm the automated
@@ -331,6 +380,20 @@ export function MembersPageClient({
               {initialMembers.map((member) => {
                 const badge = STATUS_BADGE_CONFIG[resolveBadgeStatus(member)];
                 const Icon = badge.icon;
+                // Story 18.6. The list never fetches fee state per row: these
+                // read the row's own settled-at and plan, and a fee-0 gym shows
+                // nothing new (no awaiting rows exist there; collect, void and
+                // assign are gated on a fee being configured).
+                const feeAwaiting = isAwaitingRegistrationFee(member);
+                const feeSettledNoPlan =
+                  !member.deactivatedAt &&
+                  member.registrationFeeSettledAt !== null &&
+                  member.status === "no_active_plan" &&
+                  registrationFee > 0;
+                const showCollect = canCollectFee && feeAwaiting && registrationFee > 0;
+                const showWaive = canManage && feeAwaiting;
+                const showAssignPlan = canManage && feeSettledNoPlan;
+                const showVoid = canVoidFee && feeSettledNoPlan;
                 return (
                   <tr
                     key={member.id}
@@ -392,13 +455,56 @@ export function MembersPageClient({
                             {canManage && !member.deactivatedAt && member.phone && (
                               <DropdownMenuItem
                                 className="text-blue-700 focus:text-blue-800"
-                                disabled={sendingInviteId === member.id}
+                                disabled={sendingInviteId === member.id || isAwaitingRegistrationFee(member)}
                                 onClick={() => void handleSendInvite(member)}
                               >
                                 <Send size={14} />
-                                {sendingInviteId === member.id
-                                  ? t("members.invite.sending")
-                                  : t("members.actions.invite")}
+                                <span>
+                                  {sendingInviteId === member.id
+                                    ? t("members.invite.sending")
+                                    : t("members.actions.invite")}
+                                  {isAwaitingRegistrationFee(member) && (
+                                    <span className="block text-xs font-normal text-muted-foreground">
+                                      {t("members.invite.awaitingRegistrationFee")}
+                                    </span>
+                                  )}
+                                </span>
+                              </DropdownMenuItem>
+                            )}
+                            {showCollect && (
+                              <DropdownMenuItem
+                                className="text-green-700 focus:text-green-800"
+                                onClick={() => setCollectingMember(member)}
+                              >
+                                <Banknote size={14} />
+                                {t("members.actions.collectFee")}
+                              </DropdownMenuItem>
+                            )}
+                            {showWaive && (
+                              <DropdownMenuItem
+                                className="text-amber-700 focus:text-amber-800"
+                                onClick={() => setWaivingMember(member)}
+                              >
+                                <Gift size={14} />
+                                {t("members.actions.waiveFee")}
+                              </DropdownMenuItem>
+                            )}
+                            {showAssignPlan && (
+                              <DropdownMenuItem
+                                className="text-indigo-700 focus:text-indigo-800"
+                                onClick={() => setAssigningMember(member)}
+                              >
+                                <UserPlus size={14} />
+                                {t("members.actions.assignPlan")}
+                              </DropdownMenuItem>
+                            )}
+                            {showVoid && (
+                              <DropdownMenuItem
+                                className="text-red-700 focus:text-red-800"
+                                onClick={() => setVoidingMember(member)}
+                              >
+                                <Undo2 size={14} />
+                                {t("members.actions.voidFee")}
                               </DropdownMenuItem>
                             )}
                             {canManage && !member.deactivatedAt && (
@@ -468,6 +574,7 @@ export function MembersPageClient({
           editingMember={modalState.member}
           plans={plans}
           coaches={coaches}
+          registrationFee={registrationFee}
           onClose={() => setModalState(null)}
           onSaved={(warning) => {
             setModalState(null);
@@ -484,6 +591,61 @@ export function MembersPageClient({
           onDone={(warning) => {
             setDeactivatingMember(null);
             if (warning) showToast(warning);
+            router.refresh();
+          }}
+        />
+      )}
+
+      {collectingMember && (
+        <CollectRegistrationFeeDialog
+          member={collectingMember}
+          registrationFee={registrationFee}
+          mobileMoneyEnabled={mobileMoneyEnabled}
+          onClose={() => setCollectingMember(null)}
+          onCollected={() => {
+            const name = collectingMember.name;
+            setCollectingMember(null);
+            showToast(t("members.feeCollect.collectedToast", { name }));
+            router.refresh();
+          }}
+        />
+      )}
+
+      {waivingMember && (
+        <WaiveRegistrationFeeDialog
+          member={waivingMember}
+          onClose={() => setWaivingMember(null)}
+          onDone={() => {
+            const name = waivingMember.name;
+            setWaivingMember(null);
+            showToast(t("members.feeWaive.waivedToast", { name }));
+            router.refresh();
+          }}
+        />
+      )}
+
+      {voidingMember && (
+        <VoidRegistrationFeeDialog
+          member={voidingMember}
+          onClose={() => setVoidingMember(null)}
+          onDone={() => {
+            const name = voidingMember.name;
+            setVoidingMember(null);
+            showToast(t("members.feeVoid.voidedToast", { name }));
+            router.refresh();
+          }}
+        />
+      )}
+
+      {assigningMember && (
+        <AssignInitialPlanDialog
+          member={assigningMember}
+          plans={plans}
+          onClose={() => setAssigningMember(null)}
+          onDone={(warning) => {
+            const name = assigningMember.name;
+            setAssigningMember(null);
+            showToast(warning ?? t("members.assignPlan.assignedToast", { name }));
             router.refresh();
           }}
         />

@@ -437,7 +437,8 @@
       "gracePeriod": "Grace Period",
       "expired": "Expired",
       "deactivated": "Deactivated",
-      "noActivePlan": "No Active Plan"
+      "noActivePlan": "No Active Plan",
+      "awaitingRegistrationFee": "Awaiting registration fee"
     },
     "table": {
       "name": "Name",
@@ -454,7 +455,11 @@
       "invite": "Invite",
       "deactivate": "Deactivate",
       "menu": "Actions for {{name}}",
-      "button": "Action :"
+      "button": "Action :",
+      "collectFee": "Collect fee",
+      "waiveFee": "Waive fee",
+      "assignPlan": "Assign plan",
+      "voidFee": "Void fee"
     },
     "pagination": {
       "previous": "Previous page",
@@ -472,6 +477,7 @@
       "close": "Close",
       "stepPersonal": "Personal Info",
       "stepMembership": "Membership",
+      "registrationFeeNotice": "This gym charges a registration fee. The member is created awaiting the fee, with no plan. Once the fee is collected you can assign their first plan.",
       "name": "Name *",
       "phone": "Phone *",
       "email": "Email",
@@ -490,7 +496,8 @@
         "plan": "Plan",
         "joinDate": "Join Date",
         "subscriptionStatus": "Subscription Status",
-        "expiryDate": "Expiry Date"
+        "expiryDate": "Expiry Date",
+        "registrationFee": "Registration fee"
       },
       "errors": {
         "nameInvalid": "Name is required (2-100 characters)",
@@ -524,7 +531,8 @@
       "shareWhatsapp": "Share via WhatsApp",
       "sending": "Sending…",
       "sentConfirmation": "Invite sent to {{name}} via WhatsApp",
-      "sendFailedFallback": "Automated send failed. Use the options below to share the invite manually."
+      "sendFailedFallback": "Automated send failed. Use the options below to share the invite manually.",
+      "awaitingRegistrationFee": "Available once the registration fee is settled"
     },
     "errors": {
       "memberNotFound": "Member not found",
@@ -536,7 +544,9 @@
       "auditLogFailedCreate": "The member was created, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedEdit": "The member was updated, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedDeactivate": "The member was deactivated, but the audit log entry failed to write. Please contact support.",
-      "phoneBelongsToStaffAccount": "This phone number belongs to a staff account. A staff member who also wants to train needs to use a different number."
+      "phoneBelongsToStaffAccount": "This phone number belongs to a staff account. A staff member who also wants to train needs to use a different number.",
+      "alreadyHasSubscription": "This member already has a subscription, so a first plan cannot be assigned.",
+      "auditLogFailedPlanAssigned": "The plan was assigned, but the audit log entry failed to write. Please contact support."
     },
     "csvImport": {
       "title": "CSV Import",
@@ -582,6 +592,92 @@
         "rowColumnCountMismatch": "This row has more or fewer fields than expected — check for a stray comma or missing value",
         "tooManyRows": "This file has {{count}} rows — the maximum is {{max}} per import. Split it into smaller files and try again.",
         "auditLogFailedRows": "All members were imported, but the audit log entry failed to write for {{count}} row(s) (rows: {{rows}}). Please contact support."
+      }
+    },
+    "feeState": {
+      "awaiting": "Awaiting",
+      "paid": "Paid XAF {{amount}} on {{date}}",
+      "waived": "Waived",
+      "waivedBy": "Waived by {{name}}",
+      "waivedReason": "Reason: {{reason}}"
+    },
+    "feeCollect": {
+      "title": "Collect registration fee: {{name}}",
+      "amountLabel": "Registration fee",
+      "amountValue": "{{amount}} XAF",
+      "amountHint": "Set in Settings. It cannot be changed here.",
+      "method": "Payment method",
+      "reason": "Note *",
+      "reasonPrefill": "Registration fee",
+      "payerPhone": "Payer's phone number",
+      "payerPhoneHint": "Defaults to the member's number on file. Edit it if they are paying from a different phone.",
+      "collectButton": "Collect fee",
+      "collecting": "Collecting…",
+      "sendRequestButton": "Send payment request",
+      "retryRequestButton": "Retry payment request",
+      "sendingRequest": "Sending…",
+      "collectedToast": "Registration fee collected for {{name}}.",
+      "pending": {
+        "title": "Waiting for {{name}} to approve on their phone…",
+        "description": "A payment request was sent by SMS. This will update automatically once it is confirmed.",
+        "stillWaiting": "Still waiting. You can close this and check back later.",
+        "failed": "The payment was not approved or was declined.",
+        "expired": "The last payment request is more than 10 minutes old and has expired. Send a new request to try again.",
+        "retryButton": "Try again",
+        "closeButton": "Close"
+      },
+      "errors": {
+        "reasonInvalid": "Add a note (10 to 200 characters)",
+        "payerPhoneInvalid": "Enter a valid phone number",
+        "collectFailed": "Could not record the registration fee. Check your connection and try again.",
+        "initiateFailed": "Could not send the payment request. Check your connection and try again."
+      }
+    },
+    "feeWaive": {
+      "title": "Waive the registration fee for {{name}}?",
+      "body": "{{name}} will be settled without a payment. This cannot be undone from the dashboard.",
+      "reason": "Reason *",
+      "reasonHint": "10 to 200 characters. It is kept in the audit log.",
+      "waiving": "Waiving…",
+      "confirmButton": "Waive fee for {{name}}",
+      "waivedToast": "Registration fee waived for {{name}}.",
+      "errors": {
+        "reasonInvalid": "Add a reason (10 to 200 characters)",
+        "waiveFailed": "Could not waive the registration fee. Check your connection and try again."
+      }
+    },
+    "feeVoid": {
+      "title": "Void the registration fee for {{name}}?",
+      "loading": "Loading…",
+      "body": "Use this only for a fee recorded in error. The member returns to awaiting the registration fee.",
+      "notARefund": "This is not a refund.",
+      "paymentLine": "Recorded payment: {{currency}} {{amount}} by {{method}}",
+      "taraHint": "This fee was paid through Tara Money. Tara fees are corrected outside GymOS, so it cannot be voided here.",
+      "nothingToVoid": "This member has no registration fee payment to void.",
+      "reason": "Reason *",
+      "reasonHint": "10 to 200 characters. It is kept in the audit log.",
+      "voiding": "Voiding…",
+      "confirmButton": "Void fee for {{name}}",
+      "voidedToast": "Registration fee voided for {{name}}. They are awaiting the fee again.",
+      "errors": {
+        "loadFailed": "Could not load the registration fee payment. Close this and try again.",
+        "reasonInvalid": "Add a reason (10 to 200 characters)",
+        "voidFailed": "Could not void the registration fee. Check your connection and try again."
+      }
+    },
+    "assignPlan": {
+      "title": "Assign a plan to {{name}}",
+      "body": "The registration fee is settled. Choose the member's first plan. No payment is recorded for the plan.",
+      "plan": "Plan *",
+      "planPlaceholder": "Select a plan",
+      "startDate": "Start date *",
+      "assigning": "Assigning…",
+      "confirmButton": "Assign plan",
+      "assignedToast": "Plan assigned to {{name}}.",
+      "errors": {
+        "planRequired": "Select a plan",
+        "startDateInvalid": "Enter a valid start date",
+        "assignFailed": "Could not assign the plan. Check your connection and try again."
       }
     }
   },
@@ -933,7 +1029,11 @@
       "amountMismatchLine": "{{internal}} (reported: {{reported}})",
       "wrongAccountSettlementLine": "Expected {{expected}}, settled to {{actual}}"
     },
-    "actionsButton": "Action :"
+    "actionsButton": "Action :",
+    "purposes": {
+      "subscription": "Subscription",
+      "registrationFee": "Registration fee"
+    }
   },
   "frontDeskAlert": {
     "panelLabel": "Front-desk alerts",
@@ -1030,7 +1130,8 @@
       "registrationFeePaid": "Registration fee paid by Tara Money",
       "registrationFeeAttemptExpired": "Registration fee collection expired",
       "registrationFeeLatePayment": "Registration fee paid late by Tara Money (not applied)",
-      "registrationFeeVoided": "Registration fee voided"
+      "registrationFeeVoided": "Registration fee voided",
+      "memberPlanAssigned": "First plan assigned"
     }
   },
   "saasBilling": {

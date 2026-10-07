@@ -2,9 +2,12 @@
 
 import {
   assignCoachSchema,
+  assignInitialPlanSchema,
+  createFeeGymMemberSchema,
   createMemberSchema,
   editMemberSchema,
   deactivateMemberSchema,
+  mapSupabaseError,
   memberIdSchema,
   type AppError,
 } from "@gymos/types";
@@ -12,12 +15,15 @@ import {
   deactivateMember as deactivateMemberRow,
   exportMembersCsv as exportMembersCsvRow,
   getMemberForInvite,
+  getMemberSubscriptionState,
   getPlanTypeForGym,
+  insertSubscription,
   logMemberChange,
   memberCountForGym,
   provisionMemberRow,
   updateMember,
 } from "@/services/members";
+import { getGymSettings } from "@/services/gym-settings";
 import {
   assignCoach as assignCoachRow,
   getCoachAssignments as getCoachAssignmentsRow,
@@ -35,6 +41,35 @@ import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { sendEvolutionApiMessage } from "@/lib/messaging/EvolutionApiMessageProvider";
 
+/** `YYYY-MM-DD` plus whole days, in UTC so the result never shifts with the
+ * server's timezone. Same arithmetic as MemberModal.computeExpiryDate (start
+ * date + the plan's duration_days), done server-side. */
+function addDaysToIsoDate(isoDate: string, days: number): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Story 18.5: the shared `registration_fee_due` error (same code and EN/FR copy
+ * the 0098 gate's `registration_fee_not_settled` raise maps to in
+ * `mapSupabaseError`), for the paths that detect the awaiting state before the
+ * database does. */
+async function registrationFeeDueError(): Promise<AppError> {
+  return mapSupabaseError({ message: "registration_fee_not_settled" }, await getRequestLocale());
+}
+
+/** The fields only a fee-0 create may carry. In a fee gym the first plan is
+ * assigned after the fee is settled, so a client that still sends any of them
+ * is rejected before anything is created. */
+const FEE_GYM_FORBIDDEN_FIELDS = ["planId", "subscriptionStatus", "expiryDate"] as const;
+
+function carriesPlanFields(input: unknown): boolean {
+  if (typeof input !== "object" || input === null) return false;
+  const record = input as Record<string, unknown>;
+  return FEE_GYM_FORBIDDEN_FIELDS.some((field) => record[field] !== undefined && record[field] !== null);
+}
+
 /** Manager/Owner Create Member (AC #1, #2). `{ data, error }` never-throws
  * contract, matches `createGym`/`createPlan`'s established Process Pattern.
  * No gymId argument -- implicitly scoped to the caller's own gym via
@@ -43,6 +78,19 @@ export async function createMember(
   input: unknown,
 ): Promise<{ data: { id: string } | null; error: AppError | null }> {
   const { t } = await getServerTranslation(await getRequestLocale());
+
+  // Story 18.5: the registration fee is read server-side, never from a client
+  // flag. A fee gym creates the member awaiting (no plan, no subscription); the
+  // first plan is assigned later by assignInitialPlan. Unreadable fee: stop
+  // here rather than guess which flow applies.
+  const { data: gymSettings, error: gymSettingsError } = await getGymSettings();
+  if (gymSettingsError || !gymSettings) {
+    return { data: null, error: gymSettingsError };
+  }
+  if (gymSettings.registrationFee > 0) {
+    return createAwaitingMember(input);
+  }
+
   const parsed = createMemberSchema.safeParse(input);
   if (!parsed.success) {
     // createMemberSchema's own issue messages are hardcoded English
@@ -134,6 +182,140 @@ export async function createMember(
   }
 
   return { data: { id: memberRow.id }, error: null };
+}
+
+/** Story 18.5: the fee-gym half of `createMember`. Identity fields and the join
+ * date only; the member is created with no subscription, so the 0098 trigger
+ * leaves `registration_fee_settled_at` null (awaiting) and the member counts
+ * toward the cap from the start. */
+async function createAwaitingMember(
+  input: unknown,
+): Promise<{ data: { id: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+
+  if (carriesPlanFields(input)) {
+    return { data: null, error: await registrationFeeDueError() };
+  }
+
+  const parsed = createFeeGymMemberSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      data: null,
+      error: { code: "validation_error", message: t("common.invalidInput") },
+    };
+  }
+  const member = parsed.data;
+
+  const { count, cap, error: countError } = await memberCountForGym();
+  if (countError) {
+    return { data: null, error: countError };
+  }
+  if (cap !== null && count >= cap) {
+    return {
+      data: null,
+      error: { code: "member_cap_reached", message: t("members.errors.capReached", { count, max: cap }) },
+    };
+  }
+
+  const { data: provisioned, error: provisionError } = await provisionMemberRow({
+    name: member.name,
+    phone: member.phone,
+    email: member.email ?? null,
+    dob: member.dob ?? null,
+    photoUrl: member.photoUrl ?? null,
+    emergencyContact: member.emergencyContact ?? null,
+    joinDate: member.joinDate,
+  });
+  if (provisionError || !provisioned) {
+    return { data: null, error: provisionError };
+  }
+
+  const { error: auditError } = await logMemberChange("member_created", provisioned.id, {
+    name: member.name,
+    phone: member.phone,
+    join_date: member.joinDate,
+    awaiting_registration_fee: true,
+  });
+  if (auditError) {
+    return {
+      data: { id: provisioned.id },
+      error: { code: "audit_log_failed", message: t("members.errors.auditLogFailedCreate") },
+    };
+  }
+
+  return { data: { id: provisioned.id }, error: null };
+}
+
+/** Story 18.5: assigns the first plan to a settled member who has no
+ * subscription (a fee-gym member after collection). No payment is written --
+ * recording a payment for the plan's price is out of scope for Epic 18 -- and
+ * no cap check, since the member already counts. Owner, supervisor and manager
+ * only, through the subscriptions INSERT policy (a receptionist's insert is
+ * denied by RLS, which is the enforcement; no role check lives here). An
+ * awaiting member is rejected by the 0098 gate (`registration_fee_not_settled`,
+ * mapped to `registration_fee_due`) and nothing is inserted. The expiry date is
+ * computed here from the plan's `duration_days`; a pay-per-session plan gets
+ * none, matching MemberModal.computeExpiryDate. */
+export async function assignInitialPlan(
+  memberId: string,
+  planId: string,
+  startDate: string,
+): Promise<{ data: { id: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = assignInitialPlanSchema.safeParse({ memberId, planId, startDate });
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  const input = parsed.data;
+
+  const { data: state, error: stateError } = await getMemberSubscriptionState(input.memberId);
+  if (stateError || !state) {
+    return { data: null, error: stateError };
+  }
+  if (state.hasSubscription) {
+    return {
+      data: null,
+      error: { code: "member_already_has_subscription", message: t("members.errors.alreadyHasSubscription") },
+    };
+  }
+
+  const { data: plan, error: planError } = await getPlanTypeForGym(input.planId);
+  if (planError || !plan) {
+    // The plan lookup is gym-scoped, so a plan from another gym lands here too.
+    return {
+      data: null,
+      error: planError?.code === "plan_not_found" ? { ...planError, code: "not_found" } : planError,
+    };
+  }
+
+  const expiryDate =
+    plan.planType === "pay_per_session" || plan.durationDays == null
+      ? null
+      : addDaysToIsoDate(input.startDate, plan.durationDays);
+
+  const { data: subscription, error: insertError } = await insertSubscription(state.gymId, input.memberId, {
+    planId: input.planId,
+    status: "active",
+    startDate: input.startDate,
+    expiryDate,
+  });
+  if (insertError || !subscription) {
+    return { data: null, error: insertError };
+  }
+
+  const { error: auditError } = await logMemberChange("member_plan_assigned", input.memberId, {
+    plan_id: input.planId,
+    start_date: input.startDate,
+    expiry_date: expiryDate,
+  });
+  if (auditError) {
+    return {
+      data: { id: subscription.id },
+      error: { code: "audit_log_failed", message: t("members.errors.auditLogFailedPlanAssigned") },
+    };
+  }
+
+  return { data: { id: subscription.id }, error: null };
 }
 
 /** Manager/Owner Edit Member (edit-mode identity fields only, Scope Note's
@@ -231,6 +413,11 @@ export async function sendMemberInvite(
   const { data: member, error: memberError } = await getMemberForInvite(parsed.data);
   if (memberError || !member) {
     return { data: null, error: memberError };
+  }
+  // Story 18.5: the invite waits for settlement. An awaiting member has no
+  // access to the app yet, so nothing is sent.
+  if (member.awaitingRegistrationFee) {
+    return { data: null, error: await registrationFeeDueError() };
   }
 
   // Sequential, not parallel: getDashboardShellContext() awaits supabase.auth.getClaims()

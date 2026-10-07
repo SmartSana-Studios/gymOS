@@ -6,6 +6,9 @@ import {
   initiateRegistrationFeePaymentSchema,
   recordManualPaymentSchema,
   recordRefundSchema,
+  recordRegistrationFeeSchema,
+  voidRegistrationFeeSchema,
+  waiveRegistrationFeeSchema,
   type AppError,
 } from "@gymos/types";
 import {
@@ -19,10 +22,14 @@ import {
   logRefundChange,
   recordManualPayment,
   recordRefund,
+  recordRegistrationFee,
   searchMembersForPayment,
   verifyPayment,
+  voidRegistrationFeePayment,
+  waiveRegistrationFee,
   type RefundEligiblePaymentRow,
 } from "@/services/payments";
+import { getMemberRegistrationFeeState, type MemberRegistrationFeeState } from "@/services/members";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { getMobileMoneyAvailability } from "@/lib/featureFlags";
@@ -261,4 +268,48 @@ export async function getPendingRegistrationFeePaymentAction(
   memberId: string,
 ): Promise<{ data: { paymentId: string; createdAt: string } | null; error: AppError | null }> {
   return getPendingRegistrationFeePayment(memberId);
+}
+
+/**
+ * Story 18.6: collect a registration fee by cash, bank transfer or manual mobile
+ * money. The schema has no amount: the RPC reads the gym's fee itself. The RPC
+ * writes its own audit row, so there is no `audit_log_failed` branch here.
+ */
+export async function recordRegistrationFeeAction(
+  input: unknown,
+): Promise<{ data: { paymentId: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = recordRegistrationFeeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  return recordRegistrationFee(parsed.data);
+}
+
+/** Story 18.6: waive the fee (manager, supervisor, owner -- enforced by the RPC). */
+export async function waiveRegistrationFeeAction(input: unknown): Promise<{ error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = waiveRegistrationFeeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  return waiveRegistrationFee(parsed.data);
+}
+
+/** Story 18.6: void a manually recorded fee (owner, supervisor -- enforced by the RPC). */
+export async function voidRegistrationFeeAction(input: unknown): Promise<{ error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = voidRegistrationFeeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  return voidRegistrationFeePayment(parsed.data);
+}
+
+/** Story 18.6: the member detail's fee line and the void dialog's read of the fee
+ * payment. A read of existing state; always loaded for one member on demand. */
+export async function getMemberRegistrationFeeStateAction(
+  memberId: string,
+): Promise<{ data: MemberRegistrationFeeState | null; error: AppError | null }> {
+  return getMemberRegistrationFeeState(memberId);
 }
