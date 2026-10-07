@@ -958,3 +958,7 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-18-6-dashboard-fee-collection-waive-void-surfaces.md`
   summary: `RenewalModal`'s payment-status watch effect has no `active` guard in `handleStatusChange`, so the `CLOSED` callback fired by `removeChannel` during cleanup can start a polling interval that nothing clears.
   evidence: Pre-existing from Story 4.12 (`components/shared/RenewalModal.tsx:273`); 18.6 copied the pattern and its review patch fixes the copy. Fix here too, or extract a shared `usePaymentStatusWatch` hook.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-18-7-member-app-awaiting-fee-blocked-state-fee-receipt.md`
+  summary: check_in() for a member with no subscription (an awaiting-fee member) returns NULL and upserts a front-desk "expired" alert instead of raising, so an awaiting member who scans the gym QR raises a staff alert.
+  evidence: migration 0034 (pinned in supabase/tests/registration_fee_member_app.test.sql); attendance is correctly not written, and the member cannot reach the scan screen once the blocked group ships, so only a stale pre-update client or a deep link could trigger it. Decide whether the alert should be suppressed for members with registration_fee_settled_at NULL.

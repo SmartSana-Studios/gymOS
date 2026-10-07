@@ -137,7 +137,9 @@ export default function PaymentDetailScreen() {
               {t('paymentDetail.gymLabel')}: {receipt.gymName}
             </ThemedText>
             <ThemedText type="default">
-              {t('paymentDetail.planLabel')}: {receipt.planName ?? t('paymentDetail.planUnavailable')}
+              {receipt.isRegistrationFee
+                ? t('paymentDetail.registrationFee')
+                : `${t('paymentDetail.planLabel')}: ${receipt.planName ?? t('paymentDetail.planUnavailable')}`}
             </ThemedText>
             <ThemedText type="default">
               {t('paymentDetail.amountLabel')}: {receipt.amount} {receipt.currency}

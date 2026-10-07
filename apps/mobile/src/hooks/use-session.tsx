@@ -1,5 +1,6 @@
 import type { Session } from '@supabase/supabase-js';
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { AppState } from 'react-native';
 
 import { supabase } from '@/lib/supabase';
 
@@ -47,18 +48,30 @@ function useSessionState() {
   // this must be resolved from the JWT `gym_id` claim (below), not from the
   // now-gated `members` query this hook already runs.
   const [isSuspended, setIsSuspended] = useState(false);
+  // Story 18.7: true while this member's `registration_fee_settled_at` is NULL
+  // (fee gym, fee not yet settled by staff). Suspended takes precedence.
+  const [isAwaitingRegistration, setIsAwaitingRegistration] = useState(false);
+  const sessionRef = useRef<Session | null>(null);
+  const refreshRef = useRef<((s: Session | null) => Promise<boolean | null>) | null>(null);
+  // Review (18.7): overlapping refreshes (auth change, Check again, foreground) can
+  // resolve out of order -- only the latest call may commit state.
+  const refreshSeq = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function refreshOnboardedState(currentSession: Session | null) {
+    // Resolves to whether the member is awaiting registration, or null when the
+    // refresh could not complete (no state committed).
+    async function refreshOnboardedState(currentSession: Session | null): Promise<boolean | null> {
+      const seq = ++refreshSeq.current;
       if (!currentSession) {
         if (!cancelled) {
           setIsOnboarded(false);
           setGymId(null);
           setIsSuspended(false);
+          setIsAwaitingRegistration(false);
         }
-        return;
+        return false;
       }
 
       // Story 11.4: gym_id/app_role are minted into every authenticated
@@ -82,6 +95,7 @@ function useSessionState() {
           .select('status')
           .eq('id', claimGymId)
           .maybeSingle();
+        if (seq !== refreshSeq.current) return null;
         if (gymStatusError) {
           // Review finding: a transient failure here (not "gym not found")
           // must not fall through to the members query below -- for a
@@ -91,41 +105,52 @@ function useSessionState() {
           // out and let the next auth-state-change retry instead of
           // committing to a guess.
           console.error('[useSession] gym status lookup failed', gymStatusError);
-          return;
+          return null;
         }
         if (gymRow && gymRow.status !== 'active') {
           if (!cancelled) {
             setIsSuspended(true);
+            setIsAwaitingRegistration(false);
             setIsOnboarded(false);
             setGymId(claimGymId);
           }
-          return;
+          return false;
         }
       }
 
-      const { data } = await supabase
+      const { data, error: memberError } = await supabase
         .from('members')
-        .select('onboarding_completed_at, gym_id')
+        .select('onboarding_completed_at, gym_id, registration_fee_settled_at')
         .eq('user_id', currentSession.user.id)
         .is('deactivated_at', null)
         .order('created_at', { ascending: false })
         .order('id', { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (seq !== refreshSeq.current) return null;
+      if (memberError) {
+        console.error('[useSession] member state lookup failed', memberError);
+        return null;
+      }
+      const awaiting = !!data && data.registration_fee_settled_at == null;
       if (!cancelled) {
         setIsSuspended(false);
+        setIsAwaitingRegistration(awaiting);
         setIsOnboarded(!!data?.onboarding_completed_at);
         // Story 9.5: sourced for app_opened's analytics payload -- same
         // current-membership row/tie-break isOnboarded already reads.
         setGymId(data?.gym_id ?? null);
       }
+      return awaiting;
     }
+    refreshRef.current = refreshOnboardedState;
 
     supabase.auth
       .getSession()
       .then(async ({ data }) => {
         if (cancelled) return;
         setSession(data.session);
+        sessionRef.current = data.session;
         await refreshOnboardedState(data.session);
       })
       .catch(() => {
@@ -137,6 +162,7 @@ function useSessionState() {
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
+      sessionRef.current = newSession;
       void refreshOnboardedState(newSession);
     });
 
@@ -146,7 +172,30 @@ function useSessionState() {
     };
   }, []);
 
-  return { session, isOnboarded, gymId, isLoading, isSuspended };
+  // Story 18.7: Check again. Resolves to whether the member is still awaiting,
+  // or null when the refresh failed (the caller shows a retry note).
+  const refresh = useCallback(async (): Promise<boolean | null> => {
+    const fn = refreshRef.current;
+    if (!fn) return null;
+    try {
+      return await fn(sessionRef.current);
+    } catch (err) {
+      console.error('[useSession] refresh failed', err);
+      return null;
+    }
+  }, []);
+
+  // Story 18.7: a member who was settled while the app was backgrounded moves
+  // on without a relaunch. Only while awaiting, so no extra traffic otherwise.
+  useEffect(() => {
+    if (!isAwaitingRegistration) return;
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') void refresh();
+    });
+    return () => sub.remove();
+  }, [isAwaitingRegistration, refresh]);
+
+  return { session, isOnboarded, gymId, isLoading, isSuspended, isAwaitingRegistration, refresh };
 }
 
 type SessionValue = ReturnType<typeof useSessionState>;

@@ -51,13 +51,16 @@ SplashScreen.preventAutoHideAsync();
 // underlying signal changed from `users.display_name` (Story 2.7 Scope
 // Note #1).
 function RootNavigator() {
-  const { session, isOnboarded, gymId, isLoading, isSuspended } = useSession();
+  const { session, isOnboarded, gymId, isLoading, isSuspended, isAwaitingRegistration } =
+    useSession();
   // Story 11.4 (AC #1, #3): a suspended/deactivated gym's member is routed
   // to the neutral full-screen state instead of either onboarding or
   // (tabs) -- mutually exclusive with both other guards below so exactly
   // one Stack.Protected group is ever active at a time.
   const showSuspended = !!session && isSuspended;
-  const isFullyOnboarded = !!session && isOnboarded && !isSuspended;
+  // Story 18.7: registration fee not yet settled. Suspended takes precedence.
+  const showAwaiting = !!session && isAwaitingRegistration && !isSuspended;
+  const isFullyOnboarded = !!session && isOnboarded && !isSuspended && !showAwaiting;
   const sessionUserId = session?.user.id;
 
   // Story 9.5 (Task 6): app_opened, the concrete hook for the non-visit-
@@ -143,7 +146,11 @@ function RootNavigator() {
         <Stack.Screen name="suspended" />
       </Stack.Protected>
 
-      <Stack.Protected guard={!isFullyOnboarded && !showSuspended}>
+      <Stack.Protected guard={showAwaiting}>
+        <Stack.Screen name="awaiting-registration" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={!isFullyOnboarded && !showSuspended && !showAwaiting}>
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
     </Stack>

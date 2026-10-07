@@ -281,6 +281,9 @@ export default function PlanScreen() {
             <ThemedText type="small" style={styles.error}>
               {t('onboarding.plan.errorNoPlanAssigned')}
             </ThemedText>
+            <Pressable accessibilityRole="button" onPress={() => void loadPlan()}>
+              <ThemedText type="link">{t('common.tryAgain')}</ThemedText>
+            </Pressable>
           </Card>
         )}
 
