@@ -32,4 +32,9 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // Story 18.1. Written by set_registration_fee() (0098), gym-scoped, metadata
   // { old_amount, new_amount }.
   registration_fee_changed: "audit.actionTypes.registrationFeeChanged",
+  // Story 18.2. Written by record_registration_fee() / waive_registration_fee()
+  // (0099), gym-scoped, target = the member. Metadata: recorded carries
+  // { amount, currency, method, reason, payment_id }, waived { reason }.
+  registration_fee_recorded: "audit.actionTypes.registrationFeeRecorded",
+  registration_fee_waived: "audit.actionTypes.registrationFeeWaived",
 };

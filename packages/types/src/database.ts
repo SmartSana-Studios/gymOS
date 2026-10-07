@@ -999,9 +999,11 @@ export type Database = {
           provider: string | null
           provider_fee_amount: number | null
           provider_transaction_ref: string | null
+          purpose: string
           reason: string | null
           status: Database["public"]["Enums"]["payment_status"]
           subscription_id: string | null
+          voided_at: string | null
         }
         Insert: {
           actor_id?: string | null
@@ -1015,9 +1017,11 @@ export type Database = {
           provider?: string | null
           provider_fee_amount?: number | null
           provider_transaction_ref?: string | null
+          purpose?: string
           reason?: string | null
           status: Database["public"]["Enums"]["payment_status"]
           subscription_id?: string | null
+          voided_at?: string | null
         }
         Update: {
           actor_id?: string | null
@@ -1031,9 +1035,11 @@ export type Database = {
           provider?: string | null
           provider_fee_amount?: number | null
           provider_transaction_ref?: string | null
+          purpose?: string
           reason?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           subscription_id?: string | null
+          voided_at?: string | null
         }
         Relationships: [
           {
@@ -2222,6 +2228,10 @@ export type Database = {
           previous_anchor_date: string
         }[]
       }
+      record_registration_fee: {
+        Args: { p_member_id: string; p_method: string; p_reason: string }
+        Returns: string
+      }
       renew_subscription: {
         Args: { p_member_id: string; p_reason: string }
         Returns: string
@@ -2323,6 +2333,10 @@ export type Database = {
       }
       update_workout_plan: {
         Args: { p_exercises: Json; p_name: string; p_plan_id: string }
+        Returns: undefined
+      }
+      waive_registration_fee: {
+        Args: { p_member_id: string; p_reason: string }
         Returns: undefined
       }
     }

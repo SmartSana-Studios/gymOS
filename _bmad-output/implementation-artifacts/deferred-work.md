@@ -922,3 +922,7 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-18-1-registration-fee-setting-member-state-first-subscription-gate.md`
   summary: Warn or include the registration fee in the main Save when it has been edited but not saved.
   evidence: The fee has its own Save button; clicking the page-level Save with an edited fee leaves it unsaved while showing a success toast. Same pattern as the notification email field.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-18-2-payment-purpose-manual-fee-collection-waiver.md`
+  summary: Story 18.3 must define how `waive_registration_fee` and `record_registration_fee` behave while a Tara fee payment is `processing`, and map a late completion of a `flagged` fee payment that collides with a newer fee payment.
+  evidence: Medium, unreachable in 18.2 (record settles in the same transaction, no 18.2 path leaves an awaiting member with a non-voided fee row). Once 18.3 inserts `processing` fee rows: (a) waive on that member settles them while the webhook can still complete the payment (fee waived and charged); (b) record raises "already recorded" for an abandoned in-flight row, leaving waive as the only exit; (c) `complete_flagged_payment`/`complete_verified_payment` moving a `flagged` fee row back to `verified` while another non-voided fee row exists raises a raw 23505. 18.3's tests should cover all three.

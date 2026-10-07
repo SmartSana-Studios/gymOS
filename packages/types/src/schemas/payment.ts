@@ -100,6 +100,37 @@ export const recordManualPaymentSchema = z.object({
 
 export type RecordManualPaymentInput = z.infer<typeof recordManualPaymentSchema>;
 
+// Story 18.2: validates the registration-fee collect and waive inputs (the
+// screens that call them are Story 18.6). There is deliberately NO amount
+// field on either: record_registration_fee (0099) reads gyms.registration_fee
+// server-side, so a client cannot choose what a fee payment is for. `method`
+// is the same closed manual-only enum as recordManualPaymentSchema -- the DB
+// RPC rejects anything else (`mobile_money` included). The reason keeps the
+// manual-payment note rule (min 10, max 200); the RPC itself only requires
+// it non-blank and at most 200 characters.
+export const recordRegistrationFeeSchema = z.object({
+  memberId: z.uuid("Select a member"),
+  method: z.enum(["cash", "bank_transfer", "manual_momo"]),
+  reason: z
+    .string()
+    .trim()
+    .min(10, "Add a note (at least 10 characters)")
+    .max(REASON_MAX_LENGTH, "Reason is too long"),
+});
+
+export type RecordRegistrationFeeInput = z.infer<typeof recordRegistrationFeeSchema>;
+
+export const waiveRegistrationFeeSchema = z.object({
+  memberId: z.uuid("Select a member"),
+  reason: z
+    .string()
+    .trim()
+    .min(10, "Add a reason (at least 10 characters)")
+    .max(REASON_MAX_LENGTH, "Reason is too long"),
+});
+
+export type WaiveRegistrationFeeInput = z.infer<typeof waiveRegistrationFeeSchema>;
+
 // AD-09 gives no explicit minimum for the "Flag for Review" reason prompt --
 // uses the project's general REASON_MIN_LENGTH = 5 convention instead
 // (matches deactivateMemberSchema/gymStatusChangeSchema).
