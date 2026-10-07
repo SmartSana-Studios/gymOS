@@ -234,8 +234,12 @@ function SidebarFooter({ railAware }: { railAware: boolean }) {
   const router = useRouter();
 
   useEffect(() => {
-    if (confirming) {
-      dialogRef.current?.showModal();
+    // Guard on `open`: when the layout is kept alive across a logout and the next
+    // login (cache components hide/show it), this effect re-runs with the dialog
+    // already open and showModal() would throw InvalidStateError.
+    const dialog = dialogRef.current;
+    if (confirming && dialog && !dialog.open) {
+      dialog.showModal();
     }
   }, [confirming]);
 
@@ -252,6 +256,11 @@ function SidebarFooter({ railAware }: { railAware: boolean }) {
       setLoggingOut(false);
       return;
     }
+    // This footer can outlive the session (the layout is kept alive), so leave it
+    // in its initial state for the next account that signs in.
+    dialogRef.current?.close();
+    setConfirming(false);
+    setLoggingOut(false);
     router.push("/auth/login");
   }
 

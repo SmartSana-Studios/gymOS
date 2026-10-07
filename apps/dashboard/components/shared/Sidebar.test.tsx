@@ -13,7 +13,8 @@
  * twice and every `getBy*` link query throws on the duplicate.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import type { MemberRole } from "@/services/session";
 
@@ -22,6 +23,10 @@ let pathname = "/";
 vi.mock("next/navigation", () => ({
   usePathname: () => pathname,
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
+
+vi.mock("@/lib/supabase/client", () => ({
+  createClient: () => ({ auth: { signOut: async () => ({ error: null }) } }),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -50,8 +55,38 @@ function activeLinkLabels(): string[] {
 }
 
 describe("Sidebar", () => {
-  beforeEach(() => {
-    pathname = "/";
+  it("after a successful sign-out the logout dialog is closed and re-armed for the next account", async () => {
+    // jsdom has no showModal; mimic the browser, which throws if already open.
+    const proto = HTMLDialogElement.prototype as unknown as Record<string, unknown>;
+    const original = { showModal: proto.showModal, close: proto.close };
+    proto.showModal = function (this: HTMLDialogElement) {
+      if (this.open) throw new DOMException("already open", "InvalidStateError");
+      this.setAttribute("open", "");
+    };
+    proto.close = function (this: HTMLDialogElement) {
+      this.removeAttribute("open");
+    };
+    try {
+      render(
+        <Sidebar role="owner" gymId="gym-a" gymName="Gym A" availableGyms={[]} isMobileOpen={false} onCloseMobile={() => {}} />,
+      );
+      const user = userEvent.setup();
+      await user.click(screen.getAllByRole("button", { name: "sidebar.logout" })[0]!);
+      const dialog = document.querySelector("dialog")!;
+      expect(dialog.hasAttribute("open")).toBe(true);
+
+      await user.click(screen.getAllByRole("button", { name: "sidebar.logout" }).at(-1)!);
+
+      await waitFor(() => expect(dialog.hasAttribute("open")).toBe(false));
+      // Not stuck in the "logging out" state for the next login.
+      expect(screen.getAllByRole("button", { name: "sidebar.logout" }).every((b) => !(b as HTMLButtonElement).disabled)).toBe(true);
+      // A second login/logout cycle on the same footer must not throw.
+      await user.click(screen.getAllByRole("button", { name: "sidebar.logout" })[0]!);
+      expect(dialog.hasAttribute("open")).toBe(true);
+    } finally {
+      proto.showModal = original.showModal;
+      proto.close = original.close;
+    }
   });
 
   describe("role matrix (Story 5.2 AC#1)", () => {
