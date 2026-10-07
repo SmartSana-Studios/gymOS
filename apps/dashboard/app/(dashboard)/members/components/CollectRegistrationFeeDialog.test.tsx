@@ -14,6 +14,7 @@ const getPendingRegistrationFeePaymentAction = vi.fn();
 const removeChannel = vi.fn();
 
 let capturedOnUpdate: ((row: { id: string; status: string }) => void) | null = null;
+let capturedOnStatusChange: ((status: string) => void) | null = null;
 let subscribeStatus = "SUBSCRIBED";
 const fetchPaymentStatus = vi.fn();
 
@@ -24,6 +25,7 @@ vi.mock("@/lib/realtime/paymentStatus", () => ({
     onStatusChange: (status: string) => void,
   ) => {
     capturedOnUpdate = onUpdate;
+    capturedOnStatusChange = onStatusChange;
     onStatusChange(subscribeStatus);
     return { topic: "payment:test:status" };
   },
@@ -108,6 +110,7 @@ describe("CollectRegistrationFeeDialog (Story 18.6)", () => {
     getPendingRegistrationFeePaymentAction.mockResolvedValue({ data: null, error: null });
     removeChannel.mockReset();
     capturedOnUpdate = null;
+    capturedOnStatusChange = null;
     subscribeStatus = "SUBSCRIBED";
     fetchPaymentStatus.mockReset().mockResolvedValue(null);
     vi.useRealTimers();
@@ -443,6 +446,33 @@ describe("CollectRegistrationFeeDialog (Story 18.6)", () => {
 
       expect(await screen.findByText(/not approved or was declined/i)).toBeInTheDocument();
       expect(onCollected).not.toHaveBeenCalled();
+    });
+
+    it("a CLOSED report during cleanup does not leave a polling interval running", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      getPendingRegistrationFeePaymentAction.mockResolvedValue({
+        data: { paymentId: "pay-existing", createdAt: new Date(Date.now() - 60 * 1000).toISOString() },
+        error: null,
+      });
+      const { CollectRegistrationFeeDialog } = await import("./CollectRegistrationFeeDialog");
+      const { unmount } = render(
+        <CollectRegistrationFeeDialog
+          member={MEMBER}
+          registrationFee={5000}
+          mobileMoneyEnabled
+          onClose={vi.fn()}
+          onCollected={vi.fn()}
+        />,
+      );
+      await screen.findByText(/waiting for alice/i);
+      removeChannel.mockImplementation(() => capturedOnStatusChange?.("CLOSED"));
+      fetchPaymentStatus.mockClear();
+
+      unmount();
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      expect(removeChannel).toHaveBeenCalled();
+      expect(fetchPaymentStatus).not.toHaveBeenCalled();
     });
 
     it("shows the still-waiting text after 45 seconds", async () => {

@@ -113,6 +113,31 @@ Built to the spec with no migration. Choices worth reviewing:
 | `deferred-work.md` still lists the `not_found: payment` and audit-label items; double-assign only client-guarded; spec status and tasks out of sync (Blind) | low | rejected | deferred-work is append-only by this workflow; the double-assign guard is the spec-required disabled submit; spec status is synced by step 6. |
 | `recordRegistrationFee` `!data` branch code, missing admin error test, double Zod parse, duplicate `purposeLabel` calls, unused `created_at` select, dialogs without `aria-labelledby`, `canOfferMobileMoneyPayment` on fee-0 loads (Blind) | low | rejected | Cosmetic or unreachable; precedent dialogs share the same shape. |
 
+### Review Findings
+
+Code review of commit 17d8c03, chunk 1 (production code, locales, types; tests and bookkeeping excluded). Layers: Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor (no AC violation found).
+
+- [x] [Review][Patch] Leaked polling interval after unmount: `removeChannel` fires the subscribe callback with `CLOSED`, and `handleStatusChange` has no `active` guard, so `startPolling()` creates an interval after cleanup that polls every 5s until page unload. Add `if (!active) return;` plus a test that unmounts mid-watch and asserts no timers remain [apps/dashboard/app/(dashboard)/members/components/CollectRegistrationFeeDialog.tsx:handleStatusChange]
+- [x] [Review][Patch] No test pins the awaiting + `registrationFee: 0` row menu (Waive shown, Collect hidden). Add one `it` to `MembersPageClient.feeActions.test.tsx` using `renderPage(awaiting, "owner", { registrationFee: 0 })` [apps/dashboard/app/(dashboard)/members/components/MembersPageClient.feeActions.test.tsx]
+- [x] [Review][Defer] `RenewalModal` has the same unguarded `handleStatusChange` (leaked interval after close) [apps/dashboard/components/shared/RenewalModal.tsx:273] — deferred: pre-existing (Story 4.12); fix alongside the patch above or via a shared `usePaymentStatusWatch` hook.
+
+#### Rejected
+
+- Assign plan / Void hidden when fee is 0 (Blind, Edge, Auditor), low: already rejected in the triage log; the AC and decisions.md record it, and a fix needs per-row fee data the spec excludes.
+- Void menu shows for waived or legacy settled members (Edge), low: spec-defined; the dialog explains "nothing to void".
+- Pending-check `error` ignored (Edge), low: already rejected; the RPC raises `registration_fee_already_pending`.
+- `not_found: payment` substring too broad (Edge, Blind), false: only `0101` raises that text (`grep` of all migrations), and `payment_voided_not_refundable` etc. don't contain it.
+- Deactivated members offered Collect/Waive (Blind), false: `resolveBadgeStatus` returns `deactivated` first, so `isAwaitingRegistrationFee` is false.
+- Inactive / pay-per-session plans in Assign plan (Edge, Blind), false: `PlanRow` and `listPlans` carry no active flag; the RPC is the authority.
+- Stale `waived` audit row on a later-settled member (Edge, Blind), false: waive settles the member and no later settle path exists without a payment row, which is checked first.
+- Missing `app_role` claim treated as non-reader (Edge, Blind), low: fails safe (less data shown).
+- Lapsed member shown Assign / Void (Edge), false: already rejected; `no_active_plan` means no subscription row at all.
+- Method overwritten by stale-pending check, `fetchPaymentStatus` rejection, `voided` status never reaching the watcher, lost manual-collect response, stale void dialog, `editingMember` identity refetch flicker, start-date window (Edge), low or false: `fetchPaymentStatus` returns null on error and Tara fees can't be voided; the rest need unusual races and a fix adds branches.
+- Currency hard-coded XAF, FR "Exonérés" plural, FR "Invalider" vs "annuler" (Blind), low or false: Epic 18 is whole-XAF; "frais" is plural so "Exonérés" agrees; the void action name was already settled in the prior pass.
+- Reason `maxLength`, `aria-*` gaps, duplicated dialog boilerplate, double Zod parse, `.in` vs `.eq`, missing uuid guard (Blind), low: cosmetic or precedent-shared; already rejected in the triage log.
+- "Tests are not in the diff" / verification claims unbacked (Blind), false: the tests are in the same commit and were excluded from this chunk by design.
+- Waived-state read uses the service-role client (Auditor), low: documented in Implementation Notes, scoped to the caller's gym, non-audit roles get no name or reason.
+
 ## Design Notes
 
 A void clears `registration_fee_settled_at` and the member returns to awaiting; the dialogs must not be reachable from a stale row after that, so every action refreshes the list and the server rejects a stale one.

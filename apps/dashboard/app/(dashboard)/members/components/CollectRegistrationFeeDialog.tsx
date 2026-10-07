@@ -163,6 +163,8 @@ export function CollectRegistrationFeeDialog({
     }
 
     function handleStatusChange(status: string) {
+      // removeChannel in the cleanup reports CLOSED; polling then must not restart.
+      if (!active) return;
       if (status === "SUBSCRIBED") {
         stopPolling();
         // A payment that settled before the channel was ready (a resumed row, or

@@ -178,6 +178,13 @@ describe("MembersPageClient registration fee actions (Story 18.6)", () => {
     }
   });
 
+  it("a fee-0 gym still lets an awaiting member be waived but never collected", async () => {
+    await renderPage(awaiting, "owner", { registrationFee: 0 });
+
+    expect(has("members.actions.waiveFee")).toBe(true);
+    expect(has("members.actions.collectFee")).toBe(false);
+  });
+
   it("a fee-0 gym shows none of the new actions for a settled member without a plan", async () => {
     await renderPage(settledNoPlan, "owner", { registrationFee: 0 });
 

@@ -952,3 +952,9 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-18-5-two-step-member-creation-first-plan-assignment-import-exemption.md`
   summary: No test asserts that every audit action type the app writes (`member_plan_assigned`, `registration_fee_voided` and the other Epic 18 entries) has a label key that resolves in both locales.
   evidence: Low. `AuditLogPageClient.actionLabel` falls back to the raw action string, so a missing `AUDIT_ACTION_TYPE_LABEL_KEY` entry shows `member_plan_assigned` unlabelled and fails nothing. One label-map test covers all Epic 18 entries.
+
+## Deferred from: code review of spec-18-6-dashboard-fee-collection-waive-void-surfaces (2026-10-07)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-18-6-dashboard-fee-collection-waive-void-surfaces.md`
+  summary: `RenewalModal`'s payment-status watch effect has no `active` guard in `handleStatusChange`, so the `CLOSED` callback fired by `removeChannel` during cleanup can start a polling interval that nothing clears.
+  evidence: Pre-existing from Story 4.12 (`components/shared/RenewalModal.tsx:273`); 18.6 copied the pattern and its review patch fixes the copy. Fix here too, or extract a shared `usePaymentStatusWatch` hook.
