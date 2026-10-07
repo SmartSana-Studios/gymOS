@@ -1,26 +1,27 @@
 installation:
-  version: 6.10.0
+  version: 6.12.1
   installDate: 2026-06-19T23:55:27.956Z
-  lastUpdated: 2026-08-03T19:57:10.804Z
+  lastUpdated: 2026-10-07T11:52:25.604Z
+  installShims: true
 modules:
   - name: core
-    version: 6.10.0
+    version: 6.12.1
     installDate: 2026-06-19T23:55:27.593Z
-    lastUpdated: 2026-08-03T19:57:10.793Z
+    lastUpdated: 2026-10-07T11:52:25.591Z
     source: built-in
     npmPackage: null
     repoUrl: null
   - name: bmm
-    version: 6.10.0
+    version: 6.12.1
     installDate: 2026-06-19T23:55:27.499Z
-    lastUpdated: 2026-08-03T19:57:10.797Z
+    lastUpdated: 2026-10-07T11:52:25.592Z
     source: built-in
     npmPackage: null
     repoUrl: null
   - name: automator
     version: main
     installDate: 2026-06-19T23:55:27.829Z
-    lastUpdated: 2026-08-03T19:57:10.804Z
+    lastUpdated: 2026-10-07T11:52:25.604Z
     source: external
     npmPackage: bmad-story-automator
     repoUrl: https://github.com/bmad-code-org/bmad-automator
