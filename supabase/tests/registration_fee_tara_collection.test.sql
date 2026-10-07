@@ -14,7 +14,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000000313xx (letters a-e are hex).
 
 begin;
-select plan(70);
+select plan(75);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000031380', 'RegFee Tara Tier', 6000, 60000, null);
@@ -40,7 +40,8 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-0000000313cb'), -- member 11: expiry boundary
   ('00000000-0000-0000-0000-0000000313cc'), -- member 12: already paid by cash
   ('00000000-0000-0000-0000-0000000313cd'), -- member 13: settled, subscription branch control
-  ('00000000-0000-0000-0000-0000000313ce'); -- member 14: awaiting, self-service renewal pin
+  ('00000000-0000-0000-0000-0000000313ce'), -- member 14: awaiting, self-service renewal pin
+  ('00000000-0000-0000-0000-0000000313cf'); -- member 15: deactivated after the collection started
 
 insert into members (id, gym_id, user_id, role, name, join_date) values
   ('00000000-0000-0000-0000-0000000313b1', '00000000-0000-0000-0000-000000031391', '00000000-0000-0000-0000-0000000313a1', 'owner',        'TC Owner',        current_date),
@@ -60,7 +61,8 @@ insert into members (id, gym_id, user_id, role, name, join_date) values
   ('00000000-0000-0000-0000-0000000313db', '00000000-0000-0000-0000-000000031391', '00000000-0000-0000-0000-0000000313cb', 'member', 'TC Member 11', current_date),
   ('00000000-0000-0000-0000-0000000313dc', '00000000-0000-0000-0000-000000031391', '00000000-0000-0000-0000-0000000313cc', 'member', 'TC Member 12', current_date),
   ('00000000-0000-0000-0000-0000000313dd', '00000000-0000-0000-0000-000000031391', '00000000-0000-0000-0000-0000000313cd', 'member', 'TC Member 13', current_date),
-  ('00000000-0000-0000-0000-0000000313de', '00000000-0000-0000-0000-000000031391', '00000000-0000-0000-0000-0000000313ce', 'member', 'TC Member 14', current_date);
+  ('00000000-0000-0000-0000-0000000313de', '00000000-0000-0000-0000-000000031391', '00000000-0000-0000-0000-0000000313ce', 'member', 'TC Member 14', current_date),
+  ('00000000-0000-0000-0000-0000000313df', '00000000-0000-0000-0000-000000031391', '00000000-0000-0000-0000-0000000313cf', 'member', 'TC Member 15', current_date);
 
 insert into plans (id, gym_id, name, plan_type, price, currency, billing_interval, duration_days) values
   ('00000000-0000-0000-0000-0000000313f1', '00000000-0000-0000-0000-000000031391', 'TC Monthly', 'monthly', 15000, 'XAF', 'monthly', 30);
@@ -72,8 +74,8 @@ insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, e
 
 select is(
   (select count(*)::int from members where gym_id = '00000000-0000-0000-0000-000000031391' and role = 'member' and registration_fee_settled_at is null),
-  13,
-  'fixture sanity: thirteen of the fourteen members start awaiting'
+  14,
+  'fixture sanity: fourteen of the fifteen members start awaiting'
 );
 
 -- ============================================================================
@@ -491,6 +493,60 @@ select is(
   (select count(*)::int from audit_log where action_type = 'registration_fee_paid' and target_entity_id = '00000000-0000-0000-0000-0000000313d8'),
   0,
   'the late success wrote no registration_fee_paid audit row'
+);
+
+-- The late success leaves a trace so staff can find and refund the charge.
+select is(
+  (select count(*)::int from audit_log where action_type = 'registration_fee_late_payment' and target_entity_id = '00000000-0000-0000-0000-0000000313d8' and metadata ->> 'payment_id' = '00000000-0000-0000-0000-0000000313e2' and (metadata ->> 'amount')::int = 5000),
+  1,
+  'the late success wrote one registration_fee_late_payment audit row with the payment id and amount'
+);
+
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
+set local role service_role;
+select complete_verified_payment('00000000-0000-0000-0000-0000000313e2'::uuid, 100);
+reset role;
+
+select is(
+  (select count(*)::int from audit_log where action_type = 'registration_fee_late_payment' and target_entity_id = '00000000-0000-0000-0000-0000000313d8'),
+  1,
+  'a redelivered late success does not write a second registration_fee_late_payment row'
+);
+
+-- ============================================================================
+-- Deactivated after the collection started: the money is real, so the
+-- confirmation still verifies the payment, settles the member and audits it.
+-- The fee branch runs before complete_verified_payment()'s deactivated check.
+-- ============================================================================
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000313a2","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000031391","app_role":"receptionist"}', true);
+select initiate_registration_fee_payment('00000000-0000-0000-0000-0000000313df');
+reset role;
+
+update members set deactivated_at = now() where id = '00000000-0000-0000-0000-0000000313df';
+
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
+set local role service_role;
+select complete_verified_payment((select id from payments where member_id = '00000000-0000-0000-0000-0000000313df' and purpose = 'registration_fee'), 100);
+reset role;
+
+select is(
+  (select status::text from payments where member_id = '00000000-0000-0000-0000-0000000313df' and purpose = 'registration_fee'),
+  'verified',
+  'a fee confirmation for a member deactivated mid-collection verifies the payment'
+);
+
+select isnt(
+  (select registration_fee_settled_at from members where id = '00000000-0000-0000-0000-0000000313df'),
+  null,
+  'it still settles the deactivated member'
+);
+
+select is(
+  (select count(*)::int from audit_log where action_type = 'registration_fee_paid' and target_entity_id = '00000000-0000-0000-0000-0000000313df'),
+  1,
+  'and writes one registration_fee_paid audit row'
 );
 
 -- ============================================================================

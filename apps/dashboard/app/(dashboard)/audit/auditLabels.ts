@@ -44,4 +44,8 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // member, metadata { payment_id }.
   registration_fee_paid: "audit.actionTypes.registrationFeePaid",
   registration_fee_attempt_expired: "audit.actionTypes.registrationFeeAttemptExpired",
+  // Late Tara success for an attempt expiry already flagged: the member was charged
+  // but the payment was not applied -- staff should refund. metadata { payment_id,
+  // amount, currency, fee_amount }.
+  registration_fee_late_payment: "audit.actionTypes.registrationFeeLatePayment",
 };

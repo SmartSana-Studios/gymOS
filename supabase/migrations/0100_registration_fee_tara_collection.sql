@@ -31,7 +31,8 @@
 --    calls first marks it `flagged` (audit registration_fee_attempt_expired,
 --    no push: 0099's notification trigger skips fee payments) and proceeds.
 --    A late success after that is not applied: complete_verified_payment only
---    moves rows out of `processing`.
+--    moves rows out of `processing`. It writes a registration_fee_late_payment
+--    audit row instead (once per payment), so staff can find and refund it.
 --
 --  * Lock order is payment row first, member row second, in every function
 --    touching both -- the webhook's complete_verified_payment locks them in
@@ -236,6 +237,37 @@ begin
   returning gym_id, member_id, purpose, amount into v_gym_id, v_member_id, v_purpose, v_amount;
 
   if v_gym_id is null then
+    -- A late success for a fee attempt that expiry already flagged: the
+    -- member was charged but the row is not applied. Leave a trace so staff
+    -- can find and refund it. Once per payment, so a redelivered webhook does
+    -- not repeat it; a replay for an already verified row is not late.
+    select p.gym_id, p.member_id, p.amount into v_gym_id, v_member_id, v_amount
+    from payments p
+    where p.id = p_payment_id
+      and p.purpose = 'registration_fee'
+      and p.status = 'flagged'
+      and not exists (
+        select 1 from audit_log a
+        where a.action_type = 'registration_fee_late_payment'
+          and a.metadata ->> 'payment_id' = p_payment_id::text
+      );
+
+    if v_gym_id is not null then
+      perform log_audit_event(
+        p_action_type => 'registration_fee_late_payment',
+        p_gym_id => v_gym_id,
+        p_target_entity_id => v_member_id::text,
+        p_target_entity_type => 'member',
+        p_metadata => jsonb_build_object(
+          'payment_id', p_payment_id,
+          'amount', v_amount,
+          'currency', 'XAF',
+          'fee_amount', p_fee_amount
+        ),
+        p_system_actor_label => 'payment-webhook'
+      );
+    end if;
+
     raise notice 'complete_verified_payment: payment % already verified or not found -- no-op', p_payment_id;
     return null;
   end if;

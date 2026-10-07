@@ -1027,7 +1027,8 @@
       "registrationFeeRecorded": "Registration fee recorded",
       "registrationFeeWaived": "Registration fee waived",
       "registrationFeePaid": "Registration fee paid by Tara Money",
-      "registrationFeeAttemptExpired": "Registration fee collection expired"
+      "registrationFeeAttemptExpired": "Registration fee collection expired",
+      "registrationFeeLatePayment": "Registration fee paid late by Tara Money (not applied)"
     }
   },
   "saasBilling": {

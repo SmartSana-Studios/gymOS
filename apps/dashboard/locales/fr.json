@@ -1027,7 +1027,8 @@
       "registrationFeeRecorded": "Frais d'inscription enregistrés",
       "registrationFeeWaived": "Frais d'inscription offerts",
       "registrationFeePaid": "Frais d'inscription payés par Tara Money",
-      "registrationFeeAttemptExpired": "Collecte des frais d'inscription expirée"
+      "registrationFeeAttemptExpired": "Collecte des frais d'inscription expirée",
+      "registrationFeeLatePayment": "Frais d'inscription payés en retard par Tara Money (non appliqués)"
     }
   },
   "saasBilling": {
