@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { CheckCircle2 } from "lucide-react";
 
+import { TablePagination } from "@/components/TablePagination";
+import { useClientPagination } from "@/hooks/use-table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ClassRow, SessionBookingRow } from "@/services/classes";
@@ -28,6 +30,7 @@ export function ClassesPageClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const pg = useClientPagination(initialClasses, 10);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
 
@@ -165,6 +168,7 @@ export function ClassesPageClient({
           {canManage && <Button onClick={openCreate}>{t("classes.addClassButton")}</Button>}
         </div>
       ) : (
+        <>
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">
@@ -178,7 +182,7 @@ export function ClassesPageClient({
               </tr>
             </thead>
             <tbody className="divide-y">
-              {initialClasses.map((cls) => (
+              {pg.pageItems.map((cls) => (
                 <Fragment key={cls.id}>
                   <tr
                     className={
@@ -298,6 +302,8 @@ export function ClassesPageClient({
             </tbody>
           </table>
         </div>
+        <TablePagination {...pg} />
+        </>
       )}
 
       {canManage && (

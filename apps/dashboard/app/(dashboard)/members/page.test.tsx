@@ -67,8 +67,8 @@ vi.mock("./loading", () => ({
 import MembersPage from "./page";
 import { MembersPageClient } from "./components/MembersPageClient";
 
-async function renderMembersData(): Promise<ReactElement<Record<string, unknown>>> {
-  const boundary = MembersPage({ searchParams: Promise.resolve({}) }) as ReactElement<{ children: ReactElement }>;
+async function renderMembersData(search: Record<string, string> = {}): Promise<ReactElement<Record<string, unknown>>> {
+  const boundary = MembersPage({ searchParams: Promise.resolve(search) }) as ReactElement<{ children: ReactElement }>;
   const child = boundary.props.children;
   return (await (child.type as (props: unknown) => Promise<ReactElement>)(child.props)) as ReactElement<
     Record<string, unknown>
@@ -100,6 +100,15 @@ describe("members page", () => {
 
     expect(tree.type).toBe(MembersPageClient);
     expect(tree.props.registrationFee).toBe(5000);
+  });
+
+  it("passes a valid size to the service and client, and falls back to 25 for an invalid one", async () => {
+    const tree = await renderMembersData({ size: "10", page: "3" });
+    expect(listMembers).toHaveBeenCalledWith(expect.objectContaining({ page: 3, pageSize: 10 }));
+    expect(tree.props.pageSize).toBe(10);
+
+    const fallback = await renderMembersData({ size: "100000" });
+    expect(fallback.props.pageSize).toBe(25);
   });
 
   it("passes 0 when the gym has no registration fee", async () => {

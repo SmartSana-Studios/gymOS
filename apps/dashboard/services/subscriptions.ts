@@ -5,6 +5,7 @@ import {
   type ConfirmRenewalInput,
   type RenewSubscriptionInput,
   type AppError,
+  parsePageSize,
 } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -359,6 +360,7 @@ export async function listSubscriptions(params: {
   sort?: string;
   dir?: string;
   page?: number;
+  pageSize?: number;
 }): Promise<{ data: { rows: SubscriptionListRow[]; total: number } | null; error: AppError | null }> {
   const supabase = await createClient();
   const { gymId, error: gymIdError } = await getCallerGymId(supabase);
@@ -367,8 +369,9 @@ export async function listSubscriptions(params: {
   }
 
   const page = params.page && params.page > 0 ? params.page : 1;
-  const from = (page - 1) * SUBSCRIPTIONS_PAGE_SIZE;
-  const to = from + SUBSCRIPTIONS_PAGE_SIZE - 1;
+  const pageSize = parsePageSize(params.pageSize, SUBSCRIPTIONS_PAGE_SIZE);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
 
   let query = supabase
     .from("subscriptions_current")

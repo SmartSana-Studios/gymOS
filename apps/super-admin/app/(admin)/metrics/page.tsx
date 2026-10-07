@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 
 import { getPlatformMetrics, getRecentJobFailures } from "@/services/metrics";
+import { JobFailuresTable } from "./JobFailuresTable";
 import MetricsLoading from "./loading";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -67,36 +68,7 @@ async function MetricsData() {
       {jobFailures && jobFailures.length > 0 && (
         <div className="space-y-2">
           <h2 className="text-lg font-semibold">{t("metrics.jobFailuresTitle")}</h2>
-          <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="p-2 font-medium">{t("metrics.jobFailuresJobName")}</th>
-                  <th className="p-2 font-medium">{t("metrics.jobFailuresStartedAt")}</th>
-                  <th className="p-2 font-medium">{t("metrics.jobFailuresFinishedAt")}</th>
-                  <th className="p-2 font-medium">{t("metrics.jobFailuresError")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {jobFailures.map((failure) => (
-                  <tr key={failure.id} className="border-b last:border-0">
-                    <td className="p-2 align-top">{failure.jobName}</td>
-                    <td className="p-2 align-top whitespace-nowrap">
-                      {new Date(failure.startedAt).toLocaleString(locale)}
-                    </td>
-                    <td className="p-2 align-top whitespace-nowrap">
-                      {failure.finishedAt
-                        ? new Date(failure.finishedAt).toLocaleString(locale)
-                        : "—"}
-                    </td>
-                    <td className="max-w-sm break-words whitespace-pre-wrap p-2 align-top">
-                      {failure.errorMessage ?? "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <JobFailuresTable failures={jobFailures} locale={locale} />
         </div>
       )}
     </div>

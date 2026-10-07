@@ -3,10 +3,12 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TablePagination } from "@/components/TablePagination";
+import { useUrlPagination } from "@/hooks/use-table-pagination";
 import { Label } from "@/components/ui/label";
 import type { GymBillingRow } from "@/services/billing";
 import { GymLifecycleDialog } from "../../gyms/components/GymLifecycleDialog";
@@ -122,7 +124,7 @@ export function BillingPageClient({
     return new Date(year, month - 1, day).toLocaleDateString();
   }
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pagination = useUrlPagination();
 
   return (
     <div className="space-y-4">
@@ -270,38 +272,13 @@ export function BillingPageClient({
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label={t("gyms.pagination.previous")}
-            disabled={page <= 1}
-            onClick={() => updateParams({ page: page - 1 })}
-          >
-            <ChevronLeft size={16} />
-          </Button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <Button
-              key={p}
-              variant={p === page ? "default" : "outline"}
-              size="sm"
-              onClick={() => updateParams({ page: p })}
-            >
-              {p}
-            </Button>
-          ))}
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label={t("gyms.pagination.next")}
-            disabled={page >= totalPages}
-            onClick={() => updateParams({ page: page + 1 })}
-          >
-            <ChevronRight size={16} />
-          </Button>
-        </div>
-      )}
+      <TablePagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onPageChange={pagination.onPageChange}
+        onPageSizeChange={pagination.onPageSizeChange}
+      />
 
       {dialog?.type === "markPaymentReceived" && (
         <MarkPaymentReceivedDialog

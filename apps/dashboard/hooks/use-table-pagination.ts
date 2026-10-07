@@ -27,10 +27,20 @@ export function useUrlPagination(opts: { pageParam?: string; sizeParam?: string 
   };
 }
 
-/** Client-only tables: slices an in-memory list. Page snaps back when the list shrinks. */
-export function useClientPagination<T>(items: readonly T[], defaultSize = 10) {
+/**
+ * Client-only tables: slices an in-memory list. Page snaps back when the list shrinks;
+ * pass `resetKey` (e.g. the active filters) to return to page 1 whenever it changes.
+ */
+export function useClientPagination<T>(items: readonly T[], defaultSize = 10, resetKey?: string) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultSize);
+
+  // Reset during render (React's "adjust state on prop change" pattern) rather than in an effect.
+  const [lastResetKey, setLastResetKey] = useState(resetKey);
+  if (lastResetKey !== resetKey) {
+    setLastResetKey(resetKey);
+    setPage(1);
+  }
 
   const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
   const safePage = Math.min(page, totalPages);

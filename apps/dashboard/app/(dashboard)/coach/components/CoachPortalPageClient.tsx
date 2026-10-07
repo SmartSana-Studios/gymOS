@@ -5,6 +5,8 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { ArrowUp, ArrowDown, Eye } from "lucide-react";
 
+import { TablePagination } from "@/components/TablePagination";
+import { useClientPagination } from "@/hooks/use-table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +70,8 @@ export function CoachPortalPageClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
+  const pg = useClientPagination(members, 10, `${search}|${sort}|${dir}`);
+
   function updateParams(next: { search?: string; sort?: string; dir?: string }) {
     const params = new URLSearchParams(searchParams.toString());
     if (next.search !== undefined) {
@@ -126,6 +130,7 @@ export function CoachPortalPageClient({
           )}
         </div>
       ) : (
+        <>
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">
@@ -150,7 +155,7 @@ export function CoachPortalPageClient({
               </tr>
             </thead>
             <tbody>
-              {members.map((row) => {
+              {pg.pageItems.map((row) => {
                 const badge = STATUS_BADGE_CONFIG[row.status] ?? STATUS_BADGE_CONFIG.active;
                 const Icon = badge.icon;
                 return (
@@ -207,6 +212,8 @@ export function CoachPortalPageClient({
             </tbody>
           </table>
         </div>
+        <TablePagination {...pg} />
+        </>
       )}
     </div>
   );

@@ -5,7 +5,9 @@ import { useTranslation } from "react-i18next";
 import { ArrowRight, X } from "lucide-react";
 import { CSV_TEMPLATE_COLUMNS } from "@gymos/types";
 
+import { TablePagination } from "@/components/TablePagination";
 import { Button } from "@/components/ui/button";
+import { useClientPagination } from "@/hooks/use-table-pagination";
 import { parseCsvRows } from "@/lib/csv";
 import type { CsvRowError, ValidatedCsvRow } from "@/services/csvImport";
 import { confirmCsvImport, validateCsvImport } from "../actions";
@@ -155,6 +157,8 @@ export function CsvImportModal({
     setStep("upload");
   }
 
+  // Row errors can run to hundreds on a bad file -- paginate that table (the preview is already capped).
+  const errorPg = useClientPagination(validation && !validation.valid ? validation.errors : [], 10);
   const previewRows = validation?.valid ? validation.rows.slice(0, PREVIEW_ROW_COUNT) : [];
   // A template-level failure (missing column, empty file, or an
   // unexpected infra error) has no row of its own -- the Server Action
@@ -334,7 +338,7 @@ export function CsvImportModal({
                 <p className="text-sm text-red-600">
                   {t("members.csvImport.errorSummary", { count: validation.errors.length })}
                 </p>
-                <div className="max-h-64 overflow-y-auto overflow-x-auto rounded-md border">
+                <div className="overflow-x-auto rounded-md border">
                   <table className="w-full text-sm">
                     <thead className="border-b bg-muted/50 text-left">
                       <tr>
@@ -344,7 +348,7 @@ export function CsvImportModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {validation.errors.map((err, i) => (
+                      {errorPg.pageItems.map((err, i) => (
                         <tr key={`${err.row}-${err.column}-${i}`} className="border-b last:border-0">
                           <td className="p-2">{err.row}</td>
                           <td className="p-2">{err.column}</td>
@@ -354,6 +358,7 @@ export function CsvImportModal({
                     </tbody>
                   </table>
                 </div>
+                <TablePagination {...errorPg} />
                 <div className="flex justify-end gap-2 pt-2">
                   <Button type="button" variant="outline" onClick={resetAndClose}>
                     {t("common.cancel")}

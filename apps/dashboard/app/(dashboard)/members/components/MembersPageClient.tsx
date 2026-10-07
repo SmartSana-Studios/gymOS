@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import {
-  ChevronLeft,
-  ChevronRight,
   Eye,
   Pencil,
   Send,
@@ -19,6 +17,8 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { TablePagination } from "@/components/TablePagination";
+import { useUrlPagination } from "@/hooks/use-table-pagination";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -78,32 +78,6 @@ const CAN_CREATE: MemberRole[] = ["receptionist", "manager", "supervisor", "owne
 const CAN_COLLECT_FEE: MemberRole[] = ["receptionist", "manager", "supervisor", "owner"];
 const CAN_VOID_FEE: MemberRole[] = ["supervisor", "owner"];
 
-// Windows the page-number buttons around the current page (always keeping
-// the first/last page visible) instead of rendering one button per page --
-// unbounded-cap gyms with hundreds of members would otherwise produce
-// hundreds of buttons.
-const PAGE_WINDOW_RADIUS = 2;
-
-function pageWindow(current: number, total: number): (number | "ellipsis")[] {
-  if (total <= 1) return total === 1 ? [1] : [];
-
-  const middle: number[] = [];
-  for (
-    let p = Math.max(2, current - PAGE_WINDOW_RADIUS);
-    p <= Math.min(total - 1, current + PAGE_WINDOW_RADIUS);
-    p++
-  ) {
-    middle.push(p);
-  }
-
-  const result: (number | "ellipsis")[] = [1];
-  if (middle[0] > 2) result.push("ellipsis");
-  result.push(...middle);
-  if (middle[middle.length - 1] < total - 1) result.push("ellipsis");
-  result.push(total);
-  return result;
-}
-
 export function MembersPageClient({
   initialMembers,
   total,
@@ -137,6 +111,7 @@ export function MembersPageClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const pagination = useUrlPagination();
   const canManage = CAN_MANAGE.includes(role);
   const canCreate = CAN_CREATE.includes(role);
   const canCollectFee = CAN_COLLECT_FEE.includes(role);
@@ -297,7 +272,6 @@ export function MembersPageClient({
     }
   }
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   function expiryLabel(member: MemberListRow): string {
     if (!member.expiryDate) return "—";
@@ -534,44 +508,7 @@ export function MembersPageClient({
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label={t("members.pagination.previous")}
-            disabled={page <= 1}
-            onClick={() => updateParams({ page: page - 1 })}
-          >
-            <ChevronLeft size={16} />
-          </Button>
-          {pageWindow(page, totalPages).map((p, i) =>
-            p === "ellipsis" ? (
-              <span key={`ellipsis-${i}`} className="px-2 text-sm text-muted-foreground">
-                {t("members.pagination.ellipsis")}
-              </span>
-            ) : (
-              <Button
-                key={p}
-                variant={p === page ? "default" : "outline"}
-                size="sm"
-                onClick={() => updateParams({ page: p })}
-              >
-                {p}
-              </Button>
-            ),
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            aria-label={t("members.pagination.next")}
-            disabled={page >= totalPages}
-            onClick={() => updateParams({ page: page + 1 })}
-          >
-            <ChevronRight size={16} />
-          </Button>
-        </div>
-      )}
+      <TablePagination page={page} pageSize={pageSize} total={total} {...pagination} />
 
       {modalState && (
         <MemberModal

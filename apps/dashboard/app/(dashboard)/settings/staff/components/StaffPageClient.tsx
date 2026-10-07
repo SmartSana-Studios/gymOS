@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { MoreVertical, KeyRound, Pencil, Ban } from "lucide-react";
 
+import { TablePagination } from "@/components/TablePagination";
+import { useClientPagination } from "@/hooks/use-table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +70,7 @@ export function StaffPageClient({
   const canCreate = CAN_CREATE.includes(role);
 
   const [staff, setStaff] = useState(initialStaff);
+  const pg = useClientPagination(staff, 10);
   const [modalOpen, setModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; tempPassword?: string } | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -137,6 +140,7 @@ export function StaffPageClient({
           {t("staff.emptyNoStaff")}
         </div>
       ) : (
+        <>
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left text-muted-foreground">
@@ -148,7 +152,7 @@ export function StaffPageClient({
               </tr>
             </thead>
             <tbody>
-              {staff.map((row) => (
+              {pg.pageItems.map((row) => (
                 <tr key={row.id} className="border-t">
                   <td className="px-4 py-2">{row.name}</td>
                   <td className="px-4 py-2">
@@ -202,6 +206,8 @@ export function StaffPageClient({
             </tbody>
           </table>
         </div>
+        <TablePagination {...pg} />
+        </>
       )}
 
       {canCreate && (

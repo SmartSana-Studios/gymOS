@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, CheckCircle2, Flag, MoreVertical } from "lucide-react";
 
+import { TablePagination } from "@/components/TablePagination";
+import { useClientPagination } from "@/hooks/use-table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,6 +56,8 @@ export function PaymentsPageClient({
   const [verifyingPayment, setVerifyingPayment] = useState<PendingPaymentRow | null>(null);
   const [flaggingPayment, setFlaggingPayment] = useState<PendingPaymentRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const pendingPg = useClientPagination(pendingPayments, 10);
+  const discrepancyPg = useClientPagination(discrepancies, 10);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -126,6 +130,7 @@ export function PaymentsPageClient({
           <p className="text-sm text-muted-foreground">{t("payments.emptyQueue")}</p>
         </div>
       ) : (
+        <>
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">
@@ -140,7 +145,7 @@ export function PaymentsPageClient({
               </tr>
             </thead>
             <tbody>
-              {pendingPayments.map((row) => {
+              {pendingPg.pageItems.map((row) => {
                 const badge = PAYMENT_STATUS_BADGE_CONFIG.pending;
                 const Icon = badge.icon;
                 return (
@@ -201,6 +206,8 @@ export function PaymentsPageClient({
             </tbody>
           </table>
         </div>
+        <TablePagination {...pendingPg} />
+        </>
       )}
 
       {/*
@@ -224,7 +231,7 @@ export function PaymentsPageClient({
                 </tr>
               </thead>
               <tbody>
-                {discrepancies.map((row) => (
+                {discrepancyPg.pageItems.map((row) => (
                   <tr key={row.id} className="border-b last:border-0">
                     <td className="p-3">
                       {row.memberName}
@@ -257,6 +264,7 @@ export function PaymentsPageClient({
               </tbody>
             </table>
           </div>
+          <TablePagination {...discrepancyPg} />
         </div>
       )}
 

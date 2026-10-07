@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { type AppError } from "@gymos/types";
+import { type AppError, parsePageSize } from "@gymos/types";
 import { mapAndLog, type MemberRole } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -170,6 +170,7 @@ export async function listAuditLog(params: {
   to?: string;
   actorId?: string;
   page?: number;
+  pageSize?: number;
 }): Promise<{ data: { rows: AuditLogRow[]; total: number } | null; error: AppError | null }> {
   const supabase = await createClient();
   const { gymId, error: gymIdError } = await getCallerGymId(supabase);
@@ -180,8 +181,9 @@ export async function listAuditLog(params: {
   const { from, to } = resolveAuditDateRange(params.from, params.to);
 
   const page = params.page && params.page > 0 ? params.page : 1;
-  const rangeFrom = (page - 1) * AUDIT_LOG_PAGE_SIZE;
-  const rangeTo = rangeFrom + AUDIT_LOG_PAGE_SIZE - 1;
+  const pageSize = parsePageSize(params.pageSize, AUDIT_LOG_PAGE_SIZE);
+  const rangeFrom = (page - 1) * pageSize;
+  const rangeTo = rangeFrom + pageSize - 1;
 
   let query = supabase.from("audit_log").select("*", { count: "exact" }).eq("gym_id", gymId);
   query = applyAuditLogFilters(query, { from, to, actorId: params.actorId });

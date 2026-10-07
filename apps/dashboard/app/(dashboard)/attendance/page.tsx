@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { parsePage, parsePageSize } from "@gymos/types";
 
 import {
   ATTENDANCE_LOG_PAGE_SIZE,
@@ -18,7 +19,9 @@ import { canOfferMobileMoneyPayment } from "@/lib/featureFlags";
 
 type AttendanceSearchParams = Promise<{
   page?: string;
+  size?: string;
   checkedInPage?: string;
+  checkedInSize?: string;
   from?: string;
   to?: string;
   memberSearch?: string;
@@ -47,10 +50,10 @@ export default function AttendancePage({ searchParams }: { searchParams: Attenda
 
 async function AttendanceData({ searchParams }: { searchParams: AttendanceSearchParams }) {
   const params = await searchParams;
-  const parsedPage = params.page ? Number(params.page) : 1;
-  const page = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
-  const parsedCheckedInPage = params.checkedInPage ? Number(params.checkedInPage) : 1;
-  const checkedInPage = Number.isInteger(parsedCheckedInPage) && parsedCheckedInPage > 0 ? parsedCheckedInPage : 1;
+  const page = parsePage(params.page);
+  const pageSize = parsePageSize(params.size, ATTENDANCE_LOG_PAGE_SIZE);
+  const checkedInPage = parsePage(params.checkedInPage);
+  const checkedInPageSize = parsePageSize(params.checkedInSize, ATTENDANCE_LOG_PAGE_SIZE);
 
   const today = todayUtcDate();
   // Review Finding: a hand-edited or cleared date param could otherwise
@@ -67,9 +70,9 @@ async function AttendanceData({ searchParams }: { searchParams: AttendanceSearch
     { data: alertsData },
     mobileMoneyEnabled,
   ] = await Promise.all([
-    getCurrentlyCheckedIn({ page: checkedInPage }),
+    getCurrentlyCheckedIn({ page: checkedInPage, pageSize: checkedInPageSize }),
     getTodayAttendanceCount(),
-    listAttendanceLog({ page, from, to, memberSearch: params.memberSearch }),
+    listAttendanceLog({ page, pageSize, from, to, memberSearch: params.memberSearch }),
     getDashboardShellContext(),
     listActiveFrontDeskAlerts(),
     canOfferMobileMoneyPayment(),
@@ -85,12 +88,12 @@ async function AttendanceData({ searchParams }: { searchParams: AttendanceSearch
       currentlyCheckedIn={checkedIn?.rows ?? []}
       checkedInTotal={checkedIn?.total ?? 0}
       checkedInPage={checkedIn?.page ?? checkedInPage}
-      checkedInPageSize={ATTENDANCE_LOG_PAGE_SIZE}
+      checkedInPageSize={checkedInPageSize}
       todayCount={todayCount ?? 0}
       logRows={logPage?.rows ?? []}
       logTotal={logPage?.total ?? 0}
       page={logPage?.page ?? page}
-      pageSize={ATTENDANCE_LOG_PAGE_SIZE}
+      pageSize={pageSize}
       from={from}
       to={to}
       memberSearch={params.memberSearch ?? ""}

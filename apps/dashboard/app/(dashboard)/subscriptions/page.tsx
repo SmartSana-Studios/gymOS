@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { parsePage, parsePageSize } from "@gymos/types";
 
 import { listSubscriptions, SUBSCRIPTIONS_PAGE_SIZE } from "@/services/subscriptions";
 import { SubscriptionsPageClient } from "./components/SubscriptionsPageClient";
@@ -37,7 +38,7 @@ import { canOfferMobileMoneyPayment } from "@/lib/featureFlags";
 export default function SubscriptionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; planType?: string; sort?: string; dir?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; planType?: string; sort?: string; dir?: string; page?: string; size?: string }>;
 }) {
   return (
     <Suspense fallback={<SubscriptionsLoading />}>
@@ -49,11 +50,11 @@ export default function SubscriptionsPage({
 async function SubscriptionsData({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; planType?: string; sort?: string; dir?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; planType?: string; sort?: string; dir?: string; page?: string; size?: string }>;
 }) {
   const params = await searchParams;
-  const parsedPage = params.page ? Number(params.page) : 1;
-  const page = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const page = parsePage(params.page);
+  const pageSize = parsePageSize(params.size, SUBSCRIPTIONS_PAGE_SIZE);
 
   const [{ data: subscriptionsPage, error }, mobileMoneyEnabled] = await Promise.all([
     listSubscriptions({
@@ -62,6 +63,7 @@ async function SubscriptionsData({
       sort: params.sort,
       dir: params.dir,
       page,
+      pageSize,
     }),
     canOfferMobileMoneyPayment(),
   ]);
@@ -76,7 +78,7 @@ async function SubscriptionsData({
       initialSubscriptions={subscriptionsPage?.rows ?? []}
       total={subscriptionsPage?.total ?? 0}
       page={page}
-      pageSize={SUBSCRIPTIONS_PAGE_SIZE}
+      pageSize={pageSize}
       status={params.status ?? ""}
       planType={params.planType ?? ""}
       sort={params.sort ?? "name"}
