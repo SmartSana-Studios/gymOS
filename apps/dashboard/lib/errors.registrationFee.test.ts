@@ -1,5 +1,5 @@
 /**
- * Story 18.3: mapSupabaseError()'s registration-fee mappings (0099 record/
+ * Story 18.3 and 18.4: mapSupabaseError()'s registration-fee mappings (0099 record/
  * waive, 0100 initiate). Pins the stable codes the dashboard screens in Story
  * 18.6 will switch on, in both locales, and that a suspended gym still wins.
  *
@@ -20,6 +20,10 @@ const CASES: Array<[string, string]> = [
   ["initiate_registration_fee_payment: no_active_provider", "no_active_provider"],
   [`not_found: member ${MEMBER} not found`, "member_not_found"],
   [`member_deactivated: member ${MEMBER} is deactivated`, "member_deactivated"],
+  [`tara_fee_cannot_be_voided: payment ${MEMBER} was collected through Tara Money`, "tara_fee_cannot_be_voided"],
+  [`member_already_has_subscription: member ${MEMBER} already has a subscription`, "member_already_has_subscription"],
+  [`registration_fee_not_refundable: payment ${MEMBER} is a registration fee, which is not refundable`, "registration_fee_not_refundable"],
+  [`payment_voided_not_refundable: payment ${MEMBER} was voided and cannot be refunded`, "payment_voided_not_refundable"],
 ];
 
 describe("mapSupabaseError -- registration fee (Story 18.3)", () => {

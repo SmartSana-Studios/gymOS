@@ -577,6 +577,36 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // Void and refund block (0101, Story 18.4). Same stable-code matching; the
+  // void screen is Story 18.6, the refund modal never offers a fee payment.
+  if (message.includes("tara_fee_cannot_be_voided")) {
+    return {
+      code: "tara_fee_cannot_be_voided",
+      message: copy.taraFeeCannotBeVoided,
+    };
+  }
+
+  if (message.includes("member_already_has_subscription")) {
+    return {
+      code: "member_already_has_subscription",
+      message: copy.memberAlreadyHasSubscription,
+    };
+  }
+
+  if (message.includes("registration_fee_not_refundable")) {
+    return {
+      code: "registration_fee_not_refundable",
+      message: copy.registrationFeeNotRefundable,
+    };
+  }
+
+  if (message.includes("payment_voided_not_refundable")) {
+    return {
+      code: "payment_voided_not_refundable",
+      message: copy.paymentVoidedNotRefundable,
+    };
+  }
+
   if (message.includes("initiate_registration_fee_payment:") && message.includes("no_active_provider")) {
     return {
       code: "no_active_provider",

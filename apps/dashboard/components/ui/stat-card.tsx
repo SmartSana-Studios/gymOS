@@ -23,9 +23,13 @@ export interface StatCardProps {
   value: string;
   href: string;
   tone?: "default" | "alert";
+  /** Story 18.4: an optional secondary line under the value (the Revenue card's
+   * "of which registration fees"). Pre-formatted like `value`; nothing renders
+   * when it is omitted, so every other card is unchanged. */
+  detail?: string;
 }
 
-export function StatCard({ label, value, href, tone = "default" }: StatCardProps) {
+export function StatCard({ label, value, href, tone = "default", detail }: StatCardProps) {
   return (
     <Link
       href={href}
@@ -33,6 +37,7 @@ export function StatCard({ label, value, href, tone = "default" }: StatCardProps
     >
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className={cn("text-2xl font-semibold", tone === "alert" && "text-destructive")}>{value}</p>
+      {detail ? <p className="mt-1 text-sm text-muted-foreground">{detail}</p> : null}
     </Link>
   );
 }

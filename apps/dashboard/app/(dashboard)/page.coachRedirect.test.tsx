@@ -59,6 +59,11 @@ vi.mock("@/services/subscriptions", () => ({
 const getRevenueMtd = vi.fn(async () => ({ data: 0, error: null }));
 vi.mock("@/services/payments", () => ({
   getRevenueMtd: () => getRevenueMtd(),
+  getRegistrationFeeRevenueMtd: vi.fn(async () => ({ data: 0, error: null })),
+}));
+
+vi.mock("@/services/gym-settings", () => ({
+  getGymSettings: vi.fn(async () => ({ data: { registrationFee: 0 }, error: null })),
 }));
 
 vi.mock("@/components/shared/FrontDeskAlertPanel", () => ({

@@ -649,6 +649,23 @@ export async function getRevenueMtd(): Promise<{ data: number | null; error: App
   return { data: data ?? 0, error: null };
 }
 
+/**
+ * Story 18.4 (AD-02 "of which registration fees"): the registration-fee part
+ * of `getRevenueMtd()`'s month -- verified, non-voided fee payments in the
+ * current gym-local calendar month, from the `gym_registration_fee_revenue_mtd()`
+ * aggregate (0101). Same shape and reasoning as `getRevenueMtd`: no arguments,
+ * SECURITY INVOKER so RLS scopes it, a database sum so `max_rows` cannot
+ * truncate it. It is already counted in `getRevenueMtd()`, never added to it.
+ */
+export async function getRegistrationFeeRevenueMtd(): Promise<{ data: number | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("gym_registration_fee_revenue_mtd");
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: data ?? 0, error: null };
+}
+
 export interface PaymentDiscrepancyRow {
   id: string;
   discrepancyType: "stale_processing" | "amount_mismatch" | "wrong_account_settlement";
@@ -799,6 +816,11 @@ export async function listRefundEligiblePayments(
     .eq("gym_id", gymId)
     .eq("member_id", memberId)
     .eq("status", "verified")
+    // Story 18.4: a registration fee is never refundable and a voided payment
+    // is not money taken. Mirrors the refunds insert policy and trigger (0101);
+    // this only keeps them out of the picker.
+    .eq("purpose", "subscription")
+    .is("voided_at", null)
     .order("created_at", { ascending: false });
 
   if (error) {

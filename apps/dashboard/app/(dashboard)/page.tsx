@@ -7,7 +7,8 @@ import { getDashboardShellContext, type DashboardShellContext, type MemberRole }
 import { listActiveFrontDeskAlerts } from "@/services/frontDeskAlerts";
 import { getCurrentlyCheckedIn } from "@/services/attendance";
 import { listSubscriptions } from "@/services/subscriptions";
-import { getRevenueMtd } from "@/services/payments";
+import { getRegistrationFeeRevenueMtd, getRevenueMtd } from "@/services/payments";
+import { getGymSettings } from "@/services/gym-settings";
 import { FrontDeskAlertPanel } from "@/components/shared/FrontDeskAlertPanel";
 import { StatCard } from "@/components/ui/stat-card";
 import { canOfferMobileMoneyPayment } from "@/lib/featureFlags";
@@ -122,6 +123,8 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
     { data: checkedIn, error: checkedInError },
     { data: expiring, error: expiringError },
     { data: revenueMtd, error: revenueError },
+    { data: feeRevenueMtd, error: feeRevenueError },
+    { data: gymSettings, error: gymSettingsError },
   ] = await Promise.all([
     listActiveFrontDeskAlerts(),
     canOfferMobileMoneyPayment(),
@@ -134,6 +137,10 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
     // 10 rows, so a name-ordered read could cut a member expiring tomorrow.
     listSubscriptions({ status: "expiring_soon", sort: "expiry" }),
     getRevenueMtd(),
+    // Story 18.4: the "of which registration fees" line. Both reads are for that
+    // line alone -- a failure hides it and nothing else.
+    getRegistrationFeeRevenueMtd(),
+    getGymSettings(),
   ]);
 
   if (checkedInError) {
@@ -145,10 +152,24 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
   if (revenueError) {
     console.error(`OverviewData: getRevenueMtd failed -- ${revenueError.message}`);
   }
+  if (feeRevenueError) {
+    console.error(`OverviewData: getRegistrationFeeRevenueMtd failed -- ${feeRevenueError.message}`);
+  }
+
+  if (gymSettingsError) {
+    console.error(`OverviewData: getGymSettings failed -- ${gymSettingsError.message}`);
+  }
 
   const checkedInFailed = Boolean(checkedInError) || !checkedIn;
   const expiringFailed = Boolean(expiringError) || !expiring;
   const revenueFailed = Boolean(revenueError) || revenueMtd == null;
+
+  // Story 18.4: shown when the gym charges a fee or any fee income exists this
+  // month, so a gym at fee 0 with none sees the card exactly as before. A failed
+  // settings read leaves only the figure to decide; a failed fee read, or a
+  // failed revenue read (the line sits under that figure), hides it.
+  const showFeeLine =
+    !revenueFailed && feeRevenueMtd != null && ((gymSettings?.registrationFee ?? 0) > 0 || feeRevenueMtd > 0);
 
   const unavailable = t("overview.cards.unavailable");
 
@@ -185,6 +206,11 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
         <StatCard
           label={t("overview.cards.revenueThisMonth")}
           value={revenueFailed ? unavailable : `XAF ${revenueMtd.toLocaleString(locale)}`}
+          detail={
+            showFeeLine
+              ? `${t("overview.cards.revenueOfWhichRegistrationFees")}: XAF ${feeRevenueMtd.toLocaleString(locale)}`
+              : undefined
+          }
           href="/payments"
         />
       </div>

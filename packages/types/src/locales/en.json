@@ -55,7 +55,11 @@
     "registrationFeeNotDue": "This member has no registration fee outstanding.",
     "registrationFeeNotConfigured": "Your gym does not charge a registration fee.",
     "noActivePaymentProvider": "Mobile Money payments are not available right now. Use cash or another manual method.",
-    "registrationFeeMemberDeactivated": "This member is deactivated."
+    "registrationFeeMemberDeactivated": "This member is deactivated.",
+    "taraFeeCannotBeVoided": "This fee was paid through Tara Money and cannot be voided here. Correct it outside GymOS.",
+    "memberAlreadyHasSubscription": "This member already has a subscription, so the registration fee can no longer be voided.",
+    "registrationFeeNotRefundable": "Registration fees are not refundable.",
+    "paymentVoidedNotRefundable": "This payment was voided and cannot be refunded."
   },
   "auth": {
     "title": "Sign in to GymOS",

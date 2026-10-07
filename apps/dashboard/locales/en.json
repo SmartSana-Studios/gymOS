@@ -41,6 +41,7 @@
       "checkedInNow": "Checked in now",
       "expiringThisWeek": "Expiring this week",
       "revenueThisMonth": "Revenue this month",
+      "revenueOfWhichRegistrationFees": "of which registration fees",
       "activeMembers": "Active members",
       "newThisMonth": "New this month",
       "todaysClasses": "Today's classes",
@@ -1028,7 +1029,8 @@
       "registrationFeeWaived": "Registration fee waived",
       "registrationFeePaid": "Registration fee paid by Tara Money",
       "registrationFeeAttemptExpired": "Registration fee collection expired",
-      "registrationFeeLatePayment": "Registration fee paid late by Tara Money (not applied)"
+      "registrationFeeLatePayment": "Registration fee paid late by Tara Money (not applied)",
+      "registrationFeeVoided": "Registration fee voided"
     }
   },
   "saasBilling": {

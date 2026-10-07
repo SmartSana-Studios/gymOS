@@ -930,3 +930,15 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-18-3-tara-money-fee-collection.md`
   summary: No test exercises the payment-webhook initiate and confirmation routes with a `purpose = 'registration_fee'` row, so Story 18.3 relies on the unedited Edge Function for fee rows without proof.
   evidence: Medium, unverified. pgTAP simulates the webhook by calling `complete_verified_payment` / `complete_flagged_payment` as service_role, and the service test mocks `functions.invoke`; `payment-webhook/index.test.ts` has no fee-purpose case. Reading the route shows it prices from `payments.amount`, requires `provider_transaction_ref` null and status `processing` (the RPC row satisfies both, now pinned in pgTAP), and deletes the row on provider failure. A real Tara sandbox collection or a Deno test of initiate then confirm on a fee row would settle it. Do both before a gym can set a fee in production (Epic 18 is held from master).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-18-4-void-refund-block-revenue-line.md`
+  summary: Make the other readers of `payments` aware of `voided_at`: the super-admin gym payment list (`apps/super-admin/services/gyms.ts` ~628), the mobile payment history and receipt (`apps/mobile/src/services/payments.ts` ~48, ~124) and the platform-wide revenue sum in `0011_super_admin_tier_gym_lifecycle.sql:106`.
+  evidence: Medium. A voided registration fee keeps `status = 'verified'`, so these show it as a normal verified payment and the platform sum counts it. Only `gym_revenue_mtd()` was changed (18.4 scope); surfaces belong to 18.6/18.7.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-18-4-void-refund-block-revenue-line.md`
+  summary: A void can race a subscription insert that has not yet committed, leaving a member with a subscription and back in the awaiting state.
+  evidence: Low, unverified. `enforce_registration_fee_settled` (0098) reads the member row without a lock, so the void's no-subscription check is point-in-time. Recoverable by waive. Settled by a two-session test, or a `for share` lock in the gate trigger.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-18-4-void-refund-block-revenue-line.md`
+  summary: Map `not_found: payment` (and separate "already voided" from "wrong id") in `mapSupabaseError` when Story 18.6 builds the void screen.
+  evidence: Low. The void RPC folds five non-voidable conditions into one `not_found: payment`; today it surfaces as generic "unknown" copy.
