@@ -20,13 +20,21 @@ import type { PlanRow } from "@/services/plans";
 import type { CoachRow } from "@/services/coaches";
 import type { MemberRole } from "@/services/session";
 import { exportMembersCsv, sendMemberInvite } from "../actions";
-import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
+import { isAwaitingRegistrationFee, resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
 import { MemberModal } from "./MemberModal";
 import { DeactivateMemberDialog } from "./DeactivateMemberDialog";
 import { CsvImportModal } from "./CsvImportModal";
 import { InviteMemberModal } from "./InviteMemberModal";
 
-const STATUS_OPTIONS = ["", "active", "expiring_soon", "grace_period", "expired", "deactivated"] as const;
+const STATUS_OPTIONS = [
+  "",
+  "active",
+  "expiring_soon",
+  "grace_period",
+  "expired",
+  "deactivated",
+  "awaiting_registration_fee",
+] as const;
 const STATUS_LABEL_KEY: Record<(typeof STATUS_OPTIONS)[number], string> = {
   "": "members.statusAll",
   active: "members.status.active",
@@ -34,6 +42,7 @@ const STATUS_LABEL_KEY: Record<(typeof STATUS_OPTIONS)[number], string> = {
   grace_period: "members.status.gracePeriod",
   expired: "members.status.expired",
   deactivated: "members.status.deactivated",
+  awaiting_registration_fee: "members.status.awaitingRegistrationFee",
 };
 
 // Supervisor included per EXPERIENCE.md:206's "Manager-plus" definition -- the
@@ -79,6 +88,7 @@ export function MembersPageClient({
   plans,
   coaches,
   gymName,
+  registrationFee = 0,
 }: {
   initialMembers: MemberListRow[];
   total: number;
@@ -90,6 +100,7 @@ export function MembersPageClient({
   plans: PlanRow[];
   coaches: CoachRow[];
   gymName: string;
+  registrationFee?: number;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -202,6 +213,12 @@ export function MembersPageClient({
   // send: the button stays clickable for a resend (AC #4's explicit
   // "resending is not blocked" requirement).
   async function handleSendInvite(member: MemberListRow) {
+    // Story 18.5: the menu item is disabled for these rows; this is the
+    // backstop (and sendMemberInvite re-checks server-side).
+    if (isAwaitingRegistrationFee(member)) {
+      showToast(t("members.invite.awaitingRegistrationFee"));
+      return;
+    }
     setSendingInviteId(member.id);
     // Shared by both the "gateway unreachable" (`sent: false`) result below and an unexpected
     // thrown exception in the catch block -- both are the same "couldn't confirm the automated
@@ -392,13 +409,20 @@ export function MembersPageClient({
                             {canManage && !member.deactivatedAt && member.phone && (
                               <DropdownMenuItem
                                 className="text-blue-700 focus:text-blue-800"
-                                disabled={sendingInviteId === member.id}
+                                disabled={sendingInviteId === member.id || isAwaitingRegistrationFee(member)}
                                 onClick={() => void handleSendInvite(member)}
                               >
                                 <Send size={14} />
-                                {sendingInviteId === member.id
-                                  ? t("members.invite.sending")
-                                  : t("members.actions.invite")}
+                                <span>
+                                  {sendingInviteId === member.id
+                                    ? t("members.invite.sending")
+                                    : t("members.actions.invite")}
+                                  {isAwaitingRegistrationFee(member) && (
+                                    <span className="block text-xs font-normal text-muted-foreground">
+                                      {t("members.invite.awaitingRegistrationFee")}
+                                    </span>
+                                  )}
+                                </span>
                               </DropdownMenuItem>
                             )}
                             {canManage && !member.deactivatedAt && (
@@ -468,6 +492,7 @@ export function MembersPageClient({
           editingMember={modalState.member}
           plans={plans}
           coaches={coaches}
+          registrationFee={registrationFee}
           onClose={() => setModalState(null)}
           onSaved={(warning) => {
             setModalState(null);

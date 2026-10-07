@@ -544,6 +544,17 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // The first-subscription gate (0098, Story 18.1): a subscription insert for a member
+  // who has not settled the fee. Surfaces as registration_fee_due for the Story 18.5
+  // plan assignment, and for a fee that was switched on between the action's fee
+  // read and its insert.
+  if (message.includes("registration_fee_not_settled")) {
+    return {
+      code: "registration_fee_due",
+      message: copy.registrationFeeDue,
+    };
+  }
+
   // Registration-fee RPCs (0099 record/waive, 0100 initiate; Epic 18). The
   // raise texts lead with a stable code, so these match on the code itself
   // rather than a function-name prefix (three RPCs share each one). The

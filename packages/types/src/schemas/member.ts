@@ -141,6 +141,42 @@ export const createMemberSchema = z
 
 export type CreateMemberInput = z.infer<typeof createMemberSchema>;
 
+// Story 18.5: the fee-gym (registration fee above 0) create. A fee gym creates
+// the member with no plan and no subscription -- the first plan is assigned
+// after the fee is settled (assignInitialPlanSchema below). Identity fields
+// and the join date only; `createMember` rejects an input that still carries
+// planId / subscriptionStatus / expiryDate before this schema runs, so the
+// fields are absent here rather than ignored. createMemberSchema above is
+// deliberately NOT loosened -- the fee-0 flow keeps its exact contract.
+export const createFeeGymMemberSchema = z.object({
+  name: nameSchema,
+  phone: e164Phone,
+  email: emailSchema,
+  dob: dobSchema,
+  photoUrl: photoUrlSchema,
+  emergencyContact: emergencyContactSchema,
+  joinDate: z
+    .iso.date("Enter a valid join date")
+    .refine((val) => val <= todayIso(), {
+      message: "Join date cannot be in the future",
+    }),
+});
+
+export type CreateFeeGymMemberInput = z.infer<typeof createFeeGymMemberSchema>;
+
+// Story 18.5: assigns the first plan to a settled member who has no
+// subscription. The expiry date is not an input: the server computes it from
+// the plan's duration_days. `planId` is z.string().min(1) for the same reason
+// as createMemberSchema's (a hand-seeded id is a valid Postgres uuid but not
+// an RFC 4122 one); the gym-scoped plan lookup is the real authority.
+export const assignInitialPlanSchema = z.object({
+  memberId: z.uuid("Select a valid member"),
+  planId: z.string().min(1, "Select a plan"),
+  startDate: z.iso.date("Enter a valid start date"),
+});
+
+export type AssignInitialPlanInput = z.infer<typeof assignInitialPlanSchema>;
+
 // Edit-mode scope (story's own boundary): identity fields only. No phone
 // (FR-023's "phone changes require admin intervention" -- a dedicated future
 // story, since a phone change touches auth.users identity, not just this

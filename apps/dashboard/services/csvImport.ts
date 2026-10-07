@@ -9,6 +9,7 @@ import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { listPlans } from "@/services/plans";
+import { getGymSettings } from "@/services/gym-settings";
 import {
   deleteAuthUserForCleanup,
   deleteMemberForCleanup,
@@ -367,6 +368,18 @@ export async function confirmCsvImport(
     };
   }
 
+  // Story 18.5: a fee gym's imported members are an existing roster, not new
+  // sign-ups, so each row is settled (importExempt) before its subscription.
+  // The fee is read server-side; a gym at fee 0 passes nothing and the import
+  // is exactly what it was. An unreadable fee stops the import before any
+  // write rather than guessing -- the 0098 gate would otherwise reject the
+  // first row mid-file.
+  const { data: gymSettings, error: gymSettingsError } = await getGymSettings();
+  if (gymSettingsError || !gymSettings) {
+    return { data: null, error: gymSettingsError };
+  }
+  const importExempt = gymSettings.registrationFee > 0;
+
   const successes: { memberId: string; userId: string; authUserCreated: boolean }[] = [];
 
   for (const row of validatedRows) {
@@ -381,6 +394,7 @@ export async function confirmCsvImport(
       planId: row.planId,
       subscriptionStatus: row.subscriptionStatus,
       expiryDate: row.expiryDate,
+      ...(importExempt ? { importExempt: true } : {}),
     });
 
     if (provisionError || !provisioned) {
@@ -421,6 +435,9 @@ export async function confirmCsvImport(
       plan_id: row.planId,
       join_date: row.joinDate,
       via: "csv_import",
+      // Only a fee gym's import carries the key: for a fee-0 gym the audit
+      // metadata is exactly what it was.
+      ...(importExempt ? { registration_fee_exempt: true } : {}),
     });
     if (auditError) {
       failedAuditRows.push(row.row);

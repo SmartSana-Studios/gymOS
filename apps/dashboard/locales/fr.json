@@ -437,7 +437,8 @@
       "gracePeriod": "Délai de grâce",
       "expired": "Expiré",
       "deactivated": "Désactivé",
-      "noActivePlan": "Aucune formule active"
+      "noActivePlan": "Aucune formule active",
+      "awaitingRegistrationFee": "En attente des frais d'inscription"
     },
     "table": {
       "name": "Nom",
@@ -472,6 +473,7 @@
       "close": "Fermer",
       "stepPersonal": "Informations personnelles",
       "stepMembership": "Adhésion",
+      "registrationFeeNotice": "Cette salle facture des frais d'inscription. Le membre est créé en attente de ces frais, sans formule. Une fois les frais encaissés, vous pourrez lui attribuer sa première formule.",
       "name": "Nom *",
       "phone": "Téléphone *",
       "email": "E-mail",
@@ -524,7 +526,8 @@
       "shareWhatsapp": "Partager via WhatsApp",
       "sending": "Envoi…",
       "sentConfirmation": "Invitation envoyée à {{name}} via WhatsApp",
-      "sendFailedFallback": "L'envoi automatique a échoué. Utilisez les options ci-dessous pour partager l'invitation manuellement."
+      "sendFailedFallback": "L'envoi automatique a échoué. Utilisez les options ci-dessous pour partager l'invitation manuellement.",
+      "awaitingRegistrationFee": "Disponible une fois les frais d'inscription réglés"
     },
     "errors": {
       "memberNotFound": "Membre introuvable",
@@ -536,7 +539,9 @@
       "auditLogFailedCreate": "Le membre a été créé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedEdit": "Le membre a été modifié, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedDeactivate": "Le membre a été désactivé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
-      "phoneBelongsToStaffAccount": "Ce numéro de téléphone appartient à un compte du personnel. Un membre du personnel qui souhaite aussi s’entraîner doit utiliser un autre numéro."
+      "phoneBelongsToStaffAccount": "Ce numéro de téléphone appartient à un compte du personnel. Un membre du personnel qui souhaite aussi s’entraîner doit utiliser un autre numéro.",
+      "alreadyHasSubscription": "Ce membre a déjà un abonnement : une première formule ne peut pas être attribuée.",
+      "auditLogFailedPlanAssigned": "La formule a été attribuée, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
     },
     "csvImport": {
       "title": "Importation CSV",
@@ -1030,7 +1035,8 @@
       "registrationFeePaid": "Frais d'inscription payés par Tara Money",
       "registrationFeeAttemptExpired": "Collecte des frais d'inscription expirée",
       "registrationFeeLatePayment": "Frais d'inscription payés en retard par Tara Money (non appliqués)",
-      "registrationFeeVoided": "Frais d'inscription annulés"
+      "registrationFeeVoided": "Frais d'inscription annulés",
+      "memberPlanAssigned": "Première formule attribuée"
     }
   },
   "saasBilling": {

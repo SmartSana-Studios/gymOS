@@ -67,6 +67,9 @@ export interface MemberListRow {
   expiryDate: string | null;
   joinDate: string;
   deactivatedAt: string | null;
+  /** Story 18.5: `members.registration_fee_settled_at`. Null on a role=member
+   * row means the registration fee is still owed (awaiting). */
+  registrationFeeSettledAt: string | null;
 }
 
 interface MemberSubscriptionEmbed {
@@ -87,6 +90,7 @@ interface MemberRowFromDb {
   emergency_contact: string | null;
   join_date: string;
   deactivated_at: string | null;
+  registration_fee_settled_at?: string | null;
   subscriptions: MemberSubscriptionEmbed[] | null;
 }
 
@@ -112,6 +116,7 @@ function toMemberListRow(row: MemberRowFromDb): MemberListRow {
     expiryDate: sub?.expiry_date ?? null,
     joinDate: row.join_date,
     deactivatedAt: row.deactivated_at,
+    registrationFeeSettledAt: row.registration_fee_settled_at ?? null,
   };
 }
 
@@ -143,13 +148,24 @@ function escapeIlike(value: string): string {
 // `?status=` query param (hand-edited, stale link, etc.) would otherwise
 // reach `.eq("subscriptions.status", ...)` below and raise a raw Postgres
 // invalid-enum-value error, surfaced to the user as a generic load failure.
+// "awaiting_registration_fee" (Story 18.5) is a members-level state too, not
+// a subscriptions.status value: it filters on members.registration_fee_settled_at.
 const VALID_STATUS_FILTERS = new Set([
   "active",
   "expiring_soon",
   "grace_period",
   "expired",
   "deactivated",
+  "awaiting_registration_fee",
 ]);
+
+// The filters that live on the `members` row itself. Every other valid filter
+// is a subscriptions.status value and needs the inner-joined embed.
+const MEMBER_LEVEL_STATUS_FILTERS = new Set(["deactivated", "awaiting_registration_fee"]);
+
+function usesSubscriptionInnerJoin(status: string | undefined): boolean {
+  return isValidStatusFilter(status) && !MEMBER_LEVEL_STATUS_FILTERS.has(status as string);
+}
 
 function isValidStatusFilter(status: string | undefined): boolean {
   return Boolean(status && VALID_STATUS_FILTERS.has(status));
@@ -173,6 +189,11 @@ function applyMemberFilters<T>(
   const status = isValidStatusFilter(params.status) ? params.status : undefined;
   if (status === "deactivated") {
     next = next.not("deactivated_at", "is", null);
+  } else if (status === "awaiting_registration_fee") {
+    // A plain column filter on `members` (never an inner join: an awaiting
+    // member has no subscription row to join to). Deactivated members show the
+    // "Deactivated" badge, so they stay out of this filter like the others.
+    next = next.is("deactivated_at", null).is("registration_fee_settled_at", null);
   } else if (status) {
     next = next.is("deactivated_at", null).eq("subscriptions.status", status);
   }
@@ -202,7 +223,7 @@ export async function listMembers(params: {
   const from = (page - 1) * MEMBERS_PAGE_SIZE;
   const to = from + MEMBERS_PAGE_SIZE - 1;
 
-  const useInnerJoin = isValidStatusFilter(params.status) && params.status !== "deactivated";
+  const useInnerJoin = usesSubscriptionInnerJoin(params.status);
   const subscriptionsSelect = useInnerJoin
     ? "subscriptions!inner(status, expiry_date, plan_id, created_at, plans(name, plan_type))"
     : "subscriptions(status, expiry_date, plan_id, created_at, plans(name, plan_type))";
@@ -210,7 +231,7 @@ export async function listMembers(params: {
   let query = supabase
     .from("members")
     .select(
-      `id, name, phone, email, dob, photo_url, emergency_contact, join_date, deactivated_at, ${subscriptionsSelect}`,
+      `id, name, phone, email, dob, photo_url, emergency_contact, join_date, deactivated_at, registration_fee_settled_at, ${subscriptionsSelect}`,
       { count: "exact" },
     )
     .eq("gym_id", gymId)
@@ -254,7 +275,10 @@ export async function listMembers(params: {
  * same "can't send an invite" outcome from the caller's perspective. */
 export async function getMemberForInvite(
   memberId: string,
-): Promise<{ data: { name: string; phone: string } | null; error: AppError | null }> {
+): Promise<{
+  data: { name: string; phone: string; awaitingRegistrationFee: boolean } | null;
+  error: AppError | null;
+}> {
   const supabase = await createClient();
   const { gymId, error: gymIdError } = await getCallerGymId(supabase);
   if (gymIdError || !gymId) {
@@ -263,7 +287,7 @@ export async function getMemberForInvite(
 
   const { data, error } = await supabase
     .from("members")
-    .select("name, phone")
+    .select("name, phone, registration_fee_settled_at")
     .eq("gym_id", gymId)
     .eq("id", memberId)
     .eq("role", "member")
@@ -281,7 +305,16 @@ export async function getMemberForInvite(
       ),
     };
   }
-  return { data: { name: data.name, phone: data.phone }, error: null };
+  return {
+    data: {
+      name: data.name,
+      phone: data.phone,
+      // Story 18.5: the invite waits for settlement. role = 'member' is already
+      // filtered above, so a null settled-at here means the fee is still owed.
+      awaitingRegistrationFee: data.registration_fee_settled_at == null,
+    },
+    error: null,
+  };
 }
 
 /** The fast-fail half of AC #2's cap check (Scope Note #4: counts every
@@ -357,6 +390,51 @@ export async function countMembersJoinedBetween(
   return { data: count ?? 0, error: null };
 }
 
+/** Story 18.5: what `assignInitialPlan` needs to know about a member before it
+ * inserts the first subscription -- whether the member exists in the caller's
+ * gym (as an active-or-not `role = 'member'` row) and whether it already has
+ * any subscription row at all. Whether the registration fee is settled is not
+ * read here: the 0098 gate on `subscriptions` is the authority and rejects an
+ * awaiting member's insert. `gym_id` is applied on both reads, since RLS alone
+ * would let staff of another gym through only if their claim matched. */
+export async function getMemberSubscriptionState(
+  memberId: string,
+): Promise<{ data: { gymId: string; hasSubscription: boolean } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data: member, error: memberError } = await supabase
+    .from("members")
+    .select("id")
+    .eq("gym_id", gymId)
+    .eq("id", memberId)
+    .eq("role", "member")
+    .maybeSingle();
+  if (memberError) {
+    return { data: null, error: await mapAndLog(memberError) };
+  }
+  if (!member) {
+    return {
+      data: null,
+      error: await memberNotFoundError("0 rows for the first-plan member lookup (stale/cross-gym id or non-member role)"),
+    };
+  }
+
+  const { count, error: subscriptionError } = await supabase
+    .from("subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("gym_id", gymId)
+    .eq("member_id", memberId);
+  if (subscriptionError) {
+    return { data: null, error: await mapAndLog(subscriptionError) };
+  }
+
+  return { data: { gymId, hasSubscription: (count ?? 0) > 0 }, error: null };
+}
+
 /** `createMember`'s server-side plan_type lookup -- the client never
  * supplies plan_type directly (it isn't a form field, Scope Note #6), but
  * the Server Action still needs it to validate whether `expiryDate` should
@@ -367,7 +445,10 @@ export async function countMembersJoinedBetween(
  * `getPlan`'s (plans.ts) own scoping discipline. */
 export async function getPlanTypeForGym(
   planId: string,
-): Promise<{ data: { planType: string } | null; error: AppError | null }> {
+): Promise<{
+  data: { planType: string; durationDays: number | null } | null;
+  error: AppError | null;
+}> {
   const supabase = await createClient();
   const { gymId, error: gymIdError } = await getCallerGymId(supabase);
   if (gymIdError || !gymId) {
@@ -376,7 +457,7 @@ export async function getPlanTypeForGym(
 
   const { data, error } = await supabase
     .from("plans")
-    .select("plan_type")
+    .select("plan_type, duration_days")
     .eq("gym_id", gymId)
     .eq("id", planId)
     .maybeSingle();
@@ -388,7 +469,7 @@ export async function getPlanTypeForGym(
     const { t } = await getServerTranslation(await getRequestLocale());
     return { data: null, error: { code: "plan_not_found", message: t("plans.errors.planNotFound") } };
   }
-  return { data: { planType: data.plan_type }, error: null };
+  return { data: { planType: data.plan_type, durationDays: data.duration_days ?? null }, error: null };
 }
 
 /** Scope Note #1's find-or-create-by-phone flow. Uses the Admin API client
@@ -657,9 +738,42 @@ export interface ProvisionMemberRowInput {
   photoUrl: string | null;
   emergencyContact: string | null;
   joinDate: string;
-  planId: string;
-  subscriptionStatus: MemberSubscriptionStatus;
-  expiryDate: string | null;
+  /** Story 18.5: optional. A fee-gym create has no plan and no subscription
+   * (the member is awaiting the registration fee); when `planId` is absent
+   * the subscription insert is skipped. */
+  planId?: string | null;
+  subscriptionStatus?: MemberSubscriptionStatus;
+  expiryDate?: string | null;
+  /** Story 18.5: CSV import of a fee gym. Sets `registration_fee_settled_at`
+   * through the admin client between the member insert and the subscription
+   * insert, so the 0098 gate lets the imported row's subscription through. No
+   * payment is written. The only place in the dashboard that settles a fee
+   * without a collection or waiver. */
+  importExempt?: boolean;
+}
+
+/** Marks a just-created member's registration fee as settled, for the CSV
+ * import exemption only. `members.registration_fee_settled_at` is writable by
+ * service_role and SECURITY DEFINER functions alone (0098), so this goes
+ * through the admin client, the same precedent as `deleteMemberForCleanup`. */
+async function settleRegistrationFeeForImport(memberId: string, gymId: string): Promise<{ error: AppError | null }> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("members")
+    .update({ registration_fee_settled_at: new Date().toISOString() })
+    .eq("gym_id", gymId)
+    .eq("id", memberId)
+    .select("id")
+    .maybeSingle();
+  if (error) {
+    return { error: await mapAndLog(error) };
+  }
+  if (!data) {
+    return {
+      error: await memberNotFoundError("0 rows affected by the import fee-exemption UPDATE (member vanished mid-import)"),
+    };
+  }
+  return { error: null };
 }
 
 /** Shared 3-step provisioning orchestration (find-or-create user by phone →
@@ -709,15 +823,26 @@ export async function provisionMemberRow(
     return { data: null, error: memberError };
   }
 
-  const { error: subscriptionError } = await insertSubscription(memberRow.gymId, memberRow.id, {
-    planId: input.planId,
-    status: input.subscriptionStatus,
-    startDate: input.joinDate,
-    expiryDate: input.expiryDate,
-  });
-  if (subscriptionError) {
-    await deleteMemberForCleanup(memberRow.id);
-    return { data: null, error: subscriptionError };
+  if (input.importExempt) {
+    const { error: settleError } = await settleRegistrationFeeForImport(memberRow.id, memberRow.gymId);
+    if (settleError) {
+      await deleteMemberForCleanup(memberRow.id);
+      return { data: null, error: settleError };
+    }
+  }
+
+  // No plan (a fee-gym create): the member stays awaiting with no subscription.
+  if (input.planId) {
+    const { error: subscriptionError } = await insertSubscription(memberRow.gymId, memberRow.id, {
+      planId: input.planId,
+      status: input.subscriptionStatus ?? "active",
+      startDate: input.joinDate,
+      expiryDate: input.expiryDate ?? null,
+    });
+    if (subscriptionError) {
+      await deleteMemberForCleanup(memberRow.id);
+      return { data: null, error: subscriptionError };
+    }
   }
 
   return {
@@ -893,7 +1018,7 @@ export async function exportMembersCsv(params: {
     return { data: null, error: gymIdError ?? (await memberNotFoundError("no gymId or error from getCallerGymId in exportMembersCsv")) };
   }
 
-  const useInnerJoin = isValidStatusFilter(params.status) && params.status !== "deactivated";
+  const useInnerJoin = usesSubscriptionInnerJoin(params.status);
   const subscriptionsSelect = useInnerJoin
     ? "subscriptions!inner(status, expiry_date, plan_id, created_at, plans(name, plan_type))"
     : "subscriptions(status, expiry_date, plan_id, created_at, plans(name, plan_type))";
@@ -967,7 +1092,7 @@ export async function exportMembersCsv(params: {
  * same `{error}`-only return shape, same "audit write failed" console.error
  * + mapAndLog, same internally-resolved gym_id discipline. */
 export async function logMemberChange(
-  actionType: "member_created" | "member_edited" | "member_deactivated",
+  actionType: "member_created" | "member_edited" | "member_deactivated" | "member_plan_assigned",
   memberId: string,
   metadata: Record<string, unknown>,
 ): Promise<{ error: AppError | null }> {

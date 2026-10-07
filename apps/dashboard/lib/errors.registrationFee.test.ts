@@ -23,10 +23,11 @@ const CASES: Array<[string, string]> = [
   [`tara_fee_cannot_be_voided: payment ${MEMBER} was collected through Tara Money`, "tara_fee_cannot_be_voided"],
   [`member_already_has_subscription: member ${MEMBER} already has a subscription`, "member_already_has_subscription"],
   [`registration_fee_not_refundable: payment ${MEMBER} is a registration fee, which is not refundable`, "registration_fee_not_refundable"],
+  [`registration_fee_not_settled: member ${MEMBER} has not settled the registration fee, so no subscription can be created`, "registration_fee_due"],
   [`payment_voided_not_refundable: payment ${MEMBER} was voided and cannot be refunded`, "payment_voided_not_refundable"],
 ];
 
-describe("mapSupabaseError -- registration fee (Stories 18.3, 18.4)", () => {
+describe("mapSupabaseError -- registration fee (Stories 18.3, 18.4, 18.5)", () => {
   for (const [message, code] of CASES) {
     it(`maps "${message.split(":")[0]}" to ${code} with real copy in both locales`, () => {
       const en = mapSupabaseError({ message }, "en");

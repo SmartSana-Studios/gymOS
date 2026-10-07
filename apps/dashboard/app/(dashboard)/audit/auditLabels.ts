@@ -51,4 +51,7 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // Story 18.4. Written by void_registration_fee_payment() (0101), gym-scoped,
   // target = the member. Metadata { payment_id, amount, method, reason }.
   registration_fee_voided: "audit.actionTypes.registrationFeeVoided",
+  // Story 18.5. Written by assignInitialPlan (members/actions.ts) through
+  // logMemberChange, target = the member. Metadata { plan_id, start_date, expiry_date }.
+  member_plan_assigned: "audit.actionTypes.memberPlanAssigned",
 };

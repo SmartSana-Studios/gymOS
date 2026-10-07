@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { createMemberSchema, editMemberSchema } from "@gymos/types";
+import { createFeeGymMemberSchema, createMemberSchema, editMemberSchema } from "@gymos/types";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -170,6 +170,7 @@ export function MemberModal({
   editingMember,
   plans,
   coaches,
+  registrationFee = 0,
   onClose,
   onSaved,
 }: {
@@ -178,6 +179,11 @@ export function MemberModal({
   editingMember: MemberListRow | null;
   plans: PlanRow[];
   coaches: CoachRow[];
+  /** Story 18.5: the gym's registration fee, from the server. Above 0 the
+   * create form omits plan, status and expiry -- the member is created
+   * awaiting the fee and gets the first plan afterward. createMember re-reads
+   * the fee server-side and stays authoritative. */
+  registrationFee?: number;
   onClose: () => void;
   onSaved: (warning?: string) => void;
 }) {
@@ -203,6 +209,7 @@ export function MemberModal({
   const [photoLoadFailed, setPhotoLoadFailed] = useState(false);
 
   const isCreate = !editingMember;
+  const isFeeGymCreate = isCreate && registrationFee > 0;
   const isEdit = Boolean(editingMember) && !readOnly;
 
   // Adjusted during render (React's documented alternative to an
@@ -298,18 +305,25 @@ export function MemberModal({
     setFormError(null);
 
     if (isCreate) {
-      const parsed = createMemberSchema.safeParse({
+      const identityFields = {
         name: form.name,
         phone: form.phone,
         email: form.email.trim() === "" ? null : form.email,
         dob: form.dob === "" ? null : form.dob,
         photoUrl: form.photoUrl.trim() === "" ? null : form.photoUrl,
         emergencyContact: form.emergencyContact.trim() === "" ? null : form.emergencyContact,
-        planId: form.planId,
         joinDate: form.joinDate,
-        subscriptionStatus: form.subscriptionStatus,
-        expiryDate: isPayPerSession || form.expiryDate === "" ? null : form.expiryDate,
-      });
+      };
+      // Fee gym: no plan, status or expiry in the parse or the createMember
+      // call below -- the server would reject them with registration_fee_due.
+      const parsed = isFeeGymCreate
+        ? createFeeGymMemberSchema.safeParse(identityFields)
+        : createMemberSchema.safeParse({
+            ...identityFields,
+            planId: form.planId,
+            subscriptionStatus: form.subscriptionStatus,
+            expiryDate: isPayPerSession || form.expiryDate === "" ? null : form.expiryDate,
+          });
 
       if (!parsed.success) {
         const errors: FieldErrors = {};
@@ -613,7 +627,26 @@ export function MemberModal({
               </>
             )}
 
-            {isCreate && step === 2 && (
+            {isFeeGymCreate && step === 2 && (
+              <>
+                <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  {t("members.modal.registrationFeeNotice")}
+                </p>
+
+                <div className="space-y-2">
+                  <Label htmlFor="memberJoinDate">{t("members.modal.joinDate")}</Label>
+                  <Input
+                    id="memberJoinDate"
+                    type="date"
+                    value={form.joinDate}
+                    onChange={(e) => setForm({ ...form, joinDate: e.target.value })}
+                  />
+                  {fieldErrors.joinDate && <p className="text-sm text-red-600">{fieldErrors.joinDate}</p>}
+                </div>
+              </>
+            )}
+
+            {isCreate && !isFeeGymCreate && step === 2 && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="memberPlan">{t("members.modal.plan")}</Label>
