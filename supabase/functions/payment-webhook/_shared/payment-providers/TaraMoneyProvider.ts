@@ -267,6 +267,9 @@ export class TaraMoneyProvider implements PaymentProvider {
     }
 
     if (!isTaraMoneyInitiateResponse(rawBody)) {
+      // The response carries no credentials; keep a truncated copy so an operator can
+      // see what Tara actually answered (bad business id, inactive account, ...).
+      console.error("TaraMoney initiate: unrecognized response body:", JSON.stringify(rawBody).slice(0, 500));
       return { success: false, error: "TaraMoney returned an unrecognized response shape" };
     }
     const body = rawBody;

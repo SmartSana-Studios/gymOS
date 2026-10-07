@@ -62,7 +62,7 @@ async function AdminLayoutData({
 
   return (
     <div className="min-h-screen flex flex-col">
-      <nav className="w-full border-b flex items-center gap-6 px-5 h-14">
+      <nav className="sticky top-0 z-30 w-full border-b bg-background flex items-center gap-6 px-5 h-14">
         <Link href="/gyms" className="font-semibold">
           {t("nav.brand")}
         </Link>
