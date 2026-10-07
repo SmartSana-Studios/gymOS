@@ -16,7 +16,7 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 **`set_registration_fee(p_amount)` skips the write and the audit row when the amount is unchanged.** The Settings field has its own Save button, so a no-op save would otherwise log a `registration_fee_changed` row with identical old and new amounts. Owner and Supervisor only, `is distinct from 'active'` suspension guard before any write.
 
-**Verification note.** `supabase db reset`/`supabase test db` do not run from this devcontainer (no CLI on PATH, containers have no network). The local `supabase_db_gym_os` container was restarted, `0098` applied with `psql` through `docker exec`, and the suite run with the `pg_prove:3.36` image on the `supabase_network_gym_os` network (`--ext .sql /tests`; a bare directory argument finds no files): 99 files, 2152 tests, all passing, versus 97 files and 2102 before this story.
+**Verification note.** `supabase db reset`/`supabase test db` do not run from this devcontainer (no CLI on PATH, containers have no network). The local `supabase_db_gym_os` container was restarted, `0098` applied with `psql` through `docker exec`, and the suite run with the `pg_prove:3.36` image on the `supabase_network_gym_os` network (`--ext .sql /tests`; a bare directory argument finds no files): 99 files, 2154 tests, all passing, versus 97 files and 2102 before this story.
 
 ---
 

@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review of spec-18-1-registration-fee-setting-member-state-first-subscription-gate (2026-10-07)
+
+- **A fee above 0 blocks Add Member and CSV import until 18.2-18.5 land, and awaiting members have no release path.** `enforce_registration_fee_settled` rejects the first subscription of every awaiting member, so `provisionMemberRow` (`insertMember` then `insertSubscription`, then `deleteMemberForCleanup`) and the CSV import fail for any gym that saves a fee, with an unmapped `registration_fee_not_settled` error. Lowering the fee to 0 does not settle members already created. No test runs `provisionMemberRow`/`createMember`/import against a fee > 0 gym. Marked medium, unverified end to end. Settled by 18.5 (two-step creation, import exemption, `registration_fee_due` mapping) and 18.2 (settle/waive); 18.5's tests must cover `provisionMemberRow` and the import with fee > 0. Epic 18 is held from master until all stories are tested, so no live gym can set a fee in the meantime.
+
 ## Deferred from: dev-story of story-17-5-coach-portal-overview (2026-09-10)
 
 - **Needs Follow-Up cannot tell a new assignment from a neglected one.** A Coach has no read on `coach_assignments.started_at` (`0039`, manager/owner only), so a member assigned today shows "No note yet" at once, beside members who have been neglected for weeks. Telling them apart needs either a coach read of the assignment start or a grace period, which is a product decision.

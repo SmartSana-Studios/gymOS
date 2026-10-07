@@ -100,3 +100,28 @@ Pin choice: inside a SECURITY DEFINER function `current_user` is the function ow
 **Commands:**
 - `supabase test db` (or the pg_prove workaround in `docs/decisions.md`) -- expected: all pgTAP green
 - `pnpm typecheck && pnpm lint && pnpm check:i18n && pnpm --filter @gymos/dashboard test` -- expected: exit 0
+
+### Review Findings
+
+Second review pass (2026-10-07, bmad-code-review: Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor over `f2bc4f3..240445d`). 33 raw findings -> 1 patch, 1 defer, 31 rejected.
+
+- [x] [Review][Patch] `docs/decisions.md` verification note says 2152 pgTAP tests; the two new files declare `plan(26)` each, and the post-review count recorded in sprint-status is 2154 (2102 + 52) [docs/decisions.md:19]
+- [x] [Review][Defer] The fee field ships before any way to settle it -- with a fee above 0, every new member is awaiting and cannot be subscribed, and nothing in 18.1 releases them (fee back to 0 does not). Add Member (`provisionMemberRow` -> `insertSubscription`, then `deleteMemberForCleanup`) and CSV import therefore fail for that gym, the raw `registration_fee_not_settled` error has no friendly mapping in `packages/types/src/errors.ts`, and no test runs `provisionMemberRow`/`createMember`/import against a fee > 0 gym [supabase/migrations/0098_registration_fee_foundation.sql:enforce_registration_fee_settled; apps/dashboard/services/members.ts:~700] -- deferred: medium (unverified end to end), by design -- 18.2-18.5 own settle/collect/waive, two-step creation, import exemption and `registration_fee_due` mapping. Epic 18 is held from master until all 7 stories are tested, so no real gym can set a fee in the interim; 18.5's tests must cover `provisionMemberRow` and the import with fee > 0, and 18.2 should decide whether lowering the fee to 0 releases awaiting members. (Re-surfaces the earlier pass's release-sequencing item.)
+
+#### Rejected
+
+- `false` -- complete_verified_payment would charge an awaiting member then fail the gate: it only renews from the member's most recent existing subscription and returns early ("no subscription to renew") when there is none; an awaiting member cannot have one.
+- `false` -- backfill UPDATE fires every members BEFORE UPDATE trigger: checked `pg_trigger` on the local DB; `enforce_staff_member_phone_separation_trigger` is `UPDATE OF role, user_id, deactivated_at`, so it does not fire; `protect_self_managed_member_columns` needs `auth.uid()` (null in a migration).
+- `false` -- set_registration_fee EXECUTE retained by anon/service_role: `has_function_privilege` is false for both on the local DB (true only for authenticated).
+- `false` -- role change staff -> `member` skips the fee: `update_staff_role` rejects any target that is already `member` and any `p_role` outside supervisor/manager/receptionist/coach.
+- `false` -- `protect_super_admin_only_gym_columns` rewrite may revert later changes / no regression coverage: 0077 is the latest prior definition (grep of migrations) and the body is verbatim apart from the new pin.
+- `false` -- insert trigger overwriting the value contradicts the service-role-import claim: the claim is about UPDATE (post-insert settle), which is the spec's 18.5 design (earlier triage, same verdict).
+- `low` not worth fixing -- gate is BEFORE INSERT only, so UPDATE of `subscriptions.member_id` could re-point onto an awaiting member: spec scopes the gate to inserts, no app path updates `member_id`; only a deliberate staff API call reaches it.
+- `low` not worth fixing -- Settings fee field visible to non-owner/supervisor: nav restricts `/settings` to owner and supervisor (Sidebar `NAV_ITEMS`), direct URL reaches a field whose RPC rejects; pre-existing page pattern (earlier triage, same verdict).
+- `low` not worth fixing -- trigger functions are definer without the suspension guard: they write no table (documented in the migration header); a guard would add nothing to a read-only check.
+- `low` not worth fixing -- unchanged amount writes no audit row: documented, tested decision.
+- `low` not worth fixing -- both pins revert silently (no raise): spec's decision, documented trap; raising would change the contract.
+- `low` not worth fixing -- oversize amount shows the generic "whole amount" message / no business ceiling; stale local fee state after another tab's change; typed fee lost on main Save (same as the notification-email field); double Enter during save (input disabled, RPC idempotent on unchanged amount).
+- `low` not worth fixing -- backfill is one unbatched UPDATE: members table is small and the migration is one-shot.
+- `low` not worth fixing -- test gaps (anon pin branch, large `p_amount`, cross-gym gate, i18n key sync test, mocked `react-i18next`): RLS blocks anon, other paths are covered by `check:i18n` and existing positive controls.
+- `low` not worth fixing -- `(0093:689)` line citation, no `sprint-status` entry in the diff, Dashboard task still unchecked in the spec: line-rot is tracked repo-wide; sprint-status is written by this step; the fix for the checkbox is to edit the spec.
