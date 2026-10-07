@@ -162,6 +162,19 @@ export const gymSettingsSchema = z.object({
 
 export type GymSettingsInput = z.infer<typeof gymSettingsSchema>;
 
+// Story 18.1: one-time registration fee, whole XAF, 0 = off. Validated
+// separately from gymSettingsSchema on purpose -- the fee is saved through its
+// own set_registration_fee() RPC (owner/supervisor, audited), never through the
+// owner_update_own_gym path saveGymSettings uses. The database enforces
+// `check (registration_fee >= 0)`; the integer ceiling matches the column type.
+export const registrationFeeSchema = z
+  .number()
+  .int("Enter a whole amount of 0 or more")
+  .min(0, "Enter a whole amount of 0 or more")
+  .max(2147483647, "Value is too large");
+
+export type RegistrationFeeInput = z.infer<typeof registrationFeeSchema>;
+
 // Story 11.5 (FR-134/FR-136): Super Admin grants a gym a credit / free
 // period. `days` is always a resolved day count by the time this schema
 // validates it -- SA-07's "grants N days or one billing cycle free" is

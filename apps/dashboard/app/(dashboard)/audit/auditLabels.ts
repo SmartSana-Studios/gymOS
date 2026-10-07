@@ -29,4 +29,7 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   subscription_lifecycle_job_failure: "audit.actionTypes.subscriptionLifecycleJobFailure",
   check_in_auto_timeout_job_failure: "audit.actionTypes.checkInAutoTimeoutJobFailure",
   payment_reconciliation_job_failure: "audit.actionTypes.paymentReconciliationJobFailure",
+  // Story 18.1. Written by set_registration_fee() (0098), gym-scoped, metadata
+  // { old_amount, new_amount }.
+  registration_fee_changed: "audit.actionTypes.registrationFeeChanged",
 };

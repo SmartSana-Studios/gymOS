@@ -22,6 +22,7 @@ vi.mock("./actions", () => ({
   // the payments section, stubbed only so the module resolves.
   regenerateQrCode: vi.fn(),
   saveGymSettings: vi.fn(),
+  saveRegistrationFee: vi.fn(),
   uploadLogo: vi.fn(),
   payNow: vi.fn(),
   saveNotificationEmail: vi.fn(),
@@ -84,6 +85,7 @@ const INITIAL_SETTINGS = {
   alertAutoDismissMinutes: 30,
   checkinTimeoutHours: 12,
   gymToken: "token-1",
+  registrationFee: 0,
 };
 
 async function renderForm(

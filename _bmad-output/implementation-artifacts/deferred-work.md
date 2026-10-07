@@ -902,3 +902,19 @@ of work.
 ## Deferred from: code review of 17-1-staff-overview-operational-cards-live-tables (2026-09-10)
 
 - **Overview check-in time is formatted with no `timeZone` in an SSR'd client component** (`apps/dashboard/app/(dashboard)/components/CheckedInTable.tsx:31`). `new Date(iso).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" })` runs once on the server (UTC on Vercel) and again in the browser (Africa/Douala, UTC+1), so the two renders disagree by an hour — React reports a hydration text mismatch and re-renders the cell client-side, visibly jumping the time. Deferred, pre-existing: copied verbatim from `AttendancePageClient.tsx:157` and shared with `PaymentsPageClient.tsx:98`; it is another instance of the cross-cutting pattern already recorded above for `noteTimestamp()` (CoachMemberDetailPageClient). The fix — an explicit gym `timeZone`, or formatting after mount — belongs in one pass over every call site, not in the Overview alone.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-18-1-registration-fee-setting-member-state-first-subscription-gate.md`
+  summary: Release sequencing for the registration fee: an Owner or Supervisor who sets a fee above 0 after 18.1 ships (before 18.2-18.4) leaves every new member awaiting with no way to settle them, and lowering the fee back to 0 does not release them.
+  evidence: 18.1 ships the Settings field and the gate but no collect, waive or void RPC. Do not deploy 18.1 to production ahead of 18.2 (or hold the field) unless gyms are told not to set a fee.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-18-1-registration-fee-setting-member-state-first-subscription-gate.md`
+  summary: Map the `registration_fee_not_settled` database error to a friendly dashboard message wherever a subscription insert can hit it.
+  evidence: The gate raises a raw check_violation. Story 18.5 AC already covers surfacing it as `registration_fee_due`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-18-1-registration-fee-setting-member-state-first-subscription-gate.md`
+  summary: Hide the registration fee field (or add a role guard on /settings) for roles other than owner and supervisor.
+  evidence: settings/page.tsx has no role guard (pre-existing, Sidebar-only gating), so a Manager reaching /settings by URL sees the field and gets a permission error on save.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-18-1-registration-fee-setting-member-state-first-subscription-gate.md`
+  summary: Warn or include the registration fee in the main Save when it has been edited but not saved.
+  evidence: The fee has its own Save button; clicking the page-level Save with an edited fee leaves it unsaved while showing a success toast. Same pattern as the notification email field.

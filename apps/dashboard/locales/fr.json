@@ -86,7 +86,7 @@
     "sectionDescriptions": {
       "branding": "Logo, nom de la salle et couleur de marque",
       "localization": "Langue et fuseau horaire par défaut",
-      "membership": "Délai de grâce et capacité des membres",
+      "membership": "Délai de grâce, capacité des membres et frais d'inscription",
       "attendance": "Délai d'expiration de la session de présence",
       "frontDeskAlerts": "Délai de disparition automatique des alertes",
       "qrCode": "Code de présence de votre salle",
@@ -115,7 +115,12 @@
       "alertAutoDismiss": "Fermeture auto. des alertes",
       "alertAutoDismissUnit": "minutes",
       "checkinTimeout": "Délai de pointage *",
-      "checkinTimeoutUnit": "heures"
+      "checkinTimeoutUnit": "heures",
+      "registrationFee": "Frais d'inscription",
+      "registrationFeeUnit": "XAF",
+      "registrationFeeHint": "0 signifie aucun frais d'inscription",
+      "registrationFeeSave": "Enregistrer les frais",
+      "registrationFeeSavedToast": "Frais d'inscription enregistrés."
     },
     "languageOptionEnglish": "English",
     "languageOptionFrench": "Français",
@@ -193,7 +198,9 @@
       "gracePeriodRange": "Le délai de grâce doit être compris entre 1 et 30 jours",
       "capacityRequired": "Indiquez la capacité de la salle",
       "alertAutoDismissRange": "La fermeture automatique doit être comprise entre 1 et 120 minutes",
-      "checkinTimeoutRange": "Le délai de pointage doit être compris entre 1 et 24 heures"
+      "checkinTimeoutRange": "Le délai de pointage doit être compris entre 1 et 24 heures",
+      "registrationFeeInvalid": "Saisissez un montant entier supérieur ou égal à 0",
+      "registrationFeeSaveFailed": "Impossible d'enregistrer les frais d'inscription"
     }
   },
   "staff": {
@@ -1015,7 +1022,8 @@
       "gymDataEscalationRevoked": "Accès aux données de la salle révoqué",
       "subscriptionLifecycleJobFailure": "Échec de la tâche d'abonnement",
       "checkInAutoTimeoutJobFailure": "Échec de la tâche d'enregistrement",
-      "paymentReconciliationJobFailure": "Échec de la tâche de rapprochement des paiements"
+      "paymentReconciliationJobFailure": "Échec de la tâche de rapprochement des paiements",
+      "registrationFeeChanged": "Frais d'inscription modifiés"
     }
   },
   "saasBilling": {

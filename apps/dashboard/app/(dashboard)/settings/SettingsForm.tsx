@@ -16,7 +16,12 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { connectGymPaymentCredentialsSchema, emailSchema, gymSettingsSchema } from "@gymos/types";
+import {
+  connectGymPaymentCredentialsSchema,
+  emailSchema,
+  gymSettingsSchema,
+  registrationFeeSchema,
+} from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,6 +38,7 @@ import {
   regenerateQrCode,
   saveGymSettings,
   saveNotificationEmail,
+  saveRegistrationFee,
   uploadLogo,
 } from "./actions";
 
@@ -174,6 +180,13 @@ export function SettingsForm({
   const [swatchColor, setSwatchColor] = useState(
     initial.primaryColor && HEX_COLOR_RE.test(initial.primaryColor) ? initial.primaryColor : null,
   );
+
+  // Story 18.1: the registration fee saves through its own RPC (the column is
+  // pinned against the main form's UPDATE), so it has its own state and Save
+  // button, mirroring the billing notification email below.
+  const [registrationFee, setRegistrationFee] = useState(String(initial.registrationFee));
+  const [registrationFeeError, setRegistrationFeeError] = useState<string | null>(null);
+  const [savingRegistrationFee, setSavingRegistrationFee] = useState(false);
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -513,6 +526,32 @@ export function SettingsForm({
     }
   }
 
+  async function handleSaveRegistrationFee() {
+    setRegistrationFeeError(null);
+    const trimmed = registrationFee.trim();
+    // Number("") is 0 and Number("1e3") is 1000 -- accept only plain digits so
+    // a blank field never silently turns the fee off.
+    const parsed = /^\d+$/.test(trimmed) ? registrationFeeSchema.safeParse(Number(trimmed)) : null;
+    if (!parsed || !parsed.success) {
+      setRegistrationFeeError(t("settings.errors.registrationFeeInvalid"));
+      return;
+    }
+    setSavingRegistrationFee(true);
+    try {
+      const { error } = await saveRegistrationFee(parsed.data);
+      if (error) {
+        setRegistrationFeeError(error.message);
+        return;
+      }
+      setRegistrationFee(String(parsed.data));
+      showToast(t("settings.fields.registrationFeeSavedToast"));
+    } catch {
+      setRegistrationFeeError(t("settings.errors.registrationFeeSaveFailed"));
+    } finally {
+      setSavingRegistrationFee(false);
+    }
+  }
+
   return (
     <div ref={formTopRef} className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -718,6 +757,47 @@ export function SettingsForm({
                     <span className="text-sm text-muted-foreground">{t("settings.fields.capacityUnit")}</span>
                   </div>
                   {fieldErrors.capacity && <p className="text-sm text-red-600">{fieldErrors.capacity}</p>}
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="registrationFee">{t("settings.fields.registrationFee")}</Label>
+                  <p className="text-xs text-muted-foreground">{t("settings.fields.registrationFeeHint")}</p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="registrationFee"
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        step={1}
+                        value={registrationFee}
+                        onChange={(e) => {
+                          setRegistrationFee(e.target.value);
+                          setRegistrationFeeError(null);
+                        }}
+                        onKeyDown={(e) => {
+                          // Enter inside this field must save the fee, not submit the main settings form.
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            void handleSaveRegistrationFee();
+                          }
+                        }}
+                        disabled={savingRegistrationFee}
+                        className="sm:max-w-40"
+                      />
+                      <span className="text-sm text-muted-foreground">{t("settings.fields.registrationFeeUnit")}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={savingRegistrationFee}
+                      onClick={handleSaveRegistrationFee}
+                    >
+                      {savingRegistrationFee ? t("common.saving") : t("settings.fields.registrationFeeSave")}
+                    </Button>
+                  </div>
+                  {registrationFeeError && <p className="text-sm text-red-600">{registrationFeeError}</p>}
                 </div>
               </CardContent>
             </Card>

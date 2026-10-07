@@ -31,6 +31,7 @@ vi.mock("@/services/gym-settings", () => ({
   MAX_LOGO_BYTES: 5 * 1024 * 1024,
   logGymSettingsChange: vi.fn(),
   regenerateQrCode: vi.fn(),
+  setRegistrationFee: vi.fn(),
   updateGymSettings: vi.fn(),
   uploadGymLogo: vi.fn(),
 }));

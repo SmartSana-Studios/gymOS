@@ -86,7 +86,7 @@
     "sectionDescriptions": {
       "branding": "Logo, gym name & brand color",
       "localization": "Language & timezone defaults",
-      "membership": "Grace period & member capacity",
+      "membership": "Grace period, member capacity & registration fee",
       "attendance": "Check-in session timeout",
       "frontDeskAlerts": "Auto-dismiss timing for alerts",
       "qrCode": "Check-in code for your gym",
@@ -115,7 +115,12 @@
       "alertAutoDismiss": "Alert auto-dismiss",
       "alertAutoDismissUnit": "minutes",
       "checkinTimeout": "Check-In Timeout *",
-      "checkinTimeoutUnit": "hours"
+      "checkinTimeoutUnit": "hours",
+      "registrationFee": "Registration fee",
+      "registrationFeeUnit": "XAF",
+      "registrationFeeHint": "0 means no registration fee",
+      "registrationFeeSave": "Save fee",
+      "registrationFeeSavedToast": "Registration fee saved."
     },
     "languageOptionEnglish": "English",
     "languageOptionFrench": "Français",
@@ -193,7 +198,9 @@
       "gracePeriodRange": "Grace period must be between 1 and 30 days",
       "capacityRequired": "Enter the gym's member capacity",
       "alertAutoDismissRange": "Auto-dismiss must be between 1 and 120 minutes",
-      "checkinTimeoutRange": "Check-in timeout must be between 1 and 24 hours"
+      "checkinTimeoutRange": "Check-in timeout must be between 1 and 24 hours",
+      "registrationFeeInvalid": "Enter a whole amount of 0 or more",
+      "registrationFeeSaveFailed": "Could not save the registration fee"
     }
   },
   "staff": {
@@ -1015,7 +1022,8 @@
       "gymDataEscalationRevoked": "Gym data access revoked",
       "subscriptionLifecycleJobFailure": "Subscription job failure",
       "checkInAutoTimeoutJobFailure": "Check-in job failure",
-      "paymentReconciliationJobFailure": "Payment reconciliation job failure"
+      "paymentReconciliationJobFailure": "Payment reconciliation job failure",
+      "registrationFeeChanged": "Registration fee changed"
     }
   },
   "saasBilling": {
