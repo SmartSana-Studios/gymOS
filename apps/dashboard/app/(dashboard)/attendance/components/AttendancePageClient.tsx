@@ -254,8 +254,6 @@ export function AttendancePageClient({
       <div className="space-y-4">
         <h2 className="text-lg font-medium">{t("attendance.dailyLogHeading")}</h2>
 
-        <TablePagination page={page} pageSize={pageSize} total={logTotal} {...logPagination} />
-
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex flex-col gap-1">
             <label htmlFor="attendanceFrom" className="text-sm text-muted-foreground">
@@ -291,6 +289,8 @@ export function AttendancePageClient({
             className="max-w-xs"
           />
         </div>
+
+        <TablePagination page={page} pageSize={pageSize} total={logTotal} {...logPagination} />
 
         {logRows.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-md border border-dashed py-16 text-center">

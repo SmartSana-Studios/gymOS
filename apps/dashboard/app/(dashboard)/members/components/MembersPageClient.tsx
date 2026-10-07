@@ -301,8 +301,6 @@ export function MembersPageClient({
         </div>
       </div>
 
-      <TablePagination page={page} pageSize={pageSize} total={total} {...pagination} />
-
       <div className="flex gap-2">
         <div className="flex flex-col gap-1">
           <Label htmlFor="membersSearch" className="invisible">
@@ -332,6 +330,8 @@ export function MembersPageClient({
           </select>
         </div>
       </div>
+
+      <TablePagination page={page} pageSize={pageSize} total={total} {...pagination} />
 
       {initialMembers.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-md border border-dashed py-16 text-center">

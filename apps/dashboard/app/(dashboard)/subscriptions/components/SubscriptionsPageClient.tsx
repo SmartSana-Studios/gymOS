@@ -182,8 +182,6 @@ export function SubscriptionsPageClient({
         </Button>
       </div>
 
-      <TablePagination page={page} pageSize={pageSize} total={total} {...pagination} />
-
       <div className="flex gap-4">
         <div className="flex flex-col gap-1">
           <Label htmlFor="subscriptionsStatusFilter">{t("subscriptions.filters.status")}</Label>
@@ -217,6 +215,8 @@ export function SubscriptionsPageClient({
           </select>
         </div>
       </div>
+
+      <TablePagination page={page} pageSize={pageSize} total={total} {...pagination} />
 
       {initialSubscriptions.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-md border border-dashed py-16 text-center">

@@ -132,13 +132,6 @@ export function BillingPageClient({
         <h1 className="text-2xl font-semibold">{t("billing.title")}</h1>
       </div>
 
-      <TablePagination
-        page={page}
-        pageSize={pageSize}
-        total={total}
-        onPageChange={pagination.onPageChange}
-        onPageSizeChange={pagination.onPageSizeChange}
-      />
       <div className="flex gap-2">
         <div className="flex flex-col gap-1">
           <Label htmlFor="billingSearch" className="invisible">
@@ -176,6 +169,14 @@ export function BillingPageClient({
           </Button>
         </div>
       </div>
+
+      <TablePagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onPageChange={pagination.onPageChange}
+        onPageSizeChange={pagination.onPageSizeChange}
+      />
 
       {initialRows.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-md border border-dashed py-16 text-center">
