@@ -465,6 +465,10 @@ describe("CollectRegistrationFeeDialog (Story 18.6)", () => {
         />,
       );
       await screen.findByText(/waiting for alice/i);
+      // Subscribing reports SUBSCRIBED, which does one catch-up read from the watch
+      // effect. That effect can flush after the heading renders, so wait for it
+      // before clearing the mock -- otherwise it lands in the assertion window.
+      await waitFor(() => expect(fetchPaymentStatus).toHaveBeenCalledTimes(1));
       removeChannel.mockImplementation(() => capturedOnStatusChange?.("CLOSED"));
       fetchPaymentStatus.mockClear();
 
