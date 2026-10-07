@@ -461,11 +461,6 @@
       "assignPlan": "Assign plan",
       "voidFee": "Void fee"
     },
-    "pagination": {
-      "previous": "Previous page",
-      "next": "Next page",
-      "ellipsis": "…"
-    },
     "export": {
       "button": "Export CSV",
       "exporting": "Exporting…"
@@ -705,11 +700,6 @@
     },
     "emptyNoSubscriptions": "No subscriptions yet.",
     "emptyFilterNoMatch": "No subscriptions match your filter.",
-    "pagination": {
-      "previous": "Previous page",
-      "next": "Next page",
-      "ellipsis": "…"
-    },
     "export": {
       "button": "Export CSV",
       "exporting": "Exporting…"
@@ -916,12 +906,7 @@
       "checkingOut": "Checking out…"
     },
     "dateFrom": "From",
-    "dateTo": "To",
-    "pagination": {
-      "previous": "Previous page",
-      "next": "Next page",
-      "ellipsis": "…"
-    }
+    "dateTo": "To"
   },
   "payments": {
     "title": "Payments",
@@ -1097,11 +1082,6 @@
       "actorAll": "All"
     },
     "emptyNoRecords": "No audit records for this period.",
-    "pagination": {
-      "previous": "Previous page",
-      "next": "Next page",
-      "ellipsis": "…"
-    },
     "export": {
       "button": "Export CSV",
       "exporting": "Exporting…"
@@ -1148,5 +1128,12 @@
     "selectCountry": "Select country",
     "searchCountry": "Search country...",
     "noCountryFound": "No country found"
+  },
+  "pagination": {
+    "rowsPerPage": "Rows per page",
+    "showing": "{{from}}–{{to}} of {{total}}",
+    "previous": "Previous page",
+    "next": "Next page",
+    "ellipsis": "…"
   }
 }

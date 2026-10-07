@@ -461,11 +461,6 @@
       "assignPlan": "Attribuer une formule",
       "voidFee": "Invalider les frais"
     },
-    "pagination": {
-      "previous": "Page précédente",
-      "next": "Page suivante",
-      "ellipsis": "…"
-    },
     "export": {
       "button": "Exporter en CSV",
       "exporting": "Exportation…"
@@ -705,11 +700,6 @@
     },
     "emptyNoSubscriptions": "Aucun abonnement pour le moment.",
     "emptyFilterNoMatch": "Aucun abonnement ne correspond à votre filtre.",
-    "pagination": {
-      "previous": "Page précédente",
-      "next": "Page suivante",
-      "ellipsis": "…"
-    },
     "export": {
       "button": "Exporter en CSV",
       "exporting": "Exportation…"
@@ -916,12 +906,7 @@
       "checkingOut": "Enregistrement du départ…"
     },
     "dateFrom": "Du",
-    "dateTo": "Au",
-    "pagination": {
-      "previous": "Page précédente",
-      "next": "Page suivante",
-      "ellipsis": "…"
-    }
+    "dateTo": "Au"
   },
   "payments": {
     "title": "Paiements",
@@ -1097,11 +1082,6 @@
       "actorAll": "Tous"
     },
     "emptyNoRecords": "Aucune entrée d'audit pour cette période.",
-    "pagination": {
-      "previous": "Page précédente",
-      "next": "Page suivante",
-      "ellipsis": "…"
-    },
     "export": {
       "button": "Exporter en CSV",
       "exporting": "Exportation…"
@@ -1148,5 +1128,12 @@
     "selectCountry": "Sélectionner le pays",
     "searchCountry": "Rechercher un pays...",
     "noCountryFound": "Aucun pays trouvé"
+  },
+  "pagination": {
+    "rowsPerPage": "Lignes par page",
+    "showing": "{{from}}–{{to}} sur {{total}}",
+    "previous": "Page précédente",
+    "next": "Page suivante",
+    "ellipsis": "…"
   }
 }

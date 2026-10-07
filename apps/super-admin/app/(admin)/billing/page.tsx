@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 
+import { parsePageSize } from "@gymos/types";
+
 import { listGymsBilling } from "@/services/billing";
 import { BillingPageClient } from "./components/BillingPageClient";
 import BillingLoading from "./loading";
@@ -13,7 +15,7 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 export default function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; size?: string; search?: string; status?: string }>;
 }) {
   return (
     <Suspense fallback={<BillingLoading />}>
@@ -25,7 +27,7 @@ export default function BillingPage({
 async function BillingData({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; size?: string; search?: string; status?: string }>;
 }) {
   const params = await searchParams;
   const page = params.page ? Number(params.page) : 1;
@@ -37,7 +39,7 @@ async function BillingData({
       ? params.status
       : undefined;
 
-  const { data: billingPage, error } = await listGymsBilling({ page, search: params.search, status });
+  const { data: billingPage, error } = await listGymsBilling({ page, pageSize: parsePageSize(params.size, 20), search: params.search, status });
 
   if (error) {
     const { t } = await getServerTranslation(await getRequestLocale());

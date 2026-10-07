@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 
+import { parsePageSize } from "@gymos/types";
+
 import { listGyms, listTiers } from "@/services/gyms";
 import { GymsPageClient } from "./components/GymsPageClient";
 import GymsLoading from "./loading";
@@ -20,7 +22,7 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 export default function GymsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; size?: string; search?: string; status?: string }>;
 }) {
   return (
     <Suspense fallback={<GymsLoading />}>
@@ -32,7 +34,7 @@ export default function GymsPage({
 async function GymsData({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; size?: string; search?: string; status?: string }>;
 }) {
   const params = await searchParams;
   const page = params.page ? Number(params.page) : 1;
@@ -43,7 +45,7 @@ async function GymsData({
 
   const [{ data: gymsPage, error: gymsError }, { data: tiers, error: tiersError }] =
     await Promise.all([
-      listGyms({ page, search: params.search, status }),
+      listGyms({ page, pageSize: parsePageSize(params.size, 20), search: params.search, status }),
       listTiers(),
     ]);
 

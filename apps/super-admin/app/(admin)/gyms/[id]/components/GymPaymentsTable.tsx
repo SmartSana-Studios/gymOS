@@ -1,10 +1,10 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { TablePagination } from "@/components/TablePagination";
+import { useUrlPagination } from "@/hooks/use-table-pagination";
 import type { GymPaymentPage } from "@/services/gyms";
 
 const STATUS_LABEL_KEY: Record<string, string> = {
@@ -13,23 +13,6 @@ const STATUS_LABEL_KEY: Record<string, string> = {
   verified: "gyms.paymentRecords.status.verified",
   flagged: "gyms.paymentRecords.status.flagged",
 };
-
-// Same cap and windowing as GymMembersTable's own pager -- duplicated rather
-// than shared, following this page's existing convention of each component
-// owning its own small helpers (no shared UI package between the two apps,
-// and no utils module introduced for two call sites).
-const MAX_PAGE_BUTTONS = 7;
-
-function pageButtonRange(current: number, total: number): number[] {
-  if (total <= MAX_PAGE_BUTTONS) {
-    return Array.from({ length: total }, (_, i) => i + 1);
-  }
-  const half = Math.floor(MAX_PAGE_BUTTONS / 2);
-  let start = Math.max(1, current - half);
-  const end = Math.min(total, start + MAX_PAGE_BUTTONS - 1);
-  start = Math.max(1, end - MAX_PAGE_BUTTONS + 1);
-  return Array.from({ length: end - start + 1 }, (_, i) => start + i);
-}
 
 /**
  * Story 1.14 AC #3: read-only payment records, visible only once escalated.
@@ -42,19 +25,11 @@ function pageButtonRange(current: number, total: number): number[] {
  */
 export function GymPaymentsTable({ payments }: { payments: GymPaymentPage | null }) {
   const { t, i18n } = useTranslation();
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  // Own page/size params so the other table on this route keeps its position.
+  const pagination = useUrlPagination({ pageParam: "ppage", sizeParam: "psize" });
 
   if (payments === null) {
     return null;
-  }
-
-  const totalPages = Math.max(1, Math.ceil(payments.total / payments.pageSize));
-
-  function goToPage(page: number) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("ppage", String(page));
-    router.push(`?${params.toString()}`);
   }
 
   function formatAmount(amount: number, currency: string): string {
@@ -84,7 +59,7 @@ export function GymPaymentsTable({ payments }: { payments: GymPaymentPage | null
         // GymsPageClient.tsx:170-190 makes.
         <div className="flex flex-col items-center gap-3 py-8 text-center">
           <p className="text-sm text-muted-foreground">{t("gyms.paymentRecords.emptyPage")}</p>
-          <Button variant="outline" size="sm" onClick={() => goToPage(1)}>
+          <Button variant="outline" size="sm" onClick={() => pagination.onPageChange(1)}>
             {t("gyms.backToPage1")}
           </Button>
         </div>
@@ -128,39 +103,13 @@ export function GymPaymentsTable({ payments }: { payments: GymPaymentPage | null
               </tbody>
             </table>
           </div>
-
-          {totalPages > 1 && (
-            <div className="flex justify-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label={t("gyms.pagination.previous")}
-                disabled={payments.page <= 1}
-                onClick={() => goToPage(payments.page - 1)}
-              >
-                <ChevronLeft size={16} />
-              </Button>
-              {pageButtonRange(payments.page, totalPages).map((p) => (
-                <Button
-                  key={p}
-                  variant={p === payments.page ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => goToPage(p)}
-                >
-                  {p}
-                </Button>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label={t("gyms.pagination.next")}
-                disabled={payments.page >= totalPages}
-                onClick={() => goToPage(payments.page + 1)}
-              >
-                <ChevronRight size={16} />
-              </Button>
-            </div>
-          )}
+          <TablePagination
+            page={payments.page}
+            pageSize={payments.pageSize}
+            total={payments.total}
+            onPageChange={pagination.onPageChange}
+            onPageSizeChange={pagination.onPageSizeChange}
+          />
         </>
       )}
     </div>

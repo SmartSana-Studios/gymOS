@@ -126,4 +126,16 @@ describe("listMembers (Story 18.5)", () => {
     expect(hasCall("is", "deactivated_at", null)).toBe(true);
     expect(calls.filter(([m]) => m === "select").every(([, a]) => !String(a[0]).includes("!inner"))).toBe(true);
   });
+
+  it("honours a valid pageSize for the range and clamps an invalid one to the default 25", async () => {
+    const { listMembers } = await import("./members");
+    const rangeCall = () => calls.find(([m]) => m === "range")?.[1];
+
+    await listMembers({ page: 2, pageSize: 10 });
+    expect(rangeCall()).toEqual([10, 19]);
+
+    calls = [];
+    await listMembers({ page: 2, pageSize: 100000 });
+    expect(rangeCall()).toEqual([25, 49]);
+  });
 });

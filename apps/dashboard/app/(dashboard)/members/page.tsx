@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { parsePage, parsePageSize } from "@gymos/types";
 
 import { listMembers, MEMBERS_PAGE_SIZE } from "@/services/members";
 import { listPlans } from "@/services/plans";
@@ -29,7 +30,7 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 export default function MembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; size?: string; search?: string; status?: string }>;
 }) {
   return (
     <Suspense fallback={<MembersLoading />}>
@@ -41,14 +42,13 @@ export default function MembersPage({
 async function MembersData({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; size?: string; search?: string; status?: string }>;
 }) {
   const params = await searchParams;
-  const parsedPage = params.page ? Number(params.page) : 1;
-  // `listMembers` internally clamps an invalid page back to 1 -- mirror that
-  // here so the UI's Previous/Next state (passed `page` below) never desyncs
-  // from what was actually fetched (e.g. `?page=abc` or `?page=-1`).
-  const page = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  // `listMembers` clamps invalid page/size the same way -- parse here so the
+  // footer state never desyncs from what was actually fetched.
+  const page = parsePage(params.page);
+  const pageSize = parsePageSize(params.size, MEMBERS_PAGE_SIZE);
 
   const [
     { data: membersPage, error: membersError },
@@ -58,7 +58,7 @@ async function MembersData({
     { data: gymSettings, error: gymSettingsError },
     mobileMoneyEnabled,
   ] = await Promise.all([
-    listMembers({ page, search: params.search, status: params.status }),
+    listMembers({ page, pageSize, search: params.search, status: params.status }),
     getDashboardShellContext(),
     listPlans(),
     listCoaches(),
@@ -87,7 +87,7 @@ async function MembersData({
       initialMembers={membersPage?.rows ?? []}
       total={membersPage?.total ?? 0}
       page={page}
-      pageSize={MEMBERS_PAGE_SIZE}
+      pageSize={pageSize}
       search={params.search ?? ""}
       status={params.status ?? ""}
       role={shell.role}

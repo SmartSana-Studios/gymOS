@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { type AppError } from "@gymos/types";
+import { parsePageSize, type AppError } from "@gymos/types";
 import { mapAndLog } from "@/services/gyms";
 
 export interface GymBillingRow {
@@ -22,6 +22,7 @@ const GYM_BILLING_PAGE_SIZE = 20;
 
 export interface ListGymsBillingParams {
   page?: number; // 1-indexed
+  pageSize?: number; // validated against PAGE_SIZE_OPTIONS, else GYM_BILLING_PAGE_SIZE
   search?: string;
   status?: "active" | "past_due" | "grace_period" | "suspended";
 }
@@ -49,12 +50,13 @@ export async function listGymsBilling(
   params: ListGymsBillingParams = {},
 ): Promise<{ data: GymBillingPage | null; error: AppError | null }> {
   const supabase = await createClient();
+  const pageSize = parsePageSize(params.pageSize, GYM_BILLING_PAGE_SIZE);
   let page =
     params.page && Number.isInteger(params.page) && params.page > 0 ? params.page : 1;
 
   function buildQuery(forPage: number) {
-    const from = (forPage - 1) * GYM_BILLING_PAGE_SIZE;
-    const to = from + GYM_BILLING_PAGE_SIZE - 1;
+    const from = (forPage - 1) * pageSize;
+    const to = from + pageSize - 1;
 
     let query = supabase
       .from("gyms")
@@ -90,7 +92,7 @@ export async function listGymsBilling(
   // directly-edited `?page=` URL param) previously returned an empty page
   // with a misleading "no gyms match" message. Clamp to the real last page
   // and re-query once instead.
-  const realTotalPages = Math.max(1, Math.ceil((count ?? 0) / GYM_BILLING_PAGE_SIZE));
+  const realTotalPages = Math.max(1, Math.ceil((count ?? 0) / pageSize));
   if ((data ?? []).length === 0 && count && count > 0 && page > realTotalPages) {
     page = realTotalPages;
     ({ data, error, count } = await buildQuery(page));
@@ -124,7 +126,7 @@ export async function listGymsBilling(
   });
 
   return {
-    data: { rows, total: count ?? 0, page, pageSize: GYM_BILLING_PAGE_SIZE },
+    data: { rows, total: count ?? 0, page, pageSize },
     error: null,
   };
 }

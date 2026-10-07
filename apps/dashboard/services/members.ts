@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { type AppError } from "@gymos/types";
+import { type AppError, parsePageSize } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -212,6 +212,7 @@ export async function listMembers(params: {
   search?: string;
   status?: string;
   page?: number;
+  pageSize?: number;
 }): Promise<{ data: { rows: MemberListRow[]; total: number } | null; error: AppError | null }> {
   const supabase = await createClient();
   const { gymId, error: gymIdError } = await getCallerGymId(supabase);
@@ -220,8 +221,9 @@ export async function listMembers(params: {
   }
 
   const page = params.page && params.page > 0 ? params.page : 1;
-  const from = (page - 1) * MEMBERS_PAGE_SIZE;
-  const to = from + MEMBERS_PAGE_SIZE - 1;
+  const pageSize = parsePageSize(params.pageSize, MEMBERS_PAGE_SIZE);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
 
   const useInnerJoin = usesSubscriptionInnerJoin(params.status);
   const subscriptionsSelect = useInnerJoin

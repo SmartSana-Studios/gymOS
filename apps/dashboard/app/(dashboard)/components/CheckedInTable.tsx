@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { LogOut } from "lucide-react";
 
+import { TablePagination } from "@/components/TablePagination";
+import { useClientPagination } from "@/hooks/use-table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { CurrentlyCheckedInRow } from "@/services/attendance";
@@ -24,6 +26,7 @@ export function CheckedInTable({ rows, loadError }: { rows: CurrentlyCheckedInRo
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const [checkingOutMember, setCheckingOutMember] = useState<CurrentlyCheckedInRow | null>(null);
+  const pg = useClientPagination(rows, 10);
 
   // Full timestamps carry a real time of day, so `new Date(iso)` is safe here
   // (unlike date-only strings). Explicit locale, never bare toLocaleString().
@@ -51,6 +54,7 @@ export function CheckedInTable({ rows, loadError }: { rows: CurrentlyCheckedInRo
           <p className="text-sm text-muted-foreground">{t("attendance.emptyCheckedIn")}</p>
         </div>
       ) : (
+        <>
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">
@@ -62,7 +66,7 @@ export function CheckedInTable({ rows, loadError }: { rows: CurrentlyCheckedInRo
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => {
+              {pg.pageItems.map((row) => {
                 const badge = CHECKED_IN_STATUS_BADGE_CONFIG[resolveCheckedInBadgeStatus(row)];
                 const Icon = badge.icon;
                 return (
@@ -99,6 +103,8 @@ export function CheckedInTable({ rows, loadError }: { rows: CurrentlyCheckedInRo
             </tbody>
           </table>
         </div>
+        <TablePagination {...pg} />
+        </>
       )}
 
       {checkingOutMember && (

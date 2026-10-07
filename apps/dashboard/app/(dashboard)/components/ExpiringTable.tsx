@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { RotateCw } from "lucide-react";
 
+import { TablePagination } from "@/components/TablePagination";
+import { useClientPagination } from "@/hooks/use-table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RenewalModal } from "@/components/shared/RenewalModal";
@@ -43,6 +45,7 @@ export function ExpiringTable({
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const [renewingRow, setRenewingRow] = useState<SubscriptionListRow | null>(null);
+  const pg = useClientPagination(rows, 10);
 
   // A stable identity for `onRenewed` -- RenewalModal's mobile-money
   // pending-payment watch lists it as an effect dependency, so a fresh arrow
@@ -72,6 +75,7 @@ export function ExpiringTable({
           <p className="text-sm text-muted-foreground">{t("overview.tables.expiring.empty")}</p>
         </div>
       ) : (
+        <>
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">
@@ -84,7 +88,7 @@ export function ExpiringTable({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => {
+              {pg.pageItems.map((row) => {
                 const badge = EXPIRING_STATUS_BADGE_CONFIG[row.status];
                 const Icon = badge.icon;
                 return (
@@ -122,6 +126,8 @@ export function ExpiringTable({
             </tbody>
           </table>
         </div>
+        <TablePagination {...pg} />
+        </>
       )}
 
       {renewingRow && (

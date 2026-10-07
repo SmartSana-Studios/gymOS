@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { type AppError } from "@gymos/types";
+import { type AppError, parsePageSize } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -142,7 +142,7 @@ interface CurrentlyCheckedInRowFromDb {
  * the same millisecond otherwise "win" nondeterministically) and keeping
  * only the first occurrence per `member_id` in-process reproduces the same
  * "most recent subscription" result without relying on that nesting depth. */
-export async function getCurrentlyCheckedIn(params: { page?: number } = {}): Promise<{
+export async function getCurrentlyCheckedIn(params: { page?: number; pageSize?: number } = {}): Promise<{
   data: { rows: CurrentlyCheckedInRow[]; total: number; page: number } | null;
   error: AppError | null;
 }> {
@@ -153,10 +153,11 @@ export async function getCurrentlyCheckedIn(params: { page?: number } = {}): Pro
   }
 
   const requestedPage = params.page && params.page > 0 ? params.page : 1;
+  const pageSize = parsePageSize(params.pageSize, ATTENDANCE_LOG_PAGE_SIZE);
 
   function buildQuery(page: number) {
-    const from = (page - 1) * ATTENDANCE_LOG_PAGE_SIZE;
-    const to = from + ATTENDANCE_LOG_PAGE_SIZE - 1;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
     return supabase
       .from("attendance_events")
       .select(`member_id, checked_in_at, members!inner(name, deactivated_at)`, { count: "exact" })
@@ -172,7 +173,7 @@ export async function getCurrentlyCheckedIn(params: { page?: number } = {}): Pro
   }
 
   const total = count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / ATTENDANCE_LOG_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   let openRows = (data ?? []) as unknown as CurrentlyCheckedInRowFromDb[];
   let effectivePage = requestedPage;
@@ -272,6 +273,7 @@ interface AttendanceLogRowFromDb {
  * not the live roster. */
 export async function listAttendanceLog(params: {
   page?: number;
+  pageSize?: number;
   from?: string;
   to?: string;
   memberSearch?: string;
@@ -283,6 +285,7 @@ export async function listAttendanceLog(params: {
   }
 
   const requestedPage = params.page && params.page > 0 ? params.page : 1;
+  const pageSize = parsePageSize(params.pageSize, ATTENDANCE_LOG_PAGE_SIZE);
 
   const today = todayUtcDate();
   // Review Finding: params.from/to come straight from URL search params and
@@ -307,8 +310,8 @@ export async function listAttendanceLog(params: {
       q = q.ilike("members.name", `%${escaped}%`);
     }
 
-    const from = (page - 1) * ATTENDANCE_LOG_PAGE_SIZE;
-    const to = from + ATTENDANCE_LOG_PAGE_SIZE - 1;
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
     return q.range(from, to);
   }
 
@@ -318,7 +321,7 @@ export async function listAttendanceLog(params: {
   }
 
   const total = count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / ATTENDANCE_LOG_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const mapRows = (rows: unknown) =>
     ((rows ?? []) as unknown as AttendanceLogRowFromDb[]).map((row) => ({

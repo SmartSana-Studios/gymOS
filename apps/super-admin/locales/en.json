@@ -196,10 +196,6 @@
       "alreadyEndedBody": "{{holder}} no longer had access to {{gymName}} — the grant had already expired, or another Super Admin revoked it first. Nothing was changed. Your reason was still recorded in the audit trail.",
       "alreadyEndedBodySelf": "You no longer had access to {{gymName}} — the grant had already expired, or another Super Admin revoked it first. Nothing was changed. Your reason was still recorded in the audit trail."
     },
-    "pagination": {
-      "previous": "Previous page",
-      "next": "Next page"
-    },
     "errors": {
       "invalidGymId": "Invalid gym id",
       "invalidActorId": "Invalid Super Admin id",
@@ -400,5 +396,12 @@
     "selectCountry": "Select country",
     "searchCountry": "Search country...",
     "noCountryFound": "No country found"
+  },
+  "pagination": {
+    "rowsPerPage": "Rows per page",
+    "showing": "{{from}}–{{to}} of {{total}}",
+    "previous": "Previous page",
+    "next": "Next page",
+    "ellipsis": "…"
   }
 }

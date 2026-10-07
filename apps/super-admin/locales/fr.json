@@ -196,10 +196,6 @@
       "alreadyEndedBody": "{{holder}} n'avait plus accès à {{gymName}} — l'accès avait déjà expiré, ou un autre super administrateur l'a révoqué avant vous. Rien n'a été modifié. Votre motif a tout de même été enregistré dans le journal d'audit.",
       "alreadyEndedBodySelf": "Vous n'aviez plus accès à {{gymName}} — l'accès avait déjà expiré, ou un autre super administrateur l'a révoqué avant vous. Rien n'a été modifié. Votre motif a tout de même été enregistré dans le journal d'audit."
     },
-    "pagination": {
-      "previous": "Page précédente",
-      "next": "Page suivante"
-    },
     "errors": {
       "invalidGymId": "Identifiant de salle invalide",
       "invalidActorId": "Identifiant de super administrateur invalide",
@@ -400,5 +396,12 @@
     "selectCountry": "Sélectionner le pays",
     "searchCountry": "Rechercher un pays...",
     "noCountryFound": "Aucun pays trouvé"
+  },
+  "pagination": {
+    "rowsPerPage": "Lignes par page",
+    "showing": "{{from}}–{{to}} sur {{total}}",
+    "previous": "Page précédente",
+    "next": "Page suivante",
+    "ellipsis": "…"
   }
 }

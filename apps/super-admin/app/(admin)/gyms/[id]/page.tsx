@@ -39,7 +39,7 @@ export default function GymDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ mpage?: string; ppage?: string }>;
+  searchParams: Promise<{ mpage?: string; msize?: string; ppage?: string; psize?: string }>;
 }) {
   return (
     <Suspense fallback={<GymDetailLoading />}>
@@ -53,10 +53,10 @@ async function GymDetailData({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ mpage?: string; ppage?: string }>;
+  searchParams: Promise<{ mpage?: string; msize?: string; ppage?: string; psize?: string }>;
 }) {
   const { id } = await params;
-  const { mpage, ppage } = await searchParams;
+  const { mpage, msize, ppage, psize } = await searchParams;
   const memberPage = mpage ? Number(mpage) : 1;
   const paymentPage = ppage ? Number(ppage) : 1;
 
@@ -124,8 +124,8 @@ async function GymDetailData({
 
   const [membersResult, paymentsResult]: [MembersResult, PaymentsResult] = escalated
     ? await Promise.all([
-        listGymMembers(id, { page: memberPage }),
-        listGymPayments(id, { page: paymentPage }),
+        listGymMembers(id, { page: memberPage, pageSize: msize ? Number(msize) : undefined }),
+        listGymPayments(id, { page: paymentPage, pageSize: psize ? Number(psize) : undefined }),
       ])
     : [
         { data: null, error: null },

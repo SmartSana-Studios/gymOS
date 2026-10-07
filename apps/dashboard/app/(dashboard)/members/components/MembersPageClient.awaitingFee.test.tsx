@@ -125,4 +125,15 @@ describe("MembersPageClient awaiting registration fee (Story 18.5)", () => {
     expect(invite).not.toHaveAttribute("aria-disabled", "true");
     expect(invite).not.toHaveTextContent("members.invite.awaitingRegistrationFee");
   });
+
+  it("shows the rows-per-page selector and keeps size when filtering", async () => {
+    const user = userEvent.setup();
+    await renderPage();
+
+    const sizeSelect = screen.getByLabelText("pagination.rowsPerPage");
+    expect(sizeSelect).toHaveValue("25");
+    await user.selectOptions(sizeSelect, "10");
+    expect(push).toHaveBeenCalledWith(expect.stringMatching(/size=10/));
+    expect(push).toHaveBeenCalledWith(expect.stringContaining("page=1"));
+  });
 });

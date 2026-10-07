@@ -3,42 +3,18 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TablePagination } from "@/components/TablePagination";
+import { useUrlPagination } from "@/hooks/use-table-pagination";
 import type { AttendanceLogRow, CurrentlyCheckedInRow } from "@/services/attendance";
 import type { FrontDeskAlertRow } from "@/services/frontDeskAlerts";
 import { FrontDeskAlertPanel } from "@/components/shared/FrontDeskAlertPanel";
 import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../attendanceLabels";
 import { CheckOutMemberConfirmDialog } from "./CheckOutMemberConfirmDialog";
-
-// Windows the page-number buttons around the current page, copied verbatim
-// from MembersPageClient's own pageWindow (per-file copy, no cross-route
-// import, matching this app's established discipline for shared UI logic
-// with no services/ home).
-const PAGE_WINDOW_RADIUS = 2;
-
-function pageWindow(current: number, total: number): (number | "ellipsis")[] {
-  if (total <= 1) return total === 1 ? [1] : [];
-
-  const middle: number[] = [];
-  for (
-    let p = Math.max(2, current - PAGE_WINDOW_RADIUS);
-    p <= Math.min(total - 1, current + PAGE_WINDOW_RADIUS);
-    p++
-  ) {
-    middle.push(p);
-  }
-
-  const result: (number | "ellipsis")[] = [1];
-  if (middle[0] > 2) result.push("ellipsis");
-  result.push(...middle);
-  if (middle[middle.length - 1] < total - 1) result.push("ellipsis");
-  result.push(total);
-  return result;
-}
 
 export function AttendancePageClient({
   currentlyCheckedIn,
@@ -80,6 +56,8 @@ export function AttendancePageClient({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const checkedInPagination = useUrlPagination({ pageParam: "checkedInPage", sizeParam: "checkedInSize" });
+  const logPagination = useUrlPagination();
   const [isRefreshing, startRefreshTransition] = useTransition();
 
   const [searchInput, setSearchInput] = useState(memberSearch);
@@ -177,8 +155,6 @@ export function AttendancePageClient({
     return name || t("attendance.unknownMember");
   }
 
-  const totalPages = Math.max(1, Math.ceil(logTotal / pageSize));
-  const checkedInTotalPages = Math.max(1, Math.ceil(checkedInTotal / checkedInPageSize));
 
   return (
     <div className="space-y-8">
@@ -260,44 +236,12 @@ export function AttendancePageClient({
           </div>
         )}
 
-        {checkedInTotalPages > 1 && (
-          <div className="flex justify-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label={t("attendance.pagination.previous")}
-              disabled={checkedInPage <= 1}
-              onClick={() => updateParams({ checkedInPage: checkedInPage - 1 })}
-            >
-              <ChevronLeft size={16} />
-            </Button>
-            {pageWindow(checkedInPage, checkedInTotalPages).map((p, i) =>
-              p === "ellipsis" ? (
-                <span key={`checkedin-ellipsis-${i}`} className="px-2 text-sm text-muted-foreground">
-                  {t("attendance.pagination.ellipsis")}
-                </span>
-              ) : (
-                <Button
-                  key={p}
-                  variant={p === checkedInPage ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => updateParams({ checkedInPage: p })}
-                >
-                  {p}
-                </Button>
-              ),
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label={t("attendance.pagination.next")}
-              disabled={checkedInPage >= checkedInTotalPages}
-              onClick={() => updateParams({ checkedInPage: checkedInPage + 1 })}
-            >
-              <ChevronRight size={16} />
-            </Button>
-          </div>
-        )}
+        <TablePagination
+          page={checkedInPage}
+          pageSize={checkedInPageSize}
+          total={checkedInTotal}
+          {...checkedInPagination}
+        />
       </div>
 
       <div className="space-y-4">
@@ -368,44 +312,7 @@ export function AttendancePageClient({
           </div>
         )}
 
-        {totalPages > 1 && (
-          <div className="flex justify-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label={t("attendance.pagination.previous")}
-              disabled={page <= 1}
-              onClick={() => updateParams({ from, to, memberSearch, page: page - 1 })}
-            >
-              <ChevronLeft size={16} />
-            </Button>
-            {pageWindow(page, totalPages).map((p, i) =>
-              p === "ellipsis" ? (
-                <span key={`ellipsis-${i}`} className="px-2 text-sm text-muted-foreground">
-                  {t("attendance.pagination.ellipsis")}
-                </span>
-              ) : (
-                <Button
-                  key={p}
-                  variant={p === page ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => updateParams({ from, to, memberSearch, page: p })}
-                >
-                  {p}
-                </Button>
-              ),
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label={t("attendance.pagination.next")}
-              disabled={page >= totalPages}
-              onClick={() => updateParams({ from, to, memberSearch, page: page + 1 })}
-            >
-              <ChevronRight size={16} />
-            </Button>
-          </div>
-        )}
+        <TablePagination page={page} pageSize={pageSize} total={logTotal} {...logPagination} />
       </div>
 
       {checkingOutMember && (

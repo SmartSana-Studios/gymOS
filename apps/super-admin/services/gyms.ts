@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { gymIdSchema, mapSupabaseError, type AppError } from "@gymos/types";
+import { gymIdSchema, mapSupabaseError, parsePageSize, type AppError } from "@gymos/types";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import type { Locale } from "@/lib/i18n/config";
@@ -53,6 +53,7 @@ const GYM_LIST_PAGE_SIZE = 20;
 
 export interface ListGymsParams {
   page?: number; // 1-indexed
+  pageSize?: number; // validated against PAGE_SIZE_OPTIONS, else GYM_LIST_PAGE_SIZE
   search?: string;
   status?: "active" | "suspended" | "deactivated";
 }
@@ -80,8 +81,9 @@ export async function listGyms(
   const supabase = await createClient();
   const page =
     params.page && Number.isInteger(params.page) && params.page > 0 ? params.page : 1;
-  const from = (page - 1) * GYM_LIST_PAGE_SIZE;
-  const to = from + GYM_LIST_PAGE_SIZE - 1;
+  const pageSize = parsePageSize(params.pageSize, GYM_LIST_PAGE_SIZE);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
 
   let query = supabase
     .from("gyms")
@@ -137,7 +139,7 @@ export async function listGyms(
   });
 
   return {
-    data: { rows, total: count ?? 0, page, pageSize: GYM_LIST_PAGE_SIZE },
+    data: { rows, total: count ?? 0, page, pageSize },
     error: null,
   };
 }
@@ -525,7 +527,7 @@ export const GYM_MEMBER_LIST_PAGE_SIZE = 25;
  */
 export async function listGymMembers(
   gymId: string,
-  { page }: { page: number },
+  { page, pageSize: rawPageSize }: { page: number; pageSize?: number },
 ): Promise<{
   data: GymMemberPage | null;
   error: AppError | null;
@@ -536,8 +538,9 @@ export async function listGymMembers(
 
   const supabase = await createClient();
   const resolvedPage = Number.isInteger(page) && page > 0 ? page : 1;
-  const from = (resolvedPage - 1) * GYM_MEMBER_LIST_PAGE_SIZE;
-  const to = from + GYM_MEMBER_LIST_PAGE_SIZE - 1;
+  const pageSize = parsePageSize(rawPageSize, GYM_MEMBER_LIST_PAGE_SIZE);
+  const from = (resolvedPage - 1) * pageSize;
+  const to = from + pageSize - 1;
 
   const { data, error, count } = await supabase
     .from("members")
@@ -561,7 +564,7 @@ export async function listGymMembers(
   }));
 
   return {
-    data: { rows, total: count ?? 0, page: resolvedPage, pageSize: GYM_MEMBER_LIST_PAGE_SIZE },
+    data: { rows, total: count ?? 0, page: resolvedPage, pageSize },
     error: null,
   };
 }
@@ -610,7 +613,7 @@ export const GYM_PAYMENT_LIST_PAGE_SIZE = 50;
  */
 export async function listGymPayments(
   gymId: string,
-  { page }: { page: number },
+  { page, pageSize: rawPageSize }: { page: number; pageSize?: number },
 ): Promise<{
   data: GymPaymentPage | null;
   error: AppError | null;
@@ -621,8 +624,9 @@ export async function listGymPayments(
 
   const supabase = await createClient();
   const resolvedPage = Number.isInteger(page) && page > 0 ? page : 1;
-  const from = (resolvedPage - 1) * GYM_PAYMENT_LIST_PAGE_SIZE;
-  const to = from + GYM_PAYMENT_LIST_PAGE_SIZE - 1;
+  const pageSize = parsePageSize(rawPageSize, GYM_PAYMENT_LIST_PAGE_SIZE);
+  const from = (resolvedPage - 1) * pageSize;
+  const to = from + pageSize - 1;
 
   const { data, error, count } = await supabase
     .from("payments")
@@ -654,7 +658,7 @@ export async function listGymPayments(
       rows,
       total: count ?? 0,
       page: resolvedPage,
-      pageSize: GYM_PAYMENT_LIST_PAGE_SIZE,
+      pageSize,
     },
     error: null,
   };

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { parsePage, parsePageSize } from "@gymos/types";
 
 import { listAuditLog, listAuditActors, AUDIT_LOG_PAGE_SIZE, resolveAuditDateRange } from "@/services/auditLog";
 import { getDashboardShellContext } from "@/services/session";
@@ -22,7 +23,7 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 export default function AuditPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string; actorId?: string; page?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; actorId?: string; page?: string; size?: string }>;
 }) {
   return (
     <Suspense fallback={<AuditLoading />}>
@@ -34,11 +35,11 @@ export default function AuditPage({
 async function AuditData({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string; actorId?: string; page?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; actorId?: string; page?: string; size?: string }>;
 }) {
   const params = await searchParams;
-  const parsedPage = params.page ? Number(params.page) : 1;
-  const page = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const page = parsePage(params.page);
+  const pageSize = parsePageSize(params.size, AUDIT_LOG_PAGE_SIZE);
   const { from, to } = resolveAuditDateRange(params.from, params.to);
 
   const [
@@ -46,7 +47,7 @@ async function AuditData({
     { data: actorOptions, error: actorsError },
     { data: shell, error: shellError },
   ] = await Promise.all([
-    listAuditLog({ from, to, actorId: params.actorId, page }),
+    listAuditLog({ from, to, actorId: params.actorId, page, pageSize }),
     listAuditActors(),
     getDashboardShellContext(),
   ]);
@@ -69,7 +70,7 @@ async function AuditData({
       initialRows={auditLogPage?.rows ?? []}
       total={auditLogPage?.total ?? 0}
       page={page}
-      pageSize={AUDIT_LOG_PAGE_SIZE}
+      pageSize={pageSize}
       from={from}
       to={to}
       actorId={params.actorId ?? ""}

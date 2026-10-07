@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { TablePagination } from "@/components/TablePagination";
+import { useClientPagination } from "@/hooks/use-table-pagination";
 import type { SuperAdminRow } from "../actions";
 import { AddAdminModal } from "./AddAdminModal";
 
@@ -20,6 +22,7 @@ export function AdminsPageClient({ initialAdmins }: { initialAdmins: SuperAdminR
   const [modalOpen, setModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; tempPassword?: string } | null>(null);
   const [passwordCopied, setPasswordCopied] = useState(false);
+  const pagination = useClientPagination(initialAdmins, 10);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -79,11 +82,12 @@ export function AdminsPageClient({ initialAdmins }: { initialAdmins: SuperAdminR
       {initialAdmins.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("admins.empty")}</p>
       ) : (
-        // Matches every other table in this app (GymsPageClient,
-        // BillingPageClient, GymMembersTable, GymPaymentsTable,
-        // metrics/page.tsx) -- this was the one table missing it, so it was
-        // the one page whose table content, not just the nav, contributed
-        // to the reported mobile-overflow issue.
+        <>
+          {/* Matches every other table in this app (GymsPageClient,
+           BillingPageClient, GymMembersTable, GymPaymentsTable,
+           metrics/page.tsx) -- this was the one table missing it, so it was
+           the one page whose table content, not just the nav, contributed
+           to the reported mobile-overflow issue. */}
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead>
@@ -94,7 +98,7 @@ export function AdminsPageClient({ initialAdmins }: { initialAdmins: SuperAdminR
               </tr>
             </thead>
             <tbody>
-              {initialAdmins.map((admin) => (
+              {pagination.pageItems.map((admin) => (
                 <tr key={admin.id} className="border-b last:border-b-0">
                   <td className="py-2 pr-4">{admin.email}</td>
                   <td className="py-2 pr-4">
@@ -114,6 +118,14 @@ export function AdminsPageClient({ initialAdmins }: { initialAdmins: SuperAdminR
             </tbody>
           </table>
         </div>
+          <TablePagination
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            total={pagination.total}
+            onPageChange={pagination.onPageChange}
+            onPageSizeChange={pagination.onPageSizeChange}
+          />
+        </>
       )}
 
       <AddAdminModal open={modalOpen} onClose={() => setModalOpen(false)} onDone={handleDone} />
