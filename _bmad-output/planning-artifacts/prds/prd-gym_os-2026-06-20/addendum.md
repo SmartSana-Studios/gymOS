@@ -73,6 +73,11 @@ These decisions are final unless explicitly revisited via `docs/decisions.md`. R
 | Manual payments | First-class: cash, bank, manual MoMo — mandatory reason + audit log | Core to African gym reality |
 | Identity rule | One phone = one platform user; multi-gym via separate `members` rows | Prevents duplicate accounts; simplifies auth |
 | Refund posture | V1 records refunds; provider-API execution deferred | Reduces V1 complexity |
+| Registration fee — payment purpose (FR-152) | Payments carry a stored purpose (registration fee vs subscription; the same field will serve per-visit charges, OQ-16). Fee completion never runs the renewal path | Today every payment moving processing → verified is turned into a renewal subscription (`complete_verified_payment`, 0030), and `subscription_id IS NULL` already means "manual, unrenewed" — without a purpose, a fee payment would be mis-handled |
+| Registration fee — Tara initiation (FR-152) | The fee is its own price source in the Tara collection path | Both initiators (`initiatePayment`, `initiate_member_payment` 0055) price from the member's latest subscription's plan and fail with `no_active_plan` when none exists — a member awaiting registration fee has no subscription |
+| Registration fee — gate (FR-148, FR-149) | Member-level state ("awaiting registration fee"), persisted; existing members and CSV imports migrated/marked as settled; enforced in the database | A member row has always been created together with a subscription, and there are roughly eleven subscription insert sites (renewals, `confirm_renewal`, webhook, cron) — gating inserts alone would risk blocking renewals; a state on the member does not |
+| Registration fee — revenue (FR-153) | The month-to-date revenue function needs a breakdown, not a single total | `gym_revenue_mtd()` returns one bigint today |
+| Registration fee — refund block (FR-153) | Enforced in RLS/data, not only the UI | Refunds are recorded directly against payments; a UI-only block is bypassable |
 | Mobile shipping | Single Expo codebase → Android + iOS via EAS | Velocity over native |
 | Fee passthrough | Transaction fees passed to gyms by default | Member-pays-surcharge option deferred |
 | Occupancy display | Three member-facing bands; raw counts and 91%+ threshold dashboard-only | Avoids discouraging visits while giving ops the full picture |

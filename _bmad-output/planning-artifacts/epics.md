@@ -219,6 +219,17 @@ Epics 1–8 are the shipped V1.0 pilot scope (`done` per `sprint-status.yaml`). 
 - FR-122: The Coach Portal gains Workout Plans and, per assigned member, a Progress tab; no other dashboard section becomes visible to the Coach role.
 - FR-123: The member app gains a Progress tab and a Classes tab alongside Home/Check-In/Profile; notification preferences gain N-06 and N-07 toggles.
 
+**6.27 Registration Fee — post-V1.5**
+- FR-147: Each gym can configure a one-time registration fee — a flat amount in whole XAF, set by the Owner or Supervisor on the Settings page (amends FR-069); default 0 XAF means off and FR-148–FR-155 do not apply; every change is audit-logged and applies only to members registered afterward.
+- FR-148: When the fee is above 0, a new member starts as "awaiting registration fee" — no member-app access and no plan of any type (including Pay-per-session) until the fee is settled (recorded as paid or waived); staff collect it only; enforced server-side; CSV import exempt; an awaiting member counts toward the member cap (amends FR-019).
+- FR-149: The fee is paid once per member and is non-refundable; every existing member is treated as already paid; a member created while the fee is 0 is settled from creation; the fee is per gym; reactivated-member re-payment is deferred (OQ-17).
+- FR-150: An Owner, Supervisor, or Manager can waive the fee for a member with a mandatory reason, audit-logged; Receptionists and Coaches cannot.
+- FR-151: An Owner or Supervisor can void a manually recorded fee entered in error (wrong member or duplicate) with a mandatory reason, only while the member has no subscription; a void is a correction, not a refund; a Tara-paid fee cannot be voided in the platform.
+- FR-152: Staff collect the fee by a manual payment or a staff-initiated Tara Money collection for exactly the gym's fee; at most one non-voided fee payment per member; stored with a purpose distinct from subscription payments and never creates or renews a subscription; a manual fee takes effect immediately, a Tara fee when confirmed.
+- FR-153: Amends FR-040, FR-080, FR-143 — no refund against a fee payment (enforced in the data layer); fee entries, fee-amount changes, waivers, and voids are audited; registration fees count toward month-to-date revenue and show as their own line.
+- FR-154: Amends FR-008 — imported members are existing members and exempt from the fee; CSV import is never blocked and creates no fee payment.
+- FR-155: Amends FR-058 and FR-082 — an awaiting member cannot use the member app (sees a "registration not complete, contact your gym" message and no payment option); the WhatsApp invite is sent once the fee is settled; onboarding then proceeds as FR-058.
+
 ### NonFunctional Requirements
 
 - NFR-001: Multi-tenant data isolation enforced entirely at the PostgreSQL RLS layer; the JWT role-claim injection hook is spiked in week one, before any RLS policy is written — a misconfigured hook defaults to deny-all.
@@ -437,6 +448,15 @@ FR-137: Epic 11, Story 11.6 - Shared integrity machinery + 4th discrepancy categ
 FR-138: Epic 4, Story 4.14 - PaymentProvider routing context, `{type:'gym'}` variant introduced for Flow A; extended with `{type:'platform'}` by Epic 11, Story 11.1 for Flow B
 FR-139: Epic 11, Story 11.2 - Free/Test tier (amends FR-073)
 FR-140: Epic 4, Story 4.15 - Member self-service renewal from app (Flow A)
+FR-147: Epic 18, Story 18.1 - Registration fee setting (Owner/Supervisor, audited; amends FR-069)
+FR-148: Epic 18, Stories 18.1/18.5 - Awaiting-fee member state and server-side first-subscription gate (staff flow: 18.5; member cap: 18.1)
+FR-149: Epic 18, Story 18.1 - Once per member, non-refundable, existing members grandfathered (backfill)
+FR-150: Epic 18, Stories 18.2/18.6 - Waive (Owner/Supervisor/Manager, audited)
+FR-151: Epic 18, Stories 18.4/18.6 - Void a fee recorded in error (Owner/Supervisor)
+FR-152: Epic 18, Stories 18.2/18.3 - Fee collection: manual payment (18.2) and staff-initiated Tara Money (18.3); payment purpose
+FR-153: Epic 18, Story 18.4 - Refund block, audit entries, own revenue line (amends FR-040/FR-080/FR-143)
+FR-154: Epic 18, Story 18.5 - CSV import exemption (amends FR-008)
+FR-155: Epic 18, Stories 18.5/18.7 - Invite after settle (18.5); awaiting-fee blocked state in the app (18.7) (amends FR-058/FR-082)
 NFR-007: Epic 14, Story 14.1 - Sentry error monitoring (dashboard, super-admin, mobile) — added 2026-09-01, closes a gap architecture.md had described as already shipped
 NFR-017 (hardening): Epic 4, Story 4.16 - Platform business ID collision guard, closing the reverse-collision gap flagged in Story 11.6's review — added 2026-09-01
 
@@ -914,6 +934,399 @@ So that I can see what I am teaching, who needs me, and who has been active, wit
 **Given** bilingual parity
 **When** the new strings are added
 **Then** `en.json` and `fr.json` both carry every new key and `scripts/check-i18n-key-parity.mjs` passes
+
+---
+
+## Registration Fee (2026-10-07 PRD update)
+
+Epics 1–17 are shipped or in flight. This section comes from the 2026-10-07 PRD update that added FR-147–FR-155 (`prd.md` §6.6, §6.8, §6.2, §6.12; implementation notes in `addendum.md` §D). It was not surfaced by a story's implementation and there is no separate sprint-change-proposal file — the decisions and their reviewer-gate history are in `prds/prd-gym_os-2026-06-20/.memlog.md`, `review-rubric-regfee.md`, and `review-adversarial-regfee.md`.
+
+A gym can charge a **one-time registration fee**. A new member of a fee gym starts as *awaiting registration fee*: no member-app access and no plan until staff record the fee as paid or waive it. Production is live with real gyms, so two facts shape every story below:
+
+1. **Existing members are never charged, blocked, or changed.** Migration 0098 backfills every existing `members` row as settled, in the same transaction that adds the column (FR-149).
+2. **Renewals are never blocked.** The gate is on a member's *first* subscription only. Every renewal path — `confirm_renewal` (`0093:286`), `renew_subscription` (`0093:483`), `complete_verified_payment` (`0030:76`) — raises or skips when the member has no existing subscription, so none of them can reach the gate for a member who is settled, and every existing member is settled.
+
+### Epic 18: Registration Fee — One-Time Fee Before a New Member Gets Access
+Owners and Supervisors set a flat per-gym registration fee (0 XAF = off). In a fee gym, a newly created member cannot use the member app or be assigned a plan of any type until staff collect the fee — by cash, bank transfer, manual mobile money, or a staff-initiated Tara Money collection — or an Owner, Supervisor, or Manager waives it with a reason. The fee is paid once per member, is non-refundable, can be voided only when recorded in error, and shows as its own line in month-to-date revenue. Existing members and CSV imports are exempt.
+**FRs covered:** FR-147, FR-148, FR-149, FR-150, FR-151, FR-152, FR-153, FR-154, FR-155
+**Amends:** FR-008, FR-019, FR-037, FR-040, FR-041, FR-058, FR-069, FR-080, FR-082, FR-143
+**NFRs honored:** NFR-001 (tenant isolation), NFR-003 (integer money), NFR-004 (append-only audit)
+
+**Stories:**
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 18.1 | Registration Fee Setting, Member State & First-Subscription Gate | **0098** | — |
+| 18.2 | Payment Purpose, Manual Fee Collection & Waiver | **0099** | 18.1 |
+| 18.3 | Tara Money Fee Collection | **0100** | 18.2 |
+| 18.4 | Void, Refund Block & Revenue Line | **0101** | 18.2 |
+| 18.5 | Two-Step Member Creation, First-Plan Assignment & Import Exemption | none | 18.1 |
+| 18.6 | Dashboard Fee Collection, Waive & Void Surfaces | none | 18.2, 18.3, 18.4, 18.5 |
+| 18.7 | Member App — Awaiting-Fee Blocked State & Fee Receipt | none | 18.1, 18.2 |
+
+*Migration numbers are the next free numbers as of 2026-10-07 (latest is `0097`); renumber at build time if another migration lands first.*
+
+**Dependency order:** 18.1 → 18.2 → {18.3, 18.4} in parallel; 18.1 → 18.5; 18.1 + 18.2 → 18.7; 18.6 last, since it surfaces everything. **18.1 is the launch-safety story** — it is the only one that touches production rows, and it ships behind a default fee of 0, so no gym sees any change until an Owner or Supervisor sets a fee. 18.1 through 18.4 are database-first and independently testable without any UI.
+
+**Scope boundary — what this epic does NOT do.**
+- **Pay-per-session per-visit charging** (OQ-16) and **reactivated-member re-payment** (OQ-17) are not here. This epic only makes Pay-per-session subscriptions subject to the same fee gate as every other plan type.
+- **No member self-service payment of the fee.** `initiate_member_payment` (`0055`, latest `0090:1169`) keeps refusing a member with no subscription; 18.3 adds a test that pins that.
+- **No payment is recorded for the first plan's price.** Assigning the first plan creates the subscription exactly as the one-step member form does today, which records no payment (`provisionMemberRow` → `insertSubscription`, `members.ts:589`).
+- **Waiving cannot be undone.** Only a recorded fee can be voided (FR-151).
+- **The `gyms` UPDATE policy is not widened.** `owner_update_own_gym` (`0014:11`) is owner-only and `0093` did not touch it, so a Supervisor's Settings save is already a silent 0-row no-op (`gym-settings.ts` ~188). That is a pre-existing gap and stays out of scope; the fee goes through its own RPC (18.1) so a Supervisor can set it regardless.
+
+### Story 18.1: Registration Fee Setting, Member State & First-Subscription Gate
+
+As a gym Owner or Supervisor,
+I want to set a one-time registration fee and have the platform track which members have settled it,
+So that new members cannot be given a plan until the fee is dealt with — while every existing member and every renewal carries on exactly as before.
+
+*Delivers FR-147, FR-148 (server-side rule), FR-149 (grandfathering, member cap). Migration 0098. The safest story to ship first: default fee 0 changes nothing for any gym.*
+
+**Acceptance Criteria:**
+
+**Given** `gyms` has no fee column
+**When** migration 0098 ships
+**Then** `gyms.registration_fee integer not null default 0` exists with a `check (registration_fee >= 0)` — whole XAF, never floating-point (FR-026, NFR-003); `0` means the gym charges no fee and nothing else in this epic applies to it (FR-147)
+
+**Given** `members` has no fee state — the only implied state is `deactivated_at` and `onboarding_completed_at` (`0003:16`, `0020:22`)
+**When** migration 0098 ships
+**Then** `members.registration_fee_settled_at timestamptz` exists, following the `deactivated_at` / `onboarding_completed_at` pattern; `NULL` on a `role = 'member'` row means **awaiting registration fee**; any non-null value means settled
+
+**Given** production already holds real members, coaches, and staff rows in `members`
+**When** the migration runs
+**Then** every existing `members` row — all roles, including deactivated ones — is backfilled with `registration_fee_settled_at = created_at` in the same migration that adds the column, and a trailing `do $verify$` block asserts zero rows have `NULL` afterward (the `0095` / `0093` self-check pattern); no existing member's access, subscription status, or renewal path changes (FR-149)
+
+**Given** a new `members` row is inserted
+**When** the gym's `registration_fee` is `0`, or the row's `role` is not `'member'`
+**Then** a `BEFORE INSERT` trigger sets `registration_fee_settled_at = now()` — a member created while the fee is 0 is settled from creation and is never charged retroactively if the gym later sets a fee (FR-149)
+**Then also** when the fee is above `0` and `role = 'member'`, the column is set to `NULL` (awaiting); the fee is read from the new row's own `gym_id`, never from a client-supplied value
+
+**Given** staff hold INSERT and UPDATE on `members` (`manager_or_owner_insert_own_members` `0093:81`, `manager_or_owner_update_own_members` `0093:84`) and members hold a self-update (`self_update_own_member_onboarding_fields` `0020:31`, pinned by `private.protect_self_managed_member_columns` `0020:45`)
+**When** an authenticated session tries to write `registration_fee_settled_at` directly
+**Then** the write is rejected or pinned unchanged — the same discipline as `protect_payment_columns_on_staff_verify` (`0031`); only the `SECURITY DEFINER` functions introduced in this epic and `service_role` may change the column, and `protect_self_managed_member_columns` is extended so a member cannot settle their own fee
+
+**Given** `subscriptions` can be inserted by `provisionMemberRow` → `insertSubscription` (`members.ts:589`) and by three SQL renewal functions
+**When** any `INSERT` targets a member with `role = 'member'` and `registration_fee_settled_at IS NULL`
+**Then** a `BEFORE INSERT` trigger on `subscriptions` raises `registration_fee_not_settled` — for every plan type including `pay_per_session`, from every path (FR-148); the rule is enforced in the database, so no dashboard, import, or script entry point can bypass it
+
+**Given** renewals must never break
+**When** pgTAP exercises `confirm_renewal` (`0093:370`), `renew_subscription` (`0093:546`), and `complete_verified_payment` (`0030:126`) for a settled member in a gym that has just changed its fee from 0 to 5000
+**Then** all three succeed unchanged — and an existing member who is `expired` or in `grace_period` can still be renewed (FR-149: members with a prior subscription are never blocked)
+**Then also** the whole existing pgTAP suite passes with no fixture edits: the 19 test files that insert directly into `subscriptions` stay green because a default fee of 0 settles every fixture member at insert
+
+**Given** `enforce_member_cap` (`0018:70`) counts every `role = 'member'` row on INSERT with no state filter, and `0093:689-697` asserts it stays ungated
+**When** a gym is at its cap and a new member is inserted into the awaiting state
+**Then** the insert is rejected exactly as today — an awaiting member counts toward the cap (FR-148, OQ-18 resolved 2026-10-07); a pgTAP case proves it and the existing `0093` assertion is left untouched
+
+**Given** `gyms` UPDATE is owner-only (`owner_update_own_gym` `0014:11`) and `private.protect_super_admin_only_gym_columns` (`0014`, extended `0071`) pins super-admin-only columns
+**When** this story ships
+**Then** `public.set_registration_fee(p_amount integer)` exists as `SECURITY DEFINER`, callable only by `owner` or `supervisor` of the caller's own gym (manager, receptionist, coach, and member are rejected), rejects a negative amount, and is guarded by `private.current_gym_status()` so a suspended gym cannot call it (the `suspension_rpc_coverage.test.sql` introspection stays green)
+**Then also** it writes a `registration_fee_changed` audit row through `log_audit_event` with the old and new amount in `metadata` (FR-147, FR-080 amendment); `registration_fee` joins the columns `protect_super_admin_only_gym_columns` pins, so even an Owner cannot change it by a direct UPDATE that skips the audit row
+**Then also** a fee change applies only to members inserted afterward — no existing member's `registration_fee_settled_at` is touched
+
+**Given** the Settings page (`settings/page.tsx` → `SettingsForm.tsx`) is visible only to owner and supervisor (`Sidebar.tsx:50`)
+**When** this story ships
+**Then** a "Registration fee (XAF)" field appears there, an integer ≥ 0 with helper text "0 means no registration fee", saved through a new server action that calls `set_registration_fee` — not through `saveGymSettings`; `getGymSettings` (`gym-settings.ts:67`, an explicit column select) and the `GymSettingsRow` type gain the column; a Manager sees no field
+
+**Given** `auditLabels.ts` maps action types to `audit.actionTypes.*` keys and unmapped types render as the raw string
+**When** this story ships
+**Then** `registration_fee_changed` is mapped, with EN and FR strings in `apps/dashboard/locales/{en,fr}.json`, and `pnpm check:i18n` passes
+
+**Given** `packages/types/src/database.ts` is generated
+**When** this story ships
+**Then** it is regenerated and a Zod schema for the fee input lives beside `gymSettingsSchema` (`packages/types/src/schemas/gym.ts:136`); new pgTAP lives in `supabase/tests/registration_fee_foundation.test.sql` with a `.negative.test.sql` companion covering the role matrix, a suspended gym, a cross-gym attempt, a direct column write, and the `NULL`-backfill assertion
+
+---
+
+### Story 18.2: Payment Purpose, Manual Fee Collection & Waiver
+
+As a front-desk staff member or manager,
+I want to record a new member's registration fee, or waive it, in one step,
+So that the member is settled immediately and can be given a plan.
+
+*Delivers FR-150, FR-152 (manual path). Migration 0099. Database-only — the screens are Story 18.6.*
+
+**Acceptance Criteria:**
+
+**Given** `payments` has no notion of what it pays for — `subscription_id IS NULL` already means "manual, unrenewed" (`0005`), and `complete_verified_payment` (`0030`) turns every `processing → verified` payment into a renewal
+**When** migration 0099 ships
+**Then** `payments.purpose text not null default 'subscription'` exists with `check (purpose in ('subscription','registration_fee'))` — text plus a check rather than an enum, the same reason `0036` moved `method` off an enum; every existing row takes the default, so no existing payment changes meaning (addendum §D, FR-152)
+**Then also** `payments.voided_at timestamptz` is added now (set only by Story 18.4's RPC) and pinned against direct writes in the same style as `protect_payment_columns_on_staff_verify`
+
+**Given** two staff, or a cash entry and a Tara collection, could record the same member's fee at once
+**When** this story ships
+**Then** a partial unique index on `payments (member_id) where purpose = 'registration_fee' and voided_at is null and status <> 'flagged'` enforces **at most one non-voided fee payment per member** (FR-152) — a `flagged` payment is excluded so a disputed attempt can be retried; the losing writer gets `registration_fee_already_recorded`
+
+**Given** `gym_staff_insert_own_payments` (`0031:50`, widened `0093`) lets staff insert `pending`/`processing` rows
+**When** this story ships
+**Then** that policy gains `purpose = 'subscription'`, so a fee payment can only be created through the RPCs in this epic — the generic Payments form (`recordManualPayment`, `payments.ts:268`) can never create or mislabel one
+
+**Given** a member is awaiting and the gym's fee is above 0
+**When** `public.record_registration_fee(p_member_id uuid, p_method text, p_reason text)` is called by an owner, manager, supervisor, or receptionist of the caller's gym
+**Then** it inserts a `payments` row with `purpose = 'registration_fee'`, `status = 'verified'`, `actor_id = auth.uid()`, `currency = 'XAF'`, no `subscription_id`, and **`amount` read from `gyms.registration_fee` server-side — never supplied by the caller** (FR-152 "exactly the gym's fee"), then sets `members.registration_fee_settled_at = now()` in the same transaction
+**Then also** a manually recorded fee takes effect immediately and never enters the verification queue (FR-152 `[ASSUMPTION]`, matching how front-desk cash renewals activate at once, FR-050) — this function is the one place to change if a second-person check is later required
+
+**Given** the manual methods are `cash`, `bank_transfer`, and `manual_momo` (the closed Zod enum in `packages/types/src/schemas/payment.ts`), and FR-038 requires a reason
+**When** `record_registration_fee` validates its input
+**Then** `mobile_money` is rejected (the Tara path is Story 18.3), a blank reason or one over 200 characters is rejected (`payments_reason_length_check`), and the audit action `registration_fee_recorded` carries amount, method, and reason in `metadata`
+
+**Given** the function must be safe for a member who is not due
+**When** it is called for a member who is already settled, deactivated, in another gym, not `role = 'member'`, or in a gym whose fee is `0`
+**Then** it raises `registration_fee_not_due`, `member_deactivated`, `not_found`, `not_found`, and `registration_fee_not_configured` respectively and writes nothing; it is guarded by `private.current_gym_status()` so a suspended gym cannot call it
+
+**Given** `payments_notify_status_change` (`0046:267`) pushes N-04 "payment confirmed" on `verified`, and an awaiting member has no app access and no active membership
+**When** a registration-fee payment becomes `verified` or `flagged`
+**Then** the trigger skips it — no N-04 or N-05 is sent for `purpose = 'registration_fee'`; pgTAP asserts no notification row is produced
+
+**Given** an Owner, Supervisor, or Manager decides not to charge a member
+**When** `public.waive_registration_fee(p_member_id uuid, p_reason text)` is called
+**Then** it requires role `owner`, `supervisor`, or `manager` of the caller's gym (receptionist and coach are rejected, FR-150), a non-blank reason, an awaiting member, and an active gym; it sets `registration_fee_settled_at = now()`, creates **no payment row**, and writes a `registration_fee_waived` audit row with the reason
+
+**Given** `auditLabels.ts` leaves unmapped action types as raw strings
+**When** this story ships
+**Then** `registration_fee_recorded` and `registration_fee_waived` are mapped with EN and FR strings; Zod schemas for both inputs live in `packages/types/src/schemas/payment.ts`
+
+**Given** new pgTAP lives in `supabase/tests/registration_fee_collection.test.sql`
+**When** it runs
+**Then** it covers the role matrix for both RPCs, an amount that cannot be client-supplied, a double-record race (second call fails), a disputed (`flagged`) payment being retryable, a direct `purpose = 'registration_fee'` insert being denied by RLS, no N-04 push, a suspended gym, and a cross-gym member
+
+---
+
+### Story 18.3: Tara Money Fee Collection
+
+As a front-desk staff member,
+I want to start a Tara Money collection for a new member's registration fee,
+So that a member can pay the fee by mobile money at the desk instead of in cash.
+
+*Delivers FR-152 (Tara path). Migration 0100. Staff-initiated only — the member never starts this payment.*
+
+**Acceptance Criteria:**
+
+**Given** `initiatePayment` (`payments.ts:58`) prices from the member's latest subscription's plan (`:81`) and returns `not_found` when none exists, and `initiate_member_payment` (`0055`, latest `0090:1169`) fails with `no_active_plan`
+**When** this story ships
+**Then** a new staff-only server action and service function `initiateRegistrationFeePayment(memberId)` prices from `gyms.registration_fee` instead — the fee is its own price source (addendum §D); the existing renewal initiators are not modified and their behavior is unchanged
+
+**Given** automated payment is available only to gyms that connected Tara Money (FR-127; `active_payment_provider` RPC)
+**When** a gym has no active provider
+**Then** the action returns `no_active_provider` and the UI offers manual methods only; a gym that has not connected Tara Money loses nothing
+
+**Given** a member is awaiting and the fee is above 0
+**When** staff start a Tara collection
+**Then** a `payments` row is inserted with `purpose = 'registration_fee'`, `status = 'processing'`, `method = 'mobile_money'`, the active `provider`, and `amount = gyms.registration_fee`, then the `payment-webhook/initiate/<providerKey>` edge function is called (`index.ts:43`, `amount: payment.amount` at `:200`) so the charged amount always comes from the stored row
+**Then also** the payer-phone field follows the same Tara-supported-country restriction as `RenewalModal` (FR-142)
+
+**Given** the partial unique index from Story 18.2 covers `processing` rows
+**When** a second Tara attempt (or a cash entry) is made while one is `processing` or `verified`
+**Then** it is refused with `registration_fee_already_pending` / `registration_fee_already_recorded` — the same shape as `payment_already_pending` in `0055`
+
+**Given** `complete_verified_payment` (`0030:76-153`, `service_role` only) treats every verified payment as a renewal and is listed in `0090:1689-1692`'s suspension-gate exclusion array
+**When** this story ships
+**Then** it is redefined with a `purpose` branch: for `registration_fee` it performs the same `processing → verified` update with the same idempotency guard and records `provider_fee_amount`, sets `members.registration_fee_settled_at = now()`, and writes a `registration_fee_paid` audit row (system actor `payment-webhook`) — and it **never inserts a subscription and never sets `payments.subscription_id`** (FR-152); the `subscription` branch is byte-for-byte unchanged
+**Then also** the function stays in the `0090` exclusion array and `suspension_rpc_coverage.test.sql` stays green
+
+**Given** webhooks can be delivered twice (FR-035)
+**When** the same confirmation arrives again
+**Then** it is a no-op — no second settle, no second audit row, no duplicate payment — proven by the existing idempotency pattern
+
+**Given** the existing renewal branch skips a deactivated member and leaves the payment `verified` (`0030:104`)
+**When** a fee payment is confirmed for a deactivated member
+**Then** it behaves the same way: the payment stays `verified`, the member is not settled, and a `raise notice` records why — consistent with the renewal branch, and revisited under OQ-17
+**Then also** `complete_flagged_payment` (`0046`) on a fee payment does not settle the member, sends no N-05 (Story 18.2's skip), and leaves the member free to retry because `flagged` is outside the unique index
+
+**Given** Tara Money automated payments have not yet carried real traffic in production (PRD FR-099 correction; OQ-7)
+**When** this story ships
+**Then** it is verified end to end in the Tara sandbox, and an awaiting member calling `initiate_member_payment` is pinned by a pgTAP case to still fail — the member cannot self-serve the fee (FR-148)
+
+**Given** new tests accompany the change
+**When** they run
+**Then** pgTAP covers `complete_verified_payment` for both purposes, a replayed webhook, a deactivated member, and a flagged fee payment; the edge function's existing tests for renewals stay green unchanged
+
+---
+
+### Story 18.4: Void, Refund Block & Revenue Line
+
+As a gym Owner or Supervisor,
+I want to correct a fee recorded in error without refunding it, and to see registration-fee income on its own line,
+So that a mistaken entry is never permanent and the books stay honest.
+
+*Delivers FR-151, FR-153. Migration 0101.*
+
+**Acceptance Criteria:**
+
+**Given** the fee is non-refundable (FR-149) and Story 18.2 records it as a `verified` row with no way back
+**When** `public.void_registration_fee_payment(p_payment_id uuid, p_reason text)` is called
+**Then** it requires role `owner` or `supervisor` of the caller's gym, a non-blank reason, an active gym, and a payment in the caller's gym with `purpose = 'registration_fee'`, `status = 'verified'`, and `voided_at IS NULL`
+
+**Given** a voided payment must not erase history
+**When** the function succeeds
+**Then** it sets `payments.voided_at = now()` (the row is never deleted — the ledger stays append-only), sets the member's `registration_fee_settled_at` back to `NULL` (awaiting registration fee), and writes a `registration_fee_voided` audit row with the reason — a void is a correction, not a refund
+
+**Given** FR-151 restricts voiding to manual entries and to members without a plan
+**When** the payment's `method` is `mobile_money`, or the member already has any subscription
+**Then** it raises `tara_fee_cannot_be_voided` or `member_already_has_subscription` and changes nothing — a Tara-paid fee has already reached the gym's own account and is corrected outside the platform (FR-151 `[ASSUMPTION]`)
+
+**Given** `refunds` RLS `manager_or_owner_insert_own_refunds` (`0093`) requires a `verified` payment in the same gym and `amount <= p.amount`
+**When** this story ships
+**Then** the policy gains `purpose <> 'registration_fee' and voided_at is null`, **and** a `BEFORE INSERT` trigger on `refunds` raises for any fee or voided payment as a second line — the block holds in the data layer, not only the UI (FR-153); `listRefundEligiblePayments` (`payments.ts:663`) excludes both so `RecordRefundModal` never offers them
+
+**Given** `gym_revenue_mtd()` (`0095`) returns a single `bigint` of verified payments minus refunds, with no purpose or void filter
+**When** this story ships
+**Then** it is redefined with the same signature (`returns bigint`, so `getRevenueMtd` at `payments.ts:519` and its single call site at `page.tsx:136` need no change) and now excludes payments where `voided_at IS NOT NULL`; verified, non-voided registration fees stay inside the total (FR-153, FR-143)
+**Then also** a new `gym_registration_fee_revenue_mtd() returns bigint` returns only verified, non-voided fee payments over the same gym-local month bounds (`private.gym_local_month_bounds`, `0097`), scoped by `private.gym_id()`; a suspended gym returns `0`
+
+**Given** the Overview's "Revenue this month" card (`page.tsx:186-187`) shows one figure
+**When** the gym's fee is above 0, or any fee was collected this month
+**Then** the card shows a secondary line "of which registration fees: XAF n" from a new `getRegistrationFeeRevenueMtd()` service call, in EN and FR; a gym with no fee sees the card exactly as before, and polling behavior is unchanged
+
+**Given** `auditLabels.ts` maps action types
+**When** this story ships
+**Then** `registration_fee_voided` and `registration_fee_paid` (from 18.3) are mapped with EN and FR strings
+
+**Given** the existing revenue test is `supabase/tests/gym_revenue_mtd.test.sql` (`plan(36)`)
+**When** this story ships
+**Then** it is updated for the void exclusion and a new `registration_fee_void_refund_revenue.test.sql` covers: the full void role matrix (manager and receptionist rejected), Tara rejection, member-with-subscription rejection, double void, cross-gym, refund attempts through both RLS and the trigger, and the fee revenue line across a month boundary in a non-UTC gym timezone
+
+---
+
+### Story 18.5: Two-Step Member Creation, First-Plan Assignment & Import Exemption
+
+As a gym Owner, Supervisor, or Manager,
+I want to register a new member first and assign their plan once the fee is settled,
+So that the fee gate fits the way I create members — and so a registered member with no plan is no longer a dead end.
+
+*Delivers FR-148 (staff flow), FR-154, FR-155 (invite timing). No migration. Dashboard services and actions.*
+
+**Acceptance Criteria:**
+
+**Given** `createMember` (`members/actions.ts:42`) validates `createMemberSchema` (`member.ts:86`), which requires `planId`, `joinDate`, and `subscriptionStatus`, and `provisionMemberRow` (`members.ts:685`) inserts the member and then a subscription
+**When** the gym's `registration_fee` is above 0
+**Then** `MemberModal.tsx` (`createMember` call ~`:335`) hides the plan, status, and expiry fields, and `provisionMemberRow` skips `insertSubscription` — the member is created in the awaiting state with no subscription (FR-148, amends FR-019)
+**Then also** `createMember` reads the fee **server-side**; it never trusts a client flag. If a client sends plan fields to a fee gym, the action returns `registration_fee_due` before creating anything
+
+**Given** a gym whose fee is `0`
+**When** a member is created
+**Then** the one-step flow is unchanged — same fields, same subscription insert, same audit entry — and the existing `MemberModal` and `createMember` tests pass unmodified
+
+**Given** no way exists to give a plan to a member who has none: `confirm_renewal` and `renew_subscription` both raise "has no existing subscription", and `listMembers` already falls back to `status: "no_active_plan"` for such members (`members.ts:112`)
+**When** this story ships
+**Then** a new action `assignInitialPlan(memberId, planId, startDate)` exists for owner, supervisor, and manager (the same set as member creation, `CAN_MANAGE` in `MembersPageClient.tsx:~42`; receptionists still cannot, FR-021) and inserts the first subscription through `insertSubscription` (`members.ts:589`) with `status = 'active'`, `start_date`, and an expiry derived from the plan's `duration_days` — `pay_per_session` gets a null expiry per the trigger at `0018:27`
+**Then also** the Story 18.1 gate rejects it with `registration_fee_not_settled` for an awaiting member, surfaced as `registration_fee_due`; it works for any settled member with no subscription, in a fee gym or not
+**Then also** it records no payment for the plan price (scope boundary above), writes a `member_plan_assigned` audit row, and respects the existing `member_cap_reached` path
+
+**Given** the members list renders `MemberBadgeStatus` (`memberLabels.ts`) and filters by `VALID_STATUS_FILTERS` (`members.ts:~140`)
+**When** this story ships
+**Then** an awaiting member shows an "Awaiting registration fee" badge, the filter list gains that status, and the list query selects `registration_fee_settled_at`; a settled member with no plan keeps the existing "no plan" display
+
+**Given** CSV import (`confirmCsvImport`, `csvImport.ts` ~`:353`) loops `provisionMemberRow` with all-or-nothing rollback, and every row creates a subscription
+**When** the gym's fee is above 0
+**Then** each imported member is settled before its subscription insert — `provisionMemberRow` accepts an `importExempt` option that sets `registration_fee_settled_at` through the service-role admin client (the same client already used for cleanup, `members.ts:628` / `:516`) between `insertMember` and `insertSubscription`; an authenticated session still cannot write the column (Story 18.1) (FR-154, FR-149)
+**Then also** the all-or-nothing rollback is unchanged, no fee payment is created, the import is never blocked by the fee, and each per-row audit entry carries `via: "csv_import"` and `registration_fee_exempt: true`
+
+**Given** `sendMemberInvite` (`actions.ts:222`) re-fetches the member through `getMemberForInvite` (`members.ts:255`)
+**When** the member is awaiting
+**Then** it returns `registration_fee_due` and sends no WhatsApp message, and "Send Invite" / `InviteMemberModal` are disabled with an explanation; once the member is settled the invite behaves exactly as FR-082 describes (amended by FR-155) — the invite is sent only after the fee is settled
+
+**Given** strings must be bilingual
+**When** this story ships
+**Then** every new label, error, and badge has EN and FR entries and `pnpm check:i18n` passes; Vitest covers the fee and no-fee `createMember` paths, `assignInitialPlan`, and a fee-gym CSV import including a mid-file failure rolling everything back
+
+---
+
+### Story 18.6: Dashboard Fee Collection, Waive & Void Surfaces
+
+As front-desk staff, a manager, or an owner,
+I want to collect, waive, or void a registration fee from the screens I already use,
+So that settling a new member takes seconds at the desk.
+
+*Delivers FR-148 (UI), FR-150, FR-151, FR-152, FR-153 (surfaces). No migration. Calls the RPCs from 18.2, 18.3, and 18.4.*
+
+**Acceptance Criteria:**
+
+**Given** an awaiting member appears in `MembersPageClient.tsx`
+**When** staff open the member's actions
+**Then** a "Collect registration fee" action shows the gym's fee amount, and no plan assignment is offered until the member is settled; after settlement "Assign plan" (Story 18.5) and "Send invite" become available
+
+**Given** the collection modal
+**When** staff choose a method
+**Then** they can pick Cash, Bank transfer, or Manual mobile money — which calls `record_registration_fee` with a mandatory reason (FR-038; pre-filled "Registration fee" and editable) — or, when Tara Money is connected, Tara Money, which asks for the payer phone using the same country-restricted input as `RenewalModal` (FR-142) and calls `initiateRegistrationFeePayment`; the amount is displayed but never editable
+
+**Given** a Tara collection is `processing`
+**When** the modal is open or reopened
+**Then** it shows a waiting state and refreshes the member row when the webhook settles it — the member never appears awaiting after a confirmed payment — reusing the existing Tara UX pattern in `components/shared/RenewalModal.tsx`; a `flagged` result shows an error and allows a retry
+
+**Given** FR-021 and FR-150 split the roles
+**When** the UI renders actions
+**Then** a receptionist sees "Collect" but not "Waive" or "Void"; a manager sees "Collect" and "Waive"; an owner or supervisor sees all three — the UI mirrors the RPC checks and the RPC remains the authority
+
+**Given** staff decide not to charge
+**When** they choose "Waive"
+**Then** a modal requires a reason, explains the member will be settled without a payment, and calls `waive_registration_fee`; the action cannot be undone from the UI
+
+**Given** the Payments page has only a pending queue and discrepancies — there is no all-payments ledger and no per-member payment history in the dashboard
+**When** this story ships
+**Then** the member row and member detail show the fee state — "Awaiting", "Paid XAF n on <date>", or "Waived by <name>" — rather than adding a ledger page; fee payments carry a "Registration fee" label via `paymentLabels.ts` wherever the Payments page renders a payment
+
+**Given** FR-151 allows voiding only a manual fee on a member with no plan
+**When** an owner or supervisor views such a member
+**Then** a "Void (recorded in error)" action opens a modal with a mandatory reason and the explicit line "This is not a refund", calling `void_registration_fee_payment`; it is hidden for a Tara-paid fee (with a hint that Tara fees are corrected outside the platform) and for a member who already has a plan
+
+**Given** `RecordRefundModal` and `listRefundEligiblePayments` come from Story 18.4
+**When** staff open the refund flow
+**Then** registration-fee payments are never offered — verified in the UI as well as the data layer
+
+**Given** all audit action types from this epic are now emitted
+**When** the audit log renders
+**Then** `registration_fee_changed`, `registration_fee_recorded`, `registration_fee_paid`, `registration_fee_waived`, `registration_fee_voided`, and `member_plan_assigned` all show friendly EN and FR labels, with no raw snake_case strings; the audit viewer's existing date and actor filters work with them
+
+**Given** this project's manual-QA convention
+**When** this story is ready for review
+**Then** the Dev Agent Record lists the browser checks the product owner will run: collect by cash and by Tara sandbox, waive, void, the receptionist/manager/owner/supervisor role matrix, a fee-0 gym unchanged, and an existing member renewing in a fee gym
+
+---
+
+### Story 18.7: Member App — Awaiting-Fee Blocked State & Fee Receipt
+
+As a new member whose gym has not yet settled my registration fee,
+I want the app to tell me clearly to contact my gym instead of showing an error,
+So that I know what to do, and so my fee later appears in my payment history like any other payment.
+
+*Delivers FR-155 and FR-041 (fee receipt). No migration. Mobile only.*
+
+**Acceptance Criteria:**
+
+**Given** `useSessionState` (`use-session.tsx:54-122`) resolves the member row selecting `onboarding_completed_at, gym_id` (`:106-114`) and `_layout.tsx:53-151` routes through three mutually exclusive `Stack.Protected` groups
+**When** the member row exists and `registration_fee_settled_at` is `NULL`
+**Then** the select adds `registration_fee_settled_at` and the hook exposes `isAwaitingRegistration`; a fourth protected group `awaiting-registration` is added beside `suspended`, excluded from `isFullyOnboarded` and from the onboarding group exactly as `showSuspended` is, and **suspended takes precedence** when both apply (FR-155)
+
+**Given** `suspended.tsx` is the existing neutral block-screen precedent (message key, logout button, no billing language)
+**When** this story ships
+**Then** a new screen modelled on it says registration is not complete and to contact the gym, offers a "Check again" action and Log out, and offers **no payment option** (FR-155, FR-148 — no member self-service); the exact copy and layout are `[ASSUMPTION]` pending the UX pass noted in FR-155
+
+**Given** an awaiting member's phone passes `phone_has_membership` (`0019:31`) and their non-deactivated row mints claims through the claims hook (`0065:77`), so `self_read_own_membership` (`0013:23`) lets them read their own row
+**When** they sign in
+**Then** they land on the blocked screen — never the generic "load error" a deactivated member sees today at `onboarding/plan.tsx`
+
+**Given** staff settle the fee and assign a plan after the member first sees the blocked screen
+**When** the member taps "Check again" or brings the app to the foreground
+**Then** the session state refreshes and they continue into onboarding exactly as FR-058 describes — the blocked state never lingers stale
+**Then also** a member who is settled but not yet assigned a plan reaches `onboarding/plan.tsx`'s existing `noPlanAssigned` branch (`:106-181`); this story **verifies** what that branch allows (whether such a member can complete `onboarding_completed_at`, `~:200`) and either confirms it shows a clear "your gym will assign a plan" state or fixes it so it does
+
+**Given** "cannot use the member app" must not rest on the client alone
+**When** this story ships
+**Then** it confirms by test that an awaiting member — who has no subscription — cannot check in, book a class, or start a payment (`initiate_member_payment` → `no_active_plan`, pinned in Story 18.3); any gap found is recorded in `deferred-work.md` rather than silently widening this story
+
+**Given** a fee payment is a `payments` row with no `subscription_id`, and the history list shows `history.payments.planUnavailable` for a null plan (`history/index.tsx:~400`) while the receipt shows `paymentDetail.planUnavailable` (`history/payment/[id].tsx:~140`)
+**When** a settled member opens their history or a fee receipt
+**Then** `loadPaymentsPage` (`payments.ts:42-71`) and `getPaymentReceipt` (`payments.ts:116`) select `purpose`, and a fee payment reads "Registration fee" in place of a plan name on both screens (FR-041, FR-152); amount, currency, method, date, reference, and actor are unchanged; a waived member simply has no payment row
+
+**Given** the mobile app has its own locale files, deliberately separate from the dashboard
+**When** this story ships
+**Then** every new string has EN and FR entries in `apps/mobile/src/locales/{en,fr}.json` under the existing top-level sections, and the `check:i18n` gate passes
+
+**Given** a mobile change costs a build and TestFlight/Play cycle
+**When** this story is planned
+**Then** it ships in one mobile release with any other pending mobile work, and the product owner's on-device QA covers: blocked screen, "Check again" after settlement, and a fee receipt in history
 
 ---
 

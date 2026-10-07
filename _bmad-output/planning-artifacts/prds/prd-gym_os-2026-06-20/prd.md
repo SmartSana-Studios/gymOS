@@ -2,7 +2,7 @@
 title: GymOS — Product Requirements Document
 status: final
 created: 2026-06-20
-updated: 2026-08-11
+updated: 2026-10-07
 version: "1.5"
 audience: Development Team
 scope: V1.0 (shipped) + V1.5 — Beta-Ready (this update)
@@ -44,6 +44,7 @@ V1.0 proved the retention spine — payments, attendance, the front-desk alert, 
 | App between-visit value | Status, history | + progress tracking, quiet-gym alerts |
 | Classes | Deferred | Scheduling + booking + reminders |
 | Workout plans | Deferred | Coach-authored plans |
+| Registration fee | None | Optional one-time per-gym fee that a new member must settle before getting member-app access and a plan (FR-147–FR-155) |
 | WhatsApp invite / OTP fallback | Started, unfinished | Completed |
 | Product analytics | Sentry only | + PostHog |
 | Test automation | Manual + RLS/payment CI | + E2E automation baseline |
@@ -257,6 +258,8 @@ The import is **all-or-nothing**: all rows are validated before any records are 
 
 **FR-010** — During onboarding, the gym configures: gym name, logo, primary color, timezone (default: Africa/Douala, GMT+1), preferred language (English or French), grace period duration, and gym capacity.
 
+**FR-154** — Amendment to FR-008. Imported members are existing members of the gym and are exempt from the registration fee (FR-149). CSV import is never blocked by FR-148 and creates no registration-fee payment.
+
 ---
 
 ### 6.3 White-Label Branding
@@ -317,6 +320,16 @@ Travel mode is deferred to V2.0 (see Section 8).
 **FR-025** — Plan definitions (name, price in XAF, duration, access type) are configurable per gym by the Owner or Manager. The plan types above are templates; gyms set their own pricing and durations. The platform supports **monthly and annual billing intervals** for recurring plans from V1; annual plans carry a gym-set discount to incentivize commitment. Billing interval is stored on the subscription record independently of tier names or price points (OQ-1 does not block billing interval implementation).
 
 **FR-026** — All monetary values are stored as integers (whole XAF francs) with an explicit `currency` column alongside the amount. No floating-point monetary storage anywhere. V1 currency is XAF only; the schema is multi-currency-ready from day one.
+
+**FR-147** — Each gym can configure a one-time **registration fee**: a flat amount in whole XAF (FR-026), set by the Owner or Supervisor on the Settings page (Amendment to FR-069: the fee joins the Settings fields). The default is 0 XAF, meaning the gym charges no registration fee and FR-148–FR-155 do not apply to it. The fee is one amount per gym, not per plan type. Every change to the fee is audit-logged with the old and new value, and applies only to members registered afterwards.
+
+**FR-148** — When a gym's registration fee is above 0, a newly created member starts as **awaiting registration fee**: the member record exists, but the member cannot use the member app and cannot be assigned a plan or subscription of any type — including Pay-per-session — until the fee is settled, meaning recorded as paid (FR-152) or waived (FR-150). Once the fee is settled, staff assign a plan as they do today. For such a gym, member creation therefore no longer includes plan assignment (amends FR-019); for a gym whose fee is 0 the one-step flow is unchanged. Only staff collect the fee — a member cannot pay it from the app. The rule is enforced server-side, so no dashboard or app entry point can bypass it; CSV import is exempt (FR-154). A member awaiting the fee counts toward the gym's member cap (FR-073).
+
+**FR-149** — The registration fee is paid once per member and is non-refundable. Every member who exists when this capability is released is treated as having already paid, so no existing member is charged, blocked, or changed — including members added by CSV import (FR-154). A member created while their gym's fee is 0 is likewise settled from creation and is never charged retroactively if the gym later sets a fee. The fee is per gym: a person who is a member of two gyms pays each gym's fee separately. Whether a deactivated-then-reactivated member pays again is deferred (OQ-17).
+
+**FR-150** — An Owner, Supervisor, or Manager can waive the registration fee for a specific member, which settles it. A reason is mandatory, and the waiver is audit-logged with actor, reason, and timestamp (Section 6.16). Receptionists and Coaches cannot waive.
+
+**FR-151** — An Owner or Supervisor can void a manually recorded registration-fee payment that was entered in error (wrong member, or a duplicate). A reason is mandatory, and the void is audit-logged with actor, reason, and timestamp. Voiding corrects a recording mistake and is not a refund: it is allowed only while the member has no subscription yet, and it returns the member to the awaiting registration fee state. It exists because the fee is non-refundable (FR-149) and refunds are blocked (FR-153), so a wrong entry would otherwise be permanent. A fee paid by Tara Money (FR-152) cannot be voided in the platform, because the money has already reached the gym's own account; the gym corrects it outside the platform. [ASSUMPTION: Tara Money fees are corrected outside the platform.]
 
 ---
 
@@ -383,6 +396,10 @@ The front-desk alert fires in both cases. The alert color and copy differ to sig
 **FR-040** — Refunds are recorded in the system in V1 (amount, reason, actor, timestamp). Provider-executed refund API calls are deferred. If a member disputes a payment, a Manager or Owner records a manual refund entry with a mandatory reason; the gym pays the member out-of-band. The refund record is audit-logged.
 
 **FR-041** — The system generates a payment receipt for each successful payment. Receipt fields: member name, gym name, plan, amount, currency, payment method, date, transaction reference, actor.
+
+**FR-152** — Staff collect the registration fee at the front desk, either by recording a manual payment (cash, bank transfer, or manual mobile money — FR-033, FR-038) or, when the gym has Tara Money connected (FR-127), by starting a Tara Money collection for the member. The amount is always exactly the gym's fee, not a plan price; any staff role that can record payments (FR-021) may collect it. At most one non-voided registration-fee payment can exist per member. The payment is stored with a purpose that distinguishes it from subscription payments, so it is identified as a registration fee on the Payments page, in the member's payment history, and on the receipt (FR-041), and recording it never creates or renews a subscription. A manually recorded fee takes effect immediately and does not wait in the verification queue (FR-037). [ASSUMPTION: this matches how front-desk cash renewals activate immediately (FR-050); no second-person check is required.] A Tara Money fee takes effect when the payment is confirmed (FR-035), following the same rules as other Tara payments (FR-124, FR-125); completing it settles the fee and never creates or renews a subscription.
+
+**FR-153** — Amendment to FR-040, FR-080, and FR-143. FR-040: a refund cannot be recorded against a registration-fee payment (FR-149); the block holds in the data layer, not only in the interface. FR-080: registration-fee payment recordings, fee-amount changes (FR-147), waivers (FR-150), and voids (FR-151) are added to the audited actions. FR-143: registration fees (manual once recorded, Tara Money once confirmed) count toward the Overview's month-to-date revenue and appear as their own line, separate from subscription revenue.
 
 ---
 
@@ -477,6 +494,8 @@ Members with `expired` status remain visible in the coach's list with their stat
 **FR-062** — Members can view: current plan details, expiry date, payment history, and a list of past check-ins from the app.
 
 **FR-063** — The Profile screen includes a language selector (English / French) and profile photo upload. Language change takes effect immediately across the app without requiring re-login.
+
+**FR-155** — Amendment to FR-058 and FR-082. A member in the awaiting registration fee state cannot use the member app: signing in shows a message that registration is not complete and tells the member to contact the gym, and no payment option is offered. The WhatsApp invite (FR-082) is sent once the fee is settled. After the fee is settled and a plan is assigned, onboarding proceeds exactly as in FR-058. [ASSUMPTION: exact copy and screen flow to be settled in UX.]
 
 ---
 
@@ -862,6 +881,7 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 |------|---------------|
 | Self-serve gym signup | Post-V1.5 |
 | Travel mode plan type | V2.0 |
+| Pay-per-session per-visit charging | Follow-on after the registration fee (OQ-16) |
 | Campay payment provider integration | V2.0 |
 | Provider-executed refund API calls | V2.0 |
 | Coach-to-receptionist escalation for expiring clients | V2.0 |
@@ -901,6 +921,9 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | OQ-13 | **Resolved** — Tara Money's create-collect + payment-detection flow is confirmed callback/webhook-driven, not poll-based (consistent across every spike to date). The real webhook payload's `businessId` field matched the initiating account (`9FmIZg9GBB`, distinct from the prior stand-in), which is attribution/correlation evidence for per-gym `businessId`/credential scoping (`docs/decisions.md`, 2026-08-13, Story 4.10) — informs but does not by itself confirm fund settlement; Story 4.13's per-gym credential design (AD-15) should independently verify settlement. | — | FR-124, FR-126, FR-128; Story 4.13 |
 | OQ-14 | **Resolved** — Tara Money (mobile money) does not support automated recurring debits. Flow B billing for V1.5 is a reminder-to-approve model: GymOS notifies the Owner when payment is due and the Owner completes the charge via Tara Money each cycle. True automated recurring collection is deferred to a future version, pending a card-based provider (e.g. Stripe). See FR-130, FR-133. | — | — |
 | OQ-15 | **Resolved** — no proration on mid-cycle SaaS tier change; the new price applies at the next billing cycle. | — | — |
+| OQ-16 | **Pay-per-session per-visit charging.** FR-024 says a Pay-per-session member pays per visit, but no FR defines the mechanism. Direction decided (2026-10-07): each gym sets its own per-visit price; payment happens at check-in; both cash (recorded at the front desk) and in-app payment are supported. It ships after the registration fee, as its own requirement(s). **Open:** what happens at check-in when the visit is unpaid. PM recommendation: deny the check-in and alert the front desk so the receptionist can collect cash and admit the member — not "allow now, owe later", since the platform has no receivables ledger. This needs a new alert type, because FR-049 today fires only for expiring, grace, and expired members. Also open: how offline check-in (FR-061), which cannot verify payment, should behave. | Product owner (smartsana) | Pay-per-session per-visit charging story; not a blocker for FR-147–FR-155 |
+| OQ-17 | **Reactivated member and the registration fee.** Does a member who is deactivated (FR-083) and later reactivated, or re-created, pay the fee again? Deferred by decision (2026-10-07). No reactivation capability is specified today, so this matters only once one is. | Product owner (smartsana) | Nothing; revisit when reactivation is specified |
+| OQ-18 | **Resolved** — members in the awaiting registration fee state count toward the gym's member cap (FR-073), decided 2026-10-07 (see FR-148). | — | — |
 
 ---
 
@@ -933,3 +956,5 @@ This gate is additive on top of V1.0's already-shipped goals (Section 3.1, G-1�
 | FR / NFR | Functional Requirement / Non-Functional Requirement — stable, never-renumbered IDs (Section 6/7 header note) |
 | E2E | End-to-end (test automation), NFR-015 |
 | RPC | Remote Procedure Call — a Postgres function invoked from application code, e.g. the staff-creation function (addendum D) |
+| Registration fee | One-time, flat, per-gym fee a new member must settle (pay or have waived) before getting member-app access and a plan; 0 XAF by default (FR-147–FR-155) |
+| Awaiting registration fee | A member state: the member record exists, but the app is unavailable and no plan can be assigned until the fee is settled (FR-148) |
