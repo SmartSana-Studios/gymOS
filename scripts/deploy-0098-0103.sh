@@ -33,15 +33,12 @@ set -euo pipefail
 WITH_RECEPTIONIST=0
 [ "${1:-}" = "--with-receptionist" ] && WITH_RECEPTIONIST=1
 
-HOST="aws-0-eu-west-1.pooler.supabase.com"
-PORT="5432"
-USER_="postgres.vfxezibagiznrirdwkwh"
-DB="postgres"
-
-export PGPASSWORD="$(cat ~/.supabase-db-password)"
-PROD=(psql -h "$HOST" -p "$PORT" -U "$USER_" -d "$DB" -v ON_ERROR_STOP=1 -q -X)
-
 cd "$(dirname "$0")/.."
+# psql runs inside the local Supabase DB container (no host psql in this
+# devcontainer); see scripts/prod-db.sh for the connection settings.
+# shellcheck source=scripts/prod-db.sh
+. scripts/prod-db.sh
+PROD=(prod_psql)
 
 HEAD="$("${PROD[@]}" -tAc "select max(version) from supabase_migrations.schema_migrations;")"
 echo "=== head BEFORE: $HEAD ==="
@@ -65,12 +62,13 @@ for BASE in "${FILES[@]}"; do
   N="${BASE:5}"
   printf '%-5s %-44s ' "$V" "$N"
 
-  if "${PROD[@]}" <<SQL
-begin;
-\i $F
-insert into supabase_migrations.schema_migrations (version, name) values ('$V', '$N');
-commit;
-SQL
+  # The file is streamed on stdin (\i would look for it inside the container).
+  if {
+    echo "begin;"
+    cat "$F"
+    echo "insert into supabase_migrations.schema_migrations (version, name) values ('$V', '$N');"
+    echo "commit;"
+  } | "${PROD[@]}"
   then
     echo "APPLIED"
   else
