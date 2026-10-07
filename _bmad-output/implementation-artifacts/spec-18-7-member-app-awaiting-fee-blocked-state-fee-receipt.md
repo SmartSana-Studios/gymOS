@@ -108,3 +108,26 @@ Hiding voided fee rows client-side is a decision: a void is a correction of a mi
 
 **Manual checks (product owner on device, needs a mobile build):**
 - Blocked screen, Check again after settlement, and a fee receipt in history.
+
+## Code Review (bmad-code-review, 2026-10-07)
+
+### Review Findings
+
+- [x] [Review][Patch] Superseded refresh returns `null` (read as "failed"): at cold launch the `getSession()` refresh is overtaken by supabase-js's `INITIAL_SESSION` callback refresh, so the `finally` clears `isLoading` with default flags (`isOnboarded=false`, `isAwaitingRegistration=false`) while the winning refresh is still in flight. Returning members flash the onboarding group, and `app_opened` can capture `gymId: null`. The same `null` makes a Check again tap overtaken by a foreground/auth refresh show "Couldn't check right now". Fix: a superseded call returns the latest refresh's promise instead of `null`. [apps/mobile/src/hooks/use-session.tsx:65-145] (sources: edge-case-hunter + blind-hunter + verification-gap + acceptance-auditor; verdict medium)
+
+#### Rejected
+
+- Sign-in race routes to onboarding before the awaiting flag lands (blind): false as stated. After OTP the member goes to `/onboarding/profile` or `/goal` (otp.tsx:123), never `plan.tsx`, so no load error; the flash is the pre-existing "favor onboarding until refreshed" design and lasts one round trip.
+- `memberError` early return leaves a first-load fall-through to onboarding (blind, edge, verification-gap, acceptance-auditor): low, and not worse than before the story (an error used to commit `isOnboarded=false` too). A real fix needs retry machinery.
+- Stale flags on `memberError` after a user change (edge): false. A user change always passes through sign-out, whose `!currentSession` branch resets every flag.
+- Foreground refresh failure is silent (blind, edge): low. Check again is the manual path, and the next foreground retries.
+- Awaiting only re-checked while awaiting; settled+onboarded member re-gated by a void (blind, edge): low and rare. 0101:121 does null `registration_fee_settled_at` on void, but the spec limits foreground traffic on purpose, the server still denies, and the fix is a design change.
+- Onboarded members locked out by the gate (edge): false. 0098:61 backfilled `registration_fee_settled_at = created_at` for existing members, so unsettled means a genuine awaiting-fee member.
+- `gymRow` null skips the suspended check (edge): pre-existing code, unchanged by the diff, and unreachable when a gym claim exists.
+- Pagination cursor skew from the voided filter (edge): false. The filter is in SQL before `limit`, and the cursor comes from the last returned row.
+- Pending or failed fee payments show as "Registration fee" (blind): low. The row carries its status, like any other payment.
+- `!currentSession` branch lacks a `seq` check (acceptance-auditor): false. It increments `refreshSeq` first, which supersedes older in-flight calls, and signed out means all flags false.
+- Spec text says `check_in()` raises, Spec Change Log empty, spec `done` vs sprint `review`, `pg_prove` named in Verification (blind, acceptance-auditor): rejected, the fix is editing the spec under review. The `check_in()` deviation is already in deferred-work.md.
+- Weak or missing pgTAP assertions: tautological voided predicate, no non-member role test, no subscribed-unsettled test, count test order (blind): low. The previous pass already renamed the messages to say they pin data shape.
+- Blocked screen polish: hit areas, layout shift, no scroll container, no gym contact route, reused `profile.errorSaveFailed` (blind): cosmetic, mirrors `suspended.tsx`; the contact route is the FR-155 UX-pass assumption.
+- No client test coverage (verification-gap): no mobile test runner exists, by repo convention.

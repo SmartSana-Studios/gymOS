@@ -56,13 +56,16 @@ function useSessionState() {
   // Review (18.7): overlapping refreshes (auth change, Check again, foreground) can
   // resolve out of order -- only the latest call may commit state.
   const refreshSeq = useRef(0);
+  // Promise of the most recent refresh: a superseded call resolves to its result
+  // instead of `null`, so "overtaken" is never mistaken for "failed".
+  const latestRefresh = useRef<Promise<boolean | null> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     // Resolves to whether the member is awaiting registration, or null when the
     // refresh could not complete (no state committed).
-    async function refreshOnboardedState(currentSession: Session | null): Promise<boolean | null> {
+    async function runRefresh(currentSession: Session | null): Promise<boolean | null> {
       const seq = ++refreshSeq.current;
       if (!currentSession) {
         if (!cancelled) {
@@ -95,7 +98,7 @@ function useSessionState() {
           .select('status')
           .eq('id', claimGymId)
           .maybeSingle();
-        if (seq !== refreshSeq.current) return null;
+        if (seq !== refreshSeq.current) return latestRefresh.current;
         if (gymStatusError) {
           // Review finding: a transient failure here (not "gym not found")
           // must not fall through to the members query below -- for a
@@ -127,7 +130,7 @@ function useSessionState() {
         .order('id', { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (seq !== refreshSeq.current) return null;
+      if (seq !== refreshSeq.current) return latestRefresh.current;
       if (memberError) {
         console.error('[useSession] member state lookup failed', memberError);
         return null;
@@ -142,6 +145,11 @@ function useSessionState() {
         setGymId(data?.gym_id ?? null);
       }
       return awaiting;
+    }
+    function refreshOnboardedState(currentSession: Session | null): Promise<boolean | null> {
+      const p = runRefresh(currentSession);
+      latestRefresh.current = p;
+      return p;
     }
     refreshRef.current = refreshOnboardedState;
 
