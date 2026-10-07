@@ -107,6 +107,20 @@ Deno.test("verifyWebhookSignature: missing tara-webhook-secret header entirely (
   assertEquals(result, { valid: false });
 });
 
+Deno.test("verifyWebhookSignature: the underscore header name Tara now sends (tara_webhook_secret) is accepted when the value matches", async () => {
+  const { provider } = providerWithByBusinessIdResponse({ data: [GYM_A_ROW], error: null });
+  const payload = JSON.stringify({ businessId: "biz1", paymentId: "pay1", status: "SUCCESS" });
+  const result = await provider.verifyWebhookSignature(payload, { tara_webhook_secret: SECRET });
+  assertEquals(result.valid, true);
+});
+
+Deno.test("verifyWebhookSignature: the underscore header with a wrong value is still rejected", async () => {
+  const { provider } = providerWithByBusinessIdResponse({ data: [GYM_A_ROW], error: null });
+  const payload = JSON.stringify({ businessId: "biz1", paymentId: "pay1", status: "SUCCESS" });
+  const result = await provider.verifyWebhookSignature(payload, { tara_webhook_secret: "not-the-real-secret" });
+  assertEquals(result, { valid: false });
+});
+
 Deno.test("verifyWebhookSignature: wrong-value tara-webhook-secret header (gym resolved, header incorrect) returns valid:false", async () => {
   const { provider } = providerWithByBusinessIdResponse({ data: [GYM_A_ROW], error: null });
   const payload = JSON.stringify({ businessId: "biz1", paymentId: "pay1", status: "SUCCESS" });

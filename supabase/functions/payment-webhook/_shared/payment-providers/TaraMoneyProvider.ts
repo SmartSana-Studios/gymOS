@@ -446,7 +446,10 @@ export class TaraMoneyProvider implements PaymentProvider {
     // Real delivery evidence: header `tara-webhook-secret` equaled this
     // project's configured TARAMONEY_WEBHOOK_SECRET exactly. See
     // docs/decisions.md for the full captured request.
-    const received = headers["tara-webhook-secret"];
+    // Tara's own delivery now names the header with underscores (`tara_webhook_secret`,
+    // seen live 2026-10-07 through a tunnel); the original spike captured hyphens.
+    // Accept both -- same value, same constant-time comparison.
+    const received = headers["tara-webhook-secret"] ?? headers["tara_webhook_secret"];
     if (!received || !constantTimeEqual(received, webhookSecret)) {
       // Lengths and header names only -- never the secret itself.
       console.error(

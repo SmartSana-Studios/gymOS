@@ -4,6 +4,10 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-07 — Tara webhook secret header accepted as both `tara-webhook-secret` and `tara_webhook_secret`; callback URL can be pinned for local tunnels
+
+Found in the first live local Tara run (a real 50 XAF fee through a tunnel): Tara's delivery carried the secret in `tara_webhook_secret` (underscores), while `verifyWebhookSignature` only read the hyphenated name captured in the 2026-07-31 spike, so a genuine paid webhook was rejected with 401 and the payment stayed `processing`. The provider now reads either name (same constant-time comparison; a wrong value on either is still rejected, pgTAP-style Deno tests added). **This affects any deployed environment that receives real Tara webhooks: the `payment-webhook` function must be redeployed.** Also added: non-secret rejection diagnostics (reason, header names, lengths) and `PAYMENT_WEBHOOK_PUBLIC_BASE_URL` (`_shared/callbackUrl.ts`), an optional override used only by the local runner because Tara requires an https callback and the local gateway shows the function an internal http origin. Unset in production, so deployed behaviour is unchanged. Not run: the Deno tests (no deno on this host).
+
 ## 2026-10-07 — Voided registration fees are excluded from the last two readers that still counted them (migration 0103)
 
 The 18.4 deferred item named three readers. Mobile payment history and receipt were already fixed by 18.7 (`voided_at is null` on both queries). The remaining two: `platform_metrics().total_payments_processed` (0011, summed `status = 'verified'` only) is replaced in `0103` with the same signature and a `voided_at is null` predicate, and the super-admin gym payments list (`listGymPayments`) now filters `voided_at is null`, so list, total and revenue figures agree. A voided fee is excluded rather than shown as "Voided" because nothing else in the product lists voided rows; the audit log still records the void. pgTAP `platform_metrics_voided_fees.test.sql` (3) proves the delta; a super-admin service test proves the filter.
