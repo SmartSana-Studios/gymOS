@@ -57,3 +57,21 @@ Member app: phone `+237 699000001`, OTP `123456` (Awaiting Mobile).
 - `select name, registration_fee_settled_at from members where gym_id=(select id from gyms where name='Epic18 QA Gym');`
 - `select purpose, amount, method, voided_at from payments where purpose='registration_fee';`
 - Bypass attempt must fail: `update members set registration_fee_settled_at=now() where name='Awaiting Chloe'` as `authenticated` role, or inserting a subscription for an awaiting member → `registration_fee_not_settled`.
+
+## Tara Money (real credentials) — T5
+
+Tara has to call the gym's webhook back, so Supabase must be reachable from the internet. Locally that needs a tunnel to Kong (`127.0.0.1:54321`); the payment function builds the callback URL from whatever host the dashboard called, so **the dashboard must talk to Supabase through the tunnel URL**.
+
+1. Edge functions (done once, re-run after editing `supabase/functions`):
+   `./scripts/epic18-qa/start-edge-functions.sh` — expect `{"error":"paymentId and phoneNumber are required"}`.
+2. Tunnel (you run it; the agent was not allowed to): e.g. `cloudflared tunnel --url http://127.0.0.1:54321`, copy the `https://….trycloudflare.com` URL (call it `$T`).
+3. Restart the dashboard through the tunnel:
+   `cd apps/dashboard && NEXT_PUBLIC_SUPABASE_URL=$T pnpm dev` (the publishable key is unchanged). Log in again — the session cookie is per Supabase URL.
+4. Connect your credentials: log in as `owner@epic18qa.test` → Settings → Payment Account → Connect Tara Money, and paste your real business id / API key / webhook secret. Use the webhook URL the page shows (it should start with `$T/functions/v1/payment-webhook/…`) in the Tara dashboard if Tara asks for one.
+5. **Use a tiny fee** — it is a real charge: Settings → Registration fee → e.g. 100 (Tara minimums may apply), save.
+6. Members → **Awaiting Dan** → Collect fee → Mobile Money (Tara). Enter a phone you control, approve on the phone.
+   - Expect: "Waiting for Dan to approve…", then the dialog closes and Dan is settled; fee payment `mobile_money`, provider `taramoney`; no subscription created, no push.
+   - Decline / let it expire: expect the failed/expired state with Try again; Dan stays awaiting.
+   - While a request is pending: Collect (manual) and Waive should refuse for Dan.
+   - Tara-paid fee: Void must refuse (corrected outside the platform).
+7. Reset anytime with `node scripts/epic18-qa/seed.mjs` (this does not remove your saved Tara credentials only if the gym row is reused — it recreates the gym, so re-enter them).
