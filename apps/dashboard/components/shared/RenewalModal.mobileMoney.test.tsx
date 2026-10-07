@@ -26,6 +26,8 @@ const removeChannel = vi.fn();
 // (first Realtime-consuming component test), modeled on
 // FrontDeskAlertPanel's own subscribeToFrontDeskAlerts callback shape.
 let capturedOnUpdate: ((row: { id: string; status: string }) => void) | null = null;
+let capturedOnStatusChange: ((status: string) => void) | null = null;
+const fetchPaymentStatus = vi.fn(async () => null);
 
 vi.mock("@/lib/realtime/paymentStatus", () => ({
   subscribeToPaymentStatus: (
@@ -34,10 +36,11 @@ vi.mock("@/lib/realtime/paymentStatus", () => ({
     onStatusChange: (status: string) => void,
   ) => {
     capturedOnUpdate = onUpdate;
+    capturedOnStatusChange = onStatusChange;
     onStatusChange("SUBSCRIBED");
     return { topic: "payment:test:status" };
   },
-  fetchPaymentStatus: vi.fn(async () => null),
+  fetchPaymentStatus: (...args: unknown[]) => (fetchPaymentStatus as (...a: unknown[]) => unknown)(...args),
 }));
 
 vi.mock("@/lib/realtime/frontDeskAlerts", () => ({
@@ -93,7 +96,7 @@ const MEMBER_ID = "member-1";
 
 async function renderModal(overrides?: { mobileMoneyEnabled?: boolean; alertId?: string }) {
   const { RenewalModal } = await import("./RenewalModal");
-  render(
+  return render(
     <RenewalModal
       alertId={overrides?.alertId}
       memberId={MEMBER_ID}
@@ -115,6 +118,8 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
     dismissFrontDeskAlert.mockReset();
     removeChannel.mockReset();
     capturedOnUpdate = null;
+    capturedOnStatusChange = null;
+    fetchPaymentStatus.mockClear();
 
     getRenewalPreviewAction.mockResolvedValue({
       data: { planName: "Monthly", price: 15000, currency: "XAF", memberPhone: "+237680811041" },
@@ -143,6 +148,26 @@ describe("RenewalModal - mobile_money (Story 4.12)", () => {
     expect(await screen.findByText(/waiting for alice to approve/i)).toBeInTheDocument();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     expect(initiatePaymentAction).not.toHaveBeenCalled();
+  });
+
+  it("a CLOSED report during cleanup does not start a polling interval nothing clears (Story 4.12 deferred item)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      getPendingMobileMoneyPaymentAction.mockResolvedValue({ data: { paymentId: "payment-existing" }, error: null });
+      const { unmount } = await renderModal();
+      await screen.findByText(/waiting for alice to approve/i);
+      await waitFor(() => expect(capturedOnStatusChange).not.toBeNull());
+      removeChannel.mockImplementation(() => capturedOnStatusChange?.("CLOSED"));
+      fetchPaymentStatus.mockClear();
+
+      unmount();
+      await vi.advanceTimersByTimeAsync(20_000);
+
+      expect(removeChannel).toHaveBeenCalled();
+      expect(fetchPaymentStatus).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("Review finding (Story 4.12): does not check for an existing payment when Mobile Money is disabled", async () => {

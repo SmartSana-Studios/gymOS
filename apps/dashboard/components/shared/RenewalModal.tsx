@@ -271,6 +271,8 @@ export function RenewalModal({
     }
 
     function handleStatusChange(status: string) {
+      // removeChannel in the cleanup reports CLOSED; polling must not restart then.
+      if (!active) return;
       if (status === "SUBSCRIBED") {
         stopPolling();
         return;
