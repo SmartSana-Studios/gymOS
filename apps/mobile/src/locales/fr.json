@@ -216,7 +216,8 @@
       "empty": "Aucun paiement enregistré pour le moment.",
       "planUnavailable": "Forfait non disponible",
       "loading": "Chargement de vos paiements…",
-      "errorLoadFailed": "Impossible de charger vos paiements. Vérifiez votre connexion et réessayez."
+      "errorLoadFailed": "Impossible de charger vos paiements. Vérifiez votre connexion et réessayez.",
+      "registrationFee": "Frais d'inscription"
     },
     "checkins": {
       "empty": "Aucun enregistrement pour le moment. Scannez le QR code de votre salle pour commencer.",
@@ -268,7 +269,8 @@
     "actorLabel": "Enregistré par",
     "unknownActor": "—",
     "statusLabel": "Statut",
-    "errorLoadFailed": "Impossible de charger ce reçu. Vérifiez votre connexion et réessayez."
+    "errorLoadFailed": "Impossible de charger ce reçu. Vérifiez votre connexion et réessayez.",
+    "registrationFee": "Frais d'inscription"
   },
   "payments": {
     "status": {
@@ -409,5 +411,13 @@
   },
   "suspended": {
     "message": "GymOS est temporairement indisponible pour cette salle. Veuillez réessayer plus tard."
+  },
+  "awaitingRegistration": {
+    "title": "Inscription non terminée",
+    "message": "Votre inscription n'est pas encore terminée. Veuillez contacter votre salle pour la finaliser.",
+    "checkAgain": "Vérifier à nouveau",
+    "checking": "Vérification…",
+    "stillAwaiting": "Votre inscription n'est toujours pas terminée.",
+    "refreshFailed": "Vérification impossible pour le moment. Veuillez réessayer."
   }
 }

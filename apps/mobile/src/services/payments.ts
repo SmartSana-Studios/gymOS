@@ -12,6 +12,7 @@ export interface PaymentListRow {
   method: string;
   status: string;
   planName: string | null;
+  isRegistrationFee: boolean;
 }
 
 interface PaymentListRowFromDb {
@@ -22,6 +23,7 @@ interface PaymentListRowFromDb {
   status: string;
   created_at: string;
   subscription_id: string | null;
+  purpose: string;
   subscriptions: { plans: { name: string } | null } | null;
 }
 
@@ -46,8 +48,10 @@ export async function loadPaymentsPage(
 ): Promise<PaymentListRow[] | null> {
   let query = supabase
     .from('payments')
-    .select('id, amount, currency, method, status, created_at, subscription_id, subscriptions(plans(name))')
+    .select('id, amount, currency, method, status, created_at, subscription_id, purpose, subscriptions(plans(name))')
     .eq('member_id', memberId)
+    // Story 18.7: a voided fee was a mistaken record; RLS still exposes it.
+    .is('voided_at', null)
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
     .limit(limit);
@@ -68,6 +72,7 @@ export async function loadPaymentsPage(
     method: row.method,
     status: row.status,
     planName: row.subscriptions?.plans?.name ?? null,
+    isRegistrationFee: row.purpose === 'registration_fee',
   }));
 }
 
@@ -83,6 +88,7 @@ export interface PaymentReceipt {
   transactionRef: string | null;
   actorName: string | null;
   status: string;
+  isRegistrationFee: boolean;
 }
 
 interface PaymentReceiptRowFromDb {
@@ -95,6 +101,7 @@ interface PaymentReceiptRowFromDb {
   provider_transaction_ref: string | null;
   actor_id: string | null;
   subscription_id: string | null;
+  purpose: string;
   subscriptions: { plans: { name: string } | null } | null;
 }
 
@@ -123,10 +130,11 @@ export async function getPaymentReceipt(
   const { data, error } = await supabase
     .from('payments')
     .select(
-      'id, amount, currency, method, status, created_at, provider_transaction_ref, actor_id, subscription_id, subscriptions(plans(name))',
+      'id, amount, currency, method, status, created_at, provider_transaction_ref, actor_id, subscription_id, purpose, subscriptions(plans(name))',
     )
     .eq('id', paymentId)
     .eq('member_id', memberId)
+    .is('voided_at', null)
     .single();
 
   if (error || !data) return null;
@@ -156,6 +164,7 @@ export async function getPaymentReceipt(
     transactionRef: row.provider_transaction_ref,
     actorName,
     status: row.status,
+    isRegistrationFee: row.purpose === 'registration_fee',
   };
 }
 

@@ -216,7 +216,8 @@
       "empty": "No payments on record yet.",
       "planUnavailable": "Plan unavailable",
       "loading": "Loading your payments…",
-      "errorLoadFailed": "Couldn't load your payments. Check your connection and try again."
+      "errorLoadFailed": "Couldn't load your payments. Check your connection and try again.",
+      "registrationFee": "Registration fee"
     },
     "checkins": {
       "empty": "No check-ins yet. Scan the QR at your gym to get started.",
@@ -268,7 +269,8 @@
     "actorLabel": "Recorded by",
     "unknownActor": "—",
     "statusLabel": "Status",
-    "errorLoadFailed": "Couldn't load this receipt. Check your connection and try again."
+    "errorLoadFailed": "Couldn't load this receipt. Check your connection and try again.",
+    "registrationFee": "Registration fee"
   },
   "payments": {
     "status": {
@@ -409,5 +411,13 @@
   },
   "suspended": {
     "message": "GymOS is temporarily unavailable for this gym. Please check back later."
+  },
+  "awaitingRegistration": {
+    "title": "Registration not complete",
+    "message": "Your registration isn't complete yet. Please contact your gym to finish it.",
+    "checkAgain": "Check again",
+    "checking": "Checking…",
+    "stillAwaiting": "Your registration is still not complete.",
+    "refreshFailed": "Couldn't check right now. Please try again."
   }
 }
