@@ -4,6 +4,10 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-07 — Voided registration fees are excluded from the last two readers that still counted them (migration 0103)
+
+The 18.4 deferred item named three readers. Mobile payment history and receipt were already fixed by 18.7 (`voided_at is null` on both queries). The remaining two: `platform_metrics().total_payments_processed` (0011, summed `status = 'verified'` only) is replaced in `0103` with the same signature and a `voided_at is null` predicate, and the super-admin gym payments list (`listGymPayments`) now filters `voided_at is null`, so list, total and revenue figures agree. A voided fee is excluded rather than shown as "Voided" because nothing else in the product lists voided rows; the audit log still records the void. pgTAP `platform_metrics_voided_fees.test.sql` (3) proves the delta; a super-admin service test proves the filter.
+
 ## 2026-10-07 — Every table paginates with a 5/10/25/50 rows-per-page selector (shared TablePagination), a product request from Epic 18 manual QA
 
 **One footer, validated sizes.** `PAGE_SIZE_OPTIONS`, `parsePageSize`, `parsePage` and `pageWindow` live in `@gymos/types`; each app has `components/TablePagination.tsx` and `hooks/use-table-pagination.ts`. Server-paged tables (dashboard Members, Subscriptions, Attendance log and checked-in, Audit; super-admin Gyms, Billing, gym Members and Payments) keep page and size in the URL (`page`/`size`; checkedIn*, m*, p* variants where a page has two tables) and the service clamps `size` to the list, falling back to the table's previous constant (a legacy 20 or 25 default still shows as an extra option). Tables that load their whole list (Classes, Staff, Payments, Coach portal, Overview, CSV import errors, super-admin Admins and Metrics job failures) use `useClientPagination`. Changing the size resets to page 1; filters keep the size. Default is 5 rows per page everywhere, and the same footer is rendered above each table as well as below (Members: above the search row). Footer renders whenever there is at least one row so the size can always be changed.

@@ -634,6 +634,9 @@ export async function listGymPayments(
       count: "exact",
     })
     .eq("gym_id", gymId)
+    // A voided registration fee is a record kept for audit that never counted as
+    // money (0101); the list, its total and the revenue figures must agree.
+    .is("voided_at", null)
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
     .range(from, to);
