@@ -26,7 +26,7 @@ const CASES: Array<[string, string]> = [
   [`payment_voided_not_refundable: payment ${MEMBER} was voided and cannot be refunded`, "payment_voided_not_refundable"],
 ];
 
-describe("mapSupabaseError -- registration fee (Story 18.3)", () => {
+describe("mapSupabaseError -- registration fee (Stories 18.3, 18.4)", () => {
   for (const [message, code] of CASES) {
     it(`maps "${message.split(":")[0]}" to ${code} with real copy in both locales`, () => {
       const en = mapSupabaseError({ message }, "en");

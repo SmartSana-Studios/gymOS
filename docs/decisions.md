@@ -14,7 +14,7 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 **Error codes.** `tara_fee_cannot_be_voided`, `member_already_has_subscription`, `registration_fee_not_refundable` and `payment_voided_not_refundable` are mapped in `mapSupabaseError` with EN/FR copy; `not_found: payment` has no mapping yet and falls to the generic copy until Story 18.6 builds the void screen. The `registration_fee_voided` audit action has a label in both locales.
 
-**Verification note.** Same workaround as 18.1 to 18.3: `0101` applied with `psql -1` through `docker exec` on `supabase_db_gym_os`, suite run with the `pg_prove:3.36` image on `supabase_network_gym_os` (`--ext .sql /tests`): 105 files, 2521 tests, all passing, versus 103 files and 2403 before this story (new: `registration_fee_void_refund_revenue.test.sql` 57 and `.negative.test.sql` 56; `gym_revenue_mtd.test.sql` 36 to 41). Dashboard Vitest 605, `typecheck`, `lint` (warnings only, none new) and `check:i18n` green.
+**Verification note.** Same workaround as 18.1 to 18.3: `0101` applied with `psql -1` through `docker exec` on `supabase_db_gym_os`, suite run with the `pg_prove:3.36` image on `supabase_network_gym_os` (`--ext .sql /tests`): 105 files, 2521 tests, all passing, versus 103 files and 2403 before this story (new: `registration_fee_void_refund_revenue.test.sql` 57 and `.negative.test.sql` 56; `gym_revenue_mtd.test.sql` 36 to 41). Dashboard Vitest 607, `typecheck`, `lint` (warnings only, none new) and `check:i18n` green.
 
 ---
 

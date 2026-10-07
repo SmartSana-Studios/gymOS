@@ -92,6 +92,34 @@ context:
 | `recordRefund` service does not check purpose/voided (VG) | false | rejected | The trigger raises first and the mapping is tested; the bad outcome (a refund row) does not happen. |
 | No supervisor-success refund pgTAP; no concurrency, month-rollover or re-collect-after-fee-change tests (Blind, VG) | low | rejected | The policy keeps supervisor verbatim and `$verify$` checks it; two-session tests are beyond the pgTAP convention; re-collect after void is already a matrix test. |
 
+### Review Findings
+
+Formal review 2026-10-07 (bmad-code-review): Blind Hunter, Edge Case Hunter, Verification Gap Reviewer, Acceptance Auditor over `2e32b3a..0d4abd1` (`_bmad-output/` excluded) + this spec. Acceptance Auditor: 0 AC / frozen-constraint violations. 0 failed layers.
+
+- [x] [Review][Patch] `docs/decisions.md` 18.4 verification note says "Dashboard Vitest 605"; the two review-patch `stat-card` render tests brought it to 607 (sprint-status says 607/607) [docs/decisions.md:17] — applied
+- [x] [Review][Patch] `errors.registrationFee.test.ts` describe title still reads "(Story 18.3)" though the file now also pins the 18.4 void/refund-block codes [apps/dashboard/lib/errors.registrationFee.test.ts:29] — applied
+- [x] [Review][Defer] Other `payments` readers (and `platform_metrics().total_payments_processed`, `0011:106`) still count a voided fee as verified; additionally no pgTAP case pins either behavior for `platform_metrics()` — deferred: already recorded in deferred-work.md (18.4 entry 1, surfaces belong to 18.6/18.7); the missing `platform_metrics()` pgTAP pin should be added when that entry is worked
+- [x] [Review][Defer] Void vs in-flight subscription insert race (point-in-time no-subscription check, no member lock in `enforce_registration_fee_settled`) — deferred: already recorded in deferred-work.md; accepted in decisions.md, recoverable by waive
+- [x] [Review][Defer] `not_found: payment` unmapped (five conditions share one error) — deferred: already recorded in deferred-work.md; first caller is the 18.6 void screen
+
+#### Rejected
+
+- Pre-0101 refund on a fee payment makes void double-subtract; the fee line ignores such refunds (Edge, VG, Blind) — low, not worth fixing: fee payments exist only since 0099 and Epic 18 is held from master, so 0099-0101 reach production together and no fee payment can carry a refund; post-0101 policy and trigger block new ones. A guard would add a new error code.
+- Revenue of past months changes after a void; refunds are bucketed differently (Blind) — false: `gym_revenue_mtd()` only reports the current month, and a void corrects an entry that never was money taken; no past-month report exists.
+- No `voided_by` / `void_reason` columns on `payments` (Blind) — false as a defect: the spec fixes actor and reason in the `registration_fee_voided` audit row; adding columns is a spec change.
+- Reason trim is ASCII-only, NBSP/zero-width pass (Blind) — false: the spec fixes `btrim(.., E' \t\r\n')`; editing it is a spec change.
+- Tara fees cannot be voided or refunded in-platform, no runbook (Blind) — false: `tara_fee_cannot_be_voided` is a frozen spec row; correction outside GymOS is recorded in decisions.md.
+- Refund block covers INSERT only (Blind) — false: `refunds` has no UPDATE policy for any client role (0033); the spec fixes a BEFORE INSERT trigger.
+- `recordRefund` service does not pre-check purpose/voided; no service test of the mapped error (VG, Edge) — false: the trigger raises first and both the mapping and the trigger are tested; no refund row results.
+- Overview does two more reads; settings read may fail for some roles (Blind) — false: `gyms` is readable by every role in the gym (`read own gym`), the reads share the existing `Promise.all`, and a failed read only hides the line.
+- `"XAF"` hard-coded / `": "` separator lacks French spacing (Blind) — low, not worth fixing: the existing revenue figure on the same card hard-codes `XAF`; the fix needs a new interpolated key in both locales.
+- `$verify$` does not assert owner/supervisor on the void gate (Auditor) — low, not worth fixing: pgTAP role matrix (owner, supervisor success; every other role denied) covers it at runtime.
+- Fee line also hidden when the headline revenue read fails (Auditor) — false as a defect: tested, the line sits under that figure; harmless extension.
+- Spec frontmatter `status: done` vs sprint-status `review` (Auditor) — false: resolved by the status sync at the end of this review.
+- No test for void of a deactivated member / void-recollect-void / concurrency; `querySelectorAll("p")` brittle assertion; hard-coded pgTAP plan counts (Blind) — low, not worth fixing: pgTAP convention uses fixed plans; two-session tests are beyond convention; voided rows are kept by design so two coexisting is intended.
+- "No story file or sprint-status update in the diff" (Blind) — false: both are in the commit; `_bmad-output/` was excluded from the reviewed diff.
+- `decisions.md` line citations shifted by the new top entry (Blind) — low, not worth fixing: true, but pre-existing and inherent to a newest-first log (citations in 0065, 0085 and older story files already point at drifted lines); not caused by a defect in this change.
+
 ## Verification
 
 **Commands:**
