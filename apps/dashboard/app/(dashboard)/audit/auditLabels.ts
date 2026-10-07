@@ -37,4 +37,11 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // { amount, currency, method, reason, payment_id }, waived { reason }.
   registration_fee_recorded: "audit.actionTypes.registrationFeeRecorded",
   registration_fee_waived: "audit.actionTypes.registrationFeeWaived",
+  // Story 18.3. Written by complete_verified_payment() (0100) when a Tara Money
+  // fee collection is confirmed -- actor "payment-webhook", target = the member,
+  // metadata { payment_id, amount, currency, method, fee_amount } -- and by the
+  // 10-minute expiry in initiate/record/waive_registration_fee, target = the
+  // member, metadata { payment_id }.
+  registration_fee_paid: "audit.actionTypes.registrationFeePaid",
+  registration_fee_attempt_expired: "audit.actionTypes.registrationFeeAttemptExpired",
 };

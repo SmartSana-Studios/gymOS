@@ -544,6 +544,60 @@ export function mapSupabaseError(error: unknown, locale: ErrorLocale = "en"): Ap
     };
   }
 
+  // Registration-fee RPCs (0099 record/waive, 0100 initiate; Epic 18). The
+  // raise texts lead with a stable code, so these match on the code itself
+  // rather than a function-name prefix (three RPCs share each one). The
+  // dashboard screens that surface them are Story 18.6; mapped now so a Tara
+  // collection started twice, or racing a cash record, never shows "unknown".
+  if (message.includes("registration_fee_already_pending")) {
+    return {
+      code: "registration_fee_already_pending",
+      message: copy.registrationFeeAlreadyPending,
+    };
+  }
+
+  if (message.includes("registration_fee_already_recorded")) {
+    return {
+      code: "registration_fee_already_recorded",
+      message: copy.registrationFeeAlreadyRecorded,
+    };
+  }
+
+  if (message.includes("registration_fee_not_due")) {
+    return {
+      code: "registration_fee_not_due",
+      message: copy.registrationFeeNotDue,
+    };
+  }
+
+  if (message.includes("registration_fee_not_configured")) {
+    return {
+      code: "registration_fee_not_configured",
+      message: copy.registrationFeeNotConfigured,
+    };
+  }
+
+  if (message.includes("initiate_registration_fee_payment:") && message.includes("no_active_provider")) {
+    return {
+      code: "no_active_provider",
+      message: copy.noActivePaymentProvider,
+    };
+  }
+
+  if (message.includes("not_found: member")) {
+    return {
+      code: "member_not_found",
+      message: copy.memberNotFound,
+    };
+  }
+
+  if (message.includes("member_deactivated: member")) {
+    return {
+      code: "member_deactivated",
+      message: copy.registrationFeeMemberDeactivated,
+    };
+  }
+
   // No console/logging call here: packages/types targets ES2022 only (no
   // DOM/Node lib -- consumed by both Next.js apps and, eventually, Expo),
   // and is meant to stay a pure, side-effect-free mapping utility. Callers

@@ -32,6 +32,19 @@ export const initiatePaymentSchema = z.object({
 
 export type InitiatePaymentInput = z.infer<typeof initiatePaymentSchema>;
 
+// Story 18.3: validates the staff-initiated Tara Money collection of a
+// member's registration fee. There is deliberately NO amount field:
+// initiate_registration_fee_payment (0100) reads gyms.registration_fee
+// server-side. `phoneNumber` is the PAYER's number, a separate input from the
+// member's own phone -- the front desk can change it -- and is only ever sent
+// to the provider, never stored.
+export const initiateRegistrationFeePaymentSchema = z.object({
+  memberId: z.uuid("Invalid member id"),
+  phoneNumber: e164Phone,
+});
+
+export type InitiateRegistrationFeePaymentInput = z.infer<typeof initiateRegistrationFeePaymentSchema>;
+
 // Story 11.3: validates apps/dashboard/services/billing.ts's
 // initiateSaasBillingPayment input ("Pay Now"). Real-evidence finding
 // (live-tested with the user): the Owner's own on-file `members.phone`
