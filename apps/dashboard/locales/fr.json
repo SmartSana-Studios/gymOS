@@ -1148,5 +1148,12 @@
     "selectCountry": "Sélectionner le pays",
     "searchCountry": "Rechercher un pays...",
     "noCountryFound": "Aucun pays trouvé"
+  },
+  "pagination": {
+    "rowsPerPage": "Lignes par page",
+    "showing": "{{from}}–{{to}} sur {{total}}",
+    "previous": "Page précédente",
+    "next": "Page suivante",
+    "ellipsis": "…"
   }
 }

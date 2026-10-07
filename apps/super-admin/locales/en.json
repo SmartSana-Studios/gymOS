@@ -400,5 +400,12 @@
     "selectCountry": "Select country",
     "searchCountry": "Search country...",
     "noCountryFound": "No country found"
+  },
+  "pagination": {
+    "rowsPerPage": "Rows per page",
+    "showing": "{{from}}–{{to}} of {{total}}",
+    "previous": "Previous page",
+    "next": "Next page",
+    "ellipsis": "…"
   }
 }
