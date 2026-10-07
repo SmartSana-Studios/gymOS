@@ -2068,6 +2068,13 @@ export type Database = {
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
       gym_revenue_mtd: { Args: never; Returns: number }
       initiate_member_payment: { Args: never; Returns: string }
+      initiate_registration_fee_payment: {
+        Args: { p_member_id: string }
+        Returns: {
+          payment_id: string
+          provider_key: string
+        }[]
+      }
       initiate_saas_billing_payment: {
         Args: {
           p_interval?: Database["public"]["Enums"]["billing_interval"]

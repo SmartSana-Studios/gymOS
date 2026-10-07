@@ -2,9 +2,11 @@ import { createClient } from "@/lib/supabase/server";
 import { FunctionsHttpError } from "@supabase/supabase-js";
 import {
   initiatePaymentSchema,
+  initiateRegistrationFeePaymentSchema,
   recordManualPaymentSchema,
   recordRefundSchema,
   type InitiatePaymentInput,
+  type InitiateRegistrationFeePaymentInput,
   type RecordManualPaymentInput,
   type RecordRefundInput,
   type AppError,
@@ -206,6 +208,128 @@ export async function getPendingMobileMoneyPayment(
   }
 
   return { data: data ? { paymentId: data.id } : null, error: null };
+}
+
+// ============================================================================
+// Story 18.3: Tara Money collection of a member's registration fee. Same
+// two-step shape as initiatePayment() above, but the row is created by the
+// initiate_registration_fee_payment RPC (0100) rather than a client INSERT:
+// staff cannot insert a registration_fee payment through RLS, and the amount
+// is read from gyms.registration_fee server-side, never passed in.
+// ============================================================================
+
+/**
+ * Asks the database for the `processing` registration-fee payment, then calls
+ * the payment-webhook's `/initiate/<providerKey>` route to trigger the real
+ * Tara Money charge on `phoneNumber` -- the PAYER's number, which the front
+ * desk may change from the member's own. When the initiate route runs and the
+ * provider call fails, the route deletes the row itself, so this function never
+ * deletes it. A failure before the route does that (a lost response, a transport
+ * error, a 400 "not eligible") leaves the `processing` row; it holds retry, cash
+ * and waive as `registration_fee_already_pending` until it is ten minutes old,
+ * when the next of those calls flags it (0100).
+ *
+ * Refusals (already pending, already paid, not due, no fee configured, no
+ * provider, deactivated) come back from the RPC as raises and are mapped by
+ * `mapAndLog` / `mapSupabaseError`. The member is only settled later, when
+ * Tara Money's webhook confirms via `complete_verified_payment()`.
+ */
+export async function initiateRegistrationFeePayment(
+  input: InitiateRegistrationFeePaymentInput,
+): Promise<{ data: { paymentId: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = initiateRegistrationFeePaymentSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      data: null,
+      error: { code: "validation_error", message: t("common.invalidInput") },
+    };
+  }
+
+  const supabase = await createClient();
+
+  const { data: rows, error: rpcError } = await supabase.rpc("initiate_registration_fee_payment", {
+    p_member_id: parsed.data.memberId,
+  });
+  if (rpcError) {
+    return { data: null, error: await mapAndLog(rpcError) };
+  }
+
+  const started = rows?.[0];
+  if (!started) {
+    console.error("[payments] initiateRegistrationFeePayment: RPC returned no row");
+    return { data: null, error: { code: "not_found", message: t("common.somethingWentWrong") } };
+  }
+
+  // Bare-digit phone for the provider -- see initiatePayment() above.
+  const bareDigitPhone = parsed.data.phoneNumber.replace(/^\+/, "");
+
+  const { error: invokeError } = await supabase.functions.invoke(
+    `payment-webhook/initiate/${started.provider_key}`,
+    { body: { paymentId: started.payment_id, phoneNumber: bareDigitPhone } },
+  );
+
+  if (invokeError) {
+    console.error(
+      `[payments] initiateRegistrationFeePayment: payment-webhook initiate failed for payment ${started.payment_id}`,
+      invokeError,
+    );
+
+    if (invokeError instanceof FunctionsHttpError) {
+      let code: string | undefined;
+      try {
+        code = (await invokeError.context.json())?.code;
+      } catch {
+        // Non-JSON or unreadable body -- falls through to mapAndLog below.
+      }
+      if (code === "gym_credentials_unavailable") {
+        return {
+          data: null,
+          error: { code: "gym_credentials_unavailable", message: t("payments.errors.gymCredentialsUnavailable") },
+        };
+      }
+    }
+
+    return { data: null, error: await mapAndLog(invokeError) };
+  }
+
+  return { data: { paymentId: started.payment_id }, error: null };
+}
+
+/**
+ * Lets the collection modal (Story 18.6) discover a registration-fee payment
+ * still `processing` for this member on open, so it resumes watching it
+ * instead of starting a second prompt. Returns `createdAt` as well: a row older
+ * than the ten-minute expiry will be flagged by the next collect call, so the
+ * caller can offer a retry instead of a wait. `gym_staff_read_own_payments`
+ * is the RLS gate; no separate authorization check is needed.
+ */
+export async function getPendingRegistrationFeePayment(
+  memberId: string,
+): Promise<{ data: { paymentId: string; createdAt: string } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data, error } = await supabase
+    .from("payments")
+    .select("id, created_at")
+    .eq("gym_id", gymId)
+    .eq("member_id", memberId)
+    .eq("purpose", "registration_fee")
+    .eq("status", "processing")
+    .is("voided_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  return { data: data ? { paymentId: data.id, createdAt: data.created_at } : null, error: null };
 }
 
 // ============================================================================

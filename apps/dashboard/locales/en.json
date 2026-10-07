@@ -1025,7 +1025,9 @@
       "paymentReconciliationJobFailure": "Payment reconciliation job failure",
       "registrationFeeChanged": "Registration fee changed",
       "registrationFeeRecorded": "Registration fee recorded",
-      "registrationFeeWaived": "Registration fee waived"
+      "registrationFeeWaived": "Registration fee waived",
+      "registrationFeePaid": "Registration fee paid by Tara Money",
+      "registrationFeeAttemptExpired": "Registration fee collection expired"
     }
   },
   "saasBilling": {

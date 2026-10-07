@@ -1,10 +1,19 @@
 "use server";
 
-import { flagPaymentSchema, initiatePaymentSchema, recordManualPaymentSchema, recordRefundSchema, type AppError } from "@gymos/types";
+import {
+  flagPaymentSchema,
+  initiatePaymentSchema,
+  initiateRegistrationFeePaymentSchema,
+  recordManualPaymentSchema,
+  recordRefundSchema,
+  type AppError,
+} from "@gymos/types";
 import {
   flagPayment,
   getPendingMobileMoneyPayment,
+  getPendingRegistrationFeePayment,
   initiatePayment,
+  initiateRegistrationFeePayment,
   listRefundEligiblePayments,
   logPaymentChange,
   logRefundChange,
@@ -210,4 +219,46 @@ export async function getPendingMobileMoneyPaymentAction(
   memberId: string,
 ): Promise<{ data: { paymentId: string } | null; error: AppError | null }> {
   return getPendingMobileMoneyPayment(memberId);
+}
+
+/**
+ * Story 18.3: staff-initiated Tara Money collection of a member's registration
+ * fee. Same availability gate as `initiatePaymentAction`, but both "disabled"
+ * and "not connected" surface as `no_active_provider` (the code the RPC raises
+ * for the same situation) with the matching Settings/manual-method copy. A
+ * successful `{ data }` is NOT a settled fee: the member is only settled when
+ * Tara Money's webhook confirms. The screens that call this are Story 18.6.
+ */
+export async function initiateRegistrationFeePaymentAction(
+  input: unknown,
+): Promise<{ data: { paymentId: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+
+  const availability = await getMobileMoneyAvailability();
+  if (!availability.available) {
+    if (availability.reason === "disabled") {
+      return { data: null, error: { code: "no_active_provider", message: t("renewalPanel.errors.mobileMoneyDisabled") } };
+    }
+    if (availability.reason === "not_connected") {
+      return { data: null, error: { code: "no_active_provider", message: t("renewalPanel.errors.mobileMoneyNotConnected") } };
+    }
+    return { data: null, error: availability.error };
+  }
+
+  const parsed = initiateRegistrationFeePaymentSchema.safeParse(input);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+
+  return initiateRegistrationFeePayment(parsed.data);
+}
+
+/**
+ * Story 18.3: lets the collection modal resume watching a registration-fee
+ * payment still `processing`. Not availability-gated: it reads existing state.
+ */
+export async function getPendingRegistrationFeePaymentAction(
+  memberId: string,
+): Promise<{ data: { paymentId: string; createdAt: string } | null; error: AppError | null }> {
+  return getPendingRegistrationFeePayment(memberId);
 }

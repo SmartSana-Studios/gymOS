@@ -49,7 +49,13 @@
     "ownerProfileMissing": "Ce compte existe mais n'a pas de profil GymOS : il ne peut pas être vérifié. Contactez le support avant de lui attribuer une salle.",
     "gymSuspended": "GymOS est temporairement indisponible pour cette salle. Veuillez réessayer plus tard.",
     "phoneBelongsToStaffAccount": "Ce numéro de téléphone appartient à un compte du personnel. Un membre du personnel qui souhaite aussi s’entraîner doit utiliser un autre numéro.",
-    "phoneBelongsToMemberAccount": "Ce numéro de téléphone appartient à un compte membre. Un compte du personnel doit utiliser un autre numéro."
+    "phoneBelongsToMemberAccount": "Ce numéro de téléphone appartient à un compte membre. Un compte du personnel doit utiliser un autre numéro.",
+    "registrationFeeAlreadyPending": "Un paiement des frais d'inscription est déjà en cours pour ce membre. Attendez qu'il se termine ou réessayez dans environ 10 minutes.",
+    "registrationFeeAlreadyRecorded": "Les frais d'inscription de ce membre ont déjà été payés.",
+    "registrationFeeNotDue": "Ce membre n'a aucun frais d'inscription à régler.",
+    "registrationFeeNotConfigured": "Votre salle ne facture pas de frais d'inscription.",
+    "noActivePaymentProvider": "Les paiements Mobile Money ne sont pas disponibles pour le moment. Utilisez les espèces ou un autre moyen manuel.",
+    "registrationFeeMemberDeactivated": "Ce membre est désactivé."
   },
   "auth": {
     "title": "Connexion à GymOS",
