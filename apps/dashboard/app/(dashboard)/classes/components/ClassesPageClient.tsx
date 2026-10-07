@@ -30,7 +30,7 @@ export function ClassesPageClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const pg = useClientPagination(initialClasses, 10);
+  const pg = useClientPagination(initialClasses);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
 
@@ -169,6 +169,7 @@ export function ClassesPageClient({
         </div>
       ) : (
         <>
+        <TablePagination {...pg} />
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left text-xs uppercase text-muted-foreground">

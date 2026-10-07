@@ -65,6 +65,13 @@ export function GymPaymentsTable({ payments }: { payments: GymPaymentPage | null
         </div>
       ) : (
         <>
+          <TablePagination
+            page={payments.page}
+            pageSize={payments.pageSize}
+            total={payments.total}
+            onPageChange={pagination.onPageChange}
+            onPageSizeChange={pagination.onPageSizeChange}
+          />
           <div className="overflow-x-auto rounded-md border">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/50 text-left">

@@ -156,6 +156,13 @@ export function GymsPageClient({
         <Button onClick={() => setModalOpen(true)}>{t("gyms.createGym")}</Button>
       </div>
 
+      <TablePagination
+        page={page}
+        pageSize={pageSize}
+        total={total}
+        onPageChange={pagination.onPageChange}
+        onPageSizeChange={pagination.onPageSizeChange}
+      />
       <div className="flex gap-2">
         <div className="flex flex-col gap-1">
           <Label htmlFor="gymsSearch" className="invisible">

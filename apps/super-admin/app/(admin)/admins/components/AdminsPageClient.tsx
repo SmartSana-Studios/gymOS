@@ -22,7 +22,7 @@ export function AdminsPageClient({ initialAdmins }: { initialAdmins: SuperAdminR
   const [modalOpen, setModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; tempPassword?: string } | null>(null);
   const [passwordCopied, setPasswordCopied] = useState(false);
-  const pagination = useClientPagination(initialAdmins, 10);
+  const pagination = useClientPagination(initialAdmins, 5);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -88,6 +88,13 @@ export function AdminsPageClient({ initialAdmins }: { initialAdmins: SuperAdminR
            metrics/page.tsx) -- this was the one table missing it, so it was
            the one page whose table content, not just the nav, contributed
            to the reported mobile-overflow issue. */}
+          <TablePagination
+            page={pagination.page}
+            pageSize={pagination.pageSize}
+            total={pagination.total}
+            onPageChange={pagination.onPageChange}
+            onPageSizeChange={pagination.onPageSizeChange}
+          />
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead>

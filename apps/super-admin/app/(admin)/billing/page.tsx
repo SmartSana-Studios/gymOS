@@ -39,7 +39,7 @@ async function BillingData({
       ? params.status
       : undefined;
 
-  const { data: billingPage, error } = await listGymsBilling({ page, pageSize: parsePageSize(params.size, 20), search: params.search, status });
+  const { data: billingPage, error } = await listGymsBilling({ page, pageSize: parsePageSize(params.size, 5), search: params.search, status });
 
   if (error) {
     const { t } = await getServerTranslation(await getRequestLocale());
@@ -51,7 +51,7 @@ async function BillingData({
       initialRows={billingPage?.rows ?? []}
       total={billingPage?.total ?? 0}
       page={billingPage?.page ?? 1}
-      pageSize={billingPage?.pageSize ?? 20}
+      pageSize={billingPage?.pageSize ?? 5}
       search={params.search ?? ""}
       status={params.status ?? ""}
     />

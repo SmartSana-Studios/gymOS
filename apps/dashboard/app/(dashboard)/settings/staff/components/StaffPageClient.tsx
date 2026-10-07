@@ -70,7 +70,7 @@ export function StaffPageClient({
   const canCreate = CAN_CREATE.includes(role);
 
   const [staff, setStaff] = useState(initialStaff);
-  const pg = useClientPagination(staff, 10);
+  const pg = useClientPagination(staff);
   const [modalOpen, setModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; tempPassword?: string } | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -141,6 +141,7 @@ export function StaffPageClient({
         </div>
       ) : (
         <>
+        <TablePagination {...pg} />
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left text-muted-foreground">

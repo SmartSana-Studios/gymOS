@@ -10,10 +10,17 @@ import type { JobFailure } from "@/services/metrics";
 // failures arrive fully loaded and are sliced in memory.
 export function JobFailuresTable({ failures, locale }: { failures: JobFailure[]; locale: string }) {
   const { t } = useTranslation();
-  const pagination = useClientPagination(failures, 10);
+  const pagination = useClientPagination(failures, 5);
 
   return (
     <>
+      <TablePagination
+        page={pagination.page}
+        pageSize={pagination.pageSize}
+        total={pagination.total}
+        onPageChange={pagination.onPageChange}
+        onPageSizeChange={pagination.onPageSizeChange}
+      />
       <div className="overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead>

@@ -31,7 +31,7 @@ export function useUrlPagination(opts: { pageParam?: string; sizeParam?: string 
  * Client-only tables: slices an in-memory list. Page snaps back when the list shrinks;
  * pass `resetKey` (e.g. the active filters) to return to page 1 whenever it changes.
  */
-export function useClientPagination<T>(items: readonly T[], defaultSize = 10, resetKey?: string) {
+export function useClientPagination<T>(items: readonly T[], defaultSize = 5, resetKey?: string) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(defaultSize);
 

@@ -45,7 +45,7 @@ export function ExpiringTable({
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const [renewingRow, setRenewingRow] = useState<SubscriptionListRow | null>(null);
-  const pg = useClientPagination(rows, 10);
+  const pg = useClientPagination(rows);
 
   // A stable identity for `onRenewed` -- RenewalModal's mobile-money
   // pending-payment watch lists it as an effect dependency, so a fresh arrow
@@ -76,6 +76,7 @@ export function ExpiringTable({
         </div>
       ) : (
         <>
+        <TablePagination {...pg} />
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">

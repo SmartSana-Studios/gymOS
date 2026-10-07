@@ -5,8 +5,8 @@ import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import type { MemberSubscriptionStatus } from "@/services/members";
 
-// AD-11's own spec value.
-export const ATTENDANCE_LOG_PAGE_SIZE = 50;
+// Default rows per page (the user can pick 5/10/25/50).
+export const ATTENDANCE_LOG_PAGE_SIZE = 5;
 
 /** No dedicated "gym not found" copy exists for this file (unlike
  * gym-settings.ts's own gymNotFoundError) -- reuses the existing

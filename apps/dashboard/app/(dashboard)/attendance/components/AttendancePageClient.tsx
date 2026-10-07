@@ -181,6 +181,13 @@ export function AttendancePageClient({
           </Button>
         </div>
 
+        <TablePagination
+          page={checkedInPage}
+          pageSize={checkedInPageSize}
+          total={checkedInTotal}
+          {...checkedInPagination}
+        />
+
         {currentlyCheckedIn.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-md border border-dashed py-16 text-center">
             <p className="text-sm text-muted-foreground">{t("attendance.emptyCheckedIn")}</p>
@@ -246,6 +253,8 @@ export function AttendancePageClient({
 
       <div className="space-y-4">
         <h2 className="text-lg font-medium">{t("attendance.dailyLogHeading")}</h2>
+
+        <TablePagination page={page} pageSize={pageSize} total={logTotal} {...logPagination} />
 
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex flex-col gap-1">

@@ -45,7 +45,7 @@ async function GymsData({
 
   const [{ data: gymsPage, error: gymsError }, { data: tiers, error: tiersError }] =
     await Promise.all([
-      listGyms({ page, pageSize: parsePageSize(params.size, 20), search: params.search, status }),
+      listGyms({ page, pageSize: parsePageSize(params.size, 5), search: params.search, status }),
       listTiers(),
     ]);
 
@@ -59,7 +59,7 @@ async function GymsData({
       initialGyms={gymsPage?.rows ?? []}
       total={gymsPage?.total ?? 0}
       page={gymsPage?.page ?? 1}
-      pageSize={gymsPage?.pageSize ?? 20}
+      pageSize={gymsPage?.pageSize ?? 5}
       search={params.search ?? ""}
       status={params.status ?? ""}
       tiers={tiers ?? []}

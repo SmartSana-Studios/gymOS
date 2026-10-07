@@ -24,7 +24,7 @@ vi.mock("@/lib/i18n/get-server-translation", () => ({
 const listMembers = vi.fn();
 vi.mock("@/services/members", () => ({
   listMembers: (...args: unknown[]) => listMembers(...args),
-  MEMBERS_PAGE_SIZE: 25,
+  MEMBERS_PAGE_SIZE: 5,
 }));
 
 const listPlans = vi.fn();
@@ -102,13 +102,13 @@ describe("members page", () => {
     expect(tree.props.registrationFee).toBe(5000);
   });
 
-  it("passes a valid size to the service and client, and falls back to 25 for an invalid one", async () => {
+  it("passes a valid size to the service and client, and falls back to 5 for an invalid one", async () => {
     const tree = await renderMembersData({ size: "10", page: "3" });
     expect(listMembers).toHaveBeenCalledWith(expect.objectContaining({ page: 3, pageSize: 10 }));
     expect(tree.props.pageSize).toBe(10);
 
     const fallback = await renderMembersData({ size: "100000" });
-    expect(fallback.props.pageSize).toBe(25);
+    expect(fallback.props.pageSize).toBe(5);
   });
 
   it("passes 0 when the gym has no registration fee", async () => {

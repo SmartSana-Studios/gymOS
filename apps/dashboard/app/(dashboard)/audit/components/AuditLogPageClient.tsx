@@ -134,6 +134,8 @@ export function AuditLogPageClient({
         )}
       </div>
 
+      <TablePagination page={page} pageSize={pageSize} total={total} {...pagination} />
+
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex flex-col gap-1">
           <label htmlFor="auditFrom" className="text-sm text-muted-foreground">

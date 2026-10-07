@@ -49,7 +49,7 @@ export interface TierOption {
   name: string;
 }
 
-const GYM_LIST_PAGE_SIZE = 20;
+const GYM_LIST_PAGE_SIZE = 5;
 
 export interface ListGymsParams {
   page?: number; // 1-indexed
@@ -69,7 +69,7 @@ export interface GymListPage {
  * SA-02 Gym List: every gym, its tier, and its owner's name/phone, with
  * search/status filter/pagination (Story 1.5's own code review flagged
  * pagination as a deferred gap, explicitly assigned to this story).
- * `pageSize` (20) is a query default independent of the loading skeleton's
+ * `pageSize` (5) is a query default independent of the loading skeleton's
  * 5-row display convention -- those are separate concerns.
  */
 export async function listGyms(
@@ -497,7 +497,7 @@ export interface GymMemberPage {
 }
 
 /** AD-03's stated page size (EXPERIENCE.md:1100). */
-export const GYM_MEMBER_LIST_PAGE_SIZE = 25;
+export const GYM_MEMBER_LIST_PAGE_SIZE = 5;
 
 /**
  * Story 1.14 AC #2: every member at every role (not just `owner`), once
@@ -588,7 +588,7 @@ export interface GymPaymentPage {
 }
 
 /** AD-09's stated page size (EXPERIENCE.md:1314). */
-export const GYM_PAYMENT_LIST_PAGE_SIZE = 50;
+export const GYM_PAYMENT_LIST_PAGE_SIZE = 5;
 
 /**
  * Story 1.14 AC #3, same posture as `listGymMembers` above: no escalation

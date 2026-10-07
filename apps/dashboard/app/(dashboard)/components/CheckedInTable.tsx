@@ -26,7 +26,7 @@ export function CheckedInTable({ rows, loadError }: { rows: CurrentlyCheckedInRo
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const [checkingOutMember, setCheckingOutMember] = useState<CurrentlyCheckedInRow | null>(null);
-  const pg = useClientPagination(rows, 10);
+  const pg = useClientPagination(rows);
 
   // Full timestamps carry a real time of day, so `new Date(iso)` is safe here
   // (unlike date-only strings). Explicit locale, never bare toLocaleString().
@@ -55,6 +55,7 @@ export function CheckedInTable({ rows, loadError }: { rows: CurrentlyCheckedInRo
         </div>
       ) : (
         <>
+        <TablePagination {...pg} />
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">

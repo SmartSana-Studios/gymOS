@@ -212,9 +212,8 @@ export async function getRenewalPreview(
 // child's column).
 // ============================================================================
 
-// AD-08 mockup's own spec value (25 rows/page) -- matches MEMBERS_PAGE_SIZE's
-// own mockup-sourced precedent (members.ts).
-export const SUBSCRIPTIONS_PAGE_SIZE = 25;
+// Default rows per page (the user can pick 5/10/25/50).
+export const SUBSCRIPTIONS_PAGE_SIZE = 5;
 
 // FR-066's exact 1,000-row export ceiling -- own per-file copy, matching
 // members.ts's own per-file-copy discipline (not a shared import).

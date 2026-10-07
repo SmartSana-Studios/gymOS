@@ -1,5 +1,5 @@
 /**
- * The pending-payments queue paginates client-side: 10 rows per page by default,
+ * The pending-payments queue paginates client-side: 5 rows per page by default,
  * with a rows-per-page selector (5/10/25/50).
  */
 import { describe, expect, it, vi } from "vitest";
@@ -33,14 +33,17 @@ describe("PaymentsPageClient pagination", () => {
     const { PaymentsPageClient } = await import("./PaymentsPageClient");
     render(<PaymentsPageClient pendingPayments={rows} discrepancies={[]} recordedByName="Staff" role="owner" />);
 
-    // header row + 10 body rows
-    expect(screen.getAllByRole("row")).toHaveLength(11);
-    expect(screen.queryByText("Member 10")).toBeNull();
-
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "5" } });
+    // header row + 5 body rows
     expect(screen.getAllByRole("row")).toHaveLength(6);
+    expect(screen.queryByText("Member 5")).toBeNull();
 
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "25" } });
+    // one footer above and one below, sharing state
+    expect(screen.getAllByRole("combobox")).toHaveLength(2);
+    fireEvent.change(screen.getAllByRole("combobox")[0], { target: { value: "10" } });
+    expect(screen.getAllByRole("row")).toHaveLength(11);
+    expect(screen.getAllByRole("combobox")[1]).toHaveValue("10");
+
+    fireEvent.change(screen.getAllByRole("combobox")[1], { target: { value: "25" } });
     expect(screen.getAllByRole("row")).toHaveLength(13);
     expect(screen.getByText("Member 11")).toBeInTheDocument();
   });

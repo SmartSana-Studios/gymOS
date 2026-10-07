@@ -127,7 +127,7 @@ describe("listMembers (Story 18.5)", () => {
     expect(calls.filter(([m]) => m === "select").every(([, a]) => !String(a[0]).includes("!inner"))).toBe(true);
   });
 
-  it("honours a valid pageSize for the range and clamps an invalid one to the default 25", async () => {
+  it("honours a valid pageSize for the range and clamps an invalid one to the default 5", async () => {
     const { listMembers } = await import("./members");
     const rangeCall = () => calls.find(([m]) => m === "range")?.[1];
 
@@ -136,6 +136,6 @@ describe("listMembers (Story 18.5)", () => {
 
     calls = [];
     await listMembers({ page: 2, pageSize: 100000 });
-    expect(rangeCall()).toEqual([25, 49]);
+    expect(rangeCall()).toEqual([5, 9]);
   });
 });

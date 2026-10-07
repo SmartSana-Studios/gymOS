@@ -158,7 +158,7 @@ export function CsvImportModal({
   }
 
   // Row errors can run to hundreds on a bad file -- paginate that table (the preview is already capped).
-  const errorPg = useClientPagination(validation && !validation.valid ? validation.errors : [], 10);
+  const errorPg = useClientPagination(validation && !validation.valid ? validation.errors : []);
   const previewRows = validation?.valid ? validation.rows.slice(0, PREVIEW_ROW_COUNT) : [];
   // A template-level failure (missing column, empty file, or an
   // unexpected infra error) has no row of its own -- the Server Action
@@ -338,6 +338,7 @@ export function CsvImportModal({
                 <p className="text-sm text-red-600">
                   {t("members.csvImport.errorSummary", { count: validation.errors.length })}
                 </p>
+                <TablePagination {...errorPg} />
                 <div className="overflow-x-auto rounded-md border">
                   <table className="w-full text-sm">
                     <thead className="border-b bg-muted/50 text-left">

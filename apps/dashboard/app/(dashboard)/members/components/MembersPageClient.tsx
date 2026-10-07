@@ -301,6 +301,8 @@ export function MembersPageClient({
         </div>
       </div>
 
+      <TablePagination page={page} pageSize={pageSize} total={total} {...pagination} />
+
       <div className="flex gap-2">
         <div className="flex flex-col gap-1">
           <Label htmlFor="membersSearch" className="invisible">

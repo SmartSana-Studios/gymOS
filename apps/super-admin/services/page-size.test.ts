@@ -23,12 +23,12 @@ import { listGyms } from "./gyms";
 
 describe("listGyms pageSize", () => {
   it.each([
-    [5, 5],
+    [10, 10],
     [50, 50],
-    [undefined, 20],
-    [100000, 20],
-    [7, 20],
-    [Number.NaN, 20],
+    [undefined, 5],
+    [100000, 5],
+    [7, 5],
+    [Number.NaN, 5],
   ])("pageSize %s resolves to %s", async (input, expected) => {
     range.mockClear();
     const { data } = await listGyms({ page: 2, pageSize: input });

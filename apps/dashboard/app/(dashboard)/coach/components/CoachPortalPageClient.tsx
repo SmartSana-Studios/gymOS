@@ -70,7 +70,7 @@ export function CoachPortalPageClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
-  const pg = useClientPagination(members, 10, `${search}|${sort}|${dir}`);
+  const pg = useClientPagination(members, undefined, `${search}|${sort}|${dir}`);
 
   function updateParams(next: { search?: string; sort?: string; dir?: string }) {
     const params = new URLSearchParams(searchParams.toString());
@@ -131,6 +131,7 @@ export function CoachPortalPageClient({
         </div>
       ) : (
         <>
+        <TablePagination {...pg} />
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">

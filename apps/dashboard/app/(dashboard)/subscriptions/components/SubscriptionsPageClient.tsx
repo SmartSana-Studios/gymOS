@@ -182,6 +182,8 @@ export function SubscriptionsPageClient({
         </Button>
       </div>
 
+      <TablePagination page={page} pageSize={pageSize} total={total} {...pagination} />
+
       <div className="flex gap-4">
         <div className="flex flex-col gap-1">
           <Label htmlFor="subscriptionsStatusFilter">{t("subscriptions.filters.status")}</Label>

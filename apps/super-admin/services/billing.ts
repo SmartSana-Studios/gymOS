@@ -18,7 +18,7 @@ export interface GymBillingRow {
   failedAttemptCount: number;
 }
 
-const GYM_BILLING_PAGE_SIZE = 20;
+const GYM_BILLING_PAGE_SIZE = 5;
 
 export interface ListGymsBillingParams {
   page?: number; // 1-indexed

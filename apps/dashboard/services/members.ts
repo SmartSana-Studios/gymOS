@@ -5,9 +5,8 @@ import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
-// AD-03's own mockup page size -- deliberately not GYM_LIST_PAGE_SIZE (20,
-// apps/super-admin), which is a different screen's own spec value.
-export const MEMBERS_PAGE_SIZE = 25;
+// Default rows per page (the user can pick 5/10/25/50).
+export const MEMBERS_PAGE_SIZE = 5;
 
 // FR-066's exact 1,000-row export ceiling.
 const EXPORT_ROW_LIMIT = 1000;

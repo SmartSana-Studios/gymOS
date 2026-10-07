@@ -103,9 +103,8 @@ export function resolveAuditDateRange(
   return from > to ? { from: to, to: from } : { from, to };
 }
 
-// FR-068's literal value (prd.md, EXPERIENCE.md) -- not a mockup-derived
-// guess like Subscriptions' 25.
-export const AUDIT_LOG_PAGE_SIZE = 50;
+// Default rows per page (the user can pick 5/10/25/50).
+export const AUDIT_LOG_PAGE_SIZE = 5;
 
 // Own per-file copy, matching members.ts/subscriptions.ts's identical
 // constants -- AC #4's extrapolated 1,000-row export cap.

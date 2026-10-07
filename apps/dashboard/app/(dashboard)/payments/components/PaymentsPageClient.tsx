@@ -56,8 +56,8 @@ export function PaymentsPageClient({
   const [verifyingPayment, setVerifyingPayment] = useState<PendingPaymentRow | null>(null);
   const [flaggingPayment, setFlaggingPayment] = useState<PendingPaymentRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const pendingPg = useClientPagination(pendingPayments, 10);
-  const discrepancyPg = useClientPagination(discrepancies, 10);
+  const pendingPg = useClientPagination(pendingPayments);
+  const discrepancyPg = useClientPagination(discrepancies);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -131,6 +131,7 @@ export function PaymentsPageClient({
         </div>
       ) : (
         <>
+        <TablePagination {...pendingPg} />
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">
@@ -220,6 +221,7 @@ export function PaymentsPageClient({
       {discrepancies.length > 0 && (
         <div className="space-y-2">
           <h2 className="text-lg font-semibold">{t("payments.discrepancies.title")}</h2>
+          <TablePagination {...discrepancyPg} />
           <div className="overflow-x-auto rounded-md border">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/50 text-left">

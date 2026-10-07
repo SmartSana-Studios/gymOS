@@ -130,7 +130,7 @@ describe("MembersPageClient awaiting registration fee (Story 18.5)", () => {
     const user = userEvent.setup();
     await renderPage();
 
-    const sizeSelect = screen.getByLabelText("pagination.rowsPerPage");
+    const sizeSelect = screen.getAllByLabelText("pagination.rowsPerPage")[0];
     expect(sizeSelect).toHaveValue("25");
     await user.selectOptions(sizeSelect, "10");
     expect(push).toHaveBeenCalledWith(expect.stringMatching(/size=10/));
