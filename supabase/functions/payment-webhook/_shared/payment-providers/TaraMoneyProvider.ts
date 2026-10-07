@@ -404,6 +404,7 @@ export class TaraMoneyProvider implements PaymentProvider {
     }
 
     if (!isTaraMoneyWebhookPayload(rawPayload)) {
+      console.error("TaraMoney webhook rejected: payload shape not recognized; keys =", Object.keys((rawPayload ?? {}) as object).join(","));
       return { valid: false };
     }
 
@@ -425,6 +426,7 @@ export class TaraMoneyProvider implements PaymentProvider {
       const row = Array.isArray(data) ? data[0] : undefined;
 
       if (error || !row) {
+        console.error(`TaraMoney webhook rejected: no connected gym for businessId ending '${String(rawPayload.businessId).slice(-4)}' (length ${String(rawPayload.businessId).length})${error ? ` -- rpc error: ${error.message}` : ""}`);
         // Neither the platform account nor any gym resolves -- could be a
         // missing_internal_record case (a real gym that was never
         // connected/since disconnected) or a forged payload. Either way, no
@@ -446,6 +448,10 @@ export class TaraMoneyProvider implements PaymentProvider {
     // docs/decisions.md for the full captured request.
     const received = headers["tara-webhook-secret"];
     if (!received || !constantTimeEqual(received, webhookSecret)) {
+      // Lengths and header names only -- never the secret itself.
+      console.error(
+        `TaraMoney webhook rejected: secret header ${received ? `present (length ${received.length}) but does not match the stored secret (length ${webhookSecret.length})` : "missing"}; headers received = ${Object.keys(headers).join(",")}`,
+      );
       return { valid: false };
     }
 
