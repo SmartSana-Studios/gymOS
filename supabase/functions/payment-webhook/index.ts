@@ -451,7 +451,7 @@ export default {
       // lookup.
       const { data: paymentRow, error: lookupError } = await supabase
         .from("payments")
-        .select("id, gym_id")
+        .select("id, gym_id, status")
         .eq("provider_transaction_ref", event.providerTransactionRef)
         .maybeSingle();
 
@@ -488,6 +488,23 @@ export default {
         console.error(
           `payment-webhook: ${providerKey} failed to persist payment_webhook_events row for ${event.providerTransactionRef} — ${eventLogError.message}`,
         );
+      }
+
+      // Tara never de-duplicates and re-sends on request, so the same delivery can
+      // arrive twice. The payment is already in the state this delivery would
+      // put it in -> acknowledge and do nothing (the completion RPCs would be
+      // no-ops anyway; this keeps the intent explicit and skips the extra calls).
+      // A flagged row may still legitimately go flagged -> verified later, so a
+      // verified delivery is only a duplicate once the row IS verified.
+      if (
+        paymentRow &&
+        ((event.status === "verified" && paymentRow.status === "verified") ||
+          (event.status !== "verified" && (paymentRow.status === "flagged" || paymentRow.status === "verified")))
+      ) {
+        console.error(
+          `payment-webhook: ${providerKey} duplicate delivery for ${event.providerTransactionRef} (payment ${paymentRow.id} already ${paymentRow.status}) -- acknowledged, nothing to do`,
+        );
+        return jsonResponse(200);
       }
 
       if (event.status !== "verified") {
@@ -549,6 +566,29 @@ export default {
           `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} resolved to gym ${event.resolvedGymId} but matched payment ${paymentRow.id} belongs to gym ${paymentRow.gym_id} -- refusing to complete, leaving for reconciliation`,
         );
         return jsonResponse(200);
+      }
+
+      // Defence in depth on top of the shared-secret header: ask the provider
+      // itself (an authenticated call from our side) whether this transaction
+      // succeeded. Only an explicit decline blocks completion; "unconfirmed"
+      // (provider error, PENDING, network) proceeds so a flaky status endpoint
+      // can never strand a genuinely paid, signature-verified payment.
+      if (provider.confirmPaymentStatus) {
+        const confirmation = await provider.confirmPaymentStatus({
+          productId: paymentRow.id,
+          routingContext: { type: "gym", gymId: paymentRow.gym_id },
+        });
+        if (confirmation.state === "declined") {
+          console.error(
+            `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} said success but the provider status check for payment ${paymentRow.id} answered failure (${confirmation.detail ?? ""}) -- NOT completing, left for review`,
+          );
+          return jsonResponse(200);
+        }
+        if (confirmation.state === "unconfirmed") {
+          console.error(
+            `payment-webhook: ${providerKey} provider status check for payment ${paymentRow.id} was inconclusive (${confirmation.detail ?? ""}) -- completing on the verified webhook alone`,
+          );
+        }
       }
 
       // AC #6: fee capture, when derivable (TaraMoney's originalAmount vs.

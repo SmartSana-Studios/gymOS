@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
+  ConfirmPaymentStatusResult,
   CreateHostedCheckoutLinkParams,
   CreateHostedCheckoutLinkResult,
   InitiatePaymentParams,
@@ -32,6 +33,14 @@ const MOBILEPAY_URL = "https://www.dklo.co/api/tara/mobilepay";
 // class as the webhook-signature-scheme one already documented for
 // mobilePay()'s own webhook).
 const PAYMENT_LINK_URL = "https://www.dklo.co/api/tara/paymentlinks";
+
+// Confirmed live 2026-10-07 against a real paid fee: POST {apiKey, businessId,
+// productId} -> {"status":"SUCCESS","message":"API_ORDER_SUCESSFULL",
+// "transactionId":"...","paymentData":"<JSON string>"}. businessId is REQUIRED
+// (omitting it answers {"status":"ERROR","message":"BUSINESSID_IS_NULL"});
+// `productId` is the reference we sent at initiation (our payments row id).
+// Tara documents SUCCESS / FAILURE / PENDING.
+const TRANSACTION_STATUS_URL = "https://www.dklo.co/api/tara/transactions/status";
 
 interface TaraMoneyInitiateResponse {
   message: string;
@@ -288,6 +297,61 @@ export class TaraMoneyProvider implements PaymentProvider {
       providerTransactionRef: body.transactionId ?? params.reference,
       authorizationUrl: body.authUrl,
     };
+  }
+
+  /**
+   * Asks Tara whether the transaction really succeeded (see
+   * TRANSACTION_STATUS_URL). Only an explicit FAILURE is "declined"; PENDING, a
+   * provider error body, a non-JSON answer, missing credentials or a network
+   * failure are "unconfirmed" so a flaky status endpoint can never strand a
+   * genuinely paid, signature-verified payment.
+   */
+  async confirmPaymentStatus(params: {
+    productId: string;
+    routingContext: PaymentRoutingContext;
+  }): Promise<ConfirmPaymentStatusResult> {
+    let apiKey: string | undefined;
+    let businessId: string | undefined;
+
+    if (params.routingContext.type === "gym") {
+      const { data, error } = await this.supabase.rpc("get_gym_payment_credentials_for_service", {
+        p_gym_id: params.routingContext.gymId,
+        p_provider_key: this.providerKey,
+      });
+      if (error) return { state: "unconfirmed", detail: `credential lookup failed: ${error.message}` };
+      const row = Array.isArray(data) ? data[0] : undefined;
+      apiKey = row?.api_key;
+      businessId = row?.business_id;
+    } else {
+      apiKey = Deno.env.get("TARAMONEY_API_KEY");
+      businessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
+    }
+    if (!apiKey || !businessId) return { state: "unconfirmed", detail: "credentials not available" };
+
+    let result: Response | InitiatePaymentResult;
+    try {
+      result = await postJsonWithTimeout("TaraMoney", TRANSACTION_STATUS_URL, {
+        apiKey,
+        businessId,
+        productId: params.productId,
+      });
+    } catch (err) {
+      return { state: "unconfirmed", detail: err instanceof Error ? err.message : String(err) };
+    }
+    if (!(result instanceof Response)) return { state: "unconfirmed", detail: result.success ? "unexpected" : result.error };
+    if (!result.ok) return { state: "unconfirmed", detail: `HTTP ${result.status}` };
+
+    let body: { status?: unknown; message?: unknown };
+    try {
+      body = await result.json();
+    } catch {
+      return { state: "unconfirmed", detail: "non-JSON response" };
+    }
+
+    const status = typeof body.status === "string" ? body.status.toUpperCase() : "";
+    if (status === "SUCCESS") return { state: "confirmed" };
+    if (status === "FAILURE") return { state: "declined", detail: String(body.message ?? "") };
+    return { state: "unconfirmed", detail: `status ${status || "missing"}: ${String(body.message ?? "")}` };
   }
 
   /**

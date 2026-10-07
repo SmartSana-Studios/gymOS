@@ -147,6 +147,14 @@ export type CreateHostedCheckoutLinkResult =
   | { success: true; checkoutUrl: string }
   | { success: false; error: string };
 
+/**
+ * Result of asking the provider itself whether a transaction succeeded.
+ * "declined" is a well-formed non-success answer from the provider; anything
+ * the caller could not interpret (network error, provider error body,
+ * PENDING) is "unconfirmed" -- the caller decides how to treat that.
+ */
+export type ConfirmPaymentStatusResult = { state: "confirmed" | "declined" | "unconfirmed"; detail?: string };
+
 export interface PaymentProvider {
   /** Must match a payment_providers.provider_key row. */
   readonly providerKey: string;
@@ -169,4 +177,14 @@ export interface PaymentProvider {
    * the only implementer, via createPaymentLink()'s real cardLink.
    */
   createHostedCheckoutLink?(params: CreateHostedCheckoutLinkParams): Promise<CreateHostedCheckoutLinkResult>;
+  /**
+   * Optional defence-in-depth for an already signature-verified "success"
+   * webhook: re-ask the provider (an authenticated call from our side) whether
+   * the transaction really succeeded. `productId` is the reference we sent at
+   * initiation (the payments row id).
+   */
+  confirmPaymentStatus?(params: {
+    productId: string;
+    routingContext: PaymentRoutingContext;
+  }): Promise<ConfirmPaymentStatusResult>;
 }

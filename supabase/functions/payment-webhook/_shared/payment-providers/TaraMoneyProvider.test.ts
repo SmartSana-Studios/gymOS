@@ -872,3 +872,89 @@ Deno.test("initiate(): a rejected fetch (thrown, not returned) still only happen
     globalThis.fetch = original;
   }
 });
+
+// ---------------------------------------------------------------------------
+// confirmPaymentStatus(): POST {apiKey, businessId, productId} to Tara's
+// /transactions/status. Only an explicit FAILURE is "declined"; everything the
+// caller cannot interpret is "unconfirmed" so a flaky status endpoint never
+// strands a genuinely paid payment.
+// ---------------------------------------------------------------------------
+function stubStatusFetch(respond: () => Response | Promise<Response>) {
+  const original = globalThis.fetch;
+  const requests: { url: string; body: Record<string, unknown> }[] = [];
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    requests.push({ url, body: JSON.parse(String(init?.body ?? "{}")) });
+    return await respond();
+  }) as typeof fetch;
+  return { requests, restore: () => (globalThis.fetch = original) };
+}
+
+function statusProvider() {
+  const { supabase } = makeMockSupabase({
+    get_gym_payment_credentials_for_service: { data: [GYM_A_ROW], error: null },
+  });
+  return new TaraMoneyProvider(supabase);
+}
+
+const GYM_CONTEXT = { type: "gym", gymId: "gym-a" } as const;
+
+Deno.test("confirmPaymentStatus: SUCCESS is confirmed and sends apiKey, businessId and productId", async () => {
+  const stub = stubStatusFetch(() => new Response(JSON.stringify({ status: "SUCCESS", message: "API_ORDER_SUCESSFULL" })));
+  try {
+    const result = await statusProvider().confirmPaymentStatus({ productId: "pay-1", routingContext: GYM_CONTEXT });
+    assertEquals(result.state, "confirmed");
+    assertEquals(stub.requests.length, 1);
+    assertEquals(stub.requests[0].url, "https://www.dklo.co/api/tara/transactions/status");
+    assertEquals(stub.requests[0].body, { apiKey: "key-a", businessId: "biz1", productId: "pay-1" });
+  } finally {
+    stub.restore();
+  }
+});
+
+Deno.test("confirmPaymentStatus: an explicit FAILURE is declined", async () => {
+  const stub = stubStatusFetch(() => new Response(JSON.stringify({ status: "FAILURE", message: "nope" })));
+  try {
+    const result = await statusProvider().confirmPaymentStatus({ productId: "pay-1", routingContext: GYM_CONTEXT });
+    assertEquals(result.state, "declined");
+  } finally {
+    stub.restore();
+  }
+});
+
+Deno.test("confirmPaymentStatus: PENDING, an ERROR body, a non-JSON answer and an HTTP error are all unconfirmed (never declined)", async () => {
+  const answers: (() => Response)[] = [
+    () => new Response(JSON.stringify({ status: "PENDING" })),
+    () => new Response(JSON.stringify({ status: "ERROR", message: "BUSINESSID_IS_NULL" })),
+    () => new Response("<html>oops</html>"),
+    () => new Response("{}", { status: 500 }),
+  ];
+  for (const answer of answers) {
+    const stub = stubStatusFetch(answer);
+    try {
+      const result = await statusProvider().confirmPaymentStatus({ productId: "pay-1", routingContext: GYM_CONTEXT });
+      assertEquals(result.state, "unconfirmed");
+    } finally {
+      stub.restore();
+    }
+  }
+});
+
+Deno.test("confirmPaymentStatus: a thrown network error and missing credentials are unconfirmed", async () => {
+  const stub = stubStatusFetch(() => {
+    throw new Error("network down");
+  });
+  try {
+    const result = await statusProvider().confirmPaymentStatus({ productId: "pay-1", routingContext: GYM_CONTEXT });
+    assertEquals(result.state, "unconfirmed");
+  } finally {
+    stub.restore();
+  }
+
+  const { supabase } = makeMockSupabase({ get_gym_payment_credentials_for_service: { data: [], error: null } });
+  const noCreds = await new TaraMoneyProvider(supabase).confirmPaymentStatus({
+    productId: "pay-1",
+    routingContext: GYM_CONTEXT,
+  });
+  assertEquals(noCreds.state, "unconfirmed");
+});
