@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import type { InitiatePaymentResult, PaymentProvider } from "./_shared/payment-providers/PaymentProvider.ts";
 import { TaraMoneyProvider } from "./_shared/payment-providers/TaraMoneyProvider.ts";
+import { buildCallbackUrl } from "./_shared/callbackUrl.ts";
 
 function jsonResponse(status: number, body: Record<string, unknown> = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -163,8 +164,7 @@ async function handleInitiate(
   // /functions/v1/payment-webhook/initiate/taramoney ->
   // .../functions/v1/payment-webhook/taramoney) -- drops the trailing
   // "initiate/<providerKey>" and re-appends "<providerKey>".
-  const basePathSegments = pathSegments.slice(0, pathSegments.length - 2);
-  const callbackUrl = `${url.origin}/${[...basePathSegments, providerKey].join("/")}`;
+  const callbackUrl = buildCallbackUrl(url, pathSegments, providerKey);
 
   // Story 4.15 Task 3: the dashboard's own initiatePaymentAction already
   // checks isMobileMoneyInitiationEnabled() (same env var; default-enabled
@@ -358,8 +358,7 @@ async function handleInitiateLink(
 
   // Same reconstruction as handleInitiate's own callbackUrl, dropping
   // "initiate-link/<providerKey>" instead of "initiate/<providerKey>".
-  const basePathSegments = pathSegments.slice(0, pathSegments.length - 2);
-  const callbackUrl = `${url.origin}/${[...basePathSegments, providerKey].join("/")}`;
+  const callbackUrl = buildCallbackUrl(url, pathSegments, providerKey);
 
   const result = await provider.createHostedCheckoutLink({
     reference: payment.id,

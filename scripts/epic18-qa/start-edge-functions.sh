@@ -8,8 +8,15 @@
 # already routes /functions/v1/* to supabase_edge_runtime_gym_os:8081.
 #
 # Re-run after editing anything under supabase/functions. LOCAL ONLY.
+#
+# Usage: ./scripts/epic18-qa/start-edge-functions.sh [https://<tunnel-host>]
+# The optional tunnel host is pinned as PAYMENT_WEBHOOK_PUBLIC_BASE_URL so provider
+# callbacks (Tara requires https) point at the tunnel, not at Kong's internal address.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+TUNNEL="${1:-}"
+PUBLIC_ENV=()
+[ -n "$TUNNEL" ] && PUBLIC_ENV=(-e "PAYMENT_WEBHOOK_PUBLIC_BASE_URL=${TUNNEL%/}/functions/v1/payment-webhook")
 
 IMG=public.ecr.aws/supabase/edge-runtime:v1.76.2
 NET=supabase_network_gym_os
@@ -45,7 +52,7 @@ docker rm qa_edge_copy >/dev/null
 docker run -d --name supabase_edge_runtime_gym_os --network "$NET" --restart unless-stopped \
   -v qa_edge_functions:/home/deno/functions -v supabase_edge_runtime_gym_os:/root/.cache/deno \
   -e SUPABASE_URL=http://supabase_kong_gym_os:8000 -e SUPABASE_SERVICE_ROLE_KEY="$SRK" -e SUPABASE_ANON_KEY="$ANON" \
-  -e DENO_DIR=/root/.cache/deno "$IMG" start --main-service /home/deno/functions/main -p 8081 >/dev/null
+  -e DENO_DIR=/root/.cache/deno "${PUBLIC_ENV[@]}" "$IMG" start --main-service /home/deno/functions/main -p 8081 >/dev/null
 sleep 5
 curl -s -m 60 -X POST http://127.0.0.1:54321/functions/v1/payment-webhook/initiate/taramoney \
   -H "apikey: $ANON" -H 'content-type: application/json' -d '{}' ; echo
