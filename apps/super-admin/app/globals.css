@@ -14,7 +14,7 @@
        white-on-white options. next-themes toggles the `.dark` class here,
        so color-scheme is declared per-theme to match, not just once. */
     color-scheme: light;
-    --background: 0 0% 100%;
+    --background: 60 18.5% 94.7%; /* paper white #F4F4EF */
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 3.9%;
