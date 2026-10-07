@@ -11,6 +11,9 @@ FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 
 COPY --from=codex-installer /usr/local/bin/codex /usr/local/bin/codex
 
+# BMad skills (bmad-build, bmad-build-auto) run their Python scripts through `uv run`.
+COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /uvx /usr/local/bin/
+
 USER root
 
 # Prepare writable directories for Claude.
@@ -26,7 +29,8 @@ USER vscode
 
 RUN bash -o pipefail -c 'curl -fsSL https://claude.ai/install.sh | bash' \
     && /home/vscode/.local/bin/claude --version \
-    && codex --version
+    && codex --version \
+    && uv --version
 
 ENV PATH="/home/vscode/.local/bin:${PATH}"
 
