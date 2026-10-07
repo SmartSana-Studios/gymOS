@@ -48,4 +48,7 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // but the payment was not applied -- staff should refund. metadata { payment_id,
   // amount, currency, fee_amount }.
   registration_fee_late_payment: "audit.actionTypes.registrationFeeLatePayment",
+  // Story 18.4. Written by void_registration_fee_payment() (0101), gym-scoped,
+  // target = the member. Metadata { payment_id, amount, method, reason }.
+  registration_fee_voided: "audit.actionTypes.registrationFeeVoided",
 };

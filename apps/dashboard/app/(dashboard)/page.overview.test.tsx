@@ -59,8 +59,15 @@ vi.mock("@/services/subscriptions", () => ({
 }));
 
 const getRevenueMtd = vi.fn();
+const getRegistrationFeeRevenueMtd = vi.fn();
 vi.mock("@/services/payments", () => ({
   getRevenueMtd: (...args: unknown[]) => getRevenueMtd(...args),
+  getRegistrationFeeRevenueMtd: (...args: unknown[]) => getRegistrationFeeRevenueMtd(...args),
+}));
+
+const getGymSettings = vi.fn();
+vi.mock("@/services/gym-settings", () => ({
+  getGymSettings: (...args: unknown[]) => getGymSettings(...args),
 }));
 
 vi.mock("@/components/shared/FrontDeskAlertPanel", () => ({
@@ -164,7 +171,7 @@ function textContent(node: ReactNode): string[] {
   return textContent((node.props as { children?: ReactNode }).children);
 }
 
-type CardProps = { label: string; value: string; href: string; tone?: string };
+type CardProps = { label: string; value: string; href: string; tone?: string; detail?: string };
 
 function cards(tree: ReactElement): CardProps[] {
   return findAll(tree, StatCard).map((el) => el.props as CardProps);
@@ -198,6 +205,10 @@ describe("(dashboard) Overview page", () => {
     getCurrentlyCheckedIn.mockReset().mockResolvedValue({ data: { rows: checkedInRows(12), total: 57, page: 1 }, error: null });
     listSubscriptions.mockReset().mockResolvedValue({ data: { rows: expiringRows(25), total: 31 }, error: null });
     getRevenueMtd.mockReset().mockResolvedValue({ data: 1234567, error: null });
+    // Story 18.4: a gym with no registration fee and no fee income, so every
+    // pre-existing assertion about the revenue card stays as it was.
+    getRegistrationFeeRevenueMtd.mockReset().mockResolvedValue({ data: 0, error: null });
+    getGymSettings.mockReset().mockResolvedValue({ data: { registrationFee: 0 }, error: null });
   });
 
   it("renders the three AD-02 cards, in order, with their full totals and click-through targets", async () => {
@@ -325,6 +336,86 @@ describe("(dashboard) Overview page", () => {
 
     expect(textContent(tree)).not.toContain("overview.body");
     expect(textContent(tree)).toContain("overview.title");
+  });
+
+  describe("Story 18.4: the 'of which registration fees' line", () => {
+    const FEE_LABEL = "overview.cards.revenueOfWhichRegistrationFees";
+    const revenue = (tree: ReactElement) => card(tree, "overview.cards.revenueThisMonth");
+
+    it("shows nothing for a gym with no fee and no fee income -- the card is exactly as before", async () => {
+      const tree = await renderOverviewData();
+
+      expect(revenue(tree).detail).toBeUndefined();
+      expect(revenue(tree)).toEqual({ label: "overview.cards.revenueThisMonth", value: "XAF 1,234,567", href: "/payments" });
+      expect(cards(tree).filter((c) => c.detail !== undefined)).toHaveLength(0);
+    });
+
+    it("shows the line, formatted with the request locale, when the gym charges a fee", async () => {
+      locale = "fr";
+      getGymSettings.mockResolvedValue({ data: { registrationFee: 5000 }, error: null });
+      getRegistrationFeeRevenueMtd.mockResolvedValue({ data: 15000, error: null });
+
+      const tree = await renderOverviewData();
+
+      expect(revenue(tree).detail).toBe(`${FEE_LABEL}: XAF ${(15000).toLocaleString("fr")}`);
+    });
+
+    it("shows a zero line when the gym charges a fee but has taken none this month", async () => {
+      getGymSettings.mockResolvedValue({ data: { registrationFee: 5000 }, error: null });
+
+      const tree = await renderOverviewData();
+
+      expect(revenue(tree).detail).toBe(`${FEE_LABEL}: XAF 0`);
+    });
+
+    it("still shows the line after the fee was set back to 0, while this month holds fee income", async () => {
+      getRegistrationFeeRevenueMtd.mockResolvedValue({ data: 5000, error: null });
+
+      const tree = await renderOverviewData();
+
+      expect(revenue(tree).detail).toBe(`${FEE_LABEL}: XAF 5,000`);
+    });
+
+    it("hides only the line when the fee figure fails, leaving the revenue figure intact", async () => {
+      getGymSettings.mockResolvedValue({ data: { registrationFee: 5000 }, error: null });
+      getRegistrationFeeRevenueMtd.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const tree = await renderOverviewData();
+
+      expect(revenue(tree).detail).toBeUndefined();
+      expect(revenue(tree).value).toBe("XAF 1,234,567");
+    });
+
+    it("lets the figure alone decide when the settings read fails", async () => {
+      getGymSettings.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
+      getRegistrationFeeRevenueMtd.mockResolvedValue({ data: 5000, error: null });
+
+      expect(revenue(await renderOverviewData()).detail).toBe(`${FEE_LABEL}: XAF 5,000`);
+
+      getRegistrationFeeRevenueMtd.mockResolvedValue({ data: 0, error: null });
+
+      expect(revenue(await renderOverviewData()).detail).toBeUndefined();
+    });
+
+    it("hides the line under an unavailable revenue figure", async () => {
+      getRevenueMtd.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
+      getGymSettings.mockResolvedValue({ data: { registrationFee: 5000 }, error: null });
+      getRegistrationFeeRevenueMtd.mockResolvedValue({ data: 5000, error: null });
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const tree = await renderOverviewData();
+
+      expect(revenue(tree).value).toBe("overview.cards.unavailable");
+      expect(revenue(tree).detail).toBeUndefined();
+    });
+
+    it("reads each figure once", async () => {
+      await renderOverviewData();
+
+      expect(getRegistrationFeeRevenueMtd).toHaveBeenCalledTimes(1);
+      expect(getGymSettings).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("Story 17.2: the Manager-plus gym-health row", () => {

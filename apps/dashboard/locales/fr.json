@@ -41,6 +41,7 @@
       "checkedInNow": "Présents en ce moment",
       "expiringThisWeek": "Expirent cette semaine",
       "revenueThisMonth": "Revenus du mois",
+      "revenueOfWhichRegistrationFees": "dont frais d'inscription",
       "activeMembers": "Membres actifs",
       "newThisMonth": "Nouveaux ce mois-ci",
       "todaysClasses": "Cours du jour",
@@ -1028,7 +1029,8 @@
       "registrationFeeWaived": "Frais d'inscription offerts",
       "registrationFeePaid": "Frais d'inscription payés par Tara Money",
       "registrationFeeAttemptExpired": "Collecte des frais d'inscription expirée",
-      "registrationFeeLatePayment": "Frais d'inscription payés en retard par Tara Money (non appliqués)"
+      "registrationFeeLatePayment": "Frais d'inscription payés en retard par Tara Money (non appliqués)",
+      "registrationFeeVoided": "Frais d'inscription annulés"
     }
   },
   "saasBilling": {

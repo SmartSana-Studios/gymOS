@@ -20,7 +20,7 @@
 -- the suspension assertion pass for the wrong reason.
 
 begin;
-select plan(36);
+select plan(41);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0017-000000000001', 'Revenue MTD Test Tier', 5000, 50000, 30);
@@ -242,6 +242,37 @@ insert into refunds (id, gym_id, payment_id, amount, reason, actor_id, created_a
 set local role authenticated;
 
 select is(gym_revenue_mtd(), 7700::bigint, 'a refund recorded in the prior gym-local month is excluded');
+
+-- Voided payments (Story 18.4). voided_at is written as the migration role;
+-- the client pin only applies to authenticated/anon.
+reset role;
+insert into payments (id, gym_id, member_id, amount, currency, method, status, voided_at, created_at) values
+  ('00000000-0000-0000-0017-000000000121', '00000000-0000-0000-0017-000000000011', '00000000-0000-0000-0017-000000000051', 6000, 'XAF', 'cash', 'verified', now(), now());
+set local role authenticated;
+
+select is(gym_revenue_mtd(), 7700::bigint, 'a verified in-window payment with voided_at set is excluded');
+
+reset role;
+update payments set voided_at = null where id = '00000000-0000-0000-0017-000000000121';
+set local role authenticated;
+
+select is(gym_revenue_mtd(), 13700::bigint, 'positive control: the same payment counts once voided_at is cleared');
+
+reset role;
+update payments set voided_at = now() where id = '00000000-0000-0000-0017-000000000121';
+insert into payments (id, gym_id, member_id, amount, currency, method, status, purpose, created_at) values
+  ('00000000-0000-0000-0017-000000000122', '00000000-0000-0000-0017-000000000011', '00000000-0000-0000-0017-000000000051', 250, 'XAF', 'cash', 'verified', 'registration_fee', now());
+set local role authenticated;
+
+select is(gym_revenue_mtd(), 7950::bigint, 'a verified non-voided registration fee payment stays in the total');
+
+reset role;
+update payments set voided_at = now() where id = '00000000-0000-0000-0017-000000000122';
+set local role authenticated;
+
+select is(gym_revenue_mtd(), 7700::bigint, 'voiding that fee payment takes it out of the total');
+
+select is(gym_registration_fee_revenue_mtd(), 0::bigint, 'the fee line is 0 when every fee payment is voided');
 
 -- ============================================================================
 -- Gym scoping.

@@ -33,6 +33,26 @@ describe("StatCard", () => {
     expect(screen.getByText("12")).not.toHaveClass("text-destructive");
   });
 
+  it("renders the optional detail line inside the link, under the value (Story 18.4)", () => {
+    render(
+      <StatCard
+        label="Revenue this month"
+        value="XAF 20,000"
+        href="/payments"
+        detail="of which registration fees: XAF 15,000"
+      />,
+    );
+
+    const detail = screen.getByText("of which registration fees: XAF 15,000");
+    expect(screen.getByRole("link")).toContainElement(detail);
+  });
+
+  it("renders no extra line when detail is omitted", () => {
+    render(<StatCard label="Revenue this month" value="XAF 20,000" href="/payments" />);
+
+    expect(screen.getByRole("link").querySelectorAll("p")).toHaveLength(2);
+  });
+
   it("renders the value in the alert colour when tone is alert", () => {
     render(<StatCard label="At risk" value="3" href="/subscriptions" tone="alert" />);
 

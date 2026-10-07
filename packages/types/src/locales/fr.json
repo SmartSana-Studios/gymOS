@@ -55,7 +55,11 @@
     "registrationFeeNotDue": "Ce membre n'a aucun frais d'inscription à régler.",
     "registrationFeeNotConfigured": "Votre salle ne facture pas de frais d'inscription.",
     "noActivePaymentProvider": "Les paiements Mobile Money ne sont pas disponibles pour le moment. Utilisez les espèces ou un autre moyen manuel.",
-    "registrationFeeMemberDeactivated": "Ce membre est désactivé."
+    "registrationFeeMemberDeactivated": "Ce membre est désactivé.",
+    "taraFeeCannotBeVoided": "Ces frais ont été payés par Tara Money et ne peuvent pas être annulés ici. Corrigez-les en dehors de GymOS.",
+    "memberAlreadyHasSubscription": "Ce membre a déjà un abonnement : les frais d'inscription ne peuvent plus être annulés.",
+    "registrationFeeNotRefundable": "Les frais d'inscription ne sont pas remboursables.",
+    "paymentVoidedNotRefundable": "Ce paiement a été annulé et ne peut pas être remboursé."
   },
   "auth": {
     "title": "Connexion à GymOS",

@@ -2066,6 +2066,7 @@ export type Database = {
         }[]
       }
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
+      gym_registration_fee_revenue_mtd: { Args: never; Returns: number }
       gym_revenue_mtd: { Args: never; Returns: number }
       initiate_member_payment: { Args: never; Returns: string }
       initiate_registration_fee_payment: {
@@ -2340,6 +2341,10 @@ export type Database = {
       }
       update_workout_plan: {
         Args: { p_exercises: Json; p_name: string; p_plan_id: string }
+        Returns: undefined
+      }
+      void_registration_fee_payment: {
+        Args: { p_payment_id: string; p_reason: string }
         Returns: undefined
       }
       waive_registration_fee: {
