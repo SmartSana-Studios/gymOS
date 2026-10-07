@@ -1023,7 +1023,9 @@
       "subscriptionLifecycleJobFailure": "Échec de la tâche d'abonnement",
       "checkInAutoTimeoutJobFailure": "Échec de la tâche d'enregistrement",
       "paymentReconciliationJobFailure": "Échec de la tâche de rapprochement des paiements",
-      "registrationFeeChanged": "Frais d'inscription modifiés"
+      "registrationFeeChanged": "Frais d'inscription modifiés",
+      "registrationFeeRecorded": "Frais d'inscription enregistrés",
+      "registrationFeeWaived": "Frais d'inscription offerts"
     }
   },
   "saasBilling": {

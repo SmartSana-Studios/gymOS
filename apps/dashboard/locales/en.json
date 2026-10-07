@@ -1023,7 +1023,9 @@
       "subscriptionLifecycleJobFailure": "Subscription job failure",
       "checkInAutoTimeoutJobFailure": "Check-in job failure",
       "paymentReconciliationJobFailure": "Payment reconciliation job failure",
-      "registrationFeeChanged": "Registration fee changed"
+      "registrationFeeChanged": "Registration fee changed",
+      "registrationFeeRecorded": "Registration fee recorded",
+      "registrationFeeWaived": "Registration fee waived"
     }
   },
   "saasBilling": {
