@@ -186,7 +186,8 @@ export function MemberModal({
    * the fee server-side and stays authoritative. */
   registrationFee?: number;
   onClose: () => void;
-  onSaved: (warning?: string) => void;
+  /** `invite` is set only when creation itself tried to send the WhatsApp invite (fee-0 gym). */
+  onSaved: (warning?: string, invite?: "sent" | "failed") => void;
 }) {
   const { t, i18n } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -416,7 +417,7 @@ export function MemberModal({
             return;
           }
         }
-        onSaved();
+        onSaved(undefined, data?.inviteSent === undefined ? undefined : data.inviteSent ? "sent" : "failed");
       } catch {
         setFormError(t("common.somethingWentWrong"));
       } finally {

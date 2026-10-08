@@ -541,9 +541,11 @@ export function MembersPageClient({
           coaches={coaches}
           registrationFee={registrationFee}
           onClose={() => setModalState(null)}
-          onSaved={(warning) => {
+          onSaved={(warning, invite) => {
             setModalState(null);
             if (warning) showToast(warning);
+            else if (invite === "sent") showToast(t("members.invite.createdSentToast"));
+            else if (invite === "failed") showToast(t("members.invite.createdFailedToast"));
             router.refresh();
           }}
         />

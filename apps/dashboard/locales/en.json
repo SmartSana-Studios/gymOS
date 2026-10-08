@@ -527,7 +527,9 @@
       "sending": "Sending…",
       "sentConfirmation": "Invite sent to {{name}} via WhatsApp",
       "sendFailedFallback": "Automated send failed. Use the options below to share the invite manually.",
-      "awaitingRegistrationFee": "Available once the registration fee is settled"
+      "awaitingRegistrationFee": "Available once the registration fee is settled",
+      "createdSentToast": "Member created. Invite sent via WhatsApp.",
+      "createdFailedToast": "Member created, but the WhatsApp invite could not be sent. Use Send invite in the row menu."
     },
     "errors": {
       "memberNotFound": "Member not found",

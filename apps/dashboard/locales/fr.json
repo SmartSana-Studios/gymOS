@@ -527,7 +527,9 @@
       "sending": "Envoi…",
       "sentConfirmation": "Invitation envoyée à {{name}} via WhatsApp",
       "sendFailedFallback": "L'envoi automatique a échoué. Utilisez les options ci-dessous pour partager l'invitation manuellement.",
-      "awaitingRegistrationFee": "Disponible une fois les frais d'inscription réglés"
+      "awaitingRegistrationFee": "Disponible une fois les frais d'inscription réglés",
+      "createdSentToast": "Membre créé. Invitation envoyée via WhatsApp.",
+      "createdFailedToast": "Membre créé, mais l'invitation WhatsApp n'a pas pu être envoyée. Utilisez Envoyer l'invitation dans le menu de la ligne."
     },
     "errors": {
       "memberNotFound": "Membre introuvable",

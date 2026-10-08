@@ -19,9 +19,12 @@ const memberCountForGym = vi.fn();
 const getPlanTypeForGym = vi.fn();
 const provisionMemberRow = vi.fn();
 const logMemberChange = vi.fn();
+const getMemberForInvite = vi.fn();
+const sendEvolutionApiMessage = vi.fn();
+const getDashboardShellContext = vi.fn();
 
 vi.mock("@/services/members", () => ({
-  getMemberForInvite: vi.fn(),
+  getMemberForInvite: (...args: unknown[]) => getMemberForInvite(...args),
   getMemberSubscriptionState: vi.fn(),
   insertSubscription: vi.fn(),
   deactivateMember: vi.fn(),
@@ -49,7 +52,7 @@ vi.mock("@/services/csvImport", () => ({
 }));
 
 vi.mock("@/services/session", () => ({
-  getDashboardShellContext: vi.fn(),
+  getDashboardShellContext: (...args: unknown[]) => getDashboardShellContext(...args),
 }));
 
 vi.mock("@/lib/i18n/get-request-locale", () => ({
@@ -63,7 +66,7 @@ vi.mock("@/lib/i18n/get-server-translation", () => ({
 }));
 
 vi.mock("@/lib/messaging/EvolutionApiMessageProvider", () => ({
-  sendEvolutionApiMessage: vi.fn(),
+  sendEvolutionApiMessage: (...args: unknown[]) => sendEvolutionApiMessage(...args),
 }));
 
 const PLAN_ID = "plan-1";
@@ -100,10 +103,16 @@ describe("createMember (Story 18.5)", () => {
     memberCountForGym.mockResolvedValue({ count: 3, cap: 30, error: null });
     getPlanTypeForGym.mockResolvedValue({ data: { planType: "recurring", durationDays: 30 }, error: null });
     provisionMemberRow.mockResolvedValue({
-      data: { id: "member-1", userId: "user-1", authUserCreated: true },
+      data: { id: "3fa85f64-5717-4562-b3fc-2c963f66afa6", userId: "user-1", authUserCreated: true },
       error: null,
     });
     logMemberChange.mockResolvedValue({ error: null });
+    getMemberForInvite.mockResolvedValue({
+      data: { name: "Alice Mballa", phone: "+237680811041", awaitingRegistrationFee: false },
+      error: null,
+    });
+    getDashboardShellContext.mockResolvedValue({ data: { gymName: "Iron Gym" }, error: null });
+    sendEvolutionApiMessage.mockReset().mockResolvedValue({ success: true });
     setFee(0);
   });
 
@@ -113,7 +122,8 @@ describe("createMember (Story 18.5)", () => {
 
       const result = await createMember(feeZeroInput);
 
-      expect(result).toEqual({ data: { id: "member-1" }, error: null });
+      expect(result).toEqual({ data: { id: "3fa85f64-5717-4562-b3fc-2c963f66afa6", inviteSent: true }, error: null });
+      expect(sendEvolutionApiMessage).toHaveBeenCalledWith("+237680811041", expect.any(String));
       expect(provisionMemberRow).toHaveBeenCalledWith({
         name: "Alice Mballa",
         phone: "+237680811041",
@@ -126,12 +136,31 @@ describe("createMember (Story 18.5)", () => {
         subscriptionStatus: "active",
         expiryDate: "2099-02-14",
       });
-      expect(logMemberChange).toHaveBeenCalledWith("member_created", "member-1", {
+      expect(logMemberChange).toHaveBeenCalledWith("member_created", "3fa85f64-5717-4562-b3fc-2c963f66afa6", {
         name: "Alice Mballa",
         phone: "+237680811041",
         plan_id: PLAN_ID,
         join_date: "2026-01-15",
       });
+    });
+
+    it("a WhatsApp send that fails does not fail the creation; the caller learns inviteSent is false", async () => {
+      sendEvolutionApiMessage.mockResolvedValue({ success: false });
+      const { createMember } = await import("./actions");
+
+      const result = await createMember(feeZeroInput);
+
+      expect(result).toEqual({ data: { id: "3fa85f64-5717-4562-b3fc-2c963f66afa6", inviteSent: false }, error: null });
+    });
+
+    it("a thrown send does not fail the creation either", async () => {
+      getMemberForInvite.mockRejectedValue(new Error("boom"));
+      const { createMember } = await import("./actions");
+
+      const result = await createMember(feeZeroInput);
+
+      expect(result.error).toBeNull();
+      expect(result.data).toEqual({ id: "3fa85f64-5717-4562-b3fc-2c963f66afa6", inviteSent: false });
     });
 
     it("still requires a plan (createMemberSchema is not loosened)", async () => {
@@ -167,7 +196,9 @@ describe("createMember (Story 18.5)", () => {
 
       const result = await createMember(identity);
 
-      expect(result).toEqual({ data: { id: "member-1" }, error: null });
+      expect(result).toEqual({ data: { id: "3fa85f64-5717-4562-b3fc-2c963f66afa6" }, error: null });
+      // Awaiting the fee: the invite waits for settlement, so creation sends nothing.
+      expect(sendEvolutionApiMessage).not.toHaveBeenCalled();
       expect(getPlanTypeForGym).not.toHaveBeenCalled();
       expect(provisionMemberRow).toHaveBeenCalledTimes(1);
       const call = provisionMemberRow.mock.calls[0][0] as Record<string, unknown>;
@@ -189,7 +220,7 @@ describe("createMember (Story 18.5)", () => {
 
       await createMember(identity);
 
-      expect(logMemberChange).toHaveBeenCalledWith("member_created", "member-1", {
+      expect(logMemberChange).toHaveBeenCalledWith("member_created", "3fa85f64-5717-4562-b3fc-2c963f66afa6", {
         name: "Alice Mballa",
         phone: "+237680811041",
         join_date: "2026-01-15",
@@ -252,7 +283,7 @@ describe("createMember (Story 18.5)", () => {
 
       const result = await createMember(identity);
 
-      expect(result.data).toEqual({ id: "member-1" });
+      expect(result.data).toEqual({ id: "3fa85f64-5717-4562-b3fc-2c963f66afa6" });
       expect(result.error?.code).toBe("audit_log_failed");
     });
   });

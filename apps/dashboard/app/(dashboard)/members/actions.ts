@@ -76,7 +76,7 @@ function carriesPlanFields(input: unknown): boolean {
  * `getCallerGymId()` inside every service call this orchestrates. */
 export async function createMember(
   input: unknown,
-): Promise<{ data: { id: string } | null; error: AppError | null }> {
+): Promise<{ data: { id: string; inviteSent?: boolean } | null; error: AppError | null }> {
   const { t } = await getServerTranslation(await getRequestLocale());
 
   // Story 18.5: the registration fee is read server-side, never from a client
@@ -181,7 +181,19 @@ export async function createMember(
     };
   }
 
-  return { data: { id: memberRow.id }, error: null };
+  // A member created in a gym with no registration fee is settled from the start, so
+  // the invite is sent right away (a fee gym sends it once the fee is settled instead --
+  // see MembersPageClient). A failed send never fails the creation: the caller only
+  // changes its toast and staff can use Send invite in the row menu.
+  let inviteSent = false;
+  try {
+    const invite = await sendMemberInvite(memberRow.id);
+    inviteSent = invite.data?.sent === true;
+  } catch {
+    inviteSent = false;
+  }
+
+  return { data: { id: memberRow.id, inviteSent }, error: null };
 }
 
 /** Story 18.5: the fee-gym half of `createMember`. Identity fields and the join
