@@ -626,7 +626,9 @@
         "payerPhoneInvalid": "Enter a valid phone number",
         "collectFailed": "Could not record the registration fee. Check your connection and try again.",
         "initiateFailed": "Could not send the payment request. Check your connection and try again."
-      }
+      },
+      "collectedInviteSentToast": "Registration fee collected for {{name}}. Invite sent via WhatsApp.",
+      "collectedInviteFailedToast": "Registration fee collected for {{name}}, but the WhatsApp invite could not be sent. Use Send invite in the row menu."
     },
     "feeWaive": {
       "title": "Waive the registration fee for {{name}}?",
@@ -639,7 +641,9 @@
       "errors": {
         "reasonInvalid": "Add a reason (10 to 200 characters)",
         "waiveFailed": "Could not waive the registration fee. Check your connection and try again."
-      }
+      },
+      "waivedInviteSentToast": "Registration fee waived for {{name}}. Invite sent via WhatsApp.",
+      "waivedInviteFailedToast": "Registration fee waived for {{name}}, but the WhatsApp invite could not be sent. Use Send invite in the row menu."
     },
     "feeVoid": {
       "title": "Void the registration fee for {{name}}?",

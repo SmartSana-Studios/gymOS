@@ -225,6 +225,26 @@ export function MembersPageClient({
   // (AC #3), not on every click. No disabled/one-shot guard is added after
   // send: the button stays clickable for a resend (AC #4's explicit
   // "resending is not blocked" requirement).
+  // The first message a member gets: sent automatically once the registration fee
+  // is settled (collected or waived), because an awaiting member has no access
+  // yet and the invite is held back until then. Fire-and-forget from the staff's
+  // point of view: the fee is already settled, so a failed send only changes the
+  // toast ("send it from the row menu"). Once per member per page session, since
+  // the Tara path can report "paid" through both Realtime and the polling read.
+  // Tara payments confirmed while no dashboard is open are NOT covered -- staff
+  // use the row-menu Send invite for those.
+  const autoInvitedRef = useRef(new Set<string>());
+  async function sendAutoInvite(member: MemberListRow): Promise<"sent" | "failed" | "skipped"> {
+    if (!member.phone || autoInvitedRef.current.has(member.id)) return "skipped";
+    autoInvitedRef.current.add(member.id);
+    try {
+      const { data } = await sendMemberInvite(member.id);
+      return data?.sent ? "sent" : "failed";
+    } catch {
+      return "failed";
+    }
+  }
+
   async function handleSendInvite(member: MemberListRow) {
     // Story 18.5: the menu item is disabled for these rows; this is the
     // backstop (and sendMemberInvite re-checks server-side).
@@ -548,10 +568,19 @@ export function MembersPageClient({
           mobileMoneyEnabled={mobileMoneyEnabled}
           onClose={() => setCollectingMember(null)}
           onCollected={() => {
-            const name = collectingMember.name;
+            const member = collectingMember;
+            const name = member.name;
             setCollectingMember(null);
-            showToast(t("members.feeCollect.collectedToast", { name }));
             router.refresh();
+            void sendAutoInvite(member).then((outcome) =>
+              showToast(
+                outcome === "sent"
+                  ? t("members.feeCollect.collectedInviteSentToast", { name })
+                  : outcome === "failed"
+                    ? t("members.feeCollect.collectedInviteFailedToast", { name })
+                    : t("members.feeCollect.collectedToast", { name }),
+              ),
+            );
           }}
         />
       )}
@@ -561,10 +590,19 @@ export function MembersPageClient({
           member={waivingMember}
           onClose={() => setWaivingMember(null)}
           onDone={() => {
-            const name = waivingMember.name;
+            const member = waivingMember;
+            const name = member.name;
             setWaivingMember(null);
-            showToast(t("members.feeWaive.waivedToast", { name }));
             router.refresh();
+            void sendAutoInvite(member).then((outcome) =>
+              showToast(
+                outcome === "sent"
+                  ? t("members.feeWaive.waivedInviteSentToast", { name })
+                  : outcome === "failed"
+                    ? t("members.feeWaive.waivedInviteFailedToast", { name })
+                    : t("members.feeWaive.waivedToast", { name }),
+              ),
+            );
           }}
         />
       )}

@@ -626,7 +626,9 @@
         "payerPhoneInvalid": "Saisissez un numéro de téléphone valide",
         "collectFailed": "Impossible d'enregistrer les frais d'inscription. Vérifiez votre connexion et réessayez.",
         "initiateFailed": "Impossible d'envoyer la demande de paiement. Vérifiez votre connexion et réessayez."
-      }
+      },
+      "collectedInviteSentToast": "Frais d'inscription encaissés pour {{name}}. Invitation envoyée via WhatsApp.",
+      "collectedInviteFailedToast": "Frais d'inscription encaissés pour {{name}}, mais l'invitation WhatsApp n'a pas pu être envoyée. Utilisez Envoyer l'invitation dans le menu de la ligne."
     },
     "feeWaive": {
       "title": "Exonérer {{name}} des frais d'inscription ?",
@@ -639,7 +641,9 @@
       "errors": {
         "reasonInvalid": "Ajoutez un motif (10 à 200 caractères)",
         "waiveFailed": "Impossible d'exonérer les frais d'inscription. Vérifiez votre connexion et réessayez."
-      }
+      },
+      "waivedInviteSentToast": "Frais d'inscription exonérés pour {{name}}. Invitation envoyée via WhatsApp.",
+      "waivedInviteFailedToast": "Frais d'inscription exonérés pour {{name}}, mais l'invitation WhatsApp n'a pas pu être envoyée. Utilisez Envoyer l'invitation dans le menu de la ligne."
     },
     "feeVoid": {
       "title": "Invalider les frais d'inscription de {{name}} ?",

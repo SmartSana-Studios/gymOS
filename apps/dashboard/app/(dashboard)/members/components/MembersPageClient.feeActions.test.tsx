@@ -5,8 +5,10 @@
  * them, and each opens its dialog with the right member and props.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+
+import { sendMemberInvite } from "../actions";
 
 const refresh = vi.fn();
 
@@ -128,6 +130,7 @@ describe("MembersPageClient registration fee actions (Story 18.6)", () => {
   beforeEach(() => {
     collectProps.mockReset();
     refresh.mockReset();
+    vi.mocked(sendMemberInvite).mockReset().mockResolvedValue({ data: { sent: true }, error: null });
   });
 
   describe("awaiting member: Collect and Waive", () => {
@@ -217,7 +220,36 @@ describe("MembersPageClient registration fee actions (Story 18.6)", () => {
 
     expect(refresh).toHaveBeenCalled();
     expect(screen.queryByRole("dialog", { name: "collect-dialog" })).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("members.feeCollect.collectedToast");
+    expect(sendMemberInvite).toHaveBeenCalledWith("m-awaiting");
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("members.feeCollect.collectedInviteSentToast"));
+  });
+
+  it("a collected fee whose invite cannot be sent says so and points to the row menu", async () => {
+    vi.mocked(sendMemberInvite).mockResolvedValue({ data: { sent: false }, error: null });
+    const user = userEvent.setup();
+    await renderPage(awaiting, "receptionist");
+    await user.click(screen.getByRole("menuitem", { name: /members.actions.collectFee/ }));
+    await user.click(screen.getByTestId("finish-collect"));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("members.feeCollect.collectedInviteFailedToast"));
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("a thrown invite send never hides that the fee was collected", async () => {
+    vi.mocked(sendMemberInvite).mockRejectedValue(new Error("network"));
+    const user = userEvent.setup();
+    await renderPage(awaiting, "owner");
+    await user.click(screen.getByRole("menuitem", { name: /members.actions.collectFee/ }));
+    await user.click(screen.getByTestId("finish-collect"));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("members.feeCollect.collectedInviteFailedToast"));
+  });
+
+  it("a member without a phone gets no automatic invite, just the plain collected toast", async () => {
+    const user = userEvent.setup();
+    await renderPage({ ...awaiting, phone: null } as never, "owner");
+    await user.click(screen.getByRole("menuitem", { name: /members.actions.collectFee/ }));
+    await user.click(screen.getByTestId("finish-collect"));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("members.feeCollect.collectedToast"));
+    expect(sendMemberInvite).not.toHaveBeenCalled();
   });
 
   it("defaults the Tara flag to false when the page does not pass it", async () => {
@@ -238,7 +270,8 @@ describe("MembersPageClient registration fee actions (Story 18.6)", () => {
     await user.click(screen.getByTestId("finish-waive"));
 
     expect(screen.queryByRole("dialog", { name: "waive-dialog" })).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("members.feeWaive.waivedToast");
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("members.feeWaive.waivedInviteSentToast"));
+    expect(sendMemberInvite).toHaveBeenCalledWith("m-awaiting");
     expect(refresh).toHaveBeenCalled();
   });
 
