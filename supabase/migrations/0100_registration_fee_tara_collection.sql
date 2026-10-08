@@ -351,6 +351,10 @@ $$;
 -- call this (see 0030). Re-stated so the ACL is explicit in this migration.
 revoke execute on function complete_verified_payment(uuid, integer) from public;
 revoke execute on function complete_verified_payment(uuid, integer) from authenticated;
+-- anon too: the hosted project's default privileges grant EXECUTE on new functions to
+-- anon, which a revoke from public does not remove (found deploying this migration;
+-- see 0104). A no-op on a local stack that has no such default.
+revoke execute on function complete_verified_payment(uuid, integer) from anon;
 grant execute on function complete_verified_payment(uuid, integer) to service_role;
 
 -- ----------------------------------------------------------------------------
