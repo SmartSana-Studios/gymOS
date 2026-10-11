@@ -1,0 +1,97 @@
+name: db-backup
+
+# Daily encrypted pg_dump of the production Supabase project to Cloudflare R2.
+# Repo secrets needed: BACKUP_DB_URL, BACKUP_AGE_PUBLIC_KEY, R2_ACCOUNT_ID,
+# R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET, plus for the Storage file copy
+# SUPABASE_S3_ENDPOINT, SUPABASE_S3_REGION, SUPABASE_S3_ACCESS_KEY_ID,
+# SUPABASE_S3_SECRET_ACCESS_KEY (Dashboard -> Storage -> S3 connection).
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Install Postgres 17 client and age
+        run: |
+          sudo apt-get install -y curl ca-certificates gnupg
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17 age
+
+      - name: Dump, encrypt, upload
+        env:
+          BACKUP_DB_URL: ${{ secrets.BACKUP_DB_URL }}
+          BACKUP_AGE_PUBLIC_KEY: ${{ secrets.BACKUP_AGE_PUBLIC_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          stamp=$(date -u +%Y-%m-%dT%H%MZ)
+          endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+
+          # Full database dump: every schema, grants included (only owners dropped).
+          pg_dump "$BACKUP_DB_URL" -Fc --no-owner -f db.dump
+          size=$(stat -c %s db.dump)
+          echo "database dump: ${size} bytes"
+          test "$size" -gt 10000 || { echo "dump suspiciously small"; exit 1; }
+          # Integrity check: the archive must be readable before we encrypt it.
+          pg_restore --list db.dump > /dev/null
+
+          # Roles/global objects (may be restricted on a hosted project).
+          if ! pg_dumpall --roles-only -d "$BACKUP_DB_URL" -f roles.sql; then
+            echo "::warning::roles dump failed (permissions); database dump still taken"
+            rm -f roles.sql
+          fi
+
+          for f in db.dump roles.sql; do
+            [ -s "$f" ] || continue
+            key="${f%.*}.${stamp}.${f##*.}.age"
+            age -r "$BACKUP_AGE_PUBLIC_KEY" -o "$key" "$f"
+            aws s3 cp "$key" "s3://${R2_BUCKET}/db/${key}" --endpoint-url "$endpoint"
+            aws s3api head-object --bucket "$R2_BUCKET" --key "db/${key}" \
+              --endpoint-url "$endpoint" > /dev/null
+            echo "uploaded db/${key}"
+          done
+
+      - name: Sync Storage files to R2
+        env:
+          SUPABASE_S3_ENDPOINT: ${{ secrets.SUPABASE_S3_ENDPOINT }}
+          SUPABASE_S3_ACCESS_KEY_ID: ${{ secrets.SUPABASE_S3_ACCESS_KEY_ID }}
+          SUPABASE_S3_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_S3_SECRET_ACCESS_KEY }}
+          SUPABASE_S3_REGION: ${{ secrets.SUPABASE_S3_REGION }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y rclone
+          export RCLONE_CONFIG_SUPA_TYPE=s3 RCLONE_CONFIG_SUPA_PROVIDER=Other
+          export RCLONE_CONFIG_SUPA_ENDPOINT="$SUPABASE_S3_ENDPOINT"
+          export RCLONE_CONFIG_SUPA_ACCESS_KEY_ID="$SUPABASE_S3_ACCESS_KEY_ID"
+          export RCLONE_CONFIG_SUPA_SECRET_ACCESS_KEY="$SUPABASE_S3_SECRET_ACCESS_KEY"
+          export RCLONE_CONFIG_SUPA_REGION="$SUPABASE_S3_REGION"
+          export RCLONE_CONFIG_R2_TYPE=s3 RCLONE_CONFIG_R2_PROVIDER=Cloudflare
+          export RCLONE_CONFIG_R2_ENDPOINT="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          export RCLONE_CONFIG_R2_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
+          export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
+          # copy (not sync): a file deleted by mistake in Storage stays in the backup.
+          # Files land in R2 as stored (not age-encrypted); the bucket is private.
+          rclone copy SUPA: "R2:${R2_BUCKET}/storage" --s3-no-check-bucket --transfers 8 -v
