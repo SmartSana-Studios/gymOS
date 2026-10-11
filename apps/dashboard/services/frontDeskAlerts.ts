@@ -71,6 +71,9 @@ export async function listActiveFrontDeskAlerts(): Promise<{
       .from("front_desk_alerts")
       .select("id, member_id, status, expiry_date, created_at, members(name, photo_url)")
       .eq("gym_id", gymId)
+      // 0111: only subscription-status alerts render as at-risk alerts; a
+      // session_required row has a null status.
+      .eq("kind", "subscription_status")
       .is("dismissed_at", null)
       .order("created_at", { ascending: false }),
     supabase.from("gyms").select("alert_auto_dismiss_minutes").eq("id", gymId).single(),
