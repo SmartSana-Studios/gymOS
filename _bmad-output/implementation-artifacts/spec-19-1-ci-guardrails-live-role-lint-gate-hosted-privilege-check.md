@@ -103,3 +103,27 @@ Function matching: parse `create [or replace] function <name>(`, normalise `publ
 - `pnpm run test:guardrails` -- expected: all fixture tests pass
 - `scripts/ci-local.sh --only static` -- expected: PASS
 - `uv run _bmad/scripts/*.py` (sprint-status parser) -- expected: parses with no errors
+
+### Review Findings
+
+Code review 2026-10-11 (4 layers: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor). Prior triage-log items are not re-raised unless still reproducible.
+
+- [x] [Review][Patch] Argument-less `revoke ... on function <name>` is not recognised (medium) [scripts/check-migration-guardrails.mjs:60] — `TARGET_RE` requires `(`. Reproduced: `create function private.g() ...; revoke execute on function private.g from public, anon;` exits 1 with "missing REVOKE". The corpus uses this style widely (0007, 0009, 0022, 0035...), so a correct future migration is flagged with a misleading message. Make the arg list optional (split targets on commas outside parens) and add a fixture + test. Source: verification-gap.
+- [x] [Review][Patch] Two exit-2 messages lose their interpolated path (low) [scripts/check-migration-guardrails.mjs:116,144] — `No .sql files in ;` and `Grandfather file : must be...` omit `${opts.migrations}` / `${opts.grandfather}`; the `empty-dir` test asserts only the exit code. Interpolate and assert the message. Source: blind-hunter+edge-case-hunter+verification-gap+acceptance-auditor.
+- [x] [Review][Patch] Manual hosted-privilege query doc is self-contradictory and misses procedures (medium) [docs/decisions.md:20-31] — says "must return zero rows" then "expect a small known set"; `prokind = 'f'` excludes procedures the gate now checks; "as in 0104's do $verify$ block" overstates (0104 checks a fixed list of five functions). Reword the pass criterion (compare against the known intentionally-anon set, e.g. 0019/0092), use `prokind in ('f','p')`, fix the 0104 reference. Source: blind-hunter+edge-case-hunter+acceptance-auditor.
+- [x] [Review][Patch] Doubled blank line after the new decisions entry (low) [docs/decisions.md:34-35] — the triage log marks it patched; it is still present. Source: blind-hunter+acceptance-auditor.
+- [x] [Review][Patch] Real-tree test title claims "52 app_role entries" but asserts `<= 52` (low) [scripts/__tests__/migration-guardrails.test.mjs:68] — shrinking is already caught by the gate itself (an un-listed offender fails the run), so only the title misleads. Rename. Source: blind-hunter+edge-case-hunter+verification-gap+acceptance-auditor.
+
+#### Rejected
+
+- Revoke-then-`grant ... to anon` in the same file passes (reproduced) — low, already rejected in the triage log; fix needs new grant-ordering tracking and intentional anon grants (0019, 0092) would then need an allowlist.
+- Quoted mixed-case names collide in `normName` — low, no quoted mixed-case function exists in the corpus; fix adds identifier parsing.
+- `--migrations` pointing at a file, or a directory named `*.sql`, throws an uncaught stack trace (reproduced) — low; it still fails loudly with a non-zero exit, and the path is a CI-config typo.
+- Grandfather file missing a key or with non-string entries is accepted via `?? []` — low; the result is a loud wall of "new offender"/"stale entry" errors, not a silent pass.
+- Per-file grandfathering lets a listed file gain new offenders — false: stated in decisions.md ("A listed file may keep changing and still pass") and permitted by AC 3.
+- `function_privileges` grandfather path untested; other exit-2 paths untested — false/low: the real-tree test exercises 81 listed files and every exit-2 path fails loudly.
+- Dollar-quote/`execute format`/`numeric(10,2)` scan gaps — low; listed as approximate in decisions.md, over-coverage from spurious targets is harmless, fixing needs a tokenizer.
+- sprint-status `last_updated` entries differ (10 vs 14 tests, "in-review -> review") — low; append-only log by project convention, history not defect.
+- Spec frontmatter `status: done` vs sprint-status `review`; empty Implementation Notes; `test:guardrails` glob vs spec literal — fix edits the spec under review.
+- No automated hosted-privilege check; CI wiring verified by reading only — decided in the frozen intent; documented limitation.
+- Wrapped/cast JWT read bypass — already tracked in deferred-work.md (Story 19.1 entry); not re-filed.

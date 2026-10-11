@@ -65,7 +65,7 @@ test("stale grandfather entries fail naming the entry", () => {
   assert.match(r.out, /function_privileges: 0001_ok\.sql/);
 });
 
-test("real tree passes with checked-in lists and 52 app_role entries", () => {
+test("real tree passes with checked-in lists (at most 52 app_role entries)", () => {
   const r = spawnSync(process.execPath, [script], { encoding: "utf8" });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const list = JSON.parse(
@@ -91,5 +91,17 @@ test("missing argument value exits 2", () => {
 });
 
 test("migrations dir with no .sql files exits 2", () => {
-  assert.equal(run("empty-dir").code, 2);
+  const r = run("empty-dir");
+  assert.equal(r.code, 2);
+  assert.match(r.out, /empty-dir/);
+});
+
+test("revoke by bare name (no argument list) passes", () => {
+  assert.equal(run("fn-bare-name").code, 0);
+});
+
+test("malformed grandfather file exits 2 naming the file", () => {
+  const r = run("clean", "bad-shape.json");
+  assert.equal(r.code, 2);
+  assert.match(r.out, /bad-shape\.json/);
 });

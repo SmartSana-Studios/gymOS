@@ -17,21 +17,39 @@ Two static CI gates over `supabase/migrations/`, run by one dependency-free scri
 - Matching is by function name, not argument list: revoking one overload covers all overloads of that name.
 - A new file that does `create or replace function` on an already-revoked function must restate the revoke: privileges persist in the database, but the gate is file-local and would otherwise flag it. This trade-off is accepted.
 - It reads migration text only. Comment/string stripping is approximate, a revoke in a different file does not count, and `revoke ... on all functions in schema` is not recognised. It cannot see grants made by default privileges or outside migrations.
-- Therefore the hosted state is verified by a manual post-deploy query (as in 0104's `do $verify$` block), run against the hosted DB after each migration batch; it must return zero rows:
+- Therefore the hosted state is verified by a manual post-deploy query (a schema-wide variant of the fixed-list check in 0104's `do $verify# Decisions Log
+
+Dated entries recording spike/decision outcomes that can't be changed later without cost (region, provider selections, etc.). One entry per decision — newest first.
+
+---
+
+## 2026-10-11 — Migration guardrails (Story 19.1): app_role lint gate and function-privilege check
+
+Two static CI gates over `supabase/migrations/`, run by one dependency-free script, `scripts/check-migration-guardrails.mjs` (`pnpm run check:migrations`; wired into `ci.yml` and `scripts/ci-local.sh` beside the i18n parity check; fixture tests via `pnpm run test:guardrails`).
+
+1. **AD-3 app_role lint.** Fails on any non-grandfathered migration containing `auth.jwt() ->> 'app_role'` (any whitespace, `->` or `->>`, matched on raw text so comment mentions count). Message points at `private.current_member_role()`. 52 files are grandfathered.
+2. **Function privileges.** Every function created in a file (`create [or replace] function`, `public.` normalised away, `private.` and trigger functions included) must be covered in the same file by revoke(s) of EXECUTE (or ALL) from **both** `public` and `anon`. Hosted defaults grant `anon` EXECUTE on new functions (0104), and `revoke ... from public` alone does not remove that.
+
+**Grandfather decision.** Both gates use hand-edited lists in `scripts/migration-guardrails.grandfather.json` (`app_role_reads`, `function_privileges`) holding exactly the files offending at base commit d6ada66. The privilege list was needed because existing function-creating files, including ones with only `from public`, would otherwise fail; 81 files are listed. Lists were derived once with `--print-baseline` (stdout only; the script never writes them). A listed file may keep changing and still pass; a listed file that stops offending, or no longer exists, fails as stale until the entry is removed. Adding a file to a list is a reviewed JSON edit.
+
+**Limitations (static check).**
+- Matching is by function name, not argument list: revoking one overload covers all overloads of that name.
+- A new file that does `create or replace function` on an already-revoked function must restate the revoke: privileges persist in the database, but the gate is file-local and would otherwise flag it. This trade-off is accepted.
+- It reads migration text only. Comment/string stripping is approximate, a revoke in a different file does not count, and `revoke ... on all functions in schema` is not recognised. It cannot see grants made by default privileges or outside migrations.
+- Therefore the hosted state is verified by a manual post-deploy query  block), run against the hosted DB after each migration batch:
 
 ```sql
 select p.oid::regprocedure
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname in ('public', 'private')
-  and p.prokind = 'f'
+  and p.prokind in ('f', 'p')
   and has_function_privilege('anon', p.oid, 'EXECUTE');
 ```
 
-Expect a small known set of intentionally anon-callable functions; anything new in that list is a finding. Run via the host psql path, not the Supabase CLI container.
+Zero rows is not the pass criterion: expect the known set of intentionally anon-callable functions (those granted to anon on purpose, e.g. in 0019 and 0092). Any function outside that set is a finding. Run via the host psql path, not the Supabase CLI container.
 
 ---
-
 
 ## 2026-10-11 — V1.6 release runbook (Story 19.0): release order, rollback, backup, rehearsal, secrets, job alerting
 

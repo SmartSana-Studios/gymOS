@@ -57,7 +57,24 @@ const CREATE_RE = new RegExp(
   String.raw`create\s+(?:or\s+replace\s+)?(?:function|procedure)\s+(${IDENT}(?:\s*\.\s*${IDENT})?)\s*\(`,
   "gi",
 );
-const TARGET_RE = new RegExp(String.raw`(${IDENT}(?:\s*\.\s*${IDENT})?)\s*\(`, "g");
+/** Split a revoke target list on commas outside parentheses, then drop arg lists. */
+function revokeTargets(list) {
+  const out = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of list) {
+    if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    if (ch === "," && depth === 0) {
+      out.push(cur);
+      cur = "";
+    } else cur += ch;
+  }
+  out.push(cur);
+  return out
+    .map((t) => t.replace(/\(.*$/s, "").trim())
+    .filter(Boolean);
+}
 const REVOKE_RE =
   /^\s*revoke\s+(?:execute|all)(?:\s+privileges)?\s+on\s+(?:function|routine|procedure)\s+([\s\S]+?)\s+from\s+([\s\S]+)$/i;
 
@@ -76,8 +93,8 @@ function functionViolations(text) {
       .split(",")
       .map((r) => r.replace(/"/g, "").trim().toLowerCase())
       .filter(Boolean);
-    for (const t of m[1].matchAll(TARGET_RE)) {
-      const name = normName(t[1]);
+    for (const t of revokeTargets(m[1])) {
+      const name = normName(t);
       if (!revoked.has(name)) revoked.set(name, new Set());
       for (const r of roles) revoked.get(name).add(r);
     }
@@ -113,7 +130,7 @@ function main() {
     process.exit(2);
   }
   if (!readdirSync(opts.migrations).some((f) => f.endsWith(".sql"))) {
-    console.error(`No .sql files in ; refusing to pass on an empty check.`);
+    console.error(`No .sql files in ${opts.migrations}; refusing to pass on an empty check.`);
     process.exit(2);
   }
   const { appRoleReads, fnViolations } = scan(opts.migrations);
@@ -141,7 +158,7 @@ function main() {
     !Array.isArray(gf.function_privileges ?? [])
   ) {
     console.error(
-      `Grandfather file : must be an object whose app_role_reads and function_privileges are arrays.`,
+      `Grandfather file ${opts.grandfather}: must be an object whose app_role_reads and function_privileges are arrays.`,
     );
     process.exit(2);
   }

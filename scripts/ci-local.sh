@@ -71,7 +71,7 @@ stage_static() {
 
 stage_pgtap() {
   set -e
-  PGTAP_JOBS="${PGTAP_JOBS:-1}" "$ROOT/scripts/pgtap-run.sh"
+  PGTAP_JOBS="${PGTAP_JOBS:-1}" bash "$ROOT/scripts/pgtap-run.sh"
 }
 
 stage_unit() {

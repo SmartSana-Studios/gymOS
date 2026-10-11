@@ -397,7 +397,7 @@ development_status:
 
   epic-19: in-progress
   19-0-v1-6-release-readiness-ops-checklist: done
-  19-1-ci-guardrails-live-role-lint-gate-hosted-privilege-check: review
+  19-1-ci-guardrails-live-role-lint-gate-hosted-privilege-check: done
   19-2-flagged-payment-reason-late-vs-wrong-account: backlog
   19-3-charge-guests-setting-session-record-plan-type-rules: backlog
   19-4-desk-session-payment: backlog
@@ -807,3 +807,4 @@ last_updated: 10-11-2026 13:25
 # last_updated: 2026-10-11 (build: 19-1 spec created and approved, backlog -> in-progress. CI guardrails: migration lint gate for auth.jwt() app_role reads and function-privilege revokes, grandfather lists, wired into ci.yml and ci-local.sh.)
 # last_updated: 2026-10-11 (build: 19-1 in-progress -> review. scripts/check-migration-guardrails.mjs + checked-in grandfather lists (52 app_role reads, 81 function-privilege files at d6ada66); check:migrations and test:guardrails (10 node:test cases) wired into ci.yml and ci-local.sh static stage; docs/decisions.md entry with static-check limits and manual post-deploy anon-EXECUTE query. No migration.)
 # last_updated: 2026-10-11 (build: 19-1 in-review -> review. scripts/check-migration-guardrails.mjs gates new auth.jwt() app_role reads and function revokes (public+anon) with grandfather lists (52 / 81 files), wired into ci.yml and ci-local.sh static stage; 14 fixture tests; docs/decisions.md records the static-check limitation and manual post-deploy anon query. Review: 1 wrapped-JWT-read broadening deferred.)
+# last_updated: 2026-10-11 (code-review: 19-1 review -> done. 5 patches applied: arg-less 'revoke on function <name>' now recognised (fixture fn-bare-name), exit-2 messages name the path, decisions.md hosted query reworded (known anon set, procedures included, 0104 reference corrected), doubled blank line, test title. 16 guardrail tests pass; check:migrations OK. 11 findings rejected; wrapped-JWT broadening stays in deferred-work.md.)
