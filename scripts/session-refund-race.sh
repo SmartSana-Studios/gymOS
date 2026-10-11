@@ -67,6 +67,8 @@ insert into plans (id, gym_id, name, plan_type, price, currency, billing_interva
 SQL
 
 fail=0
+n_voided=0
+n_consumed=0
 for i in $(seq 1 "$N"); do
   hex=$(printf '%02x' "$i")
   U=00000000-0000-0000-0000-000000362a$hex
@@ -97,7 +99,8 @@ SQL
   row=$(psql_ -c "select (voided_at is not null)::int, (consumed_at is not null)::int from guest_sessions where payment_id = '$P'")
   outcome=$(psql_ -c "select metadata ->> 'outcome' from audit_log where action_type = 'session_refund_applied' and target_entity_id = '$M'")
   case "$row/$outcome" in
-    1\|0/voided|0\|1/kept_consumed) echo "ok   iteration $i: $row $outcome" ;;
+    1\|0/voided) n_voided=$((n_voided + 1)); echo "ok   iteration $i: $row $outcome" ;;
+    0\|1/kept_consumed) n_consumed=$((n_consumed + 1)); echo "ok   iteration $i: $row $outcome" ;;
     *) echo "FAIL iteration $i: voided|consumed=$row outcome=$outcome"; fail=1 ;;
   esac
 done
@@ -117,5 +120,11 @@ psql_ -c "insert into refunds (gym_id, payment_id, amount, reason, actor_id) val
 wait "$holder"
 res=$(psql_ -c "select (s.voided_at is null and s.consumed_at is not null)::text || '/' || (select metadata ->> 'outcome' from audit_log where action_type = 'session_refund_applied' and target_entity_id = '00000000-0000-0000-0000-000000362bff') from guest_sessions s where s.payment_id = '00000000-0000-0000-0000-000000362cff'")
 if [ "$res" = "true/kept_consumed" ]; then echo "ok   fixed order: consume then refund -> $res"; else echo "FAIL fixed order: $res"; fail=1; fi
+
+# Both outcomes must have occurred, else the consumer never ran (or never won)
+# and the loop proved nothing about the race.
+if [ "$n_voided" -lt 1 ] || [ "$n_consumed" -lt 1 ]; then
+  echo "FAIL: expected both outcomes, got voided=$n_voided kept_consumed=$n_consumed"; fail=1
+fi
 
 [ "$fail" = 0 ] && echo "race: all passed" || { echo "race: FAILED"; exit 1; }

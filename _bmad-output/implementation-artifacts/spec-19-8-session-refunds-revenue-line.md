@@ -93,6 +93,35 @@ context:
 | 18 | blind | Rollback untested | false | reject | Run in a rolled-back transaction; restored 0101 body. |
 | 19 | blind | StatCard call site clumsy / index keys | low | reject | Cosmetic. |
 
+### Review Findings
+
+Code review 2026-10-11 (Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor; baseline `117c1a5`).
+
+- [x] [Review][Patch] (resolved from decision: render the spec's FR form, no spec edit) FR "Guest sessions" line renders `Séances des invités: XAF 3 000`, the frozen spec and decisions.md item 5 say `Séances des invités : N XAF` — `page.tsx` builds every locale as `label: XAF n`, matching the existing fee line, so the spec string was never implemented and the page test asserts the code's format. Options: (a) render the spec's FR form for this line only (inconsistent with the FR fee line), (b) keep `label: XAF n` and amend spec + decisions.md. [apps/dashboard/app/(dashboard)/page.tsx:197]
+- [x] [Review][Patch] `getGymSettings()` has no service-level test for the new `charge_guests_per_session` select/mapping — page tests mock the service, so a dropped column silently hides the "Guest sessions: XAF 0" line at a charging gym. Add `apps/dashboard/services/gym-settings.getGymSettings.test.ts` (style of `gym-settings.setRegistrationFee.test.ts`). [apps/dashboard/services/gym-settings.ts:30]
+- [x] [Review][Patch] Audit labels over-specify — "Paid session used" also fires for free-source sessions, and "Check-in blocked: paid session required" also fires for class-attendance refusals (`class_session_id` in metadata). Neutralize EN (and FR for blocked) wording; update `auditLabels.epic19.test.ts` if it pins the strings. [apps/dashboard/locales/en.json:1157]
+- [x] [Review][Patch] Race script can pass vacuously — contender exit codes and output are discarded and the case accepts `voided` in every iteration, so a consumer that errors every time still reports ok. Count outcomes and fail unless both `voided` and `kept_consumed` occurred. [scripts/session-refund-race.sh:92]
+- [x] [Review][Defer] Refund-vs-consume race proven only by a manual script, not pgTAP/CI — deferred: already in deferred-work.md (19.8 triage row 4); two-session race does not fit pgTAP, CI hook is a separate decision.
+- [x] [Review][Defer] New SECURITY DEFINER functions use `search_path = public` without `pg_temp` — deferred: repo-wide convention (0101/0111), already in deferred-work.md; not reachable through PostgREST (no DDL/temp tables for staff).
+
+#### Rejected
+
+- `purpose <> 'session'` drops NULL-purpose rows (blind, auditor) — false: `payments.purpose` is `NOT NULL` (0099:62).
+- Voided-then-refunded session payment double-subtracts (blind, edge) — low, unreachable: `void_registration_fee_payment` is fee-only (0101:105) and 0101 blocks refunds of voided payments; only the superuser test UPDATE reaches it. Same as triage row 8.
+- Over-refund (`amount > payment amount`) classed `kept_partial` (edge) — low: refund RLS requires `amount <= p.amount` (0033/0093/0101); only service_role bypasses.
+- No `guest_sessions` row at refund time (edge) — low: refund RLS requires `status = 'verified'` and verification creates the session in the same step (0108/0109/0111).
+- Already-voided session reports `voided`/`kept_partial` (auditor, edge) — low: `refunds.payment_id` is unique and session payments cannot be voided, so no second refund exists.
+- Audit trigger raise aborts check-in (edge) — low: `log_audit_event` labels sessionless writers `system:<action>` rather than raising (decisions.md item 3); no cross-gym attempt writer exists.
+- `session_consumed` not written on INSERT-already-consumed (edge) — low: all three `guest_sessions` inserts (0108/0109/0111) create unconsumed rows.
+- Line hidden for negative net figure / failed settings read / failed headline read (edge, auditor) — low: spec says "> 0", failed-read behavior follows the fee-line precedent and is documented in decisions.md; fix would edit the spec.
+- Audit metadata lacks refund actor / consumption channel (blind) — low: speculative, `log_audit_event` records the actor; fix adds columns for no demonstrated consumer.
+- Untested trigger branches: partial refund of consumed session, suspended gym C (blind) — low: same code path as the tested `kept_consumed`; cosmetic test addition.
+- Rollback script lacks `$verify$` / drops hook Epic 20 may use (blind, edge) — low: manual script rehearsed against 0101; Epic 20 hook callers do not exist yet.
+- Other `gym_revenue_mtd()` consumers unaudited (blind) — false: only `payments.ts` calls it; the behavior change is documented in decisions.md item 4.
+- StatCard `detail` handling clumsy (blind) — low: cosmetic.
+- Commit message "void unused sessions" understates partial-refund behavior (edge) — low: wording only.
+- Spec `status: done` vs sprint `review`, duplicate `last_updated` entries (blind, auditor) — low: bookkeeping; spec edit.
+
 ## Design Notes
 
 - The member lock serialises refund against consumption; under READ COMMITTED the post-lock session read sees the winner's commit, so no extra isolation is needed.

@@ -405,7 +405,7 @@ development_status:
   19-6a-front-desk-alert-kind-refactor-no-behavior-change: done
   19-6b-check-in-gate-blocked-attempts-session-required-alert: done
   19-7-class-attendance-consumes-a-session: done
-  19-8-session-refunds-revenue-line: review
+  19-8-session-refunds-revenue-line: done
   19-9-dashboard-charge-guests-setting-session-alert-member-session: backlog
   19-10-guest-sessions-overview-card: backlog
   19-11-member-app-pay-for-your-session-offline-verification-session: backlog
@@ -836,3 +836,4 @@ last_updated: 10-11-2026 15:30
 # last_updated: 2026-10-11 (build: 19-8 spec approved, backlog -> in-progress. Migration 0113: refund AFTER INSERT trigger voids unconsumed session on full refund / calls reversal hook when consumed; audit triggers for consumption, blocked attempts, refunds; gym_revenue_mtd excludes session, new gym_session_revenue_mtd + Overview sub-line.)
 # last_updated: 2026-10-11 (build: 19-8 in-progress -> review. Migration 0113 applied locally: refund trigger + hook, consume/blocked-attempt audit triggers, gym_revenue_mtd excludes session, gym_session_revenue_mtd; Overview Guest sessions line, StatCard detail list, audit labels EN/FR, rollback script (rehearsed, matches 0101), scripts/session-refund-race.sh real two-session race (8/8 + fixed order), decisions.md entry + runbook row. Verified: pgTAP 126/126 files, dashboard vitest 859/859, typecheck, lint, i18n parity, migration guardrails. Full ci-local (e2e) not run. suspension_rpc_coverage exclusion list gained private.apply_session_refund.)
 # last_updated: 2026-10-11 (build: 19-8 in-progress -> review. Migration 0113 session refund trigger, consumption/attempt/refund audit triggers, gym_revenue_mtd excludes session + gym_session_revenue_mtd, Overview Guest sessions line. Review: 3 test patches applied, 3 deferred (race script not in CI, platform_metrics session payments, pg_temp search_path). ci-local all four stages PASS on dirty tree.)
+# last_updated: 2026-10-11 (code-review: 19-8 review -> done. 4 patches applied: FR Guest sessions line renders spec form "Séances des invités : N XAF"; getGymSettings service test; EN audit labels neutralized (session used / entry blocked: session required); race script requires both voided and kept_consumed outcomes (not re-run, needs docker DB). 2 deferred (already in deferred-work.md), 15 rejected. Verified: dashboard vitest on touched files, tsc, eslint. pgTAP/ci-local not re-run, no SQL changed.)

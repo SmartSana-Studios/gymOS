@@ -1154,8 +1154,8 @@
       "sessionPaymentPaid": "Paid session payment received",
       "sessionLatePayment": "Late paid session payment applied",
       "sessionRefundApplied": "Paid session refund applied",
-      "sessionConsumed": "Paid session used",
-      "sessionAttemptBlocked": "Check-in blocked: paid session required"
+      "sessionConsumed": "Session used",
+      "sessionAttemptBlocked": "Entry blocked: session required"
     }
   },
   "saasBilling": {

@@ -194,7 +194,12 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
     );
   }
   if (showSessionLine) {
-    revenueDetails.push(`${t("overview.cards.guestSessions")}: XAF ${sessionRevenueMtd.toLocaleString(locale)}`);
+    // Spec (19.8): FR reads "Séances des invités : N XAF", EN "Guest sessions: XAF N".
+    const sessionLabel = t("overview.cards.guestSessions");
+    const sessionAmount = sessionRevenueMtd.toLocaleString(locale);
+    revenueDetails.push(
+      locale === "fr" ? `${sessionLabel} : ${sessionAmount} XAF` : `${sessionLabel}: XAF ${sessionAmount}`,
+    );
   }
 
   const unavailable = t("overview.cards.unavailable");

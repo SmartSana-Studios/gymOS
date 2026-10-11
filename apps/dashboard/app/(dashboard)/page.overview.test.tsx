@@ -440,7 +440,7 @@ describe("(dashboard) Overview page", () => {
       locale = "fr";
       getSessionRevenueMtd.mockResolvedValue({ data: 3000, error: null });
 
-      expect(revenue(await renderOverviewData()).detail).toBe(`${SESSION_LABEL}: XAF ${(3000).toLocaleString("fr")}`);
+      expect(revenue(await renderOverviewData()).detail).toBe(`${SESSION_LABEL} : ${(3000).toLocaleString("fr")} XAF`);
     });
 
     it("sits beside the fee line as its own entry, never inside it", async () => {
