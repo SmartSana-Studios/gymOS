@@ -5,7 +5,7 @@ created: 2026-06-20
 updated: 2026-10-11
 version: "1.6"
 audience: Development Team
-scope: V1.0 (shipped) + V1.5 — Beta-Ready (shipped) + V1.6 — Session Guests, Loyalty & Gym Category (this update); V1.7 landing pages and directory recorded as backlog (Section 12)
+scope: V1.0 (shipped) + V1.5 — Beta-Ready (shipped) + V1.6 — Session Guests, Loyalty & Gym Category (this update); V1.7 landing pages, directory, and support staff recorded as backlog (Section 12)
 ---
 
 # GymOS — Product Requirements Document
@@ -1007,6 +1007,7 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | Pay-per-session per-visit charging | **Moved into V1.6** (FR-156–FR-163; OQ-16 resolved) |
 | Gym landing pages, the template module, per-gym subdomains | V1.7 (Section 12) |
 | Country-by-country gym directory and SEO / AI-SEO | V1.7 (Section 12; depends on landing pages and FR-171) |
+| GymOS support staff (Super Admin-assigned, visible, full configuration incl. Tara Money; amends FR-072) | V1.7 (Section 12 E) |
 | Category-specific behavior, wording, or plan types (FR-172) | V1.7 or later |
 | Attendance-based rewards for subscribers (e.g. N visits in a month) | Later, after V1.6 proves the renewal rule |
 | Discount or percentage rewards; referral rewards | Later — would touch payment amounts (FR-164) |
@@ -1063,6 +1064,7 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | OQ-23 | **Resolved (2026-10-11)** — no per-category wording in V1.6; revisited at V1.7 planning (FR-172). | — | — |
 | OQ-24 | **V1.7 landing pages and directory** — open before V1.7 planning: the minimum content a gym must enter before its page can be published; reserved and prohibited subdomain names and the impersonation / name-squatting policy; who can claim a name and how a gym renames; whether gyms outside Cameroon are listed in the first directory release; SEO ownership (content, structured data, AI-search surfaces); and whether the template module is built in the existing dashboard app or a separate public site. | Product owner (smartsana) | V1.7 planning (Section 12) |
 | OQ-25 | **Resolved (2026-10-11)** — class attendance by a Pay-per-session guest requires and consumes a paid session under the same rule as check-in (option a); booking stays free; the same session covers floor and class that day (FR-174). | — | — |
+| OQ-26 | **V1.7 support staff** — open before V1.7 planning: whether support staff may also record payments, refunds, and fee waivers (transactions, as opposed to configuration); whether a gym must opt in or may opt out of support at onboarding; and whether support accounts need a second login factor given their reach. | Product owner (smartsana) | V1.7 planning (Section 12 E) |
 
 ---
 
@@ -1119,7 +1121,7 @@ Section 12 is explicitly **not** part of this gate.
 
 ---
 
-## 12. V1.7 Backlog — Gym Landing Pages & Directory (not in V1.6)
+## 12. V1.7 Backlog — Gym Landing Pages, Directory & Support Staff (not in V1.6)
 
 Recorded at the product owner's direction on 2026-10-11 so none of it is lost. **Nothing in this section is a committed requirement**: it carries no FR IDs, and requirements are written at V1.7 planning after OQ-24 is answered. V1.6's gym category (FR-171) is the only V1.7 prerequisite that ships earlier.
 
@@ -1133,5 +1135,14 @@ Recorded at the product owner's direction on 2026-10-11 so none of it is lost. *
 **D — Directory and discovery.** A directory of gyms and fitness places on the GymOS website, one per country GymOS operates in, built from the landing pages and filterable by gym category (FR-171). Search-engine and AI-search optimization (structured data, clean per-gym pages, crawlable country and city listings) is a first-class goal of the pages, not an afterthought.
 
 **Dependencies and risks to resolve first (OQ-24):** wildcard DNS and TLS for the subdomains; a reserved-names list (`owner`, `portal`, `www`, and others) and a policy against impersonation and name-squatting; the minimum content for a publishable page — an empty page harms directory SEO; and keeping the public site separate from the authenticated dashboard so public traffic cannot touch tenant data (NFR-001).
+
+**E — GymOS support staff.** Platform staff who can set up and fix a gym from the inside: plans, settings, first member registrations and imports, staff, and payment configuration. Decided with the product owner on 2026-10-11 as the light alternative to an owner-approved, time-limited support mode. It amends FR-072 at V1.7 planning; the read-only escalation stays as the diagnosis tool.
+
+- **Created by Super Admin:** a Super Admin creates a support staff account (one per real person, own phone login, never shared) and assigns it to one or more gyms. Assignment is per gym, not automatic for every gym.
+- **Role:** a real staff membership in each assigned gym, ranked just below Owner (Supervisor scope), marked as support. It never becomes the Owner and cannot create or remove the Owner.
+- **What it may change:** any gym configuration — gym profile and settings, plans and prices, registration fee, guest charging and loyalty settings, category, staff, member records and imports — **including connecting or replacing the gym's Tara Money account** (FR-126/FR-127). Secrets go to Vault as today; the audit row records that credentials changed, never their value.
+- **Visible to the gym:** it appears in the gym's staff list as "GymOS Support · {name}". The Owner can remove it at any time.
+- **Audited:** every action is logged under the named support person, like any staff action.
+- **Why visible and per gym:** a hidden account would need filtering from every staff list, count, notification, and metric, and one account present in every gym would let a single stolen password open them all.
 
 **Not planned for V1.7 and recorded elsewhere:** mobile app and dashboard redesign and the large template library (Section 8).
