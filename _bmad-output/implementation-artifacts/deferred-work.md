@@ -1014,3 +1014,10 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-5-in-app-tara-money-session-payment.md`
   summary: Decide how a Tara payment is flagged `wrong_account` and give staff a trace when a session payment flagged for another reason (`staff_flagged`, `reconciliation_mismatch`, `provider_declined`) later receives a success.
   evidence: 0109 never creates a session for those rows and writes only a `raise notice`; the registration-fee branch writes `registration_fee_late_payment`. The payment-webhook leaves a gym mismatch to reconciliation, so no code path produces `wrong_account` on a payment row yet (0106 header says "first produced by 19.5"). The row stays visible as flagged, so staff can find it; the open question is whether that is enough.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-6a-front-desk-alert-kind-refactor-no-behavior-change.md`
+  summary: Dashboard front-desk alert readers (`apps/dashboard/services/frontDeskAlerts.ts`, `apps/dashboard/lib/realtime/frontDeskAlerts.ts`) must filter or branch on `kind` before 19.6b writes the first status-less `session_required` row.
+  evidence: Both select `status` and cast it to a non-null union through `as unknown as`, so a null status would render as an at-risk alert and typecheck would not catch it; unreachable until 19.6b.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-6a-front-desk-alert-kind-refactor-no-behavior-change.md`
+  summary: No automated check applies `scripts/rollback-0110-front-desk-alert-kind.sql` after 0110, so its embedded function copies can drift.
+  evidence: Rehearsed once by hand in a rolled-back transaction; the pgtap stage only runs `supabase/tests/*.sql`. A drift or typo would surface only in an incident.
