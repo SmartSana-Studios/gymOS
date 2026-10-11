@@ -403,7 +403,7 @@ development_status:
   19-4-desk-session-payment: done
   19-5-in-app-tara-money-session-payment: done
   19-6a-front-desk-alert-kind-refactor-no-behavior-change: done
-  19-6b-check-in-gate-blocked-attempts-session-required-alert: review
+  19-6b-check-in-gate-blocked-attempts-session-required-alert: done
   19-7-class-attendance-consumes-a-session: backlog
   19-8-session-refunds-revenue-line: backlog
   19-9-dashboard-charge-guests-setting-session-alert-member-session: backlog
@@ -829,3 +829,4 @@ last_updated: 10-11-2026 15:30
 # last_updated: 2026-10-11 (19-6a review -> done: PR #42 merged into epic/19 at 46dcf1b after a clean-tree ci-local pass; 0110 must run in production >= 7 days before 19-6b deploys)
 # last_updated: 2026-10-11 (build: 19-6b backlog -> in-progress; spec approved. Migration 0111: consume_guest_session, session_attempts, flag-first check_in gate, session_required alert, attendance_events write revoke; dashboard readers filter on kind. Release gate: 0110 must run in prod >= 7 days first.)
 # last_updated: 2026-10-11 (build: 19-6b in-progress -> review. Migration 0111: session_attempts (scan_id, source), consume_guest_session, flag-first check_in gate, session_required alert dismissed on session payment, attendance_events write revoke; dashboard readers filter on kind; rollback script. Review 3 layers, 24 findings: 5 patched, 1 deferred (rollback harness), rest rejected. ci-local all four stages PASS on dirty tree; pgTAP 122/122. 0110 must run in prod >= 7 days before 0111 applies.)
+# last_updated: 2026-10-11 (19-6b review -> done: PR #43 merged into epic/19 at 7e68b7d after a clean-tree ci-local pass; 0111 must not be applied to production until 0110 has run >= 7 days)
