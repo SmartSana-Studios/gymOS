@@ -992,6 +992,7 @@
     "status": {
       "pending": "Pending",
       "verified": "Verified",
+      "processing": "Processing",
       "flagged": "Flagged"
     },
     "methods": {
@@ -1104,6 +1105,29 @@
       "expiredAttempt": "Attempt expired",
       "providerDeclined": "Payment declined",
       "staffFlagged": "Flagged by staff"
+    },
+    "purposeFilter": {
+      "label": "Purpose",
+      "all": "All purposes",
+      "renewal": "Renewal",
+      "registrationFee": "Registration fee",
+      "session": "Session payment"
+    },
+    "ledger": {
+      "title": "All Payments",
+      "empty": "No payments recorded yet.",
+      "emptyFiltered": "No payments match these filters.",
+      "clearFilters": "Clear filters",
+      "loadError": "Could not load payments.",
+      "voided": "Voided",
+      "actorTara": "Tara Money (in app)",
+      "table": { "purpose": "Purpose", "date": "Date", "actor": "Recorded by", "note": "Note" }
+    },
+    "export": {
+      "button": "Export CSV",
+      "exporting": "Exporting...",
+      "tooLarge": "Too many payments to export. Narrow the filters and try again.",
+      "forbidden": "You do not have permission to export payments."
     }
   },
   "frontDeskAlert": {

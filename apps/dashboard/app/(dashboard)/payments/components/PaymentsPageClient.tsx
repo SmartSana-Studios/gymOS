@@ -27,10 +27,11 @@ import { RecordPaymentModal } from "./RecordPaymentModal";
 import { RecordRefundModal } from "./RecordRefundModal";
 import { VerifyPaymentConfirmDialog } from "./VerifyPaymentConfirmDialog";
 import { FlagPaymentDialog } from "./FlagPaymentDialog";
+import { PaymentsLedger, type PaymentsLedgerData } from "./PaymentsLedger";
 
 /**
- * AD-09's Verification Queue section (the "All Payments" ledger table is
- * out of scope, Scope Note). Every row this page ever receives has
+ * AD-09's Verification Queue section; the All Payments ledger (Story 19.9c)
+ * renders below it. Every queue row this page ever receives has
  * `status: "pending"` (listPendingPayments only selects pending rows) --
  * the status badge always renders "Pending" here; a verified/flagged row
  * simply stops appearing in the queue on the next refresh (AC #3's "the
@@ -43,6 +44,10 @@ export function PaymentsPageClient({
   role,
   chargeGuestsPerSession = false,
   loyaltyEnabled = false,
+  ledger,
+  ledgerError = false,
+  ledgerPurpose = "",
+  ledgerMemberId = "",
 }: {
   pendingPayments: PendingPaymentRow[];
   discrepancies: PaymentDiscrepancyRow[];
@@ -52,6 +57,11 @@ export function PaymentsPageClient({
   chargeGuestsPerSession?: boolean;
   /** Story 19.9b: whether the gym runs a loyalty programme (refund notices). */
   loyaltyEnabled?: boolean;
+  /** Story 19.9c: the All Payments ledger page; omitted/null with no error hides the section. */
+  ledger?: PaymentsLedgerData | null;
+  ledgerError?: boolean;
+  ledgerPurpose?: string;
+  ledgerMemberId?: string;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -274,6 +284,15 @@ export function PaymentsPageClient({
           </div>
           <TablePagination {...discrepancyPg} />
         </div>
+      )}
+
+      {(ledger || ledgerError) && (
+        <PaymentsLedger
+          ledger={ledger ?? null}
+          hasError={ledgerError}
+          purpose={ledgerPurpose}
+          memberId={ledgerMemberId}
+        />
       )}
 
       {recordModalOpen && (

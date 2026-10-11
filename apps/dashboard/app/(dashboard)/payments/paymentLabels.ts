@@ -1,10 +1,10 @@
-import { AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Loader2 } from "lucide-react";
 
 // UX-DR5's "color AND label AND icon, never color alone" floor -- same
 // Record<Status, {labelKey, icon, className}> shape as attendanceLabels.ts/
 // memberLabels.ts, applied here to payments.status instead of a subscription
 // badge.
-export type PaymentStatus = "pending" | "verified" | "flagged";
+export type PaymentStatus = "pending" | "processing" | "verified" | "flagged";
 
 export const PAYMENT_STATUS_BADGE_CONFIG: Record<
   PaymentStatus,
@@ -14,6 +14,13 @@ export const PAYMENT_STATUS_BADGE_CONFIG: Record<
     labelKey: "payments.status.pending",
     icon: Clock,
     className: "border-orange-200 bg-orange-100 text-orange-800",
+  },
+  // Story 19.9c: the ledger lists every status, including an in-flight Tara
+  // Money prompt.
+  processing: {
+    labelKey: "payments.status.processing",
+    icon: Loader2,
+    className: "border-blue-200 bg-blue-100 text-blue-800",
   },
   verified: {
     labelKey: "payments.status.verified",
