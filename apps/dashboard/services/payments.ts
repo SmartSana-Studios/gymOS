@@ -3,9 +3,11 @@ import { FunctionsHttpError } from "@supabase/supabase-js";
 import {
   initiatePaymentSchema,
   initiateRegistrationFeePaymentSchema,
+  isGymSuspendedError,
   recordManualPaymentSchema,
   recordRefundSchema,
   recordRegistrationFeeSchema,
+  recordSessionPaymentSchema,
   voidRegistrationFeeSchema,
   waiveRegistrationFeeSchema,
   type InitiatePaymentInput,
@@ -13,6 +15,7 @@ import {
   type RecordManualPaymentInput,
   type RecordRefundInput,
   type RecordRegistrationFeeInput,
+  type RecordSessionPaymentInput,
   type VoidRegistrationFeeInput,
   type WaiveRegistrationFeeInput,
   type AppError,
@@ -676,6 +679,23 @@ export async function flagPayment(
   };
 }
 
+/** Story 19.9b: `planType` is the plan type of the member's most recent
+ * subscription (null when none), so the Record Payment modal can hint a
+ * Pay-per-session member toward Record session payment (AD-10). */
+export interface MemberPaymentSearchRow {
+  id: string;
+  name: string;
+  phone: string | null;
+  planType: string | null;
+}
+
+interface MemberPaymentSearchRowFromDb {
+  id: string;
+  name: string;
+  phone: string | null;
+  subscriptions: { created_at: string; plans: { plan_type: string } | { plan_type: string }[] | null }[] | null;
+}
+
 /**
  * Backs the Record Payment modal's type-to-filter member combobox. Empty/
  * blank query returns an empty array without querying (AD-10: "must select
@@ -683,7 +703,7 @@ export async function flagPayment(
  */
 export async function searchMembersForPayment(
   query: string,
-): Promise<{ data: { id: string; name: string; phone: string | null }[] | null; error: AppError | null }> {
+): Promise<{ data: MemberPaymentSearchRow[] | null; error: AppError | null }> {
   const trimmed = query.trim();
   if (!trimmed) {
     return { data: [], error: null };
@@ -698,7 +718,7 @@ export async function searchMembersForPayment(
   const escaped = escapeIlike(trimmed);
   const { data, error } = await supabase
     .from("members")
-    .select("id, name, phone")
+    .select("id, name, phone, subscriptions(created_at, plans(plan_type))")
     .eq("gym_id", gymId)
     .eq("role", "member")
     .is("deactivated_at", null)
@@ -709,7 +729,17 @@ export async function searchMembersForPayment(
   if (error) {
     return { data: null, error: await mapAndLog(error) };
   }
-  return { data: data ?? [], error: null };
+  const rows = (data ?? []) as unknown as MemberPaymentSearchRowFromDb[];
+  return {
+    data: rows.map((row) => {
+      const latest = [...(row.subscriptions ?? [])].sort((a, b) =>
+        a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0,
+      )[0];
+      const plan = Array.isArray(latest?.plans) ? latest?.plans[0] : latest?.plans;
+      return { id: row.id, name: row.name, phone: row.phone, planType: plan?.plan_type ?? null };
+    }),
+    error: null,
+  };
 }
 
 // ============================================================================
@@ -898,6 +928,17 @@ export interface RefundEligiblePaymentRow {
   currency: string;
   method: string;
   createdAt: string;
+  /** Story 19.9b: `subscription` or `session`. */
+  purpose: string;
+  /** Story 19.9b, session payments only: what the refund will do to the paid
+   * session -- `unused` (a full refund cancels it), or `used` (it stays
+   * consumed). Null for any other purpose. */
+  sessionState: "unused" | "used" | null;
+}
+
+interface GuestSessionStateEmbed {
+  consumed_at: string | null;
+  voided_at: string | null;
 }
 
 interface RefundEligiblePaymentRowFromDb {
@@ -906,7 +947,11 @@ interface RefundEligiblePaymentRowFromDb {
   currency: string;
   method: string;
   created_at: string;
+  purpose: string;
   refunds: { id: string } | null;
+  // payment_id is not unique on guest_sessions, so PostgREST may hand back
+  // an array or a single object; accept both.
+  guest_sessions: GuestSessionStateEmbed | GuestSessionStateEmbed[] | null;
 }
 
 /**
@@ -929,14 +974,15 @@ export async function listRefundEligiblePayments(
 
   const { data, error } = await supabase
     .from("payments")
-    .select("id, amount, currency, method, created_at, refunds(id)")
+    .select("id, amount, currency, method, created_at, purpose, refunds(id), guest_sessions(consumed_at, voided_at)")
     .eq("gym_id", gymId)
     .eq("member_id", memberId)
     .eq("status", "verified")
     // Story 18.4: a registration fee is never refundable and a voided payment
     // is not money taken. Mirrors the refunds insert policy and trigger (0101);
-    // this only keeps them out of the picker.
-    .eq("purpose", "subscription")
+    // this only keeps them out of the picker. Story 19.9b: a session payment
+    // is refundable too (0113 resolves what happens to the session).
+    .in("purpose", ["subscription", "session"])
     .is("voided_at", null)
     .order("created_at", { ascending: false });
 
@@ -949,13 +995,19 @@ export async function listRefundEligiblePayments(
   return {
     data: rows
       .filter((row) => !row.refunds)
-      .map((row) => ({
-        id: row.id,
-        amount: row.amount,
-        currency: row.currency,
-        method: row.method,
-        createdAt: row.created_at,
-      })),
+      .map((row) => {
+        const sessionRow = Array.isArray(row.guest_sessions) ? row.guest_sessions[0] : row.guest_sessions;
+        return {
+          id: row.id,
+          amount: row.amount,
+          currency: row.currency,
+          method: row.method,
+          createdAt: row.created_at,
+          purpose: row.purpose,
+          sessionState:
+            row.purpose === "session" ? (sessionRow?.consumed_at ? "used" : "unused") : null,
+        } satisfies RefundEligiblePaymentRow;
+      }),
     error: null,
   };
 }
@@ -966,6 +1018,10 @@ export async function listRefundEligiblePayments(
 export interface RecordedRefundInfo {
   id: string;
   memberId: string;
+  /** Story 19.9b: what the server resolved for a session payment -- read back
+   * after the insert (the 0113 trigger decides). Null for other purposes or
+   * when the read-back failed. */
+  sessionOutcome: "cancelled" | "used" | "kept" | null;
 }
 
 /**
@@ -995,7 +1051,7 @@ export async function recordRefund(
 
   const { data: paymentRow, error: paymentError } = await supabase
     .from("payments")
-    .select("id, gym_id, member_id, amount, currency, status")
+    .select("id, gym_id, member_id, amount, currency, status, purpose")
     .eq("id", parsed.data.paymentId)
     .eq("gym_id", gymId)
     .maybeSingle();
@@ -1034,7 +1090,21 @@ export async function recordRefund(
   if (error || !data) {
     return { data: null, error: await mapAndLog(error) };
   }
-  return { data: { id: data.id, memberId: paymentRow.member_id }, error: null };
+
+  let sessionOutcome: RecordedRefundInfo["sessionOutcome"] = null;
+  if (paymentRow.purpose === "session") {
+    const { data: sessionRows } = await supabase
+      .from("guest_sessions")
+      .select("consumed_at, voided_at")
+      .eq("gym_id", gymId)
+      .eq("payment_id", parsed.data.paymentId);
+    const sessionRow = sessionRows?.[0];
+    if (sessionRow) {
+      sessionOutcome = sessionRow.consumed_at ? "used" : sessionRow.voided_at ? "cancelled" : "kept";
+    }
+  }
+
+  return { data: { id: data.id, memberId: paymentRow.member_id, sessionOutcome }, error: null };
 }
 
 /** A new, separate thin `log_audit_event` wrapper -- not folded into
@@ -1064,4 +1134,132 @@ export async function logRefundChange(
     return { error: await mapAndLog(error) };
   }
   return { error: null };
+}
+
+// ============================================================================
+// Story 19.9b: the desk session payment. record_session_payment (0108) is
+// SECURITY DEFINER, reads the price from the member's plan, enforces the role
+// set and writes its own audit row, so nothing here takes an amount or logs.
+// ============================================================================
+
+// 0108's refusal prefixes -> the locale key suffix under sessionPayment.errors.
+const SESSION_PAYMENT_REFUSALS: { code: string; key: string }[] = [
+  { code: "invalid_method", key: "invalidMethod" },
+  { code: "charging_disabled", key: "chargingDisabled" },
+  { code: "not_found", key: "notFound" },
+  { code: "member_deactivated", key: "memberDeactivated" },
+  { code: "registration_fee_not_settled", key: "registrationFeeNotSettled" },
+  { code: "plan_not_per_session", key: "planNotPerSession" },
+  { code: "session_price_not_set", key: "sessionPriceNotSet" },
+  { code: "session_payment_already_in_progress", key: "alreadyInProgress" },
+  { code: "session_config_missing", key: "configMissing" },
+];
+
+/**
+ * Maps a record_session_payment raise to its own code and EN/FR copy. Anything
+ * unrecognised (a network failure, an unmapped error) falls through to
+ * mapAndLog so the panel still shows a generic message.
+ */
+async function mapSessionPaymentError(rawError: unknown): Promise<AppError> {
+  const message = (rawError as { message?: string } | null)?.message ?? "";
+  const { t } = await getServerTranslation(await getRequestLocale());
+
+  if (isGymSuspendedError(rawError)) {
+    return mapAndLog(rawError);
+  }
+  if (message.includes("permission denied")) {
+    return { code: "permission_denied", message: t("sessionPayment.errors.permissionDenied") };
+  }
+  if (message.includes("record_session_payment: reason is too long")) {
+    return { code: "reason_too_long", message: t("sessionPayment.errors.reasonTooLong") };
+  }
+  for (const refusal of SESSION_PAYMENT_REFUSALS) {
+    if (message.includes(refusal.code)) {
+      return { code: refusal.code, message: t(`sessionPayment.errors.${refusal.key}`) };
+    }
+  }
+  return mapAndLog(rawError);
+}
+
+/** Records a paid session at the desk and returns the new guest session id. */
+export async function recordSessionPayment(
+  input: RecordSessionPaymentInput,
+): Promise<{ data: { sessionId: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = recordSessionPaymentSchema.safeParse(input);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("record_session_payment", {
+    p_member_id: parsed.data.memberId,
+    p_method: parsed.data.method,
+    p_reason: parsed.data.reason || undefined,
+  });
+  if (error) {
+    return { data: null, error: await mapSessionPaymentError(error) };
+  }
+  if (!data) {
+    console.error("[payments] recordSessionPayment: RPC returned no session");
+    return { data: null, error: { code: "not_found", message: t("common.somethingWentWrong") } };
+  }
+  return { data: { sessionId: data.id }, error: null };
+}
+
+export interface SessionPaymentPreview {
+  planName: string;
+  planType: string;
+  price: number;
+  currency: string;
+}
+
+/**
+ * The Record Session Payment panel's read-only amount: the price of the
+ * member's most recent subscription's plan. The RPC re-reads the price
+ * itself and stays authoritative.
+ */
+export async function getSessionPaymentPreview(
+  memberId: string,
+): Promise<{ data: SessionPaymentPreview | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .select("plans(name, plan_type, price, currency)")
+    .eq("gym_id", gymId)
+    .eq("member_id", memberId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  const row = data as unknown as {
+    plans: { name: string; plan_type: string; price: number; currency: string } | null;
+  } | null;
+  if (!row?.plans) {
+    return { data: null, error: { code: "not_found", message: t("sessionPayment.errors.noPlan") } };
+  }
+  if (row.plans.plan_type !== "pay_per_session") {
+    return { data: null, error: { code: "plan_not_per_session", message: t("sessionPayment.errors.planNotPerSession") } };
+  }
+  if (!(row.plans.price > 0)) {
+    return { data: null, error: { code: "session_price_not_set", message: t("sessionPayment.errors.sessionPriceNotSet") } };
+  }
+  return {
+    data: {
+      planName: row.plans.name,
+      planType: row.plans.plan_type,
+      price: row.plans.price,
+      currency: row.plans.currency,
+    },
+    error: null,
+  };
 }

@@ -128,6 +128,14 @@ describe("members page", () => {
     expect(console.error).toHaveBeenCalled();
   });
 
+  it("passes chargeGuestsPerSession from gym settings (Story 19.9b)", async () => {
+    getGymSettings.mockResolvedValue({ data: { registrationFee: 0, chargeGuestsPerSession: true }, error: null });
+    expect((await renderMembersData()).props.chargeGuestsPerSession).toBe(true);
+
+    getGymSettings.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
+    expect((await renderMembersData()).props.chargeGuestsPerSession).toBe(false);
+  });
+
   it("passes mobileMoneyEnabled true when Tara Money can be offered (Story 18.6)", async () => {
     canOfferMobileMoneyPayment.mockResolvedValue(true);
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { Info, X } from "lucide-react";
 import { recordRefundSchema } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
@@ -38,12 +38,17 @@ const FIELD_ERROR_KEY: Record<Exclude<keyof FieldErrors, "memberId" | "paymentId
  */
 export function RecordRefundModal({
   recordedByName,
+  loyaltyEnabled = false,
   onClose,
   onSaved,
 }: {
   recordedByName: string;
+  /** Story 19.9b: whether the gym runs a loyalty programme -- only then do the
+   * refund notices mention stamps and free days. */
+  loyaltyEnabled?: boolean;
   onClose: () => void;
-  onSaved: (warning?: string) => void;
+  /** `sessionOutcome` is set when the refunded payment was a session payment. */
+  onSaved: (warning?: string, sessionOutcome?: "cancelled" | "used" | "kept") => void;
 }) {
   const { t, i18n } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -123,6 +128,25 @@ export function RecordRefundModal({
     setAmount(String(payment.amount));
   }
 
+  // Story 19.9b: a live `info` notice saying what this refund will do, so the
+  // staff member is never surprised by the outcome. The server decides (0113);
+  // this only describes it from the selected payment and the typed amount.
+  const selectedPayment = eligiblePayments?.find((payment) => payment.id === paymentId) ?? null;
+  const refundNotices: string[] = [];
+  if (selectedPayment?.purpose === "session") {
+    const typedAmount = /^\d+$/.test(amount) ? Number(amount) : Number.NaN;
+    if (selectedPayment.sessionState === "used") {
+      refundNotices.push(t("payments.refundModal.notice.sessionUsed"));
+      if (loyaltyEnabled) refundNotices.push(t("payments.refundModal.notice.sessionUsedLoyalty"));
+    } else if (!Number.isNaN(typedAmount) && typedAmount > 0 && typedAmount < selectedPayment.amount) {
+      refundNotices.push(t("payments.refundModal.notice.sessionPartial"));
+    } else if (typedAmount === selectedPayment.amount) {
+      refundNotices.push(t("payments.refundModal.notice.sessionCancelled"));
+    }
+  } else if (selectedPayment && loyaltyEnabled) {
+    refundNotices.push(t("payments.refundModal.notice.renewalLoyalty"));
+  }
+
   function methodLabel(method: string): string {
     const key = PAYMENT_METHOD_LABEL_KEY[method];
     return key ? t(key) : method;
@@ -174,7 +198,7 @@ export function RecordRefundModal({
 
     setSubmitting(true);
     try {
-      const { error } = await recordRefundAction(parsed.data);
+      const { data, error } = await recordRefundAction(parsed.data);
       if (error) {
         if (error.code === "audit_log_failed") {
           onSaved(error.message);
@@ -183,7 +207,7 @@ export function RecordRefundModal({
         setFormError(error.message);
         return;
       }
-      onSaved();
+      onSaved(undefined, data?.sessionOutcome ?? undefined);
     } catch {
       setFormError(t("common.somethingWentWrong"));
     } finally {
@@ -286,6 +310,21 @@ export function RecordRefundModal({
               </ul>
             )}
             {fieldErrors.paymentId && <p className="text-sm text-red-600">{fieldErrors.paymentId}</p>}
+          </div>
+        )}
+
+        {refundNotices.length > 0 && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex items-start gap-2 rounded-md border-l-4 border-l-blue-600 bg-blue-50 p-3 text-sm text-blue-900"
+          >
+            <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+            <div className="space-y-1">
+              {refundNotices.map((notice) => (
+                <p key={notice}>{notice}</p>
+              ))}
+            </div>
           </div>
         )}
 

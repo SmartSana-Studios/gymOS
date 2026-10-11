@@ -41,11 +41,17 @@ export function PaymentsPageClient({
   discrepancies,
   recordedByName,
   role,
+  chargeGuestsPerSession = false,
+  loyaltyEnabled = false,
 }: {
   pendingPayments: PendingPaymentRow[];
   discrepancies: PaymentDiscrepancyRow[];
   recordedByName: string;
   role: MemberRole;
+  /** Story 19.9b: whether the gym charges Pay-per-session guests per session. */
+  chargeGuestsPerSession?: boolean;
+  /** Story 19.9b: whether the gym runs a loyalty programme (refund notices). */
+  loyaltyEnabled?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -273,6 +279,7 @@ export function PaymentsPageClient({
       {recordModalOpen && (
         <RecordPaymentModal
           recordedByName={recordedByName}
+          chargeGuestsPerSession={chargeGuestsPerSession}
           onClose={() => setRecordModalOpen(false)}
           onSaved={(warning) => {
             setRecordModalOpen(false);
@@ -285,10 +292,13 @@ export function PaymentsPageClient({
       {refundModalOpen && (
         <RecordRefundModal
           recordedByName={recordedByName}
+          loyaltyEnabled={loyaltyEnabled}
           onClose={() => setRefundModalOpen(false)}
-          onSaved={(warning) => {
+          onSaved={(warning, sessionOutcome) => {
             setRefundModalOpen(false);
+            // Story 19.9b: a session refund names what the server resolved.
             if (warning) showToast(warning);
+            else if (sessionOutcome) showToast(t(`payments.refundModal.outcome.${sessionOutcome}`));
             refresh();
           }}
         />

@@ -92,6 +92,7 @@ export function MembersPageClient({
   registrationFee = 0,
   phoneCountry,
   mobileMoneyEnabled = false,
+  chargeGuestsPerSession = false,
 }: {
   initialMembers: MemberListRow[];
   total: number;
@@ -109,6 +110,8 @@ export function MembersPageClient({
   /** Story 18.6: whether the collect dialog offers Tara Money. A UI hint only;
    * the initiate action re-checks availability. */
   mobileMoneyEnabled?: boolean;
+  /** Story 19.9b: whether the gym charges Pay-per-session guests per session. */
+  chargeGuestsPerSession?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -543,6 +546,12 @@ export function MembersPageClient({
           plans={plans}
           coaches={coaches}
           registrationFee={registrationFee}
+          role={role}
+          chargeGuestsPerSession={chargeGuestsPerSession}
+          onSessionRecorded={(name) => {
+            showToast(t("sessionPayment.recordedToast", { name }));
+            router.refresh();
+          }}
           onClose={() => setModalState(null)}
           onSaved={(warning, invite) => {
             setModalState(null);

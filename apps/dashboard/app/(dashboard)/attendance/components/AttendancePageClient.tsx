@@ -33,6 +33,7 @@ export function AttendancePageClient({
   initialAlerts,
   autoDismissMinutes,
   mobileMoneyEnabled,
+  role,
 }: {
   currentlyCheckedIn: CurrentlyCheckedInRow[];
   checkedInTotal: number;
@@ -51,6 +52,8 @@ export function AttendancePageClient({
   autoDismissMinutes: number;
   /** Story 4.12 (AC #4): threaded straight through to `FrontDeskAlertPanel`. */
   mobileMoneyEnabled: boolean;
+  /** Story 19.9b: the signed-in staff role, threaded to the alert panel. */
+  role?: string;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -163,6 +166,7 @@ export function AttendancePageClient({
         initialAlerts={initialAlerts}
         autoDismissMinutes={autoDismissMinutes}
         mobileMoneyEnabled={mobileMoneyEnabled}
+        role={role}
       />
 
       <div className="space-y-4">

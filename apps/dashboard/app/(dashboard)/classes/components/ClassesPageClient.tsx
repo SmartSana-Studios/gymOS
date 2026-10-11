@@ -14,6 +14,7 @@ import type { CoachRow } from "@/services/coaches";
 import type { MemberRole } from "@/services/session";
 import { getSessionBookingsAction, markAttendanceAction } from "../actions";
 import { ClassModal } from "./ClassModal";
+import { RecordSessionPaymentDialog } from "@/components/shared/RecordSessionPaymentDialog";
 
 const DAY_KEY = ["classes.days.sun", "classes.days.mon", "classes.days.tue", "classes.days.wed", "classes.days.thu", "classes.days.fri", "classes.days.sat"];
 
@@ -45,6 +46,8 @@ export function ClassesPageClient({
   // session. The row stays unmarked (the action stays enabled) and shows an
   // inline message; the front-desk alert is raised server-side.
   const [refusedBookingId, setRefusedBookingId] = useState<string | null>(null);
+  // Story 19.9b: the refused booking whose Record Session Payment panel is open.
+  const [recordingBooking, setRecordingBooking] = useState<SessionBookingRow | null>(null);
 
   useEffect(() => {
     return () => {
@@ -307,7 +310,20 @@ export function ClassesPageClient({
                                     className="flex w-full items-start gap-2 rounded-md border-l-4 border-l-blue-600 bg-blue-50 p-2 text-sm text-blue-900"
                                   >
                                     <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                                    <span>{t("classes.attendance.sessionRequired")}</span>
+                                    <span className="flex-1">{t("classes.attendance.sessionRequired")}</span>
+                                    {canMarkAttendance && (
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setRecordingBooking(booking);
+                                        }}
+                                      >
+                                        {t("classes.attendance.recordSessionPayment")}
+                                      </Button>
+                                    )}
                                   </p>
                                 )}
                               </li>
@@ -337,6 +353,21 @@ export function ClassesPageClient({
           }}
           editingClass={editingClass}
           coaches={coaches}
+        />
+      )}
+
+      {recordingBooking && (
+        <RecordSessionPaymentDialog
+          memberId={recordingBooking.memberId}
+          memberName={recordingBooking.memberName}
+          role={role}
+          onClose={() => setRecordingBooking(null)}
+          onRecorded={() => {
+            const name = recordingBooking.memberName;
+            setRecordingBooking(null);
+            setRefusedBookingId(null);
+            showToast(t("sessionPayment.recordedToast", { name }));
+          }}
         />
       )}
 

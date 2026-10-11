@@ -44,10 +44,15 @@ const METHOD_OPTIONS: { value: RecordManualPaymentInput["method"]; labelKey: str
  */
 export function RecordPaymentModal({
   recordedByName,
+  chargeGuestsPerSession = false,
   onClose,
   onSaved,
 }: {
   recordedByName: string;
+  /** Story 19.9b: whether the gym charges Pay-per-session guests per session.
+   * With it on, selecting a Pay-per-session member shows a hint to use Record
+   * session payment on the member's page (AD-10 gains no Session purpose). */
+  chargeGuestsPerSession?: boolean;
   onClose: () => void;
   onSaved: (warning?: string) => void;
 }) {
@@ -57,7 +62,10 @@ export function RecordPaymentModal({
   const [memberId, setMemberId] = useState<string | null>(null);
   const [memberDisplay, setMemberDisplay] = useState("");
   const [memberQuery, setMemberQuery] = useState("");
-  const [memberResults, setMemberResults] = useState<{ id: string; name: string; phone: string | null }[]>([]);
+  const [memberResults, setMemberResults] = useState<
+    { id: string; name: string; phone: string | null; planType?: string | null }[]
+  >([]);
+  const [memberPlanType, setMemberPlanType] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
 
   const [method, setMethod] = useState<RecordManualPaymentInput["method"]>("cash");
@@ -91,8 +99,9 @@ export function RecordPaymentModal({
     };
   }, [memberQuery, memberId]);
 
-  function selectMember(member: { id: string; name: string; phone: string | null }) {
+  function selectMember(member: { id: string; name: string; phone: string | null; planType?: string | null }) {
     setMemberId(member.id);
+    setMemberPlanType(member.planType ?? null);
     setMemberDisplay(member.name);
     setMemberQuery("");
     setShowResults(false);
@@ -100,6 +109,7 @@ export function RecordPaymentModal({
 
   function clearMember() {
     setMemberId(null);
+    setMemberPlanType(null);
     setMemberDisplay("");
     setMemberQuery("");
   }
@@ -222,6 +232,9 @@ export function RecordPaymentModal({
             </ul>
           )}
           {fieldErrors.memberId && <p className="text-sm text-red-600">{fieldErrors.memberId}</p>}
+          {memberId && chargeGuestsPerSession && memberPlanType === "pay_per_session" && (
+            <p className="text-xs text-muted-foreground">{t("payments.modal.sessionHint")}</p>
+          )}
         </div>
 
         <div className="space-y-2">

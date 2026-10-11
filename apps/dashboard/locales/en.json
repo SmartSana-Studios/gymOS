@@ -456,7 +456,8 @@
       "sessionRequired": "No paid session — attendance was not recorded. A front-desk alert has been raised.",
       "noBookings": "No members booked for this session.",
       "noSession": "This class has no upcoming session to mark attendance for.",
-      "loadingBookings": "Loading booked members…"
+      "loadingBookings": "Loading booked members…",
+      "recordSessionPayment": "Record session payment"
     }
   },
   "members": {
@@ -550,7 +551,23 @@
       "assignmentHistoryTitle": "Coach Assignment History",
       "assignmentActive": "Current",
       "assignmentStarted": "Started {{date}}",
-      "assignmentEnded": "Ended {{date}}"
+      "assignmentEnded": "Ended {{date}}",
+      "recordSessionPayment": "Record session payment",
+      "sessions": {
+        "title": "Paid sessions",
+        "empty": "No sessions yet.",
+        "unused": "Unused",
+        "used": "Used",
+        "sourcePaid": "Paid session",
+        "sourceFree": "Free session",
+        "recordedBy": "recorded by {{name}}",
+        "lapsesOn": "Lapses {{date}}",
+        "usedOn": "Used {{date}}",
+        "covered": "covered {{date}}",
+        "lapsed": "Lapsed {{date}}",
+        "voided": "Voided by refund {{date}}",
+        "viewPayments": "View session payments"
+      }
     },
     "deactivateDialog": {
       "title": "Deactivate {{name}}?",
@@ -1006,7 +1023,8 @@
         "memberRequired": "Select a member",
         "amountInvalid": "Enter a valid amount",
         "reasonInvalid": "Add a note (at least 10 characters)"
-      }
+      },
+      "sessionHint": "To sell a session, use Record session payment on the member's page."
     },
     "verifyDialog": {
       "title": "Verify this {{amount}} XAF payment from {{name}}?",
@@ -1039,6 +1057,18 @@
         "amountInvalid": "Enter a valid amount",
         "amountExceedsPayment": "Refund amount cannot exceed the original payment amount",
         "reasonInvalid": "Add a reason (at least 10 characters)"
+      },
+      "notice": {
+        "sessionCancelled": "This refund cancels the paid session. The guest can no longer use it.",
+        "sessionPartial": "A partial refund keeps the paid session.",
+        "sessionUsed": "The paid session was already used. The visit stays counted.",
+        "sessionUsedLoyalty": "The loyalty stamp from this visit will be reversed.",
+        "renewalLoyalty": "Loyalty stamps and free days from this renewal are not removed."
+      },
+      "outcome": {
+        "cancelled": "The session was cancelled.",
+        "used": "The session had already been used.",
+        "kept": "The paid session was kept."
       }
     },
     "errors": {
@@ -1083,7 +1113,14 @@
     "deniedMessage": "Collect payment to restore access",
     "dismiss": "Dismiss alert",
     "unknownMember": "Unknown member",
-    "renew": "Renew"
+    "renew": "Renew",
+    "sessionRequired": "SESSION REQUIRED",
+    "sessionNoPaidSession": "No paid session",
+    "sessionRecordHint": "Record a payment so they can scan again.",
+    "sessionFromClass": "From class: {{name}}",
+    "sessionScannedOffline": "Scanned offline at {{time}}",
+    "sessionPaymentInProgress": "Mobile money payment in progress",
+    "recordSessionPayment": "Record session payment"
   },
   "renewalPanel": {
     "title": "Renew Membership",
@@ -1202,5 +1239,34 @@
     "previous": "Previous page",
     "next": "Next page",
     "ellipsis": "…"
+  },
+  "sessionPayment": {
+    "title": "Record session payment — {{name}}",
+    "amount": "Amount",
+    "amountHint": "Plan price — fixed",
+    "method": "Payment method",
+    "note": "Note (optional)",
+    "noteCount": "{{count}} / 200",
+    "recordedBy": "Recorded by",
+    "recordButton": "Record session payment",
+    "recording": "Recording…",
+    "recordedToast": "Session recorded for {{name}}. Ask them to scan again.",
+    "errors": {
+      "generic": "The session payment could not be recorded. Please try again.",
+      "previewLoadFailed": "Could not load the plan price.",
+      "noPlan": "This member has no plan.",
+      "noteTooLong": "The note is too long (200 characters maximum).",
+      "permissionDenied": "You do not have permission to record this payment method.",
+      "invalidMethod": "Choose a valid payment method.",
+      "reasonTooLong": "The note is too long (200 characters maximum).",
+      "chargingDisabled": "This gym no longer charges guests per session.",
+      "notFound": "Member not found.",
+      "memberDeactivated": "This member is deactivated.",
+      "registrationFeeNotSettled": "The registration fee has not been settled yet. Collect or waive it first.",
+      "planNotPerSession": "This member is not on a Pay-per-session plan.",
+      "sessionPriceNotSet": "The Pay-per-session plan has no price. Set a price in Plans first.",
+      "alreadyInProgress": "A mobile money payment for this member is already in progress.",
+      "configMissing": "Session settings are missing. Please contact support."
+    }
   }
 }

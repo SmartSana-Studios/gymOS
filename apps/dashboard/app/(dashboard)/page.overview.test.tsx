@@ -319,6 +319,7 @@ describe("(dashboard) Overview page", () => {
       initialAlerts: [],
       autoDismissMinutes: 30,
       mobileMoneyEnabled: true,
+      role: "owner",
     });
   });
 
