@@ -456,7 +456,8 @@
       "sessionRequired": "Aucune séance payée — la présence au cours n'a pas été enregistrée. Une alerte a été envoyée à l'accueil.",
       "noBookings": "Aucun membre inscrit pour cette séance.",
       "noSession": "Ce cours n'a aucune séance à venir pour laquelle marquer la présence.",
-      "loadingBookings": "Chargement des membres inscrits…"
+      "loadingBookings": "Chargement des membres inscrits…",
+      "recordSessionPayment": "Enregistrer le paiement de la séance"
     }
   },
   "members": {
@@ -550,7 +551,23 @@
       "assignmentHistoryTitle": "Historique des assignations de coach",
       "assignmentActive": "Actuel",
       "assignmentStarted": "Débuté le {{date}}",
-      "assignmentEnded": "Terminé le {{date}}"
+      "assignmentEnded": "Terminé le {{date}}",
+      "recordSessionPayment": "Enregistrer le paiement de la séance",
+      "sessions": {
+        "title": "Séances payées",
+        "empty": "Aucune séance pour le moment.",
+        "unused": "Non utilisées",
+        "used": "Utilisées",
+        "sourcePaid": "Séance payée",
+        "sourceFree": "Séance gratuite",
+        "recordedBy": "enregistrée par {{name}}",
+        "lapsesOn": "Expire le {{date}}",
+        "usedOn": "Utilisée le {{date}}",
+        "covered": "couvre le {{date}}",
+        "lapsed": "Expirée le {{date}}",
+        "voided": "Annulée par remboursement le {{date}}",
+        "viewPayments": "Voir les paiements de séances"
+      }
     },
     "deactivateDialog": {
       "title": "Désactiver {{name}} ?",
@@ -1006,7 +1023,8 @@
         "memberRequired": "Sélectionnez un membre",
         "amountInvalid": "Saisissez un montant valide",
         "reasonInvalid": "Ajoutez une note (au moins 10 caractères)"
-      }
+      },
+      "sessionHint": "Pour vendre une séance, utilisez Enregistrer le paiement de la séance sur la page du membre."
     },
     "verifyDialog": {
       "title": "Vérifier ce paiement de {{amount}} XAF de {{name}} ?",
@@ -1039,6 +1057,18 @@
         "amountInvalid": "Saisissez un montant valide",
         "amountExceedsPayment": "Le montant du remboursement ne peut pas dépasser le montant du paiement d'origine",
         "reasonInvalid": "Ajoutez une raison (au moins 10 caractères)"
+      },
+      "notice": {
+        "sessionCancelled": "Ce remboursement annule la séance payée. L'invité ne pourra plus l'utiliser.",
+        "sessionPartial": "Un remboursement partiel conserve la séance payée.",
+        "sessionUsed": "La séance payée a déjà été utilisée. La visite reste comptée.",
+        "sessionUsedLoyalty": "Le tampon de fidélité de cette visite sera annulé.",
+        "renewalLoyalty": "Les tampons de fidélité et les jours offerts de ce renouvellement ne sont pas retirés."
+      },
+      "outcome": {
+        "cancelled": "La séance a été annulée.",
+        "used": "La séance avait déjà été utilisée.",
+        "kept": "La séance payée a été conservée."
       }
     },
     "errors": {
@@ -1083,7 +1113,14 @@
     "deniedMessage": "Encaisser le paiement pour rétablir l'accès",
     "dismiss": "Ignorer l'alerte",
     "unknownMember": "Membre inconnu",
-    "renew": "Renouveler"
+    "renew": "Renouveler",
+    "sessionRequired": "SÉANCE REQUISE",
+    "sessionNoPaidSession": "Aucune séance payée",
+    "sessionRecordHint": "Enregistrez un paiement pour qu'il puisse scanner à nouveau.",
+    "sessionFromClass": "Depuis le cours : {{name}}",
+    "sessionScannedOffline": "Scanné hors ligne à {{time}}",
+    "sessionPaymentInProgress": "Paiement mobile money en cours",
+    "recordSessionPayment": "Enregistrer le paiement de la séance"
   },
   "renewalPanel": {
     "title": "Renouveler l'adhésion",
@@ -1202,5 +1239,34 @@
     "previous": "Page précédente",
     "next": "Page suivante",
     "ellipsis": "…"
+  },
+  "sessionPayment": {
+    "title": "Enregistrer le paiement de la séance — {{name}}",
+    "amount": "Montant",
+    "amountHint": "Prix du forfait — fixe",
+    "method": "Mode de paiement",
+    "note": "Note (facultative)",
+    "noteCount": "{{count}} / 200",
+    "recordedBy": "Enregistré par",
+    "recordButton": "Enregistrer le paiement de la séance",
+    "recording": "Enregistrement…",
+    "recordedToast": "Séance enregistrée pour {{name}}. Demandez-lui de scanner à nouveau.",
+    "errors": {
+      "generic": "Le paiement de la séance n'a pas pu être enregistré. Veuillez réessayer.",
+      "previewLoadFailed": "Impossible de charger le prix du forfait.",
+      "noPlan": "Ce membre n'a pas de forfait.",
+      "noteTooLong": "La note est trop longue (200 caractères maximum).",
+      "permissionDenied": "Vous n'avez pas l'autorisation d'enregistrer ce mode de paiement.",
+      "invalidMethod": "Choisissez un mode de paiement valide.",
+      "reasonTooLong": "La note est trop longue (200 caractères maximum).",
+      "chargingDisabled": "Ce club ne facture plus les invités par séance.",
+      "notFound": "Membre introuvable.",
+      "memberDeactivated": "Ce membre est désactivé.",
+      "registrationFeeNotSettled": "Les frais d'inscription ne sont pas encore réglés. Encaissez-les ou annulez-les d'abord.",
+      "planNotPerSession": "Ce membre n'est pas au forfait Paiement par séance.",
+      "sessionPriceNotSet": "Le forfait Paiement par séance n'a pas de prix. Définissez un prix dans Forfaits d'abord.",
+      "alreadyInProgress": "Un paiement mobile money est déjà en cours pour ce membre.",
+      "configMissing": "Les paramètres de séance sont manquants. Veuillez contacter le support."
+    }
   }
 }

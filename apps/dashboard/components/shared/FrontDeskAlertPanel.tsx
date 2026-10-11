@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { Info, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import type { FrontDeskAlertRow } from "@/services/frontDeskAlerts";
 import { RenewalModal } from "@/components/shared/RenewalModal";
+import { RecordSessionPaymentDialog } from "@/components/shared/RecordSessionPaymentDialog";
+import { loadSessionAlertContext, type SessionAlertContext } from "@/lib/frontDeskSessionAlerts";
 import {
   autoDismissFrontDeskAlert,
   dismissFrontDeskAlert,
@@ -24,8 +26,11 @@ import {
 // alert -- if the Realtime channel ever drops after having connected once,
 // this panel falls back to refetching on this interval until it resubscribes.
 const POLL_INTERVAL_MS = 5000;
+// Focus fallback for the Record Session Payment panel when its trigger row is
+// removed by the success (Story 19.9b review).
+const ALERT_REGION_ID = "frontDeskAlertRegion";
 
-const STATUS_LABEL_KEY: Record<FrontDeskAlertRow["status"], string> = {
+const STATUS_LABEL_KEY: Record<NonNullable<FrontDeskAlertRow["status"]>, string> = {
   expiring_soon: "members.status.expiringSoon",
   grace_period: "members.status.gracePeriod",
   expired: "members.status.expired",
@@ -57,6 +62,7 @@ export function FrontDeskAlertPanel({
   initialAlerts,
   autoDismissMinutes,
   mobileMoneyEnabled,
+  role,
 }: {
   gymId: string;
   initialAlerts: FrontDeskAlertRow[];
@@ -66,6 +72,10 @@ export function FrontDeskAlertPanel({
    * by each Server Component caller (`page.tsx`/`AttendancePageClient`'s own
    * `page.tsx`). */
   mobileMoneyEnabled: boolean;
+  /** Story 19.9b: the signed-in staff role. Threaded to the Record Session
+   * Payment panel (Bank Transfer is manager-and-above); a coach never sees
+   * the record action. */
+  role?: string;
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -101,6 +111,20 @@ export function FrontDeskAlertPanel({
   // arrow here would tear down/recreate the payment-status subscription
   // continuously while a payment is pending.
   const handleRenewed = useCallback(() => setOpenRenewalAlert(null), []);
+
+  // Story 19.9b: the session-required alert whose Record Session Payment panel
+  // is open -- a snapshot, same reasoning as openRenewalAlert above.
+  const [openSessionAlert, setOpenSessionAlert] = useState<FrontDeskAlertRow | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+  // Allow-list, same as the member modal: an omitted role gets no action.
+  const canRecordSession =
+    role === "receptionist" || role === "manager" || role === "supervisor" || role === "owner";
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Review finding (Story 4.6): guards against an INSERT event's async
@@ -144,14 +168,35 @@ export function FrontDeskAlertPanel({
       // lookup was in flight -- don't resurrect it.
       if (dismissedWhilePendingRef.current.has(row.id)) return;
 
+      const isSession = row.kind === "session_required";
+      // Story 19.9b: the session variant also needs the class, offline and
+      // in-flight lines; a failed read just leaves them out.
+      let sessionContext: SessionAlertContext | undefined;
+      if (isSession) {
+        try {
+          sessionContext = (await loadSessionAlertContext(createClient(), gymId, [row.member_id])).get(row.member_id);
+        } catch {
+          sessionContext = undefined;
+        }
+        if (dismissedWhilePendingRef.current.has(row.id)) return;
+      }
+
       const newAlert: FrontDeskAlertRow = {
         id: row.id,
         memberId: row.member_id,
         memberName: member?.name ?? "",
         memberPhotoUrl: member?.photoUrl ?? null,
+        kind: isSession ? "session_required" : "subscription_status",
         status: row.status,
         expiryDate: row.expiry_date,
         createdAt: row.created_at,
+        ...(isSession
+          ? {
+              className: sessionContext?.className ?? null,
+              scannedOfflineAt: sessionContext?.scannedOfflineAt ?? null,
+              paymentInFlight: sessionContext?.paymentInFlight ?? false,
+            }
+          : {}),
       };
 
       // New INSERT prepends -- newest alert at the top (UX behaviour rule).
@@ -175,7 +220,9 @@ export function FrontDeskAlertPanel({
       startPolling();
     }
 
-    const channel = subscribeToFrontDeskAlerts(gymId, handleInsertOrUpdate, handleStatusChange);
+    const channel = subscribeToFrontDeskAlerts(gymId, handleInsertOrUpdate, handleStatusChange, {
+      includeSessionRequired: true,
+    });
     const supabase = createClient();
 
     return () => {
@@ -235,22 +282,32 @@ export function FrontDeskAlertPanel({
   }
 
   const visibleAlerts = alerts ?? [];
-  if (visibleAlerts.length === 0) return null;
 
+  // The list region renders only while there is an alert (UX: invisible at
+  // zero). The open modals and the toast live outside it so they survive the
+  // last alert being removed -- recording the final session payment empties
+  // the list at the same moment its toast must appear.
   return (
-    <div
-      className="max-h-[320px] space-y-2 overflow-y-auto rounded-md border p-2"
-      role="region"
-      aria-label={t("frontDeskAlert.panelLabel")}
-    >
-      {visibleAlerts.map((alert) => (
-        <FrontDeskAlertItem
-          key={alert.id}
-          alert={alert}
-          onDismiss={() => handleDismiss(alert.id)}
-          onRenew={() => setOpenRenewalAlert(alert)}
-        />
-      ))}
+    <>
+      {visibleAlerts.length > 0 && (
+        <div
+          className="max-h-[320px] space-y-2 overflow-y-auto rounded-md border p-2"
+          id={ALERT_REGION_ID}
+          tabIndex={-1}
+          role="region"
+          aria-label={t("frontDeskAlert.panelLabel")}
+        >
+          {visibleAlerts.map((alert) => (
+            <FrontDeskAlertItem
+              key={alert.id}
+              alert={alert}
+              onDismiss={() => handleDismiss(alert.id)}
+              onRenew={() => setOpenRenewalAlert(alert)}
+              onRecordSession={canRecordSession ? () => setOpenSessionAlert(alert) : undefined}
+            />
+          ))}
+        </div>
+      )}
       {openRenewalAlert && (
         <RenewalModal
           alertId={openRenewalAlert.id}
@@ -261,7 +318,41 @@ export function FrontDeskAlertPanel({
           onRenewed={handleRenewed}
         />
       )}
-    </div>
+      {openSessionAlert && (
+        <RecordSessionPaymentDialog
+          alertId={openSessionAlert.id}
+          memberId={openSessionAlert.memberId}
+          memberName={openSessionAlert.memberName || t("frontDeskAlert.unknownMember")}
+          role={role}
+          fallbackFocusId={ALERT_REGION_ID}
+          onClose={() => setOpenSessionAlert(null)}
+          onRecorded={() => {
+            const alert = openSessionAlert;
+            setOpenSessionAlert(null);
+            // The alert is dismissed server-side by the dialog; remove it
+            // here without waiting for the Realtime round trip.
+            queryClient.setQueryData<FrontDeskAlertRow[]>(queryKey, (current) =>
+              (current ?? []).filter((item) => item.id !== alert.id),
+            );
+            setToast(
+              t("sessionPayment.recordedToast", {
+                name: alert.memberName || t("frontDeskAlert.unknownMember"),
+              }),
+            );
+            if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+            toastTimerRef.current = setTimeout(() => setToast(null), 4000);
+          }}
+        />
+      )}
+      {toast && (
+        <div
+          role="status"
+          className="fixed bottom-4 right-4 z-50 max-w-sm rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground shadow-lg"
+        >
+          {toast}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -269,12 +360,25 @@ function FrontDeskAlertItem({
   alert,
   onDismiss,
   onRenew,
+  onRecordSession,
 }: {
   alert: FrontDeskAlertRow;
   onDismiss: () => void;
   onRenew: () => void;
+  /** Absent for a role that cannot record a session payment (coach). */
+  onRecordSession?: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  if (alert.kind === "session_required") {
+    return (
+      <SessionRequiredAlertItem
+        alert={alert}
+        locale={i18n.language}
+        onDismiss={onDismiss}
+        onRecordSession={onRecordSession}
+      />
+    );
+  }
   const isDenied = alert.status === "expired";
   const displayName = alert.memberName || t("frontDeskAlert.unknownMember");
 
@@ -315,7 +419,7 @@ function FrontDeskAlertItem({
         <div className="flex flex-wrap items-center gap-x-2 text-sm">
           <span className="font-medium">{displayName}</span>
           <span className="text-muted-foreground">·</span>
-          <span>{t(STATUS_LABEL_KEY[alert.status])}</span>
+          <span>{alert.status ? t(STATUS_LABEL_KEY[alert.status]) : ""}</span>
           {daysLine && (
             <>
               <span className="text-muted-foreground">·</span>
@@ -329,6 +433,78 @@ function FrontDeskAlertItem({
       <Button type="button" variant="outline" size="sm" onClick={onRenew}>
         {t("frontDeskAlert.renew")}
       </Button>
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={t("frontDeskAlert.dismiss")}
+        onClick={onDismiss}
+      >
+        <X size={16} />
+      </Button>
+    </div>
+  );
+}
+
+/**
+ * Story 19.9b: the session-required variant of the same alert item. A
+ * recoverable action-required state, so the platform `info` treatment (blue,
+ * label and icon, never danger) and an assertive live region: the front desk
+ * has a guest waiting.
+ */
+function SessionRequiredAlertItem({
+  alert,
+  locale,
+  onDismiss,
+  onRecordSession,
+}: {
+  alert: FrontDeskAlertRow;
+  locale: string;
+  onDismiss: () => void;
+  onRecordSession?: () => void;
+}) {
+  const { t } = useTranslation();
+  const displayName = alert.memberName || t("frontDeskAlert.unknownMember");
+  const time = (iso: string) =>
+    new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+
+  return (
+    <div
+      className="flex items-center gap-3 rounded-md border border-blue-200 border-l-4 border-l-blue-600 bg-blue-50 p-3"
+      role="alert"
+      aria-live="assertive"
+    >
+      <Info className="size-5 shrink-0 text-blue-700" aria-hidden="true" />
+
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <p className="text-xs font-semibold tracking-wide text-blue-800">{t("frontDeskAlert.sessionRequired")}</p>
+        <div className="flex flex-wrap items-center gap-x-2 text-sm">
+          <span className="font-medium">{displayName}</span>
+          <span className="text-muted-foreground">·</span>
+          <span>{t("frontDeskAlert.sessionNoPaidSession")}</span>
+          <span className="text-muted-foreground">·</span>
+          <span>{time(alert.createdAt)}</span>
+        </div>
+        <p className="text-sm text-blue-900">{t("frontDeskAlert.sessionRecordHint")}</p>
+        {alert.className && (
+          <p className="text-sm text-blue-900">{t("frontDeskAlert.sessionFromClass", { name: alert.className })}</p>
+        )}
+        {alert.scannedOfflineAt && (
+          <p className="text-sm text-blue-900">
+            {t("frontDeskAlert.sessionScannedOffline", { time: time(alert.scannedOfflineAt) })}
+          </p>
+        )}
+        {alert.paymentInFlight && (
+          <p className="text-sm font-medium text-blue-900">{t("frontDeskAlert.sessionPaymentInProgress")}</p>
+        )}
+      </div>
+
+      {onRecordSession && (
+        <Button type="button" variant="outline" size="sm" onClick={onRecordSession}>
+          {t("frontDeskAlert.recordSessionPayment")}
+        </Button>
+      )}
 
       <Button
         type="button"

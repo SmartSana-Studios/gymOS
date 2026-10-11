@@ -97,6 +97,7 @@ async function MembersData({
       registrationFee={registrationFee}
       phoneCountry={gymSettings?.country}
       mobileMoneyEnabled={mobileMoneyEnabled}
+      chargeGuestsPerSession={gymSettings?.chargeGuestsPerSession ?? false}
     />
   );
 }

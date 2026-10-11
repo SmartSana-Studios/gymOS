@@ -1052,3 +1052,7 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-9a-dashboard-charge-guests-setting.md`
   summary: Story 19.9c — AD-09 Purpose filter/column/CSV and "Confirmed late" display, and the Subscriptions Last Payment ignore-session guard.
   evidence: AD-09 has no All Payments ledger (verification queue only) and Subscriptions has no Last Payment column (deliberately cut), so the AC needs a product decision on building the ledger first.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-9b-dashboard-session-alert-record-panel-member-sessions.md`
+  summary: The member modal Sessions section links to `/payments?memberId=<id>&purpose=session`, but the Payments page reads neither param; 19-9c must read them (Purpose filter and member filter) so the link lands filtered.
+  evidence: `payments/page.tsx` ignores `searchParams`; the Purpose filter, column and CSV are 19-9c scope and excluded by 19-9b's frozen Never list, so the link currently opens the unfiltered page.

@@ -104,3 +104,18 @@ describe("subscribeToFrontDeskAlerts", () => {
     }
   });
 });
+
+describe("subscribeToFrontDeskAlerts with session alerts opted in (Story 19.9b)", () => {
+  it("forwards session_required payloads only when includeSessionRequired is set", () => {
+    realtimeHandlers.length = 0;
+    const onInsertOrUpdate = vi.fn();
+    subscribeToFrontDeskAlerts("gym-1", onInsertOrUpdate, vi.fn(), { includeSessionRequired: true });
+
+    const sessionRow = { id: "a1", member_id: "m1", kind: "session_required", status: null, dismissed_at: null };
+    for (const handler of realtimeHandlers) {
+      onInsertOrUpdate.mockClear();
+      handler({ new: sessionRow });
+      expect(onInsertOrUpdate).toHaveBeenCalledWith(sessionRow);
+    }
+  });
+});

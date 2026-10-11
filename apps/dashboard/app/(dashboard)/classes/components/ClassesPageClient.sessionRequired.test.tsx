@@ -1,7 +1,8 @@
 /**
  * Story 19.7: a refused class attendance (no paid session) leaves the row
  * unmarked, keeps the action enabled, and shows an inline role="alert"
- * message. No payment button here (the panel arrives in 19.9).
+ * message. Story 19.9b adds [Record session payment] to that row, opening the
+ * Record Session Payment panel for the refused member.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -26,6 +27,29 @@ vi.mock("../actions", () => ({
   getSessionBookingsAction: (id: string) => getSessionBookingsAction(id),
 }));
 vi.mock("./ClassModal", () => ({ ClassModal: () => null }));
+vi.mock("@/components/shared/RecordSessionPaymentDialog", () => ({
+  RecordSessionPaymentDialog: ({
+    memberId,
+    memberName,
+    role,
+    fallbackFocusId,
+    onRecorded,
+  }: {
+    memberId: string;
+    memberName: string;
+    role?: string;
+    fallbackFocusId?: string;
+    onRecorded: () => void;
+  }) => (
+    <div>
+      <p>{`record-panel:${memberId}:${memberName}`}</p>
+      <p>{`record-panel-props:${role}:${fallbackFocusId}`}</p>
+      <button type="button" onClick={onRecorded}>
+        finish-record
+      </button>
+    </div>
+  ),
+}));
 
 import { ClassesPageClient } from "./ClassesPageClient";
 
@@ -99,5 +123,26 @@ describe("ClassesPageClient session-required refusal", () => {
 
     expect(await screen.findByText("classes.attendance.attended")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("opens the record panel for the refused member and clears the refusal once recorded", async () => {
+    markAttendanceAction.mockResolvedValue({
+      data: null,
+      rejected: false,
+      error: { code: "session_required", message: "No paid session" },
+    });
+    const { user, button } = await expandAndGetButton();
+    await user.click(button);
+    await screen.findByRole("alert");
+
+    await user.click(screen.getByRole("button", { name: "classes.attendance.recordSessionPayment" }));
+    expect(screen.getByText("record-panel:m-1:Alice")).toBeInTheDocument();
+    expect(screen.getByText(/^record-panel-props:(?!undefined).+:classesPageTitle$/)).toBeInTheDocument();
+    expect(document.getElementById("classesPageTitle")).not.toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "finish-record" }));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByText("sessionPayment.recordedToast")).toBeInTheDocument();
   });
 });

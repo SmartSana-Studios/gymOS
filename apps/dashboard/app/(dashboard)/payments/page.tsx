@@ -2,6 +2,7 @@ import { Suspense } from "react";
 
 import { listPendingPayments, listPaymentDiscrepancies } from "@/services/payments";
 import { getDashboardShellContext } from "@/services/session";
+import { getGymSettings } from "@/services/gym-settings";
 import { PaymentsPageClient } from "./components/PaymentsPageClient";
 import PaymentsLoading from "./loading";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -31,7 +32,14 @@ async function PaymentsData() {
     { data: pendingPayments, error: pendingError },
     { data: discrepancies, error: discrepanciesError },
     { data: shell, error: shellError },
-  ] = await Promise.all([listPendingPayments(), listPaymentDiscrepancies(), getDashboardShellContext()]);
+    { data: gymSettings },
+  ] = await Promise.all([
+    listPendingPayments(),
+    listPaymentDiscrepancies(),
+    getDashboardShellContext(),
+    // Story 19.9b: only drives the AD-10 hint; a failed read means no hint.
+    getGymSettings(),
+  ]);
 
   if (pendingError || shellError || !shell) {
     const { t } = await getServerTranslation(await getRequestLocale());
@@ -51,6 +59,7 @@ async function PaymentsData() {
       discrepancies={discrepanciesError ? [] : (discrepancies ?? [])}
       recordedByName={shell.memberName}
       role={shell.role}
+      chargeGuestsPerSession={gymSettings?.chargeGuestsPerSession ?? false}
     />
   );
 }

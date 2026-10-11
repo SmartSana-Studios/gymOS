@@ -14,7 +14,13 @@ import type { MemberListRow, MemberRegistrationFeeState, MemberSubscriptionStatu
 import type { PlanRow } from "@/services/plans";
 import type { CoachRow, CoachAssignmentRow } from "@/services/coaches";
 import { createMember, editMember, assignCoach, getCoachAssignments } from "../actions";
-import { getMemberRegistrationFeeStateAction } from "@/app/(dashboard)/payments/actions";
+import {
+  getMemberRegistrationFeeStateAction,
+  listMemberGuestSessionsAction,
+} from "@/app/(dashboard)/payments/actions";
+import { RecordSessionPaymentDialog } from "@/components/shared/RecordSessionPaymentDialog";
+import type { MemberGuestSession } from "@/services/guestSessions";
+import { PAYMENT_METHOD_LABEL_KEY } from "@/app/(dashboard)/payments/paymentLabels";
 import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
 
 interface FieldErrors {
@@ -153,6 +159,109 @@ function DetailField({ label, value }: { label: string; value: string }) {
   );
 }
 
+/**
+ * Story 19.9b: a member's paid sessions. Unused ones first (soonest lapse
+ * first), then used ones, then muted lapsed/voided history (90 days).
+ */
+function SessionsSection({
+  memberId,
+  rows,
+  loaded,
+  locale,
+}: {
+  memberId: string;
+  rows: MemberGuestSession[];
+  loaded: boolean;
+  locale: string;
+}) {
+  const { t } = useTranslation();
+  const now = Date.now();
+  const dateTime = (iso: string) =>
+    new Date(iso).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
+  const date = (iso: string) => new Date(iso).toLocaleDateString(locale);
+  const methodLabel = (method: string | null) => {
+    if (!method) return null;
+    const key = PAYMENT_METHOD_LABEL_KEY[method];
+    return key ? t(key) : method;
+  };
+
+  const unused = rows
+    .filter((r) => !r.consumedAt && !r.voidedAt && new Date(r.usableUntil).getTime() >= now)
+    .sort((a, b) => (a.usableUntil < b.usableUntil ? -1 : 1));
+  const used = rows.filter((r) => r.consumedAt && !r.voidedAt);
+  const history = rows.filter(
+    (r) => r.voidedAt || (!r.consumedAt && new Date(r.usableUntil).getTime() < now),
+  );
+
+  return (
+    <section className="space-y-3 border-t pt-4" aria-label={t("members.modal.sessions.title")}>
+      <h4 className="text-sm font-semibold">{t("members.modal.sessions.title")}</h4>
+
+      {loaded && rows.length === 0 && (
+        <p className="text-sm text-muted-foreground">{t("members.modal.sessions.empty")}</p>
+      )}
+
+      {unused.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">{t("members.modal.sessions.unused")}</p>
+          <ul className="space-y-1 text-sm">
+            {unused.map((row) => (
+              <li key={row.id} className="rounded-md border p-2">
+                <span className="font-medium">
+                  {row.source === "paid"
+                    ? t("members.modal.sessions.sourcePaid")
+                    : t("members.modal.sessions.sourceFree")}
+                </span>
+                {" · "}
+                {dateTime(row.createdAt)}
+                {methodLabel(row.method) && " · " + methodLabel(row.method)}
+                {row.recordedByName && " · " + t("members.modal.sessions.recordedBy", { name: row.recordedByName })}
+                <span className="block text-xs text-muted-foreground">
+                  {t("members.modal.sessions.lapsesOn", { date: date(row.usableUntil) })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {used.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">{t("members.modal.sessions.used")}</p>
+          <ul className="space-y-1 text-sm">
+            {used.map((row) => (
+              <li key={row.id} className="rounded-md border p-2">
+                {t("members.modal.sessions.usedOn", { date: date(row.consumedAt as string) })}
+                {row.coveredDay &&
+                  ` · ${t("members.modal.sessions.covered", { date: formatLocalDate(row.coveredDay, locale) })}`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {history.length > 0 && (
+        <ul className="space-y-1 text-xs text-muted-foreground">
+          {history.map((row) => (
+            <li key={row.id}>
+              {row.voidedAt
+                ? t("members.modal.sessions.voided", { date: date(row.voidedAt) })
+                : t("members.modal.sessions.lapsed", { date: date(row.usableUntil) })}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <a
+        href={`/payments?memberId=${encodeURIComponent(memberId)}&purpose=session`}
+        className="inline-block text-sm text-primary underline-offset-2 hover:underline"
+      >
+        {t("members.modal.sessions.viewPayments")}
+      </a>
+    </section>
+  );
+}
+
 /** Create/Edit/View Member. One modal, three modes -- native <dialog>,
  * controlled string-based form state (matches PlanModal/TierModal's
  * established convention, not react-hook-form). `readOnly` is Scope Note
@@ -172,6 +281,9 @@ export function MemberModal({
   plans,
   coaches,
   registrationFee = 0,
+  role,
+  chargeGuestsPerSession = false,
+  onSessionRecorded,
   onClose,
   onSaved,
 }: {
@@ -185,6 +297,14 @@ export function MemberModal({
    * awaiting the fee and gets the first plan afterward. createMember re-reads
    * the fee server-side and stays authoritative. */
   registrationFee?: number;
+  /** Story 19.9b: the signed-in staff role. The Sessions section and the
+   * Record session payment action are receptionist-and-above; absent or coach
+   * shows neither. */
+  role?: string;
+  /** Story 19.9b: whether the gym charges Pay-per-session guests per session. */
+  chargeGuestsPerSession?: boolean;
+  /** Story 19.9b: a session payment was recorded from this modal. */
+  onSessionRecorded?: (memberName: string) => void;
   onClose: () => void;
   /** `invite` is set only when creation itself tried to send the WhatsApp invite (fee-0 gym). */
   onSaved: (warning?: string, invite?: "sent" | "failed") => void;
@@ -213,6 +333,13 @@ export function MemberModal({
   // this one member. Keyed by member id so a stale result never shows under a
   // different member.
   const [feeLine, setFeeLine] = useState<{ memberId: string; state: MemberRegistrationFeeState } | null>(null);
+
+  // Story 19.9b: Sessions section + header action state.
+  const [guestSessions, setGuestSessions] = useState<{ memberId: string; rows: MemberGuestSession[] } | null>(
+    null,
+  );
+  const [recordingSession, setRecordingSession] = useState(false);
+  const [sessionsReloadKey, setSessionsReloadKey] = useState(0);
 
   const isCreate = !editingMember;
   const isFeeGymCreate = isCreate && registrationFee > 0;
@@ -299,6 +426,33 @@ export function MemberModal({
     };
   }, [open, readOnly, editingMember, registrationFee]);
 
+  // Story 19.9b: only receptionist-and-above see session data; a coach sees
+  // nothing here. Absent role (callers that do not thread it) shows nothing.
+  const canSeeSessions =
+    readOnly &&
+    Boolean(editingMember) &&
+    (role === "receptionist" || role === "manager" || role === "supervisor" || role === "owner");
+
+  useEffect(() => {
+    // Drop an earlier member's list first, same as the fee line above.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGuestSessions(null);
+    if (!open || !canSeeSessions || !editingMember) return;
+    const memberId = editingMember.id;
+    let cancelled = false;
+    listMemberGuestSessionsAction(memberId)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setGuestSessions({ memberId, rows: data });
+      })
+      .catch(() => {
+        // Informational: a failed read leaves the section out.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, canSeeSessions, editingMember, sessionsReloadKey]);
+
   function registrationFeeLineText(state: MemberRegistrationFeeState): string {
     if (state.kind === "awaiting") return t("members.feeState.awaiting");
     if (state.kind === "paid") {
@@ -314,6 +468,20 @@ export function MemberModal({
     }
     return "";
   }
+
+  const memberPlan = editingMember?.planId ? (plans.find((p) => p.id === editingMember.planId) ?? null) : null;
+  const memberIsPayPerSession = editingMember?.planType === "pay_per_session";
+  const memberSessionRows =
+    guestSessions && editingMember && guestSessions.memberId === editingMember.id ? guestSessions.rows : [];
+  // Charging on, Pay-per-session, a real price, and a viewer who can record.
+  const showRecordSession =
+    canSeeSessions &&
+    chargeGuestsPerSession &&
+    memberIsPayPerSession &&
+    (memberPlan?.price ?? 0) > 0 &&
+    editingMember?.deactivatedAt == null;
+  const showSessionsSection =
+    canSeeSessions && ((memberIsPayPerSession && chargeGuestsPerSession) || memberSessionRows.length > 0);
 
   const selectedPlan = plans.find((p) => p.id === form.planId) ?? null;
   const isPayPerSession = selectedPlan?.planType === "pay_per_session";
@@ -482,6 +650,7 @@ export function MemberModal({
   }
 
   return (
+    <>
     <dialog
       ref={dialogRef}
       onClose={resetAndClose}
@@ -564,6 +733,11 @@ export function MemberModal({
                   );
                 })()}
               </div>
+              {showRecordSession && (
+                <Button type="button" variant="outline" size="sm" onClick={() => setRecordingSession(true)}>
+                  {t("members.modal.recordSessionPayment")}
+                </Button>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-x-6 gap-y-3">
@@ -617,6 +791,15 @@ export function MemberModal({
                 </div>
               )}
             </div>
+
+            {showSessionsSection && (
+              <SessionsSection
+                memberId={editingMember.id}
+                rows={memberSessionRows}
+                loaded={guestSessions !== null && guestSessions.memberId === editingMember.id}
+                locale={i18n.language}
+              />
+            )}
           </>
         ) : (
           <>
@@ -865,5 +1048,19 @@ export function MemberModal({
         </div>
       </form>
     </dialog>
+    {recordingSession && editingMember && (
+      <RecordSessionPaymentDialog
+        memberId={editingMember.id}
+        memberName={editingMember.name}
+        role={role}
+        onClose={() => setRecordingSession(false)}
+        onRecorded={() => {
+          setRecordingSession(false);
+          setSessionsReloadKey((key) => key + 1);
+          onSessionRecorded?.(editingMember.name);
+        }}
+      />
+    )}
+    </>
   );
 }

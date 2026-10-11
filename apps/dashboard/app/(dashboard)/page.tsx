@@ -214,6 +214,7 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
           initialAlerts={alertsData?.alerts ?? []}
           autoDismissMinutes={alertsData?.autoDismissMinutes ?? 30}
           mobileMoneyEnabled={mobileMoneyEnabled}
+          role={shell.role}
         />
       )}
 
