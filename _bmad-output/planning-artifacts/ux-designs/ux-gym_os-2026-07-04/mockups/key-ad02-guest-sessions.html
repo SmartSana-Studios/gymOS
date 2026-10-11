@@ -1,0 +1,237 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/*
+  Governed by: DESIGN.md (Colors — primary sidebar, accent highlights,
+  background, info (V1.6), warning, danger; Components — "Front-desk alert —
+  session-required variant"; Do's and Don'ts) and EXPERIENCE.md (AD-02 ·
+  Overview — dashboard layout, V2 amendment (row 2), "Shipped drift, recorded
+  V1.6" (fee sub-line), "V1.6 amendment — Guest sessions"; Admin Dashboard —
+  Sidebar; Cross-Cutting Components — Front-Desk Alert Panel incl. "V1.6 —
+  Session-required variant"; Voice and Tone row "Front-desk alert — session
+  required").
+  Viewer: Owner (the Guest sessions card is absent from the DOM for
+  Receptionist and Coach). Gym has Charge guests per session ON.
+  Dashboard uses system-ui per DESIGN.md Typography (no Barlow here).
+  Stat tile visual follows the shipped apps/dashboard StatCard
+  (rounded-md border p-4, muted label, semibold value, muted detail line).
+  Alert rows follow the shipped FrontDeskAlertPanel (tinted rounded row,
+  40px avatar, outline action, ghost dismiss) plus the spine's header line.
+  The Today | This month control is drawn as a neutral segmented control;
+  its styling is not specified in the spine.
+*/
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #e9e9ec;
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #1B2A41;
+}
+.frame-wrap { display: flex; flex-direction: column; align-items: center; }
+.caption { text-align: center; margin-top: 12px; font-size: 13px; color: #555; }
+
+/* browser frame */
+.browser { width: 1280px; border-radius: 10px; overflow: hidden; background: #FAFAF7; box-shadow: 0 20px 60px rgba(0,0,0,0.25); border: 1px solid #c9c9cf; }
+.chrome { height: 40px; background: #dedee3; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid #c9c9cf; }
+.dot { width: 12px; height: 12px; border-radius: 6px; }
+.url { margin-left: 16px; flex: 1; max-width: 520px; height: 26px; border-radius: 13px; background: #fff; font-size: 12px; color: #555; display: flex; align-items: center; padding: 0 12px; }
+
+.app { display: flex; min-height: 980px; }
+
+/* sidebar — 240px, primary */
+.sidebar { width: 240px; flex-shrink: 0; background: #1B2A41; color: #E5E7EB; display: flex; flex-direction: column; padding: 20px 0; }
+.logo { padding: 0 20px; height: 32px; display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 20px; color: #fff; }
+.logo .bars { display: inline-flex; gap: 2px; align-items: flex-end; }
+.logo .bars i { display: block; width: 4px; background: #E0971F; border-radius: 1px; }
+.logo .os { color: #E0971F; }
+.sb-gym { padding: 8px 20px 0; font-size: 13px; color: #AEB8C6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.divider { height: 1px; background: #2C3E5A; margin: 16px 0; }
+.nav a { display: block; padding: 9px 20px 9px 17px; border-left: 3px solid transparent; font-size: 14px; color: #D1D5DB; text-decoration: none; }
+.nav a.active { border-left-color: #E0971F; font-weight: 700; color: #fff; background: rgba(255,255,255,0.04); }
+.sb-bottom { margin-top: auto; padding: 0 20px; font-size: 13px; }
+.user { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.user .av { width: 32px; height: 32px; border-radius: 16px; background: #2C3E5A; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: #fff; }
+.role-pill { display: inline-block; margin-top: 2px; font-size: 11px; padding: 1px 8px; border-radius: 999px; background: #2C3E5A; color: #E0971F; }
+.lang { color: #AEB8C6; margin-bottom: 8px; }
+.lang b { color: #fff; }
+.logout { color: #AEB8C6; }
+
+/* content */
+.content { flex: 1; padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+
+/* Front-Desk Alert Panel — pushes content down, max-height ~320 */
+.alert-panel { border: 1px solid #E5E7EB; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 8px; background: #fff; }
+.alert { border: 1px solid; border-radius: 6px; padding: 10px 12px; }
+.alert-head { font-size: 11px; font-weight: 700; letter-spacing: 0.6px; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.alert-dot { width: 10px; height: 10px; border-radius: 5px; display: inline-block; }
+.alert-row { display: flex; align-items: center; gap: 12px; }
+.alert-av { width: 40px; height: 40px; border-radius: 20px; background: #E5E7EB; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; color: #374151; flex-shrink: 0; }
+.alert-text { flex: 1; min-width: 0; font-size: 14px; }
+.alert-text .name { font-weight: 600; }
+.alert-text .sep { color: #6B7280; margin: 0 6px; }
+.alert-sub { font-size: 14px; margin-top: 2px; }
+.btn-outline { height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid #D1D5DB; background: #fff; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; color: #1B2A41; white-space: nowrap; }
+.btn-ghost { width: 32px; height: 32px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; color: #6B7280; font-size: 14px; }
+
+.alert-info { border-color: #BFDBFE; background: #EFF6FF; }
+.alert-info .alert-head { color: #2563EB; }
+.alert-info .alert-dot { background: #2563EB; }
+.alert-info .alert-sub { color: #1D4ED8; }
+.alert-warn { border-color: #FDE68A; background: #FFFBEB; }
+.alert-warn .alert-head { color: #B45309; }
+.alert-warn .alert-dot { background: #D97706; }
+
+h1 { font-size: 24px; font-weight: 600; }
+
+/* stat tiles — shipped StatCard */
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.tile { border: 1px solid #E5E7EB; border-radius: 6px; padding: 16px; background: #fff; }
+.tile .label { font-size: 14px; color: #6B7280; }
+.tile .value { font-size: 24px; font-weight: 600; margin-top: 2px; }
+.tile .detail { font-size: 14px; color: #6B7280; margin-top: 4px; }
+.tile .value.alert { color: #DC2626; }
+.new { outline: 2px dashed #2563EB; outline-offset: 3px; }
+.new-tag { font-size: 10px; font-weight: 700; color: #2563EB; letter-spacing: 0.5px; margin-left: 6px; }
+
+/* Guest sessions card — own full-width row below row 2 */
+.guest-card { border: 1px solid #E5E7EB; border-radius: 6px; padding: 16px 20px 18px; background: #fff; }
+.gc-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.gc-title { font-size: 16px; font-weight: 600; }
+.seg { display: inline-flex; background: #F1F1EE; border-radius: 6px; padding: 3px; font-size: 13px; }
+.seg span { padding: 5px 14px; border-radius: 4px; color: #6B7280; }
+.seg span.on { background: #fff; color: #1B2A41; font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
+.gc-figs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.fig .num { font-size: 32px; line-height: 36px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.fig .lbl { font-size: 14px; color: #374151; margin-top: 4px; }
+.fig .link { font-size: 13px; color: #6B7280; margin-top: 4px; }
+
+/* tables */
+.section-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.section-head h2 { font-size: 18px; font-weight: 600; }
+.view-all { font-size: 13px; color: #6B7280; }
+table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #E5E7EB; border-radius: 6px; font-size: 14px; }
+th { text-align: left; font-weight: 500; color: #6B7280; padding: 10px 14px; border-bottom: 1px solid #E5E7EB; }
+td { padding: 10px 14px; border-bottom: 1px solid #F1F1EE; }
+.status { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; border: 1px solid; }
+.s-active { color: #1E8E3E; border-color: #A7D7B5; background: #EEF8F1; }
+.s-grace { color: #B45309; border-color: #FDE68A; background: #FFFBEB; }
+</style>
+</head>
+<body>
+<div class="frame-wrap">
+<div class="browser">
+  <div class="chrome">
+    <span class="dot" style="background:#ff5f57"></span>
+    <span class="dot" style="background:#febc2e"></span>
+    <span class="dot" style="background:#28c840"></span>
+    <div class="url">owner.gymosapps.com</div>
+  </div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo"><span class="bars"><i style="height:10px"></i><i style="height:16px"></i><i style="height:22px"></i></span>Gym<span class="os">OS</span></div>
+      <div class="sb-gym">Flexx Fitness</div>
+      <div class="divider"></div>
+      <nav class="nav">
+        <a class="active">Overview</a>
+        <a>Members</a>
+        <a>Plans</a>
+        <a>Subscriptions</a>
+        <a>Payments</a>
+        <a>Attendance</a>
+        <a>Classes</a>
+        <a>Audit Log</a>
+        <a>Settings</a>
+        <a>Staff</a>
+      </nav>
+      <div class="divider"></div>
+      <div class="sb-bottom">
+        <div class="user"><div class="av">G</div><div>Grace<br><span class="role-pill">Owner</span></div></div>
+        <div class="lang"><b>EN</b> | FR</div>
+        <div class="logout">Log out</div>
+      </div>
+    </aside>
+
+    <main class="content">
+      <!-- Front-Desk Alert Panel: newest at top -->
+      <div class="alert-panel" role="region" aria-label="Front-desk alerts">
+        <div class="alert alert-info new" role="alert" aria-live="assertive">
+          <div class="alert-head"><span class="alert-dot"></span>ⓘ SESSION REQUIRED<span class="new-tag">V1.6</span></div>
+          <div class="alert-row">
+            <div class="alert-av">A</div>
+            <div class="alert-text">
+              <span class="name">Ange T.</span><span class="sep">·</span>No paid session<span class="sep">·</span>09:12
+              <div class="alert-sub">Record a payment so they can scan again.</div>
+            </div>
+            <span class="btn-outline">Record session payment</span>
+            <span class="btn-ghost">✕</span>
+          </div>
+        </div>
+        <div class="alert alert-warn" role="alert" aria-live="polite">
+          <div class="alert-head"><span class="alert-dot"></span>GRACE PERIOD</div>
+          <div class="alert-row">
+            <div class="alert-av">A</div>
+            <div class="alert-text">
+              <span class="name">Amara K.</span><span class="sep">·</span>Grace period<span class="sep">·</span>Expires in 1 day
+            </div>
+            <span class="btn-outline">Renew</span>
+            <span class="btn-ghost">✕</span>
+          </div>
+        </div>
+      </div>
+
+      <h1>Overview</h1>
+
+      <!-- Row 1 -->
+      <div class="grid3">
+        <div class="tile"><div class="label">Checked in now</div><div class="value">23</div></div>
+        <div class="tile"><div class="label">Expiring this week</div><div class="value">7</div></div>
+        <div class="tile">
+          <div class="label">Revenue this month</div>
+          <div class="value">XAF 1,250,000</div>
+          <div class="detail">of which registration fees: XAF 45,000</div>
+          <div class="detail new">Guest sessions: XAF 30,000<span class="new-tag">V1.6</span></div>
+        </div>
+      </div>
+
+      <!-- Row 2 (Manager-plus) -->
+      <div class="grid4">
+        <div class="tile"><div class="label">Active members</div><div class="value">184</div></div>
+        <div class="tile"><div class="label">New this month</div><div class="value">12</div></div>
+        <div class="tile"><div class="label">Today's classes</div><div class="value">4</div></div>
+        <div class="tile"><div class="label">At risk</div><div class="value alert">9</div></div>
+      </div>
+
+      <!-- Row 3: Guest sessions (Owner/Supervisor/Manager, charging on) -->
+      <div class="guest-card new">
+        <div class="gc-head">
+          <div class="gc-title">Guest sessions<span class="new-tag">V1.6</span></div>
+          <div class="seg"><span class="on">Today</span><span>This month</span></div>
+        </div>
+        <div class="gc-figs">
+          <div class="fig"><div class="num">9</div><div class="lbl">Paid sessions</div><div class="link">→</div></div>
+          <div class="fig"><div class="num">3</div><div class="lbl">Blocked attempts</div><div class="link">2 members →</div></div>
+          <div class="fig"><div class="num">1</div><div class="lbl">Free sessions given</div><div class="link">→</div></div>
+        </div>
+      </div>
+
+      <!-- Currently Checked In (unchanged; truncated) -->
+      <div>
+        <div class="section-head"><h2>Currently Checked In</h2><span class="view-all">View all →</span></div>
+        <table>
+          <tr><th>Name</th><th>Check-in time</th><th>Status</th><th></th></tr>
+          <tr><td>Kwame A.</td><td>08:41</td><td><span class="status s-active">Active</span></td><td><span class="btn-outline">Check out</span></td></tr>
+          <tr><td>Amara K.</td><td>09:05</td><td><span class="status s-grace">Grace period</span></td><td><span class="btn-outline">Check out</span></td></tr>
+        </table>
+      </div>
+    </main>
+  </div>
+</div>
+<div class="caption">AD-02 · Overview (Owner, charging on) — session-required alert at the top of the Front-Desk Alert Panel, "Guest sessions" sub-line on Revenue this month, Guest sessions card in its own row set to Today. Dashed outlines mark the V1.6 additions.</div>
+</div>
+</body>
+</html>

@@ -2,9 +2,11 @@
 name: GymOS
 status: final
 created: 2026-07-04
-updated: 2026-09-02
+updated: 2026-10-11
 sources:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
+  - _bmad-output/planning-artifacts/epics.md
+  - _bmad-output/planning-artifacts/architecture/architecture-gym_os-2026-08-11/ARCHITECTURE-SPINE.md
 colors:
   primary: '#1B2A41'
   accent: '#E0971F'
@@ -20,6 +22,12 @@ colors:
   # unlike accent, these never take the per-gym override, so a status badge means the same
   # thing regardless of which gym's branding is active. Used by every status badge, the
   # front-desk alert panel, check-in result overlays, and the V1.5 progress trend chart line.
+  info: '#2563EB'
+  # V1.6 action-required / pending status token, platform-fixed like the four above.
+  # Used for the session-required check-in overlay and front-desk alert, the offline
+  # "will be verified" overlay and post-sync notice, and the guest "no paid session" badge.
+  # Contrast: white text on it 5.17:1; as text on #FFFFFF 5.17:1, on #FAFAF7 4.94:1 (AA body);
+  # on mobile dark #0A0F17 3.72:1 (AA large text / UI only, same class as danger at 3.98:1).
 experience_spine: EXPERIENCE.md
 typography:
   family: Barlow
@@ -43,6 +51,8 @@ components:
     raised: { radius: 16, border: 0, shadowOpacity: 0.24, shadowRadius: 8, shadowOffsetY: 4, androidElevation: 4 }
   iconChip: { size: 36, radius: 8, border: 1 }
   statNumeral: { fontFamily: Barlow_800ExtraBold, fontSize: 32, lineHeight: 36 }
+  loyaltyProgress: { numeral: statNumeral, segmentHeight: 8, segmentGap: 4, segmentRadius: 999, maxSegments: 12, fill: accent, track: border } # V1.6
+  sessionChip: { iconChip: iconChip, paidTint: accent, freeTint: success, dormantTint: neutral } # V1.6
 ---
 
 ## Brand & Style
@@ -69,8 +79,9 @@ defaults and are not specified here — the experience spine governs behavior.
 | warning | #D97706 | Status badges (expiring_soon, grace_period, pending_activation), front-desk grace alert, "already checked in" / "wrong QR" overlays, quiet-gym/reminder-adjacent warning icons |
 | danger | #DC2626 | Status badges (expired, suspended), front-desk denied alert, check-in denied overlay, destructive-action confirmations |
 | neutral | #6B7280 | Status badges with no active signal (no plan, deactivated), disabled states, secondary/muted text on status rows |
+| info *(V1.6)* | #2563EB | Action-required or pending-verification states: "Pay for your session" and "Check-in saved — will be verified" overlays, session-required front-desk alert, post-sync denial notice, guest "no paid session" badge, AD-18 refusal row border, AD-09 session-refund notice border. A recoverable step, not a failure, so not `danger`; and not `warning`, which on the alert panel means "entry allowed". Contrast: 5.17:1 with white text, 4.94:1 as text on `#FAFAF7` |
 
-**Fixed vs. per-gym color:** `accent` is the only token a gym's own branding ever overrides (member-facing surfaces, after the branding cache loads — see frontmatter note). `primary`, `background`, and all four status-semantic tokens (`success`/`warning`/`danger`/`neutral`) are platform-fixed and never change per gym — a red badge means "expired" the same way at every gym, regardless of that gym's brand color.
+**Fixed vs. per-gym color:** `accent` is the only token a gym's own branding ever overrides (member-facing surfaces, after the branding cache loads — see frontmatter note). `primary`, `background`, and all five status-semantic tokens (`success`/`warning`/`danger`/`neutral`/`info`) are platform-fixed and never change per gym — a red badge means "expired" the same way at every gym, regardless of that gym's brand color.
 
 ## Typography
 
@@ -122,3 +133,26 @@ Visual specs only — behavior lives in `EXPERIENCE.md`'s Member App Component L
 **Status Badge** (`apps/mobile/src/components/ui/Badge.tsx`) — pill, `border: 1`, `radius: pill`, `paddingHorizontal: 10` (existing, unchanged; the `Spacing.two`=8 mismatch flagged in `deferred-work.md` is accepted as-is, not a target of this pass). Colors per status — see `EXPERIENCE.md` MA-09 Status Badge States table.
 
 **Button** (`apps/mobile/src/components/ui/Button.tsx`) — existing pill (`radius: pill`, height 52) primary/secondary treatment is correct and unchanged by this pass.
+
+**Loyalty Progress** *(V1.6, `components.loyaltyProgress`)* — "3 / 5" in `statNumeral`, then a row of N pill segments (8px tall, 4px gap, `radius: pill`). Filled segments are `accent` (the gym colour on member surfaces); empty segments are the `border` colour. Above 12 segments, render one continuous 8px pill bar filled to n/N instead. A `small` caption sits beneath. It lives inside a `flat` Card (the Rewards card), never `raised`.
+
+**Session Chip** *(V1.6, `components.sessionChip`)* — a List Item whose leading Icon Chip is keyed to the session source: paid → ticket glyph (`confirmation_number`) in `accent`; free → gift glyph (`card_giftcard`) in `success`; dormant free → same gift glyph in `neutral`. The title is in `smallBold` and the trailing "use by [date]" in `small`.
+
+**Status Badge — V1.6 guest values** — "Pay per session" in `neutral`, "Today covered" in `success`, and the no-session state in `info`. Same pill spec as above, with no new shape.
+
+**Check-in result overlay — `info` variant** *(V1.6)* — the same full-screen overlay as success/denied/amber, filled with `info` and white text and icon. Icons: `confirmation_number` (Pay for your session) and `hourglass_top` (will be verified).
+
+**Front-desk alert — session-required variant** *(V1.6, dashboard)* — the same row anatomy as the grace and denied variants, with an `info` status dot and header text. It uses system-ui like the rest of the dashboard.
+
+**Category label** *(V1.6, dashboard only)* — plain text in the table cell or field. No chip and no colour: the category is descriptive data (FR-172) and must not look like a status.
+
+## Do's and Don'ts
+
+| Do | Don't |
+|---|---|
+| Keep status colours platform-fixed (`success`/`warning`/`danger`/`neutral`/`info`) so a colour means the same thing at every gym | Let a gym's `primary_color` tint any status badge, alert, or check-in overlay |
+| Use `info` for a recoverable "act now" state (pay for a session, wait for verification) | Use `danger` for session-required. Red means an expired membership, and a guest who needs to pay is not expired |
+| Pair every status colour with a label and an icon | Signal session-required, pending verification, or a reward by colour alone |
+| Keep one `raised` card per screen (Home: the status card) | Make the Rewards card `raised` to make it "pop" |
+| Show loyalty progress as the plain "n / N" numeral plus segments | Add confetti, badges, or celebratory animation to a reward. The tone stays factual (Voice and Tone) |
+| Show category as plain text | Give categories colours, icons, or chips that read as status |

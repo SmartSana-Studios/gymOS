@@ -2,9 +2,11 @@
 name: GymOS
 status: final
 created: 2026-07-04
-updated: 2026-09-02
+updated: 2026-10-11
 sources:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
+  - _bmad-output/planning-artifacts/epics.md
+  - _bmad-output/planning-artifacts/architecture/architecture-gym_os-2026-08-11/ARCHITECTURE-SPINE.md
 design_spine: DESIGN.md
 ---
 
@@ -38,6 +40,8 @@ design_spine: DESIGN.md
 
 ## Surface Index — All Screens
 
+> **ID namespace note *(V1.6)*.** Screen ids `AD-nn` here are Admin Dashboard screens. The architecture spine also numbers its decisions `AD-nn`, and from V1.6 the two ranges overlap (screens AD-22/AD-23 vs. Architecture Decisions AD-22…AD-32). This spine always writes an architecture reference as "Architecture Decision AD-nn"; a bare `AD-nn` is always a screen.
+
 ### Member App
 
 | ID | Screen | Route | Entry Points |
@@ -50,49 +54,54 @@ design_spine: DESIGN.md
 | MA-06 | Goal Selection | `/onboarding/goal` | After MA-05 |
 | MA-07 | Experience Level | `/onboarding/experience` | After MA-06 |
 | MA-08 | Plan Confirmation | `/onboarding/plan` | After MA-07 |
-| MA-09 | Home | `/home` | Post-onboarding; bottom tab |
-| MA-10 | Check-In (+ result states) | `/checkin` | Bottom tab; Home quick-action |
-| MA-11 | History (Payments / Check-ins) | `/profile/history` | Profile → History row *(V1.5: moved off the bottom tab bar, see Navigation Structure)* |
+| MA-09 | Home | `/home` | Post-onboarding; bottom tab. *(V1.6: guest status card, Rewards card, post-sync denial notice)* |
+| MA-10 | Check-In (+ result states) | `/checkin` | Bottom tab; Home quick-action. *(V1.6: "Pay for your session" and "will be verified" result states)* |
+| MA-11 | History (Payments / Check-ins) | `/profile/history` | Profile → History row *(V1.5: moved off the bottom tab bar, see Navigation Structure)*. *(V1.6: session payments labelled "Session")* |
 | MA-12 | Profile | `/profile` | Bottom tab. *(V1.5: gains History and Notification Preferences sections)* |
-| MA-13 | Plan Details | `/plan` | Home quick-action |
-| MA-14 | Payment Detail | `/profile/history/payment/:id` | History → payment row |
+| MA-13 | Plan Details | `/plan` | Home quick-action. *(V1.6: Pay-per-session variant)* |
+| MA-14 | Payment Detail | `/profile/history/payment/:id` | History → payment row. *(V1.6: session receipt label)* |
 | MA-15 | Progress | `/progress` | Bottom tab *(V1.5, FR-123)* |
 | MA-16 | Classes | `/classes` | Bottom tab; Home quick-action for upcoming bookings *(V1.5, FR-123, FR-108)* |
+| MA-17 | Pay for Session | `/pay-session` | MA-10 "Pay for your session" result [Pay now]; Home quick action [Pay for a session] *(V1.6, FR-158, Story 19.11)* |
+| — | In-app Renewal *(shipped, Story 4.15; documented V1.6)* | `/renew` | Home quick action [Renew] (gym has Tara Money connected) |
+| — | Awaiting Registration *(shipped, FR-155; documented V1.6)* | `/awaiting-registration` | Root guard, replaces all tabs while the registration fee is unsettled |
 
 ### Admin Dashboard
 
 | ID | Page | Route | Min Role |
 |---|---|---|---|
 | AD-01 | Login | `/login` | — |
-| AD-02 | Overview | `/` | Receptionist |
+| AD-02 | Overview | `/` | Receptionist *(V1.6: Guest sessions card, Manager-plus; session revenue line; session alert variant)* |
 | AD-03 | Members — List | `/members` | Receptionist |
-| AD-04 | Member — Detail | `/members/:id` | Receptionist |
+| AD-04 | Member — Detail | `/members/:id` — **shipped as a View-mode modal on AD-03** (`MemberModal.tsx`), see AD-04 | Receptionist *(V1.6: Sessions and Rewards sections; "Record session payment" action)* |
 | AD-05 | Member — Create / Edit | `/members/new`, `/members/:id/edit` | Manager |
 | AD-06 | Member — Invite | Modal on AD-03 / AD-04 | Manager |
 | AD-07 | CSV Import | Modal on AD-03 | Manager |
 | AD-08 | Subscriptions | `/subscriptions` | Manager |
-| AD-09 | Payments | `/payments` | Receptionist |
-| AD-10 | Manual Payment Entry | Modal on AD-09 / AD-02 | Receptionist |
-| AD-11 | Attendance | `/attendance` | Receptionist |
-| AD-12 | Audit Log | `/audit` | Manager |
-| AD-13 | Settings | `/settings` | Supervisor *(V1.5: Manager-plus access — was Owner-only; gains Staff and Connect Payment Account sections)* |
+| AD-09 | Payments | `/payments` | Receptionist *(V1.6: Purpose column/filter, flagged-reason labels, session refund notices)* |
+| AD-10 | Manual Payment Entry | Modal on AD-09 / AD-02 | Receptionist *(V1.6: unchanged — no Session purpose; see AD-10)* |
+| AD-11 | Attendance | `/attendance` | Receptionist *(V1.6: session alert variant)* |
+| AD-12 | Audit Log | `/audit` | Manager *(V1.6: new action labels)* |
+| AD-13 | Settings | `/settings` | Supervisor *(V1.5: Manager-plus access — was Owner-only; gains Staff and Connect Payment Account sections)* *(V1.6: Charge guests per session, Loyalty program, Category)* |
 | AD-14 | Coach Portal — Member List | `/coach` | Coach |
 | AD-15 | Coach Portal — Member Detail | `/coach/:memberId` | Coach *(V1.5: restructured into tabs — Session Notes / Progress / Workout Plan)* |
 | AD-16 | Staff — List | `/settings/staff` | Supervisor *(V1.5, FR-120)* |
 | AD-17 | Staff — Add / Edit | Modal on AD-16 | Supervisor *(V1.5, FR-087–FR-089)* |
-| AD-18 | Classes — List & Attendance | `/classes` | Receptionist *(V1.5, FR-121)* |
+| AD-18 | Classes — List & Attendance | `/classes` | Receptionist *(V1.5, FR-121)* *(V1.6: guest marking refusal + in-place session payment)* |
 | AD-19 | Classes — Create / Edit | Modal on AD-18 | Manager *(V1.5, FR-104)* |
 | AD-20 | Coach Portal — Overview | `/coach/overview` | Coach *(V2, FR-146)* |
 | AD-21 | Coach Portal — My Classes | `/coach/classes` | Coach *(V2, FR-145)* |
+| AD-22 | Guest Sessions (drill-down) | `/guest-sessions?tab=paid\|blocked\|free&period=today\|month` | Manager *(V1.6, FR-163, Story 19.10)* — reached only from the AD-02 Guest sessions card |
+| AD-23 | Plans | `/plans` | Manager *(shipped, undocumented until V1.6; V1.6 adds the plan-type lock, FR-173)* |
 
 ### Super Admin Dashboard
 
 | ID | Page | Route |
 |---|---|---|
 | SA-01 | Login | `/login` |
-| SA-02 | Gym List | `/gyms` |
-| SA-03 | Gym Detail | `/gyms/:id` |
-| SA-04 | Create Gym | Modal on SA-02 |
+| SA-02 | Gym List | `/gyms` *(V1.6: Category column)* |
+| SA-03 | Gym Detail | `/gyms/:id` *(V1.6: Category, editable)* |
+| SA-04 | Create Gym | Modal on SA-02 *(V1.6: required Category select)* |
 | SA-05 | Platform Metrics | `/metrics` |
 | SA-06 | Tier Management | `/tiers` |
 | SA-07 | Billing | `/billing` *(V1.5, FR-131/FR-135)* |
@@ -116,12 +125,19 @@ App — Unauthenticated
     └── MA-08  Plan Confirmation
 
 App — Authenticated
+├── Root guards (replace the whole tab app; checked before any tab renders)
+│    ├── Awaiting Registration  [/awaiting-registration — shipped, FR-155]
+│    └── Gym suspended          [/suspended — see State Patterns]
 └── Bottom Tab Bar (always visible) — 5 tabs (V1.5, up from 4; see Navigation Structure for the tab-count rationale)
     ├── Tab 1: Home (MA-09)
     │    ├── → Check-In (MA-10)     [quick-action button]
     │    ├── → Plan Details (MA-13) [quick-action button]
+    │    ├── → In-app Renewal (/renew)      [quick action Renew — shipped, Story 4.15]
+    │    ├── → Pay for Session (MA-17)      [quick action Pay for a session — V1.6]
+    │    ├── Rewards card (in-page)         [V1.6, FR-169]
     │    └── → upcoming booked classes summary [V1.5, links into Classes tab]
     ├── Tab 2: Check-In (MA-10)     [camera activates on tab entry]
+    │    └── "Pay for your session" result → Pay for Session (MA-17) [V1.6]
     ├── Tab 3: Classes (MA-16)      [V1.5]
     │    └── → Class Detail / booking action
     ├── Tab 4: Progress (MA-15)     [V1.5]
@@ -139,7 +155,9 @@ App — Authenticated
 Admin Dashboard
 ├── Sidebar (role-filtered; see Navigation Structure)
 │   ├── Overview          → AD-02
-│   ├── Members           → AD-03 → AD-04 → AD-05 / AD-06 / AD-07
+│   │   └── Guest sessions card → AD-22 (tabs: Paid / Blocked / Free) [Manager-plus, V1.6]
+│   ├── Members           → AD-03 → AD-04 (modal) → AD-05 / AD-06 / AD-07
+│   ├── Plans             → AD-23                                    [shipped; documented V1.6]
 │   ├── Subscriptions     → AD-08
 │   ├── Payments          → AD-09 → AD-10 (modal)
 │   ├── Attendance        → AD-11
@@ -153,8 +171,9 @@ Admin Dashboard
 │           ├── My Members    → AD-14 → AD-15 (tabs: Session Notes / Progress [V1.5] / Workout Plan [V1.5])
 │           └── My Classes    → AD-21                                [V2]
 └── Floating / Overlay
-    ├── Front-Desk Alert Panel  [on AD-02, AD-11; real-time]
-    └── Inline Renewal Panel    [within alert or Subscriptions row]
+    ├── Front-Desk Alert Panel  [on AD-02, AD-11; real-time; V1.6 adds the session-required variant]
+    ├── Inline Renewal Panel    [within alert or Subscriptions row]
+    └── Record Session Payment Panel [V1.6; from session alert, AD-04, AD-18 refusal]
 ```
 
 ### Super Admin Dashboard IA
@@ -162,7 +181,7 @@ Admin Dashboard
 ```
 Super Admin Dashboard
 └── Sidebar
-    ├── Gyms      → SA-02 → SA-03; SA-04 (modal on SA-02)
+    ├── Gyms      → SA-02 → SA-03; SA-04 (modal on SA-02)            [V1.6: Category on all three, no new page]
     ├── Metrics   → SA-05
     ├── Tiers     → SA-06
     └── Billing   → SA-07                                            [V1.5]
@@ -191,6 +210,7 @@ Super Admin Dashboard
 - Check-In tab (Tab 2): activates the camera immediately on tab entry without requiring any further tap.
 - Deep link from SMS invite (new member): app opens → if unauthenticated → MA-01 → MA-02 with phone number from deep link pre-populated.
 - Deep link for returning authenticated user: open to MA-09 (Home).
+- *(V1.6)* No tab changes. MA-17 Pay for Session, `/renew`, and MA-13 are pushed full-screen routes (back arrow, no tab bar), matching the shipped `/renew` pattern. The Rewards card lives inside Home, not on its own tab.
 
 ### Admin Dashboard — Sidebar
 
@@ -214,6 +234,7 @@ Super Admin Dashboard
 |---|---|---|---|---|---|
 | Overview | ✓ | ✓ | ✓ | ✓ | — |
 | Members | ✓ | ✓ | ✓ | ✓ | — |
+| Plans (AD-23) *(shipped; documented V1.6)* | — | ✓ | ✓ | ✓ | — |
 | Subscriptions | — | ✓ | ✓ | ✓ | — |
 | Payments | ✓ | ✓ | ✓ | ✓ | — |
 | Attendance | ✓ | ✓ | ✓ | ✓ | — |
@@ -223,6 +244,8 @@ Super Admin Dashboard
 | Settings (AD-13) | — | — | ✓ | ✓ | — |
 | Staff (AD-16/17) | — | — | ✓ | ✓ | — |
 | Coach Portal | — | — | — | — | ✓ |
+
+*(V1.6)* Guest Sessions (AD-22) has **no sidebar item**. It is reached only from the AD-02 Guest sessions card, so it is Manager-plus by construction; a Receptionist who types the URL gets the global "You don't have permission to do that." state. Settings (AD-13) stays Owner/Supervisor as shipped, so no Manager ever sees the V1.6 Settings sections. Story 21.2's "Manager who can open Settings sees category read-only" is therefore moot; it is not built, because the shipped sidebar never gives a Manager Settings.
 
 Coach role: the sidebar renders only the "Coach Portal" link. All other items are absent from the DOM. Selecting it enters the Portal, which carries its own sub-navigation (V2, FR-144):
 
@@ -270,6 +293,19 @@ Microcopy guide. Brand voice and visual identity live in `DESIGN.md`.
 | SaaS payment reminder *(V1.5, FR-131)* | "Your GymOS subscription payment is due [date]. Pay now: [link]" | Anything implying an automatic charge — mobile money isn't auto-debited, the copy must always ask the Owner to act |
 | Quiet-gym alert *(V1.5, N-06)* | "[Gym name] is quiet right now — good time to train." | "Occupancy alert: low." |
 | Class reminder *(V1.5, N-07)* | "Your [Class name] class starts in 1 hour." | "Reminder: upcoming event." |
+| Check-in — session required *(V1.6, FR-159)* | "Pay for your session" + "You need a paid session to check in today." | "Access denied — no valid entitlement." (and never the expired copy on a current build) |
+| Check-in — offline guest *(V1.6, FR-161)* | "Check-in saved — your session will be verified" | "Checked in" (a guest's offline scan is not yet a confirmed visit) |
+| Offline scan denied on sync *(V1.6)* | "Your check-in on [date] at [time] wasn't counted — you had no paid session. See the front desk if this is wrong." | "Sync error: attempt rejected." |
+| Front-desk alert — session required *(V1.6, FR-160)* | "Ange T. — No paid session. Record a payment so they can scan again." | "Error: guest entitlement missing" |
+| Session payment recorded *(V1.6)* | "Session recorded for Ange T. Ask them to scan again." | "Payment saved successfully." |
+| Charge-guests confirmation *(V1.6, FR-157)* | "12 Pay-per-session members will need a paid session at their next visit." | "This will affect some members. Continue?" |
+| Rewards — free session earned *(V1.6, UJ-11)* | "Free session earned — valid for 60 days" | "Loyalty reward unlocked!" (no hype, no exclamation) |
+| Rewards — free days added *(V1.6, FR-167)* | "30 free days added — your new renewal date is 14 Nov 2026" | "Your expiry date has changed." (a moved date with no reason looks like an error) |
+| Session lapse *(V1.6)* | "Paid session — use by 18 Oct" | "Expires in 7d" / "Will be forfeited" |
+| Plan type locked *(V1.6, FR-173)* | "This plan has members, so its type can't be changed. Create a new plan instead." | "Field locked." |
+| Gym category *(V1.6, FR-171)* | The label only: "Yoga Studio" / "Studio Yoga" | Any category-specific product wording — the apps keep saying "gym" for every category (FR-172) |
+
+**Session vs. class terminology *(V1.6, user decision 2026-10-11)*.** A paid or free day-visit is a **session** in EN and a **séance** in FR (matching the shipped plan type "Paiement à la séance"). A class is always a **class** in EN and **cours** (or "séance de cours" where an occurrence is meant) in FR, so the two never clash on one screen. In EN, V1.6 copy always qualifies the word — "paid session", "free session", "today's session", "guest sessions", "session payment" — never a bare "session" that could read as a class occurrence or a login session. When a V1.6 story touches a screen that shows a class occurrence, its FR string moves off "séance" (for example AD-18 "Prochaine séance" → "Prochain cours", "Aucune séance à venir" → "Aucun cours à venir"). Coach "Notes de séance" (AD-15) is left as is: a Coach never sees session payments, so there is no clash on that screen.
 
 **French translations** must be exact equivalents in tone and reading level — not literal word-for-word. Both language versions are reviewed together before ship. EN and FR string counts must match on every PR.
 
@@ -663,6 +699,55 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 
 **Empty state (recent activity):** "No activity yet — check in for the first time!"
 
+**V1.6 — Session guests and Rewards *(FR-159, FR-161, FR-169; Stories 19.11, 20.6)*.** Everything below applies only when its switch is on. A gym with Charge guests per session off, a member not on Pay-per-session, or a Pay-per-session plan priced 0 XAF (all *exempt*) sees Home exactly as shipped.
+
+**Mock:** [mockups/key-ma09-home-guest.html](mockups/key-ma09-home-guest.html) *(guest member, charging and loyalty on: usable sessions / no usable session)*
+
+Layout with both switches on (guest member):
+```
+│  ┌────────────────────────────┐  │  ← raised Card (still this screen's one)
+│  │ (🎟) [Pay per session]     │  │     Icon Chip `confirmation_number`
+│  │  Drop-in · 2,000 XAF        │  │     plan name · price per session
+│  │  2 paid sessions · use by   │  │  ← "2" as statNumeral
+│  │  18 Oct                     │  │
+│  └────────────────────────────┘  │
+│  [Pay for a session] [Check In] [View Plan] │  ← Pay only when 0 usable + Tara connected
+│                                  │
+│  Rewards                         │  ← V1.6 Rewards card (flat)
+│  ┌────────────────────────────┐  │
+│  │  3 / 5  ■■■□□               │  │     Loyalty Progress (DESIGN.md)
+│  │  paid sessions toward your  │  │
+│  │  next free session          │  │
+│  │ (🎁) Free session — use by 2 Dec │  │  Session Chip rows
+│  │ (🎟) Paid session — use by 18 Oct│  │
+│  └────────────────────────────┘  │
+```
+
+- **Guest status card *(charging on, Pay-per-session, price > 0)*.** The status card keeps its slot and `raised` treatment, but a guest has no expiry, so it swaps the expiry line for a sessions line:
+  | State | Badge (EN / FR) | Colour | Sessions line (EN / FR) |
+  |---|---|---|---|
+  | Today already covered | "Today covered" / "Journée couverte" | `{colors.success}` | "You can come and go until closing." / "Vous pouvez entrer et sortir jusqu'à la fermeture." |
+  | ≥1 usable session | "Pay per session" / "À la séance" | `{colors.neutral}` | "[N] paid session(s) · use by [date]" / "[N] séance(s) payée(s) · à utiliser avant le [date]" (soonest lapse date, plural-aware) |
+  | No usable session | "Pay per session" / "À la séance" | `{colors.info}` | "No paid session — pay before you scan." / "Aucune séance payée — payez avant de scanner." |
+
+  When the member also holds usable free sessions, the line appends " + [M] free" / " + [M] gratuite(s)". When they hold only free sessions, it reads "[M] free session(s) · use by [date]" / "[M] séance(s) gratuite(s) · à utiliser avant le [date]". The count and soonest-lapse summary lives on Home's status card only, not also on the MA-10 scanning screen. Story 19.11 allows either, and one place avoids two numbers drifting.
+- **[Pay for a session] *(V1.6)*.** A quick action, placed first in the quick-action row like the shipped [Renew], that pushes MA-17. Shown only when the member has no usable session **and** the gym has Tara Money connected. It lets a guest pay before scanning, the in-app half of UJ-11's "taps Pay in the app". With no Tara connection it is absent and the line above already says to pay first.
+- **Quick actions unchanged.** "Check In" stays "Check In" for a guest with no session: the scan itself lands on the designed "Pay for your session" state. This differs from expired, where "Check In" becomes "See front desk".
+- **Rewards card *(V1.6, Story 20.6)*.** It sits on **Home**, below the quick actions and above Upcoming Classes, not on Profile, because the guest checks progress at the moment of a visit and Home is where they land. It is a `flat` Card, since Home's one `raised` slot belongs to the status card. Its title is "Rewards" / "Récompenses". That is plainer for members than "Loyalty program", which stays the staff-side name. It is rendered when the gym's loyalty program is on **or** the member holds an unexpired free session, and is absent otherwise (absent, not an empty state). Contents, all from `effective_loyalty` for the **active gym only**:
+  - **Progress:** the Loyalty Progress component (`{components.loyaltyProgress}`) for the counter that matches the member's current plan. A guest sees "3 / 5" with the caption "paid sessions toward your next free session" / "séances payées avant votre prochaine séance gratuite". A subscriber sees "1 / 3" with "on-time renewals toward [R] free days" / "renouvellements à temps avant [R] jours offerts". The other counter is hidden even if non-zero: it cannot move while the member is on this plan type (FR-164), and two counters would read as one broken number. The progress block is hidden when the program is off, leaving only the session rows.
+  - **Free session rows:** Session Chip (`{components.sessionChip}`, gift glyph, `{colors.success}`), "Free session — use by [date]" / "Séance gratuite — à utiliser avant le [date]". A free session held while on a non-Pay-per-session plan (dormant, FR-166) shows `{colors.neutral}` with the sub-line "Usable when you're back on Pay-per-session" / "Utilisable à votre retour au paiement à la séance".
+  - **Unused paid session rows:** Session Chip (ticket glyph, `{colors.accent}`), "Paid session — use by [date]" / "Séance payée — à utiliser avant le [date]", soonest first.
+  - **Newly earned free session:** the first time the card renders after a grant, a one-line headline above the rows reads "Free session earned — valid for [60] days" / "Séance gratuite gagnée — valable [60] jours" (UJ-11 wording; the 60 is read from the platform config, not hard-coded). It is shown once per grant, tracked on the device, because no reward push exists in V1.6 (FR-169) and UJ-11 implies a visible moment.
+  - **Free days reward (subscriber):** after a grant, the card shows "[R] free days added — your new renewal date is [date]" / "[R] jours offerts ajoutés — votre nouvelle date de renouvellement est le [date]" (Story 20.6 `[UX]`). It stays until the next renewal, so the moved expiry on the status card never looks like an error.
+  - **Footnote** (`small`, muted). Guest: "Progress resets after 90 days without a paid session." / "Votre progression repart à zéro après 90 jours sans séance payée." Subscriber: "Renew on time to keep your progress." / "Renouvelez à temps pour garder votre progression." The 90 is read from config.
+  - **Lapsed sessions** drop off the card silently. Each row already shows its use-by date in advance, and staff can still see lapses on AD-04.
+  - **Reset:** after the idle window the card shows the reset value (0) at read time, never the stale count (FR-168).
+- **Offline sync banner (guest at a charging gym):** "Offline check-in waiting to be verified…" / "Enregistrement hors ligne en attente de vérification…" replaces "Offline check-in pending sync…" (which keeps its shipped key for everyone else). Same placement and lifetime.
+- **Post-sync denial notice *(FR-161, Story 19.11)*.** When a queued guest scan is denied on sync, the next Home render shows a dismissible notice card directly under the header, above the status card. It is `{colors.info}`-tinted with Icon Chip `info`: "Your check-in on [date] at [time] wasn't counted — you had no paid session. See the front desk if this is wrong." / "Votre enregistrement du [date] à [heure] n'a pas été compté — vous n'aviez pas de séance payée. Voyez l'accueil en cas d'erreur." It has a [Got it] / [Compris] button. It stays until dismissed. Several denials collapse into one card naming the latest, with "+[N] more" / "+[N] autre(s)". It has no Pay action, because paying later cannot retro-cover an already-denied visit (FR-159).
+- **Offline scan verified on sync:** no notice. Success is the expected outcome, and only a denial must never be silent (FR-161).
+- **Recent activity:** a session payment row reads "Session payment: 2,000 XAF" / "Paiement de séance : 2 000 XAF", never the renewal wording, with a ticket-glyph Icon Chip (`{colors.accent}`). A check-in covered by a free session is a normal check-in row. Free sessions never appear as payments (FR-158).
+- **Gym switch:** Home, the status card, and the Rewards card show the active gym only (Architecture Decision AD-4).
+
 ---
 
 ### MA-10 · Check-In
@@ -708,8 +793,8 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 
 **Offline behavior:**
 - Camera and QR decoding work fully offline
-- On scan: check-in recorded to local SQLite immediately; show success result with sync indicator
-- Sync fires automatically when connectivity returns
+- On scan: check-in recorded to local SQLite immediately; show success result with sync indicator *(V1.6: a guest at a charging gym sees "Check-in saved — will be verified" instead, see below)*
+- Sync fires automatically when connectivity returns *(V1.6: a guest's queued scan is validated on sync under FR-159; a denial surfaces as the MA-09 post-sync denial notice)*
 
 **MA-10 Result States (full-screen overlays, no navigation bar):**
 
@@ -767,6 +852,44 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 **Scanning timeout (15 seconds without a detected QR):**
 - Brief instructional nudge below the viewfinder replaces the static label: "Having trouble? Move closer to the QR code." Viewfinder continues to scan; this is informational only.
 
+**V1.6 — Session guests *(FR-159, FR-161; Story 19.11)*.** These states apply only to a Pay-per-session member, plan price > 0, at a gym with Charge guests per session on. Everyone else gets the five states above, unchanged. The app refreshes the gym's charging flag on launch, on foreground, and on check-in screen focus, which is invisible to the member; the server's rule always governs.
+
+**Mock:** [mockups/key-ma10-session-required.html](mockups/key-ma10-session-required.html) *(Pay for your session; Check-in saved — will be verified)*
+
+**Pay for your session** *(new, UX-DR8 pattern)*:
+```
+[Full-screen info overlay — {colors.info}]
+  🎟  (large ticket icon, MaterialIcons `confirmation_number`)
+  "Pay for your session"
+  "You need a paid session to check in today.
+   2,000 XAF covers the whole day."
+  [Pay now]             ← primary; only when the gym has Tara Money connected → MA-17
+  [See the front desk]  ← secondary when Pay now shows; primary otherwise → closes overlay, returns to MA-09
+  [does NOT auto-dismiss — requires tap]
+```
+- Title is fixed by the PRD/epics: "Pay for your session" / "Payez votre séance".
+- Body: "You need a paid session to check in today." / "Il vous faut une séance payée pour vous enregistrer aujourd'hui." Second line "[price] covers the whole day." / "[prix] couvre toute la journée." The price is the plan price shown on the member's own plan.
+- Buttons: "Pay now" / "Payer maintenant"; "See the front desk" / "Voir l'accueil". EN follows the PRD's "See the front desk", not the shipped `checkin.seeFrontDesk` "See front desk", so this gets a new key. FR reuses the shipped "Voir l'accueil" verbatim.
+- Colour `{colors.info}`, not `{colors.danger}`. This is a recoverable, one-tap state and must not read as "expired". Red stays reserved for an expired membership.
+- Haptic: notification error (UX-DR15: denial haptic; no attendance was recorded).
+- How the app knows: `check_in()` returns `null` as for expired; at a charging gym the app reads the member's latest `session_attempts` row to choose this state over Denied — Expired (Architecture Decision AD-29/AD-31).
+- **Older app builds** (before Story 19.11) show their Denied — Expired overlay ("Your membership has expired. Please see the front desk.") for this refusal. The guest is not admitted, and the copy is accepted as wrong (decision 1, 2026-10-11). The owner is warned in the AD-13 Charge-guests confirmation, and no minimum-version gate exists.
+
+**Check-in saved — will be verified** *(new; replaces Success — Offline for guests at a charging gym)*:
+```
+[Full-screen info overlay — {colors.info}]
+  ⏳  (MaterialIcons `hourglass_top`)
+  "Check-in saved — your session will be verified"
+  "08:14 AM · We'll check your session when you're back online."
+  [OK]
+  [does NOT auto-dismiss — requires tap]
+```
+- Copy: "Check-in saved — your session will be verified" / "Enregistrement sauvegardé — votre séance sera vérifiée". Sub-line "We'll check your session when you're back online." / "Nous vérifierons votre séance dès votre retour en ligne." These are the final wording, settling FR-161's UX wording deferral.
+- Colour `{colors.info}`, not green: it is not a confirmed visit yet. It requires a tap so the guest registers the difference from a green success. Haptic: notification warning.
+- The app uses its cached charging flag. If the gym turned charging on while the member was offline, the member may see the plain green offline success, and the sync may later be denied. The post-sync denial notice on MA-09 covers that case.
+
+**Success — free session used** *(variant of Success — Online, V1.6, Epic 20)*: same green overlay and timing, with the sub-line "08:14 AM · Free session used" / "08h14 · Séance gratuite utilisée". Optional reassurance that nothing was charged. A paid-session consumption uses the unchanged Success — Online, and a covered re-entry the same day is also a plain success: no "covered" hint, since it costs nothing.
+
 ---
 
 ### MA-11 · History
@@ -802,6 +925,8 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 - Check-ins tab: "No check-ins yet. Scan the QR at your gym to get started." [Check In] button → navigates to MA-10
 
 **Loading:** 5–6 skeleton rows per tab; each matches expected row height.
+
+**V1.6 *(Story 19.11, FR-158)*:** a Payments row whose purpose is `session` shows "Session" / "Séance" where a renewal shows the plan name, alongside the shipped "Registration fee" / "Frais d'inscription" label. It keeps the same Verified / Pending / Failed badge set. A late-confirmed Tara session payment is Verified. A flagged one (wrong account, mismatch) shows Failed, because it never bought a session. Free sessions never appear here (FR-158). The Check-ins tab is unchanged: a refused scan is not a check-in, so it is never listed.
 
 ---
 
@@ -856,6 +981,8 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 - Notification toggle: optimistic UI (flips immediately), reverts with an inline error toast if the save fails
 - Log out: clears local tokens; navigates to MA-01
 
+**V1.6:** no change. The Rewards card lives on Home (see MA-09), and there is no reward notification toggle, because no reward push ships in V1.6 (FR-169).
+
 ---
 
 ### MA-13 · Plan Details
@@ -883,6 +1010,8 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 
 **Components:** Read-only detail card. No member-facing actions (plan changes require admin).
 
+**V1.6 — Pay-per-session variant *(FR-156, FR-173)*:** Plan type reads "Pay-per-session" / "Paiement à la séance" (shipped). The "Price" label becomes "Price per session" / "Prix par séance". Duration and Expires use the shipped "No fixed duration" / "Pas de durée fixe" and "No expiry" / "Pas d'expiration". Billing is hidden. At a charging gym, add one row: "Sessions: one paid session covers a whole day; unused sessions lapse after 7 days." / "Séances : une séance payée couvre toute la journée ; une séance non utilisée expire après 7 jours." The 7 is read from config. Session counts are not repeated here; they live on Home.
+
 ---
 
 ### MA-14 · Payment Detail
@@ -909,6 +1038,8 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 ```
 
 **Components:** Read-only receipt. All fields from FR-041. No member-initiated refund action.
+
+**V1.6 *(Stories 19.4, 19.11)*:** for a `session` payment, the "Plan" row becomes "For: Session — [plan name]" / "Objet : Séance — [nom du forfait]". Add a row "Session use by: [date]" / "Séance à utiliser avant le : [date]" while unused, or "Used on: [covered day]" / "Utilisée le : [jour]" once consumed. This follows the shipped registration-fee receipt label pattern.
 
 ---
 
@@ -1001,6 +1132,89 @@ Step indicator: step 3 of 4; segments 1–3 filled.
 - My Bookings tab: "You haven't booked any classes yet." with a link that switches to the Available tab
 
 **Offline behavior:** this screen requires connectivity (unlike Check-In and Progress) — booking/cancellation are not queued offline, given the concurrency-sensitive capacity check; if offline, the screen shows a persistent banner ("You're offline — classes can't be booked right now") over the last-synced list.
+
+**V1.6 *(FR-174)*:** no change. Booking and cancelling stay free for a guest: no price and no session requirement on this screen. A session is consumed only when staff mark the guest attended (AD-18). There is no "attending uses a session" hint here, since booking is not a payment step (FR-106). FR class strings on this screen follow the session/class terminology rule in Voice and Tone.
+
+---
+
+### MA-17 · Pay for Session *(V1.6, FR-158, Story 19.5/19.11)*
+
+**Purpose:** A guest pays one session's price by Tara Money from the app, then scans in. It mirrors the shipped In-app Renewal (`/renew`) flow and reuses its phases and payment-status subscription.
+
+**Entry:** MA-10 "Pay for your session" → [Pay now]; MA-09 quick action [Pay for a session]. It is offered only when the gym has charging on, Tara Money connected (FR-127), and the member is on Pay-per-session with price > 0. Otherwise neither entry point renders.
+
+**Layout:**
+```
+┌──────────────────────────────────┐
+│  ← (back)                        │
+│  Pay for your session            │
+├──────────────────────────────────┤
+│  ┌────────────────────────────┐  │  ← flat Card
+│  │ Drop-in                     │  │     plan name
+│  │ 2,000 XAF                   │  │  ← statNumeral
+│  │ Covers the whole day.       │  │
+│  │ Unused sessions lapse after │  │
+│  │ 7 days.                     │  │
+│  └────────────────────────────┘  │
+│  Paying with                     │
+│  [+237 ▾][6XX XXX XXX         ]  │  ← editable, defaults to member phone
+│  "Defaults to your registered…"  │
+│                                  │
+│  [         Pay 2,000 XAF       ] │  ← primary Button
+└──────────────────────────────────┘
+```
+
+**Phases** (same as `/renew`: idle → sending → pending → stillWaiting at 45 s → verified / flagged):
+| Phase | EN | FR |
+|---|---|---|
+| Title | "Pay for your session" | "Payez votre séance" |
+| Price caption | "Covers the whole day." / "Unused sessions lapse after [7] days." | "Couvre toute la journée." / "Une séance non utilisée expire après [7] jours." |
+| Payer phone | reuse `renew.payerPhone` / `renew.payerPhoneHint` verbatim | reuse verbatim |
+| Confirm button | "Pay [price]" | "Payer [prix]" |
+| Sending | reuse `renew.sendingPaymentRequest` "Sending payment request…" | reuse verbatim |
+| Pending | reuse `renew.pending.title` "Payment request sent"; description "Check your phone and approve the prompt to pay for your session." | reuse title; "Vérifiez votre téléphone et approuvez l'invite pour payer votre séance." |
+| Still waiting | reuse `renew.pending.stillWaiting` + "You can close this — if the payment goes through, your session will appear on Home." | reuse + "Vous pouvez fermer — si le paiement aboutit, votre séance apparaîtra sur l'accueil." |
+| Failed / flagged | reuse `renew.pending.failed` "This payment wasn't approved. You can try again." | reuse verbatim |
+| Success | "Session paid" / "Scan the QR code to check in." + [Scan now] → MA-10 | "Séance payée" / "Scannez le QR code pour vous enregistrer." + [Scanner] → MA-10 |
+
+**Errors** (inline above the button; the button stays available unless noted):
+| Code | EN | FR |
+|---|---|---|
+| Payment already in progress (app or desk) | reuse `renew.errors.paymentAlreadyPending` verbatim | reuse verbatim |
+| Tara unavailable / credentials invalid | "Your gym's payment connection isn't working right now. See the front desk to pay with cash." | "La connexion de paiement de votre salle ne fonctionne pas actuellement. Voir l'accueil pour payer en espèces." |
+| Charging turned off meanwhile | "You don't need to pay for a session at this gym right now." + [Back] | "Vous n'avez pas besoin de payer de séance dans cette salle pour le moment." + [Retour] |
+| Plan changed / price 0 meanwhile | "Your plan doesn't need a session payment." + [Back] | "Votre forfait ne nécessite pas de paiement de séance." + [Retour] |
+| Payer phone invalid | reuse `renew.errors.payerPhoneInvalid` | reuse |
+| Other | reuse `renew.errors.initiateFailed` | reuse |
+
+**Rules:**
+- The amount is display-only. The server reads the plan price at payment time, and the client never sends it.
+- A late Tara confirmation (after the 10-minute stale window) still creates the session (FR-158). The member may already have left this screen, and the session appears on Home's status card at next render. No notification is sent.
+- A wrong-account or mismatch outcome never creates a session. The member sees the Failed phase, and staff see a discrepancy on AD-09.
+- Haptic on success: notification success. On failure: notification error.
+- Requires connectivity; if offline, the confirm button is disabled with the shipped offline banner.
+
+---
+
+### In-app Renewal (`/renew`) *(shipped Story 4.15; documented V1.6)*
+
+**Purpose:** A subscriber renews their own plan by Tara Money (FR-140). It is documented here because MA-17 mirrors it and V1.6 subscriber stamps can come from it (FR-167).
+
+- **Entry:** Home quick action [Renew] (`home.renew`), shown first in the quick-action row for the three renewal-eligible statuses (expiring soon, grace period, expired) when the gym has Tara Money connected. Check In stays alongside it except when expired. When not connected, the same slot is "See front desk", which opens a sheet: "Renew with cash" / "Your gym's mobile money payment isn't available right now. See front desk to renew with cash." (shipped `home.seeFrontDeskTitle/Body`).
+- **Screen:** pushed full-screen route (back arrow, no tab bar). It shows the plan, the price, and "Paying with" (payer phone, editable, defaulting to the member's number), then [Confirm Renewal].
+- **Phases:** idle → sending → pending ("Payment request sent") → stillWaiting at 45 s → verified ("Renewal complete!" + [Done]) / flagged ("This payment wasn't approved. You can try again."). Polling every 5 s backs up the realtime payment-status subscription.
+- **Errors:** shipped `renew.errors.*` (load failed, no plan, not eligible, payment already pending, gym credentials unavailable, mobile money disabled, payer phone invalid).
+- **V1.6:** an on-time renewal through this screen earns a subscriber stamp; any free days granted appear on the Rewards card (MA-09). The screen itself is unchanged.
+
+---
+
+### Awaiting Registration (`/awaiting-registration`) *(shipped Story 18.7, FR-155; documented V1.6)*
+
+**Purpose:** A neutral blocked state for a member whose registration fee staff have not yet settled. Members never pay the fee in the app (FR-148).
+
+- **Presentation:** a root guard replaces the whole tab app, like the gym-suspended screen. It shows the title "Registration not complete" / "Inscription non terminée" and the message "Your registration isn't complete yet. Please contact your gym to finish it." / "Votre inscription n'est pas encore terminée. Veuillez contacter votre salle pour la finaliser."
+- **Actions:** [Check again] (`awaitingRegistration.checkAgain`) re-reads the session. It shows "Checking…", then "Your registration is still not complete." or "Couldn't check right now. Please try again." inline with `accessibilityRole="alert"`. [Log out] uses the shared confirm. There is no payment option and no billing language.
+- **V1.6 relationship:** FR-159 says "Pay for your session" mirrors this state. It mirrors the *tone* (plain, no codes, tells the member what to do), but it differs in kind: it is a check-in result overlay with a payment action, not a whole-app block. A member awaiting the registration fee never reaches the check-in gate, so they never see "Pay for your session". The desk also cannot sell them a session (Record Session Payment refuses with "Settle the registration fee first").
 
 ---
 
@@ -1095,6 +1309,29 @@ Password *                        [input + show/hide toggle]
 
 **Loading (row 2):** 4 skeleton cards, streaming in their own boundary independently of row 1 — a slow aggregate must never delay the operational cards above it, which are the ones the front desk needs in real time.
 
+**Shipped drift, recorded V1.6:** the Revenue this month card already carries a sub-line "of which registration fees: XAF N" / "dont frais d'inscription : N XAF" (Epic 18). It shows when the gym has a fee set or fee revenue this month is > 0.
+
+**V1.6 amendment — Guest sessions *(FR-162, FR-163; Stories 19.8, 19.10)*:**
+
+**Mock:** [mockups/key-ad02-guest-sessions.html](mockups/key-ad02-guest-sessions.html) *(Owner view, charging on, Guest sessions card set to Today)*
+
+- **Session revenue line.** Under the Revenue this month card, a second sub-line reads "Guest sessions: XAF N" / "Séances des invités : N XAF". This is net verified session payments minus their refunds for the gym-local month (`gym_session_revenue_mtd()`). Session payments are excluded from the card's headline (subscription) figure, so this line is **in addition to** the headline, not "of which". It shows when charging is on or session revenue this month is > 0. A sub-line rather than a new stat card keeps row 1 at three cards and follows the shipped fee sub-line pattern. If the read fails, the line hides; the headline still renders.
+- **Session-required alerts** arrive in the same Front-Desk Alert Panel at the top (see Cross-Cutting Components). No layout change.
+- **Guest sessions card** (Owner, Supervisor, Manager; **absent from the DOM** for Receptionist and Coach, and absent for every role while charging is off):
+```
+┌─ Guest sessions ───────────────────────────── [ Today | This month ] ─┐
+│  41              6                      8                               │
+│  Paid sessions   Blocked attempts       Free sessions given             │
+│  →               4 members →            →                               │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+  - Placement: its own full-width row **below row 2**, in its own Suspense boundary, because its period control does not fit row 2's four-card grid. It uses the shipped stat-card visual with three `statNumeral`-weight figures.
+  - Period control: a segmented control "Today" / "Aujourd'hui" and "This month" / "Ce mois-ci", gym-local. It defaults to Today and is remembered per user in `localStorage` (convenience only).
+  - Figures (EN / FR): "Paid sessions" / "Séances payées"; "Blocked attempts" / "Tentatives bloquées" with the sub-line "[N] members" / "[N] membres" (distinct members blocked); "Free sessions given" / "Séances gratuites offertes", which reads 0 until Epic 20 ships.
+  - Each figure is a link to AD-22 on the matching tab and period. The card title is fixed: "Guest sessions" / "Séances des invités".
+  - Zero values render as "0", not an empty state. When charging is turned off mid-month the card disappears; past data stays reachable through AD-09 (Purpose: Session) and AD-12. There is no "walk-away" metric in V1.6, since FR-163 does not ask for one.
+  - **Loading:** one skeleton card at full width. **Error:** "Couldn't load guest sessions." / "Impossible de charger les séances des invités." with [Retry] inside the card. Other cards are unaffected.
+
 ---
 
 ### AD-03 · Members — List
@@ -1169,6 +1406,37 @@ Members                                [Import CSV]  [Export CSV]
 - Reason field (required text input, labeled "Reason for deactivation" — blank blocks confirm)
 - Buttons: [Cancel] [Deactivate]
 
+**Shipped drift, recorded V1.6 — member detail is a modal.** The tabbed `/members/:id` page above was never built. Member detail ships as the **View mode of `MemberModal.tsx`**, opened from an AD-03 row. It is a single scrolling modal with read-only Phone, Plan, Join Date, Subscription Status, Expiry Date, and Registration fee fields, plus coach assignment history. V1.6 adds its blocks as **sections inside that modal**, not as new tabs. The tabbed layout stays the target if the page is ever built. **Registration-fee dialogs** (Collect / Waive / Void, Epic 18: `CollectRegistrationFeeDialog`, `WaiveRegistrationFeeDialog`, `VoidRegistrationFeeDialog`, opened from AD-03 row actions) are shipped and not specced in this spine; see Story 18.6 in `epics.md`. V1.6 changes only the Waive dialog's reason field (see AD-05).
+
+**V1.6 — Sessions, Rewards and desk payment *(FR-159, FR-169, FR-170; Stories 19.9, 20.5; user decision 2026-10-11)*:**
+
+```
+[Ange T.]  [Pay per session]                 [Record session payment]   ← V1.6 action
+Phone … Plan: Drop-in (2,000 XAF / session) …
+
+── Sessions ──────────────────────────────────────────────── V1.6
+Unused      Paid · 11 Oct 09:02 · Cash · Aicha M.     Lapses 18 Oct
+            Free · earned 02 Oct                       Lapses 01 Dec
+Used        Paid · 09 Oct · covered day Thu 09 Oct
+Payments    → AD-09 filtered to this member, Purpose: Session
+
+── Rewards ───────────────────────────────────────────────── V1.6
+Guest progress       3 / 5        Subscriber progress   0 / 3
+Free sessions        1 · lapses 01 Dec
+(no edit controls — balances change only by the program's rules)
+```
+
+- **[Record session payment] *(user decision 2026-10-11)*.** This is the pre-scan desk entry point for UJ-11's "pays Aicha at the desk, then scans". It is shown in the modal header to every role that can record payments (Receptionist and up), **only** for a member on Pay-per-session, price > 0, at a gym with charging on. Otherwise it is absent from the DOM. It opens the **Record Session Payment Panel** (Cross-Cutting Components), the same panel the session-required alert opens. It is not added to AD-10.
+- **Sessions section:** rendered for a Pay-per-session member at a charging gym, or for any member who holds session rows. It lists:
+  - **Unused** sessions: source (Paid with time, method, and recorded-by / Free with earned date) and lapse date, soonest first.
+  - **Used** sessions: date and covered day.
+  - **Lapsed or voided** sessions as muted rows: "Lapsed [date]" / "Expirée le [date]" and "Voided by refund [date]" / "Annulée par remboursement le [date]", for the last 90 days.
+  - A link to AD-09 filtered to this member and Purpose: Session.
+
+  Labels (EN / FR): "Sessions" / "Séances"; "Unused" / "Non utilisées"; "Used" / "Utilisées"; "Lapses [date]" / "Expire le [date]"; "Covered day" / "Jour couvert"; "Paid" / "Payée"; "Free" / "Gratuite". **Empty:** "No sessions yet." / "Aucune séance pour le moment."
+- **Rewards section:** rendered when the gym's loyalty program is on, or the member holds an unexpired free session (Story 20.5). It shows **both** counters to staff, "Guest progress" / "Progression invité" and "Subscriber progress" / "Progression abonné" ("3 / 5" format), plus free sessions with expiry and unused paid sessions with lapse date (the latter shared with the Sessions section, not repeated). Values come only from `effective_loyalty`. There is **no edit control for any role**, Super Admin included (FR-170), and no "adjust" affordance even disabled. A muted line reads "Balances change only through the program's rules." / "Les soldes ne changent que selon les règles du programme."
+- **Coach:** sees nothing new (Story 19.9). Neither section renders in AD-15.
+
 ---
 
 ### AD-05 · Member — Create / Edit
@@ -1207,6 +1475,8 @@ Emergency Contact       [                               ]
 - Coach dropdown: only users with Coach role in this gym
 - "Save": validates all required fields; spinner; success → modal closes + list refreshes + toast "Member saved."
 - "Cancel": if form is dirty → "Discard changes?" [Discard] [Keep editing]; if clean → close immediately
+
+**V1.6 — "Session guest" waiver preset *(FR-156, Story 19.3)*.** The form itself is unchanged. The shipped Waive registration fee dialog (Epic 18, not specced here; see AD-04's drift note) gains a one-tap preset chip above its Reason field: "Session guest" / "Invité à la séance". Tapping it fills the mandatory reason with that text, which meets the dialog's 10-character minimum. The field stays editable, so free text is still possible. There is no automatic waiver for Pay-per-session plans.
 
 ---
 
@@ -1315,6 +1585,8 @@ Subscriptions
 
 **Empty state:** "No subscriptions on record yet."
 
+**V1.6:** the Last Payment column ignores `session` payments, because a session is never a renewal (Architecture Decision AD-27). Session payments are distinguished on AD-09, not here.
+
 ---
 
 ### AD-09 · Payments
@@ -1356,6 +1628,28 @@ All Payments
 - No payments: "No payments recorded yet."
 - Filter returns nothing: "No payments match these filters." [Clear filters]
 
+**V1.6 — Session payments *(FR-158, FR-162; Stories 19.2, 19.4, 19.8, 19.9)*.** The page also ships a [+ Record Refund] action and a Record Refund modal (member → payment to refund → amount → reason ≥ 10 chars) and a Discrepancies section, all undocumented until now. V1.6 amends:
+
+- **Purpose column + filter:** a new filter "Purpose" / "Objet" with All | Renewal | Registration fee | Session. Row labels: "Renewal" / "Renouvellement", "Registration fee" / "Frais d'inscription" (shipped), "Session" / "Séance". The CSV export carries the purpose.
+- **Desk session payments** are recorded `verified`, so they never enter the Verification Queue (FR-158). They appear directly in All Payments with the recording staff member as Actor.
+- **Flagged reason label *(Story 19.2 `[UX]`)*:** a flagged row shows a reason tag next to the Flagged badge. Wording reuses the shipped Discrepancies vocabulary where it exists:
+  | Code | EN | FR |
+  |---|---|---|
+  | `late_confirmation` | "Confirmed late" | "Confirmé en retard" |
+  | `wrong_account` | "Wrong Account Settlement" (shipped) | "Règlement sur le mauvais compte" (shipped) |
+  | `expired_attempt` | "Attempt expired" | "Tentative expirée" |
+  | `reconciliation_mismatch` | "Amount Mismatch" (shipped) | "Écart de montant" (shipped) |
+  A late-confirmed **session** payment shows Verified plus the "Confirmed late" tag, because the session was granted. A wrong-account or mismatch session payment stays a discrepancy row (amber, "Discrepancy" tag) and never shows a linked session.
+- **Session refund notices *(FR-162)*.** When the payment picked in the Record Refund modal is a `session` payment, an info box (`{colors.info}` border) above [Record Refund] states what will happen. The text updates live as the amount changes:
+  | Case | EN | FR |
+  |---|---|---|
+  | Full amount, session unused | "This refunds the whole session. [Name]'s unused session will be cancelled and can't be used." | "Ce remboursement couvre toute la séance. La séance non utilisée de [Nom] sera annulée et ne pourra plus servir." |
+  | Partial amount, session unused | "This is a partial refund. [Name] keeps the session and can still use it." | "Ceci est un remboursement partiel. [Nom] garde sa séance et peut encore l'utiliser." |
+  | Session already used | "This session was used on [date]. The visit stays counted." + when loyalty is on: "The loyalty stamp it earned is removed; a free session already earned is kept." | "Cette séance a été utilisée le [date]. La visite reste comptée." + "Le tampon de fidélité gagné est retiré ; une séance gratuite déjà obtenue est conservée." |
+  | Renewal payment, loyalty on | "Loyalty stamps and free days from this renewal are not removed." | "Les tampons de fidélité et jours offerts de ce renouvellement ne sont pas retirés." |
+  If a consumption races the refund, the server resolves it to exactly one outcome (Architecture Decision AD-28). The success toast names what actually happened, "Refund recorded. The session was cancelled." / "Remboursement enregistré. La séance a été annulée." or "Refund recorded. The session had already been used." / "Remboursement enregistré. La séance avait déjà été utilisée.", so a race is never hidden.
+- **Grouping for AD-22:** paid-session lists group by recording staff on AD-22, not here; AD-09 only filters.
+
 ---
 
 ### AD-10 · Manual Payment Entry
@@ -1383,6 +1677,8 @@ Recorded by        [Current user — auto-filled, non-editable]
 - Note: character count shown; minimum 10 characters
 - Date: cannot be a future date
 - "Record Payment": spinner; success → modal closes + payment appears in Verification Queue + toast
+
+**V1.6 *(user decision 2026-10-11)*:** unchanged. AD-10 gets **no** Session purpose. Session payments are fixed-price, take effect immediately, and skip the queue (FR-158, amending FR-038), so they are recorded only through the Record Session Payment Panel. That panel opens from the session-required alert, AD-04 [Record session payment], or an AD-18 marking refusal. If AD-10's member search selects a Pay-per-session member at a charging gym, a hint under the member field reads "To sell a session, use Record session payment on the member's page." / "Pour vendre une séance, utilisez Enregistrer le paiement de la séance sur la fiche du membre." The hint stops a session being recorded as a free-amount payment.
 
 ---
 
@@ -1421,6 +1717,8 @@ Daily Log
 - Checked-in: "No one is checked in right now."
 - Log: "No check-ins recorded for this period."
 
+**V1.6 *(FR-160)*:** the alert panel gains the session-required variant (Cross-Cutting Components). A blocked guest scan is **not** an attendance event, so it never appears in Currently Checked-In or the Daily Log. Blocked attempts are listed only on AD-22.
+
 ---
 
 ### AD-18 · Classes — List & Attendance *(V1.5)*
@@ -1452,6 +1750,19 @@ Classes                                            [+ Create class]  ← Manager
 - Class row also has an "Edit" action (Manager+ only) → opens AD-19 pre-filled
 
 **Empty state:** "No classes scheduled yet." + [+ Create class] (Manager+ only; Receptionist sees the message with no action)
+
+**V1.6 — Marking a session guest *(FR-174, Story 19.7)*.** This applies to a Pay-per-session member, price > 0, at a gym with charging on.
+- The guest's "Attended" checkbox stays **enabled**, unlike an expired member's. The list does not know in advance whether a guest holds a session, and the story specifies refusal-then-action.
+- **Has a usable session, or today is already covered:** marks normally. It consumes a session only if none covers the gym-local day yet; a second class or a floor visit the same day costs nothing. No extra UI.
+- **No usable session (`session_required`):** the checkbox reverts to unchecked. An inline row message (`{colors.info}` left border, `role="alert"`) appears under the member's name:
+  ```
+  Ange T.                                              [ ] Attended
+  ▏ No paid session — attendance was not recorded.
+  ▏ A front-desk alert has been raised.        [Record session payment]
+  ```
+  EN: "No paid session — attendance was not recorded. A front-desk alert has been raised." FR: "Aucune séance payée — la présence au cours n'a pas été enregistrée. Une alerte a été envoyée à l'accueil." This follows the shipped `classes.attendance.memberExpired` pattern. [Record session payment] / [Enregistrer le paiement de la séance] opens the Record Session Payment Panel in place. On success the inline message changes to "Session recorded — mark attendance again." / "Séance enregistrée — marquez à nouveau la présence.", and the checkbox regains focus. The receptionist re-checks it; the system does not auto-mark. The refusal counts as a blocked attempt and raises the same alert (FR-174).
+- Re-marking a member already marked attended is a no-op.
+- FR strings for class occurrences on this page follow the session/class terminology rule (Voice and Tone): "Prochaine séance" → "Prochain cours", "Aucune séance à venir" → "Aucun cours à venir".
 
 ---
 
@@ -1517,6 +1828,31 @@ Audit Log
 
 **Empty state:** "No audit records for this period."
 
+**V1.6 — New action labels *(FR-080 amended by FR-157, FR-162, FR-164, FR-170, FR-171, FR-173)*.** Settings changes show "old → new" in Details. Rule-driven events (consumption, stamps, lapses, resets) show Actor "System" when no staff member acted.
+
+| Event | EN | FR |
+|---|---|---|
+| Charge guests toggled | "Charge guests per session changed" | "Facturation des invités à la séance modifiée" |
+| Desk session payment | "Session payment recorded" | "Paiement de séance enregistré" |
+| Tara session payment | "Session paid by Tara Money" | "Séance payée par Tara Money" |
+| Late Tara confirmation | "Session paid late by Tara Money (session granted)" | "Séance payée en retard par Tara Money (séance accordée)" |
+| Session consumed | "Session used" | "Séance utilisée" |
+| Blocked attempt | "Check-in blocked — no paid session" | "Enregistrement bloqué — aucune séance payée" |
+| Refund voids session | "Session cancelled by refund" | "Séance annulée par remboursement" |
+| Refund after consumption | "Refund of a used session" | "Remboursement d'une séance utilisée" |
+| Paid session lapsed | "Paid session lapsed" | "Séance payée expirée" |
+| Plan type/price changed | "Plan type or price changed" | "Type ou prix de formule modifié" |
+| Loyalty config changed | "Loyalty program changed" | "Programme de fidélité modifié" |
+| Stamp earned | "Loyalty stamp earned" | "Tampon de fidélité gagné" |
+| Stamp reversed | "Loyalty stamp removed (refund)" | "Tampon de fidélité retiré (remboursement)" |
+| Reward granted | "Loyalty reward granted" | "Récompense de fidélité accordée" |
+| Free session used | "Free session used" | "Séance gratuite utilisée" |
+| Free session lapsed | "Free session lapsed" | "Séance gratuite expirée" |
+| Progress reset | "Loyalty progress reset" | "Progression de fidélité remise à zéro" |
+| Category changed | "Gym category changed" | "Catégorie de la salle modifiée" |
+
+Labels follow the shipped `audit.actionTypes` style (short, past tense, sentence case). The exact event-code-to-label mapping is settled in each story.
+
 ---
 
 ### AD-13 · Settings
@@ -1552,7 +1888,22 @@ Alert auto-dismiss [ 30  ] minutes
 
 ── Payment Account ───────────────────────────────────────────────────  V1.5
 Tara Money           [Not connected]     [Connect payment account →]
+
+── Charge guests per session ──────────────────────────────────────── V1.6
+Charge guests per session   [ Off ◯ ]   ← writes on confirm, not on Save Settings
+Pay-per-session members need a paid session to check in or attend a class.
+One session covers the whole day.
+
+── Loyalty program ────────────────────────────────────────────────── V1.6
+Loyalty program             [ Off ◯ ]
+Guests      1 free session every [  5 ] paid sessions        (2–50)
+            ≈ 17% — 1 free session per 5 paid
+Subscribers [ 30 ] free days every [  3 ] on-time renewals   (1–30 days, 3–24 renewals)
+            ≈ 25% — 30 days per 3 renewals of a 30-day plan (Monthly)
+ⓘ Guests earn nothing while Charge guests per session is off.   ← only when charging is off
+                                              [Save loyalty program]
 ```
+*(V1.6: **Category** sits in the Branding block, under Primary Colour — `Category  [Gym ▾]  [Save category]`.)*
 
 **Component behaviors:**
 - Primary Colour hex input: live swatch updates as user types valid hex
@@ -1587,6 +1938,62 @@ Tara Money API Key *        [                    ]
 - On success: modal closes, Settings row updates to "Connected — [merchant name]"; a "pay by Tara Money" action now appears alongside cash wherever a payment is collected (front desk, member self-service renewal)
 - On failure (invalid credentials): inline error below the API Key field, connection status unchanged
 - **Disconnect / credentials invalid in production:** if a connected gym's credentials become invalid or are revoked, the Owner sees a persistent Settings banner ("Your payment account needs attention — reconnect to keep accepting Tara Money") rather than a silent failure (FR-128); mobile-money payment attempts fail gracefully for members in the meantime and direct them to the front desk
+
+**Shipped drift, recorded V1.6:** the Membership block also carries a **Registration fee** field (XAF, "0 means no registration fee") with its own [Save fee] button and toast "Registration fee saved." (Epic 18, Story 18.1). It is outside the Save Settings payload, written by its own setter (Architecture Decision AD-32). It is not specced further here. Its per-field save is the precedent the V1.6 sections follow.
+
+**V1.6 — Save model *(Architecture Decision AD-32; Story 21.2)*.** Each V1.6 setting has its own setter RPC, so each V1.6 section **saves on its own** and is **excluded from [Save Settings]**. A general save can therefore never revert, or be blocked by, a V1.6 setting. The page hint "Save applies changes across every section below." gains the clause "…except Registration fee, Charge guests per session, Loyalty program and Category, which save on their own." / "…sauf Frais d'inscription, Facturation des invités à la séance, Programme de fidélité et Catégorie, qui s'enregistrent séparément." Unsaved edits in a V1.6 section are kept when [Save Settings] runs, and vice versa.
+| Section | Write trigger | Confirmation | Success toast (EN / FR) |
+|---|---|---|---|
+| Charge guests per session | Toggle → dialog → [Start charging] / [Stop charging] | Always, both directions | "Guests now pay per session." / "Les invités paient désormais à la séance." · "Guests no longer pay per session." / "Les invités ne paient plus à la séance." |
+| Loyalty program | [Save loyalty program] / [Enregistrer le programme de fidélité] | None (inline notes instead) | "Loyalty program saved." / "Programme de fidélité enregistré." |
+| Category | [Save category] / [Enregistrer la catégorie], enabled only when changed | None | "Category saved." / "Catégorie enregistrée." |
+
+**V1.6 — Charge guests per session *(FR-157, Story 19.9)*.** Owner and Supervisor only; absent from the DOM for everyone else. Label: "Charge guests per session" / "Faire payer les invités à la séance". Helper: "Pay-per-session members need a paid session to check in or attend a class. One session covers the whole day." / "Les membres en Paiement à la séance doivent avoir une séance payée pour s'enregistrer ou assister à un cours. Une séance couvre toute la journée." The toggle does not flip until the dialog is confirmed. Cancel leaves it unchanged.
+
+*Turn-on confirmation* (modal; Escape disabled, as for other confirmations with consequences):
+```
+Start charging guests per session?                                    [✕]
+
+12 Pay-per-session members will need a paid session at their next visit.
+
+This applies from now on. Past visits and anyone already checked in
+are not affected.
+
+⚠ Guests using an older version of the member app will see an
+  "expired" message when refused, until they update the app.
+
+[Cancel]                                            [Start charging]
+```
+- Title: "Start charging guests per session?" / "Faire payer les invités à la séance ?"
+- Count line (fixed template, Story 19.9; plural-aware; count from `guest_charging_impact()`): "[N] Pay-per-session members will need a paid session at their next visit." / "[N] membres en Paiement à la séance devront avoir une séance payée lors de leur prochaine visite." For one member: "1 Pay-per-session member will need…" / "1 membre en Paiement à la séance devra…". For zero: "No members are on a Pay-per-session plan yet." / "Aucun membre n'a encore de formule Paiement à la séance."
+- Scope line: "This applies from now on. Past visits and anyone already checked in are not affected." / "Cela s'applique à partir de maintenant. Les visites passées et les membres déjà présents ne sont pas concernés."
+- Old-app warning (decision 1, 2026-10-11; `{colors.warning}` box with `warning` icon): "Guests using an older version of the member app will see an "expired" message when refused, until they update the app." / "Les invités qui utilisent une ancienne version de l'application verront un message « adhésion expirée » en cas de refus, jusqu'à ce qu'ils la mettent à jour."
+- Buttons: [Cancel] / [Annuler] and [Start charging] / [Activer la facturation]. The confirm button is labelled with the action (Accessibility Floor).
+- If the count fails to load: the count line reads "Couldn't count affected members." / "Impossible de compter les membres concernés." with [Retry]. [Start charging] stays disabled until the count loads, because FR-157 requires the owner to see it before confirming.
+
+*Turn-off confirmation* (sources require none; added because the switch is a kill switch with member-visible effect):
+- Title: "Stop charging guests per session?" / "Arrêter de faire payer les invités à la séance ?"
+- Body: "From now on, Pay-per-session members check in without a paid session. Sessions already paid are kept but not used while charging is off, and still lapse 7 days after payment." / "Dès maintenant, les membres en Paiement à la séance s'enregistrent sans séance payée. Les séances déjà payées sont conservées mais non utilisées tant que la facturation est désactivée, et expirent toujours 7 jours après le paiement." If loyalty is on, add: "Guests stop earning loyalty stamps." / "Les invités cessent de gagner des tampons de fidélité."
+- Buttons: [Cancel] / [Annuler] and [Stop charging] / [Arrêter la facturation].
+
+**V1.6 — Loyalty program *(FR-164, FR-165, Story 20.5)*.** Owner and Supervisor only. Section title "Loyalty program" / "Programme de fidélité". Switch label "Loyalty program" / "Programme de fidélité".
+- **Fields:**
+  - "Guests: 1 free session every [N] paid sessions" / "Invités : 1 séance gratuite toutes les [N] séances payées" (N 2–50).
+  - "Subscribers: [R] free days every [K] on-time renewals" / "Abonnés : [R] jours offerts tous les [K] renouvellements à temps" (R 1–30, K 3–24).
+  - Each input shows its range as helper text, for example "2 to 50" / "de 2 à 50".
+  - While the switch is off, the inputs are disabled and keep their last values. Saving with the switch off stores only the switch. N/K/R are required only when switching on, and empty on a gym that never configured them.
+- **Live discount readout** (Story 20.5 `[UX]`), recomputed as the user types and shown under each rule in `small` muted text with `aria-live="polite"`:
+  - Guest: "1 free session per [N] paid ≈ [x]%" / "1 séance gratuite pour [N] payées ≈ [x] %", where x = round(100 / (N + 1)).
+  - Subscriber: "[R] days per [K] renewals of a [D]-day plan ≈ [x]%" / "[R] jours pour [K] renouvellements d'une formule de [D] jours ≈ [x] %", where x = round(100 × R / (K × D + R)).
+  - "≈" is used (epics wording) over the PRD's "= about"; its accessible text reads "about" / "environ".
+  - D comes from the gym's own active non-session plans: one readout line per distinct duration, naming the plan ("…of a 30-day plan (Monthly)"), up to 3 lines. With no subscription plans, the subscriber readout is hidden. A single assumed 30-day plan would misstate the cost for annual plans.
+  - Out-of-range input hides that readout rather than computing a nonsense percent.
+- **Charging-off notice** (FR-157/FR-165): when Charge guests per session is off, an info line under the Guests rule reads "Guests earn nothing while Charge guests per session is off." / "Les invités ne gagnent rien tant que la facturation à la séance est désactivée."
+- **Lowered-threshold note** (FR-164): when N or K is lower than the saved value, this shows above the save button before saving: "Members already at or above the new number earn one reward at their next qualifying visit or renewal. No progress is erased." / "Les membres déjà au niveau du nouveau seuil ou au-delà gagnent une récompense lors de leur prochaine visite ou renouvellement éligible. Aucune progression n'est effacée."
+- **Switching off**: an inline note (no dialog) while the switch is off and unsaved reads "No new stamps are earned while the program is off. Free sessions already earned stay usable until they lapse." / "Aucun tampon n'est gagné tant que le programme est désactivé. Les séances gratuites déjà obtenues restent utilisables jusqu'à leur expiration."
+- Validation: see Form Validation Rules. The 7-, 60-, and 90-day windows are platform data with no UI in V1.6 (Story 20.1).
+
+**V1.6 — Category *(FR-171, Story 21.2)*.** Owner and Supervisor only. It sits in the Branding (gym profile) block. Label "Category" / "Catégorie". A select of five options showing labels in the user's language: Gym / Salle de sport, Pilates Studio / Studio Pilates, Yoga Studio / Studio Yoga, Fitness Center / Centre de fitness, Other / Autre (user decision 2026-10-11, Story 21.1 pairs canonical). Helper text: "Describes your business. It doesn't change how GymOS works." / "Décrit votre activité. Cela ne change pas le fonctionnement de GymOS." "Other" has no free-text field. Saved by its own [Save category] through `set_gym_category`. It is **not** part of the Save Settings payload. A refusal shows the typed error inline: "Couldn't save the category. Try again." / "Impossible d'enregistrer la catégorie. Réessayez." A no-op save (same value) is disabled.
 
 ---
 
@@ -1824,6 +2231,73 @@ Coach Portal
 
 **Loading:** 3 skeleton class rows.
 
+**V1.6 *(FR-174)*:** no change. The roster stays read-only with no mark control, so a Coach can never mark a charging-gym guest attended.
+
+---
+
+### AD-22 · Guest Sessions (drill-down) *(V1.6, FR-163, Story 19.10)*
+
+**Purpose:** Answers "is the desk collecting?" behind each figure on the AD-02 Guest sessions card. Owner, Supervisor, and Manager only. The RPCs refuse other roles. This is one new page with three tabs, because no existing surface lists blocked attempts or free sessions, so a new list was unavoidable. Paid sessions could have been an AD-09 filter, but grouping by staff and the refunds-after-use flag need their own columns.
+
+**Layout:**
+```
+← Overview  /  Guest sessions                       [ Today | This month ]
+
+[ Paid (41) ] [ Blocked attempts (6) ] [ Free given (8) ]
+
+Paid — grouped by: [ Recorded by ▾ | None ]
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ▾ Aicha M. — 29 sessions · 58,000 XAF                                     │
+│   Member     Time           Method      Used          Refund              │
+│   Ange T.    11 Oct 09:02   Cash        Thu 11 Oct    —                   │
+│   Paul E.    11 Oct 17:40   Cash        —             Refunded after use  │
+│ ▸ Tara Money (in app) — 9 sessions · 18,000 XAF                           │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Tabs** (labels EN / FR; counts match the card for the same period):
+- **Paid** / **Payées**
+  - Columns: Member, Time, Method, Recorded by, Used ("covered day" or "—"), Refund.
+  - The Refund column reads "Refunded" / "Remboursée", "Refunded after use" / "Remboursée après utilisation", or "—".
+  - Grouping control "Recorded by" / "Enregistré par" (default) or "None" / "Aucun". Group header: "[staff name] — [N] sessions · [sum] XAF". Tara payments group under "Tara Money (in app)" / "Tara Money (dans l'app)".
+  - A filter chip "Refunded after use only" / "Remboursées après utilisation uniquement" narrows to FR-163's signal.
+- **Blocked attempts** / **Tentatives bloquées**
+  - Columns: Member, Time, Source ("Check-in" / "Enregistrement" or "Class: [name]" / "Cours : [nom]"). There is no "paid later" or walk-away column, since FR-163 asks only for the counts and the list.
+  - Header line: "[N] attempts · [M] members" / "[N] tentatives · [M] membres".
+  - Offline-synced attempts show their scan time with the note "(synced [time])" / "(synchronisé à [heure])".
+- **Free given** / **Gratuites offertes**
+  - Columns: Member, Earned, Use by, Status ("Unused" / "Non utilisée", "Used [date]" / "Utilisée le [date]", "Lapsed" / "Expirée").
+  - Before Epic 20 ships, or with loyalty never enabled, this tab shows its empty state.
+
+**Interactions:** a member name opens AD-04 (modal). The period control mirrors AD-02 and is carried in the URL. Lists are paginated at 50 rows/page. Counts are server-side aggregates (FR-143 `max_rows` caveat); rows are paged reads.
+
+**Empty states:** Paid: "No paid guest sessions in this period." / "Aucune séance payée sur cette période." Blocked: "No blocked attempts in this period." / "Aucune tentative bloquée sur cette période." Free: "No free sessions given in this period." / "Aucune séance gratuite offerte sur cette période."
+
+**Loading:** 6 skeleton rows. **Error:** page-level error with [Refresh], as for AD-03.
+
+---
+
+### AD-23 · Plans *(shipped; documented V1.6 with the FR-173 plan-type lock)*
+
+**Purpose:** Manager-plus creates, edits, and deletes the gym's membership plans. It shipped before V1.5 and was never in this spine. It is documented here because V1.6's gate keys on plan type and price.
+
+**Layout (as shipped):**
+```
+Plans                                                     [+ Add Plan]
+┌─────────────────────────────────────────────────────────────────┐
+│ Monthly        Monthly          XAF 25,000 / monthly   30 days  [⋯]│
+│ Drop-in        Pay-per-session  XAF 2,000 / monthly    No fixed duration — billed per visit [⋯]│
+└─────────────────────────────────────────────────────────────────┘
+```
+- Row actions menu: Edit (opens PlanModal), Delete (confirm "Delete [name]" / "This cannot be undone."; blocked with "Cannot delete [name] — [N] subscriptions use this plan.").
+- PlanModal fields: Plan Name, Plan Type (Pay-per-session / Monthly / Coach-inclusive / Class-only), Price (XAF), Duration (days), Billing Interval, Annual Discount (%). The shipped `plans.modal.*` labels and errors apply.
+
+**V1.6 amendments *(FR-173, Story 19.3)*:**
+- **Plan type lock:** when the plan has any subscription, Plan Type renders read-only, with a lock icon and the reason beneath: "This plan has members, so its type can't be changed. Create a new plan instead." / "Cette formule a des membres : son type ne peut pas être modifié. Créez plutôt une nouvelle formule." The server refusal of a stale type change reuses the same copy inline on the field.
+- **Pay-per-session price label:** "Price per session (XAF) *" / "Prix par séance (XAF) *". In the list, the row reads "XAF 2,000 / session" / "XAF 2 000 / séance" instead of the shipped "/ monthly", since the price is now a real per-visit charge. When editing the price of a Pay-per-session plan that has subscriptions, a helper reads "Changing the price doesn't affect sessions already paid." / "Modifier le prix ne change pas les séances déjà payées."
+- **Price 0:** for Pay-per-session, a helper reads "At 0 XAF, members on this plan never need a paid session." / "À 0 XAF, les membres de cette formule n'ont jamais besoin de séance payée." (FR-156 exemption).
+- Type and price changes are saved through `update_plan_pricing`. Every change is audited ("Plan type or price changed", AD-12).
+
 ---
 
 ## Screen Reference — Super Admin Dashboard
@@ -1848,6 +2322,8 @@ Gyms                                                  [+ Create Gym]
 **Components:** Search, Status filter (All | Active | Suspended | Deactivated), "+ Create Gym" → SA-04 modal, sortable table, context-sensitive row actions (Suspend / Deactivate / Reinstate based on current status), row click → SA-03.
 
 **Empty state:** "No gyms on the platform yet. Create the first one." [Create Gym]
+
+**V1.6 *(FR-171, Story 21.1)*:** a **Category** column / "Catégorie", placed after Gym Name, shows the label in the admin's language as plain text, not a chip. There is no category filter in V1.6, because the stories do not require one and V1.7's directory is where filtering matters.
 
 ---
 
@@ -1877,6 +2353,8 @@ Tabs: [ Audit trail ]
 - Status actions (context-sensitive); each requires a reason in confirmation dialog
 - **"Access gym data" escalation:** mandatory reason textarea → access granted + audit-logged; all SA data access to this gym is recorded
 
+**V1.6 *(FR-171, Story 21.1)*:** a row is added under Owner: `Category:  Yoga Studio   [Change]`. [Change] turns the value into an inline select of the five labels with [Save] [Cancel]. Save calls `set_gym_category`, then shows the new label and the toast "Category updated." / "Catégorie mise à jour." A refusal shows the typed error inline. No confirmation is needed: the change is descriptive and audited. SA-03 does **not** show Charge guests per session or Loyalty program state. Super Admin cannot write them (Architecture Decision AD-32), and V1.6 adds no support view.
+
 ---
 
 ### SA-04 · Create Gym
@@ -1891,12 +2369,15 @@ Gym Name *         [                               ]
 Owner Name *       [                               ]
 Owner Phone *      [+237 ▾] [                     ]
 Subscription Tier *[dropdown of current tiers     ]
+Category *         [Gym ▾]                           ← V1.6
 Status             [Active  ▾]
 
 [Cancel]                                        [Create Gym]
 ```
 
 **On submit:** Creates gym + owner account; sends SMS to owner; toast "Gym created. SMS sent to [number]."; modal closes; list refreshes.
+
+**V1.6 *(FR-171, Story 21.1)*:** **Category \*** is a required select defaulting to "Gym" / "Salle de sport". It is validated client-side and re-checked server-side before the first write. "Other" / "Autre" opens no free-text field. A gym created after Story 19.12 starts with Charge guests per session **on**. SA-04 does not show or set that switch; the Owner manages it in Settings.
 
 ---
 
@@ -1999,6 +2480,12 @@ Billing
 
 **Stat Tile:** a `raised` Card containing one `statNumeral` + one `small` caption. Reserved for data the member already sees in prose elsewhere on the screen (e.g., "Expires in 12 days" — the status card's existing expiry text, given numeral emphasis) — this pass does not introduce new metrics or new backend queries.
 
+**Loyalty Progress *(V1.6, `{components.loyaltyProgress}`)*:** "n / N" as a `statNumeral`, followed by a stamp row of N segments, with filled segments in `{colors.accent}` (the gym colour on member surfaces). When N > 12 the row becomes a continuous bar, so 50 tiny segments never render. A caption in `small` sits underneath. It is a read-only display with no tap action. Its accessible label is the sentence, not the glyphs: "3 of 5 paid sessions toward your next free session" / "3 séances payées sur 5 avant votre prochaine séance gratuite". It is used only inside the Rewards card.
+
+**Session Chip *(V1.6, `{components.sessionChip}`)*:** a List Item variant for one session: an Icon Chip (ticket glyph `confirmation_number` in `{colors.accent}` for paid; gift glyph `card_giftcard` in `{colors.success}` for free; `{colors.neutral}` for dormant) plus a title ("Paid session" / "Free session") and a trailing "use by [date]". The rows live inside the Rewards card's `flat` Card. They are not tappable in V1.6.
+
+**Rewards card *(V1.6)*:** a `flat` Card on Home grouping Loyalty Progress and Session Chips. Behaviour and copy are in MA-09. It never takes the `raised` treatment.
+
 ### Front-Desk Alert Panel
 
 Appears on AD-02 (Overview) and AD-11 (Attendance). Powered by Supabase Realtime. Visible to Receptionist, Manager, and Owner; absent from Coach Portal.
@@ -2029,6 +2516,62 @@ Appears on AD-02 (Overview) and AD-11 (Attendance). Powered by Supabase Realtime
 - **New alert for same member** fires if they scan again after their alert was dismissed without renewal
 - **Alert arrival animation:** new alert slides in at top of stack; existing alerts slide down; no sound; no browser notification
 - **ARIA:** `aria-live="assertive"` for red alerts; `aria-live="polite"` for yellow alerts
+
+**V1.6 — Session-required variant *(FR-160; Stories 19.6b, 19.9)*.** This is a new `kind = 'session_required'` variant of the same single component (UX-DR2, no fork). The panel branches on `kind`, and subscription alerts are unchanged.
+```
+├───────────────────────────────────────────────────────────────────┤
+│ 🔵 SESSION REQUIRED                                               │
+│ [Avatar 40px] Ange T.  ·  No paid session  ·  09:12               │
+│               ⟳ Mobile money payment in progress                  │
+│                          [Record session payment]  [✕]            │
+└───────────────────────────────────────────────────────────────────┘
+```
+- **Colour:** `{colors.info}` with an info glyph. Not red: it is a denial but recoverable in one tap at the desk, and red keeps meaning "expired".
+- **Header** "SESSION REQUIRED" / "SÉANCE REQUISE". **Body:** "[Name] · No paid session · [time of attempt]". Under it: "Record a payment so they can scan again." / "Enregistrez un paiement pour que le membre puisse scanner à nouveau." This follows the denied-alert body pattern.
+- **Source:** a class-marking refusal (FR-174) adds "From class: [class name]" / "Depuis le cours : [nom du cours]". An offline attempt that synced late adds "Scanned offline at [time]" / "Scanné hors ligne à [heure]", so an alert arriving hours later makes sense.
+- **Payment in flight** (FR-160): when a Tara session payment for the member is pending, the line "Mobile money payment in progress" / "Paiement mobile money en cours" appears with a spinner glyph. [Record session payment] stays visible, but the panel will refuse with "already in progress" (see the Record Session Payment Panel).
+- **Action:** [Record session payment] / [Enregistrer le paiement de la séance] opens the Record Session Payment Panel inline, in the same place the Inline Renewal Panel opens. There is no [Renew] on this variant.
+- **Dismissal:** recording the session payment dismisses the alert server-side, and the panel updates through realtime. Manual [✕] and gym auto-dismiss apply as for other alerts: a guest who walked away should not pin the panel. Dismissal never changes the Guest sessions figures, which count `session_attempts`, not alerts (Architecture Decision AD-31).
+- **Dedupe:** one active session alert per member. A new scan after dismissal raises a new one, as for subscription alerts.
+- **ARIA:** `aria-live="assertive"`, as for red alerts, because it is a denial that needs action now.
+- **Delivery:** same realtime channel and same polling fallback (Architecture Decision AD-20); session alerts are included in polled results.
+
+### Record Session Payment Panel *(V1.6)*
+
+Triggered by: [Record session payment] on a session-required alert; on AD-04 member detail (pre-scan desk payment, user decision 2026-10-11); and in-row on an AD-18 marking refusal. Receptionist+. It is a sibling of the Inline Renewal Panel, not a reuse, because the session amount is fixed and there is no plan or start date. It uses the same presentation: inline within or beside the trigger, as a 320px right drawer on tablet, and inside the AD-04 modal as an inline expanding section.
+
+**Panel content:**
+```
+Record session payment                                         [✕]
+[Avatar 40px] Ange T.  ·  Drop-in (Pay-per-session)
+
+Amount          2,000 XAF   (plan price — fixed)
+Payment method  [Cash                           ▾]
+Note            [                               ]  (optional)
+Recorded by     Aicha M.
+
+[Cancel]                          [Record session payment →]
+```
+- **Title:** "Record session payment" / "Enregistrer le paiement de la séance".
+- **Amount:** "Amount" / "Montant", shown read-only with the caption "plan price — fixed" / "prix de la formule — fixe". The client never sends it (FR-158).
+- **Method:** "Cash" / "Manual Mobile Money" for any role that can record payments. "Bank Transfer" is listed **only** for Manager, Supervisor, and Owner, and is absent from the DOM for a Receptionist. Labels reuse the shipped `payments.methods.*`. It defaults to Cash.
+- **Note:** optional (FR-158 amends FR-038). Label "Note (optional)" / "Note (facultatif)". There is no pre-fill and no minimum.
+- **Two-tap straight-through:** open the panel, then confirm. The default is a cash session.
+- **[Record session payment →]:** shows a spinner. On success the panel closes and the toast reads "Session recorded for [Name]. Ask them to scan again." / "Séance enregistrée pour [Nom]. Demandez-lui de scanner à nouveau." The alert (if any) dismisses and AD-04's Sessions section updates. From AD-18, the row message changes to "Session recorded — mark attendance again."
+- **Refusals** (inline above the buttons; the panel stays open; each maps to a distinct server code, Story 19.4):
+  | Code | EN | FR |
+  |---|---|---|
+  | Payment already in progress | "A mobile money payment for [Name] is already in progress. Wait for it to finish, then check again." | "Un paiement mobile money pour [Nom] est déjà en cours. Attendez qu'il se termine, puis vérifiez à nouveau." |
+  | Charging is off | "Charge guests per session is off at this gym, so no session is needed." | "La facturation des invités à la séance est désactivée dans cette salle : aucune séance n'est nécessaire." |
+  | Not on Pay-per-session | "[Name] isn't on a Pay-per-session plan." | "[Nom] n'a pas de formule Paiement à la séance." |
+  | Plan price is 0 | "[Name]'s plan is free, so no session payment is needed." | "La formule de [Nom] est gratuite : aucun paiement de séance n'est nécessaire." |
+  | Member deactivated | "[Name] is deactivated. Reactivate them first." | "[Nom] est désactivé. Réactivez ce membre d'abord." |
+  | Awaiting registration fee | "Settle [Name]'s registration fee first." | "Réglez d'abord les frais d'inscription de [Nom]." |
+  | Gym suspended | "Payments can't be recorded while the gym is suspended." | "Impossible d'enregistrer un paiement tant que la salle est suspendue." |
+  | Bank transfer not permitted (stale client) | reuse global "You don't have permission to do that." | reuse global |
+  | Network | "Couldn't record the session. Check your connection and try again." | "Impossible d'enregistrer la séance. Vérifiez votre connexion et réessayez." |
+- **Double entry:** two staff recording for the same member at once both succeed (Story 19.4). Both show on AD-22 under each recorder, so there is no client-side lock or warning.
+- **[Cancel] / [✕]:** closes the panel; the alert remains.
 
 ### Inline Renewal Panel
 
@@ -2202,6 +2745,41 @@ Note *          [Paid at desk                   ]
 | Note | Optional; ≤500 chars | "Note is too long" |
 | (all fields) | At least one field must be filled to save | "Add at least one entry (weight, a measurement, a photo, or a note)" |
 
+**AD-13 Loyalty program** *(V1.6, FR-164, Story 20.1/20.5)*. Validated on [Save loyalty program] (submit-only, UX-DR11). Rules apply only when the switch is on. With it off, the fields are disabled and not validated.
+| Field | Rule | Error (EN / FR) |
+|---|---|---|
+| N — paid sessions per free session | Required; whole number 2–50 | "Enter a whole number from 2 to 50" / "Saisissez un nombre entier de 2 à 50" |
+| K — on-time renewals per reward | Required; whole number 3–24 | "Enter a whole number from 3 to 24" / "Saisissez un nombre entier de 3 à 24" |
+| R — free days per reward | Required; whole number 1–30 | "Enter a whole number from 1 to 30" / "Saisissez un nombre entier de 1 à 30" |
+| (server) | Setter refuses (role, range) | Mapped to the field if the code names one; otherwise the summary "Couldn't save the loyalty program. Try again." / "Impossible d'enregistrer le programme de fidélité. Réessayez." |
+
+**AD-13 Charge guests per session** *(V1.6)*: no fields. The only gate is the confirmation dialog, and [Start charging] is disabled until the affected-member count has loaded. Server refusal: "Couldn't change this setting. Try again." / "Impossible de modifier ce paramètre. Réessayez." The toggle stays at its stored value.
+
+**AD-13 Category** *(V1.6, Story 21.2)* and **SA-04 / SA-03 Category** *(V1.6, Story 21.1)*
+| Field | Rule | Error (EN / FR) |
+|---|---|---|
+| Category | Required; one of `gym`, `pilates_studio`, `yoga_studio`, `fitness_center`, `other` (`gymCategorySchema`), checked client- and server-side | "Select a category" / "Sélectionnez une catégorie" |
+
+**Record Session Payment Panel** *(V1.6, Story 19.4)*
+| Field | Rule | Error (EN / FR) |
+|---|---|---|
+| Payment method | Required; Bank Transfer only for Manager+ (client-filtered, server-enforced) | "Select a payment method" / "Sélectionnez un mode de paiement" |
+| Note | Optional; ≤ 200 chars (matches the waive-reason cap) | "Note is too long (200 characters max)" / "La note est trop longue (200 caractères max.)" |
+| Amount | Not an input; read server-side | — |
+
+**MA-17 Pay for Session** *(V1.6)*
+| Field | Rule | Error (EN / FR) |
+|---|---|---|
+| Paying with (payer phone) | Required; valid E.164 (same rule as `/renew`) | reuse `renew.errors.payerPhoneInvalid`: "Enter a valid phone number" / "Entrez un numéro de téléphone valide" |
+
+**AD-23 Plans — Edit** *(V1.6 additions, FR-173)*
+| Field | Rule | Error (EN / FR) |
+|---|---|---|
+| Plan Type | Read-only when the plan has subscriptions; the server refuses a stale change | "This plan has members, so its type can't be changed. Create a new plan instead." / "Cette formule a des membres : son type ne peut pas être modifié. Créez plutôt une nouvelle formule." |
+| Price (Pay-per-session) | Shipped rule unchanged (whole XAF ≥ 0) | shipped `plans.modal.errors.priceInvalid` |
+
+**Waive registration fee — "Session guest" preset** *(V1.6)*: the preset text satisfies the shipped 10–200 character reason rule, so no new error is needed.
+
 ---
 
 ## State Patterns
@@ -2236,6 +2814,13 @@ Note *          [Paid at desk                   ]
 | AD-16 Staff — no staff *(V1.5)* | "No staff yet. Add your first staff member to get started." | [+ Add staff] |
 | AD-18 Classes — no classes *(V1.5)* | "No classes scheduled yet." | [+ Create class] (Manager+ only) |
 | SA-07 Billing *(V1.5)* | Not applicable — every gym always appears in this table | — |
+| AD-02 Guest sessions card *(V1.6)* | Not an empty state — zero figures render as "0"; the card is **absent** (not empty) when charging is off or for Receptionist/Coach | Figure links still open AD-22 |
+| AD-22 Paid *(V1.6)* | "No paid guest sessions in this period." / "Aucune séance payée sur cette période." | Period control |
+| AD-22 Blocked attempts *(V1.6)* | "No blocked attempts in this period." / "Aucune tentative bloquée sur cette période." | Period control |
+| AD-22 Free given *(V1.6)* | "No free sessions given in this period." / "Aucune séance gratuite offerte sur cette période." | Period control |
+| AD-04 Sessions section *(V1.6)* | "No sessions yet." / "Aucune séance pour le moment." | [Record session payment] (header action) |
+| MA-09 Rewards card *(V1.6)* | Not an empty state — **absent** when the program is off and the member holds nothing (Story 20.6) | — |
+| MA-09 Guest status card, no session *(V1.6)* | "No paid session — pay before you scan." | [Pay for a session] when Tara is connected |
 
 ### Loading States
 
@@ -2267,6 +2852,12 @@ Note *          [Paid at desk                   ]
 | AD-16 Staff list *(V1.5)* | 4 rows |
 | AD-18 Classes list *(V1.5)* | 4 rows |
 | SA-07 Billing table *(V1.5)* | 6 rows |
+| AD-02 Guest sessions card *(V1.6)* | 1 full-width card, own Suspense boundary |
+| AD-22 Guest sessions lists *(V1.6)* | 6 rows |
+| AD-04 Sessions / Rewards sections *(V1.6)* | 3 rows each, inside the modal |
+| AD-13 Charge-guests confirmation count *(V1.6)* | Inline spinner in the count line; [Start charging] disabled |
+| MA-09 Rewards card *(V1.6)* | Rounded rectangle, ~120px tall; rendered only once the member is known to qualify (no flash for non-qualifying members) |
+| MA-17 Pay for Session *(V1.6)* | Price card skeleton ~96px; then the shipped `/renew` phase spinners |
 
 **Button loading state:** Spinner replaces label text; button width does not change (prevents layout shift); button disabled during request.
 
@@ -2315,6 +2906,16 @@ Note *          [Paid at desk                   ]
 | MA-15 *(V1.5)* | Data load failure (no cache yet) | Error card in place of the chart: "Couldn't load your progress. Pull down to refresh." — same pattern as MA-09's home-load failure |
 | AD-16 *(V1.5)* | Staff list load failure | Page-level error with [Refresh], same treatment as AD-03 |
 | AD-18 *(V1.5)* | Classes list load failure | Page-level error with [Refresh], same treatment as AD-03 |
+| MA-10 *(V1.6)* | Guest at a charging gym, no usable session | Full-screen info overlay "Pay for your session" (see MA-10); not the red Denied state |
+| MA-17 *(V1.6)* | Payment already in progress / Tara unavailable / flagged | Inline messages per MA-17 errors table; failed phase reuses `renew.pending.failed` |
+| AD-02 *(V1.6)* | Guest sessions summary load failure | In-card error + [Retry]; other cards unaffected |
+| AD-02 *(V1.6)* | Session revenue read fails | Sub-line hidden; headline revenue still shown |
+| AD-04 / alert / AD-18 *(V1.6)* | Record session payment refused | Inline coded message inside the panel (see Record Session Payment Panel); panel stays open |
+| AD-13 *(V1.6)* | Charge-guests impact count fails | Count line error + [Retry]; [Start charging] disabled |
+| AD-13 *(V1.6)* | Loyalty or category setter refuses | Per-field inline where mapped, otherwise section-level summary; other sections unaffected |
+| AD-18 *(V1.6)* | Marking refused `session_required` | Inline row message + [Record session payment]; checkbox reverts |
+| AD-23 *(V1.6)* | Plan type change refused (plan has subscriptions) | Inline on Plan Type with the lock reason |
+| SA-03 / SA-04 *(V1.6)* | Category setter refuses | Inline typed error on the Category field |
 | SA-07 *(V1.5)* | Row override action fails (mark paid / credit / retry / suspend) | Inline error in the row's expanded panel, action not applied; the row's status is not optimistically updated for Suspend/Reactivate specifically, given the access-denial stakes of a false-positive success |
 
 ### V1.5 — New State Patterns
@@ -2340,6 +2941,55 @@ These four states are new state-machine concepts V1.5 introduces, not covered by
 **Progress photo share revoke (Story 10.2):**
 - Revoking a previously-shared photo takes effect within the signed URL's short lifetime — there is no "delete from coach's device" mechanic (that's not achievable), so the guarantee is forward-only: no *new* access is granted after revoke, not retroactive proof the coach never viewed it while it was shared
 - Member-facing treatment: toggle flips immediately (optimistic), no confirmation dialog required for revoke (unlike deactivation/suspension, this is reversible and low-stakes to undo) — sharing it again is just as easy as revoking it
+
+### V1.6 — New State Patterns
+
+V1.6 adds a per-gym session state machine and a loyalty ledger. Every state below is behind a per-gym switch. **Charging off is the default for every gym that existed at release, and loyalty is off by default.** Until an Owner or Supervisor turns a switch on, every surface renders exactly as before V1.6. *Exempt* means a member not on Pay-per-session, or on a Pay-per-session plan priced 0 XAF; they behave as before even at a charging gym.
+
+**Session states *(FR-156–FR-163, FR-174)*:**
+| State | Rule | Member app | Dashboard |
+|---|---|---|---|
+| Charging off | Kill switch: the gym runs the pre-V1.6 path | No session UI anywhere | No Guest sessions card, no session alerts, no Sessions section; AD-13 toggle off |
+| Charging on | From the moment it is confirmed; open check-ins and past attendance untouched. Gyms created after Story 19.12 start on | Guest status card, Pay for your session, will-be-verified | Card, alerts, Sessions section, Record session payment |
+| Exempt | Not Pay-per-session, or price 0 | Unchanged | Unchanged; no [Record session payment] |
+| Session required (denied) | No usable session at scan or class mark; no attendance; attempt stored; alert raised | MA-10 "Pay for your session" (`{colors.info}`, requires tap) | Session-required alert; blocked count +1; AD-18 inline refusal |
+| Session required — old app build | Same server outcome; old builds map `null` to expired | Old Denied — Expired overlay (accepted, decision 1) | Owner warned in the turn-on confirmation |
+| Payment in flight | A Tara session payment is pending; a second app or desk payment is refused; stale after 10 min → flagged `expired_attempt` | MA-17 pending / stillWaiting; "already in progress" | Alert shows "Mobile money payment in progress"; panel refuses |
+| Paid session unused | Usable 7 days from payment | Status card count + soonest date; Rewards card row | AD-04 Unused list with lapse date |
+| Day covered | First check-in or class mark consumes; same gym-local day re-entry and extra classes are free; a visit open at midnight stays covered; covered day fixed at consumption | Plain success; status card "Today covered" | AD-04 Used list with covered day |
+| Paid session lapsed | Unused after 7 days; daily sweep records it | Drops off silently | AD-04 muted "Lapsed [date]"; AD-12 entry |
+| Offline scan — saved | Guest at a charging gym (per cached flag) scans offline | "Check-in saved — your session will be verified" (`{colors.info}`, requires tap); banner "waiting to be verified" | — |
+| Offline scan — verified on sync | A usable session exists (including one paid after the scan, within the auto-timeout window) | Silent (banner clears) | Attendance recorded normally |
+| Offline scan — denied on sync | No session; stored as an attempt, deduped by scan id; alert raised, possibly hours later | Post-sync denial notice on next Home render, never silent | Alert with "Scanned offline at [time]"; blocked count |
+| Offline sync failed permanently | Discarded as FR-061 today | Unchanged | Not counted |
+| Stale charging flag | App refreshes on launch, foreground, and check-in focus; the server rule at sync governs | A plain green offline success may later be denied → denial notice | — |
+| Late Tara confirmation | After `expired_attempt`: session **is** created, reason `late_confirmation`, staff audit | Session appears on Home at next render; no push | AD-09 Verified + "Confirmed late"; AD-12 |
+| Wrong account / mismatch | Never creates a session | MA-17 Failed phase | AD-09 discrepancy row + reason tag |
+| Refund — full, unused | Session cancelled atomically | Count drops at next render | AD-09 notice + toast; AD-04 "Voided by refund" |
+| Refund — partial | Session kept | Unchanged | AD-09 partial notice |
+| Refund — after use | Visit stays counted; guest stamp reversed (floor 0); free session already earned kept | Progress may drop by 1 | AD-09 used notice; AD-22 "Refunded after use" |
+| Refund — renewal | No stamp or free-day reversal | Unchanged | AD-09 renewal notice (loyalty on) |
+| Class marking denied | `session_required`; not marked; alert + attempt | — | AD-18 inline refusal + in-place payment, then mark again |
+| Guest sessions card absent | Charging off, or role Receptionist/Coach | — | Absent from the DOM |
+| Plan type locked | Plan has subscriptions | — | AD-23 read-only type + reason |
+
+**Loyalty states *(FR-164–FR-170)*:**
+| State | Rule | Member app | Dashboard |
+|---|---|---|---|
+| Loyalty off (default) | Nothing earned | No Rewards card unless an unexpired free session is held | No Rewards section (same exception); AD-13 switch off |
+| Loyalty on, charging off | Guest rule earns nothing; subscriber rule works | Subscriber progress only | AD-13 charging-off notice |
+| Stamp earned | Guest: per consumed **paid** session (not free, not covered re-entry). Subscriber: per on-time renewal, max one per period | Progress +1 at next render | AD-04 progress; AD-12 |
+| Reward — free session | At N: free session valid 60 days, counter → 0, granted once | "Free session earned — valid for 60 days" once, then a free session row; "0 / 5" | AD-04; AD-22 Free given |
+| Reward — free days | At K: renewed expiry + R days, counter → 0 | "[R] free days added — your new renewal date is [date]"; status card expiry moves | AD-04; AD-12 |
+| Free session consumed | Consumed like paid (soonest-lapsing first; paid before free on tie); earns no stamp | Success with "Free session used" | AD-04 Used; AD-12 |
+| Free session dormant | Member moved off Pay-per-session; kept until lapse | Neutral row "Usable when you're back on Pay-per-session" | AD-04 listed as unused |
+| Free session lapsed | After 60 days | Drops off silently | AD-04 muted; AD-12 |
+| Reset after idle | Guest: 90 days without a consumed paid session. Subscriber: the longer of 90 days and plan duration + grace. Read-time value, never stale | Card shows 0 at read time | AD-04 shows 0 at read time |
+| Threshold lowered | Members at or above the new N/K earn one reward at the next qualifying event | — | AD-13 lowered-threshold note |
+| Multi-gym member | Separate progress per gym | Active gym only | Per gym (RLS) |
+| Balance edit | Impossible for every role (FR-170) | — | No control rendered, even disabled |
+
+**Category *(FR-171/FR-172)*:** always set (existing gyms = Gym / Salle de sport). It is descriptive only, with no behaviour or wording change on any surface, and it never appears in the member app.
 
 ---
 
@@ -2383,6 +3033,13 @@ These four states are new state-machine concepts V1.5 introduces, not covered by
 | Check-in denied | Notification error |
 | OTP incorrect | Warning notification |
 | Destructive action confirmed | Heavy impact |
+| Check-in "Pay for your session" *(V1.6)* | Notification error (UX-DR15 denial haptic — nothing was recorded) |
+| Check-in saved — will be verified *(V1.6)* | Warning notification (not success (unconfirmed), not error (nothing refused)) |
+| Check-in success, free session used *(V1.6)* | Medium impact (same as any success) |
+| MA-17 session payment verified *(V1.6)* | Success notification (matches a completed payment, distinct from check-in) |
+| MA-17 payment failed / not approved *(V1.6)* | Notification error |
+
+*(V1.6)* Check-in result overlays keep their fade-in. MA-17 pushes with slide-left and returns with slide-right, like `/renew`. On MA-17 success, [Scan now] replaces the route with MA-10, so Back does not return to a paid screen.
 
 ### Admin Dashboard (Desktop Web)
 
@@ -2393,6 +3050,9 @@ These four states are new state-machine concepts V1.5 introduces, not covered by
 - Modals: focus trap; Escape closes (except destructive confirmations — Escape disabled there)
 - Dropdowns: arrow keys to navigate; Enter to select; Escape to close
 - Inline Renewal Panel tab order: Plan → Start Date → (Renewal Price — skip, read-only) → Payment Method → Note → Confirm Renewal → Cancel
+- **Record Session Payment Panel tab order** *(V1.6)*: Payment Method → Note → Record session payment → Cancel (Amount is read-only and skipped, as Renewal Price is). Opening the panel moves focus to Payment Method; closing returns focus to the trigger ([Record session payment] on the alert, AD-04 header, or AD-18 row).
+- **AD-18 marking refusal** *(V1.6)*: when the inline refusal appears, focus moves to its [Record session payment] button; after a successful payment focus returns to that member's Attended checkbox.
+- **AD-13 V1.6 sections** *(V1.6)*: each section's own save button is in the tab order directly after its last field. The Charge-guests confirmation opens with focus on [Cancel], so Enter does not confirm by accident.
 - **AD-15 Workout Plan exercise reordering** *(V1.5)*: drag handle is mouse-only by design (see Mouse behaviour below) — keyboard users get an equivalent "Move up" / "Move down" icon-button pair per row, both keyboard-focusable and announced ("Move [exercise name] up," "Move [exercise name] down")
 
 **Mouse behaviour:**
@@ -2428,6 +3088,11 @@ These four states are new state-machine concepts V1.5 introduces, not covered by
 | Trend chart text-equivalent *(V1.5, MA-15)* | The weight trend chart is decorative to screen readers (`accessibilityRole: 'none'`); the header row's "78.4 kg (-2.4 kg since start)" text is the accessible summary, and the Measurements list below (already plain text rows) carries the same trend information non-visually — no chart-only data exists |
 | Photo share status *(V1.5, MA-15)* | Each photo thumbnail's accessibility label states its share state explicitly: "Progress photo, 04 Aug 2026, not shared with coach" / "…, shared with coach" — not conveyed by the lock icon alone |
 | Notification toggles *(V1.5, MA-12)* | Each toggle's accessible label states the setting name and current state: "Quiet-gym alerts, off" |
+| Session result states *(V1.6, MA-10)* | "Pay for your session" and "Check-in saved — will be verified" use the accessibility `alert` role and are announced immediately, like every result overlay. They are communicated by colour **and** title **and** icon, so `{colors.info}` is never the only signal that this is not a success |
+| Rewards progress *(V1.6, MA-09)* | The stamp row is decorative (`accessibilityRole: 'none'`). The progress block's label is the sentence "3 of 5 paid sessions toward your next free session" / "3 séances payées sur 5 avant votre prochaine séance gratuite" |
+| Session rows *(V1.6, MA-09)* | Each Session Chip reads as one label: "Free session, use by 2 December" (dates spoken in full, not "2/12") |
+| Post-sync denial notice *(V1.6, MA-09)* | Announced once on Home render (live region, polite); [Got it] has the label "Dismiss notice" / "Fermer l'avis" |
+| MA-17 phases *(V1.6)* | Each phase change (pending, still waiting, success, failed) is announced through a polite live region, as on `/renew`'s `accessibilityRole="alert"` notes |
 
 ### Admin Dashboard
 
@@ -2445,6 +3110,14 @@ These four states are new state-machine concepts V1.5 introduces, not covered by
 | Language toggle | `lang` on `<html>` updates on language change |
 | Exercise reordering *(V1.5, AD-15)* | Keyboard-only "Move up"/"Move down" buttons per row, per the Interaction Primitives note above — drag alone is never the only way to reorder |
 | Role-ceiling-filtered dropdowns *(V1.5, AD-17)* | The Role `<select>` only ever contains options the acting user may legally choose — screen reader users never encounter a role they'd then have rejected server-side |
+| Session-required alert *(V1.6)* | `aria-live="assertive"`, the same as red denied alerts. The header text "SESSION REQUIRED" is the accessible signal, and `{colors.info}` is supplementary |
+| Session alert in-flight line *(V1.6)* | Changes to "Mobile money payment in progress" are announced through the same assertive region only when it appears, not on every poll |
+| Record session payment results *(V1.6)* | The success toast is in a polite live region. Refusal messages are `role="alert"` and associated to the panel via `aria-describedby` |
+| AD-18 marking refusal *(V1.6)* | The inline row message is `role="alert"`, and focus moves to [Record session payment] (see Interaction Primitives) |
+| Loyalty discount readout *(V1.6, AD-13)* | `aria-live="polite"`, updated after typing pauses (300 ms), with "≈" read as "about" / "environ" |
+| Charge-guests confirmation *(V1.6, AD-13)* | The confirm button is labelled with the action, "Start charging" / "Stop charging", never "Confirm". The old-app warning is part of the dialog's `aria-describedby` |
+| Guest sessions card *(V1.6, AD-02)* | The period control is a `radiogroup` with arrow-key navigation. Each figure link reads its full meaning: "41 paid sessions today, view list" |
+| Plan type lock *(V1.6, AD-23)* | The read-only field uses `aria-readonly="true"` with the reason linked through `aria-describedby`, not conveyed by the lock icon alone |
 
 **Color contrast:** All text meets WCAG 2.1 AA (4.5:1 for body; 3:1 for large text and UI components). See `DESIGN.md` for token values.
 
@@ -2491,6 +3164,9 @@ These four states are new state-machine concepts V1.5 introduces, not covered by
 
 **Front-desk alert panel on tablet:**
 - Max 3 alerts visible (vs 5 on desktop); avatar 32px; text truncated with hover tooltips
+- *(V1.6)* The session-required variant keeps [Record session payment] visible; its in-flight line truncates first. The Record Session Payment Panel opens as the same 320px right drawer as the Inline Renewal Panel.
+
+**Guest sessions card *(V1.6)*:** three figures side by side at ≥ 768px. Below 768px they stack vertically, and the period control moves under the title.
 
 ### Super Admin Dashboard
 
@@ -2663,3 +3339,24 @@ Same breakpoints as Admin Dashboard. Desktop primary; tablet supported; mobile s
 4. **Audit log cross-check.** Every Flow A payment's settlement account is verifiable against its own gym's connected credentials — not just asserted, provable (NFR-019).
 
 **Climax beat:** One config value changed. The payment logic itself never moved — and the audit log is what lets Chidi *prove* that, not just claim it.
+
+---
+
+### Flow 12 · Ange Pays Per Session *(V1.6, UJ-11)*
+
+**Protagonist:** Ange, a session guest who trains at Grace's gym three or four times a month and never wanted a monthly plan. Supporting cast: Aicha M. at the desk (Receptionist, Flow 7) and Grace (Owner, Flow 7).
+
+**Entry:** Ange's first visit. Grace has already turned on "Charge guests per session" in AD-13 (the confirmation said how many Pay-per-session members would need a paid session at their next visit, and warned about older app versions). Grace has also set Loyalty to 1 free session per 5 paid.
+
+1. **AD-05, then AD-03 row → Waive registration fee.** Aicha registers Ange and waives the registration fee with one tap on the "Session guest" preset. She puts Ange on the gym's Pay-per-session plan, 2,000 XAF a visit. *(Source note: AD-05 and waiving are Manager-plus, but UJ-11 has the desk do both. The flow keeps the PRD's names, and in practice a Manager performs this step.)*
+2. **AD-04 (member modal) → [Record session payment].** Ange pays Aicha at the desk before scanning. The Record Session Payment Panel shows 2,000 XAF (fixed) and Cash; Aicha confirms. Toast: "Session recorded for Ange T. Ask them to scan again." *(Alternatively Ange taps [Pay for a session] on MA-09 and pays by Tara Money on MA-17, since Grace's gym has Tara connected.)*
+3. **MA-10.** Ange scans the entrance QR like everyone else. Green: "Checked in." One payment covers her whole day; when she steps out and back in, the second scan costs nothing.
+4. **One Thursday, MA-10.** She skips the payment and scans straight away. The app does not check her in: full-screen "Pay for your session" with [Pay now] and [See the front desk]. No attendance is recorded.
+5. **AD-02 (simultaneously).** A "SESSION REQUIRED" alert slides into Aicha's panel: "Ange T. · No paid session". Aicha taps [Record session payment], collects 2,000 XAF in cash, and confirms. The alert dismisses itself.
+6. **MA-10.** Ange scans again. Green: "Checked in."
+7. **Her fifth paid visit, MA-09.** The Rewards card shows "Free session earned — valid for 60 days", and her progress is back at "0 / 5".
+8. **Next visit, MA-10.** She scans and is checked in without paying: "Free session used."
+9. **If she stays away.** After 90 days without a paid session her progress resets to 0. If she doesn't use the free session within 60 days, it lapses and drops off the card.
+10. **Month end, AD-02.** Grace opens her Overview, switches the Guest sessions card to "This month", and reads 41 paid guest sessions, 6 blocked attempts, 8 free sessions given. She opens Paid on AD-22, grouped by Recorded by, and sees what the guest desk is actually earning.
+
+**Climax beat:** The Thursday Ange forgot to pay costs her one extra scan, and costs the gym nothing. The app never pretended she was checked in, the desk caught it in real time, and at month end Grace can see what the guest desk is actually earning, down to who collected it.

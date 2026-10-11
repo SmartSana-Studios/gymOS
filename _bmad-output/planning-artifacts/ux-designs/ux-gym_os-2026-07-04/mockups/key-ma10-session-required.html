@@ -1,0 +1,109 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+/*
+  Governed by: DESIGN.md (Colors — info #2563EB, V1.6; Components — "Check-in
+  result overlay — info variant"; Button; Do's and Don'ts) and EXPERIENCE.md
+  (MA-10 · Check-In — Result States; V1.6 — Session guests: "Pay for your
+  session" and "Check-in saved — will be verified"; Voice and Tone rows
+  "Check-in — session required" / "Check-in — offline guest").
+  Overlay colour is platform-fixed {colors.info}; it never takes the gym accent.
+  System-font stand-in for Barlow (offline mock — real app loads Barlow via
+  @expo-google-fonts). Unicode glyphs stand in for MaterialIcons
+  `confirmation_number` and `hourglass_top`.
+  Button treatment on a filled overlay (white primary pill, white-outline
+  secondary pill) is not spelled out in the spine; it applies the shipped
+  pill Button (height 52, radius pill) in white-on-info.
+*/
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #e9e9ec;
+  display: flex;
+  justify-content: center;
+  gap: 48px;
+  flex-wrap: wrap;
+  padding: 40px 20px;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.caption { text-align: center; margin-top: 12px; font-size: 13px; color: #555; max-width: 375px; }
+.frame-wrap { display: flex; flex-direction: column; align-items: center; }
+.device {
+  width: 375px;
+  height: 812px;
+  background: #2563EB;
+  border-radius: 44px;
+  border: 10px solid #1a1a1a;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+}
+.notch {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 150px; height: 26px; background: #1a1a1a; border-radius: 0 0 16px 16px; z-index: 10;
+}
+/* full-screen result overlay — no navigation bar */
+.overlay {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 28px;
+  color: #FFFFFF;
+  text-align: center;
+}
+.overlay-icon {
+  width: 104px; height: 104px; border-radius: 52px;
+  background: rgba(255,255,255,0.16);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 52px; margin-bottom: 28px;
+}
+.overlay-title { font-size: 26px; line-height: 32px; font-weight: 700; margin-bottom: 12px; }
+.overlay-body { font-size: 16px; line-height: 24px; opacity: 0.92; margin-bottom: 4px; }
+.actions { width: 100%; margin-top: 40px; display: flex; flex-direction: column; gap: 12px; }
+.btn { height: 52px; border-radius: 26px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
+.btn-on-info-primary { background: #FFFFFF; color: #2563EB; }
+.btn-on-info-secondary { background: transparent; border: 1px solid rgba(255,255,255,0.75); color: #FFFFFF; }
+.hint { margin-top: 20px; font-size: 12px; opacity: 0.7; }
+</style>
+</head>
+<body>
+
+<div class="frame-wrap">
+<div class="device">
+  <div class="notch"></div>
+  <div class="overlay">
+    <div class="overlay-icon">🎟</div>
+    <div class="overlay-title">Pay for your session</div>
+    <div class="overlay-body">You need a paid session to check in today.</div>
+    <div class="overlay-body">2,000 XAF covers the whole day.</div>
+    <div class="actions">
+      <div class="btn btn-on-info-primary">Pay now</div>
+      <div class="btn btn-on-info-secondary">See the front desk</div>
+    </div>
+    <div class="hint">Requires a tap — does not auto-dismiss</div>
+  </div>
+</div>
+<div class="caption">MA-10 · Pay for your session — online scan with no paid session; gym has Tara Money connected, so [Pay now] → MA-17 is primary and [See the front desk] secondary</div>
+</div>
+
+<div class="frame-wrap">
+<div class="device">
+  <div class="notch"></div>
+  <div class="overlay">
+    <div class="overlay-icon">⏳</div>
+    <div class="overlay-title">Check-in saved — your session will be verified</div>
+    <div class="overlay-body">08:14 AM · We'll check your session when you're back online.</div>
+    <div class="actions">
+      <div class="btn btn-on-info-primary">OK</div>
+    </div>
+    <div class="hint">Requires a tap — does not auto-dismiss</div>
+  </div>
+</div>
+<div class="caption">MA-10 · Check-in saved — will be verified — offline scan by a guest at a charging gym; replaces the green Success — Offline</div>
+</div>
+
+</body>
+</html>
