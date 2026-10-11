@@ -401,7 +401,7 @@ development_status:
   19-2-flagged-payment-reason-late-vs-wrong-account: done
   19-3-charge-guests-setting-session-record-plan-type-rules: done
   19-4-desk-session-payment: done
-  19-5-in-app-tara-money-session-payment: review
+  19-5-in-app-tara-money-session-payment: done
   19-6a-front-desk-alert-kind-refactor-no-behavior-change: backlog
   19-6b-check-in-gate-blocked-attempts-session-required-alert: backlog
   19-7-class-attendance-consumes-a-session: backlog
@@ -823,3 +823,4 @@ last_updated: 10-11-2026 15:30
 # last_updated: 2026-10-11 (bmad-build: 19-5 spec written and approved, status backlog -> in-progress; epic-19 already in-progress)
 # last_updated: 2026-10-11 (build: 19-5 in-progress -> review. Migration 0109: initiate_session_payment (member; processing Tara payment, amount from latest plan, one in flight via partial unique index), complete_verified_payment rewritten (payment then member lock on every branch, session branch, late session for expired_attempt only), helper assertions (closes 19.4 triage #1/#2). pgTAP in_app_session_payment + .negative + complete_verified_payment_member_lock. database.ts spliced; audit labels session_payment_paid/session_late_payment EN/FR. decisions.md + deferred-work.md updated.)
 # last_updated: 2026-10-11 (build: 19-5 review pass, 3 layers, 26 findings: 2 test-only patches applied (member row-lock observed via pgrowlocks, mutation-checked; provider-inactive test repointed to a gym with credentials), 1 deferred (wrong_account production, trace for non-expired flagged success), rest rejected; ci-local static/pgtap/unit/e2e PASS on the dirty tree)
+# last_updated: 2026-10-11 (19-5 review -> done: PR #41 merged into epic/19 at b61a3ca after a clean-tree ci-local pass)
