@@ -657,6 +657,7 @@ action_items:
 # last_updated: 2026-10-11 (planning, no story status changes: bmad-create-epics-and-stories for PRD v1.6 -- epics.md gains Epic 19 Session Guests (19.0-19.12, 19.6 split into 19.6a alert kind refactor + 19.6b check-in gate; migrations 0106-0115), Epic 20 Loyalty (20.1-20.6; 0116-0119), Epic 21 Gym Category (21.1-21.2; 0120); party-mode review applied (flag-read-first kill switch, member lock on every complete_verified_payment branch moved into 19.5, R free days also move the next on-time deadline -- intended); final validation passed, status final. Epics 19-21 not yet in development_status. Next: bmad-sprint-planning.)
 # last_updated: 2026-10-11 (planning, no story status changes: PRD §12 V1.7 backlog gains E -- GymOS support staff (Super Admin-assigned per gym, visible, removable by Owner, full configuration incl. Tara Money connection; amends FR-072 at V1.7 planning); OQ-26 opened for transactions, onboarding opt-in/out, second factor.)
 # last_updated: 2026-10-11 (planning, no story status changes: OQ-26 partly resolved -- V1.7 support staff may also record payments, refunds, and fee waivers; onboarding opt-in/out and second factor still open.)
+# last_updated: 2026-10-11 (planning, no story status changes: OQ-26 resolved -- V1.7 support on by default with an audited Owner opt-out, second login factor required for support accounts.)
   - id: "epic-18-retro-item-9-extract-a-shared-usepaymentstatuswatch-h"
     epic: 18
     action: "Extract a shared usePaymentStatusWatch hook used by RenewalModal and
