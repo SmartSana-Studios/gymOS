@@ -31,7 +31,9 @@ const deleteGymMock = vi.fn<(id: string) => Promise<void>>(async () => {});
 const deleteUserMock = vi.fn(async () => ({ error: null }));
 const sendTempPasswordMessageMock = vi.fn(async () => ({ success: true as const }));
 const logGymCreatedMock = vi.fn<(id: string, meta: Record<string, unknown>) => Promise<void>>(async () => {});
-const insertGymMock = vi.fn<() => Promise<typeof insertGymResult>>(async () => insertGymResult);
+const insertGymMock = vi.fn<(input: { country: string }) => Promise<typeof insertGymResult>>(
+  async () => insertGymResult,
+);
 const insertOwnerMemberMock = vi.fn<(input: { userId: string }) => Promise<typeof insertOwnerMemberResult>>(
   async () => insertOwnerMemberResult,
 );
@@ -79,7 +81,7 @@ vi.mock("@/lib/super-admin-provisioning.mjs", () => ({
 
 vi.mock("@/services/gyms", () => ({
   gymNameExists: async () => false,
-  insertGym: () => insertGymMock(),
+  insertGym: (input: { country: string }) => insertGymMock(input),
   insertOwnerMember: (input: { userId: string }) => insertOwnerMemberMock(input),
   deleteGym: (id: string) => deleteGymMock(id),
   logGymCreated: (id: string, meta: Record<string, unknown>) => logGymCreatedMock(id, meta),
@@ -296,6 +298,37 @@ describe("createGym — compensating cleanup", () => {
     expect(error).not.toBeNull();
     expect(deleteGymMock).toHaveBeenCalledWith("gym-1");
     expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("createGym — country (gyms.country, 0105)", () => {
+  it("passes the chosen country to the gym insert and records it in the audit trail", async () => {
+    const { error } = await createGym({ ...VALID, country: "NG" });
+    expect(error).toBeNull();
+    expect(insertGymMock).toHaveBeenCalledWith(expect.objectContaining({ country: "NG" }));
+    const meta = logGymCreatedMock.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(meta.country).toBe("NG");
+  });
+
+  it("defaults to CM when the caller sends no country", async () => {
+    await createGym(VALID);
+    expect(insertGymMock).toHaveBeenCalledWith(expect.objectContaining({ country: "CM" }));
+  });
+
+  it("rejects a malformed country before anything is written", async () => {
+    const { data, error } = await createGym({ ...VALID, country: "cmr" });
+    expect(data).toBeNull();
+    expect(error?.code).toBe("validation_error");
+    expect(insertGymMock).not.toHaveBeenCalled();
+    expect(createUserMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a well-formed code that is not a real country, writing nothing", async () => {
+    const { data, error } = await createGym({ ...VALID, country: "ZZ" });
+    expect(data).toBeNull();
+    expect(error).toMatchObject({ code: "validation_error", message: "gyms.create.countryInvalid" });
+    expect(insertGymMock).not.toHaveBeenCalled();
+    expect(createUserMock).not.toHaveBeenCalled();
   });
 });
 

@@ -14,7 +14,7 @@ Every phone field in the product picks a country, but the CSV import took the ra
 
 **Duplicates are checked on the resolved number.** "670123456" and "+237670123456" in one file are the same person; the in-file duplicate check and the already-a-member lookup both run after normalization.
 
-**Smaller choices.** `country` is not pinned: like timezone, the owner edits it in Settings (validated against libphonenumber's country list server-side, since the Zod schema only checks the shape). Super-admin Create Gym does not ask for it; a new gym starts at `CM` and the owner changes it in Settings. Deploy order matters: the dashboard now selects `gyms.country`, so 0105 must be on the hosted project before this reaches master.
+**Smaller choices.** `country` is not pinned: like timezone, the owner edits it in Settings (validated against libphonenumber's country list server-side, since the Zod schema only checks the shape). Super-admin Create Gym asks for it (a country select defaulting to `CM`, written with the gym insert and recorded in the `gym_created` audit entry); the owner can still change it in Settings. Deploy order matters: the dashboard now selects `gyms.country`, so 0105 must be on the hosted project before this reaches master.
 
 ## 2026-10-08 — The hosted project grants EXECUTE on every function to anon; 0104 aligns production with the migrations' intent
 
