@@ -528,6 +528,7 @@ export type Database = {
           checkin_timeout_hours: number
           class_booking_cancellation_cutoff_minutes: number
           closing_time: string | null
+          country: string
           created_at: string
           default_language: string
           grace_period_days: number
@@ -553,6 +554,7 @@ export type Database = {
           checkin_timeout_hours?: number
           class_booking_cancellation_cutoff_minutes?: number
           closing_time?: string | null
+          country?: string
           created_at?: string
           default_language?: string
           grace_period_days?: number
@@ -578,6 +580,7 @@ export type Database = {
           checkin_timeout_hours?: number
           class_booking_cancellation_cutoff_minutes?: number
           closing_time?: string | null
+          country?: string
           created_at?: string
           default_language?: string
           grace_period_days?: number

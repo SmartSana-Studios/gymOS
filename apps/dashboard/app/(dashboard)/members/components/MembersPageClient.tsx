@@ -90,6 +90,7 @@ export function MembersPageClient({
   coaches,
   gymName,
   registrationFee = 0,
+  phoneCountry,
   mobileMoneyEnabled = false,
 }: {
   initialMembers: MemberListRow[];
@@ -103,6 +104,8 @@ export function MembersPageClient({
   coaches: CoachRow[];
   gymName: string;
   registrationFee?: number;
+  /** gyms.country (ISO alpha-2); how CSV import reads numbers without a country code. */
+  phoneCountry?: string;
   /** Story 18.6: whether the collect dialog offers Tara Money. A UI hint only;
    * the initiate action re-checks availability. */
   mobileMoneyEnabled?: boolean;
@@ -647,6 +650,7 @@ export function MembersPageClient({
       {csvImportOpen && (
         <CsvImportModal
           onClose={() => setCsvImportOpen(false)}
+          phoneCountry={phoneCountry}
           onImported={(count, warning) => {
             setCsvImportOpen(false);
             showToast(warning ?? t("members.csvImport.importSuccessToast", { count }));

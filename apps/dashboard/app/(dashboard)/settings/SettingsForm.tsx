@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Link from "next/link";
 import QRCode from "qrcode";
@@ -31,6 +31,7 @@ import type { GymSettingsRow } from "@/services/gym-settings";
 import type { GymPaymentConnectionStatus } from "@/services/gym-payment-credentials";
 import type { GymBillingInfo, SelectableTier } from "@/services/billing";
 import { PayNowButton } from "@/components/shared/PayNowButton";
+import { listPhoneCountries } from "@/lib/phone";
 import {
   connectPaymentProvider,
   disconnectPaymentProvider,
@@ -109,6 +110,7 @@ interface FieldErrors {
   primaryColor?: string;
   timezone?: string;
   defaultLanguage?: string;
+  country?: string;
   gracePeriodDays?: string;
   capacity?: string;
   alertAutoDismissMinutes?: string;
@@ -155,6 +157,7 @@ export function SettingsForm({
   staffCount: number;
 }) {
   const { t, i18n } = useTranslation();
+  const countryOptions = useMemo(() => listPhoneCountries(i18n.language), [i18n.language]);
 
   const NAN_FIELD_MESSAGE_KEYS: Partial<Record<keyof FieldErrors, string>> = {
     gracePeriodDays: "settings.errors.gracePeriodRange",
@@ -168,6 +171,7 @@ export function SettingsForm({
     primaryColor: initial.primaryColor ?? "",
     timezone: initial.timezone,
     defaultLanguage: initial.defaultLanguage,
+    country: initial.country,
     gracePeriodDays: String(initial.gracePeriodDays),
     capacity: initial.capacity === null ? "" : String(initial.capacity),
     alertAutoDismissMinutes: String(initial.alertAutoDismissMinutes),
@@ -353,6 +357,7 @@ export function SettingsForm({
       primaryColor: form.primaryColor.trim() === "" ? null : form.primaryColor,
       timezone: form.timezone,
       defaultLanguage: form.defaultLanguage,
+      country: form.country,
       gracePeriodDays: Number(form.gracePeriodDays),
       capacity: Number(form.capacity),
       alertAutoDismissMinutes: Number(form.alertAutoDismissMinutes),
@@ -700,6 +705,24 @@ export function SettingsForm({
                     <option value="en">{t("settings.languageOptionEnglish")}</option>
                     <option value="fr">{t("settings.languageOptionFrench")}</option>
                   </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="country">{t("settings.fields.country")}</Label>
+                  <select
+                    id="country"
+                    value={form.country}
+                    onChange={(e) => setForm({ ...form, country: e.target.value })}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    {countryOptions.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name} ({c.callingCode})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">{t("settings.fields.countryHint")}</p>
+                  {fieldErrors.country && <p className="text-sm text-red-600">{fieldErrors.country}</p>}
                 </div>
 
                 <div className="space-y-2">

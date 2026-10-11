@@ -22,6 +22,8 @@ export interface GymSettingsRow {
   primaryColor: string | null;
   timezone: string;
   defaultLanguage: string;
+  /** ISO 3166-1 alpha-2; default region for phone numbers without a country code. */
+  country: string;
   gracePeriodDays: number;
   capacity: number | null;
   alertAutoDismissMinutes: number;
@@ -78,7 +80,7 @@ export async function getGymSettings(): Promise<{
   const { data, error } = await supabase
     .from("gyms")
     .select(
-      "name, logo_url, primary_color, timezone, default_language, grace_period_days, capacity, alert_auto_dismiss_minutes, checkin_timeout_hours, gym_token, registration_fee",
+      "name, logo_url, primary_color, timezone, default_language, country, grace_period_days, capacity, alert_auto_dismiss_minutes, checkin_timeout_hours, gym_token, registration_fee",
     )
     .eq("id", gymId)
     .maybeSingle();
@@ -97,6 +99,7 @@ export async function getGymSettings(): Promise<{
       primaryColor: data.primary_color,
       timezone: data.timezone,
       defaultLanguage: data.default_language,
+      country: data.country,
       gracePeriodDays: data.grace_period_days,
       capacity: data.capacity,
       alertAutoDismissMinutes: data.alert_auto_dismiss_minutes,
@@ -174,6 +177,7 @@ export async function updateGymSettings(
       primary_color: input.primaryColor,
       timezone: input.timezone,
       default_language: input.defaultLanguage,
+      country: input.country,
       grace_period_days: input.gracePeriodDays,
       capacity: input.capacity,
       alert_auto_dismiss_minutes: input.alertAutoDismissMinutes,

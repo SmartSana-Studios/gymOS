@@ -109,6 +109,8 @@
       "primaryColor": "Primary Color *",
       "defaultLanguage": "Default Language",
       "timezone": "Timezone *",
+      "country": "Country *",
+      "countryHint": "Phone numbers imported without a country code are read as numbers from this country.",
       "gracePeriod": "Grace Period *",
       "gracePeriodUnit": "days",
       "capacity": "Gym Capacity *",
@@ -191,6 +193,7 @@
     },
     "errors": {
       "gymNotFound": "Gym not found",
+      "invalidCountry": "Select a valid country",
       "noFileProvided": "No file provided",
       "unsupportedType": "Unsupported image type. Use PNG, JPG, WEBP, or GIF.",
       "imageTooLarge": "Image too large — maximum 5MB",
@@ -547,6 +550,7 @@
     },
     "csvImport": {
       "title": "CSV Import",
+      "phoneCountryHint": "Phone numbers without a country code are read as {{country}} ({{callingCode}}) numbers. Numbers starting with + keep their own country. You can change this in Settings.",
       "downloadTemplate": "Download template ↓",
       "uploadZoneText": "Drag your CSV here, or",
       "browseButton": "Browse",
