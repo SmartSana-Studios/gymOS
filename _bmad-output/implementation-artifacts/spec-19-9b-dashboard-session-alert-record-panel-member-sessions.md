@@ -111,3 +111,31 @@ context:
 - `pnpm --filter dashboard test` -- expected: pass
 - `pnpm --filter dashboard check:i18n` -- expected: parity
 - `bash scripts/ci-local.sh` -- expected: all stages PASS
+
+### Review Findings
+
+Second review pass (2026-10-11, bmad-code-review on `7d38c1c..e7ad79c`; Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor). Most raw findings repeat the Review Triage Log above and were re-rejected on re-verification.
+
+- [x] [Review][Patch] Focus is dropped to `<body>` after a successful record from the alert or the Classes refusal row (trigger unmounts, `trigger.isConnected` is false). Decision resolved 2026-10-11 (delegated to reviewer): when the trigger is gone, focus a stable fallback -- the surrounding region heading (alert panel or Classes list) -- so the "focus returns to trigger" rule holds in intent. Add a test per opener. [apps/dashboard/components/shared/RecordSessionPaymentDialog.tsx:~94]
+- [x] [Review][Patch] Role threading into the dialog is unasserted: every opener test stubs the dialog without reading `role`, and there is no Attendance page test. Dropping `role={role}` at any hop silently removes Bank Transfer for managers/owners. Make the three opener stubs render and assert `role`; add `attendance/page.test.tsx` mirroring `page.overview.test.tsx`. [apps/dashboard/components/shared/FrontDeskAlertPanel.sessionRequired.test.tsx, MemberModal.sessions.test.tsx, ClassesPageClient.sessionRequired.test.tsx]
+- [x] [Review][Patch] No test that focus returns to the trigger after Cancel/close; deleting the cleanup `trigger.focus()` leaves all nine dialog tests green. [apps/dashboard/components/shared/RecordSessionPaymentDialog.test.tsx]
+- [x] [Review][Patch] Sessions section branches untested: a non-per-session member or non-charging gym that still holds rows must render the section; a deactivated per-session member must have no record button. [apps/dashboard/app/(dashboard)/members/components/MemberModal.sessions.test.tsx]
+- [x] [Review][Patch] `canRecordSession = role !== "coach"` is a deny-list on an optional prop, while MemberModal uses an allow-list (receptionist/manager/supervisor/owner). A caller that omits `role` gets the Record button here but not in the modal. Use the same allow-list. [apps/dashboard/components/shared/FrontDeskAlertPanel.tsx:122]
+
+#### Rejected
+
+- Price preview can differ from the RPC charge (edge, blind, auditor) -- false: `getSessionPaymentPreview` and `record_session_payment` (0108) both take the member's newest subscription by `created_at desc`, then the plan; the RPC only adds an `id` tiebreak.
+- `plans.find(planId)` hides the record action for an archived plan -- false: `listPlans` has no archive filter, so every plan is in the prop.
+- Coach can read session data through the new actions -- false: `guest_sessions` SELECT policy is limited to owner/manager/supervisor/receptionist (0107); same as Log #12.
+- Read-back picks an arbitrary `guest_sessions` row for a payment -- false: `guest_sessions_payment_id_unique` (0107) makes it at most one row; ignored read error only drops the outcome toast (low, not worth a branch).
+- `sessionState` shows `unused` for a voided/lapsed/missing row -- low: a voided session always has a refund and is filtered out; `record_session_payment` always inserts the row in the same transaction.
+- Polling reader throws on a failed session read -- low: deliberate, the stale cache is kept (Log #14).
+- `mapSessionPaymentError` substring matching -- low: the input is only the `record_session_payment` RPC error text; the codes are RPC-owned prefixes.
+- Dismiss rejects after a recorded payment -- low: `dismissFrontDeskAlert` returns `{error}` and is logged, not thrown (Log #11).
+- UPDATE of a known session alert is ignored until the next poll -- low: five-second poll refreshes it; fix adds merge logic.
+- No retry after a context-load failure -- low: close and reopen recovers; fix adds state.
+- `listMemberGuestSessions` `limit(200)` could drop an unused session -- false for unused: unused rows are always among the newest; only old used history is cut, which the section does not promise.
+- Sessions link opens an unfiltered Payments page -- already deferred to 19-9c in `deferred-work.md`.
+- Loyalty notices unreachable -- false: disclosed Epic 20 hook (Log #16).
+- Refund toast shows the audit warning instead of the outcome -- low: rare path, pinned by a test, fix is design work.
+- Polling cost, `searchMembersForPayment` embed (bounded by `limit(10)` members), Date.now vs server clock, "Paid sessions" title, toast helper triplication, dynamic i18n keys, FR "annulez-les", Cancel/Record CSS order, `kept` string, spec/sprint bookkeeping -- low or cosmetic with no named harm (CSS order is spec-mandated tab order; bookkeeping is reconciled by this pass).

@@ -5,6 +5,7 @@
  * tab order Method -> Note -> Record -> Cancel, and the alert dismissed on
  * success.
  */
+import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -196,5 +197,57 @@ describe("RecordSessionPaymentDialog (Story 19.9b)", () => {
       await user.tab();
     }
     expect(order).toEqual(["sessionPaymentMethod", "sessionPaymentNote", "Record session payment", "Cancel"]);
+  });
+
+  describe("focus", () => {
+    function Harness({ removeTriggerOnRecorded }: { removeTriggerOnRecorded?: boolean }) {
+      const [open, setOpen] = useState(false);
+      const [triggerGone, setTriggerGone] = useState(false);
+      return (
+        <div>
+          <h1 id="fallbackHeading" tabIndex={-1} aria-label="Fallback" />
+          {!triggerGone && (
+            <button type="button" onClick={() => setOpen(true)} aria-label="Open panel" />
+          )}
+          {open && (
+            <RecordSessionPaymentDialog
+              memberId={MEMBER_ID}
+              memberName="Alice"
+              role="receptionist"
+              fallbackFocusId="fallbackHeading"
+              onClose={() => setOpen(false)}
+              onRecorded={() => {
+                setOpen(false);
+                if (removeTriggerOnRecorded) setTriggerGone(true);
+              }}
+            />
+          )}
+        </div>
+      );
+    }
+
+    it("returns focus to the opening control when the panel is cancelled", async () => {
+      const user = userEvent.setup();
+      render(<Harness />);
+      const opener = screen.getByRole("button", { name: "Open panel" });
+      await user.click(opener);
+      await waitFor(() => expect(screen.getByRole("button", { name: "Record session payment" })).toBeEnabled());
+
+      await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+      await waitFor(() => expect(opener).toHaveFocus());
+    });
+
+    it("focuses the fallback element when the opening control is removed by the success", async () => {
+      recordSessionPaymentAction.mockResolvedValue({ data: { sessionId: "s1" }, error: null });
+      const user = userEvent.setup();
+      render(<Harness removeTriggerOnRecorded />);
+      await user.click(screen.getByRole("button", { name: "Open panel" }));
+      await waitFor(() => expect(screen.getByRole("button", { name: "Record session payment" })).toBeEnabled());
+
+      await user.click(screen.getByRole("button", { name: "Record session payment" }));
+
+      await waitFor(() => expect(screen.getByRole("heading", { name: "Fallback" })).toHaveFocus());
+    });
   });
 });

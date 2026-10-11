@@ -39,6 +39,7 @@ export function RecordSessionPaymentDialog({
   memberName,
   role,
   alertId,
+  fallbackFocusId,
   onClose,
   onRecorded,
 }: {
@@ -48,6 +49,9 @@ export function RecordSessionPaymentDialog({
   role?: string;
   /** Set when opened from an alert: dismissed once the payment is recorded. */
   alertId?: string;
+  /** Element id to focus on close when the opening control no longer exists
+   * (e.g. the alert row it lived in was removed by the success). */
+  fallbackFocusId?: string;
   onClose: () => void;
   /** The session payment was recorded (the panel is done; the caller closes it). */
   onRecorded: () => void;
@@ -84,7 +88,10 @@ export function RecordSessionPaymentDialog({
       // Focus returns to the control that opened the panel (native dialog
       // restoration is not guaranteed once that control re-rendered).
       if (trigger && trigger.isConnected) trigger.focus();
+      else if (fallbackFocusId) document.getElementById(fallbackFocusId)?.focus();
     };
+    // Mount-only: the trigger is captured once; the fallback id is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

@@ -171,7 +171,7 @@ export function ClassesPageClient({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{t("classes.title")}</h1>
+        <h1 id="classesPageTitle" tabIndex={-1} className="text-2xl font-semibold">{t("classes.title")}</h1>
         {canManage && <Button onClick={openCreate}>{t("classes.addClass")}</Button>}
       </div>
 
@@ -361,6 +361,7 @@ export function ClassesPageClient({
           memberId={recordingBooking.memberId}
           memberName={recordingBooking.memberName}
           role={role}
+          fallbackFocusId="classesPageTitle"
           onClose={() => setRecordingBooking(null)}
           onRecorded={() => {
             const name = recordingBooking.memberName;

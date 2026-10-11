@@ -45,14 +45,19 @@ vi.mock("@/components/shared/RecordSessionPaymentDialog", () => ({
   RecordSessionPaymentDialog: ({
     memberName,
     alertId,
+    role,
+    fallbackFocusId,
     onRecorded,
   }: {
     memberName: string;
     alertId?: string;
+    role?: string;
+    fallbackFocusId?: string;
     onRecorded: () => void;
   }) => (
     <div>
       <p>{`record-panel:${memberName}:${alertId}`}</p>
+      <p>{`record-panel-props:${role}:${fallbackFocusId}`}</p>
       <button type="button" onClick={onRecorded}>
         finish-record
       </button>
@@ -176,6 +181,32 @@ describe("FrontDeskAlertPanel session-required variant (Story 19.9b)", () => {
     await waitFor(() => expect(screen.queryByText("record-panel:Alice:a1")).not.toBeInTheDocument());
     expect(screen.getByRole("status")).toHaveTextContent("Session recorded for Alice. Ask them to scan again.");
     expect(screen.queryByText("SESSION REQUIRED")).not.toBeInTheDocument();
+  });
+
+  it("threads the role and a focus fallback that exists in the DOM into the record panel", async () => {
+    const user = userEvent.setup();
+    renderPanel([sessionAlert], "manager");
+
+    await user.click(screen.getByRole("button", { name: "Record session payment" }));
+
+    expect(screen.getByText("record-panel-props:manager:frontDeskAlertRegion")).toBeInTheDocument();
+    expect(document.getElementById("frontDeskAlertRegion")).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("shows no record action when the role is omitted", () => {
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <FrontDeskAlertPanel
+          gymId="gym-1"
+          initialAlerts={[sessionAlert]}
+          autoDismissMinutes={30}
+          mobileMoneyEnabled={false}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(screen.queryByRole("button", { name: "Record session payment" })).not.toBeInTheDocument();
   });
 
   it("shows no record action to a coach", () => {

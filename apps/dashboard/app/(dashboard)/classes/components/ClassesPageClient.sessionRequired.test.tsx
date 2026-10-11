@@ -31,14 +31,19 @@ vi.mock("@/components/shared/RecordSessionPaymentDialog", () => ({
   RecordSessionPaymentDialog: ({
     memberId,
     memberName,
+    role,
+    fallbackFocusId,
     onRecorded,
   }: {
     memberId: string;
     memberName: string;
+    role?: string;
+    fallbackFocusId?: string;
     onRecorded: () => void;
   }) => (
     <div>
       <p>{`record-panel:${memberId}:${memberName}`}</p>
+      <p>{`record-panel-props:${role}:${fallbackFocusId}`}</p>
       <button type="button" onClick={onRecorded}>
         finish-record
       </button>
@@ -132,6 +137,8 @@ describe("ClassesPageClient session-required refusal", () => {
 
     await user.click(screen.getByRole("button", { name: "classes.attendance.recordSessionPayment" }));
     expect(screen.getByText("record-panel:m-1:Alice")).toBeInTheDocument();
+    expect(screen.getByText(/^record-panel-props:(?!undefined).+:classesPageTitle$/)).toBeInTheDocument();
+    expect(document.getElementById("classesPageTitle")).not.toBeNull();
 
     await user.click(screen.getByRole("button", { name: "finish-record" }));
 

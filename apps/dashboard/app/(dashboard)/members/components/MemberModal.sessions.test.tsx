@@ -22,9 +22,18 @@ vi.mock("@/app/(dashboard)/payments/actions", () => ({
   listMemberGuestSessionsAction: (...args: unknown[]) => listMemberGuestSessionsAction(...args),
 }));
 vi.mock("@/components/shared/RecordSessionPaymentDialog", () => ({
-  RecordSessionPaymentDialog: ({ memberName, onRecorded }: { memberName: string; onRecorded: () => void }) => (
+  RecordSessionPaymentDialog: ({
+    memberName,
+    role,
+    onRecorded,
+  }: {
+    memberName: string;
+    role?: string;
+    onRecorded: () => void;
+  }) => (
     <div>
       <p>{`record-panel:${memberName}`}</p>
+      <p>{`record-panel-role:${role}`}</p>
       <button type="button" onClick={onRecorded}>
         finish-record
       </button>
@@ -171,6 +180,7 @@ describe("MemberModal sessions (Story 19.9b)", () => {
 
     await user.click(await screen.findByRole("button", { name: "members.modal.recordSessionPayment" }));
     expect(screen.getByText("record-panel:Alice")).toBeInTheDocument();
+    expect(screen.getByText("record-panel-role:receptionist")).toBeInTheDocument();
     const callsBefore = listMemberGuestSessionsAction.mock.calls.length;
 
     await user.click(screen.getByRole("button", { name: "finish-record" }));
@@ -178,5 +188,32 @@ describe("MemberModal sessions (Story 19.9b)", () => {
     await waitFor(() => expect(listMemberGuestSessionsAction.mock.calls.length).toBeGreaterThan(callsBefore));
     expect(onSessionRecorded).toHaveBeenCalledWith("Alice");
     expect(screen.queryByText("record-panel:Alice")).not.toBeInTheDocument();
+  });
+
+  it("still shows the Sessions section when a monthly member holds session rows", async () => {
+    listMemberGuestSessionsAction.mockResolvedValue({ data: [session({ id: "u1" })], error: null });
+    await renderView({
+      editing: { planType: "monthly", planId: "plan-2" },
+      plans: [{ id: "plan-2", planType: "monthly", price: 15000, currency: "XAF" }] as never,
+    });
+
+    expect(await screen.findByText("members.modal.sessions.title")).toBeInTheDocument();
+    expect(screen.getByText("members.modal.sessions.unused")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "members.modal.recordSessionPayment" })).not.toBeInTheDocument();
+  });
+
+  it("still shows the Sessions section when the gym stopped charging but rows exist", async () => {
+    listMemberGuestSessionsAction.mockResolvedValue({ data: [session({ id: "u1" })], error: null });
+    await renderView({ charging: false });
+
+    expect(await screen.findByText("members.modal.sessions.title")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "members.modal.recordSessionPayment" })).not.toBeInTheDocument();
+  });
+
+  it("offers no record action for a deactivated Pay-per-session member", async () => {
+    await renderView({ editing: { deactivatedAt: "2026-10-01T00:00:00Z" } });
+
+    await waitFor(() => expect(listMemberGuestSessionsAction).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "members.modal.recordSessionPayment" })).not.toBeInTheDocument();
   });
 });

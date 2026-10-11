@@ -26,6 +26,9 @@ import {
 // alert -- if the Realtime channel ever drops after having connected once,
 // this panel falls back to refetching on this interval until it resubscribes.
 const POLL_INTERVAL_MS = 5000;
+// Focus fallback for the Record Session Payment panel when its trigger row is
+// removed by the success (Story 19.9b review).
+const ALERT_REGION_ID = "frontDeskAlertRegion";
 
 const STATUS_LABEL_KEY: Record<NonNullable<FrontDeskAlertRow["status"]>, string> = {
   expiring_soon: "members.status.expiringSoon",
@@ -119,7 +122,9 @@ export function FrontDeskAlertPanel({
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     };
   }, []);
-  const canRecordSession = role !== "coach";
+  // Allow-list, same as the member modal: an omitted role gets no action.
+  const canRecordSession =
+    role === "receptionist" || role === "manager" || role === "supervisor" || role === "owner";
 
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Review finding (Story 4.6): guards against an INSERT event's async
@@ -287,6 +292,8 @@ export function FrontDeskAlertPanel({
       {visibleAlerts.length > 0 && (
         <div
           className="max-h-[320px] space-y-2 overflow-y-auto rounded-md border p-2"
+          id={ALERT_REGION_ID}
+          tabIndex={-1}
           role="region"
           aria-label={t("frontDeskAlert.panelLabel")}
         >
@@ -317,6 +324,7 @@ export function FrontDeskAlertPanel({
           memberId={openSessionAlert.memberId}
           memberName={openSessionAlert.memberName || t("frontDeskAlert.unknownMember")}
           role={role}
+          fallbackFocusId={ALERT_REGION_ID}
           onClose={() => setOpenSessionAlert(null)}
           onRecorded={() => {
             const alert = openSessionAlert;
