@@ -398,7 +398,7 @@ development_status:
   epic-19: in-progress
   19-0-v1-6-release-readiness-ops-checklist: done
   19-1-ci-guardrails-live-role-lint-gate-hosted-privilege-check: done
-  19-2-flagged-payment-reason-late-vs-wrong-account: backlog
+  19-2-flagged-payment-reason-late-vs-wrong-account: review
   19-3-charge-guests-setting-session-record-plan-type-rules: backlog
   19-4-desk-session-payment: backlog
   19-5-in-app-tara-money-session-payment: backlog
@@ -808,3 +808,5 @@ last_updated: 10-11-2026 13:25
 # last_updated: 2026-10-11 (build: 19-1 in-progress -> review. scripts/check-migration-guardrails.mjs + checked-in grandfather lists (52 app_role reads, 81 function-privilege files at d6ada66); check:migrations and test:guardrails (10 node:test cases) wired into ci.yml and ci-local.sh static stage; docs/decisions.md entry with static-check limits and manual post-deploy anon-EXECUTE query. No migration.)
 # last_updated: 2026-10-11 (build: 19-1 in-review -> review. scripts/check-migration-guardrails.mjs gates new auth.jwt() app_role reads and function revokes (public+anon) with grandfather lists (52 / 81 files), wired into ci.yml and ci-local.sh static stage; 14 fixture tests; docs/decisions.md records the static-check limitation and manual post-deploy anon query. Review: 1 wrapped-JWT-read broadening deferred.)
 # last_updated: 2026-10-11 (code-review: 19-1 review -> done. 5 patches applied: arg-less 'revoke on function <name>' now recognised (fixture fn-bare-name), exit-2 messages name the path, decisions.md hosted query reworded (known anon set, procedures included, 0104 reference corrected), doubled blank line, test title. 16 guardrail tests pass; check:migrations OK. 11 findings rejected; wrapped-JWT broadening stays in deferred-work.md.)
+# last_updated: 2026-10-11 (build: 19-2 spec approved, backlog -> in-progress. Flagged-payment reason: migration 0106 payments.flagged_reason; decisions: one-directional CHECK (19.5 puts late_confirmation on a verified row), reconciliation never flags payments, provider_declined + staff_flagged added, dashboard data-layer only.)
+# last_updated: 2026-10-11 (build: 19-2 in-progress -> review. Migration 0106 payments.flagged_reason (six reasons, one-directional CHECK, backfill, expiry/decline/late paths set it, pin trigger on UPDATE and INSERT); review patches: late success never relabels wrong_account, client INSERT pinned, backfill tests for all six branches; dashboard label map deferred to the story that renders flagged rows; CI gate fix: pgtap-run.sh invoked via bash (mode 644); ci-local all four stages PASS. Before prod apply: count flagged rows by derived reason.)

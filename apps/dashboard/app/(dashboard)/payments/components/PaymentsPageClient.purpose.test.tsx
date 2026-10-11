@@ -46,6 +46,7 @@ describe("PaymentsPageClient purpose label (Story 18.6)", () => {
             amount: 5000,
             currency: "XAF",
             purpose: "registration_fee",
+            flaggedReason: null,
             details: {},
             detectedAt: "2026-10-01T00:00:00Z",
           },

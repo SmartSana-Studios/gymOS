@@ -761,6 +761,8 @@ export interface PaymentDiscrepancyRow {
   memberName: string;
   amount: number;
   currency: string;
+  /** Why the discrepant payment is flagged, when it is (Story 19.2). */
+  flaggedReason: string | null;
   /** The discrepant payment's purpose (Story 18.6). */
   purpose: string;
   details: Record<string, unknown>;
@@ -777,6 +779,7 @@ interface PaymentDiscrepancyRowFromDb {
     amount: number;
     currency: string;
     purpose: string;
+    flagged_reason: string | null;
     members: { name: string } | null;
   } | null;
 }
@@ -810,7 +813,7 @@ export async function listPaymentDiscrepancies(): Promise<{
 
   const { data, error } = await supabase
     .from("payment_discrepancies")
-    .select("id, discrepancy_type, details, detected_at, payments(member_id, amount, currency, purpose, members(name))")
+    .select("id, discrepancy_type, details, detected_at, payments(member_id, amount, currency, purpose, flagged_reason, members(name))")
     .eq("gym_id", gymId)
     .order("detected_at", { ascending: false });
 
@@ -831,6 +834,7 @@ export async function listPaymentDiscrepancies(): Promise<{
         amount: row.payments!.amount,
         currency: row.payments!.currency,
         purpose: row.payments!.purpose,
+        flaggedReason: row.payments!.flagged_reason ?? null,
         details: (row.details ?? {}) as Record<string, unknown>,
         detectedAt: row.detected_at,
       })),
