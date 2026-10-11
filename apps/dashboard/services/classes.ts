@@ -434,6 +434,20 @@ export async function markAttendance(
     return { data: null, rejected: true, error: null };
   }
 
+  // Story 19.7 (0112): at a gym that charges per session a refusal is a
+  // returned row with attended_at null (a raise would roll back the attempt
+  // and the alert). Every success sets attended_at, so null is the signal.
+  if (data.attended_at === null || data.attended_at === undefined) {
+    return {
+      data: null,
+      rejected: false,
+      error: {
+        code: "session_required",
+        message: "No paid session — attendance was not recorded. A front-desk alert has been raised.",
+      },
+    };
+  }
+
   // mark_class_attendance() returns a bare class_bookings row (no member
   // join) -- memberName is left blank here since the caller already holds
   // it locally (it rendered the row that triggered this call in the first

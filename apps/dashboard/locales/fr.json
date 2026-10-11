@@ -381,9 +381,9 @@
     "columnName": "Nom",
     "columnCoach": "Coach",
     "columnSchedule": "Horaire",
-    "columnNextSession": "Prochaine séance",
+    "columnNextSession": "Prochain cours",
     "columnBooked": "Réservé",
-    "noUpcomingSession": "Aucune séance à venir",
+    "noUpcomingSession": "Aucun cours à venir",
     "recurringSummary": "{{days}} à {{time}}",
     "days": {
       "sun": "Dim",
@@ -429,6 +429,7 @@
       "markAttended": "Marquer présent",
       "attended": "Présent",
       "memberExpired": "L'abonnement de ce membre a expiré -- la présence n'a pas été enregistrée. Une alerte a été envoyée à l'accueil.",
+      "sessionRequired": "Aucune séance payée — la présence au cours n'a pas été enregistrée. Une alerte a été envoyée à l'accueil.",
       "noBookings": "Aucun membre inscrit pour cette séance.",
       "noSession": "Ce cours n'a aucune séance à venir pour laquelle marquer la présence.",
       "loadingBookings": "Chargement des membres inscrits…"

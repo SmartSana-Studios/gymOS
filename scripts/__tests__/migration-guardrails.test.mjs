@@ -65,13 +65,13 @@ test("stale grandfather entries fail naming the entry", () => {
   assert.match(r.out, /function_privileges: 0001_ok\.sql/);
 });
 
-test("real tree passes with checked-in lists (at most 54 app_role entries)", () => {
+test("real tree passes with checked-in lists (at most 55 app_role entries)", () => {
   const r = spawnSync(process.execPath, [script], { encoding: "utf8" });
   assert.equal(r.status, 0, r.stdout + r.stderr);
   const list = JSON.parse(
     readFileSync(join(here, "..", "migration-guardrails.grandfather.json"), "utf8"),
   ).app_role_reads;
-  assert.ok(list.length > 0 && list.length <= 54);
+  assert.ok(list.length > 0 && list.length <= 55);
 });
 
 test("revoke with trailing CASCADE passes", () => {

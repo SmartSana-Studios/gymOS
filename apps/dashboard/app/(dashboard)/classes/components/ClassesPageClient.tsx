@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Info } from "lucide-react";
 
 import { TablePagination } from "@/components/TablePagination";
 import { useClientPagination } from "@/hooks/use-table-pagination";
@@ -41,6 +41,10 @@ export function ClassesPageClient({
   const [bookings, setBookings] = useState<SessionBookingRow[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [markingBookingId, setMarkingBookingId] = useState<string | null>(null);
+  // Story 19.7: booking whose last mark attempt was refused for want of a paid
+  // session. The row stays unmarked (the action stays enabled) and shows an
+  // inline message; the front-desk alert is raised server-side.
+  const [refusedBookingId, setRefusedBookingId] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -92,6 +96,7 @@ export function ClassesPageClient({
     setExpandedClassId(cls.id);
     setBookings([]);
     setBookingsLoading(true);
+    setRefusedBookingId(null);
     expandRequestRef.current = cls.id;
     const { data, error } = await getSessionBookingsAction(cls.nextSessionId);
     if (expandRequestRef.current !== cls.id) return;
@@ -105,9 +110,14 @@ export function ClassesPageClient({
 
   async function handleMarkAttendance(bookingId: string) {
     setMarkingBookingId(bookingId);
+    setRefusedBookingId(null);
     const { data, rejected, error } = await markAttendanceAction(bookingId);
     setMarkingBookingId(null);
     if (error) {
+      if (error.code === "session_required") {
+        setRefusedBookingId(bookingId);
+        return;
+      }
       showToast(t("common.loadError"));
       return;
     }
@@ -245,7 +255,7 @@ export function ClassesPageClient({
                             {bookings.map((booking) => (
                               <li
                                 key={booking.id}
-                                className={`flex items-center justify-between gap-3 rounded-lg border p-2.5 transition-colors ${
+                                className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-2.5 transition-colors ${
                                   booking.attended
                                     ? "border-green-200 bg-green-50"
                                     : "border-border bg-background"
@@ -290,6 +300,15 @@ export function ClassesPageClient({
                                       t("classes.attendance.markAttended")
                                     )}
                                   </Button>
+                                )}
+                                {refusedBookingId === booking.id && (
+                                  <p
+                                    role="alert"
+                                    className="flex w-full items-start gap-2 rounded-md border-l-4 border-l-blue-600 bg-blue-50 p-2 text-sm text-blue-900"
+                                  >
+                                    <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                                    <span>{t("classes.attendance.sessionRequired")}</span>
+                                  </p>
                                 )}
                               </li>
                             ))}

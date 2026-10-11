@@ -1491,6 +1491,7 @@ export type Database = {
       }
       session_attempts: {
         Row: {
+          class_session_id: string | null
           scan_id: string | null
           source: string
           created_at: string
@@ -1500,6 +1501,7 @@ export type Database = {
           scanned_at: string | null
         }
         Insert: {
+          class_session_id?: string | null
           scan_id?: string | null
           source?: string
           created_at?: string
@@ -1509,6 +1511,7 @@ export type Database = {
           scanned_at?: string | null
         }
         Update: {
+          class_session_id?: string | null
           scan_id?: string | null
           source?: string
           created_at?: string
@@ -1518,6 +1521,12 @@ export type Database = {
           scanned_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "session_attempts_class_session_id_fkey"
+            columns: ["class_session_id"]
+            referencedRelation: "class_sessions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "session_attempts_gym_id_fkey"
             columns: ["gym_id"]
