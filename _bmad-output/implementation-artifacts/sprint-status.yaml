@@ -689,6 +689,7 @@ action_items:
 # last_updated: 2026-10-11 (planning, no story status changes: OQ-26 resolved -- V1.7 support on by default with an audited Owner opt-out, second login factor required for support accounts.)
 # last_updated: 2026-10-11 (ux update, no story status changes: bmad-ux fast-path pass extended DESIGN.md/EXPERIENCE.md (ux-gym_os-2026-07-04) for V1.6 Epics 19-21 -- new MA-17 Pay for Session, AD-22 Guest Sessions, AD-23 Plans, Record Session Payment panel, Flow 12 (Ange, UJ-11), V1.6 state/copy/validation/a11y blocks, colors.info token; user decisions: FR "seance" = paid day-visit and "cours" = class, Story 21.1 category pairs canonical, pre-scan "Record session payment" on AD-04 (not AD-10), drift backfill only for /renew, /awaiting-registration, /plans; 41 drafted assumptions approved, reviewer gate skipped. Flagged for PM: UJ-11 has receptionist doing Manager-plus actions; FR plan wording Forfait vs Formule inconsistent.)
 # last_updated: 2026-10-11 (planning, no story status changes: bmad-create-epics-and-stories update-in-place -- epics.md Epics 19-21 reconciled with the V1.6 UX pass: V1.6 UX Design Requirements UX-DR17..UX-DR32 added, every [UX] marker resolved, stories 19.2/19.3/19.4/19.7/19.8/19.9/19.10/19.11/20.5/20.6/21.1/21.2 amended; Story 21.2 Manager read-only AC dropped (Settings is Owner/Supervisor only); 19.9 flagged as possibly splitting at create-story; no FR/NFR or story-id changes; open for product owner: UJ-11 receptionist doing Manager-plus actions, Forfait vs Formule wording.)
+# last_updated: 2026-10-11 (ad-hoc, no story status changes: Epic 18 retro action item 14 decided -- unsigned Tara re-sends stay rejected (fail closed), recorded in docs/decisions.md, action item set to done. Item 23 (Dependabot) triaged: all 28 open alerts already fixed in pnpm-lock.yaml, awaiting Dependabot rescan; dependency override PR follows.)
 # last_updated: 2026-10-11 (ad-hoc, no story: bmad-sprint-planning validate -- sprint_plan.py validate flagged action_items[4] and [5] (Epic 8, 2026-08-06) carrying status "resolved", outside the open/in-progress/done vocabulary; both set to done, re-validate clean. No story status changes.)
 # last_updated: 2026-10-11 (planning, no story status changes: bmad-sprint-planning generate -- Epics 19-21 added to development_status (19.0-19.12 incl. 19.6a/19.6b, 20.1-20.6, 21.1-21.2, plus epic and retrospective keys, all backlog/optional); 15 hand-named done keys renamed to the heading-derived keys the script generates (statuses preserved via --set); 13 done entries with no epics.md heading (1-11..1-20, 9-7, 11-8, 11-9) re-inserted by hand because generate drops them -- they will be flagged as dropped_orphans on every future generate until given Story headings in epics.md.)
   - id: "epic-18-retro-item-9-extract-a-shared-usepaymentstatuswatch-h"
@@ -730,9 +731,11 @@ action_items:
   - id: "epic-18-retro-item-14-decide-whether-to-accept-tara-re-sent-we"
     epic: 18
     action: "Decide whether to accept Tara re-sent webhooks (no secret header) when
-      /transactions/status confirms them"
+      /transactions/status confirms them. DECIDED 2026-10-11: keep rejecting (fail
+      closed); recorded in docs/decisions.md. Revisit only after a genuine re-send
+      payload is captured."
     owner: "smartsana"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-08.md"
   - id: "epic-18-retro-item-15-stop-check_in-raising-a-front-desk-alert"
     epic: 18
@@ -793,4 +796,4 @@ action_items:
     owner: "dev"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-08.md"
-last_updated: 10-11-2026 09:44
+last_updated: 10-11-2026 09:52

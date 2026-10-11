@@ -4,6 +4,16 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-11 — Unsigned Tara re-sent webhooks stay rejected (fail closed)
+
+Tara's `/resend-webhook` delivers no secret header (found in the first live Epic 18 run), so `verifyWebhookSignature` answers 401 and the payment is not completed by the re-send. Epic 18 retro action item 6/14 asked whether to accept such a re-send when `POST /transactions/status` confirms it. **Decision: no. The shared-secret header stays mandatory; nothing changes in `payment-webhook`.**
+
+**Why.** (1) A missed webhook already has a recovery path: Story 4.4's reconciliation job flags it and staff can complete it, so rejecting costs a slower manual fix, not a stranded payment. (2) Accepting needs a second, weaker trust path (payment matched by row id, explicit `SUCCESS` with no fail-open, amount check, rate limit because anyone could make us call Tara's status endpoint) built against a payload shape nobody has captured: it is unknown whether a re-send carries `businessId`, so gym resolution is unverified. (3) Production is live with real gyms; an auth-path change justified by a rare operator action is the wrong trade.
+
+**Revisit when** a genuine re-send payload is captured into the Deno fixtures and re-sends become a real operational need. The strict design to implement then: match only an existing `processing`/`flagged` payment by its own id, require explicit `SUCCESS` plus matching amount from `/transactions/status` (an inconclusive answer must reject, unlike the signed path), log it as a distinct `unsigned_resend` event, and rate-limit.
+
+---
+
 ## 2026-10-11 — Long-open tabs are told a new version is available (small card, bottom-right)
 
 After a deploy, a tab that stays open keeps its old JavaScript until it reloads, and a Server Action or chunk the new build no longer has fails with an unhelpful error (what showed up as "I don't see the new field" was this, not a service worker -- the repo has none). Both web apps now carry an `UpdateNotice`: a small card, bottom-right, "A new version is available" with **Refresh** and **Later**.
