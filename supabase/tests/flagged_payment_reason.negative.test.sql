@@ -5,7 +5,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000001903xx.
 
 begin;
-select plan(13);
+select plan(14);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000190380', 'FRN Tier', 6000, 60000, null);
@@ -53,6 +53,23 @@ select is(
   'wrong_account',
   'a staff UPDATE of flagged_reason on a flagged row leaves wrong_account in place'
 );
+
+-- A move to verified is allowed by the policy, so only the pin trigger stops a
+-- forged reason from landing on the verified row.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000001903a1","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000190391","app_role":"receptionist"}', true);
+update payments set status = 'verified', flagged_reason = 'late_confirmation' where id = '00000000-0000-0000-0000-0000001903e1';
+reset role;
+
+select is(
+  (select status::text || '/' || coalesce(flagged_reason, 'null') from payments where id = '00000000-0000-0000-0000-0000001903e1'),
+  'verified/null',
+  'a staff UPDATE to verified cannot carry a forged flagged_reason'
+);
+
+-- Reset the row for the controls below.
+update payments set status = 'pending', flagged_reason = null where id = '00000000-0000-0000-0000-0000001903e1';
 
 -- Positive control: the same session flags the pending row, reason forced.
 set local role authenticated;

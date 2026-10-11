@@ -15,7 +15,7 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 5. **Backfill evidence order.** `wrong_account_settlement` discrepancy, `registration_fee_late_payment`, `registration_fee_attempt_expired`, `payment_verification_failed`, `payment_flagged` audit rows, else `reconciliation_mismatch`. The `do $verify$` block raises on any null.
 6. **Dashboard scope: data layer only.** `flaggedReason` on discrepancy rows, `PAYMENT_FLAGGED_REASON_LABEL_KEY` and EN/FR keys. No flagged-row list exists yet; the tag renders beside the Flagged badge when one ships.
 
-7. **Client writes.** The pin trigger also nulls `flagged_reason` on a client INSERT, and a late success never relabels a `wrong_account` row (the audit trace is still written).
+7. **Client writes.** The pin trigger also nulls `flagged_reason` on a client INSERT, and a late success relabels only `expired_attempt` and `provider_declined` rows as `late_confirmation`: `staff_flagged`, `reconciliation_mismatch` and `wrong_account` keep their reason, and the audit trace is written for every late success.
 
 ---
 

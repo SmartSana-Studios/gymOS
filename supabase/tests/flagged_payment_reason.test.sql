@@ -8,7 +8,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000001902xx.
 
 begin;
-select plan(18);
+select plan(20);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000190280', 'FR Tier', 6000, 60000, null);
@@ -96,6 +96,35 @@ select is(
   (select count(*)::int from audit_log where action_type = 'registration_fee_late_payment' and metadata ->> 'payment_id' = '00000000-0000-0000-0000-0000001902e1'),
   1,
   'a replayed late confirmation writes no second audit row'
+);
+
+-- A late success relabels only expired_attempt / provider_declined rows;
+-- staff_flagged and reconciliation_mismatch keep their reason, and every late
+-- success still leaves its audit row.
+insert into payments (id, gym_id, member_id, amount, currency, method, status, provider, purpose, flagged_reason) values
+  ('00000000-0000-0000-0000-0000001902e8', '00000000-0000-0000-0000-000000190291', '00000000-0000-0000-0000-0000001902d6', 5000, 'XAF', 'mobile_money', 'flagged', 'taramoney', 'registration_fee', 'staff_flagged'),
+  ('00000000-0000-0000-0000-0000001902e9', '00000000-0000-0000-0000-000000190291', '00000000-0000-0000-0000-0000001902d6', 5000, 'XAF', 'mobile_money', 'flagged', 'taramoney', 'registration_fee', 'provider_declined'),
+  ('00000000-0000-0000-0000-0000001902ea', '00000000-0000-0000-0000-000000190291', '00000000-0000-0000-0000-0000001902d6', 5000, 'XAF', 'mobile_money', 'flagged', 'taramoney', 'registration_fee', 'reconciliation_mismatch');
+
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
+set local role service_role;
+select complete_verified_payment('00000000-0000-0000-0000-0000001902e8', 100);
+select complete_verified_payment('00000000-0000-0000-0000-0000001902e9', 100);
+select complete_verified_payment('00000000-0000-0000-0000-0000001902ea', 100);
+reset role;
+
+select is(
+  (select array_agg(flagged_reason order by id) from payments where id in (
+    '00000000-0000-0000-0000-0000001902e8', '00000000-0000-0000-0000-0000001902e9', '00000000-0000-0000-0000-0000001902ea')),
+  array['staff_flagged', 'late_confirmation', 'reconciliation_mismatch'],
+  'a late success keeps staff_flagged and reconciliation_mismatch and relabels provider_declined'
+);
+
+select is(
+  (select count(*)::int from audit_log where action_type = 'registration_fee_late_payment' and metadata ->> 'payment_id' in (
+    '00000000-0000-0000-0000-0000001902e8', '00000000-0000-0000-0000-0000001902e9', '00000000-0000-0000-0000-0000001902ea')),
+  3,
+  'every late success writes its audit row, whether or not the reason changes'
 );
 
 -- A late success must not relabel a wrong-account row.

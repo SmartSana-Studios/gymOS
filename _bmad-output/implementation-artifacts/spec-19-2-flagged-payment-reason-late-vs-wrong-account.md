@@ -95,3 +95,25 @@ AC says "non-null exactly when flagged"; 19.4/19.5 require a verified late sessi
 
 **Commands:**
 - `bash scripts/ci-local.sh` -- expected: static, pgtap, unit, e2e PASS
+
+### Review Findings
+
+Code review of commit 0cc5527 (2026-10-11), layers: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor.
+
+- [x] [Review][Patch] Late success must relabel only `expired_attempt` and `provider_declined` rows — decided (delegated to reviewer): `staff_flagged` and `reconciliation_mismatch` keep their reason and `wrong_account` stays untouched; the audit row is still written for every late success. Change the late-branch UPDATE guard to `flagged_reason in ('expired_attempt','provider_declined')`, add pgTAP cases for the kept reasons, and record it in decisions.md item 7. 0106 is not on origin/master (only `story/19-2-...`), so it is edited in place. [supabase/migrations/0106_flagged_payment_reason.sql:265-269]
+- [x] [Review][Patch] Pin trigger's `new.flagged_reason := old.flagged_reason` line is untested on a reachable path — an authenticated `pending -> verified` UPDATE that also sets `flagged_reason` passes RLS (WITH CHECK allows verified) and the one-directional CHECK; only line 119 stops a forged reason on a verified row. Deleting the line leaves every new assertion green. Add a negative-test case: staff session, pending row -> `verified` with `flagged_reason='late_confirmation'`, assert the column stays null. [supabase/migrations/0106_flagged_payment_reason.sql:119, supabase/tests/flagged_payment_reason.negative.test.sql]
+
+#### Rejected
+
+- Backfill test pastes a copy of the migration CASE (gap, blind, auditor) — low: the two texts were diffed whitespace-normalised and are identical; the migration runs once, so later drift cannot occur. Acknowledged in Implementation Notes.
+- Verify block does not name the INSERT trigger or `payments_flagged_reason_check` (blind, edge, gap, auditor) — low: both are created in the same transaction by straight-line DDL; the data scan covers the closed set; a guard adds code for a failure that cannot happen.
+- Backfill scans `audit_log` unindexed under one transaction (blind, edge) — low: flagged rows are few at this gym count; fix adds an index and a NOT VALID/VALIDATE split for no demonstrated harm.
+- Label map untyped, no fallback, no parity test, `reconciliation_mismatch` -> "Amount Mismatch" (blind, edge) — low/false: already triaged (#5 deferred to the rendering story, #12 label fixed by the story AC).
+- `flaggedReason` only on discrepancy rows (blind, auditor) — false: the payments list never renders a Flagged badge (`PaymentsPageClient.tsx:35` comment: badge always Pending), and the human decision scoped this story to the data layer.
+- Late branch still writes an audit row for a `wrong_account` row (edge) — false: intended (triage #1, "audit trace kept").
+- `coalesce(old.flagged_reason,'staff_flagged')` keeps a stale reason on a pending row (edge) — false: no path produces a pending row with a reason.
+- Concurrent redelivery can write two late audit rows (blind) — low: guard is 0100's, unchanged; the added UPDATE is idempotent; fix needs row locking (triage #6).
+- SECURITY DEFINER RPCs bypass the pin (edge claim) — false: by design, the closed-set CHECK is the net.
+- "Bad value" case runs as migration owner not `service_role` (auditor) — low: CHECK fires for every role.
+- No test for `processing -> flagged` client write or subscription late success (blind) — low: RLS blocks the first; the second is out of scope (triage #10).
+- Spec/doc inconsistencies: `status: done` vs sprint `review`, Code Map line numbers, decisions.md item 7 formatting and omissions, sprint-status note wording (blind, auditor) — low: fixes edit the spec under review or are cosmetic.

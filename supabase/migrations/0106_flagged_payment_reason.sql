@@ -220,9 +220,11 @@ grant execute on function complete_flagged_payment(uuid) to service_role;
 
 -- ----------------------------------------------------------------------------
 -- complete_verified_payment(): 0100's body. The only change is in the late
--- branch: the row stays flagged and its reason becomes late_confirmation, once
--- (the not-exists audit guard is the replay guard, so a redelivery changes
--- nothing).
+-- branch: the row stays flagged and an expired_attempt or provider_declined
+-- reason becomes late_confirmation, once (the not-exists audit guard is the
+-- replay guard, so a redelivery changes nothing). staff_flagged,
+-- reconciliation_mismatch and wrong_account keep their reason; the audit row
+-- is written for every late success.
 -- ----------------------------------------------------------------------------
 create or replace function complete_verified_payment(p_payment_id uuid, p_fee_amount integer)
 returns uuid
@@ -266,7 +268,7 @@ begin
       update payments
       set flagged_reason = 'late_confirmation'
       where id = p_payment_id and status = 'flagged'
-        and flagged_reason is distinct from 'wrong_account';
+        and flagged_reason in ('expired_attempt', 'provider_declined');
 
       perform log_audit_event(
         p_action_type => 'registration_fee_late_payment',
