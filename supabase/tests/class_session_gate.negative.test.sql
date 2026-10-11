@@ -4,7 +4,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000000351xx.
 
 begin;
-select plan(15);
+select plan(18);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000035101', 'Class Gate Neg Tier', 6000, 60000, null);
@@ -75,6 +75,33 @@ select is(
 );
 
 -- ============================================================================
+-- Retry: once a usable session exists, the refused booking can be marked. The
+-- refusal row stays; exactly one session is consumed.
+-- ============================================================================
+insert into guest_sessions (gym_id, member_id, loyalty_grant_id, usable_until) values
+  ('00000000-0000-0000-0000-000000035111', '00000000-0000-0000-0000-000000035131', gen_random_uuid(), now() + interval '3 days');
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000035123","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000035111","app_role":"receptionist"}', true);
+select isnt((select attended_at from mark_class_attendance('00000000-0000-0000-0000-000000035171')), null,
+  'a refused booking is attended once a usable session exists');
+reset role;
+
+select is(
+  (select count(*)::int from guest_sessions
+   where member_id = '00000000-0000-0000-0000-000000035131' and consumed_at is not null),
+  1,
+  'the retry consumed exactly one session'
+);
+select is(
+  (select count(*)::int from session_attempts
+   where source = 'class' and member_id = '00000000-0000-0000-0000-000000035131'),
+  1,
+  'the earlier refusal attempt row is kept after the retry'
+);
+
+-- ============================================================================
 -- Roles and tenancy are unchanged.
 -- ============================================================================
 set local role authenticated;
@@ -136,7 +163,7 @@ select lives_ok(
 reset role;
 
 select is(
-  (select attended_at from class_bookings where id = '00000000-0000-0000-0000-000000035171'),
+  (select attended_at from class_bookings where id = '00000000-0000-0000-0000-000000035172'),
   null,
   'attended_at stayed null through every direct-write attempt'
 );

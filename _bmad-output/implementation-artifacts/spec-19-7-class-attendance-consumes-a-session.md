@@ -93,6 +93,30 @@ context:
 | 19 | edge | Spec says checkbox, UI is a button | false | reject | Existing UI is a button; behavior (unmarked, enabled) matches the intent. |
 | 20 | edge | Malformed RPC payload maps to session_required | false | reject | Typed RPC row; an id-null payload is handled by the rejected branch first. |
 
+### Review Findings
+
+Second review pass 2026-10-11 (4 layers, bmad-code-review). Most findings repeat the triage log above and are rejected on the same evidence.
+
+- [x] [Review][Patch] No DB-level case for refuse, then a usable session appears, then re-mark succeeds (one session consumed, `attended_at` set, refusal attempt row kept) [supabase/tests/class_session_gate.negative.test.sql:53] -- the positive and negative suites cover refusal and re-mark of an attended booking, but not the retry that 19.9's payment flow depends on.
+- [x] [Review][Defer] Epic context says direct DELETE on `class_bookings` is revoked; 0112 keeps DELETE for `authenticated`/`service_role` (e2e teardown, `cancel_class_booking`) [supabase/migrations/0112_class_attendance_session_gate.sql:213] -- deferred: not a 19.7 defect (spec closes INSERT/UPDATE only); settle in 19.12 whether client DELETE can be revoked.
+
+#### Rejected
+
+- Hardcoded column grant list / verify does not cover every other column (blind, edge) -- low: `class_bookings` has exactly these six columns today; a future column fails closed; log #8.
+- UPDATE grant on gym_id/class_session_id/member_id wider than needed (blind) -- false: strictly narrower than the former table-level grant, no write policy; log #8.
+- `$verify$` does not assert anon/PUBLIC (blind) -- low: anon was never granted writes (0058) and has no RLS write policy; log #9 queried the local DB. Not re-verified this pass (no psql here).
+- Rollback guard unusable after first real refusal; guard loosened by ON DELETE SET NULL (blind) -- false: abort-until-archived is the documented contract (script header, decisions.md), same as rollback-0111; nulled rows lose nothing; log #12.
+- Rollback `$verify$` weak, no authenticated/INSERT grant check (blind, edge) -- low: the script's grants are unconditional statements; restored source and grants were rehearsed (decisions.md); automation already deferred (log #18).
+- No release gate before 19.9 for enabling `charge_guests_per_session` (blind) -- false: 19.7 lands on epic/19, not master; the flag is per-gym opt-in and 19.6b already blocks check-in the same way; the payment button is the next story.
+- FR "séance" in noBookings/noSession, em dash vs `--` (blind) -- false: pre-existing strings, new copy is verbatim from the epic AC; log #15.
+- Single `refusedBookingId`, cleared by other marks, hard-coded blue border (blind, edge, acceptance) -- low: the refused booking stays unmarked with its action enabled and the alert is raised; per-row state adds machinery; log #16. Blue matches existing SettingsForm usage.
+- `attended_at === undefined` treated as refusal (blind, edge) -- false: the RPC returns a typed `class_bookings` row, so the field is always present; log #20.
+- Subscription read before the member lock, no `gym_id` scope, no `id desc` tiebreak (blind, edge) -- low: `consume_guest_session()` re-reads under the lock; millisecond window; tiebreak already in deferred-work.md; log #5.
+- Unknown or null gate outcome falls through and marks attended (edge) -- false: `consume_guest_session()` returns exactly one row on every path from a closed set; same pattern as `check_in()`; log #4.
+- Each denied click inserts a new attempt row (edge) -- false: spec requires a fresh scan id so every refusal counts; log #6.
+- Spec `status: 'done'` vs sprint-status `review`, `:300-ish` cite, "checkbox" wording, empty Implementation Notes (blind, acceptance) -- reject: fix is an edit to the spec under review; status is rewritten by this workflow's section 6.
+- Stale test comments (fixture id range) (blind) -- low: negligible, no behavioral effect. The claim that the `covered_day` unique index is asserted in check_in_session_gate.test.sql is accurate (header and assertion there).
+
 ## Design Notes
 
 - A raise would roll back the attempt and the alert, so refusal is a returned row with `attended_at` null (every success sets it). An old dashboard reads `attended: false`, so the checkbox reverts there too.
