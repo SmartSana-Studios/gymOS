@@ -397,7 +397,7 @@ development_status:
 
   epic-19: in-progress
   19-0-v1-6-release-readiness-ops-checklist: done
-  19-1-ci-guardrails-live-role-lint-gate-hosted-privilege-check: backlog
+  19-1-ci-guardrails-live-role-lint-gate-hosted-privilege-check: review
   19-2-flagged-payment-reason-late-vs-wrong-account: backlog
   19-3-charge-guests-setting-session-record-plan-type-rules: backlog
   19-4-desk-session-payment: backlog
@@ -804,3 +804,6 @@ last_updated: 10-11-2026 13:25
 # last_updated: 2026-10-11 (build: 19-0 spec created and approved, backlog -> in-progress; epic-19 backlog -> in-progress. Non-code ops-checklist story: docs/decisions.md V1.6 release runbook. Prod backup posture read from the Management API (PITR off, no daily backups); db-backup workflow to R2 merged in PRs #35/#36, first green run 2026-10-11.)
 # last_updated: 2026-10-11 (build: 19-0 in-progress -> done. docs/decisions.md "V1.6 release runbook" (2026-10-11) answers release order, forward-fix rollback, backup/PITR posture (PITR off; daily R2 dump; revisit 2026-12-31; restore never tested), local-restore rehearsal, secrets locations (rotation deferred 2026-11-30) and job_runs alerting (gate for 19-12, owner josephfeussi; logged in deferred-work.md). deploy-runbook.md [NEEDS] markers and the architecture spine's open list updated. No code, migration or CI change.)
 # last_updated: 2026-10-11 (ad-hoc, non-story: local-CI-first workflow -- scripts/ci-local.sh mirrors ci.yml (static+pgTAP concurrent, then vitest, then E2E); ci.yml now triggers only on PRs into master (+workflow_dispatch), so GitHub Actions runs once per epic (epic/N -> master PR); finding: pgTAP (3 files) and E2E seed fail against the dev DB because QA data pollutes it -- a pristine DB is required, db reset pending user decision)
+# last_updated: 2026-10-11 (build: 19-1 spec created and approved, backlog -> in-progress. CI guardrails: migration lint gate for auth.jwt() app_role reads and function-privilege revokes, grandfather lists, wired into ci.yml and ci-local.sh.)
+# last_updated: 2026-10-11 (build: 19-1 in-progress -> review. scripts/check-migration-guardrails.mjs + checked-in grandfather lists (52 app_role reads, 81 function-privilege files at d6ada66); check:migrations and test:guardrails (10 node:test cases) wired into ci.yml and ci-local.sh static stage; docs/decisions.md entry with static-check limits and manual post-deploy anon-EXECUTE query. No migration.)
+# last_updated: 2026-10-11 (build: 19-1 in-review -> review. scripts/check-migration-guardrails.mjs gates new auth.jwt() app_role reads and function revokes (public+anon) with grandfather lists (52 / 81 files), wired into ci.yml and ci-local.sh static stage; 14 fixture tests; docs/decisions.md records the static-check limitation and manual post-deploy anon query. Review: 1 wrapped-JWT-read broadening deferred.)

@@ -966,3 +966,7 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-0-v1-6-release-readiness-ops-checklist.md`
   summary: Build a scheduled GitHub Action that queries `job_runs` for failed runs (all pg_cron jobs: subscription_lifecycle, check_in_auto_timeout, payment_reconciliation, notification_delivery_processor, quiet_gym_alert_dispatcher, class_session_materializer, class_reminder_dispatcher, saas_billing_lifecycle) and for jobs whose latest run is stale (older than twice the schedule interval), and fails the workflow so GitHub emails the owner. **Gates Story 19.12.**
   evidence: No alerting on `job_runs` exists today; interim is a daily manual failure query, owner `josephfeussi` (docs/decisions.md, "V1.6 release runbook", section 6). Needs a read-only DB credential as a repo secret.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-1-ci-guardrails-live-role-lint-gate-hosted-privilege-check.md`
+  summary: Broaden the AD-3 lint gate to wrapped or cast JWT role reads (`(select auth.jwt())`, `::jsonb`, nested `app_metadata`, `current_setting('request.jwt.claims')`).
+  evidence: The gate matches only the literal `auth.jwt() ->> 'app_role'` per the epic AC; the corpus has no wrapped forms today, so this is a bypass risk for future migrations, not a current miss. Broadening needs a decision on the grandfather list and the baseline count.

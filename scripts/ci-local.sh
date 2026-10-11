@@ -7,7 +7,7 @@
 #   scripts/ci-local.sh --only e2e   # one stage: static | pgtap | unit | e2e
 #
 # Stages and what they mirror in ci.yml:
-#   static  typecheck job: typecheck, lint (dashboard + super-admin), i18n parity
+#   static  typecheck job: typecheck, lint (dashboard + super-admin), i18n parity, migration guardrails
 #   pgtap   rls-tests job: supabase/tests/*.sql
 #   unit    typecheck job: vitest for @gymos/dashboard
 #   e2e     e2e-tests job: Playwright against the local Supabase
@@ -65,6 +65,8 @@ stage_static() {
   pnpm run typecheck
   npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin
   pnpm run check:i18n
+  pnpm run check:migrations
+  pnpm run test:guardrails
 }
 
 stage_pgtap() {
