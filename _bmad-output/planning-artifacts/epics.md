@@ -1,5 +1,6 @@
 ---
 stepsCompleted: [1, 2, 3, 4]
+status: final
 inputDocuments:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/addendum.md
@@ -230,6 +231,33 @@ Epics 1–8 are the shipped V1.0 pilot scope (`done` per `sprint-status.yaml`). 
 - FR-154: Amends FR-008 — imported members are existing members and exempt from the fee; CSV import is never blocked and creates no fee payment.
 - FR-155: Amends FR-058 and FR-082 — an awaiting member cannot use the member app (sees a "registration not complete, contact your gym" message and no payment option); the WhatsApp invite is sent once the fee is settled; onboarding then proceeds as FR-058.
 
+**V1.6 (PRD v1.6, 2026-10-11).** These headings use the PRD's own section numbers (`prd.md` §6.27–§6.29); the "6.27 Registration Fee" heading above predates them and is a local label only.
+
+**prd §6.27 Session Guests — Per-Visit Paid Sessions**
+- FR-156: A session guest is an ordinary member on a Pay-per-session plan — no new role, account type, or app; normal registration, login, and QR check-in; counts toward the member cap. The plan's price is the price of one session; a 0 XAF Pay-per-session plan is exempt from FR-158–FR-159. Where a registration fee applies, it is settled by waiver or collection like any member — the waiver form offers a one-tap "Session guest" preset reason; no auto-waive.
+- FR-157: Per-gym setting **Charge guests per session**, Owner/Supervisor on Settings (amends FR-069), audit-logged with old/new value; **off** for every gym existing at release, **on by default** for gyms created afterward. While off, FR-042–045 and FR-061 behave as before and FR-158–163 do not apply. Turning it on affects only visits from that moment (no effect on past attendance or an open check-in). Before confirming, Settings shows how many Pay-per-session members will need a paid session at their next visit; while off, the loyalty guest rule earns nothing and the form says so.
+- FR-158: While on, a **paid session** is created by a payment of the plan price — its own record, one per purchase, linked to exactly one payment; a free session (FR-166) is the same record linked to a loyalty grant, never a payment/receipt/revenue. Paid at the desk (cash or manual mobile money by any role that records payments; bank transfer by Manager/Owner) or in the app by Tara Money where connected. Desk payments take effect immediately (no verification queue); amount fixed to plan price, not entered; reason optional (amends FR-038). Amount determined server-side at payment time; a later price change never alters sessions already paid. One payment in flight per member (a second Tara start or a desk payment is refused while one is awaiting confirmation). A confirmed Tara payment creates the session even if late (with a staff-visible audit entry); a flagged or wrong-account payment never does; a redelivery creates nothing. Payment purpose `session`, reportable separately, never a renewal.
+- FR-159: Amends FR-042/FR-044. While on and the member's current plan is Pay-per-session, check-in succeeds only with a usable paid or free session. The first check-in of a gym-local calendar day consumes one session, which then covers all further check-ins that day; the covered day is stored at consumption; a visit open at midnight stays covered. An unused paid session is usable for 7 days from payment (lapse date shown to the member). Consumption order: soonest-lapsing first; on a tie, paid before free. Coverage, lapse, and stamps use server receipt time; an offline scan time is accepted only within the auto-timeout window (FR-045) and can never be covered retroactively or extend coverage to another day. No usable session → rejected, no attendance event, "Pay for your session" state with in-app payment where available or "See the front desk". Enforced server-side for every entry path (NFR-021); a denial must show older builds a see-the-front-desk outcome, not a network error. Non-Pay-per-session plans unaffected; class attendance follows FR-174.
+- FR-160: Amends FR-049. A rejected check-in raises a real-time alert to active dashboard sessions via the FR-049 mechanism, as a new alert type (copy/color from UX); recording the member's session payment dismisses it. The alert names the member, shows any payment in flight, and lets the receptionist record the session payment. The rejected attempt is stored (member, gym, timestamp, scan id) for FR-163; it is not an attendance event and not in the attendance log; repeated scans with the same scan id are one attempt.
+- FR-161: Amends FR-061. An offline guest check-in at a charging gym is recorded locally with "Check-in saved — your session will be verified" `[UX wording]`. On sync the server applies FR-159's time rules: a usable session → consumed and attendance recorded; none → not attendance, stored as an attempt keyed by scan id (retries not double-counted), FR-160 alert raised — never silently counted or dropped. A permanently failed sync is discarded as today. The app refreshes the gym's charging setting each time it is online; the server's rule at sync time governs.
+- FR-162: Session payments are audited (amends FR-080): every payment, consumption, rejected attempt, and refund. Refunds (FR-040) hold in the data layer: a **full** refund of an **unused** session voids it atomically (a racing consumption resolves to exactly one outcome); a **partial** refund does not void; a refund of a **consumed** session is recorded, does not un-consume, the visit stays counted, and **the stamp it earned is reversed** (never below 0; an earned free session is not taken back). Session payments count toward month-to-date revenue as their own line (amends FR-143). Refunding a renewal never reverses the stamp or free days it earned.
+- FR-163: Staff Overview gains a **Guest sessions** card (gyms with the setting on), with a today/this-month period control: paid guest sessions, blocked attempts (once per scan id) with distinct members blocked, and free sessions given — each linking to its list. The paid-sessions list can be grouped by recording staff member and shows refunds recorded after consumption. Counts computed server-side (FR-143 `max_rows` caveat). Visible to Owner, Supervisor, Manager.
+- FR-174: Amends FR-105/FR-107. While on, marking a Pay-per-session member **attended** at a class requires and consumes a usable session under exactly FR-159's rule (one session covers floor and class that gym-local day, either order; a second class that day costs nothing). Earns the guest stamp. Booking and cancellation stay free and unchanged. No usable session at marking → mark refused, offers the session-payment action in place, then mark again; the refusal raises the same alert and counts in the same blocked-attempt figures. Enforced server-side in the same database function as FR-159 — no dashboard, coach, or script path bypasses it (the coach roster cannot mark such a guest attended without a session). Monthly, Coach-inclusive, and Class-only plans unaffected.
+
+**prd §6.28 Loyalty Program**
+- FR-164: Per-gym loyalty program, **off by default**, toggled by Owner/Supervisor on Settings (amends FR-069). When on, the gym sets N (paid sessions per free session, 2–50), K (on-time renewals per reward, 3–24), R (free days per reward, 1–30); the form shows the implied effective discount live. Every change audit-logged with old/new value. Progress is per member per gym, RLS-isolated (NFR-001); two separate counters (guest stamps toward N, subscriber stamps toward K), never converted into each other. Changing N or K never erases progress — at or above a lowered threshold, the member earns one reward at the next qualifying event and the counter returns to 0.
+- FR-165: Guest rule — one guest stamp each time a **paid** session is consumed (not at check-in, not for a free session, not for a re-entry on a covered day). At N → one free session, counter to 0. Earns only while both the loyalty program and charging are on; nothing retroactive.
+- FR-166: A free session is a session with no payment; added to usable sessions, consumed under FR-159's ordering and same-day coverage, usable **60 days** from earning, then lapses. A member can hold several. A member who leaves Pay-per-session keeps unused free sessions until they lapse (no effect meanwhile; usable again on return). Grant, consumption, and lapse are each audited.
+- FR-167: Subscriber rule — for Monthly, Coach-inclusive, and Class-only plans, one subscriber stamp per **on-time renewal**: a verified payment for the member's current plan via manual renewal, the dashboard renewal panel, or in-app renewal (FR-140). Payment-less overrides, plan assignment/change, and staff back-dated renewals earn nothing. On time = verified no later than the end of the day after expiry (gym timezone, at verification). A late renewal neither earns nor erases. At most one stamp per subscription period. At K → R free days added to the renewed subscription's expiry in the same transaction that verifies the K-th renewal; counter to 0; no payment, no amount touched. `[PRD ASSUMPTION: "non-consecutive" and one-stamp-per-period are PM defaults]`
+- FR-168: Progress resets to 0 after **90 days** with no qualifying event (subscribers: the longer of 90 days and plan duration + grace period). The reset is evaluated when progress is next read or earned and is audited then; neither app nor dashboard ever shows past-window progress as live. The 90-day and 60-day values are platform defaults stored as data, not gym-configurable in V1.6. All windows are 24-hour multiples from the originating event except FR-159's gym-local covered day.
+- FR-169: The member app shows loyalty progress as a count toward the threshold ("3 / 5"), any free session with its expiry, and any unused paid session with its lapse date, in the member's language. The dashboard member page shows the same to staff. No reward push notification in V1.6.
+- FR-170: No role — Owner and Super Admin included — can manually add, remove, or edit stamps or free sessions. Recording cash without collecting it, or refunding after consumption, is made visible (FR-163, audit log), not prevented. Rewards granted exactly once per qualifying event, including under webhook redelivery and offline sync (NFR-022). Amends FR-080: stamp earnings, reward grants, consumptions, lapses, resets, and program configuration changes are audited. Stamps are reversed only by FR-162's refund rule.
+
+**prd §6.29 Gym Category & Plan-Type Rules**
+- FR-171: Every gym has a category — Gym / Salle de sport, Studio Pilates, Studio Yoga, Fitness Center, Autre. Super Admin chooses it at gym creation (amends FR-071, FR-010) and can edit it; Owner and Supervisor can edit it on Settings (amends FR-069). Every change audited. Existing gyms are set to Gym / Salle de sport at release. Labels localized EN/FR. "Autre" has no free text in V1.6.
+- FR-172: In V1.6 the category is descriptive data only — no behavior, plan type, permission, or screen changes; product wording stays "gym" for every category. It exists for V1.7's directory and landing pages.
+- FR-173: Clarifies FR-024, amends FR-025. Pay-per-session's definition is unchanged; there is no separate session-price field. (a) A plan's type cannot be changed in place once it has subscriptions — the gym creates a new plan; (b) every change to a plan's type or price is audit-logged; (c) a price change never alters the value or validity of sessions already paid for.
+
 ### NonFunctional Requirements
 
 - NFR-001: Multi-tenant data isolation enforced entirely at the PostgreSQL RLS layer; the JWT role-claim injection hook is spiked in week one, before any RLS policy is written — a misconfigured hook defaults to deny-all.
@@ -251,6 +279,8 @@ Epics 1–8 are the shipped V1.0 pilot scope (`done` per `sprint-status.yaml`). 
 - NFR-017: Per-gym Tara Money credentials (FR-126) are stored encrypted at rest (Supabase Vault), accessible only to the server-side payment service, never returned to any client, never logged, never readable across tenants — same isolation guarantees as all tenant data (NFR-001).
 - NFR-018: Tenant suspension for SaaS non-payment (FR-131/FR-132) is enforced at the authorization layer, not only the UI — a suspended gym's staff and members are denied at the RLS/auth-hook layer; takes effect on the next request; no tenant data is deleted or mutated.
 - NFR-019: FR-125's "GymOS takes no commission on member→gym payments" is auditable, not merely asserted — every Flow A payment's settlement account is verifiable against its gym's connected credentials (FR-126) via the audit log, so a platform-account credit from a Flow A transaction is detectable after the fact.
+- NFR-021 (V1.6): Paid-session consumption (FR-159) is atomic and enforced in the database, not only in application code. A member-level lock covers the whole sequence "find a covering consumed session, otherwise consume one, award the stamp, maybe grant a free session", so a session is never consumed twice, a member never has more than one session consumed per gym-local day, two simultaneous scans cannot both consume a different session, and a concurrent scan is never wrongly blocked because another scan holds the only session. A replayed offline sync never consumes a second session. Holds for every entry path (member app, offline sync, any dashboard or script) — an older app build cannot bypass it.
+- NFR-022 (V1.6): Loyalty accounting (FR-164–FR-168) is derived from the recorded events that earn it and is idempotent — a duplicated webhook, retried request, or replayed sync grants a stamp or reward at most once per qualifying event. Stamps are earned in the same transaction as the earning event; stamps, free sessions, and every reset or lapse are reconstructible from the audit log. Loyalty state is per member per gym and never readable across gyms (NFR-001).
 
 **Performance targets (Section 7.1):** Dashboard page load < 2s on standard broadband; QR scan → front-desk alert end-to-end < 3s; offline check-in sync within 10s of connectivity restore.
 
@@ -286,6 +316,20 @@ Epics 1–8 are the shipped V1.0 pilot scope (`done` per `sprint-status.yaml`). 
 - **AD-21 — bounded-capacity booking RPC:** `book_class_session()` is a `SECURITY DEFINER` RPC that `SELECT ... FOR UPDATE`-locks the `class_sessions` row, counts existing bookings, and inserts only if under capacity — one atomic transaction, distinct from the one-open-check-in uniqueness-index pattern (a bounded count can't be expressed by a partial unique index). Class attendance (FR-107) is a status column on `class_bookings`, never a write to `attendance_events` — floor check-in stays `attendance_events`-only. **Flagged in the architecture spine as extrapolation from precedent, not proposal-sourced** — confirm the RPC-vs-lighter-mechanism call during Epic 12 story-writing. Impacts Epic 12.
 - **AD-24 — dedicated private bucket for progress photos**, never the existing public `member-photos` bucket (Story 2.6 precedent) — private, signed URLs, non-guessable paths. Impacts Epic 10 (FR-094, NFR-011).
 
+**V1.6 additions (from `ARCHITECTURE-SPINE.md`, 2026-10-11 update, AD-27–AD-32; supersedes the 2026-08-11 notes above where they conflict):**
+
+- **Prerequisite — AD-3 CI grep-lint gate is unbuilt.** No CI step blocks new `auth.jwt() ->> 'app_role'` reads; 52 migration files carry the pattern (new sites in 0098–0102). Build the gate (explicit grandfather list) **before** any V1.6 migration — AD-27, AD-29, AD-30, AD-32 rely on `private.current_member_role()` with no other mechanical guard.
+- **Prerequisite — flagged-payment reason discriminator (AD-27).** Late-confirmed and wrong-account Tara payments are both stored `flagged` today. FR-158 needs them distinguishable (a late session confirmation creates the session; a wrong-account one never does) before the session payment branch ships.
+- **Prerequisite — old-build check-in denial (AD-29).** `check_in()` keeps its shipped contract (`RETURNS attendance_events`, `null` = blocked). Old mobile builds map `null` to their **expired** screen — a denied guest is not admitted but sees expiry copy. The current build must map `null` at a charging gym to the session-required state by reading the latest attempt; never add a coded row to the return type (old builds read any non-null row as success).
+- **AD-27 — `payments.purpose ∈ {subscription, registration_fee, session}`.** Adding `session` amends, in one migration: the CHECK, `protect_payment_purpose_and_void`, the staff-insert policy clause, the notification-trigger skip, the revenue line. Each purpose's effect is one shared `private.` function called from every completion path. Late-confirmation rules are per purpose and intentional (fee: not applied; session: applied + audited). Desk session payments go through a definer RPC that reads the amount from the plan. One in-flight payment per member and purpose: member lock + stale-expiry helper (0100's 10-minute rule) first, partial unique index as backstop. Canonical lock order: `class_sessions` → payment → member (`FOR NO KEY UPDATE`) → `attendance_events` → `subscriptions` → `guest_sessions` → `loyalty_progress`.
+- **AD-28 — `guest_sessions`** is the single session record (paid or free, CHECK XOR `payment_id` / loyalty grant), with `usable_until`, `consumed_at`, `covered_day` (gym-local date, written at consumption), `voided_at`; value is the linked payment's amount. No direct write policy for any role. Session refunds are an `AFTER INSERT` trigger on `refunds` (refunds are direct inserts today).
+- **AD-29 — one consumption function:** `private.consume_guest_session(member_id, gym_id, receipt_at)` under the member lock, called only by `check_in()` (online + offline sync) and class-attendance marking. Server receipt time governs; days via `private.gym_local_day_bounds()` (0097). Awards the guest stamp itself. 0 XAF plans exempt. V1.6 migration revokes direct INSERT/UPDATE/DELETE on `attendance_events` and `class_bookings` from `authenticated`/`service_role` (after grepping existing service-role writers); `mark_class_attendance()` gains an `attended_at is null` guard; partial unique index `guest_sessions (member_id, covered_day) where consumed_at is not null`.
+- **AD-30 — loyalty ledger:** append-only `loyalty_events` unique on `(origin_id, event_type)`; derived `loyalty_progress` (per member per gym, two counters) written only by definer functions in the earning transaction; one `private.award_renewal_stamp()` called from every renewal-verification path (`confirm_renewal`, `renew_subscription`, `complete_verified_payment`, 0031 staff-verify — enumerate by grep); R-day reward extends `expires_at` in the same transaction (AD-18 re-derives state next run); one `effective_loyalty(member_id)` read function for app and dashboard; `private.reverse_session_stamp()` from the refund path; 90/60-day windows on a platform config row. `[ARCH ASSUMPTION — OQ-B]` lapses and resets persisted and audited by a daily `pg_cron` sweep with its own `job_runs` name; reads compute effective state and never write.
+- **AD-31 — blocked attempts vs. alert:** `session_attempts` (gym, member, scan id, occurred_at, source `check_in`|`class`), unique on `(gym_id, member_id, scan_id)` where scan_id not null — the only source of FR-163's blocked counts; class marking generates its own id per action. The alert is a `front_desk_alerts` row with a new `kind` column (`status` becomes nullable under a kind-aware CHECK; one-active index rebuilt over `(member_id, kind, coalesce(status,''))`); the index swap and the rewrite of **every** `ON CONFLICT (member_id, status)` site (0034, 0068, 0090 ×3 — grep) ship in one migration; `front_desk_alerts_protect_columns` pins `kind`; dashboard alert queries branch on `kind`. Reuses AD-20's channel and degrade path.
+- **AD-32 — one audited setter RPC per gym setting** (`charge_guests_per_session`, loyalty enabled/N/K/R, `category`), role-checked via `private.current_member_role()`, each with **its own** BEFORE UPDATE pin trigger (never another branch in `protect_super_admin_only_gym_columns()`). `charge_guests_per_session` is added `NOT NULL DEFAULT false`, then `SET DEFAULT true` — never `ADD COLUMN … DEFAULT true` (would switch charging on for every live gym). `category` stored as a stable code, labels in `packages/types`, Super Admin admitted by its setter. FR-173: plan type/price change only via a definer RPC that refuses a type change once subscriptions exist and audits type/price changes.
+- **Edge Functions stay at 3** `[ARCH PROPOSAL — OQ-A]`: Tara session payments reuse `payment-webhook`'s purpose dispatch; no new function.
+- **Production is live with real gyms:** every V1.6 behavior ships behind its per-gym flag (charging off for existing gyms, loyalty off by default). Ops items with no owner yet — migration release order and rollback, backup/PITR, staging, secrets rotation, `job_runs` failure alerting, a hosted-privilege CI check (0104 drift) — must be owned before V1.6 reaches live gyms.
+
 ### UX Design Requirements
 
 - UX-DR1: Implement the three-token brand system (`primary` #1B2A41, `accent` #E0971F, `background` #FAFAF7) with the per-gym `primary_color` override that replaces `accent` on authenticated member-facing surfaces only — the platform shell (onboarding, login, Super Admin) always uses the platform accent, never the gym color.
@@ -306,6 +350,8 @@ Epics 1–8 are the shipped V1.0 pilot scope (`done` per `sprint-status.yaml`). 
 - UX-DR16: Implement the real-time alert arrival behavior consistently: new alert slides in at the top of the stack, existing alerts shift down, no sound/browser notification/tab badge in V1, and the dashboard offline banner ("You're offline. Data may be outdated." + Refresh) versus the member-app offline banner ("You're offline — check-in still works.") are distinct, surface-specific components.
 
 **V1.5: no UX Design Requirements available.** The UX design contract (`ux-gym_os-2026-07-04/DESIGN.md` + `EXPERIENCE.md`) has not been updated since 2026-07-04 and has no mockups for staff management, progress tracking, classes/booking, workout-plan authoring, the Super Admin Billing view, or the Tara Money connect-account flow — flagged explicitly in the 2026-08-11 sprint-change-proposal as needing a dedicated `bmad-ux` pass, routed separately from this workflow. Stories for Epics 9–13 below derive their acceptance criteria from FR/AD wording and reuse V1.0 UX patterns (UX-DR1–16) where a V1.5 screen is a variant of an existing one (e.g. status badges, empty states, form validation); net-new screens are flagged inline where UI detail is genuinely undefined pending that UX pass.
+
+**V1.6: no UX Design Requirements available (user decision 2026-10-11: proceed without a UX pass).** The UX contract was last updated 2026-09-10 and does not cover the "Pay for your session" check-in state, the offline "session will be verified" state, the session-required front-desk alert, the Guest sessions Overview card, the Charge-guests and Loyalty settings forms (with the live effective-discount readout and the affected-members count), the member-app loyalty card, or the gym-category field. V1.6 stories anchor ACs in FR wording, reuse UX-DR2 (alert panel variants), UX-DR5 (badges), UX-DR8 (check-in result states), UX-DR10/11 (empty/loading/validation), and UX-DR14 (EN/FR parity), and mark exact copy and visual treatment `[UX]` for later refinement.
 
 ### FR Coverage Map
 
@@ -457,6 +503,25 @@ FR-152: Epic 18, Stories 18.2/18.3 - Fee collection: manual payment (18.2) and s
 FR-153: Epic 18, Story 18.4 - Refund block, audit entries, own revenue line (amends FR-040/FR-080/FR-143)
 FR-154: Epic 18, Story 18.5 - CSV import exemption (amends FR-008)
 FR-155: Epic 18, Stories 18.5/18.7 - Invite after settle (18.5); awaiting-fee blocked state in the app (18.7) (amends FR-058/FR-082)
+FR-156: Epic 19 - Session guest = ordinary member on a Pay-per-session plan; plan price = session price; 0 XAF exempt; "Session guest" waiver preset
+FR-157: Epic 19 - Per-gym "Charge guests per session" setting (off for existing gyms, on for new; affected-members count; amends FR-069)
+FR-158: Epic 19 - Paid session record; desk + in-app Tara payment; server-side amount; one in flight; late/flagged/redelivery rules; purpose `session`
+FR-159: Epic 19 - Check-in gate: consume one session per gym-local day; 7-day lapse; ordering; server receipt time; denial state (amends FR-042/FR-044)
+FR-160: Epic 19 - Session-required front-desk alert + stored blocked attempts (amends FR-049)
+FR-161: Epic 19 - Offline guest check-in verified on sync; attempt on no session (amends FR-061)
+FR-162: Epic 19 - Session payment audit, refund rules (void unused / reverse stamp on consumed), own revenue line (amends FR-040/FR-080/FR-143); stamp reversal hook completed in Epic 20
+FR-163: Epic 19 - Guest sessions Overview card (paid, blocked, free given; by staff; server-side counts)
+FR-164: Epic 20 - Per-gym loyalty program setting with N/K/R and live effective-discount readout; per member per gym; two counters
+FR-165: Epic 20 - Guest rule: stamp on paid-session consumption; free session at N
+FR-166: Epic 20 - Free session (60-day validity, consumption order, survives plan change)
+FR-167: Epic 20 - Subscriber rule: stamp per on-time renewal; R free days at K
+FR-168: Epic 20 - 90-day reset / windows as platform data; never shown live past window
+FR-169: Epic 20 - Member app + dashboard loyalty progress display
+FR-170: Epic 20 - No manual balance edits; exactly-once grants; loyalty actions audited (amends FR-080)
+FR-171: Epic 21 - Gym category (5 values), set at Super Admin creation, editable by Super Admin/Owner/Supervisor, audited, EN/FR labels
+FR-172: Epic 21 - Category is descriptive only in V1.6; wording stays "gym"
+FR-173: Epic 19 - Plan type locked once subscribed; type/price changes audited; price change never alters paid sessions
+FR-174: Epic 19 - Class attendance by a guest consumes a session under the same function; booking stays free (amends FR-105/FR-107)
 NFR-007: Epic 14, Story 14.1 - Sentry error monitoring (dashboard, super-admin, mobile) — added 2026-09-01, closes a gap architecture.md had described as already shipped
 NFR-017 (hardening): Epic 4, Story 4.16 - Platform business ID collision guard, closing the reverse-collision gap flagged in Story 11.6's review — added 2026-09-01
 
@@ -1327,6 +1392,962 @@ So that I know what to do, and so my fee later appears in my payment history lik
 **Given** a mobile change costs a build and TestFlight/Play cycle
 **When** this story is planned
 **Then** it ships in one mobile release with any other pending mobile work, and the product owner's on-device QA covers: blocked screen, "Check again" after settlement, and a fee receipt in history
+
+---
+
+## V1.6 — Session Guests, Loyalty & Gym Category (2026-10-11 PRD v1.6)
+
+Epics 1–18 are shipped or in flight. This section comes from PRD v1.6 (`prd.md` §6.27–§6.29, FR-156–FR-174, NFR-021/NFR-022; decision trail in `prds/prd-gym_os-2026-06-20/.memlog.md`) and the 2026-10-11 architecture spine update (`ARCHITECTURE-SPINE.md` AD-27–AD-32). No UX pass covers V1.6 (user decision 2026-10-11); exact copy and visuals are marked `[UX]`.
+
+Production is live with real gyms, so every V1.6 behavior ships behind a per-gym switch: **Charge guests per session** is off for every gym that exists at release, and the **loyalty program** is off by default. Until an Owner or Supervisor turns one on, no existing gym sees a change.
+
+**Decisions recorded 2026-10-11 (user accepted PM/architect recommendations):**
+1. **Old mobile builds** — accept: an old build shows a refused guest its *expired* screen (not admitted, wrong copy). The new mobile build ships before charging is used, and the Charge-guests confirmation warns the owner that guests on old app versions see an "expired" message. No minimum-version gate.
+2. **OQ-A** — Edge Function count stays 3; Tara session payments reuse `payment-webhook`'s purpose dispatch.
+3. **OQ-B** — a daily `pg_cron` sweep persists and audits loyalty lapses/resets; every read computes the effective value and never writes. Accepted as satisfying FR-168.
+4. **Ops gaps** — one checklist story (19.0) owned by the product owner covers release order and rollback, backup/PITR, staging, secrets rotation, and `job_runs` failure alerting before charging is enabled at any live gym.
+
+### Epic 19: Session Guests — Per-Visit Paid Sessions
+At a gym that turns on **Charge guests per session**, a Pay-per-session member can check in — or be marked attended at a class — only with a paid or free session. One session covers the whole gym-local day; an unused paid session lapses after 7 days. The desk records the session payment from the session-required alert, guests can pay in the app by Tara Money, offline scans are verified on sync, refunds follow data-layer rules, and the owner sees paid sessions, blocked attempts, and who collected on a Guest sessions card. Prerequisite guardrails (AD-3 CI gate, hosted-privilege check, flagged-payment reason) ship first, because this is the first epic that depends on them.
+**FRs covered:** FR-156, FR-157, FR-158, FR-159, FR-160, FR-161, FR-162, FR-163, FR-173, FR-174
+**Amends:** FR-038, FR-040, FR-042, FR-044, FR-049, FR-061, FR-069, FR-080, FR-105, FR-107, FR-143, FR-024, FR-025
+**NFRs honored:** NFR-021 (atomic, database-enforced consumption), NFR-001, NFR-003, NFR-004, NFR-019
+**Architecture:** AD-27, AD-28, AD-29, AD-31, AD-32 (charging setting, plan rules), AD-3 gate
+
+### Epic 20: Loyalty Program — Free Sessions & Free Days
+Guests earn one free session for every N paid sessions consumed; subscribers earn R free days for every K on-time renewals. Members see their progress, free sessions, and paid-session lapse dates in the app; staff see the same on the member page. Rewards are granted exactly once, progress resets after 90 idle days, and no one — Super Admin included — can edit a balance by hand. Builds on Epic 19 (the guest rule earns on consumption; a free session is a `guest_sessions` row); the subscriber rule stands alone. Off by default.
+**FRs covered:** FR-164, FR-165, FR-166, FR-167, FR-168, FR-169, FR-170
+**Amends:** FR-069, FR-080; completes FR-162's stamp reversal
+**NFRs honored:** NFR-022 (idempotent, reconstructible loyalty), NFR-001, NFR-004
+**Architecture:** AD-30, AD-32 (loyalty settings), AD-18 note (R-day extension)
+
+### Epic 21: Gym Category
+Every gym carries a business category — Gym / Salle de sport, Studio Pilates, Studio Yoga, Fitness Center, Autre — chosen by Super Admin at gym creation and editable by Super Admin, Owner, or Supervisor, audited, labelled in EN and FR. Descriptive only in V1.6; it feeds V1.7's directory and landing pages. Independent of Epics 19–20; can ship first or in parallel.
+**FRs covered:** FR-171, FR-172
+**Amends:** FR-010, FR-069, FR-071
+**Architecture:** AD-32 (category setter, stable code)
+
+---
+
+### Epic 19 — Stories
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 19.0 | V1.6 Release Readiness — Ops Checklist (product owner) | none | — |
+| 19.1 | CI Guardrails — Live-Role Lint Gate & Hosted-Privilege Check | none | — |
+| 19.2 | Flagged-Payment Reason (Late vs. Wrong Account) | **0106** | 19.1 |
+| 19.3 | Charge-Guests Setting, Session Record & Plan-Type Rules | **0107** | 19.1 |
+| 19.4 | Desk Session Payment | **0108** | 19.3 |
+| 19.5 | In-App Tara Money Session Payment | **0109** | 19.2, 19.4 |
+| 19.6a | Front-Desk Alert `kind` Refactor (no behavior change) | **0110** | 19.1 |
+| 19.6b | Check-In Gate, Blocked Attempts & Session-Required Alert | **0111** | 19.4, 19.6a |
+| 19.7 | Class Attendance Consumes a Session | **0112** | 19.6b |
+| 19.8 | Session Refunds & Revenue Line | **0113** | 19.4 |
+| 19.9 | Dashboard — Charge-Guests Setting, Session Alert, Member Sessions & Plan Lock | none | 19.3–19.8 |
+| 19.10 | Guest Sessions Overview Card | **0114** | 19.6b, 19.8 |
+| 19.11 | Member App — Pay for Your Session, Offline Verification & Session Lapse | none | 19.5, 19.6b |
+| 19.12 | V1.6 Session Guests Enablement | **0115** | 19.0, 19.9, 19.10, 19.11 |
+
+*Migration numbers are the next free numbers as of 2026-10-11 (latest is `0105`); renumber at build time if another migration lands first.*
+
+**Dependency order:** 19.0 and 19.1 first and in parallel (19.0 is non-code). 19.1 → {19.2, 19.3, 19.6a} → 19.4 → {19.5, 19.6b, 19.8} → 19.7 → {19.9, 19.10, 19.11} → 19.12 last. **Production safety:** `charge_guests_per_session` is added `NOT NULL DEFAULT false` in 19.3, so every gym — existing and newly created — stays off through 19.0–19.11; nothing a live gym sees changes until an Owner or Supervisor turns charging on in 19.9's Settings UI. Only 19.12 sets the column default to `true` for gyms created afterward (AD-32), and only once the new mobile build (19.11) is in the stores and 19.0 is signed off. **19.6a runs on every live gym** (it rewrites the existing subscription-alert path), so it ships alone and runs in production for at least a week before 19.6b deploys. **Kill switch:** from 19.6b on, `check_in()` and `mark_class_attendance()` read the gym's flag before calling any V1.6 code, so turning charging off puts a gym back on the pre-V1.6 path.
+
+**Scope boundary — what this epic does NOT do.**
+- **No loyalty.** Stamps, free sessions, and their display are Epic 20. This epic creates `guest_sessions` so a free session can be a row later (AD-28), and leaves a single, no-op stamp hook in the consumption and refund paths that Epic 20 fills.
+- **No minimum-app-version gate.** Old mobile builds show a refused guest their *expired* screen (decision 1, 2026-10-11); 19.9's confirmation dialog warns the owner instead.
+- **No physical access control.** The gate decides whether a *scanned* visit is recorded and admitted by the app (PRD §6.27); unscanned walk-ins stay a desk process.
+- **No auto-waive of the registration fee** for Pay-per-session plans (FR-156) — only a one-tap "Session guest" preset reason.
+- **No new Edge Function** (OQ-A): Tara session payments go through `payment-webhook`'s existing purpose dispatch.
+
+### Story 19.0: V1.6 Release Readiness — Ops Checklist
+
+As the product owner deploying to live gyms,
+I want the operational gaps the architecture spine left open to each have a written answer before charging is enabled anywhere,
+So that a bad V1.6 migration or job failure at a paying gym is recoverable and visible.
+
+*Non-code story; owner: product owner. Closes the "Open, not decided" ops list in `ARCHITECTURE-SPINE.md` (Deployment & environments). Gates 19.12.*
+
+**Acceptance Criteria:**
+
+**Given** V1.6 changes payment and check-in paths for gyms that are already live
+**When** this story is done
+**Then** `docs/decisions.md` has a dated "V1.6 release runbook" entry stating: the deploy order for 0106–0115 relative to the dashboard and mobile releases; for each migration whether it is forward-only or has a written rollback, and what is done if it fails half-way on production
+
+**Given** the Supabase project holds real member and payment data
+**When** the runbook is written
+**Then** it records the project's actual backup / point-in-time-recovery posture (plan tier, retention window, last tested restore — or "never tested" stated plainly) and a decision to accept or upgrade it
+
+**Given** there is no staging project (CI runs a local `supabase start`)
+**When** the runbook is written
+**Then** it states where V1.6 migrations are rehearsed against production-shaped data before production (e.g. a Supabase branch or a restored copy) or explicitly accepts the risk of not doing so
+
+**Given** secrets live in Supabase, Vercel, EAS, and Vault (per-gym Tara credentials)
+**When** the runbook is written
+**Then** it lists each secret's location and a rotation procedure, or explicitly defers rotation with a revisit date
+
+**Given** `pg_cron` jobs log failures to `job_runs` but nothing alerts on them
+**When** the runbook is written
+**Then** it names how a failed job reaches a human (e.g. a Sentry check-in, a daily `job_runs` query, or an email) — and that mechanism is in place before 19.12
+
+**Given** the checklist is complete
+**When** 19.12 is planned
+**Then** `sprint-status.yaml` records 19.0 as done with a pointer to the runbook entry
+
+---
+
+### Story 19.1: CI Guardrails — Live-Role Lint Gate & Hosted-Privilege Check
+
+As a developer adding V1.6 migrations,
+I want CI to fail a PR that reads the role from the login token in a new migration, or that leaves a new function executable by roles it should not be,
+So that the authorization rules V1.6 depends on (AD-3) can't silently regress again.
+
+*Prerequisite for every V1.6 migration (AD-3 status note, 2026-10-11). No migration.*
+
+**Acceptance Criteria:**
+
+**Given** 52 files in `supabase/migrations/` contain `auth.jwt() ->> 'app_role'` (in any spacing variant), including new sites in 0098–0102
+**When** this story ships
+**Then** a CI step (in `.github/workflows/ci.yml`, alongside the i18n gate) fails the PR if any migration file **not** on an explicit, checked-in grandfather list contains that pattern; the grandfather list is exactly the files that contain it on the story's base commit, and the step's failure message names `private.current_member_role()` as the replacement
+
+**Given** the grandfather list exists
+**When** a grandfathered file is edited
+**Then** the gate still passes (existing files are not retro-fixed here), and adding a new file to the list requires a reviewer-visible diff to the list file — the list is not regenerated automatically
+
+**Given** a deliberately bad fixture migration with a new `auth.jwt() ->> 'app_role'` read
+**When** the gate runs against it in a test
+**Then** it fails; with the read replaced by `private.current_member_role()` it passes
+
+**Given** 0104 proved the hosted project's default privileges grant `EXECUTE` on new functions to `anon`, which the local CI database does not reproduce
+**When** this story ships
+**Then** a CI check fails the PR if a migration creates a function (`create function` / `create or replace function`) without, in the same file, an explicit `revoke execute … from public` and `from anon` for that function (the function-privileges convention in `ARCHITECTURE-SPINE.md`); trigger functions and `private.` helpers follow the same rule
+
+**Given** the hosted-privilege check is a static check, not a live query
+**When** the story closes
+**Then** `docs/decisions.md` records that limitation and the manual post-deploy query (from 0104's verification block) the product owner runs after each V1.6 migration until a live check exists
+
+---
+
+### Story 19.2: Flagged-Payment Reason (Late vs. Wrong Account)
+
+As a gym owner,
+I want the platform to know *why* a Tara Money payment was flagged,
+So that a guest whose payment was only confirmed late still gets the session they paid for, while money that landed in the wrong account never does.
+
+*Prerequisite from AD-27. Migration 0106. No behavior change for subscription or registration-fee payments.*
+
+**Acceptance Criteria:**
+
+**Given** late-confirmed and wrong-account payments are both stored as `status = 'flagged'` with no discriminator (late fee confirmations: 0100 header; wrong-account: the FR-036 reconciliation categories)
+**When** migration 0106 ships
+**Then** `payments.flagged_reason text` exists, nullable, with a CHECK limiting it to a closed set that includes at least `late_confirmation`, `wrong_account`, `expired_attempt`, and `reconciliation_mismatch`, and a CHECK that it is non-null exactly when `status = 'flagged'` for rows flagged after the migration
+
+**Given** production already holds flagged payments
+**When** the migration runs
+**Then** existing flagged rows are backfilled from the evidence already recorded (the late-payment audit rows of 0100, `expire_stale_registration_fee_payment`'s audit code, the reconciliation job's discrepancy category); any row whose reason cannot be determined is set to `reconciliation_mismatch`, and a trailing `do $verify$` block asserts no post-migration flagged row has a null reason
+
+**Given** every code path that sets `status = 'flagged'` (the 0100 expiry helper, `complete_verified_payment`'s late branch, the reconciliation job(s) of AD-14, and any other site found by grep)
+**When** this story ships
+**Then** each one sets `flagged_reason` in the same statement; a pgTAP test per path asserts the reason written
+
+**Given** `flagged_reason` must not be forgeable by a client
+**When** a direct client UPDATE tries to change it
+**Then** it is pinned the same way 0099 pins `purpose`/`voided_at` (`protect_payment_purpose_and_void` is extended, or a sibling INVOKER trigger is added — not a second copy of its body)
+
+**Given** staff already see flagged payments on the Payments page
+**When** a flagged payment has a reason
+**Then** the dashboard shows the reason as a localized label (EN/FR, `[UX]` wording); `check:i18n` passes
+
+---
+
+### Story 19.3: Charge-Guests Setting, Session Record & Plan-Type Rules
+
+As a gym Owner or Supervisor,
+I want a per-gym switch for charging guests per session, backed by a real session record, and plans whose type and price can't be changed out from under paid sessions,
+So that per-visit charging has a safe foundation before anything is enforced.
+
+*Delivers FR-156 (plan price = session price, 0 XAF exempt, "Session guest" waiver preset), FR-157 (setting, data + RPC only), FR-173, the FR-158 session record (AD-28), and the `session` payment purpose (AD-27). Migration 0107. Changes nothing for any gym: the setting defaults off.*
+
+**Acceptance Criteria:**
+
+**Given** `gyms` has no charging flag
+**When** migration 0107 ships
+**Then** `gyms.charge_guests_per_session boolean not null default false` exists; every existing and newly created gym is off (the default flips to `true` only in 19.12, AD-32)
+
+**Given** the flag must have exactly one write path (AD-32)
+**When** this story ships
+**Then** `set_guest_charging(p_enabled boolean)` is a `SECURITY DEFINER` RPC that allows only Owner or Supervisor of the caller's gym via `private.current_member_role()` (AD-3), honors suspension like other gym RPCs (0090), writes an audit row with old and new value, and is the only holder of the flag's GUC; a dedicated BEFORE UPDATE pin trigger function (its own function — **not** a new branch in `protect_super_admin_only_gym_columns()`) rejects every other writer including Super Admin and `service_role`
+
+**Given** the owner must see the impact before switching on (FR-157)
+**When** `guest_charging_impact()` is called by an Owner or Supervisor
+**Then** it returns the count of active members whose current subscription's plan is `pay_per_session` with a price above 0
+
+**Given** sessions need their own record (AD-28)
+**When** migration 0107 ships
+**Then** `guest_sessions` exists with `gym_id`, `member_id`, `payment_id` (nullable FK to `payments`), `loyalty_grant_id` (nullable, no FK yet — Epic 20), a CHECK that exactly one of the two is non-null, `usable_until timestamptz not null`, `consumed_at`, `covered_day date`, `voided_at`, `created_at`; RLS enabled in the same migration with SELECT for staff of the gym and for the member on their own rows, **no** INSERT/UPDATE/DELETE policy for any role, and `authenticated`/`service_role` table grants limited to SELECT; a partial unique index on `(member_id, covered_day) where consumed_at is not null and voided_at is null` and a unique index on `payment_id` where not null
+
+**Given** the 7-day paid-session validity, 60-day free-session validity, and 90-day loyalty idle window are platform defaults stored as data (FR-159, FR-166, FR-168; AD-30)
+**When** migration 0107 ships
+**Then** a one-row `platform_session_config` table exists (`paid_session_validity_days` 7, `free_session_validity_days` 60, `loyalty_idle_reset_days` 90), mirroring `messaging_provider_config`'s shape (0050): RLS with Super-Admin SELECT/UPDATE only, `log_audit_event`-audited writes, readable by definer functions; no gym-facing UI in V1.6
+
+**Given** `payments.purpose` is CHECK-limited to `subscription`/`registration_fee` (0099)
+**When** migration 0107 ships
+**Then** in this one migration (AD-27): the CHECK admits `session`; `protect_payment_purpose_and_void` still pins it; the staff-insert policy clause is unchanged (session payments are created only by definer RPCs, never by direct insert); the payments notification trigger (0099:113) skips `session` rows like fee rows; and a pgTAP test asserts a direct client insert with `purpose = 'session'` is rejected
+
+**Given** the gate keys on plan type and price (FR-173)
+**When** this story ships
+**Then** `plans.plan_type` and `plans.price` can no longer be changed by direct UPDATE (pinned; the existing `manager_or_owner_update_own_plans` policy keeps working for the other columns); `update_plan_pricing(p_plan_id, p_plan_type, p_price)` is a definer RPC that refuses a type change once any subscription references the plan (error code for "create a new plan instead"), audits every type or price change with old and new value, and never touches existing `guest_sessions` rows
+
+**Given** the dashboard plan form currently writes `plan_type`/`price` directly
+**When** this story ships
+**Then** the plan-edit Server Action calls `update_plan_pricing` for those two fields; a plan with subscriptions shows its type as read-only with the reason (`[UX]` copy, EN/FR)
+
+**Given** FR-156 asks for a one-tap "Session guest" reason
+**When** an Owner, Supervisor, or Manager waives a registration fee (`waive_registration_fee`, 0099:241)
+**Then** the waive dialog offers a "Session guest" preset that fills the mandatory reason; free text remains available; no automatic waiver exists
+
+---
+
+### Story 19.4: Desk Session Payment
+
+As a receptionist,
+I want to record a guest's session payment at the desk in one step, at exactly the plan's price,
+So that the guest can scan in straight away and the money is traceable to me.
+
+*Delivers FR-158 (desk path). Migration 0108.*
+
+**Acceptance Criteria:**
+
+**Given** a member at a gym with charging on whose current plan is Pay-per-session with price > 0
+**When** staff call `record_session_payment(p_member_id, p_method, p_reason default null)`
+**Then** in one transaction it: takes the locks in the canonical order (AD-27: payment rows first via the stale-expiry check, then the member row `FOR NO KEY UPDATE`); inserts a `payments` row with `purpose = 'session'`, `status = 'verified'`, `amount` read server-side from the member's current plan price (never a parameter), `currency` from the plan, `actor_id` the caller; inserts one `guest_sessions` row linked to it with `usable_until = now() + interval '7 days'` (the 7-day value read from a platform config row, not a literal); writes an audit row; and returns the session
+
+**Given** method rules follow FR-021/FR-033
+**When** the method is cash or manual mobile money
+**Then** any role that can record payments may call it; **when** the method is bank transfer, only Manager, Supervisor, or Owner may; a Coach or Member is refused; roles are checked with `private.current_member_role()`
+
+**Given** a session payment is fixed-price (amends FR-038)
+**When** the RPC runs
+**Then** no amount is accepted from the client and the reason is optional; actor, member, method, and timestamp are still recorded
+
+**Given** a Tara session payment for the same member is `pending`/`processing` and not stale
+**When** staff call `record_session_payment`
+**Then** it is refused with a "payment already in progress" error code (AD-9 `{ code, message }`), and no row is written
+
+**Given** the gym's flag is off, or the member's current plan is not Pay-per-session, or its price is 0
+**When** staff call the RPC
+**Then** it is refused with a distinct error code each — no session is sold that the gate would never consume
+
+**Given** the member is deactivated, awaiting the registration fee (FR-148), or the gym is suspended
+**When** staff call the RPC
+**Then** it is refused, mirroring `record_registration_fee`'s (0099:127) guards
+
+**Given** two staff record a payment for the same member at the same moment
+**When** both calls run
+**Then** both succeed and the member holds two sessions (a desk double-entry is a staff error made visible in FR-163, not prevented); a pgTAP concurrency test proves no deadlock under the canonical lock order
+
+**Given** session payments are listed on the Payments page and the member's history
+**When** the dashboard renders a `session` payment
+**Then** it is labelled as a session payment (not a renewal, not a fee) in EN/FR, and its receipt (FR-041) says so
+
+---
+
+### Story 19.5: In-App Tara Money Session Payment
+
+As a session guest,
+I want to pay for my session from the app with mobile money,
+So that I don't have to queue at the desk.
+
+*Delivers FR-158 (Tara path). Migration 0109. Uses `payment-webhook`'s existing dispatch — no new Edge Function (OQ-A).*
+
+**Acceptance Criteria:**
+
+**Given** a member whose gym has charging on, Tara Money connected (FR-127), and whose current plan is Pay-per-session with price > 0
+**When** the member calls `initiate_session_payment()`
+**Then** it follows `initiate_registration_fee_payment`'s shape (0100:106): runs the stale-expiry helper first (reused, not copied — generalized to take a purpose), locks the member, refuses if a session payment is already in flight, inserts a `pending` `purpose = 'session'` payment with the server-side plan price, and returns what the app needs to start the Tara flow
+
+**Given** an abandoned `processing` session payment older than the stale window
+**When** the member or staff starts a new one
+**Then** the old row is flagged with `flagged_reason = 'expired_attempt'` and audited, and the new payment proceeds — the member is never wedged
+
+**Given** `complete_verified_payment` (0100:217) dispatches on `purpose`
+**When** a `session` payment is confirmed while still `processing`
+**Then** it is verified and exactly one `guest_sessions` row is created in the same transaction (through the same `private.` session-creation function 19.4 uses), with `usable_until` 7 days from verification
+
+**Given** `complete_verified_payment` does not lock the member today on its subscription path (AD-27 adversarial finding)
+**When** this story rewrites it
+**Then** it takes the member lock (`FOR NO KEY UPDATE`) on **every** purpose branch — subscription, registration fee, session — after the payment lock, in the canonical order (payment → member → … ; AD-27), so Epic 20 (20.3) only adds its stamp call and never changes this function's locking; pgTAP proves a concurrent subscription confirmation and a desk action on the same member serialize without deadlock, and every existing payment test still passes
+
+**Given** a confirmation arrives after the attempt was flagged as `expired_attempt` (late)
+**When** `complete_verified_payment` processes it
+**Then** — unlike a registration fee — the session **is** created, the payment's `flagged_reason` becomes `late_confirmation`, and a staff-visible audit entry is written (FR-158)
+
+**Given** a session payment is flagged `wrong_account` or `reconciliation_mismatch` (FR-036, NFR-019)
+**When** any path completes or retries it
+**Then** no session is ever created, and it appears as a discrepancy to staff
+
+**Given** the provider redelivers a confirmation
+**When** the webhook processes it again
+**Then** nothing new is created (`payment_webhook_events` idempotency, AD-17; unique `guest_sessions.payment_id`)
+
+**Given** the member app's payment service already handles fee payments (`apps/mobile/src/services/payments.ts`)
+**When** session payments are listed
+**Then** the service exposes `isSession` alongside `isRegistrationFee`; the UI that starts a session payment ships in 19.11
+
+---
+
+### Story 19.6a: Front-Desk Alert `kind` Refactor (no behavior change)
+
+As a gym owner whose front desk relies on today's expired/frozen/cancelled alerts,
+I want the alert table made ready for a second kind of alert without any change to the alerts I get today,
+So that the riskiest part of the check-in work is proven in production before anything new depends on it.
+
+*Prerequisite for FR-160 (AD-31). Migration 0110. Split out of the check-in gate (party-mode review, 2026-10-11): this migration rewrites the live subscription-alert path for **every** gym, whatever its charging flag, so it ships alone and runs in production for at least a week before 19.6b deploys. The index swap and the `ON CONFLICT` rewrites land together in this one migration (AD-31).*
+
+**Acceptance Criteria:**
+
+**Given** `front_desk_alerts.status` is `subscription_status not null` with a three-value CHECK and a one-active index on `(member_id, status)` (0034)
+**When** migration 0110 ships
+**Then** in the same migration: a `kind text not null default 'subscription_status'` column is added (existing rows backfill to `subscription_status` in the same statement); `status` becomes nullable with the CHECK `(kind = 'subscription_status' and status in (…)) or (kind = 'session_required' and status is null)`; the one-active index is rebuilt over `(member_id, kind, coalesce(status::text, ''))`; **every** `on conflict (member_id, status)` clause (0034, 0068, three in 0090 — found by grep at build time, the count stated in the migration header) is rewritten to the new index; `front_desk_alerts_protect_columns` pins `kind`
+
+**Given** no code in this story writes `kind = 'session_required'`
+**When** any check-in, subscription change, or job runs after 0110
+**Then** the alerts raised, their dedupe, their dismissal, and their Realtime payloads are identical to before (plus the `kind` field); every existing alert pgTAP test passes unchanged, and a new pgTAP test exercises each rewritten `ON CONFLICT` site
+
+**Given** the index is rebuilt on a live table
+**When** 0110 is planned
+**Then** the 19.0 runbook entry states how the index is swapped (new index built before the old one is dropped, so the one-active guarantee never lapses), the expected lock time on production's row count, and the rollback (forward-fix migration restoring the old index and clauses, written and tested on the local DB before deploy)
+
+**Given** the dashboard and mobile read alerts
+**When** this ships
+**Then** no client change is needed; any client query that selects `status` still gets a non-null value for every existing alert
+
+---
+
+### Story 19.6b: Check-In Gate, Blocked Attempts & Session-Required Alert
+
+As a gym owner who charges guests per session,
+I want every scanned guest visit to consume a paid session (or be refused and flagged to the desk),
+So that a scanned guest visit is always a paid, recorded event.
+
+*Delivers FR-159, FR-160, FR-161 (server side), NFR-021. Migration 0111. Builds on 19.6a's alert `kind` (in production for at least a week first). Flag-off gyms never enter any code this story adds.*
+
+**Acceptance Criteria:**
+
+**Given** a gym with `charge_guests_per_session = false`
+**When** `check_in()` runs for any member of that gym
+**Then** it reads the flag before calling any V1.6 function and, when off, takes no new lock, calls nothing new, and behaves exactly as before 0111 — this is the operational kill switch (turning charging off returns the gym to the pre-V1.6 path); a pgTAP test proves no `consume_guest_session` call and no `session_attempts` row for a flag-off gym
+
+**Given** NFR-021 requires one database function for consumption
+**When** migration 0111 ships
+**Then** `private.consume_guest_session(p_member_id, p_gym_id, p_receipt_at)` exists and returns one of *covered*, *consumed*, *denied*, or *exempt*: it first returns *exempt* without locking if the gym's flag is off, the member's current plan is not Pay-per-session, or its price is 0 (re-checked here so every caller is safe, not only `check_in()`); only then locks the member row `FOR NO KEY UPDATE`; computes the gym-local day with `private.gym_local_day_bounds()` (0097); returns *covered* if a non-voided session is already consumed for that day; otherwise consumes the usable session that lapses soonest (paid before free on a tie), setting `consumed_at` and `covered_day`, and returns *consumed*; otherwise *denied*. It calls a `private.on_session_consumed()` hook that is a no-op in this epic (Epic 20 fills it)
+
+**Given** `check_in()` (latest body 0090:412) returns `attendance_events` and signals a block with `null`
+**When** this story ships
+**Then** `check_in()` keeps the exact signature and return type; after its existing guards and before inserting the attendance event, it calls `consume_guest_session`; on *denied* it inserts a `session_attempts` row, raises the session-required alert, inserts **no** attendance event, and returns `null` — the same signal old builds already handle (they show their *expired* screen; decision 1)
+
+**Given** an offline-synced scan carries `p_scanned_at` and `p_client_scan_id`
+**When** `check_in()` evaluates it at a charging gym
+**Then** the receipt time is `now()`; the scan time is used as the visit time only if it is within the gym's auto-timeout window (FR-045) of receipt and not before the consumed session's payment, otherwise the visit is treated as a new visit at receipt time; a replay with the same `client_scan_id` short-circuits as today and never consumes a second session
+
+**Given** blocked attempts need their own evidence (AD-31)
+**When** migration 0111 ships
+**Then** `session_attempts` exists (`gym_id`, `member_id`, `scan_id`, `occurred_at`, `source` in `check_in`|`class`) with RLS (staff of the gym read; no client writes), and a unique index on `(gym_id, member_id, scan_id) where scan_id is not null`; an online scan without a client scan id records one attempt per call
+
+**Given** the session-required alert (FR-160)
+**When** `consume_guest_session` returns *denied*
+**Then** the alert is inserted with `kind = 'session_required'`, `status` null, deduped by 19.6a's index (one active per member)
+
+**Given** the alert must clear when the guest pays (FR-160)
+**When** a session payment is recorded for the member (19.4's RPC or 19.5's completion)
+**Then** the shared session-creation function dismisses the member's active `session_required` alert in the same transaction
+
+**Given** `attendance_events` grants INSERT/UPDATE/DELETE to `authenticated` and `service_role` (0006) and `service_role` bypasses RLS
+**When** migration 0111 ships
+**Then** after a grep for existing direct writers (auto-timeout job, check-out paths, service-role scripts) — each either moved behind a definer function or listed as an accepted exception in the migration header — direct INSERT on `attendance_events` is revoked from both roles, so `check_in()` is the only insert path (AD-29)
+
+**Given** NFR-021's concurrency rules
+**When** pgTAP tests run
+**Then** they prove: two concurrent check-ins for a member with one usable session → one *consumed*, one *covered*, never two consumptions and never a wrongful denial; a member never has two sessions consumed for one gym-local day; a session consumed at 23:50 gym time does not cover 00:10 the next day; a replayed sync consumes nothing; a gym with the flag off behaves exactly as before for every existing check-in test
+
+**Given** the Realtime alert path (AD-20)
+**When** a session-required alert is inserted
+**Then** it arrives on the existing `gym:<gym_id>:alerts` channel with its `kind`; the dashboard UI for it ships in 19.9
+
+---
+
+### Story 19.7: Class Attendance Consumes a Session
+
+As a receptionist marking class attendance,
+I want marking a session guest attended to use their paid session exactly like a floor check-in,
+So that a guest can't attend a class at a charging gym without paying, and doesn't pay twice for the same day.
+
+*Delivers FR-174. Migration 0112.*
+
+**Acceptance Criteria:**
+
+**Given** `mark_class_attendance(p_booking_id)` (latest 0090:1272) returns `class_bookings` and sets `attended_at`
+**When** this story ships
+**Then** before setting `attended_at` it calls `private.consume_guest_session` (19.6b) under the canonical lock order (`class_sessions` → member → `guest_sessions`); on *covered*, *consumed*, or *exempt* it marks attendance as today; on *denied* it inserts a `session_attempts` row with `source = 'class'` and a server-generated scan id, raises the session-required alert, does not set `attended_at`, and returns a `{ code: 'session_required' }` error to the caller (AD-9)
+
+**Given** a booking already has `attended_at` set
+**When** it is marked again
+**Then** the function is a no-op that consumes nothing (new `attended_at is null` guard)
+
+**Given** one session covers the floor and classes for the gym-local day (FR-174)
+**When** a guest checks in on the floor and then is marked attended at a class the same day (or the reverse), or attends two classes
+**Then** only one session is consumed in total; pgTAP covers each order
+
+**Given** booking and cancellation stay free (FR-105/FR-106)
+**When** a guest books or cancels
+**Then** `book_class_session()` and cancellation are unchanged and consume nothing
+
+**Given** `class_bookings` grants direct writes to `authenticated`/`service_role` (0058)
+**When** migration 0112 ships
+**Then** direct UPDATE of `attended_at` is pinned or revoked so `mark_class_attendance` is the only path to set it (AD-29); the coach roster view (Story 17.4) therefore cannot mark a charging-gym guest attended without a session
+
+**Given** a gym with `charge_guests_per_session = false`
+**When** `mark_class_attendance` runs
+**Then** it reads the flag first and, when off, calls no V1.6 function and takes no new lock (same kill switch as 19.6b); pgTAP proves it
+
+**Given** Monthly, Coach-inclusive, and Class-only members
+**When** they are marked attended
+**Then** behavior is exactly as FR-107 (*exempt*)
+
+**Given** the Classes page and coach roster show attendance controls
+**When** marking returns `session_required`
+**Then** the UI shows the refusal and offers "Record session payment" in place (calling 19.4's RPC), after which the receptionist marks again; EN/FR copy `[UX]`
+
+---
+
+### Story 19.8: Session Refunds & Revenue Line
+
+As a gym owner,
+I want refunds of session payments to behave predictably and session revenue to show on its own line,
+So that I can correct mistakes without corrupting attendance and see what guests bring in.
+
+*Delivers FR-162 (refund rules, revenue line). Migration 0113. The stamp reversal is a no-op hook here, filled by Epic 20.*
+
+**Acceptance Criteria:**
+
+**Given** refunds are direct inserts into `refunds` (0033; `payment_id` unique, so one refund per payment) and 0101 already has a `private.block_fee_and_voided_refunds()` trigger
+**When** a refund is inserted against a `purpose = 'session'` payment
+**Then** an `AFTER INSERT` trigger on `refunds` (data layer, following 0101's precedent) applies FR-162 in the same transaction, taking the member lock first
+
+**Given** the refund amount equals the payment amount and the linked session is unconsumed and not voided
+**When** the refund is recorded
+**Then** the session's `voided_at` is set and it can no longer be consumed
+
+**Given** a refund races a consumption of the same session
+**When** both run concurrently
+**Then** exactly one outcome holds — either the session is voided and the check-in is denied/covered by another session, or the session is consumed and the refund is recorded as a refund of a consumed session; a pgTAP concurrency test proves it
+
+**Given** a partial refund
+**When** it is recorded
+**Then** the session is not voided
+
+**Given** the linked session was already consumed
+**When** a refund is recorded
+**Then** the session stays consumed, the visit stays counted, and `private.on_session_refunded_after_consumption()` is called — a no-op in this epic, filled by Epic 20 to reverse the stamp
+
+**Given** every session payment, consumption, attempt, and refund must be traceable (amends FR-080)
+**When** any of them happens
+**Then** an audit row records actor, member, and timestamp; pgTAP asserts one per event type
+
+**Given** `gym_revenue_mtd()` (0101:195) and `gym_registration_fee_revenue_mtd()` (0101:230)
+**When** migration 0113 ships
+**Then** subscription revenue excludes `session` payments, and `gym_session_revenue_mtd()` returns net session revenue (verified session payments minus their refunds) for the gym-local month (`private.gym_local_month_bounds`, 0095:87); the Overview shows it as its own line (EN/FR), separate from subscription and fee revenue; refunding a renewal is unaffected
+
+---
+
+### Story 19.9: Dashboard — Charge-Guests Setting, Session Alert, Member Sessions & Plan Lock
+
+As an Owner, Supervisor, or receptionist,
+I want to switch charging on knowing who it affects, see and act on session-required alerts, and see a member's sessions,
+So that the desk can run per-session charging day to day.
+
+*Delivers FR-157 (UI), FR-160 (UI), the staff half of FR-159's lapse visibility. No migration.*
+
+**Acceptance Criteria:**
+
+**Given** the Settings page (Owner/Supervisor)
+**When** it renders
+**Then** a "Charge guests per session" toggle shows the current value; toggling on opens a confirmation stating the `guest_charging_impact()` count ("N Pay-per-session members will need a paid session at their next visit") **and** a warning that guests on older versions of the member app will see an "expired" message when refused until they update (decision 1); confirming calls `set_guest_charging`; Managers and below do not see the control
+
+**Given** charging is off
+**When** the Loyalty section exists later (Epic 20)
+**Then** this story only leaves a hook — no loyalty copy here
+
+**Given** a `session_required` alert arrives on the alerts channel
+**When** the front-desk alert panel renders it
+**Then** it is a new variant of the single `FrontDeskAlertPanel` (UX-DR2, no fork) with its own copy and color `[UX]`, naming the member, showing any payment in flight, and offering "Record session payment" (method picker; bank transfer only for Manager+) that calls `record_session_payment`; on success the alert dismisses (server-side, 19.6b) and the panel updates; existing subscription alerts are unaffected because every alert query and the panel branch on `kind`
+
+**Given** the Realtime channel drops
+**When** the dashboard falls back to polling (AD-20)
+**Then** session alerts are included in the polled result
+
+**Given** a member's page in the dashboard
+**When** the member is on a Pay-per-session plan at a charging gym
+**Then** it shows their unused paid sessions with lapse dates, their consumed sessions (date, covered day), and their session payments; Coaches see nothing new
+
+**Given** the Members/Payments pages
+**When** session payments exist
+**Then** filters and labels distinguish session payments from renewals and registration fees
+
+**Given** every new string
+**When** the PR is opened
+**Then** `en.json` and `fr.json` carry every key and `check:i18n` passes
+
+---
+
+### Story 19.10: Guest Sessions Overview Card
+
+As an Owner, Supervisor, or Manager,
+I want a Guest sessions card showing paid sessions, blocked attempts, and free sessions given,
+So that I can see whether the desk is collecting.
+
+*Delivers FR-163. Migration 0114 (read RPCs only).*
+
+**Acceptance Criteria:**
+
+**Given** the gym has charging on
+**When** the staff Overview (FR-143) renders for Owner, Supervisor, or Manager
+**Then** a Guest sessions card appears with a period control (today / this month, gym-local via `private.gym_local_day_bounds` / `private.gym_local_month_bounds`); with charging off it is absent
+
+**Given** counts must be server-side (FR-143 `max_rows` caveat)
+**When** the card loads
+**Then** `guest_sessions_summary(p_period)` returns: paid sessions sold (non-voided session payments), blocked attempts (rows in `session_attempts`, counted once per scan id) and distinct members blocked, and free sessions given (always 0 until Epic 20); computed by aggregate SQL, never by summing fetched rows
+
+**Given** each figure links to its list
+**When** a user opens the paid-sessions list
+**Then** it can be grouped by the staff member who recorded each payment, and shows refunds recorded after consumption
+
+**Given** a Receptionist or Coach
+**When** they open the Overview
+**Then** the card is not rendered and the RPCs refuse them
+
+**Given** every new string
+**When** the PR is opened
+**Then** EN/FR parity passes
+
+---
+
+### Story 19.11: Member App — Pay for Your Session, Offline Verification & Session Lapse
+
+As a session guest,
+I want the app to tell me plainly when I need to pay, let me pay there, and be honest when an offline check-in still has to be verified,
+So that I'm never confused at the door.
+
+*Delivers FR-159 (app states), FR-161 (app side), FR-158 (in-app UI). No migration. Ships in one mobile release; must be in the stores before 19.12.*
+
+**Acceptance Criteria:**
+
+**Given** `checkin.ts` maps a `null` `check_in()` result to `expired` (line ~96)
+**When** the gym has charging on and the member's current plan is Pay-per-session
+**Then** a `null` result is resolved to a new `session_required` outcome by reading the member's latest `session_attempts` row (or an equivalent narrow read); otherwise it stays `expired`; the RPC's return type is not changed
+
+**Given** the `session_required` outcome
+**When** the check-in result screen renders
+**Then** it is a distinct designed state (UX-DR8 pattern: own icon, color, copy, haptic — `[UX]`) titled "Pay for your session", offering in-app payment where the gym has Tara Money connected (calling 19.5's `initiate_session_payment`) and otherwise "See the front desk"
+
+**Given** an offline scan at a charging gym for a Pay-per-session member
+**When** it is queued
+**Then** the app shows "Check-in saved — your session will be verified" `[UX wording]` instead of the plain offline success state; on sync, a denial is surfaced on next open as a notice, never silently
+
+**Given** the app may hold a stale copy of the gym's charging flag
+**When** the app is online (launch, foreground, check-in screen focus)
+**Then** it refreshes the flag; the server's rule at sync time governs regardless
+
+**Given** a guest holds unused paid sessions
+**When** Home or the check-in screen renders
+**Then** it shows the count and the soonest lapse date (FR-159), in the member's language
+
+**Given** the payment history
+**When** it lists a session payment
+**Then** it is labelled as a session (not a renewal), with its receipt
+
+**Given** a mobile change costs a build and store cycle
+**When** this story is planned
+**Then** it ships in one release, and the product owner's on-device QA covers: refused → pay in app → scan again; refused → desk pays → scan again; offline scan then sync with and without a session; a second scan the same day costs nothing
+
+---
+
+### Story 19.12: V1.6 Session Guests Enablement
+
+As the product owner,
+I want new gyms to start with per-session charging on — and only after everything it depends on is live,
+So that FR-157's "on by default for new gyms" lands without surprising any existing gym.
+
+*Migration 0115. Ships last.*
+
+**Acceptance Criteria:**
+
+**Given** 19.0's runbook is signed off, 19.9 and 19.10 are deployed, and the 19.11 mobile build is live in both stores
+**When** migration 0115 ships
+**Then** it runs only `alter table gyms alter column charge_guests_per_session set default true` — existing rows are untouched, so every gym that existed before stays off (FR-157), and a trailing `do $verify$` block asserts no pre-existing gym's value changed
+
+**Given** gyms created after the migration
+**When** Super Admin creates one
+**Then** it starts with charging on; a pgTAP test asserts it
+
+**Given** the release
+**When** it is complete
+**Then** `docs/decisions.md` records the date V1.6 session charging became available and the decisions it rests on (2026-10-11 decisions 1–4)
+
+---
+
+### Epic 20 — Stories
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 20.1 | Loyalty Program Setting & Ledger Foundation | **0116** | Epic 19 (19.3) |
+| 20.2 | Guest Rule — Stamps on Paid Sessions, Free Session at N | **0117** | 20.1, 19.6b |
+| 20.3 | Subscriber Rule — On-Time Renewal Stamps, R Free Days at K | **0118** | 20.1 |
+| 20.4 | Refund Reversal, Lapses & 90-Day Reset Sweep | **0119** | 20.2, 20.3, 19.8 |
+| 20.5 | Dashboard — Loyalty Settings & Member Loyalty View | none | 20.1–20.4 |
+| 20.6 | Member App — Loyalty Card | none | 20.1–20.4 |
+
+*Migration numbers follow Epic 19's (latest planned `0115`); renumber at build time if needed.*
+
+**Dependency order:** 20.1 → {20.2, 20.3} in parallel → 20.4 → {20.5, 20.6}. **Production safety:** the program is off by default for every gym (FR-164) and only 20.5 exposes the switch, so 20.1–20.4 change nothing a live gym sees. 20.2's guest rule earns only while **both** the program and Charge-guests are on (FR-165).
+
+**Scope boundary — what this epic does NOT do.**
+- **No discounts.** Rewards are free sessions and free days only; nothing changes the amount sent to a payment provider (PRD §6.28, Section 8).
+- **No manual balance edits** by any role, Super Admin included (FR-170), and no correction screen.
+- **No reward push notification** (FR-169), and **no cross-gym loyalty** — progress is per member per gym.
+- **No gym-configurable windows.** 60-day and 90-day values live in `platform_session_config` (19.3); exposing them to gyms is a later settings change.
+
+### Story 20.1: Loyalty Program Setting & Ledger Foundation
+
+As a gym Owner or Supervisor,
+I want a loyalty program I can switch on with my own N, K, and R, backed by a tamper-proof ledger,
+So that rewards are accounted for exactly once and nobody can edit a balance by hand.
+
+*Delivers FR-164 (data + RPC), FR-170 (no write path), NFR-022 (ledger shape), the FR-168 read rule. Migration 0116.*
+
+**Acceptance Criteria:**
+
+**Given** `gyms` has no loyalty settings
+**When** migration 0116 ships
+**Then** `gyms` gains `loyalty_enabled boolean not null default false`, `loyalty_guest_threshold` (N, CHECK 2–50), `loyalty_renewal_threshold` (K, CHECK 3–24), `loyalty_reward_days` (R, CHECK 1–30), with N/K/R nullable only while never configured and required (CHECK) when enabled; every existing gym is off
+
+**Given** each audited gym setting has exactly one write path (AD-32)
+**When** this story ships
+**Then** `set_loyalty_program(p_enabled, p_n, p_k, p_r)` is a `SECURITY DEFINER` RPC for Owner or Supervisor (via `private.current_member_role()`), suspension-aware, writing one audit row with old and new values; the four columns are pinned by **their own** BEFORE UPDATE trigger function (not a branch in `protect_super_admin_only_gym_columns()` and not 19.3's charging pin)
+
+**Given** loyalty is an append-only ledger (AD-30)
+**When** migration 0116 ships
+**Then** `loyalty_events` exists (`gym_id`, `member_id`, `event_type` in `stamp_earned`|`reward_granted`|`reward_consumed`|`reset`|`lapse`|`stamp_reversed`, `counter` in `guest`|`subscriber`, `origin_id uuid`, `occurred_at`, details) with a unique index on `(origin_id, event_type)`; RLS: staff of the gym and the member on their own rows may SELECT; no INSERT/UPDATE/DELETE policy and no direct table write grant for any client role; UPDATE/DELETE revoked beneath the policy layer like `audit_log` (NFR-004)
+
+**Given** progress is derived and per member per gym
+**When** migration 0116 ships
+**Then** `loyalty_progress` exists with one row per `(gym_id, member_id)` holding `guest_stamps`, `subscriber_stamps`, `guest_last_event_at`, `subscriber_last_event_at`, readable like `loyalty_events` and writable only by `private.` definer functions
+
+**Given** `guest_sessions.loyalty_grant_id` has no FK yet (19.3)
+**When** migration 0116 ships
+**Then** it references the `loyalty_events` row (`event_type = 'reward_granted'`) that granted it
+
+**Given** the app and dashboard must never show past-window progress as live (FR-168)
+**When** `effective_loyalty(p_member_id)` is called by the member (own row) or staff of the gym
+**Then** it returns guest and subscriber counts **with the idle window applied at read time** (90 days, or for subscribers the longer of 90 days and plan duration + grace period), the thresholds, unused free sessions with expiry, and unused paid sessions with lapse date; it is `STABLE` and never writes (OQ-B decision); it is the only source the app and dashboard use
+
+**Given** cross-gym isolation (NFR-001)
+**When** a member of two gyms reads loyalty
+**Then** pgTAP proves each gym's staff and each session see only that gym's rows
+
+---
+
+### Story 20.2: Guest Rule — Stamps on Paid Sessions, Free Session at N
+
+As a session guest,
+I want each paid session I use to count toward a free one,
+So that coming back regularly is rewarded.
+
+*Delivers FR-165, FR-166, the guest half of FR-164's lowered-threshold rule. Migration 0117. Fills 19.6b's `private.on_session_consumed()` hook.*
+
+**Acceptance Criteria:**
+
+**Given** `consume_guest_session` (19.6b) calls `private.on_session_consumed(session_id)` inside its member lock
+**When** the consumed session is a **paid** session and the gym has both `loyalty_enabled` and `charge_guests_per_session` on
+**Then** in the same transaction one `stamp_earned` (`counter = guest`, `origin_id` = the session id) is inserted and `loyalty_progress.guest_stamps` increments — applying the idle reset first if the previous guest event is outside the window
+
+**Given** a free session is consumed, or a check-in is *covered* by an already-consumed session, or either switch is off
+**When** the hook runs
+**Then** no stamp is earned; a consumed free session records `reward_consumed` instead
+
+**Given** the guest counter reaches N (or is already at or above a lowered N)
+**When** the stamp that reaches it is recorded
+**Then** in the same transaction a `reward_granted` event is inserted, a `guest_sessions` row is created linked to it with `usable_until` = now + `free_session_validity_days` (60), and the guest counter returns to 0 — exactly one reward, even if the counter was above N
+
+**Given** a free session exists
+**When** the member checks in
+**Then** it is consumed under FR-159's ordering (soonest-lapsing first; paid before free on a tie) and covers the gym-local day like a paid session
+
+**Given** a member moves off Pay-per-session holding an unused free session
+**When** they return to Pay-per-session before it lapses
+**Then** it is usable again; while on another plan it has no effect
+
+**Given** a replayed offline sync, a retried check-in, or a redelivered payment webhook
+**When** any of them re-runs consumption
+**Then** the `(origin_id, event_type)` unique index means no second stamp or reward is ever written (NFR-022); pgTAP proves each case
+
+**Given** nothing is awarded retroactively (FR-165)
+**When** the program is switched on
+**Then** sessions consumed earlier earn nothing
+
+**Given** 19.10's Guest sessions card counts free sessions given
+**When** free sessions are granted
+**Then** the card's figure reflects them (no change to 19.10's RPC needed beyond confirming it counts `loyalty_grant_id` rows)
+
+---
+
+### Story 20.3: Subscriber Rule — On-Time Renewal Stamps, R Free Days at K
+
+As a subscriber,
+I want renewing on time to count toward free days,
+So that staying loyal pays off.
+
+*Delivers FR-167, the subscriber half of FR-164's lowered-threshold rule, AD-18's R-day note. Migration 0118.*
+
+**Acceptance Criteria:**
+
+**Given** renewals are verified in several places
+**When** this story starts
+**Then** the developer enumerates every renewal-verification path by grep — at least `confirm_renewal` (latest 0090), `renew_subscription` (0090), `complete_verified_payment`'s subscription branch (0100:217), and the 0031 staff verification-queue path — and lists them in the migration header; each calls one shared `private.award_renewal_stamp(p_payment_id)` in the transaction that verifies the payment
+
+**Given** a verified renewal payment for the member's **current** plan (Monthly, Coach-inclusive, or Class-only) at a gym with the program on
+**When** `award_renewal_stamp` runs
+**Then** it runs under the member lock in the canonical order (on `complete_verified_payment` that lock is already taken on every branch since 19.5, so this story does not change that function's locking), and earns one `stamp_earned` (`counter = subscriber`, `origin_id` = the payment id) only if the payment was verified no later than the end of the gym-local day after the previous subscription's `expiry_date`, evaluated at verification time
+
+**Given** a payment-less override, a plan assignment or change, a staff back-dated renewal, a Pay-per-session plan, or a late renewal
+**When** any of them happens
+**Then** no stamp is earned and progress is not erased
+
+**Given** a second renewal is verified before the first period has ended
+**When** it is processed
+**Then** it earns nothing — at most one subscriber stamp per subscription period
+
+**Given** the subscriber counter reaches K (or is at or above a lowered K)
+**When** the stamp that reaches it is recorded
+**Then** in the same transaction a `reward_granted` event is inserted, the renewed subscription's `expiry_date` moves out by R days, the counter returns to 0, and no payment or amount is created or changed; the lifecycle job re-derives status from the new date on its next run (AD-18)
+
+**Given** the R free days moved `expiry_date`
+**When** the member's next renewal is judged on time or late
+**Then** it is judged against the **extended** `expiry_date`: the free days also push the next on-time deadline back by R days. This is intended (user decision, party-mode review 2026-10-11); no "original expiry" column is added, and pgTAP covers a renewal that is late against the original date but on time against the extended one
+
+**Given** a redelivered webhook or retried renewal
+**When** it re-runs verification
+**Then** no second stamp or extension is written (NFR-022); pgTAP covers each renewal path
+
+**Given** a renewal payment is later refunded
+**When** the refund is recorded
+**Then** the stamp and any free days it earned are **not** reversed (FR-162)
+
+---
+
+### Story 20.4: Refund Reversal, Lapses & 90-Day Reset Sweep
+
+As a gym owner,
+I want loyalty to stay honest when a consumed session is refunded and when rewards or progress expire,
+So that balances are always correct and every change is in the audit log.
+
+*Delivers FR-162's stamp reversal, FR-166's lapse, FR-168's persisted reset (OQ-B), FR-159's paid-session lapse audit. Migration 0119.*
+
+**Acceptance Criteria:**
+
+**Given** 19.8 calls `private.on_session_refunded_after_consumption(session_id)` when a consumed session's payment is refunded
+**When** that session had earned a guest stamp
+**Then** in the same transaction a `stamp_reversed` event is inserted and `guest_stamps` decrements by one, never below 0; a free session already granted is not taken back; a consumed **free** session's refund path cannot occur (free sessions have no payment)
+
+**Given** lapses and resets must be persisted and audited (OQ-B)
+**When** migration 0119 ships
+**Then** a daily `pg_cron` job (its own function and transaction, logging to `job_runs` under its own name, AD-19) records: a `lapse` event for each free session past 60 days and each unused paid session past 7 days (the session row itself is unchanged — `usable_until` already makes it unusable); and a `reset` event plus counter → 0 for each `loyalty_progress` counter outside its idle window; each one also written to the audit log
+
+**Given** the job runs twice, or misses a day
+**When** it next runs
+**Then** it records each lapse and reset exactly once (unique `(origin_id, event_type)`), and reads stay correct in the meantime because `effective_loyalty` applies windows at read time
+
+**Given** an earn and a sweep for the same member race
+**When** both run
+**Then** both take the member lock in the canonical order; pgTAP proves the result is the same as running them one after the other
+
+**Given** the ledger must reconstruct balances (NFR-022)
+**When** a pgTAP test replays a member's `loyalty_events` from zero
+**Then** the result equals `loyalty_progress` and the member's unused free sessions
+
+**Given** 19.0's runbook names how a failed job reaches a human
+**When** this job fails
+**Then** that mechanism fires for it too
+
+---
+
+### Story 20.5: Dashboard — Loyalty Settings & Member Loyalty View
+
+As a gym Owner or Supervisor,
+I want to switch loyalty on and see what it costs before I save, and my staff to see each member's progress,
+So that I can run the program with my eyes open.
+
+*Delivers FR-164 (UI), FR-169 (staff view). No migration.*
+
+**Acceptance Criteria:**
+
+**Given** the Settings page (Owner/Supervisor)
+**When** the Loyalty section renders
+**Then** it shows the on/off switch and N, K, R inputs with their ranges; as the user edits, a live readout shows the implied effective discount for each rule (e.g. "1 free session per 5 paid ≈ 17%", "30 days per 3 renewals of a 30-day plan ≈ 25%") `[UX]`; saving calls `set_loyalty_program`; validation follows UX-DR11
+
+**Given** Charge guests per session is off
+**When** the Loyalty section renders
+**Then** it states that the guest rule earns nothing while charging is off (FR-157/FR-165)
+
+**Given** lowering N or K
+**When** the owner saves
+**Then** a note explains that members at or above the new threshold earn one reward at their next qualifying event; nothing is erased
+
+**Given** a member's page in the dashboard
+**When** the gym's program is on (or the member holds unexpired rewards)
+**Then** it shows guest and subscriber progress ("3 / 5"), free sessions with expiry, and unused paid sessions with lapse date — all from `effective_loyalty`; there is no edit control for any role, Super Admin included (FR-170)
+
+**Given** every new string
+**When** the PR is opened
+**Then** EN/FR parity passes
+
+---
+
+### Story 20.6: Member App — Loyalty Card
+
+As a member,
+I want to see how close I am to my next reward and what free sessions or days I have,
+So that I know what I've earned.
+
+*Delivers FR-169 (member view). No migration. Ships in one mobile release.*
+
+**Acceptance Criteria:**
+
+**Given** the member's gym has the program on, or the member holds an unexpired free session
+**When** Home (or Profile, `[UX]` placement) renders
+**Then** a loyalty card shows progress toward the threshold for the counter that applies to the member's current plan ("3 / 5"), any free sessions with their expiry dates, and any unused paid sessions with their lapse dates — all from `effective_loyalty`, in the member's language
+
+**Given** progress has passed its idle window but the sweep has not run yet
+**When** the card renders
+**Then** it shows the reset value (read-time window), never the stale count
+
+**Given** the program is off and the member holds nothing
+**When** Home renders
+**Then** no loyalty card appears
+
+**Given** a member of two gyms
+**When** they switch gyms (AD-4)
+**Then** the card shows only the active gym's progress
+
+**Given** no reward push exists in V1.6
+**When** a reward is granted
+**Then** the member sees it the next time the card renders; no notification is sent
+
+**Given** a subscriber reward of R free days was granted
+**When** the card renders
+**Then** it says both that R free days were added and the new renewal date, so the moved date does not look like an error (copy `[UX]`)
+
+**Given** a mobile change costs a build and store cycle
+**When** this story is planned
+**Then** it ships with any other pending mobile work, and on-device QA covers: progress after a paid session, free session appears at N and is used next visit, subscriber progress after an on-time renewal
+
+---
+
+### Epic 21 — Stories
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 21.1 | Gym Category — Column, Setter & Super Admin | **0120** | 19.1 |
+| 21.2 | Settings — Gym Category Field (Owner/Supervisor) | none | 21.1 |
+
+*Independent of Epics 19–20: 21.1 may ship before them, in which case it takes the next free migration number at merge time and later stories renumber, never the reverse. Migration numbers above assume Epic order.*
+
+---
+
+### Story 21.1: Gym Category — Column, Setter & Super Admin
+
+As a Super Admin,
+I want to choose a gym's category when I create it and change it later,
+So that every gym is classified for V1.7's directory and landing pages.
+
+*Delivers FR-171 (data, setter, Super Admin create/edit) and FR-172. Migration **0120**. Architecture: AD-32 (stable code, own setter, own pin trigger, Super Admin admitted), AD-3 (role via `private.current_member_role()` / Super Admin check, never the JWT `app_role`). Precedent: 0105 `gyms.country` and the `createGym` action in `apps/super-admin/app/(admin)/gyms/actions.ts`.*
+
+**Acceptance Criteria:**
+
+**Given** migration 0120
+**When** it runs on a database with live gyms
+**Then** `gyms.category text NOT NULL DEFAULT 'gym'` is added with a CHECK limiting it to the five stable codes `gym`, `pilates_studio`, `yoga_studio`, `fitness_center`, `other`, and every existing gym reads `gym` in the same statement (FR-171 release default)
+
+**Given** the column exists
+**When** an authenticated user runs a direct `UPDATE gyms SET category = …` (Owner, Supervisor, Manager, or any other role)
+**Then** a dedicated BEFORE UPDATE pin trigger (`private.pin_gym_category()`, its own function, not a branch in `protect_super_admin_only_gym_columns()`) restores the old value unless the setter's own GUC is set, matching the 0098 `registration_fee` shape
+
+**Given** `set_gym_category(p_gym_id uuid, p_category text)` (`SECURITY DEFINER`, `search_path` pinned)
+**When** the caller is a Super Admin, or the Owner or Supervisor of that gym
+**Then** the category is updated and one `audit_log` row is written with old and new code, actor, and gym; a call that does not change the value writes no audit row
+
+**Given** the same setter
+**When** the caller is a Manager, Coach, Front Desk, member, or staff of another gym, or `p_category` is not one of the five codes
+**Then** it raises a typed error and nothing changes; the role check uses `private.current_member_role()` plus the Super Admin check, never `auth.jwt()->>'app_role'` (19.1 lint passes)
+
+**Given** function privileges (AD-3 convention, 0104)
+**When** the migration is applied
+**Then** EXECUTE on `set_gym_category` is revoked from `public` and `anon` and granted to `authenticated` only, and the trigger function is not executable by any client role; the hosted-privilege check from 19.1 passes
+
+**Given** `packages/types`
+**When** this story lands
+**Then** a `GYM_CATEGORIES` constant and `gymCategorySchema` (Zod enum of the five codes) exist, with EN/FR labels: Gym / Salle de sport, Pilates Studio / Studio Pilates, Yoga Studio / Studio Yoga, Fitness Center / Centre de fitness, Other / Autre (`[UX]` final wording); labels are never stored
+
+**Given** the Super Admin Create Gym modal
+**When** a Super Admin creates a gym
+**Then** a required Category select (default Gym / Salle de sport) is shown, validated by `gymCategorySchema` client-side and re-checked server-side in `createGym` before the first write, and the inserted gym carries that code (FR-071, FR-010); the pin trigger is BEFORE UPDATE only, so the insert is not affected
+
+**Given** the Super Admin gym detail page (`apps/super-admin/app/(admin)/gyms/[id]`, exists today)
+**When** a Super Admin changes the category
+**Then** it calls `set_gym_category` and the new label shows after save; the gyms list shows the category label in the admin's language
+
+**Given** "Autre / Other"
+**When** it is chosen
+**Then** no free-text field appears (FR-171, V1.6)
+
+**Given** any category
+**When** any screen, plan type, permission, or flow is used
+**Then** behavior is identical to today and product wording stays "gym" (FR-172); a test asserts the setter touches only `category`
+
+**Given** pgTAP / RLS tests
+**When** CI runs
+**Then** they cover: release default on existing rows, CHECK rejects an unknown code, direct UPDATE reverted for every client role, setter allowed for Super Admin/Owner/Supervisor and refused for the others, audit row content, no audit on a no-op
+
+---
+
+### Story 21.2: Settings — Gym Category Field (Owner/Supervisor)
+
+As a gym owner or supervisor,
+I want to see and change my gym's category on Settings,
+So that it describes what my business actually is.
+
+*Delivers FR-171 (Settings edit; amends FR-069). No migration.*
+
+**Acceptance Criteria:**
+
+**Given** an Owner or Supervisor on Settings
+**When** the gym profile section renders
+**Then** a Category select shows the current value's label in the user's language, with the five options
+
+**Given** they choose another category and save
+**When** the save runs
+**Then** it calls `set_gym_category` (not the generic gym update), shows a success toast, and the field reflects the stored value; a refusal shows the typed error message
+
+**Given** a Manager (or any role that can open Settings but is not Owner/Supervisor)
+**When** the section renders
+**Then** the category is shown read-only
+
+**Given** the existing Settings form schema (`gymSettingsSchema`)
+**When** the page saves other fields
+**Then** `category` is not part of that payload, so a general save can never be silently reverted by the pin trigger
+
+**Given** every new string
+**When** the PR is opened
+**Then** EN/FR parity passes
 
 ---
 
