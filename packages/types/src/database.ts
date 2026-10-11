@@ -2329,6 +2329,27 @@ export type Database = {
         Args: { p_member_id: string; p_method: string; p_reason: string }
         Returns: string
       }
+      record_session_payment: {
+        Args: { p_member_id: string; p_method: string; p_reason?: string }
+        Returns: {
+          consumed_at: string | null
+          covered_day: string | null
+          created_at: string
+          gym_id: string
+          id: string
+          loyalty_grant_id: string | null
+          member_id: string
+          payment_id: string | null
+          usable_until: string
+          voided_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "guest_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       renew_subscription: {
         Args: { p_member_id: string; p_reason: string }
         Returns: string

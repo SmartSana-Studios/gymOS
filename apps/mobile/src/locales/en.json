@@ -217,7 +217,8 @@
       "planUnavailable": "Plan unavailable",
       "loading": "Loading your payments…",
       "errorLoadFailed": "Couldn't load your payments. Check your connection and try again.",
-      "registrationFee": "Registration fee"
+      "registrationFee": "Registration fee",
+      "sessionPayment": "Session payment"
     },
     "checkins": {
       "empty": "No check-ins yet. Scan the QR at your gym to get started.",
@@ -270,7 +271,8 @@
     "unknownActor": "—",
     "statusLabel": "Status",
     "errorLoadFailed": "Couldn't load this receipt. Check your connection and try again.",
-    "registrationFee": "Registration fee"
+    "registrationFee": "Registration fee",
+    "sessionPayment": "Session payment"
   },
   "payments": {
     "status": {

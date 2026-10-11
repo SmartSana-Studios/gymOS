@@ -399,7 +399,9 @@ export default function HistoryScreen() {
                   const methodLabel = isPaymentMethod(item.method) ? t(PAYMENT_METHOD_LABEL_KEY[item.method]) : item.method;
                   const planLabel = item.isRegistrationFee
                     ? t('history.payments.registrationFee')
-                    : (item.planName ?? t('history.payments.planUnavailable'));
+                    : item.isSession
+                      ? t('history.payments.sessionPayment')
+                      : (item.planName ?? t('history.payments.planUnavailable'));
 
                   return (
                     <Pressable

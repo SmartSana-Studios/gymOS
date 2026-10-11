@@ -38,11 +38,13 @@ export const PAYMENT_METHOD_LABEL_KEY: Record<string, string> = {
   mobile_money: "payments.methods.mobileMoney",
 };
 
-// Story 18.6: payments.purpose ('subscription' | 'registration_fee'). The
+// Story 18.6: payments.purpose ('subscription' | 'registration_fee' | 'session'). The
 // Payments page shows the label wherever it renders a payment's purpose.
 export const PAYMENT_PURPOSE_LABEL_KEY: Record<string, string> = {
   subscription: "payments.purposes.subscription",
   registration_fee: "payments.purposes.registrationFee",
+  // Story 19.4: a desk or Tara session payment (purpose 'session', migration 0107).
+  session: "payments.purposes.session",
 };
 
 // Story 4.4/4.14: the three discrepancy types the Discrepancies section ever

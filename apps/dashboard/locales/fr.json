@@ -1041,7 +1041,8 @@
     "actionsButton": "Action :",
     "purposes": {
       "subscription": "Abonnement",
-      "registrationFee": "Frais d'inscription"
+      "registrationFee": "Frais d'inscription",
+      "session": "Paiement de séance"
     },
     "flaggedReasons": {
       "lateConfirmation": "Confirmé en retard",
@@ -1145,7 +1146,9 @@
       "guestChargingChanged": "Facturation des invités par séance modifiée",
       "planTypeChanged": "Type de formule modifié",
       "planPriceChanged": "Prix de la formule modifié",
-      "platformSessionConfigUpdated": "Valeurs par défaut des séances mises à jour"
+      "platformSessionConfigUpdated": "Valeurs par défaut des séances mises à jour",
+      "sessionPaymentRecorded": "Paiement de séance enregistré",
+      "sessionAttemptExpired": "Tentative de paiement de séance expirée"
     }
   },
   "saasBilling": {

@@ -4,6 +4,20 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-11 — Desk session payment (Story 19.4, migration 0108)
+
+Staff can sell a paid session at the front desk (`record_session_payment`). Database side plus labels only: the panel is 19.9, Tara is 19.5, consumption is 19.6b/19.7.
+
+1. **Expiry helper generalized.** `private.expire_stale_payment(member, gym, purpose)` replaces 0106's fee-only body and audits `<purpose>_attempt_expired` (so `session_attempt_expired`). It loops, because there is no one-per-member unique index for sessions and several stale rows are possible. `private.expire_stale_registration_fee_payment` stays as a one-line wrapper, so the three fee RPCs and their pgTAP suites are unchanged. Both stay SECURITY INVOKER (no suspension-coverage exclusion needed); callers carry the status guard.
+2. **Awaiting-fee predicate.** "Awaiting the registration fee" is `members.registration_fee_settled_at is null`, the predicate `enforce_registration_fee_settled` (0098) uses. It is checked before the plan: an awaiting member has no subscription yet, so the plan check would otherwise shadow it as `plan_not_per_session`.
+3. **Shared creation function.** `private.create_guest_session_for_payment(payment, member, gym)` is the only place a paid `guest_sessions` row is made (19.5 calls it from `complete_verified_payment`); `usable_until = now() + platform_session_config.paid_session_validity_days`. Invoker rights, not callable by clients.
+4. **Return and amount.** `record_session_payment(p_member_id, p_method, p_reason default null)` returns the `guest_sessions` row. Amount and currency come from the latest subscription's plan (`created_at desc, id desc`). Bank transfer is manager, supervisor and owner only. A second desk sale for the same member is allowed by design (no uniqueness index); the member row lock (FOR NO KEY UPDATE, after the payment-row expiry flag) serializes them.
+5. **Receipt.** There is no dashboard receipt surface, so "the receipt says so" is the member app's payment-detail label (`paymentDetail.sessionPayment`), plus list labels in both apps.
+6. **Deferred-revenue audit (19.3 review finding 16).** Audited every payments consumer for `purpose` bucketing. `gym_revenue_mtd()` and `platform_metrics()` sum all verified, non-voided payments, so a session counts in total revenue (correct) and no consumer reads it as a subscription or a renewal; the registration-fee sub-line filters `purpose = 'registration_fee'` and is unaffected. The dashboard refund picker filters `purpose = 'subscription'`, so sessions are already excluded (refunds are 19.8). The one blind spot was the member app, whose payment list fell through to "Plan unavailable" for a null-plan row; fixed here with `isSession`. A separate session revenue line is 19.8.
+7. **Concurrency limit.** pgTAP is one session, so true interleaving is not exercised; the suite asserts sequential double entry, and the function source (and 0108's verify block) pin the lock order.
+
+---
+
 ## 2026-10-11 — Charge-guests setting, session record and plan-type rules (Story 19.3, migration 0107)
 
 Foundation for per-session guest charging. Nothing reads the flag yet and it defaults off, so no gym changes behavior.

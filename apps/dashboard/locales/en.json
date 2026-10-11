@@ -1041,7 +1041,8 @@
     "actionsButton": "Action :",
     "purposes": {
       "subscription": "Subscription",
-      "registrationFee": "Registration fee"
+      "registrationFee": "Registration fee",
+      "session": "Session payment"
     },
     "flaggedReasons": {
       "lateConfirmation": "Confirmed late",
@@ -1145,7 +1146,9 @@
       "guestChargingChanged": "Guest session charging changed",
       "planTypeChanged": "Plan type changed",
       "planPriceChanged": "Plan price changed",
-      "platformSessionConfigUpdated": "Session platform defaults updated"
+      "platformSessionConfigUpdated": "Session platform defaults updated",
+      "sessionPaymentRecorded": "Session payment recorded",
+      "sessionAttemptExpired": "Session payment attempt expired"
     }
   },
   "saasBilling": {
