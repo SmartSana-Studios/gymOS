@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
 import { createGymSchema } from "@gymos/types";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
+import { DEFAULT_GYM_COUNTRY, listCountries } from "@/lib/countries";
 import type { TierOption } from "@/services/gyms";
 import { createGym } from "../actions";
 
@@ -18,6 +19,7 @@ interface FieldErrors {
   ownerPhone?: string;
   ownerEmail?: string;
   tierId?: string;
+  country?: string;
 }
 
 const initialForm = {
@@ -26,6 +28,7 @@ const initialForm = {
   ownerPhone: "",
   ownerEmail: "",
   tierId: "",
+  country: DEFAULT_GYM_COUNTRY,
   status: "active" as const,
 };
 
@@ -46,7 +49,8 @@ export function CreateGymModal({
   ) => void;
   tiers: TierOption[];
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const countryOptions = useMemo(() => listCountries(i18n.language), [i18n.language]);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [form, setForm] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -236,6 +240,26 @@ export function CreateGymModal({
           />
           {fieldErrors.ownerEmail && (
             <p className="text-sm text-red-600">{fieldErrors.ownerEmail}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="country">{t("gyms.create.country")}</Label>
+          <select
+            id="country"
+            value={form.country}
+            onChange={(e) => setForm({ ...form, country: e.target.value })}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            {countryOptions.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name} ({c.callingCode})
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">{t("gyms.create.countryHint")}</p>
+          {fieldErrors.country && (
+            <p className="text-sm text-red-600">{fieldErrors.country}</p>
           )}
         </div>
 

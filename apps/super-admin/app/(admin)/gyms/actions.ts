@@ -32,6 +32,7 @@ import {
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { generateTempPassword } from "@/lib/temp-password.mjs";
+import { isSupportedCountry } from "@/lib/countries";
 import { findUserByEmail } from "@/lib/super-admin-provisioning.mjs";
 
 export interface CreateGymResult {
@@ -295,6 +296,13 @@ export async function createGym(
   }
   const gym = parsed.data;
 
+  if (!isSupportedCountry(gym.country)) {
+    return {
+      data: null,
+      error: { code: "validation_error", message: t("gyms.create.countryInvalid") },
+    };
+  }
+
   // Step 1: fast-fail pre-check (real guarantee is the DB unique index).
   if (await gymNameExists(gym.gymName)) {
     return {
@@ -323,6 +331,7 @@ export async function createGym(
       name: gym.gymName,
       tierId: gym.tierId,
       status: gym.status,
+      country: gym.country,
     });
     gymRow = res.data;
     gymError = res.error;
@@ -478,6 +487,7 @@ export async function createGym(
     owner_name: gym.ownerName,
     owner_phone: gym.ownerPhone,
     tier_id: gym.tierId,
+    country: gym.country,
     // null, not false, on the linked path: no send was attempted, and `false`
     // is indistinguishable from a real WhatsApp failure in any aggregate over
     // the audit trail.

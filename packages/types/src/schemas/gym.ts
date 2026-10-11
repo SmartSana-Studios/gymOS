@@ -23,6 +23,11 @@ export const createGymSchema = z.object({
   ownerPhone: e164Phone,
   ownerEmail: z.email("Enter a valid email address"),
   tierId: z.uuid("Select a subscription tier"),
+  // ISO 3166-1 alpha-2 country of the gym (gyms.country, 0105): the default
+  // region for phone numbers entered without a country code. Defaulted so a
+  // caller that predates the field keeps working; membership in the real
+  // country list is re-checked server-side in createGym.
+  country: z.string().regex(/^[A-Z]{2}$/, "Select a country").default("CM"),
   status: gymStatusSchema.default("active"),
   /**
    * Story 1.17 code review. Proof the Super Admin was shown WHICH existing

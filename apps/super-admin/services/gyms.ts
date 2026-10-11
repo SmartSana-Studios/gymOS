@@ -935,11 +935,12 @@ export async function insertGym(input: {
   name: string;
   tierId: string;
   status: string;
+  country: string;
 }): Promise<{ data: { id: string } | null; error: AppError | null }> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("gyms")
-    .insert({ name: input.name, tier_id: input.tierId, status: input.status })
+    .insert({ name: input.name, tier_id: input.tierId, status: input.status, country: input.country })
     .select("id")
     .single();
 
