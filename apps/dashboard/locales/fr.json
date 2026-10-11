@@ -77,7 +77,7 @@
   },
   "settings": {
     "title": "Paramètres",
-    "saveHint": "Enregistrer applique les changements de toutes les sections ci-dessous, sauf Frais d'inscription, Facturation des invités par séance, Programme de fidélité et Catégorie, qui s'enregistrent séparément.",
+    "saveHint": "Enregistrer applique les changements de toutes les sections ci-dessous, sauf Frais d'inscription, Facturer les invités par séance, Programme de fidélité et Catégorie, qui s'enregistrent séparément.",
     "guestCharging": {
       "label": "Facturer les invités par séance",
       "hint": "Lorsque cette option est active, les membres au forfait Paiement par séance ont besoin d'une séance payée pour s'enregistrer. S'enregistre séparément.",
