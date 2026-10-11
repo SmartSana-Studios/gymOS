@@ -69,10 +69,7 @@ stage_static() {
 
 stage_pgtap() {
   set -e
-  docker run --rm --network host -e PGPASSWORD=postgres \
-    -v "$ROOT/supabase/tests:/t:ro" --entrypoint sh \
-    public.ecr.aws/supabase/pg_prove:3.36 \
-    -c "pg_prove -j1 -d postgres -h 127.0.0.1 -p $DB_PORT -U postgres /t/*.sql"
+  PGTAP_JOBS="${PGTAP_JOBS:-1}" "$ROOT/scripts/pgtap-run.sh"
 }
 
 stage_unit() {
