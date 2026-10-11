@@ -364,8 +364,9 @@ export type Database = {
           expiry_date: string | null
           gym_id: string
           id: string
+          kind: string
           member_id: string
-          status: Database["public"]["Enums"]["subscription_status"]
+          status: Database["public"]["Enums"]["subscription_status"] | null
         }
         Insert: {
           created_at?: string
@@ -374,8 +375,9 @@ export type Database = {
           expiry_date?: string | null
           gym_id: string
           id?: string
+          kind?: string
           member_id: string
-          status: Database["public"]["Enums"]["subscription_status"]
+          status?: Database["public"]["Enums"]["subscription_status"] | null
         }
         Update: {
           created_at?: string
@@ -384,8 +386,9 @@ export type Database = {
           expiry_date?: string | null
           gym_id?: string
           id?: string
+          kind?: string
           member_id?: string
-          status?: Database["public"]["Enums"]["subscription_status"]
+          status?: Database["public"]["Enums"]["subscription_status"] | null
         }
         Relationships: [
           {

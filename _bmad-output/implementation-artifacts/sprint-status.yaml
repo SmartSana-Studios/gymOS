@@ -402,7 +402,7 @@ development_status:
   19-3-charge-guests-setting-session-record-plan-type-rules: done
   19-4-desk-session-payment: done
   19-5-in-app-tara-money-session-payment: done
-  19-6a-front-desk-alert-kind-refactor-no-behavior-change: backlog
+  19-6a-front-desk-alert-kind-refactor-no-behavior-change: review
   19-6b-check-in-gate-blocked-attempts-session-required-alert: backlog
   19-7-class-attendance-consumes-a-session: backlog
   19-8-session-refunds-revenue-line: backlog
@@ -824,3 +824,5 @@ last_updated: 10-11-2026 15:30
 # last_updated: 2026-10-11 (build: 19-5 in-progress -> review. Migration 0109: initiate_session_payment (member; processing Tara payment, amount from latest plan, one in flight via partial unique index), complete_verified_payment rewritten (payment then member lock on every branch, session branch, late session for expired_attempt only), helper assertions (closes 19.4 triage #1/#2). pgTAP in_app_session_payment + .negative + complete_verified_payment_member_lock. database.ts spliced; audit labels session_payment_paid/session_late_payment EN/FR. decisions.md + deferred-work.md updated.)
 # last_updated: 2026-10-11 (build: 19-5 review pass, 3 layers, 26 findings: 2 test-only patches applied (member row-lock observed via pgrowlocks, mutation-checked; provider-inactive test repointed to a gym with credentials), 1 deferred (wrong_account production, trace for non-expired flagged success), rest rejected; ci-local static/pgtap/unit/e2e PASS on the dirty tree)
 # last_updated: 2026-10-11 (19-5 review -> done: PR #41 merged into epic/19 at b61a3ca after a clean-tree ci-local pass)
+# last_updated: 2026-10-11 (build: 19-6a backlog -> in-progress; spec-19-6a approved, index uses nulls not distinct because enum::text is not immutable)
+# last_updated: 2026-10-11 (build: 19-6a in-progress -> review. Migration 0110: kind column, nullable status under kind-aware CHECK, one-active index (member_id, kind, status) NULLS NOT DISTINCT swapped create-then-drop, check_in/mark_class_attendance ON CONFLICT rewritten (3 live clauses), protect trigger pins kind. pgTAP front_desk_alert_kind + .negative, rollback script rehearsed, database.ts spliced, decisions.md runbook. Review 3 layers, 14 findings: 3 patched, 2 deferred (dashboard readers kind filter; rollback harness), rest rejected. ci-local all PASS on dirty tree; grandfather list 52->53)
