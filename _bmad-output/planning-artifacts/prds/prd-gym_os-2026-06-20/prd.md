@@ -1007,7 +1007,7 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | Pay-per-session per-visit charging | **Moved into V1.6** (FR-156–FR-163; OQ-16 resolved) |
 | Gym landing pages, the template module, per-gym subdomains | V1.7 (Section 12) |
 | Country-by-country gym directory and SEO / AI-SEO | V1.7 (Section 12; depends on landing pages and FR-171) |
-| GymOS support staff (Super Admin-assigned, visible, full configuration incl. Tara Money; amends FR-072) | V1.7 (Section 12 E) |
+| GymOS support staff (Super Admin-assigned, visible, full configuration and transactions incl. Tara Money; amends FR-072) | V1.7 (Section 12 E) |
 | Category-specific behavior, wording, or plan types (FR-172) | V1.7 or later |
 | Attendance-based rewards for subscribers (e.g. N visits in a month) | Later, after V1.6 proves the renewal rule |
 | Discount or percentage rewards; referral rewards | Later — would touch payment amounts (FR-164) |
@@ -1064,7 +1064,7 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | OQ-23 | **Resolved (2026-10-11)** — no per-category wording in V1.6; revisited at V1.7 planning (FR-172). | — | — |
 | OQ-24 | **V1.7 landing pages and directory** — open before V1.7 planning: the minimum content a gym must enter before its page can be published; reserved and prohibited subdomain names and the impersonation / name-squatting policy; who can claim a name and how a gym renames; whether gyms outside Cameroon are listed in the first directory release; SEO ownership (content, structured data, AI-search surfaces); and whether the template module is built in the existing dashboard app or a separate public site. | Product owner (smartsana) | V1.7 planning (Section 12) |
 | OQ-25 | **Resolved (2026-10-11)** — class attendance by a Pay-per-session guest requires and consumes a paid session under the same rule as check-in (option a); booking stays free; the same session covers floor and class that day (FR-174). | — | — |
-| OQ-26 | **V1.7 support staff** — open before V1.7 planning: whether support staff may also record payments, refunds, and fee waivers (transactions, as opposed to configuration); whether a gym must opt in or may opt out of support at onboarding; and whether support accounts need a second login factor given their reach. | Product owner (smartsana) | V1.7 planning (Section 12 E) |
+| OQ-26 | **V1.7 support staff** — **partly resolved (2026-10-11):** support staff may do everything gym staff can, transactions included (recording payments, refunds, fee waivers), not only configuration (Section 12 E). Still open before V1.7 planning: whether a gym must opt in or may opt out of support at onboarding; and whether support accounts need a second login factor given their reach. | Product owner (smartsana) | V1.7 planning (Section 12 E) |
 
 ---
 
@@ -1141,6 +1141,7 @@ Recorded at the product owner's direction on 2026-10-11 so none of it is lost. *
 - **Created by Super Admin:** a Super Admin creates a support staff account (one per real person, own phone login, never shared) and assigns it to one or more gyms. Assignment is per gym, not automatic for every gym.
 - **Role:** a real staff membership in each assigned gym, ranked just below Owner (Supervisor scope), marked as support. It never becomes the Owner and cannot create or remove the Owner.
 - **What it may change:** any gym configuration — gym profile and settings, plans and prices, registration fee, guest charging and loyalty settings, category, staff, member records and imports — **including connecting or replacing the gym's Tara Money account** (FR-126/FR-127). Secrets go to Vault as today; the audit row records that credentials changed, never their value.
+- **Transactions too:** support staff may also record payments, refunds, and registration-fee waivers — everything gym staff can do (OQ-26, decided 2026-10-11).
 - **Visible to the gym:** it appears in the gym's staff list as "GymOS Support · {name}". The Owner can remove it at any time.
 - **Audited:** every action is logged under the named support person, like any staff action.
 - **Why visible and per gym:** a hidden account would need filtering from every staff list, count, notification, and metric, and one account present in every gym would let a single stolen password open them all.
