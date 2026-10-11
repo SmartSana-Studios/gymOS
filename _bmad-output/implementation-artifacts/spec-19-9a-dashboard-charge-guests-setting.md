@@ -92,6 +92,32 @@ context:
 | 15 | blind | Cancel disabled while saving, hung request | low | reject | Same pattern as existing dialogs. |
 | 16 | blind | Test weaknesses (order-dependent query, i18n mock, race refs) | low | reject | Cosmetic; check:i18n covers key parity. |
 
+### Review Findings
+
+Second review pass (2026-10-11, /bmad-code-review on merged diff `ea7581b..44057d8`).
+
+- [x] [Review][Patch] Turn-off dialog cannot confirm while the impact/count read fails — Stop is `disabled` unless `chargeImpact.status === "ready"`, and the off dialog only needs `validityDays` (falls back to 7), not the count. During a transient `guest_charging_impact()` failure an Owner cannot switch charging off (only Retry/Cancel). Resolved decision (delegated to reviewer, 2026-10-11): Stop stays enabled on error (disabled only while loading); the off dialog drops its count-error/Retry block and omits the validity line; the turn-on dialog keeps its ready gate. [SettingsForm.tsx:1401, actions.ts:getGuestChargingImpact] (blind-hunter+edge-case-hunter+acceptance-auditor)
+- [x] [Review][Patch] Plural keys `offKept_one`/`offKept_other` never exercised against real locale/i18next (test mock maps both to one string; `validityDays: 1` untested) [SettingsForm.guestCharging.test.tsx:188-218] (verification-gap+blind-hunter)
+- [x] [Review][Patch] Interaction guards untested: Escape `keyDown` handler, switch disabled while `chargeSaving`, stale-request guard `chargeImpactRequestRef` [SettingsForm.guestCharging.test.tsx:310-320] (verification-gap+acceptance-auditor+blind-hunter)
+- [x] [Review][Patch] FR `saveHint` names the section "Facturation des invités par séance" but the label/title say "Facturer les invités par séance" [fr.json:80] (acceptance-auditor+blind-hunter)
+
+#### Rejected
+
+- `limit(1)` unordered on `platform_session_config` (edge) — false: `platform_session_config_singleton` unique index (0107:273) guarantees one row.
+- `next = !chargeGuests` stale-tab direction (edge) — false: `chargeGuests` only changes in this handler, the dialog direction is derived from it, and the RPC write is idempotent.
+- No `revalidatePath`/`router.refresh` after toggle (blind) — low: same pattern as the sibling `saveRegistrationFee`; state is updated locally.
+- Suspended-gym owner sees generic message (edge) — low: spec mandates one fixed translated refusal message.
+- `getDashboardShellContext` throwing hides Settings (edge) — false: it returns `{data, error, suspended}`; page already treats failure as null role.
+- `?? 0` masks null count (blind) — false: RPC returns integer; same as triage #8.
+- `setGuestCharging` action has no own role check (acceptance-auditor) — false: RPC is the authorization boundary (triage #11).
+- Audit-label verification not evidenced (acceptance-auditor, blind) — false: `auditLabels.ts:62` maps `guest_charging_changed`; `auditLabels.epic19.test.ts:12` covers it.
+- Hint advertises Loyalty/Category sections (blind) — low: verbatim epic AC (triage #14).
+- Implementation Notes empty / spec `status: done` vs sprint `review` (blind, acceptance-auditor) — rejected: fix edits the spec under review.
+- Duplicated dialog markup, raw `amber-*` warning box (blind) — low: amber classes match existing warning boxes (SettingsForm.tsx:1011); duplication is cosmetic.
+- Live-region/`aria-describedby` gaps (blind) — low: addressed in triage #6; remainder cosmetic.
+- `onClose` mid-save / `showModal()` InvalidStateError (blind) — low: effect re-runs only when `chargeDialog` changes; not reachable in normal use.
+- Weak payload-exclusion substring test, validity-days guard tests (blind) — low: cosmetic (triage #12, #16).
+
 ## Verification
 
 **Commands:**

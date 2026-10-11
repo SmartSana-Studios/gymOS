@@ -3,7 +3,7 @@
  * confirmation dialogs, own-setter save, and exclusion from [Save Settings].
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const setGuestCharging = vi.fn();
@@ -219,18 +219,77 @@ describe("SettingsForm charge guests per session", () => {
     expect(toggle()).toHaveAttribute("aria-checked", "false");
   });
 
-  it("turn-off dialog disables Stop until the impact is ready and offers Retry on failure", async () => {
+  it("turn-off dialog keeps Stop enabled when the impact read fails, without the validity line", async () => {
     const user = userEvent.setup();
     getGuestChargingImpact.mockResolvedValueOnce({ data: null, error: { code: "unknown", message: "x" } });
     await renderForm({ charging: true });
     await user.click(toggle());
 
-    await waitFor(() => expect(screen.getAllByText("Couldn't count affected members.").length).toBeGreaterThan(0));
-    expect(screen.getByRole("button", { name: "Stop charging" })).toBeDisabled();
-    expect(screen.queryByText(/lapse/)).not.toBeInTheDocument();
-
-    await user.click(screen.getAllByRole("button", { name: "Retry" })[0]);
+    await waitFor(() => expect(getGuestChargingImpact).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByRole("button", { name: "Stop charging" })).toBeEnabled());
+    expect(screen.queryByText(/lapse/)).not.toBeInTheDocument();
+    const offDialog = screen.getByRole("button", { name: "Stop charging" }).closest("dialog")!;
+    expect(within(offDialog).queryByText("Couldn't count affected members.")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Stop charging" }));
+    await waitFor(() => expect(setGuestCharging).toHaveBeenCalledWith(false));
+  });
+
+  it("turn-off dialog disables Stop only while the impact is loading", async () => {
+    const user = userEvent.setup();
+    let resolveImpact: (v: unknown) => void = () => {};
+    getGuestChargingImpact.mockReturnValueOnce(new Promise((r) => (resolveImpact = r)));
+    await renderForm({ charging: true });
+    await user.click(toggle());
+
+    expect(screen.getByRole("button", { name: "Stop charging" })).toBeDisabled();
+    resolveImpact({ data: { count: 3, validityDays: 10 }, error: null });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Stop charging" })).toBeEnabled());
+  });
+
+  it("ignores an Escape keydown on the dialog", async () => {
+    const user = userEvent.setup();
+    await renderForm();
+    await user.click(toggle());
+    const dialog = screen.getAllByRole("button", { name: "Cancel" })[0].closest("dialog")!;
+
+    expect(fireEvent.keyDown(dialog, { key: "Escape" })).toBe(false);
+  });
+
+  it("disables the switch and Cancel while the save is in flight", async () => {
+    const user = userEvent.setup();
+    let resolveSave: (v: unknown) => void = () => {};
+    setGuestCharging.mockReturnValueOnce(new Promise((r) => (resolveSave = r)));
+    await renderForm();
+    await user.click(toggle());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Start charging" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Start charging" }));
+
+    await waitFor(() => expect(toggle()).toBeDisabled());
+    expect(screen.getAllByRole("button", { name: "Cancel" })[0]).toBeDisabled();
+
+    resolveSave({ data: { ok: true }, error: null });
+    await waitFor(() => expect(screen.getByText("Guests now pay per session.")).toBeVisible());
+  });
+
+  it("drops a late impact response after Cancel and re-open", async () => {
+    const user = userEvent.setup();
+    let resolveFirst: (v: unknown) => void = () => {};
+    getGuestChargingImpact
+      .mockReturnValueOnce(new Promise((r) => (resolveFirst = r)))
+      .mockResolvedValueOnce({ data: { count: 3, validityDays: 7 }, error: null });
+    await renderForm();
+    await user.click(toggle());
+    await user.click(screen.getAllByRole("button", { name: "Cancel" })[0]);
+    await user.click(toggle());
+    await waitFor(() =>
+      expect(screen.getByText("3 Pay-per-session members will need a paid session at their next visit.")).toBeInTheDocument(),
+    );
+
+    resolveFirst({ data: { count: 99, validityDays: 7 }, error: null });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText(/^99 Pay-per-session/)).not.toBeInTheDocument();
+    expect(screen.getByText("3 Pay-per-session members will need a paid session at their next visit.")).toBeInTheDocument();
   });
 
   it("turn-off dialog adds the stamps clause only when loyaltyEnabled", async () => {

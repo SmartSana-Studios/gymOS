@@ -1363,16 +1363,6 @@ export function SettingsForm({
                   {t("settings.guestCharging.impactLoading")}
                 </p>
               )}
-              {chargeImpact.status === "error" && (
-                <div className="space-y-2">
-                  <p role="alert" className="text-sm text-red-600">
-                    {t("settings.guestCharging.impactError")}
-                  </p>
-                  <Button type="button" variant="outline" size="sm" onClick={() => void loadChargeImpact()}>
-                    {t("settings.guestCharging.retry")}
-                  </Button>
-                </div>
-              )}
               {chargeImpact.status === "ready" && (
                 <p className="text-sm text-muted-foreground">
                   {t("settings.guestCharging.offKept", { count: chargeImpact.validityDays })}
@@ -1398,7 +1388,7 @@ export function SettingsForm({
                 </Button>
                 <Button
                   type="button"
-                  disabled={chargeSaving || chargeImpact.status !== "ready"}
+                  disabled={chargeSaving || chargeImpact.status === "loading"}
                   onClick={handleChargeConfirm}
                 >
                   {chargeSaving ? t("common.saving") : t("settings.guestCharging.stop")}
