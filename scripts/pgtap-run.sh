@@ -18,6 +18,11 @@ JOBS=${PGTAP_JOBS:-1}
 FILES=("$@")
 [ ${#FILES[@]} -gt 0 ] || FILES=(supabase/tests/*.test.sql)
 
+# `supabase test db` creates pgTAP itself; a freshly reset database has none.
+docker exec -e PGPASSWORD=postgres "$DB_CONTAINER" psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 \
+  -c "create extension if not exists pgtap with schema extensions" >/dev/null || {
+  echo "could not create the pgtap extension in $DB_CONTAINER" >&2; exit 2; }
+
 run_one() {
   local f=$1 out
   out=$(docker exec -i -e PGPASSWORD=postgres "$DB_CONTAINER" \

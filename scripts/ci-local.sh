@@ -109,6 +109,8 @@ stage_e2e() {
   export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY
   export SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
   export DASHBOARD_APP_URL=http://127.0.0.1:3100
+  # Idempotent (no-op once cached); CI does the same before the suite.
+  (cd apps/dashboard && npx playwright install chromium)
   # CI=1 matches the Actions environment: retries: 1, no server reuse, html report.
   CI=1 npx turbo run test:e2e --filter=@gymos/dashboard
 }
