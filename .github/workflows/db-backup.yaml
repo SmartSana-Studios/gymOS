@@ -43,6 +43,9 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
         run: |
           set -euo pipefail
+          # The runner ships Postgres 16 first on PATH; the server is 17.
+          export PATH="/usr/lib/postgresql/17/bin:$PATH"
+          pg_dump --version
           stamp=$(date -u +%Y-%m-%dT%H%MZ)
           endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
 
