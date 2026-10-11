@@ -25,8 +25,9 @@ export interface StatCardProps {
   tone?: "default" | "alert";
   /** Story 18.4: an optional secondary line under the value (the Revenue card's
    * "of which registration fees"). Pre-formatted like `value`; nothing renders
-   * when it is omitted, so every other card is unchanged. */
-  detail?: string;
+   * when it is omitted, so every other card is unchanged. Story 19.8: a list
+   * renders one line per entry (the Revenue card's fee and guest-session lines). */
+  detail?: string | string[];
 }
 
 export function StatCard({ label, value, href, tone = "default", detail }: StatCardProps) {
@@ -37,7 +38,11 @@ export function StatCard({ label, value, href, tone = "default", detail }: StatC
     >
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className={cn("text-2xl font-semibold", tone === "alert" && "text-destructive")}>{value}</p>
-      {detail ? <p className="mt-1 text-sm text-muted-foreground">{detail}</p> : null}
+      {(Array.isArray(detail) ? detail : detail ? [detail] : []).map((line, i) => (
+        <p key={i} className={cn("text-sm text-muted-foreground", i === 0 && "mt-1")}>
+          {line}
+        </p>
+      ))}
     </Link>
   );
 }

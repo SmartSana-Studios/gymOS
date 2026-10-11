@@ -7,7 +7,7 @@ import { getDashboardShellContext, type DashboardShellContext, type MemberRole }
 import { listActiveFrontDeskAlerts } from "@/services/frontDeskAlerts";
 import { getCurrentlyCheckedIn } from "@/services/attendance";
 import { listSubscriptions } from "@/services/subscriptions";
-import { getRegistrationFeeRevenueMtd, getRevenueMtd } from "@/services/payments";
+import { getRegistrationFeeRevenueMtd, getRevenueMtd, getSessionRevenueMtd } from "@/services/payments";
 import { getGymSettings } from "@/services/gym-settings";
 import { FrontDeskAlertPanel } from "@/components/shared/FrontDeskAlertPanel";
 import { StatCard } from "@/components/ui/stat-card";
@@ -124,6 +124,7 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
     { data: expiring, error: expiringError },
     { data: revenueMtd, error: revenueError },
     { data: feeRevenueMtd, error: feeRevenueError },
+    { data: sessionRevenueMtd, error: sessionRevenueError },
     { data: gymSettings, error: gymSettingsError },
   ] = await Promise.all([
     listActiveFrontDeskAlerts(),
@@ -140,6 +141,8 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
     // Story 18.4: the "of which registration fees" line. Both reads are for that
     // line alone -- a failure hides it and nothing else.
     getRegistrationFeeRevenueMtd(),
+    // Story 19.8: the separate "Guest sessions" line; a failure hides it alone.
+    getSessionRevenueMtd(),
     getGymSettings(),
   ]);
 
@@ -156,6 +159,10 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
     console.error(`OverviewData: getRegistrationFeeRevenueMtd failed -- ${feeRevenueError.message}`);
   }
 
+  if (sessionRevenueError) {
+    console.error(`OverviewData: getSessionRevenueMtd failed -- ${sessionRevenueError.message}`);
+  }
+
   if (gymSettingsError) {
     console.error(`OverviewData: getGymSettings failed -- ${gymSettingsError.message}`);
   }
@@ -170,6 +177,25 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
   // failed revenue read (the line sits under that figure), hides it.
   const showFeeLine =
     !revenueFailed && feeRevenueMtd != null && ((gymSettings?.registrationFee ?? 0) > 0 || feeRevenueMtd > 0);
+
+  // Story 19.8: session money is outside the headline (0113), so this is its
+  // own line, not an "of which". Shown when the gym charges guests per session
+  // or any session money exists this month; a failed read, or a failed headline
+  // read (the line sits under it), hides it without touching the figure.
+  const showSessionLine =
+    !revenueFailed &&
+    sessionRevenueMtd != null &&
+    ((gymSettings?.chargeGuestsPerSession ?? false) || sessionRevenueMtd > 0);
+
+  const revenueDetails: string[] = [];
+  if (showFeeLine) {
+    revenueDetails.push(
+      `${t("overview.cards.revenueOfWhichRegistrationFees")}: XAF ${feeRevenueMtd.toLocaleString(locale)}`,
+    );
+  }
+  if (showSessionLine) {
+    revenueDetails.push(`${t("overview.cards.guestSessions")}: XAF ${sessionRevenueMtd.toLocaleString(locale)}`);
+  }
 
   const unavailable = t("overview.cards.unavailable");
 
@@ -206,11 +232,7 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
         <StatCard
           label={t("overview.cards.revenueThisMonth")}
           value={revenueFailed ? unavailable : `XAF ${revenueMtd.toLocaleString(locale)}`}
-          detail={
-            showFeeLine
-              ? `${t("overview.cards.revenueOfWhichRegistrationFees")}: XAF ${feeRevenueMtd.toLocaleString(locale)}`
-              : undefined
-          }
+          detail={revenueDetails.length > 1 ? revenueDetails : revenueDetails[0]}
           href="/payments"
         />
       </div>

@@ -137,7 +137,12 @@ values
   ('private', 'send_push_notification',         'cron-owned, service_role, writes notifications'),
   ('private', 'send_payment_push_notification', 'cron-owned, service_role, writes notifications'),
   ('private', 'send_quiet_gym_alert',           'cron-owned, service_role; job already filters on gyms.status = active'),
-  ('private', 'send_class_reminder',            'cron-owned, service_role; job already filters on gyms.status = active');
+  ('private', 'send_class_reminder',            'cron-owned, service_role; job already filters on gyms.status = active'),
+
+  -- 0113 (Story 19.8): AFTER INSERT trigger on refunds. The insert itself is
+  -- gated by tenant_active_gate for every client role; a status guard here would
+  -- make a service_role refund raise and leave the refund and its session out of step.
+  ('private', 'apply_session_refund', 'after-insert trigger on refunds, reachable by authenticated only behind the gated refunds insert; voids the refunded session in the same transaction');
 
 -- ============================================================================
 -- The assertion that matters. Any SECURITY DEFINER function writing a gated

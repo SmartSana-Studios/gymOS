@@ -1035,3 +1035,13 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-7-class-attendance-consumes-a-session.md`
   summary: Epic 19 context says direct DELETE on `class_bookings` is revoked, but 0112 closes only INSERT/UPDATE column grants and keeps DELETE for `authenticated`/`service_role`.
   evidence: Spec scope is `attended_at` writes; `cancel_class_booking()` is a definer and the e2e teardown uses service_role DELETE, so DELETE may be revocable for `authenticated`. Decide in 19.12 whether to close it.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-8-session-refunds-revenue-line.md`
+  summary: Run scripts/session-refund-race.sh (or equivalent) in CI or document it as a pre-merge gate; the refund-vs-consume race is proven only manually.
+  evidence: pgTAP cannot run two sessions; the script is not referenced by ci-local.sh or workflows, so a lock-order edit to consume_guest_session or apply_session_refund would ship unproven.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-8-session-refunds-revenue-line.md`
+  summary: Decide whether platform_metrics() (0103) should exclude session payments now that gym_revenue_mtd() does.
+  evidence: 0103 still sums all verified non-voided payments; 19.8 intent excluded it, so platform "payments processed" and gym revenue now use different semantics.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-8-session-refunds-revenue-line.md`
+  summary: Add pg_temp last to search_path of the 0113 definer triggers (and the older ones) in a repo-wide hardening pass.
+  evidence: apply_session_refund and both audit triggers use search_path = public, matching 0101/0111 convention; temp relations resolve first.

@@ -48,6 +48,7 @@
       "expiringThisWeek": "Expirent cette semaine",
       "revenueThisMonth": "Revenus du mois",
       "revenueOfWhichRegistrationFees": "dont frais d'inscription",
+      "guestSessions": "Séances des invités",
       "activeMembers": "Membres actifs",
       "newThisMonth": "Nouveaux ce mois-ci",
       "todaysClasses": "Cours du jour",
@@ -1151,7 +1152,10 @@
       "sessionPaymentRecorded": "Paiement de séance enregistré",
       "sessionAttemptExpired": "Tentative de paiement de séance expirée",
       "sessionPaymentPaid": "Paiement de séance reçu",
-      "sessionLatePayment": "Paiement de séance tardif appliqué"
+      "sessionLatePayment": "Paiement de séance tardif appliqué",
+      "sessionRefundApplied": "Remboursement de séance appliqué",
+      "sessionConsumed": "Séance utilisée",
+      "sessionAttemptBlocked": "Séance requise : entrée refusée"
     }
   },
   "saasBilling": {

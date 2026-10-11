@@ -60,6 +60,7 @@ const INITIAL_SETTINGS = {
   checkinTimeoutHours: 12,
   gymToken: "token-1",
   registrationFee: 2500,
+  chargeGuestsPerSession: false,
 };
 
 async function renderForm() {

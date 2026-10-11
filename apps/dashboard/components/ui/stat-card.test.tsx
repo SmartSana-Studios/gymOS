@@ -47,6 +47,19 @@ describe("StatCard", () => {
     expect(screen.getByRole("link")).toContainElement(detail);
   });
 
+  it("renders a detail list as one separate line per entry inside the link (Story 19.8)", () => {
+    render(<StatCard label="Revenue this month" value="XAF 20,000" href="/payments" detail={["a", "b"]} />);
+
+    const link = screen.getByRole("link");
+    const a = screen.getByText("a");
+    const b = screen.getByText("b");
+    expect(link).toContainElement(a);
+    expect(link).toContainElement(b);
+    expect(a).not.toBe(b);
+    expect(a.tagName).toBe("P");
+    expect(b.tagName).toBe("P");
+  });
+
   it("renders no extra line when detail is omitted", () => {
     render(<StatCard label="Revenue this month" value="XAF 20,000" href="/payments" />);
 

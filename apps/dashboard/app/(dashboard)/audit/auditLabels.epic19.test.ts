@@ -17,6 +17,9 @@ const EPIC_19_ACTION_TYPES = [
   "session_attempt_expired",
   "session_payment_paid",
   "session_late_payment",
+  "session_refund_applied",
+  "session_consumed",
+  "session_attempt_blocked",
 ];
 
 function resolve(locale: unknown, key: string): unknown {

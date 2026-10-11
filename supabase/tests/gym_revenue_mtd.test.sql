@@ -20,7 +20,7 @@
 -- the suspension assertion pass for the wrong reason.
 
 begin;
-select plan(41);
+select plan(45);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0017-000000000001', 'Revenue MTD Test Tier', 5000, 50000, 30);
@@ -273,6 +273,23 @@ set local role authenticated;
 select is(gym_revenue_mtd(), 7700::bigint, 'voiding that fee payment takes it out of the total');
 
 select is(gym_registration_fee_revenue_mtd(), 0::bigint, 'the fee line is 0 when every fee payment is voided');
+
+-- Session payments (Story 19.8, 0113) leave the headline for their own line.
+reset role;
+insert into payments (id, gym_id, member_id, amount, currency, method, status, purpose, created_at) values
+  ('00000000-0000-0000-0017-000000000123', '00000000-0000-0000-0017-000000000011', '00000000-0000-0000-0017-000000000051', 3000, 'XAF', 'cash', 'verified', 'session', now());
+set local role authenticated;
+
+select is(gym_revenue_mtd(), 7700::bigint, 'a verified session payment is excluded from the headline');
+select is(gym_session_revenue_mtd(), 3000::bigint, 'positive control: the same session payment is in the session line');
+
+reset role;
+insert into refunds (id, gym_id, payment_id, amount, reason, actor_id, created_at) values
+  ('00000000-0000-0000-0017-000000000204', '00000000-0000-0000-0017-000000000011', '00000000-0000-0000-0017-000000000123', 1000, 'Revenue MTD session refund', '00000000-0000-0000-0017-000000000021', now());
+set local role authenticated;
+
+select is(gym_revenue_mtd(), 7700::bigint, 'a refund of a session payment does not reduce the headline');
+select is(gym_session_revenue_mtd(), 2000::bigint, 'it reduces the session line');
 
 -- ============================================================================
 -- Gym scoping.
