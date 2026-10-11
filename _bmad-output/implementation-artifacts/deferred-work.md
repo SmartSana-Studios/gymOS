@@ -988,10 +988,10 @@ of work.
 - Verify the `listPlans` `subscriptions(count)` embed against real PostgREST/RLS (e2e or integration); unit tests only cover a mocked chain. Safety net: RPC refusal plus `staleLocked`.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
-  summary: Decide whether a stale `pending` session payment must be expired (or ignored by the in-flight check) when 19.5 chooses the initial status of Tara session rows.
+  summary: ~~Decide whether a stale `pending` session payment must be expired (or ignored by the in-flight check) when 19.5 chooses the initial status of Tara session rows.~~ **Resolved 2026-10-11 (19.5, 0109)**: Tara session rows are created `processing`; a `pending` session payment is never produced by 19.5, and the in-flight index and RPC check both cover `pending` and `processing`.
   evidence: `record_session_payment` blocks on pending/processing but `expire_stale_payment` flips only `processing`; unverified because no pending session row is producible before 19.5 (0100 inserts Tara rows as processing). Medium if reachable.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
-  summary: Add payment/member/gym/purpose/verified/voided assertions inside `private.create_guest_session_for_payment` when 19.5 adds its second caller.
+  summary: ~~Add payment/member/gym/purpose/verified/voided assertions inside `private.create_guest_session_for_payment` when 19.5 adds its second caller.~~ **Resolved 2026-10-11 (19.5, 0109)**: the helper asserts a verified `session` payment for this member and gym (`invalid_session_payment`).
   evidence: The helper trusts its caller; only the payment_id unique index guards it. Safe today (private, EXECUTE revoked, one same-transaction caller) but a mismatched caller would mint a session.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
   summary: The 19.9 desk panel must disable submit while `record_session_payment` is in flight, because the RPC deliberately allows double entry.
@@ -1008,3 +1008,9 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
   summary: Block or void-cascade refunds of verified `purpose='session'` payments in 19.8.
   evidence: `private.block_fee_and_voided_refunds` (0101) rejects only `registration_fee` and voided payments, and the refunds INSERT policy allows owner/manager. The dashboard picker's `purpose = 'subscription'` filter is UI only, so a direct insert refunds a session payment while its `guest_sessions` row stays usable. decisions.md item 6 ("already excluded") overstates this.
+
+## Deferred from: code review of spec-19-5-in-app-tara-money-session-payment (2026-10-11)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-5-in-app-tara-money-session-payment.md`
+  summary: Decide how a Tara payment is flagged `wrong_account` and give staff a trace when a session payment flagged for another reason (`staff_flagged`, `reconciliation_mismatch`, `provider_declined`) later receives a success.
+  evidence: 0109 never creates a session for those rows and writes only a `raise notice`; the registration-fee branch writes `registration_fee_late_payment`. The payment-webhook leaves a gym mismatch to reconciliation, so no code path produces `wrong_account` on a payment row yet (0106 header says "first produced by 19.5"). The row stays visible as flagged, so staff can find it; the open question is whether that is enough.

@@ -390,7 +390,7 @@ select is(
 insert into payments (id, gym_id, member_id, amount, currency, method, status, purpose, created_at) values
   ('00000000-0000-0000-0000-000000033056', '00000000-0000-0000-0000-000000033011', '00000000-0000-0000-0000-000000033035',
    2000, 'XAF', 'mtn_momo', 'processing', 'session', now() - interval '20 minutes'),
-  ('00000000-0000-0000-0000-000000033057', '00000000-0000-0000-0000-000000033011', '00000000-0000-0000-0000-000000033035',
+  ('00000000-0000-0000-0000-000000033057', '00000000-0000-0000-0000-000000033011', '00000000-0000-0000-0000-000000033037',
    2000, 'XAF', 'mtn_momo', 'pending', 'session', now() - interval '20 minutes');
 
 select private.expire_stale_registration_fee_payment('00000000-0000-0000-0000-000000033035', '00000000-0000-0000-0000-000000033011');
@@ -400,6 +400,10 @@ select is(
   'processing',
   'the fee wrapper leaves a stale processing session payment alone'
 );
+
+-- 0109's in-flight index allows one in-flight session payment per member, so the
+-- pending row sits on another member and goes through the generic helper.
+select private.expire_stale_payment('00000000-0000-0000-0000-000000033037', '00000000-0000-0000-0000-000000033011', 'session');
 
 select is(
   (select p.status::text from payments p where p.id = '00000000-0000-0000-0000-000000033057'),

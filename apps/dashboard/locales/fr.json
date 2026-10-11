@@ -1148,7 +1148,9 @@
       "planPriceChanged": "Prix de la formule modifié",
       "platformSessionConfigUpdated": "Valeurs par défaut des séances mises à jour",
       "sessionPaymentRecorded": "Paiement de séance enregistré",
-      "sessionAttemptExpired": "Tentative de paiement de séance expirée"
+      "sessionAttemptExpired": "Tentative de paiement de séance expirée",
+      "sessionPaymentPaid": "Paiement de séance reçu",
+      "sessionLatePayment": "Paiement de séance tardif appliqué"
     }
   },
   "saasBilling": {

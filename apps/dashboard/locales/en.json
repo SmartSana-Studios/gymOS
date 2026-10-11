@@ -1148,7 +1148,9 @@
       "planPriceChanged": "Plan price changed",
       "platformSessionConfigUpdated": "Session platform defaults updated",
       "sessionPaymentRecorded": "Session payment recorded",
-      "sessionAttemptExpired": "Session payment attempt expired"
+      "sessionAttemptExpired": "Session payment attempt expired",
+      "sessionPaymentPaid": "Paid session payment received",
+      "sessionLatePayment": "Late paid session payment applied"
     }
   },
   "saasBilling": {
