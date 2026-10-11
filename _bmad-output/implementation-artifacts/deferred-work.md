@@ -1002,3 +1002,9 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
   summary: Add a service-mapping test for `isSession` in `apps/mobile/src/services/payments.ts` once the mobile package has test setup.
   evidence: apps/mobile has no test files; reverting the mapping would show "Plan unavailable" for a paid session with no failing test.
+
+## Deferred from: code review of spec-19-4-desk-session-payment (2026-10-11)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
+  summary: Block or void-cascade refunds of verified `purpose='session'` payments in 19.8.
+  evidence: `private.block_fee_and_voided_refunds` (0101) rejects only `registration_fee` and voided payments, and the refunds INSERT policy allows owner/manager. The dashboard picker's `purpose = 'subscription'` filter is UI only, so a direct insert refunds a session payment while its `guest_sessions` row stays usable. decisions.md item 6 ("already excluded") overstates this.

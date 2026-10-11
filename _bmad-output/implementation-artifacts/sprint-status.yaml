@@ -400,7 +400,7 @@ development_status:
   19-1-ci-guardrails-live-role-lint-gate-hosted-privilege-check: done
   19-2-flagged-payment-reason-late-vs-wrong-account: done
   19-3-charge-guests-setting-session-record-plan-type-rules: done
-  19-4-desk-session-payment: review
+  19-4-desk-session-payment: done
   19-5-in-app-tara-money-session-payment: backlog
   19-6a-front-desk-alert-kind-refactor-no-behavior-change: backlog
   19-6b-check-in-gate-blocked-attempts-session-required-alert: backlog
@@ -819,3 +819,4 @@ last_updated: 10-11-2026 15:30
 # last_updated: 2026-10-11 (build: 19-4 ready-for-dev -> in-progress. Implementation dispatched from spec; baseline fdb2f83.)
 # last_updated: 2026-10-11 (build: 19-4 in-progress -> review. Migration 0108: record_session_payment (owner/manager/supervisor/receptionist, bank_transfer manager+; amount from latest plan; returns guest_sessions row), private.create_guest_session_for_payment, purpose-generic private.expire_stale_payment with the fee helper as wrapper. pgTAP desk_session_payment + .negative (71 assertions, full suite 115/115). database.ts spliced. Dashboard purposes/audit labels, mobile isSession list/receipt labels, EN/FR. decisions.md: helper generalization, awaiting predicate, deferred-revenue audit result (19.3 review #16: no bucketing bug; mobile list fallthrough fixed).)
 # last_updated: 2026-10-11 (build: 19-4 review pass -> review. 3 layers, 19 findings: 0 patch, 0 loopback, 5 deferred (pending-expiry, create_guest_session caller validation, desk double-submit -> 19.9, revenue/refund consumer pins -> 19.8, mobile isSession test), 14 rejected. Spec in-review.)
+# last_updated: 2026-10-11 (code-review: 19-4 second pass, 4 layers, 18 findings: 1 patch applied (pgTAP fixtures pinning expire_stale_payment purpose/status filters; mutation-checked, desk_session_payment 43/43), 2 deferred (session refund via direct refunds insert -> 19.8; stale pending already tracked), 15 rejected. review -> done.)

@@ -11,7 +11,7 @@
 -- UPDATE, so it does not conflict with FK-key lookups from guest_sessions.
 
 begin;
-select plan(38);
+select plan(43);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000033001', 'Desk Session Tier', 6000, 60000, null);
@@ -357,5 +357,54 @@ select is(
   'a fresh attempt is not expired'
 );
 
+-- The helper's purpose and status filters. A session sale must leave another
+-- purpose's stale attempt and an old verified payment alone, and the fee
+-- wrapper must leave stale session rows (processing or pending) alone.
+insert into payments (id, gym_id, member_id, amount, currency, method, status, purpose, created_at) values
+  ('00000000-0000-0000-0000-000000033054', '00000000-0000-0000-0000-000000033011', '00000000-0000-0000-0000-000000033037',
+   5000, 'XAF', 'mtn_momo', 'processing', 'registration_fee', now() - interval '20 minutes'),
+  ('00000000-0000-0000-0000-000000033055', '00000000-0000-0000-0000-000000033011', '00000000-0000-0000-0000-000000033037',
+   2000, 'XAF', 'cash', 'verified', 'session', now() - interval '20 minutes');
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000033024","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000033011","app_role":"receptionist"}', true);
+select lives_ok(
+  $$ select record_session_payment('00000000-0000-0000-0000-000000033037', 'cash') $$,
+  'a sale runs with stale rows of another purpose and an old verified session payment present'
+);
+reset role;
+
+select is(
+  (select p.status::text from payments p where p.id = '00000000-0000-0000-0000-000000033054'),
+  'processing',
+  'a session sale leaves a stale processing registration_fee payment alone'
+);
+
+select is(
+  (select row(p.status::text, p.flagged_reason)::text from payments p where p.id = '00000000-0000-0000-0000-000000033055'),
+  row('verified', null::text)::text,
+  'a session sale leaves an old verified session payment alone'
+);
+
+insert into payments (id, gym_id, member_id, amount, currency, method, status, purpose, created_at) values
+  ('00000000-0000-0000-0000-000000033056', '00000000-0000-0000-0000-000000033011', '00000000-0000-0000-0000-000000033035',
+   2000, 'XAF', 'mtn_momo', 'processing', 'session', now() - interval '20 minutes'),
+  ('00000000-0000-0000-0000-000000033057', '00000000-0000-0000-0000-000000033011', '00000000-0000-0000-0000-000000033035',
+   2000, 'XAF', 'mtn_momo', 'pending', 'session', now() - interval '20 minutes');
+
+select private.expire_stale_registration_fee_payment('00000000-0000-0000-0000-000000033035', '00000000-0000-0000-0000-000000033011');
+
+select is(
+  (select p.status::text from payments p where p.id = '00000000-0000-0000-0000-000000033056'),
+  'processing',
+  'the fee wrapper leaves a stale processing session payment alone'
+);
+
+select is(
+  (select p.status::text from payments p where p.id = '00000000-0000-0000-0000-000000033057'),
+  'pending',
+  'the expiry helper never touches a pending row'
+);
 select * from finish();
 rollback;

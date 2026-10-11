@@ -113,3 +113,30 @@ context:
 
 **Commands:**
 - `bash scripts/ci-local.sh` -- expected: static, pgtap, unit, e2e PASS
+
+### Review Findings
+
+Second review pass (2026-10-11), 4 layers (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor), baseline fdb2f83. Most findings repeat the first pass's triage log above and keep that disposition.
+
+- [x] [Review][Patch] Expiry helper's `purpose` and `status = 'processing'` filters are pinned by no test [supabase/tests/desk_session_payment.test.sql] — add fixtures: a stale processing `registration_fee` row and an old (>10 min) `verified` session row for the same member must stay untouched after `record_session_payment`; a stale processing `session` row must stay untouched after the fee wrapper. Dropping either predicate today leaves every assertion green, and the wrapper is called by the three live fee RPCs.
+- [x] [Review][Defer] Verified `purpose='session'` payments are refundable by direct `refunds` insert [supabase/migrations/0101_registration_fee_void_refund_revenue.sql:153-185] — deferred: refunds are 19.8 (Never-list). `block_fee_and_voided_refunds` blocks only `registration_fee` and voided payments, so decisions.md item 6's "sessions already excluded" is true of the picker UI only; a refund would leave the `guest_sessions` row usable. 19.8 must block or void-cascade this.
+- [x] [Review][Defer] Stale `pending` session payment blocks desk sales (repeat of triage #1) — deferred: already in deferred-work.md; no `pending` session row is producible before 19.5.
+
+**Rejected**
+
+- Multi-row stale fee payments now audit once per row, so the wrapper is not identical to 0106 — false: `payments_one_registration_fee_per_member` allows at most one such row, so the loop runs at most once for the fee wrapper.
+- Spec frontmatter `status: 'done'` disagrees with sprint-status — rejected: fix edits the spec under review; step 6 of this review sets the status.
+- Receipt key `paymentDetail.sessionPayment` vs frozen `paymentDetail.session` — low, cosmetic (repeat of #8); visible EN/FR text is correct.
+- Error codes lack a `<code>:` prefix for invalid_method / reason too long / not active — false (repeat of #7): matches matrix wording and 0100's `record_registration_fee`.
+- `authenticated` EXECUTE not asserted on `expire_stale_payment` and the wrapper — false: same revoke-from-public pattern as `create_guest_session_for_payment`, whose `authenticated` denial is asserted, and `private` is not an exposed API schema.
+- Lock-order / "SECURITY INVOKER" checks are source-text matches; no interleaved test — low, acknowledged limit (decisions.md item 7, spec permits the fallback); a two-session test is not possible in pgTAP.
+- Concurrency task checked off without an artifact — rejected: fix edits the spec; the limit is documented as the spec allows.
+- No server guard against desk double entry — repeat of #11; allowed by design, 19.9 owns the button state.
+- Missing boundary tests (10-minute edge, voided/flagged not blocking, `session_config_missing`, inverse latest plan) — low (repeat of #16); predicates are literal and the matrix rows are covered.
+- Expiry runs before member validation and rolls back on a later refusal — low (repeat of #5); documented in the migration header's check order.
+- Flagged session rows on dashboard confirm/reject/CSV with null `subscription_id` — repeat of #12; tracked for 19.8 in deferred-work.md.
+- Audit list shows a flat label without metadata — low; every audit label in `auditLabels.ts` is flat, so this matches the existing renderer.
+- No member-facing signal for a desk sale — low (repeat of #9/#17); out of scope.
+- `usable_until` test hardcodes 7 days — low; the default is seeded by 0107 and the test sets its own config row at line 259 for the variant case.
+- Dashboard AC 3 shown only for a pending row — low; `PAYMENT_PURPOSE_LABEL_KEY` is the one purpose-to-label map shared by every list, so the map entry covers verified rows.
+- Mobile `isSession` untested — repeat of #13, already deferred.
