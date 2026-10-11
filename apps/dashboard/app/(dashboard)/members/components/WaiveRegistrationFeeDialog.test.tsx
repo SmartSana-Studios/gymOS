@@ -42,6 +42,23 @@ describe("WaiveRegistrationFeeDialog (Story 18.6)", () => {
     expect(en.members.feeWaive.body).toMatch(/cannot be undone/i);
   });
 
+  it("fills the mandatory reason from the Session guest preset chip, which meets the minimum", async () => {
+    const user = userEvent.setup();
+    await renderDialog();
+
+    const confirm = screen.getByRole("button", { name: "members.feeWaive.confirmButton|Alice" });
+    expect(confirm).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "members.feeWaive.presetSessionGuest" }));
+    expect(screen.getByLabelText("members.feeWaive.reason")).toHaveValue("members.feeWaive.presetSessionGuest");
+    expect(confirm).toBeEnabled();
+
+    const en = (await import("@/locales/en.json")).default as { members: { feeWaive: { presetSessionGuest: string } } };
+    const fr = (await import("@/locales/fr.json")).default as { members: { feeWaive: { presetSessionGuest: string } } };
+    expect(en.members.feeWaive.presetSessionGuest).toBe("Session guest");
+    expect(fr.members.feeWaive.presetSessionGuest).toBe("Invité à la séance");
+    expect(en.members.feeWaive.presetSessionGuest.length).toBeGreaterThanOrEqual(10);
+  });
+
   it("keeps the confirm disabled until the reason has 10 characters", async () => {
     const user = userEvent.setup();
     await renderDialog();

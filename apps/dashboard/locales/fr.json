@@ -312,6 +312,10 @@
     "delete": "Supprimer",
     "actionsMenu": "Actions pour {{name}}",
     "priceLabel": "XAF {{price}} / {{interval}}",
+    "pricePerSessionLabel": "XAF {{price}} / séance",
+    "typeLocked": {
+      "reason": "Cette formule a des membres : son type ne peut pas être modifié. Créez plutôt une nouvelle formule."
+    },
     "discountSuffix": "(remise de {{percent}} %)",
     "intervalMonthly": "mensuel",
     "intervalAnnual": "annuel",
@@ -340,6 +344,9 @@
       "name": "Nom de la formule *",
       "planType": "Type de formule *",
       "price": "Prix (XAF) *",
+      "pricePerSession": "Prix par séance (XAF) *",
+      "priceChangeNote": "Modifier le prix ne change pas les séances déjà payées.",
+      "priceZeroNote": "À 0 XAF, les membres de cette formule n'ont jamais besoin de séance payée.",
       "durationDays": "Durée (jours) *",
       "billingInterval": "Intervalle de facturation *",
       "annualDiscountPercent": "Remise annuelle (%) *",
@@ -643,6 +650,7 @@
       "collectedInviteFailedToast": "Frais d'inscription encaissés pour {{name}}, mais l'invitation WhatsApp n'a pas pu être envoyée. Utilisez Envoyer l'invitation dans le menu de la ligne."
     },
     "feeWaive": {
+      "presetSessionGuest": "Invité à la séance",
       "title": "Exonérer {{name}} des frais d'inscription ?",
       "body": "{{name}} sera considéré comme à jour sans paiement. Cette action ne peut pas être annulée depuis le tableau de bord.",
       "reason": "Motif *",
@@ -1133,7 +1141,11 @@
       "registrationFeeAttemptExpired": "Collecte des frais d'inscription expirée",
       "registrationFeeLatePayment": "Frais d'inscription payés en retard par Tara Money (non appliqués)",
       "registrationFeeVoided": "Frais d'inscription annulés",
-      "memberPlanAssigned": "Première formule attribuée"
+      "memberPlanAssigned": "Première formule attribuée",
+      "guestChargingChanged": "Facturation des invités par séance modifiée",
+      "planTypeChanged": "Type de formule modifié",
+      "planPriceChanged": "Prix de la formule modifié",
+      "platformSessionConfigUpdated": "Valeurs par défaut des séances mises à jour"
     }
   },
   "saasBilling": {

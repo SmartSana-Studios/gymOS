@@ -463,6 +463,64 @@ export type Database = {
           },
         ]
       }
+      guest_sessions: {
+        Row: {
+          consumed_at: string | null
+          covered_day: string | null
+          created_at: string
+          gym_id: string
+          id: string
+          loyalty_grant_id: string | null
+          member_id: string
+          payment_id: string | null
+          usable_until: string
+          voided_at: string | null
+        }
+        Insert: {
+          consumed_at?: string | null
+          covered_day?: string | null
+          created_at?: string
+          gym_id: string
+          id?: string
+          loyalty_grant_id?: string | null
+          member_id: string
+          payment_id?: string | null
+          usable_until: string
+          voided_at?: string | null
+        }
+        Update: {
+          consumed_at?: string | null
+          covered_day?: string | null
+          created_at?: string
+          gym_id?: string
+          id?: string
+          loyalty_grant_id?: string | null
+          member_id?: string
+          payment_id?: string | null
+          usable_until?: string
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_sessions_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_sessions_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_sessions_payment_id_fkey"
+            columns: ["payment_id"]
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gym_payment_credentials: {
         Row: {
           business_id_masked: string
@@ -525,6 +583,7 @@ export type Database = {
         Row: {
           alert_auto_dismiss_minutes: number
           capacity: number | null
+          charge_guests_per_session: boolean
           checkin_timeout_hours: number
           class_booking_cancellation_cutoff_minutes: number
           closing_time: string | null
@@ -551,6 +610,7 @@ export type Database = {
         Insert: {
           alert_auto_dismiss_minutes?: number
           capacity?: number | null
+          charge_guests_per_session?: boolean
           checkin_timeout_hours?: number
           class_booking_cancellation_cutoff_minutes?: number
           closing_time?: string | null
@@ -577,6 +637,7 @@ export type Database = {
         Update: {
           alert_auto_dismiss_minutes?: number
           capacity?: number | null
+          charge_guests_per_session?: boolean
           checkin_timeout_hours?: number
           class_booking_cancellation_cutoff_minutes?: number
           closing_time?: string | null
@@ -1085,6 +1146,27 @@ export type Database = {
             referencedColumns: ["subscription_id"]
           },
         ]
+      }
+      platform_session_config: {
+        Row: {
+          free_session_validity_days: number
+          id: string
+          loyalty_idle_reset_days: number
+          paid_session_validity_days: number
+        }
+        Insert: {
+          free_session_validity_days: number
+          id?: string
+          loyalty_idle_reset_days: number
+          paid_session_validity_days: number
+        }
+        Update: {
+          free_session_validity_days?: number
+          id?: string
+          loyalty_idle_reset_days?: number
+          paid_session_validity_days?: number
+        }
+        Relationships: []
       }
       plans: {
         Row: {
@@ -2061,6 +2143,7 @@ export type Database = {
           is_authoring_coach: boolean
         }[]
       }
+      guest_charging_impact: { Args: never; Returns: number }
       gym_effective_member_cap: { Args: never; Returns: number }
       gym_local_period_bounds: {
         Args: never
@@ -2265,6 +2348,7 @@ export type Database = {
       run_quiet_gym_alert_job: { Args: never; Returns: undefined }
       run_saas_billing_lifecycle_job: { Args: never; Returns: undefined }
       run_subscription_lifecycle_job: { Args: never; Returns: undefined }
+      set_guest_charging: { Args: { p_enabled: boolean }; Returns: undefined }
       set_registration_fee: { Args: { p_amount: number }; Returns: undefined }
       staff_account_for_reset: {
         Args: { p_member_id: string }
@@ -2310,6 +2394,17 @@ export type Database = {
       }
       update_own_owner_notification_email: {
         Args: { p_email: string }
+        Returns: undefined
+      }
+      update_plan_pricing: {
+        Args: {
+          p_annual_discount_percent: number | null
+          p_billing_interval: Database["public"]["Enums"]["billing_interval"]
+          p_duration_days: number | null
+          p_plan_id: string
+          p_plan_type: Database["public"]["Enums"]["plan_type"]
+          p_price: number
+        }
         Returns: undefined
       }
       update_staff_role: {

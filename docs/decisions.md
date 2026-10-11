@@ -4,6 +4,21 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-11 — Charge-guests setting, session record and plan-type rules (Story 19.3, migration 0107)
+
+Foundation for per-session guest charging. Nothing reads the flag yet and it defaults off, so no gym changes behavior.
+
+1. **Flag pin and GUC.** `gyms.charge_guests_per_session` is `NOT NULL DEFAULT false` (19.12 will `SET DEFAULT true`; never `ADD COLUMN ... DEFAULT true`). `set_guest_charging(boolean)` is its only write path and the only holder of the `app.guest_charging_update_bypass` GUC. The pin is its own BEFORE UPDATE OF trigger function (`private.protect_charge_guests_per_session`), not a branch of `protect_super_admin_only_gym_columns()`, and it has no super-admin or `service_role` exemption. Roles are read with `private.current_member_role()` (a forged `app_role` claim is ignored), then the suspension guard, then the write.
+2. **Shape-column coupling.** `update_plan_pricing(p_plan_id, p_plan_type, p_price, p_duration_days, p_billing_interval, p_annual_discount_percent)` writes all five columns in one UPDATE, because the 0017 CHECKs tie `duration_days`, `billing_interval` and `annual_discount_percent` to `plan_type` and a type change cannot satisfy them across two statements. A type change once any subscription references the plan raises `plan_type_locked` (SQLSTATE 23514); a price change is always allowed and never touches `guest_sessions`.
+3. **Plan pin.** `plans.plan_type` and `plans.price` are reverted for `authenticated`/`anon` by `current_user`, like 0099's purpose pin. The RPC runs as the definer so it needs no GUC, and `service_role` maintenance still works. Existing tests that updated `plans.price` directly (`membership_plans_rls`) now assert the pin.
+4. **Impact definition.** `guest_charging_impact()` counts `role = 'member'`, not deactivated, whose latest subscription (by `created_at`) is on a `pay_per_session` plan with price > 0. No status filter: pay-per-session rows have no meaningful expiry.
+5. **Session record.** `guest_sessions` is SELECT-only for clients. The local default privileges also hand out TRUNCATE (which bypasses RLS), so the migration revokes ALL then grants SELECT; do the same for any future definer-written table. It carries `tenant_active_gate`, so the 11.8 coverage test counts 22 gated tables.
+6. **Audit.** `guest_charging_changed`, `plan_type_changed`, `plan_price_changed` (gym-scoped, old/new values) and `platform_session_config_updated` (gym_id null, AFTER UPDATE trigger). The Server Action's `plan_edited` entry no longer carries `plan_type`/`price`, so a type or price change is audited once.
+7. **Types.** `packages/types/src/database.ts` was spliced by hand (`update_plan_pricing` args `p_duration_days` and `p_annual_discount_percent` are typed `number | null` because the RPC is called with nulls; a raw regeneration will emit `number` and the call site would need a cast).
+8. **Flag pin is UPDATE-only.** No INSERT pin: a trigger cannot tell the column default from an explicit value, so after 19.12's `SET DEFAULT true` it would force every new gym off. Gym INSERT is never granted to clients; only service_role or super-admin SQL could create a gym born on, bypassing the audit row. Review finding (INSERT bypass) accepted on that basis.
+
+---
+
 ## 2026-10-11 — Flagged-payment reason (Story 19.2, migration 0106)
 
 `payments.flagged_reason` says why a payment is `flagged`, so Epic 19 can apply a late Tara payment and never apply a wrong-account one.

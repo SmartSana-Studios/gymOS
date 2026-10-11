@@ -46,6 +46,9 @@ export interface PlanRow {
   durationDays: number | null;
   billingInterval: "monthly" | "annual";
   annualDiscountPercent: number | null;
+  /** True once any subscription references the plan: its type is locked
+   * (update_plan_pricing refuses a type change with plan_type_locked). */
+  hasSubscriptions: boolean;
 }
 
 function toPlanRow(row: {
@@ -57,6 +60,7 @@ function toPlanRow(row: {
   duration_days: number | null;
   billing_interval: PlanRow["billingInterval"];
   annual_discount_percent: number | null;
+  subscriptions?: { count: number }[] | null;
 }): PlanRow {
   return {
     id: row.id,
@@ -67,6 +71,7 @@ function toPlanRow(row: {
     durationDays: row.duration_days,
     billingInterval: row.billing_interval,
     annualDiscountPercent: row.annual_discount_percent,
+    hasSubscriptions: (row.subscriptions?.[0]?.count ?? 0) > 0,
   };
 }
 
@@ -81,7 +86,9 @@ export async function listPlans(): Promise<{ data: PlanRow[] | null; error: AppE
 
   const { data, error } = await supabase
     .from("plans")
-    .select("id, name, plan_type, price, currency, duration_days, billing_interval, annual_discount_percent")
+    .select(
+      "id, name, plan_type, price, currency, duration_days, billing_interval, annual_discount_percent, subscriptions(count)",
+    )
     .eq("gym_id", gymId)
     .order("created_at", { ascending: true });
 
@@ -174,6 +181,18 @@ export async function insertPlan(input: {
   return { data, error: null };
 }
 
+/** Plan edit. Type, price and the three shape columns go through
+ * `update_plan_pricing` (0107): plans.plan_type and plans.price are pinned
+ * against direct UPDATE, and the RPC refuses a type change once any
+ * subscription references the plan (`plan_type_locked`). The name is written first: it is the step that can collide
+ * (plan_name_taken is checked by the action, but a stale or racing write can
+ * still fail), and the RPC both changes and audits type/price, so running it
+ * last means a failed rename never leaves a price or type change applied and
+ * audited behind an error.
+ *
+ * The RPC audits type and price changes itself (plan_type_changed /
+ * plan_price_changed, old and new value), which is why the Server Action's
+ * plan_edited entry no longer carries those two fields. */
 export async function updatePlan(
   planId: string,
   input: {
@@ -192,19 +211,10 @@ export async function updatePlan(
   }
 
   // Chains .select().maybeSingle() to confirm the update actually matched a
-  // row -- a non-manager/owner session's UPDATE (RLS-denied) or a stale/
-  // cross-gym planId would otherwise report a plain success despite
-  // touching nothing (same pattern as updateTier/updateGymSettings).
+  // row (same pattern as updateTier/updateGymSettings).
   const { data, error } = await supabase
     .from("plans")
-    .update({
-      name: input.name,
-      plan_type: input.planType,
-      price: input.price,
-      duration_days: input.durationDays,
-      billing_interval: input.billingInterval,
-      annual_discount_percent: input.annualDiscountPercent,
-    })
+    .update({ name: input.name })
     .eq("gym_id", gymId)
     .eq("id", planId)
     .select("id")
@@ -214,8 +224,30 @@ export async function updatePlan(
     return { error: await mapAndLog(error) };
   }
   if (!data) {
-    return { error: await planNotFoundError("0 rows affected by plan UPDATE (non-manager/owner session or stale/cross-gym id)") };
+    return { error: await planNotFoundError("0 rows affected by plan name UPDATE (stale/cross-gym id)") };
   }
+
+  const { error: pricingError } = await supabase.rpc("update_plan_pricing", {
+    p_plan_id: planId,
+    p_plan_type: input.planType,
+    p_price: input.price,
+    p_duration_days: input.durationDays,
+    p_billing_interval: input.billingInterval,
+    p_annual_discount_percent: input.annualDiscountPercent,
+  });
+
+  if (pricingError) {
+    const message = pricingError.message ?? "";
+    if (message.includes("plan_type_locked")) {
+      const { t } = await getServerTranslation(await getRequestLocale());
+      return { error: { code: "plan_type_locked", message: t("plans.typeLocked.reason") } };
+    }
+    if (message.includes("plan_not_found")) {
+      return { error: await planNotFoundError("update_plan_pricing: plan not found for caller's gym") };
+    }
+    return { error: await mapAndLog(pricingError) };
+  }
+
   return { error: null };
 }
 
