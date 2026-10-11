@@ -86,7 +86,7 @@
 # - Developer typically creates next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2026-07-04
+generated: '2026-07-04'
 # last_updated: 2026-08-13 (code-review: 2-9 and 2-10 both status done -> in-progress -- found uncommitted, undocumented "code review fix" changes on top of both already-done stories (2-9: send-sms-hook logging level fix; 2-10: sendMemberInvite parallelization, handleSendInvite error-branch split, getMemberForInvite role/deactivated_at filter); 1 patch finding per story (missing test coverage for the respective fix) written to each story file's own Review Findings section, reopened pending commit + re-review of this round); (code-review: 2-10 status review -> done, 1 Medium finding auto-fixed); (create-story: 4-10 story file created, status backlog -> ready-for-dev -- Tara Money sandbox re-verification against GymOS's own now-activated business account 9FmIZg9GBB, resolving OQ-7 and OQ-13; authoritative source is epics.md's Story 4.10 header plus sprint-change-proposal-2026-08-11.md and prd.md's Open Questions table; no code changes expected, pure credential-swap spike mirroring Story 4.1 Task 9's methodology); (dev-story: 4-10 status ready-for-dev -> in-progress -> review -- Tasks 1-4 all complete; supabase/.env swapped to real 9FmIZg9GBB credentials (gitignored, uncommitted); real spike run live with the user against the real Cameroon test number (237659172788) -- PASS on real initiate, real webhook delivery (businessId 9FmIZg9GBB confirmed, resolving OQ-13), idempotency (duplicate replay + wrong-secret 401), all fixture rows cleaned up; payment_providers.taramoney.is_active confirmed unchanged (true); full evidence recorded in docs/decisions.md's 2026-08-13 entry, resolving OQ-7; Story 4.12's cutover is now unblocked; no code changes, only docs/decisions.md tracked in git)
 # last_updated: 2026-08-14 (dev-story: 2-9 status in-progress -> review -- found both Review Findings already resolved and committed (e61439b) with no incomplete Tasks/Subtasks remaining; independently re-verified via `deno check` (clean) and `deno test` (15/15 pass, including the console.error/console.log stream-tagging assertion added for the log-level fix); no code changes made this session, story moved to review pending fresh code-review sign-off); (fix: sendMemberInvite's Promise.all parallelization reverted to sequential awaits -- reintroduced the unguarded-getClaims()-inside-Promise.all failure mode session.ts's own Story 1.7 finding avoids; committed as 60856b6); (bmad-code-review: 2-10 status in-progress -> done, full pass vs. baseline 1e6a099 -- 10 Patch findings applied (response-body-read timeout gap, unescaped instance_id URL interpolation, DB-error/not-configured conflation, memberId validation decoupled into new memberIdSchema in packages/types, sendingInviteId race across concurrent invites, missing timeout/catch-branch test coverage x2, stale Senior Dev Review outcome, missing Change Log entries, Dev Notes/Task 3 doc sync), 2 Defer findings logged to deferred-work.md, 9 dismissed after verification; typecheck clean, 28/28 tests pass, no new lint failures)
 # last_updated: 2026-08-14 (bmad-code-review: 2-9 status review -> done -- fresh sign-off pass vs. baseline 4c89fec, 3-layer adversarial review; 1 Decision (chain refactor's up-to-4x provider-timeout multiplication vs. GoTrue's real 5s hook_timeout, per docs/decisions.md's 2026-08-12 Decision 4 -- user chose a chain-level deadline over lowering the shared FETCH_TIMEOUT_MS) + 5 Patch findings, all fixed: CHAIN_DEADLINE_MS/Promise.race budget added to sendViaChain, abort-timeout guard added to EvolutionApiProvider's DB lookup, DB-error messages now retain error.message instead of collapsing into "not configured", baseUrl/instance URL-safety-guarded, test env-var leak fixed, per-request instance_id test strengthened + PROVIDER_CHAIN order-pinning test added; 2 Defer findings logged to deferred-work.md (pre-existing hardcoded "en" locale, shared-array test mutation); 4 dismissed after verification; deno check/test clean, 16/16 pass)
@@ -278,7 +278,7 @@ development_status:
   4-7-inline-renewal-panel: done
   4-8-subscriptions-page-manual-renewal: done
   4-9-member-app-payment-history-receipt-detail: done
-  4-10-tara-money-sandbox-re-verification-against-real-business-account: done
+  4-10-tara-money-sandbox-re-verification-against-real-business-acc: done
   4-11-tara-money-webhook-signature-verification: done
   4-12-notch-pay-tara-money-cutover: done
   4-13-per-gym-tara-money-account-connection: done
@@ -300,7 +300,7 @@ development_status:
   6-4-notification-preferences: done
   6-5-quiet-gym-alert-opt-in-delivery: done
   6-6-class-reminder-notification: done
-  6-7-notification-history-preferences-screen: done
+  6-7-notification-history-screen: done
   epic-6-retrospective: optional
 
   epic-7: done
@@ -309,12 +309,12 @@ development_status:
   epic-7-retrospective: done
 
   epic-8: done
-  8-1-settings-page-redesign-qr-prominence: done
+  8-1-settings-page-redesign-qr-code-prominence: done
   8-2-e-ink-display-endpoint: done
-  8-3-mobile-design-system-foundation: done
+  8-3-mobile-design-system-foundation-dark-theme-per-gym-accent-ba: done
   8-4-mobile-shared-ui-primitives: done
-  8-5-mobile-screen-restyle-tabs-plan-tabbar-splash: done
-  8-6-mobile-screen-restyle-onboarding: done
+  8-5-mobile-screen-restyle-tabs-plan-modal-tab-bar-splash: done
+  8-6-mobile-screen-restyle-onboarding-flow: done
   epic-8-retrospective: optional
 
   epic-9: done
@@ -323,7 +323,7 @@ development_status:
   9-3-staff-edit-deactivation-immediate-access-revocation: done
   9-4-multi-gym-staff-binding-rules: done
   9-5-posthog-analytics-instrumentation: done
-  9-6-multi-gym-session-switching: done
+  9-6-multi-gym-session-switching-backlog-stub-added-2026-08-20-no: done
   9-7-supervisor-manager-plus-access: done
   epic-9-retrospective: optional
 
@@ -341,7 +341,7 @@ development_status:
   11-4-tenant-suspension-enforcement: done
   11-5-super-admin-billing-view: done
   11-6-cross-flow-reconciliation-beta-accommodation: done
-  11-7-pay-now-tier-selection-alternate-payment-methods: done
+  11-7-pay-now-tier-selection-alternate-payment-methods-backlog-stu: done
   11-8-suspension-enforcement-in-security-definer-rpcs: done
   11-9-suspension-enforcement-for-workout-plan-tables: done
   epic-11-retrospective: optional
@@ -367,10 +367,9 @@ development_status:
 
   epic-15: done
   15-1-splash-screen-app-icon-fix: done
-  15-2-shared-component-library-card-elevation-icon-chip-list-item-stat-tile: 
-    done
-  15-3-home-screen-craft-pass: done
-  15-4-profile-screen-craft-pass: done
+  15-2-shared-component-library-card-elevation-icon-chip-list-item: done
+  15-3-home-screen-craft-pass-ma-09: done
+  15-4-profile-screen-craft-pass-ma-12: done
   epic-15-retrospective: optional
 
   epic-16: done
@@ -379,23 +378,53 @@ development_status:
   epic-16-retrospective: optional
 
   epic-17: in-progress
-  17-1-staff-overview-operational-cards-live-tables: done
-  17-2-staff-overview-gym-health-cards: done
+  17-1-staff-overview-operational-cards-live-tables-ad-02: done
+  17-2-staff-overview-gym-health-cards-manager-plus: done
   17-3-coach-portal-sub-navigation-landing: done
   17-4-coach-portal-my-classes-session-roster: done
   17-5-coach-portal-overview: done
   epic-17-retrospective: optional
 
   epic-18: done
-  18-1-registration-fee-setting-member-state-first-subscription-gate: done
+  18-1-registration-fee-setting-member-state-first-subscription-gat: done
   18-2-payment-purpose-manual-fee-collection-waiver: done
   18-3-tara-money-fee-collection: done
   18-4-void-refund-block-revenue-line: done
-  18-5-two-step-member-creation-first-plan-assignment-import-exemption: done
+  18-5-two-step-member-creation-first-plan-assignment-import-exempt: done
   18-6-dashboard-fee-collection-waive-void-surfaces: done
   18-7-member-app-awaiting-fee-blocked-state-fee-receipt: done
   epic-18-retrospective: done
 
+  epic-19: backlog
+  19-0-v1-6-release-readiness-ops-checklist: backlog
+  19-1-ci-guardrails-live-role-lint-gate-hosted-privilege-check: backlog
+  19-2-flagged-payment-reason-late-vs-wrong-account: backlog
+  19-3-charge-guests-setting-session-record-plan-type-rules: backlog
+  19-4-desk-session-payment: backlog
+  19-5-in-app-tara-money-session-payment: backlog
+  19-6a-front-desk-alert-kind-refactor-no-behavior-change: backlog
+  19-6b-check-in-gate-blocked-attempts-session-required-alert: backlog
+  19-7-class-attendance-consumes-a-session: backlog
+  19-8-session-refunds-revenue-line: backlog
+  19-9-dashboard-charge-guests-setting-session-alert-member-session: backlog
+  19-10-guest-sessions-overview-card: backlog
+  19-11-member-app-pay-for-your-session-offline-verification-session: backlog
+  19-12-v1-6-session-guests-enablement: backlog
+  epic-19-retrospective: optional
+
+  epic-20: backlog
+  20-1-loyalty-program-setting-ledger-foundation: backlog
+  20-2-guest-rule-stamps-on-paid-sessions-free-session-at-n: backlog
+  20-3-subscriber-rule-on-time-renewal-stamps-r-free-days-at-k: backlog
+  20-4-refund-reversal-lapses-90-day-reset-sweep: backlog
+  20-5-dashboard-loyalty-settings-member-loyalty-view: backlog
+  20-6-member-app-loyalty-card: backlog
+  epic-20-retrospective: optional
+
+  epic-21: backlog
+  21-1-gym-category-column-setter-super-admin: backlog
+  21-2-settings-gym-category-field-owner-supervisor: backlog
+  epic-21-retrospective: optional
 action_items:
   - epic: 7
     action: "Commit immediately when a story's Status is set to done, before starting
@@ -661,6 +690,7 @@ action_items:
 # last_updated: 2026-10-11 (ux update, no story status changes: bmad-ux fast-path pass extended DESIGN.md/EXPERIENCE.md (ux-gym_os-2026-07-04) for V1.6 Epics 19-21 -- new MA-17 Pay for Session, AD-22 Guest Sessions, AD-23 Plans, Record Session Payment panel, Flow 12 (Ange, UJ-11), V1.6 state/copy/validation/a11y blocks, colors.info token; user decisions: FR "seance" = paid day-visit and "cours" = class, Story 21.1 category pairs canonical, pre-scan "Record session payment" on AD-04 (not AD-10), drift backfill only for /renew, /awaiting-registration, /plans; 41 drafted assumptions approved, reviewer gate skipped. Flagged for PM: UJ-11 has receptionist doing Manager-plus actions; FR plan wording Forfait vs Formule inconsistent.)
 # last_updated: 2026-10-11 (planning, no story status changes: bmad-create-epics-and-stories update-in-place -- epics.md Epics 19-21 reconciled with the V1.6 UX pass: V1.6 UX Design Requirements UX-DR17..UX-DR32 added, every [UX] marker resolved, stories 19.2/19.3/19.4/19.7/19.8/19.9/19.10/19.11/20.5/20.6/21.1/21.2 amended; Story 21.2 Manager read-only AC dropped (Settings is Owner/Supervisor only); 19.9 flagged as possibly splitting at create-story; no FR/NFR or story-id changes; open for product owner: UJ-11 receptionist doing Manager-plus actions, Forfait vs Formule wording.)
 # last_updated: 2026-10-11 (ad-hoc, no story: bmad-sprint-planning validate -- sprint_plan.py validate flagged action_items[4] and [5] (Epic 8, 2026-08-06) carrying status "resolved", outside the open/in-progress/done vocabulary; both set to done, re-validate clean. No story status changes.)
+# last_updated: 2026-10-11 (planning, no story status changes: bmad-sprint-planning generate -- Epics 19-21 added to development_status (19.0-19.12 incl. 19.6a/19.6b, 20.1-20.6, 21.1-21.2, plus epic and retrospective keys, all backlog/optional); 15 hand-named done keys renamed to the heading-derived keys the script generates (statuses preserved via --set); 13 done entries with no epics.md heading (1-11..1-20, 9-7, 11-8, 11-9) re-inserted by hand because generate drops them -- they will be flagged as dropped_orphans on every future generate until given Story headings in epics.md.)
   - id: "epic-18-retro-item-9-extract-a-shared-usepaymentstatuswatch-h"
     epic: 18
     action: "Extract a shared usePaymentStatusWatch hook used by RenewalModal and
@@ -763,4 +793,4 @@ action_items:
     owner: "dev"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-08.md"
-last_updated: 10-08-2026 01:48
+last_updated: 10-11-2026 09:44
