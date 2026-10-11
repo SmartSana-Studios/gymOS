@@ -4,6 +4,87 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-11 — V1.6 release runbook (Story 19.0): release order, rollback, backup, rehearsal, secrets, job alerting
+
+V1.6 (Epic 19, migrations 0106-0115) changes payment and check-in paths on live gyms. The architecture spine's "Open, not decided" ops list had no written answers; this entry answers each item with a decision, an owner and, where deferred, a revisit date. Facts below are as observed on 2026-10-11. Nothing here is a code change: items not yet in place are marked **Gate** (blocks Story 19.12, the enablement) with an owner.
+
+### 1. Release order (migrations 0106-0115 vs dashboard / mobile)
+
+Order follows the epic dependency chain: 19.1 -> {19.2, 19.3, 19.6a} -> 19.4 -> {19.5, 19.6b, 19.8} -> 19.7 -> {19.9, 19.10, 19.11} -> 19.12. Every V1.6 behavior is off per gym until an Owner/Supervisor enables it, so a migration landing early does not change a live gym's behavior (AD-32). Numbers are provisional: renumber if another migration lands first. The chain shows what must precede what, not a strict single order: 19.7 (0112) and 19.8 (0113) depend on different parents, so migrations are applied in **number order** (0112 then 0113), which satisfies both.
+
+| Migration | Story | Touches live path | Release notes |
+|---|---|---|---|
+| 0106 | 19.2 flagged-payment reason | payment flagging | Additive column + reason write. Ships after 19.1's CI gates. |
+| 0107 | 19.3 setting, `guest_sessions`, plan-type rules | none behaviorally | New table, setter RPC, column `NOT NULL DEFAULT false`. |
+| 0108 | 19.4 desk session payment | `payments.purpose` CHECK, protect trigger, staff-insert policy | Dashboard desk-payment UI ships after the migration. |
+| 0109 | 19.5 Tara session payment | `payment-webhook` purpose dispatch | Migration first, then the `payment-webhook` edge function deploy, then the mobile UI later (19.11). |
+| 0110 | 19.6a alert `kind` refactor | **every live gym's** subscription-alert path (`ON CONFLICT` sites in 0034/0068/0090 rewritten) | Ships **alone** and runs in production at least **7 days** before 0111. No other V1.6 migration lands in that window. |
+| 0111 | 19.6b check-in gate | `check_in()` | Only after 0110's week is clean. Flag read before any V1.6 code (kill switch). |
+| 0112 | 19.7 class attendance consumes a session | `mark_class_attendance()` | After 0111. |
+| 0113 | 19.8 session refunds | AFTER INSERT trigger on `refunds` | After 0108 (19.8 depends on 19.4 only). |
+| 0114 | 19.10 Guest sessions card | read-only aggregates | Dashboard card ships after. |
+| 0115 | 19.12 enablement | `SET DEFAULT true` for new gyms | **Last.** Only when every gate in "Revisit dates and gates" below is closed: this entry signed off, restore tested, rotation procedure written, `job_runs` alert Action live, and the 19.11 mobile build live in both stores. |
+
+Rules for every production migration: (a) the db-backup workflow has been triggered and is green immediately before (section 3); (b) the migration was rehearsed per section 4; (c) CI (typecheck, pgTAP, e2e, and from 19.1 the live-role lint gate and hosted-privilege check) is green on the merge commit; (d) apply through host `psql` with a per-migration deploy script and preflight, as for 0090-0105 (`scripts/deploy-*.sh`, `scripts/preflight-*.sql`; the Supabase CLI container commands can fail silently, see the 2026-10-08 deploy entry), then verify with the migration's own `do $verify$` block output and a smoke query; (e) deploy order is always migration -> edge function -> dashboard (Vercel) -> mobile build.
+
+### 2. Rollback policy, per migration
+
+**Decision: forward-fix for all of 0106-0115.** There is no down-migration convention (deploy-runbook section 6). A bad migration is repaired by a new reviewed migration, never by hand-editing production.
+
+- A migration that fails part-way rolls back inside its own transaction; nothing is left half-applied. Re-run after fixing, with a renumbered file if the failed one was already recorded.
+- A migration that applied but is wrong (logic, privilege) is forward-fixed. The V1.6 kill switch is the per-gym flag: leaving it off keeps a gym on the old behavior while the fix is prepared. Before 0111 there is no flag-gated behavior to disable, so 0106-0110 have no kill switch and must be correct on apply. 0110 is the riskiest: it rewrites the alert paths of live gyms with real alert rows, so its forward-fix must handle existing rows, and it ships alone for a week. **"Clean" for that week** means: no failed `job_runs` rows for `subscription_lifecycle` or `check_in_auto_timeout` (and none stale; see section 6), no new check-in or front-desk-alert errors in Sentry, and the owner signs off. If it misbehaves, stop the 0111 release and forward-fix.
+- Data damage (wrong rows written, rows lost) is restored from the pre-migration dump taken in section 3 into a scratch database, and only the affected rows are copied back. A full production restore is a last resort and needs the owner's explicit go.
+- Until a gym enables charging there is no V1.6 *session* data in production (0110 excepted, above), so a forward-fix of the session tables has nothing to migrate beyond the schema; this is why no down-migrations are written.
+- Payments taken between the last dump and an incident are not in a restored dump; reconcile them against the provider (Tara `POST /transactions/status` per payment id, and the reconciliation job's flagged rows) rather than assuming the dump is complete.
+
+### 3. Backup / PITR posture
+
+- **Observed 2026-10-11** (Management API): production project `vfxezibagiznrirdwkwh`, eu-west-1, Postgres 17.6: `pitr_enabled: false`, `backups: []`. The project has no platform-managed daily backups and no PITR. The plan tier itself could not be read (the organization endpoint answered 403); the empty backup list indicates no paid daily backups. The owner confirms the tier in the Supabase dashboard when revisiting on 2026-12-31; it does not change this decision.
+- **Decision (accept the platform posture, add our own backup):** a daily age-encrypted full dump (all schemas, grants kept, roles) plus a Storage file copy to a private Cloudflare R2 bucket (EU jurisdiction, 30-day lifecycle), via `.github/workflows/db-backup.yaml` (PRs #35/#36, `0 2 * * *` UTC plus `workflow_dispatch`; first fully green run 2026-10-11).
+- **Retention:** 30 days (R2 lifecycle). **RPO:** up to 24 hours. **RTO:** not measured.
+- **Plan tier / PITR:** upgrade deferred. Revisit **2026-12-31**. Owner: `josephfeussi`.
+- **Last tested restore: never tested.** This line is updated with the date of the first restore, which is the rehearsal in section 4.
+- **Per-migration step:** trigger `db-backup` (`workflow_dispatch`) immediately before each production migration and confirm the run green; abort the release if it is red. This is the "pre-migration dump" used in section 2.
+- **Key custody:** the age private key is held by the owner outside GitHub; only the public key is a repo secret. Losing it makes every dump unreadable, so confirm it is stored in a second place at the first restore test. A failed scheduled `db-backup` run emails the person who last edited its cron line (GitHub's default); the owner checks the Actions tab weekly until a dedicated alert exists, since a silently failing backup is the likeliest way this posture degrades.
+
+### 4. Rehearsal environment
+
+**Decision: no hosted staging project.** Rehearse locally: restore the latest R2 dump into a local Supabase and apply each of 0106-0115 there before production. Each migration's pgTAP must pass on the restored copy, not only on the fresh-seed CI database. Story 19.1's hosted-privilege check covers the known local-vs-hosted default-privilege drift (0104). The first such restore is also the first restore test of section 3. Owner: `josephfeussi`. Revisit a hosted staging project only if a rehearsal misses a production-only failure. **Safeguards for the restored copy:** it holds real member phone numbers and payment records, so keep it on the owner's machine only and delete it after the rehearsal; do not configure any SMS/WhatsApp/Tara credentials against it and leave `pg_cron` jobs unscheduled or unreachable so it cannot message members or call providers; Vault contents will not decrypt outside the original project's key material, so per-gym Tara credentials are not testable in a rehearsal.
+
+### 5. Secrets: locations and rotation
+
+| Secret(s) | Location | Rotation |
+|---|---|---|
+| `TARAMONEY_API_KEY`, `TARAMONEY_BUSINESS_ID`, `TARAMONEY_WEBHOOK_SECRET`; `EVOLUTION_API_*`; `TWILIO_*`; `SENT_DM_*`; `SEND_SMS_HOOK_SECRET`; `REVIEW_TEST_PHONE` | Supabase Edge Function secrets (`supabase secrets set`, project `vfxezibagiznrirdwkwh`) | Deferred, see below |
+| `platform:taramoney:business_id` (must mirror `TARAMONEY_BUSINESS_ID`) | Supabase Vault in prod DB (drift audit procedure in deploy-runbook section 2) | With the function secret |
+| Per-gym Tara credentials (FR-126) | Supabase Vault, per gym | Gym owner re-connects |
+| `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_*`, `DASHBOARD_APP_URL`, Sentry/PostHog keys | Vercel project env (`gymos_dashboard`, `gymos-super-admin`) | Deferred, see below |
+| `EXPO_PUBLIC_*`, Sentry DSN, EAS credentials | EAS `production` environment | Deferred, see below |
+| `BACKUP_DB_URL` (**highest risk**: a production database connection string), `BACKUP_AGE_PUBLIC_KEY`, `R2_*`, `SUPABASE_S3_*` | GitHub Actions repo secrets (db-backup) | Deferred, see below |
+| Read-only DB credential for the `job_runs` alert Action | GitHub Actions repo secret, to be created with that story | Create read-only from the start |
+
+**Decision:** the rotation procedure (order of operations, who, downtime) is deferred to **2026-11-30**, before 19.12. Owner: `josephfeussi`. **Rotate immediately on any exposure.** Standing open items: Epic 18 retro item 22 (rotate the SmartSana Tara key and webhook secret, revoke the Supabase and Expo tokens used in the release session) remains open and is owned there; it is the known exposure that "rotate immediately" applies to, and it is listed as a gate below.
+
+### 6. Job-failure alerting (`job_runs`)
+
+- **Jobs that write `job_runs`** (pg_cron): `subscription_lifecycle` (0021), `check_in_auto_timeout` (0024), `payment_reconciliation` (0032), `notification_delivery_processor` (0045), `quiet_gym_alert_dispatcher` (0056), `class_session_materializer` (0057), `class_reminder_dispatcher` (0059), `saas_billing_lifecycle` (0071). The alert query covers every `job_name`, not a fixed list. `payment_reconciliation` and `subscription_lifecycle` matter most to V1.6 (late and wrong-account session payments, lapse).
+- **Today: no alerting exists.** A failure surfaces only if someone queries `job_runs` (or a user reports).
+- **Decision:** a scheduled GitHub Action that queries `job_runs` for failures and fails the run (GitHub emails the owner) is a separate small story, logged in `deferred-work.md`. **Gate for 19.12.** Owner: `josephfeussi`.
+- **Interim (until that Action ships):** a daily manual `job_runs` failure query, owner `josephfeussi`. After each V1.6 migration go-live, run it the same day. The query must also flag a job whose latest run is older than twice its schedule interval, because a job that never ran leaves no failed row.
+
+### Revisit dates and gates
+
+| Item | Status | Date / gate | Owner |
+|---|---|---|---|
+| PITR / paid tier | deferred | 2026-12-31 | josephfeussi |
+| Secrets rotation procedure | deferred | 2026-11-30 (before 19.12) | josephfeussi |
+| `job_runs` failure-alert Action | not built | gates 19.12 | josephfeussi |
+| First restore test (updates "never tested") | not done | with first rehearsal, before 0106 goes to production; also a gate for 19.12 | josephfeussi |
+| Epic 18 retro item 22 (rotate exposed Tara key/webhook secret, revoke tokens) | open | before 19.12 | josephfeussi |
+| 19.11 mobile build live in both stores | not started | gates 19.12 (0115) | josephfeussi |
+
+---
+
 ## 2026-10-11 — Unsigned Tara re-sent webhooks stay rejected (fail closed)
 
 Tara's `/resend-webhook` delivers no secret header (found in the first live Epic 18 run), so `verifyWebhookSignature` answers 401 and the payment is not completed by the re-send. Epic 18 retro action item 6/14 asked whether to accept such a re-send when `POST /transactions/status` confirms it. **Decision: no. The shared-secret header stays mandatory; nothing changes in `payment-webhook`.**

@@ -962,3 +962,7 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-18-7-member-app-awaiting-fee-blocked-state-fee-receipt.md`
   summary: check_in() for a member with no subscription (an awaiting-fee member) returns NULL and upserts a front-desk "expired" alert instead of raising, so an awaiting member who scans the gym QR raises a staff alert.
   evidence: migration 0034 (pinned in supabase/tests/registration_fee_member_app.test.sql); attendance is correctly not written, and the member cannot reach the scan screen once the blocked group ships, so only a stale pre-update client or a deep link could trigger it. Decide whether the alert should be suppressed for members with registration_fee_settled_at NULL.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-0-v1-6-release-readiness-ops-checklist.md`
+  summary: Build a scheduled GitHub Action that queries `job_runs` for failed runs (all pg_cron jobs: subscription_lifecycle, check_in_auto_timeout, payment_reconciliation, notification_delivery_processor, quiet_gym_alert_dispatcher, class_session_materializer, class_reminder_dispatcher, saas_billing_lifecycle) and for jobs whose latest run is stale (older than twice the schedule interval), and fails the workflow so GitHub emails the owner. **Gates Story 19.12.**
+  evidence: No alerting on `job_runs` exists today; interim is a daily manual failure query, owner `josephfeussi` (docs/decisions.md, "V1.6 release runbook", section 6). Needs a read-only DB credential as a repo secret.

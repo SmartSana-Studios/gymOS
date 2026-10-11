@@ -154,10 +154,11 @@ Identical hex means the guard is matching. **Verified in sync on
 audit the paragraph above asks for; prefer it to re-seeding "just in case",
 which is how the two drift in the first place.
 
-**[NEEDS]** a real secrets-management decision for production (Supabase
-Vault was the agreed direction for the *per-gym* credentials once FR-126
-ships — see `docs/decisions.md` — but the *platform-level* secrets above
-still need an owner and a rotation policy).
+**Secrets management (decided 2026-10-11).** Where each secret lives
+(Supabase function secrets, Vault, Vercel, EAS, GitHub Actions) and the
+rotation decision (procedure deferred to **2026-11-30**, rotate immediately
+on any exposure, owner `josephfeussi`) are recorded in `docs/decisions.md`,
+"V1.6 release runbook" (2026-10-11), section 5.
 
 ## 3. Database migrations
 
@@ -170,10 +171,10 @@ still need an owner and a rotation policy).
   exercised outside local `supabase start` yet).
 - Migrations are the source of truth for schema — do not hand-edit a
   production schema outside a committed migration file.
-- No down-migrations convention exists — see §6 for the recommended
-  forward-fix policy and the two open decisions (mobile hotfix strategy,
-  production backup tier) that still need real answers before the first
-  production migration run.
+- No down-migrations convention exists — see §6 for the forward-fix policy.
+  The V1.6 release order, per-migration rollback and pre-migration backup
+  step are in `docs/decisions.md`, "V1.6 release runbook" (2026-10-11),
+  sections 1-3. The mobile hotfix strategy is still open (§6).
 
 ## 4. CI gates (must be green before deploy)
 
@@ -325,23 +326,25 @@ practical policy this runbook recommends:
    hand-editing the production schema or force-pushing history. This
    matches how this project already treats every other schema change
    (migrations are the source of truth, per §3).
-2. **Data recovery is the production Supabase project's backup
-   mechanism, not migration rollback.** Point-in-time recovery (PITR)
+2. **Data recovery is the production backup (the daily R2 dump, see below),
+   not migration rollback.** Point-in-time recovery (PITR)
    and daily backups are Supabase *platform* features tied to the
-   project's pricing tier — **[NEEDS]** confirm the tier the production
-   project is created on and that PITR (or at minimum daily backups) is
-   actually enabled before the first real migration runs against it; a
-   Free-tier project has materially weaker guarantees here.
-3. **Destructive migrations (`drop column`/`drop table`/irreversible
-   data transforms) get a manual pre-flight step**: confirm a recent
-   backup exists (or trigger one) immediately before applying, in
-   addition to whatever the standard CI gates already checked in
-   staging/local.
+   project's pricing tier. **Observed 2026-10-11:** production has PITR
+   off and no platform backups listed. **Decided 2026-10-11:** accept
+   that, and rely on the daily encrypted dump to Cloudflare R2
+   (`.github/workflows/db-backup.yaml`, 30-day retention); PITR / tier
+   upgrade deferred, revisit **2026-12-31**; last tested restore: never
+   tested. Details in `docs/decisions.md`, "V1.6 release runbook"
+   (2026-10-11), section 3.
+3. **Every production migration gets a pre-flight step** (destructive
+   ones above all): trigger the `db-backup` workflow and confirm it green
+   immediately before applying, in addition to whatever the standard CI
+   gates already checked locally.
 
-Do not treat this runbook as fully deploy-ready until the two
-**[NEEDS]** above (mobile hotfix strategy, production Supabase backup
-tier) have real answers — everything else in this section is a
-documented, available mechanism, not a placeholder.
+Do not treat this runbook as fully deploy-ready until the
+**[NEEDS]** for the mobile hotfix strategy has a real answer; the
+production backup decision is recorded (item 2 above). Everything else in this
+section is a documented, available mechanism, not a placeholder.
 
 ## 7. Observability
 
@@ -388,5 +391,8 @@ build first, then drop `SENTRY_DISABLE_AUTO_UPLOAD` on the next one, so a
 failure is attributable to exactly one variable. Until alerting
 exists, a production incident will still only surface via a user report,
 someone checking Sentry, or a manual `job_runs`/`audit_log` query.
+`job_runs` failure alerting is a gate for Story 19.12 (a scheduled GitHub
+Action, owner `josephfeussi`); the interim is a daily manual failure query
+— see `docs/decisions.md`, "V1.6 release runbook" (2026-10-11), section 6.
 PostHog is wired for product analytics (dashboard, mobile) but is not a
 substitute for error tracking.
