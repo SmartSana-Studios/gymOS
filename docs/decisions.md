@@ -4,6 +4,14 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-11 — Long-open tabs are told a new version is available (small card, bottom-right)
+
+After a deploy, a tab that stays open keeps its old JavaScript until it reloads, and a Server Action or chunk the new build no longer has fails with an unhelpful error (what showed up as "I don't see the new field" was this, not a service worker -- the repo has none). Both web apps now carry an `UpdateNotice`: a small card, bottom-right, "A new version is available" with **Refresh** and **Later**.
+
+**Mechanism.** `NEXT_PUBLIC_BUILD_ID` is the deploy's commit SHA, inlined at build time (`next.config.ts` `env`, from `VERCEL_GIT_COMMIT_SHA`; "dev" outside Vercel, where the notice is off). `GET /api/version` returns the SHA the running server was built from; with Cache Components it is prerendered, so each deployment serves its own value. The component compares the two on tab focus, on tab becoming visible, and every 5 minutes.
+
+**Choices.** It is a prompt, never an automatic reload: the person may be mid-form, and the copy says to save first. "Later" hides it until the server moves to yet another build. Any failed, redirected (non-JSON) or malformed response is ignored silently. `/api/version` is exempted from the auth proxy in both apps so a stale login page gets the notice too; it exposes only a commit SHA. The mobile app is not covered (store builds; EAS Update is a separate item). Vercel Skew Protection would additionally keep old tabs working until they refresh; it is a project setting and plan-dependent, not done here.
+
 ## 2026-10-11 — Phone numbers in a CSV import are read against the gym's own country (`gyms.country`, 0105)
 
 Every phone field in the product picks a country, but the CSV import took the raw cell and required full E.164, so a roster exported from Excel ("670123456", or "237670123456" with the "+" stripped) failed the whole all-or-nothing file. The fix needs a country to read a number against, and a gym had none, so `gyms.country` (ISO 3166-1 alpha-2, NOT NULL, default `CM`, CHECK `^[A-Z]{2}$`) was added in 0105. Existing rows backfill to `CM` in the same statement (every current gym is a Cameroon pilot gym).

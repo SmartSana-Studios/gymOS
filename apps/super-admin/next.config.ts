@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
   // omit (flagged as deferred in Story 1.1's review). Now load-bearing:
   // without it, Next.js won't transpile the workspace package's TS source.
   transpilePackages: ["@gymos/types"],
+  // The commit this build came from; UpdateNotice compares it with /api/version.
+  env: {
+    NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev",
+  },
 };
 
 // Story 14.1: mirrors apps/dashboard/next.config.ts's own rationale -- no

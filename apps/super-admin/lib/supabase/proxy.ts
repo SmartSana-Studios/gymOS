@@ -50,7 +50,10 @@ export async function updateSession(request: NextRequest) {
   if (
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
+    !request.nextUrl.pathname.startsWith("/auth") &&
+    // UpdateNotice polls this from every tab, signed in or not. It returns only
+    // the deploy's commit SHA.
+    request.nextUrl.pathname !== "/api/version"
   ) {
     // `/` is the (admin) route group's own real landing page (redirects to
     // /gyms) as of this cleanup -- not the starter's public marketing page

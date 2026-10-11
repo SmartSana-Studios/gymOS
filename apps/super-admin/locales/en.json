@@ -1,4 +1,10 @@
 {
+  "updateNotice": {
+    "title": "A new version is available",
+    "body": "Refresh to get the latest improvements. Save any unsaved changes first.",
+    "refresh": "Refresh",
+    "later": "Later"
+  },
   "nav": {
     "brand": "GymOS Super Admin",
     "gyms": "Gyms",

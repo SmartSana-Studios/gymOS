@@ -1,4 +1,10 @@
 {
+  "updateNotice": {
+    "title": "Une nouvelle version est disponible",
+    "body": "Actualisez pour profiter des dernières améliorations. Enregistrez d'abord vos modifications en cours.",
+    "refresh": "Actualiser",
+    "later": "Plus tard"
+  },
   "nav": {
     "brand": "GymOS Super Admin",
     "gyms": "Salles",

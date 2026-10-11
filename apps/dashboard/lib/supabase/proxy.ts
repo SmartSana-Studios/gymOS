@@ -60,6 +60,9 @@ export async function updateSession(request: NextRequest) {
     // exemption -- each one is responsible for its own auth (CRON_SECRET),
     // matching this route's own established pattern.
     !request.nextUrl.pathname.startsWith("/api/cron/") &&
+    // UpdateNotice polls this from every tab, signed in or not (a stale login
+    // page needs the notice too). It returns only the deploy's commit SHA.
+    request.nextUrl.pathname !== "/api/version" &&
     // The published privacy policy (app/privacy/page.tsx) is a store-listing
     // requirement: App Store Connect and Play Console fetch this URL
     // unauthenticated at submission time and re-check it periodically after

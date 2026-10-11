@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
   // client-side PostHog events the same way lib/analytics.ts tags
   // server-side ones.
   env: {
+    // The commit this build came from; UpdateNotice compares it with /api/version.
+    NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev",
     NEXT_PUBLIC_ANALYTICS_ENV: resolveAnalyticsEnvironment(),
   },
 };
