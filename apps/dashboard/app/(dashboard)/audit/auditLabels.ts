@@ -54,4 +54,13 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // Story 18.5. Written by assignInitialPlan (members/actions.ts) through
   // logMemberChange, target = the member. Metadata { plan_id, start_date, expiry_date }.
   member_plan_assigned: "audit.actionTypes.memberPlanAssigned",
+  // Story 19.3. guest_charging_changed is written by set_guest_charging() (0107),
+  // gym-scoped, metadata { old_enabled, new_enabled }. plan_type_changed and
+  // plan_price_changed are written by update_plan_pricing() (0107), gym-scoped,
+  // target = the plan, metadata { old_plan_type, new_plan_type } / { old_price,
+  // new_price }. platform_session_config_updated is platform-level (no gym_id).
+  guest_charging_changed: "audit.actionTypes.guestChargingChanged",
+  plan_type_changed: "audit.actionTypes.planTypeChanged",
+  plan_price_changed: "audit.actionTypes.planPriceChanged",
+  platform_session_config_updated: "audit.actionTypes.platformSessionConfigUpdated",
 };

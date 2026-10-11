@@ -120,10 +120,10 @@ export async function editPlan(
     return { data: null, error };
   }
 
+  // plan_type and price are audited by update_plan_pricing itself (old and new
+  // value), so they are deliberately absent here.
   const { error: auditError } = await logPlanChange("plan_edited", planId, {
     name: plan.name,
-    plan_type: plan.planType,
-    price: plan.price,
     duration_days: plan.durationDays,
     billing_interval: plan.billingInterval,
     annual_discount_percent: plan.annualDiscountPercent,

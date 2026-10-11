@@ -12,7 +12,7 @@
 -- silently affecting 0 rows.
 
 begin;
-select plan(15);
+select plan(16);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000006001', 'Plans Test Tier', 5000, 50000, 30);
@@ -101,14 +101,22 @@ select lives_ok(
 -- Manager session can UPDATE and DELETE their own gym's plans.
 -- ============================================================================
 select lives_ok(
-  $$update plans set price = 13000 where id = '00000000-0000-0000-0000-000000006043'$$,
+  $$update plans set price = 13000, name = 'Manager-Renamed Plan' where id = '00000000-0000-0000-0000-000000006043'$$,
   'a manager-claim session can UPDATE its own gym''s plan'
 );
 
 select is(
+  (select name from plans where id = '00000000-0000-0000-0000-000000006043'),
+  'Manager-Renamed Plan',
+  'the name UPDATE is reflected'
+);
+
+-- 0107: plans.price is pinned against direct UPDATE (update_plan_pricing is the
+-- only path), so the price in the same statement did not land.
+select is(
   (select price from plans where id = '00000000-0000-0000-0000-000000006043'),
-  13000,
-  'the price UPDATE is reflected'
+  12000,
+  'the direct price UPDATE is pinned to its old value (0107)'
 );
 
 with deleted as (

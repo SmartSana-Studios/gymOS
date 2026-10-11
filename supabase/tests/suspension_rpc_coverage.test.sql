@@ -49,8 +49,8 @@ where policyname = 'tenant_active_gate';
 
 select is(
   (select count(*)::int from gated_tables),
-  21,
-  'tenant_active_gate covers 21 tables (0073''s 17 + public.notifications from 0084 + the three workout-plan tables from 0091) -- if this changes, the exclusion reasoning below needs re-reading, not just the number'
+  22,
+  'tenant_active_gate covers 22 tables (0073''s 17 + public.notifications from 0084 + the three workout-plan tables from 0091 + public.guest_sessions from 0107) -- if this changes, the exclusion reasoning below needs re-reading, not just the number'
 );
 
 -- ============================================================================

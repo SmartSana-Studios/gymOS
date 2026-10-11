@@ -74,6 +74,16 @@ export function WaiveRegistrationFeeDialog({
         <p className="text-sm text-muted-foreground">{t("members.feeWaive.body", { name: member.name })}</p>
 
         <div className="space-y-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={submitting}
+            aria-pressed={reason === t("members.feeWaive.presetSessionGuest")}
+            onClick={() => setReason(t("members.feeWaive.presetSessionGuest"))}
+          >
+            {t("members.feeWaive.presetSessionGuest")}
+          </Button>
           <Label htmlFor="feeWaiveReason">{t("members.feeWaive.reason")}</Label>
           <textarea
             id="feeWaiveReason"

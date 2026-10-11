@@ -312,6 +312,10 @@
     "delete": "Delete",
     "actionsMenu": "Actions for {{name}}",
     "priceLabel": "XAF {{price}} / {{interval}}",
+    "pricePerSessionLabel": "XAF {{price}} / session",
+    "typeLocked": {
+      "reason": "This plan has members, so its type can't be changed. Create a new plan instead."
+    },
     "discountSuffix": "({{percent}}% discount)",
     "intervalMonthly": "monthly",
     "intervalAnnual": "annual",
@@ -340,6 +344,9 @@
       "name": "Plan Name *",
       "planType": "Plan Type *",
       "price": "Price (XAF) *",
+      "pricePerSession": "Price per session (XAF) *",
+      "priceChangeNote": "Changing the price doesn't affect sessions already paid.",
+      "priceZeroNote": "At 0 XAF, members on this plan never need a paid session.",
       "durationDays": "Duration (days) *",
       "billingInterval": "Billing Interval *",
       "annualDiscountPercent": "Annual Discount (%) *",
@@ -643,6 +650,7 @@
       "collectedInviteFailedToast": "Registration fee collected for {{name}}, but the WhatsApp invite could not be sent. Use Send invite in the row menu."
     },
     "feeWaive": {
+      "presetSessionGuest": "Session guest",
       "title": "Waive the registration fee for {{name}}?",
       "body": "{{name}} will be settled without a payment. This cannot be undone from the dashboard.",
       "reason": "Reason *",
@@ -1133,7 +1141,11 @@
       "registrationFeeAttemptExpired": "Registration fee collection expired",
       "registrationFeeLatePayment": "Registration fee paid late by Tara Money (not applied)",
       "registrationFeeVoided": "Registration fee voided",
-      "memberPlanAssigned": "First plan assigned"
+      "memberPlanAssigned": "First plan assigned",
+      "guestChargingChanged": "Guest session charging changed",
+      "planTypeChanged": "Plan type changed",
+      "planPriceChanged": "Plan price changed",
+      "platformSessionConfigUpdated": "Session platform defaults updated"
     }
   },
   "saasBilling": {

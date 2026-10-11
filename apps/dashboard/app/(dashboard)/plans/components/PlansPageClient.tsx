@@ -103,10 +103,14 @@ export function PlansPageClient({ initialPlans }: { initialPlans: PlanRow[] }) {
   // field to derive one from (see this story's own Scope Note on `price`
   // being the single stored amount for whichever billing interval is set).
   function priceLabel(plan: PlanRow): string {
+    const priceText = plan.price.toLocaleString(i18n.language);
+    if (plan.planType === "pay_per_session") {
+      return t("plans.pricePerSessionLabel", { price: priceText });
+    }
     const intervalLabel =
       plan.billingInterval === "annual" ? t("plans.intervalAnnual") : t("plans.intervalMonthly");
     const base = t("plans.priceLabel", {
-      price: plan.price.toLocaleString(i18n.language),
+      price: priceText,
       interval: intervalLabel,
     });
     if (plan.billingInterval === "annual" && plan.annualDiscountPercent !== null) {

@@ -974,3 +974,15 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-2-flagged-payment-reason-late-vs-wrong-account.md`
   summary: When the dashboard first renders flagged payments, add a small test tying `PAYMENT_FLAGGED_REASON_LABEL_KEY` to the DB closed set and both locales, and a fallback for unknown or null reasons.
   evidence: The label map and `payments.flaggedReasons.*` keys ship with no consumer (spec decision A); a renamed key or dropped entry would fail silently until a list renders them.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-3-charge-guests-setting-session-record-plan-type-rules.md`
+  summary: Add a CHECK tying guest_sessions.consumed_at to covered_day (or enforce it in consume_guest_session) so NULL covered_day cannot escape the one-consumed-per-day unique index.
+  evidence: Partial unique index treats NULLs as distinct; a consumed row with null covered_day allows same-day double consumption. Only definer code writes the table, so settle it where the consumption function is written (19.6b/19.7).
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-3-charge-guests-setting-session-record-plan-type-rules.md`
+  summary: Audit revenue and payments-list queries so purpose='session' rows are not bucketed as subscription revenue (unverified, medium if real).
+  evidence: payments_purpose_check now admits 'session' (0107); no session row can exist until 19.4 inserts one via a definer RPC, so check the queries when that story lands.
+
+## Deferred from: code review of spec-19-3-charge-guests-setting-session-record-plan-type-rules (2026-10-11)
+
+- Add render tests for the per-session price label (`PlansPageClient`) and the `PlanModal` price-change and price-0 notes. Copy only; do it when the plans page is next touched.
+- Verify the `listPlans` `subscriptions(count)` embed against real PostgREST/RLS (e2e or integration); unit tests only cover a mocked chain. Safety net: RPC refusal plus `staleLocked`.
