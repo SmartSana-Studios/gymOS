@@ -95,6 +95,7 @@ async function MembersData({
       coaches={coaches ?? []}
       gymName={shell.gymName}
       registrationFee={registrationFee}
+      phoneCountry={gymSettings?.country}
       mobileMoneyEnabled={mobileMoneyEnabled}
     />
   );

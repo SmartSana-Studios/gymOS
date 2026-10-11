@@ -9,6 +9,7 @@ import { TablePagination } from "@/components/TablePagination";
 import { Button } from "@/components/ui/button";
 import { useClientPagination } from "@/hooks/use-table-pagination";
 import { parseCsvRows } from "@/lib/csv";
+import { phoneCountryCallingCode, resolvePhoneCountry } from "@/lib/phone";
 import type { CsvRowError, ValidatedCsvRow } from "@/services/csvImport";
 import { confirmCsvImport, validateCsvImport } from "../actions";
 
@@ -64,11 +65,18 @@ function downloadTemplate() {
 export function CsvImportModal({
   onClose,
   onImported,
+  phoneCountry,
 }: {
   onClose: () => void;
   onImported: (count: number, warning?: string) => void;
+  /** The gym's own country (gyms.country, ISO alpha-2) -- shown so the manager
+   * knows how phone numbers without a country code will be read. Display only:
+   * the server re-reads the gym's country and does the actual normalization. */
+  phoneCountry?: string;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const country = resolvePhoneCountry(phoneCountry);
+  const countryName = new Intl.DisplayNames([i18n.language], { type: "region" }).of(country) ?? country;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>("upload");
@@ -220,6 +228,13 @@ export function CsvImportModal({
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               />
             </div>
+
+            <p className="text-xs text-muted-foreground">
+              {t("members.csvImport.phoneCountryHint", {
+                country: countryName,
+                callingCode: phoneCountryCallingCode(country),
+              })}
+            </p>
 
             {file && (
               <div className="flex items-center justify-between text-sm">

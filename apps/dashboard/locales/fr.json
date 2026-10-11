@@ -109,6 +109,8 @@
       "primaryColor": "Couleur principale *",
       "defaultLanguage": "Langue par défaut",
       "timezone": "Fuseau horaire *",
+      "country": "Pays *",
+      "countryHint": "Les numéros importés sans indicatif pays sont lus comme des numéros de ce pays.",
       "gracePeriod": "Délai de grâce *",
       "gracePeriodUnit": "jours",
       "capacity": "Capacité de la salle *",
@@ -191,6 +193,7 @@
     },
     "errors": {
       "gymNotFound": "Salle introuvable",
+      "invalidCountry": "Sélectionnez un pays valide",
       "noFileProvided": "Aucun fichier fourni",
       "unsupportedType": "Type d'image non pris en charge. Utilisez PNG, JPG, WEBP ou GIF.",
       "imageTooLarge": "Image trop volumineuse — 5 Mo maximum",
@@ -547,6 +550,7 @@
     },
     "csvImport": {
       "title": "Importation CSV",
+      "phoneCountryHint": "Les numéros sans indicatif pays sont lus comme des numéros de {{country}} ({{callingCode}}). Les numéros commençant par + gardent leur propre pays. Modifiable dans les Paramètres.",
       "downloadTemplate": "Télécharger le modèle ↓",
       "uploadZoneText": "Glissez votre CSV ici, ou",
       "browseButton": "Parcourir",

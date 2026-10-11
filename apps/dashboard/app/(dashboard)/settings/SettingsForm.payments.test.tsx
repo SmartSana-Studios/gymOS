@@ -69,6 +69,7 @@ vi.mock("react-i18next", () => ({
       if (key === "settings.payments.connectedSince") return `Since ${vars?.date}`;
       return TRANSLATIONS[key] ?? key;
     },
+    i18n: { language: "en" },
   }),
 }));
 
@@ -80,6 +81,7 @@ const INITIAL_SETTINGS = {
   primaryColor: null,
   timezone: "Africa/Douala",
   defaultLanguage: "en",
+  country: "CM",
   gracePeriodDays: 3,
   capacity: 100,
   alertAutoDismissMinutes: 30,

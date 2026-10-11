@@ -10,6 +10,8 @@ import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { listPlans } from "@/services/plans";
 import { getGymSettings } from "@/services/gym-settings";
+import { normalizePhoneForCountry, resolvePhoneCountry } from "@/lib/phone";
+import type { CountryCode } from "libphonenumber-js";
 import {
   deleteAuthUserForCleanup,
   deleteMemberForCleanup,
@@ -174,10 +176,12 @@ const SCHEMA_FIELD_TO_COLUMN: Record<string, string> = {
   expiryDate: "expiry_date",
 };
 
-function toCsvMemberRowCandidate(raw: Record<string, string>) {
+/** `country` is the gym's own: a phone written without a country code is read
+ * against it (see normalizePhoneForCountry); a number with a "+" keeps its own. */
+function toCsvMemberRowCandidate(raw: Record<string, string>, country: CountryCode) {
   return {
     memberName: raw.member_name ?? "",
-    phone: raw.phone ?? "",
+    phone: normalizePhoneForCountry(raw.phone ?? "", country),
     planName: raw.plan_type ?? "",
     joinDate: raw.join_date ?? "",
     subscriptionStatus: raw.subscription_status ?? "",
@@ -198,6 +202,15 @@ export async function validateCsvImport(
   const { t } = await getServerTranslation(await getRequestLocale());
   const errors: CsvRowError[] = [];
 
+  // The gym's country decides how local-format phone numbers are read. An
+  // unreadable value stops validation rather than guessing a country -- a wrong
+  // guess would attach members to the wrong phone identity.
+  const { data: gym, error: gymError } = await getGymSettings();
+  if (gymError || !gym) {
+    return { valid: false, errors: [{ row: 0, column: "file", message: gymError?.message ?? t("common.somethingWentWrong") }] };
+  }
+  const phoneCountry = resolvePhoneCountry(gym.country);
+
   // Per-row schema parse (Scope Note #6). A malformed row (wrong field
   // count, mapCsvRows) is flagged and skipped here -- its cell values are
   // already known to be misaligned, so a schema-level error on top would
@@ -208,7 +221,7 @@ export async function validateCsvImport(
         errors.push({ row, column: "file", message: t("members.csvImport.errors.rowColumnCountMismatch") });
         return null;
       }
-      const parsed = csvMemberRowSchema.safeParse(toCsvMemberRowCandidate(fields));
+      const parsed = csvMemberRowSchema.safeParse(toCsvMemberRowCandidate(fields, phoneCountry));
       if (!parsed.success) {
         for (const issue of parsed.error.issues) {
           const field = String(issue.path[0] ?? "");

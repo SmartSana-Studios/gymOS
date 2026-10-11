@@ -154,6 +154,10 @@ export const gymSettingsSchema = z.object({
     .nullable(),
   timezone: z.enum(["Africa/Douala", "Africa/Lagos", "Africa/Bangui", "Africa/Kinshasa", "UTC"]),
   defaultLanguage: z.enum(["en", "fr"]),
+  // ISO 3166-1 alpha-2, the default region for reading phone numbers written
+  // without a country code (CSV import). Membership in the real country list
+  // is re-checked server-side in saveGymSettings.
+  country: z.string().regex(/^[A-Z]{2}$/, "Select a country"),
   gracePeriodDays: z.number().int().min(1, "Grace period must be between 1 and 30 days").max(30, "Grace period must be between 1 and 30 days"),
   capacity: z.number().int().positive("Enter the gym's member capacity").max(2147483647, "Value is too large"),
   alertAutoDismissMinutes: z.number().int().min(1, "Auto-dismiss must be between 1 and 120 minutes").max(120, "Auto-dismiss must be between 1 and 120 minutes"),

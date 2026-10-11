@@ -35,6 +35,7 @@ import {
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { TARAMONEY_PROVIDER_KEY } from "@/lib/featureFlags";
+import { isSupportedPhoneCountry } from "@/lib/phone";
 
 /** AD-13 Settings save. `{data,error}` contract, never throws for expected
  * errors -- matches `editTier`'s established Process Pattern. An audit-log
@@ -56,6 +57,14 @@ export async function saveGymSettings(
     };
   }
 
+  if (!isSupportedPhoneCountry(parsed.data.country)) {
+    return {
+      data: null,
+      error: { code: "validation_error", message: t("settings.errors.invalidCountry") },
+      warning: null,
+    };
+  }
+
   const { error } = await updateGymSettings(parsed.data);
   if (error) {
     return { data: null, error, warning: null };
@@ -66,6 +75,7 @@ export async function saveGymSettings(
     primary_color: parsed.data.primaryColor,
     timezone: parsed.data.timezone,
     default_language: parsed.data.defaultLanguage,
+    country: parsed.data.country,
     grace_period_days: parsed.data.gracePeriodDays,
     capacity: parsed.data.capacity,
     alert_auto_dismiss_minutes: parsed.data.alertAutoDismissMinutes,
