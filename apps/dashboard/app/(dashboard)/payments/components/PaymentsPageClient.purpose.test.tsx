@@ -36,7 +36,7 @@ describe("PaymentsPageClient purpose label (Story 18.6)", () => {
     const { PaymentsPageClient } = await import("./PaymentsPageClient");
     render(
       <PaymentsPageClient
-        pendingPayments={[pending("a", "registration_fee", "Fee Fiona"), pending("b", "subscription", "Sub Sam")]}
+        pendingPayments={[pending("a", "registration_fee", "Fee Fiona"), pending("b", "subscription", "Sub Sam"), pending("c", "session", "Session Sia")]}
         discrepancies={[
           {
             id: "d1",
@@ -59,9 +59,11 @@ describe("PaymentsPageClient purpose label (Story 18.6)", () => {
     const rows = screen.getAllByRole("row");
     const fee = rows.find((r) => r.textContent?.includes("Fee Fiona"));
     const sub = rows.find((r) => r.textContent?.includes("Sub Sam"));
+    const session = rows.find((r) => r.textContent?.includes("Session Sia"));
     const stale = rows.find((r) => r.textContent?.includes("Stale Stan"));
     expect(fee).toHaveTextContent("payments.purposes.registrationFee");
     expect(sub).not.toHaveTextContent("payments.purposes");
     expect(stale).toHaveTextContent("payments.purposes.registrationFee");
+    expect(session).toHaveTextContent("payments.purposes.session");
   });
 });

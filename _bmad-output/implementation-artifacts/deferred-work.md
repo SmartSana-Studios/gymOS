@@ -986,3 +986,25 @@ of work.
 
 - Add render tests for the per-session price label (`PlansPageClient`) and the `PlanModal` price-change and price-0 notes. Copy only; do it when the plans page is next touched.
 - Verify the `listPlans` `subscriptions(count)` embed against real PostgREST/RLS (e2e or integration); unit tests only cover a mocked chain. Safety net: RPC refusal plus `staleLocked`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
+  summary: Decide whether a stale `pending` session payment must be expired (or ignored by the in-flight check) when 19.5 chooses the initial status of Tara session rows.
+  evidence: `record_session_payment` blocks on pending/processing but `expire_stale_payment` flips only `processing`; unverified because no pending session row is producible before 19.5 (0100 inserts Tara rows as processing). Medium if reachable.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
+  summary: Add payment/member/gym/purpose/verified/voided assertions inside `private.create_guest_session_for_payment` when 19.5 adds its second caller.
+  evidence: The helper trusts its caller; only the payment_id unique index guards it. Safe today (private, EXECUTE revoked, one same-transaction caller) but a mismatched caller would mint a session.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
+  summary: The 19.9 desk panel must disable submit while `record_session_payment` is in flight, because the RPC deliberately allows double entry.
+  evidence: Matrix row "Double entry" and the Never-list; a double tap would otherwise record two verified payments and two sessions.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
+  summary: With 19.8, pin revenue and refund eligibility for `purpose='session'` in pgTAP and check the dashboard confirm/reject/resolve-flag/CSV/reminder paths against a null `subscription_id`.
+  evidence: decisions.md item 6 audit is by reading; no test asserts it, and non-verified session rows (19.5) now surface in the Payments list.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
+  summary: Add a service-mapping test for `isSession` in `apps/mobile/src/services/payments.ts` once the mobile package has test setup.
+  evidence: apps/mobile has no test files; reverting the mapping would show "Plan unavailable" for a paid session with no failing test.
+
+## Deferred from: code review of spec-19-4-desk-session-payment (2026-10-11)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
+  summary: Block or void-cascade refunds of verified `purpose='session'` payments in 19.8.
+  evidence: `private.block_fee_and_voided_refunds` (0101) rejects only `registration_fee` and voided payments, and the refunds INSERT policy allows owner/manager. The dashboard picker's `purpose = 'subscription'` filter is UI only, so a direct insert refunds a session payment while its `guest_sessions` row stays usable. decisions.md item 6 ("already excluded") overstates this.

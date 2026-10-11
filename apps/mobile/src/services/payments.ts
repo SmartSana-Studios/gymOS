@@ -13,6 +13,7 @@ export interface PaymentListRow {
   status: string;
   planName: string | null;
   isRegistrationFee: boolean;
+  isSession: boolean;
 }
 
 interface PaymentListRowFromDb {
@@ -73,6 +74,7 @@ export async function loadPaymentsPage(
     status: row.status,
     planName: row.subscriptions?.plans?.name ?? null,
     isRegistrationFee: row.purpose === 'registration_fee',
+    isSession: row.purpose === 'session',
   }));
 }
 
@@ -89,6 +91,7 @@ export interface PaymentReceipt {
   actorName: string | null;
   status: string;
   isRegistrationFee: boolean;
+  isSession: boolean;
 }
 
 interface PaymentReceiptRowFromDb {
@@ -165,6 +168,7 @@ export async function getPaymentReceipt(
     actorName,
     status: row.status,
     isRegistrationFee: row.purpose === 'registration_fee',
+    isSession: row.purpose === 'session',
   };
 }
 

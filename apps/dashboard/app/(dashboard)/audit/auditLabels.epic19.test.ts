@@ -1,5 +1,5 @@
 /**
- * Story 19.3: every Epic 19 audit action type written so far has a label, and
+ * Story 19.3/19.4: every Epic 19 audit action type written so far has a label, and
  * that label resolves to real copy in both locales (not the raw key, not blank).
  */
 import { describe, expect, it } from "vitest";
@@ -13,6 +13,8 @@ const EPIC_19_ACTION_TYPES = [
   "plan_type_changed",
   "plan_price_changed",
   "platform_session_config_updated",
+  "session_payment_recorded",
+  "session_attempt_expired",
 ];
 
 function resolve(locale: unknown, key: string): unknown {

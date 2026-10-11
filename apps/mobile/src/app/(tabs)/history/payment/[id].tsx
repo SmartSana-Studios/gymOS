@@ -139,7 +139,9 @@ export default function PaymentDetailScreen() {
             <ThemedText type="default">
               {receipt.isRegistrationFee
                 ? t('paymentDetail.registrationFee')
-                : `${t('paymentDetail.planLabel')}: ${receipt.planName ?? t('paymentDetail.planUnavailable')}`}
+                : receipt.isSession
+                  ? t('paymentDetail.sessionPayment')
+                  : `${t('paymentDetail.planLabel')}: ${receipt.planName ?? t('paymentDetail.planUnavailable')}`}
             </ThemedText>
             <ThemedText type="default">
               {t('paymentDetail.amountLabel')}: {receipt.amount} {receipt.currency}

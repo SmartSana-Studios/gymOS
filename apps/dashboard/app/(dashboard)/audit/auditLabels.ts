@@ -63,4 +63,10 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   plan_type_changed: "audit.actionTypes.planTypeChanged",
   plan_price_changed: "audit.actionTypes.planPriceChanged",
   platform_session_config_updated: "audit.actionTypes.platformSessionConfigUpdated",
+  // Story 19.4. session_payment_recorded is written by record_session_payment()
+  // (0108), target = the member, metadata { amount, currency, method, reason,
+  // payment_id, guest_session_id }. session_attempt_expired comes from the
+  // purpose-generic expiry helper, target = the member, metadata { payment_id }.
+  session_payment_recorded: "audit.actionTypes.sessionPaymentRecorded",
+  session_attempt_expired: "audit.actionTypes.sessionAttemptExpired",
 };
