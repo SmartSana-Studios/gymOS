@@ -8,7 +8,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000000321xx.
 
 begin;
-select plan(46);
+select plan(49);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000032101', 'GC Neg Tier', 6000, 60000, null);
@@ -209,10 +209,23 @@ select throws_like(
   $$ select update_plan_pricing('00000000-0000-0000-0000-000000032142', 'monthly', -5, 30, 'monthly', null) $$,
   '%invalid_input%', 'a negative price is rejected');
 
+select throws_like(
+  $$ select update_plan_pricing('00000000-0000-0000-0000-000000032141', 'monthly', 16000, 30, 'monthly', null, '   ') $$,
+  '%invalid_input%', 'a blank name is rejected');
+
+select throws_like(
+  $$ select update_plan_pricing('00000000-0000-0000-0000-000000032141', 'class_only', 15000, 30, 'monthly', null, 'Refused Rename') $$,
+  'plan_type_locked%', 'a refused edit that carries a new name is still refused');
+
 select lives_ok(
   $$ select update_plan_pricing('00000000-0000-0000-0000-000000032141', 'monthly', 16000, 30, 'monthly', null) $$,
   'positive control: a same-type price change on a plan with subscriptions succeeds');
 reset role;
+
+select isnt(
+  (select name from plans where id = '00000000-0000-0000-0000-000000032141'),
+  'Refused Rename',
+  'the refused edit left the name unchanged');
 
 select is(
   (select row(plan_type::text, price)::text from plans where id = '00000000-0000-0000-0000-000000032141'),
@@ -294,7 +307,7 @@ select throws_ok(
 select ok(
   not has_function_privilege('anon', 'public.set_guest_charging(boolean)', 'EXECUTE')
   and not has_function_privilege('anon', 'public.guest_charging_impact()', 'EXECUTE')
-  and not has_function_privilege('anon', 'public.update_plan_pricing(uuid, plan_type, integer, integer, billing_interval, integer)', 'EXECUTE')
+  and not has_function_privilege('anon', 'public.update_plan_pricing(uuid, plan_type, integer, integer, billing_interval, integer, text)', 'EXECUTE')
   and not has_function_privilege('anon', 'private.protect_charge_guests_per_session()', 'EXECUTE')
   and not has_function_privilege('anon', 'private.protect_plan_type_and_price()', 'EXECUTE')
   and not has_function_privilege('anon', 'private.audit_platform_session_config_update()', 'EXECUTE'),

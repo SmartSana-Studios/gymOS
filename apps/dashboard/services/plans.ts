@@ -184,11 +184,9 @@ export async function insertPlan(input: {
 /** Plan edit. Type, price and the three shape columns go through
  * `update_plan_pricing` (0107): plans.plan_type and plans.price are pinned
  * against direct UPDATE, and the RPC refuses a type change once any
- * subscription references the plan (`plan_type_locked`). The name is written first: it is the step that can collide
- * (plan_name_taken is checked by the action, but a stale or racing write can
- * still fail), and the RPC both changes and audits type/price, so running it
- * last means a failed rename never leaves a price or type change applied and
- * audited behind an error.
+ * subscription references the plan (`plan_type_locked`). The name rides in the
+ * same RPC call (`p_name`), so the edit is one transaction: a refusal or a
+ * name collision leaves nothing applied, and nothing is renamed unaudited.
  *
  * The RPC audits type and price changes itself (plan_type_changed /
  * plan_price_changed, old and new value), which is why the Server Action's
@@ -210,23 +208,6 @@ export async function updatePlan(
     return { error: gymIdError };
   }
 
-  // Chains .select().maybeSingle() to confirm the update actually matched a
-  // row (same pattern as updateTier/updateGymSettings).
-  const { data, error } = await supabase
-    .from("plans")
-    .update({ name: input.name })
-    .eq("gym_id", gymId)
-    .eq("id", planId)
-    .select("id")
-    .maybeSingle();
-
-  if (error) {
-    return { error: await mapAndLog(error) };
-  }
-  if (!data) {
-    return { error: await planNotFoundError("0 rows affected by plan name UPDATE (stale/cross-gym id)") };
-  }
-
   const { error: pricingError } = await supabase.rpc("update_plan_pricing", {
     p_plan_id: planId,
     p_plan_type: input.planType,
@@ -234,6 +215,7 @@ export async function updatePlan(
     p_duration_days: input.durationDays,
     p_billing_interval: input.billingInterval,
     p_annual_discount_percent: input.annualDiscountPercent,
+    p_name: input.name,
   });
 
   if (pricingError) {

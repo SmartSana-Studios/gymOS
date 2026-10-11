@@ -113,3 +113,33 @@ context:
 | 19 | `database.ts` hand-spliced; regeneration widens nulls (blind) | low | rejected | Known and documented in decisions.md; no CI drift guard exists for any splice |
 | 20 | `membership_plans_rls` summary assertion can't tell RLS from pin (gap) | low | rejected | Per-statement 0-row assertions still cover RLS |
 | 21 | PlanModal/PlansPageClient render rules for per-session label and notes untested (gap) | low | rejected | Cosmetic; locked-type render is covered by #6 patch; manual QA is the user's |
+
+### Review Findings
+
+Second review pass 2026-10-11 (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor). Acceptance Auditor found no AC violations.
+
+- [x] [Review][Decision] Resolved: option 1 (fold name into RPC, `p_name text default null`). Refused plan edit still persisted the rename, unaudited — `updatePlan` writes `name` first, then calls `update_plan_pricing`; on `plan_type_locked` (stale lock), suspension or permission refusal the new name is already committed, the user sees an error, and `editPlan` returns before the `plan_edited` audit row. Triage #1 only covered the name-collision case. Options: (a) add `p_name` to `update_plan_pricing` so the whole edit is one transaction and audited by the RPC (public signature change); (b) RPC first, then name (a name failure then leaves price/type applied behind an error); (c) keep order and restore the old name when the RPC refuses. Severity medium. [apps/dashboard/services/plans.ts:updatePlan] (blind-hunter+edge-case-hunter+acceptance-auditor)
+- [x] [Review][Patch] `update_plan_pricing` owner and supervisor allow-list entries are pinned by no test — dropping either role from the list keeps both new suites green. Add `lives_ok` plus price-read assertions as owner and as supervisor [supabase/tests/charge_guests_setting.test.sql] (verification-gap, low)
+- [x] [Review][Patch] The "service-role/owner-level UPDATE still lands" assertion runs as `postgres`, so decisions.md item 3's service_role claim is unproven. Add a `set local role service_role` UPDATE of `plans.price` [supabase/tests/charge_guests_setting.test.sql:180] (blind-hunter, low)
+- [x] [Review][Defer] Per-session price label and the price-change / price-0 notes have no render test — deferred: copy only, no data or auth effect; add three small render assertions when the plans page is next touched [apps/dashboard/app/(dashboard)/plans/components/PlansPageClient.tsx, PlanModal.tsx]
+- [x] [Review][Defer] `listPlans` `subscriptions(count)` embed is verified only against a mocked chain — deferred: RPC refusal and `staleLocked` keep data safe; fold into the first plans-page e2e [apps/dashboard/services/plans.ts]
+
+#### Rejected
+
+- Plan pin does not bind `service_role` — documented in decisions.md item 3 and matches the spec matrix ("as authenticated").
+- Plan INSERT unpinned — INSERT of type/price is how plans are created; spec pins UPDATE.
+- Direct UPDATE as `anon` untested — `anon` has no UPDATE grant or policy on plans; negligible.
+- Flag INSERT with true unguarded — decided and reverted, decisions.md item 8.
+- Further `guest_sessions` CHECKs (voided/consumed, usable_until, gym tie) — no writer exists until 19.4+; consumed/covered_day is already deferred.
+- `guest_sessions` FKs are NO ACTION — same as `payments.member_id` (0004); members are deactivated, not deleted.
+- No super-admin or coach SELECT on `guest_sessions` — not in the spec; coach exclusion matches the front-desk/finance roles.
+- `guest_charging_impact()` edge-case test thinness — low, read-only.
+- `p_price` overflow — false, parameter is `integer`. 23514 collision — false, the app matches the `plan_type_locked` substring, not the SQLSTATE; shape CHECKs are pre-validated by zod.
+- Shape columns unaudited through the RPC — pre-existing: RLS already allowed direct writes of those columns; the action audits them via `plan_edited`.
+- `platform_session_config` huge day counts / no-op audit rows — super-admin only, low.
+- Waive chip stores locale text; FR length untested — rejected earlier (#12), low.
+- Stale-lock modal reopen shows editable select; retained typed price — RPC refuses again / resubmit is user intent.
+- Claim that "running RPC last" comment is wrong — false, no such comment exists in `plans.ts`.
+- EN copy "session" unqualified — "Session platform defaults" also covers free sessions, so "paid" would be wrong; remaining strings are spec-mandated or already qualified.
+- `purpose='session'` consumers unaudited — already deferred (deferred-work.md, 19.4); no session payment can exist before then.
+- Spec/tracking file inconsistencies — fix would edit the spec under review; count-only change to `suspension_rpc_coverage` passes the meta-test.

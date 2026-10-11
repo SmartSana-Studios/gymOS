@@ -2401,6 +2401,7 @@ export type Database = {
           p_annual_discount_percent: number | null
           p_billing_interval: Database["public"]["Enums"]["billing_interval"]
           p_duration_days: number | null
+          p_name?: string | null
           p_plan_id: string
           p_plan_type: Database["public"]["Enums"]["plan_type"]
           p_price: number

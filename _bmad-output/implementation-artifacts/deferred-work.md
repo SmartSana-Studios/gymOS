@@ -981,3 +981,8 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-3-charge-guests-setting-session-record-plan-type-rules.md`
   summary: Audit revenue and payments-list queries so purpose='session' rows are not bucketed as subscription revenue (unverified, medium if real).
   evidence: payments_purpose_check now admits 'session' (0107); no session row can exist until 19.4 inserts one via a definer RPC, so check the queries when that story lands.
+
+## Deferred from: code review of spec-19-3-charge-guests-setting-session-record-plan-type-rules (2026-10-11)
+
+- Add render tests for the per-session price label (`PlansPageClient`) and the `PlanModal` price-change and price-0 notes. Copy only; do it when the plans page is next touched.
+- Verify the `listPlans` `subscriptions(count)` embed against real PostgREST/RLS (e2e or integration); unit tests only cover a mocked chain. Safety net: RPC refusal plus `staleLocked`.

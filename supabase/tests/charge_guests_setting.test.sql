@@ -8,7 +8,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000000320xx.
 
 begin;
-select plan(39);
+select plan(44);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000032001', 'Guest Charging Tier', 6000, 60000, null);
@@ -173,11 +173,13 @@ select is(
   'direct UPDATE of plans.price is pinned'
 );
 
+set local role service_role;
 update plans set price = 1 where id = '00000000-0000-0000-0000-000000032044';
+reset role;
 select is(
   (select price from plans where id = '00000000-0000-0000-0000-000000032044'),
   1,
-  'the pin covers authenticated only: a service-role/owner-level UPDATE still lands'
+  'the pin covers authenticated only: a service_role UPDATE still lands'
 );
 update plans set price = 9000 where id = '00000000-0000-0000-0000-000000032044';
 
@@ -251,6 +253,38 @@ select is(
    where action_type = 'plan_type_changed' and target_entity_id = '00000000-0000-0000-0000-000000032044'),
   '{"old_plan_type": "monthly", "new_plan_type": "pay_per_session"}'::jsonb,
   'the type change is audited with old and new value'
+);
+
+-- Every allow-listed role reaches a successful write (owner, supervisor), and
+-- the optional name rides in the same transaction.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000032021","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000032011","app_role":"owner"}', true);
+select lives_ok(
+  $$ select update_plan_pricing('00000000-0000-0000-0000-000000032043', 'monthly', 15100, 30, 'monthly', null) $$,
+  'owner can change plan pricing'
+);
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000032022","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000032011","app_role":"supervisor"}', true);
+select lives_ok(
+  $$ select update_plan_pricing('00000000-0000-0000-0000-000000032043', 'monthly', 15200, 30, 'monthly', null) $$,
+  'supervisor can change plan pricing'
+);
+select lives_ok(
+  $$ select update_plan_pricing('00000000-0000-0000-0000-000000032043', 'monthly', 15200, 30, 'monthly', null, 'GC Monthly Renamed') $$,
+  'p_name renames the plan in the same call'
+);
+reset role;
+
+select is(
+  (select price from plans where id = '00000000-0000-0000-0000-000000032043'),
+  15200,
+  'the supervisor price change landed'
+);
+select is(
+  (select name from plans where id = '00000000-0000-0000-0000-000000032043'),
+  'GC Monthly Renamed',
+  'the rename landed'
 );
 
 -- ============================================================================

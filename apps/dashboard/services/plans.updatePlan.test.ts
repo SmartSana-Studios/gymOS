@@ -1,6 +1,6 @@
 /**
- * Story 19.3: updatePlan routes type/price/shape through update_plan_pricing,
- * writes only the name directly (and first), and maps the RPC's refusal codes;
+ * Story 19.3: updatePlan sends the name, type, price and shape through
+ * update_plan_pricing in one call and maps the RPC refusal codes;
  * listPlans derives hasSubscriptions from the embedded subscriptions(count).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -67,13 +67,13 @@ beforeEach(() => {
 });
 
 describe("updatePlan", () => {
-  it("writes only the name directly, before calling update_plan_pricing with the mapped args", async () => {
+  it("sends the name through update_plan_pricing and writes nothing directly", async () => {
     const { updatePlan } = await import("./plans");
     const { error } = await updatePlan("plan-1", INPUT);
 
     expect(error).toBeNull();
-    expect(updateArgs).toEqual([{ name: "Gold" }]);
-    expect(order).toEqual(["update", "rpc"]);
+    expect(updateArgs).toEqual([]);
+    expect(order).toEqual(["rpc"]);
     expect(rpcArgs).toEqual([
       {
         fn: "update_plan_pricing",
@@ -84,21 +84,10 @@ describe("updatePlan", () => {
           p_duration_days: 30,
           p_billing_interval: "monthly",
           p_annual_discount_percent: null,
+          p_name: "Gold",
         },
       },
     ]);
-  });
-
-  it("does not call the RPC when the name update fails or matches no row", async () => {
-    const { updatePlan } = await import("./plans");
-
-    updateResult = { data: null, error: { message: "duplicate" } };
-    expect((await updatePlan("plan-1", INPUT)).error?.code).toBe("unknown");
-
-    updateResult = { data: null, error: null };
-    expect((await updatePlan("plan-1", INPUT)).error?.code).toBe("not_found");
-
-    expect(rpcArgs).toEqual([]);
   });
 
   it("maps plan_type_locked to its own code and message", async () => {

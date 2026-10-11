@@ -360,7 +360,9 @@ create trigger protect_plan_type_and_price
 
 -- ----------------------------------------------------------------------------
 -- update_plan_pricing(): the only client path for a plan's type and price.
--- Manager, Supervisor or Owner of the plan's own gym. Order: role, gym,
+-- Manager, Supervisor or Owner of the plan's own gym. p_name (optional, null =
+-- leave the name alone) rides in the same UPDATE so a refused edit never leaves
+-- a rename applied behind an error. Order: role, gym,
 -- suspension, plan lookup (locked), type-lock check, write, audit.
 --
 -- plan_type_locked: once any subscription references the plan its type cannot
@@ -373,7 +375,8 @@ create function update_plan_pricing(
   p_price integer,
   p_duration_days integer,
   p_billing_interval billing_interval,
-  p_annual_discount_percent integer
+  p_annual_discount_percent integer,
+  p_name text default null
 )
 returns void
 language plpgsql
@@ -398,7 +401,8 @@ begin
     raise exception 'update_plan_pricing: gym % is not active', v_gym_id;
   end if;
 
-  if p_plan_type is null or p_price is null or p_billing_interval is null or p_price < 0 then
+  if p_plan_type is null or p_price is null or p_billing_interval is null or p_price < 0
+     or (p_name is not null and btrim(p_name) = '') then
     raise exception 'update_plan_pricing: invalid_input';
   end if;
 
@@ -418,7 +422,8 @@ begin
   end if;
 
   update plans
-  set plan_type = p_plan_type,
+  set name = coalesce(btrim(p_name), name),
+      plan_type = p_plan_type,
       price = p_price,
       duration_days = p_duration_days,
       billing_interval = p_billing_interval,
@@ -447,8 +452,8 @@ begin
 end;
 $$;
 
-revoke execute on function update_plan_pricing(uuid, plan_type, integer, integer, billing_interval, integer) from public, anon;
-grant execute on function update_plan_pricing(uuid, plan_type, integer, integer, billing_interval, integer) to authenticated;
+revoke execute on function update_plan_pricing(uuid, plan_type, integer, integer, billing_interval, integer, text) from public, anon;
+grant execute on function update_plan_pricing(uuid, plan_type, integer, integer, billing_interval, integer, text) to authenticated;
 
 -- ----------------------------------------------------------------------------
 -- Post-condition assertions -- 0090/0098's discipline.
