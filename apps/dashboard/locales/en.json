@@ -48,6 +48,7 @@
       "expiringThisWeek": "Expiring this week",
       "revenueThisMonth": "Revenue this month",
       "revenueOfWhichRegistrationFees": "of which registration fees",
+      "guestSessions": "Guest sessions",
       "activeMembers": "Active members",
       "newThisMonth": "New this month",
       "todaysClasses": "Today's classes",
@@ -1151,7 +1152,10 @@
       "sessionPaymentRecorded": "Session payment recorded",
       "sessionAttemptExpired": "Session payment attempt expired",
       "sessionPaymentPaid": "Paid session payment received",
-      "sessionLatePayment": "Late paid session payment applied"
+      "sessionLatePayment": "Late paid session payment applied",
+      "sessionRefundApplied": "Paid session refund applied",
+      "sessionConsumed": "Session used",
+      "sessionAttemptBlocked": "Entry blocked: session required"
     }
   },
   "saasBilling": {

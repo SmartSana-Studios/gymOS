@@ -60,8 +60,10 @@ vi.mock("@/services/subscriptions", () => ({
 
 const getRevenueMtd = vi.fn();
 const getRegistrationFeeRevenueMtd = vi.fn();
+const getSessionRevenueMtd = vi.fn();
 vi.mock("@/services/payments", () => ({
   getRevenueMtd: (...args: unknown[]) => getRevenueMtd(...args),
+  getSessionRevenueMtd: (...args: unknown[]) => getSessionRevenueMtd(...args),
   getRegistrationFeeRevenueMtd: (...args: unknown[]) => getRegistrationFeeRevenueMtd(...args),
 }));
 
@@ -208,6 +210,7 @@ describe("(dashboard) Overview page", () => {
     // Story 18.4: a gym with no registration fee and no fee income, so every
     // pre-existing assertion about the revenue card stays as it was.
     getRegistrationFeeRevenueMtd.mockReset().mockResolvedValue({ data: 0, error: null });
+    getSessionRevenueMtd.mockReset().mockResolvedValue({ data: 0, error: null });
     getGymSettings.mockReset().mockResolvedValue({ data: { registrationFee: 0 }, error: null });
   });
 
@@ -415,6 +418,64 @@ describe("(dashboard) Overview page", () => {
 
       expect(getRegistrationFeeRevenueMtd).toHaveBeenCalledTimes(1);
       expect(getGymSettings).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("Story 19.8: the 'Guest sessions' line", () => {
+    const SESSION_LABEL = "overview.cards.guestSessions";
+    const FEE_LABEL = "overview.cards.revenueOfWhichRegistrationFees";
+    const revenue = (tree: ReactElement) => card(tree, "overview.cards.revenueThisMonth");
+
+    it("is absent when the gym does not charge guests and holds no session money", async () => {
+      expect(revenue(await renderOverviewData()).detail).toBeUndefined();
+    });
+
+    it("shows XAF 0 when the gym charges guests per session and nothing was taken", async () => {
+      getGymSettings.mockResolvedValue({ data: { registrationFee: 0, chargeGuestsPerSession: true }, error: null });
+
+      expect(revenue(await renderOverviewData()).detail).toBe(`${SESSION_LABEL}: XAF 0`);
+    });
+
+    it("shows the line, with the request locale, when the figure is above 0 even with charging off", async () => {
+      locale = "fr";
+      getSessionRevenueMtd.mockResolvedValue({ data: 3000, error: null });
+
+      expect(revenue(await renderOverviewData()).detail).toBe(`${SESSION_LABEL} : ${(3000).toLocaleString("fr")} XAF`);
+    });
+
+    it("sits beside the fee line as its own entry, never inside it", async () => {
+      getGymSettings.mockResolvedValue({ data: { registrationFee: 5000, chargeGuestsPerSession: true }, error: null });
+      getRegistrationFeeRevenueMtd.mockResolvedValue({ data: 5000, error: null });
+      getSessionRevenueMtd.mockResolvedValue({ data: 3000, error: null });
+
+      expect(revenue(await renderOverviewData()).detail).toEqual([
+        `${FEE_LABEL}: XAF 5,000`,
+        `${SESSION_LABEL}: XAF 3,000`,
+      ]);
+    });
+
+    it("hides the line under an unavailable headline even when charging is on and session money exists", async () => {
+      getRevenueMtd.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
+      getGymSettings.mockResolvedValue({ data: { registrationFee: 0, chargeGuestsPerSession: true }, error: null });
+      getSessionRevenueMtd.mockResolvedValue({ data: 3000, error: null });
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const tree = await renderOverviewData();
+
+      expect(revenue(tree).value).toBe("overview.cards.unavailable");
+      expect(revenue(tree).detail).toBeUndefined();
+    });
+
+    it("hides only the line when its read fails; the headline and fee line are unaffected", async () => {
+      getGymSettings.mockResolvedValue({ data: { registrationFee: 5000, chargeGuestsPerSession: true }, error: null });
+      getRegistrationFeeRevenueMtd.mockResolvedValue({ data: 5000, error: null });
+      getSessionRevenueMtd.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      const tree = await renderOverviewData();
+
+      expect(revenue(tree).value).toBe("XAF 1,234,567");
+      expect(revenue(tree).detail).toBe(`${FEE_LABEL}: XAF 5,000`);
     });
   });
 

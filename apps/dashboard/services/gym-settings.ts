@@ -30,6 +30,8 @@ export interface GymSettingsRow {
   checkinTimeoutHours: number;
   gymToken: string;
   registrationFee: number;
+  /** Story 19.8: whether the gym charges Pay-per-session guests per session (0107). */
+  chargeGuestsPerSession: boolean;
 }
 
 /** Shared by every "0 rows affected" (RLS-denied) / "no gym_id claim" branch
@@ -80,7 +82,7 @@ export async function getGymSettings(): Promise<{
   const { data, error } = await supabase
     .from("gyms")
     .select(
-      "name, logo_url, primary_color, timezone, default_language, country, grace_period_days, capacity, alert_auto_dismiss_minutes, checkin_timeout_hours, gym_token, registration_fee",
+      "name, logo_url, primary_color, timezone, default_language, country, grace_period_days, capacity, alert_auto_dismiss_minutes, checkin_timeout_hours, gym_token, registration_fee, charge_guests_per_session",
     )
     .eq("id", gymId)
     .maybeSingle();
@@ -106,6 +108,7 @@ export async function getGymSettings(): Promise<{
       checkinTimeoutHours: data.checkin_timeout_hours,
       gymToken: data.gym_token,
       registrationFee: data.registration_fee,
+      chargeGuestsPerSession: data.charge_guests_per_session,
     },
     error: null,
   };

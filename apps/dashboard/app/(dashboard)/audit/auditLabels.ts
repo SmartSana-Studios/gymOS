@@ -74,4 +74,13 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // guest_session_id, amount, currency, method, fee_amount }.
   session_payment_paid: "audit.actionTypes.sessionPaymentPaid",
   session_late_payment: "audit.actionTypes.sessionLatePayment",
+  // Story 19.8. Written by database triggers (0113), gym-scoped, target = the
+  // member. session_refund_applied metadata { outcome: voided | kept_partial |
+  // kept_consumed, refund_id, payment_id, guest_session_id, refund_amount,
+  // payment_amount }. session_consumed metadata { guest_session_id, payment_id,
+  // covered_day, consumed_at, source: paid | free }. session_attempt_blocked
+  // metadata { attempt_id, scan_id, source, class_session_id, scanned_at }.
+  session_refund_applied: "audit.actionTypes.sessionRefundApplied",
+  session_consumed: "audit.actionTypes.sessionConsumed",
+  session_attempt_blocked: "audit.actionTypes.sessionAttemptBlocked",
 };

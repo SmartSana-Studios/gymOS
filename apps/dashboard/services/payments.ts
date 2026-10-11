@@ -754,6 +754,22 @@ export async function getRegistrationFeeRevenueMtd(): Promise<{ data: number | n
   return { data: data ?? 0, error: null };
 }
 
+/**
+ * Story 19.8 (AD-02 "Guest sessions" line): net session money this month --
+ * verified, non-voided session payments minus refunds of session payments,
+ * from the `gym_session_revenue_mtd()` aggregate (0113). Same shape as
+ * `getRevenueMtd`. Session money is NOT in `getRevenueMtd()` (0113 moved it
+ * out), so the Overview shows this as its own line, never as "of which".
+ */
+export async function getSessionRevenueMtd(): Promise<{ data: number | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("gym_session_revenue_mtd");
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: data ?? 0, error: null };
+}
+
 export interface PaymentDiscrepancyRow {
   id: string;
   discrepancyType: "stale_processing" | "amount_mismatch" | "wrong_account_settlement";
