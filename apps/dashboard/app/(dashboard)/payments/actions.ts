@@ -26,6 +26,8 @@ import {
   recordRegistrationFee,
   recordSessionPayment,
   getSessionPaymentPreview,
+  exportPaymentsCsv,
+  type ExportPaymentsCsvResult,
   searchMembersForPayment,
   verifyPayment,
   voidRegistrationFeePayment,
@@ -362,4 +364,14 @@ export async function listMemberGuestSessionsAction(
   memberId: string,
 ): Promise<{ data: MemberGuestSession[] | null; error: AppError | null }> {
   return listMemberGuestSessions(memberId);
+}
+
+/** Story 19.9c: the All Payments ledger's CSV export, honouring the current
+ * purpose/member filter. All logic (role gate, 1,000-row ceiling) lives in
+ * `exportPaymentsCsv`; this is a pure passthrough. */
+export async function exportPaymentsCsvAction(params: {
+  purpose?: string;
+  memberId?: string;
+}): Promise<ExportPaymentsCsvResult> {
+  return exportPaymentsCsv(params);
 }

@@ -992,6 +992,7 @@
     "status": {
       "pending": "En attente",
       "verified": "Vérifié",
+      "processing": "En cours",
       "flagged": "Signalé"
     },
     "methods": {
@@ -1104,6 +1105,29 @@
       "expiredAttempt": "Tentative expirée",
       "providerDeclined": "Paiement refusé",
       "staffFlagged": "Signalé par le personnel"
+    },
+    "purposeFilter": {
+      "label": "Objet",
+      "all": "Tous les objets",
+      "renewal": "Renouvellement",
+      "registrationFee": "Frais d'inscription",
+      "session": "Paiement de séance"
+    },
+    "ledger": {
+      "title": "Tous les paiements",
+      "empty": "Aucun paiement enregistré pour le moment.",
+      "emptyFiltered": "Aucun paiement ne correspond à ces filtres.",
+      "clearFilters": "Effacer les filtres",
+      "loadError": "Impossible de charger les paiements.",
+      "voided": "Annulé",
+      "actorTara": "Tara Money (dans l'app)",
+      "table": { "purpose": "Objet", "date": "Date", "actor": "Enregistré par", "note": "Note" }
+    },
+    "export": {
+      "button": "Exporter en CSV",
+      "exporting": "Export en cours...",
+      "tooLarge": "Trop de paiements à exporter. Affinez les filtres et réessayez.",
+      "forbidden": "Vous n'avez pas la permission d'exporter les paiements."
     }
   },
   "frontDeskAlert": {
