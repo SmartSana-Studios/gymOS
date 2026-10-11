@@ -12,8 +12,10 @@ import {
 import {
   ALLOWED_LOGO_MIME_TYPES,
   MAX_LOGO_BYTES,
+  getGuestChargingImpact as getGuestChargingImpactRow,
   logGymSettingsChange,
   regenerateQrCode as regenerateQrCodeRow,
+  setGuestCharging as setGuestChargingRow,
   setRegistrationFee,
   updateGymSettings,
   uploadGymLogo,
@@ -36,6 +38,7 @@ import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { TARAMONEY_PROVIDER_KEY } from "@/lib/featureFlags";
 import { isSupportedPhoneCountry } from "@/lib/phone";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /** AD-13 Settings save. `{data,error}` contract, never throws for expected
  * errors -- matches `editTier`'s established Process Pattern. An audit-log
@@ -292,4 +295,64 @@ export async function saveRegistrationFee(
     return { data: null, error: { code: "validation_error", message: t("settings.errors.registrationFeeInvalid") } };
   }
   return setRegistrationFee(parsed.data);
+}
+
+const DEFAULT_PAID_SESSION_VALIDITY_DAYS = 7;
+
+/**
+ * Story 19.9a: what the charge-guests confirmation dialogs need -- the
+ * affected-member count and the paid-session validity in days. The count RPC
+ * (`guest_charging_impact()`) refuses anyone but an Owner/Supervisor, so the
+ * platform config is read (admin client, server-side only: the table has no
+ * gym-staff policy) only after that role check has passed. A failed config
+ * read falls back to the platform default of 7 days rather than failing.
+ */
+export async function getGuestChargingImpact(): Promise<{
+  data: { count: number; validityDays: number } | null;
+  error: AppError | null;
+}> {
+  const { data: count, error } = await getGuestChargingImpactRow();
+  if (error || count === null) {
+    return { data: null, error: error ?? { code: "unknown", message: "" } };
+  }
+
+  let validityDays = DEFAULT_PAID_SESSION_VALIDITY_DAYS;
+  try {
+    const admin = createAdminClient();
+    const { data: config, error: configError } = await admin
+      .from("platform_session_config")
+      .select("paid_session_validity_days")
+      .limit(1)
+      .maybeSingle();
+    if (configError) {
+      console.error("[getGuestChargingImpact] platform_session_config read failed", configError);
+    }
+    if (!configError && config && Number.isInteger(config.paid_session_validity_days) && config.paid_session_validity_days > 0) {
+      validityDays = config.paid_session_validity_days;
+    }
+  } catch (err) {
+    console.error("[getGuestChargingImpact] platform_session_config read failed", err);
+  }
+
+  return { data: { count, validityDays }, error: null };
+}
+
+/**
+ * Story 19.9a: sets per-session guest charging. Not part of `saveGymSettings`
+ * (the column is pinned against that path); `set_guest_charging()` is the real
+ * authorization boundary and writes the audit row. Any refusal is shown as one
+ * fixed, translated message rather than the raw database text.
+ */
+export async function setGuestCharging(
+  enabled: unknown,
+): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  if (typeof enabled !== "boolean") {
+    return { data: null, error: { code: "validation_error", message: t("settings.guestCharging.saveFailed") } };
+  }
+  const { data, error } = await setGuestChargingRow(enabled);
+  if (error || !data) {
+    return { data: null, error: { code: error?.code ?? "unknown", message: t("settings.guestCharging.saveFailed") } };
+  }
+  return { data, error: null };
 }
