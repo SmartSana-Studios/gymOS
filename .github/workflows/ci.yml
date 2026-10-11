@@ -1,8 +1,12 @@
 name: CI
 
+# Actions minutes are spent once per epic: the epic -> master PR. Story work is
+# gated locally by `scripts/ci-local.sh` and merged into the epic branch without
+# a GitHub run. Branch pushes and PRs targeting an epic branch do not trigger CI.
 on:
-  push:
   pull_request:
+    branches: [master]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
