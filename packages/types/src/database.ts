@@ -1489,6 +1489,49 @@ export type Database = {
           },
         ]
       }
+      session_attempts: {
+        Row: {
+          scan_id: string | null
+          source: string
+          created_at: string
+          gym_id: string
+          id: string
+          member_id: string
+          scanned_at: string | null
+        }
+        Insert: {
+          scan_id?: string | null
+          source?: string
+          created_at?: string
+          gym_id: string
+          id?: string
+          member_id: string
+          scanned_at?: string | null
+        }
+        Update: {
+          scan_id?: string | null
+          source?: string
+          created_at?: string
+          gym_id?: string
+          id?: string
+          member_id?: string
+          scanned_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_attempts_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_attempts_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_notes: {
         Row: {
           coach_assignment_id: string

@@ -52,7 +52,8 @@
     "0100_registration_fee_tara_collection.sql",
     "0101_registration_fee_void_refund_revenue.sql",
     "0102_receptionist_create_members_assign_plans.sql",
-    "0110_front_desk_alert_kind.sql"
+    "0110_front_desk_alert_kind.sql",
+    "0111_check_in_session_gate.sql"
   ],
   "function_privileges": [
     "0003_members_and_users.sql",

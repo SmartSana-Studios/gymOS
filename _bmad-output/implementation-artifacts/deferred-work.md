@@ -1021,3 +1021,7 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-6a-front-desk-alert-kind-refactor-no-behavior-change.md`
   summary: No automated check applies `scripts/rollback-0110-front-desk-alert-kind.sql` after 0110, so its embedded function copies can drift.
   evidence: Rehearsed once by hand in a rolled-back transaction; the pgtap stage only runs `supabase/tests/*.sql`. A drift or typo would surface only in an incident.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-6b-check-in-gate-blocked-attempts-session-required-alert.md`
+  summary: Rollback scripts for 0110 and 0111 are only manually rehearsed; add a harness that applies each in a transaction and diffs the restored `check_in()` source and `attendance_events` grants.
+  evidence: Editing the hand-copied 0110 body inside rollback-0111 leaves every suite green; drift would be found only during an incident.

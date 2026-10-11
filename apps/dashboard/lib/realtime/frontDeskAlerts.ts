@@ -14,10 +14,28 @@ export type FrontDeskAlertStatus = "expiring_soon" | "grace_period" | "expired";
 export interface FrontDeskAlertRealtimeRow {
   id: string;
   member_id: string;
+  /** 0110/0111: 'subscription_status' | 'session_required'. A
+   * session_required row has a null status and is not an at-risk alert. */
+  kind?: string;
   status: FrontDeskAlertStatus;
   expiry_date: string | null;
   created_at: string;
   dismissed_at: string | null;
+}
+
+/** Realtime rows of any other kind (session_required, null status) never
+ * reach the at-risk alert panel. A row with no kind is treated as
+ * subscription_status. */
+export function isSubscriptionStatusAlertRow(row: { kind?: string | null }): boolean {
+  return row.kind === undefined || row.kind === null || row.kind === "subscription_status";
+}
+
+function forwardSubscriptionStatusRow(
+  onInsertOrUpdate: (row: FrontDeskAlertRealtimeRow) => void,
+  row: FrontDeskAlertRealtimeRow,
+) {
+  if (!isSubscriptionStatusAlertRow(row)) return;
+  onInsertOrUpdate(row);
 }
 
 /**
@@ -44,12 +62,14 @@ export function subscribeToFrontDeskAlerts(
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "front_desk_alerts", filter: `gym_id=eq.${gymId}` },
-      (payload) => onInsertOrUpdate(payload.new as FrontDeskAlertRealtimeRow),
+      (payload) =>
+        forwardSubscriptionStatusRow(onInsertOrUpdate, payload.new as FrontDeskAlertRealtimeRow),
     )
     .on(
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "front_desk_alerts", filter: `gym_id=eq.${gymId}` },
-      (payload) => onInsertOrUpdate(payload.new as FrontDeskAlertRealtimeRow),
+      (payload) =>
+        forwardSubscriptionStatusRow(onInsertOrUpdate, payload.new as FrontDeskAlertRealtimeRow),
     )
     .subscribe((status) => onStatusChange(status));
 
@@ -166,6 +186,8 @@ export async function fetchActiveFrontDeskAlerts(gymId: string): Promise<FrontDe
     .from("front_desk_alerts")
     .select("id, member_id, status, expiry_date, created_at, members(name, photo_url)")
     .eq("gym_id", gymId)
+    // 0111: see services/frontDeskAlerts.ts -- subscription-status alerts only.
+    .eq("kind", "subscription_status")
     .is("dismissed_at", null)
     .order("created_at", { ascending: false });
 
