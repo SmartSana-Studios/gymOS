@@ -211,8 +211,9 @@ select is(
 );
 
 -- ============================================================================
--- (f) AC #2 scope note: re-marking an already-attended booking is idempotent
--- -- no error, attended_at updates to a new timestamp.
+-- (f) AC #2 scope note, amended by 0112: re-marking an already-attended
+-- booking is a no-op -- no error, the stored row comes back and attended_at
+-- keeps its original timestamp.
 -- ============================================================================
 set local role authenticated;
 select set_config(
@@ -228,16 +229,10 @@ select lives_ok(
 
 reset role;
 
--- Review fix: `now()` is transaction-scoped in Postgres (constant across
--- this whole pgTAP file's single wrapping transaction), so comparing
--- attended_at before/after the second call can never actually distinguish
--- "the update ran again" from "it was a no-op" -- both would show the same
--- timestamp regardless. Instead, force attended_at to a distinguishable
--- sentinel value between the two calls (as postgres, bypassing RLS/the
--- RPC) and assert the second mark-attendance call overwrites it -- a
--- regression that silently no-ops re-marking (e.g. an accidental
--- `where attended_at is null` guard) would leave the sentinel in place and
--- fail this assertion.
+-- `now()` is transaction-scoped in Postgres, so a before/after comparison
+-- cannot tell a rewrite from a no-op. Force attended_at to a sentinel
+-- (as postgres) and assert the second call leaves it in place (0112's
+-- `attended_at is null` guard).
 update class_bookings set attended_at = '2000-01-01T00:00:00Z'
 where id = '00000000-0000-0000-0000-0000000082b6';
 
@@ -250,15 +245,15 @@ select set_config(
 
 select lives_ok(
   $$select mark_class_attendance('00000000-0000-0000-0000-0000000082b6')$$,
-  're-marking an already-attended booking is idempotent, no error raised'
+  're-marking an already-attended booking raises no error'
 );
 
 reset role;
 
-select isnt(
+select is(
   (select attended_at from class_bookings where id = '00000000-0000-0000-0000-0000000082b6'),
   '2000-01-01T00:00:00Z'::timestamptz,
-  're-marking an already-attended booking actually re-writes attended_at, not a silent no-op'
+  're-marking an already-attended booking does not rewrite attended_at (0112 no-op)'
 );
 
 -- ============================================================================

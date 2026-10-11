@@ -61,14 +61,11 @@ select set_config(
   true
 );
 
-with attempted as (
-  update class_bookings set attended_at = now() where id = '00000000-0000-0000-0000-000000008361'
-  returning id
-)
-select is(
-  (select count(*)::int from attempted),
-  0,
-  'a receptionist-claim session cannot directly UPDATE class_bookings.attended_at -- 0 rows affected, no write policy exists'
+select throws_ok(
+  $$update class_bookings set attended_at = now() where id = '00000000-0000-0000-0000-000000008361'$$,
+  '42501',
+  null,
+  'a receptionist-claim session cannot directly UPDATE class_bookings.attended_at -- column privilege revoked (0112)'
 );
 
 reset role;
@@ -89,14 +86,11 @@ select set_config(
   true
 );
 
-with attempted as (
-  update class_bookings set attended_at = now() where id = '00000000-0000-0000-0000-000000008361'
-  returning id
-)
-select is(
-  (select count(*)::int from attempted),
-  0,
-  'an owner-claim session cannot directly UPDATE class_bookings.attended_at -- 0 rows affected, no write policy exists'
+select throws_ok(
+  $$update class_bookings set attended_at = now() where id = '00000000-0000-0000-0000-000000008361'$$,
+  '42501',
+  null,
+  'a owner-claim session cannot directly UPDATE class_bookings.attended_at -- column privilege revoked (0112)'
 );
 
 reset role;
@@ -108,14 +102,11 @@ select set_config(
   true
 );
 
-with attempted as (
-  update class_bookings set attended_at = now() where id = '00000000-0000-0000-0000-000000008361'
-  returning id
-)
-select is(
-  (select count(*)::int from attempted),
-  0,
-  'a manager-claim session cannot directly UPDATE class_bookings.attended_at -- 0 rows affected, no write policy exists'
+select throws_ok(
+  $$update class_bookings set attended_at = now() where id = '00000000-0000-0000-0000-000000008361'$$,
+  '42501',
+  null,
+  'a manager-claim session cannot directly UPDATE class_bookings.attended_at -- column privilege revoked (0112)'
 );
 
 reset role;

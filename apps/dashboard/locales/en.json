@@ -429,6 +429,7 @@
       "markAttended": "Mark attended",
       "attended": "Attended",
       "memberExpired": "This member's subscription has expired -- attendance was not recorded. A front-desk alert has been raised.",
+      "sessionRequired": "No paid session — attendance was not recorded. A front-desk alert has been raised.",
       "noBookings": "No members booked for this session.",
       "noSession": "This class has no upcoming session to mark attendance for.",
       "loadingBookings": "Loading booked members…"

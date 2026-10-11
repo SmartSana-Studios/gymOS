@@ -1025,3 +1025,13 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-6b-check-in-gate-blocked-attempts-session-required-alert.md`
   summary: Rollback scripts for 0110 and 0111 are only manually rehearsed; add a harness that applies each in a transaction and diffs the restored `check_in()` source and `attendance_events` grants.
   evidence: Editing the hand-copied 0110 body inside rollback-0111 leaves every suite green; drift would be found only during an incident.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-7-class-attendance-consumes-a-session.md`
+  summary: `mark_class_attendance()` reads the member's latest subscription with `order by created_at desc` only, while `consume_guest_session()` adds `id desc`, so a `created_at` tie can make the two read different rows.
+  evidence: Pre-existing eligibility query copied from 0068/0034 (already noted above for the missing gym_id scope); surfaced again by the 19-7 edge-case review. Low likelihood, one-line fix when the function is next touched.
+
+## Deferred from: code review of spec-19-7-class-attendance-consumes-a-session (2026-10-11)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-7-class-attendance-consumes-a-session.md`
+  summary: Epic 19 context says direct DELETE on `class_bookings` is revoked, but 0112 closes only INSERT/UPDATE column grants and keeps DELETE for `authenticated`/`service_role`.
+  evidence: Spec scope is `attended_at` writes; `cancel_class_booking()` is a definer and the e2e teardown uses service_role DELETE, so DELETE may be revocable for `authenticated`. Decide in 19.12 whether to close it.
