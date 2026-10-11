@@ -2,15 +2,15 @@
 title: GymOS — Product Requirements Document
 status: final
 created: 2026-06-20
-updated: 2026-10-07
-version: "1.5"
+updated: 2026-10-11
+version: "1.6"
 audience: Development Team
-scope: V1.0 (shipped) + V1.5 — Beta-Ready (this update)
+scope: V1.0 (shipped) + V1.5 — Beta-Ready (shipped) + V1.6 — Session Guests, Loyalty & Gym Category (this update); V1.7 landing pages and directory recorded as backlog (Section 12)
 ---
 
 # GymOS — Product Requirements Document
 
-> Stable requirement IDs (FR-NNN, NFR-NNN) are never renumbered. V1.0 ended at FR-086 / NFR-010; V1.5 begins at FR-087 / NFR-011. Where a V1.5 requirement changes a V1.0 requirement's behavior, it says so explicitly ("Amendment to FR-XXX") and states the change — V1.0 text is not edited in place, so history stays legible. The exceptions are the two pre-existing FR-071/FR-082 edits below, decided and shipped (Story 1.13) before this convention was adopted for V1.5.
+> Stable requirement IDs (FR-NNN, NFR-NNN) are never renumbered. V1.0 ended at FR-086 / NFR-010; V1.5 ran FR-087–FR-155 / NFR-011–NFR-020; V1.6 begins at FR-156 / NFR-021. Where a V1.5 requirement changes a V1.0 requirement's behavior, it says so explicitly ("Amendment to FR-XXX") and states the change — V1.0 text is not edited in place, so history stays legible. The exceptions are the two pre-existing FR-071/FR-082 edits below, decided and shipped (Story 1.13) before this convention was adopted for V1.5.
 
 ## 1. Overview
 
@@ -49,6 +49,20 @@ V1.0 proved the retention spine — payments, attendance, the front-desk alert, 
 | Product analytics | Sentry only | + PostHog |
 | Test automation | Manual + RLS/payment CI | + E2E automation baseline |
 
+### 1.2 What V1.6 Adds
+
+V1.5 is live with real gyms, and their first feedback is specific: **gyms lose money on session guests** — people on a Pay-per-session plan who walk in, are never charged per visit (the plan has no expiry and nothing charges at check-in), and leave no countable record. V1.6 makes every guest visit a recorded, paid event and gives guests a reason to keep coming back, and it opens the product to studios that run like gyms.
+
+| Area | Before V1.6 | V1.6 |
+|------|-------------|------|
+| Pay-per-session visits | A plan with a price but no per-visit charge; check-in never asks for payment | Per-gym setting: each visit needs a paid session, recorded at the desk or paid in-app; unpaid check-in is blocked and alerted (FR-156–FR-163) |
+| Guest repeat visits | No incentive | Per-gym loyalty program: stamps toward a free session for guests (FR-164–FR-166) |
+| Subscriber loyalty | No incentive to renew on time | Stamps for on-time renewals toward free days (FR-167) |
+| Owner view of the leak | None | "Guest sessions" card: paid, blocked, free given (FR-163) |
+| Business type | Every tenant is implicitly a "gym" | Category set at gym creation: Gym / Salle de sport, Studio Pilates, Studio Yoga, Fitness Center, Autre (FR-171–FR-172) |
+
+The V1.7 backlog — a public landing page per gym on its own subdomain, a swappable template module, and a country-by-country directory with SEO — is recorded in Section 12 and is **not** part of V1.6.
+
 ---
 
 ## 2. Problem
@@ -83,6 +97,9 @@ The cost is twofold: operational chaos for the gym owner, and invisible churn th
 | G-10 | Keep member body/progress data private by construction — no cross-member and no unauthorized coach access | 1.5 |
 | G-11 | Prove classes and workout plans work in a real gym's weekly rhythm without adding operational load | 1.5 |
 | G-12 | Stand up GymOS's own SaaS revenue collection (Flow B) — reliable and reconciled with zero cross-account leakage into or out of gym funds, via the reminder-driven, Owner-approved billing model V1.5 ships with (OQ-14) | 1.5 |
+| G-13 | Stop the guest revenue leak — every *scanned* session-guest visit at a gym that turns charging on is a recorded, paid event, and the owner can see the gap between paid, blocked, and unscanned visits | 1.6 |
+| G-14 | Give guests and subscribers a reason to come back and renew on time, through a loyalty program the gym controls and can afford | 1.6 |
+| G-15 | Open the product to studios that run like gyms (Pilates, Yoga, fitness centers) without forking it | 1.6 |
 
 ### 3.2 Success Metrics
 
@@ -100,6 +117,10 @@ The cost is twofold: operational chaos for the gym owner, and invisible churn th
 | Staff-provisioning safety | Zero privilege-escalation incidents | Legitimate staff-creation actions blocked | 1.5 |
 | Class booking reliability | ≥ 95% of bookings honoured (no overbooking) | No-show rate (informational only) | 1.5 |
 | SaaS billing collection reliability | Zero missed or duplicated billing cycles across active gyms; zero payments settling to the wrong account (NFR-019) | Suspension false-positive rate — gyms wrongly moved to `suspended` | 1.5 |
+| Guest-charging adoption `[ASSUMPTION — targets to confirm with pilot data]` | ≥ 60% of the gyms that exist at release and have at least one Pay-per-session member turn "Charge guests per session" on within 30 days (new gyms default on and are not counted); paid guest sessions per gym per day rise against the same gyms' recorded guest check-ins in the 30 days before (FR-163) | Walk-away rate — blocked unpaid attempts (FR-160) not followed by a paid session within 15 minutes; front-desk collection time | 1.6 |
+| Guest repeat visits `[ASSUMPTION]` | ≥ 50% of gyms with charging on enable the loyalty program; guests with ≥ 2 paid sessions in a 30-day window rises versus the pre-release pilot baseline | Program cost — free sessions given as a share of paid guest sessions, watched against 1/N (FR-165) | 1.6 |
+| Studio adoption `[ASSUMPTION]` | At least two gyms with a non-Gym category (FR-171) active within 60 days of release | Studios creating workarounds (e.g. support requests about "gym" wording, FR-172) | 1.6 |
+| Subscriber on-time renewal `[ASSUMPTION]` | On-time renewal rate at gyms with the program on exceeds the same gyms' rate in the 60 days before enabling | Free days granted (FR-167) as a share of subscription days sold | 1.6 |
 
 ---
 
@@ -152,6 +173,19 @@ The V1.0 role hierarchy is unchanged in spirit — V1.5 makes the already-define
 | Receptionist | Manage class bookings at the desk; check members into classes |
 | Coach | Author workout plans; view assigned members' progress data; manage class sessions they lead |
 | Member | Log body metrics and progress photos; book classes; opt into quiet-gym alerts; follow a workout plan |
+
+### 4.4 Role Capability Deltas in V1.6
+
+No new role and no new account type: a session guest is an ordinary Member on a Pay-per-session plan (FR-156).
+
+| Role | New in V1.6 |
+|------|-------------|
+| Super Admin | Choose the gym's category at gym creation and edit it afterwards (FR-171) |
+| Owner / Supervisor | Turn "Charge guests per session" and the loyalty program on or off and set N, K, and the reward days (FR-157, FR-164); change the gym's category (FR-171) |
+| Manager | Record session payments (FR-158); see the guest-sessions card (FR-163) |
+| Receptionist | Record a guest's session payment at the desk and admit the guest after an unpaid-check-in alert (FR-158, FR-160) |
+| Member / guest | Pay for a session in the app where the gym has Tara Money connected; see loyalty progress and any free session earned (FR-158, FR-169) |
+| Coach | No change |
 
 ---
 
@@ -214,6 +248,14 @@ Nadia (Manager) creates a recurring HIIT Tue/Thu 6 PM class, capacity 15, coach 
 ### UJ-10: Chidi verifies the payment cutover (V1.5)
 
 Chidi, back at GymOS HQ, re-runs the Tara Money round-trip that already passed once (`docs/decisions.md`, 2026-07-31) — this time against GymOS's own now-activated business account instead of the stand-in the original spike used (OQ-7). He swaps one config value, sends a real test charge, and confirms the webhook lands and reconciles. He checks the audit log: no gym's payment ever touched the platform account, and no member was charged twice. The swap changed one config surface behind the `PaymentProvider` interface — payment logic never moved.
+
+### UJ-11: Ange pays per session (V1.6)
+
+Ange trains at Grace's gym three or four times a month and never wanted a monthly plan. When she first came, Aicha at the desk registered her and waived the registration fee, then put her on the gym's Pay-per-session plan — 2,000 XAF a visit. Since Grace turned on "Charge guests per session", Ange's visit works like this: she pays Aicha at the desk (or taps Pay in the app, where Grace's gym has Tara Money connected), then scans the entrance QR like everyone else and the app confirms her check-in. One payment covers her whole day at the gym.
+
+One Thursday she skips the payment and scans straight away. The app does not check her in: "Pay for your session," with a Pay option or "See the front desk." No attendance is recorded, and Aicha's dashboard shows an alert, so she collects the 2,000 XAF and Ange scans again. On her fifth paid visit, Ange's app shows "Free session earned — valid for 60 days" and her progress is back at 0 / 5; at her next visit she scans and is checked in without paying. If she doesn't come for 90 days her progress resets; if she doesn't use the free session within 60 days it lapses.
+
+At month end Grace opens her Overview: 41 paid guest sessions, 6 blocked attempts, 8 free sessions given. She can see what the guest desk is actually earning.
 
 ---
 
@@ -797,6 +839,83 @@ The same `PaymentProvider` interface serves both; the difference is whose creden
 
 ---
 
+### 6.27 Session Guests — Per-Visit Paid Sessions — V1.6
+
+A **session guest** is a member whose plan is Pay-per-session. This section makes the plan's price a real per-visit charge and closes OQ-16.
+
+**What the gate is, and is not.** Check-in is a phone scanning a QR (FR-042); GymOS has no door, turnstile, or staff gate. The V1.6 gate decides whether a scanned visit is **recorded and admitted by the app**. It does not physically stop someone who walks in without scanning — noticing those people stays a desk process, supported by the occupancy and "currently checked in" views (FR-046, FR-048). The promise V1.6 makes is that every *scanned* guest visit at a charging gym is a paid, recorded event, and that the owner can see the gap (FR-163).
+
+**FR-156** — A session guest is an ordinary member on a Pay-per-session plan (FR-024). V1.6 adds no new role, no new account type, and no separate app: guests register through the normal member flow (FR-019), log in, and check in by QR (FR-042) like any member, and count toward the gym's member cap (FR-073) like any member. **The plan's price (FR-025) is the price of one session.** A Pay-per-session plan priced at 0 XAF is exempt from FR-158–FR-159: its guests check in as today. Where the gym has a registration fee (FR-147), staff settle a guest's fee by waiver (FR-150) or by collection (FR-152) like any member; no automatic waiver exists. The waiver form offers a one-tap preset reason, "Session guest", so the mandatory reason (FR-150) is not free text for the common case; a per-gym auto-waive for Pay-per-session plans is not built until pilot gyms ask for it.
+
+**FR-157** — Each gym has a setting, **Charge guests per session**, editable by the Owner or Supervisor on the Settings page (Amendment to FR-069) and audit-logged with old and new value (FR-080). It is **off** for every gym that exists when V1.6 is released and **on by default** for gyms created afterwards. While it is off, FR-042–FR-045 and FR-061 behave exactly as before and FR-158–FR-163 do not apply. Turning it on changes only visits from that moment: past attendance is untouched, and a check-in already open at that moment is not affected. Before the Owner confirms, the Settings page shows how many Pay-per-session members will need a paid session at their next visit. While the setting is off, the loyalty program's guest rule earns nothing (FR-165) and the form says so.
+
+**FR-158** — While the setting is on, a **paid session** is created by a payment of the guest's plan price (FR-156). It is its own record — one per purchase, linked to exactly one payment — and a free session (FR-166) is the same record linked to a loyalty grant instead of a payment, so free sessions never appear as payments, receipts, or revenue. It can be paid two ways: **at the desk**, where staff record cash or manual mobile money (any role that can record payments, FR-021) or a bank transfer (Manager or Owner only, FR-033); or **in the app** by Tara Money (Flow A, FR-124) where the gym has Tara Money connected (FR-127).
+- *Desk payments take effect immediately* and do not wait in the verification queue (FR-037), as the registration fee does (FR-152). **Amendment to FR-038:** for a session payment the amount is fixed to the plan price and not entered, and the free-text reason is optional; the actor, member, method, and timestamp are still recorded.
+- *The amount is determined server-side*, at the moment of payment, and never supplied by a client. A later change to the plan's price does not change the value of sessions already paid for (FR-173).
+- *One payment in flight per member:* while a Tara Money session payment for a member is awaiting confirmation, a second one cannot be started and a desk payment for the same member is refused with a message that a payment is already in progress, so a double tap or a desk-plus-app overlap cannot create two sessions.
+- *Tara outcomes:* a confirmed payment creates the session, **including a confirmation that arrives late** (the money is already in the gym's account, so the session is the member's; a late confirmation also raises a staff-visible audit entry). A payment that is flagged or settles to the wrong account (FR-036, NFR-019) **never produces a session** and is visible to staff as a discrepancy. A provider redelivery creates nothing new (FR-035).
+- The payment carries its own purpose (`session`), distinct from subscription and registration-fee payments, so it is reportable separately and can never be treated as a renewal.
+
+**FR-159** — Amendment to FR-042 and FR-044. While the setting is on and the member's current plan is Pay-per-session, a check-in succeeds only if the member has a usable paid session or free session (FR-166).
+- The first successful check-in of a day **consumes** one session, and that session then covers every further check-in until the end of that calendar day in the gym's timezone (FR-010), so leaving and re-entering the same day costs nothing more. The covered day is stored on the consumed session when it is consumed; a later timezone change does not move it. A visit still open at midnight stays covered until it closes.
+- An **unused paid session** stays usable for **7 days** from payment and then lapses; its lapse date is shown to the member (FR-169).
+- *Which session is consumed first:* the one that lapses soonest; on a tie, the paid session before the free one, so a stamp is earned (FR-165) and no paid money is left to lapse.
+- *Which time counts:* coverage, lapse, and stamps are evaluated at the **server's receipt time**, never at a client-supplied scan time. For an offline scan (FR-161), the scan time is accepted as the visit time only if it is within the gym's auto-timeout window (FR-045) of receipt; an older scan is treated as a new visit at receipt time. A scan time can never place a visit before its payment and have it covered retroactively, and can never extend one session's coverage onto another day.
+- *No usable session:* the check-in is rejected, **no attendance event is recorded**, and the app shows a "Pay for your session" state (mirroring the awaiting-registration-fee state of FR-155) offering in-app payment where available (FR-158) or "See the front desk".
+- The rule is enforced server-side for every entry path (NFR-021), so an older app build cannot bypass it; the return contract for a denial is defined so older builds show a "see the front desk" message rather than a network error.
+- Plans that are not Pay-per-session are unaffected. Class attendance by a guest follows the same rule (FR-174).
+
+**FR-160** — Amendment to FR-049. A check-in rejected under FR-159 raises a real-time alert to the gym's active dashboard sessions, through the same Supabase Realtime mechanism as FR-049, as a new alert type whose copy and color the UX specification defines (the dismissal rule is that recording the member's session payment dismisses it, as renewal dismisses FR-049 alerts). The alert names the member, shows any payment already in flight for them, and lets the receptionist record the session payment (FR-158) so the member can scan again. The rejected attempt is also stored (member, gym, timestamp, scan id) so the blocked-attempt figures in FR-163 are real; it is not an attendance event and does not appear in the attendance log (FR-048). Repeated scans carrying the same scan id are one attempt.
+
+**FR-161** — Amendment to FR-061. A check-in made offline cannot verify payment. For a guest at a gym with the setting on, the app records it locally and shows "Check-in saved — your session will be verified" rather than the plain success state `[exact wording is a UX decision]`. The server validates it on sync under FR-159's time rules: if a usable session exists it is consumed and the attendance recorded; if not, it is **not** counted as attendance, is stored as an attempt keyed by its scan id (so a retry is not counted twice), and raises the alert of FR-160 — never silently counted, never silently dropped. If the guest has paid by the time it syncs, the paid session covers it. A sync that fails permanently is discarded as FR-061 does today, and that visit is not counted. The app refreshes the gym's charging setting each time it is online, so a stale offline copy can differ from the server's current rule for at most one offline period; the server's rule at sync time governs. FR-061's timeout rules otherwise stand.
+
+**FR-162** — Session payments follow the existing payment rules and are added to the audited actions (Amendment to FR-080): every session payment, every consumption, every rejected attempt, and every refund is traceable to actor, member, and time. Under FR-040 a refund can be recorded against a session payment, and the rule holds in the data layer, as FR-153 does for the registration fee: a **full** refund of an **unused** session voids that session atomically (and a consumption racing a refund resolves to exactly one of the two); a **partial** refund does not void it; a refund of a **consumed** session is recorded but does not un-consume it, and the visit stays counted, but **the stamp it earned is reversed** (the counter goes down by one, never below 0, and a free session already earned from it is not taken back). Session payments count toward month-to-date revenue (Amendment to FR-143) as their own line, separate from subscription revenue and registration fees. Refunding a renewal payment does not reverse the stamp or free days that renewal earned; a refunded renewal is a rare, owner-handled correction and no rule removes days from a subscription.
+
+**FR-163** — The staff Overview (FR-143) gains a **Guest sessions** card for gyms that have the setting on, with its own period control (today, this month): paid guest sessions, blocked attempts (counted once per scan id) with the number of distinct members blocked, and free sessions given (FR-166), each linking through to the underlying list. The list for paid sessions can be grouped by the staff member who recorded them and shows refunds recorded after consumption, so an owner can see whether the desk is collecting. Counts are computed server-side, not by summing fetched rows (the `max_rows` caveat in FR-143 applies). The card is visible to Owner, Supervisor, and Manager.
+
+**FR-174** — Amendment to FR-105 and FR-107. While "Charge guests per session" is on, marking a Pay-per-session member **attended** at a class requires a usable session, and consumes one under exactly the rule of FR-159: the session is consumed if none covers the member's gym-local day yet, a session consumed by a class also covers the floor that day (and the reverse), and a second class the same day costs nothing more. Consumption earns the guest stamp (FR-165) as it does at check-in.
+- *Booking stays free.* FR-105 and FR-106 are unchanged: a guest can book and cancel without paying (booking and cancellation are not payments, FR-106). A booking holds a capacity spot without payment; this is accepted, and a guest who books but is never marked attended simply consumes nothing.
+- *No usable session at marking:* the mark is refused, the attendance is not recorded, and the dashboard offers the receptionist the session-payment action of FR-158 in place; once it is recorded the receptionist marks attendance again. The refused attempt raises the same front-desk alert and is counted in the same blocked-attempt figures as FR-160 and FR-163.
+- *Enforcement* is server-side in the same database function as FR-159 (NFR-021), so no dashboard, coach, or script path can mark a charging-gym guest attended without a session. The coach roster view cannot mark attendance for a Pay-per-session guest without it either.
+- Members on Monthly, Coach-inclusive, and Class-only plans are unaffected: their class rules stay exactly as FR-105 and FR-107 state.
+
+---
+
+### 6.28 Loyalty Program — V1.6
+
+One program engine per gym with two earning rules: guests earn toward a free session, subscribers earn toward free days. Rewards are free sessions and free days only; percentage or amount discounts are out of scope because they would change the amount sent to the payment provider (Section 8).
+
+**FR-164** — Each gym has a loyalty program, **off by default**, switched on or off by the Owner or Supervisor on the Settings page (Amendment to FR-069). When on, the gym sets three integers: **N**, the paid sessions a guest needs for one free session (2–50); **K**, the on-time renewals a subscriber needs for a reward (3–24); and **R**, the free days that reward adds (1–30). As the gym edits N, K, and R, the form shows the **effective discount** the setting implies (for example, "1 free session per 5 paid = about 17%"; "30 days per 3 renewals of a 30-day plan = about 25%") so an owner sees what the program costs before saving. Every change is audit-logged with old and new value. Progress is per member **per gym** — a member of two gyms has two independent cards — and is isolated by RLS (NFR-001). A member has **two separate counters**, guest stamps (toward N) and subscriber stamps (toward K); moving between plan types never converts one into the other. Changing N or K never erases progress: a member at or above a lowered threshold earns one reward at their next qualifying event and the counter returns to 0.
+
+**FR-165** — **Guest rule.** A Pay-per-session member earns one guest stamp each time a paid session is consumed (FR-159) — not at check-in, not for a free session, and not for re-entry on an already-consumed day — so entering and leaving never earns a stamp. On reaching N the member earns one free session and the guest counter returns to 0. Stamps are earned only while both the loyalty program and "Charge guests per session" are on; nothing is awarded retroactively.
+
+**FR-166** — A **free session** is a session with no payment (FR-158). It is added to the member's usable sessions, is consumed under FR-159's ordering, follows FR-159's same-calendar-day coverage, and is usable for **60 days** from the day it is earned, then lapses. A member can hold more than one. A member who moves to a plan that is not Pay-per-session keeps an unused free session until it lapses; it has no effect while they are on that plan and is usable again if they return to Pay-per-session. Granting, consuming, and lapsing a free session are each audit-logged.
+
+**FR-167** — **Subscriber rule.** For Monthly, Coach-inclusive, and Class-only plans, a member earns one subscriber stamp for each **on-time renewal**.
+- A renewal is a **verified payment for the member's current plan** through the manual renewal flow, the dashboard renewal panel, or the member's own in-app renewal (FR-140). A payment-less override, a plan assignment or plan change, and a renewal back-dated by staff earn no stamp.
+- It is **on time** if it was verified no later than the **end of the day after** the subscription's expiry date — a one-day allowance, because mobile money is paid by hand and not charged automatically like a card — evaluated in the gym's timezone (FR-010) at the moment of verification, not initiation; one verified later earns no stamp. A late renewal neither earns a stamp nor erases progress.
+- At most **one stamp per subscription period**: a second renewal payment verified before the first period has ended earns nothing, so paying repeatedly cannot farm stamps.
+- On reaching K, the reward is **R free days added to the renewed subscription's expiry date**, applied in the same transaction that verifies the K-th renewal, and the counter returns to 0. The extension changes only the expiry date; it creates no payment and touches no amount.
+`[ASSUMPTION — "non-consecutive" and the one-stamp-per-period rule are PM defaults]`
+
+**FR-168** — **Expiry defaults.** Progress resets to 0 after **90 days with no qualifying event** (a consumed paid session for guests, an on-time renewal for subscribers). For subscribers the window is the longer of 90 days and the plan's own duration plus the gym's grace period (FR-010), so an annual plan is not reset between renewals; a member who renews late every month therefore does reset after 90 days with no on-time renewal. The reset is evaluated when the progress is next read or earned and is audit-logged then; the app and the dashboard never show progress that is already past its window as live. The 90-day window and the 60-day free-session validity are platform defaults, stored as data so exposing them to gyms later is a settings change, but not gym-configurable in V1.6. All windows are 24-hour multiples from the originating event, except the covered day in FR-159, which is a gym-local calendar day.
+
+**FR-169** — The member app shows the member's loyalty progress as a count toward the threshold ("3 / 5"), any free session earned with its expiry date, and any unused paid session with its lapse date, in the member's language (FR-014–FR-018 apply). The member's page in the dashboard shows the same to staff. No push notification for earning a reward ships in V1.6.
+
+**FR-170** — No role — including Owner and Super Admin — can manually add, remove, or edit stamps or free sessions in V1.6; they are produced only by the rules above, so nobody can change a member's loyalty balance by hand. This does not stop a staff member from recording a cash session without collecting cash or from refunding after consumption; those are made visible to the owner by the signals in FR-163 and the audit log, not prevented. Rewards are granted exactly once per qualifying event, including under webhook redelivery (FR-035) and offline sync (FR-161) (NFR-022). Amendment to FR-080: stamp earnings, reward grants, consumptions, lapses, resets, and program configuration changes are audited actions. Stamps are reversed only by the refund rule in FR-162; no manual correction path exists.
+
+---
+
+### 6.29 Gym Category — V1.6
+
+**FR-171** — Every gym has a **category**, one of: Gym / Salle de sport, Studio Pilates, Studio Yoga, Fitness Center, Autre. Super Admin chooses it when creating the gym (Amendment to FR-071 and FR-010 — gyms are created by GymOS staff, not self-serve, FR-007) and can edit it afterwards; the Owner and Supervisor can edit it on the Settings page (Amendment to FR-069). Every change is audit-logged. Gyms that exist at release are set to Gym / Salle de sport. Category labels are localized in English and French (FR-014–FR-018). "Autre" carries no free-text value in V1.6.
+
+**FR-172** — In V1.6 the category is **descriptive data only**: it changes no behavior, plan type, permission, or screen. Studios use the product exactly as gyms do. It exists so V1.7's directory and landing pages (Section 12) can filter and present by business type. Product wording does **not** adapt per category in V1.6 — the apps keep saying "gym" for every category (decided 2026-10-11; revisited at V1.7 planning when the landing pages show what each category needs).
+
+**FR-173** — Clarification of FR-024 and amendment to FR-025. The Pay-per-session plan type is unchanged in definition ("member pays per visit; no fixed expiry"); V1.6 supplies the mechanism FR-024 always implied (FR-156–FR-159) behind the per-gym setting of FR-157, and there is no separate "session price" field. Because the gate keys on plan type and price: (a) the plan type of a plan that already has subscriptions cannot be changed in place — a gym creates a new plan instead; (b) every change to a plan's type or price is audit-logged; and (c) a price change never alters the value or validity of sessions already paid for.
+
+---
+
 ## 7. Non-Functional Requirements
 
 ### 7.1 Performance
@@ -828,6 +947,10 @@ The same `PaymentProvider` interface serves both; the difference is whose creden
 **NFR-019** — FR-125's "GymOS takes no commission on member→gym payments" is auditable, not merely asserted: every Flow A payment's settlement account is verifiable against its gym's connected credentials (FR-126) via the audit log, so a platform-account credit from a Flow A transaction is detectable after the fact, not just prevented in theory.
 
 **NFR-020** — In-app Super Admin creation/promotion (FR-141) must make privilege escalation impossible: the action is only reachable by an authenticated Super Admin session, the underlying RPC self-enforces the caller's `is_super_admin` status server-side (not merely hidden in the UI), no self-promotion path exists for a non-Super-Admin, and every create/promote action is audit-logged with actor, target, and timestamp — mirroring NFR-013's discipline for staff-role provisioning.
+
+**NFR-021** — Paid-session consumption (FR-159) is atomic and enforced in the database, not only in application code. A member-level lock covers the whole sequence "find a covering consumed session, otherwise consume one, award the stamp, maybe grant a free session", so that: a session is never consumed twice, a member never has more than one session consumed per gym-local day, two simultaneous scans cannot both consume a different session, and a concurrent scan is never wrongly blocked because another scan holds the only session. A replayed offline sync (FR-161) never consumes a second session. Enforcement holds for every entry path — member app, offline sync, and any dashboard or script — so the rule cannot be bypassed by an older app build.
+
+**NFR-022** — Loyalty accounting (FR-165–FR-168) is derived from the recorded events that earn it and is idempotent: a duplicated webhook (FR-035), a retried request, or a replayed sync grants a stamp or reward at most once per qualifying event. Stamp earnings are performed in the same transaction as the event that earns them, and stamps, free sessions, and every reset or lapse are reconstructible from the audit log. Loyalty state is per member per gym and never readable across gyms (NFR-001).
 
 ### 7.3 Availability
 
@@ -881,7 +1004,16 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 |------|---------------|
 | Self-serve gym signup | Post-V1.5 |
 | Travel mode plan type | V2.0 |
-| Pay-per-session per-visit charging | Follow-on after the registration fee (OQ-16) |
+| Pay-per-session per-visit charging | **Moved into V1.6** (FR-156–FR-163; OQ-16 resolved) |
+| Gym landing pages, the template module, per-gym subdomains | V1.7 (Section 12) |
+| Country-by-country gym directory and SEO / AI-SEO | V1.7 (Section 12; depends on landing pages and FR-171) |
+| Category-specific behavior, wording, or plan types (FR-172) | V1.7 or later |
+| Attendance-based rewards for subscribers (e.g. N visits in a month) | Later, after V1.6 proves the renewal rule |
+| Discount or percentage rewards; referral rewards | Later — would touch payment amounts (FR-164) |
+| Cross-gym or platform-wide loyalty cards | Not planned — the card is per gym (FR-164) |
+| Manual stamp or reward adjustment | Not planned (FR-170); reversal on refund only (FR-162) |
+| Push notification on earning a reward; gym-configurable expiry windows | Later (FR-169, FR-168) |
+| Mobile app and dashboard redesign; hundreds of gym templates | After V1.7, with the design-reference subscription |
 | Campay payment provider integration | V2.0 |
 | Provider-executed refund API calls | V2.0 |
 | Coach-to-receptionist escalation for expiring clients | V2.0 |
@@ -921,9 +1053,16 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | OQ-13 | **Resolved** — Tara Money's create-collect + payment-detection flow is confirmed callback/webhook-driven, not poll-based (consistent across every spike to date). The real webhook payload's `businessId` field matched the initiating account (`9FmIZg9GBB`, distinct from the prior stand-in), which is attribution/correlation evidence for per-gym `businessId`/credential scoping (`docs/decisions.md`, 2026-08-13, Story 4.10) — informs but does not by itself confirm fund settlement; Story 4.13's per-gym credential design (AD-15) should independently verify settlement. | — | FR-124, FR-126, FR-128; Story 4.13 |
 | OQ-14 | **Resolved** — Tara Money (mobile money) does not support automated recurring debits. Flow B billing for V1.5 is a reminder-to-approve model: GymOS notifies the Owner when payment is due and the Owner completes the charge via Tara Money each cycle. True automated recurring collection is deferred to a future version, pending a card-based provider (e.g. Stripe). See FR-130, FR-133. | — | — |
 | OQ-15 | **Resolved** — no proration on mid-cycle SaaS tier change; the new price applies at the next billing cycle. | — | — |
-| OQ-16 | **Pay-per-session per-visit charging.** FR-024 says a Pay-per-session member pays per visit, but no FR defines the mechanism. Direction decided (2026-10-07): each gym sets its own per-visit price; payment happens at check-in; both cash (recorded at the front desk) and in-app payment are supported. It ships after the registration fee, as its own requirement(s). **Open:** what happens at check-in when the visit is unpaid. PM recommendation: deny the check-in and alert the front desk so the receptionist can collect cash and admit the member — not "allow now, owe later", since the platform has no receivables ledger. This needs a new alert type, because FR-049 today fires only for expiring, grace, and expired members. Also open: how offline check-in (FR-061), which cannot verify payment, should behave. | Product owner (smartsana) | Pay-per-session per-visit charging story; not a blocker for FR-147–FR-155 |
+| OQ-16 | **Resolved (2026-10-11)** — per-visit charging is specified in FR-156–FR-163. The plan's price is the session price; payment at the desk or in-app creates a paid session; an unpaid check-in is denied and alerted to the front desk (the PM recommendation held — no receivables ledger, no "owe later"); offline check-ins are validated on sync and flagged if unpaid (FR-161). A per-gym setting, off for existing gyms, controls rollout (FR-157). | — | — |
 | OQ-17 | **Reactivated member and the registration fee.** Does a member who is deactivated (FR-083) and later reactivated, or re-created, pay the fee again? Deferred by decision (2026-10-07). No reactivation capability is specified today, so this matters only once one is. | Product owner (smartsana) | Nothing; revisit when reactivation is specified |
 | OQ-18 | **Resolved** — members in the awaiting registration fee state count toward the gym's member cap (FR-073), decided 2026-10-07 (see FR-148). | — | — |
+| OQ-19 | **Resolved (2026-10-11)** — keep the per-guest waiver, with a one-tap "Session guest" preset reason; no auto-waive until a pilot gym asks (FR-156). | — | — |
+| OQ-20 | **Resolved (2026-10-11)** — the offline policy is settled in FR-161 (saved locally, validated on sync, flagged if unpaid); only the screen wording is left to the UX specification. | — | — |
+| OQ-21 | **Resolved (2026-10-11)** — on time means verified by the end of the day after expiry (one-day allowance, because mobile money is paid by hand), non-consecutive, one stamp per subscription period (FR-167). | — | — |
+| OQ-22 | **Resolved (2026-10-11)** — a refund of a consumed session reverses the stamp it earned and never takes back a free session already earned; renewal refunds do not reverse stamps or days; no manual correction (FR-162, FR-170). | — | — |
+| OQ-23 | **Resolved (2026-10-11)** — no per-category wording in V1.6; revisited at V1.7 planning (FR-172). | — | — |
+| OQ-24 | **V1.7 landing pages and directory** — open before V1.7 planning: the minimum content a gym must enter before its page can be published; reserved and prohibited subdomain names and the impersonation / name-squatting policy; who can claim a name and how a gym renames; whether gyms outside Cameroon are listed in the first directory release; SEO ownership (content, structured data, AI-search surfaces); and whether the template module is built in the existing dashboard app or a separate public site. | Product owner (smartsana) | V1.7 planning (Section 12) |
+| OQ-25 | **Resolved (2026-10-11)** — class attendance by a Pay-per-session guest requires and consumes a paid session under the same rule as check-in (option a); booking stays free; the same session covers floor and class that day (FR-174). | — | — |
 
 ---
 
@@ -939,6 +1078,19 @@ V1.5 is beta-ready when a gym the founding team has not personally hand-held can
 6. Do all of the above bilingually, offline-tolerant where FR-097 requires, with PostHog showing whether the loops work and E2E tests guarding critical paths (NFR-014, NFR-015).
 
 This gate is additive on top of V1.0's already-shipped goals (Section 3.1, G-1–G-6) — a scope layer, not a replacement. Everything in Section 8 is deliberately out, so the beta ships on time rather than growing into V2.
+
+### 10.1 Release Definition — V1.6
+
+V1.6 is done when a gym already running V1.5 can, without founder help:
+
+1. Turn on "Charge guests per session" and see that a guest's scan is not recorded as a visit without a paid session — paid at the desk or in-app — and that the front desk is alerted, while members on every other plan are untouched (FR-157–FR-160, NFR-021). A guest marked attended at a class is held to the same rule (FR-174).
+2. Have a gym that does *not* turn it on see no change at all in check-in behavior (FR-157).
+3. See, on the Overview, how many guest sessions were paid, blocked, and given free (FR-163).
+4. Turn on the loyalty program, set N, K, and R, and watch a guest earn and spend a free session and a subscriber earn free days, each exactly once, with every grant audited (FR-164–FR-170, NFR-022).
+5. Be created or edited with a category, with existing gyms unchanged and defaulting to Gym / Salle de sport (FR-171–FR-172).
+6. Do all of the above in English and French, with the new rules covered by database-level tests and the E2E baseline (NFR-014, NFR-015).
+
+Section 12 is explicitly **not** part of this gate.
 
 ---
 
@@ -958,3 +1110,28 @@ This gate is additive on top of V1.0's already-shipped goals (Section 3.1, G-1�
 | RPC | Remote Procedure Call — a Postgres function invoked from application code, e.g. the staff-creation function (addendum D) |
 | Registration fee | One-time, flat, per-gym fee a new member must settle (pay or have waived) before getting member-app access and a plan; 0 XAF by default (FR-147–FR-155) |
 | Awaiting registration fee | A member state: the member record exists, but the app is unavailable and no plan can be assigned until the fee is settled (FR-148) |
+| Session guest | An ordinary member on a Pay-per-session plan; not a separate account type (FR-156) |
+| Paid session | One recorded purchase of a session at the guest's plan price, consumed by the first check-in of a day and covering the rest of that gym-local calendar day; an unused one lapses after 7 days (FR-158, FR-159) |
+| Charge guests per session | The per-gym setting that makes a paid session required at check-in; off for existing gyms, on for new ones (FR-157) |
+| Stamp | One unit of loyalty progress: a consumed paid session for a guest, an on-time renewal for a subscriber (FR-165, FR-167) |
+| Free session | A session with no payment, earned after N guest stamps and consumed like a paid one; valid 60 days (FR-166) |
+| Gym category | Descriptive business type chosen at gym creation: Gym / Salle de sport, Studio Pilates, Studio Yoga, Fitness Center, Autre (FR-171) |
+
+---
+
+## 12. V1.7 Backlog — Gym Landing Pages & Directory (not in V1.6)
+
+Recorded at the product owner's direction on 2026-10-11 so none of it is lost. **Nothing in this section is a committed requirement**: it carries no FR IDs, and requirements are written at V1.7 planning after OQ-24 is answered. V1.6's gym category (FR-171) is the only V1.7 prerequisite that ships earlier.
+
+**C — Gym landing page.** Each gym can have a short public page of its own, offered as a way for gyms to get a web presence and as a way to put GymOS in front of new gyms.
+
+- **Content the gym enters:** about, services and activities, membership plans, session plans and pricing, location, opening hours, contact, gallery images, banner image, and logo.
+- **Templates:** GymOS prebuilds the templates. The gym picks one, and the page shows the gym's own content in that template's layout. The gym can swap to another template at any time without re-entering anything.
+- **Address:** the page is served at `{defined-name}.gymosapps.com`. **Every gym user — owner and staff — still logs in at `owner.gymosapps.com`**; only the public landing page lives on the per-gym subdomain.
+- **Template module:** the template system is a self-contained module with a clear contract — structured gym content in, rendered page out — so adding the hundreds of templates the product owner plans is a design task rather than an engineering one. V1.7 needs one good template and the contract; the large template library follows the later design-reference-driven redesign of the mobile app and dashboard.
+
+**D — Directory and discovery.** A directory of gyms and fitness places on the GymOS website, one per country GymOS operates in, built from the landing pages and filterable by gym category (FR-171). Search-engine and AI-search optimization (structured data, clean per-gym pages, crawlable country and city listings) is a first-class goal of the pages, not an afterthought.
+
+**Dependencies and risks to resolve first (OQ-24):** wildcard DNS and TLS for the subdomains; a reserved-names list (`owner`, `portal`, `www`, and others) and a policy against impersonation and name-squatting; the minimum content for a publishable page — an empty page harms directory SEO; and keeping the public site separate from the authenticated dashboard so public traffic cannot touch tenant data (NFR-001).
+
+**Not planned for V1.7 and recorded elsewhere:** mobile app and dashboard redesign and the large template library (Section 8).

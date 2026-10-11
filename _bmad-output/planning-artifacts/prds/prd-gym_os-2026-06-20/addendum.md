@@ -122,7 +122,29 @@ For downstream planning reference:
 |---------|-------|
 | V1.0 | Money + attendance core: payments, subscriptions, check-in, occupancy, front-desk renewal alert, coach portal (basic), bilingual UI — shipped, Epics 1–8 done |
 | V1.5 | Owner self-serve staff (+ Supervisor role), body/progress tracking, Tara Money formalization, gym→GymOS SaaS billing (Flow B), classes, workout plans, quiet-gym alerts, class reminders, WhatsApp/Evolution API completion, PostHog, E2E baseline |
+| V1.6 | Per-visit paid sessions for Pay-per-session guests (per-gym switch), loyalty program (guest free sessions, subscriber free days), gym category — PRD v1.6 |
+| V1.7 | Gym landing pages on per-gym subdomains, swappable template module, country directory with SEO / AI-SEO — backlog, PRD Section 12 |
 | V2.0 | Travel mode (full), meal logging, streaks, challenges, leaderboards, activity feed, NGN/GHS markets |
 | V2.5 | Gym-owned merch store |
 | V3.0 | Platform-wide marketplace, geofence/BT/WiFi detection, branch management |
 | V4.0+ | Wearables, corporate wellness, coach marketplace, franchise, per-gym branded App Store listings |
+
+## G. V1.6 / V1.7 Technical Notes
+
+Implementation-side material from the 2026-10-11 V1.6 planning conversation. Not requirements; the PRD's FR-156–FR-173 and Section 12 are authoritative.
+
+**Where the leak is in the code today (verified against migrations/epics, 2026-10-11).** A `pay_per_session` subscription has `expiry_date = null` (migration 0018's trigger), and the lifecycle cron excludes null-expiry rows (0021), so a guest's subscription never expires and never produces a payment. Check-in does not read the plan price. Epic 18 deliberately stopped short of this ("Pay-per-session per-visit charging (OQ-16) … not here", `epics.md` ~line 972). Epic 18 does already gate pay-per-session *subscription creation* on the registration fee via a `BEFORE INSERT` trigger on `subscriptions` (Story 18.1).
+
+**Design choices that follow from reusing what exists.**
+- No new plan type and no new price field: the existing `plans.price` of a `pay_per_session` plan is the session price (FR-173).
+- Mirror Epic 18's shape: a payment `purpose` value beside `subscription` and `registration_fee` (Stories 18.2/18.3), staff collection through the existing manual-payment path, and a blocked app state like 18.7.
+- Gate in the database, as 18.1 did, so older app builds cannot bypass it (NFR-021). Consumption must be one atomic statement keyed on the paid session row; the offline sync path (Story 3.9) goes through the same function.
+- Rollout flag defaults: add the gym column with `false` for existing rows and `true` as the default only for rows created after release. Watch the `gyms` super-admin-only column trigger precedent (`protect_super_admin_only_gym_columns`) when deciding which role may flip it — FR-157 gives it to Owner/Supervisor.
+
+**Loyalty engine sketch.** One ledger of stamp-earning events plus a per-member-per-gym progress row; rewards are rows in the same paid-session store (free session) or an expiry-date extension on the renewed subscription (free days). Earning is triggered from the verified-payment completion path (`complete_verified_payment`, 0030) for renewals, and from the consumption function for guests, so webhook redelivery is already deduplicated by the provider-reference unique constraint (FR-035). Reset and lapse run in the existing nightly pg_cron window.
+
+**V1.7 template module — contract sketch.** `render(content: GymPageContent, templateId) → page`. `GymPageContent` is a single versioned, validated schema (about, services[], plans[], sessionPlans[], location{address, lat/lng}, openingHours, contact, gallery[], bannerImage, logo, theme tokens from the gym's existing primary color). Templates are pure presentation over that schema and carry no gym data of their own, so swapping is a one-field change. Publishing requires a minimum-content check. The public site should read a narrow, read-only published projection, not tenant tables, to keep NFR-001's isolation story trivial.
+
+**V1.7 subdomain notes.** Wildcard DNS and certificate for `*.gymosapps.com`; the three existing hosts (`owner.`, `portal.`, `www.`) must be reserved from the start, along with any future service names; name uniqueness enforced in the database, case-insensitively; renames need redirects.
+
+**Later.** The mobile app and dashboard redesign and the large template library are planned after V1.7, using a design-reference subscription the product owner intends to buy.
