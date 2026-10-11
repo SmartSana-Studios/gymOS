@@ -401,7 +401,7 @@ development_status:
   19-2-flagged-payment-reason-late-vs-wrong-account: done
   19-3-charge-guests-setting-session-record-plan-type-rules: done
   19-4-desk-session-payment: done
-  19-5-in-app-tara-money-session-payment: backlog
+  19-5-in-app-tara-money-session-payment: review
   19-6a-front-desk-alert-kind-refactor-no-behavior-change: backlog
   19-6b-check-in-gate-blocked-attempts-session-required-alert: backlog
   19-7-class-attendance-consumes-a-session: backlog
@@ -820,3 +820,6 @@ last_updated: 10-11-2026 15:30
 # last_updated: 2026-10-11 (build: 19-4 in-progress -> review. Migration 0108: record_session_payment (owner/manager/supervisor/receptionist, bank_transfer manager+; amount from latest plan; returns guest_sessions row), private.create_guest_session_for_payment, purpose-generic private.expire_stale_payment with the fee helper as wrapper. pgTAP desk_session_payment + .negative (71 assertions, full suite 115/115). database.ts spliced. Dashboard purposes/audit labels, mobile isSession list/receipt labels, EN/FR. decisions.md: helper generalization, awaiting predicate, deferred-revenue audit result (19.3 review #16: no bucketing bug; mobile list fallthrough fixed).)
 # last_updated: 2026-10-11 (build: 19-4 review pass -> review. 3 layers, 19 findings: 0 patch, 0 loopback, 5 deferred (pending-expiry, create_guest_session caller validation, desk double-submit -> 19.9, revenue/refund consumer pins -> 19.8, mobile isSession test), 14 rejected. Spec in-review.)
 # last_updated: 2026-10-11 (code-review: 19-4 second pass, 4 layers, 18 findings: 1 patch applied (pgTAP fixtures pinning expire_stale_payment purpose/status filters; mutation-checked, desk_session_payment 43/43), 2 deferred (session refund via direct refunds insert -> 19.8; stale pending already tracked), 15 rejected. review -> done.)
+# last_updated: 2026-10-11 (bmad-build: 19-5 spec written and approved, status backlog -> in-progress; epic-19 already in-progress)
+# last_updated: 2026-10-11 (build: 19-5 in-progress -> review. Migration 0109: initiate_session_payment (member; processing Tara payment, amount from latest plan, one in flight via partial unique index), complete_verified_payment rewritten (payment then member lock on every branch, session branch, late session for expired_attempt only), helper assertions (closes 19.4 triage #1/#2). pgTAP in_app_session_payment + .negative + complete_verified_payment_member_lock. database.ts spliced; audit labels session_payment_paid/session_late_payment EN/FR. decisions.md + deferred-work.md updated.)
+# last_updated: 2026-10-11 (build: 19-5 review pass, 3 layers, 26 findings: 2 test-only patches applied (member row-lock observed via pgrowlocks, mutation-checked; provider-inactive test repointed to a gym with credentials), 1 deferred (wrong_account production, trace for non-expired flagged success), rest rejected; ci-local static/pgtap/unit/e2e PASS on the dirty tree)

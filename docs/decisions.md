@@ -4,6 +4,19 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-11 — In-app Tara Money session payment (Story 19.5, migration 0109)
+
+A member can start a Tara payment for a session. Database side only: no new Edge Function, no UI (19.11), no consumption (19.6b/19.7).
+
+1. **`processing`, not `pending`.** `initiate_session_payment()` inserts a `processing` payment (`method = mobile_money`, provider from `active_payment_provider()`, which must have a `gym_payment_credentials` row, else `no_active_provider`). `payment-webhook`'s initiate and completion paths filter on `processing`, as the registration-fee flow does, so no `pending` session row exists (closes 19.4 triage #1). One in flight per member is a partial unique index (`payments_one_inflight_session_per_member`) plus the RPC check; a `processing` attempt older than 10 minutes is flagged `expired_attempt` first.
+2. **Lock order.** `complete_verified_payment` now locks the payment row (`FOR UPDATE`), then the member row (`FOR NO KEY UPDATE`), before any other write, on every purpose branch (it previously took no member lock on the subscription path). A renewal confirmation and a desk action on one member serialize. `FOR NO KEY UPDATE` does not conflict with foreign-key checks. pgTAP is one session, so the suite pins the source order and sequential behavior, not true interleaving.
+3. **Late confirmation.** A session payment flagged `expired_attempt` that Tara confirms becomes `verified` with `flagged_reason = 'late_confirmation'`, one session is created and `session_late_payment` is audited. `wrong_account`, `reconciliation_mismatch`, `staff_flagged` and `provider_declined` never yield a session and the row is left for staff (`provider_declined` then success stays flagged; only `expired_attempt` is the late case). Replays are a no-op (status is no longer `processing`/`flagged`; `guest_sessions.payment_id` is unique).
+4. **Caller assertions.** `private.create_guest_session_for_payment` asserts a verified `session` payment for the member and gym (`invalid_session_payment`), closing 19.4 triage #2 now that it has two callers.
+5. **Caller and deactivated member.** The caller must be `member` per `private.current_member_role()`. That function ignores deactivated rows, so a null role is let through only to reach the member row, where `member_deactivated` is raised; staff and coaches get `permission denied`.
+6. **Not done here.** Producing `wrong_account` on a payment row (the webhook leaves a mismatch for reconciliation) is not implemented; only the guarantee that such a row never yields a session.
+
+---
+
 ## 2026-10-11 — Desk session payment (Story 19.4, migration 0108)
 
 Staff can sell a paid session at the front desk (`record_session_payment`). Database side plus labels only: the panel is 19.9, Tara is 19.5, consumption is 19.6b/19.7.

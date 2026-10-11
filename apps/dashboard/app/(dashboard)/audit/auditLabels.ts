@@ -69,4 +69,9 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // purpose-generic expiry helper, target = the member, metadata { payment_id }.
   session_payment_recorded: "audit.actionTypes.sessionPaymentRecorded",
   session_attempt_expired: "audit.actionTypes.sessionAttemptExpired",
+  // Story 19.5. Both are written by complete_verified_payment() (0109) with the
+  // payment-webhook system label, target = the member, metadata { payment_id,
+  // guest_session_id, amount, currency, method, fee_amount }.
+  session_payment_paid: "audit.actionTypes.sessionPaymentPaid",
+  session_late_payment: "audit.actionTypes.sessionLatePayment",
 };

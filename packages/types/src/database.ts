@@ -2172,6 +2172,13 @@ export type Database = {
         }
         Returns: string
       }
+      initiate_session_payment: {
+        Args: never
+        Returns: {
+          payment_id: string
+          provider_key: string
+        }[]
+      }
       list_active_gym_data_escalations: {
         Args: { p_gym_id: string }
         Returns: {
