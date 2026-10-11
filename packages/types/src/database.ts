@@ -995,6 +995,7 @@ export type Database = {
           amount: number
           created_at: string
           currency: string
+          flagged_reason: string | null
           gym_id: string
           id: string
           member_id: string
@@ -1013,6 +1014,7 @@ export type Database = {
           amount: number
           created_at?: string
           currency?: string
+          flagged_reason?: string | null
           gym_id: string
           id?: string
           member_id: string
@@ -1031,6 +1033,7 @@ export type Database = {
           amount?: number
           created_at?: string
           currency?: string
+          flagged_reason?: string | null
           gym_id?: string
           id?: string
           member_id?: string

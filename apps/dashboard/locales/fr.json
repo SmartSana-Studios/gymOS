@@ -1034,6 +1034,12 @@
     "purposes": {
       "subscription": "Abonnement",
       "registrationFee": "Frais d'inscription"
+    },
+    "flaggedReasons": {
+      "lateConfirmation": "Confirmé en retard",
+      "expiredAttempt": "Tentative expirée",
+      "providerDeclined": "Paiement refusé",
+      "staffFlagged": "Signalé par le personnel"
     }
   },
   "frontDeskAlert": {

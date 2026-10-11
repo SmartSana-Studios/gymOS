@@ -970,3 +970,7 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-1-ci-guardrails-live-role-lint-gate-hosted-privilege-check.md`
   summary: Broaden the AD-3 lint gate to wrapped or cast JWT role reads (`(select auth.jwt())`, `::jsonb`, nested `app_metadata`, `current_setting('request.jwt.claims')`).
   evidence: The gate matches only the literal `auth.jwt() ->> 'app_role'` per the epic AC; the corpus has no wrapped forms today, so this is a bypass risk for future migrations, not a current miss. Broadening needs a decision on the grandfather list and the baseline count.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-2-flagged-payment-reason-late-vs-wrong-account.md`
+  summary: When the dashboard first renders flagged payments, add a small test tying `PAYMENT_FLAGGED_REASON_LABEL_KEY` to the DB closed set and both locales, and a fallback for unknown or null reasons.
+  evidence: The label map and `payments.flaggedReasons.*` keys ship with no consumer (spec decision A); a renamed key or dropped entry would fail silently until a list renders them.

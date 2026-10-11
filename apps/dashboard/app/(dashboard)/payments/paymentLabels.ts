@@ -56,3 +56,15 @@ export const PAYMENT_DISCREPANCY_TYPE_LABEL_KEY: Record<string, string> = {
   // against the gym's own connected business_id_plain.
   wrong_account_settlement: "payments.discrepancies.types.wrongAccountSettlement",
 };
+
+// Story 19.2: payments.flagged_reason, the closed set migration 0106 pins. The
+// tag renders beside the Flagged badge wherever a flagged payment row is
+// listed. Two reasons reuse the discrepancy labels that already shipped.
+export const PAYMENT_FLAGGED_REASON_LABEL_KEY: Record<string, string> = {
+  late_confirmation: "payments.flaggedReasons.lateConfirmation",
+  wrong_account: "payments.discrepancies.types.wrongAccountSettlement",
+  expired_attempt: "payments.flaggedReasons.expiredAttempt",
+  reconciliation_mismatch: "payments.discrepancies.types.amountMismatch",
+  provider_declined: "payments.flaggedReasons.providerDeclined",
+  staff_flagged: "payments.flaggedReasons.staffFlagged",
+};

@@ -4,6 +4,21 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-11 — Flagged-payment reason (Story 19.2, migration 0106)
+
+`payments.flagged_reason` says why a payment is `flagged`, so Epic 19 can apply a late Tara payment and never apply a wrong-account one.
+
+1. **Closed set.** `late_confirmation`, `wrong_account`, `expired_attempt`, `reconciliation_mismatch`, plus `provider_declined` (`complete_flagged_payment`, the provider reported failure) and `staff_flagged` (staff Flag for Review). Enforced by `payments_flagged_reason_check`.
+2. **One-directional CHECK.** `status <> 'flagged' or flagged_reason is not null`: a flagged row always has a reason, but a non-flagged row may carry one. Story 19.5 puts `late_confirmation` on a verified session payment, so "non-null exactly when flagged" would block it.
+3. **Reconciliation never flags payments.** The jobs write `payment_discrepancies` and never `payments.status`, so they set no reason. `reconciliation_mismatch` exists only as the backfill fallback. `wrong_account` is defined here and first produced by 19.5; the backfill assigns it only to flagged rows with a `wrong_account_settlement` discrepancy.
+4. **Writers.** Server paths set the reason in the same statement as the status change (expiry helper, `complete_flagged_payment`, the late branch of `complete_verified_payment`). Staff flag by direct UPDATE; the 0099 pin trigger now also reverts client writes to `flagged_reason` and forces `staff_flagged` on a status move into `flagged`. Any direct insert or update to `flagged` without a reason now fails the CHECK, so test fixtures name theirs.
+5. **Backfill evidence order.** `wrong_account_settlement` discrepancy, `registration_fee_late_payment`, `registration_fee_attempt_expired`, `payment_verification_failed`, `payment_flagged` audit rows, else `reconciliation_mismatch`. The `do $verify$` block raises on any null.
+6. **Dashboard scope: data layer only.** `flaggedReason` on discrepancy rows, `PAYMENT_FLAGGED_REASON_LABEL_KEY` and EN/FR keys. No flagged-row list exists yet; the tag renders beside the Flagged badge when one ships.
+
+7. **Client writes.** The pin trigger also nulls `flagged_reason` on a client INSERT, and a late success relabels only `expired_attempt` and `provider_declined` rows as `late_confirmation`: `staff_flagged`, `reconciliation_mismatch` and `wrong_account` keep their reason, and the audit trace is written for every late success.
+
+---
+
 ## 2026-10-11 — Migration guardrails (Story 19.1): app_role lint gate and function-privilege check
 
 Two static CI gates over `supabase/migrations/`, run by one dependency-free script, `scripts/check-migration-guardrails.mjs` (`pnpm run check:migrations`; wired into `ci.yml` and `scripts/ci-local.sh` beside the i18n parity check; fixture tests via `pnpm run test:guardrails`).

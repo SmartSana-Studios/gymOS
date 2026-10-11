@@ -145,9 +145,9 @@ select is(gym_revenue_mtd(), 25000::bigint, 'verified non-voided fees stay in gy
 
 -- Processing and flagged fee rows count in neither.
 reset role;
-insert into payments (gym_id, member_id, amount, currency, method, status, purpose, provider) values
-  ('00000000-0000-0000-0000-000000031411', '00000000-0000-0000-0000-000000031455', 5000, 'XAF', 'mobile_money', 'processing', 'registration_fee', 'taramoney'),
-  ('00000000-0000-0000-0000-000000031411', '00000000-0000-0000-0000-000000031456', 5000, 'XAF', 'mobile_money', 'flagged',    'registration_fee', 'taramoney');
+insert into payments (gym_id, member_id, amount, currency, method, status, purpose, provider, flagged_reason) values
+  ('00000000-0000-0000-0000-000000031411', '00000000-0000-0000-0000-000000031455', 5000, 'XAF', 'mobile_money', 'processing', 'registration_fee', 'taramoney', null),
+  ('00000000-0000-0000-0000-000000031411', '00000000-0000-0000-0000-000000031456', 5000, 'XAF', 'mobile_money', 'flagged',    'registration_fee', 'taramoney', 'expired_attempt');
 set local role authenticated;
 
 select is(gym_registration_fee_revenue_mtd(), 15000::bigint, 'processing and flagged fee rows are not on the fee line');

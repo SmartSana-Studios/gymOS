@@ -180,10 +180,10 @@ select is(gym_revenue_mtd(), 10000::bigint, 'a verified in-window payment counts
 
 -- Verified-only.
 reset role;
-insert into payments (id, gym_id, member_id, amount, currency, method, status, created_at) values
-  ('00000000-0000-0000-0017-000000000102', '00000000-0000-0000-0017-000000000011', '00000000-0000-0000-0017-000000000051', 4000, 'XAF', 'cash', 'pending', now()),
-  ('00000000-0000-0000-0017-000000000103', '00000000-0000-0000-0017-000000000011', '00000000-0000-0000-0017-000000000051', 2000, 'XAF', 'cash', 'processing', now()),
-  ('00000000-0000-0000-0017-000000000104', '00000000-0000-0000-0017-000000000011', '00000000-0000-0000-0017-000000000051', 3000, 'XAF', 'cash', 'flagged', now());
+insert into payments (id, gym_id, member_id, amount, currency, method, status, created_at, flagged_reason) values
+  ('00000000-0000-0000-0017-000000000102', '00000000-0000-0000-0017-000000000011', '00000000-0000-0000-0017-000000000051', 4000, 'XAF', 'cash', 'pending', now(), null),
+  ('00000000-0000-0000-0017-000000000103', '00000000-0000-0000-0017-000000000011', '00000000-0000-0000-0017-000000000051', 2000, 'XAF', 'cash', 'processing', now(), null),
+  ('00000000-0000-0000-0017-000000000104', '00000000-0000-0000-0017-000000000011', '00000000-0000-0000-0017-000000000051', 3000, 'XAF', 'cash', 'flagged', now(), 'staff_flagged');
 set local role authenticated;
 
 select is(gym_revenue_mtd(), 10000::bigint, 'pending, processing and flagged in-window payments are excluded -- verified only');
