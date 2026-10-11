@@ -371,3 +371,31 @@ export async function setRegistrationFee(
   }
   return { data: { ok: true }, error: null };
 }
+
+/** Story 19.9a: the number of members who would start needing a paid session
+ * if charging were switched on, from `guest_charging_impact()` (0107). The RPC
+ * is the authorization boundary (owner/supervisor, own gym). */
+export async function getGuestChargingImpact(): Promise<{ data: number | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("guest_charging_impact");
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: data ?? 0, error: null };
+}
+
+/** Story 19.9a: turns per-session guest charging on or off through
+ * `set_guest_charging()` (0107) -- the only write path for
+ * `gyms.charge_guests_per_session`, which `updateGymSettings` never touches.
+ * The RPC checks owner/supervisor and an active gym, and writes the
+ * `guest_charging_changed` audit row itself. */
+export async function setGuestCharging(
+  enabled: boolean,
+): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_guest_charging", { p_enabled: enabled });
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: { ok: true }, error: null };
+}

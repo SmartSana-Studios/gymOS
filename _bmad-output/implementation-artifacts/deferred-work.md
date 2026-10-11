@@ -1045,3 +1045,10 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-8-session-refunds-revenue-line.md`
   summary: Add pg_temp last to search_path of the 0113 definer triggers (and the older ones) in a repo-wide hardening pass.
   evidence: apply_session_refund and both audit triggers use search_path = public, matching 0101/0111 convention; temp relations resolve first.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-9a-dashboard-charge-guests-setting.md`
+  summary: Story 19.9b — session-required variant of FrontDeskAlertPanel (widen kind filter, class/offline/pending-Tara follow-up reads), new Record Session Payment panel + `record_session_payment` wrapper, MemberModal Sessions section and header action, AD-10 hint, refund notices (session purpose is not refund-eligible today).
+  evidence: Split from 19.9 (epic AC allows it); alert/panel/member surface is larger than the settings half. InlineRenewalPanel does not exist (RenewalModal does), so the panel is built new.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-9a-dashboard-charge-guests-setting.md`
+  summary: Story 19.9c — AD-09 Purpose filter/column/CSV and "Confirmed late" display, and the Subscriptions Last Payment ignore-session guard.
+  evidence: AD-09 has no All Payments ledger (verification queue only) and Subscriptions has no Last Payment column (deliberately cut), so the AC needs a product decision on building the ledger first.
