@@ -1,0 +1,50 @@
+name: job-runs-alert
+
+# Hourly check of the production scheduler (job_runs). The run FAILS, and GitHub emails the
+# person who last edited the cron line, when a job failed in the last hour or a known job has
+# stopped running. A green run means every job ran on time and none failed.
+# Gate for V1.6 stage 3 (docs/decisions.md, V1.6 release runbook, section 5).
+#
+# Secret: JOB_ALERT_DB_URL (a READ-ONLY role, preferred) or, if unset, BACKUP_DB_URL (the
+# existing db-backup connection string). The check only runs SELECTs.
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: job-runs-alert
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check job_runs
+        env:
+          DB_URL: ${{ secrets.JOB_ALERT_DB_URL || secrets.BACKUP_DB_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DB_URL:-}" ]; then
+            echo "::error::Neither JOB_ALERT_DB_URL nor BACKUP_DB_URL is set"
+            exit 2
+          fi
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+          fi
+          out="$(PGOPTIONS='-c default_transaction_read_only=on' psql "$DB_URL" -v ON_ERROR_STOP=1 -X -A -F ' | ' -f scripts/job-runs-alert.sql)"
+          echo "$out"
+          # -A prints a header and a "(N rows)" footer; N is the count of problems.
+          rows="$(echo "$out" | sed -n 's/^(\([0-9]*\) rows\?)$/\1/p')"
+          if [ "${rows:-0}" != "0" ]; then
+            echo "::error::job_runs problems detected: $rows"
+            exit 1
+          fi
+          echo "job_runs healthy"
