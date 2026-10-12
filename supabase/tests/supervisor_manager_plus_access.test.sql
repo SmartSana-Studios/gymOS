@@ -21,7 +21,7 @@
 -- per-table assertion here can see.
 
 begin;
-select plan(14);
+select plan(15);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000020401', 'Supervisor Access Tier', 6000, 60000, 50);
@@ -150,10 +150,17 @@ select is(
   (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public'
      and p.proname in ('assign_coach','check_out_member','confirm_renewal','create_class','update_class','renew_subscription','materialize_class_sessions')
-     and p.prosrc like '%''app_role''%'
+     and (p.prosrc like '%''app_role''%' or p.prosrc like '%current_member_role()%')
      and p.prosrc not like '%''supervisor''%'),
   0,
   'every SECURITY DEFINER role gate that names manager now names supervisor too -- assign_coach() rejected a Supervisor outright before 0093'
+);
+
+select ok(
+  (select p.prosrc like '%current_member_role()%' and p.prosrc like '%''supervisor''%'
+   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'confirm_renewal'),
+  'confirm_renewal() is gated by current_member_role() and names supervisor'
 );
 
 select is(
