@@ -18,7 +18,7 @@ Gyms can turn on "Charge guests per session". A Pay-per-session member then chec
 - Story 19.6b: Check-in gate, blocked attempts & session-required alert (migration 0111)
 - Story 19.7: Class attendance consumes a session (migration 0112)
 - Story 19.8: Session refunds & revenue line (migration 0113)
-- Story 19.9: Dashboard — setting, session alert, member sessions & plan lock
+- Story 19.9: Dashboard — setting, session alert, member sessions & plan lock (built as 19.9a setting, 19.9b session alert + record panel + member sessions, 19.9c payments purpose ledger)
 - Story 19.10: Guest sessions Overview card (migration 0114)
 - Story 19.11: Member app — pay for your session, offline verification & lapse
 - Story 19.12: V1.6 session guests enablement (migration 0115)
@@ -58,7 +58,17 @@ Gyms can turn on "Charge guests per session". A Pay-per-session member then chec
 
 ## Cross-Story Dependencies
 
-- 19.0 and 19.1 first and in parallel. 19.1 → {19.2, 19.3, 19.6a} → 19.4 → {19.5, 19.6b, 19.8} → 19.7 → {19.9, 19.10, 19.11} → 19.12 last.
+- 19.0 and 19.1 first and in parallel. 19.1 → {19.2, 19.3, 19.6a} → 19.4 → {19.5, 19.6b, 19.8} → 19.7 → {19.9a/b/c, 19.10, 19.11} → 19.12 last.
 - 19.6a changes the existing subscription-alert path on every live gym, so it ships alone and runs in production for at least a week before 19.6b.
 - 19.12 flips the default only after 19.0 sign-off and the 19.11 mobile build is in the stores.
 - Epic 20 fills the stamp hooks and the `loyalty_grant_id` FK left here; the Guest sessions "free given" count stays 0 until then. The registration fee (Epic 18) gates a session payment for an awaiting member.
+
+## As-built reconciliation (retro 2026-10-12)
+
+Corrections from `epic-19-retro-2026-10-12.md`; the sections above stay as planned.
+
+- **`check_in()` null contract.** On hosted PostgREST 14.5 a NULL composite arrives as an all-null row, not JSON null. Mobile builds before 1.1.0 therefore show a false success on a refused scan, not their expired screen, so the Out-of-scope line "old builds show their expired screen to a refused guest" holds only for builds that map a null/all-null row (1.1.0+, promoted as 1.5). The current build treats an all-null row as a refusal. Charging was on for 0 gyms at close-out.
+- **Direct DELETE on `class_bookings` stays granted.** 0112 moved INSERT/UPDATE to column grants that omit `attended_at` and kept DELETE for `authenticated`/`service_role` (`cancel_class_booking()` and the e2e teardown use it). Revoking it is an open decision, not done.
+- **Story 19.9 split** into 19.9a/19.9b/19.9c. The AD-08 "Last Payment ignores session" guard is vacuous: the Subscriptions page has no Last Payment column (`docs/decisions.md`, 19.9c).
+- **Migration 0116** (session-required alert cooldown, BEFORE INSERT trigger, 15 minutes after a dismissal unless a session was bought since) was added ad hoc after local QA; it has no story. Epic 20's planned 0116-0119 are therefore shifted by one: next free migration is 0117.
+- **Gate overrides recorded by the owner:** the 7-day soak between 0110 and 0111 was waived after a live alert test, and 0115 was applied with the tested-restore, secret-rotation and Epic 18 item 22 gates open (`docs/v1-6-staged-deploy.md`).

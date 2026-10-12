@@ -320,7 +320,7 @@ Epics 1–8 are the shipped V1.0 pilot scope (`done` per `sprint-status.yaml`). 
 
 - **Prerequisite — AD-3 CI grep-lint gate is unbuilt.** No CI step blocks new `auth.jwt() ->> 'app_role'` reads; 52 migration files carry the pattern (new sites in 0098–0102). Build the gate (explicit grandfather list) **before** any V1.6 migration — AD-27, AD-29, AD-30, AD-32 rely on `private.current_member_role()` with no other mechanical guard.
 - **Prerequisite — flagged-payment reason discriminator (AD-27).** Late-confirmed and wrong-account Tara payments are both stored `flagged` today. FR-158 needs them distinguishable (a late session confirmation creates the session; a wrong-account one never does) before the session payment branch ships.
-- **Prerequisite — old-build check-in denial (AD-29).** `check_in()` keeps its shipped contract (`RETURNS attendance_events`, `null` = blocked). Old mobile builds map `null` to their **expired** screen — a denied guest is not admitted but sees expiry copy. The current build must map `null` at a charging gym to the session-required state by reading the latest attempt; never add a coded row to the return type (old builds read any non-null row as success).
+- **Prerequisite — old-build check-in denial (AD-29).** *As-built correction (2026-10-12): on hosted PostgREST 14.5 a NULL composite reaches clients as an all-null row, so builds before mobile 1.1.0 show a false success on a refused scan; 1.1.0+ treats an all-null row as a refusal.* `check_in()` keeps its shipped contract (`RETURNS attendance_events`, `null` = blocked). Old mobile builds map `null` to their **expired** screen — a denied guest is not admitted but sees expiry copy. The current build must map `null` at a charging gym to the session-required state by reading the latest attempt; never add a coded row to the return type (old builds read any non-null row as success).
 - **AD-27 — `payments.purpose ∈ {subscription, registration_fee, session}`.** Adding `session` amends, in one migration: the CHECK, `protect_payment_purpose_and_void`, the staff-insert policy clause, the notification-trigger skip, the revenue line. Each purpose's effect is one shared `private.` function called from every completion path. Late-confirmation rules are per purpose and intentional (fee: not applied; session: applied + audited). Desk session payments go through a definer RPC that reads the amount from the plan. One in-flight payment per member and purpose: member lock + stale-expiry helper (0100's 10-minute rule) first, partial unique index as backstop. Canonical lock order: `class_sessions` → payment → member (`FOR NO KEY UPDATE`) → `attendance_events` → `subscriptions` → `guest_sessions` → `loyalty_progress`.
 - **AD-28 — `guest_sessions`** is the single session record (paid or free, CHECK XOR `payment_id` / loyalty grant), with `usable_until`, `consumed_at`, `covered_day` (gym-local date, written at consumption), `voided_at`; value is the linked payment's amount. No direct write policy for any role. Session refunds are an `AFTER INSERT` trigger on `refunds` (refunds are direct inserts today).
 - **AD-29 — one consumption function:** `private.consume_guest_session(member_id, gym_id, receipt_at)` under the member lock, called only by `check_in()` (online + offline sync) and class-attendance marking. Server receipt time governs; days via `private.gym_local_day_bounds()` (0097). Awards the guest stamp itself. 0 XAF plans exempt. V1.6 migration revokes direct INSERT/UPDATE/DELETE on `attendance_events` and `class_bookings` from `authenticated`/`service_role` (after grepping existing service-role writers); `mark_class_attendance()` gains an `attended_at is null` guard; partial unique index `guest_sessions (member_id, covered_day) where consumed_at is not null`.
@@ -1465,7 +1465,7 @@ Every gym carries a business category — Gym / Salle de sport, Studio Pilates, 
 | 19.6b | Check-In Gate, Blocked Attempts & Session-Required Alert | **0111** | 19.4, 19.6a |
 | 19.7 | Class Attendance Consumes a Session | **0112** | 19.6b |
 | 19.8 | Session Refunds & Revenue Line | **0113** | 19.4 |
-| 19.9 | Dashboard — Charge-Guests Setting, Session Alert, Member Sessions & Plan Lock | none | 19.3–19.8 |
+| 19.9 | Dashboard — Charge-Guests Setting, Session Alert, Member Sessions & Plan Lock (built as 19.9a / 19.9b / 19.9c) | none | 19.3–19.8 |
 | 19.10 | Guest Sessions Overview Card | **0114** | 19.6b, 19.8 |
 | 19.11 | Member App — Pay for Your Session, Offline Verification & Session Lapse | none | 19.5, 19.6b |
 | 19.12 | V1.6 Session Guests Enablement | **0115** | 19.0, 19.9, 19.10, 19.11 |
@@ -1954,6 +1954,7 @@ So that the desk can run per-session charging day to day.
 **Given** the Subscriptions page (AD-08)
 **When** it renders each member's Last Payment
 **Then** `session` payments are ignored, because a session is never a renewal (AD-27)
+*As built: vacuous. The Subscriptions page has no Last Payment column, so no code was needed (19.9c, `docs/decisions.md`).*
 
 **Given** the Audit Log page (AD-12) lists the V1.6 events
 **When** a V1.6 audit row renders
@@ -2100,7 +2101,7 @@ So that FR-157's "on by default for new gyms" lands without surprising any exist
 | 20.5 | Dashboard — Loyalty Settings & Member Loyalty View | none | 20.1–20.4 |
 | 20.6 | Member App — Loyalty Card | none | 20.1–20.4 |
 
-*Migration numbers follow Epic 19's (latest planned `0115`); renumber at build time if needed.*
+*Migration numbers follow Epic 19's (latest planned `0115`); renumber at build time if needed. **As built (2026-10-12): Epic 19 also shipped ad hoc `0116` (session-required alert cooldown), so every migration number in Epics 20 and 21 shifts by one: 20.1 is 0117, 20.2 is 0118, 20.3 is 0119, 20.4 is 0120, 21.1 is 0121. The numbers inside the story bodies below still show the old plan.**
 
 **Dependency order:** 20.1 → {20.2, 20.3} in parallel → 20.4 → {20.5, 20.6}. **Production safety:** the program is off by default for every gym (FR-164) and only 20.5 exposes the switch, so 20.1–20.4 change nothing a live gym sees. 20.2's guest rule earns only while **both** the program and Charge-guests are on (FR-165).
 
