@@ -1,3 +1,4 @@
+/* eslint-disable i18next/no-literal-string -- test doubles render fixed marker text; no user-facing copy */
 /**
  * Story 19.7: a refused class attendance (no paid session) leaves the row
  * unmarked, keeps the action enabled, and shows an inline role="alert"

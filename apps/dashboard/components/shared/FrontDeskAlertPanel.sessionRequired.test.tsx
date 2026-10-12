@@ -1,3 +1,4 @@
+/* eslint-disable i18next/no-literal-string -- test doubles render fixed marker text; no user-facing copy */
 /**
  * Story 19.9b: the session-required variant of the single front-desk alert
  * panel. Info treatment with label, assertive live region, class / offline /

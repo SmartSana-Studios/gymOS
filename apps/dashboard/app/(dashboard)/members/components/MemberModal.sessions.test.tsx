@@ -1,3 +1,4 @@
+/* eslint-disable i18next/no-literal-string -- test doubles render fixed marker text; no user-facing copy */
 /**
  * Story 19.9b: the member modal's Sessions section and [Record session
  * payment] header action. Receptionist-and-above only (nothing for a coach);

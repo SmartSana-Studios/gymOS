@@ -1,3 +1,4 @@
+/* eslint-disable i18next/no-literal-string -- test doubles render fixed marker text; no user-facing copy */
 /**
  * Story 19.9b: a session refund's success toast names the resolved outcome;
  * an audit warning wins over it.

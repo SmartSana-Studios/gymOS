@@ -175,7 +175,8 @@ function SessionsSection({
   locale: string;
 }) {
   const { t } = useTranslation();
-  const now = Date.now();
+  // A render-time Date.now() is impure (React Compiler lint); one stable timestamp per mount is enough here.
+  const [now] = useState(() => Date.now());
   const dateTime = (iso: string) =>
     new Date(iso).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" });
   const date = (iso: string) => new Date(iso).toLocaleDateString(locale);

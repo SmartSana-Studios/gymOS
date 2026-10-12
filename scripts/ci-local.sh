@@ -61,12 +61,14 @@ run_stage() { # run_stage <name> <function> -- logs to $LOG_DIR/<name>.log, resu
 }
 
 stage_static() {
-  set -e
-  pnpm run typecheck
-  npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin
-  pnpm run check:i18n
-  pnpm run check:migrations
-  pnpm run test:guardrails
+  # NOT `set -e`: run_stage calls this as the condition of an `if`, where errexit is ignored,
+  # so only the LAST command's status counted and a failing lint was reported as PASS
+  # (found 2026-10-12: GitHub typecheck failed on lint errors this gate had passed).
+  pnpm run typecheck || return 1
+  npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin || return 1
+  pnpm run check:i18n || return 1
+  pnpm run check:migrations || return 1
+  pnpm run test:guardrails || return 1
 }
 
 stage_pgtap() {
@@ -112,7 +114,7 @@ stage_e2e() {
   export SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
   export DASHBOARD_APP_URL=http://127.0.0.1:3100
   # Idempotent (no-op once cached); CI does the same before the suite.
-  (cd apps/dashboard && npx playwright install chromium)
+  (cd apps/dashboard && npx playwright install chromium) || return 1
   # CI=1 matches the Actions environment: retries: 1, no server reuse, html report.
   CI=1 npx turbo run test:e2e --filter=@gymos/dashboard
 }
