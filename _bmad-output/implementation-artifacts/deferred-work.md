@@ -1066,3 +1066,8 @@ of work.
 
 - A paid session that lapses unused disappears from Home with no explanation ("No paid session"), and the receipt shows a past "Use by". Unverified medium: the 19.11 matrix has no lapsed row and the 7-day caption is the only specified lapse surface. Product owner to decide whether a lapsed state is wanted.
 - Flagged session payment shows "Failed" + [Try again] with no "contact the front desk if you were debited / retrying may charge twice" guidance. Unverified medium: check which `flagged_reason` values can have moved money (`expired_attempt` late-confirms per 0109, `provider_declined` does not) and decide copy per reason.
+
+## Deferred from: code review of spec-19-12-v1-6-session-guests-enablement (2026-10-12)
+
+- The "existing gyms keep their flag" md5 guard in migration 0115 only sees data at production apply time; local/CI `gyms` is empty, so a regression (e.g. a backfill UPDATE before the ALTER) would pass pgTAP. Close with a psql proof in a rolled-back transaction that seeds mixed-flag gyms and runs the 0115 body (see the local Supabase SQL proofs convention).
+- `scripts/rollback-0115-enable-charge-guests-default.sql` is never executed by CI or any test. Run it once against the local DB in a rolled-back transaction before 0115 is applied to production.

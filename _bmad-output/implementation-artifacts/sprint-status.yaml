@@ -411,7 +411,7 @@ development_status:
   19-9c-dashboard-payments-purpose-ledger-subscriptions-guard: done
   19-10-guest-sessions-overview-card: done
   19-11-member-app-pay-for-your-session-offline-verification-session: done
-  19-12-v1-6-session-guests-enablement: review
+  19-12-v1-6-session-guests-enablement: done
   epic-19-retrospective: optional
 
   epic-20: backlog
@@ -859,3 +859,4 @@ last_updated: 10-12-2026 12:00
 # last_updated: 2026-10-12 (bmad-code-review: 19-11 review -> done. 4 layers vs epic/19...HEAD + spec: 2 decisions (record sync denial when context unknown; qualify EN "paid session") and 12 patches applied, 2 deferred (lapsed-session state, flagged-payment guidance) to deferred-work.md, 14 rejected. Lockfile churn reverted; new sessionState helpers + tests; tsc/vitest 31/31/i18n/lint clean. ci-local on a clean tree still required before the story PR merges into epic/19)
 # last_updated: 2026-10-12 (build: 19-12 spec approved, backlog -> in-progress. Migration 0115 only: charge_guests_per_session SET DEFAULT true for new gyms, existing rows untouched; decision: decisions.md entry written now as "0115 ready", owner appends the production date at apply. Not applied to production here.)
 # last_updated: 2026-10-12 (build: 19-12 in-progress -> review. Migration 0115 (SET DEFAULT true, lock + md5 before/after in one DO block, autocommit-safe), rollback-0115 script, charge_guests_default pgTAP, 0107 fixtures pinned false, decisions.md entry "0115 ready" with owner placeholder for the production date. Review: 4 patches, 7 rejected, none deferred. pgTAP 129/129; migration guardrails OK. NOT applied to production; owner gates open. ci-local not yet run.)
+# last_updated: 2026-10-12 (code-review: 19-12 review -> done. 0 decision-needed, 2 patches applied (set local lock_timeout '5s' in 0115 and rollback-0115; test header comment corrected), 2 deferred to deferred-work.md (existing-row proof against seeded gyms; rollback script dry-run), 10 rejected. Proven on local DB in a rolled-back transaction: 0115 then rollback ends at default false, then true; pgTAP charge_guests_* 3/3 files pass; migration guardrails OK. Not committed, not applied to production; owner gates open. ci-local not yet run.)

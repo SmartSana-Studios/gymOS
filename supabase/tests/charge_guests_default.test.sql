@@ -1,6 +1,7 @@
 -- Story 19.12: migration 0115 -- charge_guests_per_session defaults to true for
 -- gyms created after the migration. Existing gyms are covered by the
--- migration's own do $verify$ block (it compares counts around the ALTER).
+-- migration's own do $apply$ block (it compares an md5 of every (id, flag)
+-- pair before and after the ALTER, under an access exclusive lock).
 --
 -- Fixture ids: 00000000-0000-0000-0000-0000000330xx.
 

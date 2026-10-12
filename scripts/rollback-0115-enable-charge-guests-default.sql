@@ -4,6 +4,9 @@
 -- if needed.
 --   psql -v ON_ERROR_STOP=1 --single-transaction -f scripts/rollback-0115-enable-charge-guests-default.sql
 
+-- Fail fast rather than queue every gyms query behind a long transaction.
+set local lock_timeout = '5s';
+
 alter table gyms alter column charge_guests_per_session set default false;
 
 do $verify$

@@ -16,6 +16,9 @@ declare
   v_before text;
   v_after text;
 begin
+  -- Fail fast rather than queue every gyms query behind a long transaction.
+  set local lock_timeout = '5s';
+
   -- Same lock the ALTER takes, so no gym can change between snapshot and check.
   lock table gyms in access exclusive mode;
 

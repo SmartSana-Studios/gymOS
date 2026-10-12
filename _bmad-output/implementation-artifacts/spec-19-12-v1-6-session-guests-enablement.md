@@ -93,6 +93,28 @@ context:
 | 10 | edge | Unqualified temp table name via search_path | false | reject | Temp table removed by fix 1. |
 | 11 | edge | Assertion 1 retitled, global count | low | reject | Fixtures pin false; the assertion remains exact. |
 
+### Review Findings
+
+Code review 2026-10-12 (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor). 0 decision-needed, 2 patch, 2 defer, 10 rejected.
+
+- [x] [Review][Patch] Stale test header says the migration "compares counts around the ALTER" and calls it a `$verify$` block; the migration compares an md5 of ordered `(id, flag)` inside `$apply$` [supabase/tests/charge_guests_default.test.sql:1-3]
+- [x] [Review][Patch] Forward migration and rollback script take ACCESS EXCLUSIVE on `gyms` with no `lock_timeout`; add `set local lock_timeout = '5s'` before the lock/ALTER so a long-running transaction fails the apply instead of queueing every gym query behind it [supabase/migrations/0115_enable_charge_guests_default.sql:19, scripts/rollback-0115-enable-charge-guests-default.sql:8]
+- [x] [Review][Defer] The "existing gyms keep their flag" guard only runs against production data at apply time; local/CI `gyms` is empty, so no test would catch a regression such as a backfill UPDATE added before the ALTER [supabase/migrations/0115_enable_charge_guests_default.sql:19-37] — deferred: accepted in triage item 9 (pgTAP cannot straddle the migration); settle with a rolled-back-transaction psql proof that seeds mixed-flag gyms and runs the 0115 body.
+- [x] [Review][Defer] Rollback script is never executed by CI or any test; a typo would only surface at rollback time [scripts/rollback-0115-enable-charge-guests-default.sql] — deferred: run it once against the local DB in a rolled-back transaction before the production apply.
+
+#### Rejected
+
+- `false` — Unpinned gym fixtures in ~100 test files (11 guest/check-in files, 6 `pay_per_session` files) may flip behaviour: the four named check-in/class files contain no `pay_per_session` plan, so the gate exempts them; the six `pay_per_session` files never call `check_in`, `mark_class_attendance` or a session-payment RPC; full pgTAP 129/129 passed after the flip.
+- `false` — `count(*) from gyms where charge_guests_per_session` = 0 in `charge_guests_setting.test.sql` could fail on other gyms: pgTAP runs in one rolled-back transaction against an empty `gyms` table (no `supabase/seed.sql`), and both fixtures are pinned `false`.
+- `false` — Rollback verify matching `column_default = 'false'` is fragile: 0115's own verify uses the same `information_schema` rendering (`'true'`) and passes in pgTAP/CI.
+- `low` — Hash guard is tautological around a catalog-only ALTER and scans `gyms` twice under lock: the guard and its lock were added on purpose in review patches 1-2 as the spec's "existing gyms unchanged" proof; `gyms` is small and the only fix is to remove spec-required behaviour.
+- `low` — "Ships last" gate enforced only by prose: production migrations are applied by hand-run scripts (`scripts/deploy-*.sh`, never `db push`) and CI only applies to the local DB, so merging does not apply 0115; a future range script is a process matter for the owner gates.
+- `low` — New gym with charging on but no priced plan or payment config: the gate is exempt without a `pay_per_session` plan, and old-build behaviour was decided 2026-10-11 (decision 1 in the decisions entry).
+- `low` — Rollback leaves no record of which gyms inherited `true`: new artifact with no named harm; `gyms.created_at` plus the owner-appended date identifies the cohort (triage item 6).
+- `low` — Unqualified `gyms` in the ALTER while verifies hard-code `public`: search_path is `public` in migrations/psql and the 0107 migration uses the same form.
+- `low` — Existing-row pgTAP case is only an explicit-false insert: duplicate of the deferred item above, accepted in triage item 9.
+- `low` — sprint-status entry absent from the diff, "exactly one statement" wording, assertion retitle: the sprint-status change is in commit `e8cb139` (excluded from the review diff as `_bmad-output`), the DO-block wrapping is review patches 1-2, and the retitle is recorded in Implementation Notes.
+
 ## Design Notes
 
 `ALTER COLUMN … SET DEFAULT` is catalog-only in Postgres 15+: it takes a brief ACCESS EXCLUSIVE lock, rewrites no rows and does not touch the pin trigger (which fires on UPDATE only). That is why the default flip is its own last migration, separate from the 0107 `ADD COLUMN`.
