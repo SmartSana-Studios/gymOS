@@ -163,12 +163,14 @@ with updated as (
 )
 select is((select count(*) from updated)::int, 0, 'UPDATE on payments affects 0 rows under deny-all (no error, filtered like SELECT)');
 
-with deleted as (
-  delete from attendance_events
-  where gym_id = '00000000-0000-0000-0000-0000000000e1'
-  returning id
-)
-select is((select count(*) from deleted)::int, 0, 'DELETE on attendance_events affects 0 rows under deny-all (no error, filtered like SELECT)');
+-- 0111 closed direct writes on attendance_events: the DELETE grant is gone, so
+-- this is now a permission error rather than a filtered 0-row delete.
+select throws_ok(
+  $$delete from attendance_events where gym_id = '00000000-0000-0000-0000-0000000000e1'$$,
+  '42501',
+  null,
+  'DELETE on attendance_events is denied outright (0111 revoked INSERT/UPDATE/DELETE from authenticated)'
+);
 
 select * from finish();
 rollback;

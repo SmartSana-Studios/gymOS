@@ -97,9 +97,11 @@ export default function PaymentDetailScreen() {
       : receipt.method
     : null;
   const statusLabel = receipt
-    ? isPaymentStatus(receipt.status)
-      ? t(paymentStatusLabelKey[receipt.status])
-      : receipt.status
+    ? receipt.isSession && receipt.status === 'flagged'
+      ? t('payments.status.failed')
+      : isPaymentStatus(receipt.status)
+        ? t(paymentStatusLabelKey[receipt.status])
+        : receipt.status
     : null;
 
   return (
@@ -139,7 +141,9 @@ export default function PaymentDetailScreen() {
             <ThemedText type="default">
               {receipt.isRegistrationFee
                 ? t('paymentDetail.registrationFee')
-                : `${t('paymentDetail.planLabel')}: ${receipt.planName ?? t('paymentDetail.planUnavailable')}`}
+                : receipt.isSession
+                  ? `${t('paymentDetail.forLabel')}: ${t('paymentDetail.sessionFor')}${receipt.planName ? ` — ${receipt.planName}` : ''}`
+                  : `${t('paymentDetail.planLabel')}: ${receipt.planName ?? t('paymentDetail.planUnavailable')}`}
             </ThemedText>
             <ThemedText type="default">
               {t('paymentDetail.amountLabel')}: {receipt.amount} {receipt.currency}
@@ -156,6 +160,16 @@ export default function PaymentDetailScreen() {
             <ThemedText type="default">
               {t('paymentDetail.actorLabel')}: {receipt.actorName ?? t('paymentDetail.unknownActor')}
             </ThemedText>
+            {receipt.isSession && !receipt.sessionCoveredDay && receipt.sessionUsableUntil && (
+              <ThemedText type="default">
+                {t('paymentDetail.useByLabel')}: {formatReceiptDate(receipt.sessionUsableUntil, i18n.language)}
+              </ThemedText>
+            )}
+            {receipt.isSession && receipt.sessionCoveredDay && (
+              <ThemedText type="default">
+                {t('paymentDetail.usedOnLabel')}: {formatReceiptDate(receipt.sessionCoveredDay, i18n.language)}
+              </ThemedText>
+            )}
             <ThemedText type="small" themeColor="textSecondary">
               {t('paymentDetail.statusLabel')}: {statusLabel}
             </ThemedText>

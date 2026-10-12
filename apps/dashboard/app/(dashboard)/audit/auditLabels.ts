@@ -54,4 +54,33 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // Story 18.5. Written by assignInitialPlan (members/actions.ts) through
   // logMemberChange, target = the member. Metadata { plan_id, start_date, expiry_date }.
   member_plan_assigned: "audit.actionTypes.memberPlanAssigned",
+  // Story 19.3. guest_charging_changed is written by set_guest_charging() (0107),
+  // gym-scoped, metadata { old_enabled, new_enabled }. plan_type_changed and
+  // plan_price_changed are written by update_plan_pricing() (0107), gym-scoped,
+  // target = the plan, metadata { old_plan_type, new_plan_type } / { old_price,
+  // new_price }. platform_session_config_updated is platform-level (no gym_id).
+  guest_charging_changed: "audit.actionTypes.guestChargingChanged",
+  plan_type_changed: "audit.actionTypes.planTypeChanged",
+  plan_price_changed: "audit.actionTypes.planPriceChanged",
+  platform_session_config_updated: "audit.actionTypes.platformSessionConfigUpdated",
+  // Story 19.4. session_payment_recorded is written by record_session_payment()
+  // (0108), target = the member, metadata { amount, currency, method, reason,
+  // payment_id, guest_session_id }. session_attempt_expired comes from the
+  // purpose-generic expiry helper, target = the member, metadata { payment_id }.
+  session_payment_recorded: "audit.actionTypes.sessionPaymentRecorded",
+  session_attempt_expired: "audit.actionTypes.sessionAttemptExpired",
+  // Story 19.5. Both are written by complete_verified_payment() (0109) with the
+  // payment-webhook system label, target = the member, metadata { payment_id,
+  // guest_session_id, amount, currency, method, fee_amount }.
+  session_payment_paid: "audit.actionTypes.sessionPaymentPaid",
+  session_late_payment: "audit.actionTypes.sessionLatePayment",
+  // Story 19.8. Written by database triggers (0113), gym-scoped, target = the
+  // member. session_refund_applied metadata { outcome: voided | kept_partial |
+  // kept_consumed, refund_id, payment_id, guest_session_id, refund_amount,
+  // payment_amount }. session_consumed metadata { guest_session_id, payment_id,
+  // covered_day, consumed_at, source: paid | free }. session_attempt_blocked
+  // metadata { attempt_id, scan_id, source, class_session_id, scanned_at }.
+  session_refund_applied: "audit.actionTypes.sessionRefundApplied",
+  session_consumed: "audit.actionTypes.sessionConsumed",
+  session_attempt_blocked: "audit.actionTypes.sessionAttemptBlocked",
 };

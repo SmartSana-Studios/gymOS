@@ -48,11 +48,29 @@
       "expiringThisWeek": "Expirent cette semaine",
       "revenueThisMonth": "Revenus du mois",
       "revenueOfWhichRegistrationFees": "dont frais d'inscription",
+      "guestSessions": "Séances des invités",
       "activeMembers": "Membres actifs",
       "newThisMonth": "Nouveaux ce mois-ci",
       "todaysClasses": "Cours du jour",
       "atRisk": "À risque",
-      "unavailable": "Indisponible"
+      "unavailable": "Indisponible",
+      "guestSessionsCard": {
+        "title": "Séances des invités",
+        "period": "Période",
+        "today": "Aujourd'hui",
+        "month": "Ce mois-ci",
+        "periodToday": "aujourd'hui",
+        "periodMonth": "ce mois-ci",
+        "paid": "Séances payées",
+        "blocked": "Tentatives bloquées",
+        "free": "Séances gratuites offertes",
+        "blockedMembers": "{{count}} membres",
+        "paidAria": "Séances payées {{period}} : {{count}}. Ouvrir la liste des séances payées.",
+        "blockedAria": "Tentatives d'entrée bloquées {{period}} : {{count}} tentatives de {{members}} membres. Ouvrir la liste des tentatives bloquées.",
+        "freeAria": "Séances gratuites offertes {{period}} : {{count}}. Ouvrir la liste des séances gratuites.",
+        "loadError": "Impossible de charger les séances des invités.",
+        "retry": "Réessayer"
+      }
     },
     "tables": {
       "viewAll": "Tout voir →",
@@ -76,7 +94,30 @@
   },
   "settings": {
     "title": "Paramètres",
-    "saveHint": "Enregistrer applique les changements de toutes les sections ci-dessous.",
+    "saveHint": "Enregistrer applique les changements de toutes les sections ci-dessous, sauf Frais d'inscription, Facturer les invités par séance, Programme de fidélité et Catégorie, qui s'enregistrent séparément.",
+    "guestCharging": {
+      "label": "Facturer les invités par séance",
+      "hint": "Lorsque cette option est active, les membres au forfait Paiement par séance ont besoin d'une séance payée pour s'enregistrer. S'enregistre séparément.",
+      "saveFailed": "Impossible de modifier ce paramètre. Réessayez.",
+      "onTitle": "Facturer les invités par séance ?",
+      "impactLoading": "Comptage des membres concernés…",
+      "impactError": "Impossible de compter les membres concernés.",
+      "retry": "Réessayer",
+      "impactZero": "Aucun membre n'a encore de forfait Paiement par séance.",
+      "impactOne": "1 membre au forfait Paiement par séance aura besoin d'une séance payée lors de sa prochaine visite.",
+      "impactMany": "{{count}} membres au forfait Paiement par séance auront besoin d'une séance payée lors de leur prochaine visite.",
+      "scope": "Cela s'applique à partir de maintenant. Les visites passées et les personnes déjà enregistrées ne sont pas concernées.",
+      "oldAppWarning": "Les invités qui utilisent d'anciennes versions de l'application verront un message « expiré » au lieu d'une demande de paiement. Demandez-leur de mettre à jour l'application.",
+      "start": "Activer la facturation",
+      "onToast": "Les invités paient désormais par séance.",
+      "offTitle": "Arrêter de facturer les invités par séance ?",
+      "offBody": "Les membres au forfait Paiement par séance s'enregistreront sans séance payée.",
+      "offKept_one": "Les séances payées déjà achetées sont conservées mais inutilisées tant que la facturation est désactivée, et expirent toujours {{count}} jour après le paiement.",
+      "offKept_other": "Les séances payées déjà achetées sont conservées mais inutilisées tant que la facturation est désactivée, et expirent toujours {{count}} jours après le paiement.",
+      "offStamps": "Les invités ne gagnent plus de tampons de fidélité.",
+      "stop": "Arrêter la facturation",
+      "offToast": "Les invités ne paient plus par séance."
+    },
     "saveButton": "Enregistrer les paramètres",
     "savedToast": "Paramètres enregistrés.",
     "sections": {
@@ -312,6 +353,10 @@
     "delete": "Supprimer",
     "actionsMenu": "Actions pour {{name}}",
     "priceLabel": "XAF {{price}} / {{interval}}",
+    "pricePerSessionLabel": "XAF {{price}} / séance",
+    "typeLocked": {
+      "reason": "Cette formule a des membres : son type ne peut pas être modifié. Créez plutôt une nouvelle formule."
+    },
     "discountSuffix": "(remise de {{percent}} %)",
     "intervalMonthly": "mensuel",
     "intervalAnnual": "annuel",
@@ -340,6 +385,9 @@
       "name": "Nom de la formule *",
       "planType": "Type de formule *",
       "price": "Prix (XAF) *",
+      "pricePerSession": "Prix par séance (XAF) *",
+      "priceChangeNote": "Modifier le prix ne change pas les séances déjà payées.",
+      "priceZeroNote": "À 0 XAF, les membres de cette formule n'ont jamais besoin de séance payée.",
       "durationDays": "Durée (jours) *",
       "billingInterval": "Intervalle de facturation *",
       "annualDiscountPercent": "Remise annuelle (%) *",
@@ -374,9 +422,9 @@
     "columnName": "Nom",
     "columnCoach": "Coach",
     "columnSchedule": "Horaire",
-    "columnNextSession": "Prochaine séance",
+    "columnNextSession": "Prochain cours",
     "columnBooked": "Réservé",
-    "noUpcomingSession": "Aucune séance à venir",
+    "noUpcomingSession": "Aucun cours à venir",
     "recurringSummary": "{{days}} à {{time}}",
     "days": {
       "sun": "Dim",
@@ -422,9 +470,11 @@
       "markAttended": "Marquer présent",
       "attended": "Présent",
       "memberExpired": "L'abonnement de ce membre a expiré -- la présence n'a pas été enregistrée. Une alerte a été envoyée à l'accueil.",
+      "sessionRequired": "Aucune séance payée — la présence au cours n'a pas été enregistrée. Une alerte a été envoyée à l'accueil.",
       "noBookings": "Aucun membre inscrit pour cette séance.",
       "noSession": "Ce cours n'a aucune séance à venir pour laquelle marquer la présence.",
-      "loadingBookings": "Chargement des membres inscrits…"
+      "loadingBookings": "Chargement des membres inscrits…",
+      "recordSessionPayment": "Enregistrer le paiement de la séance"
     }
   },
   "members": {
@@ -518,7 +568,23 @@
       "assignmentHistoryTitle": "Historique des assignations de coach",
       "assignmentActive": "Actuel",
       "assignmentStarted": "Débuté le {{date}}",
-      "assignmentEnded": "Terminé le {{date}}"
+      "assignmentEnded": "Terminé le {{date}}",
+      "recordSessionPayment": "Enregistrer le paiement de la séance",
+      "sessions": {
+        "title": "Séances payées",
+        "empty": "Aucune séance pour le moment.",
+        "unused": "Non utilisées",
+        "used": "Utilisées",
+        "sourcePaid": "Séance payée",
+        "sourceFree": "Séance gratuite",
+        "recordedBy": "enregistrée par {{name}}",
+        "lapsesOn": "Expire le {{date}}",
+        "usedOn": "Utilisée le {{date}}",
+        "covered": "couvre le {{date}}",
+        "lapsed": "Expirée le {{date}}",
+        "voided": "Annulée par remboursement le {{date}}",
+        "viewPayments": "Voir les paiements de séances"
+      }
     },
     "deactivateDialog": {
       "title": "Désactiver {{name}} ?",
@@ -643,6 +709,7 @@
       "collectedInviteFailedToast": "Frais d'inscription encaissés pour {{name}}, mais l'invitation WhatsApp n'a pas pu être envoyée. Utilisez Envoyer l'invitation dans le menu de la ligne."
     },
     "feeWaive": {
+      "presetSessionGuest": "Invité à la séance",
       "title": "Exonérer {{name}} des frais d'inscription ?",
       "body": "{{name}} sera considéré comme à jour sans paiement. Cette action ne peut pas être annulée depuis le tableau de bord.",
       "reason": "Motif *",
@@ -942,6 +1009,7 @@
     "status": {
       "pending": "En attente",
       "verified": "Vérifié",
+      "processing": "En cours",
       "flagged": "Signalé"
     },
     "methods": {
@@ -973,7 +1041,8 @@
         "memberRequired": "Sélectionnez un membre",
         "amountInvalid": "Saisissez un montant valide",
         "reasonInvalid": "Ajoutez une note (au moins 10 caractères)"
-      }
+      },
+      "sessionHint": "Pour vendre une séance, utilisez Enregistrer le paiement de la séance sur la page du membre."
     },
     "verifyDialog": {
       "title": "Vérifier ce paiement de {{amount}} XAF de {{name}} ?",
@@ -1006,6 +1075,18 @@
         "amountInvalid": "Saisissez un montant valide",
         "amountExceedsPayment": "Le montant du remboursement ne peut pas dépasser le montant du paiement d'origine",
         "reasonInvalid": "Ajoutez une raison (au moins 10 caractères)"
+      },
+      "notice": {
+        "sessionCancelled": "Ce remboursement annule la séance payée. L'invité ne pourra plus l'utiliser.",
+        "sessionPartial": "Un remboursement partiel conserve la séance payée.",
+        "sessionUsed": "La séance payée a déjà été utilisée. La visite reste comptée.",
+        "sessionUsedLoyalty": "Le tampon de fidélité de cette visite sera annulé.",
+        "renewalLoyalty": "Les tampons de fidélité et les jours offerts de ce renouvellement ne sont pas retirés."
+      },
+      "outcome": {
+        "cancelled": "La séance a été annulée.",
+        "used": "La séance avait déjà été utilisée.",
+        "kept": "La séance payée a été conservée."
       }
     },
     "errors": {
@@ -1033,7 +1114,37 @@
     "actionsButton": "Action :",
     "purposes": {
       "subscription": "Abonnement",
-      "registrationFee": "Frais d'inscription"
+      "registrationFee": "Frais d'inscription",
+      "session": "Paiement de séance"
+    },
+    "flaggedReasons": {
+      "lateConfirmation": "Confirmé en retard",
+      "expiredAttempt": "Tentative expirée",
+      "providerDeclined": "Paiement refusé",
+      "staffFlagged": "Signalé par le personnel"
+    },
+    "purposeFilter": {
+      "label": "Objet",
+      "all": "Tous les objets",
+      "renewal": "Renouvellement",
+      "registrationFee": "Frais d'inscription",
+      "session": "Paiement de séance"
+    },
+    "ledger": {
+      "title": "Tous les paiements",
+      "empty": "Aucun paiement enregistré pour le moment.",
+      "emptyFiltered": "Aucun paiement ne correspond à ces filtres.",
+      "clearFilters": "Effacer les filtres",
+      "loadError": "Impossible de charger les paiements.",
+      "voided": "Annulé",
+      "actorTara": "Tara Money (dans l'app)",
+      "table": { "purpose": "Objet", "date": "Date", "actor": "Enregistré par", "note": "Note" }
+    },
+    "export": {
+      "button": "Exporter en CSV",
+      "exporting": "Export en cours...",
+      "tooLarge": "Trop de paiements à exporter. Affinez les filtres et réessayez.",
+      "forbidden": "Vous n'avez pas la permission d'exporter les paiements."
     }
   },
   "frontDeskAlert": {
@@ -1043,7 +1154,14 @@
     "deniedMessage": "Encaisser le paiement pour rétablir l'accès",
     "dismiss": "Ignorer l'alerte",
     "unknownMember": "Membre inconnu",
-    "renew": "Renouveler"
+    "renew": "Renouveler",
+    "sessionRequired": "SÉANCE REQUISE",
+    "sessionNoPaidSession": "Aucune séance payée",
+    "sessionRecordHint": "Enregistrez un paiement pour qu'il puisse scanner à nouveau.",
+    "sessionFromClass": "Depuis le cours : {{name}}",
+    "sessionScannedOffline": "Scanné hors ligne à {{time}}",
+    "sessionPaymentInProgress": "Paiement mobile money en cours",
+    "recordSessionPayment": "Enregistrer le paiement de la séance"
   },
   "renewalPanel": {
     "title": "Renouveler l'adhésion",
@@ -1127,7 +1245,18 @@
       "registrationFeeAttemptExpired": "Collecte des frais d'inscription expirée",
       "registrationFeeLatePayment": "Frais d'inscription payés en retard par Tara Money (non appliqués)",
       "registrationFeeVoided": "Frais d'inscription annulés",
-      "memberPlanAssigned": "Première formule attribuée"
+      "memberPlanAssigned": "Première formule attribuée",
+      "guestChargingChanged": "Facturation des invités par séance modifiée",
+      "planTypeChanged": "Type de formule modifié",
+      "planPriceChanged": "Prix de la formule modifié",
+      "platformSessionConfigUpdated": "Valeurs par défaut des séances mises à jour",
+      "sessionPaymentRecorded": "Paiement de séance enregistré",
+      "sessionAttemptExpired": "Tentative de paiement de séance expirée",
+      "sessionPaymentPaid": "Paiement de séance reçu",
+      "sessionLatePayment": "Paiement de séance tardif appliqué",
+      "sessionRefundApplied": "Remboursement de séance appliqué",
+      "sessionConsumed": "Séance utilisée",
+      "sessionAttemptBlocked": "Séance requise : entrée refusée"
     }
   },
   "saasBilling": {
@@ -1151,5 +1280,103 @@
     "previous": "Page précédente",
     "next": "Page suivante",
     "ellipsis": "…"
+  },
+  "guestSessions": {
+    "title": "Séances des invités",
+    "back": "Retour à l'aperçu",
+    "permissionDenied": "Vous n'avez pas la permission d'effectuer cette action.",
+    "loadError": "Impossible de charger les séances des invités.",
+    "refresh": "Actualiser",
+    "period": "Période",
+    "today": "Aujourd'hui",
+    "month": "Ce mois-ci",
+    "periodToday": "aujourd'hui",
+    "periodMonth": "ce mois-ci",
+    "tabs": {
+      "label": "Vues des séances des invités",
+      "paid": "Payées",
+      "blocked": "Tentatives bloquées",
+      "free": "Gratuites offertes"
+    },
+    "empty": {
+      "paid": "Aucune séance payée {{period}}.",
+        "paidRefundedAfterUse": "Aucune séance remboursée après utilisation sur cette période.",
+      "blocked": "Aucune tentative bloquée {{period}}.",
+      "free": "Aucune séance gratuite offerte {{period}}."
+    },
+    "groupBy": {
+      "label": "Regrouper par",
+      "recorder": "Enregistré par",
+      "none": "Aucun"
+    },
+    "refundedAfterUseOnly": "Remboursées après utilisation seulement",
+    "groupHeader_one": "{{name}} — {{count}} séance payée · {{total}} XAF",
+    "groupHeader_other": "{{name}} — {{count}} séances payées · {{total}} XAF",
+    "recorderTara": "Tara Money (dans l'app)",
+    "recorderUnknown": "Inconnu",
+    "blockedSummary": "{{attempts}} tentatives · {{members}} membres",
+    "synced": "(synchronisé {{time}})",
+    "columns": {
+      "member": "Membre",
+      "amount": "Montant",
+      "method": "Mode",
+      "recordedBy": "Enregistré par",
+      "time": "Heure",
+      "refund": "Remboursement",
+      "source": "Origine",
+      "class": "Cours",
+      "earned": "Obtenue",
+      "useBy": "À utiliser avant",
+      "status": "Statut"
+    },
+    "refund": {
+      "refunded": "Remboursée",
+      "refundedAfterUse": "Remboursée après utilisation",
+      "none": "—"
+    },
+    "source": {
+      "check_in": "Entrée",
+      "class": "Présence au cours"
+    },
+    "status": {
+      "available": "Disponible",
+      "used": "Utilisée",
+      "lapsed": "Expirée",
+      "voided": "Annulée"
+    },
+    "pagination": {
+      "range": "{{from}}–{{to}} sur {{total}}",
+      "previous": "Précédent",
+      "next": "Suivant"
+    }
+  },
+  "sessionPayment": {
+    "title": "Enregistrer le paiement de la séance — {{name}}",
+    "amount": "Montant",
+    "amountHint": "Prix du forfait — fixe",
+    "method": "Mode de paiement",
+    "note": "Note (facultative)",
+    "noteCount": "{{count}} / 200",
+    "recordedBy": "Enregistré par",
+    "recordButton": "Enregistrer le paiement de la séance",
+    "recording": "Enregistrement…",
+    "recordedToast": "Séance enregistrée pour {{name}}. Demandez-lui de scanner à nouveau.",
+    "errors": {
+      "generic": "Le paiement de la séance n'a pas pu être enregistré. Veuillez réessayer.",
+      "previewLoadFailed": "Impossible de charger le prix du forfait.",
+      "noPlan": "Ce membre n'a pas de forfait.",
+      "noteTooLong": "La note est trop longue (200 caractères maximum).",
+      "permissionDenied": "Vous n'avez pas l'autorisation d'enregistrer ce mode de paiement.",
+      "invalidMethod": "Choisissez un mode de paiement valide.",
+      "reasonTooLong": "La note est trop longue (200 caractères maximum).",
+      "chargingDisabled": "Ce club ne facture plus les invités par séance.",
+      "notFound": "Membre introuvable.",
+      "memberDeactivated": "Ce membre est désactivé.",
+      "registrationFeeNotSettled": "Les frais d'inscription ne sont pas encore réglés. Encaissez-les ou annulez-les d'abord.",
+      "planNotPerSession": "Ce membre n'est pas au forfait Paiement par séance.",
+      "sessionPriceNotSet": "Le forfait Paiement par séance n'a pas de prix. Définissez un prix dans Forfaits d'abord.",
+      "alreadyInProgress": "Un paiement mobile money est déjà en cours pour ce membre.",
+      "configMissing": "Les paramètres de séance sont manquants. Veuillez contacter le support."
+    }
   }
 }

@@ -7,6 +7,8 @@ export interface OwnSubscriptionWithPlan {
   planName: string;
   planPrice: number;
   planCurrency: string;
+  /** Story 19.11: drives the per-session charging state. */
+  planType: string;
 }
 
 export type SubscriptionWithPlanResult =
@@ -19,7 +21,7 @@ export type SubscriptionWithPlanResult =
 interface SubscriptionRowFromDb {
   status: string;
   expiry_date: string | null;
-  plans: { name: string; price: number; currency: string } | null;
+  plans: { name: string; price: number; currency: string; plan_type: string } | null;
 }
 function isSubscriptionRow(value: unknown): value is SubscriptionRowFromDb {
   if (!value || typeof value !== 'object') return false;
@@ -30,7 +32,12 @@ function isSubscriptionRow(value: unknown): value is SubscriptionRowFromDb {
   if (row.plans === null) return true;
   if (typeof row.plans !== 'object' || Array.isArray(row.plans)) return false;
   const plans = row.plans as Record<string, unknown>;
-  return typeof plans.name === 'string' && typeof plans.price === 'number' && typeof plans.currency === 'string';
+  return (
+    typeof plans.name === 'string' &&
+    typeof plans.price === 'number' &&
+    typeof plans.currency === 'string' &&
+    typeof plans.plan_type === 'string'
+  );
 }
 
 /**
@@ -47,7 +54,7 @@ export async function getOwnSubscriptionWithPlan(memberId: string): Promise<Subs
   try {
     const { data, error } = await supabase
       .from('subscriptions')
-      .select('status, expiry_date, plans(name, price, currency)')
+      .select('status, expiry_date, plans(name, price, currency, plan_type)')
       .eq('member_id', memberId)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -71,6 +78,7 @@ export async function getOwnSubscriptionWithPlan(memberId: string): Promise<Subs
         planName: data.plans.name,
         planPrice: data.plans.price,
         planCurrency: data.plans.currency,
+        planType: data.plans.plan_type,
       },
     };
   } catch {

@@ -364,8 +364,9 @@ export type Database = {
           expiry_date: string | null
           gym_id: string
           id: string
+          kind: string
           member_id: string
-          status: Database["public"]["Enums"]["subscription_status"]
+          status: Database["public"]["Enums"]["subscription_status"] | null
         }
         Insert: {
           created_at?: string
@@ -374,8 +375,9 @@ export type Database = {
           expiry_date?: string | null
           gym_id: string
           id?: string
+          kind?: string
           member_id: string
-          status: Database["public"]["Enums"]["subscription_status"]
+          status?: Database["public"]["Enums"]["subscription_status"] | null
         }
         Update: {
           created_at?: string
@@ -384,8 +386,9 @@ export type Database = {
           expiry_date?: string | null
           gym_id?: string
           id?: string
+          kind?: string
           member_id?: string
-          status?: Database["public"]["Enums"]["subscription_status"]
+          status?: Database["public"]["Enums"]["subscription_status"] | null
         }
         Relationships: [
           {
@@ -463,6 +466,64 @@ export type Database = {
           },
         ]
       }
+      guest_sessions: {
+        Row: {
+          consumed_at: string | null
+          covered_day: string | null
+          created_at: string
+          gym_id: string
+          id: string
+          loyalty_grant_id: string | null
+          member_id: string
+          payment_id: string | null
+          usable_until: string
+          voided_at: string | null
+        }
+        Insert: {
+          consumed_at?: string | null
+          covered_day?: string | null
+          created_at?: string
+          gym_id: string
+          id?: string
+          loyalty_grant_id?: string | null
+          member_id: string
+          payment_id?: string | null
+          usable_until: string
+          voided_at?: string | null
+        }
+        Update: {
+          consumed_at?: string | null
+          covered_day?: string | null
+          created_at?: string
+          gym_id?: string
+          id?: string
+          loyalty_grant_id?: string | null
+          member_id?: string
+          payment_id?: string | null
+          usable_until?: string
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_sessions_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_sessions_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_sessions_payment_id_fkey"
+            columns: ["payment_id"]
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gym_payment_credentials: {
         Row: {
           business_id_masked: string
@@ -525,6 +586,7 @@ export type Database = {
         Row: {
           alert_auto_dismiss_minutes: number
           capacity: number | null
+          charge_guests_per_session: boolean
           checkin_timeout_hours: number
           class_booking_cancellation_cutoff_minutes: number
           closing_time: string | null
@@ -551,6 +613,7 @@ export type Database = {
         Insert: {
           alert_auto_dismiss_minutes?: number
           capacity?: number | null
+          charge_guests_per_session?: boolean
           checkin_timeout_hours?: number
           class_booking_cancellation_cutoff_minutes?: number
           closing_time?: string | null
@@ -577,6 +640,7 @@ export type Database = {
         Update: {
           alert_auto_dismiss_minutes?: number
           capacity?: number | null
+          charge_guests_per_session?: boolean
           checkin_timeout_hours?: number
           class_booking_cancellation_cutoff_minutes?: number
           closing_time?: string | null
@@ -995,6 +1059,7 @@ export type Database = {
           amount: number
           created_at: string
           currency: string
+          flagged_reason: string | null
           gym_id: string
           id: string
           member_id: string
@@ -1013,6 +1078,7 @@ export type Database = {
           amount: number
           created_at?: string
           currency?: string
+          flagged_reason?: string | null
           gym_id: string
           id?: string
           member_id: string
@@ -1031,6 +1097,7 @@ export type Database = {
           amount?: number
           created_at?: string
           currency?: string
+          flagged_reason?: string | null
           gym_id?: string
           id?: string
           member_id?: string
@@ -1082,6 +1149,27 @@ export type Database = {
             referencedColumns: ["subscription_id"]
           },
         ]
+      }
+      platform_session_config: {
+        Row: {
+          free_session_validity_days: number
+          id: string
+          loyalty_idle_reset_days: number
+          paid_session_validity_days: number
+        }
+        Insert: {
+          free_session_validity_days: number
+          id?: string
+          loyalty_idle_reset_days: number
+          paid_session_validity_days: number
+        }
+        Update: {
+          free_session_validity_days?: number
+          id?: string
+          loyalty_idle_reset_days?: number
+          paid_session_validity_days?: number
+        }
+        Relationships: []
       }
       plans: {
         Row: {
@@ -1397,6 +1485,58 @@ export type Database = {
             foreignKeyName: "saas_billing_payments_tier_id_fkey"
             columns: ["tier_id"]
             referencedRelation: "tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      session_attempts: {
+        Row: {
+          class_session_id: string | null
+          scan_id: string | null
+          source: string
+          created_at: string
+          gym_id: string
+          id: string
+          member_id: string
+          scanned_at: string | null
+        }
+        Insert: {
+          class_session_id?: string | null
+          scan_id?: string | null
+          source?: string
+          created_at?: string
+          gym_id: string
+          id?: string
+          member_id: string
+          scanned_at?: string | null
+        }
+        Update: {
+          class_session_id?: string | null
+          scan_id?: string | null
+          source?: string
+          created_at?: string
+          gym_id?: string
+          id?: string
+          member_id?: string
+          scanned_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_attempts_class_session_id_fkey"
+            columns: ["class_session_id"]
+            referencedRelation: "class_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_attempts_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "session_attempts_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
             referencedColumns: ["id"]
           },
         ]
@@ -2058,6 +2198,16 @@ export type Database = {
           is_authoring_coach: boolean
         }[]
       }
+      guest_charging_impact: { Args: never; Returns: number }
+      guest_sessions_summary: {
+        Args: { p_period: string }
+        Returns: {
+          blocked_count: number
+          blocked_members: number
+          free_count: number
+          paid_count: number
+        }[]
+      }
       gym_effective_member_cap: { Args: never; Returns: number }
       gym_local_period_bounds: {
         Args: never
@@ -2071,6 +2221,7 @@ export type Database = {
       gym_member_count: { Args: { p_gym_id: string }; Returns: number }
       gym_registration_fee_revenue_mtd: { Args: never; Returns: number }
       gym_revenue_mtd: { Args: never; Returns: number }
+      gym_session_revenue_mtd: { Args: never; Returns: number }
       initiate_member_payment: { Args: never; Returns: string }
       initiate_registration_fee_payment: {
         Args: { p_member_id: string }
@@ -2085,6 +2236,13 @@ export type Database = {
           p_tier_id?: string
         }
         Returns: string
+      }
+      initiate_session_payment: {
+        Args: never
+        Returns: {
+          payment_id: string
+          provider_key: string
+        }[]
       }
       list_active_gym_data_escalations: {
         Args: { p_gym_id: string }
@@ -2106,6 +2264,43 @@ export type Database = {
           description: string
           my_booking_id: string
           scheduled_at: string
+        }[]
+      }
+      list_free_guest_sessions: {
+        Args: { p_limit?: number; p_offset?: number; p_period: string }
+        Returns: {
+          earned_at: string
+          member_id: string
+          member_name: string
+          session_id: string
+          status: string
+          total_count: number
+          usable_until: string
+        }[]
+      }
+      list_guest_sessions_paid: {
+        Args: {
+          p_group_by_recorder?: boolean
+          p_limit?: number
+          p_offset?: number
+          p_period: string
+          p_refunded_after_use_only?: boolean
+        }
+        Returns: {
+          amount: number
+          consumed_at: string | null
+          created_at: string
+          group_sessions: number | null
+          group_total: number | null
+          member_id: string
+          member_name: string
+          method: string
+          payment_id: string
+          recorder_id: string | null
+          recorder_kind: string
+          recorder_name: string | null
+          refund_state: string
+          total_count: number
         }[]
       }
       list_my_class_bookings: {
@@ -2147,6 +2342,20 @@ export type Database = {
           gym_id: string
           gym_name: string
           role: Database["public"]["Enums"]["member_role"]
+        }[]
+      }
+      list_session_attempts: {
+        Args: { p_limit?: number; p_offset?: number; p_period: string }
+        Returns: {
+          attempt_id: string
+          attempt_time: string
+          class_name: string | null
+          member_id: string
+          member_name: string
+          scanned_at: string | null
+          synced_at: string
+          source: string
+          total_count: number
         }[]
       }
       list_selectable_saas_billing_tiers: {
@@ -2243,6 +2452,27 @@ export type Database = {
         Args: { p_member_id: string; p_method: string; p_reason: string }
         Returns: string
       }
+      record_session_payment: {
+        Args: { p_member_id: string; p_method: string; p_reason?: string }
+        Returns: {
+          consumed_at: string | null
+          covered_day: string | null
+          created_at: string
+          gym_id: string
+          id: string
+          loyalty_grant_id: string | null
+          member_id: string
+          payment_id: string | null
+          usable_until: string
+          voided_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "guest_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       renew_subscription: {
         Args: { p_member_id: string; p_reason: string }
         Returns: string
@@ -2262,6 +2492,7 @@ export type Database = {
       run_quiet_gym_alert_job: { Args: never; Returns: undefined }
       run_saas_billing_lifecycle_job: { Args: never; Returns: undefined }
       run_subscription_lifecycle_job: { Args: never; Returns: undefined }
+      set_guest_charging: { Args: { p_enabled: boolean }; Returns: undefined }
       set_registration_fee: { Args: { p_amount: number }; Returns: undefined }
       staff_account_for_reset: {
         Args: { p_member_id: string }
@@ -2307,6 +2538,18 @@ export type Database = {
       }
       update_own_owner_notification_email: {
         Args: { p_email: string }
+        Returns: undefined
+      }
+      update_plan_pricing: {
+        Args: {
+          p_annual_discount_percent: number | null
+          p_billing_interval: Database["public"]["Enums"]["billing_interval"]
+          p_duration_days: number | null
+          p_name?: string | null
+          p_plan_id: string
+          p_plan_type: Database["public"]["Enums"]["plan_type"]
+          p_price: number
+        }
         Returns: undefined
       }
       update_staff_role: {

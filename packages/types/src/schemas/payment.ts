@@ -184,3 +184,15 @@ export const recordRefundSchema = z.object({
 });
 
 export type RecordRefundInput = z.infer<typeof recordRefundSchema>;
+
+// Story 19.9b: the desk session payment (record_session_payment, 0108). No
+// amount field: the RPC reads the plan price server-side, so a client cannot
+// choose what a session costs. `method` is the manual-only enum (the RPC
+// rejects anything else); the note is optional and at most 200 characters.
+export const recordSessionPaymentSchema = z.object({
+  memberId: z.uuid("Select a member"),
+  method: z.enum(["cash", "bank_transfer", "manual_momo"]),
+  reason: z.string().trim().max(REASON_MAX_LENGTH, "Note is too long").optional(),
+});
+
+export type RecordSessionPaymentInput = z.infer<typeof recordSessionPaymentSchema>;

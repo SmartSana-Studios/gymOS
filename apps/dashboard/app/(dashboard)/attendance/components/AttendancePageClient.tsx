@@ -33,6 +33,7 @@ export function AttendancePageClient({
   initialAlerts,
   autoDismissMinutes,
   mobileMoneyEnabled,
+  role,
 }: {
   currentlyCheckedIn: CurrentlyCheckedInRow[];
   checkedInTotal: number;
@@ -51,6 +52,8 @@ export function AttendancePageClient({
   autoDismissMinutes: number;
   /** Story 4.12 (AC #4): threaded straight through to `FrontDeskAlertPanel`. */
   mobileMoneyEnabled: boolean;
+  /** Story 19.9b: the signed-in staff role, threaded to the alert panel. */
+  role?: string;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -163,6 +166,7 @@ export function AttendancePageClient({
         initialAlerts={initialAlerts}
         autoDismissMinutes={autoDismissMinutes}
         mobileMoneyEnabled={mobileMoneyEnabled}
+        role={role}
       />
 
       <div className="space-y-4">
@@ -228,7 +232,7 @@ export function AttendancePageClient({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                          className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-200"
                           onClick={() => setCheckingOutMember(row)}
                         >
                           <LogOut size={14} />

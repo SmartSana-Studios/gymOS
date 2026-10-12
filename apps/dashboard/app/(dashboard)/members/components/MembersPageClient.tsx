@@ -92,6 +92,8 @@ export function MembersPageClient({
   registrationFee = 0,
   phoneCountry,
   mobileMoneyEnabled = false,
+  chargeGuestsPerSession = false,
+  deepLinkMember = null,
 }: {
   initialMembers: MemberListRow[];
   total: number;
@@ -109,6 +111,10 @@ export function MembersPageClient({
   /** Story 18.6: whether the collect dialog offers Tara Money. A UI hint only;
    * the initiate action re-checks availability. */
   mobileMoneyEnabled?: boolean;
+  /** Story 19.9b: whether the gym charges Pay-per-session guests per session. */
+  chargeGuestsPerSession?: boolean;
+  /** Story 19.10: `?memberId=` -- the member whose AD-04 modal opens on load. */
+  deepLinkMember?: MemberListRow | null;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -121,7 +127,9 @@ export function MembersPageClient({
   const canVoidFee = CAN_VOID_FEE.includes(role);
 
   const [searchInput, setSearchInput] = useState(search);
-  const [modalState, setModalState] = useState<{ member: MemberListRow | null; readOnly: boolean } | null>(null);
+  const [modalState, setModalState] = useState<{ member: MemberListRow | null; readOnly: boolean } | null>(
+    deepLinkMember ? { member: deepLinkMember, readOnly: true } : null,
+  );
   const [deactivatingMember, setDeactivatingMember] = useState<MemberListRow | null>(null);
   const [invitingMember, setInvitingMember] = useState<MemberListRow | null>(null);
   const [collectingMember, setCollectingMember] = useState<MemberListRow | null>(null);
@@ -543,7 +551,22 @@ export function MembersPageClient({
           plans={plans}
           coaches={coaches}
           registrationFee={registrationFee}
-          onClose={() => setModalState(null)}
+          role={role}
+          chargeGuestsPerSession={chargeGuestsPerSession}
+          onSessionRecorded={(name) => {
+            showToast(t("sessionPayment.recordedToast", { name }));
+            router.refresh();
+          }}
+          onClose={() => {
+            setModalState(null);
+            // Drop the deep link so a refresh does not reopen the modal.
+            if (searchParams.has("memberId")) {
+              const params = new URLSearchParams(searchParams.toString());
+              params.delete("memberId");
+              const qs = params.toString();
+              router.replace(qs ? `${pathname}?${qs}` : pathname);
+            }
+          }}
           onSaved={(warning, invite) => {
             setModalState(null);
             if (warning) showToast(warning);

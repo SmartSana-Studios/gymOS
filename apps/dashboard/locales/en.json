@@ -48,11 +48,29 @@
       "expiringThisWeek": "Expiring this week",
       "revenueThisMonth": "Revenue this month",
       "revenueOfWhichRegistrationFees": "of which registration fees",
+      "guestSessions": "Guest sessions",
       "activeMembers": "Active members",
       "newThisMonth": "New this month",
       "todaysClasses": "Today's classes",
       "atRisk": "At risk",
-      "unavailable": "Unavailable"
+      "unavailable": "Unavailable",
+      "guestSessionsCard": {
+        "title": "Guest sessions",
+        "period": "Period",
+        "today": "Today",
+        "month": "This month",
+        "periodToday": "today",
+        "periodMonth": "this month",
+        "paid": "Paid sessions",
+        "blocked": "Blocked attempts",
+        "free": "Free sessions given",
+        "blockedMembers": "{{count}} members",
+        "paidAria": "Paid sessions {{period}}: {{count}}. Open the paid sessions list.",
+        "blockedAria": "Blocked check-in attempts {{period}}: {{count}} attempts by {{members}} members. Open the blocked attempts list.",
+        "freeAria": "Free sessions given {{period}}: {{count}}. Open the free sessions list.",
+        "loadError": "Couldn't load guest sessions.",
+        "retry": "Retry"
+      }
     },
     "tables": {
       "viewAll": "View all →",
@@ -76,7 +94,30 @@
   },
   "settings": {
     "title": "Settings",
-    "saveHint": "Save applies changes across every section below.",
+    "saveHint": "Save applies changes across every section below, except Registration fee, Charge guests per session, Loyalty program and Category, which save on their own.",
+    "guestCharging": {
+      "label": "Charge guests per session",
+      "hint": "When on, Pay-per-session members need a paid session to check in. Saves on its own.",
+      "saveFailed": "Couldn't change this setting. Try again.",
+      "onTitle": "Start charging guests per session?",
+      "impactLoading": "Counting affected members…",
+      "impactError": "Couldn't count affected members.",
+      "retry": "Retry",
+      "impactZero": "No members are on a Pay-per-session plan yet.",
+      "impactOne": "1 Pay-per-session member will need a paid session at their next visit.",
+      "impactMany": "{{count}} Pay-per-session members will need a paid session at their next visit.",
+      "scope": "This applies from now on. Past visits and anyone already checked in are not affected.",
+      "oldAppWarning": "Guests on old app versions will see an \"expired\" message instead of a payment prompt. Ask them to update the app.",
+      "start": "Start charging",
+      "onToast": "Guests now pay per session.",
+      "offTitle": "Stop charging guests per session?",
+      "offBody": "Pay-per-session members will check in without a paid session.",
+      "offKept_one": "Paid sessions already bought are kept but unused while charging is off, and still lapse {{count}} day after payment.",
+      "offKept_other": "Paid sessions already bought are kept but unused while charging is off, and still lapse {{count}} days after payment.",
+      "offStamps": "Guests stop earning loyalty stamps.",
+      "stop": "Stop charging",
+      "offToast": "Guests no longer pay per session."
+    },
     "saveButton": "Save Settings",
     "savedToast": "Settings saved.",
     "sections": {
@@ -312,6 +353,10 @@
     "delete": "Delete",
     "actionsMenu": "Actions for {{name}}",
     "priceLabel": "XAF {{price}} / {{interval}}",
+    "pricePerSessionLabel": "XAF {{price}} / session",
+    "typeLocked": {
+      "reason": "This plan has members, so its type can't be changed. Create a new plan instead."
+    },
     "discountSuffix": "({{percent}}% discount)",
     "intervalMonthly": "monthly",
     "intervalAnnual": "annual",
@@ -340,6 +385,9 @@
       "name": "Plan Name *",
       "planType": "Plan Type *",
       "price": "Price (XAF) *",
+      "pricePerSession": "Price per session (XAF) *",
+      "priceChangeNote": "Changing the price doesn't affect sessions already paid.",
+      "priceZeroNote": "At 0 XAF, members on this plan never need a paid session.",
       "durationDays": "Duration (days) *",
       "billingInterval": "Billing Interval *",
       "annualDiscountPercent": "Annual Discount (%) *",
@@ -422,9 +470,11 @@
       "markAttended": "Mark attended",
       "attended": "Attended",
       "memberExpired": "This member's subscription has expired -- attendance was not recorded. A front-desk alert has been raised.",
+      "sessionRequired": "No paid session — attendance was not recorded. A front-desk alert has been raised.",
       "noBookings": "No members booked for this session.",
       "noSession": "This class has no upcoming session to mark attendance for.",
-      "loadingBookings": "Loading booked members…"
+      "loadingBookings": "Loading booked members…",
+      "recordSessionPayment": "Record session payment"
     }
   },
   "members": {
@@ -518,7 +568,23 @@
       "assignmentHistoryTitle": "Coach Assignment History",
       "assignmentActive": "Current",
       "assignmentStarted": "Started {{date}}",
-      "assignmentEnded": "Ended {{date}}"
+      "assignmentEnded": "Ended {{date}}",
+      "recordSessionPayment": "Record session payment",
+      "sessions": {
+        "title": "Paid sessions",
+        "empty": "No sessions yet.",
+        "unused": "Unused",
+        "used": "Used",
+        "sourcePaid": "Paid session",
+        "sourceFree": "Free session",
+        "recordedBy": "recorded by {{name}}",
+        "lapsesOn": "Lapses {{date}}",
+        "usedOn": "Used {{date}}",
+        "covered": "covered {{date}}",
+        "lapsed": "Lapsed {{date}}",
+        "voided": "Voided by refund {{date}}",
+        "viewPayments": "View session payments"
+      }
     },
     "deactivateDialog": {
       "title": "Deactivate {{name}}?",
@@ -643,6 +709,7 @@
       "collectedInviteFailedToast": "Registration fee collected for {{name}}, but the WhatsApp invite could not be sent. Use Send invite in the row menu."
     },
     "feeWaive": {
+      "presetSessionGuest": "Session guest",
       "title": "Waive the registration fee for {{name}}?",
       "body": "{{name}} will be settled without a payment. This cannot be undone from the dashboard.",
       "reason": "Reason *",
@@ -942,6 +1009,7 @@
     "status": {
       "pending": "Pending",
       "verified": "Verified",
+      "processing": "Processing",
       "flagged": "Flagged"
     },
     "methods": {
@@ -973,7 +1041,8 @@
         "memberRequired": "Select a member",
         "amountInvalid": "Enter a valid amount",
         "reasonInvalid": "Add a note (at least 10 characters)"
-      }
+      },
+      "sessionHint": "To sell a session, use Record session payment on the member's page."
     },
     "verifyDialog": {
       "title": "Verify this {{amount}} XAF payment from {{name}}?",
@@ -1006,6 +1075,18 @@
         "amountInvalid": "Enter a valid amount",
         "amountExceedsPayment": "Refund amount cannot exceed the original payment amount",
         "reasonInvalid": "Add a reason (at least 10 characters)"
+      },
+      "notice": {
+        "sessionCancelled": "This refund cancels the paid session. The guest can no longer use it.",
+        "sessionPartial": "A partial refund keeps the paid session.",
+        "sessionUsed": "The paid session was already used. The visit stays counted.",
+        "sessionUsedLoyalty": "The loyalty stamp from this visit will be reversed.",
+        "renewalLoyalty": "Loyalty stamps and free days from this renewal are not removed."
+      },
+      "outcome": {
+        "cancelled": "The session was cancelled.",
+        "used": "The session had already been used.",
+        "kept": "The paid session was kept."
       }
     },
     "errors": {
@@ -1033,7 +1114,37 @@
     "actionsButton": "Action :",
     "purposes": {
       "subscription": "Subscription",
-      "registrationFee": "Registration fee"
+      "registrationFee": "Registration fee",
+      "session": "Session payment"
+    },
+    "flaggedReasons": {
+      "lateConfirmation": "Confirmed late",
+      "expiredAttempt": "Attempt expired",
+      "providerDeclined": "Payment declined",
+      "staffFlagged": "Flagged by staff"
+    },
+    "purposeFilter": {
+      "label": "Purpose",
+      "all": "All purposes",
+      "renewal": "Renewal",
+      "registrationFee": "Registration fee",
+      "session": "Session payment"
+    },
+    "ledger": {
+      "title": "All Payments",
+      "empty": "No payments recorded yet.",
+      "emptyFiltered": "No payments match these filters.",
+      "clearFilters": "Clear filters",
+      "loadError": "Could not load payments.",
+      "voided": "Voided",
+      "actorTara": "Tara Money (in app)",
+      "table": { "purpose": "Purpose", "date": "Date", "actor": "Recorded by", "note": "Note" }
+    },
+    "export": {
+      "button": "Export CSV",
+      "exporting": "Exporting...",
+      "tooLarge": "Too many payments to export. Narrow the filters and try again.",
+      "forbidden": "You do not have permission to export payments."
     }
   },
   "frontDeskAlert": {
@@ -1043,7 +1154,14 @@
     "deniedMessage": "Collect payment to restore access",
     "dismiss": "Dismiss alert",
     "unknownMember": "Unknown member",
-    "renew": "Renew"
+    "renew": "Renew",
+    "sessionRequired": "SESSION REQUIRED",
+    "sessionNoPaidSession": "No paid session",
+    "sessionRecordHint": "Record a payment so they can scan again.",
+    "sessionFromClass": "From class: {{name}}",
+    "sessionScannedOffline": "Scanned offline at {{time}}",
+    "sessionPaymentInProgress": "Mobile money payment in progress",
+    "recordSessionPayment": "Record session payment"
   },
   "renewalPanel": {
     "title": "Renew Membership",
@@ -1127,7 +1245,18 @@
       "registrationFeeAttemptExpired": "Registration fee collection expired",
       "registrationFeeLatePayment": "Registration fee paid late by Tara Money (not applied)",
       "registrationFeeVoided": "Registration fee voided",
-      "memberPlanAssigned": "First plan assigned"
+      "memberPlanAssigned": "First plan assigned",
+      "guestChargingChanged": "Guest session charging changed",
+      "planTypeChanged": "Plan type changed",
+      "planPriceChanged": "Plan price changed",
+      "platformSessionConfigUpdated": "Session platform defaults updated",
+      "sessionPaymentRecorded": "Session payment recorded",
+      "sessionAttemptExpired": "Session payment attempt expired",
+      "sessionPaymentPaid": "Paid session payment received",
+      "sessionLatePayment": "Late paid session payment applied",
+      "sessionRefundApplied": "Paid session refund applied",
+      "sessionConsumed": "Session used",
+      "sessionAttemptBlocked": "Entry blocked: session required"
     }
   },
   "saasBilling": {
@@ -1151,5 +1280,103 @@
     "previous": "Previous page",
     "next": "Next page",
     "ellipsis": "…"
+  },
+  "guestSessions": {
+    "title": "Guest sessions",
+    "back": "Back to Overview",
+    "permissionDenied": "You don't have permission to do that.",
+    "loadError": "Couldn't load guest sessions.",
+    "refresh": "Refresh",
+    "period": "Period",
+    "today": "Today",
+    "month": "This month",
+    "periodToday": "today",
+    "periodMonth": "this month",
+    "tabs": {
+      "label": "Guest sessions views",
+      "paid": "Paid",
+      "blocked": "Blocked attempts",
+      "free": "Free given"
+    },
+    "empty": {
+      "paid": "No paid sessions {{period}}.",
+        "paidRefundedAfterUse": "No refunded-after-use sessions in this period.",
+      "blocked": "No blocked attempts {{period}}.",
+      "free": "No free sessions given {{period}}."
+    },
+    "groupBy": {
+      "label": "Group by",
+      "recorder": "Recorded by",
+      "none": "None"
+    },
+    "refundedAfterUseOnly": "Refunded after use only",
+    "groupHeader_one": "{{name}} — {{count}} paid session · {{total}} XAF",
+    "groupHeader_other": "{{name}} — {{count}} paid sessions · {{total}} XAF",
+    "recorderTara": "Tara Money (in app)",
+    "recorderUnknown": "Unknown",
+    "blockedSummary": "{{attempts}} attempts · {{members}} members",
+    "synced": "(synced {{time}})",
+    "columns": {
+      "member": "Member",
+      "amount": "Amount",
+      "method": "Method",
+      "recordedBy": "Recorded by",
+      "time": "Time",
+      "refund": "Refund",
+      "source": "Source",
+      "class": "Class",
+      "earned": "Earned",
+      "useBy": "Use by",
+      "status": "Status"
+    },
+    "refund": {
+      "refunded": "Refunded",
+      "refundedAfterUse": "Refunded after use",
+      "none": "—"
+    },
+    "source": {
+      "check_in": "Check-in",
+      "class": "Class attendance"
+    },
+    "status": {
+      "available": "Available",
+      "used": "Used",
+      "lapsed": "Lapsed",
+      "voided": "Voided"
+    },
+    "pagination": {
+      "range": "{{from}}–{{to}} of {{total}}",
+      "previous": "Previous",
+      "next": "Next"
+    }
+  },
+  "sessionPayment": {
+    "title": "Record session payment — {{name}}",
+    "amount": "Amount",
+    "amountHint": "Plan price — fixed",
+    "method": "Payment method",
+    "note": "Note (optional)",
+    "noteCount": "{{count}} / 200",
+    "recordedBy": "Recorded by",
+    "recordButton": "Record session payment",
+    "recording": "Recording…",
+    "recordedToast": "Session recorded for {{name}}. Ask them to scan again.",
+    "errors": {
+      "generic": "The session payment could not be recorded. Please try again.",
+      "previewLoadFailed": "Could not load the plan price.",
+      "noPlan": "This member has no plan.",
+      "noteTooLong": "The note is too long (200 characters maximum).",
+      "permissionDenied": "You do not have permission to record this payment method.",
+      "invalidMethod": "Choose a valid payment method.",
+      "reasonTooLong": "The note is too long (200 characters maximum).",
+      "chargingDisabled": "This gym no longer charges guests per session.",
+      "notFound": "Member not found.",
+      "memberDeactivated": "This member is deactivated.",
+      "registrationFeeNotSettled": "The registration fee has not been settled yet. Collect or waive it first.",
+      "planNotPerSession": "This member is not on a Pay-per-session plan.",
+      "sessionPriceNotSet": "The Pay-per-session plan has no price. Set a price in Plans first.",
+      "alreadyInProgress": "A mobile money payment for this member is already in progress.",
+      "configMissing": "Session settings are missing. Please contact support."
+    }
   }
 }

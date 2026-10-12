@@ -278,7 +278,7 @@ export function SubscriptionsPageClient({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
+                          className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950 dark:hover:text-green-200"
                           onClick={() => setRenewingRow(row)}
                         >
                           <RotateCw size={14} />

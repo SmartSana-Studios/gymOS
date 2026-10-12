@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Info } from "lucide-react";
 
 import { TablePagination } from "@/components/TablePagination";
 import { useClientPagination } from "@/hooks/use-table-pagination";
@@ -14,6 +14,7 @@ import type { CoachRow } from "@/services/coaches";
 import type { MemberRole } from "@/services/session";
 import { getSessionBookingsAction, markAttendanceAction } from "../actions";
 import { ClassModal } from "./ClassModal";
+import { RecordSessionPaymentDialog } from "@/components/shared/RecordSessionPaymentDialog";
 
 const DAY_KEY = ["classes.days.sun", "classes.days.mon", "classes.days.tue", "classes.days.wed", "classes.days.thu", "classes.days.fri", "classes.days.sat"];
 
@@ -41,6 +42,12 @@ export function ClassesPageClient({
   const [bookings, setBookings] = useState<SessionBookingRow[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [markingBookingId, setMarkingBookingId] = useState<string | null>(null);
+  // Story 19.7: booking whose last mark attempt was refused for want of a paid
+  // session. The row stays unmarked (the action stays enabled) and shows an
+  // inline message; the front-desk alert is raised server-side.
+  const [refusedBookingId, setRefusedBookingId] = useState<string | null>(null);
+  // Story 19.9b: the refused booking whose Record Session Payment panel is open.
+  const [recordingBooking, setRecordingBooking] = useState<SessionBookingRow | null>(null);
 
   useEffect(() => {
     return () => {
@@ -92,6 +99,7 @@ export function ClassesPageClient({
     setExpandedClassId(cls.id);
     setBookings([]);
     setBookingsLoading(true);
+    setRefusedBookingId(null);
     expandRequestRef.current = cls.id;
     const { data, error } = await getSessionBookingsAction(cls.nextSessionId);
     if (expandRequestRef.current !== cls.id) return;
@@ -105,9 +113,14 @@ export function ClassesPageClient({
 
   async function handleMarkAttendance(bookingId: string) {
     setMarkingBookingId(bookingId);
+    setRefusedBookingId(null);
     const { data, rejected, error } = await markAttendanceAction(bookingId);
     setMarkingBookingId(null);
     if (error) {
+      if (error.code === "session_required") {
+        setRefusedBookingId(bookingId);
+        return;
+      }
       showToast(t("common.loadError"));
       return;
     }
@@ -158,7 +171,7 @@ export function ClassesPageClient({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{t("classes.title")}</h1>
+        <h1 id="classesPageTitle" tabIndex={-1} className="text-2xl font-semibold">{t("classes.title")}</h1>
         {canManage && <Button onClick={openCreate}>{t("classes.addClass")}</Button>}
       </div>
 
@@ -245,9 +258,9 @@ export function ClassesPageClient({
                             {bookings.map((booking) => (
                               <li
                                 key={booking.id}
-                                className={`flex items-center justify-between gap-3 rounded-lg border p-2.5 transition-colors ${
+                                className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-2.5 transition-colors ${
                                   booking.attended
-                                    ? "border-green-200 bg-green-50"
+                                    ? "border-green-200 bg-green-50 text-green-950"
                                     : "border-border bg-background"
                                 }`}
                               >
@@ -291,6 +304,29 @@ export function ClassesPageClient({
                                     )}
                                   </Button>
                                 )}
+                                {refusedBookingId === booking.id && (
+                                  <p
+                                    role="alert"
+                                    className="flex w-full items-start gap-2 rounded-md border-l-4 border-l-blue-600 bg-blue-50 p-2 text-sm text-blue-900"
+                                  >
+                                    <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                                    <span className="flex-1">{t("classes.attendance.sessionRequired")}</span>
+                                    {canMarkAttendance && (
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        className="bg-white text-neutral-900 border-neutral-300 hover:bg-neutral-100 hover:text-neutral-900 dark:bg-white dark:text-neutral-900 dark:border-neutral-300 dark:hover:bg-neutral-100 dark:hover:text-neutral-900"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setRecordingBooking(booking);
+                                        }}
+                                      >
+                                        {t("classes.attendance.recordSessionPayment")}
+                                      </Button>
+                                    )}
+                                  </p>
+                                )}
                               </li>
                             ))}
                           </ul>
@@ -318,6 +354,22 @@ export function ClassesPageClient({
           }}
           editingClass={editingClass}
           coaches={coaches}
+        />
+      )}
+
+      {recordingBooking && (
+        <RecordSessionPaymentDialog
+          memberId={recordingBooking.memberId}
+          memberName={recordingBooking.memberName}
+          role={role}
+          fallbackFocusId="classesPageTitle"
+          onClose={() => setRecordingBooking(null)}
+          onRecorded={() => {
+            const name = recordingBooking.memberName;
+            setRecordingBooking(null);
+            setRefusedBookingId(null);
+            showToast(t("sessionPayment.recordedToast", { name }));
+          }}
         />
       )}
 

@@ -60,7 +60,7 @@ describe("payments list services carry purpose (Story 18.6)", () => {
         discrepancy_type: "stale_processing",
         details: {},
         detected_at: "2026-10-01T00:00:00Z",
-        payments: { member_id: "m1", amount: 5000, currency: "XAF", purpose: "registration_fee", members: { name: "Ann" } },
+        payments: { member_id: "m1", amount: 5000, currency: "XAF", purpose: "registration_fee", flagged_reason: "late_confirmation", members: { name: "Ann" } },
       },
     ];
   });
@@ -79,5 +79,7 @@ describe("payments list services carry purpose (Story 18.6)", () => {
     const select = selects.find(([table]) => table === "payment_discrepancies")?.[1] ?? "";
     expect(select).toMatch(/payments\([^)]*\bpurpose\b/);
     expect(result.data?.[0].purpose).toBe("registration_fee");
+    expect(select).toContain("flagged_reason");
+    expect(result.data?.[0].flaggedReason).toBe("late_confirmation");
   });
 });

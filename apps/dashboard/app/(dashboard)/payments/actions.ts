@@ -7,6 +7,7 @@ import {
   recordManualPaymentSchema,
   recordRefundSchema,
   recordRegistrationFeeSchema,
+  recordSessionPaymentSchema,
   voidRegistrationFeeSchema,
   waiveRegistrationFeeSchema,
   type AppError,
@@ -23,12 +24,20 @@ import {
   recordManualPayment,
   recordRefund,
   recordRegistrationFee,
+  recordSessionPayment,
+  getSessionPaymentPreview,
+  exportPaymentsCsv,
+  type ExportPaymentsCsvResult,
   searchMembersForPayment,
   verifyPayment,
   voidRegistrationFeePayment,
   waiveRegistrationFee,
+  type MemberPaymentSearchRow,
   type RefundEligiblePaymentRow,
+  type SessionPaymentPreview,
 } from "@/services/payments";
+import { listMemberGuestSessions, type MemberGuestSession } from "@/services/guestSessions";
+import { getDashboardShellContext } from "@/services/session";
 import { getMemberRegistrationFeeState, type MemberRegistrationFeeState } from "@/services/members";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -128,7 +137,7 @@ export async function flagPaymentAction(
  * rationale as `checkOutMemberAction`). */
 export async function searchMembersForPaymentAction(
   query: string,
-): Promise<{ data: { id: string; name: string; phone: string | null }[] | null; error: AppError | null }> {
+): Promise<{ data: MemberPaymentSearchRow[] | null; error: AppError | null }> {
   return searchMembersForPayment(query);
 }
 
@@ -145,7 +154,10 @@ export async function listRefundEligiblePaymentsAction(
  * audit write fails. */
 export async function recordRefundAction(
   input: unknown,
-): Promise<{ data: { id: string } | null; error: AppError | null }> {
+): Promise<{
+  data: { id: string; sessionOutcome: "cancelled" | "used" | "kept" | null } | null;
+  error: AppError | null;
+}> {
   const { t } = await getServerTranslation(await getRequestLocale());
   const parsed = recordRefundSchema.safeParse(input);
   if (!parsed.success) {
@@ -165,12 +177,12 @@ export async function recordRefundAction(
   });
   if (auditError) {
     return {
-      data: { id: data.id },
+      data: { id: data.id, sessionOutcome: data.sessionOutcome },
       error: { code: "audit_log_failed", message: t("payments.errors.auditLogFailedRefund") },
     };
   }
 
-  return { data: { id: data.id }, error: null };
+  return { data: { id: data.id, sessionOutcome: data.sessionOutcome }, error: null };
 }
 
 /**
@@ -312,4 +324,54 @@ export async function getMemberRegistrationFeeStateAction(
   memberId: string,
 ): Promise<{ data: MemberRegistrationFeeState | null; error: AppError | null }> {
   return getMemberRegistrationFeeState(memberId);
+}
+
+/**
+ * Story 19.9b: the desk session payment. The RPC reads the price, enforces the
+ * role set (Bank Transfer is manager and above) and writes its own audit row,
+ * so there is no audit call here. Each refusal comes back with its own code
+ * and EN/FR message (services/payments.ts).
+ */
+export async function recordSessionPaymentAction(
+  input: unknown,
+): Promise<{ data: { sessionId: string } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = recordSessionPaymentSchema.safeParse(input);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  return recordSessionPayment(parsed.data);
+}
+
+/** The Record Session Payment panel's read-only context: the plan price and
+ * the signed-in staff name for the Recorded by line. */
+export async function getSessionPaymentPanelContextAction(memberId: string): Promise<{
+  data: (SessionPaymentPreview & { recordedByName: string }) | null;
+  error: AppError | null;
+}> {
+  const [{ data: preview, error }, { data: shell }] = await Promise.all([
+    getSessionPaymentPreview(memberId),
+    getDashboardShellContext(),
+  ]);
+  if (error || !preview) {
+    return { data: null, error };
+  }
+  return { data: { ...preview, recordedByName: shell?.memberName ?? "" }, error: null };
+}
+
+/** Story 19.9b: the member modal's Sessions section. A read of existing state. */
+export async function listMemberGuestSessionsAction(
+  memberId: string,
+): Promise<{ data: MemberGuestSession[] | null; error: AppError | null }> {
+  return listMemberGuestSessions(memberId);
+}
+
+/** Story 19.9c: the All Payments ledger's CSV export, honouring the current
+ * purpose/member filter. All logic (role gate, 1,000-row ceiling) lives in
+ * `exportPaymentsCsv`; this is a pure passthrough. */
+export async function exportPaymentsCsvAction(params: {
+  purpose?: string;
+  memberId?: string;
+}): Promise<ExportPaymentsCsvResult> {
+  return exportPaymentsCsv(params);
 }

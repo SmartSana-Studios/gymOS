@@ -3,6 +3,7 @@ import { getGymPaymentConnectionStatus } from "@/services/gym-payment-credential
 import { getGymBillingInfo, listSelectableTiers } from "@/services/billing";
 import { listStaff } from "@/services/staff";
 import { SettingsForm } from "./SettingsForm";
+import { getDashboardShellContext } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { TARAMONEY_PROVIDER_KEY } from "@/lib/featureFlags";
@@ -50,6 +51,10 @@ export default async function SettingsPage() {
   // (PayNowButton's own selector degrades to "keep current tier" only).
   const { data: selectableTiers } = await listSelectableTiers();
 
+  // Story 19.9a: only an Owner/Supervisor sees the charge-guests control. A
+  // failed shell lookup just hides it (the RPC is the real boundary).
+  const { data: shell } = await getDashboardShellContext();
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">{t("settings.title")}</h1>
@@ -59,6 +64,7 @@ export default async function SettingsPage() {
         initialBillingInfo={billingInfo}
         selectableTiers={selectableTiers ?? []}
         staffCount={staff?.length ?? 0}
+        role={shell?.role ?? null}
       />
     </div>
   );

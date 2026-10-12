@@ -22,5 +22,16 @@ export function buildCallbackUrl(
     return `${base}/${providerKey}`;
   }
   const basePathSegments = pathSegments.slice(0, pathSegments.length - 2);
+
+  // A hosted project's public address is always https://<ref>.supabase.co/functions/v1/<fn>. The
+  // 2026-10-12 production incident: the platform's edge runtime (1.77) handed the function an
+  // http:// request URL, and Tara answered ONLY_HTTPS_LINKS_ALLOWED. So for a *.supabase.co host
+  // the scheme is forced to https and the public /functions/v1 prefix restored if it was stripped,
+  // whatever the runtime reports. Anything else (local, tests) is left exactly as before.
+  if (url.hostname.endsWith(".supabase.co")) {
+    const prefixed =
+      basePathSegments[0] === "functions" ? basePathSegments : ["functions", "v1", ...basePathSegments];
+    return `https://${url.host}/${[...prefixed, providerKey].join("/")}`;
+  }
   return `${url.origin}/${[...basePathSegments, providerKey].join("/")}`;
 }

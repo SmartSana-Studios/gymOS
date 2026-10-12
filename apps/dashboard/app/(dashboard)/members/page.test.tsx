@@ -22,8 +22,10 @@ vi.mock("@/lib/i18n/get-server-translation", () => ({
 }));
 
 const listMembers = vi.fn();
+const getMemberListRow = vi.fn();
 vi.mock("@/services/members", () => ({
   listMembers: (...args: unknown[]) => listMembers(...args),
+  getMemberListRow: (...args: unknown[]) => getMemberListRow(...args),
   MEMBERS_PAGE_SIZE: 5,
 }));
 
@@ -91,6 +93,7 @@ describe("members page", () => {
     });
     getGymSettings.mockReset().mockResolvedValue(settingsWithFee(0));
     canOfferMobileMoneyPayment.mockReset().mockResolvedValue(false);
+    getMemberListRow.mockReset().mockResolvedValue({ data: null, error: null });
   });
 
   it("passes the gym's registration fee to MembersPageClient when it is above 0", async () => {
@@ -126,6 +129,34 @@ describe("members page", () => {
     expect(tree.type).toBe(MembersPageClient);
     expect(tree.props.registrationFee).toBe(0);
     expect(console.error).toHaveBeenCalled();
+  });
+
+  it("passes chargeGuestsPerSession from gym settings (Story 19.9b)", async () => {
+    getGymSettings.mockResolvedValue({ data: { registrationFee: 0, chargeGuestsPerSession: true }, error: null });
+    expect((await renderMembersData()).props.chargeGuestsPerSession).toBe(true);
+
+    getGymSettings.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
+    expect((await renderMembersData()).props.chargeGuestsPerSession).toBe(false);
+  });
+
+  it("opens the member modal for ?memberId= via deepLinkMember (Story 19.10)", async () => {
+    const row = { id: "11111111-1111-4111-8111-111111111111", name: "Amina" };
+    getMemberListRow.mockResolvedValue({ data: row, error: null });
+
+    const tree = await renderMembersData({ memberId: row.id });
+
+    expect(getMemberListRow).toHaveBeenCalledWith(row.id);
+    expect(tree.props.deepLinkMember).toEqual(row);
+  });
+
+  it("reads no member and passes null without ?memberId=, and when the read fails", async () => {
+    expect((await renderMembersData()).props.deepLinkMember).toBeNull();
+    expect(getMemberListRow).not.toHaveBeenCalled();
+
+    getMemberListRow.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
+    const tree = await renderMembersData({ memberId: "11111111-1111-4111-8111-111111111111" });
+    expect(tree.type).toBe(MembersPageClient);
+    expect(tree.props.deepLinkMember).toBeNull();
   });
 
   it("passes mobileMoneyEnabled true when Tara Money can be offered (Story 18.6)", async () => {

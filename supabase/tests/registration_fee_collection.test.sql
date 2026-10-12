@@ -238,8 +238,8 @@ select throws_ok(
 );
 
 select lives_ok(
-  $$ insert into payments (gym_id, member_id, amount, currency, method, status, purpose)
-     values ('00000000-0000-0000-0000-000000031211', '00000000-0000-0000-0000-000000031262', 5000, 'XAF', 'cash', 'flagged', 'registration_fee') $$,
+  $$ insert into payments (gym_id, member_id, amount, currency, method, status, purpose, flagged_reason)
+     values ('00000000-0000-0000-0000-000000031211', '00000000-0000-0000-0000-000000031262', 5000, 'XAF', 'cash', 'flagged', 'registration_fee', 'expired_attempt') $$,
   'the index ignores a flagged fee payment'
 );
 
@@ -261,8 +261,8 @@ select lives_ok(
 -- ============================================================================
 -- Flagged retry through the RPC.
 -- ============================================================================
-insert into payments (gym_id, member_id, amount, currency, method, status, purpose, provider, provider_transaction_ref)
-values ('00000000-0000-0000-0000-000000031211', '00000000-0000-0000-0000-000000031268', 5000, 'XAF', 'orange_money', 'flagged', 'registration_fee', 'taramoney', 'regfee-collect-flagged-001');
+insert into payments (gym_id, member_id, amount, currency, method, status, purpose, provider, provider_transaction_ref, flagged_reason)
+values ('00000000-0000-0000-0000-000000031211', '00000000-0000-0000-0000-000000031268', 5000, 'XAF', 'orange_money', 'flagged', 'registration_fee', 'taramoney', 'regfee-collect-flagged-001', 'expired_attempt');
 
 set local role authenticated;
 select set_config('request.jwt.claims',
@@ -413,7 +413,7 @@ select is(
 
 insert into payments (id, gym_id, member_id, amount, currency, method, status, purpose, provider, provider_transaction_ref)
 values ('00000000-0000-0000-0000-000000031301', '00000000-0000-0000-0000-000000031211', '00000000-0000-0000-0000-00000003126b', 5000, 'XAF', 'orange_money', 'processing', 'registration_fee', 'taramoney', 'regfee-collect-proc-001');
-update payments set status = 'flagged' where id = '00000000-0000-0000-0000-000000031301';
+update payments set status = 'flagged', flagged_reason = 'expired_attempt' where id = '00000000-0000-0000-0000-000000031301';
 
 select is(
   (select count(*)::int from private.payment_notification_dispatches where payment_id = '00000000-0000-0000-0000-000000031301'),
@@ -423,7 +423,7 @@ select is(
 
 insert into payments (id, gym_id, member_id, amount, currency, method, status, provider, provider_transaction_ref)
 values ('00000000-0000-0000-0000-000000031302', '00000000-0000-0000-0000-000000031211', '00000000-0000-0000-0000-00000003126a', 5000, 'XAF', 'orange_money', 'processing', 'taramoney', 'regfee-collect-proc-002');
-update payments set status = 'flagged' where id = '00000000-0000-0000-0000-000000031302';
+update payments set status = 'flagged', flagged_reason = 'provider_declined' where id = '00000000-0000-0000-0000-000000031302';
 
 select is(
   (select notification_code from private.payment_notification_dispatches where payment_id = '00000000-0000-0000-0000-000000031302'),

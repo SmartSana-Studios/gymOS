@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { Lock, X } from "lucide-react";
 import { planSchema } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
@@ -89,6 +89,9 @@ export function PlanModal({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Set when the server refuses a type change the page did not know was locked
+  // (a subscription was created after the list loaded).
+  const [staleLocked, setStaleLocked] = useState(false);
 
   // Tracks the (open, editingPlan) combo the form was last synced against.
   // Adjusted during render (React's documented alternative to an
@@ -108,6 +111,7 @@ export function PlanModal({
     setForm(formFromPlan(editingPlan));
     setFieldErrors({});
     setFormError(null);
+    setStaleLocked(false);
   } else if (!open && syncedWith.open) {
     setSyncedWith({ open, editingPlan });
   }
@@ -123,6 +127,11 @@ export function PlanModal({
   }, [open]);
 
   const isPerVisit = form.planType === "pay_per_session";
+  const typeLocked = (editingPlan?.hasSubscriptions ?? false) || staleLocked;
+  const priceChanged =
+    editingPlan !== null &&
+    form.price.trim() !== "" &&
+    Number(form.price) !== editingPlan.price;
   const isAnnual = form.billingInterval === "annual";
 
   function resetAndClose() {
@@ -235,6 +244,20 @@ export function PlanModal({
         }
         if (error.code === "plan_name_taken") {
           setFieldErrors({ name: error.message });
+        } else if (error.code === "plan_type_locked") {
+          // The static reason paragraph (aria-describedby) is the inline copy;
+          // restore the plan's real type and shape so a resubmit cannot loop.
+          setStaleLocked(true);
+          if (editingPlan) {
+            const real = formFromPlan(editingPlan);
+            setForm((prev) => ({
+              ...prev,
+              planType: real.planType,
+              durationDays: real.durationDays,
+              billingInterval: real.billingInterval,
+              annualDiscountPercent: real.annualDiscountPercent,
+            }));
+          }
         } else {
           setFormError(error.message);
         }
@@ -288,23 +311,48 @@ export function PlanModal({
 
         <div className="space-y-2">
           <Label htmlFor="planType">{t("plans.modal.planType")}</Label>
-          <select
-            id="planType"
-            value={form.planType}
-            onChange={(e) => handlePlanTypeChange(e.target.value as PlanType)}
-            className={selectClassName}
-          >
-            {PLAN_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {t(PLAN_TYPE_LABEL_KEY[type])}
-              </option>
-            ))}
-          </select>
+          {typeLocked ? (
+            <>
+              <div className="relative">
+                <Lock
+                  size={14}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                  id="planType"
+                  readOnly
+                  aria-readonly="true"
+                  aria-describedby="planTypeLockedReason"
+                  value={t(PLAN_TYPE_LABEL_KEY[form.planType])}
+                  className="pl-8"
+                />
+              </div>
+              <p id="planTypeLockedReason" className="text-xs text-muted-foreground">
+                {t("plans.typeLocked.reason")}
+              </p>
+            </>
+          ) : (
+            <select
+              id="planType"
+              value={form.planType}
+              onChange={(e) => handlePlanTypeChange(e.target.value as PlanType)}
+              className={selectClassName}
+            >
+              {PLAN_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {t(PLAN_TYPE_LABEL_KEY[type])}
+                </option>
+              ))}
+            </select>
+          )}
           <p className="text-xs text-muted-foreground">{t(ACCESS_DESCRIPTION_KEY[form.planType])}</p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="planPrice">{t("plans.modal.price")}</Label>
+          <Label htmlFor="planPrice">
+            {isPerVisit ? t("plans.modal.pricePerSession") : t("plans.modal.price")}
+          </Label>
           <Input
             id="planPrice"
             type="number"
@@ -313,6 +361,12 @@ export function PlanModal({
             onChange={(e) => setForm({ ...form, price: e.target.value })}
           />
           {fieldErrors.price && <p className="text-sm text-red-600">{fieldErrors.price}</p>}
+          {editingPlan?.hasSubscriptions && priceChanged && (
+            <p className="text-xs text-muted-foreground">{t("plans.modal.priceChangeNote")}</p>
+          )}
+          {isPerVisit && form.price.trim() !== "" && Number(form.price) === 0 && (
+            <p className="text-xs text-muted-foreground">{t("plans.modal.priceZeroNote")}</p>
+          )}
         </div>
 
         <div className="space-y-2">

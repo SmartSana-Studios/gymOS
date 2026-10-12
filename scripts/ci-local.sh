@@ -7,7 +7,7 @@
 #   scripts/ci-local.sh --only e2e   # one stage: static | pgtap | unit | e2e
 #
 # Stages and what they mirror in ci.yml:
-#   static  typecheck job: typecheck, lint (dashboard + super-admin), i18n parity
+#   static  typecheck job: typecheck, lint (dashboard + super-admin), i18n parity, migration guardrails
 #   pgtap   rls-tests job: supabase/tests/*.sql
 #   unit    typecheck job: vitest for @gymos/dashboard
 #   e2e     e2e-tests job: Playwright against the local Supabase
@@ -61,20 +61,24 @@ run_stage() { # run_stage <name> <function> -- logs to $LOG_DIR/<name>.log, resu
 }
 
 stage_static() {
-  set -e
-  pnpm run typecheck
-  npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin
-  pnpm run check:i18n
+  # NOT `set -e`: run_stage calls this as the condition of an `if`, where errexit is ignored,
+  # so only the LAST command's status counted and a failing lint was reported as PASS
+  # (found 2026-10-12: GitHub typecheck failed on lint errors this gate had passed).
+  pnpm run typecheck || return 1
+  npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin || return 1
+  pnpm run check:i18n || return 1
+  pnpm run check:migrations || return 1
+  pnpm run test:guardrails || return 1
 }
 
 stage_pgtap() {
   set -e
-  PGTAP_JOBS="${PGTAP_JOBS:-1}" "$ROOT/scripts/pgtap-run.sh"
+  PGTAP_JOBS="${PGTAP_JOBS:-1}" bash "$ROOT/scripts/pgtap-run.sh"
 }
 
 stage_unit() {
   set -e
-  npx turbo run test --filter=@gymos/dashboard
+  npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile
 }
 
 psql_local() {
@@ -110,7 +114,7 @@ stage_e2e() {
   export SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
   export DASHBOARD_APP_URL=http://127.0.0.1:3100
   # Idempotent (no-op once cached); CI does the same before the suite.
-  (cd apps/dashboard && npx playwright install chromium)
+  (cd apps/dashboard && npx playwright install chromium) || return 1
   # CI=1 matches the Actions environment: retries: 1, no server reuse, html report.
   CI=1 npx turbo run test:e2e --filter=@gymos/dashboard
 }

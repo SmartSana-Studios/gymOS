@@ -60,6 +60,7 @@ const getRevenueMtd = vi.fn(async () => ({ data: 0, error: null }));
 vi.mock("@/services/payments", () => ({
   getRevenueMtd: () => getRevenueMtd(),
   getRegistrationFeeRevenueMtd: vi.fn(async () => ({ data: 0, error: null })),
+  getSessionRevenueMtd: vi.fn(async () => ({ data: 0, error: null })),
 }));
 
 vi.mock("@/services/gym-settings", () => ({

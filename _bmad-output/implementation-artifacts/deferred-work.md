@@ -966,3 +966,108 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-0-v1-6-release-readiness-ops-checklist.md`
   summary: Build a scheduled GitHub Action that queries `job_runs` for failed runs (all pg_cron jobs: subscription_lifecycle, check_in_auto_timeout, payment_reconciliation, notification_delivery_processor, quiet_gym_alert_dispatcher, class_session_materializer, class_reminder_dispatcher, saas_billing_lifecycle) and for jobs whose latest run is stale (older than twice the schedule interval), and fails the workflow so GitHub emails the owner. **Gates Story 19.12.**
   evidence: No alerting on `job_runs` exists today; interim is a daily manual failure query, owner `josephfeussi` (docs/decisions.md, "V1.6 release runbook", section 6). Needs a read-only DB credential as a repo secret.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-1-ci-guardrails-live-role-lint-gate-hosted-privilege-check.md`
+  summary: Broaden the AD-3 lint gate to wrapped or cast JWT role reads (`(select auth.jwt())`, `::jsonb`, nested `app_metadata`, `current_setting('request.jwt.claims')`).
+  evidence: The gate matches only the literal `auth.jwt() ->> 'app_role'` per the epic AC; the corpus has no wrapped forms today, so this is a bypass risk for future migrations, not a current miss. Broadening needs a decision on the grandfather list and the baseline count.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-2-flagged-payment-reason-late-vs-wrong-account.md`
+  summary: When the dashboard first renders flagged payments, add a small test tying `PAYMENT_FLAGGED_REASON_LABEL_KEY` to the DB closed set and both locales, and a fallback for unknown or null reasons.
+  evidence: The label map and `payments.flaggedReasons.*` keys ship with no consumer (spec decision A); a renamed key or dropped entry would fail silently until a list renders them.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-3-charge-guests-setting-session-record-plan-type-rules.md`
+  summary: Add a CHECK tying guest_sessions.consumed_at to covered_day (or enforce it in consume_guest_session) so NULL covered_day cannot escape the one-consumed-per-day unique index.
+  evidence: Partial unique index treats NULLs as distinct; a consumed row with null covered_day allows same-day double consumption. Only definer code writes the table, so settle it where the consumption function is written (19.6b/19.7).
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-3-charge-guests-setting-session-record-plan-type-rules.md`
+  summary: Audit revenue and payments-list queries so purpose='session' rows are not bucketed as subscription revenue (unverified, medium if real).
+  evidence: payments_purpose_check now admits 'session' (0107); no session row can exist until 19.4 inserts one via a definer RPC, so check the queries when that story lands.
+
+## Deferred from: code review of spec-19-3-charge-guests-setting-session-record-plan-type-rules (2026-10-11)
+
+- Add render tests for the per-session price label (`PlansPageClient`) and the `PlanModal` price-change and price-0 notes. Copy only; do it when the plans page is next touched.
+- Verify the `listPlans` `subscriptions(count)` embed against real PostgREST/RLS (e2e or integration); unit tests only cover a mocked chain. Safety net: RPC refusal plus `staleLocked`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
+  summary: ~~Decide whether a stale `pending` session payment must be expired (or ignored by the in-flight check) when 19.5 chooses the initial status of Tara session rows.~~ **Resolved 2026-10-11 (19.5, 0109)**: Tara session rows are created `processing`; a `pending` session payment is never produced by 19.5, and the in-flight index and RPC check both cover `pending` and `processing`.
+  evidence: `record_session_payment` blocks on pending/processing but `expire_stale_payment` flips only `processing`; unverified because no pending session row is producible before 19.5 (0100 inserts Tara rows as processing). Medium if reachable.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
+  summary: ~~Add payment/member/gym/purpose/verified/voided assertions inside `private.create_guest_session_for_payment` when 19.5 adds its second caller.~~ **Resolved 2026-10-11 (19.5, 0109)**: the helper asserts a verified `session` payment for this member and gym (`invalid_session_payment`).
+  evidence: The helper trusts its caller; only the payment_id unique index guards it. Safe today (private, EXECUTE revoked, one same-transaction caller) but a mismatched caller would mint a session.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
+  summary: The 19.9 desk panel must disable submit while `record_session_payment` is in flight, because the RPC deliberately allows double entry.
+  evidence: Matrix row "Double entry" and the Never-list; a double tap would otherwise record two verified payments and two sessions.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
+  summary: With 19.8, pin revenue and refund eligibility for `purpose='session'` in pgTAP and check the dashboard confirm/reject/resolve-flag/CSV/reminder paths against a null `subscription_id`.
+  evidence: decisions.md item 6 audit is by reading; no test asserts it, and non-verified session rows (19.5) now surface in the Payments list.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
+  summary: Add a service-mapping test for `isSession` in `apps/mobile/src/services/payments.ts` once the mobile package has test setup.
+  evidence: apps/mobile has no test files; reverting the mapping would show "Plan unavailable" for a paid session with no failing test.
+
+## Deferred from: code review of spec-19-4-desk-session-payment (2026-10-11)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-4-desk-session-payment.md`
+  summary: Block or void-cascade refunds of verified `purpose='session'` payments in 19.8.
+  evidence: `private.block_fee_and_voided_refunds` (0101) rejects only `registration_fee` and voided payments, and the refunds INSERT policy allows owner/manager. The dashboard picker's `purpose = 'subscription'` filter is UI only, so a direct insert refunds a session payment while its `guest_sessions` row stays usable. decisions.md item 6 ("already excluded") overstates this.
+
+## Deferred from: code review of spec-19-5-in-app-tara-money-session-payment (2026-10-11)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-5-in-app-tara-money-session-payment.md`
+  summary: Decide how a Tara payment is flagged `wrong_account` and give staff a trace when a session payment flagged for another reason (`staff_flagged`, `reconciliation_mismatch`, `provider_declined`) later receives a success.
+  evidence: 0109 never creates a session for those rows and writes only a `raise notice`; the registration-fee branch writes `registration_fee_late_payment`. The payment-webhook leaves a gym mismatch to reconciliation, so no code path produces `wrong_account` on a payment row yet (0106 header says "first produced by 19.5"). The row stays visible as flagged, so staff can find it; the open question is whether that is enough.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-6a-front-desk-alert-kind-refactor-no-behavior-change.md`
+  summary: Dashboard front-desk alert readers (`apps/dashboard/services/frontDeskAlerts.ts`, `apps/dashboard/lib/realtime/frontDeskAlerts.ts`) must filter or branch on `kind` before 19.6b writes the first status-less `session_required` row.
+  evidence: Both select `status` and cast it to a non-null union through `as unknown as`, so a null status would render as an at-risk alert and typecheck would not catch it; unreachable until 19.6b.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-6a-front-desk-alert-kind-refactor-no-behavior-change.md`
+  summary: No automated check applies `scripts/rollback-0110-front-desk-alert-kind.sql` after 0110, so its embedded function copies can drift.
+  evidence: Rehearsed once by hand in a rolled-back transaction; the pgtap stage only runs `supabase/tests/*.sql`. A drift or typo would surface only in an incident.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-6b-check-in-gate-blocked-attempts-session-required-alert.md`
+  summary: Rollback scripts for 0110 and 0111 are only manually rehearsed; add a harness that applies each in a transaction and diffs the restored `check_in()` source and `attendance_events` grants.
+  evidence: Editing the hand-copied 0110 body inside rollback-0111 leaves every suite green; drift would be found only during an incident.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-7-class-attendance-consumes-a-session.md`
+  summary: `mark_class_attendance()` reads the member's latest subscription with `order by created_at desc` only, while `consume_guest_session()` adds `id desc`, so a `created_at` tie can make the two read different rows.
+  evidence: Pre-existing eligibility query copied from 0068/0034 (already noted above for the missing gym_id scope); surfaced again by the 19-7 edge-case review. Low likelihood, one-line fix when the function is next touched.
+
+## Deferred from: code review of spec-19-7-class-attendance-consumes-a-session (2026-10-11)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-7-class-attendance-consumes-a-session.md`
+  summary: Epic 19 context says direct DELETE on `class_bookings` is revoked, but 0112 closes only INSERT/UPDATE column grants and keeps DELETE for `authenticated`/`service_role`.
+  evidence: Spec scope is `attended_at` writes; `cancel_class_booking()` is a definer and the e2e teardown uses service_role DELETE, so DELETE may be revocable for `authenticated`. Decide in 19.12 whether to close it.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-8-session-refunds-revenue-line.md`
+  summary: Run scripts/session-refund-race.sh (or equivalent) in CI or document it as a pre-merge gate; the refund-vs-consume race is proven only manually.
+  evidence: pgTAP cannot run two sessions; the script is not referenced by ci-local.sh or workflows, so a lock-order edit to consume_guest_session or apply_session_refund would ship unproven.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-8-session-refunds-revenue-line.md`
+  summary: Decide whether platform_metrics() (0103) should exclude session payments now that gym_revenue_mtd() does.
+  evidence: 0103 still sums all verified non-voided payments; 19.8 intent excluded it, so platform "payments processed" and gym revenue now use different semantics.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-8-session-refunds-revenue-line.md`
+  summary: Add pg_temp last to search_path of the 0113 definer triggers (and the older ones) in a repo-wide hardening pass.
+  evidence: apply_session_refund and both audit triggers use search_path = public, matching 0101/0111 convention; temp relations resolve first.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-9a-dashboard-charge-guests-setting.md`
+  summary: Story 19.9b — session-required variant of FrontDeskAlertPanel (widen kind filter, class/offline/pending-Tara follow-up reads), new Record Session Payment panel + `record_session_payment` wrapper, MemberModal Sessions section and header action, AD-10 hint, refund notices (session purpose is not refund-eligible today).
+  evidence: Split from 19.9 (epic AC allows it); alert/panel/member surface is larger than the settings half. InlineRenewalPanel does not exist (RenewalModal does), so the panel is built new.
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-9a-dashboard-charge-guests-setting.md`
+  summary: Story 19.9c — AD-09 Purpose filter/column/CSV and "Confirmed late" display, and the Subscriptions Last Payment ignore-session guard.
+  evidence: AD-09 has no All Payments ledger (verification queue only) and Subscriptions has no Last Payment column (deliberately cut), so the AC needs a product decision on building the ledger first.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-19-9b-dashboard-session-alert-record-panel-member-sessions.md`
+  summary: The member modal Sessions section links to `/payments?memberId=<id>&purpose=session`, but the Payments page reads neither param; 19-9c must read them (Purpose filter and member filter) so the link lands filtered.
+  evidence: `payments/page.tsx` ignores `searchParams`; the Purpose filter, column and CSV are 19-9c scope and excluded by 19-9b's frozen Never list, so the link currently opens the unfiltered page.
+
+## Deferred from: code review of spec-19-9c-dashboard-payments-purpose-ledger-subscriptions-guard (2026-10-12)
+
+- CSV exports (members, subscriptions, payments) carry no UTF-8 BOM, so Excel garbles accented names. Fix once across all exports.
+- `csvEscape` per-file copies guard `= + - @` but not a leading tab or carriage return (OWASP list). Fix all copies together.
+
+## Deferred from: code review of spec-19-11-member-app-pay-for-your-session (2026-10-12)
+
+- A paid session that lapses unused disappears from Home with no explanation ("No paid session"), and the receipt shows a past "Use by". Unverified medium: the 19.11 matrix has no lapsed row and the 7-day caption is the only specified lapse surface. Product owner to decide whether a lapsed state is wanted.
+- Flagged session payment shows "Failed" + [Try again] with no "contact the front desk if you were debited / retrying may charge twice" guidance. Unverified medium: check which `flagged_reason` values can have moved money (`expired_attempt` late-confirms per 0109, `provider_declined` does not) and decide copy per reason.
+
+## Deferred from: code review of spec-19-12-v1-6-session-guests-enablement (2026-10-12)
+
+- The "existing gyms keep their flag" md5 guard in migration 0115 only sees data at production apply time; local/CI `gyms` is empty, so a regression (e.g. a backfill UPDATE before the ALTER) would pass pgTAP. Close with a psql proof in a rolled-back transaction that seeds mixed-flag gyms and runs the 0115 body (see the local Supabase SQL proofs convention).
+- `scripts/rollback-0115-enable-charge-guests-default.sql` is never executed by CI or any test. Run it once against the local DB in a rolled-back transaction before 0115 is applied to production.

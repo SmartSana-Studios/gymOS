@@ -7,7 +7,7 @@ import { getDashboardShellContext, type DashboardShellContext, type MemberRole }
 import { listActiveFrontDeskAlerts } from "@/services/frontDeskAlerts";
 import { getCurrentlyCheckedIn } from "@/services/attendance";
 import { listSubscriptions } from "@/services/subscriptions";
-import { getRegistrationFeeRevenueMtd, getRevenueMtd } from "@/services/payments";
+import { getRegistrationFeeRevenueMtd, getRevenueMtd, getSessionRevenueMtd } from "@/services/payments";
 import { getGymSettings } from "@/services/gym-settings";
 import { FrontDeskAlertPanel } from "@/components/shared/FrontDeskAlertPanel";
 import { StatCard } from "@/components/ui/stat-card";
@@ -16,6 +16,7 @@ import { CheckedInTable } from "./components/CheckedInTable";
 import { ExpiringTable } from "./components/ExpiringTable";
 import { GymHealthRow, GymHealthRowSkeleton } from "./components/GymHealthRow";
 import { OverviewAutoRefresh } from "./components/OverviewAutoRefresh";
+import { GuestSessionsCardSection, GuestSessionsCardSkeleton } from "./components/GuestSessionsCardSection";
 
 // AD-02: each table shows at most 10 rows. Neither service takes a limit
 // (their page sizes are module constants), so the cap is applied here, to the
@@ -124,6 +125,7 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
     { data: expiring, error: expiringError },
     { data: revenueMtd, error: revenueError },
     { data: feeRevenueMtd, error: feeRevenueError },
+    { data: sessionRevenueMtd, error: sessionRevenueError },
     { data: gymSettings, error: gymSettingsError },
   ] = await Promise.all([
     listActiveFrontDeskAlerts(),
@@ -140,6 +142,8 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
     // Story 18.4: the "of which registration fees" line. Both reads are for that
     // line alone -- a failure hides it and nothing else.
     getRegistrationFeeRevenueMtd(),
+    // Story 19.8: the separate "Guest sessions" line; a failure hides it alone.
+    getSessionRevenueMtd(),
     getGymSettings(),
   ]);
 
@@ -154,6 +158,10 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
   }
   if (feeRevenueError) {
     console.error(`OverviewData: getRegistrationFeeRevenueMtd failed -- ${feeRevenueError.message}`);
+  }
+
+  if (sessionRevenueError) {
+    console.error(`OverviewData: getSessionRevenueMtd failed -- ${sessionRevenueError.message}`);
   }
 
   if (gymSettingsError) {
@@ -171,6 +179,30 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
   const showFeeLine =
     !revenueFailed && feeRevenueMtd != null && ((gymSettings?.registrationFee ?? 0) > 0 || feeRevenueMtd > 0);
 
+  // Story 19.8: session money is outside the headline (0113), so this is its
+  // own line, not an "of which". Shown when the gym charges guests per session
+  // or any session money exists this month; a failed read, or a failed headline
+  // read (the line sits under it), hides it without touching the figure.
+  const showSessionLine =
+    !revenueFailed &&
+    sessionRevenueMtd != null &&
+    ((gymSettings?.chargeGuestsPerSession ?? false) || sessionRevenueMtd > 0);
+
+  const revenueDetails: string[] = [];
+  if (showFeeLine) {
+    revenueDetails.push(
+      `${t("overview.cards.revenueOfWhichRegistrationFees")}: XAF ${feeRevenueMtd.toLocaleString(locale)}`,
+    );
+  }
+  if (showSessionLine) {
+    // Spec (19.8): FR reads "Séances des invités : N XAF", EN "Guest sessions: XAF N".
+    const sessionLabel = t("overview.cards.guestSessions");
+    const sessionAmount = sessionRevenueMtd.toLocaleString(locale);
+    revenueDetails.push(
+      locale === "fr" ? `${sessionLabel} : ${sessionAmount} XAF` : `${sessionLabel}: XAF ${sessionAmount}`,
+    );
+  }
+
   const unavailable = t("overview.cards.unavailable");
 
   return (
@@ -183,6 +215,7 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
           initialAlerts={alertsData?.alerts ?? []}
           autoDismissMinutes={alertsData?.autoDismissMinutes ?? 30}
           mobileMoneyEnabled={mobileMoneyEnabled}
+          role={shell.role}
         />
       )}
 
@@ -206,11 +239,7 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
         <StatCard
           label={t("overview.cards.revenueThisMonth")}
           value={revenueFailed ? unavailable : `XAF ${revenueMtd.toLocaleString(locale)}`}
-          detail={
-            showFeeLine
-              ? `${t("overview.cards.revenueOfWhichRegistrationFees")}: XAF ${feeRevenueMtd.toLocaleString(locale)}`
-              : undefined
-          }
+          detail={revenueDetails.length > 1 ? revenueDetails : revenueDetails[0]}
           href="/payments"
         />
       </div>
@@ -219,6 +248,15 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
       {canSeeGymHealth(shell) && (
         <Suspense fallback={<GymHealthRowSkeleton />}>
           <GymHealthRow locale={locale} />
+        </Suspense>
+      )}
+
+      {/* Story 19.10: the Guest sessions card, Manager-plus and only while the
+          gym charges guests per session; absent from the DOM otherwise. A
+          failed settings read leaves it out (the flag is unknown). */}
+      {canSeeGymHealth(shell) && gymSettings?.chargeGuestsPerSession === true && (
+        <Suspense fallback={<GuestSessionsCardSkeleton />}>
+          <GuestSessionsCardSection />
         </Suspense>
       )}
 

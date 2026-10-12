@@ -3,7 +3,7 @@
  * registration fee payment or a voided one. The refunds insert policy and
  * trigger (0101) are the real gate; this pins that the picker query asks for
  * subscription payments with `voided_at is null`, and still drops a payment
- * that already has a refund.
+ * that already has a refund. Story 19.9b: session payments are eligible too.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,7 +12,7 @@ let rows: unknown[];
 
 function makeBuilder() {
   const builder: Record<string, unknown> = {};
-  for (const name of ["select", "eq", "is"]) {
+  for (const name of ["select", "eq", "is", "in"]) {
     builder[name] = vi.fn((...args: unknown[]) => {
       calls.push([name, ...args]);
       return builder;
@@ -50,8 +50,8 @@ describe("listRefundEligiblePayments", () => {
   beforeEach(() => {
     calls.length = 0;
     rows = [
-      { id: "p1", amount: 10000, currency: "XAF", method: "cash", created_at: "2026-10-01T00:00:00Z", refunds: null },
-      { id: "p2", amount: 5000, currency: "XAF", method: "cash", created_at: "2026-10-02T00:00:00Z", refunds: { id: "r1" } },
+      { id: "p1", amount: 10000, currency: "XAF", method: "cash", created_at: "2026-10-01T00:00:00Z", purpose: "subscription", refunds: null, guest_sessions: null },
+      { id: "p2", amount: 5000, currency: "XAF", method: "cash", created_at: "2026-10-02T00:00:00Z", purpose: "subscription", refunds: { id: "r1" }, guest_sessions: null },
     ];
   });
 
@@ -61,7 +61,8 @@ describe("listRefundEligiblePayments", () => {
     expect(calls).toContainEqual(["eq", "gym_id", "gym-a"]);
     expect(calls).toContainEqual(["eq", "member_id", "member-1"]);
     expect(calls).toContainEqual(["eq", "status", "verified"]);
-    expect(calls).toContainEqual(["eq", "purpose", "subscription"]);
+    expect(calls).toContainEqual(["in", "purpose", ["subscription", "session"]]);
+    expect(calls).not.toContainEqual(["in", "purpose", expect.arrayContaining(["registration_fee"])]);
     expect(calls).toContainEqual(["is", "voided_at", null]);
   });
 
@@ -70,5 +71,18 @@ describe("listRefundEligiblePayments", () => {
 
     expect(result.error).toBeNull();
     expect(result.data?.map((r) => r.id)).toEqual(["p1"]);
+  });
+
+  it("reports a session payment's purpose and whether its session was already used", async () => {
+    rows = [
+      { id: "s1", amount: 2000, currency: "XAF", method: "cash", created_at: "2026-10-03T00:00:00Z", purpose: "session", refunds: null, guest_sessions: { consumed_at: null, voided_at: null } },
+      { id: "s2", amount: 2000, currency: "XAF", method: "cash", created_at: "2026-10-04T00:00:00Z", purpose: "session", refunds: null, guest_sessions: [{ consumed_at: "2026-10-04T08:00:00Z", voided_at: null }] },
+    ];
+    const result = await listRefundEligiblePayments("member-1");
+
+    expect(result.data?.map((r) => [r.id, r.purpose, r.sessionState])).toEqual([
+      ["s1", "session", "unused"],
+      ["s2", "session", "used"],
+    ]);
   });
 });
