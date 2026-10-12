@@ -13,6 +13,13 @@
 begin;
 select plan(39);
 
+-- Story 20.1: loyalty_grant_id now has an FK to a reward_granted ledger row.
+create function pg_temp.mk_grant(p_gym uuid, p_member uuid) returns uuid
+language sql security definer as $mk$
+  insert into loyalty_events (gym_id, member_id, event_type, counter, origin_id)
+  values (p_gym, p_member, 'reward_granted', 'guest', gen_random_uuid()) returning id
+$mk$;
+
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000036001', 'Refund Tier', 6000, 60000, null);
 
@@ -221,7 +228,7 @@ insert into members (id, gym_id, user_id, role, name, join_date) values
 insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expiry_date) values
   ('00000000-0000-0000-0000-000000036011', '00000000-0000-0000-0000-000000036056', '00000000-0000-0000-0000-000000036061', 'active', current_date, null);
 insert into guest_sessions (gym_id, member_id, loyalty_grant_id, usable_until) values
-  ('00000000-0000-0000-0000-000000036011', '00000000-0000-0000-0000-000000036056', gen_random_uuid(), now() + interval '5 days');
+  ('00000000-0000-0000-0000-000000036011', '00000000-0000-0000-0000-000000036056', pg_temp.mk_grant('00000000-0000-0000-0000-000000036011', '00000000-0000-0000-0000-000000036056'), now() + interval '5 days');
 
 select is(
   (select outcome from private.consume_guest_session('00000000-0000-0000-0000-000000036056', '00000000-0000-0000-0000-000000036011', now())),

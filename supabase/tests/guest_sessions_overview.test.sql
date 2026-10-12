@@ -7,6 +7,13 @@
 begin;
 select plan(31);
 
+-- Story 20.1: loyalty_grant_id now has an FK to a reward_granted ledger row.
+create function pg_temp.mk_grant(p_gym uuid, p_member uuid) returns uuid
+language sql security definer as $mk$
+  insert into loyalty_events (gym_id, member_id, event_type, counter, origin_id)
+  values (p_gym, p_member, 'reward_granted', 'guest', gen_random_uuid()) returning id
+$mk$;
+
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000037001', 'Overview Tier', 6000, 60000, null);
 
@@ -100,11 +107,11 @@ insert into payments (id, gym_id, member_id, amount, currency, method, status, p
 -- (a) free sessions (loyalty grant, no payment): voided, used, lapsed,
 -- available, and one created outside the month.
 insert into guest_sessions (id, gym_id, member_id, loyalty_grant_id, usable_until, consumed_at, covered_day, voided_at, created_at) values
-  ('00000000-0000-0000-0000-0000000370c1', '00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037051', gen_random_uuid(), now() + interval '30 days', null, null, now(), now()),
-  ('00000000-0000-0000-0000-0000000370c2', '00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037052', gen_random_uuid(), now() + interval '30 days', now(), current_date, null, now()),
-  ('00000000-0000-0000-0000-0000000370c3', '00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037053', gen_random_uuid(), now() - interval '1 day', null, null, null, now()),
-  ('00000000-0000-0000-0000-0000000370c4', '00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037051', gen_random_uuid(), now() + interval '30 days', null, null, null, now()),
-  ('00000000-0000-0000-0000-0000000370c5', '00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037051', gen_random_uuid(), now() + interval '30 days', null, null, null, now() - interval '70 days');
+  ('00000000-0000-0000-0000-0000000370c1', '00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037051', pg_temp.mk_grant('00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037051'), now() + interval '30 days', null, null, now(), now()),
+  ('00000000-0000-0000-0000-0000000370c2', '00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037052', pg_temp.mk_grant('00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037052'), now() + interval '30 days', now(), current_date, null, now()),
+  ('00000000-0000-0000-0000-0000000370c3', '00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037053', pg_temp.mk_grant('00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037053'), now() - interval '1 day', null, null, null, now()),
+  ('00000000-0000-0000-0000-0000000370c4', '00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037051', pg_temp.mk_grant('00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037051'), now() + interval '30 days', null, null, null, now()),
+  ('00000000-0000-0000-0000-0000000370c5', '00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037051', pg_temp.mk_grant('00000000-0000-0000-0000-000000037011', '00000000-0000-0000-0000-000000037051'), now() + interval '30 days', null, null, null, now() - interval '70 days');
 
 -- 1 when the "before local midnight" rows still fall in the current month.
 create temp table fx as

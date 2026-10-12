@@ -474,6 +474,7 @@ export type Database = {
           gym_id: string
           id: string
           loyalty_grant_id: string | null
+          loyalty_grant_event_type: string | null
           member_id: string
           payment_id: string | null
           usable_until: string
@@ -509,6 +510,12 @@ export type Database = {
             columns: ["gym_id"]
             referencedRelation: "gyms"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_sessions_loyalty_grant_fkey"
+            columns: ["loyalty_grant_id", "loyalty_grant_event_type"]
+            referencedRelation: "loyalty_events"
+            referencedColumns: ["id", "event_type"]
           },
           {
             foreignKeyName: "guest_sessions_member_id_fkey"
@@ -597,6 +604,10 @@ export type Database = {
           gym_token: string
           id: string
           logo_url: string | null
+          loyalty_enabled: boolean
+          loyalty_guest_threshold: number | null
+          loyalty_renewal_threshold: number | null
+          loyalty_reward_days: number | null
           member_cap_override: number | null
           name: string
           opening_time: string | null
@@ -624,6 +635,10 @@ export type Database = {
           gym_token?: string
           id?: string
           logo_url?: string | null
+          loyalty_enabled?: boolean
+          loyalty_guest_threshold?: number | null
+          loyalty_renewal_threshold?: number | null
+          loyalty_reward_days?: number | null
           member_cap_override?: number | null
           name: string
           opening_time?: string | null
@@ -651,6 +666,10 @@ export type Database = {
           gym_token?: string
           id?: string
           logo_url?: string | null
+          loyalty_enabled?: boolean
+          loyalty_guest_threshold?: number | null
+          loyalty_renewal_threshold?: number | null
+          loyalty_reward_days?: number | null
           member_cap_override?: number | null
           name?: string
           opening_time?: string | null
@@ -699,6 +718,92 @@ export type Database = {
           status?: Database["public"]["Enums"]["job_status"] | null
         }
         Relationships: []
+      }
+      loyalty_events: {
+        Row: {
+          counter: string
+          details: Json
+          event_type: string
+          gym_id: string
+          id: string
+          member_id: string
+          occurred_at: string
+          origin_id: string
+        }
+        Insert: {
+          counter: string
+          details?: Json
+          event_type: string
+          gym_id: string
+          id?: string
+          member_id: string
+          occurred_at?: string
+          origin_id: string
+        }
+        Update: {
+          counter?: string
+          details?: Json
+          event_type?: string
+          gym_id?: string
+          id?: string
+          member_id?: string
+          occurred_at?: string
+          origin_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_events_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_events_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      loyalty_progress: {
+        Row: {
+          guest_last_event_at: string | null
+          guest_stamps: number
+          gym_id: string
+          member_id: string
+          subscriber_last_event_at: string | null
+          subscriber_stamps: number
+        }
+        Insert: {
+          guest_last_event_at?: string | null
+          guest_stamps?: number
+          gym_id: string
+          member_id: string
+          subscriber_last_event_at?: string | null
+          subscriber_stamps?: number
+        }
+        Update: {
+          guest_last_event_at?: string | null
+          guest_stamps?: number
+          gym_id?: string
+          member_id?: string
+          subscriber_last_event_at?: string | null
+          subscriber_stamps?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_progress_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loyalty_progress_member_id_fkey"
+            columns: ["member_id"]
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       member_preferences: {
         Row: {
@@ -2158,6 +2263,7 @@ export type Database = {
         Args: { p_note_id: string; p_note_text: string }
         Returns: undefined
       }
+      effective_loyalty: { Args: { p_member_id: string }; Returns: Json }
       escalate_gym_data_access: {
         Args: { p_gym_id: string; p_reason: string }
         Returns: string
@@ -2493,6 +2599,10 @@ export type Database = {
       run_saas_billing_lifecycle_job: { Args: never; Returns: undefined }
       run_subscription_lifecycle_job: { Args: never; Returns: undefined }
       set_guest_charging: { Args: { p_enabled: boolean }; Returns: undefined }
+      set_loyalty_program: {
+        Args: { p_enabled: boolean; p_k: number; p_n: number; p_r: number }
+        Returns: undefined
+      }
       set_registration_fee: { Args: { p_amount: number }; Returns: undefined }
       staff_account_for_reset: {
         Args: { p_member_id: string }

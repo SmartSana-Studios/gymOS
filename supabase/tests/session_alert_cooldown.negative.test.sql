@@ -5,6 +5,13 @@
 begin;
 select plan(5);
 
+-- Story 20.1: loyalty_grant_id now has an FK to a reward_granted ledger row.
+create function pg_temp.mk_grant(p_gym uuid, p_member uuid) returns uuid
+language sql security definer as $mk$
+  insert into loyalty_events (gym_id, member_id, event_type, counter, origin_id)
+  values (p_gym, p_member, 'reward_granted', 'guest', gen_random_uuid()) returning id
+$mk$;
+
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000038101', 'Cooldown Neg Tier', 6000, 60000, null);
 
@@ -41,7 +48,7 @@ insert into front_desk_alerts (gym_id, member_id, kind, status, expiry_date, cre
   ('00000000-0000-0000-0000-000000038111', '00000000-0000-0000-0000-000000038132', 'session_required', null, null, now() - interval '10 minutes', now() - interval '2 minutes');
 
 insert into guest_sessions (gym_id, member_id, loyalty_grant_id, usable_until, created_at)
-values ('00000000-0000-0000-0000-000000038111', '00000000-0000-0000-0000-000000038132', gen_random_uuid(), now() + interval '5 days', now() - interval '5 minutes');
+values ('00000000-0000-0000-0000-000000038111', '00000000-0000-0000-0000-000000038132', pg_temp.mk_grant('00000000-0000-0000-0000-000000038111', '00000000-0000-0000-0000-000000038132'), now() + interval '5 days', now() - interval '5 minutes');
 
 insert into front_desk_alerts (gym_id, member_id, kind, status, expiry_date)
 values ('00000000-0000-0000-0000-000000038111', '00000000-0000-0000-0000-000000038132', 'session_required', null, null);

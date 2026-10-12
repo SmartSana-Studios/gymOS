@@ -198,6 +198,11 @@ select is(
 -- ============================================================================
 -- update_plan_pricing()
 -- ============================================================================
+-- Story 20.1: the grant ids below must exist as reward_granted ledger rows.
+insert into loyalty_events (id, gym_id, member_id, event_type, counter, origin_id) values
+  ('00000000-0000-0000-0000-000000032099', '00000000-0000-0000-0000-000000032011', '00000000-0000-0000-0000-000000032035', 'reward_granted', 'guest', gen_random_uuid()),
+  ('00000000-0000-0000-0000-000000032097', '00000000-0000-0000-0000-000000032011', '00000000-0000-0000-0000-000000032035', 'reward_granted', 'guest', gen_random_uuid());
+
 insert into guest_sessions (gym_id, member_id, loyalty_grant_id, usable_until)
 values ('00000000-0000-0000-0000-000000032011', '00000000-0000-0000-0000-000000032035',
         '00000000-0000-0000-0000-000000032099', now() + interval '60 days');

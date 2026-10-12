@@ -59,6 +59,10 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // plan_price_changed are written by update_plan_pricing() (0107), gym-scoped,
   // target = the plan, metadata { old_plan_type, new_plan_type } / { old_price,
   // new_price }. platform_session_config_updated is platform-level (no gym_id).
+  // Story 20.1. loyalty_program_changed is written by set_loyalty_program() (0117),
+  // gym-scoped, target = the gym, metadata { old, new } each holding
+  // { enabled, guest_threshold, renewal_threshold, reward_days }.
+  loyalty_program_changed: "audit.actionTypes.loyaltyProgramChanged",
   guest_charging_changed: "audit.actionTypes.guestChargingChanged",
   plan_type_changed: "audit.actionTypes.planTypeChanged",
   plan_price_changed: "audit.actionTypes.planPriceChanged",
