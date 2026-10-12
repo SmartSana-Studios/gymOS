@@ -14,6 +14,13 @@
 begin;
 select plan(49);
 
+-- Story 20.1: loyalty_grant_id now has an FK to a reward_granted ledger row.
+create function pg_temp.mk_grant(p_gym uuid, p_member uuid) returns uuid
+language sql security definer as $mk$
+  insert into loyalty_events (gym_id, member_id, event_type, counter, origin_id)
+  values (p_gym, p_member, 'reward_granted', 'guest', gen_random_uuid()) returning id
+$mk$;
+
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000034001', 'Gate Tier', 6000, 60000, null);
 
@@ -81,18 +88,18 @@ insert into attendance_events (id, gym_id, member_id, checked_in_at) values
   ('00000000-0000-0000-0000-0000000fb002', '00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-00000003405d',
    now() - interval '10 minutes');
 
--- Sessions that are not bought at the desk: free-source rows (no FK yet).
+-- Sessions that are not bought at the desk: free-source rows (grant ids point at reward_granted ledger rows, 0117).
 insert into guest_sessions (gym_id, member_id, loyalty_grant_id, usable_until, created_at) values
   -- F: created 3h ago, still usable
-  ('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034056', gen_random_uuid(), now() + interval '5 days', now() - interval '3 hours'),
+  ('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034056', pg_temp.mk_grant('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034056'), now() + interval '5 days', now() - interval '3 hours'),
   -- G: created long enough ago that an old offline scan is after creation
-  ('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034057', gen_random_uuid(), now() + interval '5 days', now() - interval '200 hours'),
+  ('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034057', pg_temp.mk_grant('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034057'), now() + interval '5 days', now() - interval '200 hours'),
   -- I (flag-off gym): must stay unconsumed
-  ('00000000-0000-0000-0000-000000034012', '00000000-0000-0000-0000-000000034059', gen_random_uuid(), now() + interval '5 days', now() - interval '1 hour'),
+  ('00000000-0000-0000-0000-000000034012', '00000000-0000-0000-0000-000000034059', pg_temp.mk_grant('00000000-0000-0000-0000-000000034012', '00000000-0000-0000-0000-000000034059'), now() + interval '5 days', now() - interval '1 hour'),
   -- J: none (denied). K: created 1h ago
-  ('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-00000003405b', gen_random_uuid(), now() + interval '5 days', now() - interval '1 hour'),
+  ('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-00000003405b', pg_temp.mk_grant('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-00000003405b'), now() + interval '5 days', now() - interval '1 hour'),
   -- H: one usable session for the day-boundary calls
-  ('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034058', gen_random_uuid(), now() + interval '30 days', now() - interval '1 hour');
+  ('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034058', pg_temp.mk_grant('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034058'), now() + interval '30 days', now() - interval '1 hour');
 
 -- ============================================================================
 -- Interface: signature and return type are unchanged.
@@ -128,7 +135,7 @@ reset role;
 
 -- E: the free session lapses at exactly the same instant as the paid one.
 insert into guest_sessions (gym_id, member_id, loyalty_grant_id, usable_until, created_at)
-select '00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034055', gen_random_uuid(),
+select '00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034055', pg_temp.mk_grant('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034055'),
        s.usable_until, s.created_at - interval '1 minute'
 from guest_sessions s
 where s.member_id = '00000000-0000-0000-0000-000000034055' and s.payment_id is not null;
@@ -172,7 +179,7 @@ select is(
 -- Unique index backstop: a second consumed row for the same day is refused.
 select throws_ok(
   $$ insert into guest_sessions (gym_id, member_id, loyalty_grant_id, usable_until, consumed_at, covered_day)
-     values ('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034051', gen_random_uuid(),
+     values ('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034051', pg_temp.mk_grant('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034051'),
              now() + interval '1 day', now(), (now() at time zone 'Africa/Douala')::date) $$,
   '23505',
   null,
@@ -397,7 +404,7 @@ select is(
 );
 
 insert into guest_sessions (gym_id, member_id, loyalty_grant_id, usable_until)
-values ('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034058', gen_random_uuid(), now() + interval '30 days');
+values ('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034058', pg_temp.mk_grant('00000000-0000-0000-0000-000000034011', '00000000-0000-0000-0000-000000034058'), now() + interval '30 days');
 
 select is(
   (select outcome from private.consume_guest_session(

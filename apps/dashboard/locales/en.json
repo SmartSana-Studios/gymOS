@@ -1247,6 +1247,7 @@
       "registrationFeeVoided": "Registration fee voided",
       "memberPlanAssigned": "First plan assigned",
       "guestChargingChanged": "Guest session charging changed",
+      "loyaltyProgramChanged": "Loyalty program changed",
       "planTypeChanged": "Plan type changed",
       "planPriceChanged": "Plan price changed",
       "platformSessionConfigUpdated": "Session platform defaults updated",

@@ -1247,6 +1247,7 @@
       "registrationFeeVoided": "Frais d'inscription annulés",
       "memberPlanAssigned": "Première formule attribuée",
       "guestChargingChanged": "Facturation des invités par séance modifiée",
+      "loyaltyProgramChanged": "Programme de fidélité modifié",
       "planTypeChanged": "Type de formule modifié",
       "planPriceChanged": "Prix de la formule modifié",
       "platformSessionConfigUpdated": "Valeurs par défaut des séances mises à jour",

@@ -6,6 +6,13 @@
 begin;
 select plan(18);
 
+-- Story 20.1: loyalty_grant_id now has an FK to a reward_granted ledger row.
+create function pg_temp.mk_grant(p_gym uuid, p_member uuid) returns uuid
+language sql security definer as $mk$
+  insert into loyalty_events (gym_id, member_id, event_type, counter, origin_id)
+  values (p_gym, p_member, 'reward_granted', 'guest', gen_random_uuid()) returning id
+$mk$;
+
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000035101', 'Class Gate Neg Tier', 6000, 60000, null);
 
@@ -35,9 +42,9 @@ insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expir
   ('00000000-0000-0000-0000-000000035111', '00000000-0000-0000-0000-000000035132', '00000000-0000-0000-0000-000000035141', 'active', current_date, null);
 
 insert into guest_sessions (gym_id, member_id, loyalty_grant_id, usable_until, created_at) values
-  ('00000000-0000-0000-0000-000000035111', '00000000-0000-0000-0000-000000035131', gen_random_uuid(), now() - interval '1 minute', now() - interval '8 days');
+  ('00000000-0000-0000-0000-000000035111', '00000000-0000-0000-0000-000000035131', pg_temp.mk_grant('00000000-0000-0000-0000-000000035111', '00000000-0000-0000-0000-000000035131'), now() - interval '1 minute', now() - interval '8 days');
 insert into guest_sessions (gym_id, member_id, loyalty_grant_id, usable_until, voided_at) values
-  ('00000000-0000-0000-0000-000000035111', '00000000-0000-0000-0000-000000035132', gen_random_uuid(), now() + interval '3 days', now());
+  ('00000000-0000-0000-0000-000000035111', '00000000-0000-0000-0000-000000035132', pg_temp.mk_grant('00000000-0000-0000-0000-000000035111', '00000000-0000-0000-0000-000000035132'), now() + interval '3 days', now());
 
 insert into classes (id, gym_id, name, coach_id, capacity, schedule_type, one_off_session_at) values
   ('00000000-0000-0000-0000-000000035151', '00000000-0000-0000-0000-000000035111', 'CGN Class', '00000000-0000-0000-0000-000000035134', 10, 'one_off', now() + interval '1 day');
@@ -79,7 +86,7 @@ select is(
 -- refusal row stays; exactly one session is consumed.
 -- ============================================================================
 insert into guest_sessions (gym_id, member_id, loyalty_grant_id, usable_until) values
-  ('00000000-0000-0000-0000-000000035111', '00000000-0000-0000-0000-000000035131', gen_random_uuid(), now() + interval '3 days');
+  ('00000000-0000-0000-0000-000000035111', '00000000-0000-0000-0000-000000035131', pg_temp.mk_grant('00000000-0000-0000-0000-000000035111', '00000000-0000-0000-0000-000000035131'), now() + interval '3 days');
 
 set local role authenticated;
 select set_config('request.jwt.claims',
