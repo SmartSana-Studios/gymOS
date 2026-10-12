@@ -131,3 +131,38 @@ export function mergeDenials(existing: SyncDenial[], incoming: SyncDenial[]): Sy
   }
   return merged;
 }
+
+/** PostgREST `or` filter for the member's own `guest_sessions` on Home: rows
+ * usable right now, plus the one that covers the gym-local day. Applied
+ * server-side so old history cannot push them out of the row limit. */
+export function homeSessionsOrFilter(now: Date, timezone: string | null): string {
+  return `and(consumed_at.is.null,usable_until.gt.${now.toISOString()}),covered_day.eq.${gymLocalDay(now, timezone)}`;
+}
+
+/** A session payment is a Home activity event only once verified; an
+ * unconfirmed or flagged one is shown in history (Processing/Failed), never
+ * as a recorded payment. Non-session payments always count. */
+export function isHomeActivityPayment(payment: { purpose: string; status: string }): boolean {
+  return payment.purpose !== 'session' || payment.status === 'verified';
+}
+
+export interface ReceiptSessionRow {
+  usable_until: string;
+  consumed_at: string | null;
+  covered_day: string | null;
+  voided_at: string | null;
+}
+
+/** Receipt dates for a session payment's `guest_sessions` row: "use by" while
+ * unused, "used on" (gym-local covered day) once consumed. A voided session
+ * shows neither. */
+export function resolveReceiptSessionDates(row: ReceiptSessionRow | null): {
+  usableUntil: string | null;
+  coveredDay: string | null;
+} {
+  if (!row || row.voided_at) return { usableUntil: null, coveredDay: null };
+  return {
+    usableUntil: row.usable_until,
+    coveredDay: row.consumed_at ? (row.covered_day ?? row.consumed_at) : null,
+  };
+}

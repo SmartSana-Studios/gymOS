@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   collapseDenials,
   gymLocalDay,
+  homeSessionsOrFilter,
+  isHomeActivityPayment,
+  resolveReceiptSessionDates,
   isChargedMember,
   isSessionDenial,
   mergeDenials,
@@ -110,5 +113,47 @@ describe('denials', () => {
       ],
     );
     expect(merged.map((d) => d.scanId)).toEqual(['a', 'b']);
+  });
+});
+
+describe('homeSessionsOrFilter', () => {
+  it('keeps usable-now rows and the gym-local covered day', () => {
+    const now = new Date('2026-10-12T23:30:00Z');
+    expect(homeSessionsOrFilter(now, 'Africa/Douala')).toBe(
+      'and(consumed_at.is.null,usable_until.gt.2026-10-12T23:30:00.000Z),covered_day.eq.2026-10-13',
+    );
+  });
+});
+
+describe('isHomeActivityPayment', () => {
+  it('drops unconfirmed and flagged session payments only', () => {
+    expect(isHomeActivityPayment({ purpose: 'session', status: 'verified' })).toBe(true);
+    expect(isHomeActivityPayment({ purpose: 'session', status: 'processing' })).toBe(false);
+    expect(isHomeActivityPayment({ purpose: 'session', status: 'flagged' })).toBe(false);
+    expect(isHomeActivityPayment({ purpose: 'subscription', status: 'flagged' })).toBe(true);
+  });
+});
+
+describe('resolveReceiptSessionDates', () => {
+  const row = { usable_until: '2026-10-19T00:00:00Z', consumed_at: null, covered_day: null, voided_at: null };
+
+  it('shows use-by for an unused session', () => {
+    expect(resolveReceiptSessionDates(row)).toEqual({ usableUntil: row.usable_until, coveredDay: null });
+  });
+
+  it('shows the covered day once consumed', () => {
+    expect(resolveReceiptSessionDates({ ...row, consumed_at: '2026-10-13T08:00:00Z', covered_day: '2026-10-13' })).toEqual({
+      usableUntil: row.usable_until,
+      coveredDay: '2026-10-13',
+    });
+  });
+
+  it('shows neither date for a voided session, consumed or not', () => {
+    const voided = { ...row, voided_at: '2026-10-14T00:00:00Z' };
+    expect(resolveReceiptSessionDates(voided)).toEqual({ usableUntil: null, coveredDay: null });
+    expect(
+      resolveReceiptSessionDates({ ...voided, consumed_at: '2026-10-13T08:00:00Z', covered_day: '2026-10-13' }),
+    ).toEqual({ usableUntil: null, coveredDay: null });
+    expect(resolveReceiptSessionDates(null)).toEqual({ usableUntil: null, coveredDay: null });
   });
 });

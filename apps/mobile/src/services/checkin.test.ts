@@ -49,6 +49,25 @@ describe('recordCheckIn', () => {
     expect((await recordCheckIn(null)).status).toBe('session_required');
   });
 
+  it('returns the price of the context that classified the refusal', async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+    refreshChargingContext.mockResolvedValue({ ...charged, planPrice: 5000, planCurrency: 'XAF' });
+    expect(await recordCheckIn(null)).toEqual({ status: 'session_required', sessionPrice: '5000 XAF' });
+  });
+
+  it('classifies from the passed context when the refresh hangs', async () => {
+    vi.useFakeTimers();
+    try {
+      rpc.mockResolvedValue({ data: null, error: null });
+      refreshChargingContext.mockReturnValue(new Promise(() => {}));
+      const pending = recordCheckIn(charged);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect((await pending).status).toBe('session_required');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('prefers the fresh context over a stale passed one', async () => {
     rpc.mockResolvedValue({ data: null, error: null });
     refreshChargingContext.mockResolvedValue(charged);
@@ -103,6 +122,12 @@ describe('syncPendingCheckIns', () => {
   it('uses the cached context when the online refresh is unavailable', async () => {
     getCachedChargingContext.mockResolvedValue(charged);
     expect(await syncPendingCheckIns()).toHaveLength(1);
+  });
+
+  it('records a denial when the charging context is unknown rather than dropping it silently', async () => {
+    expect(await syncPendingCheckIns()).toEqual([{ scanId: 'scan-1', scannedAt: record.scannedAt }]);
+    expect(persistSyncDenials).toHaveBeenCalled();
+    expect(deleteOfflineCheckIn).toHaveBeenCalledWith('scan-1');
   });
 
   it('records no denial for expired or exempt members but still deletes the row', async () => {

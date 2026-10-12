@@ -13,11 +13,11 @@ import { ThemedView } from '@/components/themed-view';
 import * as Haptics from 'expo-haptics';
 
 import { Spacing } from '@/constants/theme';
-import { SESSION_LAPSE_DAYS } from '@/lib/sessionState';
+import { resolveRefusal, SESSION_LAPSE_DAYS } from '@/lib/sessionState';
 import { GymAccentColorProvider } from '@/hooks/use-gym-accent-color';
 import { subscribeToPaymentStatus, fetchPaymentStatus, type WatchedPaymentStatus } from '@/lib/realtime/paymentStatus';
 import { supabase } from '@/lib/supabase';
-import { isChargedMember } from '@/lib/sessionState';
+import { isSubscriptionStatus } from '@/constants/subscription-status';
 import {
   getGymTaraMoneyConnectionStatus,
   getPendingMemberPayment,
@@ -129,16 +129,19 @@ function PaySessionScreenContent() {
         setNotAvailable(true);
         return;
       }
+      // Same rule as the refused-scan overlay: an expired/none member is
+      // not offered a session (check_in would still refuse them).
+      const status = subscriptionResult.data.status;
       const eligible =
         taraConnected &&
-        isChargedMember({
+        resolveRefusal({
           chargingEnabled: gymResult.data.charge_guests_per_session,
           planType: subscriptionResult.data.planType,
           planPrice: subscriptionResult.data.planPrice,
           planCurrency: subscriptionResult.data.planCurrency,
-          subscriptionStatus: null,
+          subscriptionStatus: isSubscriptionStatus(status) ? status : null,
           timezone: null,
-        });
+        }) === 'session_required';
       if (!eligible) {
         setNotAvailable(true);
         return;
@@ -204,6 +207,9 @@ function PaySessionScreenContent() {
     }
 
     function handleStatusChange(status: string) {
+      // removeChannel in the cleanup below reports CLOSED; polling must not
+      // restart after teardown.
+      if (!active) return;
       if (status === 'SUBSCRIBED') {
         stopPolling();
         // The payment may have settled before the channel was live; no

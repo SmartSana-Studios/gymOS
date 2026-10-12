@@ -3,6 +3,7 @@ import { FunctionsHttpError } from '@supabase/supabase-js';
 import { isGymSuspendedError } from '@gymos/types';
 
 import { supabase } from '@/lib/supabase';
+import { resolveReceiptSessionDates } from '@/lib/sessionState';
 
 export interface PaymentListRow {
   id: string;
@@ -169,8 +170,9 @@ export async function getPaymentReceipt(
         .select('usable_until, consumed_at, covered_day, voided_at')
         .eq('payment_id', row.id)
         .maybeSingle();
-      sessionUsableUntil = sessionRow && !sessionRow.voided_at ? sessionRow.usable_until : null;
-      sessionCoveredDay = sessionRow?.consumed_at ? (sessionRow.covered_day ?? sessionRow.consumed_at) : null;
+      const dates = resolveReceiptSessionDates(sessionRow);
+      sessionUsableUntil = dates.usableUntil;
+      sessionCoveredDay = dates.coveredDay;
     } catch {
       // Best-effort: the receipt still renders without the session dates.
     }

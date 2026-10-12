@@ -62,6 +62,7 @@ export default function CheckInScreen() {
   // Story 19.11: separate `info` overlays -- never the red expired screen.
   const [sessionRequired, setSessionRequired] = useState(false);
   const [canPayInApp, setCanPayInApp] = useState(false);
+  const [sessionPrice, setSessionPrice] = useState('');
   const [offlineVerify, setOfflineVerify] = useState(false);
   const [success, setSuccess] = useState(false);
   const [successOffline, setSuccessOffline] = useState(false);
@@ -355,6 +356,12 @@ export default function CheckInScreen() {
         return;
       }
       setCanPayInApp(connected);
+      // The price of the context that classified this refusal, which may be
+      // fresher than (or absent from) the provider's copy.
+      setSessionPrice(
+        checkInResult.sessionPrice ??
+          `${chargingContextRef.current?.planPrice ?? ''} ${chargingContextRef.current?.planCurrency ?? ''}`.trim(),
+      );
       setSessionRequired(true);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       return;
@@ -476,9 +483,7 @@ export default function CheckInScreen() {
                 {t('checkin.sessionRequiredTitle')}
               </ThemedText>
               <ThemedText type="default" style={[styles.centeredText, styles.infoText]}>
-                {t('checkin.sessionRequiredBody', {
-                  price: `${chargingContextRef.current?.planPrice ?? ''} ${chargingContextRef.current?.planCurrency ?? ''}`.trim(),
-                })}
+                {t('checkin.sessionRequiredBody', { price: sessionPrice })}
               </ThemedText>
               {canPayInApp && (
                 <Pressable accessibilityRole="button" onPress={handlePayNow} style={styles.overlayButton}>

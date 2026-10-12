@@ -18,8 +18,9 @@ import { useTheme } from '@/hooks/use-theme';
 import { useOfflineSync } from '@/lib/offline-sync-context';
 import {
   collapseDenials,
-  gymLocalDay,
+  homeSessionsOrFilter,
   isChargedMember,
+  isHomeActivityPayment,
   resolveRefusal,
   resolveSessionsLine,
   SESSION_LAPSE_DAYS,
@@ -269,8 +270,8 @@ export default function HomeScreen() {
       }
 
       // Story 19.11: charging state + own paid-session rows. Best-effort and
-      // non-blocking; never trips loadError. Also refreshes the shared cache
-      // the check-in screen reads while offline.
+      // non-blocking; never trips loadError. Local to Home: the check-in
+      // screen's offline cache is refreshed by the offline-sync provider.
       const ctx: ChargingContext = {
         chargingEnabled: gymResult.data.charge_guests_per_session,
         planType: subscriptionResult.kind === 'ok' ? subscriptionResult.data.planType : null,
@@ -291,9 +292,7 @@ export default function HomeScreen() {
             .select('usable_until, consumed_at, covered_day, voided_at')
             .eq('member_id', memberResult.data.id)
             .is('voided_at', null)
-            .or(
-              `and(consumed_at.is.null,usable_until.gt.${now.toISOString()}),covered_day.eq.${gymLocalDay(now, ctx.timezone)}`,
-            )
+            .or(homeSessionsOrFilter(now, ctx.timezone))
             .order('usable_until', { ascending: true })
             .limit(50);
           if (isCurrent() && !sessionError && sessionRows) {
@@ -328,7 +327,7 @@ export default function HomeScreen() {
         // Story 19.11: an unconfirmed/flagged session payment is not a
         // payment event on Home (history shows it as Failed/Processing).
         ...recentPayments
-          .filter((payment) => payment.purpose !== 'session' || payment.status === 'verified')
+          .filter(isHomeActivityPayment)
           .map((payment) => ({ kind: 'payment' as const, ...payment })),
       ].sort((a, b) => {
         const aTime = a.kind === 'checkin' ? a.checkedInAt : a.createdAt;
@@ -620,7 +619,7 @@ export default function HomeScreen() {
                         </ThemedText>
                       </View>
                     )}
-                    {sessionsLine && sessionsLine.usableCount > 0 && !sessionsLine.coveredToday && (
+                    {sessionsLine && badgeStatus !== 'expired' && badgeStatus !== 'no_plan' && sessionsLine.usableCount > 0 && !sessionsLine.coveredToday && (
                       <ThemedText type="small" themeColor="textSecondary">
                         {t('home.sessions.lapseCaption', { days: SESSION_LAPSE_DAYS })}
                       </ThemedText>

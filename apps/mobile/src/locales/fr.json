@@ -183,7 +183,7 @@
     "upcomingClasses": "Cours à venir",
     "myWorkoutPlan": "Mon programme d'entraînement",
     "offlineSessionPending": "Enregistrement hors ligne en attente de vérification…",
-    "sessionDenied": "Votre entrée du {{when}} n'a pas été comptée — vous n'aviez pas de séance payante. Voyez l'accueil si c'est une erreur.",
+    "sessionDenied": "Votre entrée du {{when}} n'a pas été comptée — aucune séance payante n'a été trouvée. Voyez l'accueil si c'est une erreur.",
     "sessionDeniedMore": "+{{count}} autre(s)",
     "sessions": {
       "coveredToday": "Aujourd'hui couvert",
@@ -237,7 +237,6 @@
       "loading": "Chargement de vos paiements…",
       "errorLoadFailed": "Impossible de charger vos paiements. Vérifiez votre connexion et réessayez.",
       "registrationFee": "Frais d'inscription",
-      "sessionPayment": "Paiement de séance",
       "sessionLabel": "Séance"
     },
     "checkins": {
@@ -292,7 +291,6 @@
     "statusLabel": "Statut",
     "errorLoadFailed": "Impossible de charger ce reçu. Vérifiez votre connexion et réessayez.",
     "registrationFee": "Frais d'inscription",
-    "sessionPayment": "Paiement de séance",
     "forLabel": "Pour",
     "sessionFor": "Séance",
     "useByLabel": "À utiliser avant le",

@@ -67,6 +67,27 @@ export async function getRecentCheckIns(memberId: string, limit: number): Promis
 export interface RecordCheckInResult {
   status: 'success' | 'already_checked_in' | 'expired' | 'session_required' | 'gym_suspended' | 'error';
   checkedInAt?: string;
+  /** 'session_required' only: the price of the per-session plan, from the
+   * context that classified the refusal (e.g. "5000 XAF"). */
+  sessionPrice?: string;
+}
+
+/** Upper bound on the online context read a refused scan waits for; past it
+ * the passed (provider/cached) context classifies instead. */
+const REFUSAL_REFRESH_TIMEOUT_MS = 4000;
+
+async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 /** Records an attendance event for the caller's own member/gym via the
@@ -102,8 +123,14 @@ export async function recordCheckIn(chargingContext: ChargingContext | null = nu
       // The passed context may be null/stale; classify from a fresh read
       // when one is reachable, so a member who only needs to pay never sees
       // the red expired screen.
-      const fresh = await refreshChargingContext();
-      return { status: resolveRefusal(fresh ?? chargingContext) };
+      const fresh = await withTimeout(refreshChargingContext(), REFUSAL_REFRESH_TIMEOUT_MS);
+      const context = fresh ?? chargingContext;
+      const status = resolveRefusal(context);
+      if (status === 'session_required' && context) {
+        const sessionPrice = `${context.planPrice ?? ''} ${context.planCurrency ?? ''}`.trim();
+        return { status, sessionPrice };
+      }
+      return { status };
     }
     return { status: 'success', checkedInAt: data.checked_in_at };
   } catch {
@@ -152,9 +179,12 @@ export async function syncPendingCheckIns(): Promise<SyncDenial[]> {
   }
 
   const denials: SyncDenial[] = [];
-  // A null result is only a missing-session denial for a charged member;
-  // expired or exempt members keep the shipped silent behaviour.
-  const chargedMember = isSessionDenial((await refreshChargingContext()) ?? (await getCachedChargingContext()));
+  // A null result is a missing-session denial for a charged, non-expired
+  // member. Expired or exempt members (known context) keep the shipped
+  // silent behaviour; an unknown context (fresh install, cleared cache) is
+  // recorded rather than dropped silently.
+  const context = (await refreshChargingContext()) ?? (await getCachedChargingContext());
+  const recordDenials = context === null || isSessionDenial(context);
 
   for (const record of pending) {
     try {
@@ -166,7 +196,7 @@ export async function syncPendingCheckIns(): Promise<SyncDenial[]> {
       const recoverable =
         error?.message?.includes('already has an open check-in') || isGymSuspendedError(error);
 
-      if (!error && !data && chargedMember) {
+      if (!error && !data && recordDenials) {
         denials.push({ scanId: record.id, scannedAt: record.scannedAt });
         // Persist before deleting the queue row, so a crash between the two
         // can only re-surface a denial (deduped by scan id), never lose it.

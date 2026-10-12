@@ -115,3 +115,47 @@ context:
 - `bash scripts/ci-local.sh` -- expected: all stages PASS
 
 **Manual checks (product owner on device, per epic):** refused → pay in app → scan; refused → desk pays → scan; offline scan then sync with and without a session; second scan same day costs nothing.
+
+### Review Findings
+
+Code review 2026-10-12 (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor; full diff vs epic/19). 2 decision-needed, 12 patch, 2 defer, 14 rejected.
+
+- [x] [Review][Decision] Resolved (a): record a denial when the context is unknown, neutral copy. Sync denial is still silent when the charging context is unknown, and is classified at sync time not scan time — `syncPendingCheckIns` gates on `isSessionDenial(refresh ?? cached)`; with both null (fresh install, cleared cache) or an expired/none member the null result deletes the queue row with no notice, contradicting the frozen "never silently" clause. Conversely a null caused by another server rule, or a member who renewed after scanning, is labelled "no paid session". Options: (a) record a denial whenever context is unknown, with neutral copy; (b) keep silent for unknown and amend the frozen clause; (c) classify from a context snapshot taken at scan time. [apps/mobile/src/services/checkin.ts:158]
+- [x] [Review][Decision] Resolved: qualify EN ("paid session"). EN copy leaves "session" unqualified in several strings (checkin.sessionRequiredTitle, home.paySession, paySession.title, paySession.success.title, history.payments.sessionLabel, home.sessionPaymentRecorded, checkin.offlineVerifyTitle) — spec Boundaries and epic both say "session" is qualified in EN, but the epic's own UX copy uses the short form. Pick which wins. [apps/mobile/src/locales/en.json]
+- [x] [Review][Patch] Lockfile re-resolved unrelated deps (next 16.3.8→16.4.0, supabase-js 2.117.2→2.117.3, react-query 5.104.1→5.104.2, picomatch, es-module-lexer, eslint-config-next peers) in a mobile-only story — restore from epic/19 and re-add only expo-haptics and vitest [pnpm-lock.yaml]
+- [x] [Review][Patch] Home guest_sessions server filter, session-payment activity predicate and receipt session dates have no test; reverting any of them leaves every test green — extract pure helpers (e.g. `isHomeActivityPayment`, receipt session-date resolver) into `sessionState.ts` and cover voided/consumed/flagged cases [apps/mobile/src/app/(tabs)/index.tsx:325, apps/mobile/src/services/payments.ts:163]
+- [x] [Review][Patch] pay-session polling interval leaks after unmount: cleanup calls `removeChannel`, whose CLOSED status callback hits `handleStatusChange` → `startPolling()` after `stopPolling()` already ran; add `if (!active) return;` [apps/mobile/src/app/pay-session.tsx:206]
+- [x] [Review][Patch] `session_required` branch returns after the Tara status await without `setValidating(false)`; a blurred-but-mounted check-in tab keeps the validating state on return [apps/mobile/src/app/(tabs)/checkin.tsx:349]
+- [x] [Review][Patch] Session-required overlay renders " covers the whole day." with no price when the context that classified the refusal never reached the provider ref — return the classifying context's price/currency from `recordCheckIn` [apps/mobile/src/app/(tabs)/checkin.tsx:480, apps/mobile/src/services/checkin.ts:104]
+- [x] [Review][Patch] Home maps a transient subscription `kind === 'error'` to status 'none'/null plan, which hides the sessions line and pay button and clears `guestSessionRows`; keep prior state on error [apps/mobile/src/app/(tabs)/index.tsx:272]
+- [x] [Review][Patch] Lapse caption is gated only on `usableCount > 0`, not on `badgeStatus`, so an expired/no-plan member with a usable session sees the caption with no sessions line [apps/mobile/src/app/(tabs)/index.tsx:622]
+- [x] [Review][Patch] Receipt shows "Used on" for a voided consumed session (`sessionCoveredDay` ignores `voided_at`) and falls back to a raw `consumed_at` timestamp as if it were a gym-local day [apps/mobile/src/services/payments.ts:174]
+- [x] [Review][Patch] `/pay-session` eligibility passes `subscriptionStatus: null`, so an expired/none member who reaches the screen can pay for a session `check_in` will still refuse; gate with `resolveRefusal(...) === 'session_required'` using the loaded subscription status [apps/mobile/src/app/pay-session.tsx:900]
+- [x] [Review][Patch] `recordCheckIn` awaits a four-call online `refreshChargingContext()` on every refused scan with no timeout; bound it and fall back to the passed/cached context [apps/mobile/src/services/checkin.ts:104]
+- [x] [Review][Patch] Home comment claims it "also refreshes the shared cache the check-in screen reads" but only calls local `setChargingCtx`; correct the comment [apps/mobile/src/app/(tabs)/index.tsx:272]
+- [x] [Review][Patch] Dead i18n keys `history.payments.sessionPayment` and `paymentDetail.sessionPayment` are unreferenced after this change; remove from EN and FR [apps/mobile/src/locales/en.json:240]
+- [x] [Review][Defer] A paid session that lapses unused disappears from Home with no explanation ("No paid session") and the receipt shows a past "Use by" — deferred: unverified medium; the matrix has no lapsed row and the caption is the only specified lapse surface, so product owner must say whether a lapsed state is wanted (Epic 19 follow-up)
+- [x] [Review][Defer] Flagged session payment shows "Failed" + [Try again] with no "contact the front desk if you were debited / retrying may charge twice" guidance — deferred: unverified medium; settle by checking which `flagged_reason` values can have moved money (`expired_attempt` late-confirms per 0109, `provider_declined` does not) and deciding copy per reason
+
+#### Rejected
+
+- Double-tap on [Pay] fires two RPCs — rejected: `setPhase('sending')` disables the button on next render and the server returns `session_payment_already_in_progress`; low, fix adds a ref guard.
+- Home "Use by" date uses device timezone — rejected: `usable_until` is an instant; low and negligible.
+- Hard-coded `#4ADE80`/`#F87171`/dark-only INFO_STATUS — rejected: same constants and dark palette as shipped screens (`STATUS_COLORS`, existing `error` style).
+- Denial notice offers only "Got it" — rejected: spec matrix specifies a dismissible notice; recovery path is a product request, not a defect.
+- Provider chargingContext/sessionDenials not reset on user switch — rejected: shared-device user switch is rare, cache and denials are per-user keyed, foreground/check-in focus refresh corrects it; fix needs auth plumbing into the provider.
+- Unchecked `as SessionSubscriptionStatus` cast / Home raw status — rejected (false): `isSubscriptionStatus` restricts to the four known values before the cast.
+- `isSubscriptionRow` now requires `plan_type` and would fail the whole read — rejected (false): `plan_type` is a NOT NULL column selected explicitly.
+- Receipt "Use by <past date>" for an unused lapsed session — rejected: the date is accurate; lapsed-state design is covered by the deferred item above.
+- `getPendingMemberPayment` `.is('voided_at', null)` changes /renew — rejected (false): `payments.voided_at` exists (0099) and a voided processing payment should not be resumed.
+- `syncPendingCheckIns` returned array can hold unpersisted/duplicate denials — rejected: nothing consumes the return value; negligible.
+- Split imports in `pay-session.tsx` — rejected: cosmetic.
+- FR plural hand-built as "autre(s)" — rejected: cosmetic, fix adds plural key plumbing.
+- Spec frontmatter `done` vs sprint-status `review`, 11 vs 23 tests, stale Code Map line, `review_loop_iteration` 0 — rejected: fix edits the spec under review; sprint-status is synced by this workflow.
+- AC "ci-local passes every stage" not evidenced (pgtap/e2e not run, dirty tree) — rejected as a code finding: process gate; per project rule `scripts/ci-local.sh` must run on a clean tree before merge.
+
+#### Review patch outcomes (2026-10-12)
+
+- Applied: lockfile restored to epic/19 plus only the expo-haptics/vitest entries (`--frozen-lockfile` clean); `homeSessionsOrFilter`, `isHomeActivityPayment`, `resolveReceiptSessionDates` extracted to `sessionState.ts` with tests; polling `!active` guard; sessionPrice from the classifying context; refusal refresh bounded at 4 s; lapse caption gated on badge status; voided receipt shows no dates; `/pay-session` gated with `resolveRefusal`; Home comment corrected; dead i18n keys removed; EN strings qualified; sync denial recorded for an unknown context (tests added).
+- No change needed: validating-spinner patch (`setValidating(false)` already runs before the `session_required` branch) and the Home subscription-error patch (`kind === 'error'` sets `loadError` and returns before the charging context is built; the `'none'` status only maps `no_subscription`).
+- Verification: `tsc --noEmit` clean, vitest 31/31, `pnpm check:i18n` parity, mobile lint 0 errors. `scripts/ci-local.sh` still to run on a clean tree before merge.
