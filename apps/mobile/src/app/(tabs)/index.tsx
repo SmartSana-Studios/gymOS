@@ -13,8 +13,19 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { STATUS_COLORS, statusLabelKey, type BadgeStatus, type SubscriptionStatus } from '@/constants/subscription-status';
+import { INFO_STATUS } from '@/constants/info-status';
 import { useTheme } from '@/hooks/use-theme';
 import { useOfflineSync } from '@/lib/offline-sync-context';
+import {
+  collapseDenials,
+  gymLocalDay,
+  isChargedMember,
+  resolveRefusal,
+  resolveSessionsLine,
+  SESSION_LAPSE_DAYS,
+  type ChargingContext,
+  type GuestSessionRow,
+} from '@/lib/sessionState';
 import { getRecentCheckIns, type RecentCheckIn } from '@/services/checkin';
 import { listMyClassBookings, type MyClassBooking } from '@/services/classes';
 import { getOccupancyBand, type OccupancyBand } from '@/services/occupancy';
@@ -100,7 +111,7 @@ export default function HomeScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { pendingCheckInCount } = useOfflineSync();
+  const { pendingCheckInCount, sessionDenials, dismissSessionDenials } = useOfflineSync();
   const theme = useTheme();
 
   const [loading, setLoading] = useState(true);
@@ -128,6 +139,11 @@ export default function HomeScreen() {
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [expiryDate, setExpiryDate] = useState<string | null>(null);
   const [planName, setPlanName] = useState<string | null>(null);
+
+  // Story 19.11: per-session charging state. Exempt members (flag off, other
+  // plan type, price 0) leave both null/empty and see Home exactly as before.
+  const [chargingCtx, setChargingCtx] = useState<ChargingContext | null>(null);
+  const [guestSessionRows, setGuestSessionRows] = useState<GuestSessionRow[]>([]);
 
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [occupancyBand, setOccupancyBand] = useState<OccupancyBand | null>(null);
@@ -190,7 +206,7 @@ export default function HomeScreen() {
 
       const [userResult, gymResult, memberResult] = await Promise.all([
         supabase.from('users').select('display_name, photo_url').eq('id', userId).single(),
-        supabase.from('gyms').select('name, logo_url').single(),
+        supabase.from('gyms').select('name, logo_url, charge_guests_per_session, timezone').single(),
         supabase
           .from('members')
           .select('id')
@@ -252,6 +268,51 @@ export default function HomeScreen() {
         setPlanName(subscriptionResult.data.planName);
       }
 
+      // Story 19.11: charging state + own paid-session rows. Best-effort and
+      // non-blocking; never trips loadError. Also refreshes the shared cache
+      // the check-in screen reads while offline.
+      const ctx: ChargingContext = {
+        chargingEnabled: gymResult.data.charge_guests_per_session,
+        planType: subscriptionResult.kind === 'ok' ? subscriptionResult.data.planType : null,
+        planPrice: subscriptionResult.kind === 'ok' ? subscriptionResult.data.planPrice : null,
+        planCurrency: subscriptionResult.kind === 'ok' ? subscriptionResult.data.planCurrency : null,
+        subscriptionStatus: subscriptionResult.kind === 'ok' ? subscriptionResult.data.status : 'none',
+        timezone: gymResult.data.timezone,
+      };
+      setChargingCtx(ctx);
+      if (isChargedMember(ctx)) {
+        try {
+          // Server-side filter: only rows that matter (usable now, or the
+          // one covering the gym-local day) so old history can't push them
+          // out of the limit.
+          const now = new Date();
+          const { data: sessionRows, error: sessionError } = await supabase
+            .from('guest_sessions')
+            .select('usable_until, consumed_at, covered_day, voided_at')
+            .eq('member_id', memberResult.data.id)
+            .is('voided_at', null)
+            .or(
+              `and(consumed_at.is.null,usable_until.gt.${now.toISOString()}),covered_day.eq.${gymLocalDay(now, ctx.timezone)}`,
+            )
+            .order('usable_until', { ascending: true })
+            .limit(50);
+          if (isCurrent() && !sessionError && sessionRows) {
+            setGuestSessionRows(
+              sessionRows.map((r) => ({
+                usableUntil: r.usable_until,
+                consumedAt: r.consumed_at,
+                coveredDay: r.covered_day,
+                voidedAt: r.voided_at,
+              })),
+            );
+          }
+        } catch {
+          // Keep whatever is on screen.
+        }
+      } else if (isCurrent()) {
+        setGuestSessionRows([]);
+      }
+
       // Story 4.9 AC #3: check-ins and payments fetched in parallel, merged
       // into one tagged-union array, sorted by timestamp descending, capped
       // to the top RECENT_ACTIVITY_LIMIT -- still best-effort/non-blocking
@@ -264,7 +325,11 @@ export default function HomeScreen() {
       if (!isCurrent()) return;
       const merged: ActivityItem[] = [
         ...recentCheckIns.map((event) => ({ kind: 'checkin' as const, ...event })),
-        ...recentPayments.map((payment) => ({ kind: 'payment' as const, ...payment })),
+        // Story 19.11: an unconfirmed/flagged session payment is not a
+        // payment event on Home (history shows it as Failed/Processing).
+        ...recentPayments
+          .filter((payment) => payment.purpose !== 'session' || payment.status === 'verified')
+          .map((payment) => ({ kind: 'payment' as const, ...payment })),
       ].sort((a, b) => {
         const aTime = a.kind === 'checkin' ? a.checkedInAt : a.createdAt;
         const bTime = b.kind === 'checkin' ? b.checkedInAt : b.createdAt;
@@ -353,6 +418,18 @@ export default function HomeScreen() {
   // `expiring_soon`/`grace_period` member still has access and should keep
   // the Check In shortcut alongside Renew, not lose it.
   const showCheckInAction = badgeStatus !== 'expired';
+
+  // Story 19.11: sessions line / pay action / offline variant / denial notice.
+  const charged = isChargedMember(chargingCtx);
+  const sessionsLine = charged ? resolveSessionsLine(guestSessionRows, chargingCtx?.timezone ?? null) : null;
+  const showSessionPay =
+    charged &&
+    taraMoneyConnected &&
+    resolveRefusal(chargingCtx) === 'session_required' &&
+    !!sessionsLine &&
+    !sessionsLine.coveredToday &&
+    sessionsLine.usableCount === 0;
+  const collapsedDenials = collapseDenials(sessionDenials);
 
   // Epic 15 (Story 15.3): expiring_soon/grace_period get a "days until
   // expiry" framing (day count in statNumeral emphasis) instead of a plain
@@ -446,11 +523,36 @@ export default function HomeScreen() {
           {pendingCheckInCount > 0 && (
             <View style={styles.offlineBanner}>
               <ThemedText type="small" style={styles.offlineBannerText}>
-                {t('home.offlineSyncPending')}
+                {charged ? t('home.offlineSessionPending') : t('home.offlineSyncPending')}
               </ThemedText>
             </View>
           )}
 
+
+          {collapsedDenials && (
+            <View
+              accessibilityRole="alert"
+              accessibilityLiveRegion="polite"
+              style={[styles.denialNotice, { backgroundColor: INFO_STATUS.bg, borderColor: INFO_STATUS.border }]}>
+              <MaterialIcons name="confirmation-number" size={20} color={INFO_STATUS.text} />
+              <View style={styles.denialNoticeText}>
+                <ThemedText type="small" style={{ color: INFO_STATUS.text }}>
+                  {t('home.sessionDenied', {
+                    when: formatCheckInTimestamp(collapsedDenials.latest.scannedAt, i18n.language),
+                  })}
+                  {collapsedDenials.more > 0 ? ` ${t('home.sessionDeniedMore', { count: collapsedDenials.more })}` : ''}
+                </ThemedText>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                hitSlop={Spacing.two}
+                onPress={() => void dismissSessionDenials()}>
+                <ThemedText type="small" style={{ color: INFO_STATUS.text, fontWeight: '600' }}>
+                  {t('home.sessionDeniedGotIt')}
+                </ThemedText>
+              </Pressable>
+            </View>
+          )}
 
           {loading && !hasLoadedOnce && !loadError && <ActivityIndicator style={styles.loadingIndicator} />}
 
@@ -489,6 +591,40 @@ export default function HomeScreen() {
                         {statusNoteContent}
                       </ThemedText>
                     )}
+                    {sessionsLine && badgeStatus !== 'expired' && badgeStatus !== 'no_plan' && (
+                      <View style={styles.sessionsLine}>
+                        <MaterialIcons
+                          name="confirmation-number"
+                          size={16}
+                          color={sessionsLine.tone === 'success' ? '#4ADE80' : sessionsLine.tone === 'neutral' ? theme.textSecondary : INFO_STATUS.text}
+                        />
+                        <ThemedText
+                          type="small"
+                          style={{
+                            color:
+                              sessionsLine.tone === 'success'
+                                ? '#4ADE80'
+                                : sessionsLine.tone === 'neutral'
+                                  ? theme.textSecondary
+                                  : INFO_STATUS.text,
+                            flexShrink: 1,
+                          }}>
+                          {sessionsLine.coveredToday
+                            ? t('home.sessions.coveredToday')
+                            : sessionsLine.usableCount > 0 && sessionsLine.soonestUsableUntil
+                              ? t('home.sessions.ready', {
+                                  count: sessionsLine.usableCount,
+                                  date: new Date(sessionsLine.soonestUsableUntil).toLocaleDateString(i18n.language),
+                                })
+                              : t('home.sessions.none')}
+                        </ThemedText>
+                      </View>
+                    )}
+                    {sessionsLine && sessionsLine.usableCount > 0 && !sessionsLine.coveredToday && (
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {t('home.sessions.lapseCaption', { days: SESSION_LAPSE_DAYS })}
+                      </ThemedText>
+                    )}
                   </View>
                 </Card>
               </Pressable>
@@ -500,6 +636,8 @@ export default function HomeScreen() {
                   </ThemedText>
                 </View>
               )}
+
+              {showSessionPay && <Button label={t('home.paySession')} onPress={() => router.push('/pay-session')} />}
 
               <View style={styles.quickActions}>
                 {showRenewCta && (
@@ -591,7 +729,11 @@ export default function HomeScreen() {
                           <ListItem
                             icon="payments"
                             tint="success"
-                            title={t('home.paymentRecorded', { amount: item.amount, currency: item.currency })}
+                            title={
+                              item.purpose === 'session'
+                                ? t('home.sessionPaymentRecorded', { amount: item.amount, currency: item.currency })
+                                : t('home.paymentRecorded', { amount: item.amount, currency: item.currency })
+                            }
                             meta={formatCheckInTimestamp(item.createdAt, i18n.language)}
                             onPress={() => router.push(`/history/payment/${item.id}`)}
                           />
@@ -699,6 +841,23 @@ const styles = StyleSheet.create({
   },
   error: {
     color: '#F87171',
+  },
+  denialNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderWidth: 1,
+    borderRadius: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  denialNoticeText: {
+    flex: 1,
+  },
+  sessionsLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
   },
   statusCard: {
     flexDirection: 'row',

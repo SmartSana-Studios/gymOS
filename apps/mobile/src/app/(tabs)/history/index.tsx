@@ -395,12 +395,19 @@ export default function HistoryScreen() {
                   const statusColors = isPaymentStatus(itemStatus)
                     ? PAYMENT_STATUS_COLORS[itemStatus]
                     : { bg: theme.surfaceElevated, border: theme.border, text: theme.textSecondary };
-                  const statusLabel = isPaymentStatus(itemStatus) ? t(paymentStatusLabelKey[itemStatus]) : itemStatus;
+                  // Story 19.11: a flagged session payment never created a
+                  // session -- to the member it simply failed.
+                  const statusLabel =
+                    item.isSession && itemStatus === 'flagged'
+                      ? t('payments.status.failed')
+                      : isPaymentStatus(itemStatus)
+                        ? t(paymentStatusLabelKey[itemStatus])
+                        : itemStatus;
                   const methodLabel = isPaymentMethod(item.method) ? t(PAYMENT_METHOD_LABEL_KEY[item.method]) : item.method;
                   const planLabel = item.isRegistrationFee
                     ? t('history.payments.registrationFee')
                     : item.isSession
-                      ? t('history.payments.sessionPayment')
+                      ? t('history.payments.sessionLabel')
                       : (item.planName ?? t('history.payments.planUnavailable'));
 
                   return (

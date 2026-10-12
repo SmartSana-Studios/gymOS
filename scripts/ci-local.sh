@@ -76,7 +76,7 @@ stage_pgtap() {
 
 stage_unit() {
   set -e
-  npx turbo run test --filter=@gymos/dashboard
+  npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile
 }
 
 psql_local() {

@@ -136,7 +136,13 @@
     "deniedExpiredTitle": "Accès refusé",
     "deniedExpiredBody": "Votre adhésion a expiré.\nVeuillez voir l'accueil.",
     "seeFrontDesk": "Voir l'accueil",
-    "checkedInSyncing": "{{time}} · Synchronisation en cours…"
+    "checkedInSyncing": "{{time}} · Synchronisation en cours…",
+    "sessionRequiredTitle": "Payez votre séance",
+    "sessionRequiredBody": "Vous avez besoin d'une séance payante pour entrer aujourd'hui. {{price}} couvre toute la journée.",
+    "payNow": "Payer maintenant",
+    "offlineVerifyTitle": "Entrée enregistrée — votre séance sera vérifiée",
+    "offlineVerifyBody": "Nous confirmerons votre séance payante dès que vous serez de nouveau en ligne. Si aucune n'est trouvée, nous vous le dirons sur l'écran d'accueil.",
+    "sessionSeeFrontDesk": "Voir l'accueil"
   },
   "home": {
     "welcomeBack": "Content de vous revoir, {{name}}",
@@ -175,7 +181,20 @@
     "offlineSyncPending": "Enregistrement hors ligne en attente de synchronisation…",
     "renew": "Renouveler",
     "upcomingClasses": "Cours à venir",
-    "myWorkoutPlan": "Mon programme d'entraînement"
+    "myWorkoutPlan": "Mon programme d'entraînement",
+    "offlineSessionPending": "Enregistrement hors ligne en attente de vérification…",
+    "sessionDenied": "Votre entrée du {{when}} n'a pas été comptée — vous n'aviez pas de séance payante. Voyez l'accueil si c'est une erreur.",
+    "sessionDeniedMore": "+{{count}} autre(s)",
+    "sessions": {
+      "coveredToday": "Aujourd'hui couvert",
+      "ready_one": "{{count}} séance payante · à utiliser avant le {{date}}",
+      "ready_other": "{{count}} séances payantes · à utiliser avant le {{date}}",
+      "none": "Aucune séance payante — payez avant de scanner.",
+      "lapseCaption": "Une séance payante non utilisée expire après {{days}} jours."
+    },
+    "paySession": "Payer une séance",
+    "sessionPaymentRecorded": "Paiement de séance : {{amount}} {{currency}}",
+    "sessionDeniedGotIt": "Compris"
   },
   "classes": {
     "title": "Cours",
@@ -218,7 +237,8 @@
       "loading": "Chargement de vos paiements…",
       "errorLoadFailed": "Impossible de charger vos paiements. Vérifiez votre connexion et réessayez.",
       "registrationFee": "Frais d'inscription",
-      "sessionPayment": "Paiement de séance"
+      "sessionPayment": "Paiement de séance",
+      "sessionLabel": "Séance"
     },
     "checkins": {
       "empty": "Aucun enregistrement pour le moment. Scannez le QR code de votre salle pour commencer.",
@@ -272,14 +292,19 @@
     "statusLabel": "Statut",
     "errorLoadFailed": "Impossible de charger ce reçu. Vérifiez votre connexion et réessayez.",
     "registrationFee": "Frais d'inscription",
-    "sessionPayment": "Paiement de séance"
+    "sessionPayment": "Paiement de séance",
+    "forLabel": "Pour",
+    "sessionFor": "Séance",
+    "useByLabel": "À utiliser avant le",
+    "usedOnLabel": "Utilisée le"
   },
   "payments": {
     "status": {
       "pending": "En attente",
       "processing": "En cours",
       "verified": "Vérifié",
-      "flagged": "Signalé"
+      "flagged": "Signalé",
+      "failed": "Échoué"
     },
     "methods": {
       "mtnMomo": "MTN Mobile Money",
@@ -421,5 +446,29 @@
     "checking": "Vérification…",
     "stillAwaiting": "Votre inscription n'est toujours pas terminée.",
     "refreshFailed": "Vérification impossible pour le moment. Veuillez réessayer."
+  },
+  "paySession": {
+    "title": "Payer une séance",
+    "confirmButton": "Payer {{amount}} {{currency}}",
+    "pending": {
+      "description": "Vérifiez votre téléphone et validez la demande pour payer votre séance."
+    },
+    "success": {
+      "title": "Séance payée",
+      "description": "Scannez le QR code pour entrer.",
+      "scanButton": "Scanner maintenant"
+    },
+    "errors": {
+      "loadFailed": "Impossible de charger votre abonnement. Vérifiez votre connexion et réessayez.",
+      "notAvailable": "Le paiement d'une séance dans l'application n'est pas disponible pour le moment. Rendez-vous à l'accueil.",
+      "chargingDisabled": "Cette salle ne facture pas à la séance pour le moment.",
+      "planNotPerSession": "Votre abonnement ne nécessite pas de séance payante.",
+      "priceNotSet": "Le prix de la séance de votre abonnement n'est pas encore défini. Rendez-vous à l'accueil.",
+      "alreadyInProgress": "Vous avez déjà un paiement de séance en cours. Vérifiez votre téléphone ou patientez un instant.",
+      "noProvider": "Le paiement par Mobile Money n'est pas disponible pour le moment. Voyez l'accueil pour payer en espèces.",
+      "mobileMoneyDisabled": "Le paiement par Mobile Money n'est pas disponible pour le moment. Voyez l'accueil pour payer en espèces.",
+      "initiateFailed": "Une erreur s'est produite. Réessayez."
+    },
+    "coversDay": "Couvre toute la journée."
   }
 }

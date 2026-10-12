@@ -92,6 +92,11 @@ export interface PaymentReceipt {
   status: string;
   isRegistrationFee: boolean;
   isSession: boolean;
+  /** Story 19.11: session receipts only -- from the member-readable
+   * guest_sessions row the payment created (null until verified). */
+  sessionUsableUntil: string | null;
+  /** Gym-local day the session was used on, once consumed. */
+  sessionCoveredDay: string | null;
 }
 
 interface PaymentReceiptRowFromDb {
@@ -155,6 +160,22 @@ export async function getPaymentReceipt(
     actorName = actorRow?.name ?? null;
   }
 
+  let sessionUsableUntil: string | null = null;
+  let sessionCoveredDay: string | null = null;
+  if (row.purpose === 'session') {
+    try {
+      const { data: sessionRow } = await supabase
+        .from('guest_sessions')
+        .select('usable_until, consumed_at, covered_day, voided_at')
+        .eq('payment_id', row.id)
+        .maybeSingle();
+      sessionUsableUntil = sessionRow && !sessionRow.voided_at ? sessionRow.usable_until : null;
+      sessionCoveredDay = sessionRow?.consumed_at ? (sessionRow.covered_day ?? sessionRow.consumed_at) : null;
+    } catch {
+      // Best-effort: the receipt still renders without the session dates.
+    }
+  }
+
   return {
     id: row.id,
     memberName,
@@ -169,6 +190,8 @@ export async function getPaymentReceipt(
     status: row.status,
     isRegistrationFee: row.purpose === 'registration_fee',
     isSession: row.purpose === 'session',
+    sessionUsableUntil,
+    sessionCoveredDay,
   };
 }
 
@@ -177,6 +200,9 @@ export interface RecentPayment {
   createdAt: string;
   amount: number;
   currency: string;
+  /** Story 19.11: 'subscription' | 'registration_fee' | 'session'. */
+  purpose: string;
+  status: string;
 }
 
 /** Home screen's combined Recent Activity feed (AC #3). Deliberately smaller
@@ -188,14 +214,21 @@ export async function getRecentPayments(memberId: string, limit: number): Promis
   try {
     const { data, error } = await supabase
       .from('payments')
-      .select('id, amount, currency, created_at')
+      .select('id, amount, currency, created_at, purpose, status')
       .eq('member_id', memberId)
       .order('created_at', { ascending: false })
       .limit(limit);
 
     if (error || !data) return [];
 
-    return data.map((row) => ({ id: row.id, createdAt: row.created_at, amount: row.amount, currency: row.currency }));
+    return data.map((row) => ({
+      id: row.id,
+      createdAt: row.created_at,
+      amount: row.amount,
+      currency: row.currency,
+      purpose: row.purpose,
+      status: row.status,
+    }));
   } catch {
     return [];
   }
@@ -236,7 +269,15 @@ export async function getGymTaraMoneyConnectionStatus(): Promise<boolean> {
  * second tap resumes the existing row instead of firing a duplicate real
  * USSD prompt (same bug class Story 4.12's review caught for the front-desk
  * path). */
-export async function getPendingMemberPayment(memberId: string): Promise<{ paymentId: string } | null> {
+export type PaymentPurpose = 'subscription' | 'session';
+
+/** Story 19.11: filtered by purpose so `/renew` and `/pay-session` never
+ * resume each other's pending payment. `/renew` keeps the 'subscription'
+ * default. */
+export async function getPendingMemberPayment(
+  memberId: string,
+  purpose: PaymentPurpose = 'subscription',
+): Promise<{ paymentId: string } | null> {
   try {
     const { data, error } = await supabase
       .from('payments')
@@ -244,6 +285,8 @@ export async function getPendingMemberPayment(memberId: string): Promise<{ payme
       .eq('member_id', memberId)
       .eq('method', 'mobile_money')
       .eq('status', 'processing')
+      .eq('purpose', purpose)
+      .is('voided_at', null)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -361,6 +404,77 @@ export async function initiateMemberPayment(phoneNumber: string): Promise<Initia
     }
 
     return { paymentId, code: 'success' };
+  } catch {
+    return { paymentId: null, code: 'error' };
+  }
+}
+
+// ============================================================================
+// Story 19.11: pay for a per-visit session. `initiate_session_payment()`
+// (0109) derives the amount from the caller's own plan server-side -- the
+// amount is never sent from the client -- and returns the payment row it
+// inserted plus its provider key.
+// ============================================================================
+
+export interface InitiateSessionPaymentResult {
+  paymentId: string | null;
+  code:
+    | 'success'
+    | 'charging_disabled'
+    | 'plan_not_per_session'
+    | 'session_price_not_set'
+    | 'session_payment_already_in_progress'
+    | 'no_active_provider'
+    | 'gym_credentials_unavailable'
+    | 'mobile_money_disabled'
+    | 'gym_suspended'
+    | 'error';
+}
+
+function mapSessionErrorCode(message: string | undefined): InitiateSessionPaymentResult['code'] {
+  if (!message) return 'error';
+  if (isGymSuspendedError({ message })) return 'gym_suspended';
+  for (const code of [
+    'charging_disabled',
+    'plan_not_per_session',
+    'session_price_not_set',
+    'session_payment_already_in_progress',
+    'no_active_provider',
+  ] as const) {
+    if (message.includes(code)) return code;
+  }
+  return 'error';
+}
+
+export async function initiateSessionPayment(phoneNumber: string): Promise<InitiateSessionPaymentResult> {
+  try {
+    const { data, error: rpcError } = await supabase.rpc('initiate_session_payment');
+    const row = Array.isArray(data) ? data[0] : null;
+    if (rpcError || !row?.payment_id || !row.provider_key) {
+      return { paymentId: null, code: mapSessionErrorCode(rpcError?.message) };
+    }
+
+    const bareDigitPhone = phoneNumber.replace(/^\+/, '');
+    const { error: invokeError } = await supabase.functions.invoke(`payment-webhook/initiate/${row.provider_key}`, {
+      body: { paymentId: row.payment_id, phoneNumber: bareDigitPhone },
+    });
+
+    if (invokeError) {
+      if (invokeError instanceof FunctionsHttpError) {
+        let code: string | undefined;
+        try {
+          code = (await invokeError.context.json())?.code;
+        } catch {
+          // Unreadable body -- generic error below.
+        }
+        if (code === 'gym_credentials_unavailable' || code === 'mobile_money_disabled') {
+          return { paymentId: null, code };
+        }
+      }
+      return { paymentId: null, code: 'error' };
+    }
+
+    return { paymentId: row.payment_id, code: 'success' };
   } catch {
     return { paymentId: null, code: 'error' };
   }
