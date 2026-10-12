@@ -1,6 +1,6 @@
 # V1.6 (Epic 19) staged production deploy
 
-Status: **stage 1a (0106-0109) and stage 1b (0110) APPLIED to production 2026-10-12** (1a around 13:15 UTC, 1b at about 17:10 UTC after a rolled-back dry run and db-backup run 38281957800; head 0110, charging on for 0 gyms, anon EXECUTE false). **7-day soak runs until 2026-10-19: nothing else from V1.6 lands before then.** Stage 2 and 3 not started.
+Status: **stages 1a (0106-0109), 1b (0110) and 2 (0111-0114, 0116) APPLIED to production 2026-10-12** (head 0116; 1a ~13:15 UTC, 1b ~17:10, stage 2 ~17:50, each after a rolled-back dry run and a green db-backup run; charging on for 0 gyms, anon EXECUTE false, direct client writes on attendance_events/class_bookings.attended_at revoked). **The 7-day soak on 0110 was deliberately overridden by the owner on 2026-10-12** after a live alert test (alert raised, dismissed, no duplicate; member in good standing checked in). **Not applied: 0115 (stage 3, gated).** PR #52 merges next.
 
 Production has live gyms. Everything V1.6 is off per gym until an Owner/Supervisor enables it, so the risk is in the *plumbing* migrations (0106-0110 touch live payment/alert paths) and in ordering the dashboard deploy after the schema it queries.
 
@@ -19,8 +19,8 @@ Merging to `master` auto-deploys the dashboard (Vercel Git integration). The epi
 |---|---|---|---|---|
 | **1a** | 0106, 0107, 0108, 0109 (additive: reason column, charging setting + `guest_sessions`, desk and in-app payment RPCs) | `node scripts/prod-apply.mjs 1a --apply --backup-confirmed` | 0105 | Deploy the `payment-webhook` edge function (purpose `session` dispatch), smoke-test a subscription payment and the webhook round trip, watch `job_runs`. |
 | **1b** | **0110 alone** (alert `kind` refactor, no behaviour change; rewrites the alert path of every live gym) | `node scripts/prod-apply.mjs 1b --apply --backup-confirmed` | 0109 | **7-day soak**: front-desk alerts must still raise, dismiss and auto-dismiss on a real gym. Nothing else from V1.6 lands. |
-| **2** | 0111 gate, 0112 class gate, 0113 refunds/revenue, 0114 overview RPCs, **0116** alert cooldown | *to write after 1b is clean* (same shape; one script per stage) | 0110 | Merge **#52** to master (dashboard deploys against a complete schema). Smoke-test with a throwaway gym with charging ON, then OFF. |
-| **3** | 0115 default on for new gyms | `scripts/rollback-0115-*.sql` exists; deploy script to write | 0114 (+0116) | **Only when** every gate in "Revisit dates and gates" is closed: restore tested, rotation procedure written, `job_runs` alert Action live, 19.11 mobile build live in both stores. |
+| **2** | 0111 gate, 0112 class gate, 0113 refunds/revenue, 0114 overview RPCs, **0116** alert cooldown | `node scripts/prod-apply.mjs 2 --apply --backup-confirmed` | 0110 | Merge **#52** to master (dashboard deploys against a complete schema). Smoke-test with a throwaway gym with charging ON, then OFF. |
+| **3** | 0115 default on for new gyms | `scripts/rollback-0115-*.sql` exists; add stage `3` (head **0116**) to prod-apply.mjs when the gates close | 0116 (0116 was applied with stage 2, so the head is 0116 while 0115 is missing from the ledger) | **Only when** every gate in "Revisit dates and gates" is closed: restore tested, rotation procedure written, `job_runs` alert Action live, 19.11 mobile build live in both stores. |
 
 Mobile: the 19.11 build (pay-for-your-session, offline verification) and the refusal-handling fix must be in the stores **before** stage 3. Old builds show a refused guest the expired screen (no minimum-version gate, by decision).
 
