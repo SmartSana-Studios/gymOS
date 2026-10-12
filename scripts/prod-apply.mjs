@@ -7,7 +7,8 @@
 //
 //   1a   0106, 0107, 0108, 0109   head must be 0105
 //   1b   0110 ALONE               head must be 0109 (starts the 7-day soak before 0111)
-//   2    0111, 0112, 0113, 0114, 0116   head must be 0110 (0115 stays for stage 3: its head check is 0116)
+//   2    0111, 0112, 0113, 0114, 0116   head must be 0110
+//   3    0115 ALONE                     head must be 0116 (0116 shipped with stage 2; 0115 is the default flip)
 //
 //   node scripts/prod-apply.mjs 1a --dry-run                      # ONE transaction, ROLLED BACK at the end
 //   node scripts/prod-apply.mjs 1a --apply --backup-confirmed     # one transaction per migration
@@ -40,8 +41,8 @@ const { Client } = loadPg();
 const [stage, ...flags] = process.argv.slice(2);
 const dry = flags.includes("--dry-run");
 const apply = flags.includes("--apply");
-if (!["1a", "1b", "2"].includes(stage) || dry === apply) {
-  console.error("usage: prod-apply.mjs <1a|1b|2> (--dry-run | --apply --backup-confirmed)");
+if (!["1a", "1b", "2", "3"].includes(stage) || dry === apply) {
+  console.error("usage: prod-apply.mjs <1a|1b|2|3> (--dry-run | --apply --backup-confirmed)");
   process.exit(2);
 }
 if (apply && !flags.includes("--backup-confirmed")) {
@@ -53,6 +54,7 @@ const PLAN = {
   "1a": { head: "0105", files: ["0106_flagged_payment_reason", "0107_charge_guests_setting_session_record", "0108_desk_session_payment", "0109_in_app_tara_session_payment"] },
   "1b": { head: "0109", files: ["0110_front_desk_alert_kind"] },
   "2": { head: "0110", files: ["0111_check_in_session_gate", "0112_class_attendance_session_gate", "0113_session_refunds_revenue_line", "0114_guest_sessions_overview_rpcs", "0116_session_alert_cooldown"] },
+  "3": { head: "0116", files: ["0115_enable_charge_guests_default"] },
 }[stage];
 
 const password = readFileSync(process.env.PROD_PASSWORD_FILE ?? join(homedir(), ".supabase-db-password"), "utf8").trim();
@@ -95,6 +97,11 @@ const VERIFY = [
      has_table_privilege('service_role','public.attendance_events','INSERT') as att_insert_service,
      has_column_privilege('authenticated','public.class_bookings','attended_at','UPDATE') as booking_attended_update,
      (select count(*) from pg_proc p where p.pronamespace in ('public'::regnamespace) and has_function_privilege('anon', p.oid, 'EXECUTE') and p.proname in ('check_in','mark_class_attendance','guest_sessions_summary','list_guest_sessions_paid','list_session_attempts','list_free_guest_sessions','gym_session_revenue_mtd','gym_revenue_mtd')) as anon_exec_count`],
+  ["stage 3: charge_guests_per_session default (expect 'true' / NO) and existing gyms with the flag on (expect 0 -- 0115 must not change any existing gym)", `select
+     (select column_default from information_schema.columns where table_schema='public' and table_name='gyms' and column_name='charge_guests_per_session') as col_default,
+     (select is_nullable from information_schema.columns where table_schema='public' and table_name='gyms' and column_name='charge_guests_per_session') as nullable,
+     (select count(*) from gyms where charge_guests_per_session) as gyms_with_charging_on,
+     (select count(*) from gyms) as gyms_total`],
 ];
 
 async function runMigration(base) {
