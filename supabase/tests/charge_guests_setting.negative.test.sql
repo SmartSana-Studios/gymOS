@@ -13,10 +13,10 @@ select plan(49);
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000032101', 'GC Neg Tier', 6000, 60000, null);
 
-insert into gyms (id, name, tier_id, status) values
-  ('00000000-0000-0000-0000-000000032111', 'GC Neg Gym A',         '00000000-0000-0000-0000-000000032101', 'active'),
-  ('00000000-0000-0000-0000-000000032112', 'GC Neg Gym B',         '00000000-0000-0000-0000-000000032101', 'active'),
-  ('00000000-0000-0000-0000-000000032113', 'GC Neg Gym Suspended', '00000000-0000-0000-0000-000000032101', 'suspended');
+insert into gyms (id, name, tier_id, status, charge_guests_per_session) values
+  ('00000000-0000-0000-0000-000000032111', 'GC Neg Gym A',         '00000000-0000-0000-0000-000000032101', 'active', false),
+  ('00000000-0000-0000-0000-000000032112', 'GC Neg Gym B',         '00000000-0000-0000-0000-000000032101', 'active', false),
+  ('00000000-0000-0000-0000-000000032113', 'GC Neg Gym Suspended', '00000000-0000-0000-0000-000000032101', 'suspended', false);
 
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000032121'), -- owner A

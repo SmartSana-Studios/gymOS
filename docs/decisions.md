@@ -4,6 +4,18 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-12 — V1.6 session guests enablement (Story 19.12, migration 0115)
+
+Migration 0115 changes one thing: `alter table gyms alter column charge_guests_per_session set default true`. It runs inside one DO block that locks `gyms`, hashes every `(id, flag)` before and after the ALTER and raises if they differ (so it is safe without a wrapping transaction), then a verify block asserts the default is `true` and the column is still `NOT NULL`. Gyms created after it start with per-session charging on (FR-157); every gym that existed before keeps its value (off unless its owner enabled charging). Catalog-only, no row rewrite, no change to the pin trigger or setter.
+
+- **Status: 0115 ready, built 2026-10-12. Not applied to production.** Enabled in production: _owner appends the date here when 0115 is applied._ The migration ships last, after every gate in "V1.6 release runbook" (2026-10-11) is closed: restore test, rotation procedure, `job_runs` alert Action, Epic 18 retro item 22, and the 19.11 build live in both stores; 19.9 and 19.10 deployed.
+- **Decisions it rests on (2026-10-11):** (1) old mobile builds show a refused guest the *expired* screen, no minimum-version gate, the Charge-guests confirmation warns owners; (2) Edge Function count stays 3, Tara session payments reuse `payment-webhook`'s purpose dispatch; (3) loyalty lapses/resets are persisted by a daily `pg_cron` sweep, reads compute the effective value (Epic 20); (4) ops gaps closed by the 19.0 runbook before charging is enabled at any live gym.
+- **Tests:** `supabase/tests/charge_guests_default.test.sql` (new gym on, explicit false kept, NOT NULL kept). The two 0107 `charge_guests_setting` pgTAP files now pin `false` in their gym fixtures because their "off by default" premise no longer holds; no other test depended on it.
+- **Rollback:** `scripts/rollback-0115-enable-charge-guests-default.sql` restores the default to `false`. Gyms already created `true` keep it; turn them off with the setter if needed.
+- **Super Admin:** create-gym (`apps/super-admin/services/gyms.ts`) inserts without the column and inherits the default; no code change.
+
+---
+
 ## 2026-10-11 — Session refunds & revenue line (Story 19.8, migration 0113)
 
 A refund of a session payment now acts on its session, the data layer audits consumption and blocked attempts, and session money leaves the subscription Revenue figure. No refund UI change, no Guest sessions card or page (19.10), no Settings control (19.9), no change to `consume_guest_session`, `check_in`, `mark_class_attendance` or the stamp logic.

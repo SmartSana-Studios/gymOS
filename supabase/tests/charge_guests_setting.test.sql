@@ -13,9 +13,9 @@ select plan(44);
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000032001', 'Guest Charging Tier', 6000, 60000, null);
 
-insert into gyms (id, name, tier_id, status) values
-  ('00000000-0000-0000-0000-000000032011', 'Guest Charging Gym A', '00000000-0000-0000-0000-000000032001', 'active'),
-  ('00000000-0000-0000-0000-000000032012', 'Guest Charging Gym B', '00000000-0000-0000-0000-000000032001', 'active');
+insert into gyms (id, name, tier_id, status, charge_guests_per_session) values
+  ('00000000-0000-0000-0000-000000032011', 'Guest Charging Gym A', '00000000-0000-0000-0000-000000032001', 'active', false),
+  ('00000000-0000-0000-0000-000000032012', 'Guest Charging Gym B', '00000000-0000-0000-0000-000000032001', 'active', false);
 
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000032021'), -- owner A
@@ -70,7 +70,7 @@ insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expir
 select is(
   (select count(*)::int from gyms where charge_guests_per_session),
   0,
-  'every gym, existing or newly inserted, is off by default'
+  'fixture gyms are pinned off (0115 flipped the column default to on)'
 );
 
 -- ============================================================================
