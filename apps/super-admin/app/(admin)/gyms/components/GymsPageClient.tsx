@@ -265,7 +265,7 @@ export function GymsPageClient({
                           <Button
                             variant="outline"
                             size="sm"
-                            className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800"
+                            className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800 dark:border-orange-800 dark:text-orange-300 dark:hover:bg-orange-950 dark:hover:text-orange-200"
                             onClick={() => setLifecycleGym({ gym, action: "suspend" })}
                           >
                             <PauseCircle size={14} />
@@ -274,7 +274,7 @@ export function GymsPageClient({
                           <Button
                             variant="outline"
                             size="sm"
-                            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950 dark:hover:text-red-200"
                             onClick={() => setLifecycleGym({ gym, action: "deactivate" })}
                           >
                             <Ban size={14} />
@@ -287,7 +287,7 @@ export function GymsPageClient({
                           <Button
                             variant="outline"
                             size="sm"
-                            className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
+                            className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950 dark:hover:text-green-200"
                             onClick={() => setLifecycleGym({ gym, action: "reinstate" })}
                           >
                             <RotateCcw size={14} />
@@ -296,7 +296,7 @@ export function GymsPageClient({
                           <Button
                             variant="outline"
                             size="sm"
-                            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950 dark:hover:text-red-200"
                             onClick={() => setLifecycleGym({ gym, action: "deactivate" })}
                           >
                             <Ban size={14} />
@@ -308,7 +308,7 @@ export function GymsPageClient({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800"
+                          className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950 dark:hover:text-green-200"
                           onClick={() => setLifecycleGym({ gym, action: "reinstate" })}
                         >
                           <RotateCcw size={14} />

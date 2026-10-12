@@ -30,6 +30,13 @@ const POLL_INTERVAL_MS = 5000;
 // removed by the success (Story 19.9b review).
 const ALERT_REGION_ID = "frontDeskAlertRegion";
 
+// These alert boxes keep a light background in both themes, so everything inside must carry its own
+// dark text colour: inheriting the theme foreground is white-on-white in dark mode.
+const LIGHT_BOX_BUTTON =
+  "bg-white text-neutral-900 border-neutral-300 hover:bg-neutral-100 hover:text-neutral-900 dark:bg-white dark:text-neutral-900 dark:border-neutral-300 dark:hover:bg-neutral-100 dark:hover:text-neutral-900";
+const LIGHT_BOX_ICON_BUTTON =
+  "text-neutral-700 hover:bg-black/10 hover:text-neutral-900 dark:text-neutral-700 dark:hover:bg-black/10 dark:hover:text-neutral-900";
+
 const STATUS_LABEL_KEY: Record<NonNullable<FrontDeskAlertRow["status"]>, string> = {
   expiring_soon: "members.status.expiringSoon",
   grace_period: "members.status.gracePeriod",
@@ -395,7 +402,7 @@ function FrontDeskAlertItem({
     <div
       className={cn(
         "flex items-center gap-3 rounded-md border p-3",
-        isDenied ? "border-red-200 bg-red-50" : "border-yellow-200 bg-yellow-50",
+        isDenied ? "border-red-200 bg-red-50 text-red-950" : "border-yellow-200 bg-yellow-50 text-yellow-950",
       )}
       role="alert"
       aria-live={isDenied ? "assertive" : "polite"}
@@ -418,11 +425,11 @@ function FrontDeskAlertItem({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2 text-sm">
           <span className="font-medium">{displayName}</span>
-          <span className="text-muted-foreground">·</span>
+          <span className="opacity-60">·</span>
           <span>{alert.status ? t(STATUS_LABEL_KEY[alert.status]) : ""}</span>
           {daysLine && (
             <>
-              <span className="text-muted-foreground">·</span>
+              <span className="opacity-60">·</span>
               <span>{daysLine}</span>
             </>
           )}
@@ -430,7 +437,7 @@ function FrontDeskAlertItem({
         {isDenied && <p className="text-sm text-red-700">{t("frontDeskAlert.deniedMessage")}</p>}
       </div>
 
-      <Button type="button" variant="outline" size="sm" onClick={onRenew}>
+      <Button type="button" variant="outline" size="sm" className={LIGHT_BOX_BUTTON} onClick={onRenew}>
         {t("frontDeskAlert.renew")}
       </Button>
 
@@ -438,6 +445,7 @@ function FrontDeskAlertItem({
         type="button"
         variant="ghost"
         size="icon"
+        className={LIGHT_BOX_ICON_BUTTON}
         aria-label={t("frontDeskAlert.dismiss")}
         onClick={onDismiss}
       >
@@ -471,7 +479,7 @@ function SessionRequiredAlertItem({
 
   return (
     <div
-      className="flex items-center gap-3 rounded-md border border-blue-200 border-l-4 border-l-blue-600 bg-blue-50 p-3"
+      className="flex items-center gap-3 rounded-md border border-blue-200 border-l-4 border-l-blue-600 bg-blue-50 p-3 text-blue-950"
       role="alert"
       aria-live="assertive"
     >
@@ -481,9 +489,9 @@ function SessionRequiredAlertItem({
         <p className="text-xs font-semibold tracking-wide text-blue-800">{t("frontDeskAlert.sessionRequired")}</p>
         <div className="flex flex-wrap items-center gap-x-2 text-sm">
           <span className="font-medium">{displayName}</span>
-          <span className="text-muted-foreground">·</span>
+          <span className="opacity-60">·</span>
           <span>{t("frontDeskAlert.sessionNoPaidSession")}</span>
-          <span className="text-muted-foreground">·</span>
+          <span className="opacity-60">·</span>
           <span>{time(alert.createdAt)}</span>
         </div>
         <p className="text-sm text-blue-900">{t("frontDeskAlert.sessionRecordHint")}</p>
@@ -501,7 +509,7 @@ function SessionRequiredAlertItem({
       </div>
 
       {onRecordSession && (
-        <Button type="button" variant="outline" size="sm" onClick={onRecordSession}>
+        <Button type="button" variant="outline" size="sm" className={LIGHT_BOX_BUTTON} onClick={onRecordSession}>
           {t("frontDeskAlert.recordSessionPayment")}
         </Button>
       )}
@@ -510,6 +518,7 @@ function SessionRequiredAlertItem({
         type="button"
         variant="ghost"
         size="icon"
+        className={LIGHT_BOX_ICON_BUTTON}
         aria-label={t("frontDeskAlert.dismiss")}
         onClick={onDismiss}
       >

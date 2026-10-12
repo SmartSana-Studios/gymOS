@@ -199,7 +199,7 @@ export function CoachPortalPageClient({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                          className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-200"
                           onClick={() => router.push(`/coach/${row.memberId}`)}
                         >
                           <Eye size={14} />

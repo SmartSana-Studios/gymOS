@@ -260,7 +260,7 @@ export function ClassesPageClient({
                                 key={booking.id}
                                 className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border p-2.5 transition-colors ${
                                   booking.attended
-                                    ? "border-green-200 bg-green-50"
+                                    ? "border-green-200 bg-green-50 text-green-950"
                                     : "border-border bg-background"
                                 }`}
                               >
@@ -316,6 +316,7 @@ export function ClassesPageClient({
                                         type="button"
                                         size="sm"
                                         variant="outline"
+                                        className="bg-white text-neutral-900 border-neutral-300 hover:bg-neutral-100 hover:text-neutral-900 dark:bg-white dark:text-neutral-900 dark:border-neutral-300 dark:hover:bg-neutral-100 dark:hover:text-neutral-900"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           setRecordingBooking(booking);
