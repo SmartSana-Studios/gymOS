@@ -1,7 +1,14 @@
 import { useNetworkState } from 'expo-network';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
+import type { ChargingContext, SyncDenial } from '@/lib/sessionState';
+import {
+  clearSyncDenials,
+  getCachedChargingContext,
+  getSyncDenials,
+  refreshChargingContext as fetchChargingContext,
+} from '@/services/sessionCharging';
 import { countOfflineCheckIns, countOfflineProgressEntries, countOfflineWorkoutCompletions } from '@/lib/sqlite';
 import { queueOfflineCheckIn as queueOfflineCheckInService, syncPendingCheckIns } from '@/services/checkin';
 import {
@@ -31,6 +38,14 @@ interface OfflineSyncValue {
   pendingCheckInCount: number;
   pendingProgressEntryCount: number;
   pendingWorkoutCompletionCount: number;
+  /** Story 19.11: last known per-session charging state (cached, so it is
+   * available offline), refreshed online on launch, foreground and by
+   * `refreshChargingContext()` (check-in focus). */
+  chargingContext: ChargingContext | null;
+  refreshChargingContext: () => Promise<ChargingContext | null>;
+  /** Persisted sync denials awaiting the Home notice. */
+  sessionDenials: SyncDenial[];
+  dismissSessionDenials: () => Promise<void>;
   queueOfflineCheckIn: () => Promise<{ id: string; scannedAt: string }>;
   queueOfflineProgressEntry: (
     fields: ProgressEntryFields,
@@ -59,6 +74,26 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
   const [pendingProgressEntryCount, setPendingProgressEntryCount] = useState(0);
   const [pendingWorkoutCompletionCount, setPendingWorkoutCompletionCount] = useState(0);
   const syncInFlightRef = useRef(false);
+  const [chargingContext, setChargingContext] = useState<ChargingContext | null>(null);
+  const [sessionDenials, setSessionDenials] = useState<SyncDenial[]>([]);
+
+  const refreshDenials = useCallback(async () => {
+    if (isWeb) return;
+    setSessionDenials(await getSyncDenials());
+  }, []);
+
+  // Online refresh of the charging flag; on failure keeps whatever is cached.
+  const refreshChargingContext = useCallback(async () => {
+    const fresh = await fetchChargingContext();
+    if (fresh) setChargingContext(fresh);
+    return fresh;
+  }, []);
+
+  const dismissSessionDenials = useCallback(async () => {
+    const shown = sessionDenials.map((d) => d.scanId);
+    setSessionDenials((current) => current.filter((d) => !shown.includes(d.scanId)));
+    await clearSyncDenials(shown);
+  }, [sessionDenials]);
 
   const refreshPendingCount = useCallback(async () => {
     if (isWeb) return;
@@ -94,11 +129,37 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
       syncInFlightRef.current = false;
     }
     await refreshPendingCount();
-  }, [refreshPendingCount]);
+    await refreshDenials();
+  }, [refreshPendingCount, refreshDenials]);
 
   useEffect(() => {
     void refreshPendingCount();
   }, [refreshPendingCount]);
+
+  // Story 19.11: restore the cached charging state and any persisted denials,
+  // then refresh the flag on launch and every foreground.
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const cached = await getCachedChargingContext();
+      if (active && cached) setChargingContext((current) => current ?? cached);
+      await refreshDenials();
+      if (isConnected) {
+        const fresh = await fetchChargingContext();
+        if (active && fresh) setChargingContext(fresh);
+      }
+    })();
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        void refreshChargingContext();
+        void refreshDenials();
+      }
+    });
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, [isConnected, refreshChargingContext, refreshDenials]);
 
   // One effect keyed on [isConnected]: covers both "sync on reconnect" and
   // "sync once on mount if already online," since React only re-fires this
@@ -155,6 +216,10 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       isConnected,
+      chargingContext,
+      refreshChargingContext,
+      sessionDenials,
+      dismissSessionDenials,
       pendingCheckInCount,
       pendingProgressEntryCount,
       pendingWorkoutCompletionCount,
@@ -164,6 +229,10 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
     }),
     [
       isConnected,
+      chargingContext,
+      refreshChargingContext,
+      sessionDenials,
+      dismissSessionDenials,
       pendingCheckInCount,
       pendingProgressEntryCount,
       pendingWorkoutCompletionCount,

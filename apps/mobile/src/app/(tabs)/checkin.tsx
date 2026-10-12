@@ -1,3 +1,5 @@
+import { MaterialIcons } from '@react-native-vector-icons/material-icons';
+import * as Haptics from 'expo-haptics';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { useIsFocused, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -9,10 +11,13 @@ import { Button } from '@/components/ui/Button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Brand } from '@/constants/brand';
+import { INFO_STATUS } from '@/constants/info-status';
 import { BottomTabInset, Spacing } from '@/constants/theme';
 import { useGymAccentColor } from '@/hooks/use-gym-accent-color';
 import { useOfflineSync } from '@/lib/offline-sync-context';
+import { shouldShowOfflineVerify, type ChargingContext } from '@/lib/sessionState';
 import { recordCheckIn, validateGymToken } from '@/services/checkin';
+import { getGymTaraMoneyConnectionStatus } from '@/services/payments';
 
 // MA-10's own "scanning timeout" nudge (EXPERIENCE.md) -- purely
 // informational, the viewfinder keeps scanning regardless.
@@ -43,7 +48,7 @@ export default function CheckInScreen() {
   const router = useRouter();
   const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
-  const { isConnected, queueOfflineCheckIn } = useOfflineSync();
+  const { isConnected, queueOfflineCheckIn, chargingContext, refreshChargingContext } = useOfflineSync();
   const accent = useGymAccentColor();
 
   const [wrongQr, setWrongQr] = useState(false);
@@ -54,6 +59,11 @@ export default function CheckInScreen() {
   const [gymSuspended, setGymSuspended] = useState(false);
   const [alreadyCheckedIn, setAlreadyCheckedIn] = useState(false);
   const [deniedExpired, setDeniedExpired] = useState(false);
+  // Story 19.11: separate `info` overlays -- never the red expired screen.
+  const [sessionRequired, setSessionRequired] = useState(false);
+  const [canPayInApp, setCanPayInApp] = useState(false);
+  const [sessionPrice, setSessionPrice] = useState('');
+  const [offlineVerify, setOfflineVerify] = useState(false);
   const [success, setSuccess] = useState(false);
   const [successOffline, setSuccessOffline] = useState(false);
   const [successCheckedInAt, setSuccessCheckedInAt] = useState<string | null>(null);
@@ -63,6 +73,7 @@ export default function CheckInScreen() {
   const processingRef = useRef(false);
   const mountedRef = useRef(true);
   const isFocusedRef = useRef(isFocused);
+  const chargingContextRef = useRef<ChargingContext | null>(chargingContext);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Lazy useState initialiser rather than `useRef(...).current`: reading a
@@ -82,6 +93,16 @@ export default function CheckInScreen() {
   useEffect(() => {
     isFocusedRef.current = isFocused;
   }, [isFocused]);
+
+  useEffect(() => {
+    chargingContextRef.current = chargingContext;
+  }, [chargingContext]);
+
+  // Story 19.11: refresh the charging flag online on check-in focus; the
+  // server rule governs at sync, this only shapes copy.
+  useEffect(() => {
+    if (isFocused && isConnected) void refreshChargingContext();
+  }, [isFocused, isConnected, refreshChargingContext]);
 
   // The Denied - Expired overlay's own button deliberately does NOT call
   // resetScanning() -- it navigates to Home instead, without inviting an
@@ -105,6 +126,8 @@ export default function CheckInScreen() {
     setWasFocused(isFocused);
     if (isFocused) {
       setDeniedExpired(false);
+      setSessionRequired(false);
+      setOfflineVerify(false);
     }
   }
 
@@ -133,7 +156,8 @@ export default function CheckInScreen() {
     return () => subscription.remove();
   }, [permission, requestPermission]);
 
-  const resultShowing = wrongQr || networkError || gymSuspended || alreadyCheckedIn || deniedExpired || success;
+  const resultShowing =
+    wrongQr || networkError || gymSuspended || alreadyCheckedIn || deniedExpired || sessionRequired || offlineVerify || success;
 
   // 15s-with-no-scan nudge -- only counts down while actively scanning
   // (focused tab, permission granted, no result showing).
@@ -180,6 +204,8 @@ export default function CheckInScreen() {
     setGymSuspended(false);
     setAlreadyCheckedIn(false);
     setDeniedExpired(false);
+    setSessionRequired(false);
+    setOfflineVerify(false);
     setSuccess(false);
     setSuccessOffline(false);
     setSuccessCheckedInAt(null);
@@ -224,6 +250,13 @@ export default function CheckInScreen() {
       }
 
       setValidating(false);
+      // Story 19.11: a charged member's offline scan is only "saved" -- the
+      // server decides at sync. Tap required, no auto-dismiss.
+      if (shouldShowOfflineVerify(chargingContextRef.current)) {
+        setOfflineVerify(true);
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+        return;
+      }
       showSuccessOverlay(scannedAt, true);
     } catch {
       if (!mountedRef.current || !isFocusedRef.current) {
@@ -279,7 +312,7 @@ export default function CheckInScreen() {
     // Token match: record the actual attendance event (Story 3.4). Same
     // mountedRef/isFocusedRef guard applied around this second await --
     // the user may leave the tab again during the RPC round-trip.
-    const checkInResult = await recordCheckIn();
+    const checkInResult = await recordCheckIn(chargingContextRef.current);
 
     if (!mountedRef.current || !isFocusedRef.current) {
       setValidating(false);
@@ -315,6 +348,25 @@ export default function CheckInScreen() {
       return;
     }
 
+    if (checkInResult.status === 'session_required') {
+      // [Pay now] only when Tara is connected; never throws.
+      const connected = await getGymTaraMoneyConnectionStatus();
+      if (!mountedRef.current || !isFocusedRef.current) {
+        processingRef.current = false;
+        return;
+      }
+      setCanPayInApp(connected);
+      // The price of the context that classified this refusal, which may be
+      // fresher than (or absent from) the provider's copy.
+      setSessionPrice(
+        checkInResult.sessionPrice ??
+          `${chargingContextRef.current?.planPrice ?? ''} ${chargingContextRef.current?.planCurrency ?? ''}`.trim(),
+      );
+      setSessionRequired(true);
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      return;
+    }
+
     // Success: the existing "QR detected" flash first, then the Success
     // overlay, which auto-dismisses back to scanning on its own (MA-10).
     showSuccessOverlay(checkInResult.checkedInAt ?? null, false);
@@ -322,6 +374,11 @@ export default function CheckInScreen() {
 
   function handleClose() {
     router.navigate('/');
+  }
+
+  function handlePayNow() {
+    resetScanning();
+    router.push('/pay-session');
   }
 
   function handleOpenSettings() {
@@ -409,6 +466,52 @@ export default function CheckInScreen() {
               </ThemedText>
               <ThemedText type="default" style={styles.centeredText}>
                 {t('checkin.alreadyCheckedInBody')}
+              </ThemedText>
+              <Pressable accessibilityRole="button" onPress={resetScanning} style={styles.overlayButton}>
+                <ThemedText style={styles.overlayButtonLabel}>{t('common.ok')}</ThemedText>
+              </Pressable>
+            </View>
+          )}
+
+          {sessionRequired && (
+            <View
+              accessibilityRole="alert"
+              accessibilityLiveRegion="assertive"
+              style={[styles.overlay, { backgroundColor: INFO_STATUS.solid }]}>
+              <MaterialIcons name="confirmation-number" size={56} color="#ffffff" />
+              <ThemedText type="subtitle" style={[styles.centeredText, styles.infoText]}>
+                {t('checkin.sessionRequiredTitle')}
+              </ThemedText>
+              <ThemedText type="default" style={[styles.centeredText, styles.infoText]}>
+                {t('checkin.sessionRequiredBody', { price: sessionPrice })}
+              </ThemedText>
+              {canPayInApp && (
+                <Pressable accessibilityRole="button" onPress={handlePayNow} style={styles.overlayButton}>
+                  <ThemedText style={styles.overlayButtonLabel}>{t('checkin.payNow')}</ThemedText>
+                </Pressable>
+              )}
+              <Pressable
+                accessibilityRole="button"
+                onPress={handleClose}
+                style={canPayInApp ? styles.overlayLinkButton : styles.overlayButton}>
+                <ThemedText style={canPayInApp ? styles.infoText : styles.overlayButtonLabel}>
+                  {t('checkin.sessionSeeFrontDesk')}
+                </ThemedText>
+              </Pressable>
+            </View>
+          )}
+
+          {offlineVerify && (
+            <View
+              accessibilityRole="alert"
+              accessibilityLiveRegion="polite"
+              style={[styles.overlay, { backgroundColor: INFO_STATUS.solid }]}>
+              <MaterialIcons name="hourglass-top" size={56} color="#ffffff" />
+              <ThemedText type="subtitle" style={[styles.centeredText, styles.infoText]}>
+                {t('checkin.offlineVerifyTitle')}
+              </ThemedText>
+              <ThemedText type="default" style={[styles.centeredText, styles.infoText]}>
+                {t('checkin.offlineVerifyBody')}
               </ThemedText>
               <Pressable accessibilityRole="button" onPress={resetScanning} style={styles.overlayButton}>
                 <ThemedText style={styles.overlayButtonLabel}>{t('common.ok')}</ThemedText>
@@ -581,6 +684,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: Spacing.two,
     paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.five,
+    alignItems: 'center',
+  },
+  infoText: {
+    color: '#ffffff',
+  },
+  overlayLinkButton: {
+    marginTop: Spacing.two,
+    paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.five,
     alignItems: 'center',
   },

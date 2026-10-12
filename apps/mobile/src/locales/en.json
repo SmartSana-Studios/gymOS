@@ -136,7 +136,13 @@
     "deniedExpiredTitle": "Access denied",
     "deniedExpiredBody": "Your membership has expired.\nPlease see the front desk.",
     "seeFrontDesk": "See front desk",
-    "checkedInSyncing": "{{time}} · Syncing…"
+    "checkedInSyncing": "{{time}} · Syncing…",
+    "sessionRequiredTitle": "Paid session needed",
+    "sessionRequiredBody": "You need a paid session to check in today. {{price}} covers the whole day.",
+    "payNow": "Pay now",
+    "offlineVerifyTitle": "Check-in saved — your paid session will be verified",
+    "offlineVerifyBody": "We'll confirm your paid session once you're back online. If none is found, we'll let you know on the Home screen.",
+    "sessionSeeFrontDesk": "See the front desk"
   },
   "home": {
     "welcomeBack": "Welcome back, {{name}}",
@@ -175,7 +181,20 @@
     "offlineSyncPending": "Offline check-in pending sync…",
     "renew": "Renew",
     "upcomingClasses": "Upcoming Classes",
-    "myWorkoutPlan": "My Workout Plan"
+    "myWorkoutPlan": "My Workout Plan",
+    "offlineSessionPending": "Offline check-in waiting to be verified…",
+    "sessionDenied": "Your check-in on {{when}} wasn't counted — we couldn't find a paid session. See the front desk if this is wrong.",
+    "sessionDeniedMore": "+{{count}} more",
+    "sessions": {
+      "coveredToday": "Today covered",
+      "ready_one": "{{count}} paid session · use by {{date}}",
+      "ready_other": "{{count}} paid sessions · use by {{date}}",
+      "none": "No paid session — pay before you scan.",
+      "lapseCaption": "An unused paid session lapses after {{days}} days."
+    },
+    "paySession": "Buy a paid session",
+    "sessionPaymentRecorded": "Paid session: {{amount}} {{currency}}",
+    "sessionDeniedGotIt": "Got it"
   },
   "classes": {
     "title": "Classes",
@@ -218,7 +237,7 @@
       "loading": "Loading your payments…",
       "errorLoadFailed": "Couldn't load your payments. Check your connection and try again.",
       "registrationFee": "Registration fee",
-      "sessionPayment": "Session payment"
+      "sessionLabel": "Paid session"
     },
     "checkins": {
       "empty": "No check-ins yet. Scan the QR at your gym to get started.",
@@ -272,14 +291,18 @@
     "statusLabel": "Status",
     "errorLoadFailed": "Couldn't load this receipt. Check your connection and try again.",
     "registrationFee": "Registration fee",
-    "sessionPayment": "Session payment"
+    "forLabel": "For",
+    "sessionFor": "Paid session",
+    "useByLabel": "Use by",
+    "usedOnLabel": "Used on"
   },
   "payments": {
     "status": {
       "pending": "Pending",
       "processing": "Processing",
       "verified": "Verified",
-      "flagged": "Flagged"
+      "flagged": "Flagged",
+      "failed": "Failed"
     },
     "methods": {
       "mtnMomo": "MTN Mobile Money",
@@ -421,5 +444,29 @@
     "checking": "Checking…",
     "stillAwaiting": "Your registration is still not complete.",
     "refreshFailed": "Couldn't check right now. Please try again."
+  },
+  "paySession": {
+    "title": "Buy a paid session",
+    "confirmButton": "Pay {{amount}} {{currency}}",
+    "pending": {
+      "description": "Check your phone and approve the prompt to buy your paid session."
+    },
+    "success": {
+      "title": "Paid session confirmed",
+      "description": "Scan the QR code to check in.",
+      "scanButton": "Scan now"
+    },
+    "errors": {
+      "loadFailed": "Couldn't load your plan. Check your connection and try again.",
+      "notAvailable": "Buying a paid session in the app isn't available right now. See the front desk.",
+      "chargingDisabled": "This gym doesn't charge per session right now.",
+      "planNotPerSession": "Your plan doesn't need a paid session.",
+      "priceNotSet": "Your plan's paid session price isn't set yet. See the front desk.",
+      "alreadyInProgress": "You already have a paid session payment in progress. Check your phone or wait a moment.",
+      "noProvider": "Mobile Money payment isn't available right now. See the front desk to pay with cash.",
+      "mobileMoneyDisabled": "Mobile Money payment isn't available right now. See the front desk to pay with cash.",
+      "initiateFailed": "Something went wrong. Try again."
+    },
+    "coversDay": "Covers the whole day."
   }
 }

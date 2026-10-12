@@ -1061,3 +1061,8 @@ of work.
 
 - CSV exports (members, subscriptions, payments) carry no UTF-8 BOM, so Excel garbles accented names. Fix once across all exports.
 - `csvEscape` per-file copies guard `= + - @` but not a leading tab or carriage return (OWASP list). Fix all copies together.
+
+## Deferred from: code review of spec-19-11-member-app-pay-for-your-session (2026-10-12)
+
+- A paid session that lapses unused disappears from Home with no explanation ("No paid session"), and the receipt shows a past "Use by". Unverified medium: the 19.11 matrix has no lapsed row and the 7-day caption is the only specified lapse surface. Product owner to decide whether a lapsed state is wanted.
+- Flagged session payment shows "Failed" + [Try again] with no "contact the front desk if you were debited / retrying may charge twice" guidance. Unverified medium: check which `flagged_reason` values can have moved money (`expired_attempt` late-confirms per 0109, `provider_declined` does not) and decide copy per reason.

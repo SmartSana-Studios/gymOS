@@ -4,6 +4,8 @@ import { isGymSuspendedError } from '@gymos/types';
 
 import { supabase } from '@/lib/supabase';
 import { deleteOfflineCheckIn, getOfflineCheckIns, insertOfflineCheckIn } from '@/lib/sqlite';
+import { isSessionDenial, resolveRefusal, type ChargingContext, type SyncDenial } from '@/lib/sessionState';
+import { getCachedChargingContext, persistSyncDenials, refreshChargingContext } from '@/services/sessionCharging';
 
 export interface ValidateGymTokenResult {
   matched: boolean;
@@ -63,8 +65,29 @@ export async function getRecentCheckIns(memberId: string, limit: number): Promis
 }
 
 export interface RecordCheckInResult {
-  status: 'success' | 'already_checked_in' | 'expired' | 'gym_suspended' | 'error';
+  status: 'success' | 'already_checked_in' | 'expired' | 'session_required' | 'gym_suspended' | 'error';
   checkedInAt?: string;
+  /** 'session_required' only: the price of the per-session plan, from the
+   * context that classified the refusal (e.g. "5000 XAF"). */
+  sessionPrice?: string;
+}
+
+/** Upper bound on the online context read a refused scan waits for; past it
+ * the passed (provider/cached) context classifies instead. */
+const REFUSAL_REFRESH_TIMEOUT_MS = 4000;
+
+async function withTimeout<T>(work: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 /** Records an attendance event for the caller's own member/gym via the
@@ -77,7 +100,7 @@ export interface RecordCheckInResult {
  * front-desk alert row it needs to insert in the same transaction) -- it
  * returns a clean `{ data: null, error: null }` instead, so that outcome is
  * now detected via a null `data`, not a thrown error's message text. */
-export async function recordCheckIn(): Promise<RecordCheckInResult> {
+export async function recordCheckIn(chargingContext: ChargingContext | null = null): Promise<RecordCheckInResult> {
   try {
     const { data, error } = await supabase.rpc('check_in');
     if (error) {
@@ -93,7 +116,22 @@ export async function recordCheckIn(): Promise<RecordCheckInResult> {
       }
       return { status: 'error' };
     }
-    if (!data) return { status: 'expired' };
+    // Story 19.11: check_in() keeps its contract -- null means refused. At a
+    // charging gym, for a per-session member who is not expired, the refusal
+    // means a paid session is required; otherwise it stays 'expired'.
+    if (!data) {
+      // The passed context may be null/stale; classify from a fresh read
+      // when one is reachable, so a member who only needs to pay never sees
+      // the red expired screen.
+      const fresh = await withTimeout(refreshChargingContext(), REFUSAL_REFRESH_TIMEOUT_MS);
+      const context = fresh ?? chargingContext;
+      const status = resolveRefusal(context);
+      if (status === 'session_required' && context) {
+        const sessionPrice = `${context.planPrice ?? ''} ${context.planCurrency ?? ''}`.trim();
+        return { status, sessionPrice };
+      }
+      return { status };
+    }
     return { status: 'success', checkedInAt: data.checked_in_at };
   } catch {
     return { status: 'error' };
@@ -127,25 +165,45 @@ export async function queueOfflineCheckIn(): Promise<{ id: string; scannedAt: st
  *   user-visible error and no way to recover it after reinstatement.
  * - any other RPC error (expired, deactivated, permission denied, no member
  *   record) -> delete anyway, retrying can't fix these.
- * - a thrown/network exception -> leave queued, no deletion. */
-export async function syncPendingCheckIns(): Promise<void> {
+ * - a thrown/network exception -> leave queued, no deletion.
+ * Story 19.11: a clean `data === null && !error` is a denial (no session
+ * for that day). It is persisted and surfaced on the next Home render --
+ * never silently dropped. Returns the denials found in this pass. */
+export async function syncPendingCheckIns(): Promise<SyncDenial[]> {
   let pending;
   try {
     pending = await getOfflineCheckIns();
   } catch (err) {
     console.error('[offline-sync] failed to read the local offline queue', err);
-    return;
+    return [];
   }
+
+  const denials: SyncDenial[] = [];
+  // A null result is a missing-session denial for a charged, non-expired
+  // member. Expired or exempt members (known context) keep the shipped
+  // silent behaviour; an unknown context (fresh install, cleared cache) is
+  // recorded rather than dropped silently.
+  const context = (await refreshChargingContext()) ?? (await getCachedChargingContext());
+  const recordDenials = context === null || isSessionDenial(context);
 
   for (const record of pending) {
     try {
-      const { error } = await supabase.rpc('check_in', {
+      const { data, error } = await supabase.rpc('check_in', {
         p_scanned_at: record.scannedAt,
         p_client_scan_id: record.id,
       });
 
       const recoverable =
         error?.message?.includes('already has an open check-in') || isGymSuspendedError(error);
+
+      if (!error && !data && recordDenials) {
+        denials.push({ scanId: record.id, scannedAt: record.scannedAt });
+        // Persist before deleting the queue row, so a crash between the two
+        // can only re-surface a denial (deduped by scan id), never lose it.
+        // If persisting fails the row stays queued and is retried.
+        const persisted = await persistSyncDenials([{ scanId: record.id, scannedAt: record.scannedAt }]);
+        if (!persisted) continue;
+      }
 
       if (!error || !recoverable) {
         await deleteOfflineCheckIn(record.id);
@@ -155,4 +213,6 @@ export async function syncPendingCheckIns(): Promise<void> {
       console.error('[offline-sync] check_in RPC failed, record left queued for retry', err);
     }
   }
+
+  return denials;
 }
