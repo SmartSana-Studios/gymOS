@@ -4,6 +4,8 @@ import { localeSchema, switchActiveGymSchema, type AppError } from "@gymos/types
 import { updateLanguagePreference as updateLanguagePreferenceRow, switchActiveGym as switchActiveGymRow } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { getGuestSessionsSummary } from "@/services/guestSessions";
+import { parseGuestSessionsPeriod, type GuestSessionsSummary } from "@/lib/guest-sessions";
 
 /** Sidebar language toggle. Never trusts client input -- re-validates
  * `locale` server-side even though the toggle UI only ever sends "en"/"fr". */
@@ -33,4 +35,14 @@ export async function switchActiveGym(
   }
 
   return switchActiveGymRow(parsed.data.gymId);
+}
+
+/** Story 19.10: the Overview Guest sessions card re-reads its three figures
+ * when the viewer switches period or taps Retry. `period` is client input, so
+ * it is parsed here (anything unknown reads as today); the RPC's own role
+ * check (owner/supervisor/manager) is the real enforcement. */
+export async function getGuestSessionsSummaryAction(
+  period: unknown,
+): Promise<{ data: GuestSessionsSummary | null; error: AppError | null }> {
+  return getGuestSessionsSummary(parseGuestSessionsPeriod(typeof period === "string" ? period : null));
 }

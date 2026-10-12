@@ -93,6 +93,7 @@ export function MembersPageClient({
   phoneCountry,
   mobileMoneyEnabled = false,
   chargeGuestsPerSession = false,
+  deepLinkMember = null,
 }: {
   initialMembers: MemberListRow[];
   total: number;
@@ -112,6 +113,8 @@ export function MembersPageClient({
   mobileMoneyEnabled?: boolean;
   /** Story 19.9b: whether the gym charges Pay-per-session guests per session. */
   chargeGuestsPerSession?: boolean;
+  /** Story 19.10: `?memberId=` -- the member whose AD-04 modal opens on load. */
+  deepLinkMember?: MemberListRow | null;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -124,7 +127,9 @@ export function MembersPageClient({
   const canVoidFee = CAN_VOID_FEE.includes(role);
 
   const [searchInput, setSearchInput] = useState(search);
-  const [modalState, setModalState] = useState<{ member: MemberListRow | null; readOnly: boolean } | null>(null);
+  const [modalState, setModalState] = useState<{ member: MemberListRow | null; readOnly: boolean } | null>(
+    deepLinkMember ? { member: deepLinkMember, readOnly: true } : null,
+  );
   const [deactivatingMember, setDeactivatingMember] = useState<MemberListRow | null>(null);
   const [invitingMember, setInvitingMember] = useState<MemberListRow | null>(null);
   const [collectingMember, setCollectingMember] = useState<MemberListRow | null>(null);
@@ -552,7 +557,16 @@ export function MembersPageClient({
             showToast(t("sessionPayment.recordedToast", { name }));
             router.refresh();
           }}
-          onClose={() => setModalState(null)}
+          onClose={() => {
+            setModalState(null);
+            // Drop the deep link so a refresh does not reopen the modal.
+            if (searchParams.has("memberId")) {
+              const params = new URLSearchParams(searchParams.toString());
+              params.delete("memberId");
+              const qs = params.toString();
+              router.replace(qs ? `${pathname}?${qs}` : pathname);
+            }
+          }}
           onSaved={(warning, invite) => {
             setModalState(null);
             if (warning) showToast(warning);

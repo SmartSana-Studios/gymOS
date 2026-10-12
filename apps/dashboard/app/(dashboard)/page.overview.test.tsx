@@ -105,7 +105,17 @@ vi.mock("./components/GymHealthRow", () => ({
   },
 }));
 
+vi.mock("./components/GuestSessionsCardSection", () => ({
+  GuestSessionsCardSection: function GuestSessionsCardSection() {
+    return null;
+  },
+  GuestSessionsCardSkeleton: function GuestSessionsCardSkeleton() {
+    return null;
+  },
+}));
+
 import OverviewPage from "./page";
+import { GuestSessionsCardSection, GuestSessionsCardSkeleton } from "./components/GuestSessionsCardSection";
 import { StatCard } from "@/components/ui/stat-card";
 import { FrontDeskAlertPanel } from "@/components/shared/FrontDeskAlertPanel";
 import { CheckedInTable } from "./components/CheckedInTable";
@@ -536,6 +546,50 @@ describe("(dashboard) Overview page", () => {
       const skeleton = (outer.props.fallback.type as () => ReactElement)();
 
       expect(findAll(skeleton, GymHealthRowSkeleton)).toHaveLength(0);
+    });
+  });
+
+  describe("Story 19.10: the Guest sessions card", () => {
+    function charging(on: boolean) {
+      getGymSettings.mockResolvedValue({ data: { registrationFee: 0, chargeGuestsPerSession: on }, error: null });
+    }
+
+    it.each(["owner", "manager", "supervisor"])(
+      "gives %s the card in its own boundary, below the gym-health row, when charging is on",
+      async (role) => {
+        getDashboardShellContext.mockResolvedValue(shellFor(role));
+        charging(true);
+
+        const tree = await renderOverviewData();
+        const children = Children.toArray((tree.props as { children: ReactNode }).children).filter(isValidElement);
+        const boundaries = children.filter((child) => child.type === Suspense) as Boundary[];
+        expect(boundaries).toHaveLength(2);
+        const cardBoundary = boundaries[1];
+        expect(cardBoundary.props.children.type).toBe(GuestSessionsCardSection);
+        expect(cardBoundary.props.fallback.type).toBe(GuestSessionsCardSkeleton);
+        expect(boundaries[0].props.children.type).toBe(GymHealthRow);
+        expect(children.indexOf(cardBoundary)).toBeLessThan(children.findIndex((c) => c.type === CheckedInTable));
+      },
+    );
+
+    it("is absent when charging is off", async () => {
+      charging(false);
+      const tree = await renderOverviewData();
+      expect(findAll(tree, GuestSessionsCardSection)).toHaveLength(0);
+    });
+
+    it("is absent when the settings read fails (the flag is unknown)", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      getGymSettings.mockResolvedValue({ data: null, error: { code: "unknown", message: "boom" } });
+      const tree = await renderOverviewData();
+      expect(findAll(tree, GuestSessionsCardSection)).toHaveLength(0);
+    });
+
+    it("is absent for a receptionist even when charging is on", async () => {
+      getDashboardShellContext.mockResolvedValue(shellFor("receptionist"));
+      charging(true);
+      const tree = await renderOverviewData();
+      expect(findAll(tree, GuestSessionsCardSection)).toHaveLength(0);
     });
   });
 });
