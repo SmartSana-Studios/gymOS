@@ -395,7 +395,7 @@ development_status:
   18-7-member-app-awaiting-fee-blocked-state-fee-receipt: done
   epic-18-retrospective: done
 
-  epic-19: in-progress
+  epic-19: done
   19-0-v1-6-release-readiness-ops-checklist: done
   19-1-ci-guardrails-live-role-lint-gate-hosted-privilege-check: done
   19-2-flagged-payment-reason-late-vs-wrong-account: done
@@ -869,3 +869,4 @@ last_updated: 10-12-2026 12:00
 # last_updated: 2026-10-12 (ad-hoc, non-story: mobile app 1.5 (iOS build 20, Android build 21) tested by the owner and promoted to production in both stores -- closes the 19.12 gate 'the 19.11 mobile build live in both stores'. Version history of the day: 1.0.1 rejected by Apple (train closed), 1.1.0 superseded, 1.5 matches the App Store Connect version record. Remaining gates before 0115: tested restore from the R2 dump, secret-rotation procedure, job_runs failure-alert GitHub Action, Epic 18 retro item 22)
 # last_updated: 2026-10-12 (ad-hoc, non-story: job_runs failure/stall alert merged (PR #55) and its manual run was green -- closes the 19.12 gate 'job_runs alert Action live'; mobile 1.5 version bump merged (PR #54); docs/restore-test.md written for the remaining 'tested restore' gate. Remaining before 0115: tested restore (owner holds the age key), secret-rotation procedure, Epic 18 retro item 22 (rotate the SmartSana Tara key))
 # last_updated: 2026-10-12 (ad-hoc, non-story, production deploy: V1.6 stage 3 APPLIED -- migration 0115 (charge_guests_per_session defaults to true for NEW gyms) on production vfxezibagiznrirdwkwh via scripts/prod-apply.mjs 3 after a rolled-back dry run and a green db-backup run (38313232334); verified: members 3 / payments 2 / alerts 3 unchanged, existing gym unchanged (charging on for 0 of 1), column default true NOT NULL. Applied by the owner's explicit decision with the tested-restore, rotation-procedure and Epic 18 item 22 gates still OPEN (recorded as open follow-ups). All of V1.6 (0106-0116) is now in production)
+# last_updated: 2026-10-12 (ad-hoc, non-story: epic-19 in-progress -> done. V1.6 fully deployed (migrations 0106-0116 in production, dashboard live, mobile 1.5 promoted in both stores, job_runs alert running). Owner decided to DEFER all follow-ups, recorded in deferred-work.md: tested restore, Epic 18 item 22 (rotate SmartSana Tara key), secret-rotation procedure, throwaway-gym default check, deleting ~/.expo-token and ~/.supabase-db-password, payment-webhook edge function deploy; plus the Vercel build rate limit. epic-19-retrospective left optional. Next: epic-20 (loyalty); its planned migration numbers 0116-0119 are taken, next free is 0117)

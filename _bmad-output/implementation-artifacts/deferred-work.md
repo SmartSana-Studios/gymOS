@@ -1071,3 +1071,15 @@ of work.
 
 - The "existing gyms keep their flag" md5 guard in migration 0115 only sees data at production apply time; local/CI `gyms` is empty, so a regression (e.g. a backfill UPDATE before the ALTER) would pass pgTAP. Close with a psql proof in a rolled-back transaction that seeds mixed-flag gyms and runs the 0115 body (see the local Supabase SQL proofs convention).
 - `scripts/rollback-0115-enable-charge-guests-default.sql` is never executed by CI or any test. Run it once against the local DB in a rolled-back transaction before 0115 is applied to production.
+
+## Deferred at V1.6 production close-out (2026-10-12), owner decision: all deferred
+
+Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_runs alert running). The owner chose to defer these follow-ups; each stays a live risk until done.
+
+- **Tested restore.** Run `docs/restore-test.md` once (needs the owner's age private key) and record the date in the runbook section 3. Until then "last tested restore" is *never tested* and recovery from the R2 dump is unproven. Vault secrets (per-gym Tara credentials) do not decrypt in another project: every gym must reconnect Tara after a restore into a new project.
+- **Rotate the SmartSana Tara key (Epic 18 retro item 22).** The key was pasted in chat on 2026-10-08; rotate at Tara, then reconnect in Settings -> Payment account. Rotate immediately on any further exposure.
+- **Secret-rotation procedure** (Supabase keys, Tara, Evolution, Vercel, EAS, GitHub secrets, age key). Previously dated 2026-11-30 in the runbook; still unwritten.
+- **Throwaway-gym check** that a newly created gym starts with "Charge guests per session" ON (0115). The migration verified the default in the catalog; the end-to-end check through Super Admin create-gym is not done.
+- **Remove standing credentials from the devcontainer:** delete `~/.expo-token` (and revoke the token at expo.dev) and `~/.supabase-db-password` (consider rotating the DB password). Both were created for the 2026-10-12 release.
+- **Deploy the `payment-webhook` edge function** with the callback-URL hardening (https + /functions/v1 prefix for *.supabase.co hosts). Production is covered meanwhile by the `PAYMENT_WEBHOOK_PUBLIC_BASE_URL` function secret; the code change needs the Supabase CLI/token.
+- **Vercel build rate limit** ("retry in 24 hours", hit 2026-10-12 after many PR previews): no dashboard/super-admin deploy until it resets; consider the Pro plan or fewer preview builds per day.
