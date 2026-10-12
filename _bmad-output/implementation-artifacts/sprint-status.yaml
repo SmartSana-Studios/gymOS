@@ -409,7 +409,7 @@ development_status:
   19-9a-dashboard-charge-guests-setting: done
   19-9b-dashboard-session-alert-record-panel-member-sessions: done
   19-9c-dashboard-payments-purpose-ledger-subscriptions-guard: done
-  19-10-guest-sessions-overview-card: review
+  19-10-guest-sessions-overview-card: done
   19-11-member-app-pay-for-your-session-offline-verification-session: backlog
   19-12-v1-6-session-guests-enablement: backlog
   epic-19-retrospective: optional
@@ -853,3 +853,4 @@ last_updated: 10-12-2026 12:00
 # last_updated: 2026-10-12 (build: 19-10 spec approved, backlog -> in-progress. Migration 0114 read-only RPCs (summary + paid/blocked/free lists, invoker, manager-plus), Overview Guest sessions card, AD-22 /guest-sessions page, Members ?memberId= deep link. Branch story/19-10-guest-sessions-overview-card from epic/19 at 1f7ee1b.)
 # last_updated: 2026-10-12 (build: 19-10 in-progress -> review. Migration 0114 (guest_sessions_summary + list_guest_sessions_paid/list_session_attempts/list_free_guest_sessions, invoker, owner/supervisor/manager, 42501 otherwise, rollback script), pgTAP positive+negative, database.ts splice. services/guestSessions.ts readers, Overview GuestSessionsCard (own Suspense, localStorage period, in-card Retry) behind chargeGuestsPerSession + manager-plus, /guest-sessions AD-22 page (Paid grouped by recorder with window totals, Refunded-after-use chip, Blocked, Free), Members ?memberId= deep link, EN/FR. No actions.ts on the new route (all state is URL-driven). Manual browser QA is the user's.)
 # last_updated: 2026-10-12 (build: 19-10 review pass -> review. Migration 0114 read-only RPCs (guest_sessions_summary, list_guest_sessions_paid/session_attempts/free_guest_sessions; invoker, owner/supervisor/manager), Overview Guest sessions card (own Suspense, Today/This month radiogroup), AD-22 /guest-sessions page, Members ?memberId= deep link, rollback script. Review 3 layers, 17 findings: 4 patched (card re-sync on auto-refresh, arrow-key radiogroup and ARIA cleanup, filtered empty copy, SQL fixtures for free/today-vs-month/voided plus action/section/race tests), 13 rejected, none deferred. Open for user: '1 members' not pluralised because the frozen matrix writes it literally. ci-local all four stages PASS on dirty tree, no merge stamp. Manual browser QA is the user's. Migration 0114 local only.)
+# last_updated: 2026-10-12 (19-10 review -> done: PR #50 merged into epic/19 at 70435a5 after a clean-tree ci-local pass; migration 0114 not yet applied to production, deploy via host psql before the epic merge to master)
