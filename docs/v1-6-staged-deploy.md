@@ -1,6 +1,6 @@
 # V1.6 (Epic 19) staged production deploy
 
-Status: **prepared 2026-10-12, nothing applied.** Source of the rules: `docs/decisions.md`, "V1.6 release runbook" (2026-10-11), section 1 (order), 2 (rollback), 3 (backup), 4 (rehearsal). PR: `epic/19` -> `master` (#52).
+Status: **stage 1a (0106-0109) APPLIED to production 2026-10-12** (head 0109; dry run first, db-backup run 38249526039 green at 12:38Z, verification clean, charging on for 0 gyms, anon EXECUTE false). **1b (0110 alone) not applied; stage 2 and 3 not started.** Source of the rules: `docs/decisions.md`, "V1.6 release runbook" (2026-10-11), section 1 (order), 2 (rollback), 3 (backup), 4 (rehearsal). PR: `epic/19` -> `master` (#52).
 
 Production has live gyms. Everything V1.6 is off per gym until an Owner/Supervisor enables it, so the risk is in the *plumbing* migrations (0106-0110 touch live payment/alert paths) and in ordering the dashboard deploy after the schema it queries.
 
@@ -29,7 +29,11 @@ Mobile: the 19.11 build (pay-for-your-session, offline verification) and the ref
 - A migration that applied but is wrong is forward-fixed with a new migration. Rollback scripts for the reversible ones: `scripts/rollback-0110-*.sql` ... `rollback-0116-*.sql`.
 - Data damage is restored from the pre-stage dump into a scratch database and only the affected rows copied back.
 
-## Open items before 1a
+## Done / open
+- **1a applied 2026-10-12** via `node scripts/prod-apply.mjs 1a --apply --backup-confirmed` (run by the owner). Still to do for 1a: deploy the `payment-webhook` edge function (needs the Supabase CLI/token) and a dashboard smoke test of a subscription payment.
+- **1b**: not before a day of watching 1a. It starts the 7-day soak; 0111+ must not land before it ends.
+
+## Open items (original list, kept for the record)
 - **Rehearsal never run** (gate 2). Needs the owner's R2 access and age private key.
 - **Confirm the hosted PostgREST version** (Dashboard -> Infrastructure). Independent of V1.6, but decides how urgent the mobile refusal fix is.
 - The production preflight was run read-only on 2026-10-12: head 0105, 1 gym / 2 members / 0 payments / 0 alerts, no V1.6 objects present, all replaced objects present, `check_in` still the 0105 body, anon cannot execute it. The `db-backup` workflow was triggered and green at 2026-10-12T12:38Z (run 38249526039).
