@@ -175,13 +175,16 @@ function RenewScreenContent() {
 
     function handleStatusChange(status: string) {
       if (status === 'SUBSCRIBED') {
-        stopPolling();
+        // Keep the safety-net poll running: a SUBSCRIBED channel can still miss an event
+        // (observed in production 2026-10-12: the status only changed after a reload).
         return;
       }
       startPolling();
     }
 
     const channel = subscribeToPaymentStatus(paymentId, handleUpdate, handleStatusChange);
+    // Always poll while watching, in addition to Realtime.
+    startPolling();
 
     const stillWaitingTimer = setTimeout(() => {
       setPhase((current) => (current === 'pending' ? 'stillWaiting' : current));

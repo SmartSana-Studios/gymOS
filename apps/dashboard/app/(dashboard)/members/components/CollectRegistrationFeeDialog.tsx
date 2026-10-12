@@ -166,7 +166,8 @@ export function CollectRegistrationFeeDialog({
       // removeChannel in the cleanup reports CLOSED; polling then must not restart.
       if (!active) return;
       if (status === "SUBSCRIBED") {
-        stopPolling();
+        // Keep the safety-net poll running: a SUBSCRIBED channel can still miss an event
+        // (observed in production 2026-10-12: the status only changed after a reload).
         // A payment that settled before the channel was ready (a resumed row, or
         // one just initiated) produces no event; read it once.
         void fetchPaymentStatus(paymentId).then((row) => {
@@ -178,6 +179,8 @@ export function CollectRegistrationFeeDialog({
     }
 
     const channel = subscribeToPaymentStatus(paymentId, handleUpdate, handleStatusChange);
+    // Always poll while watching, in addition to Realtime.
+    startPolling();
     const supabase = createClient();
 
     const stillWaitingTimer = setTimeout(() => {
