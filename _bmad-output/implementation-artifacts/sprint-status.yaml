@@ -408,7 +408,7 @@ development_status:
   19-8-session-refunds-revenue-line: done
   19-9a-dashboard-charge-guests-setting: done
   19-9b-dashboard-session-alert-record-panel-member-sessions: done
-  19-9c-dashboard-payments-purpose-ledger-subscriptions-guard: review
+  19-9c-dashboard-payments-purpose-ledger-subscriptions-guard: done
   19-10-guest-sessions-overview-card: backlog
   19-11-member-app-pay-for-your-session-offline-verification-session: backlog
   19-12-v1-6-session-guests-enablement: backlog
@@ -849,3 +849,4 @@ last_updated: 10-11-2026 18:00
 # last_updated: 2026-10-11 (build: 19-9c spec drafted and approved (minimal All Payments ledger with Purpose/member URL filters, reason tag, Actor and Export CSV; Subscriptions guard recorded as vacuous because no Last Payment column exists, no code), backlog -> in-progress. No migration.)
 # last_updated: 2026-10-11 (build: 19-9c in-progress -> review. All Payments ledger below the queue (PaymentsLedger.tsx): listAllPayments/exportPaymentsCsv in services/payments.ts, purpose/memberId/page from the URL (unknown purpose or malformed memberId = no filter), Purpose column, reason tag, Voided tag, Actor (Tara in-app fallback), Export CSV with purpose column, EN/FR. Ledger read failure degrades, queue still renders. Subscriptions: no code, the AD-08 Last Payment-ignores-session AC is vacuous because no Last Payment column exists (cut, docs/decisions.md). No migration. ci-local all four stages PASS on dirty tree. Manual browser QA is the user's.)
 # last_updated: 2026-10-11 (build: 19-9c review done in-session -> review. Minimal All Payments ledger under the queue (listAllPayments/exportPaymentsCsv, Purpose + member URL filters so the 19-9b Sessions link lands filtered, reason tag incl. Confirmed late, Actor, Export CSV with purpose, 50/page), no migration. Review: 2 test patches (PaymentsPageClient ledger wiring, CSV success path), 14 rejected, none deferred. AD-08 Last Payment guard vacuous (no column). ci-local all stages PASS before the two added tests; payments vitest 55/55 after. Manual browser QA is the user's.)
+# last_updated: 2026-10-12 (code-review: 19-9c review -> done. 1 decision (page size stays user-selectable, matches audit page) resolved, 4 patches applied: export path tests (csvEscape, role list, memberId reaches action and query, Tara/voided CSV cells), page wiring uses the real normalizeLedgerFilters, id tie-breaker on ledger and export ordering, single Clear filters in the filtered empty state. 2 defers appended to deferred-work.md (CSV BOM, leading tab/CR guard across all exports). Targeted vitest 70/70 pass, tsc clean; ci-local not re-run; the two no-literal-string lint errors are in PaymentsPageClient.refundToast.test.tsx, untouched. Manual browser QA is the user's.)

@@ -66,7 +66,7 @@ context:
 - [x] `payments/page.tsx` -- searchParams wiring -- URL-driven filter and page
 - [x] `PaymentsPageClient.tsx`, `paymentLabels.ts` -- ledger table, Purpose filter, reason tag, export button, empty states
 - [x] `locales/en.json`, `fr.json` -- bilingual strings
-- [ ] tests beside each -- one case per matrix row, page wiring asserts params reach the service
+- [x] tests beside each -- one case per matrix row, page wiring asserts params reach the service
 
 **Acceptance Criteria:**
 - Given the matrix cases, when dashboard tests run, then all pass and the queue/discrepancy/purpose-label tests still pass.
@@ -104,3 +104,26 @@ context:
 - `pnpm --filter dashboard test` -- expected: pass
 - `pnpm --filter dashboard check:i18n` -- expected: parity
 - `bash scripts/ci-local.sh` -- expected: all stages PASS
+
+### Review Findings
+
+Code review 2026-10-12 (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor).
+
+- [x] [Review][Decision] RESOLVED 2026-10-12 (kept as is, matches audit page; default stays 50) -- Page size is user-selectable although the spec says "server-paged at 50" — page.tsx reads `?size=` via `parsePageSize` (same as the audit page; default 50, TablePagination exposes a selector). Options: keep (matches audit page, spec literal deviation) or pin to 50 and hide the selector. [apps/dashboard/app/(dashboard)/payments/page.tsx:47]
+- [x] [Review][Patch] Export path under-tested: add (a) csvEscape case (`=`-prefixed name, comma/quote note), (b) `it.each(owner, manager, supervisor, receptionist)` allowed + coach refused, (c) component test with non-empty `memberId` asserting the action arg plus a `member_id` eq assertion in the export suite, (d) CSV row for mobile_money/actor null/voided asserting Tara label and `voided=true` [apps/dashboard/services/payments.listAllPayments.test.ts, PaymentsLedger.test.tsx]
+- [x] [Review][Patch] page.wiring.test mocks `normalizeLedgerFilters` with logic that differs from the real one (no UUID check), so "junk param" cases test the mock; use `importActual` or a valid UUID [apps/dashboard/app/(dashboard)/payments/page.wiring.test.tsx]
+- [x] [Review][Patch] Ledger ordering has no tie-breaker: add `.order("id", { ascending: false })` after `created_at` in `listAllPayments` and the export query so same-instant rows cannot repeat or skip across pages [apps/dashboard/services/payments.ts:1405]
+- [x] [Review][Patch] Filtered empty state renders two "Clear filters" buttons (filter bar + empty block); spec shows one — hide the bar button when the empty block shows it [apps/dashboard/app/(dashboard)/payments/components/PaymentsLedger.tsx:165]
+- [x] [Review][Defer] CSV has no UTF-8 BOM, so Excel garbles accented French names — deferred: same behaviour in every dashboard CSV export; fix once across exports
+- [x] [Review][Defer] `csvEscape` guard misses a leading tab/CR (OWASP list) — deferred: guard is a per-file copy in members/subscriptions/payments; fix all copies together
+
+#### Rejected
+- Out-of-range `?page=` shows load error / "No payments recorded yet" (edge, blind) — low; only a hand-edited URL reaches it, fix adds a clamp/redirect branch (same as triage #3).
+- Staff mobile_money row with unresolved actor shown as Tara (edge, blind, acceptance) — low; owners and staff all have `members` rows, needs a deleted/unreadable row (triage #4).
+- Unknown status rendered as Pending — false; `payment_status` enum is the four mapped values.
+- Negative amounts corrupted by csvEscape — false; refunds live in `refunds`, payments.amount is positive.
+- `common.somethingWentWrong` missing — false; defined in packages/types/src/locales/{en,fr}.json.
+- Stale "queue only" comments in services/payments.ts — false; none remain (grep).
+- Task checkbox stale — fixed in this write (ticked).
+- Sprint-status AD-08 vacuous note — present in earlier sprint-status entries (verified in diff stat: sprint-status.yaml changed).
+- No currency per row, member filter has no chip, export error role/timing, CSV count/data race, unbounded service pageSize, purpose outside the three values, `processing` status consumers, table a11y (caption/scope), wiring of ledger props — low, no named harm or fix adds UI/guards.

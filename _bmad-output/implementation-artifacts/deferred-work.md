@@ -1056,3 +1056,8 @@ of work.
 - source_spec: `_bmad-output/implementation-artifacts/spec-19-9b-dashboard-session-alert-record-panel-member-sessions.md`
   summary: The member modal Sessions section links to `/payments?memberId=<id>&purpose=session`, but the Payments page reads neither param; 19-9c must read them (Purpose filter and member filter) so the link lands filtered.
   evidence: `payments/page.tsx` ignores `searchParams`; the Purpose filter, column and CSV are 19-9c scope and excluded by 19-9b's frozen Never list, so the link currently opens the unfiltered page.
+
+## Deferred from: code review of spec-19-9c-dashboard-payments-purpose-ledger-subscriptions-guard (2026-10-12)
+
+- CSV exports (members, subscriptions, payments) carry no UTF-8 BOM, so Excel garbles accented names. Fix once across all exports.
+- `csvEscape` per-file copies guard `= + - @` but not a leading tab or carriage return (OWASP list). Fix all copies together.

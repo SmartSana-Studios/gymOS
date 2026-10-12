@@ -94,7 +94,7 @@ describe("PaymentsLedger", () => {
     search = "purpose=session&memberId=m";
     render(<PaymentsLedger ledger={ledger([])} hasError={false} purpose="session" memberId="m" />);
     expect(screen.getByText("payments.ledger.emptyFiltered")).toBeInTheDocument();
-    fireEvent.click(screen.getAllByText("payments.ledger.clearFilters").at(-1)!);
+    fireEvent.click(screen.getByText("payments.ledger.clearFilters"));
     expect(push).toHaveBeenCalledWith("/payments?page=1");
   });
 
@@ -121,6 +121,14 @@ describe("PaymentsLedger", () => {
     fireEvent.click(screen.getByText("payments.export.button"));
     expect(await screen.findByText("too big")).toBeInTheDocument();
     expect(exportAction).toHaveBeenCalledWith({ purpose: "session", memberId: undefined });
+  });
+
+  it("passes the member filter to the export action", async () => {
+    exportAction.mockResolvedValue({ data: null, error: { code: "x", message: "nope" } });
+    render(<PaymentsLedger ledger={ledger([row({})])} hasError={false} purpose="session" memberId="m" />);
+    fireEvent.click(screen.getByText("payments.export.button"));
+    await screen.findByText("nope");
+    expect(exportAction).toHaveBeenCalledWith({ purpose: "session", memberId: "m" });
   });
 
   it("downloads payments.csv when the export succeeds", async () => {

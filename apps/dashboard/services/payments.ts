@@ -1393,7 +1393,10 @@ export async function listAllPayments(params: {
 
   let query = supabase.from("payments").select(LEDGER_SELECT, { count: "exact" }).eq("gym_id", gymId);
   query = applyLedgerFilters(query, filters);
-  query = query.order("created_at", { ascending: false }).range(rangeFrom, rangeFrom + pageSize - 1);
+  query = query
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(rangeFrom, rangeFrom + pageSize - 1);
 
   const { data, count, error } = await query;
   if (error) {
@@ -1456,7 +1459,10 @@ export async function exportPaymentsCsv(params: {
 
   let dataQuery = supabase.from("payments").select(LEDGER_SELECT).eq("gym_id", gymId);
   dataQuery = applyLedgerFilters(dataQuery, filters);
-  dataQuery = dataQuery.order("created_at", { ascending: false }).range(0, PAYMENTS_EXPORT_ROW_LIMIT - 1);
+  dataQuery = dataQuery
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(0, PAYMENTS_EXPORT_ROW_LIMIT - 1);
   const { data, error } = await dataQuery;
   if (error) {
     return { data: null, error: await mapAndLog(error) };

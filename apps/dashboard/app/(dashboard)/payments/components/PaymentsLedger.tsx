@@ -162,7 +162,7 @@ export function PaymentsLedger({
             ))}
           </select>
         </div>
-        {filtered && (
+        {filtered && (hasError || !ledger || ledger.rows.length > 0) && (
           <Button variant="ghost" size="sm" onClick={clearFilters}>
             {t("payments.ledger.clearFilters")}
           </Button>

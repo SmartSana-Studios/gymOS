@@ -93,6 +93,7 @@ describe("listAllPayments", () => {
     expect(calls).toContainEqual(["eq", "purpose", "session"]);
     expect(calls).toContainEqual(["eq", "member_id", MEMBER]);
     expect(calls).toContainEqual(["order", "created_at", { ascending: false }]);
+    expect(calls).toContainEqual(["order", "id", { ascending: false }]);
     expect(calls).toContainEqual(["range", 50, 99]);
     expect(data?.rows[0]).toMatchObject({ memberName: "Guest Gina", actorName: "Staff Sam", purpose: "session" });
   });
@@ -132,5 +133,32 @@ describe("exportPaymentsCsv", () => {
     role = "coach";
     const result = await exportPaymentsCsv({});
     expect(result.error?.code).toBe("forbidden");
+  });
+
+  it.each(["owner", "manager", "supervisor", "receptionist"])("allows %s", async (allowed) => {
+    role = allowed;
+    const result = await exportPaymentsCsv({});
+    expect(result.error).toBeNull();
+  });
+
+  it("passes the member filter to the data query", async () => {
+    await exportPaymentsCsv({ memberId: MEMBER });
+    expect(calls).toContainEqual(["eq", "member_id", MEMBER]);
+  });
+
+  it("neutralises formulas and quotes commas in names and notes", async () => {
+    rows = [dbRow({ members: { name: "=HYPERLINK(1)" }, reason: 'paid, "late"' })];
+    const result = await exportPaymentsCsv({});
+    const line = (result.data as string).split("\r\n")[1];
+    expect(line).toContain(",'=HYPERLINK(1),");
+    expect(line).toContain('"paid, ""late"""');
+  });
+
+  it("labels an unresolved mobile_money actor as Tara and exports voided rows as true", async () => {
+    rows = [dbRow({ method: "mobile_money", actor_id: null, voided_at: "2026-10-11T09:00:00Z" })];
+    const result = await exportPaymentsCsv({});
+    const cells = (result.data as string).split("\r\n")[1].split(",");
+    expect(cells).toContain("payments.ledger.actorTara");
+    expect(cells).toContain("true");
   });
 });
