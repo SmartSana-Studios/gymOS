@@ -1,5 +1,5 @@
 /**
- * Story 20.1: every Epic 20 audit action type written so far has a label, and
+ * Stories 20.1-20.2: every Epic 20 audit action type written so far has a label, and
  * that label resolves to real copy in both locales (not the raw key, not blank).
  */
 import { describe, expect, it } from "vitest";
@@ -8,7 +8,12 @@ import en from "@/locales/en.json";
 import fr from "@/locales/fr.json";
 import { AUDIT_ACTION_TYPE_LABEL_KEY } from "./auditLabels";
 
-const EPIC_20_ACTION_TYPES = ["loyalty_program_changed"];
+const EPIC_20_ACTION_TYPES = [
+  "loyalty_program_changed",
+  "loyalty_stamp_earned",
+  "loyalty_reward_granted",
+  "loyalty_progress_reset",
+];
 
 function resolve(locale: unknown, key: string): unknown {
   return key.split(".").reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], locale);

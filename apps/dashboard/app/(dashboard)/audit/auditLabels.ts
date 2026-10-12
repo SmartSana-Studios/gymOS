@@ -63,6 +63,14 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // gym-scoped, target = the gym, metadata { old, new } each holding
   // { enabled, guest_threshold, renewal_threshold, reward_days }.
   loyalty_program_changed: "audit.actionTypes.loyaltyProgramChanged",
+  // Story 20.2. Written by the private.on_session_consumed() hook (0118), gym-scoped,
+  // target = the member. loyalty_stamp_earned metadata { counter, guest_session_id,
+  // stamps, threshold }; loyalty_reward_granted adds { free_session_id, usable_until };
+  // loyalty_progress_reset metadata { counter, guest_session_id, previous_count,
+  // previous_last_event_at, idle_reset_days }.
+  loyalty_stamp_earned: "audit.actionTypes.loyaltyStampEarned",
+  loyalty_reward_granted: "audit.actionTypes.loyaltyRewardGranted",
+  loyalty_progress_reset: "audit.actionTypes.loyaltyProgressReset",
   guest_charging_changed: "audit.actionTypes.guestChargingChanged",
   plan_type_changed: "audit.actionTypes.planTypeChanged",
   plan_price_changed: "audit.actionTypes.planPriceChanged",
