@@ -416,7 +416,7 @@ development_status:
 
   epic-20: in-progress
   20-1-loyalty-program-setting-ledger-foundation: done
-  20-2-guest-rule-stamps-on-paid-sessions-free-session-at-n: review
+  20-2-guest-rule-stamps-on-paid-sessions-free-session-at-n: done
   20-3-subscriber-rule-on-time-renewal-stamps-r-free-days-at-k: backlog
   20-4-refund-reversal-lapses-90-day-reset-sweep: backlog
   20-5-dashboard-loyalty-settings-member-loyalty-view: backlog
@@ -969,3 +969,4 @@ last_updated: 10-12-2026 23:05
 # last_updated: 2026-10-12 (build: 20-2 backlog -> in-progress. Spec spec-20-2-guest-rule-stamps-on-paid-sessions-free-session-at-n.md approved; branch story/20-2-guest-rule-stamps-on-paid-sessions-free-session-at-n from epic/20. Migration 0118.)
 # last_updated: 2026-10-12 (build: 20-2 in-progress -> review. Migration 0118 replaces private.on_session_consumed (stamp on consumed paid session when loyalty+charging on, idle reset first, reward at N incl. above lowered N, reward_consumed on free use, replay-safe via (origin_id,event_type)); rollback-0118 restores the no-op hook (rolled back and re-applied locally); pgTAP loyalty_guest_rule positive (56) + negative (14), 3 audit labels EN/FR + auditLabels.epic20 test. ci-local: static, unit, e2e green; pgtap 135/135 on rerun (one transient failure of payments_rls_and_renewal on the first run, passes alone and on rerun). session-refund-race.sh not run: no lock-order edit. Migration 0118 NOT applied to production.)
 # last_updated: 2026-10-12 (build: 20-2 review pass. Three layers (blind, edge-case, verification-gap) triaged in the spec: 2 patched (hook replay check moved after the loyalty_progress lock; mismatched-gym negative test, plan 14 -> 16) plus a header note that reward_consumed is audited by session_consumed; 4 refuted-false groups, 5 low rejected. Re-verified locally: 0118 re-applied, full pgTAP 135/135, vitest/e2e per implementation run. One earlier --fast run saw payments_rls_and_renewal.test.sql 28/29 without a not ok; it passed alone and on rerun, cause not found. Migration 0118 NOT applied to production (epic-end staged apply). Manual QA is the user's.)
+# last_updated: 2026-10-12 (build: 20-2 review -> done. Full scripts/ci-local.sh GREEN on 65def6a (static, pgtap, unit, e2e), PR #58 merged into epic/20, story branch deleted local+remote. Migration 0118 in tree, NOT applied to production (epic-end staged apply). Next: 20-3 (depends only on 20-1), then 20-4.)
