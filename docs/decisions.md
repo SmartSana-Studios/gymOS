@@ -4,6 +4,15 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-12 — Epic 19 retro decisions: `class_bookings` DELETE grant and `platform_metrics()` semantics
+
+Two open items from `epic-19-retro-2026-10-12.md` (S-4, R-3), decided by the owner on 2026-10-12.
+
+- **`class_bookings` DELETE.** `0112` closed INSERT/UPDATE on `attended_at` but left the table-level DELETE grant from `0058` for `authenticated` and `service_role`. There is no permissive DELETE policy (only SELECT policies plus the restrictive `tenant_active_gate`, `0058`/`0068`/`0073`), so RLS already denies a client DELETE and nothing is exploitable today. **Decision: revoke DELETE from `authenticated` only; keep it for `service_role`** (the e2e teardown and the `cancel_class_booking()` definer path need it). **Not a standalone production migration:** the revoke ships inside the next migration that touches `class_bookings` (or Epic 20's first), with a `.negative` pgTAP test and a `do $verify$` check that `service_role` keeps DELETE. Until then the grant is harmless hygiene debt.
+- **`platform_metrics()` and `purpose='session'`.** `total_payments_processed` (`0103`) sums every verified, non-voided payment of every purpose, before refunds. `gym_revenue_mtd()` (`0113`) excludes `session` because sessions have their own line (`gym_session_revenue_mtd()`). **Decision: leave `platform_metrics()` unchanged.** The platform figure is gross processed volume (all purposes, before refunds), not gym revenue, so the two functions answer different questions and the difference is intended. Excluding sessions would understate money that actually moved through Tara or the desk. A "gross" label tweak in Super Admin is optional and not scheduled.
+
+---
+
 ## 2026-10-12 — Session-required alert cooldown (post-19.12, migration 0116)
 
 Found in the Epic 19 local QA kit (`scripts/epic19-qa/`): a guest who keeps scanning without paying produced one `session_required` alert per scan once the desk had dismissed (or the panel had auto-dismissed) the previous one. Repeated scans while an alert is active were already a single alert (0111's one-active index); the gap was the *next* scan after a dismissal.

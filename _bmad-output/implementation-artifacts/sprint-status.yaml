@@ -850,14 +850,14 @@ action_items:
       AD-08 guard vacuous, ad hoc 0116, Epic 20 migrations 0117+, check_in null-composite
       correction"
     owner: "architect"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
   - id: "epic-19-retro-item-31-decide-whether-to-revoke-delete-on-class"
     epic: 19
     action: "Decide whether to revoke DELETE on class_bookings for authenticated and
       whether platform_metrics() excludes session payments"
     owner: "architect"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
   - id: "epic-19-retro-item-32-split-apps-dashboard-services-payments-t"
     epic: 19
@@ -885,7 +885,15 @@ action_items:
     owner: "owner"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
-last_updated: 10-12-2026 22:40
+  - id: "epic-19-retro-item-36-include-revoke-delete-on-class_bookings"
+    epic: 19
+    action: "Include revoke delete on class_bookings from authenticated (keep service_role)
+      in the next migration touching class_bookings or Epic 20 first migration, with
+      negative pgTAP test and verify block (decision 2026-10-12)"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
+last_updated: 10-12-2026 23:05
 # last_updated: 2026-10-11 (build: 19-0 spec created and approved, backlog -> in-progress; epic-19 backlog -> in-progress. Non-code ops-checklist story: docs/decisions.md V1.6 release runbook. Prod backup posture read from the Management API (PITR off, no daily backups); db-backup workflow to R2 merged in PRs #35/#36, first green run 2026-10-11.)
 # last_updated: 2026-10-11 (build: 19-0 in-progress -> done. docs/decisions.md "V1.6 release runbook" (2026-10-11) answers release order, forward-fix rollback, backup/PITR posture (PITR off; daily R2 dump; revisit 2026-12-31; restore never tested), local-restore rehearsal, secrets locations (rotation deferred 2026-11-30) and job_runs alerting (gate for 19-12, owner josephfeussi; logged in deferred-work.md). deploy-runbook.md [NEEDS] markers and the architecture spine's open list updated. No code, migration or CI change.)
 # last_updated: 2026-10-11 (ad-hoc, non-story: local-CI-first workflow -- scripts/ci-local.sh mirrors ci.yml (static+pgTAP concurrent, then vitest, then E2E); ci.yml now triggers only on PRs into master (+workflow_dispatch), so GitHub Actions runs once per epic (epic/N -> master PR); finding: pgTAP (3 files) and E2E seed fail against the dev DB because QA data pollutes it -- a pristine DB is required, db reset pending user decision)
