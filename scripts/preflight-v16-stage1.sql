@@ -1,9 +1,10 @@
 -- READ-ONLY pre-flight for V1.6 stage 1 (migrations 0106-0110) on production. Writes nothing.
 -- Every check prints PASS / WARN / STOP; do not deploy on a STOP.
 --
---   export PGPASSWORD=$(cat ~/.supabase-db-password)   # (host psql; or scripts/prod-db.sh prod_psql < this file)
+--   export PGPASSWORD=$(cat ~/.supabase-db-password)   # needs host psql with network access
 --   psql -h aws-0-eu-west-1.pooler.supabase.com -p 5432 \
 --        -U postgres.vfxezibagiznrirdwkwh -d postgres -f scripts/preflight-v16-stage1.sql
+-- (In this devcontainer the container psql cannot reach the pooler; it was run through a Node pg client.)
 --
 -- Stage 1a = 0106-0109 (additive, head must be 0105). Stage 1b = 0110 ALONE (head must be 0109);
 -- it rewrites the alert path of every live gym and starts the 7-day soak before 0111.

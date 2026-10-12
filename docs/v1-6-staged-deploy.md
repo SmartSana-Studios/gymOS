@@ -9,7 +9,7 @@ Merging to `master` auto-deploys the dashboard (Vercel Git integration). The epi
 
 ## Gates, every stage (runbook rules a-d)
 1. Trigger `db-backup` (`workflow_dispatch`) and confirm the run **green immediately before** the stage.
-2. **Rehearsed** against a restored dump: restore the latest R2 dump into a local Supabase (age key is the owner's), then run the stage script with `PROD_HOST=localhost PROD_PORT=5432 PROD_USER=postgres PROD_PASSWORD_FILE=<file>`. Record the date as the "last tested restore" line in section 3 (currently *never tested*).
+2. **Rehearsed**: `node scripts/prod-apply.mjs <stage> --dry-run` runs the stage's migrations and the verification queries inside ONE transaction on production and rolls it back (nothing persists; table locks are held for seconds). A restore of the latest R2 dump into a local Supabase (age key is the owner's) is the other rehearsal and is what closes the runbook's "last tested restore: never" line in section 3.
 3. Preflight (`scripts/preflight-v16-stage1.sql`, read-only): no STOP lines.
 4. CI green on the merge commit: `scripts/ci-local.sh` was green for the epic head (see the PR).
 5. Apply with the per-stage deploy script (host psql, one transaction per migration, ledger row in the same transaction). Never `supabase db push`.
@@ -17,8 +17,8 @@ Merging to `master` auto-deploys the dashboard (Vercel Git integration). The epi
 ## Stages
 | Stage | What | Script | Head required | Then |
 |---|---|---|---|---|
-| **1a** | 0106, 0107, 0108, 0109 (additive: reason column, charging setting + `guest_sessions`, desk and in-app payment RPCs) | `scripts/deploy-0106-0110.sh 1a --backup-confirmed` | 0105 | Deploy the `payment-webhook` edge function (purpose `session` dispatch), smoke-test a subscription payment and the webhook round trip, watch `job_runs`. |
-| **1b** | **0110 alone** (alert `kind` refactor, no behaviour change; rewrites the alert path of every live gym) | `scripts/deploy-0106-0110.sh 1b --backup-confirmed` | 0109 | **7-day soak**: front-desk alerts must still raise, dismiss and auto-dismiss on a real gym. Nothing else from V1.6 lands. |
+| **1a** | 0106, 0107, 0108, 0109 (additive: reason column, charging setting + `guest_sessions`, desk and in-app payment RPCs) | `node scripts/prod-apply.mjs 1a --apply --backup-confirmed` | 0105 | Deploy the `payment-webhook` edge function (purpose `session` dispatch), smoke-test a subscription payment and the webhook round trip, watch `job_runs`. |
+| **1b** | **0110 alone** (alert `kind` refactor, no behaviour change; rewrites the alert path of every live gym) | `node scripts/prod-apply.mjs 1b --apply --backup-confirmed` | 0109 | **7-day soak**: front-desk alerts must still raise, dismiss and auto-dismiss on a real gym. Nothing else from V1.6 lands. |
 | **2** | 0111 gate, 0112 class gate, 0113 refunds/revenue, 0114 overview RPCs, **0116** alert cooldown | *to write after 1b is clean* (same shape; one script per stage) | 0110 | Merge **#52** to master (dashboard deploys against a complete schema). Smoke-test with a throwaway gym with charging ON, then OFF. |
 | **3** | 0115 default on for new gyms | `scripts/rollback-0115-*.sql` exists; deploy script to write | 0114 (+0116) | **Only when** every gate in "Revisit dates and gates" is closed: restore tested, rotation procedure written, `job_runs` alert Action live, 19.11 mobile build live in both stores. |
 
@@ -32,4 +32,5 @@ Mobile: the 19.11 build (pay-for-your-session, offline verification) and the ref
 ## Open items before 1a
 - **Rehearsal never run** (gate 2). Needs the owner's R2 access and age private key.
 - **Confirm the hosted PostgREST version** (Dashboard -> Infrastructure). Independent of V1.6, but decides how urgent the mobile refusal fix is.
-- 1a/1b scripts and the preflight were syntax-checked and the preflight ran read-only against the local DB; they have **not** been run against a production-shaped database yet. The rehearsal is where that happens.
+- The production preflight was run read-only on 2026-10-12: head 0105, 1 gym / 2 members / 0 payments / 0 alerts, no V1.6 objects present, all replaced objects present, `check_in` still the 0105 body, anon cannot execute it. The `db-backup` workflow was triggered and green at 2026-10-12T12:38Z (run 38249526039).
+- `scripts/prod-apply.mjs` replaces the container-based shell script (containers here die silently on network lookups). It needs the `pg` module: `npm i pg@8` in a temp dir and `PG_MODULE_DIR=<dir>/node_modules`. Its dry run has **not** been executed yet: the auto-mode permission check denied running it against production, so it needs the owner's explicit go or a permission rule.
