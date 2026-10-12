@@ -1,6 +1,6 @@
 # V1.6 (Epic 19) staged production deploy
 
-Status: **stage 1a (0106-0109) APPLIED to production 2026-10-12** (head 0109; dry run first, db-backup run 38249526039 green at 12:38Z, verification clean, charging on for 0 gyms, anon EXECUTE false). **1b (0110 alone) not applied; stage 2 and 3 not started.** Source of the rules: `docs/decisions.md`, "V1.6 release runbook" (2026-10-11), section 1 (order), 2 (rollback), 3 (backup), 4 (rehearsal). PR: `epic/19` -> `master` (#52).
+Status: **stage 1a (0106-0109) and stage 1b (0110) APPLIED to production 2026-10-12** (1a around 13:15 UTC, 1b at about 17:10 UTC after a rolled-back dry run and db-backup run 38281957800; head 0110, charging on for 0 gyms, anon EXECUTE false). **7-day soak runs until 2026-10-19: nothing else from V1.6 lands before then.** Stage 2 and 3 not started.
 
 Production has live gyms. Everything V1.6 is off per gym until an Owner/Supervisor enables it, so the risk is in the *plumbing* migrations (0106-0110 touch live payment/alert paths) and in ordering the dashboard deploy after the schema it queries.
 
@@ -31,7 +31,7 @@ Mobile: the 19.11 build (pay-for-your-session, offline verification) and the ref
 
 ## Done / open
 - **1a applied 2026-10-12** via `node scripts/prod-apply.mjs 1a --apply --backup-confirmed` (run by the owner). Still to do for 1a: deploy the `payment-webhook` edge function (needs the Supabase CLI/token) and a dashboard smoke test of a subscription payment.
-- **1b**: not before a day of watching 1a. It starts the 7-day soak; 0111+ must not land before it ends.
+- **1b applied 2026-10-12 ~17:10 UTC** (`prod-apply.mjs 1b --apply --backup-confirmed`, run by the owner). The 7-day soak ends **2026-10-19**; 0111+ must not land before it. During the soak: confirm front-desk alerts raise, dismiss and auto-dismiss on a real gym (production had 0 alert rows at the time of 0110, so the first real alert is the first live exercise of the rewritten path).
 
 ## Open items (original list, kept for the record)
 - **Rehearsal never run** (gate 2). Needs the owner's R2 access and age private key.
