@@ -7,6 +7,7 @@
 //
 //   1a   0106, 0107, 0108, 0109   head must be 0105
 //   1b   0110 ALONE               head must be 0109 (starts the 7-day soak before 0111)
+//   2    0111, 0112, 0113, 0114, 0116   head must be 0110 (0115 stays for stage 3: its head check is 0116)
 //
 //   node scripts/prod-apply.mjs 1a --dry-run                      # ONE transaction, ROLLED BACK at the end
 //   node scripts/prod-apply.mjs 1a --apply --backup-confirmed     # one transaction per migration
@@ -39,8 +40,8 @@ const { Client } = loadPg();
 const [stage, ...flags] = process.argv.slice(2);
 const dry = flags.includes("--dry-run");
 const apply = flags.includes("--apply");
-if (!["1a", "1b"].includes(stage) || dry === apply) {
-  console.error("usage: prod-apply.mjs <1a|1b> (--dry-run | --apply --backup-confirmed)");
+if (!["1a", "1b", "2"].includes(stage) || dry === apply) {
+  console.error("usage: prod-apply.mjs <1a|1b|2> (--dry-run | --apply --backup-confirmed)");
   process.exit(2);
 }
 if (apply && !flags.includes("--backup-confirmed")) {
@@ -51,6 +52,7 @@ if (apply && !flags.includes("--backup-confirmed")) {
 const PLAN = {
   "1a": { head: "0105", files: ["0106_flagged_payment_reason", "0107_charge_guests_setting_session_record", "0108_desk_session_payment", "0109_in_app_tara_session_payment"] },
   "1b": { head: "0109", files: ["0110_front_desk_alert_kind"] },
+  "2": { head: "0110", files: ["0111_check_in_session_gate", "0112_class_attendance_session_gate", "0113_session_refunds_revenue_line", "0114_guest_sessions_overview_rpcs", "0116_session_alert_cooldown"] },
 }[stage];
 
 const password = readFileSync(process.env.PROD_PASSWORD_FILE ?? join(homedir(), ".supabase-db-password"), "utf8").trim();
@@ -81,6 +83,18 @@ const VERIFY = [
   ["one-active alert index", `select coalesce(string_agg(indexname, ','), 'none') as idx from pg_indexes where tablename='front_desk_alerts' and indexname like 'idx_front_desk_alerts_one_active%'`],
   ["EXECUTE on V1.6 RPCs (anon must be false)", `select p.oid::regprocedure::text as fn, has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_exec, has_function_privilege('anon', p.oid, 'EXECUTE') as anon_exec
      from pg_proc p where p.pronamespace='public'::regnamespace and p.proname in ('record_session_payment','initiate_session_payment','set_guest_charging','guest_charging_impact','update_plan_pricing','check_in') order by 1`],
+  ["stage 2: V1.6 objects (expect session_attempts, consume fn, summary RPC, hold-back trigger, refund trigger)", `select
+     (select count(*) from information_schema.tables where table_schema='public' and table_name='session_attempts') as session_attempts,
+     (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname in ('consume_guest_session','on_session_consumed','hold_back_repeat_session_alert','apply_session_refund')) as private_fns,
+     (select count(*) from pg_proc where pronamespace='public'::regnamespace and proname in ('guest_sessions_summary','list_guest_sessions_paid','list_session_attempts','list_free_guest_sessions','gym_session_revenue_mtd')) as overview_rpcs,
+     (select count(*) from pg_trigger where not tgisinternal and tgname in ('front_desk_alerts_hold_back_repeat_session_alert')) as cooldown_trigger`],
+  ["stage 2: direct client writes revoked (expect all false) / anon EXECUTE on stage-2 functions (expect 0)", `select
+     has_table_privilege('authenticated','public.attendance_events','INSERT') as att_insert,
+     has_table_privilege('authenticated','public.attendance_events','UPDATE') as att_update,
+     has_table_privilege('authenticated','public.attendance_events','DELETE') as att_delete,
+     has_table_privilege('service_role','public.attendance_events','INSERT') as att_insert_service,
+     has_column_privilege('authenticated','public.class_bookings','attended_at','UPDATE') as booking_attended_update,
+     (select count(*) from pg_proc p where p.pronamespace in ('public'::regnamespace) and has_function_privilege('anon', p.oid, 'EXECUTE') and p.proname in ('check_in','mark_class_attendance','guest_sessions_summary','list_guest_sessions_paid','list_session_attempts','list_free_guest_sessions','gym_session_revenue_mtd','gym_revenue_mtd')) as anon_exec_count`],
 ];
 
 async function runMigration(base) {

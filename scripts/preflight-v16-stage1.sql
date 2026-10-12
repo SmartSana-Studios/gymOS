@@ -6,6 +6,7 @@
 --        -U postgres.vfxezibagiznrirdwkwh -d postgres -f scripts/preflight-v16-stage1.sql
 -- (In this devcontainer the container psql cannot reach the pooler; it was run through a Node pg client.)
 --
+-- Stage 2 = 0111-0114 + 0116 (head must be 0110; sections 10-11 below).
 -- Stage 1a = 0106-0109 (additive, head must be 0105). Stage 1b = 0110 ALONE (head must be 0109);
 -- it rewrites the alert path of every live gym and starts the 7-day soak before 0111.
 
@@ -17,6 +18,7 @@
 select case
          when max(version) = '0105' then 'PASS - head is 0105: stage 1a (0106-0109) may run'
          when max(version) = '0109' then 'PASS - head is 0109: stage 1b (0110 alone) may run'
+         when max(version) = '0110' then 'PASS - head is 0110: stage 2 (0111-0114, 0116) may run'
          else 'STOP - head is ' || coalesce(max(version), 'none') || '; neither stage applies' end as head
 from supabase_migrations.schema_migrations;
 
@@ -78,6 +80,23 @@ select case when has_function_privilege('anon', 'public.check_in(timestamptz,uui
             else 'PASS - anon cannot execute check_in' end as anon_check_in;
 
 \echo ''
+\echo ''
+\echo '--- 10. Stage 2 only (head 0110): the V1.6 session objects must not exist yet (expect all zero) ---'
+select
+  (select count(*) from information_schema.tables where table_schema='public' and table_name='session_attempts') as session_attempts,
+  (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='private' and p.proname in ('consume_guest_session','hold_back_repeat_session_alert','apply_session_refund')) as private_fns,
+  (select count(*) from pg_proc where pronamespace='public'::regnamespace and proname in ('guest_sessions_summary','list_guest_sessions_paid','list_session_attempts','gym_session_revenue_mtd')) as overview_rpcs;
+
+\echo ''
+\echo '--- 11. Stage 2 only: live bodies/ACLs the stage rewrites are the ones it was written against ---'
+select case when pg_get_functiondef('public.check_in(timestamptz,uuid)'::regprocedure) like '%on conflict (member_id, kind, status)%'
+            then 'PASS - check_in is the 0110 body (kind-aware ON CONFLICT)'
+            else 'WARN - check_in is not the 0110 body; read it before 0111 overwrites it' end as check_in_0110,
+       case when has_table_privilege('authenticated','public.attendance_events','INSERT')
+            then 'INFO - authenticated can still INSERT attendance_events (0111 revokes it; nothing in the deployed apps writes it directly)'
+            else 'INFO - authenticated cannot INSERT attendance_events already' end as attendance_events_acl;
+select case when count(*) = 0 then 'PASS - no refunds yet (0113 trigger has no history to act on)' else 'INFO - ' || count(*) || ' refund(s) exist; 0113 only acts on new inserts' end as refunds from refunds;
+
 \echo '--- 9. Backup gate (cannot be read from SQL; confirm by hand) ---'
 \echo 'STOP unless the db-backup workflow was triggered and finished green immediately before this deploy.'
 
