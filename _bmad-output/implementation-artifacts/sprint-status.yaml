@@ -412,7 +412,7 @@ development_status:
   19-10-guest-sessions-overview-card: done
   19-11-member-app-pay-for-your-session-offline-verification-session: done
   19-12-v1-6-session-guests-enablement: done
-  epic-19-retrospective: optional
+  epic-19-retrospective: done
 
   epic-20: backlog
   20-1-loyalty-program-setting-ledger-foundation: backlog
@@ -797,12 +797,95 @@ action_items:
     epic: 18
     action: "Triage the 28 GitHub Dependabot alerts (2 critical, 23 high). DONE 2026-10-11:
       all 28 were already fixed in pnpm-lock.yaml on master; PR #34 also clears the
-      newer pnpm-audit advisories (42 -> 3, remaining: braces and node-forge with no
-      patched release, uuid major bump, all dev/Expo tooling)."
+      newer pnpm-audit advisories (42 -> 3, remaining: braces and node-forge with
+      no patched release, uuid major bump, all dev/Expo tooling)."
     owner: "dev"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-08.md"
-last_updated: 10-12-2026 12:00
+  - id: "epic-19-retro-item-24-wire-scripts-session-refund-race-sh-into"
+    epic: 19
+    action: "Wire scripts/session-refund-race.sh into ci-local.sh/CI or declare it
+      a pre-merge gate for lock-order edits to consume_guest_session/apply_session_refund"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
+  - id: "epic-19-retro-item-25-deploy-the-payment-webhook-edge-function"
+    epic: 19
+    action: "Deploy the payment-webhook edge function with the callbackUrl.ts https/functions-v1
+      hardening (181a14d)"
+    owner: "owner"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
+  - id: "epic-19-retro-item-26-run-docs-restore-test-md-and-record-the"
+    epic: 19
+    action: "Run docs/restore-test.md and record the date; write the secret-rotation
+      procedure"
+    owner: "owner"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
+  - id: "epic-19-retro-item-27-throwaway-gym-check-that-a-new-gym-start"
+    epic: 19
+    action: "Throwaway-gym check that a new gym starts with charge_guests_per_session
+      ON; psql proof of 0115 with mixed-flag gyms and one dry run of rollback-0115"
+    owner: "owner"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
+  - id: "epic-19-retro-item-28-decide-the-lapsed-paid-session-state-and"
+    epic: 19
+    action: "Decide the lapsed paid-session state and flagged session payment guidance
+      copy before any gym enables charging"
+    owner: "product owner"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
+  - id: "epic-19-retro-item-29-remove-expo-token-and-supabase-db-passwo"
+    epic: 19
+    action: "Remove ~/.expo-token and ~/.supabase-db-password from the devcontainer
+      and revoke at the providers"
+    owner: "owner"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
+  - id: "epic-19-retro-item-30-reconcile-epic-19-context-md-and-epics-m"
+    epic: 19
+    action: "Reconcile epic-19-context.md and epics.md with as-built: 19.9a/b/c split,
+      AD-08 guard vacuous, ad hoc 0116, Epic 20 migrations 0117+, check_in null-composite
+      correction"
+    owner: "architect"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
+  - id: "epic-19-retro-item-31-decide-whether-to-revoke-delete-on-class"
+    epic: 19
+    action: "Decide whether to revoke DELETE on class_bookings for authenticated and
+      whether platform_metrics() excludes session payments"
+    owner: "architect"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
+  - id: "epic-19-retro-item-32-split-apps-dashboard-services-payments-t"
+    epic: 19
+    action: "Split apps/dashboard/services/payments.ts and members.ts by concern when
+      next touched; extract usePaymentStatusWatch"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
+  - id: "epic-19-retro-item-33-file-a-short-spec-or-decisions-md-entry"
+    epic: 19
+    action: "File a short spec or decisions.md entry for each ad hoc production change;
+      run the epic19-qa kit through real PostgREST before review for any new RPC contract"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
+  - id: "epic-19-retro-item-34-add-utf-8-bom-and-leading-tab-cr-guard-a"
+    epic: 19
+    action: "Add UTF-8 BOM and leading tab/CR guard across all CSV exports"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
+  - id: "epic-19-retro-item-35-decide-on-the-vercel-build-rate-limit-pl"
+    epic: 19
+    action: "Decide on the Vercel build rate limit (plan or preview-build volume)"
+    owner: "owner"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
+last_updated: 10-12-2026 22:30
 # last_updated: 2026-10-11 (build: 19-0 spec created and approved, backlog -> in-progress; epic-19 backlog -> in-progress. Non-code ops-checklist story: docs/decisions.md V1.6 release runbook. Prod backup posture read from the Management API (PITR off, no daily backups); db-backup workflow to R2 merged in PRs #35/#36, first green run 2026-10-11.)
 # last_updated: 2026-10-11 (build: 19-0 in-progress -> done. docs/decisions.md "V1.6 release runbook" (2026-10-11) answers release order, forward-fix rollback, backup/PITR posture (PITR off; daily R2 dump; revisit 2026-12-31; restore never tested), local-restore rehearsal, secrets locations (rotation deferred 2026-11-30) and job_runs alerting (gate for 19-12, owner josephfeussi; logged in deferred-work.md). deploy-runbook.md [NEEDS] markers and the architecture spine's open list updated. No code, migration or CI change.)
 # last_updated: 2026-10-11 (ad-hoc, non-story: local-CI-first workflow -- scripts/ci-local.sh mirrors ci.yml (static+pgTAP concurrent, then vitest, then E2E); ci.yml now triggers only on PRs into master (+workflow_dispatch), so GitHub Actions runs once per epic (epic/N -> master PR); finding: pgTAP (3 files) and E2E seed fail against the dev DB because QA data pollutes it -- a pristine DB is required, db reset pending user decision)
