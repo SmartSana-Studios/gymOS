@@ -4,7 +4,7 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'ex
 import { useIsFocused, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActivityIndicator, Animated, AppState, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Animated, AppState, InteractionManager, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/ui/Button';
@@ -70,6 +70,26 @@ export default function CheckInScreen() {
   const [showNudge, setShowNudge] = useState(false);
   const [flash, setFlash] = useState(false);
   const [validating, setValidating] = useState(false);
+  // Android expo-camera keeps the preview at the size it had on first layout; when this screen is
+  // pushed from Home that is mid-transition and the preview stays shrunk. Mount (and remount on
+  // resize) the camera with the measured size instead of absoluteFill.
+  const [cameraSize, setCameraSize] = useState<{ width: number; height: number } | null>(null);
+  // Reached from Home's "Enregistrement" button the screen mounts mid-transition and the preview
+  // surface is created at a transitional size (about half the screen, black below). Hold the camera
+  // back until the transition has settled; it is re-created on every focus.
+  const [cameraReady, setCameraReady] = useState(false);
+  useEffect(() => {
+    if (!isFocused) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const task = InteractionManager.runAfterInteractions(() => {
+      timer = setTimeout(() => setCameraReady(true), 400);
+    });
+    return () => {
+      task.cancel();
+      if (timer) clearTimeout(timer);
+      setCameraReady(false);
+    };
+  }, [isFocused]);
   const processingRef = useRef(false);
   const mountedRef = useRef(true);
   const isFocusedRef = useRef(isFocused);
@@ -92,6 +112,10 @@ export default function CheckInScreen() {
 
   useEffect(() => {
     isFocusedRef.current = isFocused;
+    // A result overlay left via the header close button or a tab switch never calls
+    // resetScanning(); the focus handler below clears the overlay state but not this guard,
+    // so every later scan was silently ignored. Re-arm the scanner on every focus.
+    if (isFocused) processingRef.current = false;
   }, [isFocused]);
 
   useEffect(() => {
@@ -420,10 +444,20 @@ export default function CheckInScreen() {
               </View>
             </View>
           ) : (
-            <View style={styles.cameraContainer}>
-              {isFocused && (
+            <View
+              style={styles.cameraContainer}
+              onLayout={(e) => {
+                const { width, height } = e.nativeEvent.layout;
+                if (width > 0 && height > 0) {
+                  setCameraSize((prev) =>
+                    prev && Math.abs(prev.width - width) < 1 && Math.abs(prev.height - height) < 1 ? prev : { width, height },
+                  );
+                }
+              }}>
+              {isFocused && cameraReady && cameraSize && (
                 <CameraView
-                  style={StyleSheet.absoluteFill}
+                  key={`${Math.round(cameraSize.width)}x${Math.round(cameraSize.height)}`}
+                  style={{ position: 'absolute', top: 0, left: 0, width: cameraSize.width, height: cameraSize.height }}
                   facing="back"
                   barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
                   onBarcodeScanned={resultShowing ? undefined : handleBarcodeScanned}

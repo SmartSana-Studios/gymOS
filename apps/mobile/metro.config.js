@@ -18,4 +18,16 @@ config.resolver.assetExts.push('wasm');
 // the directory from Metro's crawl avoids the crash entirely.
 config.resolver.blockList = [/node_modules[\\/]\.ignored([\\/].*)?$/];
 
+// Local Epic 19 QA in Expo Go only (scripts/epic19-qa/start-mobile.sh sets QA_EXPO_GO=1): Expo Go on
+// Android cannot import expo-notifications, so swap in a no-op stub. Inert in every real build.
+if (process.env.QA_EXPO_GO === '1') {
+  const path = require('path');
+  const stub = path.resolve(__dirname, '../../scripts/epic19-qa/stubs/expo-notifications.js');
+  const upstream = config.resolver.resolveRequest;
+  config.resolver.resolveRequest = (context, moduleName, platform) => {
+    if (moduleName === 'expo-notifications') return { type: 'sourceFile', filePath: stub };
+    return (upstream ?? context.resolveRequest)(context, moduleName, platform);
+  };
+}
+
 module.exports = config;

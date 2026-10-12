@@ -49,6 +49,12 @@ describe('recordCheckIn', () => {
     expect((await recordCheckIn(null)).status).toBe('session_required');
   });
 
+  it('treats an all-null row (PostgREST 14 NULL composite) as a refusal, not a success', async () => {
+    rpc.mockResolvedValue({ data: { id: null, checked_in_at: null, member_id: null }, error: null });
+    refreshChargingContext.mockResolvedValue(charged);
+    expect((await recordCheckIn(null)).status).toBe('session_required');
+  });
+
   it('returns the price of the context that classified the refusal', async () => {
     rpc.mockResolvedValue({ data: null, error: null });
     refreshChargingContext.mockResolvedValue({ ...charged, planPrice: 5000, planCurrency: 'XAF' });
@@ -117,6 +123,12 @@ describe('syncPendingCheckIns', () => {
     const denials = await syncPendingCheckIns();
     expect(denials).toEqual([{ scanId: 'scan-1', scannedAt: record.scannedAt }]);
     expect(order).toEqual(['persist', 'delete']);
+  });
+
+  it('records a denial for an all-null row too', async () => {
+    rpc.mockResolvedValue({ data: { id: null, checked_in_at: null }, error: null });
+    refreshChargingContext.mockResolvedValue(charged);
+    expect(await syncPendingCheckIns()).toEqual([{ scanId: 'scan-1', scannedAt: record.scannedAt }]);
   });
 
   it('uses the cached context when the online refresh is unavailable', async () => {

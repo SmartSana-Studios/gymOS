@@ -64,6 +64,13 @@ export async function getRecentCheckIns(memberId: string, limit: number): Promis
   }
 }
 
+/** check_in() RETURNS attendance_events and returns SQL NULL for a refusal. PostgREST >= 14 (the
+ * local Supabase stack) serialises a NULL composite as an all-null row instead of JSON null, so a
+ * refusal is "no data, or a row with no check-in time" -- a real row always has checked_in_at. */
+function isRefusedCheckIn(data: { checked_in_at?: string | null } | null | undefined): boolean {
+  return !data || data.checked_in_at == null;
+}
+
 export interface RecordCheckInResult {
   status: 'success' | 'already_checked_in' | 'expired' | 'session_required' | 'gym_suspended' | 'error';
   checkedInAt?: string;
@@ -119,7 +126,7 @@ export async function recordCheckIn(chargingContext: ChargingContext | null = nu
     // Story 19.11: check_in() keeps its contract -- null means refused. At a
     // charging gym, for a per-session member who is not expired, the refusal
     // means a paid session is required; otherwise it stays 'expired'.
-    if (!data) {
+    if (isRefusedCheckIn(data)) {
       // The passed context may be null/stale; classify from a fresh read
       // when one is reachable, so a member who only needs to pay never sees
       // the red expired screen.
@@ -132,7 +139,7 @@ export async function recordCheckIn(chargingContext: ChargingContext | null = nu
       }
       return { status };
     }
-    return { status: 'success', checkedInAt: data.checked_in_at };
+    return { status: 'success', checkedInAt: data!.checked_in_at };
   } catch {
     return { status: 'error' };
   }
@@ -196,7 +203,7 @@ export async function syncPendingCheckIns(): Promise<SyncDenial[]> {
       const recoverable =
         error?.message?.includes('already has an open check-in') || isGymSuspendedError(error);
 
-      if (!error && !data && recordDenials) {
+      if (!error && isRefusedCheckIn(data) && recordDenials) {
         denials.push({ scanId: record.id, scannedAt: record.scannedAt });
         // Persist before deleting the queue row, so a crash between the two
         // can only re-surface a denial (deduped by scan id), never lose it.
