@@ -30,6 +30,7 @@ Mobile: the 19.11 build (pay-for-your-session, offline verification) and the ref
 - Data damage is restored from the pre-stage dump into a scratch database and only the affected rows copied back.
 
 ## Done / open
+- **Mobile gate closed 2026-10-12:** app 1.5 (iOS build 20, Android build 21; first 1.0.1/1.1.0 attempts were rejected or superseded because Apple had closed the 1.0.1 train and the App Store Connect version record is 1.5) was tested by the owner and promoted in both stores. It carries pay-for-your-session, offline verification and the refused-check-in fix. Hosted PostgREST is 14.5, so builds before 1.5 show a false success on a refused scan (see decisions.md).
 - **1a applied 2026-10-12** via `node scripts/prod-apply.mjs 1a --apply --backup-confirmed` (run by the owner). Still to do for 1a: deploy the `payment-webhook` edge function (needs the Supabase CLI/token) and a dashboard smoke test of a subscription payment.
 - **1b applied 2026-10-12 ~17:10 UTC** (`prod-apply.mjs 1b --apply --backup-confirmed`, run by the owner). The 7-day soak ends **2026-10-19**; 0111+ must not land before it. During the soak: confirm front-desk alerts raise, dismiss and auto-dismiss on a real gym (production had 0 alert rows at the time of 0110, so the first real alert is the first live exercise of the rewritten path).
 
