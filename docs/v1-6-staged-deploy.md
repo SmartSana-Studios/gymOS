@@ -1,6 +1,6 @@
 # V1.6 (Epic 19) staged production deploy
 
-Status: **stages 1a (0106-0109), 1b (0110) and 2 (0111-0114, 0116) APPLIED to production 2026-10-12** (head 0116; 1a ~13:15 UTC, 1b ~17:10, stage 2 ~17:50, each after a rolled-back dry run and a green db-backup run; charging on for 0 gyms, anon EXECUTE false, direct client writes on attendance_events/class_bookings.attended_at revoked). **The 7-day soak on 0110 was deliberately overridden by the owner on 2026-10-12** after a live alert test (alert raised, dismissed, no duplicate; member in good standing checked in). **Not applied: 0115 (stage 3, gated).** PR #52 merges next.
+Status: **ALL STAGES APPLIED to production 2026-10-12** (1a 0106-0109, 1b 0110, 2 0111-0114+0116, 3 0115; ledger head 0116). Stage 3 was applied by the owner's explicit decision while the tested-restore, rotation-procedure and Epic 18 item 22 gates were still open; the mobile (1.5 promoted) and `job_runs` alert gates were closed. Existing gyms unchanged (charging on for 0); new gyms default to charging ON.
 
 Production has live gyms. Everything V1.6 is off per gym until an Owner/Supervisor enables it, so the risk is in the *plumbing* migrations (0106-0110 touch live payment/alert paths) and in ordering the dashboard deploy after the schema it queries.
 

@@ -19,6 +19,7 @@ select case
          when max(version) = '0105' then 'PASS - head is 0105: stage 1a (0106-0109) may run'
          when max(version) = '0109' then 'PASS - head is 0109: stage 1b (0110 alone) may run'
          when max(version) = '0110' then 'PASS - head is 0110: stage 2 (0111-0114, 0116) may run'
+         when max(version) = '0116' then 'PASS - head is 0116: stage 3 (0115 alone, default flip for NEW gyms) may run'
          else 'STOP - head is ' || coalesce(max(version), 'none') || '; neither stage applies' end as head
 from supabase_migrations.schema_migrations;
 
@@ -96,6 +97,15 @@ select case when pg_get_functiondef('public.check_in(timestamptz,uuid)'::regproc
             then 'INFO - authenticated can still INSERT attendance_events (0111 revokes it; nothing in the deployed apps writes it directly)'
             else 'INFO - authenticated cannot INSERT attendance_events already' end as attendance_events_acl;
 select case when count(*) = 0 then 'PASS - no refunds yet (0113 trigger has no history to act on)' else 'INFO - ' || count(*) || ' refund(s) exist; 0113 only acts on new inserts' end as refunds from refunds;
+
+\echo ''
+\echo '--- 12. Stage 3 only (head 0116): current default and existing gyms ---'
+select (select column_default from information_schema.columns where table_schema='public' and table_name='gyms' and column_name='charge_guests_per_session') as current_default,
+       (select count(*) from gyms) as gyms_total,
+       (select count(*) from gyms where charge_guests_per_session) as gyms_charging_on_now;
+select case when exists (select 1 from supabase_migrations.schema_migrations where version = '0115')
+            then 'STOP - 0115 is already in the ledger'
+            else 'PASS - 0115 not applied yet' end as ledger_0115;
 
 \echo '--- 9. Backup gate (cannot be read from SQL; confirm by hand) ---'
 \echo 'STOP unless the db-backup workflow was triggered and finished green immediately before this deploy.'
