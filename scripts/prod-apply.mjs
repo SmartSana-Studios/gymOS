@@ -77,7 +77,7 @@ const VERIFY = [
      (select count(*) from front_desk_alerts) as alerts, (select count(*) from front_desk_alerts where dismissed_at is null) as active_alerts`],
   ["gyms with charging on (expect 0)", `select count(*) as n from gyms where to_jsonb(gyms) ? 'charge_guests_per_session' and (to_jsonb(gyms)->>'charge_guests_per_session')::boolean`],
   ["V1.6 RPCs present (1a: expect 5)", `select count(*) as n from pg_proc where pronamespace='public'::regnamespace and proname in ('record_session_payment','initiate_session_payment','set_guest_charging','guest_charging_impact','update_plan_pricing')`],
-  ["alert kinds (1b: only subscription_status)", `select coalesce((select string_agg(distinct kind::text, ',') from front_desk_alerts where to_jsonb(front_desk_alerts) ? 'kind'), 'n/a (kind not added yet)') as kinds`],
+  ["alert kinds (1b: only subscription_status)", `select coalesce((select string_agg(distinct coalesce(to_jsonb(f)->>'kind', 'n/a (kind not added yet)'), ',') from front_desk_alerts f), 'no alerts') as kinds`],
   ["one-active alert index", `select coalesce(string_agg(indexname, ','), 'none') as idx from pg_indexes where tablename='front_desk_alerts' and indexname like 'idx_front_desk_alerts_one_active%'`],
   ["EXECUTE on V1.6 RPCs (anon must be false)", `select p.oid::regprocedure::text as fn, has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated_exec, has_function_privilege('anon', p.oid, 'EXECUTE') as anon_exec
      from pg_proc p where p.pronamespace='public'::regnamespace and p.proname in ('record_session_payment','initiate_session_payment','set_guest_charging','guest_charging_impact','update_plan_pricing','check_in') order by 1`],
