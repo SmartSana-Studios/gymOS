@@ -4,6 +4,19 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-12 — Session-required alert cooldown (post-19.12, migration 0116)
+
+Found in the Epic 19 local QA kit (`scripts/epic19-qa/`): a guest who keeps scanning without paying produced one `session_required` alert per scan once the desk had dismissed (or the panel had auto-dismissed) the previous one. Repeated scans while an alert is active were already a single alert (0111's one-active index); the gap was the *next* scan after a dismissal.
+
+- **Rule.** A BEFORE INSERT trigger `private.hold_back_repeat_session_alert()` on `front_desk_alerts` skips a `session_required` insert when that member's previous `session_required` alert in the same gym was dismissed within the last 15 minutes and no `guest_sessions` row was created after that alert was raised. A purchase (including buy, refund, rescan) re-arms the alert; `subscription_status` alerts are untouched.
+- **Blocked attempts are unchanged.** `session_attempts` still records every scan (per scan id), so the Guest sessions blocked figures do not move; only the desk alert row is held back.
+- **Why a trigger, not the RPCs.** `check_in()` and `mark_class_attendance()` both insert the alert; one guard at the table covers both and any future writer, with no rewrite of two live, locked functions.
+- **Cooldown value.** 15 minutes is a constant in the function (revisit with real desk feedback). Auto-dismiss is 30 minutes by default, so an auto-dismissed alert is outside the window and a persistent guest does come back to the desk.
+- **Tests:** `session_alert_cooldown.test.sql`, `session_alert_cooldown.negative.test.sql`. **Rollback:** `scripts/rollback-0116-session-alert-cooldown.sql` (drops the trigger and function, no data touched). Ships after 0115; not applied to production.
+- **Also fixed in the same pass (no migration):** the member app treated a refused `check_in()` as a success under PostgREST 14 (NULL composite arrives as an all-null row, not `null`); dashboard front-desk alert boxes inherited white text on their light backgrounds in dark mode. **Open:** confirm the hosted project's PostgREST version.
+
+---
+
 ## 2026-10-12 — V1.6 session guests enablement (Story 19.12, migration 0115)
 
 Migration 0115 changes one thing: `alter table gyms alter column charge_guests_per_session set default true`. It runs inside one DO block that locks `gyms`, hashes every `(id, flag)` before and after the ALTER and raises if they differ (so it is safe without a wrapping transaction), then a verify block asserts the default is `true` and the column is still `NOT NULL`. Gyms created after it start with per-session charging on (FR-157); every gym that existed before keeps its value (off unless its owner enabled charging). Catalog-only, no row rewrite, no change to the pin trigger or setter.
