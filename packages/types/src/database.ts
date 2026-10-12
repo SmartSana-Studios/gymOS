@@ -2199,6 +2199,15 @@ export type Database = {
         }[]
       }
       guest_charging_impact: { Args: never; Returns: number }
+      guest_sessions_summary: {
+        Args: { p_period: string }
+        Returns: {
+          blocked_count: number
+          blocked_members: number
+          free_count: number
+          paid_count: number
+        }[]
+      }
       gym_effective_member_cap: { Args: never; Returns: number }
       gym_local_period_bounds: {
         Args: never
@@ -2257,6 +2266,43 @@ export type Database = {
           scheduled_at: string
         }[]
       }
+      list_free_guest_sessions: {
+        Args: { p_limit?: number; p_offset?: number; p_period: string }
+        Returns: {
+          earned_at: string
+          member_id: string
+          member_name: string
+          session_id: string
+          status: string
+          total_count: number
+          usable_until: string
+        }[]
+      }
+      list_guest_sessions_paid: {
+        Args: {
+          p_group_by_recorder?: boolean
+          p_limit?: number
+          p_offset?: number
+          p_period: string
+          p_refunded_after_use_only?: boolean
+        }
+        Returns: {
+          amount: number
+          consumed_at: string | null
+          created_at: string
+          group_sessions: number | null
+          group_total: number | null
+          member_id: string
+          member_name: string
+          method: string
+          payment_id: string
+          recorder_id: string | null
+          recorder_kind: string
+          recorder_name: string | null
+          refund_state: string
+          total_count: number
+        }[]
+      }
       list_my_class_bookings: {
         Args: never
         Returns: {
@@ -2296,6 +2342,20 @@ export type Database = {
           gym_id: string
           gym_name: string
           role: Database["public"]["Enums"]["member_role"]
+        }[]
+      }
+      list_session_attempts: {
+        Args: { p_limit?: number; p_offset?: number; p_period: string }
+        Returns: {
+          attempt_id: string
+          attempt_time: string
+          class_name: string | null
+          member_id: string
+          member_name: string
+          scanned_at: string | null
+          synced_at: string
+          source: string
+          total_count: number
         }[]
       }
       list_selectable_saas_billing_tiers: {

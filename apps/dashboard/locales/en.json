@@ -53,7 +53,24 @@
       "newThisMonth": "New this month",
       "todaysClasses": "Today's classes",
       "atRisk": "At risk",
-      "unavailable": "Unavailable"
+      "unavailable": "Unavailable",
+      "guestSessionsCard": {
+        "title": "Guest sessions",
+        "period": "Period",
+        "today": "Today",
+        "month": "This month",
+        "periodToday": "today",
+        "periodMonth": "this month",
+        "paid": "Paid sessions",
+        "blocked": "Blocked attempts",
+        "free": "Free sessions given",
+        "blockedMembers": "{{count}} members",
+        "paidAria": "Paid sessions {{period}}: {{count}}. Open the paid sessions list.",
+        "blockedAria": "Blocked check-in attempts {{period}}: {{count}} attempts by {{members}} members. Open the blocked attempts list.",
+        "freeAria": "Free sessions given {{period}}: {{count}}. Open the free sessions list.",
+        "loadError": "Couldn't load guest sessions.",
+        "retry": "Retry"
+      }
     },
     "tables": {
       "viewAll": "View all →",
@@ -1263,6 +1280,75 @@
     "previous": "Previous page",
     "next": "Next page",
     "ellipsis": "…"
+  },
+  "guestSessions": {
+    "title": "Guest sessions",
+    "back": "Back to Overview",
+    "permissionDenied": "You don't have permission to do that.",
+    "loadError": "Couldn't load guest sessions.",
+    "refresh": "Refresh",
+    "period": "Period",
+    "today": "Today",
+    "month": "This month",
+    "periodToday": "today",
+    "periodMonth": "this month",
+    "tabs": {
+      "label": "Guest sessions views",
+      "paid": "Paid",
+      "blocked": "Blocked attempts",
+      "free": "Free given"
+    },
+    "empty": {
+      "paid": "No paid sessions {{period}}.",
+        "paidRefundedAfterUse": "No refunded-after-use sessions in this period.",
+      "blocked": "No blocked attempts {{period}}.",
+      "free": "No free sessions given {{period}}."
+    },
+    "groupBy": {
+      "label": "Group by",
+      "recorder": "Recorded by",
+      "none": "None"
+    },
+    "refundedAfterUseOnly": "Refunded after use only",
+    "groupHeader_one": "{{name}} — {{count}} paid session · {{total}} XAF",
+    "groupHeader_other": "{{name}} — {{count}} paid sessions · {{total}} XAF",
+    "recorderTara": "Tara Money (in app)",
+    "recorderUnknown": "Unknown",
+    "blockedSummary": "{{attempts}} attempts · {{members}} members",
+    "synced": "(synced {{time}})",
+    "columns": {
+      "member": "Member",
+      "amount": "Amount",
+      "method": "Method",
+      "recordedBy": "Recorded by",
+      "time": "Time",
+      "refund": "Refund",
+      "source": "Source",
+      "class": "Class",
+      "earned": "Earned",
+      "useBy": "Use by",
+      "status": "Status"
+    },
+    "refund": {
+      "refunded": "Refunded",
+      "refundedAfterUse": "Refunded after use",
+      "none": "—"
+    },
+    "source": {
+      "check_in": "Check-in",
+      "class": "Class attendance"
+    },
+    "status": {
+      "available": "Available",
+      "used": "Used",
+      "lapsed": "Lapsed",
+      "voided": "Voided"
+    },
+    "pagination": {
+      "range": "{{from}}–{{to}} of {{total}}",
+      "previous": "Previous",
+      "next": "Next"
+    }
   },
   "sessionPayment": {
     "title": "Record session payment — {{name}}",

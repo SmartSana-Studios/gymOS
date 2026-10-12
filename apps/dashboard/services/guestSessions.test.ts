@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let sessionRows: unknown[];
 let actorRows: unknown[];
+let rpcResult: { data: unknown; error: unknown } = { data: [], error: null };
+const rpcCalls: [string, Record<string, unknown>][] = [];
 
 function from(table: string) {
   const b: Record<string, unknown> = {};
@@ -19,6 +21,10 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     auth: { getClaims: async () => ({ data: { claims: { gym_id: "gym-1" } }, error: null }) },
     from,
+    rpc: async (fn: string, args: Record<string, unknown>) => {
+      rpcCalls.push([fn, args]);
+      return rpcResult;
+    },
   })),
 }));
 vi.mock("@/services/session", () => ({ mapAndLog: vi.fn(async () => ({ code: "unknown", message: "m" })) }));
@@ -82,5 +88,124 @@ describe("listMemberGuestSessions", () => {
     const { listMemberGuestSessions } = await import("./guestSessions");
     const { data } = await listMemberGuestSessions("m1");
     expect(data?.[0].recordedByName).toBeNull();
+  });
+});
+
+describe("Story 19.10 readers", () => {
+  it("maps the summary row and defaults a missing row to zeros", async () => {
+    rpcResult = {
+      data: [{ paid_count: 3, blocked_count: 2, blocked_members: 1, free_count: 0 }],
+      error: null,
+    };
+    const { getGuestSessionsSummary } = await import("./guestSessions");
+    const { data } = await getGuestSessionsSummary("month");
+    expect(rpcCalls.at(-1)).toEqual(["guest_sessions_summary", { p_period: "month" }]);
+    expect(data).toEqual({ paid: 3, blocked: 2, blockedMembers: 1, free: 0 });
+
+    rpcResult = { data: [], error: null };
+    expect((await getGuestSessionsSummary("today")).data).toEqual({
+      paid: 0,
+      blocked: 0,
+      blockedMembers: 0,
+      free: 0,
+    });
+  });
+
+  it("maps a 42501 refusal to the permission copy, not the raw message", async () => {
+    rpcResult = { data: null, error: { code: "42501", message: "guest_sessions: permission denied" } };
+    const { getGuestSessionsSummary } = await import("./guestSessions");
+    const { data, error } = await getGuestSessionsSummary("today");
+    expect(data).toBeNull();
+    expect(error).toEqual({ code: "forbidden", message: "guestSessions.permissionDenied" });
+  });
+
+  it("pages 50 rows at a time and maps paid rows with group totals", async () => {
+    rpcResult = {
+      data: [
+        {
+          payment_id: "p1",
+          member_id: "m1",
+          member_name: "Amina",
+          amount: 5000,
+          method: "cash",
+          created_at: "2026-10-12T08:00:00Z",
+          consumed_at: null,
+          refund_state: "refunded",
+          recorder_id: "u1",
+          recorder_name: "Rita",
+          recorder_kind: "staff",
+          group_sessions: 3,
+          group_total: 12000,
+          total_count: 61,
+        },
+      ],
+      error: null,
+    };
+    const { listPaidGuestSessions } = await import("./guestSessions");
+    const { data } = await listPaidGuestSessions({
+      period: "today",
+      page: 2,
+      refundedAfterUseOnly: true,
+      groupByRecorder: false,
+    });
+    expect(rpcCalls.at(-1)).toEqual([
+      "list_guest_sessions_paid",
+      {
+        p_period: "today",
+        p_refunded_after_use_only: true,
+        p_group_by_recorder: false,
+        p_limit: 50,
+        p_offset: 50,
+      },
+    ]);
+    expect(data?.total).toBe(61);
+    expect(data?.rows[0]).toMatchObject({
+      paymentId: "p1",
+      refundState: "refunded",
+      recorderName: "Rita",
+      groupSessions: 3,
+      groupTotal: 12000,
+    });
+  });
+
+  it("maps blocked attempts and free sessions", async () => {
+    rpcResult = {
+      data: [
+        {
+          attempt_id: "a1",
+          member_id: "m1",
+          member_name: "Amina",
+          source: "class",
+          class_name: "Spin",
+          attempt_time: "2026-10-12T07:00:00Z",
+          scanned_at: "2026-10-12T07:00:00Z",
+          synced_at: "2026-10-12T09:00:00Z",
+          total_count: 1,
+        },
+      ],
+      error: null,
+    };
+    const { listBlockedSessionAttempts, listFreeGuestSessions } = await import("./guestSessions");
+    const blocked = await listBlockedSessionAttempts({ period: "month", page: 1 });
+    expect(blocked.data?.rows[0]).toMatchObject({ id: "a1", className: "Spin", scannedAt: "2026-10-12T07:00:00Z",
+      syncedAt: "2026-10-12T09:00:00Z",
+    });
+
+    rpcResult = {
+      data: [
+        {
+          session_id: "s1",
+          member_id: "m1",
+          member_name: "Amina",
+          earned_at: "2026-10-01T00:00:00Z",
+          usable_until: "2026-11-30T00:00:00Z",
+          status: "available",
+          total_count: 1,
+        },
+      ],
+      error: null,
+    };
+    const free = await listFreeGuestSessions({ period: "month", page: 1 });
+    expect(free.data?.rows[0]).toMatchObject({ id: "s1", status: "available" });
   });
 });

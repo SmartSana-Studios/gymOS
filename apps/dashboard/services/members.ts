@@ -1265,3 +1265,42 @@ export async function getMemberRegistrationFeeState(
     error: null,
   };
 }
+
+const MEMBER_ID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Story 19.10: one member as a list row, for the `/members?memberId=` deep
+ * link from the Guest sessions page (it opens the AD-04 modal on load, which
+ * needs the same `MemberListRow` the list passes it). Gym-scoped and
+ * `role = "member"` like `listMembers`; a malformed id, another gym's member or
+ * a staff row all read as `null` data with no error -- the page then simply
+ * opens no modal. */
+export async function getMemberListRow(
+  memberId: string,
+): Promise<{ data: MemberListRow | null; error: AppError | null }> {
+  if (!MEMBER_ID_SHAPE.test(memberId)) {
+    return { data: null, error: null };
+  }
+
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data, error } = await supabase
+    .from("members")
+    .select(
+      "id, name, phone, email, dob, photo_url, emergency_contact, join_date, deactivated_at, registration_fee_settled_at, subscriptions(status, expiry_date, plan_id, created_at, plans(name, plan_type))",
+    )
+    .eq("gym_id", gymId)
+    .eq("role", "member")
+    .eq("id", memberId)
+    .order("created_at", { referencedTable: "subscriptions", ascending: false })
+    .limit(1, { referencedTable: "subscriptions" })
+    .maybeSingle();
+
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: data ? toMemberListRow(data as unknown as MemberRowFromDb) : null, error: null };
+}

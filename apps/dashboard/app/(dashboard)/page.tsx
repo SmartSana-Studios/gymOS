@@ -16,6 +16,7 @@ import { CheckedInTable } from "./components/CheckedInTable";
 import { ExpiringTable } from "./components/ExpiringTable";
 import { GymHealthRow, GymHealthRowSkeleton } from "./components/GymHealthRow";
 import { OverviewAutoRefresh } from "./components/OverviewAutoRefresh";
+import { GuestSessionsCardSection, GuestSessionsCardSkeleton } from "./components/GuestSessionsCardSection";
 
 // AD-02: each table shows at most 10 rows. Neither service takes a limit
 // (their page sizes are module constants), so the cap is applied here, to the
@@ -247,6 +248,15 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
       {canSeeGymHealth(shell) && (
         <Suspense fallback={<GymHealthRowSkeleton />}>
           <GymHealthRow locale={locale} />
+        </Suspense>
+      )}
+
+      {/* Story 19.10: the Guest sessions card, Manager-plus and only while the
+          gym charges guests per session; absent from the DOM otherwise. A
+          failed settings read leaves it out (the flag is unknown). */}
+      {canSeeGymHealth(shell) && gymSettings?.chargeGuestsPerSession === true && (
+        <Suspense fallback={<GuestSessionsCardSkeleton />}>
+          <GuestSessionsCardSection />
         </Suspense>
       )}
 

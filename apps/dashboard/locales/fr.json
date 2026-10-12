@@ -53,7 +53,24 @@
       "newThisMonth": "Nouveaux ce mois-ci",
       "todaysClasses": "Cours du jour",
       "atRisk": "À risque",
-      "unavailable": "Indisponible"
+      "unavailable": "Indisponible",
+      "guestSessionsCard": {
+        "title": "Séances des invités",
+        "period": "Période",
+        "today": "Aujourd'hui",
+        "month": "Ce mois-ci",
+        "periodToday": "aujourd'hui",
+        "periodMonth": "ce mois-ci",
+        "paid": "Séances payées",
+        "blocked": "Tentatives bloquées",
+        "free": "Séances gratuites offertes",
+        "blockedMembers": "{{count}} membres",
+        "paidAria": "Séances payées {{period}} : {{count}}. Ouvrir la liste des séances payées.",
+        "blockedAria": "Tentatives d'entrée bloquées {{period}} : {{count}} tentatives de {{members}} membres. Ouvrir la liste des tentatives bloquées.",
+        "freeAria": "Séances gratuites offertes {{period}} : {{count}}. Ouvrir la liste des séances gratuites.",
+        "loadError": "Impossible de charger les séances des invités.",
+        "retry": "Réessayer"
+      }
     },
     "tables": {
       "viewAll": "Tout voir →",
@@ -1263,6 +1280,75 @@
     "previous": "Page précédente",
     "next": "Page suivante",
     "ellipsis": "…"
+  },
+  "guestSessions": {
+    "title": "Séances des invités",
+    "back": "Retour à l'aperçu",
+    "permissionDenied": "Vous n'avez pas la permission d'effectuer cette action.",
+    "loadError": "Impossible de charger les séances des invités.",
+    "refresh": "Actualiser",
+    "period": "Période",
+    "today": "Aujourd'hui",
+    "month": "Ce mois-ci",
+    "periodToday": "aujourd'hui",
+    "periodMonth": "ce mois-ci",
+    "tabs": {
+      "label": "Vues des séances des invités",
+      "paid": "Payées",
+      "blocked": "Tentatives bloquées",
+      "free": "Gratuites offertes"
+    },
+    "empty": {
+      "paid": "Aucune séance payée {{period}}.",
+        "paidRefundedAfterUse": "Aucune séance remboursée après utilisation sur cette période.",
+      "blocked": "Aucune tentative bloquée {{period}}.",
+      "free": "Aucune séance gratuite offerte {{period}}."
+    },
+    "groupBy": {
+      "label": "Regrouper par",
+      "recorder": "Enregistré par",
+      "none": "Aucun"
+    },
+    "refundedAfterUseOnly": "Remboursées après utilisation seulement",
+    "groupHeader_one": "{{name}} — {{count}} séance payée · {{total}} XAF",
+    "groupHeader_other": "{{name}} — {{count}} séances payées · {{total}} XAF",
+    "recorderTara": "Tara Money (dans l'app)",
+    "recorderUnknown": "Inconnu",
+    "blockedSummary": "{{attempts}} tentatives · {{members}} membres",
+    "synced": "(synchronisé {{time}})",
+    "columns": {
+      "member": "Membre",
+      "amount": "Montant",
+      "method": "Mode",
+      "recordedBy": "Enregistré par",
+      "time": "Heure",
+      "refund": "Remboursement",
+      "source": "Origine",
+      "class": "Cours",
+      "earned": "Obtenue",
+      "useBy": "À utiliser avant",
+      "status": "Statut"
+    },
+    "refund": {
+      "refunded": "Remboursée",
+      "refundedAfterUse": "Remboursée après utilisation",
+      "none": "—"
+    },
+    "source": {
+      "check_in": "Entrée",
+      "class": "Présence au cours"
+    },
+    "status": {
+      "available": "Disponible",
+      "used": "Utilisée",
+      "lapsed": "Expirée",
+      "voided": "Annulée"
+    },
+    "pagination": {
+      "range": "{{from}}–{{to}} sur {{total}}",
+      "previous": "Précédent",
+      "next": "Suivant"
+    }
   },
   "sessionPayment": {
     "title": "Enregistrer le paiement de la séance — {{name}}",

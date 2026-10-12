@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { parsePage, parsePageSize } from "@gymos/types";
 
-import { listMembers, MEMBERS_PAGE_SIZE } from "@/services/members";
+import { getMemberListRow, listMembers, MEMBERS_PAGE_SIZE } from "@/services/members";
 import { listPlans } from "@/services/plans";
 import { listCoaches } from "@/services/coaches";
 import { getGymSettings } from "@/services/gym-settings";
@@ -30,7 +30,7 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 export default function MembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; size?: string; search?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; size?: string; search?: string; status?: string; memberId?: string }>;
 }) {
   return (
     <Suspense fallback={<MembersLoading />}>
@@ -42,7 +42,7 @@ export default function MembersPage({
 async function MembersData({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; size?: string; search?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; size?: string; search?: string; status?: string; memberId?: string }>;
 }) {
   const params = await searchParams;
   // `listMembers` clamps invalid page/size the same way -- parse here so the
@@ -56,6 +56,7 @@ async function MembersData({
     { data: plans, error: plansError },
     { data: coaches, error: coachesError },
     { data: gymSettings, error: gymSettingsError },
+    { data: deepLinkMember, error: deepLinkError },
     mobileMoneyEnabled,
   ] = await Promise.all([
     listMembers({ page, pageSize, search: params.search, status: params.status }),
@@ -63,6 +64,9 @@ async function MembersData({
     listPlans(),
     listCoaches(),
     getGymSettings(),
+    // Story 19.10: `?memberId=` opens that member's modal on load. A miss or a
+    // failure just opens nothing -- the list is what the page is for.
+    params.memberId ? getMemberListRow(params.memberId) : Promise.resolve({ data: null, error: null }),
     // Story 18.6: whether the fee collection dialog offers Tara Money. Only a
     // UI hint -- initiateRegistrationFeePaymentAction re-checks -- so a failed
     // read means false rather than failing the page.
@@ -72,6 +76,10 @@ async function MembersData({
   if (membersError || shellError || !shell || plansError || coachesError) {
     const { t } = await getServerTranslation(await getRequestLocale());
     return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
+  }
+
+  if (deepLinkError) {
+    console.error("[members] deep-link member read failed; no modal opened", deepLinkError);
   }
 
   // Story 18.5: only decides which create form the modal shows. The server
@@ -98,6 +106,7 @@ async function MembersData({
       phoneCountry={gymSettings?.country}
       mobileMoneyEnabled={mobileMoneyEnabled}
       chargeGuestsPerSession={gymSettings?.chargeGuestsPerSession ?? false}
+      deepLinkMember={deepLinkMember}
     />
   );
 }
