@@ -194,7 +194,29 @@
     },
     "paySession": "Payer une séance",
     "sessionPaymentRecorded": "Paiement de séance : {{amount}} {{currency}}",
-    "sessionDeniedGotIt": "Compris"
+    "sessionDeniedGotIt": "Compris",
+    "rewards": {
+      "title": "Récompenses",
+      "headline_one": "Séance gratuite gagnée — valable {{count}} jour",
+      "headline_other": "Séance gratuite gagnée — valable {{count}} jours",
+      "freeDays_one": "{{count}} jour gratuit ajouté — votre nouvelle date de renouvellement est le {{date}}",
+      "freeDays_other": "{{count}} jours gratuits ajoutés — votre nouvelle date de renouvellement est le {{date}}",
+      "counter": "{{current}} / {{total}}",
+      "guestCaption": "séances payées avant votre prochaine séance gratuite",
+      "guestLabel": "{{current}} sur {{total}} séances payées avant votre prochaine séance gratuite",
+      "subscriberCaption_one": "renouvellements à temps pour {{count}} jour gratuit",
+      "subscriberCaption_other": "renouvellements à temps pour {{count}} jours gratuits",
+      "subscriberLabel_one": "{{current}} sur {{total}} renouvellements à temps pour {{count}} jour gratuit",
+      "subscriberLabel_other": "{{current}} sur {{total}} renouvellements à temps pour {{count}} jours gratuits",
+      "freeRow": "Séance gratuite — à utiliser avant le {{date}}",
+      "freeRowLabel": "Séance gratuite, à utiliser avant le {{date}}",
+      "paidRow": "Séance payée — à utiliser avant le {{date}}",
+      "paidRowLabel": "Séance payée, à utiliser avant le {{date}}",
+      "dormantNote": "Utilisable lorsque vous repasserez au paiement à la séance",
+      "footnoteGuest_one": "La progression est remise à zéro après {{count}} jour sans séance payée.",
+      "footnoteGuest_other": "La progression est remise à zéro après {{count}} jours sans séance payée.",
+      "footnoteSubscriber": "Renouvelez à temps pour conserver votre progression."
+    }
   },
   "classes": {
     "title": "Cours",

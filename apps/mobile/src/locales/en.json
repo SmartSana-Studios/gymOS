@@ -194,7 +194,29 @@
     },
     "paySession": "Buy a paid session",
     "sessionPaymentRecorded": "Paid session: {{amount}} {{currency}}",
-    "sessionDeniedGotIt": "Got it"
+    "sessionDeniedGotIt": "Got it",
+    "rewards": {
+      "title": "Rewards",
+      "headline_one": "Free session earned — valid for {{count}} day",
+      "headline_other": "Free session earned — valid for {{count}} days",
+      "freeDays_one": "{{count}} free day added — your new renewal date is {{date}}",
+      "freeDays_other": "{{count}} free days added — your new renewal date is {{date}}",
+      "counter": "{{current}} / {{total}}",
+      "guestCaption": "paid sessions toward your next free session",
+      "guestLabel": "{{current}} of {{total}} paid sessions toward your next free session",
+      "subscriberCaption_one": "on-time renewals toward {{count}} free day",
+      "subscriberCaption_other": "on-time renewals toward {{count}} free days",
+      "subscriberLabel_one": "{{current}} of {{total}} on-time renewals toward {{count}} free day",
+      "subscriberLabel_other": "{{current}} of {{total}} on-time renewals toward {{count}} free days",
+      "freeRow": "Free session — use by {{date}}",
+      "freeRowLabel": "Free session, use by {{date}}",
+      "paidRow": "Paid session — use by {{date}}",
+      "paidRowLabel": "Paid session, use by {{date}}",
+      "dormantNote": "Usable when you're back on Pay-per-session",
+      "footnoteGuest_one": "Progress resets after {{count}} day without a paid session.",
+      "footnoteGuest_other": "Progress resets after {{count}} days without a paid session.",
+      "footnoteSubscriber": "Renew on time to keep your progress."
+    }
   },
   "classes": {
     "title": "Classes",
