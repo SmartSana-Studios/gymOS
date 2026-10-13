@@ -5,7 +5,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000000501xx.
 
 begin;
-select plan(16);
+select plan(17);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000051001', 'SRN Tier', 6000, 60000, null);
@@ -134,7 +134,15 @@ select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000051024","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000051013","app_role":"owner"}', true);
 select throws_ok(
   $$ select confirm_renewal('00000000-0000-0000-0000-000000051035', 'cash', 'suspended') $$,
-  'P0001', null, 'confirm_renewal still refuses a suspended gym');
+  'P0001', 'confirm_renewal: gym 00000000-0000-0000-0000-000000051013 is not active',
+  'confirm_renewal still refuses a suspended gym');
+-- Role resolves before the gate: a member of a suspended gym is told they lack
+-- authorization, not that the gym is suspended (2026-09-09 status-probe rule).
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000051025","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000051013","app_role":"member"}', true);
+select throws_ok(
+  $$ select confirm_renewal('00000000-0000-0000-0000-000000051035', 'cash', 'suspended probe') $$,
+  'P0001', 'permission denied', 'a member of a suspended gym gets permission denied, not the gym status');
 reset role;
 
 select * from finish();

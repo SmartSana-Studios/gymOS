@@ -11,7 +11,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000000500xx.
 
 begin;
-select plan(89);
+select plan(94);
 
 create function pg_temp.today() returns date language sql as $f$
   select (now() at time zone 'Africa/Douala')::date
@@ -312,8 +312,8 @@ reset role;
 select is(pg_temp.stamps('00000000-0000-0000-0000-000000050033'), 1, 'M3: second renewal right after an on-time one earns nothing more');
 
 -- ============================================================================
--- M4: on time against the extended expiry, even though the original date was
--- 7 days earlier (the reward moved the deadline).
+-- M4: on time against the current expiry_date, the only deadline stored (a
+-- reward extends that column; M4b drives a real extension).
 -- ============================================================================
 select pg_temp.prev_expiry('00000000-0000-0000-0000-000000050034', pg_temp.today());
 insert into loyalty_progress (gym_id, member_id, subscriber_stamps, subscriber_last_event_at) values
@@ -325,10 +325,55 @@ select confirm_renewal('00000000-0000-0000-0000-000000050034', 'cash', 'extended
 reset role;
 select is(pg_temp.stamps('00000000-0000-0000-0000-000000050034'), 2, 'M4: judged against the current (extended) expiry, stamp earned');
 
+-- M4b: a real extension. A renewal reaches K and the grant moves the renewed
+-- subscription's expiry R days out; the member then renews on that extended
+-- date, which is 7 days past the original deadline (late against the original,
+-- on time against the extended one).
+insert into auth.users (id) values ('00000000-0000-0000-0000-00000005005a');
+insert into members (id, gym_id, user_id, role, name, join_date) values
+  ('00000000-0000-0000-0000-000000050059', '00000000-0000-0000-0000-000000050011',
+   '00000000-0000-0000-0000-00000005005a', 'member', 'SR extended', current_date);
+select pg_temp.sub('00000000-0000-0000-0000-000000050059', '00000000-0000-0000-0000-000000050061', pg_temp.today());
+insert into loyalty_progress (gym_id, member_id, subscriber_stamps, subscriber_last_event_at) values
+  ('00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050059', 2, now() - interval '20 days');
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000050020","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000050011","app_role":"receptionist"}', true);
+select confirm_renewal('00000000-0000-0000-0000-000000050059', 'cash', 'reaches K');
+reset role;
+select is(
+  (select (a.metadata ->> 'new_expiry_date')::date - (a.metadata ->> 'old_expiry_date')::date
+   from audit_log a
+   where a.target_entity_id = '00000000-0000-0000-0000-000000050059' and a.action_type = 'loyalty_reward_granted'),
+  7, 'M4b: the grant moved the expiry R days past the original deadline');
+-- The extension is persisted: the stored expiry is the audited extended date,
+-- which is what the next renewal is judged against.
+select is(
+  (select s.expiry_date from subscriptions s
+   where s.member_id = '00000000-0000-0000-0000-000000050059'
+   order by s.created_at desc, s.id desc limit 1),
+  (select (a.metadata ->> 'new_expiry_date')::date
+   from audit_log a
+   where a.target_entity_id = '00000000-0000-0000-0000-000000050059' and a.action_type = 'loyalty_reward_granted'),
+  'M4b: the stored expiry is the extended date');
+-- The clock reaches the extended expiry: shift the stored (extended) expiry to
+-- today; the original deadline is then 7 days in the past, so only the
+-- extension makes this renewal on time.
+select pg_temp.age('00000000-0000-0000-0000-000000050059');
+select pg_temp.prev_expiry('00000000-0000-0000-0000-000000050059', pg_temp.today());
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000050020","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000050011","app_role":"receptionist"}', true);
+select confirm_renewal('00000000-0000-0000-0000-000000050059', 'cash', 'on the extended expiry');
+reset role;
+select is(pg_temp.stamps('00000000-0000-0000-0000-000000050059'), 1, 'M4b: renewing on the extended expiry earns a stamp (counter restarted at 1)');
+select is(pg_temp.events('00000000-0000-0000-0000-000000050059', 'stamp_earned'), 2, 'M4b: one stamp for the grant renewal, one for the extended-expiry renewal');
+
 -- ============================================================================
 -- M5: back-dated staff renewal never earns, though its dates would be on time.
 -- ============================================================================
-update subscriptions set status = 'expired', expiry_date = current_date - 1
+-- Douala date, like the hook: on time at every wall-clock instant.
+update subscriptions set status = 'expired', expiry_date = pg_temp.today() - 1
 where member_id = '00000000-0000-0000-0000-000000050035';
 set local role authenticated;
 select set_config('request.jwt.claims',
@@ -495,7 +540,7 @@ select is(pg_temp.replay('00000000-0000-0000-0000-00000005003c'), pg_temp.stamps
   'M12: ledger replay equals progress');
 
 -- ============================================================================
--- M13: webhook, late (expiry - 3 days): payment verified, nothing earned.
+-- M13: webhook, late (expiry + 3 days): payment verified, nothing earned.
 -- ============================================================================
 select pg_temp.prev_expiry('00000000-0000-0000-0000-00000005003d', pg_temp.today() - 3);
 insert into payments (id, gym_id, member_id, amount, currency, method, status, provider, purpose) values
@@ -523,14 +568,20 @@ select is(pg_temp.stamps('00000000-0000-0000-0000-000000050043'), 1, 'M19: webho
 -- M14: other purposes, unverified and voided payments, and the 0031 queue
 -- (pending -> verified UPDATE) never earn.
 -- ============================================================================
+-- Renewal-shaped fixture: a newer same-plan subscription of a member whose
+-- previous period expires today, linked to every payment below. Were a guard
+-- missing, the hook would find a renewal that is on time and stamp.
+insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date, created_at) values
+  ('00000000-0000-0000-0000-0000000500d7', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-00000005003e',
+   '00000000-0000-0000-0000-000000050061', 'active', current_date, current_date + 30, now());
 insert into payments (id, gym_id, member_id, subscription_id, amount, currency, method, status, purpose) values
   ('00000000-0000-0000-0000-0000000500c1', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-00000005003e',
-   null, 2000, 'XAF', 'cash', 'verified', 'session'),
+   '00000000-0000-0000-0000-0000000500d7', 2000, 'XAF', 'cash', 'verified', 'session'),
   ('00000000-0000-0000-0000-0000000500c2', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-00000005003e',
-   null, 2000, 'XAF', 'cash', 'verified', 'registration_fee');
+   '00000000-0000-0000-0000-0000000500d7', 2000, 'XAF', 'cash', 'verified', 'registration_fee');
 insert into payments (id, gym_id, member_id, subscription_id, amount, currency, method, status, purpose) values
   ('00000000-0000-0000-0000-0000000500c3', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-00000005003e',
-   (select id from subscriptions where member_id = '00000000-0000-0000-0000-00000005003e'), 15000, 'XAF', 'cash', 'pending', 'subscription');
+   '00000000-0000-0000-0000-0000000500d7', 15000, 'XAF', 'cash', 'pending', 'subscription');
 select private.award_renewal_stamp('00000000-0000-0000-0000-0000000500c1');
 select private.award_renewal_stamp('00000000-0000-0000-0000-0000000500c2');
 select private.award_renewal_stamp('00000000-0000-0000-0000-0000000500c3');
@@ -543,6 +594,12 @@ select is(pg_temp.stamps('00000000-0000-0000-0000-00000005003e'), -1, 'M14: the 
 update payments set voided_at = now() where id = '00000000-0000-0000-0000-0000000500c3';
 select private.award_renewal_stamp('00000000-0000-0000-0000-0000000500c3');
 select is(pg_temp.stamps('00000000-0000-0000-0000-00000005003e'), -1, 'M14: a voided payment earns nothing');
+-- Control: the same fixture with a verified, unvoided subscription payment does earn.
+insert into payments (id, gym_id, member_id, subscription_id, amount, currency, method, status, purpose) values
+  ('00000000-0000-0000-0000-0000000500c4', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-00000005003e',
+   '00000000-0000-0000-0000-0000000500d7', 15000, 'XAF', 'cash', 'verified', 'subscription');
+select private.award_renewal_stamp('00000000-0000-0000-0000-0000000500c4');
+select is(pg_temp.stamps('00000000-0000-0000-0000-00000005003e'), 1, 'M14 control: the fixture is renewal-shaped, a verified subscription payment earns');
 
 -- ============================================================================
 -- M15: renewed plan differs from the previous plan: nothing.
@@ -556,8 +613,9 @@ insert into payments (id, gym_id, member_id, subscription_id, amount, currency, 
 select private.award_renewal_stamp('00000000-0000-0000-0000-0000000500d2');
 select is(pg_temp.stamps('00000000-0000-0000-0000-00000005003f'), -1, 'M15: a plan change is not a renewal');
 
--- M18: previous subscription has no expiry_date (pay_per_session) and the
--- renewed one is another plan: nothing either.
+-- M18: previous subscription is pay_per_session (no expiry_date) and the
+-- renewed one is another plan: nothing either. Covers the plan-mismatch return;
+-- the null-expiry guard is unreachable for a same-plan renewal (0018).
 insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date, created_at) values
   ('00000000-0000-0000-0000-0000000500d3', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050042',
    '00000000-0000-0000-0000-000000050061', 'active', current_date, current_date + 30, now());
@@ -565,7 +623,7 @@ insert into payments (id, gym_id, member_id, subscription_id, amount, currency, 
   ('00000000-0000-0000-0000-0000000500d4', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050042',
    '00000000-0000-0000-0000-0000000500d3', 15000, 'XAF', 'cash', 'verified', 'subscription');
 select private.award_renewal_stamp('00000000-0000-0000-0000-0000000500d4');
-select is(pg_temp.stamps('00000000-0000-0000-0000-000000050042'), -1, 'M18: previous subscription without an expiry earns nothing');
+select is(pg_temp.stamps('00000000-0000-0000-0000-000000050042'), -1, 'M18: a pay-per-session previous subscription (other plan) earns nothing');
 
 -- M20: first-ever subscription (no previous period).
 insert into members (id, gym_id, user_id, role, name, join_date) values

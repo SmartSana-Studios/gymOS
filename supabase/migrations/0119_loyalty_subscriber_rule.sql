@@ -314,17 +314,18 @@ begin
     raise exception 'permission denied';
   end if;
 
+  -- AD-3 / 19.1 lint: the role comes from private.current_member_role(), not the
+  -- JWT claim 0093 read. Same allowlist; a caller with no active membership in
+  -- the gym is refused as before. Role resolution comes BEFORE the suspension
+  -- gate (code review 2026-09-09 rule, see tenant_suspension_enforcement.test.sql):
+  -- an unauthorized caller at a suspended gym must not learn the gym status.
+  if not coalesce(private.current_member_role() in ('owner', 'manager', 'supervisor', 'receptionist'), false) then
+    raise exception 'permission denied';
+  end if;
+
   -- Story 11.8: suspension gate. `is distinct from`, never `<>` -- see migration header.
   if private.current_gym_status() is distinct from 'active' then
     raise exception 'confirm_renewal: gym % is not active', v_caller_gym_id;
-  end if;
-
-  -- AD-3 / 19.1 lint: the role comes from private.current_member_role(), not the
-  -- JWT claim 0093 read. Same allowlist; a caller with no active membership in
-  -- the gym is refused as before. It sits after the suspension gate so a claim
-  -- naming an unresolvable gym still fails closed with the 'is not active' error.
-  if not coalesce(private.current_member_role() in ('owner', 'manager', 'supervisor', 'receptionist'), false) then
-    raise exception 'permission denied';
   end if;
   v_actor_id := auth.uid();
 

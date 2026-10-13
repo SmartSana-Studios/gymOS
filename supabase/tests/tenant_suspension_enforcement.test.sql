@@ -411,7 +411,9 @@ select set_config(
   true
 );
 select throws_like($$select check_out_member('00000000-0000-0000-0000-000000009932')$$, '%is not active%', 'unresolvable gym_id claim: check_out_member() fails closed');
-select throws_like($$select confirm_renewal('00000000-0000-0000-0000-000000009932', 'cash', 'null-status test', false)$$, '%is not active%', 'unresolvable gym_id claim: confirm_renewal() fails closed');
+-- confirm_renewal resolves the role before the gate (2026-09-09 rule): an
+-- unresolvable gym has no membership, so it is refused as unauthorized.
+select throws_like($$select confirm_renewal('00000000-0000-0000-0000-000000009932', 'cash', 'null-status test', false)$$, '%permission denied%', 'unresolvable gym_id claim: confirm_renewal() fails closed');
 select throws_like($$select renew_subscription('00000000-0000-0000-0000-000000009932', 'null-status test')$$, '%is not active%', 'unresolvable gym_id claim: renew_subscription() fails closed');
 select throws_like($$select assign_coach('00000000-0000-0000-0000-000000009932', '00000000-0000-0000-0000-000000009934')$$, '%is not active%', 'unresolvable gym_id claim: assign_coach() fails closed');
 select throws_like($$select mark_class_attendance('00000000-0000-0000-0000-000000009960')$$, '%is not active%', 'unresolvable gym_id claim: mark_class_attendance() fails closed');
