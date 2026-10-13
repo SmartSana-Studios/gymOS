@@ -68,6 +68,12 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // stamps, threshold }; loyalty_reward_granted adds { free_session_id, usable_until };
   // loyalty_progress_reset metadata { counter, guest_session_id, previous_count,
   // previous_last_event_at, idle_reset_days }.
+  // Story 20.3. The same three action types are also written by
+  // private.award_renewal_stamp() (0119) for subscriber renewals, with
+  // counter 'subscriber' in metadata and payment_id / subscription_id in place of
+  // the session ids; loyalty_reward_granted then adds { reward_days,
+  // old_expiry_date, new_expiry_date }. No separate labels: the counter in
+  // metadata tells the two apart.
   loyalty_stamp_earned: "audit.actionTypes.loyaltyStampEarned",
   loyalty_reward_granted: "audit.actionTypes.loyaltyRewardGranted",
   loyalty_progress_reset: "audit.actionTypes.loyaltyProgressReset",

@@ -1083,3 +1083,13 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - **Remove standing credentials from the devcontainer:** delete `~/.expo-token` (and revoke the token at expo.dev) and `~/.supabase-db-password` (consider rotating the DB password). Both were created for the 2026-10-12 release.
 - **Deploy the `payment-webhook` edge function** with the callback-URL hardening (https + /functions/v1 prefix for *.supabase.co hosts). Production is covered meanwhile by the `PAYMENT_WEBHOOK_PUBLIC_BASE_URL` function secret; the code change needs the Supabase CLI/token.
 - **Vercel build rate limit** ("retry in 24 hours", hit 2026-10-12 after many PR previews): no dashboard/super-admin deploy until it resets; consider the Pro plan or fewer preview builds per day.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-20-3-subscriber-rule-on-time-renewal-stamps-r-free-days-at-k.md`
+  summary: `private.award_renewal_stamp` (and 20.2's `on_session_consumed`) run unguarded inside payment verification, so a loyalty bug would roll back a paid renewal or session.
+  evidence: Unverified medium. Needs a defect in the hook to occur (missing config row and CHECK-bounded columns are ruled out); weigh a savepoint-with-warning wrapper against hiding ledger drift. Settle by deciding the failure posture for all Epic 20 hooks together in 20.4.
+
+## Deferred from: code review of spec-20-3-subscriber-rule-on-time-renewal-stamps-r-free-days-at-k (2026-10-13)
+
+- An early renewal forfeits the remaining period, including any rewarded R free days: the new subscription starts at `current_date` in `confirm_renewal` and `complete_verified_payment`. Pre-existing renewal semantics; becomes member-visible once free days exist. Decide with 20.5 copy whether to carry remaining days.
+- Subscriber free days render as "Free session granted" (`loyalty_reward_granted`, counter `subscriber` not rendered). Spec forbids new labels in 20.3; fix in 20.5.
+- `gyms.timezone` has no database validation (0002: text not null default). An unresolvable zone makes `award_renewal_stamp` raise inside `complete_verified_payment` / `confirm_renewal`, rolling back a paid renewal. Unverified medium. Settle by checking the settings-form schema validates against the IANA list; fold into the 20.4 decision on hook failure posture.

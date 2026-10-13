@@ -1,5 +1,5 @@
 /**
- * Stories 20.1-20.2: every Epic 20 audit action type written so far has a label, and
+ * Stories 20.1-20.3: every Epic 20 audit action type written so far has a label, and
  * that label resolves to real copy in both locales (not the raw key, not blank).
  */
 import { describe, expect, it } from "vitest";
@@ -34,4 +34,22 @@ describe("audit labels for Epic 20 action types", () => {
       expect(frLabel).not.toBe(enLabel);
     });
   }
+});
+
+describe("subscriber loyalty events (Story 20.3)", () => {
+  // The subscriber rule reuses the guest labels; counter 'subscriber' in the
+  // metadata distinguishes them, so no new action type may appear.
+  it("writes only action types that already have a label", () => {
+    for (const actionType of ["loyalty_stamp_earned", "loyalty_reward_granted", "loyalty_progress_reset"]) {
+      const key = AUDIT_ACTION_TYPE_LABEL_KEY[actionType];
+      for (const locale of [en, fr]) {
+        const label = resolve(locale, key);
+        expect(typeof label).toBe("string");
+        expect((label as string).trim()).not.toBe("");
+        expect(label).not.toBe(key);
+      }
+    }
+    const loyaltyKeys = Object.keys(AUDIT_ACTION_TYPE_LABEL_KEY).filter((k) => k.startsWith("loyalty_"));
+    expect(loyaltyKeys.sort()).toEqual([...EPIC_20_ACTION_TYPES].sort());
+  });
 });
