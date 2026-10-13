@@ -142,6 +142,28 @@ Code review 2026-10-13 (bmad-code-review, diff 03e22a0..bb98647, 4 layers: blind
 - Spec bookkeeping (status, unchecked Tasks, `review_loop_iteration`) (low): fix is a spec edit; status is set by this workflow's closing step.
 - Sweep scalability / success row has no counts (low, partly already deferred): first-run backfill and single transaction are in `deferred-work.md` since the earlier pass.
 
+#### Pass 2026-10-13 (pass 4, bmad-code-review, 4 fresh layers, diff epic/20...HEAD at 10d8465)
+
+- [x] [Review][Patch] The reversal's "stamp already zeroed" guard is never discriminated: every refund test that reaches it has the counter at 0 and returns at the `guest_stamps <= 0` check, so deleting the whole `if exists (...)` block (or inverting its `reward_granted` / `reset` clause) passes all 72 + 16 assertions. Add pgTAP: three stamps (grant, counter 0), a fourth (counter 1), refund the first, assert counter stays 1 and `stamp_reversed` count is 0; and the same after a sweep reset (stamp, reset, new stamp, refund the old one). Medium: in production a refund of an old stamp would silently take away a newer, unrefunded one. [0120:~131-139; supabase/tests/loyalty_sweep_and_reversal.test.sql] (verification-gap)
+- [x] [Review][Patch] The reversal's "no `stamp_earned` event for this session" early return is unpinned: the only test aimed at it has its member at `guest_stamps = 0` (returns at the counter check), so removing the `if not found then return` makes a never-stamped session decrement other stamps with no test failing. Add pgTAP: a member at `guest_stamps = 2`, a consumed paid session with no `stamp_earned` row, refund it, assert counter 2 and no `stamp_reversed`. Medium. [0120:~100-103; supabase/tests/loyalty_sweep_and_reversal.negative.test.sql] (verification-gap)
+- [x] [Review][Patch] `deferred-work.md` still carried the first "Deferred from: code review of spec-20-4 (2026-10-13)" bullet that lists the `service_role` execute-grant item as open, while the second heading with the identical title records it as settled `false`. Delete the stale open bullet so a reader is not sent chasing a closed item. Low. [_bmad-output/implementation-artifacts/deferred-work.md] (blind-hunter)
+- [x] [Review][Defer] Hook impl bodies and the sweep take member/progress row locks with no `lock_timeout`: a payment, check-in or refund whose hook waits on a row the 03:30 UTC sweep holds for its whole single transaction stalls behind it, and the first run also writes an owner-visible lapse audit row per historic expired session. — deferred: unverified medium, extends the open "sweep is one transaction" item; settle by timing the first run on a prod-sized copy, then add `set local lock_timeout` in the wrappers (caught as a hook failure) and batch per gym or cut off backfill audit rows. (edge-case-hunter+blind-hunter)
+
+#### Rejected (pass 4)
+
+- Reward granted for a different session sharing the stamp's `occurred_at` defeats the strict `>` (edge-case-hunter) (low): needs two sessions of one member with identical `consumed_at` from different transactions; a reward for the stamp's own session is covered by `origin_id = p_session_id`.
+- Sweep success `job_runs` row has no processed/failed counts (blind-hunter) (low): already rejected in an earlier pass; the failure row and audit carry counts.
+- Audit/event key `idle_reset_days` holds the plan-aware window for the subscriber counter (blind-hunter) (low): cross-migration rename with the same key used by 0118/0119; pinned by tests, no wrong outcome.
+- Latest-subscription lookup ignores status and gym (blind-hunter, acceptance-auditor) (false): the sweep's query is character-for-character the `effective_loyalty` one (0117 `order by s.created_at desc, s.id desc limit 1`), which the spec requires to match exactly; the acceptance auditor's cross-check is satisfied.
+- Reversal's `origin_id <> p_session_id` clause is dead (blind-hunter) (false): redundant by construction and recorded as deliberate defensive logic in the Spec Change Log; no wrong outcome.
+- Hook-failure rows vanish if the caller later rolls back; no retry (blind-hunter) (low / already deferred): the rolled-back payment or check-in is gone too; no-retry is an existing deferral.
+- Hook-failure audit actor is the end user and carries raw `sqlerrm` (blind-hunter) (low): decision 2 accepted caller attribution; the spec lists SQLSTATE and message in the row.
+- Spec frontmatter, Change Log "not exercised" line, Triage row 14, unchecked task, duplicate Rejected entries, frozen block wording (blind-hunter, acceptance-auditor, verification-gap) (low): fix is a spec edit.
+- Rollback script is weaker than the migration; sweep and reversal timestamp semantics to settle before 20.5 (blind-hunter) (low): single-use `--single-transaction` script, earlier rejection stands; refund-before-sweep is Triage row 10.
+- Vacuous negative test, fold test hand-excludes members, `started_at = now()` equality, alert query and concurrency only sequential (blind-hunter, acceptance-auditor) (low / already deferred): test-shape nits or existing deferrals.
+- AC3 proven through `confirm_renewal` only (acceptance-auditor) (low): same depth accepted in 20-2 and 20-3; rejected in the earlier pass.
+- Rollback script not executed by CI (verification-gap) (low): run manually per the activity log, no new evidence.
+
 ## Implementation Notes
 
 ## Spec Change Log

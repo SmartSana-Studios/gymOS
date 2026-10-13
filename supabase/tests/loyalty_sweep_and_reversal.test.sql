@@ -8,7 +8,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000000420xx.
 
 begin;
-select plan(72);
+select plan(76);
 
 -- An unused paid session for a member (verified session payment + session row).
 create function pg_temp.mk_paid(p_gym uuid, p_member uuid, p_usable_until timestamptz default now() + interval '30 days', p_voided_at timestamptz default null)
@@ -106,7 +106,7 @@ insert into gyms (id, name, tier_id, status, charge_guests_per_session, registra
 
 insert into auth.users (id)
 select ('00000000-0000-0000-0000-0000000420' || lpad(to_hex(g), 2, '0'))::uuid
-from generate_series(x'21'::int, x'33'::int) g;
+from generate_series(x'21'::int, x'36'::int) g;
 
 -- Members 0x31.. (member user ids are 0x21.. + the same offset; 0x21 is the owner).
 insert into members (id, gym_id, user_id, role, name, join_date)
@@ -117,11 +117,11 @@ select ('00000000-0000-0000-0000-0000000420' || lpad(to_hex(g + 16), 2, '0'))::u
        ('00000000-0000-0000-0000-0000000420' || lpad(to_hex(g), 2, '0'))::uuid,
        case when g = x'21'::int then 'owner'::member_role else 'member'::member_role end,
        'SW M' || to_hex(g), current_date
-from generate_series(x'21'::int, x'33'::int) g;
+from generate_series(x'21'::int, x'36'::int) g;
 
 -- Member ids: 0x31 owner A; 0x32 m1; 0x33 m2; 0x34 m3; 0x35 m4; 0x36 m5; 0x37 m6;
 -- 0x38 m7 (gym B); 0x39 m8; 0x3a m9; 0x3b m10; 0x3c m11; 0x3d m12; 0x3e m13 (gym C);
--- 0x3f m14; 0x40 m15.
+-- 0x3f m14; 0x40 m15; 0x44-0x46 reversal-guard members (post-reward, post-reset, no stamp).
 insert into plans (id, gym_id, name, plan_type, price, currency, billing_interval, duration_days) values
   ('00000000-0000-0000-0000-000000042061', '00000000-0000-0000-0000-000000042011', 'SW PPS',    'pay_per_session', 2000,  'XAF', 'monthly', null),
   ('00000000-0000-0000-0000-000000042062', '00000000-0000-0000-0000-000000042011', 'SW Monthly', 'monthly',         15000, 'XAF', 'monthly', 30),
@@ -211,6 +211,47 @@ select pg_temp.refund((select s.id from guest_sessions s where s.member_id = '00
 select is(
   (select count(*)::int from loyalty_events where member_id = '00000000-0000-0000-0000-000000042033' and event_type = 'stamp_reversed'),
   0, 'm2: a stamp before the reward was zeroed by it and is not reversed');
+
+-- m17 (0x44): the guard must hold while the counter is above 0. Three stamps
+-- grant (counter 0), a fourth stamp counts (counter 1); refunding the first
+-- stamp, which the reward zeroed, must leave the fourth alone.
+select pg_temp.consume(pg_temp.mk_paid('00000000-0000-0000-0000-000000042011', '00000000-0000-0000-0000-000000042044'), now() - interval '9 days');
+select pg_temp.consume(pg_temp.mk_paid('00000000-0000-0000-0000-000000042011', '00000000-0000-0000-0000-000000042044'), now() - interval '8 days');
+select pg_temp.consume(pg_temp.mk_paid('00000000-0000-0000-0000-000000042011', '00000000-0000-0000-0000-000000042044'), now() - interval '7 days');
+select pg_temp.consume(pg_temp.mk_paid('00000000-0000-0000-0000-000000042011', '00000000-0000-0000-0000-000000042044'), now() - interval '6 days');
+select pg_temp.refund((select s.id from guest_sessions s where s.member_id = '00000000-0000-0000-0000-000000042044'
+                       and s.consumed_at = now() - interval '9 days'));
+select is(
+  (select row(guest_stamps, (select count(*) from loyalty_events e where e.member_id = lp.member_id and e.event_type = 'stamp_reversed'))::text
+   from loyalty_progress lp where member_id = '00000000-0000-0000-0000-000000042044'),
+  '(1,0)', 'm17: refund of a stamp zeroed by a reward leaves the later stamp counted');
+select is(
+  pg_temp.replay('00000000-0000-0000-0000-000000042044'), 1, 'm17: ledger fold equals the counter');
+
+-- m18 (0x45): same after an idle reset. Stamp 100 days ago, a second stamp
+-- now (the earn hook resets first, then counts it: counter 1); refunding the
+-- first stamp must not take the second.
+select pg_temp.consume(pg_temp.mk_paid('00000000-0000-0000-0000-000000042011', '00000000-0000-0000-0000-000000042045'), now() - interval '100 days');
+select pg_temp.consume(pg_temp.mk_paid('00000000-0000-0000-0000-000000042011', '00000000-0000-0000-0000-000000042045'), now() - interval '1 day');
+select pg_temp.refund((select s.id from guest_sessions s where s.member_id = '00000000-0000-0000-0000-000000042045'
+                       and s.consumed_at = now() - interval '100 days'));
+select is(
+  (select row(guest_stamps, (select count(*) from loyalty_events e where e.member_id = lp.member_id and e.event_type = 'stamp_reversed'))::text
+   from loyalty_progress lp where member_id = '00000000-0000-0000-0000-000000042045'),
+  '(1,0)', 'm18: refund of a stamp zeroed by an idle reset leaves the later stamp counted');
+
+-- m19 (0x46): a consumed session that never earned a stamp, member at 2 stamps.
+insert into loyalty_progress (gym_id, member_id, guest_stamps, guest_last_event_at) values
+  ('00000000-0000-0000-0000-000000042011', '00000000-0000-0000-0000-000000042046', 2, now() - interval '1 day');
+select pg_temp.mk_paid('00000000-0000-0000-0000-000000042011', '00000000-0000-0000-0000-000000042046');
+update guest_sessions set consumed_at = now() - interval '2 days',
+                          covered_day = ((now() - interval '2 days') at time zone 'Africa/Douala')::date
+where member_id = '00000000-0000-0000-0000-000000042046';
+select pg_temp.refund((select s.id from guest_sessions s where s.member_id = '00000000-0000-0000-0000-000000042046'));
+select is(
+  (select row(guest_stamps, (select count(*) from loyalty_events e where e.member_id = lp.member_id and e.event_type = 'stamp_reversed'))::text
+   from loyalty_progress lp where member_id = '00000000-0000-0000-0000-000000042046'),
+  '(2,0)', 'm19: refund of a consumed session with no stamp event leaves the counter');
 
 -- m3: stamp predates a persisted idle reset (written by the sweep below).
 select pg_temp.consume(pg_temp.mk_paid('00000000-0000-0000-0000-000000042011', '00000000-0000-0000-0000-000000042034'), now() - interval '100 days');
@@ -440,7 +481,7 @@ select is(
   (select count(*)::int from loyalty_progress lp
    where lp.member_id in (select id from members where id::text like '00000000-0000-0000-0000-0000000420%')
      and lp.guest_stamps <> pg_temp.replay(lp.member_id) and lp.member_id <> '00000000-0000-0000-0000-000000042035'
-     and lp.member_id not in ('00000000-0000-0000-0000-00000004203d', '00000000-0000-0000-0000-00000004203e')),
+     and lp.member_id not in ('00000000-0000-0000-0000-00000004203d', '00000000-0000-0000-0000-00000004203e', '00000000-0000-0000-0000-000000042046')),
   0, 'guest fold equals loyalty_progress for every member with a full ledger');
 select is(
   (select (count(*) filter (where e.event_type = 'reward_granted')
