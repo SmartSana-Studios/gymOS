@@ -417,7 +417,7 @@ development_status:
   epic-20: in-progress
   20-1-loyalty-program-setting-ledger-foundation: done
   20-2-guest-rule-stamps-on-paid-sessions-free-session-at-n: done
-  20-3-subscriber-rule-on-time-renewal-stamps-r-free-days-at-k: review
+  20-3-subscriber-rule-on-time-renewal-stamps-r-free-days-at-k: done
   20-4-refund-reversal-lapses-90-day-reset-sweep: backlog
   20-5-dashboard-loyalty-settings-member-loyalty-view: backlog
   20-6-member-app-loyalty-card: backlog
@@ -976,3 +976,4 @@ last_updated: 10-12-2026 23:05
 # last_updated: 2026-10-13 (code-review: 20-3 pass 2, 4 layers over 7e287b2..working tree. 1 decision needed (confirm_renewal suspension gate now runs before the role check, reintroducing the status probe the 2026-09-09 review removed; untested), 1 low comment patch (M13), 1 defer already recorded, 15+ rejected. Status left at review: decision pending, then ci-local full run and merge into epic/20.)
 # last_updated: 2026-10-13 (code-review: 20-3 pass 2 resolved. Decision (delegated, option 1): confirm_renewal in 0119 now checks current_member_role() BEFORE the suspension gate again (2026-09-09 status-probe rule); tenant_suspension_enforcement unresolvable-claim case expects permission denied, new negative case pins member at suspended gym (plan 17); M13 comment fixed. 0119 re-applied locally, loyalty_subscriber_rule x2, tenant_suspension_enforcement, suspension_rpc_coverage, supervisor_manager_plus_access, inline_renewal_panel green. Status left at review: uncommitted, full ci-local and merge into epic/20 still pending, then mark done. 0119 NOT applied to production.)
 # last_updated: 2026-10-13 (code-review pass 3: 20-3, 4 layers. 0 decisions, 4 test-only patches applied (M4b stored-expiry assertion, M5 Douala-date fixture, suspended-gym negative asserts message, M18 wording; plan 93 -> 94), 0 new deferred, 12 rejected. No migration change; loyalty_subscriber_rule.test.sql 94/94 and negative 17/17 locally. Status left at review: full ci-local and merge into epic/20 still pending, then mark done.)
+# last_updated: 2026-10-13 (build: 20-3 review -> done. Full scripts/ci-local.sh GREEN on ba222e3 (static, pgtap, unit, e2e), PR #59 merged into epic/20, story branch deleted local+remote. Migration 0119 in tree, NOT applied to production (epic-end staged apply). Next: 20-4.)
