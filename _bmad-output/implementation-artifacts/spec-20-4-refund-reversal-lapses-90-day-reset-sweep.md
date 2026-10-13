@@ -2,7 +2,7 @@
 title: '20-4 Refund reversal, lapses & 90-day reset sweep'
 type: 'feature'
 created: '2026-10-13'
-status: 'review'
+status: 'done'
 baseline_commit: '03e22a096b7bd984e2e65a4b7eeb9c7ec469c0ac'
 route: 'dispatch'
 review_loop_iteration: 0
