@@ -1102,3 +1102,14 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-20-4-refund-reversal-lapses-90-day-reset-sweep.md`
   summary: `run_loyalty_sweep_job` holds member and progress row locks for its whole single transaction and its first run records every historic expired session at once.
   evidence: Unverified medium. Spec asks for its own function and transaction; production backlog is small today. Settle by timing the first run against a prod-sized copy, then batch per gym or use `lock_timeout` if it is slow.
+- source_spec: `_bmad-output/implementation-artifacts/spec-20-4-refund-reversal-lapses-90-day-reset-sweep.md`
+  summary: Nothing executes `scripts/job-runs-alert.sql`, so a dropped or misspelled `loyalty_sweep` entry (or any alert regression) goes unnoticed in CI.
+  evidence: Verified gap (verification-gap layer). No harness exists for the script; add a small pgTAP or CI-step check that the query returns "not running" for a stale `loyalty_sweep` and "failed run" for a fresh `loyalty_hook` failure.
+- source_spec: `_bmad-output/implementation-artifacts/spec-20-4-refund-reversal-lapses-90-day-reset-sweep.md`
+  summary: The three hook wrappers, their `_impl` bodies and `record_loyalty_hook_failure` revoke only public/anon/authenticated, not `service_role` (the sweep does revoke it).
+  evidence: Unverified medium. 0118/0119 follow the same posture and `private` grants usage to `service_role` (0009). Settle with `has_function_privilege('service_role', ...)` on the local DB and decide for every Epic 20 private function together.
+
+## Deferred from: code review of spec-20-4-refund-reversal-lapses-90-day-reset-sweep (2026-10-13)
+
+- Refund-vs-refund, sweep-vs-earn and sweep-vs-refund serialization is verified only sequentially: pgTAP cannot interleave, and `scripts/session-refund-race.sh` never touches loyalty rows and is not part of `ci-local.sh`. A lock-order regression (progress before member, or dropping `for update` on the progress select) passes every test. Same depth accepted in 20-2 and 20-3. Close with a two-connection script asserting a single `stamp_reversed`, no deadlock and a single sweep reset.
+- Settled, not open: the earlier `service_role` execute-grant deferral for the 0120 wrappers, `_impl` bodies and `record_loyalty_hook_failure` was checked on 2026-10-13 against the local DB; `has_function_privilege('service_role', ...)` is false for all seven. No action.

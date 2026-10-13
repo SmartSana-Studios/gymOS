@@ -2,7 +2,7 @@
 title: '20-4 Refund reversal, lapses & 90-day reset sweep'
 type: 'feature'
 created: '2026-10-13'
-status: 'done'
+status: 'review'
 baseline_commit: '03e22a096b7bd984e2e65a4b7eeb9c7ec469c0ac'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -26,7 +26,7 @@ context:
 - Sweep, per member in canonical order (member `FOR NO KEY UPDATE`, then `loyalty_progress FOR UPDATE`), conditions re-read under the lock, each member in its own savepoint:
   - Lapse: an unconsumed, unvoided `guest_sessions` row with `usable_until <= now()` and no `lapse` event gets one `lapse` event (`counter guest`, `origin_id` = session id, `details.kind` `free` when `loyalty_grant_id` is set, `paid` when `payment_id` is set) and one audit row. The session row is not changed.
   - Reset: a counter > 0 whose last event is older than its window (guest: `loyalty_idle_reset_days`; subscriber: greatest of that and latest plan `duration_days` + gym `grace_period_days`, exactly `effective_loyalty`'s rule) gets one `reset` event with a deterministic `origin_id` derived from member, counter and last-event timestamp (never a session or payment id), counter set to 0, one audit row with previous count and window.
-- Hook failure posture (decided 2026-10-13, option A): the 0118 `on_session_consumed` and 0119 `award_renewal_stamp` bodies are renamed in place and re-exposed under the same names as thin wrappers, as is the new reversal hook; each wrapper catches errors in a savepoint, writes a `loyalty_hook_failed` audit row (system label, hook name, SQLSTATE, message, ids) and a `job_runs` failure row (`loyalty_hook`), and lets the payment, check-in or refund proceed with no ledger write. Callers and signatures are unchanged; earn rules are not edited.
+- Hook failure posture (decided 2026-10-13, option A): the 0118 `on_session_consumed` and 0119 `award_renewal_stamp` bodies are renamed in place and re-exposed under the same names as thin wrappers, as is the new reversal hook; each wrapper catches errors in a savepoint, writes a `loyalty_hook_failed` audit row (system label when there is no caller, hook name, SQLSTATE, message, ids) and a `job_runs` failure row (`loyalty_hook`), and lets the payment, check-in or refund proceed with no ledger write. Callers and signatures are unchanged; earn rules are not edited.
 - Covers every gym, including loyalty-off and suspended ones: lapses and resets are time facts, not program actions. Audit actor is the system label `system:loyalty_sweep_job`.
 - Own `job_runs` row per run (`loyalty_sweep`, success or failure with error text, failed member count); scheduled daily outside the other jobs' minutes; added to `scripts/job-runs-alert.sql` `expected` with a 27-hour gap so a failure reaches the human through the existing hourly alert.
 - Every `loyalty_events` row stays replayable: a pgTAP fold of a member's events (stamp +1, reward/reset to 0, reversed -1 floor 0) equals `loyalty_progress`, and unused free sessions equal granted minus consumed minus lapsed.
@@ -76,7 +76,7 @@ context:
 - [x] `supabase/migrations/0120_loyalty_refund_reversal_lapse_sweep.sql` -- reversal hook, `run_loyalty_sweep_job()`, schedule, verify block, header with lock order and event/origin rules plus the three hook wrappers
 - [x] `supabase/tests/loyalty_sweep_and_reversal.test.sql`, `.negative.test.sql` -- matrix cases, replay equals progress and free sessions, sweep-vs-earn equivalence, not client-callable, cross-gym isolation
 - [x] `scripts/rollback-0120-...sql`, `scripts/job-runs-alert.sql` -- rollback and alert list
-- [ ] dashboard labels EN/FR + `auditLabels.epic20.test.ts`
+- [x] dashboard labels EN/FR + `auditLabels.epic20.test.ts`
 - [ ] local gates: apply 0120 locally, `scripts/ci-local.sh` all stages, `scripts/session-refund-race.sh`, sprint-status entry
 
 **Acceptance Criteria:**
@@ -85,9 +85,69 @@ context:
 - Given a loyalty hook raises during verification, when the payment completes, then it still succeeds and a `loyalty_hook_failed` audit row and `loyalty_hook` failure row exist.
 - Given the sweep raises for one member, when it finishes, then other members are processed and `job_runs` holds a `failure` row the hourly alert reports.
 
+### Review Findings
+
+Code review 2026-10-13 (bmad-code-review, diff 03e22a0..bb98647, 4 layers: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor).
+
+- [x] [Review][Decision] RESOLVED (a): keep the code, spec text amended in Spec Change Log. Reversal's "stamp still counted" reset test is narrower than the frozen spec text — 0120 also requires `previous_last_event_at >= stamp.occurred_at`; the spec says only "no guest `reset` dated after it (other than the same-origin one)". Differs only for a different-origin reset dated after the stamp that saw an older last event (backdated/offline consumption). Options: (a) keep the code and amend the spec text by your sign-off, (b) drop the extra condition to match the spec. [0120:131-135] (acceptance-auditor)
+- [x] [Review][Decision] RESOLVED (a): accept caller attribution; with-caller test added as a patch. Hook-failure audit row is attributed to the calling user, not `system:loyalty_hook` — `log_audit_event` uses `auth.uid()` when present (payment verify, check-in, refund by a logged-in user), so the spec's "system label" holds only for jobs/webhooks; the 0120 header documents it, the pgTAP assertion runs with empty claims only. Options: (a) accept and amend spec wording plus add a with-caller test, (b) write the row through a path that always uses the system label (touches shared `log_audit_event` or a direct `audit_log` insert). [0120:208-223] (acceptance-auditor+blind-hunter)
+- [x] [Review][Patch] Sweep bookkeeping shares the work's block — the summary `job_runs` insert and `loyalty_sweep_job_failure` audit write (and the outer handler's own writes) run inside the BEGIN block that holds every member's lapse/reset; if the audit write raises, all member work and the failure row roll back and, if the handler's audit write also raises, no `job_runs` row survives (only the 27h not-running alert fires). Guard the summary and handler writes in their own begin/exception blocks, as `record_loyalty_hook_failure` already does. [0120:484-508] (blind-hunter+edge-case-hunter)
+- [x] [Review][Patch] No test for the same-origin reset exclusion — `e.origin_id <> p_session_id` (reset written by the earn hook with the stamp's own origin) is never exercised by a refund; deleting it passes every test while refunds of the first stamp after an idle gap stop reversing. Refund m14's (0x3f) consumed session and assert one `stamp_reversed` and counter 1 -> 0. [supabase/tests/loyalty_sweep_and_reversal.test.sql] (verification-gap)
+- [x] [Review][Patch] AC3 is proved only at wrapper level — no test forces a hook failure inside `complete_verified_payment` / `confirm_renewal` / check-in and asserts the payment, renewal or check-in row still commits (confirmed: no reference to either function in the test file). [supabase/tests/loyalty_sweep_and_reversal.test.sql] (acceptance-auditor+blind-hunter)
+- [x] [Review][Patch] Hook-failure audit actor is untested with a caller — add a pgTAP case that sets JWT claims (`auth.uid()` present) and asserts the `loyalty_hook_failed` row's actor is that user while the `job_runs` `loyalty_hook` row still exists; update the spec's "system label" wording to "system label when there is no caller". [supabase/tests/loyalty_sweep_and_reversal.test.sql] (decision 2)
+- [x] [Review][Defer] `loyalty_sweep` alert entry and the alert query are not executed by any test — deferred: no harness for `scripts/job-runs-alert.sql` exists; small pgTAP or CI-step check is separate work. (verification-gap)
+- [x] [Review][Defer] `service_role` is not revoked on the wrappers, `_impl` bodies or `record_loyalty_hook_failure` (only the sweep revokes it); post-conditions check anon/authenticated only — deferred: unverified medium, same posture as 0118/0119. Settle with `has_function_privilege('service_role', 'private.on_session_consumed(uuid,uuid,uuid)', 'execute')` on the local DB and decide for all Epic 20 private functions together. (blind-hunter)
+
+#### Pass 2026-10-13 (bmad-code-review, 4 fresh layers, diff 03e22a0..working tree)
+
+- [x] [Review][Patch] The sweep's outer failure path (`exception when others` around the config read and candidate query, with its two guarded writes) has no test. The earlier rejection said `loyalty_idle_reset_days` is NOT NULL so the path is unreachable; the raise is actually on `platform_session_config` having no row (`select ... limit 1` returns null on an empty table), which a rolled-back `delete from platform_session_config` reaches. Add a case: delete the row, run the sweep, assert one `loyalty_sweep` failure `job_runs` row and one `loyalty_sweep_job_failure` audit row, no member work. [supabase/tests/loyalty_sweep_and_reversal.test.sql] (blind-hunter)
+- [x] [Review][Defer] Refund-vs-refund, sweep-vs-earn and sweep-vs-refund serialization is verified only sequentially (pgTAP cannot interleave; `scripts/session-refund-race.sh` never touches loyalty rows and is not in `ci-local.sh`) — deferred: same depth accepted in 20-2 and 20-3; close with a two-connection script asserting one `stamp_reversed`, no deadlock and a single reset. (verification-gap)
+- [x] [Review][Defer] SETTLED, no longer open: `service_role` cannot execute the three wrappers, the three `_impl` bodies or `record_loyalty_hook_failure` (`has_function_privilege` is false on the local DB for all seven, so the deferral above is rejected as `false`). `private` usage alone does not grant function EXECUTE here.
+
+#### Rejected (pass 2026-10-13)
+
+- `service_role` can call the reversal and earn bodies (blind-hunter) (false): `has_function_privilege('service_role', ...)` is false for all seven 0120 private functions on the local DB; the revoke from `public` removed the default grant.
+- Spec contradicts its own change log, frozen text lacks the `previous_last_event_at` clause, stale "not exercised" log line, unchecked task, `review_loop_iteration` (blind-hunter, acceptance-auditor, verification-gap) (low): fix is a spec edit. The clause is covered by m3, m14 and m15.
+- Reversal reads a live stamp as zeroed when `consumed_at` is backdated; sweep reset `occurred_at = now()` vs stamp `occurred_at = consumed_at` (edge-case-hunter, verification-gap) (low): unreachable on live paths (0118 header: `consumed_at = now()`); decision 1 already settled the narrower clause.
+- Sweep reset origin repeats when `guest_last_event_at` returns to a swept value (edge-case-hunter) (false): every earn writes a new `now()` last-event time and a reset only runs while the counter is > 0, so the same timestamp cannot be swept twice.
+- Lapse written without a progress row / lock (edge-case-hunter) (low): no counter to protect; lapse insert is idempotent on `(origin_id, event_type)`.
+- Wrappers cannot catch `query_canceled`; commit message "never blocks" (edge-case-hunter, blind-hunter) (false): a cancel aborts the whole statement, nothing a handler could keep; already rejected in the previous pass.
+- `award_renewal_stamp` failure with a missing payment writes an audit row with null gym (edge-case-hunter) (low): the `job_runs` row still carries the failure; the impl cannot raise on a missing payment first.
+- `now()` timestamps on `job_runs` hook rows (edge-case-hunter) (false): no uniqueness or ordering assumption in the alert query (`max(started_at)` and a 65-minute window).
+- Partial-failure run writes only a failure row (edge-case-hunter) (false): the alert's not-running check uses `max(started_at)` of any status and the failed-run check fires on the failure row.
+- AC3 proven only through `confirm_renewal`; refund and check-in callers not exercised (acceptance-auditor, blind-hunter, verification-gap) (low): all three callers go through the same wrapper, covered directly; same depth accepted in 20-2 and 20-3.
+- Candidate scan has no partial index; first-run backfill audit noise; no repair path or retry for swallowed failures (blind-hunter) (low / already deferred): single-transaction and backfill and no-retry are in `deferred-work.md`; table sizes are small today.
+- Raw `sqlerrm` in owner-visible audit metadata, hook failure label wording (blind-hunter) (low): the spec lists SQLSTATE and message in the audit row; fix is a spec edit.
+- Rollback verify block, `drop function` without `if exists` (blind-hunter) (low): already rejected; single-use `--single-transaction` script.
+- Two negative-test assertions are one-sided (blind-hunter) (low): already rejected as test-shape nits; the cross-gym RLS assertions also pair with owner B's positive event count.
+- A 1 XAF partial refund removes a stamp (blind-hunter) (false as a defect): frozen spec behavior.
+- Sprint-status `last_updated` stale (blind-hunter) (false): the file's convention is appended `# last_updated:` comment entries, as in earlier stories.
+- `session_refund.test.sql` replaces the wrapper with a probe (verification-gap) (false): observation, not a defect; the wrapper chain is covered in the 0120 test.
+- `database.ts` lists `run_loyalty_sweep_job` (acceptance-auditor) (low): generated output, already rejected.
+
+#### Rejected
+
+- `loyalty_hook` failure rows never reach the alert (false): `job-runs-alert.sql` reports any `status = 'failure'` row from the last 65 minutes regardless of `expected`, so `loyalty_hook` is covered (script header lines 8-9).
+- `loyalty_hook` failure rows can flood the hourly alert/audit on a persistent bug (low): the flood is the signal, and dedupe adds state for a rare case.
+- Wrappers do not catch `query_canceled` / statement timeout (false): a statement timeout cancels the outer statement; no PL/pgSQL handler could keep the payment alive, so it is not a defect of the wrapper.
+- `record_loyalty_hook_failure` is invoker and untested under `authenticated` (false): all three callers are SECURITY DEFINER (`check_in`, `apply_session_refund`, the verifying functions), so the `job_runs` insert runs as owner.
+- Raw `sqlerrm` in tenant-visible audit metadata (low): rare, owner-facing, no cross-tenant detail in the message; the full text is the debugging value.
+- `v_processed` in the failure audit overstates writes from rolled-back members (low): diagnostic count only.
+- reward_granted with equal `occurred_at` makes the reversal fire twice (maybe-false, would be low): needs two sessions of one member with identical consumed timestamps.
+- Rollback verify block does not check `cron.job`, `drop function` without `if exists` (low): single-use script in `--single-transaction`; `cron.unschedule` raises on failure.
+- `loyalty_sweep` shows "never ran" until the first 03:30 UTC run (low): deploy order already puts migrations before the PR to master.
+- `database.ts` lists `run_loyalty_sweep_job` (low): generated type, harmless at runtime.
+- Earn-racing-sweep order B vacuous, "partial then partial" not via a second refund row, vacuous negative assertion, fold test exclusion list (low): test-shape nits; the guarded paths are covered by m5, m14, m15 and the fold check on the main set.
+- A 1 XAF partial refund removes a stamp (false as a defect): behavior is the frozen spec ("any refund, full or partial"); fix would edit the spec.
+- Spec bookkeeping (status, unchecked Tasks, `review_loop_iteration`) (low): fix is a spec edit; status is set by this workflow's closing step.
+- Sweep scalability / success row has no counts (low, partly already deferred): first-run backfill and single transaction are in `deferred-work.md` since the earlier pass.
+
 ## Implementation Notes
 
 ## Spec Change Log
+
+- 2026-10-13 (code review, decision 1): Reversal "stamp still counted" test. Spec text: no guest `reset` dated after the stamp. Code (kept): a reset zeroes the stamp only if it is dated at or after it AND its `previous_last_event_at` is at or after the stamp, since a reset cannot zero a stamp written after it saw an older last event (backdated or offline consumption). Spec intent amended to match. Not exercised by a test yet.
+- 2026-10-13 (code review, patches): the same-origin reset exclusion (`origin_id <> p_session_id`) is redundant by construction with the `previous_last_event_at` guard (an earn-hook idle reset always saw a last event older than the stamp), so the m14 test pins behaviour (first stamp after an idle reset is reversed) and cannot kill a mutation that deletes only that clause.
 
 ## Review Triage Log
 

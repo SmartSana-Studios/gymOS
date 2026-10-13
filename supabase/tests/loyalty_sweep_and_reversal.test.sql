@@ -8,7 +8,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000000420xx.
 
 begin;
-select plan(60);
+select plan(72);
 
 -- An unused paid session for a member (verified session payment + session row).
 create function pg_temp.mk_paid(p_gym uuid, p_member uuid, p_usable_until timestamptz default now() + interval '30 days', p_voided_at timestamptz default null)
@@ -378,6 +378,17 @@ select is(
 select is(
   (select guest_stamps from loyalty_progress where member_id = '00000000-0000-0000-0000-00000004203f'),
   1, 'consume then sweep: one stamp');
+-- m14 consumed after 100 idle days: the earn hook wrote a reset with the
+-- stamp's own origin. Refunding that session must still reverse the stamp.
+select is(
+  (select count(*)::int from loyalty_events e join guest_sessions s on s.id = e.origin_id
+   where s.member_id = '00000000-0000-0000-0000-00000004203f' and e.event_type = 'reset'),
+  1, 'm14: the earn hook wrote a reset with the session as origin');
+select pg_temp.refund((select s.id from guest_sessions s where s.member_id = '00000000-0000-0000-0000-00000004203f'));
+select is(
+  (select row(guest_stamps, (select count(*) from loyalty_events e where e.member_id = lp.member_id and e.event_type = 'stamp_reversed'))::text
+   from loyalty_progress lp where member_id = '00000000-0000-0000-0000-00000004203f'),
+  '(0,1)', 'm14: refund of the first stamp after an idle reset is reversed');
 select pg_temp.consume(pg_temp.mk_paid('00000000-0000-0000-0000-000000042011', '00000000-0000-0000-0000-000000042040'), now());
 select is(
   (select guest_stamps from loyalty_progress where member_id = '00000000-0000-0000-0000-000000042040'),
@@ -476,7 +487,53 @@ select is(
   (select count(*)::int from audit_log where action_type = 'loyalty_sweep_job_failure'
      and actor_display_name = 'system:loyalty_sweep_job'),
   1, 'a loyalty_sweep_job_failure audit row exists');
+
+-- The summary audit write raises too: the swept member stays swept and the
+-- job_runs failure row (which feeds the hourly alert) survives.
+create function pg_temp.fail_summary_audit() returns trigger language plpgsql as $t$
+begin
+  if new.action_type = 'loyalty_sweep_job_failure' then
+    raise exception 'audit boom';
+  end if;
+  return new;
+end;
+$t$;
+create trigger fail_summary_audit before insert on audit_log
+  for each row execute function pg_temp.fail_summary_audit();
+update loyalty_progress set guest_stamps = 1, guest_last_event_at = now() - interval '96 days'
+where member_id = '00000000-0000-0000-0000-000000042042';
+
+select lives_ok($$ select run_loyalty_sweep_job() $$, 'a raising summary audit write does not abort the run');
+select is(
+  (select guest_stamps from loyalty_progress where member_id = '00000000-0000-0000-0000-000000042042'),
+  0, 'summary audit failure: the swept member stays swept');
+select is(
+  (select count(*)::int from job_runs
+   where job_name = 'loyalty_sweep' and status = 'failure' and started_at = now()
+     and error like '1 member(s) failed%'),
+  2, 'summary audit failure: the job_runs failure row still exists');
+drop trigger fail_summary_audit on audit_log;
 drop trigger fail_for_member on loyalty_events;
+
+-- The outer handler: no platform_session_config row (the config read is the
+-- first thing the sweep does) lands in the job_runs failure row and the audit row.
+create temp table cfg_backup as select * from platform_session_config;
+delete from platform_session_config;
+
+select lives_ok($$ select run_loyalty_sweep_job() $$, 'a missing config row does not raise out of the sweep');
+select is(
+  (select count(*)::int from job_runs
+   where job_name = 'loyalty_sweep' and status = 'failure' and started_at = now()
+     and error like 'loyalty_sweep: platform_session_config has no loyalty_idle_reset_days%'),
+  1, 'outer failure: job_runs failure row records the config error');
+select is(
+  (select count(*)::int from audit_log
+   where action_type = 'loyalty_sweep_job_failure' and actor_display_name = 'system:loyalty_sweep_job'
+     and metadata ->> 'error' like 'loyalty_sweep: platform_session_config has no loyalty_idle_reset_days%'),
+  1, 'outer failure: the loyalty_sweep_job_failure audit row carries the error');
+
+insert into platform_session_config select * from cfg_backup;
+drop table cfg_backup;
 
 -- ============================================================================
 -- Hook failure posture: the wrappers swallow the error and record it.
@@ -523,6 +580,37 @@ select lives_ok(
 select is(
   (select count(*)::int from job_runs where job_name = 'loyalty_hook' and error like 'award_renewal_stamp%'),
   1, 'renewal hook failure recorded');
+
+-- Through the real payment path, with a caller: confirm_renewal() as the owner
+-- while the renewal hook raises. The renewal commits, and the failure row is
+-- attributed to the caller (log_audit_event uses auth.uid() when it is set).
+create temp table ac3_before as
+select (select count(*) from subscriptions where member_id = '00000000-0000-0000-0000-00000004203c') as subs;
+grant all on ac3_before to public;
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000042021","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000042011","app_role":"owner"}', true);
+select 1 from confirm_renewal('00000000-0000-0000-0000-00000004203c', 'cash', 'ac3 renewal');
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+
+select is(
+  (select count(*) from subscriptions where member_id = '00000000-0000-0000-0000-00000004203c') - (select subs from ac3_before),
+  1::bigint, 'AC3: the renewal subscription committed although the hook raised');
+select is(
+  (select count(*)::int from payments where member_id = '00000000-0000-0000-0000-00000004203c'
+     and reason = 'ac3 renewal' and status = 'verified'),
+  1, 'AC3: the verified renewal payment committed');
+select is(
+  (select actor_id from audit_log where action_type = 'loyalty_hook_failed'
+     and metadata ->> 'hook' = 'award_renewal_stamp'
+     and metadata ->> 'member_id' = '00000000-0000-0000-0000-00000004203c'),
+  '00000000-0000-0000-0000-000000042021'::uuid,
+  'with a caller present the failure row is attributed to that caller');
+select is(
+  (select count(*)::int from job_runs where job_name = 'loyalty_hook' and error like 'award_renewal_stamp%'),
+  2, 'the caller path also wrote its loyalty_hook failure row');
 
 create or replace function private.on_session_refunded_after_consumption_impl(p_session_id uuid, p_member_id uuid, p_gym_id uuid)
 returns void language plpgsql set search_path = public as $$

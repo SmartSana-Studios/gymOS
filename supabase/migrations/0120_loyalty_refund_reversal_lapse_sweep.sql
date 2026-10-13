@@ -481,30 +481,55 @@ begin
       end;
     end loop;
 
+    -- Run bookkeeping is guarded write by write: a failing audit insert must not
+    -- roll back the members already swept or take the job_runs row (which feeds
+    -- the hourly alert) down with it.
     if v_failed > 0 then
-      insert into job_runs (job_name, started_at, finished_at, status, error)
-      values ('loyalty_sweep', v_started_at, now(), 'failure',
-              left(v_failed::text || ' member(s) failed; first: ' || v_first_error, 1000));
+      begin
+        insert into job_runs (job_name, started_at, finished_at, status, error)
+        values ('loyalty_sweep', v_started_at, now(), 'failure',
+                left(v_failed::text || ' member(s) failed; first: ' || v_first_error, 1000));
+      exception when others then
+        raise warning 'loyalty_sweep job_runs record failed: %', sqlerrm;
+      end;
 
+      begin
+        perform log_audit_event(
+          p_action_type => 'loyalty_sweep_job_failure',
+          p_system_actor_label => 'system:loyalty_sweep_job',
+          p_metadata => jsonb_build_object('failed_members', v_failed, 'first_error', v_first_error,
+                                           'processed', v_processed)
+        );
+      exception when others then
+        raise warning 'loyalty_sweep failure audit failed: %', sqlerrm;
+      end;
+    else
+      begin
+        insert into job_runs (job_name, started_at, finished_at, status)
+        values ('loyalty_sweep', v_started_at, now(), 'success');
+      exception when others then
+        raise warning 'loyalty_sweep job_runs record failed: %', sqlerrm;
+      end;
+    end if;
+  exception when others then
+    -- Only a failure before or around the member loop lands here (config row,
+    -- candidate query); the two writes are guarded separately for the same reason.
+    begin
+      insert into job_runs (job_name, started_at, finished_at, status, error)
+      values ('loyalty_sweep', v_started_at, now(), 'failure', left(sqlerrm, 1000));
+    exception when others then
+      raise warning 'loyalty_sweep job_runs record failed: %', sqlerrm;
+    end;
+
+    begin
       perform log_audit_event(
         p_action_type => 'loyalty_sweep_job_failure',
         p_system_actor_label => 'system:loyalty_sweep_job',
-        p_metadata => jsonb_build_object('failed_members', v_failed, 'first_error', v_first_error,
-                                         'processed', v_processed)
+        p_metadata => jsonb_build_object('error', sqlerrm)
       );
-    else
-      insert into job_runs (job_name, started_at, finished_at, status)
-      values ('loyalty_sweep', v_started_at, now(), 'success');
-    end if;
-  exception when others then
-    insert into job_runs (job_name, started_at, finished_at, status, error)
-    values ('loyalty_sweep', v_started_at, now(), 'failure', left(sqlerrm, 1000));
-
-    perform log_audit_event(
-      p_action_type => 'loyalty_sweep_job_failure',
-      p_system_actor_label => 'system:loyalty_sweep_job',
-      p_metadata => jsonb_build_object('error', sqlerrm)
-    );
+    exception when others then
+      raise warning 'loyalty_sweep failure audit failed: %', sqlerrm;
+    end;
   end;
 end;
 $$;
