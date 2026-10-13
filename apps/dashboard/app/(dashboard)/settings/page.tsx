@@ -2,6 +2,7 @@ import { getGymSettings } from "@/services/gym-settings";
 import { getGymPaymentConnectionStatus } from "@/services/gym-payment-credentials";
 import { getGymBillingInfo, listSelectableTiers } from "@/services/billing";
 import { listStaff } from "@/services/staff";
+import { listPlans } from "@/services/plans";
 import { SettingsForm } from "./SettingsForm";
 import { getDashboardShellContext } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -55,6 +56,13 @@ export default async function SettingsPage() {
   // failed shell lookup just hides it (the RPC is the real boundary).
   const { data: shell } = await getDashboardShellContext();
 
+  // Story 20.5: the plan durations behind the loyalty discount readout. A
+  // failure only hides the subscriber readout, never the page.
+  const { data: plans } = await listPlans();
+  const loyaltyPlans = (plans ?? [])
+    .filter((plan) => plan.planType !== "pay_per_session" && plan.durationDays !== null)
+    .map((plan) => ({ name: plan.name, durationDays: plan.durationDays as number }));
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">{t("settings.title")}</h1>
@@ -65,6 +73,7 @@ export default async function SettingsPage() {
         selectableTiers={selectableTiers ?? []}
         staffCount={staff?.length ?? 0}
         role={shell?.role ?? null}
+        loyaltyPlans={loyaltyPlans}
       />
     </div>
   );
