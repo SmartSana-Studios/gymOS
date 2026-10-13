@@ -190,6 +190,28 @@ describe("SettingsForm loyalty program", () => {
     );
   });
 
+  it("shows the stored values again after edits are discarded by saving off", async () => {
+    const user = userEvent.setup();
+    await renderForm({
+      settings: {
+        loyaltyEnabled: true,
+        loyaltyGuestThreshold: 5,
+        loyaltyRenewalThreshold: 3,
+        loyaltyRewardDays: 30,
+      },
+    });
+    setValue(nInput(), "9");
+    setValue(kInput(), "8");
+    setValue(rInput(), "7");
+    await user.click(loyaltySwitch());
+    await user.click(saveButton());
+
+    await waitFor(() => expect(saveLoyaltyProgram).toHaveBeenCalledWith({ enabled: false, n: 5, k: 3, r: 30 }));
+    await waitFor(() => expect(nInput()).toHaveValue(5));
+    expect(kInput()).toHaveValue(3);
+    expect(rInput()).toHaveValue(30);
+  });
+
   it("disabling a never-configured program sends 2/3/1", async () => {
     const user = userEvent.setup();
     await renderForm();

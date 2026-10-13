@@ -1,9 +1,10 @@
+/* eslint-disable i18next/no-literal-string -- test doubles render fixed marker text; no user-facing copy */
 /**
  * Story 20.5: the member modal's Rewards section -- visibility matrix, both
  * counters, free sessions, and no edit control for any role.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const getMemberLoyaltyAction = vi.fn();
 
@@ -19,7 +20,11 @@ vi.mock("@/app/(dashboard)/payments/actions", () => ({
   listMemberGuestSessionsAction: vi.fn(async () => ({ data: [], error: null })),
 }));
 vi.mock("@/components/shared/RecordSessionPaymentDialog", () => ({
-  RecordSessionPaymentDialog: () => null,
+  RecordSessionPaymentDialog: ({ onRecorded }: { onRecorded: () => void }) => (
+    <button type="button" onClick={onRecorded}>
+      finish-record
+    </button>
+  ),
 }));
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -56,21 +61,30 @@ const LOYALTY = {
   freeSessions: [{ id: "f1", usableUntil: "2026-12-01T00:00:00Z" }],
 };
 
-async function renderView(role = "receptionist") {
-  const { MemberModal } = await import("./MemberModal");
-  render(
+const PLANS = [
+  { id: "plan-2", name: "Monthly", planType: "monthly", price: 15000, currency: "XAF" },
+  { id: "plan-1", name: "Drop-in", planType: "pay_per_session", price: 2000, currency: "XAF" },
+] as never;
+
+function modal(editing: Record<string, unknown>, MemberModal: typeof import("./MemberModal").MemberModal, role: string) {
+  return (
     <MemberModal
       open
       readOnly
-      editingMember={member as never}
-      plans={[{ id: "plan-2", name: "Monthly", planType: "monthly", price: 15000, currency: "XAF" }] as never}
+      editingMember={{ ...member, ...editing } as never}
+      plans={PLANS}
       coaches={[]}
       role={role}
       chargeGuestsPerSession
       onClose={vi.fn()}
       onSaved={vi.fn()}
-    />,
+    />
   );
+}
+
+async function renderView(role = "receptionist", editing: Record<string, unknown> = {}) {
+  const { MemberModal } = await import("./MemberModal");
+  return { ...render(modal(editing, MemberModal, role)), MemberModal };
 }
 
 describe("MemberModal rewards (Story 20.5)", () => {
@@ -137,5 +151,42 @@ describe("MemberModal rewards (Story 20.5)", () => {
     await waitFor(() => expect(getMemberLoyaltyAction).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.queryByText("members.modal.rewards.title")).not.toBeInTheDocument();
+  });
+
+  it("leaves the section out for an error result", async () => {
+    getMemberLoyaltyAction.mockResolvedValue({ data: null, error: { message: "denied" } });
+    await renderView();
+    await waitFor(() => expect(getMemberLoyaltyAction).toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText("members.modal.rewards.title")).not.toBeInTheDocument();
+  });
+
+  it("re-reads the rewards after a session payment is recorded", async () => {
+    await renderView("receptionist", { planId: "plan-1", planName: "Drop-in", planType: "pay_per_session" });
+    expect(await screen.findByText("3 / 5")).toBeInTheDocument();
+    expect(getMemberLoyaltyAction).toHaveBeenCalledTimes(1);
+
+    getMemberLoyaltyAction.mockResolvedValue({ data: { ...LOYALTY, guestStamps: 4 }, error: null });
+    fireEvent.click(screen.getByRole("button", { name: "members.modal.recordSessionPayment" }));
+    fireEvent.click(await screen.findByRole("button", { name: "finish-record" }));
+
+    expect(await screen.findByText("4 / 5")).toBeInTheDocument();
+    expect(getMemberLoyaltyAction).toHaveBeenCalledTimes(2);
+  });
+
+  it("never shows a previous member's rewards after the modal switches member", async () => {
+    let resolveFirst: (value: unknown) => void = () => {};
+    getMemberLoyaltyAction
+      .mockReset()
+      .mockReturnValueOnce(new Promise((resolve) => (resolveFirst = resolve)))
+      .mockResolvedValueOnce({ data: { ...LOYALTY, guestStamps: 1 }, error: null });
+    const { rerender, MemberModal } = await renderView();
+    rerender(modal({ id: "m2", name: "Bob" }, MemberModal, "receptionist"));
+
+    expect(await screen.findByText("1 / 5")).toBeInTheDocument();
+    resolveFirst({ data: { ...LOYALTY, guestStamps: 4 }, error: null });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText("4 / 5")).not.toBeInTheDocument();
+    expect(screen.getByText("1 / 5")).toBeInTheDocument();
   });
 });

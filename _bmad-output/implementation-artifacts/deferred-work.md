@@ -1118,3 +1118,7 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-20-5-dashboard-loyalty-settings-member-loyalty-view.md`
   summary: `getMemberLoyaltyAction` (members/actions.ts) has no direct test for its invalid-id guard.
   evidence: modal tests mock the action and `services/loyalty.test.ts` covers the service; the RPC enforces role and gym itself, so impact is low (verification-gap layer, 20-5 review).
+
+## Deferred from: code review of spec-20-5-dashboard-loyalty-settings-member-loyalty-view (2026-10-13)
+
+- The 300 ms loyalty readout pause (`useDebouncedValue` in `SettingsForm.tsx`) is not pinned by a test; a pass-through keeps every test green. Add a fake-timer test asserting the previous readout persists until about 300 ms after the change. Low, a11y/UX only.

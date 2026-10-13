@@ -1174,12 +1174,7 @@
       "loadError": "Could not load payments.",
       "voided": "Voided",
       "actorTara": "Tara Money (in app)",
-      "table": {
-        "purpose": "Purpose",
-        "date": "Date",
-        "actor": "Recorded by",
-        "note": "Note"
-      }
+      "table": { "purpose": "Purpose", "date": "Date", "actor": "Recorded by", "note": "Note" }
     },
     "export": {
       "button": "Export CSV",
@@ -1350,7 +1345,7 @@
     },
     "empty": {
       "paid": "No paid sessions {{period}}.",
-      "paidRefundedAfterUse": "No refunded-after-use sessions in this period.",
+        "paidRefundedAfterUse": "No refunded-after-use sessions in this period.",
       "blocked": "No blocked attempts {{period}}.",
       "free": "No free sessions given {{period}}."
     },

@@ -1174,12 +1174,7 @@
       "loadError": "Impossible de charger les paiements.",
       "voided": "Annulé",
       "actorTara": "Tara Money (dans l'app)",
-      "table": {
-        "purpose": "Objet",
-        "date": "Date",
-        "actor": "Enregistré par",
-        "note": "Note"
-      }
+      "table": { "purpose": "Objet", "date": "Date", "actor": "Enregistré par", "note": "Note" }
     },
     "export": {
       "button": "Exporter en CSV",
@@ -1350,7 +1345,7 @@
     },
     "empty": {
       "paid": "Aucune séance payée {{period}}.",
-      "paidRefundedAfterUse": "Aucune séance remboursée après utilisation sur cette période.",
+        "paidRefundedAfterUse": "Aucune séance remboursée après utilisation sur cette période.",
       "blocked": "Aucune tentative bloquée {{period}}.",
       "free": "Aucune séance gratuite offerte {{period}}."
     },

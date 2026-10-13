@@ -419,7 +419,7 @@ development_status:
   20-2-guest-rule-stamps-on-paid-sessions-free-session-at-n: done
   20-3-subscriber-rule-on-time-renewal-stamps-r-free-days-at-k: done
   20-4-refund-reversal-lapses-90-day-reset-sweep: done
-  20-5-dashboard-loyalty-settings-member-loyalty-view: review
+  20-5-dashboard-loyalty-settings-member-loyalty-view: done
   20-6-member-app-loyalty-card: backlog
   epic-20-retrospective: optional
 
@@ -988,3 +988,4 @@ last_updated: 10-12-2026 23:05
 # last_updated: 2026-10-13 (build: 20-5 started, spec approved and in-progress on story/20-5-dashboard-loyalty-settings-member-loyalty-view; dashboard only, no migration.)
 # last_updated: 2026-10-13 (build: 20-5 implemented, status in-progress -> review. Dashboard only, no migration: Loyalty program Settings section (own save, live readout, notes), Rewards section on the member modal from effective_loyalty, EN/FR parity. Local gates: static and unit stages PASS on a dirty tree; pgtap/e2e not run (no DB or Playwright surface touched). Full clean-tree scripts/ci-local.sh, commit and PR into epic/20 pending.)
 # last_updated: 2026-10-13 (build: 20-5 implemented and reviewed (3 layers: 3 patches applied, 1 deferred, rest rejected); dashboard only, no migration. Static + unit green on dirty tree; clean-tree ci-local, PR into epic/20 and manual browser QA pending. Next: 20-6.)
+# last_updated: 2026-10-13 (bmad-code-review 20-5 pass 2, 4 fresh layers: 0 decision, 4 patches applied (Rewards refetch-on-payment test, always-mounted readout aria-live regions, locale whitespace churn reverted, stale-member/error-result/save-off-reset tests), 1 deferred (debounce fake-timer test), 14 rejected. Dashboard only, no migration. tsc clean, eslint clean on touched dirs, full dashboard vitest 1146 passed; mutation check confirmed the refetch test fails without sessionsReloadKey. Status review -> done per review rules, BUT changes are uncommitted on story/20-5: clean-tree scripts/ci-local.sh, commit, PR into epic/20 and manual browser QA still pending.)

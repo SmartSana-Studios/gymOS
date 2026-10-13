@@ -102,3 +102,33 @@ context:
 ## Design Notes
 
 Readout line for D is deduped by duration; the plan named is the first by `created_at` (listPlans order). Disabling passes the stored N/K/R (or 2/3/1 when never configured) because the setter ignores them when off and the generated type is non-null.
+
+### Review Findings
+
+Code review pass 2 (2026-10-13), 4 layers: Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor. Diff `epic/20...HEAD`.
+
+- [x] [Review][Patch] Rewards re-read after a recorded session payment is unpinned (medium) — `MemberModal.rewards.test.tsx` stubs `RecordSessionPaymentDialog` to null, so `onRecorded` never fires; dropping `sessionsReloadKey` from the deps keeps every test green. Add a test that fires `onRecorded` and asserts a second `getMemberLoyaltyAction` call and the updated render [apps/dashboard/app/(dashboard)/members/components/MemberModal.tsx:531]
+- [x] [Review][Patch] Readout live regions mount together with their content (low) — `{readoutN !== null && <p aria-live>}` and the subscriber `<div aria-live>` appear already filled, which many screen readers do not announce; first-time setup (blank N) hits this on the first valid entry. Keep an always-mounted `aria-live` container and swap its children [apps/dashboard/app/(dashboard)/settings/SettingsForm.tsx:1105,1173]
+- [x] [Review][Patch] Unrelated locale reformatting in the story diff (low) — `payments.sessions.table` expanded to multiple lines and `paidRefundedAfterUse` re-indented in both locale files; revert those hunks [apps/dashboard/locales/en.json:1177, apps/dashboard/locales/fr.json]
+- [x] [Review][Patch] Three small test gaps (low) — no stale-member test for the `loyalty.memberId === editingMember.id` guard, no `{error}` result case for a failed read (only `{data: null}`), and no assertion that N/K/R show stored values after editing then saving off [apps/dashboard/app/(dashboard)/members/components/MemberModal.rewards.test.tsx, apps/dashboard/app/(dashboard)/settings/SettingsForm.loyalty.test.tsx]
+- [x] [Review][Defer] 300 ms readout pause is not pinned by a test (low) — deferred: behaviour is correct today; replacing `useDebouncedValue` with a pass-through keeps all tests green. A fake-timer test would close it. [apps/dashboard/app/(dashboard)/settings/SettingsForm.tsx:260]
+
+#### Rejected
+
+| Finding (layer) | Verdict | Why |
+|---|---|---|
+| Spec ticks ci-local all stages, header says `done`, empty Implementation Notes (BH, AA) | rejected | Fix edits the spec under review. The gate itself is a process step: sprint-status already records clean-tree `ci-local.sh` as pending, and it must pass before the PR merges. |
+| Hand-rolled ranges instead of zod / duplicated ranges (BH) | false | `handleSaveLoyalty` imports `LOYALTY_RANGES` from `loyaltyReadout.ts`, one source for form and readout. Server-side range check is the RPC. |
+| Save not dirty-gated, off path fires RPC and toast (BH, EC, AA) | false | Spec I/O matrix mandates "Disable, fields untouched: RPC with enabled false"; setter early-returns on unchanged state, no audit row. |
+| Field errors not linked to inputs (BH) | low, rejected | Error `<p>` pattern matches the rest of the form; fix adds ids and aria wiring across three fields. |
+| Plan filter / ordering suspect (BH, AA) | false | `listPlans` orders `created_at asc` so the first plan names the duration; the spec says "non-pay-per-session plans" and the page test pins `class_only` as included. No archived flag exists in the select. |
+| "≈ 0%" readout (BH, EC) | low, rejected | Only at the extreme corner (R=1, K=24, annual plan); "<1%" needs new EN/FR copy and a branch. |
+| No unsaved-changes affordance (BH) | false | Page hint already names the separate save; spec makes it an own-save card. |
+| Off state shows edited values; lowered note and off-note together (BH, AA) | low, rejected | Spec: inputs disabled while off keeping last values; combined case not specified and harmless. |
+| Loyalty card gated by `canManageGuestCharging`, serial plans fetch (BH) | low, rejected | The Code Map prescribes that gate; serial fetch is cosmetic. |
+| Dates in browser timezone, window days not shown, invalid date (BH) | low, rejected | Same `toLocaleDateString` as the shipped Sessions section; window days are outside the spec. |
+| `loyaltyEnabled=false` bypasses `??` fallback (EC) | false | No production caller passes `loyaltyEnabled` to `SettingsForm` (page no longer does); the prop is only a test hook. |
+| Rewards card with enabled and both thresholds null (EC) | false | Setter requires N/K/R when enabling and 0117 has a check constraint; unreachable. |
+| Stale summary error persists while editing (EC) | low, rejected | Cleared on the next save; fix adds handlers to every input. |
+| Fragile `setTimeout(20)` absence assertions, `void user;` (BH) | low, rejected | Cosmetic test hygiene. |
+| `getMemberLoyaltyAction` invalid-id guard untested (VG, AA) | low, already deferred | In `deferred-work.md` from review pass 1. |

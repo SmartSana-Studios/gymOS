@@ -1102,16 +1102,19 @@ export function SettingsForm({
                         </span>
                       </div>
                       {loyaltyErrors.n && <p className="text-sm text-red-600">{loyaltyErrors.n}</p>}
-                      {readoutN !== null && (
-                        <p aria-live="polite" className="text-xs text-muted-foreground">
-                          <span aria-hidden="true">
-                            {t("settings.loyalty.guestReadout", { n: readoutN, percent: guestDiscountPercent(readoutN) })}
-                          </span>
-                          <span className="sr-only">
-                            {t("settings.loyalty.guestReadoutSr", { n: readoutN, percent: guestDiscountPercent(readoutN) })}
-                          </span>
-                        </p>
-                      )}
+                      {/* Always mounted so a screen reader announces content that arrives later. */}
+                      <div aria-live="polite" className="text-xs text-muted-foreground">
+                        {readoutN !== null && (
+                          <p>
+                            <span aria-hidden="true">
+                              {t("settings.loyalty.guestReadout", { n: readoutN, percent: guestDiscountPercent(readoutN) })}
+                            </span>
+                            <span className="sr-only">
+                              {t("settings.loyalty.guestReadoutSr", { n: readoutN, percent: guestDiscountPercent(readoutN) })}
+                            </span>
+                          </p>
+                        )}
+                      </div>
                       {!chargeGuests && (
                         <p className="text-xs text-muted-foreground">{t("settings.loyalty.chargingOffInfo")}</p>
                       )}
@@ -1169,9 +1172,10 @@ export function SettingsForm({
                       </div>
                       {loyaltyErrors.r && <p className="text-sm text-red-600">{loyaltyErrors.r}</p>}
                       {loyaltyErrors.k && <p className="text-sm text-red-600">{loyaltyErrors.k}</p>}
-                      {subscriberLines.length > 0 && readoutR !== null && readoutK !== null && (
-                        <div aria-live="polite" className="space-y-0.5 text-xs text-muted-foreground">
-                          {subscriberLines.map((line) => {
+                      <div aria-live="polite" className="space-y-0.5 text-xs text-muted-foreground">
+                        {readoutR !== null &&
+                          readoutK !== null &&
+                          subscriberLines.map((line) => {
                             const vars = {
                               r: readoutR,
                               k: readoutK,
@@ -1186,8 +1190,7 @@ export function SettingsForm({
                               </p>
                             );
                           })}
-                        </div>
-                      )}
+                      </div>
                     </div>
 
                     {showOffNote && (
