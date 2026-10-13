@@ -252,6 +252,33 @@
       "checkinTimeoutRange": "Check-in timeout must be between 1 and 24 hours",
       "registrationFeeInvalid": "Enter a whole amount of 0 or more",
       "registrationFeeSaveFailed": "Could not save the registration fee"
+    },
+    "loyalty": {
+      "title": "Loyalty program",
+      "description": "Free sessions for guests, free days for subscribers",
+      "label": "Loyalty program",
+      "guestsLabel": "Guests: 1 free session every [N] paid sessions",
+      "subscribersLabel": "Subscribers: [R] free days every [K] on-time renewals",
+      "rewardDaysAria": "Free days per reward",
+      "renewalsAria": "On-time renewals per reward",
+      "rangeN": "2 to 50",
+      "rangeR": "1 to 30 days",
+      "rangeK": "3 to 24 renewals",
+      "guestReadout": "1 free session per {{n}} paid ≈ {{percent}}%",
+      "guestReadoutSr": "1 free session per {{n}} paid, about {{percent}}%",
+      "subscriberReadout": "{{r}} days per {{k}} renewals of a {{d}}-day plan ({{plan}}) ≈ {{percent}}%",
+      "subscriberReadoutSr": "{{r}} days per {{k}} renewals of a {{d}}-day plan ({{plan}}), about {{percent}}%",
+      "chargingOffInfo": "Guests earn nothing while Charge guests per session is off.",
+      "loweredNote": "Members already at or above the new number earn one reward at their next qualifying visit or renewal. No progress is erased.",
+      "offNote": "No new stamps are earned while the program is off. Free sessions already earned stay usable until they lapse.",
+      "saveButton": "Save loyalty program",
+      "savedToast": "Loyalty program saved.",
+      "saveFailed": "Couldn't save the loyalty program. Try again.",
+      "errors": {
+        "n": "Enter a whole number from 2 to 50",
+        "k": "Enter a whole number from 3 to 24",
+        "r": "Enter a whole number from 1 to 30"
+      }
     }
   },
   "staff": {
@@ -584,6 +611,15 @@
         "lapsed": "Lapsed {{date}}",
         "voided": "Voided by refund {{date}}",
         "viewPayments": "View session payments"
+      },
+      "rewards": {
+        "title": "Rewards",
+        "guestProgress": "Guest progress",
+        "subscriberProgress": "Subscriber progress",
+        "freeSessions": "Free sessions",
+        "freeSession": "Free session",
+        "lapsesOn": "Lapses {{date}}",
+        "rulesOnly": "Balances change only through the program's rules."
       }
     },
     "deactivateDialog": {

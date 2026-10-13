@@ -17,6 +17,7 @@ vi.mock("../actions", () => ({
   editMember: vi.fn(),
   assignCoach: vi.fn(),
   getCoachAssignments: vi.fn(async () => ({ data: null, error: null })),
+  getMemberLoyaltyAction: vi.fn(async () => ({ data: null, error: null })),
 }));
 vi.mock("@/app/(dashboard)/payments/actions", () => ({
   getMemberRegistrationFeeStateAction: vi.fn(async () => ({ data: { kind: "none" }, error: null })),

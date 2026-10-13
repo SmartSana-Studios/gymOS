@@ -24,6 +24,7 @@ import {
   updateMember,
 } from "@/services/members";
 import { getGymSettings } from "@/services/gym-settings";
+import { getMemberLoyalty, type MemberLoyalty } from "@/services/loyalty";
 import {
   assignCoach as assignCoachRow,
   getCoachAssignments as getCoachAssignmentsRow,
@@ -477,6 +478,19 @@ export async function getCoachAssignments(memberId: string) {
     return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
   }
   return getCoachAssignmentsRow(parsed.data);
+}
+
+/** Story 20.5: the member modal's Rewards section. A read of
+ * `effective_loyalty()` only; the RPC enforces role and gym. */
+export async function getMemberLoyaltyAction(
+  memberId: string,
+): Promise<{ data: MemberLoyalty | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = memberIdSchema.safeParse(memberId);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  return getMemberLoyalty(parsed.data);
 }
 
 /** AC #4: thin wrapper -- returns the CSV text itself, the client triggers

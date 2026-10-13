@@ -252,6 +252,33 @@
       "checkinTimeoutRange": "Le délai de pointage doit être compris entre 1 et 24 heures",
       "registrationFeeInvalid": "Saisissez un montant entier supérieur ou égal à 0",
       "registrationFeeSaveFailed": "Impossible d'enregistrer les frais d'inscription"
+    },
+    "loyalty": {
+      "title": "Programme de fidélité",
+      "description": "Séances gratuites pour les invités, jours offerts pour les abonnés",
+      "label": "Programme de fidélité",
+      "guestsLabel": "Invités : 1 séance gratuite toutes les [N] séances payées",
+      "subscribersLabel": "Abonnés : [R] jours offerts tous les [K] renouvellements à temps",
+      "rewardDaysAria": "Jours offerts par récompense",
+      "renewalsAria": "Renouvellements à temps par récompense",
+      "rangeN": "de 2 à 50",
+      "rangeR": "de 1 à 30 jours",
+      "rangeK": "de 3 à 24 renouvellements",
+      "guestReadout": "1 séance gratuite pour {{n}} payées ≈ {{percent}} %",
+      "guestReadoutSr": "1 séance gratuite pour {{n}} payées, environ {{percent}} %",
+      "subscriberReadout": "{{r}} jours pour {{k}} renouvellements d'une formule de {{d}} jours ({{plan}}) ≈ {{percent}} %",
+      "subscriberReadoutSr": "{{r}} jours pour {{k}} renouvellements d'une formule de {{d}} jours ({{plan}}), environ {{percent}} %",
+      "chargingOffInfo": "Les invités ne gagnent rien tant que la facturation à la séance est désactivée.",
+      "loweredNote": "Les membres déjà au niveau du nouveau seuil ou au-delà gagnent une récompense lors de leur prochaine visite ou renouvellement éligible. Aucune progression n'est effacée.",
+      "offNote": "Aucun tampon n'est gagné tant que le programme est désactivé. Les séances gratuites déjà obtenues restent utilisables jusqu'à leur expiration.",
+      "saveButton": "Enregistrer le programme de fidélité",
+      "savedToast": "Programme de fidélité enregistré.",
+      "saveFailed": "Impossible d'enregistrer le programme de fidélité. Réessayez.",
+      "errors": {
+        "n": "Saisissez un nombre entier de 2 à 50",
+        "k": "Saisissez un nombre entier de 3 à 24",
+        "r": "Saisissez un nombre entier de 1 à 30"
+      }
     }
   },
   "staff": {
@@ -584,6 +611,15 @@
         "lapsed": "Expirée le {{date}}",
         "voided": "Annulée par remboursement le {{date}}",
         "viewPayments": "Voir les paiements de séances"
+      },
+      "rewards": {
+        "title": "Récompenses",
+        "guestProgress": "Progression invité",
+        "subscriberProgress": "Progression abonné",
+        "freeSessions": "Séances gratuites",
+        "freeSession": "Séance gratuite",
+        "lapsesOn": "Expire le {{date}}",
+        "rulesOnly": "Les soldes ne changent que selon les règles du programme."
       }
     },
     "deactivateDialog": {

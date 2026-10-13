@@ -48,6 +48,10 @@ function baseRow(overrides: Record<string, unknown> = {}) {
     gym_token: "token",
     registration_fee: 0,
     charge_guests_per_session: true,
+    loyalty_enabled: false,
+    loyalty_guest_threshold: null,
+    loyalty_renewal_threshold: null,
+    loyalty_reward_days: null,
     ...overrides,
   };
 }
@@ -79,5 +83,34 @@ describe("getGymSettings", () => {
     gymRow = baseRow({ charge_guests_per_session: false });
     const off = await getGymSettings();
     expect(off.data?.chargeGuestsPerSession).toBe(false);
+  });
+
+  it("selects the four loyalty columns and maps them, keeping null thresholds null", async () => {
+    gymRow = baseRow({
+      loyalty_enabled: true,
+      loyalty_guest_threshold: 5,
+      loyalty_renewal_threshold: 3,
+      loyalty_reward_days: 30,
+    });
+    const on = await getGymSettings();
+    const columns = select.mock.calls.at(-1)?.[0] ?? "";
+    for (const column of ["loyalty_enabled", "loyalty_guest_threshold", "loyalty_renewal_threshold", "loyalty_reward_days"]) {
+      expect(columns).toContain(column);
+    }
+    expect(on.data).toMatchObject({
+      loyaltyEnabled: true,
+      loyaltyGuestThreshold: 5,
+      loyaltyRenewalThreshold: 3,
+      loyaltyRewardDays: 30,
+    });
+
+    gymRow = baseRow();
+    const off = await getGymSettings();
+    expect(off.data).toMatchObject({
+      loyaltyEnabled: false,
+      loyaltyGuestThreshold: null,
+      loyaltyRenewalThreshold: null,
+      loyaltyRewardDays: null,
+    });
   });
 });

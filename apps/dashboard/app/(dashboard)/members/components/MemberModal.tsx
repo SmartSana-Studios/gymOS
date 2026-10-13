@@ -13,13 +13,14 @@ import { PhoneInput } from "@/components/ui/phone-input";
 import type { MemberListRow, MemberRegistrationFeeState, MemberSubscriptionStatus } from "@/services/members";
 import type { PlanRow } from "@/services/plans";
 import type { CoachRow, CoachAssignmentRow } from "@/services/coaches";
-import { createMember, editMember, assignCoach, getCoachAssignments } from "../actions";
+import { createMember, editMember, assignCoach, getCoachAssignments, getMemberLoyaltyAction } from "../actions";
 import {
   getMemberRegistrationFeeStateAction,
   listMemberGuestSessionsAction,
 } from "@/app/(dashboard)/payments/actions";
 import { RecordSessionPaymentDialog } from "@/components/shared/RecordSessionPaymentDialog";
 import type { MemberGuestSession } from "@/services/guestSessions";
+import type { MemberLoyalty } from "@/services/loyalty";
 import { PAYMENT_METHOD_LABEL_KEY } from "@/app/(dashboard)/payments/paymentLabels";
 import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
 
@@ -263,6 +264,58 @@ function SessionsSection({
   );
 }
 
+/**
+ * Story 20.5 (AD-04): a member's loyalty progress and free sessions, from
+ * `effective_loyalty` only. Read-only for every role: there is deliberately
+ * no input, button or link here that changes a balance (FR-170). Unused paid
+ * sessions are not repeated; the Sessions section owns them.
+ */
+function RewardsSection({ loyalty, locale }: { loyalty: MemberLoyalty; locale: string }) {
+  const { t } = useTranslation();
+  const date = (iso: string) => new Date(iso).toLocaleDateString(locale);
+
+  return (
+    <section className="space-y-3 border-t pt-4" aria-label={t("members.modal.rewards.title")}>
+      <h4 className="text-sm font-semibold">{t("members.modal.rewards.title")}</h4>
+
+      {loyalty.enabled && (
+        <div className="grid grid-cols-2 gap-3">
+          {loyalty.guestThreshold !== null && (
+            <DetailField
+              label={t("members.modal.rewards.guestProgress")}
+              value={`${loyalty.guestStamps} / ${loyalty.guestThreshold}`}
+            />
+          )}
+          {loyalty.renewalThreshold !== null && (
+            <DetailField
+              label={t("members.modal.rewards.subscriberProgress")}
+              value={`${loyalty.subscriberStamps} / ${loyalty.renewalThreshold}`}
+            />
+          )}
+        </div>
+      )}
+
+      {loyalty.freeSessions.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">{t("members.modal.rewards.freeSessions")}</p>
+          <ul className="space-y-1 text-sm">
+            {loyalty.freeSessions.map((row) => (
+              <li key={row.id} className="rounded-md border p-2">
+                {t("members.modal.rewards.freeSession")}
+                <span className="block text-xs text-muted-foreground">
+                  {t("members.modal.rewards.lapsesOn", { date: date(row.usableUntil) })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <p className="text-xs text-muted-foreground">{t("members.modal.rewards.rulesOnly")}</p>
+    </section>
+  );
+}
+
 /** Create/Edit/View Member. One modal, three modes -- native <dialog>,
  * controlled string-based form state (matches PlanModal/TierModal's
  * established convention, not react-hook-form). `readOnly` is Scope Note
@@ -341,6 +394,8 @@ export function MemberModal({
   );
   const [recordingSession, setRecordingSession] = useState(false);
   const [sessionsReloadKey, setSessionsReloadKey] = useState(0);
+  // Story 20.5: Rewards section state, keyed by member id like the above.
+  const [loyalty, setLoyalty] = useState<{ memberId: string; value: MemberLoyalty } | null>(null);
 
   const isCreate = !editingMember;
   const isFeeGymCreate = isCreate && registrationFee > 0;
@@ -445,6 +500,27 @@ export function MemberModal({
       .then(({ data }) => {
         if (cancelled || !data) return;
         setGuestSessions({ memberId, rows: data });
+      })
+      .catch(() => {
+        // Informational: a failed read leaves the section out.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, canSeeSessions, editingMember, sessionsReloadKey]);
+
+  // Story 20.5: same gate as Sessions. A null result (suspended gym) or a
+  // failed read leaves the section out.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoyalty(null);
+    if (!open || !canSeeSessions || !editingMember) return;
+    const memberId = editingMember.id;
+    let cancelled = false;
+    getMemberLoyaltyAction(memberId)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setLoyalty({ memberId, value: data });
       })
       .catch(() => {
         // Informational: a failed read leaves the section out.
@@ -801,6 +877,13 @@ export function MemberModal({
                 locale={i18n.language}
               />
             )}
+
+            {canSeeSessions &&
+              loyalty &&
+              loyalty.memberId === editingMember.id &&
+              (loyalty.value.enabled || loyalty.value.freeSessions.length > 0) && (
+                <RewardsSection loyalty={loyalty.value} locale={i18n.language} />
+              )}
           </>
         ) : (
           <>
