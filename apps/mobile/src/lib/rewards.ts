@@ -109,6 +109,14 @@ export function isDormant(planType: string | null): boolean {
   return planType !== null && planType !== 'pay_per_session';
 }
 
+/** Device-local calendar date as `YYYY-MM-DD`, comparable with a date-only
+ * `expiry_date` string. */
+export function localDateOnly(d: Date): string {
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 /** Whole days between the grant's creation and its `usable_until`. */
 export function validityDays(createdAt: string, usableUntil: string): number {
   const ms = new Date(usableUntil).getTime() - new Date(createdAt).getTime();
@@ -152,6 +160,7 @@ export function buildRewardsView(
   data: RewardsData | null,
   planType: string | null,
   seenGrantIds: ReadonlySet<string> | null,
+  today: string = localDateOnly(new Date()),
 ): RewardsView | null {
   if (!data) return null;
   const { loyalty } = data;
@@ -196,12 +205,16 @@ export function buildRewardsView(
 
   let freeDays: RewardsFreeDays | null = null;
   const { rewardEvent, latestSubscription } = data;
+  // Program off: rows only (matrix). A lapsed subscription has no "new
+  // renewal date" to announce, so the line goes once its expiry has passed.
   if (
+    loyalty.enabled &&
     rewardEvent &&
     latestSubscription &&
     rewardEvent.subscriptionId === latestSubscription.id &&
     rewardEvent.rewardDays > 0 &&
-    latestSubscription.expiryDate
+    latestSubscription.expiryDate &&
+    latestSubscription.expiryDate >= today
   ) {
     freeDays = { days: rewardEvent.rewardDays, expiryDate: latestSubscription.expiryDate };
   }

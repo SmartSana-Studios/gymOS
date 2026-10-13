@@ -37,6 +37,7 @@ function data(over: Partial<RewardsData> = {}, loyalty: Partial<LoyaltySnapshot>
 }
 
 const seen = new Set<string>();
+const TODAY = '2026-10-13';
 
 describe('counter choice', () => {
   it('guest counter for pay-per-session or no plan, subscriber otherwise', () => {
@@ -137,9 +138,79 @@ describe('buildRewardsView', () => {
       rewardEvent: { subscriptionId: 's2', rewardDays: 30 },
       latestSubscription: { id: 's2', expiryDate: '2026-12-31' },
     };
-    expect(buildRewardsView(data(base), 'monthly', seen)!.freeDays).toEqual({ days: 30, expiryDate: '2026-12-31' });
+    expect(buildRewardsView(data(base), 'monthly', seen, TODAY)!.freeDays).toEqual({
+      days: 30,
+      expiryDate: '2026-12-31',
+    });
     const renewed = { ...base, latestSubscription: { id: 's3', expiryDate: '2027-01-31' } };
-    expect(buildRewardsView(data(renewed), 'monthly', seen)!.freeDays).toBeNull();
+    expect(buildRewardsView(data(renewed), 'monthly', seen, TODAY)!.freeDays).toBeNull();
+  });
+
+  it('free-days line goes once the subscription has lapsed, stays on its expiry day', () => {
+    const base = {
+      rewardEvent: { subscriptionId: 's2', rewardDays: 30 },
+      latestSubscription: { id: 's2', expiryDate: '2026-12-31' },
+    };
+    expect(buildRewardsView(data(base), 'monthly', seen, '2026-12-31')!.freeDays).not.toBeNull();
+    expect(buildRewardsView(data(base), 'monthly', seen, '2027-01-01')!.freeDays).toBeNull();
+  });
+
+  it('program off with a free session held: no free-days line', () => {
+    const v = buildRewardsView(
+      data(
+        {
+          rewardEvent: { subscriptionId: 's2', rewardDays: 30 },
+          latestSubscription: { id: 's2', expiryDate: '2026-12-31' },
+        },
+        { enabled: false, freeSessions: [{ id: 'f1', usableUntil: '2026-11-30T00:00:00Z' }] },
+      ),
+      'pay_per_session',
+      seen,
+      TODAY,
+    )!;
+    expect(v.freeDays).toBeNull();
+    expect(v.rows).toHaveLength(1);
+  });
+
+  it('enabled with null thresholds: no progress or footnote, held rows still shown', () => {
+    const rows = { freeSessions: [{ id: 'f1', usableUntil: '2026-11-30T00:00:00Z' }] };
+    const guest = buildRewardsView(data({}, { guestThreshold: null, ...rows }), null, seen)!;
+    expect(guest.progress).toBeNull();
+    expect(guest.footnote).toBeNull();
+    expect(guest.rows).toHaveLength(1);
+    const noRenewal = buildRewardsView(data({}, { renewalThreshold: null, ...rows }), 'monthly', seen)!;
+    expect(noRenewal.progress).toBeNull();
+    const noDays = buildRewardsView(data({}, { rewardDays: null, ...rows }), 'monthly', seen)!;
+    expect(noDays.progress).toBeNull();
+    expect(noDays.rows).toHaveLength(1);
+  });
+
+  it('enabled with null thresholds and nothing held: view has nothing to render', () => {
+    const v = buildRewardsView(data({}, { guestThreshold: null }), null, seen)!;
+    expect(v.progress).toBeNull();
+    expect(v.rows).toEqual([]);
+    expect(v.freeDays).toBeNull();
+    expect(v.headline).toBeNull();
+  });
+
+  it('clamps a counter above its threshold; zero reward days is not a line', () => {
+    const v = buildRewardsView(data({}, { guestStamps: 9, guestThreshold: 5 }), null, seen)!;
+    expect(v.progress).toMatchObject({ current: 5, total: 5 });
+    const zero = buildRewardsView(
+      data({
+        rewardEvent: { subscriptionId: 's2', rewardDays: 0 },
+        latestSubscription: { id: 's2', expiryDate: '2026-12-31' },
+      }),
+      'monthly',
+      seen,
+      TODAY,
+    )!;
+    expect(zero.freeDays).toBeNull();
+  });
+
+  it('a grant whose id is not a held free session never earns a headline', () => {
+    const d = data({ grants: [{ id: 'gone', createdAt: '2026-10-01T00:00:00Z', usableUntil: '2026-11-30T00:00:00Z' }] });
+    expect(buildRewardsView(d, 'pay_per_session', seen)!.headline).toBeNull();
   });
 
   it('shows the read-time (already reset) counter as given', () => {

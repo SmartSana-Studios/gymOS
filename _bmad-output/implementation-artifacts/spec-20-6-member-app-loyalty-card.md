@@ -106,3 +106,34 @@ Decision (2026-10-13, user): grant facts via own-row reads, not an `effective_lo
 **Commands:**
 - `cd apps/mobile && npm run typecheck && npm run lint && npm test` -- expected: clean
 - `scripts/ci-local.sh` -- expected: all stages green
+
+### Review Findings
+
+Code review pass (2026-10-13, 4 layers: blind, edge-case, verification-gap, acceptance; diff vs epic/20).
+
+- [x] [Review][Patch] (decided 2026-10-13: hide when `expiryDate` is before today) Free-days line persists for a lapsed or cancelled latest subscription and speaks a past "new renewal date" — The line shows while the reward event's `subscription_id` equals the latest subscription, with no check on that subscription's state or `expiryDate`. A member who earned R free days, then let that subscription expire (or moved to Pay-per-session) without a new `subscriptions` row keeps reading "[R] free days added — your new renewal date is [past date]". The spec rule ("after renewal: gone") does not cover lapse. Options: (a) hide the line when `expiryDate` is before today (recommended, one condition in `buildRewardsView`); (b) keep per spec. [apps/mobile/src/lib/rewards.ts:770-780] (edge-case, blind)
+- [x] [Review][Patch] Free-days line ignores `enabled`, contradicting matrix row "Program off, free session held: rows only" — `freeDays` is computed whether or not `loyalty.enabled`; with the program off and a held free session, a matching stale event still renders the line. Gate on `loyalty.enabled`, add a test. [apps/mobile/src/lib/rewards.ts:770] (acceptance)
+- [x] [Review][Patch] `getOwnLoyalty` tests do not assert the `loyalty_events`, `subscriptions` or `members` reads — only the `guest_sessions` filters are asserted (the chain stub logs the others, never checked, and renders `order` options as `[object Object]`). Dropping `eq('counter','subscriber')`, flipping `ascending`, or dropping `member_id` scoping leaves every test green. Triage row 4 claims this coverage. Assert `event_type`, `counter`, `order(occurred_at desc)`, `limit(1)`, subscriptions `member_id` + `created_at desc` + `limit(1)`, and `members.eq(id)`. [apps/mobile/src/services/loyalty.test.ts:985-1007] (verification-gap, blind)
+- [x] [Review][Patch] Null-threshold guard (triage row 2) has no test — no case in `rewards.test.ts` for enabled with null `guestThreshold` / `renewalThreshold` / `rewardDays`, nor for `rewardDays` 0, a held free session still rendering rows with null progress, or `current` above `total` clamped. [apps/mobile/src/lib/rewards.test.ts] (verification-gap, blind)
+- [x] [Review][Defer] Rewards card effects and Home wiring have no automated test (once-only headline latch, record-then-show, detached fetch) [apps/mobile/src/components/RewardsCard.tsx:240-273] — deferred: no React Native component harness in apps/mobile; on-device QA (user) owns it. Triage row 12 cited deferred-work.md but no entry existed; now recorded there.
+
+#### Rejected
+
+- Promise.all rejection drops the whole card (EC): low. supabase-js returns `{ error }` rather than rejecting and `getSession` reads local storage; the outer catch only yields the spec'd "card left out". Guards add branches for an unreached path.
+- Late-inserted grant row understates validity days (EC): low. Spec defines N as `created_at` to `usable_until`; no demonstrated path.
+- planType null while chargingCtx loads, shows guest counter briefly (EC): false. `setChargingCtx` runs in `loadHome` before the detached rewards fetch, and the subscription-read error path returns first (triage row 10).
+- Invalid Date in free-days line / rows (EC): low. Typed `date` and `timestamptz` columns; unreachable.
+- Unmount between record ok and `setShown` loses the headline (EC, BH): low. Home is a persistent tab and the record resolves in milliseconds; fix restructures the latch (triage row 5).
+- Headline validity reflects only the newest of several grants (EC, BH): low. Platform validity is one value; spec defines one headline line (triage row 7).
+- Headline "valid for 0 days" (EC): false. Held grants have `usable_until` after `created_at`; the clamp to 0 is not reachable.
+- Client clock skew on `usable_until > now` filter (EC): low. Dropping the filter lets expired unconsumed grants accumulate unboundedly in the read; mild skew only delays one headline.
+- "Use by" dates use device time zone (EC, BH): low. Gym-local formatting needs a new prop and spec says date spoken in full; travelling member edge.
+- Extra `members` and `getSession` reads per Home load (BH): low. One small own-row query; negligible.
+- Stale card after state change (BH): false. `useFocusEffect` re-runs `loadHome` on every tab revisit.
+- Headline recorded on render, not visibility (BH): low. Spec: "recorded when the card renders it".
+- iOS live region, progress block role, hardcoded `#4ADE80` contrast (BH, AA): low. Same literal Home already uses; a11y role items rejected in triage row 11.
+- Free-days line has no dedicated a11y label (AA): false. Plain text is read by screen readers; spec scopes the label rule to rows.
+- Rows not built from `ListItem` (AA): low. Behaviour matches spec (not tappable, 44pt, one label); triage row 11.
+- Free-session rows not re-checked for expiry on client (AA): low. Stale in-memory only until next Home focus refetch.
+- French caption wording, `guestLabel` unused params, DST rounding (BH): low. Wording matches spec captions; unused params harmless; DST shifts by under a day and rounds correctly.
+- Spec frontmatter `status: done`, unchecked tasks, empty notes, stale `last_updated` header (BH, AA): rejected per rules, fix is to edit the spec; status is synced in step 6.

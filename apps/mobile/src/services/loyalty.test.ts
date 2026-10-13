@@ -78,7 +78,8 @@ describe('getOwnLoyalty', () => {
     const c: Record<string, unknown> = {};
     for (const m of ['select', 'eq', 'not', 'is', 'gt', 'order', 'limit']) {
       c[m] = (...args: unknown[]) => {
-        log.push(`${table}.${m}(${args.map(String).join(',')})`);
+        const shown = args.map((a) => (typeof a === 'object' && a !== null ? JSON.stringify(a) : String(a)));
+        log.push(`${table}.${m}(${shown.join(',')})`);
         return c;
       };
     }
@@ -130,6 +131,31 @@ describe('getOwnLoyalty', () => {
     expect(g).toContain('is(consumed_at,null)');
     expect(g).toContain('is(voided_at,null)');
     expect(g).toContain('gt(usable_until,');
+  });
+
+  it('scopes every own-row read to the member', async () => {
+    const { log } = await run({});
+    for (const t of ['guest_sessions', 'loyalty_events', 'subscriptions']) {
+      expect(log).toContain(`${t}.eq(member_id,m1)`);
+    }
+    expect(log).toContain('members.eq(id,m1)');
+  });
+
+  it('reads the latest subscriber reward_granted event', async () => {
+    const { log } = await run({});
+    const e = log.filter((l) => l.startsWith('loyalty_events.'));
+    expect(e).toContain('loyalty_events.eq(event_type,reward_granted)');
+    expect(e).toContain('loyalty_events.eq(counter,subscriber)');
+    expect(e).toContain('loyalty_events.order(occurred_at,{"ascending":false})');
+    expect(e).toContain('loyalty_events.limit(1)');
+  });
+
+  it('reads the latest subscription, newest first', async () => {
+    const { log } = await run({});
+    const s = log.filter((l) => l.startsWith('subscriptions.'));
+    expect(s).toContain('subscriptions.order(created_at,{"ascending":false})');
+    expect(s).toContain('subscriptions.order(id,{"ascending":false})');
+    expect(s).toContain('subscriptions.limit(1)');
   });
 
   it('scope is userId.gymId, null when either is missing', async () => {

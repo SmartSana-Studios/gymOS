@@ -1122,3 +1122,7 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 ## Deferred from: code review of spec-20-5-dashboard-loyalty-settings-member-loyalty-view (2026-10-13)
 
 - The 300 ms loyalty readout pause (`useDebouncedValue` in `SettingsForm.tsx`) is not pinned by a test; a pass-through keeps every test green. Add a fake-timer test asserting the previous readout persists until about 300 ms after the change. Low, a11y/UX only.
+
+## Deferred from: code review of spec-20-6-member-app-loyalty-card (2026-10-13)
+
+- The Home Rewards card's component behavior (once-only headline latch in `RewardsCard.tsx`: record-then-show, `shown?.data === data`, `ok` check) and the Home detached-fetch wiring have no automated test; removing the latch or recording after showing keeps every vitest green. Needs a React Native component harness in apps/mobile (vitest includes `src/**/*.test.ts` only) or the latch extracted to a pure hook-level helper. On-device QA (user) owns it until then. Medium-low.

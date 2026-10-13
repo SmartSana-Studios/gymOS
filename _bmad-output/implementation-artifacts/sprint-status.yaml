@@ -420,7 +420,7 @@ development_status:
   20-3-subscriber-rule-on-time-renewal-stamps-r-free-days-at-k: done
   20-4-refund-reversal-lapses-90-day-reset-sweep: done
   20-5-dashboard-loyalty-settings-member-loyalty-view: done
-  20-6-member-app-loyalty-card: review
+  20-6-member-app-loyalty-card: done
   epic-20-retrospective: optional
 
   epic-21: backlog
@@ -994,3 +994,4 @@ last_updated: 10-12-2026 23:05
 # last_updated: 2026-10-13 (build: 20-6 implemented, status in-progress -> review. Mobile only, no migration: RewardsCard on Home (flat, below quick actions) fed by services/loyalty.ts (effective_loyalty RPC + own guest_sessions grant rows, latest subscriber reward_granted event, latest subscription), pure view model lib/rewards.ts, once-per-grant headline tracked in AsyncStorage per user+gym (services/loyaltySeen.ts), home.rewards.* EN/FR. apps/mobile typecheck, lint (0 errors, no new warnings) and vitest (53) green; ci-local --only static PASS on dirty tree. Not yet run: full clean-tree ci-local, code review, on-device QA (ships with next mobile build).)
 # last_updated: 2026-10-13 (build: 20-6 implemented and reviewed (3 layers: blind, edge-case, verification-gap), status review. Mobile-only, no migration: Home Rewards card (services/loyalty.ts, lib/rewards.ts, components/RewardsCard.tsx, loyaltySeen.ts), EN/FR strings. Review: 4 patched (corrupt seen-grants self-heal, bare-title guard, detached fetch, loyaltySeen + getOwnLoyalty tests), 1 deferred (component test harness), rest rejected/false. apps/mobile typecheck, lint (0 errors), vitest 63 green; ci-local static green on dirty tree, full clean-tree ci-local owed before PR merge. On-device QA is the user's and ships with the next mobile build.)
 # last_updated: 2026-10-13 (build: 20-6 clean-tree scripts/ci-local.sh GREEN on f243239 (static, pgtap, unit, e2e, 97s), PR opened into epic/20. Mobile-only; no migration.)
+# last_updated: 2026-10-13 (code-review: 20-6 second pass, 4 layers vs epic/20; 1 decision (hide free-days line once subscription expiry has passed) + 3 patches applied: free-days line gated on enabled and on expiry >= today, getOwnLoyalty tests now assert loyalty_events/subscriptions/members filters and ordering, null-threshold/clamp/zero-days rewards tests; 1 deferred (component harness, now in deferred-work.md), 18 rejected. apps/mobile typecheck, lint (0 errors), vitest 72 green. Patches are UNCOMMITTED on story/20-6-member-app-loyalty-card: commit, then clean-tree scripts/ci-local.sh owed before PR merge into epic/20. Status review -> done.)
