@@ -1093,3 +1093,12 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - An early renewal forfeits the remaining period, including any rewarded R free days: the new subscription starts at `current_date` in `confirm_renewal` and `complete_verified_payment`. Pre-existing renewal semantics; becomes member-visible once free days exist. Decide with 20.5 copy whether to carry remaining days.
 - Subscriber free days render as "Free session granted" (`loyalty_reward_granted`, counter `subscriber` not rendered). Spec forbids new labels in 20.3; fix in 20.5.
 - `gyms.timezone` has no database validation (0002: text not null default). An unresolvable zone makes `award_renewal_stamp` raise inside `complete_verified_payment` / `confirm_renewal`, rolling back a paid renewal. Unverified medium. Settle by checking the settings-form schema validates against the IANA list; fold into the 20.4 decision on hook failure posture.
+
+## Deferred from: code review of spec-20-4-refund-reversal-lapses-90-day-reset-sweep (2026-10-13)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-20-4-refund-reversal-lapses-90-day-reset-sweep.md`
+  summary: A loyalty hook that fails (including a transient deadlock) is swallowed and never retried, so the stamp, reversal or renewal stamp is permanently missing and no repair path exists.
+  evidence: Real consequence of the approved guard-hooks decision (0120 wrappers). The failure is visible in the audit log and `job_runs` (`loyalty_hook`), but Epic 20 forbids manual balance edits, so a correction needs a story (replay from payments/sessions or a retry queue).
+- source_spec: `_bmad-output/implementation-artifacts/spec-20-4-refund-reversal-lapses-90-day-reset-sweep.md`
+  summary: `run_loyalty_sweep_job` holds member and progress row locks for its whole single transaction and its first run records every historic expired session at once.
+  evidence: Unverified medium. Spec asks for its own function and transaction; production backlog is small today. Settle by timing the first run against a prod-sized copy, then batch per gym or use `lock_timeout` if it is slow.
