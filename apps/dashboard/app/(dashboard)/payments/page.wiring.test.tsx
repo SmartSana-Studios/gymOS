@@ -17,6 +17,7 @@ vi.mock("@/services/payments", async () => {
     listPendingPayments: vi.fn(async () => ({ data: [], error: null })),
     listPaymentDiscrepancies: vi.fn(async () => ({ data: [], error: null })),
     listAllPayments: (...a: unknown[]) => listAllPayments(...a),
+    listRefundHistory: vi.fn(async () => ({ data: { rows: [], total: 0 }, error: null })),
     PAYMENTS_LEDGER_PAGE_SIZE: 50,
     normalizeLedgerFilters: real.normalizeLedgerFilters,
   };

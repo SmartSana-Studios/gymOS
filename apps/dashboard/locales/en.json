@@ -1166,6 +1166,15 @@
       "registrationFee": "Registration fee",
       "session": "Session payment"
     },
+    "refundHistory": {
+      "title": "Refunds",
+      "empty": "No refunds recorded yet.",
+      "loadError": "Could not load refunds.",
+      "truncated": "Showing the latest {{shown}} of {{total}} refunds.",
+      "table": { "date": "Date", "member": "Member", "payment": "Payment", "refunded": "Refunded", "reason": "Reason", "by": "Recorded by", "session": "Session" },
+      "partial": "of {{amount}}",
+      "session": { "unused": "Session cancelled", "used": "Session already used" }
+    },
     "ledger": {
       "title": "All Payments",
       "empty": "No payments recorded yet.",
@@ -1173,6 +1182,7 @@
       "clearFilters": "Clear filters",
       "loadError": "Could not load payments.",
       "voided": "Voided",
+      "refunded": "Refunded",
       "actorTara": "Tara Money (in app)",
       "table": { "purpose": "Purpose", "date": "Date", "actor": "Recorded by", "note": "Note" }
     },

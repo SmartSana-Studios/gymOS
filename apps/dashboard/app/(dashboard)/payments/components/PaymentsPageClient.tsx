@@ -28,6 +28,7 @@ import { RecordRefundModal } from "./RecordRefundModal";
 import { VerifyPaymentConfirmDialog } from "./VerifyPaymentConfirmDialog";
 import { FlagPaymentDialog } from "./FlagPaymentDialog";
 import { PaymentsLedger, type PaymentsLedgerData } from "./PaymentsLedger";
+import { RefundHistory, type RefundHistoryData } from "./RefundHistory";
 
 /**
  * AD-09's Verification Queue section; the All Payments ledger (Story 19.9c)
@@ -48,6 +49,8 @@ export function PaymentsPageClient({
   ledgerError = false,
   ledgerPurpose = "",
   ledgerMemberId = "",
+  refunds,
+  refundsError = false,
 }: {
   pendingPayments: PendingPaymentRow[];
   discrepancies: PaymentDiscrepancyRow[];
@@ -62,6 +65,9 @@ export function PaymentsPageClient({
   ledgerError?: boolean;
   ledgerPurpose?: string;
   ledgerMemberId?: string;
+  /** Refund history; omitted/null with no error hides the section. */
+  refunds?: RefundHistoryData | null;
+  refundsError?: boolean;
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -294,6 +300,8 @@ export function PaymentsPageClient({
           memberId={ledgerMemberId}
         />
       )}
+
+      {(refunds || refundsError) && <RefundHistory refunds={refunds ?? null} hasError={refundsError} />}
 
       {recordModalOpen && (
         <RecordPaymentModal

@@ -1303,6 +1303,8 @@ export interface PaymentLedgerRow {
   note: string | null;
   createdAt: string;
   actorName: string | null;
+  /** A `refunds` row exists for this payment (see listRefundHistory). */
+  refunded?: boolean;
 }
 
 interface LedgerRowFromDb {
@@ -1319,10 +1321,12 @@ interface LedgerRowFromDb {
   created_at: string;
   actor_id: string | null;
   members: { name: string } | null;
+  // refunds.payment_id is unique, so PostgREST embeds one object or null.
+  refunds?: { id: string } | null;
 }
 
 const LEDGER_SELECT =
-  "id, member_id, amount, currency, method, purpose, status, flagged_reason, voided_at, reason, created_at, actor_id, members(name)";
+  "id, member_id, amount, currency, method, purpose, status, flagged_reason, voided_at, reason, created_at, actor_id, members(name), refunds(id)";
 
 function applyLedgerFilters<T>(query: T, filters: { purpose?: string; memberId?: string }): T {
   type Chainable = { eq(column: string, value: unknown): Chainable };
@@ -1367,6 +1371,7 @@ async function mapLedgerRows(
       note: row.reason,
       createdAt: row.created_at,
       actorName: row.actor_id ? (actorNameByUserId.get(row.actor_id) ?? null) : null,
+      refunded: Boolean(row.refunds),
     })),
     error: null,
   };
@@ -1408,6 +1413,114 @@ export async function listAllPayments(params: {
     return { data: null, error: mapped.error };
   }
   return { data: { rows: mapped.data, total: count ?? 0 }, error: null };
+}
+
+// Refund history: the gym's `refunds` rows, newest first. Read-only; recording
+// stays in recordRefund. Refunds are rare, so one capped page is fetched and the
+// true total is returned so the UI can say when the list is truncated.
+export const REFUND_HISTORY_LIMIT = 200;
+
+export interface RefundHistoryRow {
+  id: string;
+  paymentId: string;
+  memberName: string;
+  /** Refunded amount (can be below the payment amount). */
+  amount: number;
+  paymentAmount: number;
+  currency: string;
+  method: string;
+  purpose: string;
+  reason: string;
+  createdAt: string;
+  actorName: string | null;
+  /** Session payments only: `unused` (session cancelled) or `used` (stays consumed). */
+  sessionState: "unused" | "used" | null;
+}
+
+interface RefundHistoryRowFromDb {
+  id: string;
+  payment_id: string;
+  amount: number;
+  currency: string;
+  reason: string;
+  created_at: string;
+  actor_id: string;
+  payments: {
+    amount: number;
+    method: string;
+    purpose: string;
+    members: { name: string } | null;
+    guest_sessions: GuestSessionStateEmbed | GuestSessionStateEmbed[] | null;
+  } | null;
+}
+
+export async function listRefundHistory(): Promise<{
+  data: { rows: RefundHistoryRow[]; total: number } | null;
+  error: AppError | null;
+}> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+
+  const { data, count, error } = await supabase
+    .from("refunds")
+    .select(
+      "id, payment_id, amount, currency, reason, created_at, actor_id, payments(amount, method, purpose, members(name), guest_sessions(consumed_at, voided_at))",
+      { count: "exact" },
+    )
+    .eq("gym_id", gymId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(REFUND_HISTORY_LIMIT);
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+
+  const rows = (data ?? []) as unknown as RefundHistoryRowFromDb[];
+  const actorUserIds = [...new Set(rows.map((row) => row.actor_id))];
+  const actorNameByUserId = new Map<string, string>();
+  if (actorUserIds.length > 0) {
+    const { data: actorRows, error: actorError } = await supabase
+      .from("members")
+      .select("user_id, name")
+      .eq("gym_id", gymId)
+      .in("user_id", actorUserIds);
+    if (actorError) {
+      return { data: null, error: await mapAndLog(actorError) };
+    }
+    for (const row of actorRows ?? []) {
+      actorNameByUserId.set(row.user_id, row.name);
+    }
+  }
+
+  return {
+    data: {
+      total: count ?? rows.length,
+      rows: rows.map((row) => {
+        const payment = row.payments;
+        const sessionRow = Array.isArray(payment?.guest_sessions)
+          ? payment?.guest_sessions[0]
+          : payment?.guest_sessions;
+        return {
+          id: row.id,
+          paymentId: row.payment_id,
+          memberName: payment?.members?.name ?? "",
+          amount: row.amount,
+          paymentAmount: payment?.amount ?? row.amount,
+          currency: row.currency,
+          method: payment?.method ?? "",
+          purpose: payment?.purpose ?? "",
+          reason: row.reason,
+          createdAt: row.created_at,
+          actorName: actorNameByUserId.get(row.actor_id) ?? null,
+          sessionState: payment?.purpose === "session" ? (sessionRow?.consumed_at ? "used" : "unused") : null,
+        } satisfies RefundHistoryRow;
+      }),
+    },
+    error: null,
+  };
 }
 
 export type ExportPaymentsCsvResult = { data: string; error: null } | { data: null; error: AppError };
