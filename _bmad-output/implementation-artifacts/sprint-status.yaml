@@ -414,7 +414,7 @@ development_status:
   19-12-v1-6-session-guests-enablement: done
   epic-19-retrospective: done
 
-  epic-20: in-progress
+  epic-20: done
   20-1-loyalty-program-setting-ledger-foundation: done
   20-2-guest-rule-stamps-on-paid-sessions-free-session-at-n: done
   20-3-subscriber-rule-on-time-renewal-stamps-r-free-days-at-k: done
@@ -999,3 +999,4 @@ last_updated: 10-12-2026 23:05
 # last_updated: 2026-10-13 (ad-hoc, non-story: epic-20 all six stories done; built scripts/epic20-qa local manual-QA kit (seed.mjs 16 members across guest/subscriber/refund/lapse/stale scenarios via real RPCs, state.mjs, program.mjs, README click-through) and started dashboard :3000 against local Supabase. Kit uncommitted. Retro still optional.)
 # last_updated: 2026-10-13 (ad-hoc, non-story: epic20-qa seed now runs run_subscription_lifecycle_job() so expiring-today members are expiring_soon and listed in Overview Expiring This Week; state.mjs sub-* states set expiring_soon likewise; README names where Renew lives.)
 # last_updated: 2026-10-14 (ad-hoc, non-story: manual QA of epic-20 found no refund history view in the dashboard; recorded in deferred-work.md as a follow-up, owner prefers a refund list. Uncommitted.)
+# last_updated: 2026-10-14 (ad-hoc, non-story: epic-20 in-progress -> done. PR #63 epic/20 -> master merged as b627433 after clean-tree scripts/ci-local.sh and green GitHub Actions. Migrations 0117-0120 applied to production via prod-apply stage 4 after a db-backup run (head 0120, loyalty_sweep cron present, 0 gyms loyalty-on, no client ledger writes, anon EXEC 0). Vercel dashboard/super-admin deploy from master. Remaining: mobile build with the Rewards card needs on-device QA incl. French; refund-history view deferred (deferred-work.md); epic-20-retrospective left optional. Branch epic/20 deleted local+remote.)
