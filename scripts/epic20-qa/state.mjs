@@ -21,7 +21,7 @@ const m = must(await admin.from("members").select("id").eq("phone", `+${phone}`)
 const planId = (name) => psql(`select id from plans where gym_id = '${gid}' and name = '${name}'`);
 const today = localToday(gid);
 const guestSub = () => psql(`insert into subscriptions (gym_id, member_id, plan_id, status, start_date) values ('${gid}', '${m.id}', '${planId("Pay per session")}', 'active', '${today}')`);
-const monthlySub = (expiry, status = "active") => psql(`insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expiry_date) values ('${gid}', '${m.id}', '${planId("Monthly Standard")}', '${status}', '${addDays(expiry, -30)}', '${expiry}')`);
+const monthlySub = (expiry, status = "active") => psql(`insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expiry_date) values ('${gid}', '${m.id}', '${planId("Monthly Standard")}', '${status === "active" && expiry <= addDays(today, 7) ? "expiring_soon" : status}', '${addDays(expiry, -30)}', '${expiry}')`);
 
 if (state === "checkout") { checkout(m.id); }
 else if (["fresh", "mid", "almost", "rewarded", "stale", "lapsed"].includes(state)) {

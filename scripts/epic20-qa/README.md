@@ -48,6 +48,8 @@ sub-early/sub-late/sub-rewarded) · `program.mjs on|off|never|charging on|off|sw
 | P9 | A on a monthly plan holding a free session (seed: Sub Dormant Free) | neutral row "Usable when you're back on Pay-per-session" |
 | P10 | `state.mjs stale` | counter reads 0 / 4 even though 2 stamps are stored |
 
-Notes: re-seeding deletes the gym, so dashboard tabs and phone sessions go stale — sign out/in. The pgTAP stage of
+Notes: the seed runs `run_subscription_lifecycle_job()` once, so members expiring within 7 days are `expiring_soon` and appear in
+Overview -> "Expiring This Week", where the Renew button is (the member modal has none; the Subscriptions page shows Renew
+only for non-active rows). Re-seeding deletes the gym, so dashboard tabs and phone sessions go stale — sign out/in. The pgTAP stage of
 `scripts/ci-local.sh` expects no QA data (same as Epic 19). In-app Tara payment needs the Epic 19 edge-runtime copy and
 fake Tara (`../epic19-qa/README.md`); not required for any loyalty scenario above.

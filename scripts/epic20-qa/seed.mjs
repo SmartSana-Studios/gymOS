@@ -98,6 +98,10 @@ const b = await member("Phone Sub B", { phone: PHONE_B, plan: "monthly" });
 seedStamps(gym.id, b.id, "subscriber", K - 1, 25);
 note("Phone Sub B", b, "2 / 3, expires TODAY", "your phone: subscriber card 2 / 3 -> renew from dashboard -> free-days line; reset with state.mjs");
 
+// The Overview "Expiring This Week" table (and its Renew button) lists status = expiring_soon, which only the
+// nightly lifecycle job sets. Run it once so members expiring within 7 days show up as they would in production.
+psql(`select run_subscription_lifecycle_job()`);
+
 console.log(`\nEpic20 QA Gym ready (id ${gym.id}). Loyalty ON: N=${N} guest sessions, K=${K} renewals, R=${R} days. Charging guests: ${gym.charge_guests_per_session ? "ON" : "OFF"}.`);
 console.log(`Gym QR token: ${gym.gym_token}`);
 console.log(`Dashboard accounts (password ${PW}): ${Object.values(staff).join(" · ")}`);
