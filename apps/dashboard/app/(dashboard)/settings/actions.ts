@@ -16,6 +16,7 @@ import {
   logGymSettingsChange,
   regenerateQrCode as regenerateQrCodeRow,
   setGuestCharging as setGuestChargingRow,
+  setLoyaltyProgram as setLoyaltyProgramRow,
   setRegistrationFee,
   updateGymSettings,
   uploadGymLogo,
@@ -354,5 +355,51 @@ export async function setGuestCharging(
   if (error || !data) {
     return { data: null, error: { code: error?.code ?? "unknown", message: t("settings.guestCharging.saveFailed") } };
   }
+  return { data, error: null };
+}
+
+const LOYALTY_DISABLED_DEFAULTS = { n: 2, k: 3, r: 1 };
+
+function isWholeInRange(value: unknown, min: number, max: number): value is number {
+  return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max;
+}
+
+/**
+ * Story 20.5: saves the loyalty program. Not part of `saveGymSettings` (the
+ * four columns are pinned against that path); `set_loyalty_program()` is the
+ * real authorization and range boundary and writes the audit row. N/K/R are
+ * range-checked here only when switching on; switching off sends whatever
+ * stored values the form holds (the setter ignores them). Any refusal is shown
+ * as one fixed, translated message because the setter's errors name no field.
+ */
+export async function saveLoyaltyProgram(
+  input: unknown,
+): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const failure = (code: string): { data: null; error: AppError } => ({
+    data: null,
+    error: { code, message: t("settings.loyalty.saveFailed") },
+  });
+
+  if (typeof input !== "object" || input === null) return failure("validation_error");
+  const { enabled, n, k, r } = input as Record<string, unknown>;
+  if (typeof enabled !== "boolean") return failure("validation_error");
+
+  let values = LOYALTY_DISABLED_DEFAULTS;
+  if (enabled) {
+    if (!isWholeInRange(n, 2, 50) || !isWholeInRange(k, 3, 24) || !isWholeInRange(r, 1, 30)) {
+      return failure("validation_error");
+    }
+    values = { n, k, r };
+  } else {
+    values = {
+      n: isWholeInRange(n, 2, 50) ? n : LOYALTY_DISABLED_DEFAULTS.n,
+      k: isWholeInRange(k, 3, 24) ? k : LOYALTY_DISABLED_DEFAULTS.k,
+      r: isWholeInRange(r, 1, 30) ? r : LOYALTY_DISABLED_DEFAULTS.r,
+    };
+  }
+
+  const { data, error } = await setLoyaltyProgramRow({ enabled, ...values });
+  if (error || !data) return failure(error?.code ?? "unknown");
   return { data, error: null };
 }

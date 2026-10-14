@@ -16,7 +16,8 @@ with expected(job_name, max_gap) as (
     ('class_session_materializer', interval '27 hours'),
     ('payment_reconciliation',     interval '27 hours'),
     ('saas_billing_lifecycle',     interval '27 hours'),
-    ('subscription_lifecycle',     interval '27 hours')
+    ('subscription_lifecycle',     interval '27 hours'),
+    ('loyalty_sweep',              interval '27 hours')
 ),
 last_run as (
   select job_name, max(started_at) as last_started from job_runs group by job_name

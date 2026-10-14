@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { IconChip, type IconChipTint } from '@/components/ui/IconChip';
 import { ListItem } from '@/components/ui/ListItem';
+import { RewardsCard } from '@/components/RewardsCard';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, Spacing } from '@/constants/theme';
@@ -29,6 +30,8 @@ import {
 } from '@/lib/sessionState';
 import { getRecentCheckIns, type RecentCheckIn } from '@/services/checkin';
 import { listMyClassBookings, type MyClassBooking } from '@/services/classes';
+import { getOwnLoyalty } from '@/services/loyalty';
+import type { RewardsData } from '@/lib/rewards';
 import { getOccupancyBand, type OccupancyBand } from '@/services/occupancy';
 import { getGymTaraMoneyConnectionStatus, getRecentPayments, type RecentPayment } from '@/services/payments';
 import { getUnreadNotificationCount } from '@/services/notificationHistory';
@@ -148,6 +151,8 @@ export default function HomeScreen() {
 
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [occupancyBand, setOccupancyBand] = useState<OccupancyBand | null>(null);
+  // Story 20.6: best-effort, non-blocking; null leaves the Rewards card out.
+  const [rewardsData, setRewardsData] = useState<RewardsData | null>(null);
   // Story 4.15 (AC #2/#3): whether the gym has Tara Money connected --
   // decides Renew vs. "See front desk" for the CTA below. Best-effort, same
   // non-blocking contract as occupancyBand -- a real RPC failure and "not
@@ -347,6 +352,17 @@ export default function HomeScreen() {
       } catch {
         if (isCurrent()) setOccupancyBand(null);
       }
+
+      // Story 20.6: Rewards card data. Detached so a slow read never delays the
+      // rest of Home; getOwnLoyalty never throws and returns null on any
+      // failure or a suspended gym -- the card is simply left out.
+      void getOwnLoyalty(memberResult.data.id)
+        .then((rewards) => {
+          if (isCurrent()) setRewardsData(rewards);
+        })
+        .catch(() => {
+          if (isCurrent()) setRewardsData(null);
+        });
 
       // Story 4.15 (AC #2/#3): also best-effort/non-blocking -- never throws
       // (services/payments.ts's own contract), so no local try/catch needed.
@@ -657,6 +673,8 @@ export default function HomeScreen() {
                   <Button label={t('home.viewPlan')} variant="secondary" onPress={handleViewPlan} />
                 </View>
               </View>
+
+              <RewardsCard data={rewardsData} planType={chargingCtx?.planType ?? null} />
 
               {/* Story 13.3: no mockup covers a workout-plan entry point on
                   the member app (see the story's own Dev Notes) -- mirrors

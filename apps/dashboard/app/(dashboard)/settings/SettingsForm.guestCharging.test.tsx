@@ -76,6 +76,10 @@ const INITIAL_SETTINGS = {
   gymToken: "token-1",
   registrationFee: 0,
   chargeGuestsPerSession: false,
+  loyaltyEnabled: false,
+  loyaltyGuestThreshold: null,
+  loyaltyRenewalThreshold: null,
+  loyaltyRewardDays: null,
 };
 
 async function renderForm(props: { role?: string | null; charging?: boolean; loyaltyEnabled?: boolean } = {}) {

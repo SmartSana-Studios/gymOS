@@ -32,6 +32,11 @@ export interface GymSettingsRow {
   registrationFee: number;
   /** Story 19.8: whether the gym charges Pay-per-session guests per session (0107). */
   chargeGuestsPerSession: boolean;
+  /** Story 20.5: loyalty program switch and thresholds (0117). Thresholds are null until first configured. */
+  loyaltyEnabled: boolean;
+  loyaltyGuestThreshold: number | null;
+  loyaltyRenewalThreshold: number | null;
+  loyaltyRewardDays: number | null;
 }
 
 /** Shared by every "0 rows affected" (RLS-denied) / "no gym_id claim" branch
@@ -82,7 +87,7 @@ export async function getGymSettings(): Promise<{
   const { data, error } = await supabase
     .from("gyms")
     .select(
-      "name, logo_url, primary_color, timezone, default_language, country, grace_period_days, capacity, alert_auto_dismiss_minutes, checkin_timeout_hours, gym_token, registration_fee, charge_guests_per_session",
+      "name, logo_url, primary_color, timezone, default_language, country, grace_period_days, capacity, alert_auto_dismiss_minutes, checkin_timeout_hours, gym_token, registration_fee, charge_guests_per_session, loyalty_enabled, loyalty_guest_threshold, loyalty_renewal_threshold, loyalty_reward_days",
     )
     .eq("id", gymId)
     .maybeSingle();
@@ -109,6 +114,10 @@ export async function getGymSettings(): Promise<{
       gymToken: data.gym_token,
       registrationFee: data.registration_fee,
       chargeGuestsPerSession: data.charge_guests_per_session,
+      loyaltyEnabled: data.loyalty_enabled,
+      loyaltyGuestThreshold: data.loyalty_guest_threshold,
+      loyaltyRenewalThreshold: data.loyalty_renewal_threshold,
+      loyaltyRewardDays: data.loyalty_reward_days,
     },
     error: null,
   };
@@ -394,6 +403,31 @@ export async function setGuestCharging(
 ): Promise<{ data: { ok: true } | null; error: AppError | null }> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_guest_charging", { p_enabled: enabled });
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: { ok: true }, error: null };
+}
+
+/** Story 20.5: sets the loyalty program through `set_loyalty_program()` (0117),
+ * the only write path for the four `gyms.loyalty_*` columns. The RPC checks
+ * owner/supervisor, an active gym and the N/K/R ranges, and writes the audit
+ * row itself. The generated argument types are non-null, so a caller switching
+ * the program off passes the stored (or default) thresholds, which the RPC
+ * ignores while disabling. */
+export async function setLoyaltyProgram(input: {
+  enabled: boolean;
+  n: number;
+  k: number;
+  r: number;
+}): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_loyalty_program", {
+    p_enabled: input.enabled,
+    p_n: input.n,
+    p_k: input.k,
+    p_r: input.r,
+  });
   if (error) {
     return { data: null, error: await mapAndLog(error) };
   }

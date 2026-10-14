@@ -11,6 +11,13 @@
 begin;
 select plan(39);
 
+-- Story 20.1: loyalty_grant_id now has an FK to a reward_granted ledger row.
+create function pg_temp.mk_grant(p_gym uuid, p_member uuid) returns uuid
+language sql security definer as $mk$
+  insert into loyalty_events (gym_id, member_id, event_type, counter, origin_id)
+  values (p_gym, p_member, 'reward_granted', 'guest', gen_random_uuid()) returning id
+$mk$;
+
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000035001', 'Class Gate Tier', 6000, 60000, null);
 
@@ -73,13 +80,13 @@ insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expir
   ('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-00000003505a', '00000000-0000-0000-0000-000000035061', 'active', current_date, null),
   ('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-00000003505b', '00000000-0000-0000-0000-000000035061', 'expired', current_date - 40, null);
 
--- Usable free-source sessions (no FK yet): A, G, H (flag-off gym), I, J.
+-- Usable free-source sessions (grant ids point at reward_granted ledger rows, 0117): A, G, H (flag-off gym), I, J.
 insert into guest_sessions (gym_id, member_id, loyalty_grant_id, usable_until) values
-  ('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-000000035051', gen_random_uuid(), now() + interval '5 days'),
-  ('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-000000035057', gen_random_uuid(), now() + interval '5 days'),
-  ('00000000-0000-0000-0000-000000035012', '00000000-0000-0000-0000-000000035058', gen_random_uuid(), now() + interval '5 days'),
-  ('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-000000035059', gen_random_uuid(), now() + interval '5 days'),
-  ('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-00000003505a', gen_random_uuid(), now() + interval '5 days');
+  ('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-000000035051', pg_temp.mk_grant('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-000000035051'), now() + interval '5 days'),
+  ('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-000000035057', pg_temp.mk_grant('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-000000035057'), now() + interval '5 days'),
+  ('00000000-0000-0000-0000-000000035012', '00000000-0000-0000-0000-000000035058', pg_temp.mk_grant('00000000-0000-0000-0000-000000035012', '00000000-0000-0000-0000-000000035058'), now() + interval '5 days'),
+  ('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-000000035059', pg_temp.mk_grant('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-000000035059'), now() + interval '5 days'),
+  ('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-00000003505a', pg_temp.mk_grant('00000000-0000-0000-0000-000000035011', '00000000-0000-0000-0000-00000003505a'), now() + interval '5 days');
 
 insert into classes (id, gym_id, name, coach_id, capacity, schedule_type, one_off_session_at) values
   ('00000000-0000-0000-0000-000000035071', '00000000-0000-0000-0000-000000035011', 'CG Class', '00000000-0000-0000-0000-000000035043', 20, 'one_off', now() + interval '1 day'),

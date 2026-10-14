@@ -21,6 +21,10 @@ vi.mock("@/services/billing", () => ({
   getGymBillingInfo: vi.fn(async () => ({ data: null, error: null })),
   listSelectableTiers: vi.fn(async () => ({ data: [], error: null })),
 }));
+const listPlans = vi.fn();
+vi.mock("@/services/plans", () => ({
+  listPlans: (...a: unknown[]) => listPlans(...a),
+}));
 vi.mock("@/services/staff", () => ({
   listStaff: vi.fn(async () => ({ data: [], error: null })),
 }));
@@ -49,6 +53,7 @@ describe("SettingsPage role prop", () => {
   beforeEach(() => {
     getGymSettings.mockReset().mockResolvedValue({ data: { chargeGuestsPerSession: false }, error: null });
     getDashboardShellContext.mockReset();
+    listPlans.mockReset().mockResolvedValue({ data: [], error: null });
   });
 
   it("passes the shell role to SettingsForm", async () => {
@@ -62,5 +67,33 @@ describe("SettingsPage role prop", () => {
   ])("passes role=null when the shell lookup %s", async (_label, result) => {
     getDashboardShellContext.mockResolvedValue(result);
     expect((await renderedForm()).props.role).toBeNull();
+  });
+});
+
+describe("SettingsPage loyaltyPlans", () => {
+  beforeEach(() => {
+    getGymSettings.mockReset().mockResolvedValue({ data: { chargeGuestsPerSession: false }, error: null });
+    getDashboardShellContext.mockReset().mockResolvedValue({ data: { role: "owner" }, error: null, suspended: null });
+  });
+
+  it("passes only subscription plans that have a duration", async () => {
+    listPlans.mockReset().mockResolvedValue({
+      data: [
+        { id: "1", name: "Drop-in", planType: "pay_per_session", durationDays: null },
+        { id: "2", name: "Odd", planType: "monthly", durationDays: null },
+        { id: "3", name: "Monthly", planType: "monthly", durationDays: 30 },
+        { id: "4", name: "Annual", planType: "class_only", durationDays: 365 },
+      ],
+      error: null,
+    });
+    expect((await renderedForm()).props.loyaltyPlans).toEqual([
+      { name: "Monthly", durationDays: 30 },
+      { name: "Annual", durationDays: 365 },
+    ]);
+  });
+
+  it("passes an empty list when the plans read fails", async () => {
+    listPlans.mockReset().mockResolvedValue({ data: null, error: { code: "unknown", message: "x" } });
+    expect((await renderedForm()).props.loyaltyPlans).toEqual([]);
   });
 });

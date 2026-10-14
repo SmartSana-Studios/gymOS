@@ -59,6 +59,38 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // plan_price_changed are written by update_plan_pricing() (0107), gym-scoped,
   // target = the plan, metadata { old_plan_type, new_plan_type } / { old_price,
   // new_price }. platform_session_config_updated is platform-level (no gym_id).
+  // Story 20.1. loyalty_program_changed is written by set_loyalty_program() (0117),
+  // gym-scoped, target = the gym, metadata { old, new } each holding
+  // { enabled, guest_threshold, renewal_threshold, reward_days }.
+  loyalty_program_changed: "audit.actionTypes.loyaltyProgramChanged",
+  // Story 20.2. Written by the private.on_session_consumed() hook (0118), gym-scoped,
+  // target = the member. loyalty_stamp_earned metadata { counter, guest_session_id,
+  // stamps, threshold }; loyalty_reward_granted adds { free_session_id, usable_until };
+  // loyalty_progress_reset metadata { counter, guest_session_id, previous_count,
+  // previous_last_event_at, idle_reset_days }.
+  // Story 20.3. The same three action types are also written by
+  // private.award_renewal_stamp() (0119) for subscriber renewals, with
+  // counter 'subscriber' in metadata and payment_id / subscription_id in place of
+  // the session ids; loyalty_reward_granted then adds { reward_days,
+  // old_expiry_date, new_expiry_date }. No separate labels: the counter in
+  // metadata tells the two apart.
+  loyalty_stamp_earned: "audit.actionTypes.loyaltyStampEarned",
+  loyalty_reward_granted: "audit.actionTypes.loyaltyRewardGranted",
+  loyalty_progress_reset: "audit.actionTypes.loyaltyProgressReset",
+  // Story 20.4 (0120). loyalty_stamp_reversed: refund of a consumed session took its
+  // guest stamp back, target = the member, metadata { counter, guest_session_id,
+  // stamps_before, stamps_after }. loyalty_free_session_lapsed /
+  // loyalty_paid_session_lapsed: written by run_loyalty_sweep_job() (actor "System"),
+  // metadata { guest_session_id, usable_until, loyalty_grant_id, payment_id }.
+  // loyalty_progress_reset is also written by the sweep (metadata source "sweep").
+  // loyalty_sweep_job_failure is the job's own failure record (no gym);
+  // loyalty_hook_failed records a loyalty hook that raised while the payment,
+  // check-in or refund went on, metadata { hook, sqlstate, message, ids }.
+  loyalty_stamp_reversed: "audit.actionTypes.loyaltyStampReversed",
+  loyalty_free_session_lapsed: "audit.actionTypes.loyaltyFreeSessionLapsed",
+  loyalty_paid_session_lapsed: "audit.actionTypes.loyaltyPaidSessionLapsed",
+  loyalty_sweep_job_failure: "audit.actionTypes.loyaltySweepJobFailure",
+  loyalty_hook_failed: "audit.actionTypes.loyaltyHookFailed",
   guest_charging_changed: "audit.actionTypes.guestChargingChanged",
   plan_type_changed: "audit.actionTypes.planTypeChanged",
   plan_price_changed: "audit.actionTypes.planPriceChanged",

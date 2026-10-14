@@ -9,6 +9,8 @@
 //   1b   0110 ALONE               head must be 0109 (starts the 7-day soak before 0111)
 //   2    0111, 0112, 0113, 0114, 0116   head must be 0110
 //   3    0115 ALONE                     head must be 0116 (0116 shipped with stage 2; 0115 is the default flip)
+//   4    0117, 0118, 0119, 0120         head must be 0116 (Epic 20 loyalty; every gym stays loyalty-off, the
+//                                       hooks fire only when a gym enables it. Ship BEFORE the dashboard)
 //
 //   node scripts/prod-apply.mjs 1a --dry-run                      # ONE transaction, ROLLED BACK at the end
 //   node scripts/prod-apply.mjs 1a --apply --backup-confirmed     # one transaction per migration
@@ -41,8 +43,8 @@ const { Client } = loadPg();
 const [stage, ...flags] = process.argv.slice(2);
 const dry = flags.includes("--dry-run");
 const apply = flags.includes("--apply");
-if (!["1a", "1b", "2", "3"].includes(stage) || dry === apply) {
-  console.error("usage: prod-apply.mjs <1a|1b|2|3> (--dry-run | --apply --backup-confirmed)");
+if (!["1a", "1b", "2", "3", "4"].includes(stage) || dry === apply) {
+  console.error("usage: prod-apply.mjs <1a|1b|2|3|4> (--dry-run | --apply --backup-confirmed)");
   process.exit(2);
 }
 if (apply && !flags.includes("--backup-confirmed")) {
@@ -55,6 +57,7 @@ const PLAN = {
   "1b": { head: "0109", files: ["0110_front_desk_alert_kind"] },
   "2": { head: "0110", files: ["0111_check_in_session_gate", "0112_class_attendance_session_gate", "0113_session_refunds_revenue_line", "0114_guest_sessions_overview_rpcs", "0116_session_alert_cooldown"] },
   "3": { head: "0116", files: ["0115_enable_charge_guests_default"] },
+  "4": { head: "0116", files: ["0117_loyalty_program_ledger_foundation", "0118_loyalty_guest_rule", "0119_loyalty_subscriber_rule", "0120_loyalty_refund_reversal_lapse_sweep"] },
 }[stage];
 
 const password = readFileSync(process.env.PROD_PASSWORD_FILE ?? join(homedir(), ".supabase-db-password"), "utf8").trim();
@@ -102,6 +105,18 @@ const VERIFY = [
      (select is_nullable from information_schema.columns where table_schema='public' and table_name='gyms' and column_name='charge_guests_per_session') as nullable,
      (select count(*) from gyms where charge_guests_per_session) as gyms_with_charging_on,
      (select count(*) from gyms) as gyms_total`],
+  ["stage 4: loyalty objects (expect tables 2, columns 4, setter+read+sweep fns 3, cron job 1)", `select
+     (select count(*) from information_schema.tables where table_schema='public' and table_name in ('loyalty_events','loyalty_progress')) as tables,
+     (select count(*) from information_schema.columns where table_schema='public' and table_name='gyms' and column_name in ('loyalty_enabled','loyalty_guest_threshold','loyalty_renewal_threshold','loyalty_reward_days')) as gym_columns,
+     (select count(*) from pg_proc where pronamespace='public'::regnamespace and proname in ('set_loyalty_program','effective_loyalty','run_loyalty_sweep_job')) as public_fns,
+     (select count(*) from cron.job where jobname='loyalty_sweep') as cron_job`],
+  ["stage 4: every gym loyalty-OFF (expect enabled 0) / clients cannot write the ledger (expect all false) / anon EXECUTE (expect 0)", `select
+     (select count(*) from gyms where loyalty_enabled) as gyms_loyalty_on,
+     has_table_privilege('authenticated','public.loyalty_events','INSERT') as events_insert,
+     has_table_privilege('authenticated','public.loyalty_events','UPDATE') as events_update,
+     has_table_privilege('authenticated','public.loyalty_progress','INSERT') as progress_insert,
+     has_table_privilege('anon','public.loyalty_events','SELECT') as anon_select,
+     (select count(*) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname in ('set_loyalty_program','effective_loyalty','run_loyalty_sweep_job','confirm_renewal','complete_verified_payment') and has_function_privilege('anon', p.oid, 'EXECUTE')) as anon_exec_count`],
 ];
 
 async function runMigration(base) {
