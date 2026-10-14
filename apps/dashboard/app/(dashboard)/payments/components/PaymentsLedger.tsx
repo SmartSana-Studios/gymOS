@@ -222,6 +222,9 @@ export function PaymentsLedger({
                             {t(badge.labelKey)}
                           </Badge>
                           {tagKey && <span className="text-xs text-muted-foreground">{t(tagKey)}</span>}
+                          {row.refunded && (
+                            <span className="text-xs text-muted-foreground">{t("payments.ledger.refunded")}</span>
+                          )}
                           {row.voidedAt && (
                             <span className="text-xs text-muted-foreground">{t("payments.ledger.voided")}</span>
                           )}

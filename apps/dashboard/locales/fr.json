@@ -1166,6 +1166,15 @@
       "registrationFee": "Frais d'inscription",
       "session": "Paiement de séance"
     },
+    "refundHistory": {
+      "title": "Remboursements",
+      "empty": "Aucun remboursement enregistré pour le moment.",
+      "loadError": "Impossible de charger les remboursements.",
+      "truncated": "Affichage des {{shown}} derniers remboursements sur {{total}}.",
+      "table": { "date": "Date", "member": "Membre", "payment": "Paiement", "refunded": "Remboursé", "reason": "Motif", "by": "Enregistré par", "session": "Séance" },
+      "partial": "sur {{amount}}",
+      "session": { "unused": "Séance annulée", "used": "Séance déjà utilisée" }
+    },
     "ledger": {
       "title": "Tous les paiements",
       "empty": "Aucun paiement enregistré pour le moment.",
@@ -1173,6 +1182,7 @@
       "clearFilters": "Effacer les filtres",
       "loadError": "Impossible de charger les paiements.",
       "voided": "Annulé",
+      "refunded": "Remboursé",
       "actorTara": "Tara Money (dans l'app)",
       "table": { "purpose": "Objet", "date": "Date", "actor": "Enregistré par", "note": "Note" }
     },

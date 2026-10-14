@@ -5,6 +5,7 @@ import {
   listAllPayments,
   listPendingPayments,
   listPaymentDiscrepancies,
+  listRefundHistory,
   normalizeLedgerFilters,
   PAYMENTS_LEDGER_PAGE_SIZE,
 } from "@/services/payments";
@@ -53,6 +54,7 @@ async function PaymentsData({ searchParams }: { searchParams: PaymentsSearchPara
     { data: shell, error: shellError },
     { data: gymSettings },
     { data: ledger, error: ledgerError },
+    { data: refunds, error: refundsError },
   ] = await Promise.all([
     listPendingPayments(),
     listPaymentDiscrepancies(),
@@ -60,6 +62,7 @@ async function PaymentsData({ searchParams }: { searchParams: PaymentsSearchPara
     // Story 19.9b: only drives the AD-10 hint; a failed read means no hint.
     getGymSettings(),
     listAllPayments({ ...filters, page, pageSize }),
+    listRefundHistory(),
   ]);
 
   if (pendingError || shellError || !shell) {
@@ -79,8 +82,15 @@ async function PaymentsData({ searchParams }: { searchParams: PaymentsSearchPara
     console.error(`PaymentsData: listAllPayments failed -- ${ledgerError.message}`);
   }
 
+  // Same degrade as the ledger: a refunds-only failure shows its own error.
+  if (refundsError) {
+    console.error(`PaymentsData: listRefundHistory failed -- ${refundsError.message}`);
+  }
+
   return (
     <PaymentsPageClient
+      refunds={refundsError || !refunds ? null : refunds}
+      refundsError={Boolean(refundsError || !refunds)}
       ledger={ledgerError || !ledger ? null : { ...ledger, page, pageSize }}
       ledgerError={Boolean(ledgerError || !ledger)}
       ledgerPurpose={filters.purpose ?? ""}
