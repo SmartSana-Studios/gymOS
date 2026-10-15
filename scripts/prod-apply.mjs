@@ -45,8 +45,8 @@ const { Client } = loadPg();
 const [stage, ...flags] = process.argv.slice(2);
 const dry = flags.includes("--dry-run");
 const apply = flags.includes("--apply");
-if (!["1a", "1b", "2", "3", "4", "5"].includes(stage) || dry === apply) {
-  console.error("usage: prod-apply.mjs <1a|1b|2|3|4|5> (--dry-run | --apply --backup-confirmed)");
+if (!["1a", "1b", "2", "3", "4", "5", "6"].includes(stage) || dry === apply) {
+  console.error("usage: prod-apply.mjs <1a|1b|2|3|4|5|6> (--dry-run | --apply --backup-confirmed)");
   process.exit(2);
 }
 if (apply && !flags.includes("--backup-confirmed")) {
@@ -66,6 +66,10 @@ const PLAN = {
     firstRuns: [{ job: "loyalty_sweep", fn: "run_loyalty_sweep_job" }] },
   // Story 20.7: early renewal carries the remaining days. Two function bodies, no objects, no data.
   "5": { head: "0120", files: ["0121_early_renewal_carries_remaining_days"] },
+  // Story 20.8: loyalty hook reconciliation (daily repair job at 03:15 UTC). First run right after
+  // the commit, for the same reason as stage 4 (job-runs-alert flags a job that never ran).
+  "6": { head: "0121", files: ["0122_loyalty_hook_reconciliation"],
+    firstRuns: [{ job: "loyalty_hook_repair", fn: "run_loyalty_hook_repair_job" }] },
 }[stage];
 
 const password = readFileSync(process.env.PROD_PASSWORD_FILE ?? join(homedir(), ".supabase-db-password"), "utf8").trim();
@@ -125,6 +129,13 @@ const VERIFY = [
       and position('award_renewal_stamp' in pg_get_functiondef('public.complete_verified_payment(uuid, integer)'::regprocedure)) > 0) as hook_kept,
      (select count(*) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname in ('confirm_renewal','complete_verified_payment') and has_function_privilege('anon', p.oid, 'EXECUTE')) as anon_exec_count,
      has_function_privilege('authenticated', 'public.complete_verified_payment(uuid, integer)', 'EXECUTE') as authenticated_cvp`],
+  ["stage 6: reconciliation objects (expect clocked_impl 1, repair_fn 1, cron_job 1, client_callable false)", `select
+     (select count(*) from pg_proc p where p.pronamespace='private'::regnamespace and p.proname='award_renewal_stamp_impl' and p.pronargs=2) as clocked_impl,
+     (select count(*) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname='run_loyalty_hook_repair_job') as repair_fn,
+     (select count(*) from cron.job where jobname='loyalty_hook_repair') as cron_job,
+     (has_function_privilege('anon', 'public.run_loyalty_hook_repair_job()', 'EXECUTE')
+      or has_function_privilege('authenticated', 'public.run_loyalty_hook_repair_job()', 'EXECUTE')
+      or has_function_privilege('service_role', 'public.run_loyalty_hook_repair_job()', 'EXECUTE')) as client_callable`],
   ["stage 4: every gym loyalty-OFF (expect enabled 0) / clients cannot write the ledger (expect all false) / anon EXECUTE (expect 0)", `select
      (select count(*) from gyms where loyalty_enabled) as gyms_loyalty_on,
      has_table_privilege('authenticated','public.loyalty_events','INSERT') as events_insert,

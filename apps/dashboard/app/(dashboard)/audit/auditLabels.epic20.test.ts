@@ -18,6 +18,7 @@ const EPIC_20_ACTION_TYPES = [
   "loyalty_paid_session_lapsed",
   "loyalty_sweep_job_failure",
   "loyalty_hook_failed",
+  "loyalty_hook_repaired",
 ];
 
 function resolve(locale: unknown, key: string): unknown {
