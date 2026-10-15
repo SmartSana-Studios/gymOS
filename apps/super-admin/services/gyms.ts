@@ -38,6 +38,7 @@ export interface GymListRow {
   id: string;
   name: string;
   status: string;
+  category: string;
   createdAt: string;
   tierName: string;
   ownerName: string | null;
@@ -88,7 +89,7 @@ export async function listGyms(
   let query = supabase
     .from("gyms")
     .select(
-      `id, name, status, created_at,
+      `id, name, status, category, created_at,
        tiers ( name ),
        members ( name, phone, role )`,
       { count: "exact" },
@@ -130,6 +131,7 @@ export async function listGyms(
       id: gym.id,
       name: gym.name,
       status: gym.status,
+      category: gym.category,
       createdAt: gym.created_at,
       tierName:
         (gym.tiers as unknown as { name: string } | null)?.name ?? "—",
@@ -148,6 +150,7 @@ export interface GymDetail {
   id: string;
   name: string;
   status: string;
+  category: string;
   createdAt: string;
   tierId: string;
   tierName: string;
@@ -194,7 +197,7 @@ export async function getGymDetail(gymId: string): Promise<{
       supabase
         .from("gyms")
         .select(
-          `id, name, status, created_at, tier_id, member_cap_override,
+          `id, name, status, category, created_at, tier_id, member_cap_override,
            tiers ( name, member_cap ),
            members ( name, phone, role )`,
         )
@@ -220,6 +223,7 @@ export async function getGymDetail(gymId: string): Promise<{
       id: gym.id,
       name: gym.name,
       status: gym.status,
+      category: gym.category,
       createdAt: gym.created_at,
       tierId: gym.tier_id,
       tierName: tier?.name ?? "—",
@@ -819,6 +823,24 @@ export async function updateGymTier(
   return { data: { previousTierId: before.tier_id }, error: null };
 }
 
+/** SA-03 "Change" category (Story 21.1). Goes through set_gym_category()
+ * (0123), the only write path: the column is pinned against direct UPDATE, the
+ * RPC writes its own audit row, and an unchanged value is a silent no-op. */
+export async function setGymCategory(
+  gymId: string,
+  category: string,
+): Promise<{ error: AppError | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_gym_category", {
+    p_gym_id: gymId,
+    p_category: category,
+  });
+  if (error) {
+    return { error: await mapAndLog(error) };
+  }
+  return { error: null };
+}
+
 /** SA-03 "Override cap". `null` clears the override, reverting to the
  * tier's own member_cap. Same before-read / rows-affected pattern as
  * updateGymStatus. */
@@ -936,11 +958,12 @@ export async function insertGym(input: {
   tierId: string;
   status: string;
   country: string;
+  category: string;
 }): Promise<{ data: { id: string } | null; error: AppError | null }> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("gyms")
-    .insert({ name: input.name, tier_id: input.tierId, status: input.status, country: input.country })
+    .insert({ name: input.name, tier_id: input.tierId, status: input.status, country: input.country, category: input.category })
     .select("id")
     .single();
 

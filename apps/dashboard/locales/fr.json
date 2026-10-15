@@ -73,7 +73,7 @@
       }
     },
     "tables": {
-      "viewAll": "Tout voir →",
+      "viewAll": "Tout voir",
       "checkedIn": {
         "title": "Actuellement présents",
         "name": "Nom",
@@ -144,7 +144,7 @@
     },
     "staffSummary_one": "{{count}} membre du personnel",
     "staffSummary_other": "{{count}} membres du personnel",
-    "manageStaffLink": "Gérer le personnel →",
+    "manageStaffLink": "Gérer le personnel",
     "fields": {
       "gymName": "Nom de la salle *",
       "logo": "Logo",
@@ -253,6 +253,14 @@
       "registrationFeeInvalid": "Saisissez un montant entier supérieur ou égal à 0",
       "registrationFeeSaveFailed": "Impossible d'enregistrer les frais d'inscription"
     },
+    "category": {
+      "label": "Catégorie",
+      "helper": "Décrit votre activité. Cela ne change pas le fonctionnement de GymOS.",
+      "save": "Enregistrer la catégorie",
+      "savedToast": "Catégorie enregistrée.",
+      "saveFailed": "Impossible d'enregistrer la catégorie. Réessayez.",
+      "selectError": "Sélectionnez une catégorie"
+    },
     "loyalty": {
       "title": "Programme de fidélité",
       "description": "Séances gratuites pour les invités, jours offerts pour les abonnés",
@@ -286,7 +294,7 @@
     "addStaff": "+ Ajouter un membre du personnel",
     "addStaffButton": "Ajouter un membre du personnel",
     "emptyNoStaff": "Aucun membre du personnel pour le moment. Ajoutez votre premier membre du personnel.",
-    "backToSettings": "← Paramètres",
+    "backToSettings": "Paramètres",
     "table": {
       "name": "Nom",
       "role": "Rôle",
@@ -853,11 +861,11 @@
       "membersAtAGlance": {
         "title": "Mes membres en un coup d'œil",
         "assignedLabel": "Membres assignés",
-        "viewAll": "Tous →"
+        "viewAll": "Tous"
       },
       "nextSessions": {
         "title": "Mes prochaines séances",
-        "viewAll": "Toutes →",
+        "viewAll": "Toutes",
         "empty": "Aucune séance à venir."
       },
       "followUp": {
@@ -1293,6 +1301,7 @@
       "registrationFeeVoided": "Frais d'inscription annulés",
       "memberPlanAssigned": "Première formule attribuée",
       "guestChargingChanged": "Facturation des invités par séance modifiée",
+      "gymCategoryChanged": "Catégorie de la salle modifiée",
       "loyaltyProgramChanged": "Programme de fidélité modifié",
       "loyaltyStampEarned": "Tampon de fidélité gagné",
       "loyaltyRewardGranted": "Séance gratuite offerte",

@@ -593,6 +593,7 @@ export type Database = {
         Row: {
           alert_auto_dismiss_minutes: number
           capacity: number | null
+          category: string
           charge_guests_per_session: boolean
           checkin_timeout_hours: number
           class_booking_cancellation_cutoff_minutes: number
@@ -624,6 +625,7 @@ export type Database = {
         Insert: {
           alert_auto_dismiss_minutes?: number
           capacity?: number | null
+          category?: string
           charge_guests_per_session?: boolean
           checkin_timeout_hours?: number
           class_booking_cancellation_cutoff_minutes?: number
@@ -655,6 +657,7 @@ export type Database = {
         Update: {
           alert_auto_dismiss_minutes?: number
           capacity?: number | null
+          category?: string
           charge_guests_per_session?: boolean
           checkin_timeout_hours?: number
           class_booking_cancellation_cutoff_minutes?: number
@@ -2600,6 +2603,10 @@ export type Database = {
       run_saas_billing_lifecycle_job: { Args: never; Returns: undefined }
       run_subscription_lifecycle_job: { Args: never; Returns: undefined }
       set_guest_charging: { Args: { p_enabled: boolean }; Returns: undefined }
+      set_gym_category: {
+        Args: { p_category: string; p_gym_id: string }
+        Returns: undefined
+      }
       set_loyalty_program: {
         Args: { p_enabled: boolean; p_k: number; p_n: number; p_r: number }
         Returns: undefined

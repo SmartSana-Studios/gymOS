@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -69,9 +70,12 @@ export function GuestSessionsPageClient(props: Props) {
   const header = (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div>
-        <Link href="/" className="text-sm text-muted-foreground hover:underline">
-          {t("guestSessions.back")}
-        </Link>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/">
+            <ArrowLeft />
+            {t("guestSessions.back")}
+          </Link>
+        </Button>
         <h1 className="text-2xl font-semibold">{t("guestSessions.title")}</h1>
       </div>
     </div>

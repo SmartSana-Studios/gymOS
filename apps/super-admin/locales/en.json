@@ -41,6 +41,7 @@
     "backToPage1": "Back to page 1",
     "table": {
       "gymName": "Gym Name",
+      "category": "Category",
       "owner": "Owner",
       "created": "Created",
       "tier": "Tier",
@@ -72,6 +73,8 @@
       "country": "Country *",
       "countryHint": "Where the gym is. Phone numbers entered without a country code are read as numbers from this country. The owner can change it in Settings.",
       "countryInvalid": "Select a valid country",
+      "category": "Category *",
+      "categoryInvalid": "Select a category",
       "tier": "Subscription Tier *",
       "selectTier": "Select a tier",
       "status": "Status",
@@ -91,9 +94,11 @@
       "reason": "Reason *"
     },
     "detail": {
-      "backToGyms": "← Gyms",
+      "backToGyms": "Gyms",
       "gymName": "Gym Name:",
       "owner": "Owner:",
+      "category": "Category:",
+      "categoryUpdated": "Category updated.",
       "created": "Created:",
       "tier": "Tier:",
       "change": "Change",
@@ -119,6 +124,7 @@
         "gym_deactivated": "Gym deactivated",
         "gym_reinstated": "Gym reinstated",
         "gym_tier_changed": "Tier changed",
+        "gym_category_changed": "Category changed",
         "gym_cap_overridden": "Cap override changed",
         "gym_data_escalation": "Accessed gym data",
         "gym_data_escalation_revoked": "Revoked a Super Admin's gym data access",

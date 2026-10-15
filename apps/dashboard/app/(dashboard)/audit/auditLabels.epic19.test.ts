@@ -10,6 +10,7 @@ import { AUDIT_ACTION_TYPE_LABEL_KEY } from "./auditLabels";
 
 const EPIC_19_ACTION_TYPES = [
   "guest_charging_changed",
+  "gym_category_changed",
   "plan_type_changed",
   "plan_price_changed",
   "platform_session_config_updated",

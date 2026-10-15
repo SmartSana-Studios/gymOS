@@ -6,6 +6,7 @@ import Link from "next/link";
 import QRCode from "qrcode";
 import {
   AlertTriangle,
+  ArrowRight,
   Bell,
   Clock,
   CreditCard,
@@ -18,6 +19,8 @@ import {
 import {
   connectGymPaymentCredentialsSchema,
   emailSchema,
+  GYM_CATEGORIES,
+  gymCategoryLabel,
   gymSettingsSchema,
   registrationFeeSchema,
 } from "@gymos/types";
@@ -40,6 +43,7 @@ import {
   getBillingInfo,
   getGuestChargingImpact,
   regenerateQrCode,
+  saveGymCategory,
   saveGymSettings,
   saveNotificationEmail,
   saveRegistrationFee,
@@ -165,10 +169,19 @@ export function SettingsForm({
   const [registrationFeeError, setRegistrationFeeError] = useState<string | null>(null);
   const [savingRegistrationFee, setSavingRegistrationFee] = useState(false);
 
+  // Story 21.2: the category saves through its own RPC (the column is pinned
+  // against the main form's UPDATE), so its state is independent of `form`:
+  // [Save Settings] never sends it and a general save never resets it.
+  const [category, setCategory] = useState(initial.category);
+  const [savedCategory, setSavedCategory] = useState(initial.category);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [savingCategory, setSavingCategory] = useState(false);
+
   // Story 19.9a: charge-guests-per-session saves through its own RPC after a
   // confirmation dialog; the toggle only reflects the *stored* value and never
   // flips before the server confirms.
   const canManageGuestCharging = role === "owner" || role === "supervisor";
+  const canManageCategory = role === "owner" || role === "supervisor";
   const [chargeGuests, setChargeGuests] = useState(initial.chargeGuestsPerSession);
   // Story 20.5: mirrors the saved loyalty switch for the turn-off dialog; the section reports changes.
   const [loyaltyActive, setLoyaltyActive] = useState(initial.loyaltyEnabled);
@@ -607,6 +620,30 @@ export function SettingsForm({
     }
   }
 
+  async function handleSaveCategory() {
+    if (savingCategory || category === savedCategory) return;
+    setCategoryError(null);
+    if (!(GYM_CATEGORIES as readonly string[]).includes(category)) {
+      setCategoryError(t("settings.category.selectError"));
+      return;
+    }
+    const submitted = category;
+    setSavingCategory(true);
+    try {
+      const { error } = await saveGymCategory(submitted);
+      if (error) {
+        setCategoryError(error.message);
+        return;
+      }
+      setSavedCategory(submitted);
+      showToast(t("settings.category.savedToast"));
+    } catch {
+      setCategoryError(t("settings.category.saveFailed"));
+    } finally {
+      setSavingCategory(false);
+    }
+  }
+
   return (
     <div ref={formTopRef} className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -618,9 +655,9 @@ export function SettingsForm({
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
-          {/* Left column: the two visual, identity-heavy sections -- QR code
-              is the thing gyms actually print/display, so it leads big, with
-              its actions stacked below rather than squeezed beside it. */}
+          {/* Left column: identity and account -- QR code leads big (it is what
+              gyms print/display), then branding, payment provider, SaaS
+              billing and staff. */}
           <div className="space-y-6">
             <Card>
               <SectionHeader
@@ -728,13 +765,199 @@ export function SettingsForm({
                     <p className="text-sm text-red-600">{fieldErrors.primaryColor}</p>
                   )}
                 </div>
+
+                {canManageCategory && (
+                  <div className="space-y-2">
+                    <Label htmlFor="gymCategory">{t("settings.category.label")}</Label>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <select
+                        id="gymCategory"
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                        disabled={savingCategory}
+                        aria-describedby="gymCategoryHelp"
+                        className="flex h-9 w-full max-w-64 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      >
+                        {GYM_CATEGORIES.map((code) => (
+                          <option key={code} value={code}>
+                            {gymCategoryLabel(code, i18n.language)}
+                          </option>
+                        ))}
+                      </select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSaveCategory}
+                        disabled={savingCategory || category === savedCategory}
+                      >
+                        {t("settings.category.save")}
+                      </Button>
+                    </div>
+                    <p id="gymCategoryHelp" className="text-xs text-muted-foreground">
+                      {t("settings.category.helper")}
+                    </p>
+                    {categoryError && (
+                      <p role="alert" className="text-sm text-red-600">
+                        {categoryError}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <SectionHeader
+                icon={CreditCard}
+                accent="teal"
+                title={t("settings.sections.payments")}
+                description={t("settings.sectionDescriptions.payments")}
+              />
+              <CardContent>
+                {paymentConnection ? (
+                  <div className="flex flex-col gap-3">
+                    {paymentConnection.needsAttention && (
+                      <div
+                        className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
+                        role="alert"
+                      >
+                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>{t("settings.payments.needsAttention")}</span>
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="text-sm">
+                        <p className="font-medium">
+                          {t("settings.payments.connectedLabel", { businessId: paymentConnection.businessIdMasked })}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {t("settings.payments.connectedSince", {
+                            date: new Date(paymentConnection.connectedAt).toLocaleDateString(),
+                          })}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={openConnectDialog}>
+                          {t("settings.payments.reconnect")}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDisconnectOpen(true)}
+                        >
+                          {t("settings.payments.disconnect")}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">{t("settings.payments.notConnected")}</p>
+                    <Button type="button" variant="outline" size="sm" onClick={openConnectDialog}>
+                      {t("settings.payments.connect")}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {billingInfo && (
+              <Card>
+                <SectionHeader
+                  icon={Receipt}
+                  accent="amber"
+                  title={t("settings.sections.billing")}
+                  description={t("settings.sectionDescriptions.billing")}
+                />
+                <CardContent className="space-y-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-sm">
+                      <p className="font-medium">
+                        {billingInfo.tierName} —{" "}
+                        {t(
+                          billingInfo.interval === "annual"
+                            ? "settings.billing.intervalAnnual"
+                            : "settings.billing.intervalMonthly",
+                        )}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {t("settings.billing.nextBillingDate", {
+                          date: formatLocalDate(billingInfo.anchorDate, i18n.language),
+                        })}
+                      </p>
+                    </div>
+                    <span
+                      className={`w-fit rounded-full px-3 py-1 text-xs font-medium ${
+                        billingInfo.billingStatus === "active"
+                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                          : billingInfo.billingStatus === "suspended"
+                            ? "bg-red-500/10 text-red-700 dark:text-red-400"
+                            : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                      }`}
+                    >
+                      {t(`settings.billing.status.${billingInfo.billingStatus}`)}
+                    </span>
+                  </div>
+
+                  {billingInfo.billingStatus !== "active" && (
+                    <PayNowButton
+                      initialOwnerPhone={billingInfo.ownerPhone}
+                      selectableTiers={selectableTiers}
+                      onPaymentConfirmed={handlePaymentConfirmed}
+                    />
+                  )}
+
+                  <div className="space-y-2 border-t pt-4">
+                    <Label htmlFor="billingNotificationEmail">{t("settings.billing.emailLabel")}</Label>
+                    <p className="text-xs text-muted-foreground">{t("settings.billing.emailHint")}</p>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        id="billingNotificationEmail"
+                        type="email"
+                        value={notificationEmail}
+                        onChange={(e) => {
+                          setNotificationEmail(e.target.value);
+                          setEmailError(null);
+                        }}
+                        disabled={savingEmail}
+                        className="sm:max-w-xs"
+                      />
+                      <Button type="button" variant="outline" size="sm" disabled={savingEmail} onClick={handleSaveNotificationEmail}>
+                        {savingEmail ? t("common.saving") : t("common.save")}
+                      </Button>
+                    </div>
+                    {emailError && <p className="text-sm text-red-600">{emailError}</p>}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            <Card>
+              <SectionHeader
+                icon={Users}
+                accent="cyan"
+                title={t("settings.sections.staff")}
+                description={t("settings.sectionDescriptions.staff")}
+              />
+              <CardContent>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm">{t("settings.staffSummary", { count: staffCount })}</p>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/settings/staff">
+                      {t("settings.manageStaffLink")}
+                      <ArrowRight />
+                    </Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Right column: the smaller, numeric-field settings -- naturally
-              more compact, so they read fine stacked in a narrower column
-              rather than each claiming a full-width row of their own. */}
+          {/* Right column: how the gym operates -- localization, membership
+              (fees, guest charging, loyalty), attendance and front desk
+              alerts. */}
           <div className="space-y-6">
             <Card>
               <SectionHeader
@@ -975,150 +1198,6 @@ export function SettingsForm({
                   {fieldErrors.alertAutoDismissMinutes && (
                     <p className="text-sm text-red-600">{fieldErrors.alertAutoDismissMinutes}</p>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <SectionHeader
-                icon={CreditCard}
-                accent="teal"
-                title={t("settings.sections.payments")}
-                description={t("settings.sectionDescriptions.payments")}
-              />
-              <CardContent>
-                {paymentConnection ? (
-                  <div className="flex flex-col gap-3">
-                    {paymentConnection.needsAttention && (
-                      <div
-                        className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
-                        role="alert"
-                      >
-                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>{t("settings.payments.needsAttention")}</span>
-                      </div>
-                    )}
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="text-sm">
-                        <p className="font-medium">
-                          {t("settings.payments.connectedLabel", { businessId: paymentConnection.businessIdMasked })}
-                        </p>
-                        <p className="text-muted-foreground">
-                          {t("settings.payments.connectedSince", {
-                            date: new Date(paymentConnection.connectedAt).toLocaleDateString(),
-                          })}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button type="button" variant="outline" size="sm" onClick={openConnectDialog}>
-                          {t("settings.payments.reconnect")}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDisconnectOpen(true)}
-                        >
-                          {t("settings.payments.disconnect")}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-muted-foreground">{t("settings.payments.notConnected")}</p>
-                    <Button type="button" variant="outline" size="sm" onClick={openConnectDialog}>
-                      {t("settings.payments.connect")}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {billingInfo && (
-              <Card>
-                <SectionHeader
-                  icon={Receipt}
-                  accent="amber"
-                  title={t("settings.sections.billing")}
-                  description={t("settings.sectionDescriptions.billing")}
-                />
-                <CardContent className="space-y-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-sm">
-                      <p className="font-medium">
-                        {billingInfo.tierName} —{" "}
-                        {t(
-                          billingInfo.interval === "annual"
-                            ? "settings.billing.intervalAnnual"
-                            : "settings.billing.intervalMonthly",
-                        )}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {t("settings.billing.nextBillingDate", {
-                          date: formatLocalDate(billingInfo.anchorDate, i18n.language),
-                        })}
-                      </p>
-                    </div>
-                    <span
-                      className={`w-fit rounded-full px-3 py-1 text-xs font-medium ${
-                        billingInfo.billingStatus === "active"
-                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                          : billingInfo.billingStatus === "suspended"
-                            ? "bg-red-500/10 text-red-700 dark:text-red-400"
-                            : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
-                      }`}
-                    >
-                      {t(`settings.billing.status.${billingInfo.billingStatus}`)}
-                    </span>
-                  </div>
-
-                  {billingInfo.billingStatus !== "active" && (
-                    <PayNowButton
-                      initialOwnerPhone={billingInfo.ownerPhone}
-                      selectableTiers={selectableTiers}
-                      onPaymentConfirmed={handlePaymentConfirmed}
-                    />
-                  )}
-
-                  <div className="space-y-2 border-t pt-4">
-                    <Label htmlFor="billingNotificationEmail">{t("settings.billing.emailLabel")}</Label>
-                    <p className="text-xs text-muted-foreground">{t("settings.billing.emailHint")}</p>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Input
-                        id="billingNotificationEmail"
-                        type="email"
-                        value={notificationEmail}
-                        onChange={(e) => {
-                          setNotificationEmail(e.target.value);
-                          setEmailError(null);
-                        }}
-                        disabled={savingEmail}
-                        className="sm:max-w-xs"
-                      />
-                      <Button type="button" variant="outline" size="sm" disabled={savingEmail} onClick={handleSaveNotificationEmail}>
-                        {savingEmail ? t("common.saving") : t("common.save")}
-                      </Button>
-                    </div>
-                    {emailError && <p className="text-sm text-red-600">{emailError}</p>}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <SectionHeader
-                icon={Users}
-                accent="cyan"
-                title={t("settings.sections.staff")}
-                description={t("settings.sectionDescriptions.staff")}
-              />
-              <CardContent>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm">{t("settings.staffSummary", { count: staffCount })}</p>
-                  <Link href="/settings/staff" className="text-sm font-medium text-primary hover:underline">
-                    {t("settings.manageStaffLink")}
-                  </Link>
                 </div>
               </CardContent>
             </Card>

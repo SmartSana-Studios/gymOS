@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -18,6 +19,7 @@ import { GymLifecycleDialog } from "../../components/GymLifecycleDialog";
 import { deactivateGym, reinstateGym, suspendGym } from "../../actions";
 import { ChangeTierDialog } from "./ChangeTierDialog";
 import { CapOverrideEditor } from "./CapOverrideEditor";
+import { GymCategoryEditor } from "./GymCategoryEditor";
 import { EscalateAccessDialog } from "./EscalateAccessDialog";
 import { ActiveAccessList } from "./ActiveAccessList";
 import { AuditTrailTab } from "./AuditTrailTab";
@@ -84,9 +86,12 @@ export function GymDetailPageClient({
   return (
     <div className="space-y-4">
       <div className="text-sm text-muted-foreground">
-        <Link href="/gyms" className="hover:underline">
-          {t("gyms.detail.backToGyms")}
-        </Link>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/gyms">
+            <ArrowLeft />
+            {t("gyms.detail.backToGyms")}
+          </Link>
+        </Button>
         {" / "}
         {gym.name}
       </div>
@@ -101,6 +106,9 @@ export function GymDetailPageClient({
             {gym.ownerName ?? "—"}
             {gym.ownerPhone ? ` (${gym.ownerPhone})` : ""}
           </span>
+
+          <span className="text-muted-foreground">{t("gyms.detail.category")}</span>
+          <GymCategoryEditor gym={gym} onSaved={() => router.refresh()} />
 
           <span className="text-muted-foreground">{t("gyms.detail.created")}</span>
           <span>{new Date(gym.createdAt).toLocaleDateString()}</span>

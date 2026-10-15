@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { LogOut } from "lucide-react";
+import { ArrowRight, LogOut } from "lucide-react";
 
 import { TablePagination } from "@/components/TablePagination";
 import { useClientPagination } from "@/hooks/use-table-pagination";
@@ -42,9 +42,12 @@ export function CheckedInTable({ rows, loadError }: { rows: CurrentlyCheckedInRo
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-medium">{t("overview.tables.checkedIn.title")}</h2>
-        <Link href="/attendance" className="text-sm text-muted-foreground hover:text-foreground">
-          {t("overview.tables.viewAll")}
-        </Link>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/attendance">
+            {t("overview.tables.viewAll")}
+            <ArrowRight />
+          </Link>
+        </Button>
       </div>
 
       {loadError ? (

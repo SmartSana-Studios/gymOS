@@ -20,6 +20,8 @@ export interface GymSettingsRow {
   gymName: string;
   logoUrl: string | null;
   primaryColor: string | null;
+  /** Story 21.2: stable category code (0123); saved through `set_gym_category()`, never the main settings update. */
+  category: string;
   timezone: string;
   defaultLanguage: string;
   /** ISO 3166-1 alpha-2; default region for phone numbers without a country code. */
@@ -87,7 +89,7 @@ export async function getGymSettings(): Promise<{
   const { data, error } = await supabase
     .from("gyms")
     .select(
-      "name, logo_url, primary_color, timezone, default_language, country, grace_period_days, capacity, alert_auto_dismiss_minutes, checkin_timeout_hours, gym_token, registration_fee, charge_guests_per_session, loyalty_enabled, loyalty_guest_threshold, loyalty_renewal_threshold, loyalty_reward_days",
+      "name, logo_url, primary_color, timezone, default_language, country, grace_period_days, capacity, alert_auto_dismiss_minutes, checkin_timeout_hours, gym_token, registration_fee, charge_guests_per_session, loyalty_enabled, loyalty_guest_threshold, loyalty_renewal_threshold, loyalty_reward_days, category",
     )
     .eq("id", gymId)
     .maybeSingle();
@@ -104,6 +106,7 @@ export async function getGymSettings(): Promise<{
       gymName: data.name,
       logoUrl: data.logo_url,
       primaryColor: data.primary_color,
+      category: data.category,
       timezone: data.timezone,
       defaultLanguage: data.default_language,
       country: data.country,
@@ -427,6 +430,28 @@ export async function setLoyaltyProgram(input: {
     p_n: input.n,
     p_k: input.k,
     p_r: input.r,
+  });
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: { ok: true }, error: null };
+}
+
+/** Story 21.2: sets the gym category through `set_gym_category()` (0123), the
+ * only write path for `gyms.category` (pinned against plain UPDATEs). The RPC
+ * checks Super Admin or the gym's Owner/Supervisor, an active gym and the code,
+ * and writes the audit row itself. */
+export async function setGymCategory(
+  category: string,
+): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+  const { error } = await supabase.rpc("set_gym_category", {
+    p_gym_id: gymId,
+    p_category: category,
   });
   if (error) {
     return { data: null, error: await mapAndLog(error) };

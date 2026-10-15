@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { RotateCw } from "lucide-react";
+import { ArrowRight, RotateCw } from "lucide-react";
 
 import { TablePagination } from "@/components/TablePagination";
 import { useClientPagination } from "@/hooks/use-table-pagination";
@@ -60,12 +60,12 @@ export function ExpiringTable({
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-medium">{t("overview.tables.expiring.title")}</h2>
-        <Link
-          href="/subscriptions?status=expiring_soon&sort=expiry"
-          className="text-sm text-muted-foreground hover:text-foreground"
-        >
-          {t("overview.tables.viewAll")}
-        </Link>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/subscriptions?status=expiring_soon&sort=expiry">
+            {t("overview.tables.viewAll")}
+            <ArrowRight />
+          </Link>
+        </Button>
       </div>
 
       {loadError ? (
