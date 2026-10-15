@@ -1148,6 +1148,8 @@ Recorded at the product owner's direction on 2026-10-11 so none of it is lost. *
 - **Audited:** every action is logged under the named support person, like any staff action.
 - **Why visible and per gym:** a hidden account would need filtering from every staff list, count, notification, and metric, and one account present in every gym would let a single stolen password open them all.
 
+**Delivery order (decided 2026-10-15, product owner): E, GymOS support staff, ships first, before landing pages (C) and the directory (D).** Its prerequisites ship inside it: the live-role retrofit of the role-gated policies and RPCs that still read the `app_role` JWT claim (a removed or opted-out support person must lose access at once, not within the 1-hour token life), and the AAL2 gate.
+
 **F — OQ-24 resolutions (2026-10-15, product owner).** These bind the V1.7 requirements; FR IDs are assigned at the V1.7 PRD update.
 
 - **Where it lives:** the public site is built in `apps/landing` (the `www.` Vercel project), not in the dashboard. `*.gymosapps.com` is added to that project; `{name}.` is rewritten to the gym's page and the directory lives under `www.gymosapps.com/{country}/`. `owner.` and `portal.` stay explicit records. The public site reads only a published projection (anon-safe view or RPC), never tenant tables, and holds no service-role key (NFR-001).

@@ -15,6 +15,7 @@ Decided by the product owner at V1.7 planning (all PM recommendations accepted; 
 - **Directory and SEO:** any published gym listed, Cameroon the launch entry point; GymOS owns structured data, sitemap, hreflang, `llms.txt`; thin city/country pages `noindex`.
 - **Support second factor (OQ-26): TOTP** via Supabase MFA, forced enrollment, support role valid only at AAL2 and checked in the database, Super Admin audited reset for recovery. Chosen because staff sign in by phone or email, so a code sent over either channel is not an independent factor for everyone, and TOTP has no delivery cost. Verify TOTP is enabled on the production project before stories.
 - **Category (OQ-23):** stays descriptive in V1.7.
+- **Delivery order:** support staff (E) ships first, before landing pages and the directory. The live-role retrofit of policies still reading the `app_role` claim (payments insert/read/verify among them; `jwt_expiry` 3600, removal does not sign the user out) and the AAL2 gate are part of E, so a removed or opted-out support person loses access at once.
 
 ---
 
