@@ -209,3 +209,13 @@ Three adversarial passes and two rubric passes ran against the V1.7 PRD (files `
 - `__Host-` cookie name behavior with Supabase SSR and a tossing test; `log_audit_event` lockdown into the Step 1 gate (C5d).
 - Name squatting via cheap gyms and post-release sniping (NF-5); FR-185 auto-disable vs FR-132 suspension (NF-8).
 - Small text contradictions: three vs four Owner states (FR-182, 10.2 item 3), glossary "pending", FR-179 baseline wording, addendum G pointer to Section 12 F.
+
+## L. V1.7 Step 1 — Architecture Amendments (2026-10-15)
+
+After the architecture reviewer gate, the Step 1 design changed in these ways (authoritative text: ARCHITECTURE-SPINE.md AD-33–AD-41). Where sections H and K above differ, the spine wins.
+
+- Support is its own `member_role` value, `support`, denied by default and opted in per policy and RPC; section H's "flagged supervisor membership" is superseded (FR-178 restated).
+- Attribution is written as a per-gym proxy actor ("GymOS Support") at write time; the real person is in a Super Admin-only table. The keyed-alias read view is dropped (AD-39).
+- Sign-in for support is phone + password, then TOTP at AAL2; the staff login screen becomes a Phone | Email choice with a password, and the email option is enabled for an account once its address is verified.
+- Factor enrollment runs only through a server function that checks the session's assurance level; a platform flag turns the Super Admin AAL2 requirement on after both factors are verified; there is no in-app Super Admin factor reset.
+- Payment-connection proposals bind a digest of the secret; owner re-authentication and support step-up are recorded server-side, not read from token claims; credentials are versioned and payments resolve the one they started under.
