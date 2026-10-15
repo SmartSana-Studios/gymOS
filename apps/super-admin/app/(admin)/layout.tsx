@@ -58,7 +58,9 @@ async function AdminLayoutData({
   // Story 22.4: live check (users.is_super_admin at request time), not the app_role claim.
   const authz = await authorizePlatformAction("platform.admin_access");
   if (!authz.ok) {
-    redirect("/auth/login");
+    // Story 22.6: a valid password session below aal2 while the flag is on goes to the
+    // second-factor prompt, never into a login loop. Every other denial stays on login.
+    redirect(authz.reason === "aal2_required" ? "/auth/mfa" : "/auth/login");
   }
 
   const { t } = await getServerTranslation(await getRequestLocale());

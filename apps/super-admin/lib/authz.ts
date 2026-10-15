@@ -13,7 +13,7 @@ export type PlatformCapability =
 
 export type AuthorizeResult =
   | { ok: true; actorId: string }
-  | { ok: false; error: AppError };
+  | { ok: false; error: AppError; /** Story 22.6: why it was denied, so a layout can tell aal2_required apart. */ reason: string };
 
 async function denied(capability: string, actorId: string | null, reason: string): Promise<AuthorizeResult> {
   // Actor id, capability and reason only: never the token, a claim set or a secret.
@@ -27,7 +27,7 @@ async function denied(capability: string, actorId: string | null, reason: string
     // Reporting must never turn a denial into a failure.
   }
   const { t } = await getServerTranslation(await getRequestLocale());
-  return { ok: false, error: { code: PERMISSION_DENIED_CODE, message: t("errors.permissionDenied") } };
+  return { ok: false, error: { code: PERMISSION_DENIED_CODE, message: t("errors.permissionDenied") }, reason };
 }
 
 /**

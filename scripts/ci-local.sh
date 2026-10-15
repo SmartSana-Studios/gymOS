@@ -93,6 +93,8 @@ stage_pgtap() {
   bash "$ROOT/scripts/session-refund-race.sh"
   # job-runs-alert.sql against fixtures (Epic 20 R-4).
   bash "$ROOT/scripts/job-runs-alert.test.sh"
+  # Super Admin aal2 enable/reset operator scripts against fixtures on the local DB (Story 22.6).
+  bash "$ROOT/scripts/super-admin-aal2.test.sh"
   # Claim-read inventory (Story 22.2; enforcing since 22.4): any non-exempt claim-only / null-unsafe entry fails.
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" pnpm run check:claims
 }

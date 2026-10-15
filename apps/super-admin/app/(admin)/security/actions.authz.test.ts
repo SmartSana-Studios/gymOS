@@ -19,12 +19,12 @@ vi.mock("@/lib/authz", () => ({
   authorizePlatformAction: vi.fn(async () =>
     allowed
       ? { ok: true, actorId: "sa-1" }
-      : { ok: false, error: { code: "permission_denied", message: "errors.permissionDenied" } },
+      : { ok: false, error: { code: "permission_denied", message: "errors.permissionDenied" }, reason: "aal2_required" },
   ),
   requireSuperAdminAal2: vi.fn(async () =>
     aalGate
       ? { ok: true, actorId: "sa-1" }
-      : { ok: false, error: { code: "permission_denied", message: "errors.permissionDenied" } },
+      : { ok: false, error: { code: "permission_denied", message: "errors.permissionDenied" }, reason: "aal2_required" },
   ),
 }));
 vi.mock("@/lib/supabase/server", () => ({
@@ -160,6 +160,17 @@ describe("security actions", () => {
     expect((await removeFactor({ factorId: "f1" })).error?.code).toBe("permission_denied");
     expect(enroll).not.toHaveBeenCalled();
     expect(unenroll).not.toHaveBeenCalled();
+  });
+
+  it("flag on, aal1 session calls enroll: refused before the provider and nothing is written (22.6)", async () => {
+    aalGate = false;
+    flagOn = true;
+    setup({ verified: 2, aal: "aal1" });
+    const { enrollFactor } = await import("./actions");
+    const res = await enrollFactor({});
+    expect(res.error?.code).toBe("permission_denied");
+    expect(enroll).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("removal fails closed when the flag read errors or is not a boolean", async () => {

@@ -440,5 +440,14 @@
     "previous": "Previous page",
     "next": "Next page",
     "ellipsis": "…"
+  },
+  "mfaPrompt": {
+    "title": "Second factor",
+    "description": "Enter the 6-digit code from your authenticator app to continue.",
+    "codeLabel": "6-digit code",
+    "verify": "Verify",
+    "verifying": "Verifying...",
+    "invalidCode": "That code is not valid. Try again.",
+    "noFactor": "No verified authenticator is available for this account. Contact the platform operator."
   }
 }

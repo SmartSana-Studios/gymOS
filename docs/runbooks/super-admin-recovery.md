@@ -1,0 +1,63 @@
+# Super Admin second factor: bootstrap and recovery
+
+Story 22.6. Run by the platform owner, never by CI. The scripts run as the database owner, default to
+dry-run, and write one `audit_log` row per applied run (`actor_display_name` = `operator:<name>`).
+
+Connection (same as `scripts/prod-apply.mjs`): `PROD_HOST`, `PROD_PORT`, `PROD_USER`, `PROD_DB` from env
+(defaults point at the deployed pooler), password from `~/.supabase-db-password` (`PROD_PASSWORD_FILE`
+overrides), never printed. `pg` is loaded from `PG_MODULE_DIR=<dir>/node_modules` (`npm i pg@8` in a
+temp dir). Set `PROD_SSL=0` only for a local database.
+
+## Preconditions
+
+- Migration 0126 is applied (`private.platform_flags` has `super_admin_aal2`).
+- A fresh backup (db-backup green) before any `--apply` against production.
+- Every Super Admin account has signed in and holds exactly **two verified** TOTP factors on **two
+  separate devices** (different friendly names, e.g. `phone`, `tablet`).
+
+## Bootstrap (turn the flag on, once)
+
+1. Sign in at `/security` with the password, enroll and verify factor one (allowed at aal1; this is the
+   recorded first-factor window).
+2. Add factor two at `/security` (a second factor needs aal2, so first sign out and back in and pass the
+   factor-one code challenge at `/auth/mfa`, which works with the flag off; it is just not forced on sign-in yet).
+3. Dry run: `node scripts/enable-super-admin-aal2.mjs`. It lists every Super Admin with each factor's
+   friendly name and `created_at` and states the verdict. It refuses (exit 1) unless every
+   `users.is_super_admin` account has exactly two verified factors.
+4. Apply: `node scripts/enable-super-admin-aal2.mjs --apply --operator <your-name>`, type the
+   confirmation phrase. Running it again prints "already on" and changes nothing.
+5. Check: a fresh password sign-in lands on `/auth/mfa`; the code reaches `/gyms`.
+
+## Lost one device
+
+The other factor still works. Sign in (password + code from the surviving device), open `/security`,
+remove the lost factor (needs aal2, refused if it would leave none), enroll a replacement on a new device.
+The flag stays on. Nothing for the scripts to do. If the lost device was ever unlocked or shared, treat
+it as a secret exposure: rotate the password too.
+
+## Lost both devices (out-of-band reset)
+
+Only the platform owner, on the account owner's request, after verifying identity outside the app.
+
+1. Dry run: `node scripts/reset-super-admin-factors.mjs <email>`. Lists the factors and sessions that
+   would go.
+2. Apply: `node scripts/reset-super-admin-factors.mjs <email> --apply --operator <your-name>`, type the
+   confirmation phrase. One transaction deletes the account's factors and `auth.sessions` and sets the
+   flag **off**, with one audit row.
+3. Immediately: the Super Admin signs in with the password, enrolls and verifies **both** factors at
+   `/security`, then you re-run the Bootstrap steps 3 to 5.
+
+Why the flag goes off: with the flag on and zero factors an aal1 session is denied at the admin layout,
+so `/security` is unreachable and the account would be locked out. The reset reopens the first-factor
+window on purpose (sessions are deleted, but an access token already issued can work until it expires, at most one hour); keep it as short as possible and do not leave the platform on flag-off overnight.
+
+## Dual control
+
+Today there is a single Super Admin, so the reset is one operator's decision, recorded in `audit_log`.
+Once a second Super Admin exists (PRD section 8 / FR-191), a reset must be requested by one and applied
+by the other; the operator name in the audit row must differ from the target.
+
+## After any run
+
+Check `select action_type, actor_display_name, created_at from audit_log where actor_display_name like 'operator:%' order by created_at desc limit 5;`
+and that `select enabled from private.platform_flags where flag = 'super_admin_aal2'` is what you expect.

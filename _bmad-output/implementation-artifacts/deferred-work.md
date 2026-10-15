@@ -1182,3 +1182,13 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-22-5-super-admin-second-factor-enrollment-flag-off.md`
   summary: custom_access_token_hook exception handler returns the original event unchanged, which could echo an incoming app_role at aal1 when the flag is on.
   evidence: maybe-false, medium if true; settle by forcing a hook error at flag on and decoding the minted claims.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-6-super-admin-bootstrap-second-device-and-recovery.md`
+  summary: No audited way to turn super_admin_aal2 off without destroying factors (only the destructive reset script).
+  evidence: review (blind hunter); real gap if enable misfires with a working factor; a `--disable` mode would settle it. Medium, unverified.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-6-super-admin-bootstrap-second-device-and-recovery.md`
+  summary: scripts/super-admin-aal2.test.sh exits 1 on its SKIP paths (pg module missing, other Super Admins present) and needs `npm i pg@8` over the network in CI.
+  evidence: review (verification gap); an environment-dependent red in ci-local/ci.yml; first CI run on the epic PR settles it.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-6-super-admin-bootstrap-second-device-and-recovery.md`
+  summary: Enable checks factor counts, then waits on a typed confirmation inside the open transaction without re-checking or locking auth.mfa_factors.
+  evidence: review (edge-case hunter); only a concurrent factor change by the sole operator can hit it; low-medium, unverified.

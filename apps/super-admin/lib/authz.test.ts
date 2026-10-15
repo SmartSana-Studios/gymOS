@@ -105,3 +105,25 @@ describe("requireSuperAdminAal2", () => {
     expect((await requireSuperAdminAal2()).ok).toBe(false);
   });
 });
+
+describe("denial reason (Story 22.6)", () => {
+  it("flag on and aal1 carries reason aal2_required, which the admin layout sends to /auth/mfa", async () => {
+    flagResult = { data: true, error: null };
+    getAal.mockResolvedValue({ data: { currentLevel: "aal1" }, error: null });
+    const res = await authorizePlatformAction("platform.admin_access");
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toBe("aal2_required");
+  });
+
+  it("no session carries reason no_session, and a non Super Admin carries its own reason", async () => {
+    userResult = { data: { user: null }, error: null };
+    const a = await authorizePlatformAction("platform.admin_access");
+    expect(a.ok).toBe(false);
+    if (!a.ok) expect(a.reason).toBe("no_session");
+    userResult = { data: { user: { id: "u" } }, error: null };
+    rpcResult = { data: [{ allowed: false, reason: "not_super_admin", actor_role: null }], error: null };
+    const b = await authorizePlatformAction("platform.admin_access");
+    expect(b.ok).toBe(false);
+    if (!b.ok) expect(b.reason).toBe("not_super_admin");
+  });
+});

@@ -8,12 +8,11 @@ const redirect = vi.fn((to: string) => {
 
 vi.mock("next/navigation", () => ({ redirect: (to: string) => redirect(to) }));
 vi.mock("next/link", () => ({ default: () => null }));
-vi.mock("@/lib/authz", () => ({
-  authorizePlatformAction: vi.fn(async () => ({
-    ok: false,
-    error: { code: "permission_denied", message: "errors.permissionDenied" },
-  })),
+const authorizePlatformAction = vi.fn(async (): Promise<Record<string, unknown>> => ({
+  ok: false,
+  error: { code: "permission_denied", message: "errors.permissionDenied" },
 }));
+vi.mock("@/lib/authz", () => ({ authorizePlatformAction: () => authorizePlatformAction() }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     // A stale super_admin claim must not get the caller in.
@@ -36,5 +35,19 @@ describe("(admin) layout live authorization", () => {
 
     await expect(inner.type(inner.props)).rejects.toBeInstanceOf(Redirected);
     expect(redirect).toHaveBeenCalledWith("/auth/login");
+  });
+
+  it("sends an aal1 session (reason aal2_required) to the second-factor prompt, not a login loop", async () => {
+    redirect.mockClear();
+    authorizePlatformAction.mockResolvedValueOnce({
+      ok: false,
+      reason: "aal2_required",
+      error: { code: "permission_denied", message: "errors.permissionDenied" },
+    });
+    const mod = await import("./layout");
+    const suspense = mod.default({ children: null }) as { props: { children: { type: (p: unknown) => Promise<unknown>; props: unknown } } };
+    const inner = suspense.props.children;
+    await expect(inner.type(inner.props)).rejects.toBeInstanceOf(Redirected);
+    expect(redirect).toHaveBeenCalledWith("/auth/mfa");
   });
 });

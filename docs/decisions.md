@@ -5,6 +5,15 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — Story 22.6: Super Admin bootstrap, second device and recovery
+
+- **Scripts (operator-run, never CI against production).** `scripts/enable-super-admin-aal2.mjs` and `scripts/reset-super-admin-factors.mjs` (shared connection in `scripts/lib/operator-pg.mjs`, same `pg` and password-file pattern as `prod-apply.mjs`). Dry-run by default; `--apply --operator <name>` plus a typed confirmation to write. Each applied run is one transaction with one `audit_log` row (`actor_id` null, `operator:<name>`; metadata holds factor ids, friendly names and counts, never a secret). Enable refuses unless every `users.is_super_admin` account has exactly two verified TOTP factors, and is a no-op when already on. Reset deletes the target's factors and `auth.sessions` and sets the flag **off** in the same transaction (otherwise the sole Super Admin cannot reach `/security`).
+- **App.** `authorizePlatformAction` / `requireSuperAdminAal2` denials now carry a `reason`; the `(admin)` layout sends `aal2_required` to the new `/auth/mfa` prompt (verifies an existing factor with `challengeAndVerify`, never enrolls), every other denial still goes to `/auth/login`. Strings en and fr. No migration, no change to flag-off behavior.
+- **Tests.** `scripts/super-admin-aal2.test.sh` (local DB fixtures, wired into ci-local and ci.yml): short counts refused, dry-run, wrong confirmation, ready, repeat, unknown email, reset, no secret in audit or output. Vitest for reason mapping, wrong code, no session, aal1 enroll refused.
+- **Local rehearsal (2026-10-15, local stack, real GoTrue + claims hook).** Two factors enrolled (first at aal1, second at aal2) -> enable applied (flag on) -> fresh password session carries no `app_role` (aal1) -> existing factor verified, token aal2 with `app_role=super_admin` -> reset (factors 0, flag off) -> password session carries `super_admin` again -> two factors re-enrolled -> enable -> aal1 no claim, verified code gives `super_admin`. Result: pass. Staging and production runs are the product owner's.
+- **Epic 23 precondition.** Support-account creation is refused unless `super_admin_aal2` is on (AD-38); recorded in the Epic 23 pre-flight (Story 23.0).
+- **Deferred (unchanged).** Concurrent factor removals can both pass the last-factor check; the reset script is the backstop. Open risk: the scripts delete from `auth.mfa_factors`/`auth.sessions` directly; proven on the local `postgres` superuser, the hosted `postgres` role's privileges on those tables are not yet verified (first staging dry-run will show).
+
 ## 2026-10-15 — Story 22.5: Super Admin second-factor enrollment, flag off (migration 0126)
 
 - **Flag.** `private.platform_flags(flag, enabled)` seeded `super_admin_aal2 = false`, RLS on, no client grants. `private.super_admin_aal2_required()` (definer) is the single reader; NULL or missing row = off. `public.super_admin_aal2_required()` is a service_role-only wrapper for the Next server. Rollback: `scripts/rollback-0126-super-admin-aal2-flag.sql`.
