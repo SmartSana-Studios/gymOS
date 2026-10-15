@@ -13,7 +13,8 @@ Decided by the product owner at V1.7 planning (all PM recommendations accepted; 
 - **Publish gate:** name, category, logo, banner, about >= 100 chars, country+city, a contact channel, opening hours, >= 1 public plan. Plans are private unless the gym marks them public.
 - **Names:** 3-30 chars `a-z0-9-`; DB reserved-names table plus case-insensitive unique index; first come first served; renames 301 for 12 months, max 2 per year; Super Admin takedown/force-rename/release, audited.
 - **Directory and SEO:** any published gym listed, Cameroon the launch entry point; GymOS owns structured data, sitemap, hreflang, `llms.txt`; thin city/country pages `noindex`.
-- **Still open:** support-account second-factor method (OQ-26), per-category wording (OQ-23).
+- **Support second factor (OQ-26): TOTP** via Supabase MFA, forced enrollment, support role valid only at AAL2 and checked in the database, Super Admin audited reset for recovery. Chosen because staff sign in by phone or email, so a code sent over either channel is not an independent factor for everyone, and TOTP has no delivery cost. Verify TOTP is enabled on the production project before stories.
+- **Category (OQ-23):** stays descriptive in V1.7.
 
 ---
 

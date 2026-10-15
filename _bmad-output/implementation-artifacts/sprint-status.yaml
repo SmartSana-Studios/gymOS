@@ -965,7 +965,7 @@ action_items:
     action: "Before the first gym enables loyalty confirm the Epic 19 owner gates
       (tested restore, key rotation, payment-webhook deploy) are decided"
     owner: "owner"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-10-14.md"
   - id: "epic-21-retro-item-47-split-settingsform-tsx-by-section-brandi"
     epic: 21
@@ -1149,3 +1149,5 @@ last_updated: 10-15-2026 12:30
 # last_updated: 2026-10-15 (ad-hoc, non-story: epic 21 retro actions A1-A6 closed: SettingsForm split merged (PR #74), 845c7b7 reviewed inline (no defects), epics.md 21.1 reconciled (inline status, as-built note), 21-1 deferred entries triaged (Super Admin audit-label test added), workflow rules saved to memory)
 # last_updated: 2026-10-15 (ad-hoc, non-story: epic-21 in-progress -> done; PR #75 merged, retro actions closed)
 # last_updated: 2026-10-15 (ad-hoc, non-story: V1.7 planning started; OQ-24 resolved with the product owner and recorded in PRD section 12 F, addendum G, memlog and docs/decisions.md; no FR IDs yet, sprint tracking unchanged)
+# last_updated: 2026-10-15 (ad-hoc, non-story: epic-20 retro item 46 open -> done at V1.7 planning; all three gates are decided on record in docs/decisions.md 2026-10-15: payment-webhook v6 deployed with hardened callbackUrl, secret-rotation runbook written, tested restore deferred (accepted risk, revisit before first gym enables loyalty and at 2026-12-31 review), Tara key rotation declined (risk accepted); restore test itself still never run)
+# last_updated: 2026-10-15 (ad-hoc, non-story: V1.7 planning -- OQ-26 second factor resolved as TOTP via Supabase MFA (AAL2 in DB), OQ-23 confirmed descriptive; recorded in PRD section 12 E, memlog, docs/decisions.md; deferred-work.md triaged for V1.7 (report in session scratchpad, no file edits yet))
