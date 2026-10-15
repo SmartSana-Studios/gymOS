@@ -57,7 +57,11 @@ const PLAN = {
   "1b": { head: "0109", files: ["0110_front_desk_alert_kind"] },
   "2": { head: "0110", files: ["0111_check_in_session_gate", "0112_class_attendance_session_gate", "0113_session_refunds_revenue_line", "0114_guest_sessions_overview_rpcs", "0116_session_alert_cooldown"] },
   "3": { head: "0116", files: ["0115_enable_charge_guests_default"] },
-  "4": { head: "0116", files: ["0117_loyalty_program_ledger_foundation", "0118_loyalty_guest_rule", "0119_loyalty_subscriber_rule", "0120_loyalty_refund_reversal_lapse_sweep"] },
+  "4": { head: "0116", files: ["0117_loyalty_program_ledger_foundation", "0118_loyalty_guest_rule", "0119_loyalty_subscriber_rule", "0120_loyalty_refund_reversal_lapse_sweep"],
+    // A cron job the stage schedules gets one run right after the commit: job-runs-alert flags a job
+    // that has never run once its allowance (27 h for a daily job) has passed, and the schedule is
+    // usually later than the deploy. The functions are idempotent (Epic 20 retro P-1).
+    firstRuns: [{ job: "loyalty_sweep", fn: "run_loyalty_sweep_job" }] },
 }[stage];
 
 const password = readFileSync(process.env.PROD_PASSWORD_FILE ?? join(homedir(), ".supabase-db-password"), "utf8").trim();
@@ -71,7 +75,7 @@ const client = new Client({
   connectionTimeoutMillis: 20000,
 });
 
-const one = async (sql) => (await client.query(sql)).rows[0];
+const one = async (sql, params) => (await client.query(sql, params)).rows[0];
 const show = async (title, sql) => {
   const r = await client.query(sql);
   console.log(`\n-- ${title}`);
@@ -164,6 +168,12 @@ try {
     }
     console.log("\n=== VERIFICATION (committed state) ===");
     for (const [t, q] of VERIFY) await show(t, q);
+    for (const { job, fn } of PLAN.firstRuns ?? []) {
+      const ran = await one("select count(*)::int n from job_runs where job_name = $1", [job]);
+      if (ran.n === 0) await client.query(`select ${fn}()`);
+      const last = await one("select status, started_at from job_runs where job_name = $1 order by started_at desc limit 1", [job]);
+      console.log(`first run ${job}: ${ran.n === 0 ? "called" : "already ran"} -> latest ${last.status} at ${last.started_at.toISOString()}`);
+    }
   }
 } catch (e) {
   console.error("\nERROR:", e.message);

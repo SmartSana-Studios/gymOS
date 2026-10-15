@@ -1296,6 +1296,7 @@
       "loyaltyProgramChanged": "Loyalty program changed",
       "loyaltyStampEarned": "Loyalty stamp earned",
       "loyaltyRewardGranted": "Free session granted",
+      "loyaltyRewardDaysGranted": "Free days granted",
       "loyaltyProgressReset": "Loyalty progress reset",
       "loyaltyStampReversed": "Loyalty stamp reversed",
       "loyaltyFreeSessionLapsed": "Free guest session lapsed",

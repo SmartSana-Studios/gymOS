@@ -2094,14 +2094,14 @@ So that FR-157's "on by default for new gyms" lands without surprising any exist
 
 | # | Story | Migration | Depends on |
 |---|---|---|---|
-| 20.1 | Loyalty Program Setting & Ledger Foundation | **0116** | Epic 19 (19.3) |
-| 20.2 | Guest Rule — Stamps on Paid Sessions, Free Session at N | **0117** | 20.1, 19.6b |
-| 20.3 | Subscriber Rule — On-Time Renewal Stamps, R Free Days at K | **0118** | 20.1 |
-| 20.4 | Refund Reversal, Lapses & 90-Day Reset Sweep | **0119** | 20.2, 20.3, 19.8 |
+| 20.1 | Loyalty Program Setting & Ledger Foundation | **0117** | Epic 19 (19.3) |
+| 20.2 | Guest Rule — Stamps on Paid Sessions, Free Session at N | **0118** | 20.1, 19.6b |
+| 20.3 | Subscriber Rule — On-Time Renewal Stamps, R Free Days at K | **0119** | 20.1 |
+| 20.4 | Refund Reversal, Lapses & 90-Day Reset Sweep | **0120** | 20.2, 20.3, 19.8 |
 | 20.5 | Dashboard — Loyalty Settings & Member Loyalty View | none | 20.1–20.4 |
 | 20.6 | Member App — Loyalty Card | none | 20.1–20.4 |
 
-*Migration numbers follow Epic 19's (latest planned `0115`); renumber at build time if needed. **As built (2026-10-12): Epic 19 also shipped ad hoc `0116` (session-required alert cooldown), so every migration number in Epics 20 and 21 shifts by one: 20.1 is 0117, 20.2 is 0118, 20.3 is 0119, 20.4 is 0120, 21.1 is 0121. The numbers inside the story bodies below still show the old plan.**
+*Migration numbers follow Epic 19's (latest planned `0115`); renumber at build time if needed. **As built (2026-10-12): Epic 19 also shipped ad hoc `0116` (session-required alert cooldown), so every migration number in Epics 20 and 21 shifts by one: 20.1 is 0117, 20.2 is 0118, 20.3 is 0119, 20.4 is 0120, 21.1 is 0121.** The story tables and bodies below were renumbered to the as-built numbers on 2026-10-15 (Epic 20 retro S-1). As built, 20.4 (0120) also wraps the loyalty hooks so a hook failure rolls back only the hook, writes a `loyalty_hook_failed` audit row and a `job_runs` failure row, and never rolls back the payment, check-in or refund (retro S-2).
 
 **Dependency order:** 20.1 → {20.2, 20.3} in parallel → 20.4 → {20.5, 20.6}. **Production safety:** the program is off by default for every gym (FR-164) and only 20.5 exposes the switch, so 20.1–20.4 change nothing a live gym sees. 20.2's guest rule earns only while **both** the program and Charge-guests are on (FR-165).
 
@@ -2117,12 +2117,12 @@ As a gym Owner or Supervisor,
 I want a loyalty program I can switch on with my own N, K, and R, backed by a tamper-proof ledger,
 So that rewards are accounted for exactly once and nobody can edit a balance by hand.
 
-*Delivers FR-164 (data + RPC), FR-170 (no write path), NFR-022 (ledger shape), the FR-168 read rule. Migration 0116.*
+*Delivers FR-164 (data + RPC), FR-170 (no write path), NFR-022 (ledger shape), the FR-168 read rule. Migration 0117.*
 
 **Acceptance Criteria:**
 
 **Given** `gyms` has no loyalty settings
-**When** migration 0116 ships
+**When** migration 0117 ships
 **Then** `gyms` gains `loyalty_enabled boolean not null default false`, `loyalty_guest_threshold` (N, CHECK 2–50), `loyalty_renewal_threshold` (K, CHECK 3–24), `loyalty_reward_days` (R, CHECK 1–30), with N/K/R nullable only while never configured and required (CHECK) when enabled; every existing gym is off
 
 **Given** each audited gym setting has exactly one write path (AD-32)
@@ -2130,15 +2130,15 @@ So that rewards are accounted for exactly once and nobody can edit a balance by 
 **Then** `set_loyalty_program(p_enabled, p_n, p_k, p_r)` is a `SECURITY DEFINER` RPC for Owner or Supervisor (via `private.current_member_role()`), suspension-aware, writing one audit row with old and new values; the four columns are pinned by **their own** BEFORE UPDATE trigger function (not a branch in `protect_super_admin_only_gym_columns()` and not 19.3's charging pin)
 
 **Given** loyalty is an append-only ledger (AD-30)
-**When** migration 0116 ships
+**When** migration 0117 ships
 **Then** `loyalty_events` exists (`gym_id`, `member_id`, `event_type` in `stamp_earned`|`reward_granted`|`reward_consumed`|`reset`|`lapse`|`stamp_reversed`, `counter` in `guest`|`subscriber`, `origin_id uuid`, `occurred_at`, details) with a unique index on `(origin_id, event_type)`; RLS: staff of the gym and the member on their own rows may SELECT; no INSERT/UPDATE/DELETE policy and no direct table write grant for any client role; UPDATE/DELETE revoked beneath the policy layer like `audit_log` (NFR-004)
 
 **Given** progress is derived and per member per gym
-**When** migration 0116 ships
+**When** migration 0117 ships
 **Then** `loyalty_progress` exists with one row per `(gym_id, member_id)` holding `guest_stamps`, `subscriber_stamps`, `guest_last_event_at`, `subscriber_last_event_at`, readable like `loyalty_events` and writable only by `private.` definer functions
 
 **Given** `guest_sessions.loyalty_grant_id` has no FK yet (19.3)
-**When** migration 0116 ships
+**When** migration 0117 ships
 **Then** it references the `loyalty_events` row (`event_type = 'reward_granted'`) that granted it
 
 **Given** the app and dashboard must never show past-window progress as live (FR-168)
@@ -2157,7 +2157,7 @@ As a session guest,
 I want each paid session I use to count toward a free one,
 So that coming back regularly is rewarded.
 
-*Delivers FR-165, FR-166, the guest half of FR-164's lowered-threshold rule. Migration 0117. Fills 19.6b's `private.on_session_consumed()` hook.*
+*Delivers FR-165, FR-166, the guest half of FR-164's lowered-threshold rule. Migration 0118. Fills 19.6b's `private.on_session_consumed()` hook.*
 
 **Acceptance Criteria:**
 
@@ -2201,7 +2201,7 @@ As a subscriber,
 I want renewing on time to count toward free days,
 So that staying loyal pays off.
 
-*Delivers FR-167, the subscriber half of FR-164's lowered-threshold rule, AD-18's R-day note. Migration 0118.*
+*Delivers FR-167, the subscriber half of FR-164's lowered-threshold rule, AD-18's R-day note. Migration 0119.*
 
 **Acceptance Criteria:**
 
@@ -2245,7 +2245,7 @@ As a gym owner,
 I want loyalty to stay honest when a consumed session is refunded and when rewards or progress expire,
 So that balances are always correct and every change is in the audit log.
 
-*Delivers FR-162's stamp reversal, FR-166's lapse, FR-168's persisted reset (OQ-B), FR-159's paid-session lapse audit. Migration 0119.*
+*Delivers FR-162's stamp reversal, FR-166's lapse, FR-168's persisted reset (OQ-B), FR-159's paid-session lapse audit. Migration 0120.*
 
 **Acceptance Criteria:**
 
@@ -2254,7 +2254,7 @@ So that balances are always correct and every change is in the audit log.
 **Then** in the same transaction a `stamp_reversed` event is inserted and `guest_stamps` decrements by one, never below 0; a free session already granted is not taken back; a consumed **free** session's refund path cannot occur (free sessions have no payment)
 
 **Given** lapses and resets must be persisted and audited (OQ-B)
-**When** migration 0119 ships
+**When** migration 0120 ships
 **Then** a daily `pg_cron` job (its own function and transaction, logging to `job_runs` under its own name, AD-19) records: a `lapse` event for each free session past 60 days and each unused paid session past 7 days (the session row itself is unchanged — `usable_until` already makes it unusable); and a `reset` event plus counter → 0 for each `loyalty_progress` counter outside its idle window; each one also written to the audit log
 
 **Given** the job runs twice, or misses a day
@@ -2363,7 +2363,7 @@ So that I know what I've earned.
 
 | # | Story | Migration | Depends on |
 |---|---|---|---|
-| 21.1 | Gym Category — Column, Setter & Super Admin | **0120** | 19.1 |
+| 21.1 | Gym Category — Column, Setter & Super Admin | **0121** | 19.1 |
 | 21.2 | Settings — Gym Category Field (Owner/Supervisor) | none | 21.1 |
 
 *Independent of Epics 19–20: 21.1 may ship before them, in which case it takes the next free migration number at merge time and later stories renumber, never the reverse. Migration numbers above assume Epic order.*
@@ -2376,11 +2376,11 @@ As a Super Admin,
 I want to choose a gym's category when I create it and change it later,
 So that every gym is classified for V1.7's directory and landing pages.
 
-*Delivers FR-171 (data, setter, Super Admin create/edit) and FR-172. Migration **0120**. Architecture: AD-32 (stable code, own setter, own pin trigger, Super Admin admitted), AD-3 (role via `private.current_member_role()` / Super Admin check, never the JWT `app_role`). Precedent: 0105 `gyms.country` and the `createGym` action in `apps/super-admin/app/(admin)/gyms/actions.ts`.*
+*Delivers FR-171 (data, setter, Super Admin create/edit) and FR-172. Migration **0121**. Architecture: AD-32 (stable code, own setter, own pin trigger, Super Admin admitted), AD-3 (role via `private.current_member_role()` / Super Admin check, never the JWT `app_role`). Precedent: 0105 `gyms.country` and the `createGym` action in `apps/super-admin/app/(admin)/gyms/actions.ts`.*
 
 **Acceptance Criteria:**
 
-**Given** migration 0120
+**Given** migration 0121
 **When** it runs on a database with live gyms
 **Then** `gyms.category text NOT NULL DEFAULT 'gym'` is added with a CHECK limiting it to the five stable codes `gym`, `pilates_studio`, `yoga_studio`, `fitness_center`, `other`, and every existing gym reads `gym` in the same statement (FR-171 release default)
 

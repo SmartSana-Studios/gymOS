@@ -84,6 +84,14 @@ jobs:
       - name: Run pgTAP RLS tests
         run: supabase test db
 
+      - name: Run refund-vs-consume race (loyalty ledger invariant)
+        # Two real sessions contend for one member lock; pgTAP cannot interleave.
+        # The script re-executes itself inside the DB container.
+        run: DB_CONTAINER=supabase_db_gym_os bash scripts/session-refund-race.sh
+
+      - name: Check the job_runs alert query against fixtures
+        run: DB_CONTAINER=supabase_db_gym_os bash scripts/job-runs-alert.test.sh
+
       - name: Stop local Supabase
         if: always()
         run: supabase stop
