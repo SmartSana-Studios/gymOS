@@ -219,6 +219,10 @@ select throws_like(
 reset role;
 
 -- Restore for the RLS section below.
+-- 22.3: clear the simulated claims first, otherwise protect_self_managed_member_columns
+-- sees a self-update by the claims' sub and silently pins deactivated_at (the restore
+-- used to be a no-op that nothing noticed because gym_id() was claim-only).
+select set_config('request.jwt.claims', '{}', true);
 update members set deactivated_at = null where id = '00000000-0000-0000-0000-000000030031';
 
 -- ============================================================================

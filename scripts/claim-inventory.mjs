@@ -3,8 +3,9 @@
 // Lists every RLS policy, function/trigger body and server source file that reads the
 // role or gym claim from the token, classified:
 //   claim-only   reads the claim (auth.jwt(), request.jwt.claim*, getClaims()) with no live helper call
-//   live-checked calls private.current_member_role() / private.gym_id() (delegation: the helpers
-//                themselves are claim-only until 22.3 rewrites them)
+//   live-checked calls private.current_member_role() / private.gym_id() (delegation). Since 22.3
+//                the helpers themselves verify the claim against a live membership / users row and
+//                are live-checked by name
 //   exempt       allow-listed in claim-inventory.exempt.json with a one-line reason
 // plus a null-unsafe list (`<> any(`, `<> all(`, `not in (`, `!= any(` over a role).
 // Database entries close in story 22.3, edge/server entries in 22.4.
@@ -35,6 +36,7 @@ const CLAIM_KEY = "(?:app_role|gym_id|role)";
 const SQL_CLAIM_RE = new RegExp(
   [
     String.raw`auth\s*\.\s*jwt\s*\(\s*\)[^;,]{0,60}?['"]${CLAIM_KEY}['"]`,
+    String.raw`auth\s*\.\s*jwt\s*\(\s*\)\s*#>>?\s*(?:'\{(?:[\w]+\s*,\s*)*${CLAIM_KEY}\}'|array\s*\[(?:\s*'[\w]+'\s*,)*\s*'${CLAIM_KEY}'\s*\])`,
     String.raw`request\s*\.\s*jwt\s*\.\s*claims?[^;]{0,80}?['".{]${CLAIM_KEY}\b`,
     String.raw`\bevent\s*->>?\s*'claims'`,
   ].join("|"),
@@ -50,8 +52,11 @@ const SRC_CLAIM_RES = [
   /\{[^{}]*\b(?:app_role|gym_id)\b[^{}]*\}\s*=\s*[^;]*\bclaims\b/,
 ];
 const SRC_LIVE_RE = /current_member_role/;
-const CLAIM_HELPERS = new Set([
+// The helpers read the claim and then verify it against a live row (22.3): gym_id() against an
+// active members row, is_super_admin() against users.is_super_admin, the other two through gym_id().
+const LIVE_HELPERS = new Set([
   "private.gym_id",
+  "private.is_super_admin",
   "private.current_member_role",
   "private.current_gym_status",
 ]);
@@ -73,10 +78,9 @@ export function classifySql(text, name = "") {
   const claim = SQL_CLAIM_RE.test(t);
   // String literals (e.g. a RAISE message naming the helper) are not calls.
   const live = SQL_LIVE_RE.test(t.replace(/'(?:[^']|'')*'/g, "''"));
-  // The helper definitions derive from the claim today (22.3 rewrites them); their callers
-  // are live-checked by delegation, so the helpers themselves are the claim-only entries.
-  if (CLAIM_HELPERS.has(name.replace(/\(.*$/s, "")))
-    return { classification: "claim-only", nullUnsafe: false };
+  // The helper definitions read the claim but verify it live (22.3); callers delegate to them.
+  if (LIVE_HELPERS.has(name.replace(/\(.*$/s, "")))
+    return { classification: "live-checked", nullUnsafe: false };
   const nullUnsafe = nullUnsafeOverRole(t) && (claim || live);
   if (!claim && !live && !nullUnsafe) return null;
   let classification = null;

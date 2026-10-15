@@ -2,6 +2,10 @@
 -- Delta against a baseline (the function is database-wide).
 begin;
 select plan(3);
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+insert into auth.users (id) values ('00000000-0000-0000-0000-000000010301');
+update users set is_super_admin = true where id = '00000000-0000-0000-0000-000000010301';
+
 
 set local role authenticated;
 select set_config('request.jwt.claims',

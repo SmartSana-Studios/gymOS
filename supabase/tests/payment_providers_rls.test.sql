@@ -37,6 +37,9 @@ update payment_providers set is_active = true where provider_key = 'taramoney';
 -- RLS: super_admin can SELECT; a non-super-admin session gets 0 rows, not an
 -- exception (RLS SELECT semantics -- matches super_admin_read_tiers precedent).
 -- ============================================================================
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000000701');
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',

@@ -28,10 +28,11 @@ test("live helper call is live-checked, not claim-only", () => {
   assert.equal(classifySql("private.current_member_role() = 'owner'").classification, "live-checked");
 });
 
-test("helper name in a string literal is not a call; helper definitions are claim-only", () => {
+test("helper name in a string literal is not a call; helper definitions are live-checked by name (22.3)", () => {
   const body = "raw := auth.jwt() ->> 'gym_id'; raise warning 'private.gym_id() failed';";
   assert.equal(classifySql(body).classification, "claim-only");
-  assert.equal(classifySql("select private.gym_id()", "private.current_member_role()").classification, "claim-only");
+  assert.equal(classifySql("select private.gym_id()", "private.current_member_role()").classification, "live-checked");
+  assert.equal(classifySql(body, "private.gym_id()").classification, "live-checked");
 });
 
 test("session_id style checks are not claims; plain gym_id column is ignored", () => {
@@ -190,4 +191,15 @@ test("no database exits 2", () => {
 test("compare ignores live-checked and exempt additions", () => {
   const inv = buildInventory(rows, [{ kind: "function", name: "public.hook(event jsonb)", reason: "issuer" }]);
   assert.deepEqual(compare(inv, JSON.parse(readFileSync(fx("baseline-ok.json"), "utf8"))).failures, []);
+});
+
+test("path-operator claim reads are claim-only (#>> '{app_role}', nested path, array form)", () => {
+  for (const body of [
+    "select (auth.jwt() #>> '{app_role}') = 'owner'",
+    "select (auth.jwt() #>> '{app_metadata,app_role}') = 'owner'",
+    "select (auth.jwt() #>> array['app_role']) = 'owner'",
+    "select (auth.jwt() #>> array['app_metadata','gym_id'])::uuid",
+  ])
+    assert.equal(classifySql(body).classification, "claim-only", body);
+  assert.equal(classifySql("select auth.jwt() #>> '{sub}'"), null);
 });

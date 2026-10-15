@@ -207,7 +207,7 @@ select set_config(
 
 select throws_like(
   $$select initiate_member_payment()$$,
-  '%member is deactivated%',
+  'permission denied%',
   'a deactivated member cannot initiate a self-service payment'
 );
 

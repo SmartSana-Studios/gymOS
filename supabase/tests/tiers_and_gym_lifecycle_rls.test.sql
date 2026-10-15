@@ -25,6 +25,10 @@ select plan(29);
 -- raises 'permission denied' otherwise -- and the `authenticated` role cannot
 -- be assumed to hold TEMP privilege on the database.
 -- ============================================================================
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+insert into auth.users (id) values ('00000000-0000-0000-0000-000000000501');
+update users set is_super_admin = true where id = '00000000-0000-0000-0000-000000000501';
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
@@ -49,7 +53,6 @@ insert into gyms (id, name, tier_id, status, capacity) values
   ('00000000-0000-0000-0000-000000000401', 'Lifecycle Gym A', '00000000-0000-0000-0000-000000000301', 'active', 30);
 
 insert into auth.users (id) values
-  ('00000000-0000-0000-0000-000000000501'), -- super_admin caller
   ('00000000-0000-0000-0000-000000000502'); -- owner of Gym A
 
 insert into members (id, gym_id, user_id, role, name) values

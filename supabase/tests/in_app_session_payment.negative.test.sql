@@ -149,7 +149,7 @@ select throws_like($$ select initiate_session_payment() $$, 'session_payment_alr
 
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000033627","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000033611","app_role":"member"}', true);
-select throws_like($$ select initiate_session_payment() $$, 'member_deactivated:%', 'a deactivated member is refused');
+select throws_like($$ select initiate_session_payment() $$, 'permission denied%', 'a deactivated member is refused');
 
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000033628","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000033611","app_role":"member"}', true);

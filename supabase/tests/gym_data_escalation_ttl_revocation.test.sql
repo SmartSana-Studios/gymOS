@@ -114,6 +114,9 @@ insert into gym_data_escalations (id, gym_id, actor_id, reason, granted_at, expi
 -- X1 -- an unexpired, unrevoked grant still grants (AC #2: this story does
 -- not change the granted state itself, only its lifetime).
 -- ============================================================================
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000085021', '00000000-0000-0000-0000-000000085022', '00000000-0000-0000-0000-000000085023', '00000000-0000-0000-0000-000000085024', '00000000-0000-0000-0000-000000085025', '00000000-0000-0000-0000-000000085026', '00000000-0000-0000-0000-000000085061', '00000000-0000-0000-0000-000000085062');
+
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000085021","role":"authenticated","app_role":"super_admin"}', true);

@@ -24,6 +24,9 @@ insert into members (id, gym_id, user_id, role, name) values
 -- session gets 0 rows, not an exception (RLS SELECT semantics -- matches
 -- super_admin_read_payment_providers precedent).
 -- ============================================================================
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000000801');
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
