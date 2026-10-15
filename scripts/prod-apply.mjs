@@ -10,9 +10,11 @@
 //   2    0111, 0112, 0113, 0114, 0116   head must be 0110
 //   3    0115 ALONE                     head must be 0116 (0116 shipped with stage 2; 0115 is the default flip)
 //   4    0117-0120 loyalty              head must be 0116
-//   5    0121 early renewal carry       head must be 0120 (Story 20.7)
 //   4    0117, 0118, 0119, 0120         head must be 0116 (Epic 20 loyalty; every gym stays loyalty-off, the
 //                                       hooks fire only when a gym enables it. Ship BEFORE the dashboard)
+//   5    0121 early renewal carry       head must be 0120 (Story 20.7)
+//   6    0122 loyalty hook repair job   head must be 0121 (Story 20.8)
+//   7    0123 gym category              head must be 0122 (Story 21.1)
 //
 //   node scripts/prod-apply.mjs 1a --dry-run                      # ONE transaction, ROLLED BACK at the end
 //   node scripts/prod-apply.mjs 1a --apply --backup-confirmed     # one transaction per migration
@@ -45,8 +47,8 @@ const { Client } = loadPg();
 const [stage, ...flags] = process.argv.slice(2);
 const dry = flags.includes("--dry-run");
 const apply = flags.includes("--apply");
-if (!["1a", "1b", "2", "3", "4", "5", "6"].includes(stage) || dry === apply) {
-  console.error("usage: prod-apply.mjs <1a|1b|2|3|4|5|6> (--dry-run | --apply --backup-confirmed)");
+if (!["1a", "1b", "2", "3", "4", "5", "6", "7"].includes(stage) || dry === apply) {
+  console.error("usage: prod-apply.mjs <1a|1b|2|3|4|5|6|7> (--dry-run | --apply --backup-confirmed)");
   process.exit(2);
 }
 if (apply && !flags.includes("--backup-confirmed")) {
@@ -70,6 +72,8 @@ const PLAN = {
   // the commit, for the same reason as stage 4 (job-runs-alert flags a job that never ran).
   "6": { head: "0121", files: ["0122_loyalty_hook_reconciliation"],
     firstRuns: [{ job: "loyalty_hook_repair", fn: "run_loyalty_hook_repair_job" }] },
+  // Story 21.1: gyms.category (NOT NULL DEFAULT 'gym'), set_gym_category(), its pin trigger. Additive; no cron job.
+  "7": { head: "0122", files: ["0123_gym_category"] },
 }[stage];
 
 const password = readFileSync(process.env.PROD_PASSWORD_FILE ?? join(homedir(), ".supabase-db-password"), "utf8").trim();
@@ -129,6 +133,15 @@ const VERIFY = [
       and position('award_renewal_stamp' in pg_get_functiondef('public.complete_verified_payment(uuid, integer)'::regprocedure)) > 0) as hook_kept,
      (select count(*) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname in ('confirm_renewal','complete_verified_payment') and has_function_privilege('anon', p.oid, 'EXECUTE')) as anon_exec_count,
      has_function_privilege('authenticated', 'public.complete_verified_payment(uuid, integer)', 'EXECUTE') as authenticated_cvp`],
+  ["stage 7: gym category (immediately after apply: column_present 1, not_gym 0 -- rises once an admin changes a category; setter 1, pin_trigger 1, anon_exec false, authenticated_exec true, pin_fn_client_callable false)", `select
+     (select count(*) from information_schema.columns where table_schema='public' and table_name='gyms' and column_name='category') as column_present,
+     (select count(*) from gyms where to_jsonb(gyms) ? 'category' and to_jsonb(gyms)->>'category' <> 'gym') as not_gym,
+     (select count(*) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname='set_gym_category') as setter,
+     (select count(*) from pg_trigger where tgname='pin_gym_category' and not tgisinternal) as pin_trigger,
+     has_function_privilege('anon', 'public.set_gym_category(uuid, text)', 'EXECUTE') as anon_exec,
+     has_function_privilege('authenticated', 'public.set_gym_category(uuid, text)', 'EXECUTE') as authenticated_exec,
+     (has_function_privilege('anon', 'private.pin_gym_category()', 'EXECUTE')
+      or has_function_privilege('authenticated', 'private.pin_gym_category()', 'EXECUTE')) as pin_fn_client_callable`],
   ["stage 6: reconciliation objects (expect clocked_impl 1, repair_fn 1, cron_job 1, client_callable false)", `select
      (select count(*) from pg_proc p where p.pronamespace='private'::regnamespace and p.proname='award_renewal_stamp_impl' and p.pronargs=2) as clocked_impl,
      (select count(*) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname='run_loyalty_hook_repair_job') as repair_fn,

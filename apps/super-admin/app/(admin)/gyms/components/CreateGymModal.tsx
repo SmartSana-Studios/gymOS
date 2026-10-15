@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { createGymSchema } from "@gymos/types";
+import {
+  DEFAULT_GYM_CATEGORY,
+  GYM_CATEGORIES,
+  createGymSchema,
+  gymCategoryLabel,
+} from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +25,7 @@ interface FieldErrors {
   ownerEmail?: string;
   tierId?: string;
   country?: string;
+  category?: string;
 }
 
 const initialForm = {
@@ -29,6 +35,7 @@ const initialForm = {
   ownerEmail: "",
   tierId: "",
   country: DEFAULT_GYM_COUNTRY,
+  category: DEFAULT_GYM_CATEGORY as string,
   status: "active" as const,
 };
 
@@ -260,6 +267,25 @@ export function CreateGymModal({
           <p className="text-xs text-muted-foreground">{t("gyms.create.countryHint")}</p>
           {fieldErrors.country && (
             <p className="text-sm text-red-600">{fieldErrors.country}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="category">{t("gyms.create.category")}</Label>
+          <select
+            id="category"
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            {GYM_CATEGORIES.map((code) => (
+              <option key={code} value={code}>
+                {gymCategoryLabel(code, i18n.language)}
+              </option>
+            ))}
+          </select>
+          {fieldErrors.category && (
+            <p className="text-sm text-red-600">{fieldErrors.category}</p>
           )}
         </div>
 

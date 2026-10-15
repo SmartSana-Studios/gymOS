@@ -97,6 +97,9 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   // guest_session_id | payment_id, as_of }. The normal event and audit rows are written too.
   loyalty_hook_repaired: "audit.actionTypes.loyaltyHookRepaired",
   guest_charging_changed: "audit.actionTypes.guestChargingChanged",
+  // Story 21.1. Written by set_gym_category() (0123), gym-scoped, target = the gym,
+  // metadata { old_category, new_category } (stable codes). Actor may be a Super Admin.
+  gym_category_changed: "audit.actionTypes.gymCategoryChanged",
   plan_type_changed: "audit.actionTypes.planTypeChanged",
   plan_price_changed: "audit.actionTypes.planPriceChanged",
   platform_session_config_updated: "audit.actionTypes.platformSessionConfigUpdated",

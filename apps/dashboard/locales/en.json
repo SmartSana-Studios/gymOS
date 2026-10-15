@@ -1293,6 +1293,7 @@
       "registrationFeeVoided": "Registration fee voided",
       "memberPlanAssigned": "First plan assigned",
       "guestChargingChanged": "Guest session charging changed",
+      "gymCategoryChanged": "Gym category changed",
       "loyaltyProgramChanged": "Loyalty program changed",
       "loyaltyStampEarned": "Loyalty stamp earned",
       "loyaltyRewardGranted": "Free session granted",

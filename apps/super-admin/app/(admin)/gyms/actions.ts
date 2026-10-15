@@ -8,6 +8,7 @@ import {
   gymStatusChangeSchema,
   overrideGymCapSchema,
   revokeGymAccessSchema,
+  setGymCategorySchema,
   type AppError,
 } from "@gymos/types";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -25,6 +26,7 @@ import {
   logGymLifecycleEvent,
   mapAndLog,
   revokeGymDataAccess,
+  setGymCategory,
   updateGymCapOverride,
   updateGymStatus,
   updateGymTier,
@@ -332,6 +334,7 @@ export async function createGym(
       tierId: gym.tierId,
       status: gym.status,
       country: gym.country,
+      category: gym.category,
     });
     gymRow = res.data;
     gymError = res.error;
@@ -488,6 +491,7 @@ export async function createGym(
     owner_phone: gym.ownerPhone,
     tier_id: gym.tierId,
     country: gym.country,
+    category: gym.category,
     // null, not false, on the linked path: no send was attempted, and `false`
     // is indistinguishable from a real WhatsApp failure in any aggregate over
     // the audit trail.
@@ -791,4 +795,28 @@ export async function revokeGymAccess(
   }
 
   return revokeGymDataAccess(gymId, actorId, parsed.data.reason);
+}
+
+/** SA-03 "Change" category (Story 21.1, FR-171). Descriptive and audited by
+ * set_gym_category() itself, so there is no confirmation and no second audit
+ * write here. */
+export async function changeGymCategory(
+  gymId: string,
+  input: unknown,
+): Promise<{ error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
+  }
+
+  const parsed = setGymCategorySchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: { code: "validation_error", message: t("gyms.create.categoryInvalid") } };
+  }
+
+  const { error } = await setGymCategory(gymId, parsed.data.category);
+  if (error) {
+    return { error };
+  }
+  return { error: null };
 }

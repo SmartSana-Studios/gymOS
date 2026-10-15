@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { gymCategoryLabel } from "@gymos/types";
 import { PauseCircle, Ban, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,7 @@ export function GymsPageClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   useEffect(() => {
     return () => {
@@ -229,6 +230,7 @@ export function GymsPageClient({
             <thead className="border-b bg-muted/50 text-left">
               <tr>
                 <th className="p-3 font-medium">{t("gyms.table.gymName")}</th>
+                <th className="p-3 font-medium">{t("gyms.table.category")}</th>
                 <th className="p-3 font-medium">{t("gyms.table.owner")}</th>
                 <th className="p-3 font-medium">{t("gyms.table.created")}</th>
                 <th className="p-3 font-medium">{t("gyms.table.tier")}</th>
@@ -244,6 +246,7 @@ export function GymsPageClient({
                   onClick={() => router.push(`/gyms/${gym.id}`)}
                 >
                   <td className="p-3">{gym.name}</td>
+                  <td className="p-3">{gymCategoryLabel(gym.category, i18n.language)}</td>
                   <td className="p-3">
                     {gym.ownerName ?? "—"}
                     {gym.ownerPhone ? ` (${gym.ownerPhone})` : ""}

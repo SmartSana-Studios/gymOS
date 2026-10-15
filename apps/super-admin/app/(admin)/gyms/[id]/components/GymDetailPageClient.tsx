@@ -18,6 +18,7 @@ import { GymLifecycleDialog } from "../../components/GymLifecycleDialog";
 import { deactivateGym, reinstateGym, suspendGym } from "../../actions";
 import { ChangeTierDialog } from "./ChangeTierDialog";
 import { CapOverrideEditor } from "./CapOverrideEditor";
+import { GymCategoryEditor } from "./GymCategoryEditor";
 import { EscalateAccessDialog } from "./EscalateAccessDialog";
 import { ActiveAccessList } from "./ActiveAccessList";
 import { AuditTrailTab } from "./AuditTrailTab";
@@ -101,6 +102,9 @@ export function GymDetailPageClient({
             {gym.ownerName ?? "—"}
             {gym.ownerPhone ? ` (${gym.ownerPhone})` : ""}
           </span>
+
+          <span className="text-muted-foreground">{t("gyms.detail.category")}</span>
+          <GymCategoryEditor gym={gym} onSaved={() => router.refresh()} />
 
           <span className="text-muted-foreground">{t("gyms.detail.created")}</span>
           <span>{new Date(gym.createdAt).toLocaleDateString()}</span>
