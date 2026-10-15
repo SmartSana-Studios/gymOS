@@ -1,6 +1,6 @@
 ---
 stepsCompleted: [1, 2, 3, 4]
-status: draft  # V1.7: Epics 22-24 complete (31 stories); Epic 25 directory outline-only, 1 check open (FR-209-FR-214 have no stories; Step 3 architecture pass pending)
+status: final  # V1.7 update complete: Epics 22-25 (37 stories); Epics 1-21 unchanged
 v17UpdateStepsCompleted: [1, 2, 3, 4]
 inputDocuments:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
@@ -1602,10 +1602,11 @@ A gym publishes an optional public page at `{name}.gymosapps.com` from content i
 **NFRs honored:** NFR-024, NFR-025, NFR-026
 **Architecture:** AD-42–AD-48 (spine pass 2026-10-15). **Depends on:** Epic 23 done (PRD §10.2); a `bmad-ux` pass is expected before 24.9 and the template visuals.
 
-### Epic 25: Directory & Discovery (OUTLINE — blocked on Epic 24)
+### Epic 25: Directory & Discovery
 Published gyms appear in country and city listings with validating structured data and sitemap, filterable by category.
 **FRs covered:** FR-209, FR-210, FR-211, FR-212, FR-213, FR-214
 **NFRs honored:** NFR-024, NFR-025
+**Architecture:** AD-49–AD-52 (spine pass 2026-10-15). **Depends on:** Epic 24 gate passed (PRD §10.2); a `bmad-ux` pass is expected before 25.3.
 
 ---
 
@@ -3674,7 +3675,7 @@ So that I can decide to visit without an account.
 
 **Given** a published page
 **When** the route renders
-**Then** it reads one row from `public_site` as `public_site_reader`, parses it with the `.strict()` `PageContentV1` and fails closed to not-found on a mismatch, renders the launch template with `renderToStaticMarkup` (no script, no hydration payload), and responds with `Cache-Control: public, s-maxage=60`
+**Then** it reads one row from `public_site` as `public_site_reader`, parses it with the `.strict()` `PageContentV1` and fails closed to not-found on a mismatch, renders the launch template with `renderToStaticMarkup` (no executable script element, no hydration payload; a JSON-LD data block is allowed), and responds with `Cache-Control: public, s-maxage=60`
 
 **Given** the response headers
 **When** the header test runs
@@ -3720,9 +3721,9 @@ So that a bad page stops being served and its images and address do not linger.
 **When** the Owner disagrees
 **Then** an appeal request reaches Super Admin with a recorded decision, and no page is moderated before publishing
 
-**Given** `public_sitemap_refresh` (its own cron writing `job_runs`, AD-19)
-**When** it runs
-**Then** the sitemap lists exactly the published, indexable pages and is regenerated within 15 minutes of an unpublish, takedown or suspension `[ASSUMPTION]`
+**Given** a gym host's `/sitemap.xml` (a dynamic route with `s-maxage` ≤ 300, AD-52)
+**When** it is requested
+**Then** it lists only that gym's own canonical URL while the page is visible, returns the uniform not-found once it is unpublished, taken down or suspended, and no refresh job exists
 
 **Given** `page_media_purge` (its own cron writing `job_runs`)
 **When** a page is unpublished or an image is deleted
@@ -3768,6 +3769,219 @@ So that launching public pages cannot expose tenant data or slow the core produc
 **When** it is signed
 **Then** `sprint-status.yaml` and the Epic 24 retrospective prerequisites record the gate result
 
+
+### Epic 25 — Stories
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 25.1 | Country & City Controlled Lists, Gym City Selection | next free at merge time | Epic 24 (24.5) |
+| 25.2 | Directory Views & Listing Correctness | next free at merge time | 25.1, 24.8 |
+| 25.3 | Directory Pages — Country, City, Category Filter | none | 25.2, 24.10 |
+| 25.4 | Structured Data Serializer & Validation | none | 25.3 |
+| 25.5 | Sitemap Index, Robots & Plain-Text Summary | none | 25.3 |
+| 25.6 | Directory Gate — SEO Verification & Removal Timing | none | 25.4, 25.5 |
+
+*Step 3 starts only after Step 2's gate (24.12) is passed (PRD §10.2). The directory has no tables of its own: every listing is a view over the Epic 24 snapshot (AD-49), so unpublishing, takedown and suspension leave it without extra code. At launch, with few gyms, only individual pages are expected to be indexed (FR-212). No V1.7 UX exists; a `bmad-ux` pass is expected before 25.3.*
+
+---
+
+### Story 25.1: Country & City Controlled Lists, Gym City Selection
+
+As a gym Owner,
+I want to pick my city from a list instead of typing it,
+So that my gym appears in the right place in the directory however I spell it.
+
+*Delivers FR-209. AD-49. Migration at merge time. Super Admin adds cities; existing free-text values are mapped, not discarded.*
+
+**Acceptance Criteria:**
+
+**Given** the migration
+**When** it runs
+**Then** `countries(code, name_en, name_fr)` is seeded from ISO 3166 and `cities(id, country_code, slug, name, aliases text[])` exists with a unique `(country_code, slug)`, slugs ASCII-folded, and `gyms.city_id` is added nullable
+
+**Given** gyms that already have a city or country stored as text
+**When** the backfill runs
+**Then** each is mapped to a city by alias normalization (accents, spelling, case); unmapped gyms keep `city_id` null, are listed for Super Admin, and are never published to the directory until mapped (the 24.8 gate requires a city)
+
+**Given** the Owner or Supervisor's gym profile address
+**When** they choose a country and city
+**Then** the city control offers only the controlled list for that country, a typed alias resolves to its city, and an unknown city shows "ask GymOS to add it" without free-text entry
+
+**Given** a Super Admin
+**When** they add or edit a city with aliases
+**Then** the change is audited, slug collisions are refused with a typed error, and renaming a city never changes the stored `city_id` of any gym
+
+**Given** a city is renamed or its slug changes
+**When** the change is saved
+**Then** a trigger re-snapshots every dependent gym page (AD-49), the old slug is kept in `city_slug_history` and 301-redirects for 12 months, and an alias already resolving to another city in that country is refused (unique `(country_code, alias_norm)`)
+
+**Given** a gym's country or city is changed after publishing
+**When** the 24.8 trigger runs
+**Then** the page is re-snapshotted if the gate still holds and the old listing stops including the gym within the AD-46 freshness bound
+
+---
+
+### Story 25.2: Directory Views & Listing Correctness
+
+As a visitor,
+I want listings that only show gyms that are actually live,
+So that every gym I find can be opened and contacted.
+
+*Delivers FR-210 (data), FR-212, FR-213 (filter), FR-214. AD-49. Migration at merge time (views and grants only).*
+
+**Acceptance Criteria:**
+
+**Given** `public_site.directory_country`, `directory_city` and `directory_gym`
+**When** they are queried as `public_site_reader`
+**Then** they are built only from the AD-46 visibility predicate joined to `cities`, expose no internal identifier, and add no new privilege beyond the view list (the 24.4 grant test still passes and its snapshot is updated deliberately)
+
+**Given** a listing with fewer than 3 published gyms `[ASSUMPTION — OQ-29]`
+**When** `indexable` is read
+**Then** it is false, computed in the view from one constant in one place, and no counter column exists
+
+**Given** a gym that unpublishes, is taken down or is suspended
+**When** any listing view is read
+**Then** the gym is absent and `published_count` reflects it immediately (FR-214), tested for each of the three cases
+
+**Given** a category filter
+**When** the view is queried with a category code
+**Then** it returns only gyms of that category, and a category change by Owner, Supervisor, Manager or support (audited since 21.1) re-snapshots the page and moves it between filtered results within the freshness bound
+
+**Given** a country with one published gym and no city with a gym
+**When** the views are read
+**Then** the country is listed (FR-210: any published gym regardless of country) and nothing assumes Cameroon
+
+---
+
+### Story 25.3: Directory Pages — Country, City, Category Filter
+
+As a visitor,
+I want to browse gyms by country and city and filter by type,
+So that I can find a place to train near me.
+
+*Delivers FR-210, FR-213. AD-50. Runs on `www.` in `apps/landing`; reads only the 25.2 views.*
+
+**Acceptance Criteria:**
+
+**Given** `/{locale}/gyms/`
+**When** it renders
+**Then** it lists each country with at least one published gym, with Cameroon as the only prominent entry point at launch and no Cameroon-only wording, address format or structured data
+
+**Given** `/{locale}/gyms/{country}/` and `/{locale}/gyms/{country}/{city}/` where `{country}` is the lowercase ISO alpha-2 code and `{city}` the city slug, the same in both locales
+**When** they render
+**Then** they list the gyms (name, category label, city, link to the gym's canonical subdomain page), carry `hreflang` alternates for `en` and `fr` plus `x-default`, and a self-referencing canonical
+
+**Given** `?category=<code>`
+**When** a filtered view renders
+**Then** it shows only that category, its canonical points to the unfiltered listing, it carries no `noindex` (a canonical is the single signal), and it is excluded from the sitemap
+
+**Given** a listing whose single `indexable` flag is false
+**When** it renders
+**Then** it still serves with `noindex` in both the meta tag and the `X-Robots-Tag` header and is excluded from the sitemap (25.5); the same boolean drives both, tested together
+
+**Given** the page chrome
+**When** it renders in `en` or `fr`
+**Then** labels come from the dictionary, city and gym names are shown as entered, and responses carry `s-maxage` no greater than 300
+
+**Given** the response headers
+**When** the Epic 24 header test runs against these routes
+**Then** the same script-free policy of AD-44 applies and no cookie is set
+
+---
+
+### Story 25.4: Structured Data Serializer & Validation
+
+As a gym Owner,
+I want search engines to understand my page and listing,
+So that my gym shows up with the right name, place and hours.
+
+*Delivers FR-211 (structured data). AD-51, AD-48. No migration.*
+
+**Acceptance Criteria:**
+
+**Given** the serializer in `packages/page-templates`
+**When** a gym page renders
+**Then** it emits one `HealthClub` JSON-LD object with `name`, `url`, `image`, `telephone`, `address` (`PostalAddress`), `geo` only when a map position exists, and `openingHoursSpecification` from the stored hours, via `JSON.stringify` with `<`, `>` and `&` escaped
+
+**Given** a directory listing
+**When** it renders
+**Then** it emits an `ItemList` of `ListItem` entries pointing at the gyms' canonical URLs
+
+**Given** fixtures covering a full gym, a gym with no map position, a gym with no hours, and gym text containing `</script>` and HTML
+**When** CI validates them against the schema.org definitions and the required-property tests
+**Then** all pass with zero errors and the hostile text appears only as escaped data
+
+**Given** the AD-44 policy `script-src 'none'`
+**When** a page with JSON-LD is rendered
+**Then** the data block is present and no script executes (verified in the header test)
+
+**Given** social-sharing metadata
+**When** a page renders
+**Then** `og:title`, `og:description`, `og:image` (the opaque derivative key) and `og:url` are present and use only published fields
+
+---
+
+### Story 25.5: Sitemaps, Robots & Plain-Text Summary
+
+As a search engine or AI crawler,
+I want an accurate list of what to index and a plain-text summary,
+So that I find every live gym and never a removed one.
+
+*Delivers FR-211 (sitemap, summary), FR-212, FR-214. AD-52, AD-50, AD-46. No migration. Replaces the earlier "combined index" design after the Step 3 review.*
+
+**Acceptance Criteria:**
+
+**Given** the per-gym `/sitemap.xml` and `/robots.txt` delivered in 24.11
+**When** this story ships
+**Then** they are unchanged and still pass the 24.11 tests, and the `www.` sitemap index below does not list any gym page
+
+**Given** `www.`'s `/sitemap-index.xml` (an explicit route)
+**When** it is requested
+**Then** it lists chunk URLs `/sitemaps/{n}.xml` of at most 50,000 URLs each containing only `indexable` listings and marketing pages and no gym page and no filtered view, and a test requests the index and every `<loc>` and asserts each returns 200
+
+**Given** the proxy path allowlist (AD-50)
+**When** a gym host is asked for `/llms.txt`, `/sitemap-index.xml`, `/{locale}/gyms/…` or any other path
+**Then** it returns the uniform not-found, and every canonical and `og:url` is built from the constant origin, never the request `Host`
+
+**Given** `GET /llms.txt` on `www.`
+**When** it is requested
+**Then** it returns plain text listing each published gym's name, category, city, hours and public plans from the same views, contains no field outside the AD-46 projection, and is documented as a voluntary hint and not an access control
+
+**Given** an unpublish, takedown or suspension
+**When** the next request after the `s-maxage` window arrives
+**Then** the gym's sitemap, the listing and the plain-text summary no longer include it (within the FR-207 15-minute bound `[ASSUMPTION]`), and a thin listing never appears in the index
+
+---
+
+### Story 25.6: Directory Gate — SEO Verification & Removal Timing
+
+As the product owner,
+I want evidence that the directory is correct, indexable where it should be and clean when gyms leave,
+So that launching discovery cannot publish a removed gym or misleading markup.
+
+*Delivers the Step 3 release gate (PRD §10.2) for FR-211–FR-214 and NFR-025. Product-owner run; mostly checks and a checklist.*
+
+**Acceptance Criteria:**
+
+**Given** one staging gym page and one listing
+**When** the Rich Results Test and the schema.org validator run on their public URLs
+**Then** both report zero errors, and the results are recorded in `docs/decisions.md`
+
+**Given** Google Search Console for `www.` and one gym subdomain
+**When** each host's own sitemap is submitted
+**Then** the entry records that both are accepted and which gym page and listing URLs are discovered, resolving the AD-52 `[ASSUMPTION]`
+
+**Given** a staging gym that unpublishes, is taken down, and is suspended in turn
+**When** timings are measured
+**Then** the page, the listing, the sitemap and the plain-text summary each drop it within the FR-207 bounds (origin ≤ 60 s, CDN ≤ 5 min, sitemap ≤ 15 min), recorded per case
+
+**Given** the directory and listings with a realistic seed
+**When** a field-style measurement runs on a mid-range Android profile over 4G
+**Then** p75 LCP is recorded against the 3 s target (NFR-025 `[ASSUMPTION]`)
+
+**Given** the E2E baseline (NFR-015)
+**When** the suite runs
+**Then** it covers browse by country and city, category filter, thin-listing `noindex`, and removal on unpublish, in English and French
 
 ## Epic 1: Platform Foundation & Gym Onboarding
 
