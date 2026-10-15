@@ -7,7 +7,8 @@
     "save": "Save",
     "tryAgain": "Try again",
     "ok": "OK",
-    "gymSuspended": "GymOS is temporarily unavailable for this gym. Please check back later."
+    "gymSuspended": "GymOS is temporarily unavailable for this gym. Please check back later.",
+    "permissionDenied": "You don't have permission to do this."
   },
   "phoneInput": {
     "selectCountry": "Select country",

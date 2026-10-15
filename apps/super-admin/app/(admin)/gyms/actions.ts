@@ -11,6 +11,7 @@ import {
   setGymCategorySchema,
   type AppError,
 } from "@gymos/types";
+import { authorizePlatformAction } from "@/lib/authz";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   sendTempPasswordMessage,
@@ -288,6 +289,13 @@ export async function createGym(
   input: unknown,
 ): Promise<{ data: CreateGymResult | null; error: AppError | null }> {
   const { t } = await getServerTranslation(await getRequestLocale());
+
+  // Story 22.4: live Super Admin check before anything reads or writes with the service role.
+  const authz = await authorizePlatformAction("platform.gym_create");
+  if (!authz.ok) {
+    return { data: null, error: authz.error };
+  }
+
   const parsed = createGymSchema.safeParse(input);
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];

@@ -43,6 +43,7 @@ const SESSION_ERROR_KEY: Record<string, string> = {
   no_active_provider: 'paySession.errors.noProvider',
   gym_credentials_unavailable: 'paySession.errors.noProvider',
   mobile_money_disabled: 'paySession.errors.mobileMoneyDisabled',
+  permission_denied: 'common.permissionDenied',
 };
 
 type SessionPhase = 'idle' | 'sending' | 'pending' | 'stillWaiting' | 'verified' | 'flagged';
