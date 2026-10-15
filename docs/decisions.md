@@ -4,6 +4,16 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — Remaining owner gates: two deferred, one kept
+
+The owner asked to defer whatever is neither blocking nor a security issue. Triage of the three that were left:
+
+- **Deferred: remove the `PAYMENT_WEBHOOK_PUBLIC_BASE_URL` secret.** It is a pinned URL, not a credential, and the pinned value is correct for the one production project. Its only cost is that production never exercises the hardened callback-URL code. Do it with one live Tara session payment, at the owner's convenience. Not blocking, no security impact.
+- **Deferred (risk accepted, already deferred 2026-10-12): remove and revoke the devcontainer credentials** (`~/.supabase/access-token`, `~/.supabase-db-password`, `~/.expo-token`, the Play service-account JSON). They are standing credentials with production reach, but they sit in the owner's own development container, are needed for every deploy session, and nothing has exposed them. Rotate on the schedule in `docs/runbooks/secret-rotation.md` section 5 (first review 2026-11-30), and immediately if the container is shared, rebuilt from an image, or backed up off-machine.
+- **Kept, not deferred: rotate the SmartSana Tara key** (`docs/runbooks/secret-rotation.md` 3.1). The key was pasted in chat on 2026-10-08; by the project's own rule (rotate immediately on any exposure) this is a security item, not a convenience. It also touches a live payment gateway for a real gym.
+
+---
+
 ## 2026-10-15 — Tested restore deferred by the owner
 
 The owner chose to skip the restore test for now (`scripts/restore-test.sh` is ready; the run needs the age private key and R2 read access, which only the owner holds).
