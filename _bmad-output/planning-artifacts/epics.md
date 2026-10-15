@@ -3425,6 +3425,10 @@ So that `{name}.gymosapps.com` works while `owner.`, `portal.`, `www.` and mail 
 **When** the story closes
 **Then** the record changes needed to remove the wildcard are written down and tested on a throwaway label
 
+**Given** the three apps read `VERCEL_ENV` and `VERCEL_GIT_COMMIT_SHA` in several places (analytics environment, build id, `apps/dashboard/vercel.json`, `turbo.json`)
+**When** this story closes
+**Then** those reads go through one small host-neutral module per app (`appEnvironment()` and `buildId()` with `APP_ENV` and `GIT_SHA` as the primary variables and the Vercel ones only as fallback), existing behavior and tests are unchanged, and a grep finds no other `VERCEL_ENV` or `VERCEL_GIT_COMMIT_SHA` read outside that module
+
 ---
 
 ### Story 24.3: Staff Session Cookies — `__Host-` Prefix, Host-Only
