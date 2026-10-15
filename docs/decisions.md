@@ -5,6 +5,17 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — PRD v1.7: V1.7 requirements written, support staff first
+
+PRD updated v1.6 -> v1.7 (FR-175–FR-203, NFR-023–NFR-025, G-16–G-18, UJ-12, stepped release gate 10.2). Decisions folded in on top of the entry below:
+
+- **Support is many-to-many and collapsed for the Owner:** a support person works in 0..N gyms, a gym has 0..N support people; the Owner sees one "GymOS Support" row and one "Allow GymOS Support" control, never individuals. Removing an individual is Super Admin only; the individual's name is visible to Super Admin only, including in audit.
+- **One flag does the exclusion:** support memberships are excluded from staff counts, role limits, notifications and metrics through a single flag on the membership.
+- **Live authorization completes FR-090:** about 30 policies and RPCs still read the `app_role` claim; the retrofit is the first support story, not a separate cleanup.
+- **Assumptions awaiting the owner:** opt-out suspends rather than deletes assignments (OQ-30), page content language (OQ-28), thin-page threshold (OQ-29), TOTP enabled on the production plan (OQ-27).
+
+---
+
 ## 2026-10-15 — V1.7 OQ-24 resolved: public landing pages and directory
 
 Decided by the product owner at V1.7 planning (all PM recommendations accepted; plans are opt-in per plan). Full text in PRD Section 12 F.
