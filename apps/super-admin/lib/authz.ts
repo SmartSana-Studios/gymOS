@@ -56,8 +56,38 @@ export async function authorizePlatformAction(capability: PlatformCapability): P
     if (row.allowed !== true) {
       return denied(capability, actorId, String(row.reason ?? "denied"));
     }
+    // Story 22.5: while the aal2 flag is on, every platform capability also needs an aal2 session.
+    const aal = await requireSuperAdminAal2();
+    if (!aal.ok) return aal;
     return { ok: true, actorId };
   } catch {
     return denied(capability, actorId, "authorization_unavailable");
+  }
+}
+
+/**
+ * Story 22.5: second-factor level gate for Super Admin Server Actions. `ok` when the platform flag
+ * `super_admin_aal2` is off; while it is on the session must be aal2. Fails closed (denied) when
+ * the flag or the session level cannot be read.
+ */
+export async function requireSuperAdminAal2(): Promise<AuthorizeResult> {
+  let actorId: string | null = null;
+  try {
+    const supabase = await createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    actorId = userData?.user?.id ?? null;
+    if (!actorId) return denied("platform.aal2", null, "no_session");
+    const { data: required, error } = await createAdminClient().rpc("super_admin_aal2_required");
+    if (error || typeof required !== "boolean") {
+      return denied("platform.aal2", actorId, "flag_unavailable");
+    }
+    if (!required) return { ok: true, actorId };
+    const { data: aal, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aalError || aal?.currentLevel !== "aal2") {
+      return denied("platform.aal2", actorId, "aal2_required");
+    }
+    return { ok: true, actorId };
+  } catch {
+    return denied("platform.aal2", actorId, "authorization_unavailable");
   }
 }

@@ -43,3 +43,12 @@ Make deactivation, removal, lock or unassignment take effect on an account's nex
 - 22.1's findings may change later stories (claims hook aal, enrollment guard, session deletion, cookies).
 - 22.3, 22.4 and 22.7 add migrations numbered at merge time; 22.6 is run by the product owner, not CI, because it can lock out the sole Super Admin.
 - Epic 23 (support) depends on this epic; 22.7's limits and step-up serve its money-moving actions.
+
+## Spike Results (22.1, resolved 2026-10-15; local stack only)
+
+- The claims hook receives `aal` at `event.claims.aal` on every mint including refresh; read it fail-closed (`coalesce(..., 'aal1')`) and emit `super_admin`/`support` only at `aal2`.
+- Provider already refuses adding or removing a factor from AAL1 once one verified factor exists; the gap is the first-factor window (a password holder with no factor can enroll and verify at AAL1). No trigger on `auth.mfa_factors` (owned by `supabase_auth_admin`); the guard is the server-function path plus a test recording this.
+- Deleting `auth.sessions` rows stops refresh and `/auth/v1/user` but PostgREST accepts the old access token until expiry (≤1 h), so live helpers must check `session_id` exists in `auth.sessions` via a SECURITY DEFINER helper.
+- Service role can remove a factor via the admin API; a reset reopens the first-factor window, so keep the account locked until the new factor verifies.
+- `__Host-` cookies hold only with `secure: true` set explicitly; changing cookie names signs everyone out once and isolates hosts.
+- Local `config.toml` needs `[auth.mfa.totp] enroll_enabled/verify_enabled = true` for 22.5 tests. Hosted factor cap (10) and TOTP setting are not independently verified.

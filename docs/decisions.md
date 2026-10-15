@@ -5,6 +5,14 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — Story 22.5: Super Admin second-factor enrollment, flag off (migration 0126)
+
+- **Flag.** `private.platform_flags(flag, enabled)` seeded `super_admin_aal2 = false`, RLS on, no client grants. `private.super_admin_aal2_required()` (definer) is the single reader; NULL or missing row = off. `public.super_admin_aal2_required()` is a service_role-only wrapper for the Next server. Rollback: `scripts/rollback-0126-super-admin-aal2-flag.sql`.
+- **Enforcement.** `private.is_super_admin()` and `private.is_super_admin_live()` additionally require `coalesce(auth.jwt()->>'aal','aal1') = 'aal2'` while the flag is on. The claims hook reads `coalesce(event->'claims'->>'aal','aal1')` and emits `super_admin` only when the flag is off or aal2; a Super Admin below aal2 gets no claims (no fall-through to a membership). Flag off: identical to before.
+- **Enrollment path.** `apps/super-admin/app/(admin)/security` Server Actions only (enroll, verify, remove, list), each after `authorizePlatformAction` and `requireSuperAdminAal2()`. A second factor and any removal need aal2; the first factor is allowed at aal1 (the recorded first-factor window; no trigger on `auth.mfa_factors`). One `log_audit_event` row per enroll, verify, remove, carrying only the factor id. The last-factor guard (flag on) is application-level; 22.6's script must re-check two verified factors before enabling.
+- **Local config.** `[auth.mfa.totp] enroll_enabled/verify_enabled = true`; the running auth container must be restarted to pick it up. Hosted TOTP setting is OQ-27.
+- **Not done (22.6/22.7).** Flag is not flipped, no bootstrap, recovery, session limits or step-up.
+
 ## 2026-10-15 — Story 22.4: live authorization in edge functions and service paths (migration 0125)
 
 Server code that holds the service-role key no longer authorizes its caller from a token claim, the request body, or not at all. One shared decision, `authorize_action(actor, gym_id, capability)`, loads membership, role, deactivation and gym state from the database and returns allow or a typed deny.

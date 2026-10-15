@@ -22,6 +22,7 @@ const NAV_LINKS = [
   { href: "/messaging", labelKey: "nav.messaging" },
   { href: "/billing", labelKey: "nav.billing" },
   { href: "/admins", labelKey: "nav.admins" },
+  { href: "/security", labelKey: "nav.security" },
 ] as const;
 
 export default function AdminLayout({

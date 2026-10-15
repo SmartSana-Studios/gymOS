@@ -14,6 +14,7 @@
     "messaging": "Messaging",
     "billing": "Billing",
     "admins": "Admins",
+    "security": "Security",
     "switchToLightTheme": "Switch to light theme",
     "switchToDarkTheme": "Switch to dark theme",
     "openMenu": "Open navigation menu",
@@ -373,6 +374,27 @@
     "jobFailuresStartedAt": "Started",
     "jobFailuresFinishedAt": "Finished",
     "jobFailuresError": "Error"
+  },
+  "security": {
+    "title": "Security",
+    "description": "Protect this account with an authenticator app (TOTP).",
+    "noFactors": "No authenticator is set up.",
+    "unnamedFactor": "Authenticator",
+    "verified": "Verified",
+    "unverified": "Not verified",
+    "remove": "Remove",
+    "addFactor": "Add authenticator",
+    "scanQr": "Scan this QR code with your authenticator app, then enter the 6-digit code.",
+    "qrAlt": "Authenticator QR code",
+    "manualKey": "Or enter this key manually",
+    "codeLabel": "6-digit code",
+    "verify": "Verify",
+    "errors": {
+      "generic": "Something went wrong. Please try again.",
+      "enrollFailed": "Could not start enrollment. Please try again.",
+      "invalidCode": "That code is not valid. Please try again.",
+      "lastFactor": "You cannot remove your last verified authenticator."
+    }
   },
   "admins": {
     "title": "Admins",
