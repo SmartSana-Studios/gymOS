@@ -4,6 +4,18 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — SmartSana Tara key: rotation declined, risk accepted by the owner
+
+The owner chose not to rotate the SmartSana Tara API key for now (Epic 18 retro item 22, runbook `secret-rotation.md` 3.1), after being told the key was exposed in chat on 2026-10-08 and that the project rule is to rotate on exposure.
+
+- **State:** the exposed key is **still valid and still the live credential** for SmartSana's payment account. Nothing was rotated, revoked or reconnected.
+- **What the exposure allows** (to size the risk): whoever holds the key can call Tara's API as that business account. The webhook shared secret is separate; the receive path also confirms Tara success with the status endpoint before applying a payment, so a forged webhook alone cannot mark a payment paid.
+- **Accepted by the owner,** not resolved. This replaces the 2026-10-15 "kept, not deferred" line above.
+- **Revisit triggers (rotate immediately if any occurs):** any suspicious or unexplained transaction on the Tara account; another gym is connected or SmartSana's volume becomes material; the key is exposed again; a staff change at SmartSana. Otherwise at the 2026-11-30 secret-rotation review.
+- **Rotation is cheap when wanted:** about ten minutes and no payment gap with the revoke-last order in the runbook.
+
+---
+
 ## 2026-10-15 — Remaining owner gates: two deferred, one kept
 
 The owner asked to defer whatever is neither blocking nor a security issue. Triage of the three that were left:
