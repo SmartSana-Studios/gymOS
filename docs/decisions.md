@@ -5,6 +5,17 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — PRD v1.7 second revision: Owner confirms every payment-connection change; Super Admin bootstrap
+
+The second review pass found two criticals in the first revision. Both fixed as recommended by the owner:
+
+- **Every payment-account connection or replacement needs the Owner's confirmation** of a hash-bound proposal (masked old and new identifiers, 24 h expiry, one open per gym). The first revision only gated replacement, which left every new gym open to a support-controlled account.
+- **Super Admin AAL2 is switched on only after a one-time enrollment** with recovery codes; the last-resort recovery is an out-of-band, audited reset by the platform owner until a second Super Admin exists. Without this the single Super Admin would have been locked out at deploy.
+
+Also applied: invite and reset hardening, per-gym opaque attribution ids, a Super Admin cannot hold a support account, serialized assignment, per-gym velocity limit, `__Host-` cookies, names released after 12 months (the owner's original rule) except takedowns, and `allow_gymos_support` defaulting to false for existing rows.
+
+---
+
 ## 2026-10-15 — PRD v1.7 revised after the reviewer gate
 
 Two independent reviews (quality rubric, adversarial) rated the first v1.7 draft not ready to build from. The owner accepted all four recommendations:
