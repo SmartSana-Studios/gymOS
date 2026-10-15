@@ -73,7 +73,7 @@
       }
     },
     "tables": {
-      "viewAll": "View all →",
+      "viewAll": "View all",
       "checkedIn": {
         "title": "Currently Checked In",
         "name": "Name",
@@ -144,7 +144,7 @@
     },
     "staffSummary_one": "{{count}} staff member",
     "staffSummary_other": "{{count}} staff members",
-    "manageStaffLink": "Manage staff →",
+    "manageStaffLink": "Manage staff",
     "fields": {
       "gymName": "Gym Name *",
       "logo": "Logo",
@@ -294,7 +294,7 @@
     "addStaff": "+ Add staff",
     "addStaffButton": "Add staff",
     "emptyNoStaff": "No staff yet. Add your first staff member to get started.",
-    "backToSettings": "← Settings",
+    "backToSettings": "Settings",
     "table": {
       "name": "Name",
       "role": "Role",
@@ -861,11 +861,11 @@
       "membersAtAGlance": {
         "title": "My Members At A Glance",
         "assignedLabel": "Assigned members",
-        "viewAll": "All →"
+        "viewAll": "All"
       },
       "nextSessions": {
         "title": "My Next Sessions",
-        "viewAll": "All →",
+        "viewAll": "All",
         "empty": "No upcoming sessions."
       },
       "followUp": {

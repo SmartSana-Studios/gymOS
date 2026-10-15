@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -85,9 +86,12 @@ export function GymDetailPageClient({
   return (
     <div className="space-y-4">
       <div className="text-sm text-muted-foreground">
-        <Link href="/gyms" className="hover:underline">
-          {t("gyms.detail.backToGyms")}
-        </Link>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/gyms">
+            <ArrowLeft />
+            {t("gyms.detail.backToGyms")}
+          </Link>
+        </Button>
         {" / "}
         {gym.name}
       </div>

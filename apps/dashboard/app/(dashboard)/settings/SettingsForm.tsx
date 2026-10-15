@@ -6,6 +6,7 @@ import Link from "next/link";
 import QRCode from "qrcode";
 import {
   AlertTriangle,
+  ArrowRight,
   Bell,
   Clock,
   CreditCard,
@@ -943,9 +944,12 @@ export function SettingsForm({
               <CardContent>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm">{t("settings.staffSummary", { count: staffCount })}</p>
-                  <Link href="/settings/staff" className="text-sm font-medium text-primary hover:underline">
-                    {t("settings.manageStaffLink")}
-                  </Link>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href="/settings/staff">
+                      {t("settings.manageStaffLink")}
+                      <ArrowRight />
+                    </Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
