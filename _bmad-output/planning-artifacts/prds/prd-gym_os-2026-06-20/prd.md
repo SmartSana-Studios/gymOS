@@ -1212,7 +1212,7 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | OQ-24 | **Resolved (2026-10-15)** — public site built in `apps/landing`; minimum publish content, reserved names and impersonation policy, claim and rename rules, directory geography, SEO ownership and per-plan public opt-in decided (Section 12 F). | — | — |
 | OQ-25 | **Resolved (2026-10-11)** — class attendance by a Pay-per-session guest requires and consumes a paid session under the same rule as check-in (option a); booking stays free; the same session covers floor and class that day (FR-174). | — | — |
 | OQ-26 | **Resolved (2026-10-11)** — V1.7 support staff may do everything gym staff can, transactions included; support is on by default and a gym may opt out; support accounts require a second login factor (Section 12 E). **Method resolved (2026-10-15): TOTP authenticator app via Supabase MFA, enforced at AAL2 in the database.** | — | — |
-| OQ-27 | **Moved to the release checklist (Section 10.2)** — confirm TOTP enrollment is enabled on the production Supabase project and plan before support stories are written (FR-189). | Dev | Before support stories |
+| OQ-27 | **Resolved (2026-10-15)** — TOTP enrollment is enabled on the production Supabase project (product owner); an enrollment check is part of the Step 1 gate (FR-189). | — | — |
 | OQ-28 | **Landing page content language** — whether a gym enters content in one language or both, and how the page chooses (FR-208). | Product owner | Before landing-page stories |
 | OQ-29 | **Directory thin-page threshold** — default 3 published gyms per listing (FR-212); confirm or change. | Product owner | Before directory stories |
 | OQ-30 | **Opt-out semantics** — default as written: switching "Allow GymOS Support" off suspends assignments, switching on re-activates those that were active, and assignments made while off stay pending (FR-177, FR-183). Confirm. | Product owner | Before support stories |
@@ -1250,7 +1250,7 @@ Section 12 is explicitly **not** part of this gate.
 
 V1.7 ships in order, and each step has its own gate. Step 1 must be done before step 2 starts.
 
-**Pre-flight (before support stories).** TOTP enrollment is confirmed enabled on the production Supabase project and plan (formerly OQ-27); OQ-30 and OQ-31 are answered; existing Owners have been told about support access (FR-183).
+**Pre-flight (before support stories).** TOTP enrollment is enabled on the production Supabase project (confirmed by the product owner 2026-10-15, formerly OQ-27); OQ-30 and OQ-31 are answered; existing Owners have been told about support access (FR-183).
 
 **Step 1 — GymOS support staff (ships first).** Done when:
 1. A Super Admin, signed in at AAL2, can create a support person by invite link, assign them to several gyms, and assign several support people to one gym, and the person sees only assigned gyms (FR-175–FR-178, FR-191).
