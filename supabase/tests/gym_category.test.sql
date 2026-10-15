@@ -8,7 +8,7 @@
 -- Fixture ids: 00000000-0000-0000-0000-0000002101xx.
 
 begin;
-select plan(26);
+select plan(30);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000210101', 'Category Tier', 6000, 60000, null);
@@ -24,13 +24,15 @@ insert into gyms (id, name, tier_id, status, category) values
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000210121'), -- owner A
   ('00000000-0000-0000-0000-000000210122'), -- supervisor A
+  ('00000000-0000-0000-0000-000000210124'), -- manager A
   ('00000000-0000-0000-0000-000000210123'); -- super admin
 
 update users set is_super_admin = true where id = '00000000-0000-0000-0000-000000210123';
 
 insert into members (id, gym_id, user_id, role, name, join_date) values
   ('00000000-0000-0000-0000-000000210131', '00000000-0000-0000-0000-000000210111', '00000000-0000-0000-0000-000000210121', 'owner',      'Cat Owner A',      current_date),
-  ('00000000-0000-0000-0000-000000210132', '00000000-0000-0000-0000-000000210111', '00000000-0000-0000-0000-000000210122', 'supervisor', 'Cat Supervisor A', current_date);
+  ('00000000-0000-0000-0000-000000210132', '00000000-0000-0000-0000-000000210111', '00000000-0000-0000-0000-000000210122', 'supervisor', 'Cat Supervisor A', current_date),
+  ('00000000-0000-0000-0000-000000210133', '00000000-0000-0000-0000-000000210111', '00000000-0000-0000-0000-000000210124', 'manager', 'Cat Manager A', current_date);
 
 -- ============================================================================
 -- Column default and CHECK.
@@ -224,6 +226,48 @@ select is(
   (select category from gyms where id = '00000000-0000-0000-0000-000000210112'),
   'yoga_studio',
   'a service-level (superuser) direct UPDATE of the category is pinned too'
+);
+
+select is(
+  (select actor_id from audit_log
+   where action_type = 'gym_category_changed' and target_entity_id = '00000000-0000-0000-0000-000000210112'),
+  '00000000-0000-0000-0000-000000210123'::uuid,
+  'the super admin audit row names the super admin as actor'
+);
+
+-- Direct UPDATE by the other client roles that can reach the row at all.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000210122","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000210111","app_role":"supervisor"}', true);
+update gyms set category = 'other' where id = '00000000-0000-0000-0000-000000210111';
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000210124","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000210111","app_role":"manager"}', true);
+update gyms set category = 'other' where id = '00000000-0000-0000-0000-000000210111';
+reset role;
+
+select is(
+  (select category from gyms where id = '00000000-0000-0000-0000-000000210111'),
+  'fitness_center',
+  'direct UPDATEs of the category by a supervisor and a manager changed nothing'
+);
+
+-- Re-running the setter with the same value after a pinned write is still a no-op.
+set local role authenticated;
+select set_config('request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000210121","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000210111","app_role":"owner"}', true);
+select set_gym_category('00000000-0000-0000-0000-000000210111', 'fitness_center');
+reset role;
+
+select is(
+  (select count(*)::int from audit_log where action_type = 'gym_category_changed' and gym_id = '00000000-0000-0000-0000-000000210111'),
+  2,
+  'pinned direct writes and a same-value setter call wrote no audit rows'
+);
+
+select is(
+  (select pg_get_constraintdef(c.oid) from pg_constraint c where c.conname = 'gyms_category_valid'),
+  'CHECK ((category = ANY (ARRAY[''gym''::text, ''pilates_studio''::text, ''yoga_studio''::text, ''fitness_center''::text, ''other''::text])))',
+  'the CHECK lists exactly the five codes (kept in step with GYM_CATEGORIES and the setter list)'
 );
 
 -- ============================================================================

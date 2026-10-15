@@ -33,9 +33,9 @@ export const GYM_CATEGORY_LABELS: Record<GymCategory, { en: string; fr: string }
 
 /** Label for a stored code in the given language; an unknown code is shown as-is. */
 export function gymCategoryLabel(code: string, locale: string): string {
+  if (!Object.hasOwn(GYM_CATEGORY_LABELS, code)) return code;
   const entry = GYM_CATEGORY_LABELS[code as GymCategory];
-  if (!entry) return code;
-  return locale === "fr" ? entry.fr : entry.en;
+  return locale.toLowerCase().startsWith("fr") ? entry.fr : entry.en;
 }
 
 // E.164: leading '+', country code, up to 15 digits total, no spaces/punctuation.
@@ -64,7 +64,8 @@ export const createGymSchema = z.object({
   // country list is re-checked server-side in createGym.
   country: z.string().regex(/^[A-Z]{2}$/, "Select a country").default("CM"),
   // Stable category code (gyms.category, 0123). Defaulted like country so a
-  // caller that predates the field keeps working; re-checked in createGym.
+  // caller that predates the field keeps working. createGym parses this schema
+  // before its first write and the DB CHECK is the backstop.
   category: gymCategorySchema.default("gym"),
   status: gymStatusSchema.default("active"),
   /**

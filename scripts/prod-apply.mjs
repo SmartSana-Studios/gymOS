@@ -10,11 +10,11 @@
 //   2    0111, 0112, 0113, 0114, 0116   head must be 0110
 //   3    0115 ALONE                     head must be 0116 (0116 shipped with stage 2; 0115 is the default flip)
 //   4    0117-0120 loyalty              head must be 0116
+//   4    0117, 0118, 0119, 0120         head must be 0116 (Epic 20 loyalty; every gym stays loyalty-off, the
+//                                       hooks fire only when a gym enables it. Ship BEFORE the dashboard)
 //   5    0121 early renewal carry       head must be 0120 (Story 20.7)
 //   6    0122 loyalty hook repair job   head must be 0121 (Story 20.8)
 //   7    0123 gym category              head must be 0122 (Story 21.1)
-//   4    0117, 0118, 0119, 0120         head must be 0116 (Epic 20 loyalty; every gym stays loyalty-off, the
-//                                       hooks fire only when a gym enables it. Ship BEFORE the dashboard)
 //
 //   node scripts/prod-apply.mjs 1a --dry-run                      # ONE transaction, ROLLED BACK at the end
 //   node scripts/prod-apply.mjs 1a --apply --backup-confirmed     # one transaction per migration
@@ -133,7 +133,7 @@ const VERIFY = [
       and position('award_renewal_stamp' in pg_get_functiondef('public.complete_verified_payment(uuid, integer)'::regprocedure)) > 0) as hook_kept,
      (select count(*) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname in ('confirm_renewal','complete_verified_payment') and has_function_privilege('anon', p.oid, 'EXECUTE')) as anon_exec_count,
      has_function_privilege('authenticated', 'public.complete_verified_payment(uuid, integer)', 'EXECUTE') as authenticated_cvp`],
-  ["stage 7: gym category (expect column_present 1, not_gym 0 on existing gyms, setter 1, pin_trigger 1, anon_exec false, authenticated_exec true, pin_fn_client_callable false)", `select
+  ["stage 7: gym category (immediately after apply: column_present 1, not_gym 0 -- rises once an admin changes a category; setter 1, pin_trigger 1, anon_exec false, authenticated_exec true, pin_fn_client_callable false)", `select
      (select count(*) from information_schema.columns where table_schema='public' and table_name='gyms' and column_name='category') as column_present,
      (select count(*) from gyms where to_jsonb(gyms) ? 'category' and to_jsonb(gyms)->>'category' <> 'gym') as not_gym,
      (select count(*) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname='set_gym_category') as setter,

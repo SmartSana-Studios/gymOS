@@ -24,12 +24,22 @@ export function GymCategoryEditor({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // Shown label: the stored value, kept locally after a save so the old label
+  // never sits next to "Category updated." while router.refresh() is in flight.
+  const [savedCategory, setSavedCategory] = useState<string | null>(null);
+  const current = savedCategory ?? gym.category;
 
   async function handleSave() {
     setError(null);
     const parsed = setGymCategorySchema.safeParse({ category: value });
     if (!parsed.success) {
       setError(t("gyms.create.categoryInvalid"));
+      return;
+    }
+
+    // Nothing to write: close quietly rather than claim an update that did not happen.
+    if (parsed.data.category === current) {
+      setEditing(false);
       return;
     }
 
@@ -40,16 +50,19 @@ export function GymCategoryEditor({
         setError(actionError.message);
         return;
       }
+      setSavedCategory(parsed.data.category);
       setEditing(false);
       setSaved(true);
       onSaved();
+    } catch {
+      setError(t("common.somethingWentWrong"));
     } finally {
       setSaving(false);
     }
   }
 
   function handleCancel() {
-    setValue(gym.category);
+    setValue(current);
     setError(null);
     setEditing(false);
   }
@@ -57,12 +70,12 @@ export function GymCategoryEditor({
   if (!editing) {
     return (
       <span className="flex items-center gap-2">
-        {gymCategoryLabel(gym.category, i18n.language)}
+        {gymCategoryLabel(current, i18n.language)}
         <Button
           variant="outline"
           size="sm"
           onClick={() => {
-            setValue(gym.category);
+            setValue(current);
             setSaved(false);
             setEditing(true);
           }}
@@ -97,7 +110,11 @@ export function GymCategoryEditor({
       <Button variant="outline" size="sm" onClick={handleCancel} disabled={saving}>
         {t("common.cancel")}
       </Button>
-      {error && <span className="text-sm text-red-600">{error}</span>}
+      {error && (
+        <span role="alert" className="text-sm text-red-600">
+          {error}
+        </span>
+      )}
     </span>
   );
 }
