@@ -192,3 +192,20 @@ Initial contents for the Super Admin-maintained word tables behind FR-202; Super
 - **Credential and brand words (name may not contain):** `login`, `signin`, `password`, `secure`, `verify`, `official`, `payment`, `billing`, `wallet`, `tara`, `momo`, `mtn`, `orange`, `whatsapp`, `google`, `facebook`, `gymos`.
 - **Generic and place words (name held for approval):** `gym`, `gyms`, `fitness`, `fit`, `yoga`, `pilates`, `sport`, `sports`, `club`, `cameroon`, `cameroun`, `douala`, `yaounde`, `best`, `top`.
 - **Folding for near-match:** lowercase; strip hyphens; map `0→o`, `1→l`, `3→e`, `5→s`, `vv→w`, `rn→m`; then compare edit distance 1 against existing page names, reserved names and brand words.
+
+## K. V1.7 Step 1 — Architecture Inputs from the Review Passes (2026-10-15)
+
+Three adversarial passes and two rubric passes ran against the V1.7 PRD (files `review-*-v17*.md` in this folder). The third pass rated Step 1 "ready for architecture with conditions". These are the conditions and the remaining items to settle in architecture, not requirements.
+
+**Conditions (settle before stories):**
+1. **Super Admin factor recovery and reset.** Supabase TOTP has no native recovery codes (to verify). Design: reset of a Super Admin factor, a controlled enrollment window for bootstrap, the second-enrolled-factor option, and what the out-of-band recovery can and cannot do (FR-191, FR-190).
+2. **FR-180 proposal and hash contract.** What exactly is hashed (the proposed credential reference and gym), fresh Owner re-authentication for approval, a reject action, cleanup of secrets held in pending proposals, and how the Owner can verify the merchant account is theirs.
+3. **Payment cutover rule.** What happens to in-flight member payments and late webhooks when a payment connection changes (M-7).
+
+**To settle in architecture:**
+- Self-dealing and persistence: FR-193 is a phone/email match only (add a hard separation of identities); support-created staff surviving revocation; a member added later who collides with a support phone.
+- Super Admin session timeout and step-up (NF-4); reset cooling-off is notice-only and phone or email changes bypass it (NF-3).
+- Opaque per-gym attribution vs existing `users.id` foreign-key columns (NF-6).
+- `__Host-` cookie name behavior with Supabase SSR and a tossing test; `log_audit_event` lockdown into the Step 1 gate (C5d).
+- Name squatting via cheap gyms and post-release sniping (NF-5); FR-185 auto-disable vs FR-132 suspension (NF-8).
+- Small text contradictions: three vs four Owner states (FR-182, 10.2 item 3), glossary "pending", FR-179 baseline wording, addendum G pointer to Section 12 F.
