@@ -56,6 +56,9 @@ export async function authorizePlatformAction(capability: PlatformCapability): P
     if (row.allowed !== true) {
       return denied(capability, actorId, String(row.reason ?? "denied"));
     }
+    // Story 22.5: while the aal2 flag is on, every platform capability also needs an aal2 session.
+    const aal = await requireSuperAdminAal2();
+    if (!aal.ok) return aal;
     return { ok: true, actorId };
   } catch {
     return denied(capability, actorId, "authorization_unavailable");

@@ -104,3 +104,30 @@ Flag lives in a table (not a GUC) so 22.6's script can set it in one audited tra
 - `bash scripts/pgtap-run.sh` -- expected: all pass
 - `pnpm --filter super-admin test` -- expected: pass
 - `bash scripts/ci-local.sh` -- expected: GREEN
+
+### Review Findings
+
+Code review 2026-10-15 (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor). 2 decision-needed, 2 patch, 3 defer, 12 rejected.
+
+- [x] [Review][Decision] RESOLVED option 2 (authorizePlatformAction now calls requireSuperAdminAal2; Vitest added) — Platform authorization is not aal2-gated when the flag is on — `authorize_action` (0125) checks only live `users.is_super_admin`, and `authorizePlatformAction` never calls `requireSuperAdminAal2`. With the flag on, an aal1 Super Admin passes `(admin)/layout.tsx` and every service-role action (gyms, admins, billing). Violates AC "flag on + aal1 -> any Super Admin policy or RPC denied". Not in deferred-work. Options: (a) make `authorize_action` platform capabilities require aal2 via a 0126 change, (b) call `requireSuperAdminAal2` inside `authorizePlatformAction`, (c) defer to 22.6 and record it as a hard precondition for the flag flip. [apps/super-admin/lib/authz.ts, supabase/migrations/0125*.sql:64-69, apps/super-admin/app/(admin)/layout.tsx:58]
+- [x] [Review][Decision] RESOLVED as flag-off-only: first-factor enrollment and unverified cleanup need aal2 once the flag is on; 22.6 bootstraps (enrolls) before flipping, no code change — `guard()` applies the aal2 gate to every security action, so with the flag on an aal1 session cannot enroll a first factor nor remove an abandoned unverified factor — contradicts matrix row "First factor: no factors, aal1 -> enroll" and the triage-log patch "unverified removable at aal1". Unit tests pass only because `aalGate` is mocked true. Options: skip the aal2 gate in guard() for enroll/remove-unverified, or document first-factor enrollment as flag-off-only (22.6 bootstraps before flipping). [apps/super-admin/app/(admin)/security/actions.ts:35-40]
+- [x] [Review][Patch] Hook test fixtures never exercise a membership: add a Super Admin who also has an active `members` row (flag on, aal1: assert `app_role` and `gym_id` null) and a non-super-admin gym member (flag on, aal1: still gets gym claims) [supabase/tests/super_admin_aal2_flag.test.sql]
+- [x] [Review][Patch] `enrollFactor` stale-factor cleanup ignores `unenroll` errors and writes no `super_admin_mfa_removed` audit row; the audit-failure rollback `unenroll` result is also unchecked [apps/super-admin/app/(admin)/security/actions.ts:646-648]
+- [x] [Review][Defer] Hook exception handler returns the original event (could echo incoming `app_role` at aal1) [supabase/migrations/0126_super_admin_aal2_flag.sql:1329] — deferred: pre-existing 0065 handler, maybe-false; already in deferred-work; settle by forcing a hook error with the flag on
+- [x] [Review][Defer] Concurrent removals can both pass the application-level last-factor check [apps/super-admin/app/(admin)/security/actions.ts:689] — deferred: accepted in Design Notes, already in deferred-work; close before 22.6
+- [x] [Review][Defer] apps/super-admin Vitest and env-gated provider test are not in `ci-local` stage_unit [scripts/ci-local.sh:100] — deferred: pre-existing, already in deferred-work
+
+#### Rejected
+
+- low: verify/remove report `audit_failed` after the provider action succeeded, retry double-audits — fix needs client state branches; harmless extra row.
+- low: every `challengeAndVerify` error maps to `invalid_code` — cosmetic message precision, provider rate-limits are 22.7.
+- low: `maxLength={6}` truncates pasted "123 456", no Enter-to-submit/cancel — cosmetic.
+- low: two tabs enrolling concurrently delete each other's pending factor — negligible for a single-operator account.
+- low: SecurityClient has no try/catch around server action rejection — already rejected in triage log.
+- low: platform_flags has no `updated_by` / write audit — 22.6 sets it in an audited transaction.
+- low: rollback script duplicates the 0065 hook body — drift only if a later hook migration lands; negligible.
+- low: sprint-status duplicate `last_updated` lines, spec frontmatter `status: done`, empty Implementation Notes, test-count wording — bookkeeping; fixing the spec is out of scope.
+- false: last-factor guard counts only `totp` — this UI enrolls only TOTP; `list.totp` is the provider's verified-TOTP list, the guard is correct for it.
+- false: TOTP secret/QR needs `no-store` — Server Action responses are POST and not cached; the secret is never persisted or logged.
+- false: extra public `super_admin_aal2_required()` and restated grants widen access — wrapper is service_role only, private helper returns a boolean; flag-off behavior is identical.
+- false: `is_super_admin_live` change is out of spec — Code Map explicitly asks to check it; flag-off identical.

@@ -104,7 +104,9 @@ export async function enrollFactor(input: { friendlyName?: string }): Result<Enr
     (f) => f.factor_type === "totp" && f.status === "unverified",
   );
   for (const f of stale) {
-    await supabase.auth.mfa.unenroll({ factorId: f.id });
+    const { error: cleanupError } = await supabase.auth.mfa.unenroll({ factorId: f.id });
+    if (cleanupError) return { data: null, error: await err("enroll_failed", "security.errors.enrollFailed") };
+    await audit(supabase, "super_admin_mfa_removed", f.id);
   }
 
   const name = (input.friendlyName ?? "").trim().slice(0, 64) || undefined;
@@ -113,7 +115,8 @@ export async function enrollFactor(input: { friendlyName?: string }): Result<Enr
 
   if (!(await audit(supabase, "super_admin_mfa_enrolled", data.id))) {
     // Never leave an unaudited factor behind.
-    await supabase.auth.mfa.unenroll({ factorId: data.id });
+    const { error: rollbackError } = await supabase.auth.mfa.unenroll({ factorId: data.id });
+    if (rollbackError) console.error("[security] rollback unenroll failed", rollbackError.code);
     return { data: null, error: await err("audit_failed", "security.errors.generic") };
   }
   return { data: { factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret }, error: null };

@@ -1,7 +1,7 @@
 -- Story 22.5: super_admin_aal2 flag. is_super_admin(), is_super_admin_live() and the claims hook
 -- require aal2 while the flag is on; nothing changes while it is off or the row is missing.
 begin;
-select plan(18);
+select plan(22);
 
 insert into auth.users (id) values ('00000000-0000-0000-0000-000000022501');
 update users set is_super_admin = true where id = '00000000-0000-0000-0000-000000022501';
@@ -54,6 +54,33 @@ reset role;
 select is(pg_temp.hook_role('aal1'), null, 'flag on, aal1: hook omits super_admin');
 select is(pg_temp.hook_role(null), null, 'flag on, missing aal: hook omits super_admin');
 select is(pg_temp.hook_role('aal2'), 'super_admin', 'flag on, aal2: hook emits super_admin');
+
+-- membership fixtures: a Super Admin who is also a member must still get no claims below aal2 (no
+-- fall-through), and an ordinary gym member is unaffected by the flag.
+insert into tiers (id, name, monthly_price, annual_price, member_cap)
+values ('00000000-0000-0000-0000-000000022590', '22.5 Tier', 5000, 50000, 30);
+insert into gyms (id, name, tier_id, capacity)
+values ('00000000-0000-0000-0000-000000022591', '22.5 Gym', '00000000-0000-0000-0000-000000022590', 30);
+insert into auth.users (id) values ('00000000-0000-0000-0000-000000022502');
+insert into members (id, gym_id, user_id, role, name) values
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000022591', '00000000-0000-0000-0000-000000022501', 'owner', 'SA Member'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000022591', '00000000-0000-0000-0000-000000022502', 'owner', 'Plain Member');
+
+create or replace function pg_temp.hook_claims(uid text, aal text) returns jsonb language sql as $f$
+  select public.custom_access_token_hook(jsonb_build_object(
+    'user_id', uid,
+    'claims', jsonb_build_object('aal', aal)
+  )) -> 'claims';
+$f$;
+
+select is(pg_temp.hook_claims('00000000-0000-0000-0000-000000022501', 'aal1') ->> 'app_role', null,
+  'flag on, aal1, Super Admin with a membership: no app_role');
+select is(pg_temp.hook_claims('00000000-0000-0000-0000-000000022501', 'aal1') ->> 'gym_id', null,
+  'flag on, aal1, Super Admin with a membership: no gym_id');
+select is(pg_temp.hook_claims('00000000-0000-0000-0000-000000022502', 'aal1') ->> 'app_role', 'owner',
+  'flag on, aal1, ordinary member: still gets gym app_role');
+select is(pg_temp.hook_claims('00000000-0000-0000-0000-000000022502', 'aal1') ->> 'gym_id', '00000000-0000-0000-0000-000000022591',
+  'flag on, aal1, ordinary member: still gets gym_id');
 
 -- missing flag row = off
 delete from private.platform_flags where flag = 'super_admin_aal2';

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let userResult: { data: { user: { id: string } | null }; error: unknown };
 let rpcResult: { data: unknown; error: unknown };
+let flagResult: { data: unknown; error: unknown } = { data: false, error: null };
 const rpcCalls: { fn: string; params: Record<string, unknown> }[] = [];
 const getClaims = vi.fn();
 const getAal = vi.fn();
@@ -14,7 +15,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => ({
     rpc: vi.fn(async (fn: string, params: Record<string, unknown>) => {
       rpcCalls.push({ fn, params });
-      return rpcResult;
+      return fn === "super_admin_aal2_required" ? flagResult : rpcResult;
     }),
   })),
 }));
@@ -28,6 +29,7 @@ import { authorizePlatformAction, requireSuperAdminAal2 } from "./authz";
 
 beforeEach(() => {
   rpcCalls.length = 0;
+  flagResult = { data: false, error: null };
   getClaims.mockClear();
   getAal.mockReset();
   userResult = { data: { user: { id: "sa-1" } }, error: null };
@@ -49,6 +51,20 @@ describe("authorizePlatformAction", () => {
     if (!res.ok) expect(res.error.code).toBe("permission_denied");
   });
 
+  it("flag on and aal1: denied even though authorize_action allowed (22.5 review D1)", async () => {
+    flagResult = { data: true, error: null };
+    getAal.mockResolvedValue({ data: { currentLevel: "aal1" }, error: null });
+    const res = await authorizePlatformAction("platform.admin_access");
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error.code).toBe("permission_denied");
+  });
+
+  it("flag on and aal2: allowed", async () => {
+    flagResult = { data: true, error: null };
+    getAal.mockResolvedValue({ data: { currentLevel: "aal2" }, error: null });
+    expect(await authorizePlatformAction("platform.admin_access")).toEqual({ ok: true, actorId: "sa-1" });
+  });
+
   it("no session or a failing RPC denies", async () => {
     userResult = { data: { user: null }, error: { message: "x" } };
     expect((await authorizePlatformAction("platform.admin_access")).ok).toBe(false);
@@ -60,13 +76,13 @@ describe("authorizePlatformAction", () => {
 
 describe("requireSuperAdminAal2", () => {
   it("flag off: ok without reading the aal", async () => {
-    rpcResult = { data: false, error: null };
+    flagResult = { data: false, error: null };
     expect(await requireSuperAdminAal2()).toEqual({ ok: true, actorId: "sa-1" });
     expect(getAal).not.toHaveBeenCalled();
   });
 
   it("flag on and aal1: denied", async () => {
-    rpcResult = { data: true, error: null };
+    flagResult = { data: true, error: null };
     getAal.mockResolvedValue({ data: { currentLevel: "aal1" }, error: null });
     const res = await requireSuperAdminAal2();
     expect(res.ok).toBe(false);
@@ -74,18 +90,18 @@ describe("requireSuperAdminAal2", () => {
   });
 
   it("flag on and aal2: ok", async () => {
-    rpcResult = { data: true, error: null };
+    flagResult = { data: true, error: null };
     getAal.mockResolvedValue({ data: { currentLevel: "aal2" }, error: null });
     expect(await requireSuperAdminAal2()).toEqual({ ok: true, actorId: "sa-1" });
   });
 
   it("rpc error: denied", async () => {
-    rpcResult = { data: null, error: { message: "boom" } };
+    flagResult = { data: null, error: { message: "boom" } };
     expect((await requireSuperAdminAal2()).ok).toBe(false);
   });
 
   it("non-boolean flag value: denied", async () => {
-    rpcResult = { data: "true", error: null };
+    flagResult = { data: "true", error: null };
     expect((await requireSuperAdminAal2()).ok).toBe(false);
   });
 });
