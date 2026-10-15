@@ -156,8 +156,8 @@ which is how the two drift in the first place.
 
 **Secrets management (decided 2026-10-11).** Where each secret lives
 (Supabase function secrets, Vault, Vercel, EAS, GitHub Actions) and the
-rotation decision (procedure deferred to **2026-11-30**, rotate immediately
-on any exposure, owner `josephfeussi`) are recorded in `docs/decisions.md`,
+rotation decision (procedure written 2026-10-15 in
+`docs/runbooks/secret-rotation.md`; rotate immediately on any exposure, owner `josephfeussi`) are recorded in `docs/decisions.md`,
 "V1.6 release runbook" (2026-10-11), section 5.
 
 ## 3. Database migrations

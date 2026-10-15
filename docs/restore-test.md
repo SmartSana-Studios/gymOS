@@ -5,6 +5,10 @@ Until it has been done once, the runbook line "last tested restore" stays **neve
 (`docs/decisions.md`, V1.6 release runbook, section 3). Nothing here touches production: the dump
 is read from R2 and restored into a throwaway local database.
 
+**Shortcut:** `scripts/restore-test.sh` runs steps 1-5 below as one command (it needs the same inputs and prints the
+record to paste). `scripts/restore-test.sh --dump <file>` rehearses the restore half with an already decrypted dump.
+The manual steps stay here as the reference.
+
 You need, on your own machine (not the devcontainer's containers, which have no network):
 
 - the **age private key** (the owner's; only the public key is a repo secret),
