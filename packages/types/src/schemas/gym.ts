@@ -3,6 +3,41 @@ import { z } from "zod";
 // Matches the `gym_status` Postgres enum (0001_extensions_and_enums.sql) exactly.
 export const gymStatusSchema = z.enum(["active", "suspended", "deactivated"]);
 
+// Gym category (gyms.category, 0123, FR-171). Stable codes are stored; labels
+// are never stored and live here so both apps and the audit trail agree. The
+// column is descriptive only (FR-172): nothing branches on it. "Other" has no
+// free-text companion in V1.6.
+export const GYM_CATEGORIES = [
+  "gym",
+  "pilates_studio",
+  "yoga_studio",
+  "fitness_center",
+  "other",
+] as const;
+
+export type GymCategory = (typeof GYM_CATEGORIES)[number];
+
+export const DEFAULT_GYM_CATEGORY: GymCategory = "gym";
+
+export const gymCategorySchema = z.enum(GYM_CATEGORIES, {
+  error: "Select a category",
+});
+
+export const GYM_CATEGORY_LABELS: Record<GymCategory, { en: string; fr: string }> = {
+  gym: { en: "Gym", fr: "Salle de sport" },
+  pilates_studio: { en: "Pilates Studio", fr: "Studio Pilates" },
+  yoga_studio: { en: "Yoga Studio", fr: "Studio Yoga" },
+  fitness_center: { en: "Fitness Center", fr: "Centre de fitness" },
+  other: { en: "Other", fr: "Autre" },
+};
+
+/** Label for a stored code in the given language; an unknown code is shown as-is. */
+export function gymCategoryLabel(code: string, locale: string): string {
+  const entry = GYM_CATEGORY_LABELS[code as GymCategory];
+  if (!entry) return code;
+  return locale === "fr" ? entry.fr : entry.en;
+}
+
 // E.164: leading '+', country code, up to 15 digits total, no spaces/punctuation.
 const e164Phone = z
   .string()
@@ -28,6 +63,9 @@ export const createGymSchema = z.object({
   // caller that predates the field keeps working; membership in the real
   // country list is re-checked server-side in createGym.
   country: z.string().regex(/^[A-Z]{2}$/, "Select a country").default("CM"),
+  // Stable category code (gyms.category, 0123). Defaulted like country so a
+  // caller that predates the field keeps working; re-checked in createGym.
+  category: gymCategorySchema.default("gym"),
   status: gymStatusSchema.default("active"),
   /**
    * Story 1.17 code review. Proof the Super Admin was shown WHICH existing
@@ -206,3 +244,8 @@ export const applyCreditSchema = z.object({
 });
 
 export type ApplyCreditInput = z.infer<typeof applyCreditSchema>;
+
+// SA-03 Category change and 21.2's Settings field: the payload of
+// set_gym_category() minus the gym id (taken from the route / session).
+export const setGymCategorySchema = z.object({ category: gymCategorySchema });
+export type SetGymCategoryInput = z.infer<typeof setGymCategorySchema>;

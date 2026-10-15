@@ -31,7 +31,10 @@ const deleteGymMock = vi.fn<(id: string) => Promise<void>>(async () => {});
 const deleteUserMock = vi.fn(async () => ({ error: null }));
 const sendTempPasswordMessageMock = vi.fn(async () => ({ success: true as const }));
 const logGymCreatedMock = vi.fn<(id: string, meta: Record<string, unknown>) => Promise<void>>(async () => {});
-const insertGymMock = vi.fn<(input: { country: string }) => Promise<typeof insertGymResult>>(
+const setGymCategoryMock = vi.fn<(gymId: string, category: string) => Promise<{ error: unknown }>>(
+  async () => ({ error: null }),
+);
+const insertGymMock = vi.fn<(input: { country: string; category?: string }) => Promise<typeof insertGymResult>>(
   async () => insertGymResult,
 );
 const insertOwnerMemberMock = vi.fn<(input: { userId: string }) => Promise<typeof insertOwnerMemberResult>>(
@@ -81,7 +84,8 @@ vi.mock("@/lib/super-admin-provisioning.mjs", () => ({
 
 vi.mock("@/services/gyms", () => ({
   gymNameExists: async () => false,
-  insertGym: (input: { country: string }) => insertGymMock(input),
+  insertGym: (input: { country: string; category?: string }) => insertGymMock(input),
+  setGymCategory: (gymId: string, category: string) => setGymCategoryMock(gymId, category),
   insertOwnerMember: (input: { userId: string }) => insertOwnerMemberMock(input),
   deleteGym: (id: string) => deleteGymMock(id),
   logGymCreated: (id: string, meta: Record<string, unknown>) => logGymCreatedMock(id, meta),
@@ -111,7 +115,7 @@ vi.mock("@/lib/i18n/get-server-translation", () => ({
 }));
 vi.mock("@/lib/temp-password.mjs", () => ({ generateTempPassword: () => "TempPass123" }));
 
-const { createGym } = await import("./actions");
+const { createGym, changeGymCategory } = await import("./actions");
 
 const VALID = {
   gymName: "Branch Two",
@@ -329,6 +333,53 @@ describe("createGym — country (gyms.country, 0105)", () => {
     expect(error).toMatchObject({ code: "validation_error", message: "gyms.create.countryInvalid" });
     expect(insertGymMock).not.toHaveBeenCalled();
     expect(createUserMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("createGym — category (gyms.category, 0123)", () => {
+  it("passes the chosen category to the gym insert and records it in the audit trail", async () => {
+    const { error } = await createGym({ ...VALID, category: "yoga_studio" });
+    expect(error).toBeNull();
+    expect(insertGymMock).toHaveBeenCalledWith(expect.objectContaining({ category: "yoga_studio" }));
+    const meta = logGymCreatedMock.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(meta.category).toBe("yoga_studio");
+  });
+
+  it("defaults to gym when the caller sends no category", async () => {
+    await createGym(VALID);
+    expect(insertGymMock).toHaveBeenCalledWith(expect.objectContaining({ category: "gym" }));
+  });
+
+  it("rejects an unknown category before anything is written", async () => {
+    const { data, error } = await createGym({ ...VALID, category: "spa" });
+    expect(data).toBeNull();
+    expect(error?.code).toBe("validation_error");
+    expect(insertGymMock).not.toHaveBeenCalled();
+    expect(createUserMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("changeGymCategory", () => {
+  const GYM_ID = "00000000-0000-4000-8000-000000000001";
+
+  it("sets a valid category through the setter", async () => {
+    const { error } = await changeGymCategory(GYM_ID, { category: "pilates_studio" });
+    expect(error).toBeNull();
+    expect(setGymCategoryMock).toHaveBeenCalledWith(GYM_ID, "pilates_studio");
+  });
+
+  it("rejects an unknown code and a malformed gym id without calling the setter", async () => {
+    const bad = await changeGymCategory(GYM_ID, { category: "spa" });
+    expect(bad.error?.code).toBe("validation_error");
+    const badId = await changeGymCategory("nope", { category: "gym" });
+    expect(badId.error?.code).toBe("validation_error");
+    expect(setGymCategoryMock).not.toHaveBeenCalled();
+  });
+
+  it("returns the setter refusal unchanged", async () => {
+    setGymCategoryMock.mockResolvedValueOnce({ error: { code: "unknown", message: "refused" } });
+    const { error } = await changeGymCategory(GYM_ID, { category: "other" });
+    expect(error).toEqual({ code: "unknown", message: "refused" });
   });
 });
 

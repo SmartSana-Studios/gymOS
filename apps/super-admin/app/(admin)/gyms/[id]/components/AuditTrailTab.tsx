@@ -8,6 +8,7 @@ const ACTION_LABEL_KEY: Record<string, string> = {
   gym_deactivated: "gyms.auditTrail.action.gym_deactivated",
   gym_reinstated: "gyms.auditTrail.action.gym_reinstated",
   gym_tier_changed: "gyms.auditTrail.action.gym_tier_changed",
+  gym_category_changed: "gyms.auditTrail.action.gym_category_changed",
   gym_cap_overridden: "gyms.auditTrail.action.gym_cap_overridden",
   gym_data_escalation: "gyms.auditTrail.action.gym_data_escalation",
   gym_data_escalation_revoked: "gyms.auditTrail.action.gym_data_escalation_revoked",
