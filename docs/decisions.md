@@ -4,6 +4,17 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — Owner gates before the first gym enables loyalty: what is done and what only the owner can do
+
+The three gates deferred on 2026-10-12 (Epic 19 retro actions 2, 3, 6 and Epic 18 item 22):
+
+- **Payment-webhook deploy: done, nothing to do.** `payment-webhook` v6 (2026-10-12 22:16 UTC) already contains the `callbackUrl.ts` hardening (verified from the deployed bundle). Still open and the owner's call: the `PAYMENT_WEBHOOK_PUBLIC_BASE_URL` workaround secret, which overrides the computed URL so production never uses the hardened path; remove it together with one live Tara session payment.
+- **Secret-rotation procedure: written.** `docs/runbooks/secret-rotation.md`: inventory of where every secret lives, one procedure per secret with its verification, the two-places-one-value rule, a schedule (first review 2026-11-30). Rotating the SmartSana Tara key is its section 3.1 and still needs the owner at Tara.
+- **Tested restore: tooling ready, run needs the owner.** `scripts/restore-test.sh` turns `docs/restore-test.md` into one command and prints the record to paste. Rehearsed locally with a fresh dump (restore, head 0122, 157 functions, counts). The real run needs the age **private** key and R2 read access, which only the owner holds. "Last tested restore" stays *never tested* until then.
+- **Devcontainer credentials:** `~/.supabase/access-token`, `~/.supabase-db-password`, `~/.expo-token` and the Play service-account JSON are listed in section 4 of the rotation runbook; removing and revoking them is the owner's, since sessions here depend on them.
+
+---
+
 ## 2026-10-15 — Repair path for swallowed loyalty hook failures: reconcile from source facts in the daily sweep (Epic 20 retro S-2)
 
 Open question from `epic-20-retro-2026-10-14.md` S-2 (deferred-work.md, 20.4 review): 0120 wraps the three loyalty hooks (`on_session_consumed`, `award_renewal_stamp`, `on_session_refunded_after_consumption`) so a failure rolls back only the hook and records `loyalty_hook_failed` (audit) plus a `job_runs` row named `loyalty_hook`. The payment, check-in or refund goes on, which is the right posture, but nothing ever retries the hook, and Epic 20 forbids manual balance edits, so a missed stamp, reward or reversal is permanent.
