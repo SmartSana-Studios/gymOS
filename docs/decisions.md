@@ -5,6 +5,18 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — V1.7 OQ-24 resolved: public landing pages and directory
+
+Decided by the product owner at V1.7 planning (all PM recommendations accepted; plans are opt-in per plan). Full text in PRD Section 12 F.
+
+- **Location:** built in `apps/landing` (project `gym-os`, `www.`), not the dashboard, so public traffic never shares an app with authenticated tenant sessions. Reads a published projection only; no service-role key.
+- **Publish gate:** name, category, logo, banner, about >= 100 chars, country+city, a contact channel, opening hours, >= 1 public plan. Plans are private unless the gym marks them public.
+- **Names:** 3-30 chars `a-z0-9-`; DB reserved-names table plus case-insensitive unique index; first come first served; renames 301 for 12 months, max 2 per year; Super Admin takedown/force-rename/release, audited.
+- **Directory and SEO:** any published gym listed, Cameroon the launch entry point; GymOS owns structured data, sitemap, hreflang, `llms.txt`; thin city/country pages `noindex`.
+- **Still open:** support-account second-factor method (OQ-26), per-category wording (OQ-23).
+
+---
+
 ## 2026-10-15 — Migration 0123 (gym category) applied to production
 
 Applied `prod-apply.mjs 7` after a clean dry run (rolled back, head re-read as 0122) and a green db-backup run (38724147502, 2026-10-15 11:01Z). Production head is now **0123**.
