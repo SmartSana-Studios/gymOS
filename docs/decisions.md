@@ -5,6 +5,64 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — Story 22.1 spike: claims hook `aal`, factor-enrollment guard, session deletion, `__Host-` cookies
+
+All five Step 1 assumptions probed against the **local** stack (GoTrue v2.192.0, `@supabase/ssr` 0.12.7, Next 16.3.8). Product owner decision (2026-10-15): no staging project is created and production is not read. Nothing in production was touched; no migration or product code changed. Probes ran in a second GoTrue container (`spike_auth`) on the local Docker network with TOTP enabled and a temporary logging wrapper around the hook; both were removed afterward, and `supabase/config.toml` was **not** changed (the container env stood in for `[auth.mfa.totp] enroll_enabled/verify_enabled = true`). **22.5 must flip those two keys to `true` in `config.toml` itself** to test enrollment locally; hosted per OQ-27.
+
+### 1. Does the claims hook receive `aal`? **Yes. `[ASSUMPTION — hook receives aal]` is resolved.**
+
+- Path: `event.claims.aal` (`"aal1"` | `"aal2"`) and `event.claims.amr` (array of `{method, timestamp}`, e.g. `[{"method":"password",…},{"method":"totp",…}]`). `event.claims.session_id` is also present. Top-level `event` keys: `claims`, `user_id`, `metadata`, `authentication_method`. There is **no** top-level `event.aal`.
+- It is present on every mint, including refresh: password sign-in → `aal1`; TOTP verify → `aal2` (`authentication_method = "totp"`); refresh of the AAL2 session → `aal2` (`authentication_method = "token_refresh"`, `amr` carried over). The minted access token carries `aal`, `amr`, `session_id` unchanged.
+- Consequence for 0065's hook: `claims := (claims - 'gym_id') - 'app_role'` leaves `aal` alone; the hook reads `event->'claims'->>'aal'` directly. No `auth.sessions` lookup needed.
+
+### 2. Can an AAL1 session add a factor by calling the provider directly? **No, when a verified factor exists.**
+
+- `POST /factors` from an AAL1 session for a user with one verified TOTP factor → **403** `insufficient_aal` "AAL2 required to enroll a new factor". `auth.mfa_factors` still held one row.
+- `DELETE /factors/{id}` on the verified factor from AAL1 → **422** `insufficient_aal` "AAL2 required to unenroll verified factor".
+- **The gap is the first factor.** A user with **no** factor can enroll *and verify* one at AAL1 (200 / 200). So an account that has a password and no factor can be taken over for AAL2 purposes by whoever holds the password. The Super Admin and support accounts are therefore protected only after the one-time enrollment, which is exactly the AD-38 server-function path; until then they are exposed.
+- Service role can delete a factor: `DELETE /admin/users/{uid}/factors/{id}` → 200 (this is the reset path for 22.6/23.x).
+- No triggers exist on `auth.mfa_factors`; the table is owned by `supabase_auth_admin`, so a database guard on it would need a migration run as that role and is **not recommended**. Provider behavior already blocks the AAL1 case.
+
+### 3. Does deleting `auth.sessions` rows revoke access within one request? **Partly: provider endpoints yes, PostgREST no.**
+
+Deleted the user's `auth.sessions` rows (2) by SQL as the DB owner while holding an unexpired AAL2 access token and its refresh token:
+
+| Request after delete | Result |
+|---|---|
+| `GET /auth/v1/user` with the old access token | **403** `session_not_found` "Session from session_id claim in JWT does not exist" |
+| `POST /token?grant_type=refresh_token` with the old refresh token | **400** `refresh_token_not_found` (refresh tokens cascade away with the session) |
+| `GET /rest/v1/users` (PostgREST) with the old access token | **200**, data returned |
+
+PostgREST validates the JWT signature and `exp` only. The access token stays valid at the data API for up to its remaining lifetime (`jwt_expiry` 3600 s locally; hosted default the same, not verified). So deleting the session row ends refresh immediately but **does not stop reads/writes through RLS** on its own. The "next request is denied" guarantee of FR-192/FR-184 requires the database check already specified in AD-34: `private.current_member_role()` / `private.gym_id()` must test that `auth.jwt()->>'session_id'` still exists in `auth.sessions`. Max window without that check: the remaining access-token lifetime (≤ 1 h).
+
+### 4. Hosted MFA factor cap and TOTP enabled setting — **not independently verified on hosted**
+
+Recorded as documented: cap 10 factors per user (`[auth.mfa] max_enrolled_factors = 10`, same value locally); TOTP enabled on production per OQ-27 (2026-10-15). No hosted project was read or written.
+
+### 5. `__Host-` cookie under Supabase SSR — **confirmed, with one required option**
+
+Using the exact `setAll` plumbing of `apps/*/lib/supabase/proxy.ts` through `NextResponse.cookies.set`, with `cookieOptions: { name: '__Host-sb-auth', secure: true, path: '/', sameSite: 'lax' }`:
+
+- Every chunk is emitted as `__Host-sb-auth.N` (5 chunks for a deliberately oversized session), `Path=/`, `Secure`, `SameSite=lax`, `Max-Age=34560000` (400 days), **no `Domain`**. `HttpOnly` is absent (browser client must read it, as AD-45 states).
+- Round trip works: the same cookies fed back through a new `createServerClient` return the user from `getUser()`.
+- Removal on sign-out emits every chunk with `Max-Age=0; Path=/; Secure` and the prefixed name, so browsers accept the deletion.
+- **`secure` must be set explicitly.** With only `name` set, the helper emits `__Host-sb-auth.N; Path=/` **without `Secure`**, which a browser rejects for a `__Host-` name. Today's code (no `cookieOptions`) emits `sb-<host>-auth-token.N` with `Path=/; SameSite=lax`, no `Secure`.
+- Outcome: NFR-026 is **confirmed**; no separate registrable domain is needed on this evidence. AD-45's fallback is not triggered. A browser-level test (real HTTPS origin) was not run; the `__Host-` rules are enforced by the browser, so the 24.x header test should assert on the emitted `Set-Cookie` as done here.
+
+### Changes to later stories
+
+- **22.5:** set `[auth.mfa.totp] enroll_enabled = true, verify_enabled = true` in `config.toml`. The "database-level guard against AAL1 factor add" AC resolves to its *recorded-and-no-guard* branch for users who already have a verified factor, but the story must also cover the **first-factor window**: enrollment is a server function that runs before the account is usable (AD-38); until then a password holder can enroll. State this in the test, do not add a trigger on `auth.mfa_factors`.
+- **22.3 / 22.4 / 22.7 / 23.x:** the claims hook reads `event->'claims'->>'aal'`; no `auth.sessions` lookup in the hook. Live helpers must additionally check `auth.jwt()->>'session_id'` exists in `auth.sessions` (that is what makes session deletion immediate for RLS). Delete the user's `auth.sessions` rows **and** rely on that check; do not rely on provider refusal alone.
+- **22.6 / 23.x factor reset:** service role can remove a factor through the admin API (`DELETE /admin/users/{id}/factors/{factor_id}`, 200).
+- **24.x (cookie header test):** set `secure: true` explicitly with the `__Host-` name; assert prefix, `Secure`, `Path=/`, no `Domain` on every chunk and on removal cookies.
+- **Hook hardening (22.5/22.7):** read `aal` fail-closed: `coalesce(event->'claims'->>'aal','aal1')`, and emit `super_admin`/`support` claims only when it equals `aal2`.
+- **Session-deletion helper (22.3/22.4, 22.6/23.x):** `auth` is not readable by `authenticated`, so the `session_id` existence check needs a SECURITY DEFINER helper with explicit grants (AD-34 already requires the check: "the JWT `session_id` still exists in `auth.sessions`"); mind its per-request cost. The probe deleted rows by SQL as the DB owner; whether a non-superuser definer function can delete from `auth.sessions` on hosted is **not** verified and belongs with the `vault.*` definer question below.
+- **Factor reset reopens the first-factor window (22.6/23.x):** after an admin factor delete the account has zero factors and the password holder can re-enroll at AAL1 (item 2). The reset flow must keep the account locked (or require the single-use invite link) until the new factor is verified.
+- **Cookie cutover (22.5/24.x):** moving from `sb-<host>-auth-token` to `__Host-sb-auth` signs out every existing session once, and `__Host-` forbids `Domain`, so `owner.`/`portal.`/`www.` sessions are isolated per host by design. Plan the cutover note and any cross-host handoff in the story that introduces `cookieOptions`; `server.ts` and `proxy.ts` must share one options object.
+- **Open, unverified:** hosted `jwt_expiry` value and hosted MFA cap/TOTP setting (see item 4); `vault.delete` via SQL and a non-superuser definer calling `vault.*`/deleting `auth.sessions` on hosted; whether the payment provider returns an account-holder name. Reopen each when the story that depends on it (22.6, 23.x payment connection) starts.
+
+---
+
 ## 2026-10-15 — PRD v1.7 second revision: Owner confirms every payment-connection change; Super Admin bootstrap
 
 The second review pass found two criticals in the first revision. Both fixed as recommended by the owner:
