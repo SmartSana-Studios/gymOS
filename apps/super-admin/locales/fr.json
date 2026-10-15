@@ -14,6 +14,7 @@
     "messaging": "Messagerie",
     "billing": "Facturation",
     "admins": "Administrateurs",
+    "security": "Sécurité",
     "switchToLightTheme": "Passer au thème clair",
     "switchToDarkTheme": "Passer au thème sombre",
     "openMenu": "Ouvrir le menu de navigation",
@@ -373,6 +374,27 @@
     "jobFailuresStartedAt": "Démarrée",
     "jobFailuresFinishedAt": "Terminée",
     "jobFailuresError": "Erreur"
+  },
+  "security": {
+    "title": "Sécurité",
+    "description": "Protégez ce compte avec une application d'authentification (TOTP).",
+    "noFactors": "Aucun authentificateur n'est configuré.",
+    "unnamedFactor": "Authentificateur",
+    "verified": "Vérifié",
+    "unverified": "Non vérifié",
+    "remove": "Retirer",
+    "addFactor": "Ajouter un authentificateur",
+    "scanQr": "Scannez ce code QR avec votre application d'authentification, puis saisissez le code à 6 chiffres.",
+    "qrAlt": "Code QR de l'authentificateur",
+    "manualKey": "Ou saisissez cette clé manuellement",
+    "codeLabel": "Code à 6 chiffres",
+    "verify": "Vérifier",
+    "errors": {
+      "generic": "Une erreur s'est produite. Veuillez réessayer.",
+      "enrollFailed": "Impossible de démarrer l'enregistrement. Veuillez réessayer.",
+      "invalidCode": "Ce code n'est pas valide. Veuillez réessayer.",
+      "lastFactor": "Vous ne pouvez pas retirer votre dernier authentificateur vérifié."
+    }
   },
   "admins": {
     "title": "Administrateurs",

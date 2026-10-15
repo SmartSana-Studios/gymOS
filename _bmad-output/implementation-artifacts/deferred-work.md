@@ -1169,3 +1169,16 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 
 - `getMemberRegistrationFeeState` now denies roles outside owner/manager/supervisor/receptionist (e.g. `coach`) on the audit read. Unverified (maybe-false, medium if true): check whether coach could reach member detail before 22.4.
 - `deleteAuthUserForCleanup` / `deleteMemberForCleanup` (`apps/dashboard/services/members.provisioning.ts`) are exported service-role writers with no `authorizeAction`; only reached after authorized steps today.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-5-super-admin-second-factor-enrollment-flag-off.md`
+  summary: Concurrent factor removals can both pass the last-factor check and leave zero verified factors while the flag is on.
+  evidence: check-then-act in removeFactor; needs a DB lock or RPC; medium if reachable, unverified exploit; close before 22.6 flips the flag.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-5-super-admin-second-factor-enrollment-flag-off.md`
+  summary: Super Admin has no in-app aal1 to aal2 challenge or redirect while the flag is on.
+  evidence: /security and every action gate at aal2; 22.6 AC covers the redirect to a second-factor prompt; must exist before the flag is flipped.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-5-super-admin-second-factor-enrollment-flag-off.md`
+  summary: apps/super-admin Vitest is not run by scripts/ci-local.sh stage_unit (only dashboard and mobile), so the new security tests and the env-gated provider test are ungated.
+  evidence: stage_unit filters @gymos/dashboard and @gymos/mobile only; pre-existing gap.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-5-super-admin-second-factor-enrollment-flag-off.md`
+  summary: custom_access_token_hook exception handler returns the original event unchanged, which could echo an incoming app_role at aal1 when the flag is on.
+  evidence: maybe-false, medium if true; settle by forcing a hook error at flag on and decoding the minted claims.
