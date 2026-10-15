@@ -12,7 +12,16 @@ import type { MemberRole } from "@/services/session";
 import { AUDIT_ACTION_TYPE_LABEL_KEY } from "../auditLabels";
 import { exportAuditLogCsvAction } from "../actions";
 
-function actionLabel(t: (key: string) => string, actionType: string): string {
+function actionLabel(
+  t: (key: string) => string,
+  actionType: string,
+  metadata: Record<string, unknown> = {},
+): string {
+  // Story 20.3 writes the subscriber reward under the same action type as the
+  // guest one; the counter in metadata tells them apart (auditLabels.ts).
+  if (actionType === "loyalty_reward_granted" && metadata.counter === "subscriber") {
+    return t("audit.actionTypes.loyaltyRewardDaysGranted");
+  }
   const key = AUDIT_ACTION_TYPE_LABEL_KEY[actionType];
   return key ? t(key) : actionType;
 }
@@ -206,7 +215,7 @@ export function AuditLogPageClient({
                 <tr key={row.id} className="border-b last:border-0">
                   <td className="p-3">{formatTimestamp(row.createdAt, i18n.language)}</td>
                   <td className="p-3">{row.actorDisplayName}</td>
-                  <td className="p-3">{actionLabel(t, row.actionType)}</td>
+                  <td className="p-3">{actionLabel(t, row.actionType, row.metadata)}</td>
                   <td className="p-3">{targetLabel(row)}</td>
                   <td className="p-3">{detailsLabel(row.metadata)}</td>
                 </tr>
