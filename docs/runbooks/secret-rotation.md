@@ -48,10 +48,13 @@ Console steps are named by what to do, not by menu path; menus move. Every rotat
 ## 3. Procedures
 
 ### 3.1 Tara Money, per-gym credentials (the SmartSana key, Epic 18 retro item 22)
-1. At Tara, issue a new API key and webhook secret for the gym's business account; revoke the old key there.
+1. At Tara, issue a new API key and webhook secret for the gym's business account. **Leave the old key valid for now**,
+   so the gym can keep taking payments while you switch over.
 2. In the dashboard as the gym owner: Settings -> Payment account -> reconnect, with the new values.
-3. **Verify:** the card shows connected; ask the gym for one real session payment (the smallest amount) and confirm
-   it lands as `verified` in Payments. A failed webhook shows in the Tara dashboard and in Edge Function logs.
+3. **Verify:** the card shows connected; make one real session payment (the smallest amount) and confirm it lands as
+   `verified` in Payments. A failed webhook shows in the Tara dashboard and in Edge Function logs.
+4. Only after the verification passes, revoke the old key at Tara. This is the step that actually closes the exposure.
+   If the verification fails, the old key still works: fix or retry before revoking.
 
 ### 3.2 Tara Money, platform account (SaaS billing)
 1. At Tara, issue a new key and webhook secret.
