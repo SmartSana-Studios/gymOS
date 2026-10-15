@@ -1,0 +1,1 @@
+{"entries":[{"kind":"function","name":"public.hook(event jsonb)","reason":"issuer"},{"kind":"function","name":"public.nope()","reason":"pre-registered"}]}

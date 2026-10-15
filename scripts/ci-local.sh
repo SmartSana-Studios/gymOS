@@ -78,6 +78,8 @@ stage_pgtap() {
   bash "$ROOT/scripts/session-refund-race.sh"
   # job-runs-alert.sql against fixtures (Epic 20 R-4).
   bash "$ROOT/scripts/job-runs-alert.test.sh"
+  # Claim-read inventory (Story 22.2, report mode): new claim-only / null-unsafe entries fail.
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" pnpm run check:claims
 }
 
 stage_unit() {
