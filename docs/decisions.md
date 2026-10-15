@@ -5,6 +5,19 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — PRD v1.7 revised after the reviewer gate
+
+Two independent reviews (quality rubric, adversarial) rated the first v1.7 draft not ready to build from. The owner accepted all four recommendations:
+
+- **Payment account:** support can connect a gym's Tara Money account where none exists; replacing one needs the Owner's confirmation, and any change notifies the Owner and alerts Super Admin (amends FR-126). Without this one support account could redirect every assigned gym's member payments with no Owner-visible trace.
+- **Existing gyms:** support access starts OFF for gyms that exist at release until the Owner enables it, ON for gyms created after; same shape as V1.6's charge-guests switch (FR-157).
+- **Super Admin:** requires AAL2 as well, and support enrollment and factor reset happen only through a single-use invite link. Dual control is deferred until there is a second Super Admin.
+- **Landing-page domain:** pages stay on `*.gymosapps.com`; auth cookies on `owner.`/`portal.` must be host-only (the app sets no cookie domain, checked in code, not yet at runtime), plus strict CSP, text-only rendering and a separate image origin. A separate domain is the fallback.
+
+Requirements were renumbered (nothing was built): support FR-175–FR-195, landing pages FR-196–FR-208, directory FR-209–FR-214, NFR-023–NFR-026. New open items: OQ-28 to OQ-31.
+
+---
+
 ## 2026-10-15 — PRD v1.7: V1.7 requirements written, support staff first
 
 PRD updated v1.6 -> v1.7 (FR-175–FR-203, NFR-023–NFR-025, G-16–G-18, UJ-12, stepped release gate 10.2). Decisions folded in on top of the entry below:

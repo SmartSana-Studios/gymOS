@@ -69,11 +69,15 @@ V1.6 is live. V1.7 does two things, in a fixed order: it lets GymOS help a gym f
 
 | Order | Area | Before V1.7 | V1.7 |
 |-------|------|-------------|------|
-| 1 | GymOS support staff | Platform staff can only read a gym's data after an escalation (FR-072) and cannot fix a gym's settings, plans, members or payment account | Super Admin creates per-person support accounts and assigns them to gyms; support works as Supervisor-scope staff behind a second factor; the Owner sees one "GymOS Support" presence and one on/off control (FR-175–FR-188) |
-| 2 | Gym landing pages | A gym has no public web presence | An optional public page per gym at `{name}.gymosapps.com`, built from a swappable template over the gym's own content (FR-189–FR-198) |
-| 3 | Directory and SEO | Nothing discoverable | A country and city directory of published gyms, built for search and AI-search (FR-199–FR-203) |
+| 1 | GymOS support staff | Platform staff can only read a gym's data after an escalation (FR-072) and cannot fix a gym's settings, plans, members or payment account | Super Admin creates per-person support accounts and assigns them to gyms; support works as Supervisor-scope staff behind a second factor; the Owner sees one "GymOS Support" presence and one on/off control, and confirms any change of the gym's payment account (FR-175–FR-195) |
+| 2 | Gym landing pages | A gym has no public web presence | An optional public page per gym at `{name}.gymosapps.com`, built from a swappable template over the gym's own content (FR-196–FR-208) |
+| 3 | Directory and SEO | Nothing discoverable | A country and city directory of published gyms, built for search and AI-search (FR-209–FR-214) |
 
-**Support staff ships first (decided 2026-10-15).** Its prerequisites ship inside it: the live authorization retrofit that completes FR-090, and the second-factor gate (FR-184–FR-186, NFR-023). Category stays descriptive (FR-172); V1.7 uses it only as a directory filter and page label.
+**Support staff ships first (decided 2026-10-15).** Its prerequisites ship inside it: the live authorization retrofit that completes FR-090 (FR-192, NFR-023) and the second-factor gate (FR-189–FR-191). Category stays descriptive (FR-172); V1.7 uses it only as a directory filter and page label (FR-213).
+
+**Existing gyms are not changed silently.** Support access starts ON for gyms created after release and OFF for gyms that exist at release, until their Owner turns it on (FR-183), following the V1.6 precedent (FR-157).
+
+---
 
 ---
 
@@ -112,7 +116,7 @@ The cost is twofold: operational chaos for the gym owner, and invisible churn th
 | G-13 | Stop the guest revenue leak — every *scanned* session-guest visit at a gym that turns charging on is a recorded, paid event, and the owner can see the gap between paid, blocked, and unscanned visits | 1.6 |
 | G-14 | Give guests and subscribers a reason to come back and renew on time, through a loyalty program the gym controls and can afford | 1.6 |
 | G-15 | Open the product to studios that run like gyms (Pilates, Yoga, fitness centers) without forking it | 1.6 |
-| G-16 | Let GymOS set up and repair a gym from the inside — plans, settings, members, staff, payment account — without anyone sharing a gym's credentials, while the Owner keeps one switch to turn that access off | 1.7 |
+| G-16 | Let GymOS set up and repair a gym from the inside — plans, settings, members, staff, payment account — without anyone sharing a gym's login credentials, while the Owner keeps one switch to turn that access off and confirms any change of the gym's payment account | 1.7 |
 | G-17 | Give every gym an optional public web presence with no extra work beyond entering its own content once | 1.7 |
 | G-18 | Make gyms discoverable by search and AI-search, country by country, without exposing any tenant data | 1.7 |
 
@@ -136,10 +140,10 @@ The cost is twofold: operational chaos for the gym owner, and invisible churn th
 | Guest repeat visits `[ASSUMPTION]` | ≥ 50% of gyms with charging on enable the loyalty program; guests with ≥ 2 paid sessions in a 30-day window rises versus the pre-release pilot baseline | Program cost — free sessions given as a share of paid guest sessions, watched against 1/N (FR-165) | 1.6 |
 | Studio adoption `[ASSUMPTION]` | At least two gyms with a non-Gym category (FR-171) active within 60 days of release | Studios creating workarounds (e.g. support requests about "gym" wording, FR-172) | 1.6 |
 | Subscriber on-time renewal `[ASSUMPTION]` | On-time renewal rate at gyms with the program on exceeds the same gyms' rate in the 60 days before enabling | Free days granted (FR-167) as a share of subscription days sold | 1.6 |
-| Support-access safety `[ASSUMPTION]` | Zero support actions in a gym outside an active assignment, after an opt-out, or without a verified second factor (checked in CI and in audit review) | Time for a support person to complete a gym set-up request; Owner opt-out rate (informational — a high rate means support is not trusted) | 1.7 |
-| Revocation latency | A removed, unassigned, or opted-out support person is refused on their very next request (FR-186) | Legitimate staff wrongly refused after a role check change | 1.7 |
-| Landing-page adoption `[ASSUMPTION]` | ≥ 50% of gyms active at release publish a page within 60 days of release; every published page meets the publish gate (FR-191) | Pages unpublished within 30 days of publishing (a sign the template or gate is wrong) | 1.7 |
-| Directory discoverability `[ASSUMPTION]` | ≥ 80% of published pages indexed within 30 days; directory pages produce structured data with zero validation errors | Thin pages indexed (FR-201) | 1.7 |
+| Support-access safety | Zero support actions in a gym outside an active assignment, after an opt-out, without a verified second factor, or after revocation (asserted in CI by test per entry path, and in audit review); a revoked person is refused on their next request (FR-192) | Legitimate staff wrongly refused after a role-check change; Owner opt-out rate (informational — a high rate means support is not trusted) | 1.7 |
+| Gym set-up effort `[ASSUMPTION — baseline to measure]` | Median time from gym creation to its first member check-in, and founder-support tickets per new gym, fall against the pilot gyms' baseline for gyms that use support | Support actions later reversed by the Owner (a sign of unwanted changes) | 1.7 |
+| Landing-page adoption `[ASSUMPTION]` | ≥ 50% of gyms active at release publish a page within 60 days of release; every published page continuously meets the publish gate (FR-199) | Pages unpublished within 30 days of publishing (a sign the template or gate is wrong) | 1.7 |
+| Directory discoverability `[ASSUMPTION — conditional on gym count]` | Every published page's structured data validates with zero errors; published pages are indexed within 30 days; directory listings are indexed once they meet the FR-212 threshold (at launch, with few gyms, only individual pages are expected to be indexed) | Thin listings indexed (FR-212); share of visits that end in a call, WhatsApp, or directions tap (informational) | 1.7 |
 
 ---
 
@@ -158,6 +162,8 @@ Super Admin  (platform-wide; GymOS staff only)
                       └─ Coach         (assigned members + session notes only)
                            └─ Member       (own data only)
 ```
+
+A **GymOS support person** (V1.7) is a platform account, not a rung of this tree: in each assigned gym it holds a Supervisor-scope membership ranked below Owner and above Manager, and appears to the gym only as one "GymOS Support" row (FR-177, FR-182).
 
 Role enforcement is at the PostgreSQL RLS layer. Client-side role checks are supplementary only. When RLS rejects a request the client thought was allowed, the UI shows "You don't have permission to do that" and logs the denial to Sentry with the user's role, action, and resource — no raw database errors reach the user.
 
@@ -208,14 +214,14 @@ No new role and no new account type: a session guest is an ordinary Member on a 
 
 ### 4.5 Role Capability Deltas in V1.7
 
-One new account type, no new gym role: a **GymOS support person** is a platform account that holds a Supervisor-scope staff membership, flagged as support, in each gym it is assigned to (FR-175–FR-177). Support sits below Owner and is never the Owner.
+One new account type, no new gym role: a **GymOS support person** is a platform account that holds a Supervisor-scope staff membership, flagged as support, in each gym it is assigned to (FR-175–FR-178). Support sits below Owner and is never the Owner.
 
 | Role | New in V1.7 |
 |------|-------------|
-| Super Admin | Create support accounts; assign and unassign them per gym; remove a person; reset a person's second factor; see individual support identities in audit; take down or force-rename a landing page (FR-175, FR-176, FR-181, FR-182, FR-185, FR-195) |
-| Support person | Do what a Supervisor can do plus gym configuration, the gym's Tara Money connection, and transactions, in assigned gyms only, at AAL2 (FR-178, FR-184) |
-| Owner | Turn "Allow GymOS Support" on or off; see one "GymOS Support" row, never individuals; publish and unpublish the gym's page and choose public plans (FR-179, FR-180, FR-190–FR-192) |
-| Supervisor | Publish and unpublish the gym's page and choose public plans; cannot change "Allow GymOS Support" (FR-180, FR-190) |
+| Super Admin | Must sign in at AAL2 (FR-191); create support accounts by invite; assign, unassign and remove them; reset a second factor; see individual support identities in audit and answer Owner disclosure requests; approve names held for review; take down or force-rename a landing page (FR-175–FR-177, FR-185, FR-187, FR-190, FR-202–FR-204) |
+| Support person | Do what a Supervisor can do plus the allow-listed configuration, connect a gym's Tara Money account, and record payments, refunds and waivers, in assigned gyms only, at AAL2 (FR-179, FR-180, FR-189) |
+| Owner | Turn "Allow GymOS Support" on or off; confirm any replacement of the gym's payment account; see one "GymOS Support" row, never individuals; claim and rename the page name; publish and unpublish; choose public plans (FR-180, FR-182, FR-183, FR-198–FR-200, FR-203) |
+| Supervisor | Edit page content, publish and unpublish, and choose public plans; cannot claim a name or change "Allow GymOS Support" (FR-183, FR-198) |
 | Manager / Receptionist / Coach / Member | No change |
 
 ---
@@ -288,9 +294,17 @@ One Thursday she skips the payment and scans straight away. The app does not che
 
 At month end Grace opens her Overview: 41 paid guest sessions, 6 blocked attempts, 8 free sessions given. She can see what the guest desk is actually earning.
 
-### UJ-12: Chidi sets up a gym from the inside (V1.7) `[ASSUMPTION — narrative to confirm]`
+### UJ-12: Idris sets up a gym from the inside (V1.7) `[ASSUMPTION — narrative to confirm]`
 
-Grace has signed up her gym and is stuck on plan prices and connecting Tara Money. Chidi, a GymOS support person assigned to Grace's gym by the Super Admin, signs in with his phone, then types the six-digit code from his authenticator app. In Grace's dashboard he enters her plans and prices, connects her Tara Money account with the credentials she reads out, and imports her first forty members from a spreadsheet. Grace opens Settings and sees one new row in Staff, "GymOS Support", and in her audit trail every change is labelled "GymOS Support" with the time. She never sees Chidi's name, and she never sees a second support person who also works on her gym on Tuesdays. A week later she switches "Allow GymOS Support" off; Chidi's next request in her gym is refused.
+Grace has signed up her gym and is stuck on plan prices and connecting Tara Money. Idris, a GymOS support person assigned to Grace's gym by Chidi at Super Admin, signs in with his phone, then types the six-digit code from his authenticator app. In Grace's dashboard he enters her plans and prices and imports her first forty members from a spreadsheet. Then he starts connecting her Tara Money account; because none is connected yet, he can do it himself. Grace's Settings shows one new row in Staff, "GymOS Support", and her audit trail labels every change "GymOS Support" with the time. She never sees Idris's name, or whether anyone else also works on her gym. A week later Grace switches "Allow GymOS Support" off; Idris's next request in her gym is refused. When she later asks GymOS to swap her Tara Money account, support prepares it and Grace gets a confirmation to approve before anything changes.
+
+### UJ-13: Aminata finds a gym, and Grace publishes one (V1.7) `[ASSUMPTION — narrative to confirm]`
+
+Aminata, new to Douala, searches for "pilates studio Douala" and lands on a gym's page: a banner, the studio's hours, two public plans with prices, and a WhatsApp button that opens a chat. She taps it. On Grace's side, publishing was a checklist: logo, banner, about text, hours, a contact number she chose to make public, and one plan she marked "show on my page" — her other plans stay private. She claimed `grace-fit` as her page name and confirmed what becomes public before publishing. Her Supervisor edits the opening hours later; the page keeps passing its checks, so it stays live. If Grace made her last public plan private, the page would unpublish itself and tell her why.
+
+### UJ-14: Chidi takes down an impersonating page (V1.7) `[ASSUMPTION — narrative to confirm]`
+
+A visitor reports a page named `gymos-pay` through the report form. Chidi sees it was blocked for review by the near-match rule, but a gym had published it under a different spelling the rule did not catch. He takes the page down with a reason code; the address stops returning content within the minute, the gym's Owner is told why, and republishing is blocked until Chidi lifts the takedown. The name stays reserved to that gym.
 
 ---
 
@@ -951,67 +965,89 @@ One program engine per gym with two earning rules: guests earn toward a free ses
 
 ### 6.30 GymOS Support Staff — V1.7 (ships first)
 
-**FR-175** — A Super Admin can create a **GymOS support account** for one real person, with its own login (phone or email, as for any staff account). Accounts are never shared. A support account belongs to GymOS, not to any gym, and has no access to any gym until a gym is assigned and its second factor is verified (FR-184).
+**FR-175** — A Super Admin can create a **GymOS support account** for one real person. The account uses a GymOS-controlled phone number or email that does not match any existing user; creation is refused on a collision, never merged (FR-001). Accounts are never shared. A support account belongs to GymOS, not to any gym, and has no access to any gym until a gym is assigned and the account's own second factor is verified (FR-189).
 
-**FR-176** — Assignment is **many-to-many and per gym**: a support person can be assigned to zero or more gyms, and a gym can have zero or more support people assigned. Assignment and unassignment are Super Admin actions and are audited. A new gym has no support assigned automatically.
+**FR-176** — A support account is activated through a **single-use invite link** that expires in 24 hours and is sent to a channel Super Admin has verified, never a temporary password. Enrollment of the account's authenticator happens inside that flow. One verified factor per account; adding or removing a factor requires AAL2, and a session at AAL1 cannot enroll an additional factor.
 
-**FR-177** — In each assigned gym a support person holds a real staff membership at **Supervisor scope**, flagged as support and ranked below Owner. The FR-087 ceiling applies: support cannot create, edit, or remove an Owner, cannot create a Supervisor or another support account, and cannot change its own role. A person who holds a support membership in a gym holds no other role there (FR-091).
+**FR-177** — Assignment is **many-to-many and per gym**: a support person can be assigned to zero or more gyms, and a gym can have zero or more support people assigned. Assignment, unassignment and removal are Super Admin actions at AAL2, audited, with a mandatory reason (consistent with FR-089). A new gym has no support assigned automatically. An assignment made while the gym's support switch is off is **pending** and activates only when a Super Admin confirms it after the switch is on.
 
-**FR-178** — A support person can do anything a Supervisor can, plus the gym configuration the Owner controls: gym profile and settings, plans and prices, registration fee, guest charging and loyalty settings, category, staff within the ceiling, member records and imports, and **connecting or replacing the gym's Tara Money account** (FR-126, FR-127). It can also record payments, refunds, and registration-fee waivers. Secrets go to Vault as today; the audit row records that credentials changed, never their value. Support **cannot** change "Allow GymOS Support" (FR-180), delete the gym, or change the gym's SaaS billing relationship with GymOS.
+**FR-178** — In each assigned gym a support person holds a real staff membership at **Supervisor scope**, flagged as support and ranked below Owner. The flag is set in the same statement that creates the membership and cannot be changed by anyone but Super Admin. The FR-087 ceiling applies: support cannot create, edit, or remove an Owner or a Supervisor, cannot create another support account, and cannot change its own role. A person who holds a support membership in a gym holds no other role there, and an assignment is refused if the person is already a member or staff in that gym (FR-091).
 
-**FR-179** — To the Owner and the gym's staff, support appears as **one fixed row, "GymOS Support"**, in the staff list whenever at least one support person is assigned and allowed, and no row otherwise. The row never shows an individual, however many support people are assigned. It cannot be edited or deactivated from the gym; the only gym-side control is FR-180.
+**FR-179** — Beyond what a Supervisor can do, a support person can: edit the gym profile and settings, plans and prices, registration fee, guest charging and loyalty settings, category, and landing-page content; create staff within the ceiling; manage member records and imports; record payments, refunds and registration-fee waivers; and connect a payment account where none is connected (FR-180). Support **cannot**: change "Allow GymOS Support"; change the gym's SaaS tier, interval, billing anchor, Owner contact, subscription status, or suspension state; deactivate or delete the gym; edit, deactivate or reset the credentials of the Owner or any Supervisor; change any staff member's phone number or trigger a credential reset for them; or reach any capability not on this list. The allow-list is the specification: every RPC and column grant a support session can use is enumerated, and every denied one has a negative test.
 
-**FR-180** — Each gym has an **"Allow GymOS Support"** setting, on by default for every gym, changeable by the Owner only. Switching it off ends all support access to that gym at once; switching it on restores the gym's assignments. `[ASSUMPTION — assignments are suspended, not deleted, while off; confirm in OQ-30]` Both changes are audited and shown to the Super Admin.
+**FR-180** — Amendment to FR-126 and FR-127. Support can **connect** a gym's Tara Money account where none is connected. **Replacing** an existing connection requires the Owner's confirmation: support prepares the change, the Owner approves it in the dashboard, and nothing changes until then. Every change to a gym's payment connection notifies the Owner and alerts Super Admin, and after any such change or a support revocation the Owner is prompted to review it. Secrets go to Vault as today; the audit row records that credentials changed, never their value.
 
-**FR-181** — Removing an individual support person from a gym, or deactivating the support account, is a Super Admin action only. The Owner cannot see or act on individuals.
+**FR-181** — Support actions that move money or change who has access are visible to the gym without naming the person: the Owner is notified of any refund, fee waiver, payment-connection change, or staff creation by support, in a summary at least daily on days support acted. A velocity limit applies per support account across gyms (default 3 payment-connection or refund-over-threshold actions per hour `[ASSUMPTION]`) and locks the account for Super Admin review when exceeded. Staff created or modified by support are tagged "created by GymOS Support" in the Owner's staff list and are flagged for review on any support revocation.
 
-**FR-182** — Every action by a support person is audit-logged under that person's individual identity. In the Owner's and gym staff's views, including the audit trail and any "recorded by" label, the actor is shown as **"GymOS Support"**; the individual's name is visible to Super Admin only.
+**FR-182** — To the Owner and the gym's staff, support appears as **one fixed row, "GymOS Support"**, in the staff list, never an individual and never a count. The gym's Settings states which of three states applies: **off** ("turned off by you"), **on with no one assigned**, or **on with support assigned**, and the time support last acted. The row cannot be edited or deactivated from the gym; the only gym-side control is FR-183.
 
-**FR-183** — Support memberships are excluded from the gym's staff counts, role limits, notifications, and platform metrics. A single flag on the membership governs all of it, so no surface needs its own filter.
+**FR-183** — Each gym has an **"Allow GymOS Support"** setting, changeable by the Owner only. It is **on for gyms created after V1.7 and off for gyms that exist at release** until the Owner turns it on; existing Owners are told in-app and by their usual channel before release (following FR-157). Switching it off ends all support access to that gym immediately. Switching it on re-activates the assignments that were active when it was switched off; assignments made while it was off stay pending (FR-177). Both changes are audited and visible to Super Admin. `[ASSUMPTION — assignments are suspended, not deleted; confirm in OQ-30]`
 
-**FR-184** — Every support account must pass a **second factor**: a time-based one-time code from an authenticator app (TOTP, Supabase MFA). Enrollment is forced at first sign-in. A support session works only at the elevated assurance level (AAL2); a session at the lower level sees and can do nothing in any gym. The check is enforced in the database on every support read and write path, so an older client build cannot bypass it (NFR-021 pattern).
+**FR-184** — When access ends (unassignment, removal, opt-out, deactivation, or lock), operations already started complete or roll back atomically; items created by the revoked person that are still pending are re-owned to a system actor and flagged for the Owner; support sessions' live subscriptions and signed links stop working within 60 seconds `[ASSUMPTION]`; and the Owner is prompted to review changes made by support to payment and staff settings.
 
-**FR-185** — A Super Admin can reset a support person's second factor. The reset invalidates the person's sessions, requires re-enrollment, and is audited.
+**FR-185** — Removing an individual support person from a gym or deactivating the account is a Super Admin action only, with a mandatory reason. The Owner cannot see or act on individuals. Support accounts are disabled automatically after 30 days without activity `[ASSUMPTION]`, recertified by Super Admin each quarter, and any change to a support person's phone or email goes through Super Admin at AAL2.
 
-**FR-186** — Unassigning a support person, deactivating the account, or the Owner switching "Allow GymOS Support" off takes effect on the person's **next request**, not at token expiry. This completes FR-090 for every role: each role-gated policy and RPC checks the caller's current membership, role, and deactivation state live, not only the role claim carried in the token (NFR-023).
+**FR-186** — **No gym-side read returns an individual support identity**: not the staff list, audit trail, payment "recorded by" labels, refund approvers, member notes, check-ins, exports, live updates, notifications, or error logs. The displayed actor is derived by the server and cannot be set by a client. A person's user identity is not visible across the gyms they work in. Each surface above has a test.
 
-**FR-187** — Amendment to FR-072. Super Admin read-only support escalation stays, unchanged, as the diagnosis tool. Hands-on set-up and repair is done by an assigned support person under FR-178, not by Super Admin escalation.
+**FR-187** — Every action by a support person is audit-logged under the individual's identity, retained as for any staff action. To the gym it is shown as "GymOS Support". The Owner can ask for disclosure of the individual behind any audit row; Super Admin must answer the request within 3 business days `[ASSUMPTION]`, and the answer is itself audited. GymOS is responsible for the actions of its support staff in a gym; the customer terms say so `[NOTE FOR PM — terms to be reviewed by counsel, OQ-31]`.
 
-**FR-188** — A support person never appears on a member-facing surface: receipts, the member app, and message templates show the gym, never an individual support identity.
+**FR-188** — Support memberships are excluded from the gym's staff counts, staff-role caps and tier limits, operational notifications (such as front-desk alerts), and platform metrics. A support person never receives a gym's operational notifications. The single support flag (FR-178) governs all of it, tested in both directions.
+
+**FR-189** — Every support account must pass a **second factor**: a time-based one-time code from an authenticator app (TOTP, Supabase MFA). A support session works only at the elevated assurance level (AAL2); a session at the lower level sees and can do nothing in any gym. The check is enforced in the database and in every edge function and service path that touches money or secrets, through one shared check, so no entry path and no older client build can bypass it (NFR-021, NFR-023). Support sessions end after 8 hours and after 15 minutes idle `[ASSUMPTION]`; changing a payment connection, issuing a refund, and creating staff each require the second factor to have been verified within the last 5 minutes `[ASSUMPTION]`; repeated wrong codes lock the account; there is no "remember this device".
+
+**FR-190** — A Super Admin can reset a support person's second factor. The reset requires AAL2, invalidates the person's sessions, requires re-enrollment through a new single-use invite (FR-176), notifies the person on their other channel, and is audited.
+
+**FR-191** — Every **Super Admin** session requires the second factor too (AAL2), because Super Admin creates, assigns and resets support accounts. Dual control (a second approver) is recorded as a later item (Section 8).
+
+**FR-192** — Amendment to FR-090. Unassigning a support person, removing or deactivating the account, a lock, or the Owner switching "Allow GymOS Support" off takes effect on the person's **next request**, not at token expiry. This closes FR-090 for every role: each role-gated policy, RPC, edge function and service path checks the caller's current membership, role, deactivation state, and for support the assignment, the opt-out, and the second-factor level, live. A gym in suspension (FR-132) is denied to support like every other staff account.
+
+**FR-193** — Amendment to FR-072. Super Admin read-only support escalation stays as the diagnosis tool. A support person's access to member and payment data in an assigned gym is by assignment and is audited under FR-187; **a Super Admin cannot hold a support account**, so assignment cannot be used to bypass the escalation's reason and audit. A support person cannot act on a record tied to their own phone or email.
+
+**FR-194** — A support person who works in several gyms has an explicit active-gym context (FR-003), re-checked live on every request; there is no cross-gym action in one request.
+
+**FR-195** — A support person never appears on a member-facing surface: receipts, the member app, and message templates show the gym, never an individual support identity.
 
 ### 6.31 Gym Landing Pages — V1.7
 
-**FR-189** — A gym can have one public **landing page** at `{name}.gymosapps.com`. It is optional. Every gym user still signs in at `owner.gymosapps.com`; only the public page lives on the per-gym address. The page shows no login, no member counts, and no staff names.
+**FR-196** — A gym can have one public **landing page** at `{name}.gymosapps.com`. It is optional. Every gym user still signs in at `owner.gymosapps.com`; only the public page lives on the per-gym address. The page shows no login, no member counts, and no staff names. A visitor can call the gym, open WhatsApp, or get directions.
 
-**FR-190** — The Owner, a Supervisor, or an assigned support person can enter and edit the page's content and publish or unpublish it. The content is: about, services and activities, public membership plans, public session plans and pricing, location (address and map position), opening hours, contact, gallery images, banner image, and logo, with the gym's existing primary color and its category label (FR-171).
+**FR-197** — New gym fields hold the page content: about, services and activities, public plans and session plans with prices, location (address and map position), opening hours, a **public contact** (phone or WhatsApp, which can differ from the Owner's login phone), gallery images, banner image, and logo, with the gym's existing primary color and category label (FR-171). Existing gyms are prompted to fill them in; nothing is published for them. Before publishing, a screen states exactly what becomes public.
 
-**FR-191** — Publishing is an explicit, server-validated action. A page can be published only when it has a name, category, logo, banner image, about text of at least 100 characters, country and city, at least one contact channel (phone or WhatsApp), opening hours, and at least one **public** plan (FR-192). Gallery, services, and map position are optional. Unpublishing is always allowed.
+**FR-198** — The Owner, a Supervisor, or an assigned support person can edit the content and publish or unpublish. **Only the Owner** (or Super Admin) can claim or rename the page name; edits and publishing by others use the existing name.
 
-**FR-192** — Plan visibility is **opt-in per plan**. A plan is private by default; only a plan the gym marks public appears on the page and in anything public.
+**FR-199** — Publishing is an explicit, server-validated action. A page can be published only when it has a page name, category, logo, banner image, about text of at least 100 characters, country and city, at least one public contact, opening hours, and at least one **public** plan. Gallery, services and map position are optional. The gate is evaluated again on every change: a page that stops meeting it unpublishes itself and the Owner is told why. Unpublishing is always allowed.
 
-**FR-193** — GymOS prebuilds the page templates; V1.7 ships one launch template. The gym can swap templates at any time without re-entering content. The template system is a self-contained module with one contract: validated, versioned gym content in, rendered page out. Templates are presentation only and hold no gym data (addendum G).
+**FR-200** — Plan visibility is **opt-in per plan**. A plan is private by default; only a plan the gym marks public appears on the page and in anything public.
 
-**FR-194** — A page name is lowercase, 3 to 30 characters of `a-z`, `0-9`, and `-`, with no leading or trailing hyphen. Names are unique case-insensitively. Reserved names (`owner`, `portal`, `www`, `api`, `app`, `admin`, `support`, `mail`, `staging`, `dev`, `gymos`, `gym-os`, `auth`, `cdn`, `status`, `docs`, `help`, and any name starting with `gymos`) cannot be claimed.
+**FR-201** — GymOS prebuilds the page templates; V1.7 ships one launch template. The gym can swap templates at any time without re-entering content. The template system is a self-contained module with one contract: validated, versioned gym content in, rendered page out. Templates are presentation only and hold no gym data (addendum G).
 
-**FR-195** — A name is claimed first come, first served by the gym's Owner at publish time, one name per gym. A gym may rename at most twice a year (Super Admin may override); the old name redirects permanently to the new one for 12 months and cannot be claimed by another gym in that time. There is no pre-moderation: Super Admin can take a page down, force a rename, or release a name, each audited, and is notified when a claimed name is a near-match to an existing gym or reserved name.
+**FR-202** — A page name is lowercase, 3 to 30 characters of `a-z`, `0-9`, and `-`, with no leading or trailing hyphen, no `--`, no `xn--` prefix, and not digits only. Names are unique case-insensitively. Reserved names (`owner`, `portal`, `www`, `api`, `app`, `admin`, `support`, `mail`, `staging`, `dev`, `gymos`, `gym-os`, `auth`, `cdn`, `status`, `docs`, `help`, `login`, `signin`, `account`, `billing`, `pay`, `payment`, `tara`, `taramoney`, and any name starting with `gymos`) and names containing a credential or brand word cannot be claimed. A name that is a near-match (edit distance 1, or equal after homoglyph, hyphen and digit folding) to an existing page, a reserved name, or a brand word is held for Super Admin approval before its first publish. Generic and place words (`gym`, `fitness`, `yoga`, `cameroon`, …) are held for approval too.
 
-**FR-196** — The public site reads only a **published projection** of gym content, never tenant tables, and holds no privileged database credential (NFR-024). Nothing a visitor can request returns data that is not in the projection.
+**FR-203** — A name is claimed first come, first served by the Owner, one name per gym, and **stays reserved to that gym** while unpublished, suspended, or renamed. A gym may rename at most twice in any rolling 12 months, counted whatever the publish state; Super Admin forced renames and overrides do not count. After a rename the old name redirects (301, one hop) to the current name for 12 months and is then reserved to the gym, not released. Redirects are dropped immediately on a takedown or force-rename.
 
-**FR-197** — Page chrome (labels, navigation, structured-data fields) is available in English and French; gym-entered content is shown as entered. `[ASSUMPTION — OQ-28]`
+**FR-204** — Super Admin can take a page down with a reason code. A takedown blocks republishing until lifted and tells the Owner why. Visitors can report a page from a public form; reports are answered within 5 business days `[ASSUMPTION]`; the Owner has an appeal path to Super Admin. No page is moderated before publishing.
 
-**FR-198** — A page is hidden from the public site, and its address stops resolving to content, while the gym is suspended (FR-132, tenant suspension) or unpublished; it returns when the gym is active and published again.
+**FR-205** — Gym content is rendered as text only; no HTML or script from a gym reaches the page, and structured data is built by a serializer that escapes markup. Uploaded images are re-encoded to JPEG, WebP or PNG with metadata (including location) removed, bounded in size, dimensions and count, served from a separate cookieless origin, and purged when the page is unpublished or the image deleted. The uploader attests they may publish the image.
+
+**FR-206** — The public site reads only a **published projection** and never tenant tables (NFR-024). The projection is a defined field list: page name, gym name, category, logo, banner, about, services, public plans and session plans (name, price, duration), address and optional map position, opening hours, public contact, gallery, country, city, primary color, template, and last-updated time. It exposes no internal identifiers, no `gym_token`, and no login-phone.
+
+**FR-207** — A page that is unpublished, taken down, or belongs to a suspended gym returns the same not-found response and leaves the address, directory and sitemap within 60 seconds at the origin; CDN copies are purged within 5 minutes and the sitemap is regenerated within 15 minutes `[ASSUMPTION]`. It returns when the gym is active and the page published again, unless a takedown is in force.
+
+**FR-208** — Page chrome (labels, navigation, structured-data fields) is available in English and French; gym-entered content is shown as entered, so language alternates are only declared where translated content exists. `[ASSUMPTION — OQ-28]`
 
 ### 6.32 Directory & Discovery — V1.7
 
-**FR-199** — GymOS publishes a **directory** on the main website: one section per country with at least one published gym, with city listings below it, built only from published landing pages (FR-196). Any published gym is listed regardless of country; Cameroon is the only country with a prominent entry point at launch. No Cameroon-only assumption appears in addresses, copy, or structured data.
+**FR-209** — Country is chosen from the ISO country list and city from a controlled list with alias normalization (accents, spelling, case); a new city is added by Super Admin. Place slugs in addresses are ASCII-folded.
 
-**FR-200** — Pages and directory listings carry search and AI-search optimization as a first-class requirement: structured data (`LocalBusiness` / `HealthClub`), a sitemap, canonical addresses, English/French language alternates, social-sharing metadata, a machine-readable site summary for AI crawlers, and clean semantic markup.
+**FR-210** — GymOS publishes a **directory** on the main website: a section per country with at least one published gym, with city listings below it, built only from published pages (FR-206). Any published gym is listed regardless of country; Cameroon is the only country with a prominent entry point at launch. No Cameroon-only assumption appears in addresses, copy, or structured data.
 
-**FR-201** — A country or city listing with fewer than the minimum number of published gyms is excluded from search indexing and from the sitemap, so thin pages do not harm discoverability. `[ASSUMPTION — minimum and threshold in OQ-29]`
+**FR-211** — Search and AI-search optimization is a first-class requirement with verifiable outcomes: every page's and listing's structured data (`LocalBusiness` / `HealthClub`) validates with zero errors in a stated validator; the sitemap lists exactly the pages that are indexable; canonical addresses are defined for filtered views; social-sharing metadata is present; and a plain-text site summary for AI crawlers lists each published gym's name, category, city, hours and public plans.
 
-**FR-202** — The directory can be filtered by gym category (FR-171). The category stays descriptive (FR-172); the filter is the only new use.
+**FR-212** — A country or city listing with fewer than 3 published gyms is excluded from search indexing and from the sitemap `[ASSUMPTION — OQ-29]`. At launch, with few gyms, only individual pages are expected to be indexed.
 
-**FR-203** — A gym that unpublishes, is suspended, or is taken down by Super Admin leaves the directory, the sitemap, and its listings promptly, and its address stops returning content (FR-198).
+**FR-213** — Amendment to FR-172. The directory can be filtered by gym category (FR-171), and the category label appears on the public page. The category remains descriptive for behavior, plan types and permissions. Category changes are audited.
+
+**FR-214** — A gym that unpublishes, is suspended, or is taken down leaves the directory, the sitemap and its listings within the times in FR-207.
 
 ---
 
@@ -1051,11 +1087,13 @@ One program engine per gym with two earning rules: guests earn toward a free ses
 
 **NFR-022** — Loyalty accounting (FR-165–FR-168) is derived from the recorded events that earn it and is idempotent: a duplicated webhook (FR-035), a retried request, or a replayed sync grants a stamp or reward at most once per qualifying event. Stamp earnings are performed in the same transaction as the event that earns them, and stamps, free sessions, and every reset or lapse are reconstructible from the audit log. Loyalty state is per member per gym and never readable across gyms (NFR-001).
 
-**NFR-023** — Authorization is verified against **current state** on every request, for every role that reaches a gym, support included: membership, role, deactivation, the support opt-out, and the second-factor level (FR-184, FR-186). A role or gym carried in the access token is never the sole basis for a decision. Role changes, unassignment, and opt-out take effect on the next request. This closes the remaining policies and RPCs that read the role claim only (payments insert, read, and verify among them) and is part of the support-staff release.
+**NFR-023** — Authorization is verified against **current state** on every request, for every role that reaches a gym, support included: membership, role, deactivation, the support assignment and opt-out, and the second-factor level (FR-189, FR-192). A role or gym carried in the access token is never the sole basis for a decision. This applies to RLS policies, RPCs, edge functions and service-role paths, all through one shared check. A generated inventory of every policy, RPC and function that reads the role or gym claim is part of the support-release gate, and a CI check fails the build on any that decides from the claim alone. Role-check patterns are null-safe, and payment inserts verify that the member belongs to the gym.
 
-**NFR-024** — The public site (landing pages and directory) is isolated from tenant data: it reads only the published projection (FR-196), runs with no privileged database credential, and a test proves the unauthenticated role cannot read any tenant table. A defect in the public site cannot expose a member, a payment, or an unpublished field (extends NFR-001).
+**NFR-024** — The public site (landing pages and directory) is isolated from tenant data: it reads only the published projection (FR-206), runs with no privileged database credential, and a test proves the unauthenticated role has no privilege on any other relation or function. The projection's column list is pinned by a snapshot test that fails on change. A defect in the public site cannot expose a member, a payment, or an unpublished field (extends NFR-001).
 
-**NFR-025** — Public pages are server-rendered and fast on a mid-range Android phone on 4G: the largest content paint is within 3 seconds for the launch template. `[ASSUMPTION — target to confirm with a measured baseline]`
+**NFR-025** — Public pages and directory listings are server-rendered and fast: the field-measured 75th-percentile largest content paint is within 3 seconds on a mid-range Android phone on 4G, for the launch template and for directory pages. `[ASSUMPTION — target to confirm with a measured baseline]`
+
+**NFR-026** — Because gym-authored pages share a registrable domain with the staff login, authentication cookies for `owner.` and `portal.` are host-only (never scoped to `.gymosapps.com`) with the strictest cookie prefix supported; public pages send a strict content security policy with no inline script; and a security-header test is part of the landing-page gate. A separate domain for gym pages is the fallback if any of these cannot be met.
 
 ### 7.3 Availability
 
@@ -1110,11 +1148,13 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | Self-serve gym signup | Post-V1.5 |
 | Travel mode plan type | V2.0 |
 | Pay-per-session per-visit charging | **Moved into V1.6** (FR-156–FR-163; OQ-16 resolved) |
-| Gym landing pages, the template module, per-gym subdomains | **Moved into V1.7** (FR-189–FR-198) |
-| Country-by-country gym directory and SEO / AI-SEO | **Moved into V1.7** (FR-199–FR-203) |
-| GymOS support staff (Super Admin-assigned, one collapsed "GymOS Support" row for the Owner, full configuration and transactions incl. Tara Money, TOTP second factor; amends FR-072) | **Moved into V1.7, ships first** (FR-175–FR-188) |
+| Gym landing pages, the template module, per-gym subdomains | **Moved into V1.7** (FR-196–FR-208) |
+| Country-by-country gym directory and SEO / AI-SEO | **Moved into V1.7** (FR-209–FR-214) |
+| GymOS support staff (Super Admin-assigned, one collapsed "GymOS Support" row for the Owner, full configuration and transactions incl. Tara Money, TOTP second factor; amends FR-072) | **Moved into V1.7, ships first** (FR-175–FR-195) |
 | Template library beyond the launch template; per-gym custom domains; page analytics; booking or payment on the public page | After V1.7 |
 | Gym-entered content in more than one language per field | Later (OQ-28) |
+| Dual control (a second approver) for support assignment and second-factor reset | Later, when the platform team has a second Super Admin (FR-191) |
+| Content moderation tooling beyond report, takedown and appeal (FR-204) | Later |
 | Category-specific behavior, wording, or plan types (FR-172) | Not in V1.7 (category stays descriptive; decided 2026-10-15); later, with studio feedback |
 | Attendance-based rewards for subscribers (e.g. N visits in a month) | Later, after V1.6 proves the renewal rule |
 | Discount or percentage rewards; referral rewards | Later — would touch payment amounts (FR-164) |
@@ -1172,10 +1212,11 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | OQ-24 | **Resolved (2026-10-15)** — public site built in `apps/landing`; minimum publish content, reserved names and impersonation policy, claim and rename rules, directory geography, SEO ownership and per-plan public opt-in decided (Section 12 F). | — | — |
 | OQ-25 | **Resolved (2026-10-11)** — class attendance by a Pay-per-session guest requires and consumes a paid session under the same rule as check-in (option a); booking stays free; the same session covers floor and class that day (FR-174). | — | — |
 | OQ-26 | **Resolved (2026-10-11)** — V1.7 support staff may do everything gym staff can, transactions included; support is on by default and a gym may opt out; support accounts require a second login factor (Section 12 E). **Method resolved (2026-10-15): TOTP authenticator app via Supabase MFA, enforced at AAL2 in the database.** | — | — |
-| OQ-27 | **V1.7 second factor availability** — confirm TOTP enrollment is enabled on the production Supabase project and plan before support stories are written (FR-184). | Dev | Before support stories |
-| OQ-28 | **Landing page content language** — whether a gym enters content in one language or both, and how the page chooses (FR-197). | Product owner | Before landing-page stories |
-| OQ-29 | **Directory thin-page threshold** — the minimum number of published gyms for a country or city listing to be indexed (FR-201). | Product owner | Before directory stories |
-| OQ-30 | **Opt-out semantics** — whether switching "Allow GymOS Support" off suspends assignments (resume on switch-on) or deletes them (FR-180). | Product owner | Before support stories |
+| OQ-27 | **Moved to the release checklist (Section 10.2)** — confirm TOTP enrollment is enabled on the production Supabase project and plan before support stories are written (FR-189). | Dev | Before support stories |
+| OQ-28 | **Landing page content language** — whether a gym enters content in one language or both, and how the page chooses (FR-208). | Product owner | Before landing-page stories |
+| OQ-29 | **Directory thin-page threshold** — default 3 published gyms per listing (FR-212); confirm or change. | Product owner | Before directory stories |
+| OQ-30 | **Opt-out semantics** — default as written: switching "Allow GymOS Support" off suspends assignments, switching on re-activates those that were active, and assignments made while off stay pending (FR-177, FR-183). Confirm. | Product owner | Before support stories |
+| OQ-31 | **Legal review** — liability terms for support actions (FR-187), publishing a gym's phone and address (FR-197), and support access to member data under the applicable data-protection law. | Product owner, counsel | Before release of step 1 and step 2 |
 
 ---
 
@@ -1209,18 +1250,22 @@ Section 12 is explicitly **not** part of this gate.
 
 V1.7 ships in order, and each step has its own gate. Step 1 must be done before step 2 starts.
 
+**Pre-flight (before support stories).** TOTP enrollment is confirmed enabled on the production Supabase project and plan (formerly OQ-27); OQ-30 and OQ-31 are answered; existing Owners have been told about support access (FR-183).
+
 **Step 1 — GymOS support staff (ships first).** Done when:
-1. A Super Admin can create a support person, assign them to several gyms, and assign several support people to one gym, and the person sees only assigned gyms (FR-175–FR-177).
-2. A support person cannot do anything in any gym without a verified second factor, and an older client build cannot bypass it (FR-184, NFR-023).
-3. The Owner sees one "GymOS Support" row and one on/off control; an opt-out, an unassignment, or a removal is refused on the person's next request (FR-179–FR-181, FR-186).
-4. Every support action is audited under the individual and shown to the gym as "GymOS Support" (FR-182).
-5. Support is excluded from staff counts, role limits, notifications, and metrics (FR-183).
-6. A support person can set up plans, settings, members, staff, and a Tara Money connection, and record payments and refunds, in an assigned gym (FR-178).
-7. The role-claim retrofit is complete and covered by database-level tests, with the payment policies included (NFR-023).
+1. A Super Admin, signed in at AAL2, can create a support person by invite link, assign them to several gyms, and assign several support people to one gym, and the person sees only assigned gyms (FR-175–FR-178, FR-191).
+2. A support person cannot do anything in any gym without a verified second factor, in the database or in any edge function or service path, and an older client build cannot bypass it (FR-189, NFR-023).
+3. The Owner sees one "GymOS Support" row, one on/off control and the three states; an opt-out, an unassignment, a removal or a lock is refused on the person's next request; in-flight work completes or rolls back (FR-182–FR-185, FR-192).
+4. Replacing a gym's payment account requires the Owner's confirmation, and every payment-connection change, refund, waiver and staff creation by support notifies the Owner (FR-180, FR-181).
+5. Every support action is audited under the individual and shown to the gym as "GymOS Support"; a test per surface proves no gym-side read returns an individual identity (FR-186, FR-187).
+6. The allow-list is enumerated and every denied capability has a negative test (FR-179).
+7. Support is excluded from staff counts, role caps, notifications and metrics, tested both ways (FR-188).
+8. The generated claim-read inventory is empty of claim-only decisions and the CI check is on; the payment policies are included (NFR-023).
+9. Existing gyms start with support off; new gyms start with it on (FR-183).
 
-**Step 2 — Landing pages.** Done when a gym can enter its content, choose public plans, pick a name, publish at `{name}.gymosapps.com` once the gate passes, swap templates, and rename with redirects, and the public site is shown by test to read no tenant table (FR-189–FR-198, NFR-024).
+**Step 2 — Landing pages.** Done when a gym can enter its content, choose public plans, claim a name that passes the rules, publish once the gate passes, swap templates, rename with redirects, and be taken down; unpublish and suspension behave within the stated times; the public site is shown by test to read only the projection; the security-header test passes (FR-196–FR-208, NFR-024, NFR-026).
 
-**Step 3 — Directory.** Done when published gyms appear in country and city listings filtered by category with valid structured data, thin listings are not indexed, and unpublished or suspended gyms leave the directory (FR-199–FR-203).
+**Step 3 — Directory.** Done when published gyms appear in country and city listings filtered by category with structured data that validates, thin listings are not indexed, and unpublished or suspended gyms leave the directory (FR-209–FR-214).
 
 All three steps are delivered in English and French with database-level tests and the E2E baseline (NFR-014, NFR-015).
 
@@ -1248,51 +1293,49 @@ All three steps are delivered in English and French with database-level tests an
 | Stamp | One unit of loyalty progress: a consumed paid session for a guest, an on-time renewal for a subscriber (FR-165, FR-167) |
 | Free session | A session with no payment, earned after N guest stamps and consumed like a paid one; valid 60 days (FR-166) |
 | Gym category | Descriptive business type chosen at gym creation: Gym / Salle de sport, Studio Pilates, Studio Yoga, Fitness Center, Autre (FR-171) |
-| Support person | A GymOS platform account assigned by Super Admin to one or more gyms, holding a Supervisor-scope staff membership flagged as support in each; never the Owner (FR-175–FR-177) |
-| GymOS Support (row) | The single entry the Owner and staff see in place of any individual support person (FR-179) |
-| AAL2 | The elevated authentication assurance level reached after a second factor is verified; the only level at which a support session works (FR-184) |
-| TOTP | Time-based one-time password from an authenticator app, the support second factor (FR-184) |
-| Landing page | A gym's optional public page at `{name}.gymosapps.com` (FR-189) |
-| Published projection | The narrow, read-only, anon-safe view of gym content that the public site reads instead of tenant tables (FR-196) |
+| Support person | A GymOS platform account assigned by Super Admin to one or more gyms, holding a Supervisor-scope staff membership flagged as support in each; never the Owner (FR-175–FR-178) |
+| GymOS Support (row) | The single entry the Owner and staff see in place of any individual support person (FR-182) |
+| Pending assignment | A support assignment made while a gym's support switch is off; it activates only after a Super Admin confirms it (FR-177) |
+| AAL2 | The elevated authentication assurance level reached after a second factor is verified; the only level at which a support or Super Admin session works (FR-189, FR-191) |
+| TOTP | Time-based one-time password from an authenticator app, the support and Super Admin second factor (FR-189) |
+| Landing page | A gym's optional public page at `{name}.gymosapps.com` (FR-196) |
+| Published projection | The narrow, read-only, anon-safe view of gym content that the public site reads instead of tenant tables (FR-206) |
 
 ---
 
-## 12. V1.7 — Resolutions, Delivery Order & Inherited Work
+## 12. V1.7 — Decisions, Delivery Order & Open Assumptions
 
-Section 12 started as the V1.7 backlog recorded on 2026-10-11. V1.7 planning ran on 2026-10-15; the requirements are now FR-175–FR-203 (6.30–6.32), and this section keeps the decisions behind them, the delivery order, and the work V1.7 inherits. The letters C, D, E, F below are kept because other documents cite them.
+Section 12 started as the V1.7 backlog recorded on 2026-10-11. V1.7 planning ran on 2026-10-15; the requirements are FR-175–FR-214 (6.30–6.32). This section keeps the decisions behind them, the delivery order, and the assumptions index. The detailed list of inherited work from the deferred-work triage is in addendum section I.
 
 **Delivery order (decided 2026-10-15, product owner):** E, GymOS support staff, ships first, before landing pages (C) and the directory (D). Its prerequisites ship inside it: the live-authorization retrofit that completes FR-090, and the AAL2 gate (Section 10.2).
 
-**C — Gym landing page.** Requirements: FR-189–FR-198. A short public page per gym at `{name}.gymosapps.com`, from one launch template over a swappable template module; every gym user still signs in at `owner.gymosapps.com`.
+**C — Gym landing page:** FR-196–FR-208. **D — Directory and discovery:** FR-209–FR-214. **E — GymOS support staff:** FR-175–FR-195.
 
-**D — Directory and discovery.** Requirements: FR-199–FR-203. A country and city directory built from published pages, filterable by category; search and AI-search optimization is a first-class goal.
+**E — decisions (2026-10-11, refined 2026-10-15):**
+- Many-to-many assignment; the Owner sees one collapsed "GymOS Support" row and one "Allow GymOS Support" control. Removing an individual is Super Admin only; the individual's name is visible to Super Admin only.
+- Second factor: TOTP via Supabase MFA, AAL2 enforced in the database and in every edge function and service path, forced enrollment by invite link, audited Super Admin reset. Chosen because staff sign in by phone or email, so a code sent over either channel is not an independent factor for everyone, and TOTP has no delivery cost. Super Admin also requires AAL2 (FR-191).
+- Replacing a gym's payment account needs the Owner's confirmation (FR-180); connecting one where none exists does not. Chosen after the V1.7 review found that one support account could otherwise redirect every assigned gym's member payments with no Owner-visible trace.
+- Support starts ON for new gyms and OFF for existing gyms until the Owner enables it (FR-183), following the V1.6 precedent (FR-157).
+- A hidden account was rejected on 2026-10-11 because it would need filtering from every staff list, count, notification, and metric; one flagged membership and one row is that cost paid once.
 
-**E — GymOS support staff.** Requirements: FR-175–FR-188. Decided with the product owner on 2026-10-11 (light alternative to an owner-approved, time-limited support mode) and refined on 2026-10-15:
-- Many-to-many assignment: a support person works in zero or more gyms; a gym has zero or more support people.
-- The Owner sees **one** collapsed "GymOS Support" row and has **one** control, "Allow GymOS Support" (on by default). Removing an individual is Super Admin only. The Owner's audit trail shows "GymOS Support"; the individual's name is recorded and visible to Super Admin only.
-- Support is excluded from staff counts, role limits, notifications, and metrics through a single flag on the membership.
-- Second factor: TOTP via Supabase MFA, AAL2 enforced in the database, forced enrollment, audited Super Admin reset. Chosen because staff sign in by phone or email, so a code sent over either channel is not an independent factor for everyone, and TOTP has no delivery cost.
-- A hidden account was rejected on 2026-10-11 because it would need filtering from every staff list, count, notification, and metric; the single flagged membership and the single row are the same cost paid once.
+**F — OQ-24 resolutions (2026-10-15):** the public site is built in `apps/landing` (the `www.` Vercel project) and reads only the published projection; the `*.gymosapps.com` wildcard attaches to that project, and `owner.` and `portal.` stay explicit records. Pages stay on `gymosapps.com` for brand and search value, with host-only authentication cookies, a strict content security policy, text-only rendering, and gym images on a separate origin (FR-205, NFR-026); a separate domain is the fallback if those cannot be met. GymOS owns the SEO surface; the gym owns the content.
 
-**F — OQ-24 resolutions (2026-10-15, product owner).** Encoded in FR-189–FR-203: the public site is built in `apps/landing` (the `www.` Vercel project), reads only the published projection, and holds no service-role key; the `*.gymosapps.com` wildcard attaches to that project and `owner.` and `portal.` stay explicit records. Minimum publish content, plan opt-in, name rules and the reserved list, claim and rename rules, directory geography, and SEO ownership are as written in FR-191–FR-195 and FR-199–FR-201. GymOS owns the SEO surface; the gym owns the content, with no auto-generated copy in V1.7.
+**G — Assumptions index** (each is tagged `[ASSUMPTION]` where it appears; confirm or change before the stories that depend on it):
 
-**G — Work V1.7 inherits** (from the deferred-work triage of 2026-10-15; the full report is a working file, line cites approximate).
-
-*Fix inside the support release (they gate it):*
-- Live-role gating: about 30 call sites still read the `app_role` claim (payments, classes, subscriptions, coach portal, alerts, refunds), so a removed person keeps access up to the token life (1 hour) and removal does not sign them out. Part of FR-186 and NFR-023.
-- `NULL` `app_role` passes the `if not (role = any(...))` pattern in role-gated RPCs. Not exploitable today (the token hook sets `gym_id` and `app_role` together and every matching function also rejects a null `gym_id`); make the check null-safe in the retrofit.
-- Payment INSERT policies do not verify that `member_id` belongs to `gym_id`. Low impact today (gym comes from the session); close it, because support writes payments across many gyms.
-- `common.invalidInput` is missing from both dashboard locale files; the i18n parity gate's directory list omits `apps/landing`.
-- The staff password-reset OTP path has never run in production; it is part of support account recovery. Deploy-drift alerting is missing.
-
-*Fold into the V1.7 stories they touch:*
-- The `gyms` "read own gym" policy is not role-gated and exposes capacity and `gym_token`: the published projection must be a separate anon-safe view, never a widened policy (FR-196).
-- Settings has no role guard and the registration-fee field has its own Save; the "Allow GymOS Support" control lands on the same page.
-- SECURITY DEFINER reads with no suspension guard; date formatting without a time zone in server-rendered components; no database validation of `gyms.timezone`; Zod-only validation with no CHECK constraints; public storage cleanup and "remove logo" gaps.
-- Category codes live in three places (CHECK, setter list, TypeScript); a V1.7 addition edits all three.
-- Support-account creation reuses weak paths: user lookup that pages every auth user, temporary passwords over WhatsApp, no audit of rejected staff creation, no reactivation path, no policy for a staff phone-number change.
-- Voided and refunded payments are handled inconsistently across readers; the Plans page does not role-gate Edit and Delete.
-
-*Open and unrelated to V1.7 but security-flavored:* `log_audit_event` is callable by any authenticated session; unauthenticated cost-bearing endpoints and phone enumeration; Dependabot findings. These stay on the deferred list and are not V1.7 scope unless a story touches them.
+| Where | Assumption | Confirm in |
+|-------|------------|-----------|
+| FR-181 | Velocity limit of 3 payment-connection or large-refund actions per hour per support account | Step 1 stories |
+| FR-183, FR-177 | Opt-out suspends assignments; assignments made while off stay pending | OQ-30 |
+| FR-184 | Live subscriptions and signed links stop within 60 seconds | Step 1 stories |
+| FR-185 | Auto-disable after 30 days inactive; quarterly recertification | Step 1 stories |
+| FR-187 | Disclosure request answered within 3 business days | OQ-31 |
+| FR-189 | Support session 8 h max, 15 min idle, step-up within 5 min | Step 1 stories |
+| FR-204 | Reports answered within 5 business days | Step 2 stories |
+| FR-207 | 60 s at origin, 5 min CDN purge, 15 min sitemap | Step 2 stories |
+| FR-208, FR-211 | Page chrome EN/FR, content as entered | OQ-28 |
+| FR-212 | Listing indexed from 3 published gyms | OQ-29 |
+| NFR-025 | p75 LCP 3 s on mid-range Android, 4G | Step 2, after a measured baseline |
+| Section 3.2 | Adoption and discoverability targets; set-up effort baseline | Release planning |
+| UJ-12, UJ-13, UJ-14 | Narratives are drafted, not user-contributed | Before UX |
 
 **Not planned for V1.7 and recorded elsewhere:** mobile app and dashboard redesign and the large template library (Section 8).

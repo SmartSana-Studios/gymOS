@@ -3,7 +3,7 @@ title: GymOS PRD — Addendum
 type: addendum
 linked_prd: prd.md
 created: 2026-06-20
-updated: 2026-08-11
+updated: 2026-10-15
 ---
 
 # GymOS PRD — Addendum
@@ -36,6 +36,7 @@ gymos/
   apps/mobile/          # Expo + Router → Android & iOS
   apps/dashboard/       # Next.js App Router
   apps/super-admin/     # Next.js (separate access)
+  apps/landing/         # Next.js public site (www.); V1.7 landing pages and directory
   packages/types/       # Shared TypeScript + Zod schemas
   supabase/
     migrations/
@@ -123,7 +124,7 @@ For downstream planning reference:
 | V1.0 | Money + attendance core: payments, subscriptions, check-in, occupancy, front-desk renewal alert, coach portal (basic), bilingual UI — shipped, Epics 1–8 done |
 | V1.5 | Owner self-serve staff (+ Supervisor role), body/progress tracking, Tara Money formalization, gym→GymOS SaaS billing (Flow B), classes, workout plans, quiet-gym alerts, class reminders, WhatsApp/Evolution API completion, PostHog, E2E baseline |
 | V1.6 | Per-visit paid sessions for Pay-per-session guests (per-gym switch), loyalty program (guest free sessions, subscriber free days), gym category — PRD v1.6 |
-| V1.7 | Gym landing pages on per-gym subdomains, swappable template module, country directory with SEO / AI-SEO — backlog, PRD Section 12 |
+| V1.7 | GymOS support staff (ships first), gym landing pages on per-gym subdomains with a swappable template module, country directory with SEO / AI-SEO — PRD v1.7, FR-175–FR-214 |
 | V2.0 | Travel mode (full), meal logging, streaks, challenges, leaderboards, activity feed, NGN/GHS markets |
 | V2.5 | Gym-owned merch store |
 | V3.0 | Platform-wide marketplace, geofence/BT/WiFi detection, branch management |
@@ -158,4 +159,27 @@ Mechanism notes for FR-175–FR-188; the PRD states the capabilities.
 - **AAL2.** Supabase MFA TOTP; the gate reads the session's `aal` claim next to the live role check and treats a missing or `aal1` value as no access for support memberships only (other roles are unchanged). Pin it in a pgTAP test per entry path, as 18.1 did for the registration-fee gate. Reset = Super Admin `auth.mfa` factor removal plus session revocation, audited.
 - **Audit.** The audit row carries the individual `actor_id` and a `display_actor` of "GymOS Support" for gym-side readers; the dashboard audit trail and any "recorded by" label read `display_actor`, Super Admin views read `actor_id`.
 - **Order of build.** (1) live-role helper and claim retrofit with pgTAP per policy, (2) support role, assignment, flag, staff-list row, (3) AAL2 gate and enrollment, (4) Owner opt-out and Super Admin management screens, audit labels. Story 1 is a prerequisite for everything else and can ship alone because it changes no visible behavior.
-- **Open before stories:** OQ-27 (TOTP enabled on the production plan), OQ-30 (opt-out suspend vs delete).
+- **Review additions (2026-10-15).** (1) The shared authorization check must also run in edge functions and service-role paths, which bypass RLS (FR-189, FR-192, NFR-023); a generated inventory plus a CI check fails on any claim-only decision. (2) The `is_support` flag is set in the same statement that creates the row, with a NOT NULL constraint and no non-Super-Admin write path. (3) `display_actor` is computed in a view or function, never stored from client input; support membership rows and the user's name and phone are hidden by RLS or views from every non-Super-Admin (FR-186). (4) Assignment states: pending, active, suspended, ended; the assignment table is the source of truth and the membership row is derived by one SECURITY DEFINER function, with a test for "active membership implies assignment and allow = true". (5) Replacing a payment connection is a two-step action: support proposes (a row with an expiry), the Owner confirms in the dashboard, then a service performs the swap (FR-180). (6) Invite links are single-use, 24 h, stored hashed.
+- **Public-site security (FR-205, NFR-026).** The auth cookies on `owner.`/`portal.` are host-only; check the Supabase SSR cookie options set no `domain`, and add a response-header test. Landing renders gym text as text, serializes JSON-LD with escaping, and serves images from a separate storage origin.
+- **Open before stories:** OQ-28, OQ-29, OQ-30, OQ-31 (see PRD Section 9); the TOTP pre-flight check (Section 10.2).
+
+## I. V1.7 Inherited Work (deferred-work triage, 2026-10-15)
+
+Source: the triage of `_bmad-output/implementation-artifacts/deferred-work.md` run at V1.7 planning; line cites there are approximate. Items marked *gate* belong to the Step 1 release gate (PRD 10.2).
+
+**Fix inside the support release (gate):**
+- Live-role gating: about 30 call sites still read the `app_role` claim (payments, classes, subscriptions, coach portal, alerts, refunds); a removed person keeps access up to the token life (1 hour) and removal does not sign them out. FR-192, NFR-023.
+- `NULL` `app_role` passes the `if not (role = any(...))` pattern in role-gated RPCs. Not exploitable today (the token hook sets `gym_id` and `app_role` together and every matching function also rejects a null `gym_id`); make the check null-safe.
+- Payment INSERT policies do not verify that `member_id` belongs to `gym_id`; low impact today (gym comes from the session), but support writes payments across many gyms.
+- `common.invalidInput` is missing from both dashboard locale files; the i18n parity gate's directory list omits `apps/landing`.
+- The staff password-reset OTP path has never run in production; support recovery uses invite links instead, but staff recovery still depends on it. Deploy-drift alerting is missing.
+
+**Fold into the stories they touch:**
+- The `gyms` "read own gym" policy is not role-gated and exposes capacity and `gym_token`: the published projection must be a separate anon-safe view, never a widened policy (FR-206).
+- Settings has no role guard and the registration-fee field has its own Save; "Allow GymOS Support" lands on the same page.
+- SECURITY DEFINER reads with no suspension guard; date formatting without a time zone in server-rendered components; no database validation of `gyms.timezone`; Zod-only validation with no CHECK constraints; public storage cleanup and "remove logo" gaps.
+- Category codes live in three places (CHECK, setter list, TypeScript); a V1.7 addition edits all three.
+- Support-account creation reuses weak paths: user lookup that pages every auth user, temporary passwords over WhatsApp, no audit of rejected staff creation, no reactivation path, no policy for a staff phone-number change.
+- Voided and refunded payments are handled inconsistently across readers; the Plans page does not role-gate Edit and Delete.
+
+**Open and unrelated, security-flavored (not V1.7 scope unless a story touches them):** `log_audit_event` is callable by any authenticated session; unauthenticated cost-bearing endpoints and phone enumeration; Dependabot findings.
