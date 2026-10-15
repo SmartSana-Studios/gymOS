@@ -1,0 +1,6 @@
+{
+  "entries": [
+    { "kind": "function", "name": "public.custom_access_token_hook(event jsonb)", "reason": "The claims hook writes the claims; it is the issuer, not a consumer of them." },
+    { "kind": "edge", "name": "supabase/functions/payment-webhook/index.ts", "reason": "Provider webhook authenticated by signature; uses the service role with explicit gym ids, no user claims." }
+  ]
+}

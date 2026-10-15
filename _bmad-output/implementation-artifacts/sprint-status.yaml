@@ -432,7 +432,7 @@ development_status:
 
   epic-22: in-progress
   22-1-spike-claims-hook-aal-factor-guard-session-deletion-cookies: done
-  22-2-claim-read-inventory-and-ci-check-report-mode: backlog
+  22-2-claim-read-inventory-and-ci-check-report-mode: review
   22-3-live-authorization-in-the-database: backlog
   22-4-live-authorization-in-edge-functions-and-service-paths: backlog
   22-5-super-admin-second-factor-enrollment-flag-off: backlog
@@ -469,6 +469,7 @@ development_status:
   24-11-takedown-reports-sitemap-and-media-purge: backlog
   24-12-landing-page-gate-isolation-headers-speed-baseline: backlog
   epic-24-retrospective: optional
+
   epic-25: backlog
   25-1-country-and-city-controlled-lists-gym-city-selection: backlog
   25-2-directory-views-and-listing-correctness: backlog
@@ -477,6 +478,7 @@ development_status:
   25-5-sitemaps-robots-and-plain-text-summary: backlog
   25-6-directory-gate-seo-verification-and-removal-timing: backlog
   epic-25-retrospective: optional
+  
 action_items:
   - epic: 7
     action: "Commit immediately when a story's Status is set to done, before starting
@@ -1213,3 +1215,6 @@ last_updated: 10-15-2026 12:30
 # last_updated: 2026-10-15 (build 22-1: story backlog -> in-progress, epic-22 backlog -> in-progress; branch epic/22 cut from master a0f0597, story branch feat/22-1-spike; spec spec-22-1-*.md approved. Decision: no staging project, probes run on the local stack only, hosted MFA cap and TOTP setting recorded as not independently verified.)
 # last_updated: 2026-10-15 (build 22-1: story in-progress -> review. Spike run on the local stack only (no staging, no production access): hook event carries claims.aal/amr on mint and refresh; AAL1 cannot add/remove a factor once one is verified (first-factor window remains); session-row delete stops refresh and /auth/v1/user but PostgREST accepts the old JWT until exp, so live helpers must check session_id; __Host- cookie holds with secure:true set explicitly. Result and changes-to-later-stories list in docs/decisions.md; spine Deferred bullet repointed. config.toml unchanged; no migration or app code.)
 # last_updated: 2026-10-15 (22-1 done, merged to epic/22; review: 3 layers, 0 high, patches applied to decisions.md and spine AD-34 marker; ci-local GREEN for f28c538 (static, pgtap 45s, unit, e2e 88s). Key results: hook receives event.claims.aal; AAL1 cannot add a factor once one is verified but can enroll the first (reset reopens it); session delete stops auth endpoints and refresh but PostgREST honors the JWT until exp, so live helpers must check session_id in auth.sessions; __Host- cookie works with secure:true set explicitly.)
+# last_updated: 2026-10-15 (build 22-2: backlog -> in-progress on branch feat/22-2-claim-read-inventory; spec spec-22-2-*.md approved. Scope includes app Server Actions (kind server, tag 22.4); private.gym_id() listed claim-only tag 22.3 with callers live-checked by delegation.)
+# last_updated: 2026-10-15 (build 22-2: in-progress -> review. scripts/claim-inventory.mjs + exempt/baseline JSON + unit tests; check:claims wired into ci-local pgtap stage and ci.yml rls-tests. Baseline: claim-only 7 (22.3: 5 -- the 3 private helpers, private.is_super_admin, trigger protect_payment_columns_on_staff_verify; 22.4: 7 app server sources), live-checked 118, exempt 1 (claims hook), null-unsafe 3 (22.3). No migration or policy change.)
+# last_updated: 2026-10-15 (build 22-2 review fixes: claim reads narrowed to app_role/gym_id/role; baseline now claim-only 7 (22.3: 5, 22.4: 2), live-checked 118, exempt 1, null-unsafe 3, mixed 59 informational; the two get-request-locale and both proxy.ts files are no longer listed.)

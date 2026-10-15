@@ -5,6 +5,22 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — Story 22.2: claim-read inventory and CI check (report mode)
+
+`scripts/claim-inventory.mjs` (`pnpm run check:claims`) lists every RLS policy, function/trigger body (`public`, `private`, via `docker exec psql`) and server source (`supabase/functions`, `apps/*/{app,lib}`, `lib`) that reads the role/gym claim, classified `claim-only`, `live-checked`, `exempt`, plus a `null-unsafe` list (`<>`/`!=` any/all, `not in` within 120 chars of "role"). Database entries are tagged 22.3, edge/server 22.4. It fails (exit 1) only on `claim-only` or `null-unsafe` entries absent from `scripts/claim-inventory.baseline.json`; vanished baseline entries print a "stale baseline" note (exit 0); no database exits 2. The baseline is only written by `--write-baseline`. Exemptions live in `scripts/claim-inventory.exempt.json` and need a reason.
+
+Baseline at close (local DB after all migrations): **claim-only 7 — 22.3: 5, 22.4: 2**; live-checked 118; exempt 1 (`custom_access_token_hook`); null-unsafe 3 (`create_staff_member`, `update_staff_role`, `private.guest_sessions_period`; all 22.3); mixed 59 (informational).
+
+- 22.3 claim-only: `private.gym_id()`, `private.current_member_role()`, `private.current_gym_status()` (the helpers, rewritten once in 22.3; their callers are `live-checked` by delegation), `private.is_super_admin()`, trigger `private.protect_payment_columns_on_staff_verify()`.
+- 22.4 claim-only: super-admin `(admin)/layout.tsx` and `(admin)/admins/actions.ts` (the only server sources that read `app_role`).
+- Only reads of the `app_role`, `gym_id` or `role` claim count (`auth.jwt()` in any spelling, `request.jwt.claims`; in sources `claims.x`, `claims['x']`, `app_metadata.x`, `.app_role`, destructuring). A bare `getClaims()`, or a read of `sub`, `aal` or `session_id`, is not a claim read, so the later `session_id`/`aal` checks (22.1 decision, 22.5, 22.7) do not become claim-only entries.
+- `live-checked` for sources means the file mentions `current_member_role`; `getUser()` is not a live role check.
+- A body that reads the role/gym claim directly and also calls a live helper stays `live-checked` (AC) and is additionally listed under `mixed`, informational and never failing (most are policies that pair `current_member_role()` with the claim-derived gym id).
+- An exempt entry that matches no inventory row prints a "stale exempt" note (the `payment-webhook` entry is pre-registered for 22.4).
+- Default source scan: `supabase/functions`, `lib`, each `apps/*` top-level files plus `app`, `lib`, `components`, `src`, and `packages/*`; an empty scan exits 2.
+- Wired: unit tests in the static stage (`test:guardrails`), DB run in the pgtap stage of `ci-local.sh` and the `rls-tests` job of `ci.yml`.
+- 22.3 retires the forced claim-only list (`CLAIM_HELPERS` in `scripts/claim-inventory.mjs`) by editing the script and regenerating the baseline with `--write-baseline`.
+
 ## 2026-10-15 — Story 22.1 spike: claims hook `aal`, factor-enrollment guard, session deletion, `__Host-` cookies
 
 All five Step 1 assumptions probed against the **local** stack (GoTrue v2.192.0, `@supabase/ssr` 0.12.7, Next 16.3.8). Product owner decision (2026-10-15): no staging project is created and production is not read. Nothing in production was touched; no migration or product code changed. Probes ran in a second GoTrue container (`spike_auth`) on the local Docker network with TOTP enabled and a temporary logging wrapper around the hook; both were removed afterward, and `supabase/config.toml` was **not** changed (the container env stood in for `[auth.mfa.totp] enroll_enabled/verify_enabled = true`). **22.5 must flip those two keys to `true` in `config.toml` itself** to test enrollment locally; hosted per OQ-27.

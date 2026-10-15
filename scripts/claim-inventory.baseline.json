@@ -1,0 +1,63 @@
+{
+  "entries": [
+    {
+      "kind": "function",
+      "name": "private.current_gym_status()",
+      "classification": "claim-only",
+      "story": "22.3"
+    },
+    {
+      "kind": "function",
+      "name": "private.current_member_role()",
+      "classification": "claim-only",
+      "story": "22.3"
+    },
+    {
+      "kind": "function",
+      "name": "private.gym_id()",
+      "classification": "claim-only",
+      "story": "22.3"
+    },
+    {
+      "kind": "function",
+      "name": "private.is_super_admin()",
+      "classification": "claim-only",
+      "story": "22.3"
+    },
+    {
+      "kind": "server",
+      "name": "apps/super-admin/app/(admin)/admins/actions.ts",
+      "classification": "claim-only",
+      "story": "22.4"
+    },
+    {
+      "kind": "server",
+      "name": "apps/super-admin/app/(admin)/layout.tsx",
+      "classification": "claim-only",
+      "story": "22.4"
+    },
+    {
+      "kind": "trigger",
+      "name": "private.protect_payment_columns_on_staff_verify()",
+      "classification": "claim-only",
+      "story": "22.3"
+    }
+  ],
+  "nullUnsafe": [
+    {
+      "kind": "function",
+      "name": "private.guest_sessions_period(p_period text)",
+      "story": "22.3"
+    },
+    {
+      "kind": "function",
+      "name": "public.create_staff_member(p_user_id uuid, p_name text, p_phone text, p_role member_role)",
+      "story": "22.3"
+    },
+    {
+      "kind": "function",
+      "name": "public.update_staff_role(p_member_id uuid, p_name text, p_role member_role)",
+      "story": "22.3"
+    }
+  ]
+}
