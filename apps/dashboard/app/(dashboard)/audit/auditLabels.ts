@@ -91,6 +91,11 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   loyalty_paid_session_lapsed: "audit.actionTypes.loyaltyPaidSessionLapsed",
   loyalty_sweep_job_failure: "audit.actionTypes.loyaltySweepJobFailure",
   loyalty_hook_failed: "audit.actionTypes.loyaltyHookFailed",
+  // Story 20.8 (0122). loyalty_hook_repaired: the daily reconciliation re-ran a loyalty
+  // hook whose swallowed failure left a stamp, a renewal stamp or a reversal missing;
+  // target = the member, actor "System", metadata { kind: earn | renewal | reversal,
+  // guest_session_id | payment_id, as_of }. The normal event and audit rows are written too.
+  loyalty_hook_repaired: "audit.actionTypes.loyaltyHookRepaired",
   guest_charging_changed: "audit.actionTypes.guestChargingChanged",
   plan_type_changed: "audit.actionTypes.planTypeChanged",
   plan_price_changed: "audit.actionTypes.planPriceChanged",

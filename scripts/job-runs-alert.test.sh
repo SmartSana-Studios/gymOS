@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 DB=${DB_CONTAINER:-supabase_db_gym_os}
 SCRIPT=scripts/job-runs-alert.sql
 
-JOBS="check_in_auto_timeout class_reminder quiet_gym_alert class_session_materializer payment_reconciliation saas_billing_lifecycle subscription_lifecycle loyalty_sweep"
+JOBS="check_in_auto_timeout class_reminder quiet_gym_alert class_session_materializer payment_reconciliation saas_billing_lifecycle subscription_lifecycle loyalty_sweep loyalty_hook_repair"
 
 run() { # $1 = fixture sql; prints the script's rows, pipe-separated
   { echo "begin; delete from job_runs;"; echo "$1"; cat "$SCRIPT"; echo "rollback;"; } |
