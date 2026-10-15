@@ -431,7 +431,7 @@ development_status:
   epic-21-retrospective: done
 
   epic-22: in-progress
-  22-1-spike-claims-hook-aal-factor-guard-session-deletion-cookies: review
+  22-1-spike-claims-hook-aal-factor-guard-session-deletion-cookies: done
   22-2-claim-read-inventory-and-ci-check-report-mode: backlog
   22-3-live-authorization-in-the-database: backlog
   22-4-live-authorization-in-edge-functions-and-service-paths: backlog
@@ -1212,3 +1212,4 @@ last_updated: 10-15-2026 12:30
 # last_updated: 2026-10-15 (ad-hoc, non-story: host-portability question from the product owner answered and recorded. Story 24-2 gains an AC that routes the VERCEL_ENV / VERCEL_GIT_COMMIT_SHA reads (analytics environment, build id; apps/dashboard/vercel.json and turbo.json noted) through one host-neutral module per app with APP_ENV / GIT_SHA primary and Vercel variables as fallback; spine AD-43 gains a host-neutral note naming the three replaceable parts (wildcard certificate, caching CDN/proxy in front, edge rate limiting) and that a CDN in front is mandatory off Vercel. No code or migrations.)
 # last_updated: 2026-10-15 (build 22-1: story backlog -> in-progress, epic-22 backlog -> in-progress; branch epic/22 cut from master a0f0597, story branch feat/22-1-spike; spec spec-22-1-*.md approved. Decision: no staging project, probes run on the local stack only, hosted MFA cap and TOTP setting recorded as not independently verified.)
 # last_updated: 2026-10-15 (build 22-1: story in-progress -> review. Spike run on the local stack only (no staging, no production access): hook event carries claims.aal/amr on mint and refresh; AAL1 cannot add/remove a factor once one is verified (first-factor window remains); session-row delete stops refresh and /auth/v1/user but PostgREST accepts the old JWT until exp, so live helpers must check session_id; __Host- cookie holds with secure:true set explicitly. Result and changes-to-later-stories list in docs/decisions.md; spine Deferred bullet repointed. config.toml unchanged; no migration or app code.)
+# last_updated: 2026-10-15 (22-1 done, merged to epic/22; review: 3 layers, 0 high, patches applied to decisions.md and spine AD-34 marker; ci-local GREEN for f28c538 (static, pgtap 45s, unit, e2e 88s). Key results: hook receives event.claims.aal; AAL1 cannot add a factor once one is verified but can enroll the first (reset reopens it); session delete stops auth endpoints and refresh but PostgREST honors the JWT until exp, so live helpers must check session_id in auth.sessions; __Host- cookie works with secure:true set explicitly.)
