@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { ReactNode } from "react";
 
 /**
@@ -25,9 +27,12 @@ export function OverviewWidget({
           {description && <p className="text-xs text-muted-foreground">{description}</p>}
         </div>
         {link && (
-          <Link href={link.href} className="text-sm text-muted-foreground hover:text-foreground">
-            {link.label}
-          </Link>
+          <Button asChild variant="outline" size="sm">
+            <Link href={link.href}>
+              {link.label}
+              <ArrowRight />
+            </Link>
+          </Button>
         )}
       </div>
       {children}

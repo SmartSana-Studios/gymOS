@@ -427,7 +427,7 @@ development_status:
 
   epic-21: in-progress
   21-1-gym-category-column-setter-super-admin: done
-  21-2-settings-gym-category-field-owner-supervisor: backlog
+  21-2-settings-gym-category-field-owner-supervisor: review
   epic-21-retrospective: optional
 action_items:
   - epic: 7
@@ -1095,3 +1095,6 @@ last_updated: 10-15-2026 12:20
 # last_updated: 2026-10-15 (code-review: 21-1 four-layer review (blind, edge-case, verification-gap, acceptance). Patches applied: editor error handling (try/catch, role=alert), no-op save closes without a false 'updated', saved label held locally, fr-* locales and prototype-key codes in gymCategoryLabel, createGymSchema comment, prod-apply header order and stage-7 verify wording (verify SQL run against local DB: 1/0/1/1/f/t/f), pgTAP 26 -> 30 (supervisor and manager direct UPDATE, super admin audit actor, CHECK text pinned, no-audit on pinned writes), service test for list/detail/setter. Deferred 8 items to deferred-work.md; rejected: GUC bypass hardening (repo-wide AD-32 pattern), setGymCategory mock as dead (used by changeGymCategory tests), required-asterisk with default. Status review -> awaiting ci-local re-run, then merge to epic/21.)
 # last_updated: 2026-10-15 (ad-hoc, non-story: 21-1 review -> done. PR #71 merged into epic/21 after scripts/ci-local.sh GREEN on 6bd9f72 (static, pgtap, unit, e2e); branch deleted local+remote. Migration 0123 NOT applied to production yet: order is dry run, db-backup workflow, prod-apply stage 7 (head 0122), then PR epic/21 -> master. Next: 21-2 (Settings category field, no migration).)
 # last_updated: 2026-10-15 (ad-hoc, non-story: wrote spec-21-1-gym-category-column-setter-super-admin.md retroactively (intent, constraints, matrix, review triage log), docs only. 21-1 was built from epics.md and epic-21-context.md without a spec file, which broke the Epic 19/20 convention; 21-2 gets its spec before it is built.)
+# last_updated: 2026-10-15 (build: 21-2 backlog -> in-progress, spec-21-2-settings-gym-category-field-owner-supervisor.md written, oneshot route; no migration)
+# last_updated: 2026-10-15 (build: 21-2 in-progress -> review, Settings category field built (no migration), review triaged, settings columns rebalanced at user request; vitest, static, pgtap, e2e green)
+# last_updated: 2026-10-15 (ad-hoc, non-story: text/arrow links turned into outline Buttons with lucide arrows in dashboard (viewAll x3, manage staff, back to settings, guest-sessions back) and super-admin (back to gyms); arrows removed from EN/FR strings, on epic 21 story branch)

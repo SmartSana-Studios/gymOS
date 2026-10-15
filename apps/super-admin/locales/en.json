@@ -94,7 +94,7 @@
       "reason": "Reason *"
     },
     "detail": {
-      "backToGyms": "← Gyms",
+      "backToGyms": "Gyms",
       "gymName": "Gym Name:",
       "owner": "Owner:",
       "category": "Category:",

@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { MoreVertical, KeyRound, Pencil, Ban } from "lucide-react";
+import { ArrowLeft, Ban, KeyRound, MoreVertical, Pencil } from "lucide-react";
 
 import { TablePagination } from "@/components/TablePagination";
 import { useClientPagination } from "@/hooks/use-table-pagination";
@@ -123,9 +123,12 @@ export function StaffPageClient({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <Link href="/settings" className="text-sm text-muted-foreground hover:underline">
-            {t("staff.backToSettings")}
-          </Link>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/settings">
+              <ArrowLeft />
+              {t("staff.backToSettings")}
+            </Link>
+          </Button>
           <h1 className="text-2xl font-semibold">{t("staff.title")}</h1>
         </div>
         {canCreate && (
