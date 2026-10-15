@@ -2101,7 +2101,7 @@ So that FR-157's "on by default for new gyms" lands without surprising any exist
 | 20.5 | Dashboard — Loyalty Settings & Member Loyalty View | none | 20.1–20.4 |
 | 20.6 | Member App — Loyalty Card | none | 20.1–20.4 |
 
-*Migration numbers follow Epic 19's (latest planned `0115`); renumber at build time if needed. **As built (2026-10-12): Epic 19 also shipped ad hoc `0116` (session-required alert cooldown), so every migration number in Epics 20 and 21 shifts by one: 20.1 is 0117, 20.2 is 0118, 20.3 is 0119, 20.4 is 0120, 21.1 is 0121.** The story tables and bodies below were renumbered to the as-built numbers on 2026-10-15 (Epic 20 retro S-1). As built, 20.4 (0120) also wraps the loyalty hooks so a hook failure rolls back only the hook, writes a `loyalty_hook_failed` audit row and a `job_runs` failure row, and never rolls back the payment, check-in or refund (retro S-2).
+*Migration numbers follow Epic 19's (latest planned `0115`); renumber at build time if needed. **As built (2026-10-12): Epic 19 also shipped ad hoc `0116` (session-required alert cooldown), so every migration number in Epics 20 and 21 shifts by one: 20.1 is 0117, 20.2 is 0118, 20.3 is 0119, 20.4 is 0120, 21.1 is 0121 (then 0122 once Story 20.7 took 0121 on 2026-10-15).** The story tables and bodies below were renumbered to the as-built numbers on 2026-10-15 (Epic 20 retro S-1). As built, 20.4 (0120) also wraps the loyalty hooks so a hook failure rolls back only the hook, writes a `loyalty_hook_failed` audit row and a `job_runs` failure row, and never rolls back the payment, check-in or refund (retro S-2).
 
 **Dependency order:** 20.1 → {20.2, 20.3} in parallel → 20.4 → {20.5, 20.6}. **Production safety:** the program is off by default for every gym (FR-164) and only 20.5 exposes the switch, so 20.1–20.4 change nothing a live gym sees. 20.2's guest rule earns only while **both** the program and Charge-guests are on (FR-165).
 
@@ -2363,7 +2363,7 @@ So that I know what I've earned.
 
 | # | Story | Migration | Depends on |
 |---|---|---|---|
-| 21.1 | Gym Category — Column, Setter & Super Admin | **0121** | 19.1 |
+| 21.1 | Gym Category — Column, Setter & Super Admin | **0122** | 19.1 |
 | 21.2 | Settings — Gym Category Field (Owner/Supervisor) | none | 21.1 |
 
 *Independent of Epics 19–20: 21.1 may ship before them, in which case it takes the next free migration number at merge time and later stories renumber, never the reverse. Migration numbers above assume Epic order.*
@@ -2376,11 +2376,11 @@ As a Super Admin,
 I want to choose a gym's category when I create it and change it later,
 So that every gym is classified for V1.7's directory and landing pages.
 
-*Delivers FR-171 (data, setter, Super Admin create/edit) and FR-172. Migration **0121**. Architecture: AD-32 (stable code, own setter, own pin trigger, Super Admin admitted), AD-3 (role via `private.current_member_role()` / Super Admin check, never the JWT `app_role`). Precedent: 0105 `gyms.country` and the `createGym` action in `apps/super-admin/app/(admin)/gyms/actions.ts`.*
+*Delivers FR-171 (data, setter, Super Admin create/edit) and FR-172. Migration **0122**. Architecture: AD-32 (stable code, own setter, own pin trigger, Super Admin admitted), AD-3 (role via `private.current_member_role()` / Super Admin check, never the JWT `app_role`). Precedent: 0105 `gyms.country` and the `createGym` action in `apps/super-admin/app/(admin)/gyms/actions.ts`.*
 
 **Acceptance Criteria:**
 
-**Given** migration 0121
+**Given** migration 0122
 **When** it runs on a database with live gyms
 **Then** `gyms.category text NOT NULL DEFAULT 'gym'` is added with a CHECK limiting it to the five stable codes `gym`, `pilates_studio`, `yoga_studio`, `fitness_center`, `other`, and every existing gym reads `gym` in the same statement (FR-171 release default)
 

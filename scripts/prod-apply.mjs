@@ -9,6 +9,8 @@
 //   1b   0110 ALONE               head must be 0109 (starts the 7-day soak before 0111)
 //   2    0111, 0112, 0113, 0114, 0116   head must be 0110
 //   3    0115 ALONE                     head must be 0116 (0116 shipped with stage 2; 0115 is the default flip)
+//   4    0117-0120 loyalty              head must be 0116
+//   5    0121 early renewal carry       head must be 0120 (Story 20.7)
 //   4    0117, 0118, 0119, 0120         head must be 0116 (Epic 20 loyalty; every gym stays loyalty-off, the
 //                                       hooks fire only when a gym enables it. Ship BEFORE the dashboard)
 //
@@ -43,8 +45,8 @@ const { Client } = loadPg();
 const [stage, ...flags] = process.argv.slice(2);
 const dry = flags.includes("--dry-run");
 const apply = flags.includes("--apply");
-if (!["1a", "1b", "2", "3", "4"].includes(stage) || dry === apply) {
-  console.error("usage: prod-apply.mjs <1a|1b|2|3|4> (--dry-run | --apply --backup-confirmed)");
+if (!["1a", "1b", "2", "3", "4", "5"].includes(stage) || dry === apply) {
+  console.error("usage: prod-apply.mjs <1a|1b|2|3|4|5> (--dry-run | --apply --backup-confirmed)");
   process.exit(2);
 }
 if (apply && !flags.includes("--backup-confirmed")) {
@@ -62,6 +64,8 @@ const PLAN = {
     // that has never run once its allowance (27 h for a daily job) has passed, and the schedule is
     // usually later than the deploy. The functions are idempotent (Epic 20 retro P-1).
     firstRuns: [{ job: "loyalty_sweep", fn: "run_loyalty_sweep_job" }] },
+  // Story 20.7: early renewal carries the remaining days. Two function bodies, no objects, no data.
+  "5": { head: "0120", files: ["0121_early_renewal_carries_remaining_days"] },
 }[stage];
 
 const password = readFileSync(process.env.PROD_PASSWORD_FILE ?? join(homedir(), ".supabase-db-password"), "utf8").trim();
@@ -114,6 +118,13 @@ const VERIFY = [
      (select count(*) from information_schema.columns where table_schema='public' and table_name='gyms' and column_name in ('loyalty_enabled','loyalty_guest_threshold','loyalty_renewal_threshold','loyalty_reward_days')) as gym_columns,
      (select count(*) from pg_proc where pronamespace='public'::regnamespace and proname in ('set_loyalty_program','effective_loyalty','run_loyalty_sweep_job')) as public_fns,
      (select count(*) from cron.job where jobname='loyalty_sweep') as cron_job`],
+  ["stage 5: renewal functions carry the remaining days (expect carries_confirm true, carries_webhook true, hook_kept true, anon_exec_count 0, authenticated_cvp false)", `select
+     position('v_carried_from' in pg_get_functiondef('public.confirm_renewal(uuid, text, text, boolean)'::regprocedure)) > 0 as carries_confirm,
+     position('v_prev_expiry' in pg_get_functiondef('public.complete_verified_payment(uuid, integer)'::regprocedure)) > 0 as carries_webhook,
+     (position('award_renewal_stamp' in pg_get_functiondef('public.confirm_renewal(uuid, text, text, boolean)'::regprocedure)) > 0
+      and position('award_renewal_stamp' in pg_get_functiondef('public.complete_verified_payment(uuid, integer)'::regprocedure)) > 0) as hook_kept,
+     (select count(*) from pg_proc p where p.pronamespace='public'::regnamespace and p.proname in ('confirm_renewal','complete_verified_payment') and has_function_privilege('anon', p.oid, 'EXECUTE')) as anon_exec_count,
+     has_function_privilege('authenticated', 'public.complete_verified_payment(uuid, integer)', 'EXECUTE') as authenticated_cvp`],
   ["stage 4: every gym loyalty-OFF (expect enabled 0) / clients cannot write the ledger (expect all false) / anon EXECUTE (expect 0)", `select
      (select count(*) from gyms where loyalty_enabled) as gyms_loyalty_on,
      has_table_privilege('authenticated','public.loyalty_events','INSERT') as events_insert,
