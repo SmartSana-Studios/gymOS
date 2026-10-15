@@ -1147,3 +1147,10 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-21-1-gym-category-column-setter-super-admin.md`
   summary: Four 21-1 review deferrals closed out. Pin trigger on a plain GUC: accepted risk, same pattern as 0098/0107/0117 and prescribed by AD-32; a stronger gate would be one cross-cutting change to all four pins (open as its own story if wanted). Typed errors and suspended-gym message: accepted, Settings is unreachable for a suspended gym and the generic message is the repo convention. Super Admin audit-label render test: done (`AuditTrailTab.test.tsx`). Inline status instead of toast: accepted and reconciled in epics.md 21.1.
   evidence: epic-21-retro-2026-10-15.md action items A3 and A5.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-3-live-authorization-in-the-database.md`
+  summary: `protect_payment_columns_on_staff_verify` never pinned columns for `supervisor` (its role array is owner/manager/receptionist) although `gym_staff_verify_own_payments` allows supervisors to verify, so a supervisor can alter amount/method/member on a pending payment while verifying.
+  evidence: pre-existing in the original trigger (not introduced by 22.3); 22.3 kept the same set. Settle by deciding whether supervisor should be pinned like the others.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-3-live-authorization-in-the-database.md`
+  summary: `payments_member_same_gym` only validates new writes (insert, update of member_id/gym_id); historic payment rows are not re-validated and no cleanup exists.
+  evidence: local data has 0 mismatches; production not checked. Run the count query against production before relying on it.

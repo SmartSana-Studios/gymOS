@@ -131,7 +131,7 @@ select set_config('request.jwt.claims',
 select throws_like($$ select void_registration_fee_payment('00000000-0000-0000-0000-0000000314a1', 'Owner claim with no gym') $$, '%permission denied%', 'an owner claim with no gym_id cannot void');
 
 select set_config('request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-0000000314d1","role":"authenticated","gym_id":"00000000-0000-0000-0000-0000000314c2"}', true);
+  '{"sub":"00000000-0000-0000-0000-00000000ff22","role":"authenticated","gym_id":"00000000-0000-0000-0000-0000000314c2"}', true);
 select throws_like($$ select void_registration_fee_payment('00000000-0000-0000-0000-0000000314a1', 'No app_role on this session') $$, '%permission denied%', 'a claim with a gym_id but no app_role cannot void (fails closed)');
 reset role;
 

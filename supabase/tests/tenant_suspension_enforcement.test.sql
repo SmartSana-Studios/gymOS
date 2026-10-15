@@ -66,6 +66,8 @@ insert into members (id, gym_id, user_id, role, name) values
   ('00000000-0000-0000-0000-000000009931', '00000000-0000-0000-0000-000000009911', '00000000-0000-0000-0000-000000009921', 'owner', 'Suspended Gym Owner'),
   ('00000000-0000-0000-0000-000000009932', '00000000-0000-0000-0000-000000009911', '00000000-0000-0000-0000-000000009922', 'member', 'Suspended Gym Member'),
   ('00000000-0000-0000-0000-000000009933', '00000000-0000-0000-0000-000000009912', '00000000-0000-0000-0000-000000009923', 'owner', 'Deactivated Gym Owner'),
+  -- 22.3: the gym_id claim must resolve to a live membership, so the deactivated-gym member section needs one.
+  ('00000000-0000-0000-0000-000000009990', '00000000-0000-0000-0000-000000009912', '00000000-0000-0000-0000-000000009922', 'member', 'Deactivated Gym Member'),
   -- classes.coach_id requires a coach-role member of the same gym
   -- (private.classes_validate_coach()) -- the owner row above doesn't
   -- qualify.
@@ -161,6 +163,9 @@ values ('00000000-0000-0000-0000-000000009958', '00000000-0000-0000-0000-0000000
 -- member's own session -- proves the RESTRICTIVE gate ANDs against every
 -- one of these tables' own PERMISSIVE self-read policies, not just one.
 -- ============================================================================
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000009924');
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
@@ -400,34 +405,34 @@ select set_config(
   '{"sub":"00000000-0000-0000-0000-000000009922","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009999","app_role":"member"}',
   true
 );
-select throws_like($$select check_out()$$, '%is not active%', 'unresolvable gym_id claim: check_out() -- current_gym_status() is NULL and the guard still fires (`is distinct from`, not `<>`)');
-select throws_like($$select initiate_member_payment()$$, '%is not active%', 'unresolvable gym_id claim: initiate_member_payment() fails closed');
-select throws_like($$select book_class_session('00000000-0000-0000-0000-000000009959')$$, '%is not active%', 'unresolvable gym_id claim: book_class_session() fails closed');
-select throws_like($$select cancel_class_booking('00000000-0000-0000-0000-000000009960')$$, '%is not active%', 'unresolvable gym_id claim: cancel_class_booking() fails closed');
+select throws_like($$select check_out()$$, 'permission denied', 'no live membership (gym_id claim resolves to nothing): check_out() is refused before the status guard, message pinned; the status guard itself is proven by the suspended-gym cases above');
+select throws_like($$select initiate_member_payment()$$, 'permission denied', 'no live membership (gym_id claim resolves to nothing): initiate_member_payment() is refused before the status guard, message pinned; the status guard itself is proven by the suspended-gym cases above');
+select throws_like($$select book_class_session('00000000-0000-0000-0000-000000009959')$$, 'book_class_session: caller is not a member', 'no live membership (gym_id claim resolves to nothing): book_class_session() is refused before the status guard, message pinned; the status guard itself is proven by the suspended-gym cases above');
+select throws_like($$select cancel_class_booking('00000000-0000-0000-0000-000000009960')$$, 'cancel_class_booking: caller is not a member', 'no live membership (gym_id claim resolves to nothing): cancel_class_booking() is refused before the status guard, message pinned; the status guard itself is proven by the suspended-gym cases above');
 
 select set_config(
   'request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000009921","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009999","app_role":"owner"}',
   true
 );
-select throws_like($$select check_out_member('00000000-0000-0000-0000-000000009932')$$, '%is not active%', 'unresolvable gym_id claim: check_out_member() fails closed');
+select throws_like($$select check_out_member('00000000-0000-0000-0000-000000009932')$$, 'permission denied', 'no live membership (gym_id claim resolves to nothing): check_out_member() is refused before the status guard, message pinned; the status guard itself is proven by the suspended-gym cases above');
 -- confirm_renewal resolves the role before the gate (2026-09-09 rule): an
 -- unresolvable gym has no membership, so it is refused as unauthorized.
 select throws_like($$select confirm_renewal('00000000-0000-0000-0000-000000009932', 'cash', 'null-status test', false)$$, '%permission denied%', 'unresolvable gym_id claim: confirm_renewal() fails closed');
-select throws_like($$select renew_subscription('00000000-0000-0000-0000-000000009932', 'null-status test')$$, '%is not active%', 'unresolvable gym_id claim: renew_subscription() fails closed');
-select throws_like($$select assign_coach('00000000-0000-0000-0000-000000009932', '00000000-0000-0000-0000-000000009934')$$, '%is not active%', 'unresolvable gym_id claim: assign_coach() fails closed');
-select throws_like($$select mark_class_attendance('00000000-0000-0000-0000-000000009960')$$, '%is not active%', 'unresolvable gym_id claim: mark_class_attendance() fails closed');
-select throws_like($$select create_class('Null Status Class', null, '00000000-0000-0000-0000-000000009934', 10, 'one_off', now() + interval '2 days', null, null, null)$$, '%is not active%', 'unresolvable gym_id claim: create_class() fails closed');
-select throws_like($$select update_class('00000000-0000-0000-0000-000000009954', 'Renamed', null, '00000000-0000-0000-0000-000000009934', 10, 'one_off', now() + interval '2 days', null, null, null)$$, '%is not active%', 'unresolvable gym_id claim: update_class() fails closed');
-select throws_like($$select materialize_class_sessions('00000000-0000-0000-0000-000000009954', false)$$, '%is not active%', 'unresolvable gym_id claim: materialize_class_sessions() fails closed');
+select throws_like($$select renew_subscription('00000000-0000-0000-0000-000000009932', 'null-status test')$$, 'permission denied', 'no live membership (gym_id claim resolves to nothing): renew_subscription() is refused before the status guard, message pinned; the status guard itself is proven by the suspended-gym cases above');
+select throws_like($$select assign_coach('00000000-0000-0000-0000-000000009932', '00000000-0000-0000-0000-000000009934')$$, 'permission denied', 'no live membership (gym_id claim resolves to nothing): assign_coach() is refused before the status guard, message pinned; the status guard itself is proven by the suspended-gym cases above');
+select throws_like($$select mark_class_attendance('00000000-0000-0000-0000-000000009960')$$, 'mark_class_attendance: permission denied', 'no live membership (gym_id claim resolves to nothing): mark_class_attendance() is refused before the status guard, message pinned; the status guard itself is proven by the suspended-gym cases above');
+select throws_like($$select create_class('Null Status Class', null, '00000000-0000-0000-0000-000000009934', 10, 'one_off', now() + interval '2 days', null, null, null)$$, 'permission denied', 'no live membership (gym_id claim resolves to nothing): create_class() is refused before the status guard, message pinned; the status guard itself is proven by the suspended-gym cases above');
+select throws_like($$select update_class('00000000-0000-0000-0000-000000009954', 'Renamed', null, '00000000-0000-0000-0000-000000009934', 10, 'one_off', now() + interval '2 days', null, null, null)$$, 'permission denied', 'no live membership (gym_id claim resolves to nothing): update_class() is refused before the status guard, message pinned; the status guard itself is proven by the suspended-gym cases above');
+select throws_like($$select materialize_class_sessions('00000000-0000-0000-0000-000000009954', false)$$, 'permission denied', 'no live membership (gym_id claim resolves to nothing): materialize_class_sessions() is refused before the status guard, message pinned; the status guard itself is proven by the suspended-gym cases above');
 
 select set_config(
   'request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000009925","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009999","app_role":"coach"}',
   true
 );
-select throws_like($$select add_session_note('00000000-0000-0000-0000-000000009932', 'null-status note')$$, '%is not active%', 'unresolvable gym_id claim: add_session_note() fails closed');
-select throws_like($$select edit_session_note('00000000-0000-0000-0000-000000009965', 'null-status note')$$, '%is not active%', 'unresolvable gym_id claim: edit_session_note() fails closed');
+select throws_like($$select add_session_note('00000000-0000-0000-0000-000000009932', 'null-status note')$$, 'permission denied', 'no live membership (gym_id claim resolves to nothing): add_session_note() is refused before the status guard, message pinned; the status guard itself is proven by the suspended-gym cases above');
+select throws_like($$select edit_session_note('00000000-0000-0000-0000-000000009965', 'null-status note')$$, 'permission denied', 'no live membership (gym_id claim resolves to nothing): edit_session_note() is refused before the status guard, message pinned; the status guard itself is proven by the suspended-gym cases above');
 
 -- (c) The four functions whose guard sits below a DB-dependent lookup. They
 -- must still be DENIED under a NULL status -- by the earlier step rather than
@@ -470,7 +475,7 @@ select throws_like($$select book_class_session('00000000-0000-0000-0000-00000000
 
 select set_config(
   'request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-000000009921","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009912","app_role":"owner"}',
+  '{"sub":"00000000-0000-0000-0000-000000009923","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000009912","app_role":"owner"}',
   true
 );
 select throws_like($$select renew_subscription('00000000-0000-0000-0000-000000009932', 'deactivated test')$$, '%is not active%', 'deactivated gym: renew_subscription() is refused');

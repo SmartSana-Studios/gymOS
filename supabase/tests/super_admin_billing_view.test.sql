@@ -20,11 +20,13 @@ insert into gyms (id, name, tier_id, status, saas_billing_status, saas_billing_i
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-0000000a5601'), -- super_admin caller
   ('00000000-0000-0000-0000-0000000a5602'), -- Gym 1's owner (non-super-admin caller, permission tests)
-  ('00000000-0000-0000-0000-0000000a5603'); -- Gym 1's member (reversal/"no refresh" proof)
+  ('00000000-0000-0000-0000-0000000a5603'), -- Gym 1's member (reversal/"no refresh" proof)
+  ('00000000-0000-0000-0000-0000000a5604'); -- Gym 4's member (22.3: the gym_id claim must resolve to a live membership)
 
 insert into members (id, gym_id, user_id, role, name) values
   ('00000000-0000-0000-0000-0000000a5701', '00000000-0000-0000-0000-0000000a5011', '00000000-0000-0000-0000-0000000a5602', 'owner', 'Billing View Gym 1 Owner'),
-  ('00000000-0000-0000-0000-0000000a5702', '00000000-0000-0000-0000-0000000a5011', '00000000-0000-0000-0000-0000000a5603', 'member', 'Billing View Gym 1 Member');
+  ('00000000-0000-0000-0000-0000000a5702', '00000000-0000-0000-0000-0000000a5011', '00000000-0000-0000-0000-0000000a5603', 'member', 'Billing View Gym 1 Member'),
+  ('00000000-0000-0000-0000-0000000a5703', '00000000-0000-0000-0000-0000000a5014', '00000000-0000-0000-0000-0000000a5604', 'member', 'Billing View Gym 4 Member');
 
 -- ============================================================================
 -- record_out_of_band_saas_billing_payment()
@@ -34,6 +36,9 @@ insert into members (id, gym_id, user_id, role, name) values
 -- this, (e) only proves the member session succeeds *after* the reset, not
 -- that tenant_active_gate actually denied it *before*. Gym 1 starts
 -- 'suspended' per the fixture above.
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-0000000a5601');
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
@@ -178,7 +183,7 @@ select is(
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-0000000a5601","role":"authenticated","gym_id":"00000000-0000-0000-0000-0000000a5014","app_role":"member"}',
+  '{"sub":"00000000-0000-0000-0000-0000000a5604","role":"authenticated","gym_id":"00000000-0000-0000-0000-0000000a5014","app_role":"member"}',
   true
 );
 select isnt(
@@ -289,7 +294,7 @@ select is(
 -- reads) rather than a members-table read.
 select set_config(
   'request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-0000000a5601","role":"authenticated","gym_id":"00000000-0000-0000-0000-0000000a5014","app_role":"member"}',
+  '{"sub":"00000000-0000-0000-0000-0000000a5604","role":"authenticated","gym_id":"00000000-0000-0000-0000-0000000a5014","app_role":"member"}',
   true
 );
 select is(

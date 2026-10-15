@@ -64,6 +64,9 @@ select throws_ok(
 -- ============================================================================
 -- set_registration_fee(): role matrix.
 -- ============================================================================
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000031129');
+
 set local role authenticated;
 
 select set_config('request.jwt.claims',
@@ -90,7 +93,7 @@ select throws_like($$ select set_registration_fee(1000) $$, '%permission denied%
 -- gym_id present but NO app_role claim: the role comparison is NULL, which
 -- must fail closed rather than skip the raise.
 select set_config('request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-000000031121","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000031111"}', true);
+  '{"sub":"00000000-0000-0000-0000-00000000ff22","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000031111"}', true);
 select throws_like($$ select set_registration_fee(1000) $$, '%permission denied%', 'a claim with a gym_id but no app_role cannot set the registration fee');
 
 -- Amount validation, positive control for the role gate (owner passes it).

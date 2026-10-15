@@ -37,6 +37,9 @@ insert into members (id, gym_id, user_id, role, name) values
 -- audit_log_immutable.test.sql's own precedent) -- 2 rows for Gym A, 1 row
 -- for Gym B, plus 1 gym-agnostic pg_cron-style row (null gym_id) that must
 -- never be visible to any gym-scoped session.
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000014026');
+
 set local role service_role;
 
 -- Explicit ids (previously auto-generated) purely so the platform-wide

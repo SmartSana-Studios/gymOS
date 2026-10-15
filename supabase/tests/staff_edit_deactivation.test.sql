@@ -108,6 +108,9 @@ insert into members (id, gym_id, user_id, role, name, phone, deactivated_at) val
 -- (a) update_staff_role(): Owner can assign Supervisor/Manager/Receptionist/
 -- Coach (AC #1) -- 4 role changes, one with a full audit-metadata check.
 -- ============================================================================
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000019021', '00000000-0000-0000-0000-000000019230');
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',

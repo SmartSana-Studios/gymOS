@@ -40,6 +40,9 @@ values ('00000000-0000-0000-0000-000000009701', '00000000-0000-0000-0000-0000000
 -- rows, not an exception (RLS SELECT semantics, matching
 -- super_admin_read_tiers/super_admin_read_payment_providers precedent).
 -- ============================================================================
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000009401');
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',

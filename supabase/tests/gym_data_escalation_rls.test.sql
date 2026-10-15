@@ -80,6 +80,9 @@ values (
 -- guard. Sees only the existing role='owner' scope (Story 1.5), never the
 -- coach row or any payments, for a gym it otherwise has full visibility into.
 -- ============================================================================
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000003022', '00000000-0000-0000-0000-000000003021');
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',

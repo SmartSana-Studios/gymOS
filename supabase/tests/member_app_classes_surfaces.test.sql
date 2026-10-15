@@ -98,7 +98,7 @@ select set_config(
 
 select throws_like(
   $$select * from list_bookable_class_sessions()$$,
-  '%member is deactivated%',
+  '%caller is not a member%',
   'a deactivated member cannot call list_bookable_class_sessions()'
 );
 
@@ -186,7 +186,7 @@ select set_config(
 
 select throws_like(
   $$select * from list_my_class_bookings()$$,
-  '%member is deactivated%',
+  '%caller is not a member%',
   'a deactivated member cannot call list_my_class_bookings()'
 );
 

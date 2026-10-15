@@ -95,7 +95,7 @@ select set_config('request.jwt.claims',
 select throws_like($$ select record_registration_fee('00000000-0000-0000-0000-000000031351', 'cash', 'No gym claim on this session') $$, '%permission denied%', 'a receptionist claim with no gym_id cannot record the fee');
 
 select set_config('request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-000000031324","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000031311"}', true);
+  '{"sub":"00000000-0000-0000-0000-00000000ff22","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000031311"}', true);
 select throws_like($$ select record_registration_fee('00000000-0000-0000-0000-000000031351', 'cash', 'No app_role claim on this session') $$, '%permission denied%', 'a claim with a gym_id but no app_role cannot record the fee (fails closed)');
 
 reset role;
@@ -128,7 +128,7 @@ select set_config('request.jwt.claims',
 select throws_like($$ select waive_registration_fee('00000000-0000-0000-0000-000000031352', 'Owner claim with no gym') $$, '%permission denied%', 'an owner claim with no gym_id cannot waive the fee');
 
 select set_config('request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-000000031321","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000031311"}', true);
+  '{"sub":"00000000-0000-0000-0000-00000000ff22","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000031311"}', true);
 select throws_like($$ select waive_registration_fee('00000000-0000-0000-0000-000000031352', 'No app_role on this session') $$, '%permission denied%', 'a claim with a gym_id but no app_role cannot waive the fee (fails closed)');
 
 reset role;
