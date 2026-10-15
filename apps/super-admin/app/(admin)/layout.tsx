@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
+import { authorizePlatformAction } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -53,7 +54,9 @@ async function AdminLayoutData({
     redirect("/auth/login");
   }
 
-  if (data.claims.app_role !== "super_admin") {
+  // Story 22.4: live check (users.is_super_admin at request time), not the app_role claim.
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) {
     redirect("/auth/login");
   }
 

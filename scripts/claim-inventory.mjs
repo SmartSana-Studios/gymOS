@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Story 22.2: claim-read inventory and CI check (report mode). Plain Node, zero dependencies.
+// Story 22.2: claim-read inventory and CI check. Story 22.4: enforcing by default. Plain Node, zero
+// dependencies.
 // Lists every RLS policy, function/trigger body and server source file that reads the
 // role or gym claim from the token, classified:
 //   claim-only   reads the claim (auth.jwt(), request.jwt.claim*, getClaims()) with no live helper call
@@ -8,12 +9,15 @@
 //                are live-checked by name
 //   exempt       allow-listed in claim-inventory.exempt.json with a one-line reason
 // plus a null-unsafe list (`<> any(`, `<> all(`, `not in (`, `!= any(` over a role).
-// Database entries close in story 22.3, edge/server entries in 22.4.
-// Fails (exit 1) only on claim-only or null-unsafe entries absent from the baseline.
+// Database entries closed in story 22.3, edge/server entries in 22.4.
+//
+// ENFORCING (default, since 22.4): fails (exit 1) on ANY non-exempt claim-only or null-unsafe entry;
+// the baseline must hold zero entries. A new claim-only source fails on its own.
+// REPORT (--report): the 22.2 behaviour, fails only on entries absent from the baseline.
 // Never writes the baseline except via --write-baseline. Exit 2: no DB / bad input.
 //
 //   node scripts/claim-inventory.mjs [--rows file.json] [--sources dir]... [--baseline f]
-//        [--exempt f] [--json] [--write-baseline]
+//        [--exempt f] [--json] [--write-baseline] [--report]
 
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, dirname, resolve, relative } from "node:path";
@@ -164,6 +168,15 @@ export function compare(inv, baseline) {
   return { failures, stale: stale.sort() };
 }
 
+/** Enforcing mode: every non-exempt claim-only / null-unsafe entry fails, baseline or not. */
+export function enforce(inv, baseline = {}) {
+  const failures = [];
+  for (const e of inv.entries) if (e.classification === "claim-only") failures.push({ list: "claim-only", ...e });
+  for (const e of inv.nullUnsafe) failures.push({ list: "null-unsafe", ...e });
+  const baselineEntries = [...(baseline.entries ?? []), ...(baseline.nullUnsafe ?? [])];
+  return { failures, baselineEntries };
+}
+
 // ---------- fetching ----------
 
 const SQL = String.raw`
@@ -261,6 +274,9 @@ function defaultSources() {
     : [];
   for (const a of apps)
     for (const sub of ["app", "lib", "components", "src"]) dirs.push(join(appsDir, a, sub));
+  // services/ holds session-client (RLS) reads that legitimately take the gym_id claim as a hint, so
+  // only files that reach for the service-role client are service paths (22.4).
+  for (const a of apps) dirs.push({ onlyServiceRole: join(appsDir, a, "services") });
   const pkgDir = join(repoRoot, "packages");
   if (existsSync(pkgDir))
     for (const p of readdirSync(pkgDir).sort()) dirs.push(join(pkgDir, p));
@@ -275,7 +291,11 @@ export function sourceKind(rel) {
 function sourceRows(dirs) {
   const files = [];
   for (const d of dirs) {
-    if (typeof d === "object") topLevelFiles(d.topLevel, files);
+    if (typeof d === "object" && d.onlyServiceRole) {
+      const found = [];
+      walk(d.onlyServiceRole, found);
+      for (const p of found) if (/createAdminClient|SERVICE_ROLE_KEY/.test(readFileSync(p, "utf8"))) files.push(p);
+    } else if (typeof d === "object") topLevelFiles(d.topLevel, files);
     else walk(d, files);
   }
   return files.map((p) => {
@@ -297,6 +317,7 @@ function parseArgs(argv) {
     exempt: join(repoRoot, "scripts/claim-inventory.exempt.json"),
     json: false,
     writeBaseline: false,
+    report: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -314,6 +335,7 @@ function parseArgs(argv) {
     else if (a === "--exempt") o.exempt = val();
     else if (a === "--json") o.json = true;
     else if (a === "--write-baseline") o.writeBaseline = true;
+    else if (a === "--report") o.report = true;
     else {
       console.error(`Unknown argument: ${a}`);
       process.exit(2);
@@ -377,7 +399,11 @@ function main() {
   }
 
   const baseline = readJson(o.baseline, "baseline");
-  const { failures, stale } = compare(inv, baseline);
+  let failures;
+  let stale = [];
+  let baselineEntries = [];
+  if (o.report) ({ failures, stale } = compare(inv, baseline));
+  else ({ failures, baselineEntries } = enforce(inv, baseline));
 
   if (o.json) process.stdout.write(JSON.stringify({ ...inv, failures, stale }, null, 2) + "\n");
   else {
@@ -400,8 +426,18 @@ function main() {
   for (const e of exempt)
     if (!seen.has(`${e.kind}:${e.name}`)) log(`stale exempt: ${e.kind} ${e.name} matches no inventory entry`);
   for (const s of stale) log(`stale baseline: ${s} no longer present (remove it with --write-baseline)`);
+  if (baselineEntries.length) {
+    console.error(
+      `Claim inventory check FAILED: the baseline must be empty in enforcing mode (${baselineEntries.length} entries). Fix the sources or add an exempt entry with a reason.`,
+    );
+    process.exit(1);
+  }
   if (failures.length) {
-    console.error("Claim inventory check FAILED: new entries absent from the baseline:");
+    console.error(
+      o.report
+        ? "Claim inventory check FAILED: new entries absent from the baseline:"
+        : "Claim inventory check FAILED (enforcing): non-exempt claim reads:",
+    );
     for (const f of failures)
       console.error(`  - ${f.list} ${f.kind} ${f.name}${f.file ? ` (${f.file})` : " (file unknown)"} [${f.story}]`);
     process.exit(1);

@@ -7,7 +7,8 @@
     "save": "Enregistrer",
     "tryAgain": "Réessayer",
     "ok": "OK",
-    "gymSuspended": "GymOS est temporairement indisponible pour cette salle. Veuillez réessayer plus tard."
+    "gymSuspended": "GymOS est temporairement indisponible pour cette salle. Veuillez réessayer plus tard.",
+    "permissionDenied": "Vous n'avez pas la permission de faire cela."
   },
   "phoneInput": {
     "selectCountry": "Sélectionner le pays",

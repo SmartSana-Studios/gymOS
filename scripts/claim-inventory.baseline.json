@@ -1,17 +1,4 @@
 {
-  "entries": [
-    {
-      "kind": "server",
-      "name": "apps/super-admin/app/(admin)/admins/actions.ts",
-      "classification": "claim-only",
-      "story": "22.4"
-    },
-    {
-      "kind": "server",
-      "name": "apps/super-admin/app/(admin)/layout.tsx",
-      "classification": "claim-only",
-      "story": "22.4"
-    }
-  ],
+  "entries": [],
   "nullUnsafe": []
 }

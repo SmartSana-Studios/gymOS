@@ -314,6 +314,7 @@ export interface InitiateMemberPaymentResult {
     | 'success'
     | 'gym_credentials_unavailable'
     | 'mobile_money_disabled'
+    | 'permission_denied'
     | 'no_active_plan'
     | 'not_eligible_for_renewal'
     | 'payment_already_pending'
@@ -398,7 +399,11 @@ export async function initiateMemberPayment(phoneNumber: string): Promise<Initia
         } catch {
           // Non-JSON or unreadable body -- falls through to the generic 'error' below.
         }
-        if (code === 'gym_credentials_unavailable' || code === 'mobile_money_disabled') {
+        if (
+          code === 'gym_credentials_unavailable' ||
+          code === 'mobile_money_disabled' ||
+          code === 'permission_denied'
+        ) {
           return { paymentId: null, code };
         }
       }
@@ -429,6 +434,7 @@ export interface InitiateSessionPaymentResult {
     | 'no_active_provider'
     | 'gym_credentials_unavailable'
     | 'mobile_money_disabled'
+    | 'permission_denied'
     | 'gym_suspended'
     | 'error';
 }
@@ -469,7 +475,11 @@ export async function initiateSessionPayment(phoneNumber: string): Promise<Initi
         } catch {
           // Unreadable body -- generic error below.
         }
-        if (code === 'gym_credentials_unavailable' || code === 'mobile_money_disabled') {
+        if (
+          code === 'gym_credentials_unavailable' ||
+          code === 'mobile_money_disabled' ||
+          code === 'permission_denied'
+        ) {
           return { paymentId: null, code };
         }
       }

@@ -40,6 +40,16 @@ function makeBuilder(scope: string, table: string, resolve: (builder: Record<str
   return builder;
 }
 
+// Story 22.4: the live authorization wrapper is exercised in lib/authz.test.ts; here it is a switch.
+let authzDenied = false;
+vi.mock("@/lib/authz", () => ({
+  authorizeAction: vi.fn(async () =>
+    authzDenied
+      ? { ok: false, error: { code: "permission_denied", message: "errors.permissionDenied" } }
+      : { ok: true, actorId: "actor-1", gymId: "gym-1", role: role },
+  ),
+}));
+
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     auth: { getClaims: async () => ({ data: { claims: { gym_id: "gym-1", app_role: role } }, error: null }) },
@@ -74,6 +84,7 @@ function payment(overrides: Partial<(typeof paymentRows)[number]> = {}) {
 
 describe("getMemberRegistrationFeeState (Story 18.6)", () => {
   beforeEach(() => {
+    authzDenied = false;
     role = "owner";
     member = { registration_fee_settled_at: SETTLED_AT };
     paymentRows = [];
@@ -195,5 +206,38 @@ describe("getMemberRegistrationFeeState (Story 18.6)", () => {
 
     expect(result.data).toBeNull();
     expect(result.error?.code).toBe("not_found");
+  });
+});
+
+describe("getMemberRegistrationFeeState live authorization (Story 22.4)", () => {
+  it("a denied actor gets permission_denied and the service-role audit read never happens", async () => {
+    authzDenied = true;
+    member = { registration_fee_settled_at: SETTLED_AT };
+    paymentRows = [];
+    calls = [];
+    adminCalled = false;
+    waiveRow = { actor_id: "user-1", actor_display_name: "Marie Owner", metadata: { reason: "x" }, created_at: SETTLED_AT };
+    const { getMemberRegistrationFeeState } = await import("./members");
+
+    const result = await getMemberRegistrationFeeState("m1");
+
+    expect(result.data).toBeNull();
+    expect(result.error?.code).toBe("permission_denied");
+    expect(adminCalled).toBe(false);
+  });
+
+  it("the role that gates names and reasons is the live role from authorization, not a claim", async () => {
+    role = "receptionist";
+    authzDenied = false;
+    member = { registration_fee_settled_at: SETTLED_AT };
+    paymentRows = [];
+    calls = [];
+    adminCalled = false;
+    waiveRow = { actor_id: "user-1", actor_display_name: "Marie Owner", metadata: { reason: "x" }, created_at: SETTLED_AT };
+    const { getMemberRegistrationFeeState } = await import("./members");
+
+    const result = await getMemberRegistrationFeeState("m1");
+
+    expect(result.data).toEqual({ kind: "waived", waivedByName: null, reason: null });
   });
 });

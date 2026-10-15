@@ -56,4 +56,4 @@ docker run -d --name supabase_edge_runtime_gym_os --network "$NET" --restart unl
 sleep 5
 curl -s -m 60 -X POST http://127.0.0.1:54321/functions/v1/payment-webhook/initiate/taramoney \
   -H "apikey: $ANON" -H 'content-type: application/json' -d '{}' ; echo
-echo "(expected: {\"error\":\"paymentId and phoneNumber are required\"})"
+echo "(expected, since 22.4 the route verifies the caller JWT first and this probe sends none: {\"code\":\"permission_denied\"} with HTTP 403)"

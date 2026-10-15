@@ -64,6 +64,18 @@ function makeClient(client: "session" | "admin") {
   };
 }
 
+// Story 22.4: the live authorization wrapper is exercised in lib/authz.test.ts; here it is a switch.
+let authzDenied = false;
+let authzDenyAfter = Infinity;
+const authzCalls: unknown[][] = [];
+vi.mock("@/lib/authz", () => ({
+  authorizeAction: vi.fn(async (...args: unknown[]) =>
+    (authzCalls.push(args), authzDenied || authzCalls.length > authzDenyAfter)
+      ? { ok: false, error: { code: "permission_denied", message: "errors.permissionDenied" } }
+      : { ok: true, actorId: "actor-1", gymId: "gym-1", role: "receptionist" },
+  ),
+}));
+
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => makeClient("session")) }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn(() => makeClient("admin")) }));
 vi.mock("@/services/session", () => ({
@@ -88,6 +100,9 @@ const summary = () => ops.map((o) => `${o.client}:${o.table}:${o.op}`);
 
 describe("provisionMemberRow (Story 18.5)", () => {
   beforeEach(() => {
+    authzDenied = false;
+    authzDenyAfter = Infinity;
+    authzCalls.length = 0;
     ops = [];
     eqCalls = [];
     settleResult = { data: { id: "member-1" }, error: null };
@@ -191,5 +206,35 @@ describe("provisionMemberRow (Story 18.5)", () => {
 
     expect(result.data).toBeNull();
     expect(summary()).toContain("admin:members:delete");
+  });
+});
+
+describe("provisionMemberRow live authorization (Story 22.4)", () => {
+  it("a denied actor provisions nothing: no user, no member, no settle", async () => {
+    authzDenied = true;
+    ops = [];
+    eqCalls = [];
+    const { provisionMemberRow } = await import("./members");
+
+    const result = await provisionMemberRow({ ...identity, planId: "plan-1", importExempt: true });
+
+    expect(result.data).toBeNull();
+    expect(result.error?.code).toBe("permission_denied");
+    expect(ops.filter((o) => /insert|update|delete/.test(o.op))).toEqual([]);
+  });
+
+  it("settleRegistrationFeeForImport authorizes against the member row's gym and a denial there settles nothing", async () => {
+    authzCalls.length = 0;
+    ops = [];
+    authzDenied = false;
+    authzDenyAfter = 1; // findOrCreateUserByPhone allows, the settle check denies
+    const { provisionMemberRow } = await import("./members");
+
+    const result = await provisionMemberRow({ ...identity, planId: "plan-1", importExempt: true });
+
+    expect(result.data).toBeNull();
+    expect(result.error?.code).toBe("permission_denied");
+    expect(authzCalls[1]).toEqual(["member.provision", { gymId: "gym-1" }]);
+    expect(ops.some((o) => o.client === "admin" && o.table === "members" && o.op === "update")).toBe(false);
   });
 });

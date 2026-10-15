@@ -4,6 +4,7 @@ import { type AppError } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { authorizeAction } from "@/lib/authz";
 import { type MemberSubscriptionStatus, getCallerGymId, memberNotFoundError } from "./members.shared";
 
 // Member provisioning: auth user lookup/creation, member and subscription inserts, import rows and the
@@ -21,6 +22,12 @@ import { type MemberSubscriptionStatus, getCallerGymId, memberNotFoundError } fr
 export async function findOrCreateUserByPhone(
   phone: string,
 ): Promise<{ data: { userId: string; created: boolean } | null; error: AppError | null }> {
+  // Story 22.4: live authorization before the service-role client does anything.
+  const authz = await authorizeAction("member.provision");
+  if (!authz.ok) {
+    return { data: null, error: authz.error };
+  }
+
   const admin = createAdminClient();
 
   // GoTrue stores auth.users.phone (and this trigger-copied public.users.phone,
@@ -294,6 +301,12 @@ export interface ProvisionMemberRowInput {
  * service_role and SECURITY DEFINER functions alone (0098), so this goes
  * through the admin client, the same precedent as `deleteMemberForCleanup`. */
 async function settleRegistrationFeeForImport(memberId: string, gymId: string): Promise<{ error: AppError | null }> {
+  // The gym comes from the target member row, not from the caller.
+  const authz = await authorizeAction("member.provision", { gymId });
+  if (!authz.ok) {
+    return { error: authz.error };
+  }
+
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("members")

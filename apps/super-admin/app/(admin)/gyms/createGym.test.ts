@@ -41,6 +41,16 @@ const insertOwnerMemberMock = vi.fn<(input: { userId: string }) => Promise<typeo
   async () => insertOwnerMemberResult,
 );
 
+// Story 22.4: createGym asks the live Super Admin check first; tests flip this to model a denial.
+let authzAllowed = true;
+vi.mock("@/lib/authz", () => ({
+  authorizePlatformAction: vi.fn(async () =>
+    authzAllowed
+      ? { ok: true, actorId: "sa-1" }
+      : { ok: false, error: { code: "permission_denied", message: "errors.permissionDenied" } },
+  ),
+}));
+
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     auth: { admin: { createUser: createUserMock, deleteUser: deleteUserMock } },
@@ -128,6 +138,7 @@ const VALID = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  authzAllowed = true;
   findUserByEmailResult = null;
   findUserByEmailQueue = [];
   profileResult = { data: { is_super_admin: false, display_name: "Paul Nkusu" }, error: null };
@@ -390,5 +401,18 @@ describe("createGym — audit metadata", () => {
     const meta = logGymCreatedMock.mock.calls[0]?.[1] as Record<string, unknown>;
     expect(meta.owner_outcome).toBe("linked");
     expect(meta.sms_sent).toBeNull();
+  });
+});
+
+describe("createGym — live authorization (Story 22.4)", () => {
+  it("a caller who is no longer a Super Admin gets permission_denied and nothing is read or written", async () => {
+    authzAllowed = false;
+    const res = await createGym(VALID);
+    expect(res.data).toBeNull();
+    expect(res.error?.code).toBe("permission_denied");
+    expect(createUserMock).not.toHaveBeenCalled();
+    expect(insertGymMock).not.toHaveBeenCalled();
+    expect(insertOwnerMemberMock).not.toHaveBeenCalled();
+    expect(sendTempPasswordMessageMock).not.toHaveBeenCalled();
   });
 });

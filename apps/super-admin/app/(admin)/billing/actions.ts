@@ -1,6 +1,7 @@
 "use server";
 
 import { applyCreditSchema, gymIdSchema, type AppError } from "@gymos/types";
+import { authorizePlatformAction } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logGymLifecycleEvent, mapAndLog } from "@/services/gyms";
@@ -174,6 +175,12 @@ export async function triggerRetry(gymId: string): Promise<{ error: AppError | n
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
     return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
+  }
+
+  // Story 22.4: live Super Admin check before the service-role client reads owners or sends.
+  const authz = await authorizePlatformAction("platform.billing_retry");
+  if (!authz.ok) {
+    return { error: authz.error };
   }
 
   const admin = createAdminClient();

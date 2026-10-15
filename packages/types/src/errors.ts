@@ -28,6 +28,16 @@ export function isGymSuspendedError(error: unknown): boolean {
   return message.includes(": gym ") && message.includes("is not active");
 }
 
+/** Story 22.4: stable code returned by every service-role path (edge function or server action)
+ * when live authorization denies the actor. Shared so no surface re-spells the string. */
+export const PERMISSION_DENIED_CODE = "permission_denied";
+
+/** True when `error` carries the stable `permission_denied` code (an AppError, or the parsed JSON
+ * body of an edge function 403). Mobile reads it from `invokeError.context.json().code`. */
+export function isPermissionDeniedError(error: unknown): boolean {
+  return (error as { code?: string } | null)?.code === PERMISSION_DENIED_CODE;
+}
+
 const ERROR_COPY: Record<ErrorLocale, typeof en.errors> = {
   en: en.errors,
   fr: fr.errors,

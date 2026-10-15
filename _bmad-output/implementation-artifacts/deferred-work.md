@@ -1154,3 +1154,18 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-22-3-live-authorization-in-the-database.md`
   summary: `payments_member_same_gym` only validates new writes (insert, update of member_id/gym_id); historic payment rows are not re-validated and no cleanup exists.
   evidence: local data has 0 mismatches; production not checked. Run the count query against production before relying on it.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-4-live-authorization-in-edge-functions-and-service-paths.md`
+  summary: authorizeAction costs two extra round trips per row in member import loops; consider authorize-once-per-import.
+  evidence: findOrCreateUserByPhone and settleRegistrationFeeForImport each call getUser plus an admin RPC per row; performance only.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-4-live-authorization-in-edge-functions-and-service-paths.md`
+  summary: initiate-link success path has no passing Deno test and the Deno suite is not in ci-local.
+  evidence: the success test is one of three pre-existing baseline Deno failures; unverified that an authorized Owner still gets a checkout URL end to end.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-4-live-authorization-in-edge-functions-and-service-paths.md`
+  summary: check:claims cannot detect a service-role path with no authorization at all, and payment-webhook is exempt wholesale.
+  evidence: scanner keys on claim reads and a createAdminClient/SERVICE_ROLE_KEY regex; a wrapper helper or a new unauthenticated route escapes it.
+
+## Deferred from: code review of spec-22-4 (2026-10-15)
+
+- `getMemberRegistrationFeeState` now denies roles outside owner/manager/supervisor/receptionist (e.g. `coach`) on the audit read. Unverified (maybe-false, medium if true): check whether coach could reach member detail before 22.4.
+- `deleteAuthUserForCleanup` / `deleteMemberForCleanup` (`apps/dashboard/services/members.provisioning.ts`) are exported service-role writers with no `authorizeAction`; only reached after authorized steps today.

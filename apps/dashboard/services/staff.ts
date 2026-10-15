@@ -8,6 +8,7 @@ import { generateTempPassword } from "@/lib/temp-password";
 import { deleteAuthUserForCleanup } from "@/services/members";
 import { sendEvolutionApiMessage } from "@/lib/messaging/EvolutionApiMessageProvider";
 import { captureServerEvent } from "@/lib/analytics";
+import { authorizeAction } from "@/lib/authz";
 
 /** Story 9.2 Task 1: dashboard's own copy, pointing at itself -- distinct
  * from apps/super-admin's own getDashboardAppUrl() (that one points
@@ -196,6 +197,15 @@ export async function createStaffMember(
 ): Promise<{ data: CreateStaffMemberResult | null; error: AppError | null }> {
   const supabase = await createClient();
   const { t } = await getServerTranslation(await getRequestLocale());
+
+  // Story 22.4: live authorization BEFORE the admin client is touched. A deactivated or demoted
+  // actor must not create an auth user (the RPC below would refuse the binding, but only after
+  // the auth user already existed).
+  const authz = await authorizeAction("staff.create");
+  if (!authz.ok) {
+    return { data: null, error: authz.error };
+  }
+
   const admin = createAdminClient();
 
   // GoTrue stores auth.users.phone (and this trigger-copied public.users.phone,

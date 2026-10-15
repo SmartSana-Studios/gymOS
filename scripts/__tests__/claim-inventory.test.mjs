@@ -4,14 +4,14 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { classifySql, classifySource, buildInventory, compare, validateExempt, sourceKind } from "../claim-inventory.mjs";
+import { classifySql, classifySource, buildInventory, compare, enforce, validateExempt, sourceKind } from "../claim-inventory.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, "..", "claim-inventory.mjs");
 const fx = (p) => join(here, "fixtures", "claims", p);
 const rows = JSON.parse(readFileSync(fx("rows.json"), "utf8"));
 
-function run(baseline, exempt = "exempt-ok.json", extra = []) {
+function run(baseline, exempt = "exempt-ok.json", extra = ["--report"]) {
   const r = spawnSync(
     process.execPath,
     [script, "--rows", fx("rows.json"), "--sources", fx("src/empty-none"), "--baseline", fx(baseline), "--exempt", fx(exempt), ...extra],
@@ -202,4 +202,41 @@ test("path-operator claim reads are claim-only (#>> '{app_role}', nested path, a
   ])
     assert.equal(classifySql(body).classification, "claim-only", body);
   assert.equal(classifySql("select auth.jwt() #>> '{sub}'"), null);
+});
+
+test("enforcing (default): any non-exempt claim-only fails even when the baseline lists it", () => {
+  const r = run("baseline-ok.json", "exempt-ok.json", []);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /enforcing|baseline must be empty/);
+});
+
+test("enforcing: a clean inventory with an empty baseline exits 0, a new claim-only source fails on its own", () => {
+  const root = join(here, "fixtures", "claims", `.enforce-${process.pid}`);
+  const empty = join(root, "empty-rows.json");
+  const baseline = join(root, "baseline.json");
+  try {
+    mkdirSync(join(root, "lib"), { recursive: true });
+    writeFileSync(empty, JSON.stringify([{ kind: "function", name: "public.ok()", text: "select private.current_member_role()" }]));
+    writeFileSync(baseline, JSON.stringify({ entries: [], nullUnsafe: [] }));
+    writeFileSync(join(root, "lib", "ok.ts"), "export const x = 1;\n");
+    const args = (src) => [script, "--rows", empty, "--sources", src, "--baseline", baseline, "--exempt", fx("exempt-ok.json")];
+    const ok = spawnSync(process.execPath, args(root), { encoding: "utf8" });
+    assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+    writeFileSync(join(root, "lib", "bad.ts"), "const r = data.claims.app_role;\n");
+    const bad = spawnSync(process.execPath, args(root), { encoding: "utf8" });
+    assert.equal(bad.status, 1);
+    assert.match(bad.stderr, /claim-only server .*bad\.ts/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("enforcing: an exempt source is not a failure; enforce() lists claim-only and null-unsafe", () => {
+  const inv = buildInventory(
+    [{ kind: "server", name: "apps/x/lib/a.ts", text: "const r = c.claims.app_role;" }],
+    [{ kind: "server", name: "apps/x/lib/a.ts", reason: "issuer" }],
+  );
+  assert.deepEqual(enforce(inv, {}).failures, []);
+  const inv2 = buildInventory([{ kind: "server", name: "apps/x/lib/a.ts", text: "const r = c.claims.app_role;" }], []);
+  assert.equal(enforce(inv2, {}).failures.length, 1);
 });

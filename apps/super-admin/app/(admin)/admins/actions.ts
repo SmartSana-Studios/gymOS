@@ -1,6 +1,7 @@
 "use server";
 
 import { createOrPromoteSuperAdminSchema, type AppError } from "@gymos/types";
+import { authorizePlatformAction } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapAndLog } from "@/services/gyms";
@@ -44,6 +45,11 @@ export async function listSuperAdmins(): Promise<{
   error: AppError | null;
 }> {
   const { t } = await getServerTranslation(await getRequestLocale());
+  // Story 22.4: live check before the admin client resolves any email.
+  const authz = await authorizePlatformAction("platform.super_admin_manage");
+  if (!authz.ok) {
+    return { data: null, error: authz.error };
+  }
   const supabase = await createClient();
   // Annotated explicitly: this app's Supabase clients are constructed
   // without the `Database` generic (lib/supabase/server.ts), so a
@@ -109,21 +115,18 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
   }
   const { email, currentPassword } = parsed.data;
 
-  // AC #7: re-verify the caller's own session claims here, on top of the
-  // (admin) layout guard -- a deliberate, narrow exception to this app's
+  // AC #7 (22.4: now live, read from the database at call time, never from the `app_role`
+  // claim): re-verify the caller here, on top of the (admin) layout guard -- a deliberate, narrow exception to this app's
   // usual convention of relying on the layout guard alone (createGym etc.
   // do not re-check). NFR-020 requires this specific action to self-enforce
   // server-side because it mints the platform's highest privilege, and a
   // Server Action endpoint is reachable independently of the rendered page.
   // Do NOT generalize this pattern to other actions in this app.
-  const session = await createClient();
-  const { data: claimsData, error: claimsError } = await session.auth.getClaims();
-  if (claimsError || claimsData?.claims?.app_role !== "super_admin") {
-    return {
-      data: null,
-      error: { code: "unauthorized", message: t("admins.errors.unauthorized") },
-    };
+  const authz = await authorizePlatformAction("platform.super_admin_manage");
+  if (!authz.ok) {
+    return { data: null, error: authz.error };
   }
+  const session = await createClient();
 
   // Post-review addition (2026-09-07, requested during manual testing):
   // step-up re-authentication. The acting Super Admin must prove they still

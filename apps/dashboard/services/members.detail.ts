@@ -1,3 +1,4 @@
+import { authorizeAction } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { type AppError } from "@gymos/types";
@@ -51,9 +52,6 @@ export async function getMemberRegistrationFeeState(
     return { data: null, error: gymIdError };
   }
 
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const role = (claimsData?.claims as { app_role?: string } | undefined)?.app_role ?? "";
-
   const { data: member, error: memberError } = await supabase
     .from("members")
     .select("registration_fee_settled_at")
@@ -104,6 +102,14 @@ export async function getMemberRegistrationFeeState(
       error: null,
     };
   }
+
+  // Story 22.4: the service-role audit read is gated by the actor's LIVE role and gym, not by a
+  // token claim. The live role also decides whether names and reasons are shown.
+  const authz = await authorizeAction("member.registration_fee_state", { gymId });
+  if (!authz.ok) {
+    return { data: null, error: authz.error };
+  }
+  const role = authz.role;
 
   const admin = createAdminClient();
   const { data: waived, error: waivedError } = await admin

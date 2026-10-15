@@ -221,6 +221,9 @@ export async function initiateSaasBillingPayment(
         // Non-JSON or unreadable body -- falls through to the generic
         // mapAndLog(invokeError) below.
       }
+      if (code === "permission_denied") {
+        return { data: null, error: { code: "permission_denied", message: t("errors.permissionDenied") } };
+      }
       if (code === "gym_credentials_unavailable") {
         return {
           data: null,
@@ -284,6 +287,17 @@ export async function createSaasBillingHostedCheckoutLink(
       `[billing] createSaasBillingHostedCheckoutLink: payment-webhook initiate-link failed for payment ${paymentId}`,
       invokeError,
     );
+    if (invokeError instanceof FunctionsHttpError) {
+      let code: string | undefined;
+      try {
+        code = (await invokeError.context.json())?.code;
+      } catch {
+        // Unreadable body -- generic mapping below.
+      }
+      if (code === "permission_denied") {
+        return { data: null, error: { code: "permission_denied", message: t("errors.permissionDenied") } };
+      }
+    }
     return { data: null, error: await mapAndLog(invokeError) };
   }
 

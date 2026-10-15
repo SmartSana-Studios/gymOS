@@ -239,11 +239,17 @@ const PLATFORM_SECRET = "test-taramoney-platform-webhook-secret";
 async function withPlatformEnv<T>(fn: () => Promise<T>): Promise<T> {
   const priorBusinessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
   const priorSecret = Deno.env.get("TARAMONEY_WEBHOOK_SECRET");
+  // createHostedCheckoutLink() and confirmPaymentStatus() both need the API key; without it the
+  // initiate-link success test only passed on a host that happened to export it.
+  const priorApiKey = Deno.env.get("TARAMONEY_API_KEY");
   Deno.env.set("TARAMONEY_BUSINESS_ID", PLATFORM_BUSINESS_ID);
   Deno.env.set("TARAMONEY_WEBHOOK_SECRET", PLATFORM_SECRET);
+  Deno.env.set("TARAMONEY_API_KEY", "test-taramoney-api-key");
   try {
     return await fn();
   } finally {
+    if (priorApiKey === undefined) Deno.env.delete("TARAMONEY_API_KEY");
+    else Deno.env.set("TARAMONEY_API_KEY", priorApiKey);
     if (priorBusinessId === undefined) Deno.env.delete("TARAMONEY_BUSINESS_ID");
     else Deno.env.set("TARAMONEY_BUSINESS_ID", priorBusinessId);
     if (priorSecret === undefined) Deno.env.delete("TARAMONEY_WEBHOOK_SECRET");
@@ -376,12 +382,47 @@ const INITIATE_PAYMENT_ROW = {
   amount: 5000,
   currency: "XAF",
   gym_id: "gym-a",
+  member_id: "mem1",
 };
 
-function initiateRequest(body: unknown) {
+// --- Story 22.4: live authorization layer for the initiate routes --------------------------------
+// withActor() stacks a fetch layer on whatever the test's own stub installed: GoTrue's
+// /auth/v1/user (JWT verification), the members lookup behind the own-payment check, and the
+// public.authorize_action RPC. Everything else falls through to the stub.
+interface ActorLayer {
+  rpcCalls: { p_actor: string; p_gym_id: string | null; p_capability: string }[];
+}
+function withActor(
+  opts: { validJwt?: string; actorId?: string; memberUserId?: string; allowed?: boolean; reason?: string } = {},
+): ActorLayer {
+  const { validJwt = "valid-jwt", actorId = "actor-1", memberUserId = "actor-1", allowed = true, reason = "allowed" } = opts;
+  const layer: ActorLayer = { rpcCalls: [] };
+  const inner = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    const json = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+    if (href.includes("/auth/v1/user")) {
+      const auth = new Headers(init?.headers).get("Authorization") ?? "";
+      return auth === `Bearer ${validJwt}` ? json({ id: actorId, aud: "authenticated" }) : json({ msg: "invalid JWT" }, 401);
+    }
+    if (href.includes("/rest/v1/members?")) return json({ user_id: memberUserId });
+    if (href.includes("/rest/v1/rpc/authorize_action")) {
+      layer.rpcCalls.push(JSON.parse(String(init?.body ?? "{}")));
+      return json([{ allowed, reason, actor_role: allowed ? "member" : null }]);
+    }
+    return (inner as typeof fetch)(url as never, init);
+  }) as typeof fetch;
+  return layer;
+}
+
+function initiateRequest(body: unknown, authorization: string | null = "Bearer valid-jwt") {
   return new Request("https://example.com/functions/v1/payment-webhook/initiate/taramoney", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(authorization ? { Authorization: authorization } : {}),
+    },
     body: JSON.stringify(body),
   });
 }
@@ -448,6 +489,7 @@ function stubFetchEnabledPathReachesProvider(paymentRow: unknown) {
 Deno.test("payment-webhook taramoney initiate route: TARAMONEY_INITIATION_ENABLED=false short-circuits before the provider is ever called, and cleans up the payment row (review finding)", async () => {
   Deno.env.set("TARAMONEY_INITIATION_ENABLED", "false");
   const stub = stubFetchServingPaymentRowOnly(INITIATE_PAYMENT_ROW);
+  withActor();
   try {
     const req = initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" });
     const res = await handler.fetch(req);
@@ -467,6 +509,7 @@ Deno.test("payment-webhook taramoney initiate route: TARAMONEY_INITIATION_ENABLE
 
 Deno.test("payment-webhook taramoney initiate route: TARAMONEY_INITIATION_ENABLED unset reaches the provider -- the kill switch does not block the default-enabled path", async () => {
   const stub = stubFetchEnabledPathReachesProvider(INITIATE_PAYMENT_ROW);
+  withActor();
   try {
     const req = initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" });
     const res = await handler.fetch(req);
@@ -490,6 +533,7 @@ const INITIATE_SAAS_PAYMENT_ROW = {
   provider_transaction_ref: null,
   amount: 8000,
   currency: "XAF",
+  gym_id: "gym-b",
 };
 
 /**
@@ -532,10 +576,13 @@ Deno.test("payment-webhook taramoney initiate route: a saas_billing_payments-onl
   Deno.env.delete("TARAMONEY_API_KEY");
   Deno.env.delete("TARAMONEY_BUSINESS_ID");
   const stub = stubFetchSaasFallbackFlow(INITIATE_SAAS_PAYMENT_ROW);
+  const layer = withActor();
   try {
     const req = initiateRequest({ paymentId: "saas-pay1", phoneNumber: "237600000000" });
     const res = await handler.fetch(req);
     assertEquals(res.status, 502);
+    assertEquals(layer.rpcCalls[0].p_gym_id, "gym-b", "authorized against the SaaS row's gym");
+    assertEquals(layer.rpcCalls[0].p_capability, "billing.saas_pay");
     const body = await res.json();
     // No `code` field -- the platform branch's own credentials_not_connected
     // never maps to gym_credentials_unavailable (that mapping, and its
@@ -573,6 +620,7 @@ Deno.test("payment-webhook taramoney initiate route: a saas_billing_payments-onl
 
 Deno.test("payment-webhook taramoney initiate route: regression -- a payments row found on the first lookup never attempts the saas_billing_payments fallback", async () => {
   const stub = stubFetchEnabledPathReachesProvider(INITIATE_PAYMENT_ROW);
+  withActor();
   try {
     const req = initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" });
     const res = await handler.fetch(req);
@@ -597,13 +645,13 @@ const INITIATE_LINK_SAAS_PAYMENT_ROW = {
   provider_transaction_ref: null,
   amount: 8000,
   currency: "XAF",
-  gym_id: null,
+  gym_id: "gym-b",
 };
 
-function initiateLinkRequest(body: unknown) {
+function initiateLinkRequest(body: unknown, authorization: string | null = "Bearer valid-jwt") {
   return new Request("https://example.com/functions/v1/payment-webhook/initiate-link/taramoney", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(authorization ? { Authorization: authorization } : {}) },
     body: JSON.stringify(body),
   });
 }
@@ -633,6 +681,7 @@ function stubFetchInitiateLinkFlow(paymentsRow: unknown, saasRow: unknown) {
 Deno.test("payment-webhook taramoney initiate-link route: a processing saas_billing_payments row succeeds, returns checkoutUrl, no phoneNumber required, never writes provider_transaction_ref", async () => {
   await withPlatformEnv(async () => {
     const stub = stubFetchInitiateLinkFlow(null, INITIATE_LINK_SAAS_PAYMENT_ROW);
+    const layer = withActor();
     const originalFetch = globalThis.fetch;
     globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
       const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
@@ -653,6 +702,7 @@ Deno.test("payment-webhook taramoney initiate-link route: a processing saas_bill
       assertEquals(res.status, 200);
       const body = await res.json();
       assertEquals(body.checkoutUrl, "https://pay.taramoney.com/link/xyz");
+      assertEquals(layer.rpcCalls[0].p_gym_id, "gym-b", "authorized against the SaaS row's gym");
       assertEquals(
         stub.calls.some((c) => c.startsWith("PATCH") || (c.startsWith("PUT") && c.includes("provider_transaction_ref"))),
         false,
@@ -667,6 +717,7 @@ Deno.test("payment-webhook taramoney initiate-link route: a processing saas_bill
 
 Deno.test("payment-webhook taramoney initiate-link route: a non-processing payment is rejected with 400, no provider call attempted", async () => {
   const stub = stubFetchInitiateLinkFlow(null, { ...INITIATE_LINK_SAAS_PAYMENT_ROW, status: "verified" });
+  withActor();
   try {
     const req = initiateLinkRequest({ paymentId: "saas-pay-link-1" });
     const res = await handler.fetch(req);
@@ -678,6 +729,7 @@ Deno.test("payment-webhook taramoney initiate-link route: a non-processing payme
 
 Deno.test("payment-webhook taramoney initiate-link route: a missing paymentId is rejected with 400 before any DB call", async () => {
   const stub = stubFetchNoCallsExpected();
+  withActor();
   try {
     const req = initiateLinkRequest({});
     const res = await handler.fetch(req);
@@ -711,6 +763,9 @@ Deno.test("payment-webhook taramoney initiate-link route: a missing paymentId is
  * provider_transaction_ref, the payment_webhook_events upsert, and the
  * completion RPC.
  */
+// The id fallback only fires for uuid-shaped references (index.ts isUuidShaped guard), like the real column.
+const LINK_FALLBACK_PAYMENT_ID = "6f1d2c34-5a7b-4c8d-9e0f-1a2b3c4d5e6f";
+
 function stubFetchPlatformLinkFallbackFlow(linkRow: { id: string } | null) {
   const calls: string[] = [];
   let completeVerifiedCalled = false;
@@ -758,14 +813,14 @@ function stubFetchPlatformLinkFallbackFlow(linkRow: { id: string } | null) {
 
 Deno.test("payment-webhook taramoney receive route: platform path -- the real payment-link webhook shape (no productId field, paymentId IS our own reference) is matched via the id fallback and completes", async () => {
   await withPlatformEnv(async () => {
-    const stub = stubFetchPlatformLinkFallbackFlow({ id: "saas-pay-link-1" });
+    const stub = stubFetchPlatformLinkFallbackFlow({ id: LINK_FALLBACK_PAYMENT_ID });
     try {
       // Exact shape of the real 2026-08-30 captured webhook (see the
       // header comment above), with paymentId/collectionId swapped to this
       // test's own fixture id -- no productId, no amount, no phoneNumber.
       const req = receiveRequest({ "tara-webhook-secret": PLATFORM_SECRET }, {
         businessId: PLATFORM_BUSINESS_ID,
-        paymentId: "saas-pay-link-1",
+        paymentId: LINK_FALLBACK_PAYMENT_ID,
         collectionId: "589124990",
         creationDate: "2026-08-30T21:34:37.514-03:00",
         changeDate: "2026-08-30T21:34:37.514-03:00",
@@ -774,7 +829,7 @@ Deno.test("payment-webhook taramoney receive route: platform path -- the real pa
       const res = await handler.fetch(req);
       assertEquals(res.status, 200);
       assertEquals(stub.completeVerifiedPaymentCalled(), true);
-      assertEquals(stub.patchedRefTo(), "saas-pay-link-1", "provider_transaction_ref is persisted to the same value as the row's own id");
+      assertEquals(stub.patchedRefTo(), LINK_FALLBACK_PAYMENT_ID, "provider_transaction_ref is persisted to the same value as the row's own id");
     } finally {
       stub.restore();
     }
@@ -787,7 +842,7 @@ Deno.test("payment-webhook taramoney receive route: platform path -- a genuine m
     try {
       const req = receiveRequest({ "tara-webhook-secret": PLATFORM_SECRET }, {
         businessId: PLATFORM_BUSINESS_ID,
-        paymentId: "no-such-payment-anywhere",
+        paymentId: "00000000-0000-4000-8000-00000000dead",
         status: "SUCCESS",
       });
       const res = await handler.fetch(req);
@@ -830,4 +885,123 @@ Deno.test("payment-webhook taramoney receive route: platform path -- a direct mo
       stub.restore();
     }
   });
+});
+
+// --- Story 22.4: live authorization on the initiate routes ----------------------------------------
+
+Deno.test("payment-webhook initiate route: no Authorization header -> 403 permission_denied, no DB access at all", async () => {
+  const stub = stubFetchNoCallsExpected();
+  try {
+    const res = await handler.fetch(initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" }, null));
+    assertEquals(res.status, 403);
+    assertEquals((await res.json()).code, "permission_denied");
+    assertEquals(stub.calls.length, 0);
+  } finally {
+    stub.restore();
+  }
+});
+
+Deno.test("payment-webhook initiate route: an invalid JWT -> 403 permission_denied, the payment row is never read or deleted", async () => {
+  const stub = stubFetchServingPaymentRowOnly(INITIATE_PAYMENT_ROW);
+  withActor({ validJwt: "some-other-jwt" });
+  try {
+    const res = await handler.fetch(initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" }));
+    assertEquals(res.status, 403);
+    assertEquals((await res.json()).code, "permission_denied");
+    assertEquals(stub.calls.length, 0, "a denial has no side effect: no read, no DELETE, no provider call");
+  } finally {
+    stub.restore();
+  }
+});
+
+Deno.test("payment-webhook initiate route: actor not allowed for the row's gym -> 403, no DELETE, provider never called", async () => {
+  const stub = stubFetchServingPaymentRowOnly(INITIATE_PAYMENT_ROW);
+  const layer = withActor({ allowed: false, reason: "not_member", memberUserId: "someone-else" });
+  try {
+    const res = await handler.fetch(initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" }));
+    assertEquals(res.status, 403);
+    assertEquals((await res.json()).code, "permission_denied");
+    assertEquals(layer.rpcCalls.length, 1);
+    assertEquals(layer.rpcCalls[0].p_gym_id, "gym-a", "the gym comes from the payment row, not the request");
+    assertEquals(layer.rpcCalls[0].p_capability, "payment.initiate_staff");
+    assertEquals(stub.calls.some((c) => c.startsWith("DELETE")), false);
+  } finally {
+    stub.restore();
+  }
+});
+
+Deno.test("payment-webhook initiate route: the member who owns the row is evaluated as payment.initiate_own", async () => {
+  Deno.env.set("TARAMONEY_INITIATION_ENABLED", "false");
+  const stub = stubFetchServingPaymentRowOnly(INITIATE_PAYMENT_ROW);
+  const layer = withActor({ memberUserId: "actor-1", actorId: "actor-1" });
+  try {
+    const res = await handler.fetch(initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" }));
+    assertEquals(res.status, 502); // past authorization, stopped by the kill switch
+    assertEquals(layer.rpcCalls[0].p_capability, "payment.initiate_own");
+    assertEquals(layer.rpcCalls[0].p_actor, "actor-1");
+  } finally {
+    stub.restore();
+    Deno.env.delete("TARAMONEY_INITIATION_ENABLED");
+  }
+});
+
+Deno.test("payment-webhook initiate route: a SaaS billing row is evaluated as billing.saas_pay against the row's gym", async () => {
+  Deno.env.set("TARAMONEY_INITIATION_ENABLED", "false");
+  const stub = stubFetchSaasFallbackFlow({ ...INITIATE_SAAS_PAYMENT_ROW, gym_id: "gym-b" });
+  const layer = withActor({ allowed: false, reason: "role_not_permitted" });
+  try {
+    const res = await handler.fetch(initiateRequest({ paymentId: "saas-pay1", phoneNumber: "237600000000" }));
+    assertEquals(res.status, 403);
+    assertEquals(layer.rpcCalls[0].p_capability, "billing.saas_pay");
+    assertEquals(layer.rpcCalls[0].p_gym_id, "gym-b");
+  } finally {
+    stub.restore();
+    Deno.env.delete("TARAMONEY_INITIATION_ENABLED");
+  }
+});
+
+Deno.test("payment-webhook initiate route: the authorization RPC failing closes the route (403)", async () => {
+  const stub = stubFetchServingPaymentRowOnly(INITIATE_PAYMENT_ROW);
+  const inner = globalThis.fetch;
+  withActor();
+  const layered = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    if (href.includes("/rest/v1/rpc/authorize_action")) {
+      return Promise.resolve(new Response(JSON.stringify({ message: "boom" }), { status: 500 }));
+    }
+    return (layered as typeof fetch)(url as never, init);
+  }) as typeof fetch;
+  try {
+    const res = await handler.fetch(initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" }));
+    assertEquals(res.status, 403);
+  } finally {
+    globalThis.fetch = inner;
+    stub.restore();
+  }
+});
+
+Deno.test("payment-webhook initiate-link route: no JWT -> 403, no DB access", async () => {
+  const stub = stubFetchNoCallsExpected();
+  try {
+    const res = await handler.fetch(initiateLinkRequest({ paymentId: "saas-pay-link-1" }, null));
+    assertEquals(res.status, 403);
+    assertEquals((await res.json()).code, "permission_denied");
+    assertEquals(stub.calls.length, 0);
+  } finally {
+    stub.restore();
+  }
+});
+
+Deno.test("payment-webhook initiate-link route: a non-Owner of the row's gym -> 403, provider never called", async () => {
+  const stub = stubFetchInitiateLinkFlow(null, { ...INITIATE_LINK_SAAS_PAYMENT_ROW, gym_id: "gym-b" });
+  const layer = withActor({ allowed: false, reason: "role_not_permitted" });
+  try {
+    const res = await handler.fetch(initiateLinkRequest({ paymentId: "saas-pay-link-1" }));
+    assertEquals(res.status, 403);
+    assertEquals(layer.rpcCalls[0].p_capability, "billing.saas_pay");
+    assertEquals(layer.rpcCalls[0].p_gym_id, "gym-b");
+  } finally {
+    stub.restore();
+  }
 });
