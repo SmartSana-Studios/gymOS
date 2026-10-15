@@ -289,7 +289,7 @@ Epics 1–8 are the shipped V1.0 pilot scope (`done` per `sprint-status.yaml`). 
 - FR-198: Owner, Supervisor, or assigned support can edit content and publish/unpublish. Only the Owner (or Super Admin) can claim or rename the page name.
 - FR-199: Publishing is explicit and server-validated; requires page name, category, logo, banner, about ≥100 chars, country and city, ≥1 public contact, opening hours, ≥1 public plan. Re-evaluated on every change: a page that stops qualifying unpublishes itself and the Owner is told why. Unpublishing always allowed.
 - FR-200: Plan visibility is opt-in per plan; private by default; only public plans appear on the page or anything public.
-- FR-201: GymOS prebuilds templates; V1.7 ships one launch template; swappable without re-entering content. The template system is a self-contained module: validated, versioned content in, rendered page out; presentation only, no gym data (addendum G).
+- FR-201: GymOS prebuilds templates; V1.7 ships at least two under one contract and a conformance suite; swappable without re-entering content. The template system is a self-contained module: validated, versioned content in, rendered page out; presentation only, no gym data (addendum G).
 - FR-202: Page name rules: lowercase, 3–30 chars of `a-z0-9-`, no leading/trailing hyphen, no `--`, no `xn--`, not digits only; unique case-insensitively. Reserved names and brand/credential words cannot be claimed; near-matches (edit distance 1, homoglyph/hyphen/digit folding) and generic/place words held for Super Admin approval before first publish, decided within 2 business days; word lists in a Super Admin-maintained table seeded from addendum J.
 - FR-203: First come first served by the Owner, one name per gym, reserved while unpublished or suspended up to 12 months; at most two renames in a rolling 12 months (forced renames/overrides don't count); old name 301-redirects (one hop) for 12 months then released; a taken-down name is never released; redirects dropped on takedown/force-rename and cached ≤5 min.
 - FR-204: Super Admin can take a page down with a reason code (impersonation, illegal content, trademark, misleading content, privacy, other); blocks republishing until lifted and tells the Owner why. Visitors can report via a public form, answered within 5 business days `[ASSUMPTION]`; Owner has an appeal path. No pre-publication moderation.
@@ -646,7 +646,7 @@ FR-197: Epic 24 - Page content fields and "what becomes public" screen
 FR-198: Epic 24 - Who edits/publishes vs who claims the name
 FR-199: Epic 24 - Server-validated publish gate
 FR-200: Epic 24 - Opt-in plan visibility
-FR-201: Epic 24 - Template module, one launch template
+FR-201: Epic 24 - Template module, two seed templates, contract and conformance suite
 FR-202: Epic 24 - Page-name rules, reserved and held words
 FR-203: Epic 24 - Name reservation, rename limits, redirects
 FR-204: Epic 24 - Takedown and reporting
@@ -1597,7 +1597,7 @@ Super Admin creates support people by invite and assigns them to gyms many-to-ma
 **Depends on:** Epic 22. Includes a product-owner pre-flight checklist story (Owner notification, OQ-30/OQ-31, Super Admin factor and recovery).
 
 ### Epic 24: Gym Landing Pages
-A gym publishes an optional public page at `{name}.gymosapps.com` from content it enters, with one launch template, a name it claims, and takedown/report handling.
+A gym publishes an optional public page at `{name}.gymosapps.com` from content it enters, with two seed templates under one contract, a name it claims, and takedown/report handling.
 **FRs covered:** FR-196, FR-197, FR-198, FR-199, FR-200, FR-201, FR-202, FR-203, FR-204, FR-205, FR-206, FR-207, FR-208
 **NFRs honored:** NFR-024, NFR-025, NFR-026
 **Architecture:** AD-42–AD-48 (spine pass 2026-10-15). **Depends on:** Epic 23 done (PRD §10.2); a `bmad-ux` pass is expected before 24.9 and the template visuals.
@@ -3443,7 +3443,7 @@ So that a gym's public page can never be used to hijack or overwrite my staff lo
 
 **Given** an existing signed-in session with the old cookie name
 **When** the user's next request arrives after release
-**Then** they are sent to sign-in once with the existing "session expired" copy, no data is lost, and the old cookie is cleared
+**Then** they are sent to sign-in once with the existing "session expired" copy and the old cookie is cleared; a form left open at release loses unsaved input, so the release notice (23.0 pattern) warns staff to save first
 
 **Given** local development over HTTP
 **When** the app runs with the environment gate
@@ -3659,7 +3659,7 @@ So that putting my gym on the web takes minutes and I always know what becomes p
 
 ---
 
-### Story 24.10: Public Page Route & Launch Template
+### Story 24.10: Public Page Route, Template Contract & Two Seed Templates
 
 As a visitor,
 I want to open a gym's page and see what it offers, how to call it and where it is,
@@ -3687,7 +3687,7 @@ So that I can decide to visit without an account.
 
 **Given** locale
 **When** the page chrome renders
-**Then** labels are EN or FR per the visitor's negotiated language and gym content is shown as entered; language alternates are declared only where translated content exists (FR-208)
+**Then** labels are EN or FR per the gym's `default_language` (fixed per page, no negotiation, AD-50) and gym content is shown as entered; language alternates are declared only where translated content exists (FR-208)
 
 **Given** a renamed gym
 **When** the old name is requested within 12 months
@@ -3696,6 +3696,18 @@ So that I can decide to visit without an account.
 **Given** the template module
 **When** its contract test runs with a fixture snapshot
 **Then** `render(content, locale)` is the module's only export, it imports no database or network client, and a second fixture proves a template swap changes only `template`
+
+**Given** the two seed templates (a dark member-app echo and a light plain one, `.working` directions A and B promoted to `mockups/`)
+**When** the conformance suite runs
+**Then** both pass against fixture gyms covering full, no banner, no gallery, no map position, no hours, one and eight plans, very long name and about, hostile markup, EN and FR, and a deliberately broken fixture template fails the suite for each rule it violates (section order, CSP, script, contrast, tap target, style budget, font allowlist)
+
+**Given** a template declaring fonts
+**When** it is built
+**Then** fonts come only from the self-hosted allowlist (Barlow 700 and 800) under `font-src 'self'`, and the header test asserts the policy
+
+**Given** a gym picks a template in 24.9
+**When** it publishes
+**Then** the page renders with that template and the gym's `primary_color` as the only variable color
 
 ---
 

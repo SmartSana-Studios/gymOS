@@ -1,0 +1,36 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Direction A — dark, echoes the member app</title>
+<style>
+/* Governs: EXPERIENCE.md V1.7 public gym page (AD-48 template contract); DESIGN.md colors, typography, shapes.
+   Direction A: dark navy like the member app. Gym color = --gym (replaces accent). System fonts: AD-44 font-src 'none'. */
+:root{--bg:#0A0F17;--surface:#141F30;--border:#24324A;--text:#F4F6FA;--muted:#9AA7BA;--gym:#E0971F;--ink:#10151D}
+*{box-sizing:border-box}body{margin:0;background:#222;font-family:"Barlow","Arial Narrow",system-ui,sans-serif;color:var(--text)}
+.frame{width:390px;margin:24px auto;background:var(--bg);border-radius:24px;overflow:hidden}
+.banner{height:180px;background:linear-gradient(160deg,#2a3b57,#0e1624);position:relative}
+.logo{position:absolute;left:16px;bottom:-28px;width:64px;height:64px;border-radius:16px;background:var(--gym);color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;border:3px solid var(--bg)}
+.pad{padding:16px}.head{padding:40px 16px 8px}
+h1{margin:0;font-size:34px;line-height:38px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.meta{color:var(--muted);font-size:14px;margin-top:4px}
+.chips{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}.chip{border:1px solid var(--border);border-radius:999px;padding:4px 12px;font-size:13px;color:var(--muted)}
+.actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:8px 16px 16px}
+.btn{background:var(--gym);color:var(--ink);border-radius:999px;text-align:center;padding:12px 0;font-weight:700;font-size:14px}.btn.alt{background:transparent;color:var(--text);border:1px solid var(--border)}
+h2{font-size:22px;text-transform:uppercase;letter-spacing:.5px;margin:0 0 12px;font-weight:700}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:12px}
+.plan{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--border)}.plan:last-child{border:0}
+.price{font-size:26px;font-weight:800}.price small{font-size:13px;color:var(--muted);font-weight:500}
+.hours{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:15px}.hours span:nth-child(even){color:var(--muted)}
+.gal{display:grid;grid-template-columns:1fr 1fr;gap:8px}.gal i{display:block;height:96px;border-radius:12px;background:#1d2b44}
+.foot{padding:16px;color:var(--muted);font-size:12px;text-align:center;border-top:1px solid var(--border)}
+</style></head><body><div class="frame">
+<div class="banner"><div class="logo">DI</div></div>
+<div class="head"><h1>Douala Iron Gym</h1><div class="meta">Akwa, Douala · Cameroon</div>
+<div class="chips"><span class="chip">Gym</span><span class="chip">Open today until 21:00</span></div></div>
+<div class="actions"><div class="btn">Call</div><div class="btn alt">WhatsApp</div><div class="btn alt">Directions</div></div>
+<div class="pad"><div class="card"><h2>About</h2><p style="margin:0;color:#C9D2E0;line-height:22px">Strength floor, cardio deck and coached classes in the heart of Akwa. Day passes welcome; monthly plans for regulars.</p></div>
+<div class="card"><h2>Plans</h2>
+<div class="plan"><span>Monthly</span><span class="price">15 000 <small>XAF / month</small></span></div>
+<div class="plan"><span>Coach included</span><span class="price">30 000 <small>XAF / month</small></span></div>
+<div class="plan"><span>Single session</span><span class="price">1 500 <small>XAF</small></span></div></div>
+<div class="card"><h2>Hours</h2><div class="hours"><span>Mon–Fri</span><span>06:00–21:00</span><span>Saturday</span><span>07:00–18:00</span><span>Sunday</span><span>Closed</span></div></div>
+<div class="card"><h2>Gallery</h2><div class="gal"><i></i><i></i><i></i><i></i></div></div></div>
+<div class="foot">Page by GymOS · Report this page</div></div></body></html>

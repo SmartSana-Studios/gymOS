@@ -2,7 +2,7 @@
 name: GymOS
 status: final
 created: 2026-07-04
-updated: 2026-10-11
+updated: 2026-10-15
 sources:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
   - _bmad-output/planning-artifacts/epics.md
@@ -36,11 +36,19 @@ design_spine: DESIGN.md
 
 **Monetary display.** All monetary values are integers in XAF. Display as: "25 000 XAF" (FR) / "25,000 XAF" (EN). Never show decimal places for XAF.
 
+**V1.7 — Foundation notes *(2026-10-15)*.** V1.7 adds a fourth account type and a fifth, public surface. Both touch lines above, so each is recorded here without rewriting them.
+- **GymOS support person** *(FR-175, FR-189)*: a platform account that works inside assigned gyms in the Admin Dashboard (as a role "support", Supervisor-scope plus additions, FR-178/FR-179). It signs in with **phone + password, then a six-digit authenticator code** (second factor, AAL2), never email + password. Every gym user is shown it only as the single name "GymOS Support" (FR-186). Support sessions end after 8 hours or 15 minutes idle `[ASSUMPTION]`.
+- **Super Admin** additionally signs in with the second factor once the platform flag is on (FR-191). The existing "separate credential flow" line still holds; the second step is added after it.
+- **Public surfaces** *(PS-nn, FR-196, FR-210)*: gym pages at `{name}.gymosapps.com` and the directory at `www.gymosapps.com/{locale}/gyms/`. They have no login, no cookie, no script, and no account. They are specified as behavior only in "Screen Reference — Public Surfaces"; visual design stays in `DESIGN.md`.
+- `[CONFLICT]` with the Localization line above: the "user preference → device locale → EN fallback" order does not apply to a gym page. A gym page's chrome language is the gym's saved `default_language`, fixed per page, with no device or `Accept-Language` negotiation (Architecture Decision AD-50, FR-208). The directory takes its language from the explicit `/{en|fr}/` part of its URL. The chain still applies to every authenticated surface. Epic 24 Story 24.10 says "per the visitor's negotiated language"; that wording conflicts with Architecture Decision AD-50 and this spine follows AD-50 (see PS-01).
+
 ---
 
 ## Surface Index — All Screens
 
 > **ID namespace note *(V1.6)*.** Screen ids `AD-nn` here are Admin Dashboard screens. The architecture spine also numbers its decisions `AD-nn`, and from V1.6 the two ranges overlap (screens AD-22/AD-23 vs. Architecture Decisions AD-22…AD-32). This spine always writes an architecture reference as "Architecture Decision AD-nn"; a bare `AD-nn` is always a screen.
+
+> **ID namespace note *(V1.7)*.** The architecture spine's decisions now run AD-1…AD-52, so the overlap with screens AD-22…AD-29 widens. The rule is unchanged: "Architecture Decision AD-nn" is always spelled out, and a bare `AD-nn` is a screen. V1.7 adds screens AD-24…AD-29 (Admin Dashboard), SA-08…SA-21 (Super Admin), and a new prefix **PS-nn** for Public Surfaces `[ASSUMPTION — prefix PS chosen to avoid clashing with MA/AD/SA]`. Existing ids are not renumbered. SA-01 keeps its index row; V1.7 amends it below.
 
 ### Member App
 
@@ -93,6 +101,13 @@ design_spine: DESIGN.md
 | AD-21 | Coach Portal — My Classes | `/coach/classes` | Coach *(V2, FR-145)* |
 | AD-22 | Guest Sessions (drill-down) | `/guest-sessions?tab=paid\|blocked\|free&period=today\|month` | Manager *(V1.6, FR-163, Story 19.10)* — reached only from the AD-02 Guest sessions card |
 | AD-23 | Plans | `/plans` | Manager *(shipped, undocumented until V1.6; V1.6 adds the plan-type lock, FR-173)* |
+| AD-24 | Settings — "Allow GymOS Support" section | Section on AD-13 (`/settings`) | Owner switches; Supervisor reads status *(V1.7, FR-182, FR-183, Story 23.3)* |
+| AD-25 | Support Review Queue | `/settings/support-review` | Owner *(V1.7, FR-181, FR-184, Story 23.10)* `[ASSUMPTION — Owner only]` |
+| AD-26 | Disclosure Request | Modal on AD-12 | Owner *(V1.7, FR-187, Story 23.8)* |
+| AD-27 | Landing Page — Editor | `/settings/landing-page` | Supervisor, Owner; assigned support *(V1.7, FR-197–FR-201, Story 24.9)* |
+| AD-28 | Landing Page — Page Name | Modal on AD-27 | Owner claims/renames; others read-only *(V1.7, FR-198, FR-202, FR-203)* |
+| AD-29 | Landing Page — Publish | `/settings/landing-page/publish` | Supervisor, Owner; assigned support *(V1.7, FR-197, FR-199)* |
+| — | V1.7 amendments to AD-01, AD-02, AD-12, AD-13, AD-16 | see "V1.7 — Amendments to existing Admin screens" | AD-01 re-sign-in state, AD-02 support notice, AD-12 support actor and labels, AD-13 sections, AD-16 fixed row and tag |
 
 ### Super Admin Dashboard
 
@@ -105,6 +120,33 @@ design_spine: DESIGN.md
 | SA-05 | Platform Metrics | `/metrics` |
 | SA-06 | Tier Management | `/tiers` |
 | SA-07 | Billing | `/billing` *(V1.5, FR-131/FR-135)* |
+| SA-08 | Support People — List | `/support` *(V1.7, FR-175, FR-185; tabs below)* |
+| SA-09 | Support Person — Detail | `/support/:id` *(V1.7, FR-177, FR-185, FR-190)* |
+| SA-10 | Create Support Account & Invite | Modal on SA-08 *(V1.7, FR-175, FR-176, Story 23.4)* |
+| SA-11 | Assign / Unassign / Remove | Dialogs on SA-09 and SA-03 *(V1.7, FR-177, FR-185, Story 23.5)* |
+| SA-12 | Second-Factor Reset | Modal on SA-09 *(V1.7, FR-190, Story 23.11)* |
+| SA-13 | Locked Accounts | `/support?tab=locked` *(V1.7, FR-181, Story 23.10)* |
+| SA-14 | Recertification | `/support?tab=recertify` *(V1.7, FR-185, Story 23.11)* |
+| SA-15 | Disclosure Requests | `/support?tab=disclosures` *(V1.7, FR-187, Story 23.8)* |
+| SA-16 | Held Page Names | `/pages?tab=names` *(V1.7, FR-202, Story 24.7)* |
+| SA-17 | Page Reports & Takedown | `/pages?tab=reports` *(V1.7, FR-204, Story 24.11)* |
+| SA-18 | Appeals | `/pages?tab=appeals` *(V1.7, FR-204, Story 24.11)* |
+| SA-19 | Cities | `/cities` *(V1.7, FR-209, Story 25.1)* |
+| SA-20 | Security — Second Factor | `/security` *(V1.7, FR-191, Story 22.5)* |
+| SA-21 | Step-Up Prompt | Modal, any SA/AD action that needs a fresh code *(V1.7, FR-189, Story 22.7)* |
+
+### Public Surfaces *(V1.7, behavior only)*
+
+No login, no cookie, no script. Hosts: gym pages on `{name}.gymosapps.com`, directory on `www.gymosapps.com`.
+
+| ID | Surface | Route | Entry Points |
+|---|---|---|---|
+| PS-01 | Gym Page | `https://{name}.gymosapps.com/` | Search result, directory listing, shared link, QR/poster *(FR-196)* |
+| PS-02 | Not Found (uniform) | any non-visible name or path on any gym host | Unpublished, taken-down, suspended, unknown, reserved names *(FR-207)* |
+| PS-03 | Report a Page | `https://{name}.gymosapps.com/report` `[ASSUMPTION — route name]` | Link in the PS-01 footer *(FR-204)* |
+| PS-04 | Directory — Countries | `https://www.gymosapps.com/{en\|fr}/gyms/` | Main-site link, search *(FR-210)* |
+| PS-05 | Directory — Country | `/{en\|fr}/gyms/{cc}/` | PS-04 *(FR-210)* |
+| PS-06 | Directory — City (+ category filter) | `/{en\|fr}/gyms/{cc}/{city}/?category=<code>` | PS-05 *(FR-210, FR-213)* |
 
 ---
 
@@ -162,9 +204,13 @@ Admin Dashboard
 │   ├── Payments          → AD-09 → AD-10 (modal)
 │   ├── Attendance        → AD-11
 │   ├── Classes           → AD-18 → AD-19 (modal)                    [V1.5]
-│   ├── Audit Log         → AD-12
+│   ├── Audit Log         → AD-12 → AD-26 (modal, row action "GymOS Support" rows, Owner)  [V1.7]
 │   ├── Settings          → AD-13
-│   │   └── Staff         → AD-16 → AD-17 (modal)  [Owner/Supervisor] [V1.5]
+│   │   ├── Staff         → AD-16 → AD-17 (modal)  [Owner/Supervisor] [V1.5]
+│   │   │   └── fixed "GymOS Support" row (no actions)  [V1.7, FR-182]
+│   │   ├── Allow GymOS Support → AD-24 (section)  [Owner switches; Supervisor reads] [V1.7]
+│   │   │   └── Review changes → AD-25  [Owner] [V1.7]
+│   │   └── Landing page  → AD-27 → AD-28 (modal) / AD-29 (publish)  [Owner/Supervisor; support] [V1.7]
 │   └── [Coach role only]
 │       └── Coach Portal                                             [V2]
 │           ├── Overview      → AD-20                                [V2]
@@ -184,7 +230,37 @@ Super Admin Dashboard
     ├── Gyms      → SA-02 → SA-03; SA-04 (modal on SA-02)            [V1.6: Category on all three, no new page]
     ├── Metrics   → SA-05
     ├── Tiers     → SA-06
-    └── Billing   → SA-07                                            [V1.5]
+    ├── Billing   → SA-07                                            [V1.5]
+    ├── Support   → SA-08 (tabs: People / Locked / Recertification / Disclosures)   [V1.7]
+    │    ├── People → SA-09 (person detail) → SA-11 (assign/unassign/remove) / SA-12 (factor reset)
+    │    ├── + Create support account → SA-10 (modal)
+    │    ├── Locked → SA-13
+    │    ├── Recertification → SA-14
+    │    └── Disclosures → SA-15
+    ├── Pages     → SA-16 (tabs: Held names / Reports / Appeals)     [V1.7]
+    │    ├── Held names → SA-16
+    │    ├── Reports (+ takedown dialog) → SA-17
+    │    └── Appeals → SA-18
+    ├── Cities    → SA-19                                            [V1.7]
+    ├── Security  → SA-20                                            [V1.7]
+    └── Step-up prompt → SA-21 (modal, raised by any step-up-gated action)  [V1.7]
+```
+
+*(V1.7)* SA-03 Gym Detail gains two read-only-plus-action blocks reached from the same page: **Support** (assignments and states for this gym, [Assign support person] → SA-11) and **Page** (page name, published state, [Take down] / [Force rename], see SA-17). No new sidebar item.
+
+### Public Surfaces IA *(V1.7)*
+
+```
+www.gymosapps.com (main site, directory)
+└── /{en|fr}/gyms/                       → PS-04  Countries (only countries with ≥1 published gym)
+    └── /{cc}/                           → PS-05  Country → cities
+        └── /{city}/[?category=]         → PS-06  City → gyms (category filter, links out to PS-01)
+
+{name}.gymosapps.com (one host per gym)
+├── /                                    → PS-01  Gym Page
+│    └── footer "Report this page"       → PS-03  Report a Page
+├── /robots.txt, /sitemap.xml            (crawlers only; no screen)
+└── any other path / any non-visible name → PS-02  Not Found (uniform)
 ```
 
 ---
@@ -247,6 +323,13 @@ Super Admin Dashboard
 
 *(V1.6)* Guest Sessions (AD-22) has **no sidebar item**. It is reached only from the AD-02 Guest sessions card, so it is Manager-plus by construction; a Receptionist who types the URL gets the global "You don't have permission to do that." state. Settings (AD-13) stays Owner/Supervisor as shipped, so no Manager ever sees the V1.6 Settings sections. Story 21.2's "Manager who can open Settings sees category read-only" is therefore moot; it is not built, because the shipped sidebar never gives a Manager Settings.
 
+*(V1.7)* **Sidebar additions: none.** AD-24 (Allow GymOS Support), AD-25 (Review queue) and AD-27–AD-29 (Landing page) are reached through Settings rows, as Staff is, so the matrix above is unchanged for the five gym roles. New rules:
+- **Landing page** (AD-27): visible to Owner and Supervisor, plus an assigned support person. Manager, Receptionist and Coach never see the row (absent from the DOM).
+- **Allow GymOS Support** (AD-24): the switch is Owner-only and is absent from the DOM for everyone else. A Supervisor, who opens Settings, sees the read-only status line only (a status line that helps a lower-permission user do their job, per the Role-based rendering exception).
+- **Support role** `[ASSUMPTION]`: a support person sees the sidebar a Supervisor sees (FR-179 is "a Supervisor's capabilities plus additions"), except the AD-24 switch and the AD-28 name claim, which are absent. In a gym where the switch is off, the support person gets "You don't have permission to do that." on the next request (FR-192). This is the same state as Immediate access revocation.
+- **Active gym** *(FR-194)*: a support person works in several gyms, so the sidebar gym name (item 2 above) becomes a gym switcher for that account only: a select of the assigned, active gyms. Switching reloads the app in the chosen gym; there is no cross-gym view. `[ASSUMPTION — switcher is a select in the sidebar gym-name slot]`
+- `[CONFLICT]` with AD-13's "Owner and Supervisor … the same Settings footprint as Owner" and with the sentence above that Supervisor has "the same footprint as Owner, minus the ability to create another Supervisor": from V1.7 a Supervisor can no longer switch Allow GymOS Support or claim or rename the page name (FR-183, FR-198). Everything else in Settings is unchanged for a Supervisor.
+
 Coach role: the sidebar renders only the "Coach Portal" link. All other items are absent from the DOM. Selecting it enters the Portal, which carries its own sub-navigation (V2, FR-144):
 
 | Coach Portal sub-nav | Coach |
@@ -262,6 +345,13 @@ My Classes is **not** the admin Classes page (AD-18/AD-19) — a Coach never rea
 ### Super Admin Dashboard — Sidebar
 
 Same structure as Admin Dashboard sidebar. 240px fixed on desktop. Links: Gyms | Metrics | Tiers | Billing *(V1.5)*.
+
+**V1.7 additions.** Links become: Gyms | Metrics | Tiers | Billing | **Support** | **Pages** | **Cities** | **Security**. The existing line above is kept as the V1.6 state; V1.7 appends to it, nothing is removed.
+- **Support** (SA-08) has four tabs: People, Locked, Recertification, Disclosures. A red count dot on the sidebar item shows locked accounts plus recertifications overdue plus open disclosure requests `[ASSUMPTION — one combined dot]`.
+- **Pages** (SA-16) has three tabs: Held names, Reports, Appeals. A count dot shows reports older than 3 business days plus held names older than 1 business day, the two clocks FR-202 and FR-204 set `[ASSUMPTION]`.
+- **Cities** (SA-19) and **Security** (SA-20) are single pages.
+- **AAL2 gate:** while the platform flag is on, a Super Admin session at the lower assurance level sees no sidebar at all, only the second-factor prompt (SA-01 amendment, SA-20). The sidebar renders only once the session is at AAL2.
+- **Top-bar session notice:** a Super Admin session has an 8-hour maximum and a 30-minute idle limit `[ASSUMPTION]`. A subtle "Session ends in 5 min" notice appears in the top bar five minutes before either limit, so a half-written reason is not lost. See SA-01 amendment.
 
 ---
 
@@ -304,8 +394,37 @@ Microcopy guide. Brand voice and visual identity live in `DESIGN.md`.
 | Session lapse *(V1.6)* | "Paid session — use by 18 Oct" | "Expires in 7d" / "Will be forfeited" |
 | Plan type locked *(V1.6, FR-173)* | "This plan has members, so its type can't be changed. Create a new plan instead." | "Field locked." |
 | Gym category *(V1.6, FR-171)* | The label only: "Yoga Studio" / "Studio Yoga" | Any category-specific product wording — the apps keep saying "gym" for every category (FR-172) |
+| Support switch off *(V1.7, FR-182)* | "Turned off by you. GymOS Support can't see or change anything in your gym." | "Support disabled." / "Access revoked." (the Owner chose this; the copy says so and doesn't sound like a failure) |
+| Support — never a person *(V1.7, FR-186)* | "GymOS Support" everywhere a gym user can read an actor | A first name, initials, "a GymOS agent", "2 support people", "Idris", or any count of people |
+| Payment account changed by support *(V1.7, FR-180)* | "GymOS Support updated your payment account." | "Your payment account was approved." (nothing was approved; there is no Owner approval step) |
+| Support daily summary *(V1.7, FR-181)* | "GymOS Support helped today: 2 refunds, 1 fee waiver, 3 staff added or changed." | "Support activity report" (reads like a system log) |
+| Support access ended *(V1.7, FR-184)* | "GymOS Support's access ended. Review what changed." | "Support has been revoked due to a security incident." (never implies a cause the Owner can't verify) |
+| Disclosure request sent *(V1.7, FR-187)* | "Request sent. GymOS will answer within 3 business days." | "Your request is being processed." |
+| Page name held *(V1.7, FR-202)* | "Name under review. We'll tell you within 2 business days." | "Name rejected." / "Suspicious name." (a held name is not an accusation) |
+| Page name taken *(V1.7, FR-202)* | "That name isn't available. Try another." | "That name is reserved." (a reserved or brand-word refusal must not reveal which rule fired, so look-alike probing learns nothing) |
+| Page unpublished by a check *(V1.7, FR-199)* | "Your page is offline: it no longer has a public plan. Make a plan public and publish again." | "Page validation failed." |
+| Page taken down *(V1.7, FR-204)* | "GymOS took your page down: [reason]. Your page name stays reserved for you. You can appeal." | "Your page violated our policy." |
+| Page not found, public *(V1.7, FR-207)* | "This page isn't available." | Any of "taken down", "unpublished", "suspended", "not found yet" — one response for every cause, so a visitor cannot tell which |
+| Support switch — Owner notice before release *(V1.7, FR-183)* | "New: GymOS Support. You can let GymOS help set up your gym. It stays off until you turn it on in Settings." | "We've enabled support on your account." |
+| Step-up code *(V1.7, FR-189)* | "Enter the 6-digit code from your authenticator app to continue." | "MFA challenge required." |
+| Step-up wrong code *(V1.7)* | "That code didn't work. Wait for the next code and try again." | "Authentication failed." (plus never show the attempt count) |
 
 **Session vs. class terminology *(V1.6, user decision 2026-10-11)*.** A paid or free day-visit is a **session** in EN and a **séance** in FR (matching the shipped plan type "Paiement à la séance"). A class is always a **class** in EN and **cours** (or "séance de cours" where an occurrence is meant) in FR, so the two never clash on one screen. In EN, V1.6 copy always qualifies the word — "paid session", "free session", "today's session", "guest sessions", "session payment" — never a bare "session" that could read as a class occurrence or a login session. When a V1.6 story touches a screen that shows a class occurrence, its FR string moves off "séance" (for example AD-18 "Prochaine séance" → "Prochain cours", "Aucune séance à venir" → "Aucun cours à venir"). Coach "Notes de séance" (AD-15) is left as is: a Coach never sees session payments, so there is no clash on that screen.
+
+**V1.7 vocabulary *(2026-10-15)*.** One term per concept, EN / FR, `[ASSUMPTION — FR terms to be reviewed with the FR copy pass]`:
+
+| Concept | EN | FR | Never |
+|---|---|---|---|
+| The gym's public web page | page (editor title "Landing page"; to visitors, "this page") | page publique (titre de l'éditeur « Page publique ») | "website", "microsite", "profile" |
+| The `{name}` part of the address | page name | nom de la page | "subdomain", "slug", "handle", "username" |
+| Visible to anyone | public | publique | "live" for plans (a plan is public or private; a page is published or not) |
+| A page going from live to not live | unpublish | dépublier | "delete", "remove" (nothing is deleted) |
+| GymOS support staff, to a gym | GymOS Support | GymOS Support (proper name, same in both languages, because it is stored as the displayed actor) | "agent", "technician", "admin" |
+| Support staff, in Super Admin | support person | personne du support | "agent" |
+| Second factor | authenticator code / 6-digit code | code de l'application d'authentification / code à 6 chiffres | "MFA", "2FA", "TOTP", "AAL2" (internal terms) |
+| Place picker | country, city | pays, ville | free text |
+
+`[NOTE FOR UX]` FR for the Allow switch reads "Autoriser le support GymOS" while the fixed row and audit actor read "GymOS Support" (the stored display name). Confirm that a common-noun phrase around a proper name is acceptable, or decide whether the stored actor name should be localised at read time.
 
 **French translations** must be exact equivalents in tone and reading level — not literal word-for-word. Both language versions are reviewed together before ship. EN and FR string counts must match on every PR.
 
@@ -2300,6 +2419,326 @@ Plans                                                     [+ Add Plan]
 
 ---
 
+### AD-24 · Settings — "Allow GymOS Support" *(V1.7, FR-182, FR-183, Story 23.3)*
+
+**Purpose:** The Owner decides whether GymOS may help inside the gym, and sees which of four states applies. It is a **section on AD-13**, not a page, placed after "Payment Account" and before "Charge guests per session". Like the V1.6 sections, it **saves on its own** and is excluded from [Save Settings] (Architecture Decision AD-32 pattern).
+
+**Layout:**
+```
+── GymOS Support ───────────────────────────────────────────────────── V1.7
+Allow GymOS Support          [ On ● ]       ← Owner only; writes on confirm
+GymOS Support is assigned.                  ← state headline (one of four)
+GymOS Support can help set up your gym. Every change they make is
+recorded as "GymOS Support" in your audit log.
+Last acted: today, 10:42                    ← only when support has acted
+[Review changes (3) →]                      ← only when AD-25 has open items
+```
+
+**The four states (FR-182)** — the headline and helper change; the switch only reflects on/off:
+
+| # | State | Headline EN / FR | Helper EN / FR |
+|---|---|---|---|
+| 1 | Off | "Turned off by you." / « Désactivé par vous. » | "GymOS Support can't see or change anything in your gym." / « GymOS Support ne peut rien voir ni modifier dans votre salle. » |
+| 2 | On, no one assigned | "On — no one is assigned." / « Activé — personne n'est affecté. » | "GymOS can help when you ask. Nobody from GymOS has access yet." / « GymOS peut vous aider sur demande. Personne chez GymOS n'a encore accès. » |
+| 3 | On, support assigned | "On — GymOS Support is assigned." / « Activé — GymOS Support est affecté. » | "GymOS Support can help set up your gym. Every change they make is recorded as "GymOS Support" in your audit log." / « GymOS Support peut vous aider à configurer votre salle. Chaque modification est enregistrée sous « GymOS Support » dans votre journal d'audit. » |
+| 4 | On, assignment waiting | "On — waiting for GymOS to confirm." / « Activé — en attente de confirmation par GymOS. » | "An assignment is waiting for GymOS to confirm. Nobody has access until it is confirmed." / « Une affectation attend la confirmation de GymOS. Personne n'a accès avant cette confirmation. » |
+
+- **Precedence** `[ASSUMPTION]`: when one assignment is active and another is pending, state 3 shows. The screen never shows a count or a name (FR-182, FR-186). State 4 shows only when nothing is active and at least one is pending.
+- **Last acted** *(FR-182)*: "GymOS Support last acted [date, time]." / « GymOS Support est intervenu pour la dernière fois le [date, heure]. » Omitted in state 1 when support has never acted. In state 1 it still shows the last time, if any, so the Owner can see support really stopped.
+- **Role rendering:** Owner sees the switch. Supervisor sees the headline, helper and last-acted lines only, with no switch and no disabled switch. Manager, Receptionist and Coach never reach Settings.
+
+**Turn-off confirmation** (modal; Escape disabled, as for the V1.6 confirmations; the switch does not flip until confirmed):
+- Title: "Turn off GymOS Support?" / « Désactiver GymOS Support ? »
+- Body: "GymOS Support loses access to your gym straight away. Anything they started is completed or rolled back, and what they changed stays in your audit log." / « GymOS Support perd immédiatement l'accès à votre salle. Ce qu'il avait commencé est terminé ou annulé, et ses modifications restent dans votre journal d'audit. »
+- Buttons: [Cancel] / [Annuler] and [Turn off] / [Désactiver].
+- On confirm: toast "GymOS Support turned off." / « GymOS Support désactivé. » Headline switches to state 1 immediately. If support was active, the AD-25 review prompt appears (FR-184).
+
+**Turn-on confirmation** *(added because the switch lets people into member and payment data; same pattern as the V1.6 turn-on)*:
+- Title: "Turn on GymOS Support?" / « Activer GymOS Support ? »
+- Body: "GymOS Support will be able to help with your plans, members, staff and payment account. Every change is recorded as "GymOS Support" in your audit log, and you are told straight away when your payment account is connected or replaced." / « GymOS Support pourra vous aider pour vos formules, vos membres, votre personnel et votre compte de paiement. Chaque modification est enregistrée sous « GymOS Support » dans votre journal d'audit, et vous êtes prévenu immédiatement quand votre compte de paiement est connecté ou remplacé. »
+- Extra line when it re-activates earlier assignments (FR-183): "Support that was helping before you turned this off will be able to help again." / « Le support qui vous aidait avant la désactivation pourra de nouveau intervenir. » (No name, no count.)
+- Buttons: [Cancel] and [Turn on] / [Annuler] and [Activer]. Toast "GymOS Support turned on." / « GymOS Support activé. »
+
+**Defaults and release notice** *(FR-183)*: on for gyms created after V1.7; off for gyms that exist at release. Before release, an Owner of an existing gym sees the Voice and Tone "New: GymOS Support" notice on AD-02 as a dismissible banner with [Open Settings], and the same text by the usual channel. After release the switch row shows a one-time "New" tag until first viewed `[ASSUMPTION]`.
+
+**Errors:** a refused or failed write shows inline in the section: "Couldn't change this setting. Try again." / « Impossible de modifier ce paramètre. Réessayez. » The switch stays where it was.
+
+`[NOTE FOR UX]` FR-183 says assignments are suspended, not deleted, when the switch is off, but OQ-30 is still open. If OQ-30 is answered differently (assignments deleted), the extra "Support that was helping before… will be able to help again" line is removed.
+
+---
+
+### AD-25 · Support Review Queue *(V1.7, FR-181, FR-184, Story 23.10)*
+
+**Purpose:** After support access ends or a payment connection changes, the Owner is prompted to review what support changed. Nothing is undone or deactivated automatically (Story 23.10). `[ASSUMPTION — Owner only; Supervisor sees the tags in AD-16 but not this page]`
+
+**Entry points:** (a) AD-24 "Review changes (N)" link; (b) AD-02 banner after a revocation, after an opt-out, or after a payment-connection change; (c) AD-16 tag "To review" on a row.
+
+**Layout:**
+```
+← Settings  /  GymOS Support  /  Review changes
+
+Support's access ended on 14 Oct. Review what changed.            ← only after a revocation
+
+── Staff created or changed by GymOS Support ─────────────────────────
+│ Aicha M.     Receptionist   Created 12 Oct   [To review]   [Mark reviewed] [Open in Staff →] │
+│ Emmanuel T.  Coach          Changed 13 Oct   [To review]   [Mark reviewed] [Open in Staff →] │
+
+── Payment and settings changes ──────────────────────────────────────
+│ 13 Oct 10:42   Payment account replaced     Ends in ···4821                  [Mark reviewed] │
+│ 13 Oct 11:05   Registration fee changed     0 → 5 000 XAF                    [Mark reviewed] │
+
+── Waiting items now owned by the system ─────────────────────────────
+│ 12 Oct   Pending member invite — Ange T.   Started by GymOS Support           [Open →]       │
+```
+- Every actor is "GymOS Support". There is never a person, count or time pattern that would identify one.
+- **Staff section:** rows come from the staff list, flagged by FR-181. [Open in Staff →] goes to AD-16, where Edit and Deactivate are the existing flows. Nothing here deactivates anyone.
+- **Payment and settings section:** read-only. Details mirror the AD-12 audit entry. The masked payment-account identifier is the same masked value the Connect row shows, never a secret.
+- **Waiting items section** *(FR-184)*: items the revoked person left pending, now owned by the system actor and flagged for the Owner. [Open →] goes to the item's own screen.
+- **[Mark reviewed]** `[ASSUMPTION]`: removes the row from the queue and writes an audit row "Support change reviewed" / « Modification du support vérifiée ». The tag on the staff row clears. `[NOTE FOR UX]` the stories say "listed in a review queue" and "flagged for review" but name no way to clear a flag. Confirm that [Mark reviewed] is wanted.
+- **Empty state:** "Nothing to review. GymOS Support hasn't changed anything that needs your attention." / « Rien à vérifier. GymOS Support n'a rien modifié qui demande votre attention. »
+- **Loading:** 4 skeleton rows per section. **Error:** page-level error with [Refresh], as AD-03.
+
+---
+
+### AD-26 · Disclosure Request *(V1.7, FR-187, Story 23.8, modal on AD-12)*
+
+**Purpose:** The product never shows the Owner who the individual was. The Owner can instead ask GymOS about one specific audit row; Super Admin answers **outside the product** within 3 business days `[ASSUMPTION]` (SA-15).
+
+**Entry:** a text link "Ask GymOS about this entry" / « Interroger GymOS sur cette entrée » shown **only on AD-12 rows whose actor is "GymOS Support"** and **only to the Owner**. See "V1.7 — Amendments", AD-12, for the conflict with the page's read-only rule.
+
+**Layout:**
+```
+Ask GymOS about this entry                                   [✕]
+
+Entry:   13 Oct 10:42 · Payment account replaced · GymOS Support
+
+What would you like to know? *
+[                                                          ]
+                                                       0 / 500
+
+GymOS will answer outside the app, to [+237 6•• ••• 321], within
+3 business days. This request and the answer are recorded in your
+audit log.
+
+                                    [Cancel]  [Send request]
+```
+- **Fields:** the entry summary is read-only; the question is required, 500 characters `[ASSUMPTION]`. The reply channel is the Owner's own verified contact, shown masked and not editable here.
+- **Submit:** toast "Request sent. GymOS will answer within 3 business days." / « Demande envoyée. GymOS répondra sous 3 jours ouvrés. » The row now shows a "Question sent" tag / « Question envoyée ». When Super Admin records an answer (SA-15), the tag becomes "Answered" / « Réponse reçue ». The answer's content is never shown in the product `[ASSUMPTION]`; it arrives by the channel above.
+- **One open request per row** `[ASSUMPTION]`; the link is replaced by the tag while one is open.
+- **Errors:** "Couldn't send your request. Try again." / « Impossible d'envoyer votre demande. Réessayez. » inline, modal stays open.
+- `[NOTE FOR UX]` whether the Owner should also be told the answer arrived inside the app (a notification) or only outside. The PRD says the answer is outside the product and audited, so the in-app tag is the only in-product trace here.
+
+---
+
+### AD-27 · Landing Page — Editor *(V1.7, FR-197–FR-201, Story 24.9)*
+
+**Purpose:** Enter and review the content of the gym's public page, choose public plans and a template, see what is still missing, and move to publishing. Route `/settings/landing-page`, reached from a "Landing page" row in AD-13 (status + [Open →]), like Staff. It is its own page with its own save (the editor holds more than a Settings section should).
+
+**Who:** Owner, Supervisor, assigned support person. Role differences:
+
+| Capability | Owner | Supervisor | Support (assigned) |
+|---|---|---|---|
+| Edit content, plans-public toggles, gallery, template | ✓ | ✓ | ✓ |
+| Publish / unpublish | ✓ | ✓ | ✓ |
+| Claim or rename the page name (AD-28) | ✓ | read-only | read-only |
+| See "name under review" | ✓ | ✓ (read-only) | ✓ (read-only) |
+| Appeal a takedown | ✓ | — | — `[ASSUMPTION]` |
+
+Absent controls are removed from the DOM, not disabled (Role-based rendering). The name is shown as plain text for non-Owners, with "Only the Owner can change the page name." / « Seul le propriétaire peut modifier le nom de la page. »
+
+**Layout:**
+```
+← Settings  /  Landing page                    Status: ● Not published
+                                                 [Review & publish →]
+┌ Checklist — 5 of 9 ready ───────────────────────────────────────────┐
+│ ✓ Page name        grace-fit                                          │
+│ ✓ Category         Pilates Studio                                     │
+│ ✓ Logo                                                                │
+│ ✗ Banner image                                         [Add banner →] │
+│ ✗ About text        68 of 100 characters minimum       [Go to About →]│
+│ ✓ Country and city  Cameroon · Douala                                 │
+│ ✓ Public contact                                                      │
+│ ✗ Opening hours                                        [Set hours →]  │
+│ ✗ At least one public plan                             [Choose →]     │
+│ Optional: gallery · services · map position                          │
+└──────────────────────────────────────────────────────────────────────┘
+
+── Page name ────────────────  grace-fit.gymosapps.com     [Change name]
+── About ────────────────────  [textarea, 100–1 000 chars] 
+── Services and activities ──  [tag input, up to 12]
+── Images ───────────────────  Logo · Banner · Gallery (up to 10)
+── Location ─────────────────  Country ▾  City ▾  Address  Map position (optional)
+── Opening hours ────────────  Mon–Sun: open ▾ close ▾ / Closed
+── Public contact ───────────  Phone [   ]  WhatsApp [   ]
+── Plans on your page ───────  per-plan [ Show on my page ] switch
+── Template ─────────────────  [Classic ✓]
+                                                          [Save changes]
+```
+- **Checklist** *(FR-199)*: nine required items, three optional lines. Each missing item names itself and links to its field with an anchor. The summary sentence is "Your page can go live when all 9 items are ready." / « Votre page peut être publiée quand les 9 éléments sont prêts. » Items are re-evaluated as fields change; the server is the authority at publish (the client check only mirrors it). The checklist is `aria-live="polite"` (Accessibility Floor).
+- **Name item** shows three states: "Not claimed" (Owner: [Claim a name]), "Under review" (not ready; publishing is blocked until Super Admin decides, FR-202), "grace-fit" (ready).
+- **Fields and limits** `[ASSUMPTION — lengths and counts are not set in the sources; confirm in Story 24.5]`: About 100–1 000 characters; Services up to 12 entries of 40 characters; Address one text field; Map position two numeric fields, latitude and longitude, with the helper "Optional. Adds a Directions link to your page."; Opening hours one range per day, in the gym timezone (AD-13), with [Copy Monday to all days]; Gallery up to 10 images.
+- **Text only** *(FR-205)*: all fields take plain text. Markup characters are rejected inline: "Use plain text only — no links or formatting." / « Utilisez du texte brut uniquement — pas de liens ni de mise en forme. »
+- **Public contact** *(FR-197)*: phone and WhatsApp fields in E.164 (same inline rule as AD-17). Helper: "Shown to everyone who visits your page. It can differ from the phone you sign in with, which is never shown." / « Visible par toute personne qui visite votre page. Il peut différer du téléphone avec lequel vous vous connectez, qui n'est jamais affiché. » There is no "copy login phone" shortcut. At least one of the two is required.
+- **Category** shows the AD-13 value read-only with [Change in Settings →] (it is saved there, FR-171). `[CONFLICT]` with AD-13 Category helper "It doesn't change how GymOS works" and the V1.6 line "never appears in the member app… descriptive only": from V1.7 the category label is also shown publicly on the page and is a directory filter (FR-213). The AD-13 helper gains: "It's also shown on your public page if you publish one." / « Elle est aussi affichée sur votre page publique si vous en publiez une. » Behavior is still unchanged (FR-213).
+- **Plans on your page** *(FR-200)*: every plan of the gym is listed with name, price and duration and a switch "Show on my page" / « Afficher sur ma page ». Default off for every plan. Helper: "Private plans never appear on your page or anywhere public." / « Les formules privées n'apparaissent jamais sur votre page ni ailleurs en public. » Pay-per-session plans list as "XAF 2,000 / session". Turning off the last public plan on a published page shows before saving: "Your page will go offline because it would have no public plan. Save anyway?" / « Votre page sera hors ligne car elle n'aurait plus de formule publique. Enregistrer quand même ? » [Cancel] [Save and unpublish].
+- **Images** *(FR-205)*: a shared upload control for logo, banner and gallery. JPEG, WebP or PNG, up to 5 MB each `[ASSUMPTION]`. Before the upload is enabled, an **attestation checkbox** must be ticked: "I have the right to publish this image." / « J'ai le droit de publier cette image. » Helper: "Photos are re-saved without location data." / « Les photos sont réenregistrées sans données de localisation. » Rejected files: "Use a JPEG, WebP or PNG under 5 MB." / « Utilisez une image JPEG, WebP ou PNG de moins de 5 Mo. » Each gallery image has an optional "Describe this image" field (read by screen readers on the public page) `[NOTE FOR UX]` make it required for gallery images? The logo's text alternative is the gym name. Deleting an image removes it from the page at once; its public copy is purged within 15 minutes.
+- **The logo** is the gym's existing logo from AD-13 Branding; a missing logo links to Branding. It is re-saved for the page at publish.
+- **Template picker** *(FR-201)*: V1.7 ships one launch template, so the picker is one selected card named "Classic" `[ASSUMPTION — name]` with "More templates are coming." Swapping later never asks for content again. `[NOTE FOR UX]` the sources name no live preview. The public site reads only the published snapshot, so a preview of unpublished content needs a dashboard-rendered preview built from the same template module (Architecture Decision AD-48). Decide whether a preview is wanted for the launch template; none is specified here.
+- **Save model:** [Save changes] writes the content through the page-content setter and saves on its own (not part of [Save Settings]). Toast "Page saved." / « Page enregistrée. »
+- **A published page has no separate draft** `[ASSUMPTION — follows Architecture Decision AD-46: every source change re-snapshots]`. When the page is live, a persistent info line sits under the title: "This page is live. Saved changes appear on it within about 2 minutes." / « Cette page est en ligne. Les modifications enregistrées y apparaissent en moins de 2 minutes environ. » If a save would break the gate, the same warning pattern as the public-plan example shows first.
+
+**Status values** (badge + label + icon; Accessibility Floor):
+
+| Status | Meaning | Badge | Primary action |
+|---|---|---|---|
+| Not started | No content; nothing public | `neutral` | [Start] |
+| In progress | Content entered, checklist incomplete | `neutral` | [Review & publish →] disabled with the missing items listed |
+| Ready | All 9 items ready, not published | `info` | [Review & publish →] |
+| Published | Live | `success` | [Unpublish] |
+| Offline — gate failed | Unpublished automatically; reason shown | `warning` | Fix and [Review & publish →] |
+| Offline — gym suspended | Gym is suspended (FR-207) | `neutral` | None; returns when the gym is active |
+| Taken down | GymOS took it down (FR-204); republishing blocked | `danger` | [Appeal] (Owner) |
+
+- **Auto-unpublish reason** *(FR-199)* shown as a banner at the top of the editor and on AD-29, plus the existing Owner notification:
+
+| Failed item | EN | FR |
+|---|---|---|
+| Logo removed | "Your page is offline: it no longer has a logo." | « Votre page est hors ligne : elle n'a plus de logo. » |
+| Banner removed | "Your page is offline: it no longer has a banner image." | « Votre page est hors ligne : elle n'a plus d'image de bannière. » |
+| About too short | "Your page is offline: the About text is under 100 characters." | « Votre page est hors ligne : le texte « À propos » fait moins de 100 caractères. » |
+| Place removed | "Your page is offline: it no longer has a country and city." | « Votre page est hors ligne : elle n'a plus de pays ni de ville. » |
+| Contact removed | "Your page is offline: it no longer has a public contact." | « Votre page est hors ligne : elle n'a plus de contact public. » |
+| Hours removed | "Your page is offline: it no longer has opening hours." | « Votre page est hors ligne : elle n'a plus d'horaires d'ouverture. » |
+| No public plan | "Your page is offline: it no longer has a public plan." | « Votre page est hors ligne : elle n'a plus de formule publique. » |
+| Name no longer valid | "Your page is offline: its page name is no longer active." | « Votre page est hors ligne : son nom de page n'est plus actif. » |
+- **Taken down banner** *(FR-204)*: "GymOS took your page down: [reason code label]. Your page name stays reserved for you. You can appeal." / « GymOS a retiré votre page : [motif]. Le nom de votre page reste réservé pour vous. Vous pouvez faire appel. » Reason labels: Impersonation / Usurpation d'identité; Illegal content / Contenu illicite; Trademark / Marque déposée; Misleading content / Contenu trompeur; Privacy / Vie privée; Other / Autre.
+- **Appeal** `[ASSUMPTION — form shape]`: [Appeal] opens a modal with a required textarea (500 characters) "Tell us why this page should be restored." / « Dites-nous pourquoi cette page devrait être rétablie. » and [Cancel] [Send appeal]. After sending, the banner reads "Appeal sent on [date]. GymOS will decide and tell you." / « Appel envoyé le [date]. GymOS décidera et vous répondra. » The decision (SA-18) updates the banner.
+- **First visit after release** *(FR-197)*: for an existing gym, the Owner's first Settings visit shows a prompt "Put your gym on the web. Fill in your page — nothing is public until you publish." / « Mettez votre salle en ligne. Remplissez votre page — rien n'est public tant que vous ne publiez pas. » with [Set up my page] and [Not now]. Nothing is published either way. `[ASSUMPTION — dismissal is remembered per user]`
+- **Support-edited contact or about text** is listed in the Owner's daily summary (Voice and Tone) and in AD-25 as a settings change.
+- **Empty / loading / error:** "Not started" status above is the empty state. Loading: sections load independently, 5 skeleton rows for the checklist. Save failure: scroll to first error with per-field messages, as AD-13.
+
+---
+
+### AD-28 · Landing Page — Page Name *(V1.7, FR-198, FR-202, FR-203, Story 24.7, modal on AD-27)*
+
+**Purpose:** The Owner claims, and later renames, the `{name}` of the address.
+
+**Layout:**
+```
+Claim your page name                                         [✕]
+
+Page name *    [ grace-fit        ] .gymosapps.com
+               3–30 characters: letters, numbers and hyphens.
+
+Your page will be at  https://grace-fit.gymosapps.com
+
+                                       [Cancel]  [Claim name]
+```
+- **Input behavior:** letters are lowercased as typed. Inline rule messages, one at a time: "Use 3 to 30 characters." / « Utilisez de 3 à 30 caractères. » · "Use only letters, numbers and hyphens." / « Utilisez uniquement des lettres, des chiffres et des tirets. » · "Don't start or end with a hyphen." / « Ne commencez pas et ne terminez pas par un tiret. » · "Don't use two hyphens in a row." / « N'utilisez pas deux tirets consécutifs. » · "Add at least one letter." / « Ajoutez au moins une lettre. » The `xn--` prefix reads as the "Use only letters…" rule.
+- **Availability is checked on submit, not as you type** `[ASSUMPTION — avoids letting someone probe which names exist or are held]`.
+- **Outcomes:**
+  - *Claimed:* modal closes; checklist item turns ready; toast "Page name claimed." / « Nom de page réservé. »
+  - *Not available* (taken, reserved or brand word, not told apart): inline "That name isn't available. Try another." / « Ce nom n'est pas disponible. Essayez-en un autre. »
+  - *Held* (near-match, generic or place word): modal closes; the name row shows **"Name under review"** / « Nom en cours d'examen » with "We'll tell you within 2 business days." / « Nous vous répondrons sous 2 jours ouvrés. » Publishing is blocked until decided. The Owner is notified of the decision (approved or rejected, with Super Admin's reason, SA-16). A rejected name returns to "Not claimed".
+- `[NOTE FOR UX]` FR-202 says reserved names "cannot be claimed" with a typed error and held names show "name under review". These two outcomes differ visibly, so a visitor who tries a near-match learns it exists. The sources accept this; confirm the copy that tells "not available" from "under review" is acceptable.
+- **Rename** (a name already active): the same modal titled "Change your page name" / « Modifier le nom de votre page », with these lines above the field:
+  - "Your old address will forward to the new one for 12 months. You can rename 2 times in any 12 months — 1 left." / « Votre ancienne adresse redirigera vers la nouvelle pendant 12 mois. Vous pouvez renommer 2 fois sur 12 mois glissants — il en reste 1. »
+  - Button [Rename page] / [Renommer la page]; a held rename shows "Name under review" and **the current name stays live** meanwhile `[ASSUMPTION]`.
+  - When 0 renames are left: field and button are replaced by "You've used both renames for the last 12 months. You can rename again on [date]." / « Vous avez utilisé vos 2 renommages sur les 12 derniers mois. Vous pourrez renommer à nouveau le [date]. » `[ASSUMPTION — the date is the oldest rename + 12 months]`
+- **Name reserved while unpublished** *(FR-203)*: an info line under the name when the page is not published: "Your name stays reserved for you while your page is offline, for up to 12 months." / « Votre nom reste réservé pour vous tant que votre page est hors ligne, jusqu'à 12 mois. »
+- **Non-Owner:** the modal is not reachable; the name row is plain text.
+- **Error:** "Couldn't save the name. Try again." / « Impossible d'enregistrer le nom. Réessayez. » inline.
+
+---
+
+### AD-29 · Landing Page — Publish *(V1.7, FR-197, FR-199, Story 24.9)*
+
+**Purpose:** Before anything becomes public, the screen states exactly what will be shown. It runs the first publish, a republish after an automatic unpublish, and shows the same list when the page is already live (read-only). Route `/settings/landing-page/publish`.
+
+**Layout:**
+```
+← Landing page  /  Publish
+
+Your page will be public at   https://grace-fit.gymosapps.com
+
+Anyone on the internet will be able to see:
+┌───────────────────────────────────────────────────────────────────┐
+│ Gym name              Grace Fit                                     │
+│ Category              Pilates Studio                                │
+│ Logo, banner          [thumbnails]                                  │
+│ About                 "Small-group pilates in Bonanjo…"            │
+│ Services              Reformer · Mat · Barre                        │
+│ Plans on your page    Monthly — 25,000 XAF — 30 days                │
+│                       Drop-in — 2,000 XAF — per session             │
+│ Address               Rue … , Douala, Cameroon  (map position: yes) │
+│ Opening hours         Mon–Fri 06:00–20:00 · Sat 08:00–14:00         │
+│ Public contact        +237 6•• ••• 321 (phone) · WhatsApp           │
+│ Gallery               4 images                                      │
+│ Colour                [swatch]                                      │
+└───────────────────────────────────────────────────────────────────┘
+Never shown: member names or counts, staff names, your sign-in phone,
+payments, private plans.
+
+☐ I confirm I have the right to publish every image above.   ← one box
+                                      [Back]  [Publish page]
+```
+- **The list is generated from the same field list the server publishes** (FR-206), so it can never show more or less than becomes public. Rows with no value (optional gallery, services, map position) read "Not included" / « Non inclus ».
+- **Phone number is shown in full on this screen** because it becomes public; on any screen that is not about the public contact it stays masked.
+- **Attestation** *(FR-205)*: one checkbox covering all images listed; [Publish page] is disabled until ticked. The uploader's per-image attestation (AD-27) is recorded at upload; this one is the publisher's confirmation `[ASSUMPTION]`.
+- **Button** is labelled by action: [Publish page] / [Publier la page] (Accessibility Floor). Focus moves to the success region on completion.
+- **Success:** "Your page is live at grace-fit.gymosapps.com. It can take up to 2 minutes to appear." / « Votre page est en ligne sur grace-fit.gymosapps.com. Elle peut mettre jusqu'à 2 minutes à apparaître. » [Copy link] [View page]. `[NOTE FOR UX]` a QR/poster download for the page address is the natural next step for gyms but no source mentions it; not specified.
+- **Gate failure at publish** (server re-validates, FR-199): the screen lists what is missing, with the same anchor links as the AD-27 checklist, and does not publish. "Your page isn't ready: [list]." / « Votre page n'est pas prête : [liste]. »
+- **Unpublish** (also from AD-27 when live): confirmation modal, "Unpublish your page?" / « Dépublier votre page ? » Body "Visitors will see "This page isn't available". Your page name stays reserved for you, and you can publish again at any time." / « Les visiteurs verront « Cette page n'est pas disponible ». Le nom de votre page reste réservé pour vous, et vous pouvez la republier à tout moment. » Buttons [Cancel] and [Unpublish page] / [Dépublier la page]. Unpublishing is always allowed (FR-199), including for a gate-failed or suspended page.
+- **When a page is taken down**, this screen shows the takedown banner and no [Publish page] (FR-204).
+- **Auto-unpublish reason** is shown at the top of this screen exactly as on AD-27.
+
+---
+
+### V1.7 — Amendments to existing Admin screens
+
+**AD-01 · Login — re-sign-in after the cookie change *(Story 24.3, NFR-026)*.** Every signed-in staff member is signed out once after the `__Host-` cookie ships. They are sent to AD-01 with the existing copy, "Your session expired. Please log in again." / « Votre session a expiré. Veuillez vous reconnecter. », and **no extra explanation** (nothing for a user to act on beyond signing in). No unsaved form draft is promised: the existing AD-01 behavior (a page reload) applies, and the release note, not the app, tells people. `[NOTE FOR UX]` Story 24.3 says "no data is lost"; a staff member mid-form at the moment of release would lose their draft. Decide whether the release should be timed outside opening hours or whether drafts get a warning. A **support person** signing in sees a second step after password: "Enter the 6-digit code from your authenticator app." / « Saisissez le code à 6 chiffres de votre application d'authentification. » (single field; Voice and Tone "Step-up"). Support sessions that hit the 8 h or 15 min limit return to AD-01 with the same "session expired" copy; no mention of the limits.
+
+**AD-02 · Overview — support notices *(FR-181, FR-184)*.** Owner only. A dismissible info banner above the cards, one at a time, newest first: the immediate payment-connection notice, the revocation notice, the daily summary (Voice and Tone rows). Each has a single action: [Review changes] → AD-25 or [Open audit log] → AD-12. Banners are not shown to any other role. The channel for the immediate notice and the daily summary beyond this banner is the existing Owner notification path (Architecture Decision AD-25); `[NOTE FOR UX]` which channel carries the immediate payment-connection notice if the Owner has not opened the dashboard — SMS reuses the V1.5 SaaS-reminder channel and is the natural candidate.
+
+**AD-12 · Audit Log — support actor, labels, disclosure link *(FR-186, FR-187)*.**
+- The Actor column and the Actor filter show **"GymOS Support"** as one option and one value, role "Support" `[ASSUMPTION — role label]`. Never a name, initials or count. CSV export (Owner) carries the same single value.
+- New labels (EN / FR), same short past-tense style as V1.6:
+
+| Event | EN | FR |
+|---|---|---|
+| Allow GymOS Support changed | "GymOS Support access changed" | « Accès de GymOS Support modifié » |
+| Payment account connected | "Payment account connected" | « Compte de paiement connecté » |
+| Payment account replaced | "Payment account replaced" | « Compte de paiement remplacé » |
+| Support access ended | "GymOS Support access ended" | « Accès de GymOS Support terminé » |
+| Support change reviewed | "Support change reviewed" | « Modification du support vérifiée » |
+| Disclosure request sent | "Question sent to GymOS" | « Question envoyée à GymOS » |
+| Disclosure request answered | "GymOS answered a question" | « GymOS a répondu à une question » |
+| Page content changed | "Landing page changed" | « Page publique modifiée » |
+| Page published | "Landing page published" | « Page publique publiée » |
+| Page unpublished | "Landing page unpublished" | « Page publique dépubliée » |
+| Page unpublished by check | "Landing page unpublished automatically" | « Page publique dépubliée automatiquement » |
+| Page name claimed / renamed | "Page name claimed" / "Page name changed" | « Nom de page réservé » / « Nom de page modifié » |
+| Page name held / decided | "Page name sent for review" / "Page name review decided" | « Nom de page envoyé à examen » / « Examen du nom de page terminé » |
+| Page taken down / restored | "Landing page taken down" / "Landing page restored" | « Page publique retirée » / « Page publique rétablie » |
+| Plan made public / private | "Plan shown on page" / "Plan hidden from page" | « Formule affichée sur la page » / « Formule masquée de la page » |
+| Page image attested | "Page image uploaded" | « Image de page ajoutée » |
+| Gym category changed *(existing, V1.6)* | unchanged | unchanged |
+
+- `[CONFLICT]` with AD-12's read-only rule ("No edit, delete, or flag buttons anywhere on this page… No right-click context menu… No row selection"). The disclosure request (AD-26) is an action on a row. Resolution `[ASSUMPTION]`: a plain text link inside the Details cell of "GymOS Support" rows, Owner only. It writes nothing to the log row itself. It is not an edit, delete or flag control, and the row's no-hover, no-checkbox, no-context-menu rules stand. If product prefers zero row-level actions on this page, move the link to the AD-26 entry form reached from a "Ask GymOS about an entry" action in the page header.
+
+**AD-13 · Settings — sections and hint *(Architecture Decision AD-32 pattern)*.**
+- New rows in order: after "Payment Account": **GymOS Support** (AD-24); after "Staff": **Landing page** `status badge + [Open →]` (AD-27).
+- `[CONFLICT]` with the V1.6 hint line "Save applies changes across every section below… except Registration fee, Charge guests per session, Loyalty program and Category, which save on their own." That list is closed and V1.7 adds two more sections that also save on their own. The hint gains: "…, Allow GymOS Support and Landing page" / « …, Autoriser le support GymOS et Page publique ». The Landing page has its own page; its row on AD-13 has no inputs.
+- Staff row's "[N] staff members" count **excludes** support (FR-188), so the Owner never sees a number that includes GymOS.
+
+**AD-16 · Staff — fixed row, tag and empty state *(FR-182, FR-181, FR-188)*.**
+- **One fixed "GymOS Support" row**, always last, in every state of the setting. Role "Support" `[ASSUMPTION]`; status text is the AD-24 state ("Off" / "No one assigned" / "Active" / "Waiting for GymOS") with a lock icon. No chevron, no row click, no Edit, no Deactivate (FR-182, and absent from the DOM, not disabled). Tooltip and `aria-describedby` text: "Managed by GymOS. This row can't be edited or removed here. To stop access, turn off Allow GymOS Support in Settings." / « Géré par GymOS. Cette ligne ne peut pas être modifiée ni supprimée ici. Pour arrêter l'accès, désactivez « Autoriser le support GymOS » dans les Paramètres. » Only the Owner is told the last sentence; a Supervisor sees the first two.
+- **Tag on staff rows** created or edited by support: a small pill "Created by GymOS Support" / « Créé par GymOS Support » (or "Edited by GymOS Support" / « Modifié par GymOS Support »), `neutral`, with a `{colors.info}` "To review" / « À vérifier » badge while the AD-25 flag is open. Never colour alone: text plus icon.
+- `[CONFLICT]` with AD-16 Components "Row click → inline expand… with Edit and Deactivate" and with the Empty state "No staff yet…": the fixed row has no click behavior, and the empty state now renders **under** the fixed row. The table is never empty. The "N staff" header count and the V1.5 staff cap exclude the fixed row (FR-188).
+- Staff Add/Edit (AD-17): Role dropdown never offers "Support" (FR-178); the Role-ceiling rules are unchanged.
+
+---
+
 ## Screen Reference — Super Admin Dashboard
 
 ---
@@ -2456,6 +2895,501 @@ Billing
 
 ---
 
+### V1.7 — Super Admin: sign-in, second factor and session limits
+
+**SA-01 · Login — amendments *(FR-191, Stories 22.5–22.7)*.** SA-01 has no V1.0 section in this spine; the following is its first specification. Layout is the platform shell (`{colors.primary}` / `{colors.accent}`), email + password as shipped, then a second step:
+```
+Sign in to GymOS Super Admin
+Email      [                    ]
+Password   [                    ]
+                         [Sign in]
+
+── second step, when the platform flag is on ──
+Enter the 6-digit code from your authenticator app.
+[ _ _ _ _ _ _ ]                        [Verify]
+```
+- **Flag off** (before the controlled bootstrap, FR-191): no second step. Sessions behave as today. The Security page (SA-20) is available to enroll.
+- **Flag on:** every Super Admin session must pass the code. A session at the lower level sees **only** this prompt; no sidebar, no data (Navigation Structure). Enrollment of a new factor is never offered at this prompt (FR-191).
+- **Wrong code:** inline "That code didn't work. Wait for the next code and try again." / « Ce code n'a pas fonctionné. Attendez le code suivant et réessayez. » The attempt count is never shown. After the configured limit the account is locked for review (Story 22.7): "Too many attempts. Your account is locked." / « Trop de tentatives. Votre compte est verrouillé. » `[NOTE FOR UX]` with one Super Admin, this lock needs the out-of-band recovery in the runbook (FR-191). The copy should say so: "Contact the platform owner." Confirm wording.
+- **Session expired** *(Story 22.7)*: a re-sign-in prompt replaces the content with "Your session expired. Please log in again." / « Votre session a expiré. Veuillez vous reconnecter. » and [Sign in]. The existing Voice and Tone row applies. The top bar warns "Session ends in 5 min" five minutes before the 8-hour or 30-minute idle limit `[ASSUMPTION — values per Story 22.7]`. A form with typed text (a reason, a note) keeps its draft in the page and restores it after sign-in `[ASSUMPTION]`; Story 22.7 says "no data loss where the existing UX already warns", and the existing Super Admin UX has no draft warning. `[NOTE FOR UX]` confirm that restoring drafts is wanted.
+- **AAL1 deep link:** after the second step the user lands on the originally requested page.
+
+---
+
+### SA-08 · Support People — List *(V1.7, FR-175, FR-185, Story 23.4)*
+
+**Purpose:** Super Admin sees every support account and its state. Individuals are named **here only**, never in a gym surface.
+
+**Layout:**
+```
+Support                                                  [+ Create support account]
+[People] [Locked 1] [Recertification 2] [Disclosures 1]
+
+[🔍 Search name]   [State ▾]
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ Name       Phone          Email                State       Gyms  Last active │
+│ Idris K.   +237 6•• ••     idris@gymosapps.com  Active      3    Today 10:42  │
+│ Aïssa M.   +237 6•• ••     —                    Invited     0    —            │
+│ Paul T.    +237 6•• ••     paul@gymosapps.com   Locked      2    12 Oct       │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+- **States** (badge + label + icon): Invited (`neutral`), Active (`success`), Not assignable — missing verified phone / `@gymosapps.com` email (`warning`, names the missing item), Locked (`danger`), Disabled — inactive 30 days (`neutral`), Reset pending (`info`), Removed (`neutral`, shown only under the "Removed" filter).
+- **Columns:** Name, Phone, Email, State, Gyms (number of active assignments), Last active, Recertification due. Row click → SA-09.
+- **[+ Create support account]** opens SA-10. Hidden when the second-factor flag is off; instead a banner explains (see SA-10).
+- **Empty state:** "No support people yet. Create the first account." / « Aucune personne du support pour l'instant. Créez le premier compte. » [Create support account].
+- **Loading:** 5 skeleton rows. **Error:** page-level error with [Refresh].
+
+---
+
+### SA-09 · Support Person — Detail *(V1.7, FR-177, FR-185, FR-190)*
+
+**Layout:**
+```
+← Support  /  Idris K.
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ Name:           Idris K.                                              │
+│ Phone / email:  +237 6•• ••• 321 (verified) · idris@gymosapps.com     │
+│ State:          Active          Second factor: enrolled               │
+│ Recertified:    1 Jul 2026      Next due: 1 Oct 2026  [Recertify]     │
+│ Last active:    Today 10:42                                            │
+│              [Reset second factor]  [Remove account]                  │
+└──────────────────────────────────────────────────────────────────────┘
+Assignments                                          [+ Assign to a gym]
+│ Gym            State     Since       Switch    Actions               │
+│ Grace Fit      Active    2 Oct       On        [Unassign]            │
+│ Zen Pilates    Pending   9 Oct       Off       [Unassign]            │
+Tabs: [ Assignments ] [ Activity ]
+```
+- **Assignments table** *(FR-177)*: per gym; state Pending / Active / Suspended / Ended. **Suspended** means the gym's Owner switched Allow GymOS Support off (FR-183). A Pending row shows why: "Not enrolled yet" / « Pas encore activé », or "Gym has turned off GymOS Support" / « La salle a désactivé GymOS Support ». A Pending row for a person who is enrolled and a gym whose switch is on shows [Confirm assignment] (Super Admin only, never automatic).
+- **Activity tab:** the person's own audit trail across gyms (the real identity from the Super Admin-only record, FR-187), filterable by gym and date. Read-only, same rules as AD-12.
+- **Phone or email change** is a Super Admin action at AAL2 (FR-185); [Edit contact] on this page opens a dialog with required reason. It is blocked during a reset's cooling-off with "Contact changes are frozen while a reset is pending." / « Les modifications de contact sont gelées pendant une réinitialisation. »
+- **Cannot be a Super Admin:** nothing to render; the creation and assignment checks refuse it (FR-193).
+- **Reset second factor** → SA-12. **Remove account** → SA-11 (remove variant).
+- **Locked state:** a red banner "Locked on [date]: [trigger]. Review in Locked." / « Verrouillé le [date] : [motif]. À examiner dans Verrouillés. » with [Review →] SA-13.
+
+---
+
+### SA-10 · Create Support Account & Invite *(V1.7, FR-175, FR-176, FR-193, Story 23.4)*
+
+**Presentation:** Modal (max-width 480px) on SA-08.
+
+**Layout:**
+```
+Create support account                                          [✕]
+
+Full name *     [                               ]
+Phone *         [+237 ▾] [                      ]    GymOS-controlled number
+Email *         [                  ]@gymosapps.com
+
+The invite is a single-use link. It works for 24 hours and only on
+this phone. No password is sent.
+
+[Cancel]                                          [Create and send invite]
+```
+- **Two steps in one action:** creating the account and sending the invite. The invite goes to the verified channel Super Admin has chosen; a temporary password never exists (FR-176).
+- **Collision** *(FR-175, FR-193)*: a phone or email that matches any user, any Super Admin or any linked identity is refused with one message that does not say which: "We can't create an account with these details. Check them and try again." / « Impossible de créer un compte avec ces informations. Vérifiez-les et réessayez. » Never merged.
+- **Success:** toast "Account created. Invite sent to +237 6•• ••• 321." / « Compte créé. Invitation envoyée au +237 6•• ••• 321. » The person appears as Invited. [Resend invite] on SA-09 issues a new link and ends the previous one `[ASSUMPTION]`.
+- **Second-factor flag off** *(Story 22.6, Story 23.4)*: SA-08 shows an info banner and no create button: "Support accounts can't be created yet. Your own second factor must be turned on first." / « Les comptes du support ne peuvent pas être créés pour l'instant. Votre propre second facteur doit d'abord être activé. » with [Open Security →] SA-20. The server refuses creation either way; this is the visible side.
+- **Invitee's side** (outside the Super Admin app; behavior only): opens the link → phone one-time code → sets a password → enrolls an authenticator by scanning a code → account becomes active. A used, expired or wrong-phone link shows one generic message: "This invite link isn't valid. Ask GymOS for a new one." / « Ce lien d'invitation n'est pas valide. Demandez-en un nouveau à GymOS. »
+
+---
+
+### SA-11 · Assign / Unassign / Remove *(V1.7, FR-177, FR-185, FR-193, Story 23.5)*
+
+Dialogs, each with a **required reason** (min 10 characters `[ASSUMPTION]`, same pattern as AD-16's Deactivate and SA-07's credit). Confirm buttons are labelled by action (Accessibility Floor). All at AAL2; each writes one audit row.
+
+| Dialog | Entry | Title / body | Buttons |
+|---|---|---|---|
+| Assign | SA-09 [+ Assign to a gym]; SA-03 Support block [Assign support person] | "Assign [Name] to [Gym]?" / « Affecter [Nom] à [Salle] ? » Gym select (search) on SA-09; person select on SA-03. Reason required. | [Cancel] [Assign] |
+| Unassign | SA-09 row; SA-03 row | "Unassign [Name] from [Gym]? They lose access to this gym on their next request." / « Retirer [Nom] de [Salle] ? Cette personne perd l'accès à cette salle dès sa prochaine requête. » Reason required. | [Cancel] [Unassign] |
+| Remove account | SA-09 | "Remove [Name]? They lose access to every gym immediately and their sessions end." / « Supprimer [Nom] ? Cette personne perd l'accès à toutes les salles immédiatement et ses sessions prennent fin. » Reason required. | [Cancel] [Remove account] |
+| Confirm pending | SA-09 row | "Confirm [Name] for [Gym]? They can work in this gym straight away." / « Confirmer [Nom] pour [Salle] ? Cette personne pourra travailler dans cette salle immédiatement. » Reason optional. | [Cancel] [Confirm assignment] |
+
+- **Outcome of Assign:** Active if the person is activated, the gym's switch is on and the person has no other membership or staff row there; otherwise Pending with the reason, or refused with a typed reason: "[Name] already works in [Gym] as staff." / « [Nom] travaille déjà dans [Salle] comme membre du personnel. » · "This account can't be assigned: it's a Super Admin." / « Ce compte ne peut pas être affecté : c'est un compte Super Admin. »
+- **Gym view (SA-03 Support block):** a read-only table of the gym's assignments (person, state, since). The block is the only place a gym is connected to a name.
+- **Owner:** cannot see or trigger any of these.
+- **Step-up** `[ASSUMPTION]`: Remove account requires a fresh second factor (SA-21). Assign and Unassign rely on the session being at AAL2. The sources do not list which Super Admin actions need step-up; see SA-21.
+
+---
+
+### SA-12 · Second-Factor Reset *(V1.7, FR-190, Story 23.11)*
+
+**Presentation:** Modal on SA-09, then a status block on SA-09.
+
+**Layout:**
+```
+Reset second factor for Idris K.                              [✕]
+
+Their sessions end now. They get 30 minutes to cancel, then a new
+invite is sent so they can set up a new authenticator.
+
+Identity check *
+[ ] I confirmed this person's identity.          How: [Video call ▾]
+Note *       [                                          ]
+
+                          [Cancel]  [Start reset]
+```
+- **Required:** identity-check confirmation, method (select: video call / in person / other `[ASSUMPTION — methods]`), note. Step-up (SA-21) before [Start reset].
+- **On start:** the person's sessions are invalidated; phone and email changes freeze; the person is notified on the verified phone and the email on file. SA-09 shows a status block:
+  "Reset pending — completes at 14:32 (in 24 min). [Name] has been notified and can cancel." / « Réinitialisation en attente — se termine à 14 h 32 (dans 24 min). [Nom] a été prévenu et peut annuler. »
+- **Cancelled by the person:** "Reset cancelled by [Name] at 14:11. Their sessions stay ended." / « Réinitialisation annulée par [Nom] à 14 h 11. Ses sessions restent terminées. » Super Admin is alerted (an item in the Support dot).
+- **Completed:** "Second factor removed. A new invite was sent." / « Second facteur supprimé. Une nouvelle invitation a été envoyée. » The person is back to Invited until they re-enroll.
+- `[NOTE FOR UX]` the sources let the **person** cancel but say nothing about Super Admin cancelling its own reset. The spec shows no [Cancel reset] control for Super Admin. Confirm.
+- **There is no in-app reset for a Super Admin's own factor.** SA-20 says so and points to the runbook (AD-38).
+
+---
+
+### SA-13 · Locked Accounts *(V1.7, FR-181, Story 23.10)*
+
+- **Why locked:** velocity limit exceeded (10 per hour per gym, 20 per hour per account, 3 payment-connection changes per day per gym `[ASSUMPTION]`) or repeated wrong codes (FR-189).
+- **Layout:** a table with Name, Locked at, Trigger (EN/FR: "Too many actions in a gym" / « Trop d'actions dans une salle »; "Too many actions on the account" / « Trop d'actions sur le compte »; "Too many payment-connection changes" / « Trop de changements de connexion de paiement »; "Wrong codes" / « Codes erronés »), Gym (when relevant), [Review →].
+- **Review panel:** the person's last 20 actions in the window (real identity), then [Unlock] with a **required reason** and [Remove account] (SA-11). Unlock text: "Unlock [Name]? They can sign in again." / « Déverrouiller [Nom] ? Cette personne pourra se reconnecter. » Lock, unlock and reason are audited.
+- **Empty:** "No locked accounts." / « Aucun compte verrouillé. »
+
+---
+
+### SA-14 · Recertification *(V1.7, FR-185, Story 23.11)*
+
+- **Rule:** every support person is recertified each quarter by Super Admin. Past the due date, the person has **no further access** until recertified.
+- **Layout:** table of people sorted by due date: Name, Due date, Days left (or "Overdue by N days", `danger`), Gyms, [Recertify].
+- **[Recertify]:** dialog "Recertify [Name]? Confirm they still need access to [N] gyms." / « Recertifier [Nom] ? Confirmez que cette personne a encore besoin d'accéder à [N] salles. » Note optional. Confirms by [Recertify]. The next due date is set 3 months out `[ASSUMPTION]`.
+- **Inactivity** (30 days `[ASSUMPTION]`): auto-disabled people appear in SA-08 as Disabled, with a notice in the Support dot. [Re-enable] on SA-09 requires a reason. Suspended gyms do not count toward inactivity (Story 23.10).
+- **Empty:** "Nobody is due for recertification." / « Aucune recertification à faire. »
+
+---
+
+### SA-15 · Disclosure Requests *(V1.7, FR-187, Story 23.8)*
+
+- **Layout:** table with Gym, Entry (time, action, target), Question (truncated), Asked on, Due (3 business days `[ASSUMPTION]`), Status (Open / Answered / Overdue — `warning`/`success`/`danger`).
+- **Detail panel:** the Owner's question in full, the audit entry, **and the individual's identity for that entry**, which is the only place it is shown (real identity record, Super Admin read only). The answer itself is given **outside the product** (FR-187).
+- **[Record answer]:** dialog "Record that you answered [Gym]'s question?" with a required note of what was disclosed and by which channel, and [Record answer]. This flips the Owner's AD-12 tag to "Answered". The request and the answer are audited.
+- `[NOTE FOR UX]` OQ-31 (legal review) governs the answer's wording; the product records only that it was given. The note field must not be a place to paste an identity into a gym-readable field. Confirm that the note is Super Admin-only.
+- **Empty:** "No open requests." / « Aucune demande ouverte. »
+
+---
+
+### SA-16 · Held Page Names *(V1.7, FR-202, Story 24.7)*
+
+**Purpose:** Decide names held for review before their first publish, and maintain the word lists.
+
+**Layout:**
+```
+Pages
+[Held names 3] [Reports 2] [Appeals 0]                      [Word lists →]
+
+┌───────────────────────────────────────────────────────────────────────┐
+│ Name         Gym          Held because               Waiting   Actions   │
+│ grace-gym    Grace Fit    Generic word "gym"         1 day     [Review]  │
+│ gymos-pay    —            —  (refused outright, not listed)              │
+│ douala-fit   Douala Box   Near match: douala-fitt    3 days !  [Review]  │
+└───────────────────────────────────────────────────────────────────────┘
+```
+- **Held because:** one of near-match of an existing page (shows that page's name), near-match of a reserved or brand word, folded-match, or generic or place word.
+- **Review panel:** the name, the gym (name, category, city, other names), the matched word or page, and [Approve] / [Reject]. [Reject] requires a reason sent to the Owner. Both decisions are audited and notify the Owner.
+- **SLA:** 2 business days `[ASSUMPTION]`. Rows older than 2 days show a `warning` "Overdue" tag and a reminder is sent (Story 24.7).
+- **Word lists** sub-page: kinds Reserved, Brand, Generic, Place, Zone (read-only: comes from the DNS zone export, Architecture Decision AD-43). Add/remove with confirmation; every change audited. A word added to Reserved asks "Existing active names matching this word will be flagged for review." `[ASSUMPTION]`.
+- **Empty:** "No names waiting for review." / « Aucun nom en attente d'examen. »
+
+---
+
+### SA-17 · Page Reports & Takedown *(V1.7, FR-204, Story 24.11)*
+
+**Layout:**
+```
+Pages   [Held names] [Reports 2] [Appeals]
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ Page           Gym         Reports  First reported  Due        Status   │
+│ getgymfit      Get Fit     3        2 days ago      3 days     Open     │
+└──────────────────────────────────────────────────────────────────────┘
+```
+- **Detail:** the page as currently published (read from the same published data the public sees), all reports for it (reason chosen by the visitor, message, time; no reporter identity is collected, PS-03), and the gym's other names.
+- **Actions:** [Dismiss reports] (note required), [Take down…], [Force rename…].
+- **Takedown dialog** *(FR-204)*:
+```
+Take down getgymfit.gymosapps.com?                           [✕]
+Reason *   [Impersonation ▾]   (Impersonation · Illegal content ·
+            Trademark · Misleading content · Privacy · Other)
+Note       [                                         ]
+
+The page stops being served within a minute. The Owner is told why.
+The page can't be republished until you lift the takedown. The name
+stays reserved to this gym.
+                                  [Cancel]  [Take down page]
+```
+  Reason labels EN / FR: Impersonation / Usurpation d'identité · Illegal content / Contenu illicite · Trademark / Marque déposée · Misleading content / Contenu trompeur · Privacy / Vie privée · Other / Autre. Reason code is required; **Other requires the note** `[ASSUMPTION]`. Confirm label [Take down page] / [Retirer la page]. Done at AAL2 with step-up `[ASSUMPTION]` (SA-21).
+- **After takedown:** status "Taken down" with [Lift takedown] (reason required) and the appeal status if any. The old-name redirects drop immediately (FR-203); an info line says so.
+- **Force rename** *(FR-203, FR-204)*: Super Admin enters a new name under the same grammar as AD-28; required reason; "This doesn't count against the gym's two renames." / « Ceci ne compte pas dans les 2 renommages de la salle. » Redirects from the old name are dropped immediately; the old name is **not** released if the page was taken down.
+- **SLA:** 5 business days to answer a report `[ASSUMPTION]`; older rows show `warning` "Overdue".
+- **Where else:** SA-03's Page block shows the same state and the two actions for that gym.
+- **Empty:** "No reports to review." / « Aucun signalement à examiner. »
+
+---
+
+### SA-18 · Appeals *(V1.7, FR-204, Story 24.11)*
+
+- **Layout:** table with Page, Gym, Reason code, Taken down on, Appeal text (truncated), Appealed on, Status.
+- **Detail:** the takedown (reason code, note, actor), the Owner's appeal text, the page as published when taken down.
+- **Decision:** [Lift takedown] or [Uphold takedown], each with a **required reason** that is sent to the Owner and recorded. Lifting returns the page only to "unpublished — can be republished" (the Owner publishes again; the gate re-runs) `[ASSUMPTION]`. Upholding keeps the takedown and ends the appeal. A second appeal on the same takedown is not offered `[ASSUMPTION]`.
+- **Empty:** "No appeals waiting." / « Aucun appel en attente. »
+
+---
+
+### SA-19 · Cities *(V1.7, FR-209, Story 25.1)*
+
+**Layout:**
+```
+Cities                                           [+ Add city]
+[Cities] [Unmapped gyms 4]
+Country [Cameroon ▾]   [🔍 Search]
+
+│ City     Slug     Aliases                      Gyms published │
+│ Douala   douala   Duala, Douala-Littoral        3     [Edit]  │
+│ Yaoundé  yaounde  Yaounde, Yde                  1     [Edit]  │
+```
+- **Add / Edit city:** country (ISO list, read-only list from the platform), name, slug (ASCII-folded, auto-suggested), aliases (add/remove). Errors: slug exists → "That slug is already used in this country." / « Ce slug est déjà utilisé dans ce pays. » · alias belongs to another city → "That spelling already points to [City]." / « Cette graphie correspond déjà à [Ville]. »
+- **Rename or slug change** shows before saving: "[N] published pages and listings will refresh. The old address of this city keeps working for 12 months." / « [N] pages publiées et listes seront actualisées. L'ancienne adresse de cette ville continue de fonctionner pendant 12 mois. » No gym's stored city changes.
+- **Unmapped gyms** tab: gyms whose existing free-text city could not be matched (Story 25.1). Each row has [Map to city ▾] or [Add city]. Such a gym cannot publish until mapped; its Owner sees the AD-27 checklist item "Country and city" as not ready.
+- **Owner-side request:** when the Owner can't find a city, AD-27 shows "Ask GymOS to add it" / « Demander à GymOS de l'ajouter » (no free text). `[NOTE FOR UX]` the sources give no request channel for this. The spec assumes the request becomes a row in the Unmapped tab labelled "City requested: [text]" `[ASSUMPTION]`; confirm or choose a different intake.
+- **Empty:** "No cities for this country yet. Add the first one." / « Aucune ville pour ce pays. Ajoutez la première. »
+
+---
+
+### SA-20 · Security — Second Factor *(V1.7, FR-191, Story 22.5, Story 22.6)*
+
+**Layout:**
+```
+Security
+
+Second factor required for Super Admin:  On / Off   (read-only)
+Your authenticators
+│ Name            Added        Last used     │
+│ Phone — Chidi   4 Oct 2026   Today         │
+│ Backup device   4 Oct 2026   —             │
+[+ Add authenticator]
+```
+- **Required-state line** is read-only: the platform owner turns the requirement on once, by script, after two factors are verified (Story 22.6). Off: "Second factor isn't required yet. Add two authenticators first." / « Le second facteur n'est pas encore exigé. Ajoutez d'abord deux authentificateurs. » On: "Second factor is required for every Super Admin session." / « Le second facteur est exigé pour chaque session Super Admin. »
+- **[+ Add authenticator]** shows a scannable code and the setup key, a name field ("Name this device"), and a 6-digit code field. Enrollment runs only after the session is at the required level (the server checks). Success: "Authenticator added." / « Authentificateur ajouté. » An authenticator is saved only after a correct code.
+- **Two factors on separate devices** `[ASSUMPTION — follows Architecture Decision AD-38]`: with one factor the page shows "Add a second authenticator on a different device. You need two before the requirement can be turned on." / « Ajoutez un second authentificateur sur un autre appareil. Il en faut deux avant d'activer l'exigence. »
+- **Remove:** [Remove] per row requires a fresh code (SA-21). Refused when it would leave fewer than one verified factor with the requirement on: "You can't remove your only authenticator." / « Vous ne pouvez pas supprimer votre seul authentificateur. »
+- **No in-app recovery.** Help text: "Lost both devices? Contact the platform owner. This is done outside the app and is recorded." / « Vous avez perdu les deux appareils ? Contactez le propriétaire de la plateforme. Cela se fait hors de l'application et est consigné. »
+- **Errors:** "Couldn't add the authenticator. Check the code and try again." / « Impossible d'ajouter l'authentificateur. Vérifiez le code et réessayez. »
+
+---
+
+### SA-21 · Step-Up Prompt *(V1.7, FR-189, Story 22.7; shared with the Admin Dashboard)*
+
+**Purpose:** a protected action asks for a fresh code even inside a session already at the required level. It is one component used in the Super Admin app (SA-11 remove, SA-12, SA-17, SA-20 remove) and in the Admin Dashboard for support sessions (connect or replace a payment account, refund, create staff, FR-189).
+
+**Layout:**
+```
+Confirm with your authenticator                             [✕]
+
+You're about to: Reset second factor for Idris K.
+
+Enter the 6-digit code from your authenticator app.
+[ _ _ _ _ _ _ ]
+
+This code works for this action only, for 5 minutes.
+                                  [Cancel]  [Confirm]
+```
+- **Single use, bound to the named action and its subject** (Story 22.7). The "You're about to" line is the bound action in plain words; it is the reason the prompt can't be reused for something else.
+- **Valid 5 minutes** is stated. After it elapses, the action asks again. After one use, the next protected action asks again; the prompt never "remembers this device" (FR-189).
+- **Confirm button** is labelled with the action: [Reset second factor], [Connect payment account], [Issue refund], [Create staff member], never "Confirm" alone (Accessibility Floor). `[ASSUMPTION — label per call site; the heading above stays generic]`
+- **Wrong code:** inline "That code didn't work. Wait for the next code and try again." Attempts are counted by the server and repeated failures lock the account (see SA-01); the count is never shown. On lock the prompt closes and the lock message of SA-01 shows.
+- **Expired session while open:** the prompt closes into the session-expired state of SA-01; the pending action is not performed.
+- **Which Super Admin actions require it:** `[ASSUMPTION — remove account, reset second factor, take down, force rename, remove authenticator]`. `[NOTE FOR UX]` the sources fix the support actions (payment-connection change, refund, staff creation, FR-189) but do not list the Super Admin ones; decide the list.
+- **Which dashboard actions for support:** the three above. **Owner and other roles never see this prompt.**
+
+---
+
+### V1.7 — Amendments to existing Super Admin screens
+
+**SA-03 · Gym Detail** gains two blocks under the Status row, neither with a new sidebar item:
+- **Support:** "Allow GymOS Support: On / Off" (read-only: Super Admin cannot change it, FR-183) and the gym's assignments table (person, state, since) with [Assign support person] → SA-11. This is the only place a gym's assignments and names appear together.
+- **Page:** page name and its state (Not claimed / Held / Active / Redirect / Reserved), published state, last takedown, and [Take down…] / [Force rename…] → SA-17 dialogs.
+- Both blocks follow the existing "Access gym data requires reason" model: the real identity is shown to Super Admin only.
+
+**SA-02 · Gym List** `[NOTE FOR UX]` the V1.6 line promised "no category filter in V1.6 … V1.7's directory is where filtering matters". The directory filter is on the **public** surface (PS-06), so SA-02 still has no category filter; confirm whether Super Admin also wants one.
+
+**SA-05 · Platform Metrics:** support accounts and their memberships are excluded from every figure (FR-188). No new card.
+
+---
+
+## Screen Reference — Public Surfaces *(V1.7)*
+
+**Scope.** Behavior, content order, states and copy only. **Visual design, layout, imagery treatment and typography belong to `DESIGN.md` and are not specified here.** Every public surface is server-rendered, **script-free** (Architecture Decision AD-44: no executable script, no hydration, no cookie), and reads only the published projection (FR-206, NFR-024). Anything that would need script in the browser is therefore either a plain link, a plain form post, or not offered. Where this spine writes "no JS dependency" it means exactly that: the page is complete and usable with script blocked.
+
+**Shared rules for PS-01…PS-06**
+- No login, no account, no sign-in link, no member counts, no staff names, no cookie, no analytics beacon (FR-196, AD-44).
+- **Language.** *Gym pages* (PS-01, PS-03): chrome in the gym's saved `default_language`, one language per page, no switcher and no negotiation (FR-208, Architecture Decision AD-50). *Directory* (PS-04…PS-06): chrome language is the `/{en|fr}/` part of the URL; a plain link "Français" / "English" goes to the same listing in the other language. The bare `/gyms/` path `[NOTE FOR UX]` is not specified in AD-50; assumed to redirect to `/en/gyms/` or `/fr/gyms/` by `Accept-Language` once, then stay explicit `[ASSUMPTION]`. Gym-entered content (name, about, services, plan names, address) is shown **as entered**, never translated. Category labels, days, units and fixed phrases come from the chrome dictionary.
+- **Number and time format** follow the chrome language: "25,000 XAF" EN / "25 000 XAF" FR (Foundation); times in 24-hour form in both languages `[ASSUMPTION]`.
+- **Plain links only.** Links to other hosts carry `rel="noopener noreferrer"`. A visitor's Back button always returns to where they were.
+- **No "open now".** Hours are static text. A "Open now" indicator needs the visitor's clock (script) or a per-minute cache bypass, and neither is allowed (AD-44, `s-maxage=60`). `[ASSUMPTION]`
+
+---
+
+### PS-01 · Gym Page *(V1.7, FR-196–FR-208, Story 24.10)*
+
+**Purpose:** a visitor decides whether to visit and can contact the gym in one tap.
+
+**Content order** (top to bottom, one column; `[ASSUMPTION — order chosen for a mid-range Android phone on 4G: contact first, long text later]`):
+
+| # | Section | Behavior | When missing |
+|---|---|---|---|
+| 1 | **Header** — logo, gym name, category label | Name as entered; category label in the chrome language | Always present (gate) |
+| 2 | **Banner image** | Decorative; empty text alternative | Always present (gate) |
+| 3 | **Contact actions** — Call, WhatsApp, Directions | See "Contact actions" below | Only the actions with data render; at least one always exists (gate) |
+| 4 | **About** | Plain text, paragraphs preserved, never links or markup | Always present (gate, ≥ 100 characters) |
+| 5 | **Services and activities** | A simple list | Section omitted entirely |
+| 6 | **Plans** — public plans and session plans: name, price, duration | One row per public plan; session plans read "per session" / « par séance » | Always present (gate: ≥ 1 public plan) |
+| 7 | **Opening hours** — one row per day | Days in the chrome language; a closed day reads "Closed" / « Fermé » | Omitted if absent (see below) |
+| 8 | **Location** — address text | Address always as text; map link only with a map position | Always present (gate: country and city; address text `[ASSUMPTION]`) |
+| 9 | **Gallery** | Plain image list with each image's description as its text alternative; no lightbox, no carousel | Section omitted entirely |
+| 10 | **Footer** — "Report this page", "GymOS" link to `www.` | Report → PS-03 | Always present |
+
+- **Prices** show exactly the public plans the gym marked public (FR-200), at the stored price; no "from", no discount computation, no loyalty details, no guest-session counts (private).
+- **No hours** — can't normally occur (the gate requires hours, FR-199), so a live page always has them. If a snapshot ever lacked them the section is **omitted, not shown empty**; the page stays up, and a page that lost them has already unpublished itself.
+- **No map position** *(optional field)*: no Directions action; the address is shown as plain text. `[NOTE FOR UX]` the sources do not say whether Directions may fall back to a map search on the address text. The spec assumes **no fallback**, because a text-search link can resolve to a wrong place and the page would look authoritative.
+- **No gallery / no services:** the section and its heading are omitted, never "No photos yet".
+- **No WhatsApp** or **no phone:** only the other action renders. With both, order is Call, WhatsApp, Directions.
+- **Redirect after rename:** an old name 301s to the current name in one hop for 12 months (FR-203); the visitor sees the current page and the address bar shows the new name. No intermediate page.
+
+**Contact actions** *(FR-196)*
+| Action | Behavior | Label EN / FR |
+|---|---|---|
+| Call | A `tel:` link carrying the public contact in international form. The number is also visible as text so it can be copied on a device with no phone app | "Call" / « Appeler » |
+| WhatsApp | A link to the WhatsApp chat with that number (`https://wa.me/…`). No prefilled message `[ASSUMPTION]` | "WhatsApp" / « WhatsApp » |
+| Directions | A link to a map provider's directions with the stored map position as destination `[ASSUMPTION — provider is the platform default; sources name none]` | "Directions" / « Itinéraire » |
+- Each action is an `<a>` styled as a button, ≥ 44×44 CSS px, labelled by text and not icon alone (Accessibility Floor).
+- A repeat of the primary action sits at the foot of the page `[ASSUMPTION]` so a visitor who read everything need not scroll back.
+
+**States**
+| State | Behavior |
+|---|---|
+| Published, visible | PS-01 as above, `200` |
+| Unpublished, taken down, gym suspended, unknown or reserved name, name released | **PS-02, identical response** (FR-207). No hint of cause. See PS-02 |
+| Gym reactivated after suspension | The page returns only if still published and no takedown is in force (FR-207). No visitor-facing message at any point |
+| Renamed gym, old address | 301 to the new name (above) |
+| Page edited | Changes appear within about 2 minutes (AD-46 TTL); a visitor may see the previous version for that long |
+| Snapshot fails the content check | PS-02 and the failure is logged (AD-48) |
+
+`[NOTE FOR UX]` the sources keep chrome language fixed to the gym's `default_language` but gym content may be in the other language (OQ-28). The page declares one `lang` for the whole document; screen readers may mispronounce content in the other language. Whether to allow a per-section `lang` is not in the sources.
+
+---
+
+#### Template contract *(V1.7, decided 2026-10-15: templates are generated in numbers over time)*
+
+PS-01 is specified as a **contract**, not as one design. Any template, including ones generated later, must satisfy every row, and an automated **conformance suite** (Story 24.10) renders each template against fixture gyms and rejects it on any violation. Visual identity lives in DESIGN.md "Public Page Templates"; the seed templates are `mockups/template-seed-a-dark.html` and `mockups/template-seed-b-light.html`.
+
+| Rule | Requirement | Checked by |
+|---|---|---|
+| Section order | The ten sections above in that order; a template may restyle but not reorder, merge or drop one that has data | Conformance render + DOM order assertion |
+| Contact first | Call, WhatsApp and Directions are visible without scrolling on a 360 × 640 viewport, each a tap target of at least 44 px | Layout assertion |
+| Omit, never empty | A missing optional section and its heading are omitted; no placeholder text | Fixture gyms (no banner, no gallery, no services, no map position, no hours) |
+| Content stress | One plan and eight plans; a 60-character name; a 4,000-character about; hostile markup shown as inert text; EN and FR chrome | Fixture gyms |
+| Color | The gym's `primary_color` is the only variable color; every text and control pair meets WCAG 2.1 AA (4.5:1 body, 3:1 large and UI) with that color on the template's background | Contrast check per fixture color |
+| No script | No executable script element, no hydration payload, no inline event handler; the JSON-LD data block is allowed | Header and DOM assertion |
+| Budget | One inline style block (hashed in the CSP), no external stylesheet, images only from the media origin, fonts only from the allowlist | Header and size assertion |
+| Fonts | Declared per template from the self-hosted allowlist (Barlow 700 and 800 first), under `font-src 'self'`; a system fallback is always declared | Header assertion |
+| Language | Chrome strings come from the template dictionary in the gym's `default_language`; gym content is shown as entered | Fixture render in EN and FR |
+| Swap | A swap changes only the `template` value; no gym content is re-entered or lost | Contract test |
+| Selection | The editor lists only templates that passed the suite, with a thumbnail rendered from the gym's own content `[ASSUMPTION — thumbnail from real content, not a stock image]` | Registry |
+
+`[NOTE FOR UX]` Generated templates enter the registry only after the suite passes; there is no manual override. The generation pipeline itself is outside V1.7 (PRD section 8).
+
+### PS-02 · Not Found (uniform) *(V1.7, FR-207, Story 24.10)*
+
+**Purpose:** one response for every name that does not resolve to a visible page, so a visitor, a scraper or a squatter can't tell *why*.
+
+- **Copy**, one block, both languages at once because no gym is known to choose between:
+
+  "This page isn't available." / « Cette page n'est pas disponible. »
+  [Browse gyms on GymOS] / [Parcourir les salles sur GymOS] → `www.gymosapps.com/{locale}/gyms/` (`en` and `fr` links, one each).
+- **Identical for**: unpublished, taken down, suspended gym, unknown name, reserved name, grammar-invalid name, and any path on a gym host that is not `/`, `/robots.txt`, `/sitemap.xml` or the report form (Architecture Decision AD-50). Same status code, same markup, no cause, no gym name.
+- Never mentions "taken down", "suspended", "reserved", "under review" or "no longer". Never reveals whether the name is claimed.
+- A short cache lifetime applies (30 s, AD-46) so reappearance is quick; this is invisible to the visitor.
+- The same response serves directory paths that do not resolve (unknown country or city code).
+
+---
+
+### PS-03 · Report a Page *(V1.7, FR-204, Story 24.11)*
+
+**Purpose:** anyone can flag a page that impersonates, misleads or breaks the law. No account.
+
+**Layout (behavior):**
+```
+Report this page
+grace-fit.gymosapps.com
+
+Why are you reporting it? *   ( ) Pretending to be someone else
+                              ( ) Misleading information
+                              ( ) Illegal content
+                              ( ) Trademark or brand
+                              ( ) Private information
+                              ( ) Something else
+Tell us more *                [                                  ]  max 1 000
+                                                       [Send report]
+```
+- **A plain form post**: radio group, one textarea, one button. No script, no CAPTCHA widget, no account. Reporter identity is not asked for or stored `[ASSUMPTION]`.
+- **Reasons** mirror the takedown reason codes (FR-204): Impersonation, Misleading content, Illegal content, Trademark, Privacy, Other. Labels EN / FR: "Pretending to be someone else" / « Se fait passer pour quelqu'un d'autre » · "Misleading information" / « Informations trompeuses » · "Illegal content" / « Contenu illicite » · "Trademark or brand" / « Marque ou nom commercial » · "Private information" / « Informations privées » · "Something else" / « Autre chose ».
+- **Success** (a confirmation page, not a toast): "Thank you. We'll review this page." / « Merci. Nous allons examiner cette page. » with [Back to the page]. No promise of an outcome or a time.
+- **Validation errors**: the same form returns with "Choose a reason." / « Choisissez un motif. » and "Tell us a little more." / « Dites-nous-en un peu plus. » in an error summary above the form, each tied to its field.
+- **Rate limit** (per source, server side): "Too many reports from this connection. Try again later." / « Trop de signalements depuis cette connexion. Réessayez plus tard. » The page is not named in a rate-limit message.
+- **A page that is not visible** returns PS-02, not a form.
+- **Behavior note: a hidden field to catch bots is allowed**; anything requiring script is not `[ASSUMPTION]`.
+- `[CONFLICT]` with Architecture Decision AD-44's exact CSP string, which sets `form-action 'none'` and also lists the report form among the paths a gym host serves (AD-50, FR-204). A form cannot post under `form-action 'none'`. This spine specifies a plain post to the same host; the report route's policy needs `form-action 'self'` (AD-44 amendment), or the form needs another delivery. Flagged for the architecture owner; no UX workaround exists that keeps the form script-free.
+- `[NOTE FOR UX]` whether a reporter may leave an optional contact so GymOS can ask a follow-up. The spec collects none, which is the more private choice and the one that keeps the public role's function write-only (Architecture Decision AD-42).
+
+---
+
+### PS-04 · Directory — Countries *(V1.7, FR-210, Story 25.3)*
+
+**Purpose:** a visitor picks a country.
+
+- Lists every country with at least one published gym, with the number of published gyms, as a list of links to PS-05. Names from the platform's country list in the chrome language (`name_en` / `name_fr`).
+- **Order:** Cameroon first (the only prominent entry at launch, FR-210), then the others alphabetically by localised name `[ASSUMPTION — "prominent" is read as "first and linked from the main site"; how prominent is DESIGN.md's]`. The page and its copy contain no Cameroon-only wording, address format or place assumption.
+- **Empty (no gym published anywhere):** "No gyms are listed yet." / « Aucune salle n'est encore répertoriée. »
+- Language link to the same page in the other language (shared rules).
+- Always indexable `[ASSUMPTION — the top directory page is not subject to the thin-listing rule]`; see thin listing below.
+
+---
+
+### PS-05 · Directory — Country *(V1.7, FR-210)*
+
+- Title: "Gyms in [country]" / « Salles en [pays] ».
+- Lists cities that have at least one published gym, with counts, as links to PS-06. City names as entered in the platform's controlled list (aliases are never shown).
+- If a published gym has no resolvable city (only possible before a mapping completes), it is **not** listed (Story 25.1: the gate requires a city). A country with published gyms but no city rows can't occur; if it does, its gyms are listed directly `[NOTE FOR UX]` (Story 25.2's "country with one published gym and no city with a gym" reads as contradicting the gate; spec lists directly and does not hide the country).
+- **Breadcrumb** as plain links: Gyms › [Country].
+
+---
+
+### PS-06 · Directory — City, with category filter *(V1.7, FR-210, FR-213)*
+
+**Layout (behavior):**
+```
+Gyms in Douala, Cameroon
+
+Category:  All · Gym · Pilates Studio · Yoga Studio · Fitness Center · Other    ← plain links
+
+┌────────────────────────────────────────────────┐
+│ Grace Fit            Pilates Studio · Douala     │  → https://grace-fit.gymosapps.com
+│ Douala Box           Gym · Douala                │  → https://douala-box.gymosapps.com
+└────────────────────────────────────────────────┘
+1 2 3 ›                                             ← plain links
+```
+- **Each listing** shows gym name, category label (chrome language), city, and links to the gym's own canonical subdomain page (PS-01). A listing may show the gym's logo `[ASSUMPTION]`, never its banner, hours, plans or contact.
+- **Category filter** is a set of **plain links** (`?category=<code>`), not a form, so it works script-free and needs no form post (see PS-03's CSP conflict). Only categories with at least one gym in the city are offered `[ASSUMPTION]`. The current choice is marked as current in text and in `aria-current`, not by colour alone. A filtered view is a view of the same list: canonical points at the unfiltered listing (Architecture Decision AD-50).
+- **Filtered with no results** (a stale link): "No [category] gyms in [city] yet." / « Aucune salle de type [catégorie] à [ville] pour l'instant. » + link "Show all gyms in [city]" / « Voir toutes les salles à [ville] ».
+- **Order:** alphabetical by gym name `[ASSUMPTION — no ranking, no paid placement, no "featured"]`.
+- **Paging:** 20 per page with plain numbered links `[ASSUMPTION — page size not in the sources]`.
+- **Thin listing** *(FR-212, `[ASSUMPTION — OQ-29]`)*: a country or city with fewer than 3 published gyms **renders exactly the same for visitors**; it is not hidden and shows no "few results" message. The only differences are for crawlers: `noindex` and absence from the sitemap, driven by one flag (Architecture Decision AD-49). A visitor with a link still reaches it. At launch, with few gyms, most listings will be thin and only individual pages are expected to be indexed.
+- **Removal:** a gym that unpublishes, is suspended or is taken down disappears from the listing within about 2 minutes, and the count updates with it (FR-214). A card is never shown that leads to PS-02.
+
+---
+
 ## Cross-Cutting Components
 
 ### App Launch (Splash Screen)
@@ -2605,6 +3539,34 @@ Note *          [Paid at desk                   ]
 - Note: pre-filled "Paid at desk" for Cash; cleared when method changes; required
 - [Confirm Renewal]: spinner; on success → payment recorded, subscription → Active, new expiry set, alert dismisses, member receives push N-04, panel closes; on failure → inline error "Renewal failed. Check your connection and try again." — panel stays open
 - [Cancel] / [✕]: close panel; alert remains
+
+---
+
+### Support Identity Rule *(V1.7, FR-186, FR-195)*
+
+One rule for every component that renders an actor, creator, recorder or approver in a gym-facing surface.
+- A support action renders as **"GymOS Support"**, role "Support", in the same slot a staff name would take. Never a name, initials, avatar, phone, email, a count of people, or a time pattern.
+- This holds in: staff list, audit log and its filter, payment "recorded by", refund approver, member notes, check-in actor, exports, live updates, notifications, error messages. On **member-facing surfaces** (member app, receipts, message templates) support appears as nothing: the gym, never an individual and never "GymOS Support" as a person (FR-195).
+- The displayed actor is derived by the server; no client control sets it.
+- **Super Admin** is the only surface that names an individual (SA-08, SA-09, SA-13, SA-15), and only there.
+- A new component that shows an actor adds a row to the per-surface test list; it never adds a bespoke label.
+
+### Owner Support Notices *(V1.7, FR-180, FR-181, FR-184)*
+
+| Notice | When | Where | Actions |
+|---|---|---|---|
+| Payment account connected / replaced | Immediately after the change | AD-02 banner + existing Owner notification path `[NOTE FOR UX: SMS?]` | [Review changes] → AD-25 |
+| Daily summary | At least daily, only on days support acted | AD-02 banner + notification path | [Open audit log] → AD-12 |
+| Access ended | After unassign, removal, opt-out, deactivation or lock | AD-02 banner; AD-24 link | [Review changes] → AD-25 |
+| Page unpublished by a check | When it happens | AD-27 banner + notification path | [Fix and publish] → AD-27 |
+| Page taken down | When it happens | AD-27 banner + notification path | [Appeal] → AD-27 |
+| Name decision | When Super Admin decides | AD-27 banner + notification path | [Open] → AD-27 |
+
+Copy for each is in Voice and Tone and in AD-24, AD-25, AD-27. One banner shows at a time; newest first; each is dismissible and dismissal is per user, not per gym `[ASSUMPTION]`. Only the **Owner** receives these. The daily summary lists only categories that occurred and names no person: "GymOS Support helped today: 2 refunds, 1 fee waiver, 3 staff added or changed, 1 change to your page's contact or about text." / « GymOS Support est intervenu aujourd'hui : 2 remboursements, 1 dispense de frais, 3 membres du personnel ajoutés ou modifiés, 1 modification du contact ou du texte « À propos » de votre page. »
+
+### Gate Checklist *(V1.7, FR-199, AD-27 and AD-29)*
+
+A list of named conditions, each `done` or `missing`, with a link to its field. Not colour alone: a check or cross icon plus the words "Ready" / "Missing" (« Prêt » / « Manquant »). A summary sentence says how many of the total are ready. It is rendered the same way on the editor and on the publish screen, from one list. A condition that is not required (gallery, services, map position) is shown under "Optional" and never counts toward the total.
 
 ---
 
@@ -2780,6 +3742,33 @@ Note *          [Paid at desk                   ]
 
 **Waive registration fee — "Session guest" preset** *(V1.6)*: the preset text satisfies the shipped 10–200 character reason rule, so no new error is needed.
 
+**AD-27 Landing Page — Editor** *(V1.7; lengths `[ASSUMPTION]`)*
+| Field | Rule | Error (EN / FR) |
+|---|---|---|
+| About | Required to publish; 100–1 000 characters; plain text | "Write at least 100 characters." / « Écrivez au moins 100 caractères. » |
+| Any text field | Markup characters refused | "Use plain text only — no links or formatting." / « Utilisez du texte brut uniquement — pas de liens ni de mise en forme. » |
+| Public phone / WhatsApp | E.164 (same rule as AD-17); at least one required to publish | "Enter a valid phone number (e.g. +237 6 XX XX XX XX)" / « Saisissez un numéro valide (ex. +237 6 XX XX XX XX) » |
+| Map position | Both or neither; latitude −90…90, longitude −180…180 | "Enter both latitude and longitude." / « Saisissez la latitude et la longitude. » |
+| Opening hours | Close after open; one range per day | "Closing time must be after opening time." / « L'heure de fermeture doit être après l'heure d'ouverture. » |
+| Image | JPEG, WebP, PNG; ≤ 5 MB; attestation ticked | "Use a JPEG, WebP or PNG under 5 MB." / « Utilisez une image JPEG, WebP ou PNG de moins de 5 Mo. » · "Confirm you have the right to publish this image." / « Confirmez que vous avez le droit de publier cette image. » |
+| Gallery | ≤ 10 images | "You can add up to 10 images." / « Vous pouvez ajouter jusqu'à 10 images. » |
+
+**AD-28 Page Name** *(V1.7, FR-202)*: lowercase; 3–30 characters; `a-z`, `0-9`, `-`; no leading or trailing hyphen; no `--`; no `xn--` prefix; not digits only. Unique case-insensitively. Messages are the AD-28 list. Reserved and brand-word refusals use the single "not available" message.
+
+**SA-10 Create Support Account** *(V1.7)*
+| Field | Rule | Error (EN / FR) |
+|---|---|---|
+| Full name | Required | "Enter a name." / « Saisissez un nom. » |
+| Phone | Required; E.164 | as AD-17 |
+| Email | Required; must end `@gymosapps.com` | "Use a GymOS email address." / « Utilisez une adresse e-mail GymOS. » |
+| Collision | Phone or email matches any user, Super Admin or linked identity | "We can't create an account with these details. Check them and try again." / « Impossible de créer un compte avec ces informations. Vérifiez-les et réessayez. » |
+
+**SA-11 reasons** *(V1.7)*: Required, 10–500 characters `[ASSUMPTION — same shape as the shipped staff-deactivation reason]`. "Enter a reason (at least 10 characters)." / « Saisissez un motif (au moins 10 caractères). »
+
+**SA-21 Step-up code** *(V1.7)*: exactly 6 digits; paste supported; wrong code → "That code didn't work. Wait for the next code and try again." / « Ce code n'a pas fonctionné. Attendez le code suivant et réessayez. »
+
+**PS-03 Report** *(V1.7)*: reason required; details required, 1–1 000 characters. Messages in PS-03.
+
 ---
 
 ## State Patterns
@@ -2821,6 +3810,16 @@ Note *          [Paid at desk                   ]
 | AD-04 Sessions section *(V1.6)* | "No sessions yet." / "Aucune séance pour le moment." | [Record session payment] (header action) |
 | MA-09 Rewards card *(V1.6)* | Not an empty state — **absent** when the program is off and the member holds nothing (Story 20.6) | — |
 | MA-09 Guest status card, no session *(V1.6)* | "No paid session — pay before you scan." | [Pay for a session] when Tara is connected |
+| AD-16 Staff list, no staff *(V1.7)* | Existing copy, shown **under** the fixed "GymOS Support" row, which is always present | [+ Add staff] |
+| AD-25 Support Review Queue *(V1.7)* | "Nothing to review. GymOS Support hasn't changed anything that needs your attention." / « Rien à vérifier. GymOS Support n'a rien modifié qui demande votre attention. » | None |
+| AD-27 Landing page, not started *(V1.7)* | "Put your gym on the web. Fill in your page — nothing is public until you publish." / « Mettez votre salle en ligne. Remplissez votre page — rien n'est public tant que vous ne publiez pas. » | [Start] |
+| AD-27 Plans on your page, gym has no plans *(V1.7)* | "You haven't added any plans yet. Add a plan to show it on your page." / « Vous n'avez pas encore de formule. Ajoutez-en une pour l'afficher sur votre page. » | [Add a plan] → AD-23 (Manager-plus) |
+| SA-08 Support People *(V1.7)* | "No support people yet. Create the first account." | [Create support account] |
+| SA-13 Locked / SA-14 Recertification / SA-15 Disclosures *(V1.7)* | "No locked accounts." / "Nobody is due for recertification." / "No open requests." | None |
+| SA-16 Held names / SA-17 Reports / SA-18 Appeals *(V1.7)* | "No names waiting for review." / "No reports to review." / "No appeals waiting." | None |
+| SA-19 Cities *(V1.7)* | "No cities for this country yet. Add the first one." | [+ Add city] |
+| PS-04 Directory, no gym published *(V1.7)* | "No gyms are listed yet." / « Aucune salle n'est encore répertoriée. » | None |
+| PS-06 Category filter, no result *(V1.7)* | "No [category] gyms in [city] yet." | "Show all gyms in [city]" link |
 
 ### Loading States
 
@@ -2858,6 +3857,13 @@ Note *          [Paid at desk                   ]
 | AD-13 Charge-guests confirmation count *(V1.6)* | Inline spinner in the count line; [Start charging] disabled |
 | MA-09 Rewards card *(V1.6)* | Rounded rectangle, ~120px tall; rendered only once the member is known to qualify (no flash for non-qualifying members) |
 | MA-17 Pay for Session *(V1.6)* | Price card skeleton ~96px; then the shipped `/renew` phase spinners |
+| AD-24 GymOS Support section *(V1.7)* | 2 text lines; the switch renders at once from the cached setting |
+| AD-25 Review queue *(V1.7)* | 4 rows per section |
+| AD-27 Landing-page editor *(V1.7)* | Checklist card (9 rows) + 3 section blocks; sections load independently |
+| AD-29 Publish *(V1.7)* | 10 rows in the "what becomes public" list |
+| SA-08 Support list *(V1.7)* | 5 rows |
+| SA-16 / SA-17 / SA-18 *(V1.7)* | 5 rows each |
+| PS-04 / PS-05 / PS-06 *(V1.7)* | None: server-rendered complete pages, no client loading state exists |
 
 **Button loading state:** Spinner replaces label text; button width does not change (prevents layout shift); button disabled during request.
 
@@ -2917,6 +3923,17 @@ Note *          [Paid at desk                   ]
 | AD-23 *(V1.6)* | Plan type change refused (plan has subscriptions) | Inline on Plan Type with the lock reason |
 | SA-03 / SA-04 *(V1.6)* | Category setter refuses | Inline typed error on the Category field |
 | SA-07 *(V1.5)* | Row override action fails (mark paid / credit / retry / suspend) | Inline error in the row's expanded panel, action not applied; the row's status is not optimistically updated for Suspend/Reactivate specifically, given the access-denial stakes of a false-positive success |
+| AD-24 *(V1.7)* | Switch write refused or failed | Inline in the section: "Couldn't change this setting. Try again."; the switch stays where it was |
+| AD-26 *(V1.7)* | Disclosure request not sent | Inline in the modal; modal stays open |
+| AD-27 *(V1.7)* | Page-content save refused / image rejected | Per-field inline where mapped, otherwise section summary; image error under the upload control; other sections unaffected |
+| AD-28 *(V1.7)* | Name not available / rule broken | Inline on the field; "not available" never states the cause |
+| AD-29 *(V1.7)* | Server gate fails at publish | Screen lists the missing items; nothing is published |
+| AD-29 *(V1.7)* | Publish write fails | Inline above [Publish page]: "Couldn't publish your page. Try again."; page state unchanged |
+| SA-10 *(V1.7)* | Phone or email collides | One generic message; never says which user matched |
+| SA-11 *(V1.7)* | Assignment refused (already staff, Super Admin) | Typed inline reason inside the dialog |
+| SA-12 / SA-21 *(V1.7)* | Wrong code / session expired / account locked | Inline in the prompt; a lock or expiry closes the prompt into the SA-01 state |
+| SA-17 / SA-19 *(V1.7)* | Takedown or city save refused | Inline in the dialog; slug and alias collisions on their fields |
+| PS-03 *(V1.7)* | Missing field / rate limit | Server-returned form with an error summary; rate limit message does not name the page |
 
 ### V1.5 — New State Patterns
 
@@ -2990,6 +4007,54 @@ V1.6 adds a per-gym session state machine and a loyalty ledger. Every state belo
 | Balance edit | Impossible for every role (FR-170) | — | No control rendered, even disabled |
 
 **Category *(FR-171/FR-172)*:** always set (existing gyms = Gym / Salle de sport). It is descriptive only, with no behaviour or wording change on any surface, and it never appears in the member app.
+
+`[CONFLICT]` *(V1.7, FR-213)*: the V1.6 sentence above says category has "no behaviour or wording change on any surface". From V1.7 the label **is** shown on the public gym page and listing and is a directory filter. It remains descriptive for plan types, permissions and every gym-internal screen, and still never appears in the member app. The sentence is kept as the V1.6 record.
+
+### V1.7 — New State Patterns
+
+V1.7 adds three small state machines (support access, page publication, second-factor sessions) and a public visibility rule. Defaults are conservative: existing gyms have support **off** and no page; nothing is public until an Owner acts.
+
+**Support access *(FR-177, FR-182–FR-184, FR-192)*:**
+| State | Rule | Owner / staff sees | Super Admin sees |
+|---|---|---|---|
+| Switch off | All support access ends on the person's next request; assignments suspended, not deleted (`[ASSUMPTION — OQ-30]`) | AD-24 state 1; fixed row "Off" | Gym: switch Off; assignments "Suspended" |
+| On, nobody assigned | Default for gyms created after V1.7 | AD-24 state 2 | Gym with no assignments |
+| Assignment pending | Person not enrolled, or switch was off at assignment; needs explicit Super Admin confirmation | AD-24 state 4 | SA-09 row "Pending" + reason |
+| Assignment active | Person at the required assurance level, switch on, in-flight limits satisfied | AD-24 state 3 | SA-09 row "Active" |
+| Access ended | Unassign, removal, opt-out, deactivation or lock | AD-02 banner + AD-25 queue; staff rows tagged | Assignment "Ended" with reason |
+| Locked | Velocity limit or repeated wrong codes | Nothing (the person simply can't act) | SA-13 |
+| Gym suspended | Support denied like every staff account (FR-132); not counted for inactivity | Existing suspended pattern | SA-09 note |
+- **Immediate:** like Immediate access revocation, a person whose access ended sees "You don't have permission to do that." on the next request. There is no warning beforehand.
+- **In-flight work** completes or rolls back; pending items re-owned to the system and listed in AD-25.
+
+**Page publication *(FR-199, FR-203, FR-207)*:**
+| State | Public result | Owner sees |
+|---|---|---|
+| No page | PS-02 | AD-27 "Not started"; no name |
+| Name held | PS-02 | "Name under review"; publish blocked |
+| Draft | PS-02 | Checklist with what's missing |
+| Published | PS-01 | "Published"; edits go live within ~2 min |
+| Auto-unpublished | PS-02 | Offline banner with reason; republish when fixed |
+| Owner-unpublished | PS-02 | "Not published"; name stays reserved up to 12 months |
+| Gym suspended | PS-02 | "Offline — gym suspended"; returns when active |
+| Taken down | PS-02 | Takedown banner with reason; republish blocked; name reserved for good |
+- **One public result.** Every non-published state returns the same PS-02, so cause is never inferable from outside.
+- **Reappearance** takes up to about 2 minutes (origin and CDN, AD-46), and directory and sitemap entries up to 15 minutes. The Owner is told "about 2 minutes", not an exact time.
+- **Rename:** the old name forwards (301) for 12 months; the page itself never goes offline during a rename.
+
+**Second-factor session *(FR-189, FR-191, FR-192)*:**
+| State | Rule | UI |
+|---|---|---|
+| No factor | Support: cannot sign in to any gym; Super Admin (flag off): works as before | AD-01 / SA-01 second step absent |
+| Challenge pending | Signed in at the lower level | Only the code prompt |
+| Verified | At the required level | Normal app |
+| Step-up needed | Sensitive action; needs a fresh single-use code, 5 minutes | SA-21 |
+| Idle / over limit | 15 min idle / 8 h (support); 30 min idle / 8 h (Super Admin) `[ASSUMPTION]` | Session-expired state |
+| Locked | Repeated wrong codes or velocity | SA-01 lock message; SA-13 |
+| Reset pending | 30-minute cooling-off, person notified and can cancel | SA-09 status block (SA-12) |
+- **No "remember this device."** Every new session asks again.
+
+**Directory listings *(FR-212, FR-214)*:** below 3 published gyms a listing is `noindex` and absent from the sitemap but renders for visitors as normal; a gym that stops being visible leaves every listing within about 2 minutes (PS-06).
 
 ---
 
@@ -3118,8 +4183,39 @@ V1.6 adds a per-gym session state machine and a loyalty ledger. Every state belo
 | Charge-guests confirmation *(V1.6, AD-13)* | The confirm button is labelled with the action, "Start charging" / "Stop charging", never "Confirm". The old-app warning is part of the dialog's `aria-describedby` |
 | Guest sessions card *(V1.6, AD-02)* | The period control is a `radiogroup` with arrow-key navigation. Each figure link reads its full meaning: "41 paid sessions today, view list" |
 | Plan type lock *(V1.6, AD-23)* | The read-only field uses `aria-readonly="true"` with the reason linked through `aria-describedby`, not conveyed by the lock icon alone |
+| Support switch *(V1.7, AD-24)* | A real `<button role="switch">` with `aria-checked`; its label is "Allow GymOS Support"; the state headline is linked with `aria-describedby`. The turn-on and turn-off dialogs focus-trap, return focus to the switch, and the confirm button is labelled by action ("Turn off" / "Turn on") |
+| Fixed support row *(V1.7, AD-16)* | Rendered as a normal table row with the lock icon `aria-hidden` and the explanation in the row's `aria-describedby`; there is no focusable control in it, so keyboard users are not led to a dead end |
+| Gate checklist *(V1.7, AD-27/AD-29)* | A list; each item reads "Banner image, missing" / "Banner image, ready". The summary uses `aria-live="polite"`, updated after typing pauses (300 ms). Fix links are real links to the field and move focus to it |
+| Page name field *(V1.7, AD-28)* | The rule messages are associated by `aria-describedby`; the `.gymosapps.com` suffix is part of the accessible label ("Page name, followed by .gymosapps.com") |
+| Image attestation *(V1.7, AD-27)* | A labelled checkbox; the upload control is `aria-disabled` with the reason linked until it is ticked |
+| Auto-unpublish / takedown banner *(V1.7, AD-27)* | `role="alert"` on first render; reason text is the accessible name of the banner; dismissal never removes the page status line |
+| Publish screen *(V1.7, AD-29)* | The "what becomes public" list is a `<dl>` or table with `<th scope="row">`; focus moves to the success region after publishing |
+| Step-up prompt *(V1.7, SA-21)* | The six digits are one labelled input (`autocomplete="one-time-code"`, `inputmode="numeric"`), paste supported, not six separate boxes; the bound action line is in `aria-describedby`; wrong-code error is `role="alert"` |
 
 **Color contrast:** All text meets WCAG 2.1 AA (4.5:1 for body; 3:1 for large text and UI components). See `DESIGN.md` for token values.
+
+### Public Surfaces *(V1.7, PS-01…PS-06)*
+
+Public pages are plain HTML with no script (Architecture Decision AD-44), so accessibility rests on semantics, not on ARIA patches or widgets.
+
+| Requirement | Implementation |
+|---|---|
+| Landmarks | One `<header>`, one `<main>`, one `<footer>`; `<nav>` only for breadcrumbs and category links, each with a distinct `aria-label` ("Breadcrumb" / « Fil d'Ariane », "Categories" / « Catégories »). A skip link "Skip to content" / « Aller au contenu » is the first focusable element |
+| Headings | Exactly one `<h1>` (gym name, or the listing title); sections are `<h2>` in the PS-01 content order; no skipped levels. Omitted sections leave no empty heading |
+| Language | `<html lang>` is the gym's `default_language` (gym page) or the URL locale (directory). Gym-entered content is not re-tagged `[NOTE FOR UX: see PS-01]`; the language link on the directory has `hreflang` and `lang` of its target |
+| Focus order | Source order equals visual order, so focus runs: skip link, header, contact actions, About…, footer. No positive `tabindex`, no focus trap, no hidden focusable content. Visible focus ring always (same rule as the dashboard) |
+| Tap targets | Call, WhatsApp, Directions, listing links, category links and pagination links are ≥ 44×44 CSS px with ≥ 8 px between neighbours; links in running text have a line height giving ≥ 24 px target |
+| Link text | Every link names its destination in text: "Call Grace Fit" / « Appeler Grace Fit » as accessible name where the visible text is "Call"; no "click here"; the phone number is visible text |
+| Images | Logo: the gym name as text alternative. Banner: empty alternative (decorative; the name is already in the header). Gallery: the gym's description if given, else empty. No information is carried by an image alone |
+| Colour independence | The gym colour is decorative; no state (current category, closed day) is conveyed by colour alone. The current category link has text and `aria-current="true"` |
+| Contrast | The gym's `primary_color` is applied as a single custom property. Text on it must still meet 4.5:1 (3:1 for large text). The page **falls back to the platform `primary`/`accent` pairing** for any element where the gym colour would fail. Token values and the check live in `DESIGN.md` `[NOTE FOR UX: DESIGN.md has no public-page section yet]` |
+| Zoom and reflow | Single column; usable at 400% zoom and 320 CSS px width with no horizontal scroll; text resizes without clipping |
+| Forms (PS-03) | Native controls only: `<fieldset>`/`<legend>` for the reason group, `<label for>`, `required`, an error summary at the top of the returned page with `role="alert"` and in-page links to each field, each error tied by `aria-describedby` |
+| Motion | None. No auto-playing media, no carousel, no animation to disable |
+| Print | Not specified for V1.7 `[ASSUMPTION]` |
+| Not-found (PS-02) | A real HTTP error status with an `<h1>`; the "Browse gyms" links are plain links |
+
+**Super Admin app *(V1.7)*** inherits every Admin Dashboard row above. Additions: the session-expired and AAL prompts focus their primary field on appearance; each reason dialog is a labelled textarea with its minimum length in `aria-describedby`; the Support dot counts have a text equivalent in the item's accessible name ("Support, 4 items need attention" / « Support, 4 éléments à traiter »).
 
 ---
 
@@ -3171,6 +4267,21 @@ V1.6 adds a per-gym session state machine and a loyalty ledger. Every state belo
 ### Super Admin Dashboard
 
 Same breakpoints as Admin Dashboard. Desktop primary; tablet supported; mobile shows info banner.
+
+**V1.7:** the V1.7 Super Admin tables (SA-08, SA-13…SA-19) follow the existing priority: Name, State and Actions always visible; Phone, Email, "Last active" and "Held because" hide first. Review panels (SA-13, SA-15, SA-16, SA-17) open as a right drawer ≥ 1024 px and full-screen below. The step-up prompt (SA-21) and reason dialogs are full-screen under 768 px.
+
+### Public Surfaces *(V1.7)*
+
+Layout is `DESIGN.md`'s; this is the behavior at each width.
+
+| Viewport | Behavior |
+|---|---|
+| ≥ 1024 px | One reading column with a maximum measure of about 70 characters for About; the contact actions stay in the top region, never in a floating bar (no script, no sticky behavior assumed) |
+| 600–1023 px | Same single column, contact actions in a row |
+| 320–599 px (primary: mid-range Android on 4G, NFR-025) | One column. Contact actions stack as full-width buttons, Call first. Images are sized to the viewport so a banner never forces horizontal scroll; the gallery is a single column of images |
+| Slow connection | The page must be complete and usable before images arrive: text and contact actions are in the first response; images have reserved dimensions so nothing jumps |
+| Script blocked / old browser | Identical, because nothing depends on script |
+| Dark mode | `[NOTE FOR UX]` not specified for public pages; the member app is dark and the dashboard light. Decide in `DESIGN.md` whether public pages respond to `prefers-color-scheme`. Until then, light only `[ASSUMPTION]` |
 
 ---
 
@@ -3360,3 +4471,57 @@ Same breakpoints as Admin Dashboard. Desktop primary; tablet supported; mobile s
 10. **Month end, AD-02.** Grace opens her Overview, switches the Guest sessions card to "This month", and reads 41 paid guest sessions, 6 blocked attempts, 8 free sessions given. She opens Paid on AD-22, grouped by Recorded by, and sees what the guest desk is actually earning.
 
 **Climax beat:** The Thursday Ange forgot to pay costs her one extra scan, and costs the gym nothing. The app never pretended she was checked in, the desk caught it in real time, and at month end Grace can see what the guest desk is actually earning, down to who collected it.
+
+
+---
+
+### Flow 13 · Idris Sets Up a Gym From the Inside *(V1.7, UJ-12)*
+
+**Protagonist:** Idris, a GymOS support person. Supporting cast: Chidi (Super Admin, Flow 6 and Flow 11) and Grace (Owner, Flow 7), who has signed her gym up and is stuck on plan prices and the Tara Money connection. `[ASSUMPTION — narrative drafted, per PRD UJ-12]`
+
+**Entry:** Grace's gym has "Allow GymOS Support" on (new gyms start on, FR-183). Chidi has created Idris's account (SA-10, invite sent to Idris's verified phone) and assigned him to Grace's gym (SA-11, reason recorded).
+
+1. **Invite.** Idris opens the single-use link, receives a phone code, sets a password and scans the authenticator code. The account becomes active only after he enters a correct code.
+2. **AD-01.** He signs in with phone and password, then types the six-digit code. The sidebar's gym name is his gym switcher; he picks "Grace Fit".
+3. **AD-23.** He enters Grace's plans and prices.
+4. **AD-07.** He imports her first forty members from a spreadsheet.
+5. **AD-13 → Payment Account → Connect.** He opens Settings, then [Connect payment account →]. Before the credentials are accepted the step-up prompt (SA-21) says "You're about to: Connect payment account" and asks for a fresh code. He enters Grace's details and a new code, and the connection is made.
+6. **AD-02 (Grace, minutes later).** A banner reads "GymOS Support updated your payment account." with [Review changes]. There is no approval step: the connection is already live, the Owner is told at once, and the audit row exists (FR-180). `[CONFLICT]` with PRD UJ-12, which says Grace "gets a confirmation… and approves it before anything changes". FR-180, as amended on 2026-10-15, drops Owner approval; this flow follows FR-180, and the PRD narrative needs the same edit.
+7. **AD-16 and AD-12 (Grace).** Staff shows one fixed row, "GymOS Support", and her audit trail labels every change "GymOS Support" with the time. She never sees Idris's name, or whether anyone else also works on her gym.
+8. **A week later, AD-13 → AD-24.** Grace switches "Allow GymOS Support" off. The dialog says support loses access straight away. The headline reads "Turned off by you."
+9. **Idris's next request.** He taps a member row in Grace's gym and gets "You don't have permission to do that." No warning came first.
+
+**Climax beat:** The switch is Grace's and it works on the very next request. In the whole week, Grace never learned a name, never had to approve a technical step she couldn't judge, and never lost the ability to say stop.
+
+---
+
+### Flow 14 · Aminata Finds a Gym, and Grace Publishes One *(V1.7, UJ-13)*
+
+**Protagonist:** Aminata, new to Douala, searching on her phone. Supporting cast: Grace (Owner), her Supervisor. `[ASSUMPTION — narrative drafted, per PRD UJ-13]`
+
+1. **Search.** Aminata searches "pilates studio Douala" and opens a result: **PS-01** at `grace-fit.gymosapps.com`. The page is in the gym's language, loads on 4G without script, and shows a banner, the studio's name and category, and Call and WhatsApp at the top.
+2. **PS-01, reading.** She sees two public plans with prices and the opening hours. There is no login, no member count, no staff name.
+3. **Tap WhatsApp.** A chat opens with the gym's public number. **That is Aminata's whole journey.**
+4. **Grace's side, earlier — AD-27.** The checklist listed what was missing: logo, banner, about text of at least 100 characters, hours, a public contact, one plan marked "Show on my page". Grace marked only Monthly public; her other plans stay private.
+5. **AD-28.** Grace claims `grace-fit`. The name passes; nothing holds it.
+6. **AD-29.** The publish screen lists exactly what becomes public, including the public contact number (a number she chose, not her login phone). She ticks the image attestation and taps [Publish page]. "It can take up to 2 minutes to appear."
+7. **Later, AD-27 (Supervisor).** Her Supervisor changes the opening hours. The page keeps passing its checks, so it stays live; the change appears within about 2 minutes. The Supervisor sees the page name as plain text and has no [Change name].
+8. **Hypothetical, AD-27.** If Grace made her last public plan private, the editor would warn "Your page will go offline because it would have no public plan. Save anyway?" On Save the page unpublishes itself and the banner says why: "Your page is offline: it no longer has a public plan." A visitor on that link would see PS-02, the same "This page isn't available." as for any unknown name.
+
+**Climax beat:** Aminata taps WhatsApp and is talking to a person in one tap, at a number Grace chose to make public and saw on the publish screen before it went live.
+
+---
+
+### Flow 15 · Chidi Takes Down an Impersonating Page *(V1.7, UJ-14)*
+
+**Protagonist:** Chidi, GymOS platform staff, Super Admin (Flows 6 and 11). Supporting cast: an anonymous visitor; the Owner of the gym behind `getgymfit`. `[ASSUMPTION — narrative drafted, per PRD UJ-14]`
+
+1. **PS-03.** A visitor opens `getgymfit.gymosapps.com`, reads "Official GymOS payment page — pay your fees here", taps "Report this page", picks "Pretending to be someone else", adds a line of detail and sends. They see "Thank you. We'll review this page."
+2. **SA-17 (Chidi).** The report lands in the Reports tab, Open, three days to answer. The name passed every rule, so nothing held it (SA-16 had nothing); the form is how it surfaced.
+3. **SA-17 detail.** Chidi reads the page as currently published and the reports. He taps [Take down…].
+4. **Takedown dialog.** Reason "Impersonation". A step-up code is asked for. The dialog says the page stops being served within a minute, the Owner is told why, and the name stays reserved to that gym.
+5. **Within the minute.** `getgymfit.gymosapps.com` returns PS-02, "This page isn't available.", the same as for a name that never existed. The listing and sitemap drop it within the stated times.
+6. **AD-27 (Owner).** The banner says "GymOS took your page down: Impersonation. Your page name stays reserved for you. You can appeal." [Publish page] is absent while the takedown stands.
+7. **If the Owner appeals.** The appeal reaches SA-18; Chidi decides with a reason, which the Owner receives.
+
+**Climax beat:** Chidi acts once and the page vanishes from every public door in under a minute. A visitor and the impersonator see the same "This page isn't available." as for any random name, so the address gives away nothing, and the name stays locked to that gym so it can't be re-registered to dodge the takedown.

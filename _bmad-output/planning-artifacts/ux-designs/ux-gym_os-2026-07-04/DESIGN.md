@@ -2,7 +2,7 @@
 name: GymOS
 status: final
 created: 2026-07-04
-updated: 2026-10-11
+updated: 2026-10-15
 sources:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
   - _bmad-output/planning-artifacts/epics.md
@@ -145,6 +145,29 @@ Visual specs only — behavior lives in `EXPERIENCE.md`'s Member App Component L
 **Front-desk alert — session-required variant** *(V1.6, dashboard)* — the same row anatomy as the grace and denied variants, with an `info` status dot and header text. It uses system-ui like the rest of the dashboard.
 
 **Category label** *(V1.6, dashboard only)* — plain text in the table cell or field. No chip and no colour: the category is descriptive data (FR-172) and must not look like a status.
+
+## Public Page Templates
+
+*(V1.7, decided 2026-10-15.)* A gym's public page is rendered by a template chosen from a growing library; GymOS generates templates over time. This section holds the visual rules every template shares. Behavior, section order and the conformance rules are in EXPERIENCE.md PS-01 "Template contract".
+
+| Rule | Value |
+|---|---|
+| Variable color | `gym.primary_color` only, replacing `colors.accent` for actions and one accent rule; `primary`, `background`, `success`, `warning`, `danger`, `neutral`, `info` stay platform-fixed |
+| Backgrounds | Template choice: platform `{colors.background}` (light) or the member-app dark palette (`#0A0F17`, surface `#141F30`); the page declares one |
+| Type | Barlow 700 and 800 from the self-hosted allowlist for headings and prices, system sans-serif for body; hierarchy by weight, uppercase and tracking only for headings, as in Typography above |
+| Shape | `rounded.card` 16 for cards, `rounded.pill` for actions, `rounded.chip` 8 for chips; no hero radius |
+| Spacing | The `spacing` scale only; 16 px page gutter; one column at every width up to 640, optional two columns above |
+| Motion | None required; no animation that depends on script. Respect `prefers-reduced-motion` for any CSS transition |
+| Imagery | Banner and gallery images come from the opaque media origin; every image has a text alternative from the gym's description or is marked decorative |
+
+**Seed templates** (not alternatives; the first two of the library):
+
+| Seed | Character | Mock |
+|---|---|---|
+| A, dark | Member-app echo: navy-black, uppercase headings, card sections, gym color on the three action buttons | `mockups/template-seed-a-dark.html` |
+| B, light | Plain and fast: light background, high contrast, one accent rule, hairline rows | `mockups/template-seed-b-light.html` |
+
+The mocks are references for the seed templates; if a mock and this spine disagree, the spine wins.
 
 ## Do's and Don'ts
 
