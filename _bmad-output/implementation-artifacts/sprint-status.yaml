@@ -432,7 +432,7 @@ development_status:
 
   epic-22: in-progress
   22-1-spike-claims-hook-aal-factor-guard-session-deletion-cookies: done
-  22-2-claim-read-inventory-and-ci-check-report-mode: review
+  22-2-claim-read-inventory-and-ci-check-report-mode: done
   22-3-live-authorization-in-the-database: backlog
   22-4-live-authorization-in-edge-functions-and-service-paths: backlog
   22-5-super-admin-second-factor-enrollment-flag-off: backlog
@@ -1218,3 +1218,4 @@ last_updated: 10-15-2026 12:30
 # last_updated: 2026-10-15 (build 22-2: backlog -> in-progress on branch feat/22-2-claim-read-inventory; spec spec-22-2-*.md approved. Scope includes app Server Actions (kind server, tag 22.4); private.gym_id() listed claim-only tag 22.3 with callers live-checked by delegation.)
 # last_updated: 2026-10-15 (build 22-2: in-progress -> review. scripts/claim-inventory.mjs + exempt/baseline JSON + unit tests; check:claims wired into ci-local pgtap stage and ci.yml rls-tests. Baseline: claim-only 7 (22.3: 5 -- the 3 private helpers, private.is_super_admin, trigger protect_payment_columns_on_staff_verify; 22.4: 7 app server sources), live-checked 118, exempt 1 (claims hook), null-unsafe 3 (22.3). No migration or policy change.)
 # last_updated: 2026-10-15 (build 22-2 review fixes: claim reads narrowed to app_role/gym_id/role; baseline now claim-only 7 (22.3: 5, 22.4: 2), live-checked 118, exempt 1, null-unsafe 3, mixed 59 informational; the two get-request-locale and both proxy.ts files are no longer listed.)
+# last_updated: 2026-10-15 (22-2 done, merged to epic/22; review: 3 layers, regex narrowed to app_role/gym_id/role, scanner test + zero-scan guard, mixed list added; ci-local GREEN for fa285d8 (static 4s, pgtap 44s, unit, e2e 75s). Baseline: claim-only 7 (22.3: 5, 22.4: 2), live-checked 118, exempt 1, null-unsafe 3 (22.3), mixed 59 informational (22.3 to read before rewriting private.gym_id()).)
