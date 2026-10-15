@@ -427,7 +427,7 @@ development_status:
 
   epic-21: in-progress
   21-1-gym-category-column-setter-super-admin: done
-  21-2-settings-gym-category-field-owner-supervisor: review
+  21-2-settings-gym-category-field-owner-supervisor: done
   epic-21-retrospective: optional
 action_items:
   - epic: 7
@@ -1098,3 +1098,4 @@ last_updated: 10-15-2026 12:20
 # last_updated: 2026-10-15 (build: 21-2 backlog -> in-progress, spec-21-2-settings-gym-category-field-owner-supervisor.md written, oneshot route; no migration)
 # last_updated: 2026-10-15 (build: 21-2 in-progress -> review, Settings category field built (no migration), review triaged, settings columns rebalanced at user request; vitest, static, pgtap, e2e green)
 # last_updated: 2026-10-15 (ad-hoc, non-story: text/arrow links turned into outline Buttons with lucide arrows in dashboard (viewAll x3, manage staff, back to settings, guest-sessions back) and super-admin (back to gyms); arrows removed from EN/FR strings, on epic 21 story branch)
+# last_updated: 2026-10-15 (21-2 review -> done, merged to epic/21 via PR #72, ci-local green on 845c7b7; epic 21 stories complete, retrospective optional, epic -> master + prod-apply of 0123 still owner decisions)
