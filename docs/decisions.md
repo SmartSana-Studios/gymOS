@@ -4,6 +4,16 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — Tested restore deferred by the owner
+
+The owner chose to skip the restore test for now (`scripts/restore-test.sh` is ready; the run needs the age private key and R2 read access, which only the owner holds).
+
+- **State:** "last tested restore" stays **never tested**. Recovery from the R2 dump is unproven: whether the newest `db.<stamp>.dump.age` decrypts with the owner's key, and restores, is unknown. The backups themselves run daily and are green.
+- **Accepted risk:** a restore needed before this test would be the first time the path is exercised. Per-gym Tara credentials in Vault do not decrypt in another project either way (gyms must reconnect Tara after a restore into a new project).
+- **Revisit:** before the first gym is asked to enable loyalty, and in any case at the 2026-12-31 backup/PITR review in `docs/deploy-runbook.md` section 6. One run of the script and one pasted line closes it.
+
+---
+
 ## 2026-10-15 — Owner gates before the first gym enables loyalty: what is done and what only the owner can do
 
 The three gates deferred on 2026-10-12 (Epic 19 retro actions 2, 3, 6 and Epic 18 item 22):
