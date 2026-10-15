@@ -1090,7 +1090,7 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 
 ## Deferred from: code review of spec-20-3-subscriber-rule-on-time-renewal-stamps-r-free-days-at-k (2026-10-13)
 
-- An early renewal forfeits the remaining period, including any rewarded R free days: the new subscription starts at `current_date` in `confirm_renewal` and `complete_verified_payment`. Pre-existing renewal semantics; becomes member-visible once free days exist. Decide with 20.5 copy whether to carry remaining days.
+- **DECIDED 2026-10-15 (docs/decisions.md): an early renewal carries the remaining days, free days included; story still to be written and built.** An early renewal forfeits the remaining period, including any rewarded R free days: the new subscription starts at `current_date` in `confirm_renewal` and `complete_verified_payment`. Pre-existing renewal semantics; becomes member-visible once free days exist. Decide with 20.5 copy whether to carry remaining days.
 - Subscriber free days render as "Free session granted" (`loyalty_reward_granted`, counter `subscriber` not rendered). Spec forbids new labels in 20.3; fix in 20.5.
 - `gyms.timezone` has no database validation (0002: text not null default). An unresolvable zone makes `award_renewal_stamp` raise inside `complete_verified_payment` / `confirm_renewal`, rolling back a paid renewal. Unverified medium. Settle by checking the settings-form schema validates against the IANA list; fold into the 20.4 decision on hook failure posture.
 

@@ -4,6 +4,18 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — Early renewal carries the remaining days, free days included (Epic 20 retro S-3)
+
+Open question from `epic-20-retro-2026-10-14.md` S-3 (deferred-work.md, review of 20.3): a renewal verified before the current expiry starts the new subscription at `current_date` (`confirm_renewal`, `complete_verified_payment`), so the remaining paid days are forfeited, and with them any R free days the loyalty program had appended to that period.
+
+- **Decision.** An early renewal does not forfeit anything. The renewed subscription runs from the current expiry date (or today, if the subscription already lapsed) for the plan duration, so the remaining days, rewarded free days included, are carried. Rewarded days are not special-cased: they are part of the period and travel with it.
+- **Why the general rule, not a loyalty-only carve-out.** The forfeit exists today for every early renewal; free days only add to what is lost. Carrying only the reward portion would need the reward's position in the period tracked separately and would leave a paying member losing paid days for renewing a week early. A single "extend from the current expiry" rule is simpler to explain, to test and to show in copy, and it removes the incentive to wait for the last day.
+- **No loyalty interaction.** An early renewal still earns no stamp (20.3: on time means from the expiry date to one day after it), so carrying days gives no way to farm rewards. The on-time test in `private.award_renewal_stamp` compares the gym-local date with the previous expiry and is unaffected.
+- **Not built yet.** It changes two money functions in production, so it is its own story with a migration (next free number after Epic 21's 0121), pgTAP for early, on-time, late and back-dated renewals, the `one_active_membership_per_gym` constraint, a rollback script and the mobile/dashboard renewal copy ("new expiry date"). Until it ships, an early renewal still forfeits the remaining days; staff should renew on or after the expiry date.
+- **Source:** deferred-work.md "Deferred from: code review of spec-20-3", `0119` header, retro action item 5.
+
+---
+
 ## 2026-10-12 — Epic 19 retro decisions: `class_bookings` DELETE grant and `platform_metrics()` semantics
 
 Two open items from `epic-19-retro-2026-10-12.md` (S-4, R-3), decided by the owner on 2026-10-12.
