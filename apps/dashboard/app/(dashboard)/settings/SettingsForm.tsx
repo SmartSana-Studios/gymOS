@@ -2,113 +2,28 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import Link from "next/link";
-import QRCode from "qrcode";
-import {
-  AlertTriangle,
-  ArrowRight,
-  Bell,
-  Clock,
-  CreditCard,
-  Globe,
-  Palette,
-  QrCode,
-  Receipt,
-  Users,
-} from "lucide-react";
-import {
-  connectGymPaymentCredentialsSchema,
-  emailSchema,
-  GYM_CATEGORIES,
-  gymCategoryLabel,
-  gymSettingsSchema,
-  registrationFeeSchema,
-} from "@gymos/types";
+import { gymSettingsSchema } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { GymSettingsRow } from "@/services/gym-settings";
 import type { GymPaymentConnectionStatus } from "@/services/gym-payment-credentials";
 import type { GymBillingInfo, SelectableTier } from "@/services/billing";
-import { PayNowButton } from "@/components/shared/PayNowButton";
 import { listPhoneCountries } from "@/lib/phone";
 import { type LoyaltyPlanDuration } from "./loyaltyReadout";
 import { LoyaltyProgramSection } from "./LoyaltyProgramSection";
-import { SectionHeader } from "./SectionHeader";
-import {
-  connectPaymentProvider,
-  disconnectPaymentProvider,
-  getBillingInfo,
-  getGuestChargingImpact,
-  regenerateQrCode,
-  saveGymCategory,
-  saveGymSettings,
-  saveNotificationEmail,
-  saveRegistrationFee,
-  setGuestCharging,
-  uploadLogo,
-} from "./actions";
-
-// Story 11.3 (review fix): `saas_billing_anchor_date` is a bare "YYYY-MM-DD"
-// date column -- `new Date(dateOnly)` parses it as UTC midnight, which then
-// renders a day early for a negative-UTC-offset viewer. Mirrors this exact
-// codebase's own established fix (RenewalModal.tsx/MembersPageClient.tsx/
-// CoachPortalPageClient.tsx/SubscriptionsPageClient.tsx/FrontDeskAlertPanel.tsx):
-// build the Date from local Y/M/D components instead.
-function formatLocalDate(dateOnly: string, locale: string): string {
-  const [year, month, day] = dateOnly.split("-").map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString(locale);
-}
-
-const TIMEZONE_OPTIONS = [
-  { value: "Africa/Douala", label: "Africa/Douala (GMT+1)" },
-  { value: "Africa/Lagos", label: "Africa/Lagos (GMT+1)" },
-  { value: "Africa/Bangui", label: "Africa/Bangui (GMT+1)" },
-  { value: "Africa/Kinshasa", label: "Africa/Kinshasa (GMT+1)" },
-  { value: "UTC", label: "UTC" },
-] as const;
-
-const HEX_COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
-
-interface FieldErrors {
-  gymName?: string;
-  primaryColor?: string;
-  timezone?: string;
-  defaultLanguage?: string;
-  country?: string;
-  gracePeriodDays?: string;
-  capacity?: string;
-  alertAutoDismissMinutes?: string;
-  checkinTimeoutHours?: string;
-}
-
-interface PaymentFieldErrors {
-  apiKey?: string;
-  businessId?: string;
-  webhookSecret?: string;
-}
-
-// Review fix (Story 4.13): `connectGymPaymentCredentialsSchema`'s Zod
-// messages are English-only and were previously shown to the user verbatim,
-// bypassing i18n entirely despite Task 4's explicit requirement for
-// localized dialog errors. Mapped by field + issue code instead, matching
-// this file's own `NAN_FIELD_MESSAGE_KEYS` precedent for the main form.
-const PAYMENT_FIELD_MESSAGE_KEYS: Record<keyof PaymentFieldErrors, { required: string; tooLong: string }> = {
-  apiKey: {
-    required: "settings.payments.apiKeyRequiredError",
-    tooLong: "settings.payments.apiKeyTooLongError",
-  },
-  businessId: {
-    required: "settings.payments.businessIdRequiredError",
-    tooLong: "settings.payments.businessIdTooLongError",
-  },
-  webhookSecret: {
-    required: "settings.payments.webhookSecretRequiredError",
-    tooLong: "settings.payments.webhookSecretTooLongError",
-  },
-};
+import { saveGymSettings } from "./actions";
+import { AttendanceSection } from "./AttendanceSection";
+import { BillingSection } from "./BillingSection";
+import { BrandingSection } from "./BrandingSection";
+import { FrontDeskAlertsSection } from "./FrontDeskAlertsSection";
+import { GuestChargingDialogs, useGuestCharging } from "./GuestChargingSection";
+import { LocalizationSection } from "./LocalizationSection";
+import { MembershipSection } from "./MembershipSection";
+import { PaymentDialogs, PaymentsCard, usePayments } from "./PaymentsSection";
+import { QrCodeCard, QrRegenerateDialog, useQrCode } from "./QrCodeSection";
+import { StaffSection } from "./StaffSection";
+import type { FieldErrors } from "./settingsFormTypes";
+import { useLogoUpload } from "./useLogoUpload";
 
 export function SettingsForm({
   initial,
@@ -154,49 +69,11 @@ export function SettingsForm({
     alertAutoDismissMinutes: String(initial.alertAutoDismissMinutes),
     checkinTimeoutHours: String(initial.checkinTimeoutHours),
   });
-  // Swatch only updates on a *valid* hex value (Task 7's manual verification
-  // spec: "swatch updates only on valid input") -- kept separate from the
-  // raw `form.primaryColor` field so an in-progress, still-invalid keystroke
-  // doesn't blank the swatch.
-  const [swatchColor, setSwatchColor] = useState(
-    initial.primaryColor && HEX_COLOR_RE.test(initial.primaryColor) ? initial.primaryColor : null,
-  );
 
-  // Story 18.1: the registration fee saves through its own RPC (the column is
-  // pinned against the main form's UPDATE), so it has its own state and Save
-  // button, mirroring the billing notification email below.
-  const [registrationFee, setRegistrationFee] = useState(String(initial.registrationFee));
-  const [registrationFeeError, setRegistrationFeeError] = useState<string | null>(null);
-  const [savingRegistrationFee, setSavingRegistrationFee] = useState(false);
-
-  // Story 21.2: the category saves through its own RPC (the column is pinned
-  // against the main form's UPDATE), so its state is independent of `form`:
-  // [Save Settings] never sends it and a general save never resets it.
-  const [category, setCategory] = useState(initial.category);
-  const [savedCategory, setSavedCategory] = useState(initial.category);
-  const [categoryError, setCategoryError] = useState<string | null>(null);
-  const [savingCategory, setSavingCategory] = useState(false);
-
-  // Story 19.9a: charge-guests-per-session saves through its own RPC after a
-  // confirmation dialog; the toggle only reflects the *stored* value and never
-  // flips before the server confirms.
+  // Story 19.9a: the charge-guests control, the loyalty program and the
+  // category field render for owner/supervisor only.
   const canManageGuestCharging = role === "owner" || role === "supervisor";
   const canManageCategory = role === "owner" || role === "supervisor";
-  const [chargeGuests, setChargeGuests] = useState(initial.chargeGuestsPerSession);
-  // Story 20.5: mirrors the saved loyalty switch for the turn-off dialog; the section reports changes.
-  const [loyaltyActive, setLoyaltyActive] = useState(initial.loyaltyEnabled);
-  const [chargeDialog, setChargeDialog] = useState<"on" | "off" | null>(null);
-  const [chargeImpact, setChargeImpact] = useState<
-    { status: "loading" } | { status: "error" } | { status: "ready"; count: number; validityDays: number }
-  >({ status: "loading" });
-  const [chargeSaving, setChargeSaving] = useState(false);
-  const [chargeError, setChargeError] = useState<string | null>(null);
-  const chargeOnDialogRef = useRef<HTMLDialogElement>(null);
-  const chargeOffDialogRef = useRef<HTMLDialogElement>(null);
-  const chargeOnCancelRef = useRef<HTMLButtonElement>(null);
-  const chargeOffCancelRef = useRef<HTMLButtonElement>(null);
-  const chargeImpactRequestRef = useRef(0);
-
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -205,90 +82,11 @@ export function SettingsForm({
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const formTopRef = useRef<HTMLDivElement>(null);
 
-  const [logoUrl, setLogoUrl] = useState<string | null>(initial.logoUrl);
-  const [logoError, setLogoError] = useState<string | null>(null);
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const logoBlobUrlRef = useRef<string | null>(null);
-
-  const [gymToken, setGymToken] = useState(initial.gymToken);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [regenerateOpen, setRegenerateOpen] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
-  const regenerateDialogRef = useRef<HTMLDialogElement>(null);
-
-  const [paymentConnection, setPaymentConnection] = useState(initialPaymentConnection);
-  const [paymentForm, setPaymentForm] = useState({ apiKey: "", businessId: "", webhookSecret: "" });
-  const [paymentFieldErrors, setPaymentFieldErrors] = useState<PaymentFieldErrors>({});
-  const [paymentFormError, setPaymentFormError] = useState<string | null>(null);
-  const [connectOpen, setConnectOpen] = useState(false);
-  const [connecting, setConnecting] = useState(false);
-  const connectDialogRef = useRef<HTMLDialogElement>(null);
-  const [disconnectOpen, setDisconnectOpen] = useState(false);
-  const [disconnecting, setDisconnecting] = useState(false);
-  const disconnectDialogRef = useRef<HTMLDialogElement>(null);
-
-  // Story 11.3 (Task 6): the Owner's own GymOS (Flow B) billing section.
-  const [billingInfo, setBillingInfo] = useState(initialBillingInfo);
-  const [notificationEmail, setNotificationEmail] = useState(initialBillingInfo?.notificationEmail ?? "");
-  const [emailError, setEmailError] = useState<string | null>(null);
-  const [savingEmail, setSavingEmail] = useState(false);
-
   useEffect(() => {
     return () => {
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-      if (logoBlobUrlRef.current) URL.revokeObjectURL(logoBlobUrlRef.current);
     };
   }, []);
-
-  useEffect(() => {
-    if (regenerateOpen) {
-      regenerateDialogRef.current?.showModal();
-    }
-  }, [regenerateOpen]);
-
-  useEffect(() => {
-    if (connectOpen) {
-      connectDialogRef.current?.showModal();
-    }
-  }, [connectOpen]);
-
-  useEffect(() => {
-    if (disconnectOpen) {
-      disconnectDialogRef.current?.showModal();
-    }
-  }, [disconnectOpen]);
-
-  useEffect(() => {
-    if (chargeDialog === "on") {
-      chargeOnDialogRef.current?.showModal();
-      chargeOnCancelRef.current?.focus();
-    } else if (chargeDialog === "off") {
-      chargeOffDialogRef.current?.showModal();
-      chargeOffCancelRef.current?.focus();
-    }
-  }, [chargeDialog]);
-
-  useEffect(() => {
-    QRCode.toDataURL(gymToken).then(setQrDataUrl).catch(() => setQrDataUrl(null));
-  }, [gymToken]);
-
-  // Story 11.4: "Pay Now" (dialog + submit + pending-payment poll) is now
-  // owned by the extracted <PayNowButton>, shared with the suspended-gym
-  // Owner recovery screen -- see its own file for the polling logic.
-  async function handlePaymentConfirmed() {
-    showToast(t("settings.billing.paymentConfirmedToast"));
-    // Refetches this client component's own copy of billingInfo --
-    // router.refresh() alone re-renders the Server Component tree, but this
-    // component's local useState (seeded from initialBillingInfo) would not
-    // pick that up without an explicit refetch, same as paymentConnection's
-    // own established pattern.
-    try {
-      const { data } = await getBillingInfo();
-      if (data) setBillingInfo(data);
-    } catch (err) {
-      console.error("[settings] failed to refetch billing info after payment confirmation", err);
-    }
-  }
 
   function showToast(message: string) {
     setToast(message);
@@ -296,68 +94,13 @@ export function SettingsForm({
     toastTimerRef.current = setTimeout(() => setToast(null), 4000);
   }
 
-  function handleColorChange(value: string) {
-    setForm({ ...form, primaryColor: value });
-    if (HEX_COLOR_RE.test(value)) {
-      setSwatchColor(value);
-    }
-  }
-
-  async function handleLogoSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
-    setLogoError(null);
-    if (logoBlobUrlRef.current) {
-      URL.revokeObjectURL(logoBlobUrlRef.current);
-    }
-    // The URL this upload should fall back to if it fails -- whatever was
-    // showing before this attempt, not necessarily `initial.logoUrl` (a
-    // prior successful upload in this same session may have already moved
-    // it away from the initial value).
-    const previousLogoUrl = logoUrl;
-    // Client-side preview, before any server round-trip -- this is what
-    // satisfies AC #1's "immediately" wording (story Dev Notes).
-    const blobUrl = URL.createObjectURL(file);
-    logoBlobUrlRef.current = blobUrl;
-    setLogoUrl(blobUrl);
-    setUploadingLogo(true);
-
-    try {
-      const formData = new FormData();
-      formData.set("file", file);
-      const { data, error } = await uploadLogo(formData);
-      if (error) {
-        setLogoError(error.message);
-        URL.revokeObjectURL(blobUrl);
-        logoBlobUrlRef.current = null;
-        setLogoUrl(previousLogoUrl);
-        return;
-      }
-      if (data) {
-        URL.revokeObjectURL(blobUrl);
-        logoBlobUrlRef.current = null;
-        setLogoUrl(data.logoUrl);
-      }
-    } catch {
-      setLogoError(t("common.somethingWentWrong"));
-      URL.revokeObjectURL(blobUrl);
-      logoBlobUrlRef.current = null;
-      setLogoUrl(previousLogoUrl);
-    } finally {
-      setUploadingLogo(false);
-    }
-  }
-
-  function handleRemoveLogo() {
-    if (logoBlobUrlRef.current) {
-      URL.revokeObjectURL(logoBlobUrlRef.current);
-      logoBlobUrlRef.current = null;
-    }
-    setLogoUrl(null);
-    setLogoError(null);
-  }
+  const logo = useLogoUpload(initial.logoUrl);
+  const { logoUrl, uploadingLogo } = logo;
+  const qr = useQrCode({ initialToken: initial.gymToken, showToast });
+  const payments = usePayments({ initialConnection: initialPaymentConnection, showToast });
+  const charge = useGuestCharging({ initialValue: initial.chargeGuestsPerSession, showToast });
+  // Story 20.5: mirrors the saved loyalty switch for the turn-off dialog; the section reports changes.
+  const [loyaltyActive, setLoyaltyActive] = useState(initial.loyaltyEnabled);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); // validate on submit only, per UX-DR11
@@ -421,229 +164,6 @@ export function SettingsForm({
     }
   }
 
-  async function loadChargeImpact() {
-    const requestId = ++chargeImpactRequestRef.current;
-    setChargeImpact({ status: "loading" });
-    try {
-      const { data, error } = await getGuestChargingImpact();
-      if (requestId !== chargeImpactRequestRef.current) return;
-      if (error || !data) {
-        setChargeImpact({ status: "error" });
-        return;
-      }
-      setChargeImpact({ status: "ready", count: data.count, validityDays: data.validityDays });
-    } catch {
-      if (requestId === chargeImpactRequestRef.current) setChargeImpact({ status: "error" });
-    }
-  }
-
-  function openChargeDialog() {
-    setChargeError(null);
-    setChargeDialog(chargeGuests ? "off" : "on");
-    void loadChargeImpact();
-  }
-
-  function closeChargeDialog() {
-    chargeImpactRequestRef.current++;
-    (chargeDialog === "on" ? chargeOnDialogRef : chargeOffDialogRef).current?.close();
-  }
-
-  async function handleChargeConfirm() {
-    const next = !chargeGuests;
-    setChargeSaving(true);
-    setChargeError(null);
-    try {
-      const { error } = await setGuestCharging(next);
-      if (error) {
-        setChargeError(error.message || t("settings.guestCharging.saveFailed"));
-        return;
-      }
-      setChargeGuests(next);
-      closeChargeDialog();
-      showToast(next ? t("settings.guestCharging.onToast") : t("settings.guestCharging.offToast"));
-    } catch {
-      setChargeError(t("settings.guestCharging.saveFailed"));
-    } finally {
-      setChargeSaving(false);
-    }
-  }
-
-  async function handleRegenerateConfirm() {
-    setRegenerating(true);
-    try {
-      const { data, error, warning } = await regenerateQrCode();
-      if (error || !data) {
-        showToast(t("settings.qr.regenerateFailedToast"));
-        return;
-      }
-      setGymToken(data.gymToken);
-      if (warning) {
-        showToast(warning);
-      }
-    } catch {
-      showToast(t("settings.qr.regenerateFailedToast"));
-    } finally {
-      setRegenerating(false);
-      setRegenerateOpen(false);
-    }
-  }
-
-  function handleDownloadQr() {
-    if (!qrDataUrl) return;
-    const link = document.createElement("a");
-    link.href = qrDataUrl;
-    link.download = "gym-qr-code.png";
-    link.click();
-  }
-
-  function openConnectDialog() {
-    setPaymentForm({ apiKey: "", businessId: "", webhookSecret: "" });
-    setPaymentFieldErrors({});
-    setPaymentFormError(null);
-    setConnectOpen(true);
-  }
-
-  async function handleConnectSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    // Review fix (Story 4.13): the submit button's `disabled` prop is the
-    // primary guard, but the handler itself didn't check -- a second Enter
-    // keypress before React re-renders could reach this twice concurrently.
-    if (connecting) return;
-    setPaymentFieldErrors({});
-    setPaymentFormError(null);
-
-    const parsed = connectGymPaymentCredentialsSchema.safeParse(paymentForm);
-    if (!parsed.success) {
-      const errors: PaymentFieldErrors = {};
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0] as keyof PaymentFieldErrors;
-        if (!errors[field]) {
-          const keys = PAYMENT_FIELD_MESSAGE_KEYS[field];
-          errors[field] = t(issue.code === "too_big" ? keys.tooLong : keys.required);
-        }
-      }
-      setPaymentFieldErrors(errors);
-      return;
-    }
-
-    setConnecting(true);
-    try {
-      const { data, error } = await connectPaymentProvider(parsed.data);
-      if (error || !data) {
-        setPaymentFormError(error?.message ?? t("common.somethingWentWrong"));
-        return;
-      }
-      setPaymentConnection(data.status);
-      // Review fix (Story 4.13): `setConnectOpen(false)` alone doesn't close
-      // the native <dialog> opened via showModal() -- only the Cancel button
-      // and Escape key did, via the onClose handler below. Without this, the
-      // modal stayed visually open (still blocking the page) after a
-      // successful connect.
-      connectDialogRef.current?.close();
-      setConnectOpen(false);
-      showToast(t("settings.payments.connectedToast"));
-    } catch {
-      setPaymentFormError(t("common.somethingWentWrong"));
-    } finally {
-      setConnecting(false);
-    }
-  }
-
-  async function handleDisconnectConfirm() {
-    setDisconnecting(true);
-    try {
-      const { error } = await disconnectPaymentProvider();
-      if (error) {
-        showToast(t("settings.payments.disconnectFailedToast"));
-        return;
-      }
-      setPaymentConnection(null);
-      showToast(t("settings.payments.disconnectedToast"));
-    } catch {
-      showToast(t("settings.payments.disconnectFailedToast"));
-    } finally {
-      // Review fix (Story 4.13): same dialog-not-actually-closed gap as
-      // handleConnectSubmit above, on both the success and failure paths.
-      disconnectDialogRef.current?.close();
-      setDisconnecting(false);
-      setDisconnectOpen(false);
-    }
-  }
-
-  async function handleSaveNotificationEmail() {
-    setEmailError(null);
-    const trimmed = notificationEmail.trim();
-    const parsed = emailSchema.safeParse(trimmed === "" ? null : trimmed);
-    if (!parsed.success) {
-      setEmailError(parsed.error.issues[0]?.message ?? t("common.invalidInput"));
-      return;
-    }
-    setSavingEmail(true);
-    try {
-      const { error } = await saveNotificationEmail(parsed.data ?? null);
-      if (error) {
-        setEmailError(error.message);
-        return;
-      }
-      setBillingInfo((current) => (current ? { ...current, notificationEmail: parsed.data ?? null } : current));
-      showToast(t("settings.billing.emailSavedToast"));
-    } catch {
-      setEmailError(t("common.somethingWentWrong"));
-    } finally {
-      setSavingEmail(false);
-    }
-  }
-
-  async function handleSaveRegistrationFee() {
-    setRegistrationFeeError(null);
-    const trimmed = registrationFee.trim();
-    // Number("") is 0 and Number("1e3") is 1000 -- accept only plain digits so
-    // a blank field never silently turns the fee off.
-    const parsed = /^\d+$/.test(trimmed) ? registrationFeeSchema.safeParse(Number(trimmed)) : null;
-    if (!parsed || !parsed.success) {
-      setRegistrationFeeError(t("settings.errors.registrationFeeInvalid"));
-      return;
-    }
-    setSavingRegistrationFee(true);
-    try {
-      const { error } = await saveRegistrationFee(parsed.data);
-      if (error) {
-        setRegistrationFeeError(error.message);
-        return;
-      }
-      setRegistrationFee(String(parsed.data));
-      showToast(t("settings.fields.registrationFeeSavedToast"));
-    } catch {
-      setRegistrationFeeError(t("settings.errors.registrationFeeSaveFailed"));
-    } finally {
-      setSavingRegistrationFee(false);
-    }
-  }
-
-  async function handleSaveCategory() {
-    if (savingCategory || category === savedCategory) return;
-    setCategoryError(null);
-    if (!(GYM_CATEGORIES as readonly string[]).includes(category)) {
-      setCategoryError(t("settings.category.selectError"));
-      return;
-    }
-    const submitted = category;
-    setSavingCategory(true);
-    try {
-      const { error } = await saveGymCategory(submitted);
-      if (error) {
-        setCategoryError(error.message);
-        return;
-      }
-      setSavedCategory(submitted);
-      showToast(t("settings.category.savedToast"));
-    } catch {
-      setCategoryError(t("settings.category.saveFailed"));
-    } finally {
-      setSavingCategory(false);
-    }
-  }
-
   return (
     <div ref={formTopRef} className="space-y-6">
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -659,473 +179,49 @@ export function SettingsForm({
               gyms print/display), then branding, payment provider, SaaS
               billing and staff. */}
           <div className="space-y-6">
-            <Card>
-              <SectionHeader
-                icon={QrCode}
-                accent="blue"
-                title={t("settings.sections.qrCode")}
-                description={t("settings.sectionDescriptions.qrCode")}
-              />
-              <CardContent className="flex flex-col items-center gap-5">
-                {qrDataUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={qrDataUrl}
-                    alt={t("settings.qr.qrCodeAlt")}
-                    className="h-auto w-full max-w-[280px] rounded-md border p-3"
-                  />
-                )}
-                <div className="flex w-full max-w-[280px] flex-col gap-2">
-                  <Button type="button" variant="outline" className="w-full" onClick={handleDownloadQr}>
-                    {t("settings.qr.download")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setRegenerateOpen(true)}
-                  >
-                    {t("settings.qr.regenerate")}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <QrCodeCard qr={qr} />
 
-            <Card>
-              <SectionHeader
-                icon={Palette}
-                accent="violet"
-                title={t("settings.sections.branding")}
-                description={t("settings.sectionDescriptions.branding")}
-              />
-              <CardContent className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="gymName">{t("settings.fields.gymName")}</Label>
-                  <Input
-                    id="gymName"
-                    value={form.gymName}
-                    onChange={(e) => setForm({ ...form, gymName: e.target.value })}
-                  />
-                  {fieldErrors.gymName && <p className="text-sm text-red-600">{fieldErrors.gymName}</p>}
-                </div>
+            <BrandingSection
+              form={form}
+              setForm={setForm}
+              fieldErrors={fieldErrors}
+              logo={logo}
+              canManageCategory={canManageCategory}
+              initialCategory={initial.category}
+              showToast={showToast}
+            />
 
-                <div className="space-y-2">
-                  <Label htmlFor="logo">{t("settings.fields.logo")}</Label>
-                  <div className="flex items-center gap-4">
-                    {logoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={logoUrl}
-                        alt={t("settings.fields.logoPreviewAlt")}
-                        className="size-24 rounded-md border object-cover"
-                      />
-                    ) : (
-                      <div className="flex size-24 items-center justify-center rounded-md border text-xs text-muted-foreground">
-                        {t("settings.fields.noLogo")}
-                      </div>
-                    )}
-                    <div className="flex flex-col gap-1.5">
-                      <Button type="button" variant="outline" size="sm" asChild>
-                        <label htmlFor="logo" className="cursor-pointer">
-                          {uploadingLogo ? t("settings.fields.uploading") : t("settings.fields.uploadNew")}
-                        </label>
-                      </Button>
-                      <input
-                        id="logo"
-                        type="file"
-                        accept="image/png,image/jpeg,image/webp,image/gif"
-                        className="hidden"
-                        onChange={handleLogoSelect}
-                      />
-                      <Button type="button" variant="outline" size="sm" onClick={handleRemoveLogo}>
-                        {t("settings.fields.remove")}
-                      </Button>
-                    </div>
-                  </div>
-                  {logoError && <p className="text-sm text-red-600">{logoError}</p>}
-                </div>
+            <PaymentsCard payments={payments} />
 
-                <div className="space-y-2">
-                  <Label htmlFor="primaryColor">{t("settings.fields.primaryColor")}</Label>
-                  <div className="flex items-center gap-3">
-                    <Input
-                      id="primaryColor"
-                      value={form.primaryColor}
-                      onChange={(e) => handleColorChange(e.target.value)}
-                      placeholder="#E0971F"
-                      className="max-w-40"
-                    />
-                    <div
-                      className="size-9 shrink-0 rounded-md border"
-                      style={{ backgroundColor: swatchColor ?? "transparent" }}
-                      aria-hidden="true"
-                    />
-                  </div>
-                  {fieldErrors.primaryColor && (
-                    <p className="text-sm text-red-600">{fieldErrors.primaryColor}</p>
-                  )}
-                </div>
+            <BillingSection
+              initialBillingInfo={initialBillingInfo}
+              selectableTiers={selectableTiers}
+              showToast={showToast}
+            />
 
-                {canManageCategory && (
-                  <div className="space-y-2">
-                    <Label htmlFor="gymCategory">{t("settings.category.label")}</Label>
-                    <div className="flex flex-wrap items-center gap-3">
-                      <select
-                        id="gymCategory"
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        disabled={savingCategory}
-                        aria-describedby="gymCategoryHelp"
-                        className="flex h-9 w-full max-w-64 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      >
-                        {GYM_CATEGORIES.map((code) => (
-                          <option key={code} value={code}>
-                            {gymCategoryLabel(code, i18n.language)}
-                          </option>
-                        ))}
-                      </select>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSaveCategory}
-                        disabled={savingCategory || category === savedCategory}
-                      >
-                        {t("settings.category.save")}
-                      </Button>
-                    </div>
-                    <p id="gymCategoryHelp" className="text-xs text-muted-foreground">
-                      {t("settings.category.helper")}
-                    </p>
-                    {categoryError && (
-                      <p role="alert" className="text-sm text-red-600">
-                        {categoryError}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <SectionHeader
-                icon={CreditCard}
-                accent="teal"
-                title={t("settings.sections.payments")}
-                description={t("settings.sectionDescriptions.payments")}
-              />
-              <CardContent>
-                {paymentConnection ? (
-                  <div className="flex flex-col gap-3">
-                    {paymentConnection.needsAttention && (
-                      <div
-                        className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800"
-                        role="alert"
-                      >
-                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                        <span>{t("settings.payments.needsAttention")}</span>
-                      </div>
-                    )}
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="text-sm">
-                        <p className="font-medium">
-                          {t("settings.payments.connectedLabel", { businessId: paymentConnection.businessIdMasked })}
-                        </p>
-                        <p className="text-muted-foreground">
-                          {t("settings.payments.connectedSince", {
-                            date: new Date(paymentConnection.connectedAt).toLocaleDateString(),
-                          })}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button type="button" variant="outline" size="sm" onClick={openConnectDialog}>
-                          {t("settings.payments.reconnect")}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDisconnectOpen(true)}
-                        >
-                          {t("settings.payments.disconnect")}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-muted-foreground">{t("settings.payments.notConnected")}</p>
-                    <Button type="button" variant="outline" size="sm" onClick={openConnectDialog}>
-                      {t("settings.payments.connect")}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {billingInfo && (
-              <Card>
-                <SectionHeader
-                  icon={Receipt}
-                  accent="amber"
-                  title={t("settings.sections.billing")}
-                  description={t("settings.sectionDescriptions.billing")}
-                />
-                <CardContent className="space-y-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="text-sm">
-                      <p className="font-medium">
-                        {billingInfo.tierName} —{" "}
-                        {t(
-                          billingInfo.interval === "annual"
-                            ? "settings.billing.intervalAnnual"
-                            : "settings.billing.intervalMonthly",
-                        )}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {t("settings.billing.nextBillingDate", {
-                          date: formatLocalDate(billingInfo.anchorDate, i18n.language),
-                        })}
-                      </p>
-                    </div>
-                    <span
-                      className={`w-fit rounded-full px-3 py-1 text-xs font-medium ${
-                        billingInfo.billingStatus === "active"
-                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                          : billingInfo.billingStatus === "suspended"
-                            ? "bg-red-500/10 text-red-700 dark:text-red-400"
-                            : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
-                      }`}
-                    >
-                      {t(`settings.billing.status.${billingInfo.billingStatus}`)}
-                    </span>
-                  </div>
-
-                  {billingInfo.billingStatus !== "active" && (
-                    <PayNowButton
-                      initialOwnerPhone={billingInfo.ownerPhone}
-                      selectableTiers={selectableTiers}
-                      onPaymentConfirmed={handlePaymentConfirmed}
-                    />
-                  )}
-
-                  <div className="space-y-2 border-t pt-4">
-                    <Label htmlFor="billingNotificationEmail">{t("settings.billing.emailLabel")}</Label>
-                    <p className="text-xs text-muted-foreground">{t("settings.billing.emailHint")}</p>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Input
-                        id="billingNotificationEmail"
-                        type="email"
-                        value={notificationEmail}
-                        onChange={(e) => {
-                          setNotificationEmail(e.target.value);
-                          setEmailError(null);
-                        }}
-                        disabled={savingEmail}
-                        className="sm:max-w-xs"
-                      />
-                      <Button type="button" variant="outline" size="sm" disabled={savingEmail} onClick={handleSaveNotificationEmail}>
-                        {savingEmail ? t("common.saving") : t("common.save")}
-                      </Button>
-                    </div>
-                    {emailError && <p className="text-sm text-red-600">{emailError}</p>}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <Card>
-              <SectionHeader
-                icon={Users}
-                accent="cyan"
-                title={t("settings.sections.staff")}
-                description={t("settings.sectionDescriptions.staff")}
-              />
-              <CardContent>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm">{t("settings.staffSummary", { count: staffCount })}</p>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href="/settings/staff">
-                      {t("settings.manageStaffLink")}
-                      <ArrowRight />
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <StaffSection staffCount={staffCount} />
           </div>
 
           {/* Right column: how the gym operates -- localization, membership
               (fees, guest charging, loyalty), attendance and front desk
               alerts. */}
           <div className="space-y-6">
-            <Card>
-              <SectionHeader
-                icon={Globe}
-                accent="emerald"
-                title={t("settings.sections.localization")}
-                description={t("settings.sectionDescriptions.localization")}
-              />
-              <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="defaultLanguage">{t("settings.fields.defaultLanguage")}</Label>
-                  <select
-                    id="defaultLanguage"
-                    value={form.defaultLanguage}
-                    onChange={(e) => setForm({ ...form, defaultLanguage: e.target.value })}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    <option value="en">{t("settings.languageOptionEnglish")}</option>
-                    <option value="fr">{t("settings.languageOptionFrench")}</option>
-                  </select>
-                </div>
+            <LocalizationSection
+              form={form}
+              setForm={setForm}
+              fieldErrors={fieldErrors}
+              countryOptions={countryOptions}
+            />
 
-                <div className="space-y-2">
-                  <Label htmlFor="country">{t("settings.fields.country")}</Label>
-                  <select
-                    id="country"
-                    value={form.country}
-                    onChange={(e) => setForm({ ...form, country: e.target.value })}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    {countryOptions.map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {c.name} ({c.callingCode})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground">{t("settings.fields.countryHint")}</p>
-                  {fieldErrors.country && <p className="text-sm text-red-600">{fieldErrors.country}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="timezone">{t("settings.fields.timezone")}</Label>
-                  <select
-                    id="timezone"
-                    value={form.timezone}
-                    onChange={(e) => setForm({ ...form, timezone: e.target.value })}
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  >
-                    {TIMEZONE_OPTIONS.map((tz) => (
-                      <option key={tz.value} value={tz.value}>
-                        {tz.label}
-                      </option>
-                    ))}
-                  </select>
-                  {fieldErrors.timezone && <p className="text-sm text-red-600">{fieldErrors.timezone}</p>}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <SectionHeader
-                icon={Users}
-                accent="amber"
-                title={t("settings.sections.membership")}
-                description={t("settings.sectionDescriptions.membership")}
-              />
-              <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="gracePeriodDays">{t("settings.fields.gracePeriod")}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="gracePeriodDays"
-                      type="number"
-                      value={form.gracePeriodDays}
-                      onChange={(e) => setForm({ ...form, gracePeriodDays: e.target.value })}
-                    />
-                    <span className="text-sm text-muted-foreground">{t("settings.fields.gracePeriodUnit")}</span>
-                  </div>
-                  {fieldErrors.gracePeriodDays && (
-                    <p className="text-sm text-red-600">{fieldErrors.gracePeriodDays}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="capacity">{t("settings.fields.capacity")}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="capacity"
-                      type="number"
-                      value={form.capacity}
-                      onChange={(e) => setForm({ ...form, capacity: e.target.value })}
-                    />
-                    <span className="text-sm text-muted-foreground">{t("settings.fields.capacityUnit")}</span>
-                  </div>
-                  {fieldErrors.capacity && <p className="text-sm text-red-600">{fieldErrors.capacity}</p>}
-                </div>
-
-                <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="registrationFee">{t("settings.fields.registrationFee")}</Label>
-                  <p className="text-xs text-muted-foreground">{t("settings.fields.registrationFeeHint")}</p>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id="registrationFee"
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        step={1}
-                        value={registrationFee}
-                        onChange={(e) => {
-                          setRegistrationFee(e.target.value);
-                          setRegistrationFeeError(null);
-                        }}
-                        onKeyDown={(e) => {
-                          // Enter inside this field must save the fee, not submit the main settings form.
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            void handleSaveRegistrationFee();
-                          }
-                        }}
-                        disabled={savingRegistrationFee}
-                        className="sm:max-w-40"
-                      />
-                      <span className="text-sm text-muted-foreground">{t("settings.fields.registrationFeeUnit")}</span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={savingRegistrationFee}
-                      onClick={handleSaveRegistrationFee}
-                    >
-                      {savingRegistrationFee ? t("common.saving") : t("settings.fields.registrationFeeSave")}
-                    </Button>
-                  </div>
-                  {registrationFeeError && <p className="text-sm text-red-600">{registrationFeeError}</p>}
-                </div>
-
-                {canManageGuestCharging && (
-                  <div className="space-y-2 sm:col-span-2">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-1">
-                        <Label id="chargeGuestsLabel">{t("settings.guestCharging.label")}</Label>
-                        <p className="text-xs text-muted-foreground">{t("settings.guestCharging.hint")}</p>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={chargeGuests}
-                        aria-labelledby="chargeGuestsLabel"
-                        disabled={chargeDialog !== null || chargeSaving}
-                        onClick={openChargeDialog}
-                        className={`relative mt-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 ${
-                          chargeGuests ? "bg-primary" : "bg-muted"
-                        }`}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className={`inline-block size-5 rounded-full bg-background shadow transition-transform ${
-                            chargeGuests ? "translate-x-5" : "translate-x-0.5"
-                          }`}
-                        />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <MembershipSection
+              form={form}
+              setForm={setForm}
+              fieldErrors={fieldErrors}
+              initialFee={initial.registrationFee}
+              canManageGuestCharging={canManageGuestCharging}
+              charge={charge}
+              showToast={showToast}
+            />
 
             {canManageGuestCharging && (
               <LoyaltyProgramSection
@@ -1136,329 +232,27 @@ export function SettingsForm({
                   r: initial.loyaltyRewardDays,
                 }}
                 plans={loyaltyPlans}
-                chargingOn={chargeGuests}
+                chargingOn={charge.chargeGuests}
                 onSaved={showToast}
                 onEnabledChange={setLoyaltyActive}
               />
             )}
 
-            <Card>
-              <SectionHeader
-                icon={Clock}
-                accent="cyan"
-                title={t("settings.sections.attendance")}
-                description={t("settings.sectionDescriptions.attendance")}
-              />
-              <CardContent>
-                <div className="max-w-xs space-y-2">
-                  <Label htmlFor="checkinTimeoutHours">{t("settings.fields.checkinTimeout")}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="checkinTimeoutHours"
-                      type="number"
-                      value={form.checkinTimeoutHours}
-                      onChange={(e) =>
-                        setForm({ ...form, checkinTimeoutHours: e.target.value })
-                      }
-                    />
-                    <span className="text-sm text-muted-foreground">
-                      {t("settings.fields.checkinTimeoutUnit")}
-                    </span>
-                  </div>
-                  {fieldErrors.checkinTimeoutHours && (
-                    <p className="text-sm text-red-600">{fieldErrors.checkinTimeoutHours}</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <AttendanceSection form={form} setForm={setForm} fieldErrors={fieldErrors} />
 
-            <Card>
-              <SectionHeader
-                icon={Bell}
-                accent="rose"
-                title={t("settings.sections.frontDeskAlerts")}
-                description={t("settings.sectionDescriptions.frontDeskAlerts")}
-              />
-              <CardContent>
-                <div className="max-w-xs space-y-2">
-                  <Label htmlFor="alertAutoDismissMinutes">{t("settings.fields.alertAutoDismiss")}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="alertAutoDismissMinutes"
-                      type="number"
-                      value={form.alertAutoDismissMinutes}
-                      onChange={(e) =>
-                        setForm({ ...form, alertAutoDismissMinutes: e.target.value })
-                      }
-                    />
-                    <span className="text-sm text-muted-foreground">
-                      {t("settings.fields.alertAutoDismissUnit")}
-                    </span>
-                  </div>
-                  {fieldErrors.alertAutoDismissMinutes && (
-                    <p className="text-sm text-red-600">{fieldErrors.alertAutoDismissMinutes}</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <FrontDeskAlertsSection form={form} setForm={setForm} fieldErrors={fieldErrors} />
           </div>
         </div>
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
       </form>
 
-      <dialog
-        ref={regenerateDialogRef}
-        onClose={() => setRegenerateOpen(false)}
-        onCancel={(e) => {
-          if (regenerating) e.preventDefault();
-        }}
-        className="w-full max-w-[420px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
-      >
-        <div className="space-y-4 p-6">
-          <h2 className="text-lg font-semibold">{t("settings.qr.regenerateConfirmTitle")}</h2>
-          <p className="text-sm text-muted-foreground">{t("settings.qr.regenerateConfirmBody")}</p>
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={regenerating}
-              onClick={() => regenerateDialogRef.current?.close()}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button type="button" disabled={regenerating} onClick={handleRegenerateConfirm}>
-              {regenerating ? t("settings.qr.regenerating") : t("settings.qr.regenerate")}
-            </Button>
-          </div>
-        </div>
-      </dialog>
+      <QrRegenerateDialog qr={qr} />
 
-      <dialog
-        ref={connectDialogRef}
-        onClose={() => setConnectOpen(false)}
-        onCancel={(e) => {
-          if (connecting) e.preventDefault();
-        }}
-        className="w-full max-w-[440px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
-      >
-        <form onSubmit={handleConnectSubmit} className="space-y-4 p-6">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold">{t("settings.payments.connectDialogTitle")}</h2>
-            <p className="text-sm text-muted-foreground">{t("settings.payments.connectDialogBody")}</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="paymentApiKey">{t("settings.payments.apiKeyLabel")}</Label>
-            <Input
-              id="paymentApiKey"
-              type="password"
-              autoComplete="off"
-              value={paymentForm.apiKey}
-              onChange={(e) => setPaymentForm({ ...paymentForm, apiKey: e.target.value })}
-            />
-            {paymentFieldErrors.apiKey && <p className="text-sm text-red-600">{paymentFieldErrors.apiKey}</p>}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="paymentBusinessId">{t("settings.payments.businessIdLabel")}</Label>
-            <Input
-              id="paymentBusinessId"
-              value={paymentForm.businessId}
-              onChange={(e) => setPaymentForm({ ...paymentForm, businessId: e.target.value })}
-            />
-            {paymentFieldErrors.businessId && (
-              <p className="text-sm text-red-600">{paymentFieldErrors.businessId}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="paymentWebhookSecret">{t("settings.payments.webhookSecretLabel")}</Label>
-            <Input
-              id="paymentWebhookSecret"
-              type="password"
-              autoComplete="off"
-              value={paymentForm.webhookSecret}
-              onChange={(e) => setPaymentForm({ ...paymentForm, webhookSecret: e.target.value })}
-            />
-            {paymentFieldErrors.webhookSecret && (
-              <p className="text-sm text-red-600">{paymentFieldErrors.webhookSecret}</p>
-            )}
-          </div>
-
-          {paymentFormError && <p className="text-sm text-red-600">{paymentFormError}</p>}
-
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={connecting}
-              onClick={() => connectDialogRef.current?.close()}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button type="submit" disabled={connecting}>
-              {connecting ? t("settings.payments.connecting") : t("settings.payments.connect")}
-            </Button>
-          </div>
-        </form>
-      </dialog>
-
-      <dialog
-        ref={disconnectDialogRef}
-        onClose={() => setDisconnectOpen(false)}
-        onCancel={(e) => {
-          if (disconnecting) e.preventDefault();
-        }}
-        className="w-full max-w-[420px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
-      >
-        <div className="space-y-4 p-6">
-          <h2 className="text-lg font-semibold">{t("settings.payments.disconnectConfirmTitle")}</h2>
-          <p className="text-sm text-muted-foreground">{t("settings.payments.disconnectConfirmBody")}</p>
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={disconnecting}
-              onClick={() => disconnectDialogRef.current?.close()}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button type="button" variant="destructive" disabled={disconnecting} onClick={handleDisconnectConfirm}>
-              {disconnecting ? t("settings.payments.disconnecting") : t("settings.payments.disconnect")}
-            </Button>
-          </div>
-        </div>
-      </dialog>
+      <PaymentDialogs payments={payments} />
 
       {canManageGuestCharging && (
-        <>
-          <dialog
-            ref={chargeOnDialogRef}
-            onClose={() => setChargeDialog(null)}
-            onCancel={(e) => e.preventDefault()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") e.preventDefault();
-            }}
-            aria-labelledby="chargeOnTitle"
-            className="w-full max-w-[440px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
-          >
-            <div className="space-y-4 p-6">
-              <h2 id="chargeOnTitle" className="text-lg font-semibold">
-                {t("settings.guestCharging.onTitle")}
-              </h2>
-              {chargeImpact.status === "loading" && (
-                <p aria-live="polite" className="text-sm text-muted-foreground">
-                  {t("settings.guestCharging.impactLoading")}
-                </p>
-              )}
-              {chargeImpact.status === "error" && (
-                <div className="space-y-2">
-                  <p role="alert" className="text-sm text-red-600">
-                    {t("settings.guestCharging.impactError")}
-                  </p>
-                  <Button type="button" variant="outline" size="sm" onClick={() => void loadChargeImpact()}>
-                    {t("settings.guestCharging.retry")}
-                  </Button>
-                </div>
-              )}
-              {chargeImpact.status === "ready" && (
-                <p className="text-sm">
-                  {chargeImpact.count === 0
-                    ? t("settings.guestCharging.impactZero")
-                    : chargeImpact.count === 1
-                      ? t("settings.guestCharging.impactOne")
-                      : t("settings.guestCharging.impactMany", { count: chargeImpact.count })}
-                </p>
-              )}
-              <p className="text-sm text-muted-foreground">{t("settings.guestCharging.scope")}</p>
-              <div
-                className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"
-                data-testid="guest-charging-old-app-warning"
-              >
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{t("settings.guestCharging.oldAppWarning")}</span>
-              </div>
-              {chargeError && (
-                <p role="alert" className="text-sm text-red-600">
-                  {chargeError}
-                </p>
-              )}
-              <div className="flex justify-end gap-2">
-                <Button
-                  ref={chargeOnCancelRef}
-                  type="button"
-                  variant="outline"
-                  disabled={chargeSaving}
-                  onClick={closeChargeDialog}
-                >
-                  {t("common.cancel")}
-                </Button>
-                <Button
-                  type="button"
-                  disabled={chargeSaving || chargeImpact.status !== "ready"}
-                  onClick={handleChargeConfirm}
-                >
-                  {chargeSaving ? t("common.saving") : t("settings.guestCharging.start")}
-                </Button>
-              </div>
-            </div>
-          </dialog>
-
-          <dialog
-            ref={chargeOffDialogRef}
-            onClose={() => setChargeDialog(null)}
-            onCancel={(e) => e.preventDefault()}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") e.preventDefault();
-            }}
-            aria-labelledby="chargeOffTitle"
-            className="w-full max-w-[440px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
-          >
-            <div className="space-y-4 p-6">
-              <h2 id="chargeOffTitle" className="text-lg font-semibold">
-                {t("settings.guestCharging.offTitle")}
-              </h2>
-              <p className="text-sm">{t("settings.guestCharging.offBody")}</p>
-              {chargeImpact.status === "loading" && (
-                <p aria-live="polite" className="text-sm text-muted-foreground">
-                  {t("settings.guestCharging.impactLoading")}
-                </p>
-              )}
-              {chargeImpact.status === "ready" && (
-                <p className="text-sm text-muted-foreground">
-                  {t("settings.guestCharging.offKept", { count: chargeImpact.validityDays })}
-                </p>
-              )}
-              {(loyaltyEnabled ?? loyaltyActive) && (
-                <p className="text-sm text-muted-foreground">{t("settings.guestCharging.offStamps")}</p>
-              )}
-              {chargeError && (
-                <p role="alert" className="text-sm text-red-600">
-                  {chargeError}
-                </p>
-              )}
-              <div className="flex justify-end gap-2">
-                <Button
-                  ref={chargeOffCancelRef}
-                  type="button"
-                  variant="outline"
-                  disabled={chargeSaving}
-                  onClick={closeChargeDialog}
-                >
-                  {t("common.cancel")}
-                </Button>
-                <Button
-                  type="button"
-                  disabled={chargeSaving || chargeImpact.status === "loading"}
-                  onClick={handleChargeConfirm}
-                >
-                  {chargeSaving ? t("common.saving") : t("settings.guestCharging.stop")}
-                </Button>
-              </div>
-            </div>
-          </dialog>
-        </>
+        <GuestChargingDialogs charge={charge} loyaltyEnabled={loyaltyEnabled ?? loyaltyActive} />
       )}
 
       {toast && (
