@@ -1097,7 +1097,7 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 ## Deferred from: code review of spec-20-4-refund-reversal-lapses-90-day-reset-sweep (2026-10-13)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-20-4-refund-reversal-lapses-90-day-reset-sweep.md`
-  summary: A loyalty hook that fails (including a transient deadlock) is swallowed and never retried, so the stamp, reversal or renewal stamp is permanently missing and no repair path exists.
+  summary: **DECIDED 2026-10-15 (docs/decisions.md): reconcile from source facts in the daily sweep; story 20.8 to be written, precondition for the first gym enabling loyalty.** A loyalty hook that fails (including a transient deadlock) is swallowed and never retried, so the stamp, reversal or renewal stamp is permanently missing and no repair path exists.
   evidence: Real consequence of the approved guard-hooks decision (0120 wrappers). The failure is visible in the audit log and `job_runs` (`loyalty_hook`), but Epic 20 forbids manual balance edits, so a correction needs a story (replay from payments/sessions or a retry queue).
 - source_spec: `_bmad-output/implementation-artifacts/spec-20-4-refund-reversal-lapses-90-day-reset-sweep.md`
   summary: `run_loyalty_sweep_job` holds member and progress row locks for its whole single transaction and its first run records every historic expired session at once.

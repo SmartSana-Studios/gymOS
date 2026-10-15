@@ -4,6 +4,20 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-15 — Repair path for swallowed loyalty hook failures: reconcile from source facts in the daily sweep (Epic 20 retro S-2)
+
+Open question from `epic-20-retro-2026-10-14.md` S-2 (deferred-work.md, 20.4 review): 0120 wraps the three loyalty hooks (`on_session_consumed`, `award_renewal_stamp`, `on_session_refunded_after_consumption`) so a failure rolls back only the hook and records `loyalty_hook_failed` (audit) plus a `job_runs` row named `loyalty_hook`. The payment, check-in or refund goes on, which is the right posture, but nothing ever retries the hook, and Epic 20 forbids manual balance edits, so a missed stamp, reward or reversal is permanent.
+
+- **Decision.** Repair by reconciliation, not by a retry queue. The daily `loyalty_sweep` gains a repair phase that finds source rows whose loyalty event is missing and re-invokes the same `_impl` function for them. Source facts persist (`guest_sessions.consumed_at`, verified `payments`, `refunds`) and every event is keyed `unique (origin_id, event_type)` with `origin_id` = the session or payment id, so a replay is exactly-once by construction: running it twice, or racing the original hook, writes nothing new.
+- **Why not a queue table.** A queue duplicates state that is derivable from rows we already keep, adds a second thing that can itself fail or drift, and still needs a sweep to drain it. Reconciliation also repairs failures that were never recorded (a hook killed by a crash or a dropped connection), which a queue of recorded failures cannot.
+- **Candidates, in canonical order.** (1) Guest earn: a consumed, paid, unvoided session with no `stamp_earned` event for its id. (2) Subscriber: a verified, non-voided subscription payment with a subscription and no `stamp_earned` event for its id. (3) Reversal: a refund of a consumed session whose stamp exists with no `stamp_reversed`. Each member in its own savepoint under the same lock order as the sweep (member, then `loyalty_progress`); a failing item is recorded and skipped, never aborts the run.
+- **Rules the replay must respect.** Judgements use the source fact's own time, not `now()`: the on-time test for a renewal uses the payment's `created_at`, the idle-reset check uses the session's `consumed_at`. So the `_impl` functions gain an optional as-of parameter (default `now()`; the hook wrappers keep their signatures). Only gyms with loyalty enabled now are repaired, and only items from the last 7 days, so a program switched on later is never applied retroactively (FR-165) and a long outage is not silently rewritten.
+- **Visibility.** Each repair writes its normal event, with `details.repaired = true`, and the audit row; the sweep's `job_runs` row reports repaired and still-failing counts, so the existing hourly alert covers a repair that keeps failing.
+- **Until it ships.** No gym has loyalty on (0 of 1 in production, verified 2026-10-15), so no hook can have failed in a way that matters. The build is a precondition for the first gym enabling loyalty, not for anything already live. If a failure is alerted before it ships, replay by hand from the audit row's ids with the `_impl` function as a superuser; do not edit `loyalty_progress`.
+- **Not built.** Its own story (20.8) with a migration (next free number, 0122; Epic 21's 21.1 then moves to 0123), pgTAP for each candidate kind, the as-of cases, idempotency, the 7-day and loyalty-off exclusions, and a rollback script.
+
+---
+
 ## 2026-10-15 — Early renewal carries the remaining days, free days included (Epic 20 retro S-3)
 
 Open question from `epic-20-retro-2026-10-14.md` S-3 (deferred-work.md, review of 20.3): a renewal verified before the current expiry starts the new subscription at `current_date` (`confirm_renewal`, `complete_verified_payment`), so the remaining paid days are forfeited, and with them any R free days the loyalty program had appended to that period.
