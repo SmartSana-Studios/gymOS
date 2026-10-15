@@ -33,7 +33,7 @@ Every gym carries a category (Gym, Pilates Studio, Yoga Studio, Fitness Center, 
 ## UX & Interaction Patterns
 
 - SA-04 Create Gym: required Category select, default Gym / Salle de sport, `gymCategorySchema` client-side and re-checked in `createGym` before the first write.
-- SA-03 Gym detail: `Category: [label] [Change]` under Owner, inline select with [Save]/[Cancel], no confirmation, toast "Category updated." / "Catégorie mise à jour.", typed refusal inline. Never shows Charge guests or Loyalty.
+- SA-03 Gym detail: `Category: [label] [Change]` under Owner, inline select with [Save]/[Cancel], no confirmation, inline status "Category updated." / "Catégorie mise à jour." (no toast host on this page), generic mapped refusal inline. Never shows Charge guests or Loyalty.
 - SA-02 Gyms list: plain-text Category column after Gym Name in the admin's language, no chip, no filter.
 - 21.2 Settings: Category select in the Branding block under Primary Colour, helper text, own [Save category] enabled only when changed, calls `set_gym_category` not the generic update, toast "Category saved." / "Catégorie enregistrée."; absent from the DOM for roles that cannot open Settings (Owner/Supervisor only). Unsaved category edits survive [Save Settings] and vice versa (UX-DR27).
 - EN/FR parity for every string.

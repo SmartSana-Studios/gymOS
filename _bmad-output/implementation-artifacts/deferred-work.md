@@ -1141,3 +1141,9 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - Success feedback on the Super Admin detail row is an inline `role="status"` line, not a toast; the detail page has no toast host. Wording and EN/FR match the AC.
 - No list filter or search by category (UX-DR31 says no chip, no filter).
 - Rollback drops the column while app code that selects it may still be deployed: roll the apps back first (stated in the rollback script header).
+
+## Triaged by the Epic 21 retrospective (2026-10-15)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-21-1-gym-category-column-setter-super-admin.md`
+  summary: Four 21-1 review deferrals closed out. Pin trigger on a plain GUC: accepted risk, same pattern as 0098/0107/0117 and prescribed by AD-32; a stronger gate would be one cross-cutting change to all four pins (open as its own story if wanted). Typed errors and suspended-gym message: accepted, Settings is unreachable for a suspended gym and the generic message is the repo convention. Super Admin audit-label render test: done (`AuditTrailTab.test.tsx`). Inline status instead of toast: accepted and reconciled in epics.md 21.1.
+  evidence: epic-21-retro-2026-10-15.md action items A3 and A5.

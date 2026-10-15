@@ -2309,6 +2309,8 @@ So that I can run the program with my eyes open.
 **When** the PR is opened
 **Then** EN/FR parity passes
 
+
+*As built (2026-10-15):* the epic also carried two owner-requested UI changes not covered by the ACs above: the Settings page was rebalanced (Payments, Billing and Staff moved to the left column, so the right column keeps Localization, Membership, Loyalty, Attendance and Front desk alerts) and arrow text links (View all, Manage staff, back links) became outline buttons with lucide arrows in the dashboard and Super Admin. `SettingsForm.tsx` was later split into per-section files with no behavior change.
 ---
 
 ### Story 20.6: Member App — Loyalty Card
@@ -2410,7 +2412,7 @@ So that every gym is classified for V1.7's directory and landing pages.
 
 **Given** the Super Admin gym detail page (`apps/super-admin/app/(admin)/gyms/[id]`, exists today)
 **When** a Super Admin changes the category
-**Then** a `Category: [label] [Change]` row under Owner turns into an inline select with [Save] / [Cancel], saving calls `set_gym_category` with no confirmation (descriptive and audited), the new label shows with the toast "Category updated." / "Catégorie mise à jour.", and a refusal shows the typed error inline; the gyms list shows a plain-text Category column after Gym Name in the admin's language (no chip, no filter — UX-DR31); Gym Detail does not show Charge guests per session or Loyalty state
+**Then** a `Category: [label] [Change]` row under Owner turns into an inline select with [Save] / [Cancel], saving calls `set_gym_category` with no confirmation (descriptive and audited), the new label shows with the inline status "Category updated." / "Catégorie mise à jour." (as built: the gym detail page has no toast host), and a refusal shows the generic mapped error inline (setter refusals are plain messages, not typed codes); the gyms list shows a plain-text Category column after Gym Name in the admin's language (no chip, no filter — UX-DR31); Gym Detail does not show Charge guests per session or Loyalty state
 
 **Given** "Autre / Other"
 **When** it is chosen
