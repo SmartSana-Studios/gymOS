@@ -9,13 +9,11 @@ import {
   Bell,
   Clock,
   CreditCard,
-  Gift,
   Globe,
   Palette,
   QrCode,
   Receipt,
   Users,
-  type LucideIcon,
 } from "lucide-react";
 import {
   connectGymPaymentCredentialsSchema,
@@ -25,7 +23,7 @@ import {
 } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { GymSettingsRow } from "@/services/gym-settings";
@@ -33,13 +31,9 @@ import type { GymPaymentConnectionStatus } from "@/services/gym-payment-credenti
 import type { GymBillingInfo, SelectableTier } from "@/services/billing";
 import { PayNowButton } from "@/components/shared/PayNowButton";
 import { listPhoneCountries } from "@/lib/phone";
-import {
-  LOYALTY_RANGES,
-  guestDiscountPercent,
-  parseLoyaltyNumber,
-  subscriberReadoutLines,
-  type LoyaltyPlanDuration,
-} from "./loyaltyReadout";
+import { type LoyaltyPlanDuration } from "./loyaltyReadout";
+import { LoyaltyProgramSection } from "./LoyaltyProgramSection";
+import { SectionHeader } from "./SectionHeader";
 import {
   connectPaymentProvider,
   disconnectPaymentProvider,
@@ -47,53 +41,11 @@ import {
   getGuestChargingImpact,
   regenerateQrCode,
   saveGymSettings,
-  saveLoyaltyProgram,
   saveNotificationEmail,
   saveRegistrationFee,
   setGuestCharging,
   uploadLogo,
 } from "./actions";
-
-// Tinted per-section icon treatment (each section gets its own accent so the
-// grid reads as distinct categories at a glance, rather than one repeated
-// muted-gray icon) -- deliberately independent of the gym's own configurable
-// `primaryColor` brand color below, since these are fixed UI chrome, not
-// tenant-branded surface.
-const SECTION_ACCENTS = {
-  violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-  blue: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  emerald: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  cyan: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400",
-  rose: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-  teal: "bg-teal-500/10 text-teal-600 dark:text-teal-400",
-} as const;
-
-function SectionHeader({
-  icon: Icon,
-  accent,
-  title,
-  description,
-}: {
-  icon: LucideIcon;
-  accent: keyof typeof SECTION_ACCENTS;
-  title: string;
-  description: string;
-}) {
-  return (
-    <CardHeader className="flex-row items-center gap-3 space-y-0">
-      <div className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${SECTION_ACCENTS[accent]}`}>
-        <Icon className="size-4.5" aria-hidden="true" />
-      </div>
-      <div className="space-y-0.5">
-        <CardTitle role="heading" aria-level={2} className="text-base">
-          {title}
-        </CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </div>
-    </CardHeader>
-  );
-}
 
 // Story 11.3 (review fix): `saas_billing_anchor_date` is a bare "YYYY-MM-DD"
 // date column -- `new Date(dateOnly)` parses it as UTC midnight, which then
@@ -153,18 +105,6 @@ const PAYMENT_FIELD_MESSAGE_KEYS: Record<keyof PaymentFieldErrors, { required: s
     tooLong: "settings.payments.webhookSecretTooLongError",
   },
 };
-
-const LOYALTY_READOUT_DELAY_MS = 300;
-
-/** The value after it has stopped changing for `delayMs` (AD-13's 300 ms readout pause). */
-function useDebouncedValue<T>(value: T, delayMs: number): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delayMs);
-    return () => clearTimeout(timer);
-  }, [value, delayMs]);
-  return debounced;
-}
 
 export function SettingsForm({
   initial,
@@ -230,6 +170,8 @@ export function SettingsForm({
   // flips before the server confirms.
   const canManageGuestCharging = role === "owner" || role === "supervisor";
   const [chargeGuests, setChargeGuests] = useState(initial.chargeGuestsPerSession);
+  // Story 20.5: mirrors the saved loyalty switch for the turn-off dialog; the section reports changes.
+  const [loyaltyActive, setLoyaltyActive] = useState(initial.loyaltyEnabled);
   const [chargeDialog, setChargeDialog] = useState<"on" | "off" | null>(null);
   const [chargeImpact, setChargeImpact] = useState<
     { status: "loading" } | { status: "error" } | { status: "ready"; count: number; validityDays: number }
@@ -242,22 +184,6 @@ export function SettingsForm({
   const chargeOffCancelRef = useRef<HTMLButtonElement>(null);
   const chargeImpactRequestRef = useRef(0);
 
-  // Story 20.5: the loyalty program saves through its own RPC, so it has its
-  // own state and Save button. `loyaltySaved` is the stored baseline.
-  const [loyaltySaved, setLoyaltySaved] = useState({
-    enabled: initial.loyaltyEnabled,
-    n: initial.loyaltyGuestThreshold,
-    k: initial.loyaltyRenewalThreshold,
-    r: initial.loyaltyRewardDays,
-  });
-  const [loyaltyOn, setLoyaltyOn] = useState(initial.loyaltyEnabled);
-  const [loyaltyN, setLoyaltyN] = useState(initial.loyaltyGuestThreshold === null ? "" : String(initial.loyaltyGuestThreshold));
-  const [loyaltyK, setLoyaltyK] = useState(initial.loyaltyRenewalThreshold === null ? "" : String(initial.loyaltyRenewalThreshold));
-  const [loyaltyR, setLoyaltyR] = useState(initial.loyaltyRewardDays === null ? "" : String(initial.loyaltyRewardDays));
-  const [loyaltyErrors, setLoyaltyErrors] = useState<{ n?: string; k?: string; r?: string }>({});
-  const [loyaltySummaryError, setLoyaltySummaryError] = useState<string | null>(null);
-  const [savingLoyalty, setSavingLoyalty] = useState(false);
-  const loyaltyReadoutInputs = useDebouncedValue(`${loyaltyN}|${loyaltyK}|${loyaltyR}`, LOYALTY_READOUT_DELAY_MS);
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -655,59 +581,6 @@ export function SettingsForm({
     }
   }
 
-  async function handleSaveLoyalty() {
-    setLoyaltyErrors({});
-    setLoyaltySummaryError(null);
-
-    let payload: { enabled: boolean; n: number; k: number; r: number };
-    if (loyaltyOn) {
-      const n = parseLoyaltyNumber(loyaltyN, LOYALTY_RANGES.n.min, LOYALTY_RANGES.n.max);
-      const k = parseLoyaltyNumber(loyaltyK, LOYALTY_RANGES.k.min, LOYALTY_RANGES.k.max);
-      const r = parseLoyaltyNumber(loyaltyR, LOYALTY_RANGES.r.min, LOYALTY_RANGES.r.max);
-      if (n === null || k === null || r === null) {
-        setLoyaltyErrors({
-          ...(n === null && { n: t("settings.loyalty.errors.n") }),
-          ...(k === null && { k: t("settings.loyalty.errors.k") }),
-          ...(r === null && { r: t("settings.loyalty.errors.r") }),
-        });
-        return;
-      }
-      payload = { enabled: true, n, k, r };
-    } else {
-      // Off stores only the switch: the setter ignores these, and the
-      // generated argument type is non-null (2/3/1 when never configured).
-      payload = {
-        enabled: false,
-        n: loyaltySaved.n ?? 2,
-        k: loyaltySaved.k ?? 3,
-        r: loyaltySaved.r ?? 1,
-      };
-    }
-
-    setSavingLoyalty(true);
-    try {
-      const { error } = await saveLoyaltyProgram(payload);
-      if (error) {
-        setLoyaltySummaryError(t("settings.loyalty.saveFailed"));
-        return;
-      }
-      if (payload.enabled) {
-        setLoyaltySaved({ enabled: true, n: payload.n, k: payload.k, r: payload.r });
-      } else {
-        setLoyaltySaved((current) => ({ ...current, enabled: false }));
-        // Edits made before switching off were not stored; show what is.
-        setLoyaltyN(loyaltySaved.n === null ? "" : String(loyaltySaved.n));
-        setLoyaltyK(loyaltySaved.k === null ? "" : String(loyaltySaved.k));
-        setLoyaltyR(loyaltySaved.r === null ? "" : String(loyaltySaved.r));
-      }
-      showToast(t("settings.loyalty.savedToast"));
-    } catch {
-      setLoyaltySummaryError(t("settings.loyalty.saveFailed"));
-    } finally {
-      setSavingLoyalty(false);
-    }
-  }
-
   async function handleSaveRegistrationFee() {
     setRegistrationFeeError(null);
     const trimmed = registrationFee.trim();
@@ -1031,186 +904,20 @@ export function SettingsForm({
               </CardContent>
             </Card>
 
-            {canManageGuestCharging && (() => {
-              const [debouncedN, debouncedK, debouncedR] = loyaltyReadoutInputs.split("|");
-              const readoutN = parseLoyaltyNumber(debouncedN, LOYALTY_RANGES.n.min, LOYALTY_RANGES.n.max);
-              const readoutK = parseLoyaltyNumber(debouncedK, LOYALTY_RANGES.k.min, LOYALTY_RANGES.k.max);
-              const readoutR = parseLoyaltyNumber(debouncedR, LOYALTY_RANGES.r.min, LOYALTY_RANGES.r.max);
-              const subscriberLines =
-                readoutK !== null && readoutR !== null ? subscriberReadoutLines(readoutK, readoutR, loyaltyPlans) : [];
-              const liveN = parseLoyaltyNumber(loyaltyN, LOYALTY_RANGES.n.min, LOYALTY_RANGES.n.max);
-              const liveK = parseLoyaltyNumber(loyaltyK, LOYALTY_RANGES.k.min, LOYALTY_RANGES.k.max);
-              const lowered =
-                (liveN !== null && loyaltySaved.n !== null && liveN < loyaltySaved.n) ||
-                (liveK !== null && loyaltySaved.k !== null && liveK < loyaltySaved.k);
-              const showOffNote = !loyaltyOn && loyaltySaved.enabled;
-              return (
-                <Card>
-                  <SectionHeader
-                    icon={Gift}
-                    accent="amber"
-                    title={t("settings.loyalty.title")}
-                    description={t("settings.loyalty.description")}
-                  />
-                  <CardContent className="space-y-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <Label id="loyaltyLabel">{t("settings.loyalty.label")}</Label>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={loyaltyOn}
-                        aria-labelledby="loyaltyLabel"
-                        disabled={savingLoyalty}
-                        onClick={() => setLoyaltyOn((on) => !on)}
-                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50 ${
-                          loyaltyOn ? "bg-primary" : "bg-muted"
-                        }`}
-                      >
-                        <span
-                          aria-hidden="true"
-                          className={`inline-block size-5 rounded-full bg-background shadow transition-transform ${
-                            loyaltyOn ? "translate-x-5" : "translate-x-0.5"
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="loyaltyN">{t("settings.loyalty.guestsLabel")}</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          id="loyaltyN"
-                          type="number"
-                          inputMode="numeric"
-                          value={loyaltyN}
-                          disabled={!loyaltyOn || savingLoyalty}
-                          onChange={(e) => {
-                            setLoyaltyN(e.target.value);
-                            setLoyaltyErrors((errs) => ({ ...errs, n: undefined }));
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              void handleSaveLoyalty();
-                            }
-                          }}
-                          aria-describedby="loyaltyNHelp"
-                          className="max-w-24"
-                        />
-                        <span id="loyaltyNHelp" className="text-xs text-muted-foreground">
-                          {t("settings.loyalty.rangeN")}
-                        </span>
-                      </div>
-                      {loyaltyErrors.n && <p className="text-sm text-red-600">{loyaltyErrors.n}</p>}
-                      {/* Always mounted so a screen reader announces content that arrives later. */}
-                      <div aria-live="polite" className="text-xs text-muted-foreground">
-                        {readoutN !== null && (
-                          <p>
-                            <span aria-hidden="true">
-                              {t("settings.loyalty.guestReadout", { n: readoutN, percent: guestDiscountPercent(readoutN) })}
-                            </span>
-                            <span className="sr-only">
-                              {t("settings.loyalty.guestReadoutSr", { n: readoutN, percent: guestDiscountPercent(readoutN) })}
-                            </span>
-                          </p>
-                        )}
-                      </div>
-                      {!chargeGuests && (
-                        <p className="text-xs text-muted-foreground">{t("settings.loyalty.chargingOffInfo")}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="loyaltyR">{t("settings.loyalty.subscribersLabel")}</Label>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                          id="loyaltyR"
-                          type="number"
-                          inputMode="numeric"
-                          value={loyaltyR}
-                          disabled={!loyaltyOn || savingLoyalty}
-                          onChange={(e) => {
-                            setLoyaltyR(e.target.value);
-                            setLoyaltyErrors((errs) => ({ ...errs, r: undefined }));
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              void handleSaveLoyalty();
-                            }
-                          }}
-                          aria-label={t("settings.loyalty.rewardDaysAria")}
-                          aria-describedby="loyaltyRHelp"
-                          className="max-w-24"
-                        />
-                        <span id="loyaltyRHelp" className="text-xs text-muted-foreground">
-                          {t("settings.loyalty.rangeR")}
-                        </span>
-                        <Input
-                          id="loyaltyK"
-                          type="number"
-                          inputMode="numeric"
-                          value={loyaltyK}
-                          disabled={!loyaltyOn || savingLoyalty}
-                          onChange={(e) => {
-                            setLoyaltyK(e.target.value);
-                            setLoyaltyErrors((errs) => ({ ...errs, k: undefined }));
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              void handleSaveLoyalty();
-                            }
-                          }}
-                          aria-label={t("settings.loyalty.renewalsAria")}
-                          aria-describedby="loyaltyKHelp"
-                          className="max-w-24"
-                        />
-                        <span id="loyaltyKHelp" className="text-xs text-muted-foreground">
-                          {t("settings.loyalty.rangeK")}
-                        </span>
-                      </div>
-                      {loyaltyErrors.r && <p className="text-sm text-red-600">{loyaltyErrors.r}</p>}
-                      {loyaltyErrors.k && <p className="text-sm text-red-600">{loyaltyErrors.k}</p>}
-                      <div aria-live="polite" className="space-y-0.5 text-xs text-muted-foreground">
-                        {readoutR !== null &&
-                          readoutK !== null &&
-                          subscriberLines.map((line) => {
-                            const vars = {
-                              r: readoutR,
-                              k: readoutK,
-                              d: line.durationDays,
-                              plan: line.planName,
-                              percent: line.percent,
-                            };
-                            return (
-                              <p key={line.durationDays}>
-                                <span aria-hidden="true">{t("settings.loyalty.subscriberReadout", vars)}</span>
-                                <span className="sr-only">{t("settings.loyalty.subscriberReadoutSr", vars)}</span>
-                              </p>
-                            );
-                          })}
-                      </div>
-                    </div>
-
-                    {showOffNote && (
-                      <p className="text-sm text-muted-foreground">{t("settings.loyalty.offNote")}</p>
-                    )}
-                    {lowered && <p className="text-sm text-muted-foreground">{t("settings.loyalty.loweredNote")}</p>}
-                    {loyaltySummaryError && (
-                      <p role="alert" className="text-sm text-red-600">
-                        {loyaltySummaryError}
-                      </p>
-                    )}
-                    <div className="flex justify-end">
-                      <Button type="button" variant="outline" disabled={savingLoyalty} onClick={handleSaveLoyalty}>
-                        {savingLoyalty ? t("common.saving") : t("settings.loyalty.saveButton")}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })()}
+            {canManageGuestCharging && (
+              <LoyaltyProgramSection
+                initial={{
+                  enabled: initial.loyaltyEnabled,
+                  n: initial.loyaltyGuestThreshold,
+                  k: initial.loyaltyRenewalThreshold,
+                  r: initial.loyaltyRewardDays,
+                }}
+                plans={loyaltyPlans}
+                chargingOn={chargeGuests}
+                onSaved={showToast}
+                onEnabledChange={setLoyaltyActive}
+              />
+            )}
 
             <Card>
               <SectionHeader
@@ -1644,7 +1351,7 @@ export function SettingsForm({
                   {t("settings.guestCharging.offKept", { count: chargeImpact.validityDays })}
                 </p>
               )}
-              {(loyaltyEnabled ?? loyaltySaved.enabled) && (
+              {(loyaltyEnabled ?? loyaltyActive) && (
                 <p className="text-sm text-muted-foreground">{t("settings.guestCharging.offStamps")}</p>
               )}
               {chargeError && (

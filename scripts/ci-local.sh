@@ -74,6 +74,10 @@ stage_static() {
 stage_pgtap() {
   set -e
   PGTAP_JOBS="${PGTAP_JOBS:-1}" bash "$ROOT/scripts/pgtap-run.sh"
+  # Refund-vs-consume and loyalty-ledger race (two real sessions; pgTAP runs one). Epic 19 R-1, Epic 20 R-1.
+  bash "$ROOT/scripts/session-refund-race.sh"
+  # job-runs-alert.sql against fixtures (Epic 20 R-4).
+  bash "$ROOT/scripts/job-runs-alert.test.sh"
 }
 
 stage_unit() {

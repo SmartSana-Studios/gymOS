@@ -13,6 +13,11 @@
 #     both, and exactly one of the two outcomes is reported.
 # Fixed-order case: consumption wins (lock holder consumes first) -> the
 # refund must report kept_consumed and leave the session consumed.
+# Epic 20: the gym runs a loyalty program (N=4), so every iteration also checks
+# the ledger: whichever side wins, the stamp the consumption earned is reversed
+# by the refund of a consumed session or never earned (refund first), so the
+# member ends with stamp_earned - stamp_reversed = 0 and guest_stamps = 0, and
+# loyalty_progress equals the replayed ledger.
 set -uo pipefail
 DB=${DB_CONTAINER:-supabase_db_gym_os}
 N=${1:-8}
@@ -27,7 +32,18 @@ if [ -z "${RACE_INSIDE:-}" ]; then
     exit 0
   fi
   docker exec -i "$DB" sh -c "cat > /tmp/race.sh" < "$0"
-  exec docker exec -e RACE_INSIDE=1 "$DB" bash /tmp/race.sh "$N"
+  # Started detached and polled. In the foreground, `docker exec` ended this script right after its
+  # first heredoc with no output and exit 0 on the dev container (Epic 20 retro R-1), which made it
+  # useless as a gate. The verdict is the transcript's last line, never an exit code.
+  docker exec "$DB" sh -c "rm -f /tmp/race.out"
+  docker exec -d -e RACE_INSIDE=1 "$DB" sh -c "bash /tmp/race.sh $N > /tmp/race.out 2>&1"
+  for _ in $(seq 1 ${RACE_TIMEOUT_POLLS:-150}); do
+    docker exec "$DB" sh -c "grep -q '^race:' /tmp/race.out 2>/dev/null" && break
+    sleep 2
+  done
+  docker exec "$DB" sh -c "cat /tmp/race.out 2>/dev/null"
+  docker exec "$DB" sh -c "grep -q '^race: all passed' /tmp/race.out 2>/dev/null"
+  exit $?
 fi
 psql_() { PGPASSWORD=postgres psql -U postgres -h 127.0.0.1 -At -v ON_ERROR_STOP=1 "$@"; }
 
@@ -38,6 +54,8 @@ PLAN=00000000-0000-0000-0000-000000362d00
 
 cleanup() {
   psql_ <<SQL >/dev/null
+delete from loyalty_events where gym_id = '$G';
+delete from loyalty_progress where gym_id = '$G';
 delete from audit_log where gym_id = '$G';
 delete from session_attempts where gym_id = '$G';
 delete from refunds where gym_id = '$G';
@@ -59,8 +77,9 @@ cleanup
 
 psql_ <<SQL
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values ('$T', 'Race Tier', 6000, 60000, null);
-insert into gyms (id, name, tier_id, status, charge_guests_per_session, registration_fee)
-  values ('$G', 'Race Gym', '$T', 'active', true, 0);
+insert into gyms (id, name, tier_id, status, charge_guests_per_session, registration_fee,
+                  loyalty_enabled, loyalty_guest_threshold, loyalty_renewal_threshold, loyalty_reward_days)
+  values ('$G', 'Race Gym', '$T', 'active', true, 0, true, 4, 3, 10);
 insert into auth.users (id) values ('$OWNER_U');
 insert into plans (id, gym_id, name, plan_type, price, currency, billing_interval, duration_days)
   values ('$PLAN', '$G', 'Race PPS', 'pay_per_session', 5000, 'XAF', 'monthly', null);
@@ -98,11 +117,13 @@ SQL
   for pid in "${pids[@]}"; do wait "$pid"; done
   row=$(psql_ -c "select (voided_at is not null)::int, (consumed_at is not null)::int from guest_sessions where payment_id = '$P'")
   outcome=$(psql_ -c "select metadata ->> 'outcome' from audit_log where action_type = 'session_refund_applied' and target_entity_id = '$M'")
+  ledger=$(psql_ -c "select coalesce(sum(case event_type when 'stamp_earned' then 1 when 'stamp_reversed' then -1 else 0 end), 0)::int || '/' || coalesce((select guest_stamps from loyalty_progress where gym_id = '$G' and member_id = '$M'), 0) from loyalty_events where gym_id = '$G' and member_id = '$M' and counter = 'guest'")
   case "$row/$outcome" in
-    1\|0/voided) n_voided=$((n_voided + 1)); echo "ok   iteration $i: $row $outcome" ;;
-    0\|1/kept_consumed) n_consumed=$((n_consumed + 1)); echo "ok   iteration $i: $row $outcome" ;;
+    1\|0/voided) n_voided=$((n_voided + 1)); echo "ok   iteration $i: $row $outcome ledger $ledger" ;;
+    0\|1/kept_consumed) n_consumed=$((n_consumed + 1)); echo "ok   iteration $i: $row $outcome ledger $ledger" ;;
     *) echo "FAIL iteration $i: voided|consumed=$row outcome=$outcome"; fail=1 ;;
   esac
+  if [ "$ledger" != "0/0" ]; then echo "FAIL iteration $i: loyalty ledger net/progress=$ledger (expected 0/0)"; fail=1; fi
 done
 
 # Fixed order: consumption first (it holds the lock), refund second.
