@@ -429,6 +429,34 @@ development_status:
   21-1-gym-category-column-setter-super-admin: done
   21-2-settings-gym-category-field-owner-supervisor: done
   epic-21-retrospective: done
+
+  epic-22: backlog
+  22-1-spike-claims-hook-aal-factor-guard-session-deletion-cookies: backlog
+  22-2-claim-read-inventory-and-ci-check-report-mode: backlog
+  22-3-live-authorization-in-the-database: backlog
+  22-4-live-authorization-in-edge-functions-and-service-paths: backlog
+  22-5-super-admin-second-factor-enrollment-flag-off: backlog
+  22-6-super-admin-bootstrap-second-device-and-recovery: backlog
+  22-7-session-limits-and-step-up: backlog
+  epic-22-retrospective: optional
+
+  epic-23: backlog
+  23-0-pre-flight-checklist-product-owner: backlog
+  23-1-support-role-assignment-record-and-live-gate: backlog
+  23-2-support-excluded-from-counts-caps-notifications-metrics: backlog
+  23-3-allow-gymos-support-switch-and-gymos-support-row: backlog
+  23-4-create-support-account-and-invite: backlog
+  23-5-assign-unassign-and-remove: backlog
+  23-6-capability-allow-list-and-denied-set-matrix: backlog
+  23-7-hidden-identity-per-gym-proxy-actor: backlog
+  23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces: backlog
+  23-9-support-connects-the-payment-account: backlog
+  23-10-revocation-owner-visibility-and-velocity-lock: backlog
+  23-11-lifecycle-inactivity-recertification-and-factor-reset: backlog
+  epic-23-retrospective: optional
+
+  epic-24: backlog
+  epic-25: backlog
 action_items:
   - epic: 7
     action: "Commit immediately when a story's Status is set to done, before starting
@@ -1155,3 +1183,4 @@ last_updated: 10-15-2026 12:30
 # last_updated: 2026-10-15 (ad-hoc, non-story: PRD v1.6 -> v1.7 via bmad-prd update -- FR-175..FR-203, NFR-023..025, support staff first; open questions OQ-27..OQ-30 recorded; no epics or stories created yet, sprint tracking unchanged)
 # last_updated: 2026-10-15 (ad-hoc, non-story: PRD v1.7 revised after the reviewer gate (rubric + adversarial); four owner decisions applied (payment-account replacement needs Owner confirmation, existing gyms start with support off, Super Admin AAL2 + invite-link enrollment, pages stay on gymosapps.com with hardened cookies/CSP); FR renumbered FR-175..FR-214, NFR-023..026; no stories created yet)
 # last_updated: 2026-10-15 (ad-hoc, non-story: PRD v1.7 second revision after rubric + adversarial second pass; owner confirms every payment-account connection (hash-bound proposal), Super Admin AAL2 bootstrap with out-of-band recovery, plus invite/reset hardening, name-release rule restored, addendum default fix; OQ-27 resolved; no stories created yet)
+# last_updated: 2026-10-15 (ad-hoc, non-story: bmad-create-epics-and-stories run for V1.7 as an incremental update to epics.md (Epics 1-21 untouched, status draft, 2 checks open). Added Epics 22-23 with 19 stories (22-1..22-7, 23-0..23-11) and Epics 24-25 as outline-only backlog (landing pages, directory: no architecture coverage or UX yet, no stories). Structure decided with the product owner: support collapsed from 5 epics to 2; Owner approval of payment-connection DROPPED (PRD FR-180 original text and spine AD-36 superseded in epics.md, PRD and spine still need syncing); FR-190 moved Epic 22 -> 23; FR-141..146 and NFR-020 backfilled into the coverage map (delivered under 1.16, Epic 16, Epic 17). Validation fixed two forward dependencies (23.1 needed the allow_gymos_support column created in 23.3; 23.4 referenced 23.5). Open checks: FR-196..FR-214 have no stories; 23.10 soft-references Epic 24. 23-0 asks the product owner to mark velocity lock, daily digest, quarterly recertification and inactivity sweep kept or deferred. No code or migrations written.)

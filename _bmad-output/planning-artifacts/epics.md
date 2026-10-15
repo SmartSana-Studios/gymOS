@@ -1,6 +1,7 @@
 ---
 stepsCompleted: [1, 2, 3, 4]
-status: final
+status: draft  # V1.7: Epics 22-23 complete; Epics 24-25 outline-only (no stories) by decision, 2 checks open
+v17UpdateStepsCompleted: [1, 2, 3, 4]
 inputDocuments:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/addendum.md
@@ -9,6 +10,7 @@ inputDocuments:
   - _bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/DESIGN.md
   - _bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md
   - _bmad-output/planning-artifacts/sprint-change-proposal-2026-08-11.md
+  - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md (v1.7, 2026-10-15)
 ---
 
 # gym_os - Epic Breakdown
@@ -258,6 +260,52 @@ Epics 1–8 are the shipped V1.0 pilot scope (`done` per `sprint-status.yaml`). 
 - FR-172: In V1.6 the category is descriptive data only — no behavior, plan type, permission, or screen changes; product wording stays "gym" for every category. It exists for V1.7's directory and landing pages.
 - FR-173: Clarifies FR-024, amends FR-025. Pay-per-session's definition is unchanged; there is no separate session-price field. (a) A plan's type cannot be changed in place once it has subscriptions — the gym creates a new plan; (b) every change to a plan's type or price is audit-logged; (c) a price change never alters the value or validity of sessions already paid for.
 
+**prd §6.30 GymOS Support Staff — V1.7 (Step 1, ships first)**
+- FR-175: Super Admin creates a GymOS support account for one real person on a GymOS-controlled phone/email that matches no existing user (refused on collision, never merged — FR-001). Never shared. Belongs to GymOS, no gym access until a gym is assigned and its second factor is verified (FR-189).
+- FR-176: Activation by single-use invite link (24 h expiry, stored hashed, delivered to a Super Admin-verified channel, never a temporary password), bound to that channel; TOTP enrollment happens inside the flow; verified phone and `@gymosapps.com` email on file before assignment. Sign-in is phone + password, then second factor. One verified factor per account; adding/removing one needs AAL2.
+- FR-177: Assignment is many-to-many per gym; assign/unassign/remove are Super Admin actions at AAL2 with a mandatory reason (FR-089), audited. A new gym has none by default. Assignment to an un-enrolled person, or while the gym's switch is off, is `pending` until Super Admin confirms. Assign, activate and the Owner's switch are serialized per gym (tested).
+- FR-178: In each assigned gym support holds a real staff membership with its own role `support`, ranked below Owner and distinct from Supervisor — no access by default, exactly the FR-179 capabilities, no inheritance. Written only by Super Admin assignment; exists only while the assignment is active. FR-087 ceiling applies (no Owner/Supervisor edits, no creating support, no self role change). No other role in that gym; assignment refused if already member/staff there (FR-091).
+- FR-179: Beyond Supervisor, support can: edit gym profile/settings, plans and prices, registration fee, guest charging and loyalty, category, and (Step 2) landing-page content (FR-198); create staff within the ceiling; manage member records and imports; record payments, refunds and registration-fee waivers; connect or replace the payment account (FR-180). Support cannot: change "Allow GymOS Support"; change SaaS tier/interval/billing anchor/Owner contact/subscription status/suspension; deactivate or delete the gym; edit, deactivate or reset credentials of Owner/Supervisor; change any staff phone or trigger a credential reset; or reach anything not listed. The allow-list is the spec: every RPC and column grant enumerated, every denial has a negative test.
+- FR-180: Amends FR-126/FR-127. **Decided 2026-10-15 (product owner): no Owner approval step.** Support can connect or replace a gym's Tara Money account directly; the safeguard is the audit trail under the individual's identity (FR-187), not a confirmation. The Owner is notified immediately of every connection change and Super Admin is alerted; changing it needs a second-factor check within 5 min (FR-189); secrets go to Vault and the audit row records that credentials changed, never the value; after a connection change or a support revocation the Owner is prompted to review recent support changes. [SUPERSEDES the proposal/hash/24 h-expiry design in PRD FR-180 and AD-36 — PRD and spine need syncing.]
+- FR-181: Money- and access-changing support actions are visible to the gym without naming the person: immediate Owner notice of payment-connection proposals/changes; at least daily summary (on days support acted) of refunds, fee waivers, staff creation/edits, and changes to a published page's public contact/about. Velocity limit `[ASSUMPTION]`: 10/h per gym, 20/h per account, 3 payment-connection changes/day per gym; exceeding locks the account for Super Admin review. Staff created/modified by support tagged "created by GymOS Support" and flagged for review on revocation.
+- FR-182: To the Owner and staff, support is one fixed row "GymOS Support" in the staff list — never an individual, never a count. Settings states one of four states: off ("turned off by you"), on with no one assigned, on with support assigned, on with an assignment waiting for GymOS to confirm — plus last-acted time. Row not editable/deactivatable from the gym; only control is FR-183.
+- FR-183: Per-gym "Allow GymOS Support", Owner-only. On for gyms created after V1.7, off for existing gyms until the Owner turns it on; existing Owners told in-app and by usual channel before release (following FR-157). Off ends all support access immediately; on re-activates assignments active when it went off; assignments made while off stay pending. Audited, visible to Super Admin. `[ASSUMPTION — suspended, not deleted; OQ-30]`
+- FR-184: When access ends (unassign, removal, opt-out, deactivation, lock): in-flight operations complete or roll back atomically; the revoked person's pending items are re-owned to a system actor and flagged for the Owner; live subscriptions and signed links stop within 60 s `[ASSUMPTION]`; Owner prompted to review payment/staff changes.
+- FR-185: Removing an individual or deactivating the account is Super Admin only, with a reason; the Owner cannot see or act on individuals. Auto-disable after 30 days inactive `[ASSUMPTION]`, quarterly Super Admin recertification, any phone/email change via Super Admin at AAL2.
+- FR-186: No gym-side read returns an individual support identity (staff list, audit trail, payment "recorded by", refund approvers, notes, check-ins, exports, live updates, notifications, error logs). Displayed actor server-derived. Attribution columns hold a per-gym opaque identifier, never the platform user id, so one person cannot be correlated across gyms. Each surface has a test.
+- FR-187: Every support action is audit-logged under the individual's identity, retained as any staff action, shown to the gym as "GymOS Support". The Owner can file a disclosure request about a specific audit row, answered by Super Admin outside the product within 3 business days `[ASSUMPTION]`; request and answer audited. Customer terms state GymOS is responsible for its support staff `[OQ-31]`.
+- FR-188: Support memberships excluded from staff counts, role caps and tier limits, operational notifications (e.g. front-desk alerts), and platform metrics. A support person never receives a gym's operational notifications. One definition (the support role) governs all of it, tested both ways.
+- FR-189: Every support account passes TOTP (Supabase MFA); a support session works only at AAL2, a lower-level session sees and does nothing. Enforced in the database and every edge function/service path touching money or secrets through one shared check (NFR-021, NFR-023); no older client build can bypass. Sessions end after 8 h and 15 min idle, enforced by the application `[ASSUMPTION]`; payment-connection change, refund and staff creation need a second-factor check within the last 5 min `[ASSUMPTION]`; repeated wrong codes lock; no "remember this device".
+- FR-190: Super Admin resets a support person's second factor: requires AAL2 and a recorded identity check, invalidates sessions, 30-minute cooling-off `[ASSUMPTION]` during which the person is notified on the verified phone and email and can cancel, then re-enrollment via a new single-use invite (FR-176); audited.
+- FR-191: Every Super Admin session also requires AAL2, switched on only after the Super Admin account enrolls and verifies its factor in a controlled pre-flight; enrollment never open to an unverified session once on. Recovery mechanism designed in architecture (second factor on a separate device); last resort a documented, audited out-of-band reset by the platform owner; dual control once a second Super Admin exists.
+- FR-192: Amends FR-090. Unassign, removal, deactivation, lock, or the Owner's switch off takes effect on the person's next request, not at token expiry. Closes FR-090 for every role: each role-gated policy, RPC, edge function and service path checks current membership, role, deactivation, and for support the assignment, opt-out and second-factor level, live. A suspended gym (FR-132) is denied to support like any staff account.
+- FR-193: Amends FR-072. Super Admin read-only escalation stays as the diagnosis tool; support access to member/payment data is by assignment, audited under FR-187. A Super Admin cannot hold a support account: creation checks phone, email and linked identity against every Super Admin and refuses on a match; a Super Admin session cannot be assigned. A support person cannot act on a record tied to their own phone/email.
+- FR-194: A support person working in several gyms has an explicit active-gym context (FR-003), re-checked live on every request; no cross-gym action in one request.
+- FR-195: A support person never appears on a member-facing surface: receipts, the member app and message templates show the gym, never an individual.
+
+**prd §6.31 Gym Landing Pages — V1.7 (Step 2)**
+- FR-196: A gym can have one optional public landing page at `{name}.gymosapps.com`; all gym users still sign in at `owner.gymosapps.com`. The page shows no login, member counts or staff names; a visitor can call, open WhatsApp, or get directions.
+- FR-197: New gym fields hold page content: about, services/activities, public plans and session plans with prices, location (address + map position), opening hours, public contact (may differ from the Owner's login phone), gallery, banner, logo, with the existing primary color and category label (FR-171). Existing gyms prompted to fill in; nothing published for them. A screen states exactly what becomes public before publishing.
+- FR-198: Owner, Supervisor, or assigned support can edit content and publish/unpublish. Only the Owner (or Super Admin) can claim or rename the page name.
+- FR-199: Publishing is explicit and server-validated; requires page name, category, logo, banner, about ≥100 chars, country and city, ≥1 public contact, opening hours, ≥1 public plan. Re-evaluated on every change: a page that stops qualifying unpublishes itself and the Owner is told why. Unpublishing always allowed.
+- FR-200: Plan visibility is opt-in per plan; private by default; only public plans appear on the page or anything public.
+- FR-201: GymOS prebuilds templates; V1.7 ships one launch template; swappable without re-entering content. The template system is a self-contained module: validated, versioned content in, rendered page out; presentation only, no gym data (addendum G).
+- FR-202: Page name rules: lowercase, 3–30 chars of `a-z0-9-`, no leading/trailing hyphen, no `--`, no `xn--`, not digits only; unique case-insensitively. Reserved names and brand/credential words cannot be claimed; near-matches (edit distance 1, homoglyph/hyphen/digit folding) and generic/place words held for Super Admin approval before first publish, decided within 2 business days; word lists in a Super Admin-maintained table seeded from addendum J.
+- FR-203: First come first served by the Owner, one name per gym, reserved while unpublished or suspended up to 12 months; at most two renames in a rolling 12 months (forced renames/overrides don't count); old name 301-redirects (one hop) for 12 months then released; a taken-down name is never released; redirects dropped on takedown/force-rename and cached ≤5 min.
+- FR-204: Super Admin can take a page down with a reason code (impersonation, illegal content, trademark, misleading content, privacy, other); blocks republishing until lifted and tells the Owner why. Visitors can report via a public form, answered within 5 business days `[ASSUMPTION]`; Owner has an appeal path. No pre-publication moderation.
+- FR-205: Content rendered as text only; no gym HTML/script reaches the page; structured data built by an escaping serializer. Images re-encoded to JPEG/WebP/PNG, metadata (incl. location) stripped, bounded size/dimensions/count, served from a separate cookieless origin, purged on unpublish or delete; uploader attests rights; opaque addresses with no internal identifier.
+- FR-206: The public site reads only a published projection (NFR-024) with a defined field list: page name, gym name, category, logo, banner, about, services, public plans/session plans (name, price, duration), address and optional map position, opening hours, public contact, gallery, country, city, primary color, template, last-updated. No internal identifiers, no `gym_token`, no login phone.
+- FR-207: An unpublished, taken-down, or suspended-gym page returns the same not-found and leaves address, directory and sitemap within 60 s at origin; CDN purged within 5 min; sitemap regenerated within 15 min `[ASSUMPTION]`. Returns when active and republished unless a takedown is in force.
+- FR-208: Page chrome (labels, navigation, structured-data fields) in EN and FR; gym content as entered, language alternates declared only where translated content exists `[ASSUMPTION — OQ-28]`.
+
+**prd §6.32 Directory & Discovery — V1.7 (Step 3)**
+- FR-209: Country from the ISO list; city from a controlled list with alias normalization (accents, spelling, case); new city added by Super Admin; place slugs ASCII-folded.
+- FR-210: GymOS publishes a directory on the main website: a section per country with ≥1 published gym, city listings below, built only from published pages (FR-206). Any published gym is listed regardless of country; Cameroon is the only country with a prominent entry point at launch; no Cameroon-only assumption in addresses, copy or structured data.
+- FR-211: Search and AI-search optimization with verifiable outcomes: every page's and listing's `LocalBusiness`/`HealthClub` structured data validates with zero schema.org errors; sitemap lists exactly the indexable pages; canonical addresses for filtered views; social-sharing metadata; a plain-text site summary for AI crawlers listing each published gym's name, category, city, hours, public plans.
+- FR-212: A country or city listing with fewer than 3 published gyms is excluded from indexing and the sitemap `[ASSUMPTION — OQ-29]`.
+- FR-213: Amends FR-172. Directory filterable by category (FR-171), category label shown on the public page; category stays descriptive for behavior, plan types, permissions; category changes audited.
+- FR-214: A gym that unpublishes, is suspended, or taken down leaves directory, sitemap and listings within the FR-207 times.
+
 ### NonFunctional Requirements
 
 - NFR-001: Multi-tenant data isolation enforced entirely at the PostgreSQL RLS layer; the JWT role-claim injection hook is spiked in week one, before any RLS policy is written — a misconfigured hook defaults to deny-all.
@@ -281,6 +329,11 @@ Epics 1–8 are the shipped V1.0 pilot scope (`done` per `sprint-status.yaml`). 
 - NFR-019: FR-125's "GymOS takes no commission on member→gym payments" is auditable, not merely asserted — every Flow A payment's settlement account is verifiable against its gym's connected credentials (FR-126) via the audit log, so a platform-account credit from a Flow A transaction is detectable after the fact.
 - NFR-021 (V1.6): Paid-session consumption (FR-159) is atomic and enforced in the database, not only in application code. A member-level lock covers the whole sequence "find a covering consumed session, otherwise consume one, award the stamp, maybe grant a free session", so a session is never consumed twice, a member never has more than one session consumed per gym-local day, two simultaneous scans cannot both consume a different session, and a concurrent scan is never wrongly blocked because another scan holds the only session. A replayed offline sync never consumes a second session. Holds for every entry path (member app, offline sync, any dashboard or script) — an older app build cannot bypass it.
 - NFR-022 (V1.6): Loyalty accounting (FR-164–FR-168) is derived from the recorded events that earn it and is idempotent — a duplicated webhook, retried request, or replayed sync grants a stamp or reward at most once per qualifying event. Stamps are earned in the same transaction as the earning event; stamps, free sessions, and every reset or lapse are reconstructible from the audit log. Loyalty state is per member per gym and never readable across gyms (NFR-001).
+
+- NFR-023 (V1.7): Authorization is verified against current state on every request for every role that reaches a gym, support included: membership, role, deactivation, support assignment and opt-out, second-factor level (FR-189, FR-192). A token claim is never the sole basis for a decision — RLS policies, RPCs, edge functions and service-role paths, all through one shared check. A generated inventory of every policy/RPC/function reading the role or gym claim is part of the support-release gate; a CI check fails the build on any that decides from the claim alone. Role-check patterns are null-safe; payment inserts verify the member belongs to the gym.
+- NFR-024 (V1.7): The public site (landing pages, directory) is isolated from tenant data: reads only the published projection (FR-206), runs with no privileged database credential, and a test proves the unauthenticated role has no privilege on any other relation or function. The projection column list is pinned by a snapshot test. A public-site defect cannot expose a member, payment, or unpublished field (extends NFR-001).
+- NFR-025 (V1.7): Public pages and directory listings are server-rendered; field-measured p75 largest content paint ≤3 s on a mid-range Android phone on 4G, for the launch template and directory pages `[ASSUMPTION — confirm with a measured baseline]`.
+- NFR-026 (V1.7): Because gym-authored pages share a registrable domain with the staff login, `owner.`/`portal.` auth cookies are host-only (never `.gymosapps.com`-scoped) with the `__Host-` prefix; public pages send a strict CSP with no inline script; a security-header test is part of the landing-page gate. A separate domain is the fallback if any of these cannot be met.
 
 **Performance targets (Section 7.1):** Dashboard page load < 2s on standard broadband; QR scan → front-desk alert end-to-end < 3s; offline check-in sync within 10s of connectivity restore.
 
@@ -330,7 +383,24 @@ Epics 1–8 are the shipped V1.0 pilot scope (`done` per `sprint-status.yaml`). 
 - **Edge Functions stay at 3** `[ARCH PROPOSAL — OQ-A]`: Tara session payments reuse `payment-webhook`'s purpose dispatch; no new function.
 - **Production is live with real gyms:** every V1.6 behavior ships behind its per-gym flag (charging off for existing gyms, loyalty off by default). Ops items with no owner yet — migration release order and rollback, backup/PITR, staging, secrets rotation, `job_runs` failure alerting, a hosted-privilege CI check (0104 drift) — must be owned before V1.6 reaches live gyms.
 
+**V1.7 Step 1 — GymOS support staff (architecture spine AD-33–AD-41, amended after reviewer gate 2026-10-15):**
+- **AD-33 — support is its own role:** new `member_role` value `support`, denied by default (no existing policy lists it). `support_assignments(support_user_id, gym_id, state pending|active|suspended|ended, …)` is the source of truth; the `members` row (`role='support'`) exists only while `active`, written only by one SECURITY DEFINER function, enforced by a constraint trigger (active assignment AND `gyms.allow_gymos_support`). That function owns FR-175/FR-193 checks. Every staff-target predicate written `role != 'member'` (0062/0063/0064/0090 and like) is rewritten to an explicit staff-role list excluding support.
+- **AD-34 — one live gate, read + write:** `private.current_member_role()` returns `support` only when assignment active, switch on, gym not suspended, account activated/unlocked/no reset pending, JWT `aal2`, session still in `auth.sessions`, within AD-40 limits. VOLATILE `private.support_gate_touch()` records last-seen/velocity and returns breaches as a result, never raises. Edge/service paths call `authorize_support_action(actor, gym_id, capability)`. Amends AD-3: for support, `private.gym_id()` checks the live assignment; the claims hook (AD-4) emits support claims only for active assignments at aal2 `[ASSUMPTION — spike]`. Active gym via `switch_active_gym()` only. AD-3's CI grep gate extended with a generated claim-read inventory.
+- **AD-35 — capability registry:** `support_capabilities(capability, rpc_name|policy_name)`; catalog test classifies every policy/function mentioning `'supervisor'`; pgTAP matrix asserts the denied set. Money/access writes include `private.support_step_up_ok()`. Support-created staff tagged `created_by_support`, not deactivated on revocation, listed for Owner review.
+- **AD-36 — DROPPED 2026-10-15** (no Owner confirmation, see FR-180). The proposal table, hash binding and Owner re-auth are not built. Support connects directly through one audited, step-up-gated function that still derives the masked id and runs the 0083 collision guard server-side.
+- **AD-37 — versioned credentials:** unique constraints on `gym_payment_credentials` become partial unique over active rows (`retired_at is null`); `payments.credentials_id` recorded at initiation and backfilled; webhook resolves by `credentials_id` (or business-id match across the gym's non-deleted rows, then sets it); initiation takes the credentials lock shared, apply exclusive; retired credentials kept until no pending/processing payment and ≥7 days (cap 14), then deleted by a job; an unverifiable webhook is rejected 401 before any write (NFR-002, AD-17).
+- **AD-38 — TOTP at AAL2, server-function enrollment:** support sign-in phone+password then TOTP; invite single-use, hashed, 24 h, bound to verified phone; factor enroll/remove only through a server function checking `aal` first (spike: a lower session cannot add a factor via the provider; database guard if it can); FR-193 checks at creation, activation and every assignment; Super Admin holds exactly two verified factors on separate devices; `private.is_super_admin()` enforces aal2 while a platform flag is on, support creation refused while off, flag flipped once by a one-time script; reset with 30-minute cooling-off.
+- **AD-39 — per-gym proxy actor:** one proxy `users` row per gym (`is_support_proxy`, "GymOS Support", banned auth user created at gym creation, backfilled by script); `private.actor_id()` returns it for support sessions and every attribution column and `log_audit_event()` uses it; real identity in `support_action_identity` (Super Admin-only). Generated inventory over `pg_proc` bodies/triggers lists every writer of `auth.uid()` into an actor column; each must call `private.actor_id()`; CI fails on an unlisted writer; `WITH CHECK (actor_id = auth.uid())` policies become `= private.actor_id()`.
+- **AD-40 — application-enforced limits:** `support_session_state(session_id, started_at, last_seen_at)` and `support_stepup(user_id, action, subject_id, expires_at, consumed_at)`; gate denies >8 h or >15 min idle (Super Admin 8 h / 30 min `[ASSUMPTION]`); step-up is a server action (fresh TOTP, 5-minute, single-use, action/subject-bound, keyed to the user, not `amr`); reset/lock/removal clears state and `auth.sessions`; wrong-code lockout is an application counter.
+- **AD-41 — table-driven jobs, each its own cron:** velocity counted by `support_gate_touch()`, breach sets `users.support_locked_at`; independent jobs writing `job_runs` (AD-19): `support_inactivity_sweep` (30 d, quarterly recertification, suspended gyms excluded), `support_activity_digest` (daily per-gym Owner summary plus review queue, via AD-25), `payment_connection_cleanup` (AD-37). Revocation re-owns pending items to the proxy actor and flags them (FR-184).
+- **Step 1 spikes (verify, not decided):** claims hook receives `aal`; lower-level session cannot add a factor via the provider; deleting `auth.sessions` rows via service-role function; `vault.delete` via SQL and non-superuser definer calling `vault.*` on hosted; hosted MFA factor cap; whether the payment provider returns an account-holder name; `__Host-` cookie behavior under Supabase SSR.
+- **Story notes from the Step 1 reviews:** staff login screen becomes a Phone | Email choice with a password; reset-cooling-off executor job; attribution-column inventory; Super Admin session timeout values; the `ALTER TYPE … ADD VALUE` migration and the policy/function classification pass it triggers.
+- **Pre-flight (PRD §10.2):** TOTP enabled on production Supabase (done 2026-10-15, OQ-27); OQ-30 and OQ-31 answered; existing Owners told about support access (FR-183); Super Admin factor enrolled with recovery in place and out-of-band recovery documented (FR-191).
+- **Steps 2–3 have no architecture coverage yet:** subdomain/DNS policy under `gymosapps.com` vs `owner.`/`portal.`, the published projection, name rules, host-only cookies (NFR-026) and public-content control need their own spine pass before landing-page and directory stories are written (spine "Deferred"). Resolved inputs already in the PRD: public site built in `apps/landing`, `*.gymosapps.com` wildcard attached to that Vercel project (PRD §12 F).
+
 ### UX Design Requirements
+
+**V1.7 UX gap (recorded 2026-10-15):** the UX spine (`DESIGN.md`/`EXPERIENCE.md`, 2026-10-11) has no V1.7 screens, and PRD narratives UJ-12/13/14 are tagged "confirm before UX". No UX-DR is invented here. V1.7 stories are anchored in FR/AD wording, as V1.5 was; a follow-up `bmad-ux` pass is expected before the visual surfaces (support staff Settings states and confirmation screens, landing-page editor and public templates, directory) are built.
 
 - UX-DR1: Implement the three-token brand system (`primary` #1B2A41, `accent` #E0971F, `background` #FAFAF7) with the per-gym `primary_color` override that replaces `accent` on authenticated member-facing surfaces only — the platform shell (onboarding, login, Super Admin) always uses the platform accent, never the gym color.
 - UX-DR2: Build `FrontDeskAlertPanel` as a single variant-driven component (`variant`: `dashboard` | `attendance-row` | `subscription-row`) — no per-page forks — rendered on Overview (AD-02) and Attendance (AD-11); pushes page content down (no z-index overlay), max 5 alerts visible with internal scroll for 6th+, newest-on-top, `aria-live="assertive"` for red alerts and `aria-live="polite"` for yellow, no sound/browser notification in V1.
@@ -543,6 +613,57 @@ FR-173: Epic 19 - Plan type locked once subscribed; type/price changes audited; 
 FR-174: Epic 19 - Class attendance by a guest consumes a session under the same function; booking stays free (amends FR-105/FR-107)
 NFR-007: Epic 14, Story 14.1 - Sentry error monitoring (dashboard, super-admin, mobile) — added 2026-09-01, closes a gap architecture.md had described as already shipped
 NFR-017 (hardening): Epic 4, Story 4.16 - Platform business ID collision guard, closing the reverse-collision gap flagged in Story 11.6's review — added 2026-09-01
+FR-141: Story 1.16 (Epic 1) - In-app Super Admin management (backfilled into the map 2026-10-15; delivered 2026-09-07)
+FR-142: Epic 16 - Country-picker phone input everywhere (backfilled)
+FR-143: Epic 17, Stories 17.1/17.2 - Staff Overview live operational state, net revenue (backfilled)
+FR-144: Epic 17, Story 17.3 - Coach Portal navigation and landing (backfilled)
+FR-145: Epic 17, Story 17.4 - Coach My Classes and roster (backfilled)
+FR-146: Epic 17, Story 17.5 - Coach Portal Overview (backfilled)
+NFR-020: Story 1.16 - Super Admin creation/promotion cannot escalate privilege (backfilled)
+FR-175: Epic 23 - Super Admin creates a support account; collision refused
+FR-176: Epic 23 - Single-use invite, TOTP enrollment inside the flow
+FR-177: Epic 23 - Many-to-many per-gym assignment, pending states, serialized with the Owner switch
+FR-178: Epic 23 - `support` role, denied by default, FR-087 ceiling
+FR-179: Epic 23 - Capability allow-list and denied set (payment connection included, FR-180)
+FR-180: Epic 23 - Support connects/replaces the payment account directly; Owner notified (NO approval step, decided 2026-10-15)
+FR-181: Epic 23 - Owner notices and daily digest, velocity lock, created-by-support tagging
+FR-182: Epic 23 - Single "GymOS Support" row and four Settings states
+FR-183: Epic 23 - Owner-only "Allow GymOS Support" switch, default on for new / off for existing gyms
+FR-184: Epic 23 - Revocation semantics: complete or roll back, re-own pending items, 60 s subscription cutoff
+FR-185: Epic 23 - Super Admin-only removal, 30-day inactivity disable, quarterly recertification
+FR-186: Epic 23 - No gym-side read returns an individual identity; per-gym opaque attribution
+FR-187: Epic 23 - Audit under the individual, shown as "GymOS Support"; disclosure request
+FR-188: Epic 23 - Support excluded from counts, caps, notifications, metrics
+FR-189: Epic 22 - TOTP at AAL2 enforced in DB and every edge path; 8 h / 15 min limits; step-up (applied to support in Epic 23)
+FR-190: Epic 23 - Super Admin-triggered support factor reset with 30-minute cooling-off (moved from Epic 22 2026-10-15: no support accounts exist to reset until Epic 23)
+FR-191: Epic 22 - Super Admin AAL2 with controlled bootstrap and recovery
+FR-192: Epic 22 - Live authorization on the next request for every role (amends FR-090)
+FR-193: Epic 23 - A Super Admin cannot hold a support account
+FR-194: Epic 23 - Explicit active-gym context, no cross-gym request
+FR-195: Epic 23 - Support never appears on member-facing surfaces
+FR-196: Epic 24 - Optional public page at {name}.gymosapps.com (OUTLINE, blocked on spine pass)
+FR-197: Epic 24 - Page content fields and "what becomes public" screen (OUTLINE)
+FR-198: Epic 24 - Who edits/publishes vs who claims the name (OUTLINE)
+FR-199: Epic 24 - Server-validated publish gate (OUTLINE)
+FR-200: Epic 24 - Opt-in plan visibility (OUTLINE)
+FR-201: Epic 24 - Template module, one launch template (OUTLINE)
+FR-202: Epic 24 - Page-name rules, reserved and held words (OUTLINE)
+FR-203: Epic 24 - Name reservation, rename limits, redirects (OUTLINE)
+FR-204: Epic 24 - Takedown and reporting (OUTLINE)
+FR-205: Epic 24 - Text-only rendering, image re-encoding, separate origin (OUTLINE)
+FR-206: Epic 24 - Published projection field list (OUTLINE)
+FR-207: Epic 24 - Unpublish timings (OUTLINE)
+FR-208: Epic 24 - EN/FR page chrome (OUTLINE)
+FR-209: Epic 25 - Country/city controlled lists (OUTLINE)
+FR-210: Epic 25 - Directory built from published pages (OUTLINE)
+FR-211: Epic 25 - SEO and AI-SEO outcomes (OUTLINE)
+FR-212: Epic 25 - Thin listings not indexed (OUTLINE)
+FR-213: Epic 25 - Category filter, amends FR-172 (OUTLINE)
+FR-214: Epic 25 - Removal from directory within FR-207 times (OUTLINE)
+NFR-023: Epic 22 - Live authorization everywhere; generated claim-read inventory and CI check
+NFR-024: Epic 24 - Public site reads only the published projection (OUTLINE)
+NFR-025: Epic 24/25 - p75 LCP target (OUTLINE)
+NFR-026: Epic 24 - Host-only `__Host-` cookies, strict CSP, header test (OUTLINE)
 
 ## Epic List
 
@@ -1448,6 +1569,43 @@ Every gym carries a business category — Gym / Salle de sport, Studio Pilates, 
 **Amends:** FR-010, FR-069, FR-071
 **Architecture:** AD-32 (category setter, stable code)
 **UX:** UX-DR27 (Category in AD-13), UX-DR31 (SA-02/SA-03/SA-04, AD-12 label)
+
+---
+
+## V1.7 — GymOS Support Staff, Landing Pages & Directory (2026-10-15 PRD v1.7)
+
+Epics 1–21 are shipped or in flight. This section comes from PRD v1.7 (`prd.md` §6.30–§6.32, FR-175–FR-214, NFR-023–NFR-026) and the architecture spine AD-33–AD-41. Delivery order is fixed by the product owner (PRD §10.2): support staff first, then landing pages, then the directory; each step has its own gate.
+
+**Decisions recorded 2026-10-15 (product owner):**
+1. **Support collapses to two epics** (22, 23) instead of five.
+2. **No Owner approval of payment connection.** Support connects or replaces the Tara Money account directly; the safeguard is the audit trail under the individual's identity plus an immediate Owner notification. This drops the proposal flow (PRD FR-180 original text, spine AD-36); `epics.md` carries the amended FR-180 and PRD/spine still need syncing. AD-37 (versioned credentials) is unaffected.
+3. **Epics 24–25 are outlines only.** Landing pages and directory have no architecture coverage yet (spine "Deferred") and no V1.7 UX; stories are written after that pass.
+
+### Epic 22: Secure Sign-In Foundation — Access Ends Immediately, Second Factor for Super Admin and Support
+Deactivating, removing or locking an account takes effect on its next request for every role, not at token expiry; Super Admin signs in with an authenticator code after a controlled bootstrap; the shared second-factor gate, session limits and step-up exist for support to use.
+**FRs covered:** FR-189, FR-191, FR-192
+**Amends:** FR-090, FR-072 (gate groundwork)
+**NFRs honored:** NFR-023, NFR-021, NFR-001
+**Architecture:** AD-3 (amended), AD-34 (read/write gate), AD-38, AD-40; Step 1 spikes (claims hook `aal`, factor enrollment guard, `auth.sessions` deletion)
+
+### Epic 23: GymOS Support — Assigned Staff Who Work Inside a Gym
+Super Admin creates support people by invite and assigns them to gyms many-to-many. The Owner has one "Allow GymOS Support" switch and sees one "GymOS Support" row. Support configures the gym and handles transactions, payment connection included, within an enumerated allow-list; the gym never sees who they are, and every action is audited under the individual.
+**FRs covered:** FR-175–FR-188, FR-190, FR-193, FR-194, FR-195
+**Amends:** FR-072, FR-087, FR-089, FR-091, FR-126, FR-127, FR-157 precedent
+**NFRs honored:** NFR-023, NFR-001, NFR-013
+**Architecture:** AD-33, AD-35, AD-37, AD-39, AD-41 (AD-36 dropped)
+**Depends on:** Epic 22. Includes a product-owner pre-flight checklist story (Owner notification, OQ-30/OQ-31, Super Admin factor and recovery).
+
+### Epic 24: Gym Landing Pages (OUTLINE — blocked on architecture spine pass)
+A gym publishes an optional public page at `{name}.gymosapps.com` from content it enters, with one launch template, a name it claims, and takedown/report handling.
+**FRs covered:** FR-196, FR-197, FR-198, FR-199, FR-200, FR-201, FR-202, FR-203, FR-204, FR-205, FR-206, FR-207, FR-208
+**NFRs honored:** NFR-024, NFR-025, NFR-026
+**Blocked on:** spine pass for subdomain/DNS, published projection, name rules; UX pass; Epic 23 done (PRD §10.2).
+
+### Epic 25: Directory & Discovery (OUTLINE — blocked on Epic 24)
+Published gyms appear in country and city listings with validating structured data and sitemap, filterable by category.
+**FRs covered:** FR-209, FR-210, FR-211, FR-212, FR-213, FR-214
+**NFRs honored:** NFR-024, NFR-025
 
 ---
 
@@ -2461,6 +2619,729 @@ So that it describes what my business actually is.
 **Given** every new string
 **When** the PR is opened
 **Then** EN/FR parity passes
+
+---
+
+### Epic 22 — Stories
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 22.1 | Spike — Claims Hook `aal`, Factor-Enrollment Guard, Session Deletion, Cookie Behavior | none | none |
+| 22.2 | Claim-Read Inventory & CI Check (Report Mode) | none (script + CI) | 22.1 |
+| 22.3 | Live Authorization in the Database | next free at merge time | 22.2 |
+| 22.4 | Live Authorization in Edge Functions & Service Paths | none | 22.3 |
+| 22.5 | Super Admin Second-Factor Enrollment (Flag Off) | next free at merge time | 22.1 |
+| 22.6 | Super Admin Bootstrap, Second Device & Recovery | none (script + runbook) | 22.5 |
+| 22.7 | Session Limits & Step-Up | next free at merge time | 22.4, 22.6 |
+
+*22.5 can run in parallel with 22.2–22.4 (two independent chains converging at 22.7). Migration numbers are assigned at merge time; earlier stories never renumber.*
+
+*Production is live with real gyms: 22.3 and 22.4 change authorization on every existing path, so each ships behind the full `scripts/ci-local.sh` gate and the RLS/role matrix tests; 22.6 is the only story that can lock out the sole Super Admin and is run by the product owner, not by CI.*
+
+---
+
+### Story 22.1: Spike — Claims Hook `aal`, Factor-Enrollment Guard, Session Deletion, Cookie Behavior
+
+As the product owner,
+I want the open assumptions behind support access answered against the real auth provider before any code depends on them,
+So that Epics 22–23 are built on verified behavior, not on guesses written into an architecture note.
+
+*Delivers the Step 1 spike list in `ARCHITECTURE-SPINE.md` "Deferred" (AD-34, AD-38, AD-40, NFR-026). No product code. Output is a decision entry in `docs/decisions.md`, newest-first.*
+
+**Acceptance Criteria:**
+
+**Given** a test user with a verified TOTP factor on the local Supabase stack
+**When** the user signs in, steps up to AAL2, and the custom access-token hook runs
+**Then** the spike records whether the hook's event contains the session's `aal` (or `amr`) and how the claim reaches the token, with the exact field path, so AD-34's `[ASSUMPTION — hook receives aal]` is resolved yes or no
+
+**Given** a session at AAL1 for a user who already has one verified factor
+**When** the session calls the provider's enroll-factor endpoint directly (bypassing any app code)
+**Then** the spike records whether a second factor is created; if it is, the decision entry states that **22.5 must add a database-level guard** and names the object to guard
+
+**Given** a service-role function
+**When** it deletes rows from `auth.sessions` for a given user
+**Then** the spike records whether the user's next request is refused within one request (not at token expiry), and whether refresh tokens are also invalidated, so FR-192 and FR-184's "next request" can be built on it or on an alternative
+
+**Given** hosted Supabase (staging project, not production)
+**When** the spike checks the MFA factors-per-user cap and whether TOTP enrollment is enabled
+**Then** the cap and the setting are recorded; production is **not** modified (TOTP is already enabled there per OQ-27, 2026-10-15)
+
+**Given** the dashboard and super-admin apps
+**When** the spike sets a `__Host-` prefixed auth cookie through the Supabase SSR helpers
+**Then** the entry records whether the helpers preserve the prefix, `Secure`, `Path=/` and the absence of a `Domain` attribute, so NFR-026 is either confirmed or flagged as needing a separate domain
+
+**Given** all spike items are answered
+**When** the story closes
+**Then** `docs/decisions.md` has one dated entry with a result per item and a "changes to later stories" list, and `ARCHITECTURE-SPINE.md`'s Deferred bullet is updated to point to it
+
+---
+
+### Story 22.2: Claim-Read Inventory & CI Check (Report Mode)
+
+As a platform engineer,
+I want a generated list of every policy, function and edge function that decides from the token's role or gym claim,
+So that the live-authorization retrofit has a finite, checkable target and no new claim-only check can slip in.
+
+*Delivers the inventory half of NFR-023. Extends the AD-3 CI grep gate and the 19.1 lint. Report mode only: the check publishes the list and fails only on **new** entries beyond the committed baseline.*
+
+**Acceptance Criteria:**
+
+**Given** the local database after all migrations
+**When** the inventory script runs
+**Then** it lists every RLS policy (`pg_policies`), every function and trigger body (`pg_proc`) that reads `auth.jwt()`, `app_role` or `gym_id` from the claim, and every edge function source file that reads them, each with kind, name, and a classification `claim-only`, `live-checked` or `exempt`
+
+**Given** a policy or function that calls `private.current_member_role()` or `private.gym_id()` (the live helpers)
+**When** it is classified
+**Then** it is `live-checked`; one that reads the claim directly and has no live helper call is `claim-only`; an `exempt` entry requires a one-line reason in a committed allow-list (for example the claims hook itself)
+
+**Given** the inventory output committed as `docs/` or `scripts/` baseline
+**When** CI runs on a PR that adds a new `claim-only` entry
+**Then** the check fails with the entry's name and file; the existing baseline entries do not fail it (report mode)
+
+**Given** the baseline
+**When** the story closes
+**Then** the number of `claim-only` entries is recorded in the story's Dev Notes and in `sprint-status.yaml`, and each entry is tagged to the story that will close it (22.3 database, 22.4 edge)
+
+**Given** the null-safety rule of NFR-023
+**When** the script scans policy and function text
+**Then** it also flags role checks written as a negated `= any(...)` or `<> any(...)` / `NOT IN` over a role that can be NULL, as a second list (`null-unsafe`), also tagged to 22.3
+
+---
+
+### Story 22.3: Live Authorization in the Database
+
+As a gym Owner,
+I want a deactivated or removed staff member to lose access on their very next request,
+So that firing someone, or an account being compromised, takes effect immediately and not when their token expires.
+
+*Delivers FR-192 (database half) and NFR-023. Amends FR-090. AD-3 (amended), AD-34 read gate. Migration at merge time. Closes every `claim-only` and `null-unsafe` database entry from 22.2.*
+
+**Acceptance Criteria:**
+
+**Given** `private.current_member_role()` and `private.gym_id()`
+**When** they are evaluated for any role
+**Then** they derive the result from the current `members` row (exists, not deactivated, gym not suspended per FR-132), never from the token claim alone; they remain `STABLE` and the dashboard Overview and check-in paths stay within the existing performance targets (page load < 2 s, scan → alert < 3 s)
+
+**Given** a staff member whose account is deactivated, or whose role is changed, after their token was issued
+**When** their next request reaches any policy or RPC
+**Then** it is refused or sees the new role immediately, without waiting for token expiry; a test per role (receptionist, coach, manager, supervisor, owner) proves it for one read policy and one write RPC
+
+**Given** a gym that becomes suspended
+**When** any staff session of that gym makes its next request
+**Then** it is denied the same as a deactivated account (FR-132), tested for a policy and an RPC
+
+**Given** the `null-unsafe` list from 22.2
+**When** each entry is rewritten
+**Then** role checks use a null-safe form (explicit `IS NOT DISTINCT FROM` / `coalesce` to a deny value), and a test calls each with a NULL role and asserts denial
+
+**Given** a payment insert
+**When** the member's `gym_id` differs from the payment's `gym_id`
+**Then** the insert is refused in the data layer (NFR-023), regardless of the caller's role
+
+**Given** the `claim-only` database entries from 22.2
+**When** this story closes
+**Then** none remain in the database portion of the inventory, the baseline file is regenerated, and `scripts/ci-local.sh` plus the RLS cross-tenant matrix pass
+
+**Given** the Super Admin and the claims hook
+**When** this story ships
+**Then** the Super Admin flow (cross-tenant, `is_super_admin`) and the hook behave exactly as before; AD-3's rule that `gym_id` stays claim-derived for non-support roles is preserved **plus** the live membership check
+
+---
+
+### Story 22.4: Live Authorization in Edge Functions & Service Paths
+
+As a gym Owner,
+I want every server-side path that touches money or secrets to check who is asking against current state,
+So that no function running with a service-role key can be used after someone's access has been removed.
+
+*Delivers FR-192 (edge/service half), NFR-023. AD-34 write path groundwork. Closes the `claim-only` edge entries. Edge Function count stays 3 (AD-OQ-A).*
+
+**Acceptance Criteria:**
+
+**Given** a shared module `authorize_action(actor, gym_id, capability)` used by edge functions and service-role server actions
+**When** it is called
+**Then** it takes the actor **explicitly** (service-role code carries no claims), loads the actor's current membership, role, deactivation state and the gym's suspension state from the database, and returns allow or a typed deny; it never trusts a role from the request body or token alone
+
+**Given** each user-initiated edge function and service-role server action that moves money or reads secrets (payment initiation, credential handling, refund, staff creation, SaaS billing)
+**When** it runs
+**Then** it calls `authorize_action` before any write, and a deactivated, role-changed or wrong-gym actor receives a denied response with no side effect
+
+**Given** `payment-webhook`
+**When** a webhook arrives
+**Then** its provider-signature authentication is unchanged and is **not** routed through `authorize_action` (it has no user actor); the inventory records it `exempt` with that reason
+
+**Given** the full inventory
+**When** the CI check runs in **enforcing** mode
+**Then** it fails the build on any `claim-only` or `null-unsafe` entry not in the exempt allow-list, and the committed baseline contains zero non-exempt entries
+
+**Given** an older mobile or dashboard build
+**When** it calls a path that now denies
+**Then** the response is the existing "you don't have permission" outcome (FR-003), not a network-style error
+
+**Given** the story closes
+**When** `scripts/ci-local.sh` and the Playwright baseline run
+**Then** both pass, and Sentry receives one logged event per denied attempt (FR-003) without the actor's token or secrets
+
+---
+
+### Story 22.5: Super Admin Second-Factor Enrollment (Flag Off)
+
+As a Super Admin,
+I want an authenticator-app second factor available on my account,
+So that the account that creates and assigns support people is protected by more than a password and a phone code.
+
+*Delivers the enrollment half of FR-191. AD-38. Migration at merge time. The requirement is **off** after this story; 22.6 turns it on. Depends on the 22.1 result for the guard.*
+
+**Acceptance Criteria:**
+
+**Given** a platform setting `private.platform_flags('super_admin_aal2')` defaulting to **off**
+**When** this story ships
+**Then** every existing Super Admin session works exactly as before
+
+**Given** a signed-in Super Admin
+**When** they open the Super Admin app's security page and start enrollment
+**Then** enrollment runs **only** through a server function that checks the session's `aal` first (a second factor requires `aal2`); the client's direct enroll call is not used, and the factor becomes `verified` only after a correct TOTP code
+
+**Given** the 22.1 finding that a lower-level session can add a factor directly
+**When** this story ships
+**Then** a database-level guard (or provider setting) prevents a factor being added to a Super Admin from an AAL1 session, with a test that attempts it directly against the provider and fails; if 22.1 found it impossible, a test records that and no guard is added
+
+**Given** `private.is_super_admin()`
+**When** the flag is on and the session's `aal` is not `aal2`
+**Then** it returns false (so every Super Admin policy and RPC denies); **when** the flag is off it behaves as today; both states are tested
+
+**Given** an account with two verified factors
+**When** either factor is removed
+**Then** removal requires `aal2` and is audited with actor and timestamp; a Super Admin cannot be left with zero verified factors while the flag is on
+
+**Given** every enrollment, verification and removal
+**When** it happens
+**Then** one `audit_log` row is written (actor, action, timestamp, never a secret)
+
+---
+
+### Story 22.6: Super Admin Bootstrap, Second Device & Recovery
+
+As the product owner,
+I want to turn the second-factor requirement on for Super Admin only after both factors are verified and a recovery path exists,
+So that securing the platform cannot lock us out of it.
+
+*Delivers the bootstrap and recovery halves of FR-191 and the pre-flight in PRD §10.2. AD-38. Run by the product owner; first on local and staging, then production. No new product surface.*
+
+**Acceptance Criteria:**
+
+**Given** the one-time script `scripts/enable-super-admin-aal2`
+**When** it runs
+**Then** it refuses unless the Super Admin account has **exactly two verified factors**, and prints each factor's friendly name and creation time for the operator to confirm they are on separate devices; it does not enable the flag otherwise
+
+**Given** both factors verified
+**When** the operator confirms
+**Then** the script sets `super_admin_aal2` on in one transaction and writes an `audit_log` row with the operator identity; running it again is a no-op
+
+**Given** the flag is on
+**When** a Super Admin session at AAL1 hits any Super Admin route or RPC
+**Then** it is denied and redirected to the second-factor prompt; enrollment of a **new** factor by an unverified session is refused (FR-191)
+
+**Given** the runbook `docs/runbooks/super-admin-recovery.md`
+**When** it is reviewed
+**Then** it documents the out-of-band reset (the platform owner clears factors through a service-role script, itself audited), the preconditions, and what to do if both devices are lost, and states that dual control replaces it when a second Super Admin exists (PRD §8)
+
+**Given** the local and staging environments
+**When** the product owner follows the runbook to simulate losing a device
+**Then** the Super Admin is able to sign back in, and the dry run's date and result are recorded in `docs/decisions.md`
+
+**Given** support-account creation (Epic 23)
+**When** the flag is off
+**Then** creation is refused (AD-38); this story records that precondition in the Epic 23 pre-flight checklist
+
+---
+
+### Story 22.7: Session Limits & Step-Up
+
+As a platform operator,
+I want elevated sessions to expire on idle and long-lived, and sensitive actions to need a fresh code,
+So that a stolen or forgotten signed-in session cannot move money or change access for hours.
+
+*Delivers the session-limit and step-up half of FR-189. AD-40 (amends AD-34's gate). Applied to Super Admin now; Epic 23 applies the same objects to support. Migration at merge time. The 8 h / 15 min support values and Super Admin's 8 h / 30 min are `[ASSUMPTION]` — configured in one place.*
+
+**Acceptance Criteria:**
+
+**Given** `support_session_state(session_id, started_at, last_seen_at)`
+**When** a session of a role that requires AAL2 (Super Admin when the flag is on) makes a request
+**Then** the gate records `last_seen_at`; a session older than its maximum age or idle longer than its idle limit is denied on its next request, enforced by the application and not by a provider plan setting
+
+**Given** `support_stepup(user_id, action, subject_id, expires_at, consumed_at)`
+**When** a user answers a fresh TOTP challenge for a named action and subject
+**Then** the server verifies it and records one step-up row valid for five minutes, **single-use and bound** to that action and subject; the step-up check does not read the `amr` claim and is keyed to the user, not the session
+
+**Given** a protected action with a valid step-up
+**When** it is performed
+**Then** the row is consumed atomically; a second use, a different subject, a different action, or an expired row is refused
+
+**Given** a factor reset, a lock, or a removal for a user
+**When** it happens
+**Then** that user's `support_session_state` rows are cleared and their `auth.sessions` removed (per the 22.1 deletion result), so the next request is denied
+
+**Given** repeated wrong TOTP codes
+**When** an application counter reaches the configured limit
+**Then** the account is locked for Super Admin review (the lock is recorded and returned as a result so it commits, AD-34), and the attempt count is audited
+
+**Given** the limit values
+**When** they are changed
+**Then** they live in one configuration location with the `[ASSUMPTION]` tag, and a test asserts the gate reads them from there
+
+**Given** Super Admin session limits
+**When** this story ships
+**Then** the Super Admin app shows a re-sign-in prompt with a clear "session expired" message (no data loss on a form: unsaved drafts warn before expiry where the existing UX already warns)
+
+---
+
+### Epic 23 — Stories
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 23.0 | Pre-Flight Checklist (Product Owner) | none | 22.6 |
+| 23.1 | `support` Role, Assignment Record & Live Gate | next free at merge time | 22.4, 22.7, 23.0 |
+| 23.2 | Support Excluded From Counts, Caps, Notifications & Metrics | next free at merge time | 23.1 |
+| 23.3 | "Allow GymOS Support" Switch & "GymOS Support" Row | next free at merge time | 23.1 |
+| 23.4 | Create Support Account & Invite | next free at merge time | 23.1 |
+| 23.5 | Assign, Unassign & Remove | next free at merge time | 23.3, 23.4 |
+| 23.6 | Capability Allow-List & Denied-Set Matrix | next free at merge time | 23.5 |
+| 23.7 | Hidden Identity — Per-Gym Proxy Actor | next free at merge time | 23.6 |
+| 23.8 | Audit Under the Individual, Disclosure & Member-Facing Surfaces | next free at merge time | 23.7 |
+| 23.9 | Support Connects the Payment Account | next free at merge time | 23.6, 23.7 |
+| 23.10 | Revocation, Owner Visibility & Velocity Lock | next free at merge time | 23.7 |
+| 23.11 | Lifecycle — Inactivity, Recertification & Factor Reset | next free at merge time | 23.5, 22.7 |
+
+*Support is **denied by default** from 23.1 on: no existing policy lists `support`, so nothing is reachable until 23.6 opts capabilities in. Support is created with the Owner switch **off for existing gyms** (FR-183), so no live gym is affected until its Owner turns it on. AD-36 (Owner confirmation) was dropped 2026-10-15; 23.9 replaces it with a direct, step-up-gated, notified connection.*
+
+---
+
+### Story 23.0: Pre-Flight Checklist (Product Owner)
+
+As the product owner,
+I want the conditions for introducing GymOS Support confirmed before any support code reaches production,
+So that existing Owners are told, the legal wording is settled and the platform account is secured first.
+
+*Delivers PRD §10.2 "Pre-flight" and FR-183's notification obligation. No application code; a checklist recorded in `docs/decisions.md` and `sprint-status.yaml`, following Story 19.0.*
+
+**Acceptance Criteria:**
+
+**Given** story 22.6 is done
+**When** the checklist is reviewed
+**Then** it records that the Super Admin has two verified factors, `super_admin_aal2` is on in production, and the recovery runbook was exercised (date recorded)
+
+**Given** OQ-30 (assignments suspended, not deleted, on opt-out) and OQ-31 (customer-terms wording and the 3-business-day disclosure answer)
+**When** each is answered
+**Then** the answer is recorded in the PRD's Open Questions table and in `docs/decisions.md`; an unanswered one blocks 23.3 and 23.8 respectively
+
+**Given** existing gyms start with support **off** (FR-183)
+**When** the release is prepared
+**Then** the Owner notice text (EN/FR, in-app and the gym's usual channel) is written and approved, and its send date is recorded **before** the release date
+
+**Given** the assumptions tagged for Step 1 (velocity limits, 60 s cutoff, 30-day inactivity, 30-minute cooling-off, 8 h / 15 min limits, 5-minute step-up)
+**When** the checklist is closed
+**Then** each value is confirmed or changed, and the confirmed values are written to the single configuration location created in 22.7
+
+**Given** the deferrable items raised in planning (velocity lock, daily digest, quarterly recertification, inactivity sweep)
+**When** the checklist is closed
+**Then** each is recorded as **kept** or **deferred**; a deferred item's story AC in 23.10/23.11 is marked deferred, not deleted
+
+---
+
+### Story 23.1: `support` Role, Assignment Record & Live Gate
+
+As a Super Admin,
+I want a distinct support role that has no access until I assign it,
+So that a GymOS support person can never reach a gym by inheriting what a Supervisor can do.
+
+*Delivers FR-178, FR-194 (and the data half of FR-177). AD-33, AD-34 (amended AD-3). Migration at merge time. Includes the `ALTER TYPE … ADD VALUE` step, which must commit before use (own migration file).*
+
+**Acceptance Criteria:**
+
+**Given** the `member_role` enum
+**When** the migration runs
+**Then** the value `support` is added in its own migration file ahead of any statement that uses it, and no existing policy, function or CHECK lists `support`, so it is denied by default
+
+**Given** `support_assignments(support_user_id, gym_id, state, …)` with state `pending | active | suspended | ended`
+**When** the table is created
+**Then** it has RLS enabled with no client policy (Super Admin reads through a function), a partial unique index allowing one non-ended row per (person, gym), and timestamps and reason columns
+
+**Given** `gyms.allow_gymos_support boolean NOT NULL`
+**When** the migration runs on a database with live gyms
+**Then** every existing gym reads **off** and gyms created afterwards default **on** (FR-183), and the column is written only by the setter delivered in 23.3 (until then nothing can change it, so support stays off everywhere)
+
+**Given** the invariant "active support membership ⇒ assignment `active` AND `gyms.allow_gymos_support`"
+**When** anything inserts or updates a `members` row with `role = 'support'` without it
+**Then** a constraint trigger refuses it; the only writer is one `SECURITY DEFINER` function used by assignment and activation
+
+**Given** `private.current_member_role()` and `private.gym_id()`
+**When** evaluated for a support user
+**Then** they return `support` / the gym only if the assignment is `active`, the switch is on, the gym is not suspended, the account is activated, unlocked, has no reset pending, the session is AAL2, the session exists in `auth.sessions` and is inside the 22.7 limits; otherwise NULL, evaluated live on every request
+
+**Given** the claims hook (AD-4)
+**When** it runs for a support user
+**Then** it emits `gym_id` and `app_role = 'support'` only for an `active` assignment at `aal2` (per the 22.1 result); a support user never gets a claim for a pending, suspended or ended assignment
+
+**Given** a support person with several active assignments
+**When** they call `switch_active_gym(gym_id)`
+**Then** it succeeds only for an active assignment, and a request in one call acts on exactly one gym (FR-194); a request that names another gym is refused
+
+**Given** `scripts/ci-local.sh`
+**When** it runs
+**Then** the 22.2 inventory shows no new `claim-only` entry and the pgTAP suite proves a support user with an active assignment sees **zero rows** from every tenant table before 23.6
+
+---
+
+### Story 23.2: Support Excluded From Counts, Caps, Notifications & Metrics
+
+As a gym Owner,
+I want GymOS Support to be invisible to my staff numbers, limits and alerts,
+So that having support does not use up my staff allowance or put a GymOS person on my front-desk alerts.
+
+*Delivers FR-188. AD-33's predicate rewrite. Migration at merge time.*
+
+**Acceptance Criteria:**
+
+**Given** every staff-target predicate written as `role != 'member'` (0062/0063/0064/0090 and any like it)
+**When** the migration is applied
+**Then** each is rewritten to an explicit list of staff roles that excludes `support`, and a catalog test fails if a function or policy mentions `'supervisor'` without being classified as including or excluding `support`
+
+**Given** a gym with support active
+**When** staff counts, per-role caps and tier limits (AD-26) are computed
+**Then** the support membership is not counted, tested in both directions (counted would fail the test)
+
+**Given** operational notifications (front-desk alerts, quiet-gym alerts, class reminders to staff)
+**When** a notification fans out for a gym
+**Then** no support person receives it, and a test with an active assignment proves zero rows
+
+**Given** platform and gym metrics (Overview cards, Super Admin gym lists, PostHog events)
+**When** they count users or staff
+**Then** support memberships are excluded through one shared definition of "support member" (the `support` role)
+
+**Given** the staff-management RPCs (`update_staff_role`, deactivate, delete, reset)
+**When** a caller targets a support membership from inside a gym
+**Then** the call is refused, whatever the caller's role
+
+---
+
+### Story 23.3: "Allow GymOS Support" Switch & "GymOS Support" Row
+
+As a gym Owner,
+I want one switch that decides whether GymOS may help my gym,
+So that I stay in control of whether anyone from GymOS can act inside it.
+
+*Delivers FR-182, FR-183. Migration at merge time. Owner-only. Depends on OQ-30's answer (23.0).*
+
+**Acceptance Criteria:**
+
+**Given** `gyms.allow_gymos_support` (column and defaults delivered in 23.1)
+**When** this story's migration runs
+**Then** the column gains a pin trigger so it is changed only by the one audited setter below
+
+**Given** the setter `set_allow_gymos_support(p_gym_id, p_on)`
+**When** the caller is that gym's Owner
+**Then** the value changes, one audit row records old and new, and Super Admin can see it; any other role, including Supervisor, Manager and support, is refused using `private.current_member_role()`
+
+**Given** the switch is turned off
+**When** it commits
+**Then** all support access to the gym ends on the next request (live gate), active assignments become `suspended`, and the support memberships are removed in the same transaction
+
+**Given** the switch is turned on again
+**When** it commits
+**Then** assignments that were active when it was switched off become `active` again, and assignments made while it was off remain `pending` (FR-177, FR-183)
+
+**Given** the Owner's Settings and the staff list
+**When** a gym has the setting
+**Then** the staff list shows one fixed row "GymOS Support" (never an individual, never a count) that cannot be edited or deactivated, and Settings states exactly one of: off ("turned off by you"), on with no one assigned, on with support assigned, on with an assignment waiting for GymOS to confirm, plus the time support last acted, in EN and FR
+
+**Given** an older dashboard build
+**When** it loads a gym with the new setting
+**Then** it still renders (unknown row ignored), and the Owner notice delivered through 23.0 covers the change
+
+---
+
+### Story 23.4: Create Support Account & Invite
+
+As a Super Admin,
+I want to create a support person's account and send them a single-use invite,
+So that a real person can set up their own access without me ever knowing or sending a password.
+
+*Delivers FR-175, FR-176, FR-193 (creation checks). AD-38. Migration at merge time. Requires the `super_admin_aal2` flag on (22.6).*
+
+**Acceptance Criteria:**
+
+**Given** the Super Admin app's "GymOS support" section, signed in at AAL2
+**When** the Super Admin enters a person's name, GymOS-controlled phone and `@gymosapps.com` email
+**Then** the account is created inactive; creation is refused if the phone or email matches any existing user, any Super Admin, or any linked identity (never merged), with a message that does not reveal which user matched
+
+**Given** `super_admin_aal2` is off
+**When** creation is attempted
+**Then** it is refused (AD-38)
+
+**Given** an account is created
+**When** the Super Admin sends the invite
+**Then** a single-use link is created, stored hashed, expires in 24 hours, is bound to the account's verified phone, and is delivered to a channel the Super Admin has verified; no temporary password exists anywhere
+
+**Given** the invitee opens the link
+**When** they complete the phone one-time code, set a password and enroll TOTP
+**Then** the account becomes `activated` only after a verified factor; a second use, an expired link or a wrong phone fails with one generic message
+
+**Given** the account has an unverified email or phone
+**When** its state is read
+**Then** it is flagged `not assignable` with the missing item named (FR-176; 23.5 enforces the refusal at assignment); the email is not a sign-in method until verified
+
+**Given** every step
+**When** it happens
+**Then** one `audit_log` row is written (actor, action, target, timestamp, never the link or secret) and the checks in FR-193 run again at activation
+
+---
+
+### Story 23.5: Assign, Unassign & Remove
+
+As a Super Admin,
+I want to assign support people to gyms and take them off again,
+So that the right people can help the right gyms, and I can end access at any moment.
+
+*Delivers FR-177, FR-185 (removal), FR-193 (assignment check). Migration at merge time.*
+
+**Acceptance Criteria:**
+
+**Given** a Super Admin at AAL2
+**When** they assign a support person to a gym with a mandatory reason
+**Then** the assignment is created `active` only if the person is activated, the gym's switch is on, and the person has no other membership or staff row in that gym (FR-091); otherwise it is created `pending` or refused with a typed reason
+
+**Given** a `pending` assignment
+**When** enrollment completes and the switch is on
+**Then** it becomes `active` only when a Super Admin confirms it explicitly, never automatically
+
+**Given** concurrent assignment and the Owner's switch change on the same gym
+**When** both run
+**Then** they are serialized per gym (advisory lock) so the invariant "active ⇒ switch on" never breaks, tested with a concurrent transaction
+
+**Given** a Super Admin session or a person who is a Super Admin
+**When** assignment is attempted
+**Then** it is refused (FR-193)
+
+**Given** unassign, remove, or deactivate with a mandatory reason
+**When** it commits
+**Then** access ends on the person's next request (22.3), the support membership is removed, and one audit row records actor, target gym or account, and reason; the Owner cannot see or perform any of these
+
+**Given** the Super Admin app
+**When** a Super Admin views a gym or a person
+**Then** they see assignments and states, and the individual's name is visible to Super Admin only
+
+---
+
+### Story 23.6: Capability Allow-List & Denied-Set Matrix
+
+As a gym Owner,
+I want support to do exactly what GymOS promised and nothing else,
+So that "help me set up my gym" never becomes "change my billing or remove me".
+
+*Delivers FR-179. AD-35. Migration at merge time. This is the story that makes support useful; before it, support sees nothing.*
+
+**Acceptance Criteria:**
+
+**Given** `support_capabilities(capability, rpc_name | policy_name)`
+**When** this story ships
+**Then** it lists every RPC and policy that admits `support`, each named in the allow-list of FR-179: gym profile and settings, plans and prices, registration fee, guest charging and loyalty settings, category, staff creation within the ceiling, member records and imports, payments, refunds and registration-fee waivers; the payment connection is added by 23.9
+
+**Given** the catalog test
+**When** it runs
+**Then** every policy and function mentioning `'supervisor'` is classified as including or excluding support, and an unclassified one fails CI
+
+**Given** the denied set (tier, interval, billing anchor, Owner contact, subscription status, suspension, deactivate/delete gym, `allow_gymos_support`, Owner and Supervisor edits, any staff phone change, any credential reset)
+**When** a pgTAP matrix calls each RPC and attempts each column write as a support user
+**Then** every denied one fails, and each has its own named negative test
+
+**Given** money- and access-changing writes admitted for support (refunds, waivers, staff creation)
+**When** called
+**Then** each requires a valid step-up row (22.7) bound to the action and subject, and refuses without it
+
+**Given** the FR-087 ceiling
+**When** support creates staff
+**Then** it cannot create an Owner, a Supervisor or another support account, and cannot change its own role
+
+**Given** staff created by support
+**When** they are written
+**Then** they are tagged `created_by_support` and are **not** deactivated when the person is revoked (they are listed for Owner review in 23.10)
+
+---
+
+### Story 23.7: Hidden Identity — Per-Gym Proxy Actor
+
+As a gym Owner,
+I want everything support does to appear as "GymOS Support" with no way to tell which person did it,
+So that I deal with GymOS as a company and a person cannot be traced across the gyms they work in.
+
+*Delivers FR-186. AD-39. Migration at merge time plus a one-time backfill script. The largest story in the epic: it touches every function that writes an actor.*
+
+**Acceptance Criteria:**
+
+**Given** gym creation
+**When** a gym is created
+**Then** one proxy `users` row (`is_support_proxy`, display name "GymOS Support", null phone and email) backed by a banned `auth.users` row exists for it, and gym creation fails closed if the proxy cannot be created; existing gyms are backfilled by a one-time script
+
+**Given** `private.actor_id()`
+**When** a support session writes
+**Then** it returns the gym's proxy id; for any other caller it returns `auth.uid()`, and `log_audit_event()` writes it with `actor_display_name = 'GymOS Support'`
+
+**Given** the generated inventory over `pg_proc` bodies and triggers (0034/0035/0036/0037/0061/0063/0090/0093/0099/0100/0108/0110/0119/0121, `connected_by` in 0052/0054/0083, and any later one)
+**When** CI runs
+**Then** every function that writes `auth.uid()` into an actor column calls `private.actor_id()`, and CI fails on an unlisted writer; RLS `WITH CHECK (actor_id = auth.uid())` policies on support-writable tables become `= private.actor_id()`
+
+**Given** the proxy user
+**When** staff lists, counts, exports, notifications and Realtime payloads are produced
+**Then** `is_support_proxy` excludes it from person-level counts, exports and notifications
+
+**Given** a support person's own `users` and `members` rows
+**When** an Owner or staff member queries those tables
+**Then** they are unreadable from any gym-side policy, including raw base-table reads and Realtime
+
+**Given** the same support person acting in two gyms
+**When** attribution columns are compared across the gyms
+**Then** they hold two different opaque proxy ids, so the person cannot be correlated
+
+---
+
+### Story 23.8: Audit Under the Individual, Disclosure & Member-Facing Surfaces
+
+As GymOS,
+I want every support action recorded under the real person, and the gym shown only "GymOS Support",
+So that we stay accountable for our staff without exposing them to the gym.
+
+*Delivers FR-187, FR-195, FR-186's per-surface tests. AD-39. Migration at merge time. Wording for the disclosure answer depends on OQ-31 (23.0).*
+
+**Acceptance Criteria:**
+
+**Given** a support action
+**When** it is written to the audit log
+**Then** the gym-visible row shows "GymOS Support" and the proxy id, and a separate `support_action_identity(subject_table, subject_id, real_user_id, gym_id)` row holds the real person, readable by Super Admin only
+
+**Given** each surface (staff list, audit trail, payment "recorded by", refund approvers, member notes, check-ins, exports, live updates, notifications, error logs)
+**When** a per-surface test reads as Owner, Supervisor and Manager of a gym where support acted
+**Then** none returns the real person's id, name, phone or email
+
+**Given** the member app, receipts and message templates
+**When** they render something support created or changed
+**Then** they show the gym, never an individual or "GymOS Support" as a person (FR-195)
+
+**Given** an Owner
+**When** they file a disclosure request about a specific audit row
+**Then** it is stored, visible to Super Admin, answered outside the product within 3 business days `[ASSUMPTION]`, and both the request and the answer are audited
+
+**Given** the displayed actor
+**When** a client attempts to set it
+**Then** the server ignores it; the displayed actor is always derived server-side
+
+---
+
+### Story 23.9: Support Connects the Payment Account
+
+As a GymOS support person,
+I want to connect or replace a gym's Tara Money account for the Owner,
+So that a gym can start taking mobile-money payments without the Owner doing technical setup.
+
+*Delivers FR-180 (amended 2026-10-15: no Owner approval) and AD-37. Migration at merge time. AD-36 is dropped.*
+
+**Acceptance Criteria:**
+
+**Given** a support session with an active assignment and a valid step-up (22.7, action `payment_connection`, bound to the gym)
+**When** support submits the Tara Money credentials
+**Then** one audited `SECURITY DEFINER` function validates them, stores the secret in Vault, derives the masked identifier server-side, runs the 0083 business-id collision guard, and activates the connection; without a valid step-up it refuses
+
+**Given** a replacement of an existing connection
+**When** it applies
+**Then** the previous `gym_payment_credentials` row is retired (`retired_at`), not deleted, and the unique constraints are partial over active rows (AD-37), so rolling back to a previous merchant is a new active row
+
+**Given** a payment initiated before the swap
+**When** its webhook, status check or reconciliation runs after it
+**Then** it verifies under `payments.credentials_id` recorded at initiation (backfilled for existing payments), never under the active row by `connected_at`
+
+**Given** a webhook whose credential is deleted
+**When** it arrives
+**Then** it is rejected 401 before any database write (NFR-002, AD-17)
+
+**Given** any payment-connection change
+**When** it commits
+**Then** the Owner is notified immediately ("GymOS Support updated your payment account"), Super Admin is alerted, and the audit row records that credentials changed, never their value
+
+**Given** a retired credential
+**When** no payment under it is `pending` or `processing` and at least 7 days (cap 14) have passed
+**Then** a `payment_connection_cleanup` job deletes the secret from Vault and records the run in `job_runs`
+
+---
+
+### Story 23.10: Revocation, Owner Visibility & Velocity Lock
+
+As a gym Owner,
+I want to know what support did and to be safe when their access ends,
+So that nothing is half-finished or unreviewed after a person leaves.
+
+*Delivers FR-181, FR-184. AD-41. Migration at merge time. Items marked deferred in 23.0 are skipped, not deleted.*
+
+**Acceptance Criteria:**
+
+**Given** a revocation (unassign, removal, opt-out, deactivation, lock)
+**When** it commits
+**Then** operations already started complete or roll back atomically, items created by that person that are still pending are re-owned to the gym's proxy actor and flagged for the Owner, and live subscriptions and signed links stop within 60 seconds `[ASSUMPTION]`
+
+**Given** staff created or modified by support
+**When** support is revoked
+**Then** they are listed in a review queue for the Owner and tagged "created by GymOS Support" in the staff list, and none is deactivated automatically
+
+**Given** `support_activity_digest` (its own cron, writing `job_runs`)
+**When** support acted that day
+**Then** the Owner receives one summary through the existing notification path (AD-25) listing refunds, fee waivers, staff creation and edits, and changes to a page's public contact or about text (the last once Epic 24 exists), and payment-connection changes were already notified immediately in 23.9
+
+**Given** the velocity limit (10/h per gym, 20/h per account, 3 payment-connection changes/day per gym — `[ASSUMPTION]`)
+**When** it is exceeded
+**Then** `support_gate_touch()` sets `users.support_locked_at`, the breach is returned as a result so the lock commits (AD-34), and Super Admin is alerted for review
+
+**Given** a locked account
+**When** Super Admin reviews
+**Then** they can unlock with a recorded reason; the lock, unlock and reason are audited
+
+**Given** a gym in suspension
+**When** a support person makes a request
+**Then** they are denied like every staff account (FR-132), and no job counts that gym toward inactivity
+
+---
+
+### Story 23.11: Lifecycle — Inactivity, Recertification & Factor Reset
+
+As a Super Admin,
+I want idle support accounts to switch off by themselves and lost authenticators to be reset safely,
+So that old access does not linger and a real person can get back in without a back door.
+
+*Delivers FR-185 (inactivity, recertification) and FR-190. AD-38, AD-41. Migration at merge time. Inactivity and recertification parts are skipped if deferred in 23.0.*
+
+**Acceptance Criteria:**
+
+**Given** `support_inactivity_sweep` (its own cron, writing `job_runs`)
+**When** an account has had no activity for 30 days `[ASSUMPTION]`
+**Then** it is disabled and Super Admin is told; suspended gyms are excluded so an idle gym does not disable its support
+
+**Given** quarterly recertification
+**When** a person's due date passes
+**Then** Super Admin must recertify before further access; the due date and recertification are audited
+
+**Given** a Super Admin at AAL2 resets a support person's second factor
+**When** they record an identity check
+**Then** the person's sessions are invalidated, a 30-minute cooling-off starts `[ASSUMPTION]` during which phone and email changes are frozen and the person is notified on the verified phone and the email on file and can cancel
+
+**Given** the cooling-off ends without cancellation
+**When** the executor job runs
+**Then** the old factor is removed and a new single-use invite is issued (23.4), and the person must re-enroll before any access
+
+**Given** a cancellation during cooling-off
+**When** the person cancels
+**Then** the reset is abandoned, sessions stay revoked, and Super Admin is alerted
+
+**Given** any change to a support person's phone or email
+**When** it is made
+**Then** it goes through Super Admin at AAL2 only and is audited
 
 ---
 
