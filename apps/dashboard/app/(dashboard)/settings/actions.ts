@@ -2,6 +2,7 @@
 
 import {
   connectGymPaymentCredentialsSchema,
+  gymCategorySchema,
   createSaasBillingHostedCheckoutLinkSchema,
   emailSchema,
   gymSettingsSchema,
@@ -16,6 +17,7 @@ import {
   logGymSettingsChange,
   regenerateQrCode as regenerateQrCodeRow,
   setGuestCharging as setGuestChargingRow,
+  setGymCategory as setGymCategoryRow,
   setLoyaltyProgram as setLoyaltyProgramRow,
   setRegistrationFee,
   updateGymSettings,
@@ -401,5 +403,25 @@ export async function saveLoyaltyProgram(
 
   const { data, error } = await setLoyaltyProgramRow({ enabled, ...values });
   if (error || !data) return failure(error?.code ?? "unknown");
+  return { data, error: null };
+}
+
+/**
+ * Story 21.2: saves the gym category through `set_gym_category()` (0123), not
+ * `saveGymSettings`. The RPC is the real authorization boundary and writes the
+ * audit row. Any refusal is one fixed, translated message.
+ */
+export async function saveGymCategory(
+  input: unknown,
+): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = gymCategorySchema.safeParse(input);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("settings.category.selectError") } };
+  }
+  const { data, error } = await setGymCategoryRow(parsed.data);
+  if (error || !data) {
+    return { data: null, error: { code: error?.code ?? "unknown", message: t("settings.category.saveFailed") } };
+  }
   return { data, error: null };
 }

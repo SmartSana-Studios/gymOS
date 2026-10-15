@@ -16,6 +16,7 @@ const getBillingInfo = vi.fn();
 const fetchSaasBillingPaymentStatus = vi.fn();
 
 vi.mock("./actions", () => ({
+  saveGymCategory: vi.fn(),
   connectPaymentProvider: vi.fn(),
   disconnectPaymentProvider: vi.fn(),
   regenerateQrCode: vi.fn(),
@@ -90,6 +91,7 @@ const INITIAL_SETTINGS = {
   loyaltyGuestThreshold: null,
   loyaltyRenewalThreshold: null,
   loyaltyRewardDays: null,
+  category: "gym",
 };
 
 async function renderForm(

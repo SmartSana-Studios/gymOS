@@ -16,6 +16,7 @@ const connectPaymentProvider = vi.fn();
 const disconnectPaymentProvider = vi.fn();
 
 vi.mock("./actions", () => ({
+  saveGymCategory: vi.fn(),
   connectPaymentProvider: (...args: unknown[]) => connectPaymentProvider(...args),
   disconnectPaymentProvider: (...args: unknown[]) => disconnectPaymentProvider(...args),
   // Other named exports SettingsForm imports from this module -- unused by
@@ -93,6 +94,7 @@ const INITIAL_SETTINGS = {
   loyaltyGuestThreshold: null,
   loyaltyRenewalThreshold: null,
   loyaltyRewardDays: null,
+  category: "gym",
 };
 
 async function renderForm(

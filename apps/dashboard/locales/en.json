@@ -253,6 +253,14 @@
       "registrationFeeInvalid": "Enter a whole amount of 0 or more",
       "registrationFeeSaveFailed": "Could not save the registration fee"
     },
+    "category": {
+      "label": "Category",
+      "helper": "Describes your business. It doesn't change how GymOS works.",
+      "save": "Save category",
+      "savedToast": "Category saved.",
+      "saveFailed": "Couldn't save the category. Try again.",
+      "selectError": "Select a category"
+    },
     "loyalty": {
       "title": "Loyalty program",
       "description": "Free sessions for guests, free days for subscribers",

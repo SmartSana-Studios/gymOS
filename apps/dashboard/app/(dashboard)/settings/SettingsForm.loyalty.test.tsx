@@ -10,6 +10,7 @@ const saveLoyaltyProgram = vi.fn();
 const saveGymSettings = vi.fn();
 
 vi.mock("./actions", () => ({
+  saveGymCategory: vi.fn(),
   connectPaymentProvider: vi.fn(),
   disconnectPaymentProvider: vi.fn(),
   regenerateQrCode: vi.fn(),
@@ -83,6 +84,7 @@ const INITIAL_SETTINGS = {
   loyaltyGuestThreshold: null as number | null,
   loyaltyRenewalThreshold: null as number | null,
   loyaltyRewardDays: null as number | null,
+  category: "gym",
 };
 
 async function renderForm(

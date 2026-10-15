@@ -253,6 +253,14 @@
       "registrationFeeInvalid": "Saisissez un montant entier supérieur ou égal à 0",
       "registrationFeeSaveFailed": "Impossible d'enregistrer les frais d'inscription"
     },
+    "category": {
+      "label": "Catégorie",
+      "helper": "Décrit votre activité. Cela ne change pas le fonctionnement de GymOS.",
+      "save": "Enregistrer la catégorie",
+      "savedToast": "Catégorie enregistrée.",
+      "saveFailed": "Impossible d'enregistrer la catégorie. Réessayez.",
+      "selectError": "Sélectionnez une catégorie"
+    },
     "loyalty": {
       "title": "Programme de fidélité",
       "description": "Séances gratuites pour les invités, jours offerts pour les abonnés",
