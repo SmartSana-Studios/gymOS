@@ -1,6 +1,6 @@
 ---
 stepsCompleted: [1, 2, 3, 4]
-status: draft  # V1.7: Epics 22-23 complete; Epics 24-25 outline-only (no stories) by decision, 2 checks open
+status: draft  # V1.7: Epics 22-24 complete (31 stories); Epic 25 directory outline-only, 1 check open (FR-209-FR-214 have no stories; Step 3 architecture pass pending)
 v17UpdateStepsCompleted: [1, 2, 3, 4]
 inputDocuments:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
@@ -641,29 +641,29 @@ FR-192: Epic 22 - Live authorization on the next request for every role (amends 
 FR-193: Epic 23 - A Super Admin cannot hold a support account
 FR-194: Epic 23 - Explicit active-gym context, no cross-gym request
 FR-195: Epic 23 - Support never appears on member-facing surfaces
-FR-196: Epic 24 - Optional public page at {name}.gymosapps.com (OUTLINE, blocked on spine pass)
-FR-197: Epic 24 - Page content fields and "what becomes public" screen (OUTLINE)
-FR-198: Epic 24 - Who edits/publishes vs who claims the name (OUTLINE)
-FR-199: Epic 24 - Server-validated publish gate (OUTLINE)
-FR-200: Epic 24 - Opt-in plan visibility (OUTLINE)
-FR-201: Epic 24 - Template module, one launch template (OUTLINE)
-FR-202: Epic 24 - Page-name rules, reserved and held words (OUTLINE)
-FR-203: Epic 24 - Name reservation, rename limits, redirects (OUTLINE)
-FR-204: Epic 24 - Takedown and reporting (OUTLINE)
-FR-205: Epic 24 - Text-only rendering, image re-encoding, separate origin (OUTLINE)
-FR-206: Epic 24 - Published projection field list (OUTLINE)
-FR-207: Epic 24 - Unpublish timings (OUTLINE)
-FR-208: Epic 24 - EN/FR page chrome (OUTLINE)
-FR-209: Epic 25 - Country/city controlled lists (OUTLINE)
-FR-210: Epic 25 - Directory built from published pages (OUTLINE)
-FR-211: Epic 25 - SEO and AI-SEO outcomes (OUTLINE)
-FR-212: Epic 25 - Thin listings not indexed (OUTLINE)
-FR-213: Epic 25 - Category filter, amends FR-172 (OUTLINE)
-FR-214: Epic 25 - Removal from directory within FR-207 times (OUTLINE)
+FR-196: Epic 24 - Optional public page at {name}.gymosapps.com
+FR-197: Epic 24 - Page content fields and "what becomes public" screen
+FR-198: Epic 24 - Who edits/publishes vs who claims the name
+FR-199: Epic 24 - Server-validated publish gate
+FR-200: Epic 24 - Opt-in plan visibility
+FR-201: Epic 24 - Template module, one launch template
+FR-202: Epic 24 - Page-name rules, reserved and held words
+FR-203: Epic 24 - Name reservation, rename limits, redirects
+FR-204: Epic 24 - Takedown and reporting
+FR-205: Epic 24 - Text-only rendering, image re-encoding, separate origin
+FR-206: Epic 24 - Published projection field list
+FR-207: Epic 24 - Unpublish timings
+FR-208: Epic 24 - EN/FR page chrome
+FR-209: Epic 25 - Country/city controlled lists
+FR-210: Epic 25 - Directory built from published pages
+FR-211: Epic 25 - SEO and AI-SEO outcomes
+FR-212: Epic 25 - Thin listings not indexed
+FR-213: Epic 25 - Category filter, amends FR-172
+FR-214: Epic 25 - Removal from directory within FR-207 times
 NFR-023: Epic 22 - Live authorization everywhere; generated claim-read inventory and CI check
-NFR-024: Epic 24 - Public site reads only the published projection (OUTLINE)
-NFR-025: Epic 24/25 - p75 LCP target (OUTLINE)
-NFR-026: Epic 24 - Host-only `__Host-` cookies, strict CSP, header test (OUTLINE)
+NFR-024: Epic 24 - Public site reads only the published projection
+NFR-025: Epic 24/25 - p75 LCP target
+NFR-026: Epic 24 - Host-only `__Host-` cookies, strict CSP, header test
 
 ## Epic List
 
@@ -1596,11 +1596,11 @@ Super Admin creates support people by invite and assigns them to gyms many-to-ma
 **Architecture:** AD-33, AD-35, AD-37, AD-39, AD-41 (AD-36 dropped)
 **Depends on:** Epic 22. Includes a product-owner pre-flight checklist story (Owner notification, OQ-30/OQ-31, Super Admin factor and recovery).
 
-### Epic 24: Gym Landing Pages (OUTLINE — blocked on architecture spine pass)
+### Epic 24: Gym Landing Pages
 A gym publishes an optional public page at `{name}.gymosapps.com` from content it enters, with one launch template, a name it claims, and takedown/report handling.
 **FRs covered:** FR-196, FR-197, FR-198, FR-199, FR-200, FR-201, FR-202, FR-203, FR-204, FR-205, FR-206, FR-207, FR-208
 **NFRs honored:** NFR-024, NFR-025, NFR-026
-**Blocked on:** spine pass for subdomain/DNS, published projection, name rules; UX pass; Epic 23 done (PRD §10.2).
+**Architecture:** AD-42–AD-48 (spine pass 2026-10-15). **Depends on:** Epic 23 done (PRD §10.2); a `bmad-ux` pass is expected before 24.9 and the template visuals.
 
 ### Epic 25: Directory & Discovery (OUTLINE — blocked on Epic 24)
 Published gyms appear in country and city listings with validating structured data and sitemap, filterable by category.
@@ -3344,6 +3344,430 @@ So that old access does not linger and a real person can get back in without a b
 **Then** it goes through Super Admin at AAL2 only and is audited
 
 ---
+
+### Epic 24 — Stories
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 24.1 | Spike — Pooler Role, DNS Precedence, `__Host-` Cookies, AutoSSL | none | Epic 23 |
+| 24.2 | Wildcard Delegation & Reserved-Label CI Check | none (DNS + CI) | 24.1 |
+| 24.3 | Staff Session Cookies — `__Host-` Prefix, Host-Only | none | 24.1 |
+| 24.4 | `public_site` Schema & Hardened Reader Role | next free at merge time | 24.1 |
+| 24.5 | Page Content Fields & Public Plans | next free at merge time | 24.4 |
+| 24.6 | Page Media — Private Originals, Re-Encoded Derivatives | next free at merge time | 24.5 |
+| 24.7 | Page Names — Claim, Hold, Rename, Redirect | next free at merge time | 24.2, 24.5 |
+| 24.8 | Publish Gate, Snapshot & Unpublish | next free at merge time | 24.5, 24.6, 24.7 |
+| 24.9 | Landing-Page Editor & Publish Screen (Dashboard) | none | 24.8 |
+| 24.10 | Public Page Route & Launch Template | none | 24.3, 24.8 |
+| 24.11 | Takedown, Reports, Sitemap & Media Purge | next free at merge time | 24.8, 24.10 |
+| 24.12 | Landing-Page Gate — Isolation, Headers & Speed Baseline | none | 24.10, 24.11 |
+
+*Step 2 starts only after Epic 23 is done (PRD §10.2). Nothing is public until a gym publishes: existing gyms have no page, no name and no public plan until their Owner acts (FR-197). No V1.7 UX spec exists; screens are anchored in FR/AD wording and a `bmad-ux` pass is expected before 24.9 and the launch template's visual design in 24.10. FR-211 structured data and the directory belong to Epic 25.*
+
+---
+
+### Story 24.1: Spike — Pooler Role, DNS Precedence, `__Host-` Cookies, AutoSSL
+
+As the product owner,
+I want the four unverified assumptions behind the public site answered on the real stack,
+So that Epic 24 is built on verified behavior and the fallbacks already decided in AD-42–AD-44 are triggered only if needed.
+
+*Delivers the Epic 24 spike list in AD-42, AD-43, AD-44. No product code. Output is a dated `docs/decisions.md` entry.*
+
+**Acceptance Criteria:**
+
+**Given** the hosted Supabase project (staging) and a throwaway login role with `SELECT` on one view
+**When** the spike connects through the pooler with the role's `role.project_ref` username
+**Then** the entry records whether it works in transaction mode, the connection limit behavior, and password rotation, and states **use direct role** or **use pre-minted JWT fallback** (AD-42)
+
+**Given** a test wildcard on a throwaway subdomain of the real zone
+**When** `dig` and a live request check `owner.`, `portal.` and `www.` against a random label
+**Then** the entry records that explicit records and other-project hostnames win over the wildcard, or the exact exception found (AD-43)
+
+**Given** the `@supabase/ssr` helpers in the dashboard and super-admin apps
+**When** a sign-in sets the session with `cookieOptions { name: '__Host-…', secure: true, path: '/' }` and no `domain`
+**Then** the entry records that every chunk carries the prefix, that the session persists across refresh and sign-out, and what breaks locally over plain HTTP; **or** states **use the separate-domain fallback** (AD-44)
+
+**Given** A2 Hosting's certificate tooling
+**When** `_acme-challenge` is delegated on a throwaway label
+**Then** the entry records whether AutoSSL still issues for the apex and `mail.` names, so the AD-43 accepted risk is confirmed or the exact conflict is named
+
+**Given** all items answered
+**When** the story closes
+**Then** `docs/decisions.md` has one entry with a result and a "changes to later stories" list, and AD-42/43/44's `[ASSUMPTION]` tags are resolved in the spine
+
+---
+
+### Story 24.2: Wildcard Delegation & Reserved-Label CI Check
+
+As the product owner,
+I want every gym page address to resolve and be certified without touching the mail zone,
+So that `{name}.gymosapps.com` works while `owner.`, `portal.`, `www.` and mail stay exactly as they are.
+
+*Delivers FR-196 (address), AD-43. Ops story run by the product owner; the CI check is code.*
+
+**Acceptance Criteria:**
+
+**Given** the `apps/landing` Vercel project
+**When** `*.gymosapps.com` is added and Vercel DNS is enabled for the zone **without changing nameservers**
+**Then** the project shows the wildcard as valid and the apex nameservers remain A2 Hosting's
+
+**Given** the A2 zone
+**When** the `NS _acme-challenge → ns1/ns2.vercel-dns.com.` and `CNAME * → cname.vercel-dns-0.com.` records are added
+**Then** a random label serves the landing app's not-found response over a valid wildcard certificate, and `owner.`, `portal.`, `www.`, the apex and mail resolve and behave as before (checked by a before/after record diff and a test mail in and out)
+
+**Given** a committed DNS zone export `docs/dns/gymosapps.com.zone`
+**When** CI runs
+**Then** it fails if the export contains a label that is not in the reserved list (FR-202 list ∪ zone labels), and the list is generated from one source shared with the proxy (AD-43)
+
+**Given** rollback
+**When** the story closes
+**Then** the record changes needed to remove the wildcard are written down and tested on a throwaway label
+
+---
+
+### Story 24.3: Staff Session Cookies — `__Host-` Prefix, Host-Only
+
+As a gym Owner,
+I want my dashboard session to be unwritable from any other address under the main domain,
+So that a gym's public page can never be used to hijack or overwrite my staff login.
+
+*Delivers NFR-026 (cookie half), AD-44. Resolved by the 24.1 result. Every signed-in staff member signs in once more after this ships.*
+
+**Acceptance Criteria:**
+
+**Given** the dashboard and super-admin apps
+**When** a session cookie is issued
+**Then** it has no `Domain` attribute, `Path=/`, `Secure`, `SameSite=Lax` and the `__Host-` prefix on every chunk, and a unit test fails if either app emits an auth cookie without them
+
+**Given** an existing signed-in session with the old cookie name
+**When** the user's next request arrives after release
+**Then** they are sent to sign-in once with the existing "session expired" copy, no data is lost, and the old cookie is cleared
+
+**Given** local development over HTTP
+**When** the app runs with the environment gate
+**Then** it uses an unprefixed name, and the production build refuses to start with that gate set
+
+**Given** the 24.1 result is the separate-domain fallback
+**When** this story would otherwise ship
+**Then** it is replaced by the decision entry and Epic 24 proceeds on the separate domain
+
+**Given** `scripts/ci-local.sh` and the Playwright baseline
+**When** they run
+**Then** sign-in, sign-out, role redirect and refresh paths pass for both apps
+
+---
+
+### Story 24.4: `public_site` Schema & Hardened Reader Role
+
+As the product owner,
+I want the public site to see only a narrow set of views through its own role,
+So that a defect in the public site cannot expose a member, a payment or an unpublished field.
+
+*Delivers NFR-024, AD-42. Migration at merge time. Follows the Function-privileges convention.*
+
+**Acceptance Criteria:**
+
+**Given** the migration
+**When** it runs
+**Then** schema `public_site` exists, `public_site_reader` is a login role with no membership in any other role, `CONNECTION LIMIT` and `statement_timeout` set, `default_transaction_read_only = on`, and all privileges from `PUBLIC` revoked on the schema
+
+**Given** the privilege test
+**When** it enumerates every relation, function and sequence privilege for the role, including those inherited from `PUBLIC`, default privileges and role memberships
+**Then** it fails on anything beyond `USAGE` on `public_site` and `SELECT` on its views (plus `submit_page_report()` once 24.11 adds it)
+
+**Given** the view column list
+**When** a snapshot test runs
+**Then** it pins every column and fails on any change, and pins the allowed top-level keys of the snapshot `content` payload
+
+**Given** `apps/landing`
+**When** it connects
+**Then** it does so only as `public_site_reader`, with no Supabase client library, anon key, service-role key or JWT secret in its dependencies or environment (a CI check greps the package and env manifest)
+
+**Given** the 24.1 result is the pre-minted JWT fallback
+**When** the story is built
+**Then** the landing app holds only that signed token, and a test proves it cannot reach any non-`public_site` relation
+
+---
+
+### Story 24.5: Page Content Fields & Public Plans
+
+As a gym Owner,
+I want to enter what my public page should say and choose which plans it shows,
+So that a visitor sees my gym accurately and I never expose a plan I want kept private.
+
+*Delivers FR-197 (data), FR-200. Migration at merge time. Setter RPCs follow AD-32; support is admitted through the AD-35 registry (FR-179).*
+
+**Acceptance Criteria:**
+
+**Given** the migration
+**When** it runs on live gyms
+**Then** `gyms` gains about, services, address, map position, opening hours, public contact, and city and country already exist or are added as controlled values, all nullable, and every existing gym has an empty page and **nothing public**
+
+**Given** `plans.is_public boolean NOT NULL DEFAULT false`
+**When** the migration runs
+**Then** every existing plan is private (FR-200), and only the page-content setter changes the flag
+
+**Given** the page-content setter RPC (`SECURITY DEFINER`, role checked with `private.current_member_role()`)
+**When** the caller is the Owner, a Supervisor or an assigned support person of that gym
+**Then** content and plan visibility change and one audit row records old and new values; any other role is refused
+
+**Given** the public contact
+**When** it differs from the Owner's login phone
+**Then** it is stored separately and the login phone is never written to the page fields (FR-197)
+
+**Given** input validation
+**When** content is saved
+**Then** the Zod schema in `packages/types` bounds lengths, rejects markup characters as text-only input (FR-205), and validates phone and WhatsApp format (E.164, FR-142)
+
+---
+
+### Story 24.6: Page Media — Private Originals, Re-Encoded Derivatives
+
+As a gym Owner,
+I want to upload a logo, banner and gallery images safely,
+So that my page looks right and no one can learn where a photo was taken or find my internal id in a URL.
+
+*Delivers FR-205 (images), AD-47. Migration at merge time (buckets, `gym_page_media`).*
+
+**Acceptance Criteria:**
+
+**Given** the upload server function
+**When** an Owner, Supervisor or assigned support uploads a file
+**Then** only JPEG, WebP and PNG are accepted, size, pixel dimensions and per-gym count are bounded, and a rejected file returns a typed error with localized copy
+
+**Given** an accepted image
+**When** it is stored
+**Then** the original goes to the private bucket `gym-page-media-src`, a derivative re-encoded with metadata stripped (orientation applied first) goes to the public bucket `gym-page-media` under a random key containing no `gym_id`, and `gym_page_media` records both and the uploader's attestation that they may publish it
+
+**Given** an image with GPS metadata
+**When** the derivative is read
+**Then** no EXIF, XMP or IPTC data remains (tested on a fixture)
+
+**Given** the page logo
+**When** it is prepared for publish
+**Then** it is re-encoded into the new bucket from the gym's existing logo, never linked to `gym-logos` and never copied raw
+
+**Given** an image deleted by the gym
+**When** the delete is requested
+**Then** the row is marked and removal of the public derivative is left to the 24.11 purge job; the public view stops exposing it immediately
+
+---
+
+### Story 24.7: Page Names — Claim, Hold, Rename, Redirect
+
+As a gym Owner,
+I want to claim a name for my page that nobody else can take or impersonate,
+So that my address is mine, stable when I rename, and safe from look-alikes.
+
+*Delivers FR-202, FR-203, AD-45. Migration at merge time (`page_names`, `page_name_words`). Owner-only claiming.*
+
+**Acceptance Criteria:**
+
+**Given** `page_names`
+**When** a name is submitted
+**Then** a CHECK enforces 3–30 characters of `a-z0-9-`, no leading or trailing hyphen, no `--`, no `xn--`, not digits only, and a unique index on `lower(name)` over non-released rows refuses a duplicate
+
+**Given** `claim_page_name()`
+**When** the caller is the gym's Owner (or Super Admin)
+**Then** it succeeds for one name per gym; any other role, including Supervisor and support, is refused (FR-198)
+
+**Given** a name that is reserved, contains a credential or brand word, or equals a zone label
+**When** it is claimed
+**Then** it is refused with a typed error; a name within edit distance 1 of an existing page or reserved name, equal after homoglyph, hyphen and digit folding, or a generic or place word, is **held** for Super Admin approval and shows "name under review"
+
+**Given** the Super Admin held-names list
+**When** a Super Admin approves or rejects with a reason
+**Then** the decision is audited and the Owner is notified; held names are answered within 2 business days `[ASSUMPTION]` (a reminder to Super Admin after 2 days)
+
+**Given** a rename
+**When** an Owner renames a gym that already has an active name
+**Then** at most two renames in any rolling 12 months are allowed (forced renames excluded), the old name becomes a 301 redirect (one hop) for 12 months then is released, and a name of a taken-down page is never released
+
+**Given** an unpublished or suspended gym
+**When** time passes
+**Then** its name stays reserved to it for up to 12 months
+
+---
+
+### Story 24.8: Publish Gate, Snapshot & Unpublish
+
+As a gym Owner,
+I want to publish my page only when it is complete and take it down instantly when I choose,
+So that the public never sees a half-finished or retracted page.
+
+*Delivers FR-199, FR-200 (retraction), FR-206, FR-207 (origin), AD-46. Migration at merge time (`gym_pages`, `public_site` views, triggers).*
+
+**Acceptance Criteria:**
+
+**Given** `publish_gym_page()` (`SECURITY DEFINER`; Owner, Supervisor or assigned support)
+**When** it runs
+**Then** it re-validates the gate (name, category, logo, banner, about ≥ 100 characters, country and city, at least one public contact, opening hours, at least one public plan) server-side, builds `content` itself with a fixed `jsonb_build_object` from tenant columns and only public plans, accepts no content from the caller, and replaces the snapshot atomically
+
+**Given** a published page
+**When** any source column in the projection changes (a plan made private, the about text edited)
+**Then** a trigger calls `refresh_gym_page()` to re-snapshot if the gate still holds, or unpublishes with a reason shown to the Owner when it does not
+
+**Given** unpublish
+**When** the Owner or any permitted role unpublishes
+**Then** `unpublished_at` is set, the `public_site` view stops returning the row, and unpublishing is always allowed
+
+**Given** a gym that is suspended (FR-132) or a page that is taken down
+**When** the view is read
+**Then** the single visibility predicate (published, not taken down, name active, gym active) excludes it
+
+**Given** the snapshot payload
+**When** the snapshot test runs
+**Then** every key path is pinned; an extra key added to the builder fails the test, and no internal identifier, `gym_token` or login phone appears (FR-206)
+
+**Given** the role gate
+**When** a deactivated or opted-out support person calls the function
+**Then** it is refused on the next request (live gate, AD-34)
+
+---
+
+### Story 24.9: Landing-Page Editor & Publish Screen (Dashboard)
+
+As a gym Owner,
+I want a place in my dashboard to fill in, preview and publish my page,
+So that putting my gym on the web takes minutes and I always know what becomes public.
+
+*Delivers FR-197 (screen), FR-198, FR-199 (reasons), FR-201 (selection). EN/FR. No V1.7 UX exists; follow the existing Settings patterns until the UX pass.*
+
+**Acceptance Criteria:**
+
+**Given** the dashboard Settings
+**When** an Owner, Supervisor or assigned support opens "Landing page"
+**Then** they can edit the 24.5 fields, upload images (24.6), choose which plans are public, and choose a template, with the gate checklist showing what is still missing
+
+**Given** the Owner
+**When** they open the name section
+**Then** they can claim or rename a name (24.7) and see "name under review" while held; Supervisor and support see the name read-only (FR-198)
+
+**Given** the publish action
+**When** the Owner presses it
+**Then** a screen first lists exactly the fields that become public and the uploader attestation, and only then calls `publish_gym_page()`; an automatic unpublish shows its reason on this screen and by the existing Owner notification path
+
+**Given** existing gyms
+**When** an Owner first opens Settings after release
+**Then** they are prompted to fill the page in and nothing is published (FR-197)
+
+**Given** language preference
+**When** the screen renders
+**Then** all UI copy is EN/FR through the existing i18n layer and no hand-written error copy
+
+---
+
+### Story 24.10: Public Page Route & Launch Template
+
+As a visitor,
+I want to open a gym's page and see what it offers, how to call it and where it is,
+So that I can decide to visit without an account.
+
+*Delivers FR-196, FR-201, FR-205 (text-only), FR-206, FR-207 (behavior), FR-208; NFR-025, NFR-026. AD-43, AD-44, AD-48. Visual design awaits the UX pass; the contract and one template ship here.*
+
+**Acceptance Criteria:**
+
+**Given** a request to `{name}.gymosapps.com`
+**When** the proxy runs
+**Then** it takes the first label of `Host`, validates it against the name grammar and reserved list without touching the database for non-names, overwrites any inbound `x-tenant-*` header, and rewrites to the single page route; unknown, reserved, unpublished, taken-down and suspended-gym labels return the **same** not-found response with `s-maxage=30`
+
+**Given** a published page
+**When** the route renders
+**Then** it reads one row from `public_site` as `public_site_reader`, parses it with the `.strict()` `PageContentV1` and fails closed to not-found on a mismatch, renders the launch template with `renderToStaticMarkup` (no script, no hydration payload), and responds with `Cache-Control: public, s-maxage=60`
+
+**Given** the response headers
+**When** the header test runs
+**Then** the exact CSP of AD-44 is asserted (`script-src 'none'`, a per-page style hash, `img-src` the media origin only, `frame-ancestors 'none'`), plus `nosniff`, `Referrer-Policy` and HSTS, and the page sets no cookie
+
+**Given** the page content
+**When** it renders
+**Then** the page shows the gym name, category label, about, services, public plans and session plans with prices, address and map link, hours, gallery, banner and logo, with call, WhatsApp and directions links, no login, no member counts, no staff names, and all gym text as text nodes (no `dangerouslySetInnerHTML`, lint-enforced)
+
+**Given** locale
+**When** the page chrome renders
+**Then** labels are EN or FR per the visitor's negotiated language and gym content is shown as entered; language alternates are declared only where translated content exists (FR-208)
+
+**Given** a renamed gym
+**When** the old name is requested within 12 months
+**Then** it returns a 301 to the current name in one hop with cache lifetime ≤ 5 minutes
+
+**Given** the template module
+**When** its contract test runs with a fixture snapshot
+**Then** `render(content, locale)` is the module's only export, it imports no database or network client, and a second fixture proves a template swap changes only `template`
+
+---
+
+### Story 24.11: Takedown, Reports, Sitemap & Media Purge
+
+As GymOS,
+I want to remove an impersonating or illegal page quickly and clean up behind it,
+So that a bad page stops being served and its images and address do not linger.
+
+*Delivers FR-204, FR-207 (sitemap, media), AD-46, AD-47. Migration at merge time (`page_reports`, `submit_page_report()`).*
+
+**Acceptance Criteria:**
+
+**Given** a Super Admin at AAL2
+**When** they take a page down with a reason code (impersonation, illegal content, trademark, misleading content, privacy, other)
+**Then** `taken_down_at` is set, the page leaves the view immediately, republishing is blocked until lifted, the Owner is told why, and the name stays reserved to that gym forever
+
+**Given** the public form
+**When** a visitor submits a report
+**Then** `submit_page_report()` (the single function granted to `public_site_reader`) stores it with a per-source rate limit and a size bound, the report has no read path from the public role, and Super Admin sees it in a queue answered within 5 business days `[ASSUMPTION]`
+
+**Given** a takedown
+**When** the Owner disagrees
+**Then** an appeal request reaches Super Admin with a recorded decision, and no page is moderated before publishing
+
+**Given** `public_sitemap_refresh` (its own cron writing `job_runs`, AD-19)
+**When** it runs
+**Then** the sitemap lists exactly the published, indexable pages and is regenerated within 15 minutes of an unpublish, takedown or suspension `[ASSUMPTION]`
+
+**Given** `page_media_purge` (its own cron writing `job_runs`)
+**When** a page is unpublished or an image is deleted
+**Then** the public derivative is deleted through the Storage API within 15 minutes and `purged_at` is recorded, and republishing re-derives from the retained original
+
+**Given** a suspended gym
+**When** it is reactivated
+**Then** its page returns only if it is still published and no takedown is in force (FR-207)
+
+---
+
+### Story 24.12: Landing-Page Gate — Isolation, Headers & Speed Baseline
+
+As the product owner,
+I want proof that the public site is isolated and fast before any gym publishes,
+So that launching public pages cannot expose tenant data or slow the core product.
+
+*Delivers the Step 2 release gate (PRD §10.2) for NFR-024, NFR-025, NFR-026. Product-owner run; mostly tests and a checklist.*
+
+**Acceptance Criteria:**
+
+**Given** the unauthenticated and `public_site_reader` roles
+**When** the isolation suite runs
+**Then** neither has any privilege on any relation or function outside `public_site` (plus `submit_page_report()`), and the column and key-path snapshots pass
+
+**Given** the staging pages
+**When** the security-header test runs
+**Then** the exact policy of AD-44 is present on a published, a not-found and a redirect response
+
+**Given** a representative published page
+**When** a field-style measurement runs on a mid-range Android profile over 4G
+**Then** p75 largest contentful paint is recorded as the baseline against the 3 s target (NFR-025 `[ASSUMPTION]`) and the result is written to `docs/decisions.md`
+
+**Given** a load check with random valid labels
+**When** it runs against staging
+**Then** database connections stay within the role's limit and the core product's Overview and check-in latencies are unaffected (page load < 2 s, scan to alert < 3 s)
+
+**Given** the E2E baseline (NFR-015)
+**When** the suite runs
+**Then** it includes publish, unpublish, rename-with-redirect, takedown and not-found-uniformity specs in English and French
+
+**Given** the checklist
+**When** it is signed
+**Then** `sprint-status.yaml` and the Epic 24 retrospective prerequisites record the gate result
+
 
 ## Epic 1: Platform Foundation & Gym Onboarding
 
