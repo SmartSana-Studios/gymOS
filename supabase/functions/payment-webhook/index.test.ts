@@ -239,11 +239,17 @@ const PLATFORM_SECRET = "test-taramoney-platform-webhook-secret";
 async function withPlatformEnv<T>(fn: () => Promise<T>): Promise<T> {
   const priorBusinessId = Deno.env.get("TARAMONEY_BUSINESS_ID");
   const priorSecret = Deno.env.get("TARAMONEY_WEBHOOK_SECRET");
+  // createHostedCheckoutLink() and confirmPaymentStatus() both need the API key; without it the
+  // initiate-link success test only passed on a host that happened to export it.
+  const priorApiKey = Deno.env.get("TARAMONEY_API_KEY");
   Deno.env.set("TARAMONEY_BUSINESS_ID", PLATFORM_BUSINESS_ID);
   Deno.env.set("TARAMONEY_WEBHOOK_SECRET", PLATFORM_SECRET);
+  Deno.env.set("TARAMONEY_API_KEY", "test-taramoney-api-key");
   try {
     return await fn();
   } finally {
+    if (priorApiKey === undefined) Deno.env.delete("TARAMONEY_API_KEY");
+    else Deno.env.set("TARAMONEY_API_KEY", priorApiKey);
     if (priorBusinessId === undefined) Deno.env.delete("TARAMONEY_BUSINESS_ID");
     else Deno.env.set("TARAMONEY_BUSINESS_ID", priorBusinessId);
     if (priorSecret === undefined) Deno.env.delete("TARAMONEY_WEBHOOK_SECRET");
@@ -757,6 +763,9 @@ Deno.test("payment-webhook taramoney initiate-link route: a missing paymentId is
  * provider_transaction_ref, the payment_webhook_events upsert, and the
  * completion RPC.
  */
+// The id fallback only fires for uuid-shaped references (index.ts isUuidShaped guard), like the real column.
+const LINK_FALLBACK_PAYMENT_ID = "6f1d2c34-5a7b-4c8d-9e0f-1a2b3c4d5e6f";
+
 function stubFetchPlatformLinkFallbackFlow(linkRow: { id: string } | null) {
   const calls: string[] = [];
   let completeVerifiedCalled = false;
@@ -804,14 +813,14 @@ function stubFetchPlatformLinkFallbackFlow(linkRow: { id: string } | null) {
 
 Deno.test("payment-webhook taramoney receive route: platform path -- the real payment-link webhook shape (no productId field, paymentId IS our own reference) is matched via the id fallback and completes", async () => {
   await withPlatformEnv(async () => {
-    const stub = stubFetchPlatformLinkFallbackFlow({ id: "saas-pay-link-1" });
+    const stub = stubFetchPlatformLinkFallbackFlow({ id: LINK_FALLBACK_PAYMENT_ID });
     try {
       // Exact shape of the real 2026-08-30 captured webhook (see the
       // header comment above), with paymentId/collectionId swapped to this
       // test's own fixture id -- no productId, no amount, no phoneNumber.
       const req = receiveRequest({ "tara-webhook-secret": PLATFORM_SECRET }, {
         businessId: PLATFORM_BUSINESS_ID,
-        paymentId: "saas-pay-link-1",
+        paymentId: LINK_FALLBACK_PAYMENT_ID,
         collectionId: "589124990",
         creationDate: "2026-08-30T21:34:37.514-03:00",
         changeDate: "2026-08-30T21:34:37.514-03:00",
@@ -820,7 +829,7 @@ Deno.test("payment-webhook taramoney receive route: platform path -- the real pa
       const res = await handler.fetch(req);
       assertEquals(res.status, 200);
       assertEquals(stub.completeVerifiedPaymentCalled(), true);
-      assertEquals(stub.patchedRefTo(), "saas-pay-link-1", "provider_transaction_ref is persisted to the same value as the row's own id");
+      assertEquals(stub.patchedRefTo(), LINK_FALLBACK_PAYMENT_ID, "provider_transaction_ref is persisted to the same value as the row's own id");
     } finally {
       stub.restore();
     }
@@ -833,7 +842,7 @@ Deno.test("payment-webhook taramoney receive route: platform path -- a genuine m
     try {
       const req = receiveRequest({ "tara-webhook-secret": PLATFORM_SECRET }, {
         businessId: PLATFORM_BUSINESS_ID,
-        paymentId: "no-such-payment-anywhere",
+        paymentId: "00000000-0000-4000-8000-00000000dead",
         status: "SUCCESS",
       });
       const res = await handler.fetch(req);

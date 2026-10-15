@@ -1164,3 +1164,8 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-22-4-live-authorization-in-edge-functions-and-service-paths.md`
   summary: check:claims cannot detect a service-role path with no authorization at all, and payment-webhook is exempt wholesale.
   evidence: scanner keys on claim reads and a createAdminClient/SERVICE_ROLE_KEY regex; a wrapper helper or a new unauthenticated route escapes it.
+
+## Deferred from: code review of spec-22-4 (2026-10-15)
+
+- `getMemberRegistrationFeeState` now denies roles outside owner/manager/supervisor/receptionist (e.g. `coach`) on the audit read. Unverified (maybe-false, medium if true): check whether coach could reach member detail before 22.4.
+- `deleteAuthUserForCleanup` / `deleteMemberForCleanup` (`apps/dashboard/services/members.provisioning.ts`) are exported service-role writers with no `authorizeAction`; only reached after authorized steps today.

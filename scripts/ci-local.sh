@@ -4,10 +4,11 @@
 #
 #   scripts/ci-local.sh              # everything CI runs
 #   scripts/ci-local.sh --fast       # static + pgTAP + vitest, skip the E2E (inner loop)
-#   scripts/ci-local.sh --only e2e   # one stage: static | pgtap | unit | e2e
+#   scripts/ci-local.sh --only e2e   # one stage: static | deno | pgtap | unit | e2e
 #
 # Stages and what they mirror in ci.yml:
 #   static  typecheck job: typecheck, lint (dashboard + super-admin), i18n parity, migration guardrails
+#   deno    typecheck job: deno test for supabase/functions/payment-webhook
 #   pgtap   rls-tests job: supabase/tests/*.sql
 #   unit    typecheck job: vitest for @gymos/dashboard
 #   e2e     e2e-tests job: Playwright against the local Supabase
@@ -69,6 +70,20 @@ stage_static() {
   pnpm run check:i18n || return 1
   pnpm run check:migrations || return 1
   pnpm run test:guardrails || return 1
+}
+
+stage_deno() {
+  # Story 22.4: the payment-webhook initiate routes verify the JWT and authorize before any write
+  # or provider call; nothing else gates that wiring (check:claims exempts the file wholesale).
+  local deno_bin
+  deno_bin=$(command -v deno || true)
+  [ -z "$deno_bin" ] && [ -x "$HOME/.deno/bin/deno" ] && deno_bin="$HOME/.deno/bin/deno"
+  [ -z "$deno_bin" ] && deno_bin=$(ls "$HOME"/.npm/_npx/*/node_modules/@deno/linux-x64-glibc/deno 2>/dev/null | head -1)
+  if [ -z "$deno_bin" ]; then
+    echo "deno not found (install it, or run: npx -y deno --version to cache the npm binary)." >&2
+    return 1
+  fi
+  (cd "$ROOT/supabase/functions/payment-webhook" && "$deno_bin" test --allow-all .)
 }
 
 stage_pgtap() {
@@ -139,6 +154,7 @@ START=$SECONDS
 STAGES=()
 pids=()
 if want static; then STAGES+=(static); run_stage static stage_static & pids+=($!); fi
+if want deno;   then STAGES+=(deno);   run_stage deno   stage_deno   & pids+=($!); fi
 if want pgtap;  then STAGES+=(pgtap);  run_stage pgtap  stage_pgtap  & pids+=($!); fi
 for p in "${pids[@]:-}"; do [ -n "$p" ] && wait "$p"; done
 if want unit; then STAGES+=(unit); run_stage unit stage_unit; fi

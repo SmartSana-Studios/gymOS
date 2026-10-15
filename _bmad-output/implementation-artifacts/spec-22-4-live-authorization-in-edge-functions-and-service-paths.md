@@ -99,3 +99,26 @@ Why a database function: edge functions run in Deno and the apps in Node, and bu
 - `bash scripts/pgtap-run.sh` -- expected: all pass
 - `pnpm run check:claims` -- expected: exit 0, enforcing
 - `bash scripts/ci-local.sh` -- expected: GREEN
+
+### Review Findings
+
+- [x] [Review][Patch] (decided: option 1, add a `deno test` stage to ci-local.sh and fix or quarantine the 3 baseline failures) Edge initiate authorization is not gated by any CI path — `payment-webhook/index.ts` is exempt wholesale in `claim-inventory.exempt.json` and the Deno suite is not in `scripts/ci-local.sh`, so removing `verifyActor`/`authorizeInitiation` from the initiate routes keeps ci-local, pgTAP and Vitest green. Options: (1) add a `deno test` stage and fix or quarantine the three baseline failures; (2) accept and keep the existing deferred-work note. [`scripts/ci-local.sh`, `supabase/functions/payment-webhook/index.ts:95,208`] (medium; blind-hunter+verification-gap+acceptance-auditor)
+- [x] [Review][Patch] No test that a 403 `permission_denied` from edge initiate maps to the no-permission outcome — dropping the `code === "permission_denied"` branch in any of these falls to the generic error and no test fails. Add Vitest cases with a `FunctionsHttpError` whose `context.json()` returns `{code:"permission_denied"}`. [`apps/dashboard/services/payments.ts:171,297`, `apps/dashboard/services/billing.ts:224,290-347`, `apps/mobile/src/services/payments.ts:399-411,475-480`] (medium; verification-gap)
+- [x] [Review][Patch] Verification counts are stale: `docs/decisions.md` (22.4 entry) says "24 assertions" and the sprint-status `last_updated` comment says "24/24", but `supabase/tests/authorize_action.test.sql` has `plan(26)`. [`docs/decisions.md`, `sprint-status.yaml:1064`] (low; blind-hunter+edge-case-hunter+acceptance-auditor+verification-gap)
+- [x] [Review][Defer] `getMemberRegistrationFeeState` is now allowed only for owner/manager/supervisor/receptionist, so a `coach` that previously reached the audit read gets `permission_denied` — deferred: unverified (maybe-false, medium if true). Settle by checking whether coach could open member detail before 22.4 (RLS on members and dashboard role gating). [`apps/dashboard/services/members.detail.ts:106`]
+- [x] [Review][Defer] `deleteAuthUserForCleanup` and `deleteMemberForCleanup` are exported service-role writers with no `authorizeAction`, and `check:claims` cannot flag them — deferred: only reached after authorized steps today; a future direct caller would escape. [`apps/dashboard/services/members.provisioning.ts`]
+
+#### Rejected
+
+- Denied initiate leaves a `processing` row (blind-hunter): low; the route deliberately deletes nothing for an unauthorized caller, and the denied actor cannot start a new attempt anyway. Fix would add cleanup branches.
+- 403 vs 400 reveals payment-row existence (blind-hunter, edge-case-hunter, acceptance-auditor): low; needs an authenticated caller and a guessed UUID, already rejected in the triage log.
+- AC3 older build shows a generic error, not the no-permission text (blind-hunter, acceptance-auditor): real but released builds cannot change; resolving it means editing the spec under review.
+- Spec `status: done` vs sprint `review`, `review_loop_iteration: 0` (blind-hunter): fix edits the spec; status is set by this review's step 6.
+- Gym for `staff.create` / `member.provision` comes from the claim hint (blind-hunter, edge-case-hunter, acceptance-auditor): false in effect; the database verifies live membership in the passed gym, so a stale hint fails closed.
+- Layout redirects to `/auth/login` on a transient RPC error (blind-hunter, edge-case-hunter): low; a retry succeeds and a distinct unavailable state is added complexity.
+- `claim-inventory` "live" check is satisfied by name; `onlyServiceRole` scan untested; test files in services walk (blind-hunter, edge-case-hunter, verification-gap): low or false; `check:claims` passes on the real repo, and the scanner's limits are already in deferred-work.
+- Layout still calls `getClaims()` (acceptance-auditor): false; it only checks session existence, the `app_role` comparison is gone.
+- `unauthorized` error code still used at `admins/actions.ts:148` (blind-hunter): low; that is the step-up failure path, unrelated to live-role denial.
+- `search_path = public` without `pg_temp` (blind-hunter): low; the functions are granted to `service_role` only, so no untrusted caller can plant a temp object.
+- Rollback ordering, per-request layout cost, `no_session` telemetry noise, duplicated `denied()` and unused `isPermissionDeniedError` (blind-hunter): low or cosmetic; rollback ordering is already in the script's comment.
+- Null-gym SaaS payment returns 403, member lookup error downgrades capability (edge-case-hunter): low; both fail closed and no real row hits them.
