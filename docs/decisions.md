@@ -2,6 +2,18 @@
 
 Dated entries recording spike/decision outcomes that can't be changed later without cost (region, provider selections, etc.). One entry per decision — newest first.
 
+
+---
+
+## 2026-10-15 — Migration 0123 (gym category) applied to production
+
+Applied `prod-apply.mjs 7` after a clean dry run (rolled back, head re-read as 0122) and a green db-backup run (38724147502, 2026-10-15 11:01Z). Production head is now **0123**.
+
+- **What changed:** additive `gyms.category text NOT NULL DEFAULT 'gym'` with CHECK, `private.pin_gym_category()` pin trigger, `set_gym_category(uuid, text)` setter (EXECUTE: authenticated only, not anon). No data rewritten beyond the column default.
+- **Verified after apply:** column_present 1, not_gym 0, setter 1, pin_trigger 1, anon_exec false, authenticated_exec true, pin_fn_client_callable false; the one existing gym reads `gym`.
+- **Ordering:** applied before the app code (PR #73, epic/21 -> master) that reads the column, so the merge is safe to deploy.
+- **Rollback:** `scripts/rollback-0123-gym-category.sql` (proven in a rolled-back transaction locally).
+
 ---
 
 ## 2026-10-15 — SmartSana Tara key: rotation declined, risk accepted by the owner
