@@ -2,7 +2,7 @@
 title: 'Super Admin recovery email'
 type: 'feature'
 created: '2026-10-16'
-status: 'in-progress'
+status: 'review'
 baseline_commit: '4b82f29ee3e0025ddda8bea8170bfc784d9a7d3a'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -76,7 +76,7 @@ context:
 - **Lock wins.** A pending reset on an account that is locked (or whose recovery email was removed) is cancelled, not applied.
 - **Done so far:** migration 0128 + rollback + 55 pgTAP assertions; `lib/mail.ts` + 8 Vitest tests; local Inbucket SMTP port in `supabase/config.toml` (needs one `supabase stop && start`).
 - **Also done:** Server Actions (`/security` aal2, sign-in prompt aal1, first-authenticator page, cancel route), `EnrollDialog` shared modal, email templates en/fr, enable/reset script changes (+ shell tests), runbook, decisions entry, checklist section F.
-- **Still to do:** Resend sender domain (SPF/DKIM) and production env vars (`MAIL_*`, `SUPER_ADMIN_APP_URL`), restart the local Supabase stack for Inbucket SMTP, run section F by hand, `scripts/ci-local.sh`, code review.
+- **Still to do (not code):** Resend sender domain (SPF/DKIM) and production env vars (`MAIL_*`, `SUPER_ADMIN_APP_URL`), run checklist section F by hand, code review (`bmad-code-review`). `ci-local.sh` green on 2026-10-16 (static, deno, pgtap, unit, e2e); dirty run, clean re-run follows the status commit.
 
 ## Code Map
 
