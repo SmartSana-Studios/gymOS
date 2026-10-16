@@ -60,7 +60,16 @@ async function AdminLayoutData({
   if (!authz.ok) {
     // Story 22.6: a valid password session below aal2 while the flag is on goes to the
     // second-factor prompt, never into a login loop. Every other denial stays on login.
-    redirect(authz.reason === "aal2_required" ? "/auth/mfa" : "/auth/login");
+    redirect(
+      authz.reason === "aal2_required"
+        ? "/auth/mfa"
+        : authz.reason === "session_expired" ||
+        authz.reason === "account_locked" ||
+        // A still-signed token whose session the provider no longer knows: the session ended.
+        authz.reason === "no_session"
+          ? "/auth/login?expired=1"
+          : "/auth/login",
+    );
   }
 
   const { t } = await getServerTranslation(await getRequestLocale());

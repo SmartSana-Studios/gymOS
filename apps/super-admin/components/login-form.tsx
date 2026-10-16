@@ -19,8 +19,9 @@ import { useTranslation } from "react-i18next";
 
 export function LoginForm({
   className,
+  expired = false,
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: React.ComponentPropsWithoutRef<"div"> & { expired?: boolean }) {
   const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -60,6 +61,11 @@ export function LoginForm({
           <CardDescription>{t("auth.description")}</CardDescription>
         </CardHeader>
         <CardContent>
+          {expired && (
+            <p role="status" className="mb-4 text-sm text-amber-600">
+              {t("auth.sessionExpired")}
+            </p>
+          )}
           <form onSubmit={handleLogin}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">

@@ -59,6 +59,9 @@ export async function authorizePlatformAction(capability: PlatformCapability): P
     // Story 22.5: while the aal2 flag is on, every platform capability also needs an aal2 session.
     const aal = await requireSuperAdminAal2();
     if (!aal.ok) return aal;
+    // Story 22.7: server-recorded session limits (8 h absolute, 30 min idle) while the flag is on.
+    const gate = await touchSessionGate(supabase, actorId);
+    if (!gate.ok) return denied(capability, actorId, gate.reason);
     return { ok: true, actorId };
   } catch {
     return denied(capability, actorId, "authorization_unavailable");
@@ -91,3 +94,55 @@ export async function requireSuperAdminAal2(): Promise<AuthorizeResult> {
     return denied("platform.aal2", actorId, "authorization_unavailable");
   }
 }
+
+/**
+ * Story 22.7: session-limit gate. Calls the VOLATILE `session_gate_touch` with the actor and the
+ * session id from the verified token. Flag off: the database returns ok and writes nothing. A breach
+ * or lock comes back as a row (the database has already removed the session); the local cookie is
+ * cleared best effort. Fails closed.
+ */
+async function touchSessionGate(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  actorId: string,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  try {
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const sessionId = (claimsData?.claims as { session_id?: unknown } | undefined)?.session_id;
+    const { data, error } = await createAdminClient().rpc("session_gate_touch", {
+      p_user: actorId,
+      p_session: typeof sessionId === "string" ? sessionId : null,
+    });
+    const row = Array.isArray(data) ? data[0] : null;
+    if (error || !row || typeof row.ok !== "boolean") return { ok: false, reason: "session_gate_unavailable" };
+    if (row.ok) return { ok: true };
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch {
+      // Cookies cannot always be written from a Server Component render; the session row is gone anyway.
+    }
+    return { ok: false, reason: row.reason === "locked" ? "account_locked" : "session_expired" };
+  } catch {
+    return { ok: false, reason: "session_gate_unavailable" };
+  }
+}
+
+/**
+ * Story 22.7: consume a step-up grant bound to (actor, action, subject) atomically. `true` when the
+ * flag is off (step-up not required) or a fresh grant was consumed. Fails closed.
+ */
+export async function consumeStepUp(actorId: string, action: StepUpAction, subjectId: string): Promise<boolean> {
+  try {
+    const { data, error } = await createAdminClient().rpc("stepup_consume", {
+      p_user: actorId,
+      p_action: action,
+      p_subject: subjectId,
+    });
+    return !error && data === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Story 22.7: the only actions that need a step-up (spec decision 2026-10-16). */
+export type StepUpAction = "remove_super_admin_factor" | "create_super_admin";
+export const STEP_UP_REQUIRED_CODE = "step_up_required";

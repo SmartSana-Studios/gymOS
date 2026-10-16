@@ -24,7 +24,8 @@
   "auth": {
     "description": "Saisissez votre e-mail ci-dessous pour vous connecter à votre compte",
     "noAccount": "Vous n'avez pas de compte ?",
-    "signUp": "S'inscrire"
+    "signUp": "S'inscrire",
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter."
   },
   "gyms": {
     "title": "Salles",
@@ -449,5 +450,15 @@
     "verifying": "Vérification...",
     "invalidCode": "Ce code n'est pas valide. Réessayez.",
     "noFactor": "Aucun authentificateur vérifié n'est disponible pour ce compte. Contactez l'opérateur de la plateforme."
+  },
+  "stepUp": {
+    "title": "Confirmez avec votre application d'authentification",
+    "description": "Cette action nécessite un nouveau code à 6 chiffres de votre application d'authentification.",
+    "codeLabel": "Code à 6 chiffres",
+    "confirm": "Confirmer",
+    "cancel": "Annuler",
+    "verifying": "Vérification...",
+    "invalidCode": "Ce code n'est pas valide. Réessayez.",
+    "locked": "Trop de codes erronés. Ce compte est verrouillé ; contactez l'opérateur de la plateforme."
   }
 }

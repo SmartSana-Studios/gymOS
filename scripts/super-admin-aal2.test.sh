@@ -99,7 +99,12 @@ check "  no reset audit row" "$(audit_n super_admin_factors_reset)" "0"
 run node $RESET $EMAIL
 check "reset dry-run exit 0" "$rc" "0"
 check "  dry-run keeps factors" "$(sql "select count(*) from auth.mfa_factors where user_id='$UID_FIX'")" "2"
+# Story 22.7: seed a wrong-code lock, session state and a step-up grant for the target
+sql "insert into private.super_admin_lockout (user_id, failed_count, locked_at) values ('$UID_FIX', 5, now()) on conflict (user_id) do update set failed_count = 5, locked_at = now(); insert into private.support_session_state (session_id, user_id, started_at, last_seen_at) values (gen_random_uuid(), '$UID_FIX', now(), now()); insert into private.support_stepup (user_id, action, subject_id, expires_at) values ('$UID_FIX', 'create_super_admin', 'qa@example.test', now() + interval '5 minutes');" >/dev/null || { echo "FAIL 22.7 seed"; fail=1; }
 run node $RESET $EMAIL --apply --operator $OP <<<"reset $EMAIL"
+check "  lock cleared" "$(sql "select count(*) from private.super_admin_lockout where user_id='$UID_FIX'")" "0"
+check "  session state cleared" "$(sql "select count(*) from private.support_session_state where user_id='$UID_FIX'")" "0"
+check "  step-up grants cleared" "$(sql "select count(*) from private.support_stepup where user_id='$UID_FIX'")" "0"
 check "reset apply exit 0" "$rc" "0"
 check "  factors gone" "$(sql "select count(*) from auth.mfa_factors where user_id='$UID_FIX'")" "0"
 check "  sessions gone" "$(sql "select count(*) from auth.sessions where user_id='$UID_FIX'")" "0"

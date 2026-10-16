@@ -1,7 +1,7 @@
 "use server";
 
 import type { AppError } from "@gymos/types";
-import { authorizePlatformAction, requireSuperAdminAal2 } from "@/lib/authz";
+import { authorizePlatformAction, consumeStepUp, requireSuperAdminAal2, STEP_UP_REQUIRED_CODE } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -33,12 +33,12 @@ async function err(code: string, key: string): Promise<AppError> {
   return { code, message: t(key) };
 }
 
-async function guard(): Promise<{ ok: true } | { ok: false; error: AppError }> {
+async function guard(): Promise<{ ok: true; actorId: string } | { ok: false; error: AppError }> {
   const authz = await authorizePlatformAction("platform.super_admin_manage");
   if (!authz.ok) return { ok: false, error: authz.error };
   const aal = await requireSuperAdminAal2();
   if (!aal.ok) return { ok: false, error: aal.error };
-  return { ok: true };
+  return { ok: true, actorId: authz.actorId };
 }
 
 async function currentAal(supabase: Awaited<ReturnType<typeof createClient>>): Promise<string | null> {
@@ -142,7 +142,7 @@ export async function verifyFactor(input: { factorId: string; code: string }): R
   return { data: { verified: true }, error: null };
 }
 
-export async function removeFactor(input: { factorId: string }): Result<{ removed: true }> {
+export async function removeFactor(input: { factorId: string }): Result<{ removed: true; signedOut: boolean }> {
   const g = await guard();
   if (!g.ok) return { data: null, error: g.error };
   const supabase = await createClient();
@@ -171,10 +171,33 @@ export async function removeFactor(input: { factorId: string }): Result<{ remove
     }
   }
 
+  // Story 22.7: removing a verified factor needs a fresh single-use step-up bound to this factor.
+  if (!isUnverified && !(await consumeStepUp(g.actorId, "remove_super_admin_factor", input.factorId))) {
+    return { data: null, error: await err(STEP_UP_REQUIRED_CODE, "stepUp.title") };
+  }
+
   const { error } = await supabase.auth.mfa.unenroll({ factorId: input.factorId });
   if (error) return { data: null, error: await err("remove_failed", "security.errors.generic") };
   if (!(await audit(supabase, "super_admin_mfa_removed", input.factorId))) {
     return { data: null, error: await err("audit_failed", "security.errors.generic") };
   }
-  return { data: { removed: true }, error: null };
+
+  // Story 22.7: removing a verified factor ends every session of this user (a stale device or
+  // session must not outlive its factor). Existing admin client, global scope; no new RPC.
+  let signedOut = false;
+  if (!isUnverified) {
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess?.session?.access_token;
+      if (token) {
+        const { createAdminClient } = await import("@/lib/supabase/admin");
+        const { error: outError } = await createAdminClient().auth.admin.signOut(token, "global");
+        signedOut = !outError;
+        if (outError) console.error("[security] global sign-out failed", outError.message);
+      }
+    } catch {
+      console.error("[security] global sign-out failed");
+    }
+  }
+  return { data: { removed: true, signedOut }, error: null };
 }

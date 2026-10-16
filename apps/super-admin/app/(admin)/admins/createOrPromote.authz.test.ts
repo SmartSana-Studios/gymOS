@@ -9,8 +9,12 @@ const signIn = vi.fn();
 const rpc = vi.fn();
 const createAdminClientMock = vi.fn(() => ({}));
 let allowed = true;
+let stepUpOk = true;
+const consumeStepUp = vi.fn(async () => stepUpOk);
 
 vi.mock("@/lib/authz", () => ({
+  STEP_UP_REQUIRED_CODE: "step_up_required",
+  consumeStepUp: (...a: unknown[]) => (consumeStepUp as (...x: unknown[]) => Promise<boolean>)(...a),
   authorizePlatformAction: vi.fn(async () =>
     allowed
       ? { ok: true, actorId: "sa-1" }
@@ -42,6 +46,7 @@ vi.mock("@/lib/super-admin-provisioning.mjs", () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   allowed = true;
+  stepUpOk = true;
 });
 
 describe("createOrPromoteSuperAdmin live authorization", () => {
@@ -56,5 +61,15 @@ describe("createOrPromoteSuperAdmin live authorization", () => {
     expect(signIn).not.toHaveBeenCalled();
     expect(createAdminClientMock).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("without a valid step-up: step_up_required, no admin client", async () => {
+    stepUpOk = false;
+    signIn.mockResolvedValue({ error: null });
+    const { createOrPromoteSuperAdmin } = await import("./actions");
+    const res = await createOrPromoteSuperAdmin({ email: "New@Example.com", currentPassword: "pw-123456" });
+    expect(res.error?.code).toBe("step_up_required");
+    expect(consumeStepUp).toHaveBeenCalledWith("sa-1", "create_super_admin", "new@example.com");
+    expect(createAdminClientMock).not.toHaveBeenCalled();
   });
 });

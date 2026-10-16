@@ -1,7 +1,7 @@
 "use server";
 
 import { createOrPromoteSuperAdminSchema, type AppError } from "@gymos/types";
-import { authorizePlatformAction } from "@/lib/authz";
+import { authorizePlatformAction, consumeStepUp, STEP_UP_REQUIRED_CODE } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapAndLog } from "@/services/gyms";
@@ -164,6 +164,12 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
       };
     }
     return { data: null, error: await mapAndLog(reauthError) };
+  }
+
+  // Story 22.7: creating or promoting a Super Admin needs a fresh single-use step-up bound to the email.
+  // Consumed after the password check so a wrong password does not burn it.
+  if (!(await consumeStepUp(authz.actorId, "create_super_admin", email.trim().toLowerCase()))) {
+    return { data: null, error: { code: STEP_UP_REQUIRED_CODE, message: t("stepUp.title") } };
   }
 
   const admin = createAdminClient();

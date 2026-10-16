@@ -10,12 +10,17 @@ const challengeAndVerify = vi.fn();
 const listFactorsMock = vi.fn();
 const getAal = vi.fn();
 const rpc = vi.fn();
+const adminSignOut = vi.fn(async () => ({ error: null }));
+const consumeStepUpMock = vi.fn();
 let allowed = true;
 let aalGate = true;
+let stepUpOk = true;
 let flagOn: unknown = false;
 let flagError: unknown = null;
 
 vi.mock("@/lib/authz", () => ({
+  STEP_UP_REQUIRED_CODE: "step_up_required",
+  consumeStepUp: (...a: unknown[]) => consumeStepUpMock(...a),
   authorizePlatformAction: vi.fn(async () =>
     allowed
       ? { ok: true, actorId: "sa-1" }
@@ -30,6 +35,7 @@ vi.mock("@/lib/authz", () => ({
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     auth: {
+      getSession: async () => ({ data: { session: { access_token: "tok-1" } }, error: null }),
       mfa: {
         enroll: (...a: unknown[]) => enroll(...a),
         unenroll: (...a: unknown[]) => unenroll(...a),
@@ -42,7 +48,10 @@ vi.mock("@/lib/supabase/server", () => ({
   })),
 }));
 vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: () => ({ rpc: async () => ({ data: flagOn, error: flagError }) }),
+  createAdminClient: () => ({
+    rpc: async () => ({ data: flagOn, error: flagError }),
+    auth: { admin: { signOut: (...a: unknown[]) => (adminSignOut as (...x: unknown[]) => unknown)(...a) } },
+  }),
 }));
 vi.mock("@/lib/i18n/get-request-locale", () => ({ getRequestLocale: vi.fn(async () => "en") }));
 vi.mock("@/lib/i18n/get-server-translation", () => ({ getServerTranslation: vi.fn(async () => ({ t: (k: string) => k })) }));
@@ -59,6 +68,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   allowed = true;
   aalGate = true;
+  stepUpOk = true;
+  consumeStepUpMock.mockImplementation(async () => stepUpOk);
+  adminSignOut.mockResolvedValue({ error: null });
   flagOn = false;
   flagError = null;
   rpc.mockResolvedValue({ data: "audit-id", error: null });
@@ -138,9 +150,22 @@ describe("security actions", () => {
     setup({ verified: 2, aal: "aal2" });
     flagOn = true;
     const { removeFactor } = await import("./actions");
-    expect((await removeFactor({ factorId: "f1" })).data?.removed).toBe(true);
+    const res = await removeFactor({ factorId: "f1" });
+    expect(res.data).toEqual({ removed: true, signedOut: true });
     expect(unenroll).toHaveBeenCalledWith({ factorId: "f1" });
     expect(rpc.mock.calls[0][1].p_action_type).toBe("super_admin_mfa_removed");
+    expect(consumeStepUpMock).toHaveBeenCalledWith("sa-1", "remove_super_admin_factor", "f1");
+    expect(adminSignOut).toHaveBeenCalledWith("tok-1", "global");
+  });
+
+  it("removing a verified factor without a fresh step-up returns step_up_required and does not unenroll (22.7)", async () => {
+    setup({ verified: 2, aal: "aal2" });
+    flagOn = true;
+    stepUpOk = false;
+    const { removeFactor } = await import("./actions");
+    expect((await removeFactor({ factorId: "f1" })).error?.code).toBe("step_up_required");
+    expect(unenroll).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("removing the last verified factor with the flag on is refused with no change", async () => {
@@ -188,6 +213,8 @@ describe("security actions", () => {
     setup({ verified: 0, aal: "aal1", all: [{ id: "u1", factor_type: "totp", status: "unverified" }] });
     const { removeFactor } = await import("./actions");
     expect((await removeFactor({ factorId: "u1" })).data?.removed).toBe(true);
+    expect(consumeStepUpMock).not.toHaveBeenCalled();
+    expect(adminSignOut).not.toHaveBeenCalled();
     expect(unenroll).toHaveBeenCalledWith({ factorId: "u1" });
   });
 

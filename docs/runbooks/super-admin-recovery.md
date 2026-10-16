@@ -62,3 +62,19 @@ by the other; the operator name in the audit row must differ from the target.
 
 Check `select action_type, actor_display_name, created_at from audit_log where actor_display_name like 'operator:%' order by created_at desc limit 5;`
 and that `select enabled from private.platform_flags where flag = 'super_admin_aal2'` is what you expect.
+
+## Session limits, step-up and lockout (Story 22.7)
+
+Applies only while the flag is on. Limits are rows in `private.session_limits_config` (`idle_minutes`
+30, `absolute_session_minutes` 480, `stepup_ttl_minutes` 5, `stepup_failure_threshold` 5; all
+`[ASSUMPTION]`); change them with a plain SQL update (not audited by the database; record the change in `docs/decisions.md`), not a deploy.
+
+- **Session expired.** An idle (30 min) or over-age (8 h) session is removed on its next request and the
+  login page says the session expired. Just sign in again.
+- **Step-up.** Removing a verified factor and creating or promoting a Super Admin ask for a fresh
+  authenticator code, valid 5 minutes, single use, bound to that factor or email.
+- **Locked after wrong codes.** Five wrong step-up codes lock the account and remove its sessions
+  (audit rows `super_admin_stepup_failed` and `super_admin_locked`, counts only). The sign-in prompt at
+  `/auth/mfa` is not counted. A locked account can only be released with the reset script above
+  (`reset-super-admin-factors.mjs`), which also clears the lock, session state and step-up grants and
+  turns the flag off; re-bootstrap as described.

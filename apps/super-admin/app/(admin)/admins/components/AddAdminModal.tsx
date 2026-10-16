@@ -8,6 +8,7 @@ import { createOrPromoteSuperAdminSchema } from "@gymos/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StepUpPrompt } from "@/components/step-up-prompt";
 import { createOrPromoteSuperAdmin } from "../actions";
 
 interface FieldErrors {
@@ -54,6 +55,7 @@ export function AddAdminModal({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [needStepUp, setNeedStepUp] = useState(false);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -70,6 +72,7 @@ export function AddAdminModal({
     setCurrentPassword("");
     setFieldErrors({});
     setFormError(null);
+    setNeedStepUp(false);
     onClose();
   }
 
@@ -94,6 +97,10 @@ export function AddAdminModal({
       const { data, error } = await createOrPromoteSuperAdmin(parsed.data);
 
       if (error) {
+        if (error.code === "step_up_required") {
+          setNeedStepUp(true);
+          return;
+        }
         if (error.code === "incorrect_password") {
           setFieldErrors({ currentPassword: error.message });
         } else {
@@ -167,6 +174,18 @@ export function AddAdminModal({
         </div>
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
+
+        {needStepUp && (
+          <StepUpPrompt
+            action="create_super_admin"
+            subjectId={trimmedEmail}
+            onCancel={() => setNeedStepUp(false)}
+            onIssued={() => {
+              setNeedStepUp(false);
+              void handleSubmit({ preventDefault() {} } as React.FormEvent);
+            }}
+          />
+        )}
 
         <div className="flex flex-wrap justify-end gap-2 pt-2">
           <Button type="button" variant="outline" onClick={resetAndClose} disabled={submitting}>

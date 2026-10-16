@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
+import { StepUpPrompt } from "@/components/step-up-prompt";
 import { enrollFactor, removeFactor, verifyFactor, type EnrollResult, type FactorRow } from "./actions";
 
 export function SecurityClient({ initialFactors }: { initialFactors: FactorRow[] }) {
@@ -13,6 +14,7 @@ export function SecurityClient({ initialFactors }: { initialFactors: FactorRow[]
   const [enroll, setEnroll] = useState<EnrollResult | null>(null);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [stepUpFor, setStepUpFor] = useState<string | null>(null);
 
   const run = (fn: () => Promise<{ error: { message: string } | null }>, done?: () => void) =>
     start(async () => {
@@ -23,6 +25,26 @@ export function SecurityClient({ initialFactors }: { initialFactors: FactorRow[]
       }
       setMessage(null);
       done?.();
+      router.refresh();
+    });
+
+  const removeWithStepUp = (factorId: string) =>
+    start(async () => {
+      const res = await removeFactor({ factorId });
+      if (res.error?.code === "step_up_required") {
+        setStepUpFor(factorId);
+        return;
+      }
+      if (res.error) {
+        setMessage(res.error.message);
+        return;
+      }
+      setMessage(null);
+      setStepUpFor(null);
+      if (res.data?.signedOut) {
+        window.location.assign("/auth/login?expired=1");
+        return;
+      }
       router.refresh();
     });
 
@@ -44,13 +66,22 @@ export function SecurityClient({ initialFactors }: { initialFactors: FactorRow[]
               type="button"
               disabled={pending}
               className="text-red-600 underline"
-              onClick={() => run(() => removeFactor({ factorId: f.id }))}
+              onClick={() => removeWithStepUp(f.id)}
             >
               {t("security.remove")}
             </button>
           </li>
         ))}
       </ul>
+
+      {stepUpFor && (
+        <StepUpPrompt
+          action="remove_super_admin_factor"
+          subjectId={stepUpFor}
+          onCancel={() => setStepUpFor(null)}
+          onIssued={() => removeWithStepUp(stepUpFor)}
+        />
+      )}
 
       {!enroll ? (
         <button

@@ -5,13 +5,15 @@ select plan(22);
 
 insert into auth.users (id) values ('00000000-0000-0000-0000-000000022501');
 update users set is_super_admin = true where id = '00000000-0000-0000-0000-000000022501';
+insert into auth.sessions (id, user_id, created_at, updated_at)
+values ('00000000-0000-0000-0000-0000000225a1', '00000000-0000-0000-0000-000000022501', now(), now());
 
 create or replace function pg_temp.claims(aal text) returns void language plpgsql as $f$
 begin
   perform set_config('request.jwt.claims',
     case when aal is null
       then '{"sub":"00000000-0000-0000-0000-000000022501","role":"authenticated","app_role":"super_admin"}'
-      else '{"sub":"00000000-0000-0000-0000-000000022501","role":"authenticated","app_role":"super_admin","aal":"' || aal || '"}'
+      else '{"sub":"00000000-0000-0000-0000-000000022501","role":"authenticated","app_role":"super_admin","session_id":"00000000-0000-0000-0000-0000000225a1","aal":"' || aal || '"}'
     end, true);
 end $f$;
 

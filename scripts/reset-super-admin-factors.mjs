@@ -3,7 +3,7 @@
 // TOTP factors and auth.sessions and turns the super_admin_aal2 flag OFF in the same transaction, so
 // the account can sign in with its password and re-enroll at /security (otherwise the sole Super Admin
 // would be locked out). It reopens the first-factor window on purpose: re-enroll both factors and run
-// scripts/enable-super-admin-aal2.mjs immediately. See docs/runbooks/super-admin-recovery.md.
+// scripts/enable-super-admin-aal2.mjs immediately. Since 22.7 it also clears the step-up wrong-code lock, session state and step-up grants. See docs/runbooks/super-admin-recovery.md.
 //
 //   node scripts/reset-super-admin-factors.mjs <email>                                # dry run, rolled back
 //   node scripts/reset-super-admin-factors.mjs <email> --apply --operator <name>      # typed confirmation
@@ -69,6 +69,11 @@ try {
 
   await client.query("delete from auth.mfa_factors where user_id = $1", [target.id]);
   await client.query("delete from auth.sessions where user_id = $1", [target.id]);
+  // Story 22.7: clear the wrong-code lock, session state and any step-up grants.
+  const lock = (await client.query("select failed_count, locked_at from private.super_admin_lockout where user_id = $1", [target.id])).rows[0];
+  await client.query("delete from private.super_admin_lockout where user_id = $1", [target.id]);
+  await client.query("delete from private.support_session_state where user_id = $1", [target.id]);
+  await client.query("delete from private.support_stepup where user_id = $1", [target.id]);
   await client.query(
     `insert into private.platform_flags (flag, enabled) values ('super_admin_aal2', false)
      on conflict (flag) do update set enabled = false`,
@@ -79,6 +84,7 @@ try {
     factor_count: factors.length,
     factors: factors.map((f) => ({ id: f.id, friendly_name: f.friendly_name, status: f.status, created_at: f.created_at.toISOString() })),
     sessions_deleted: sessions,
+    lock_cleared: Boolean(lock?.locked_at),
     flag_before: flagBefore,
     flag_after: false,
   };

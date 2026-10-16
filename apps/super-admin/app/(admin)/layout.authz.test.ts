@@ -37,6 +37,22 @@ describe("(admin) layout live authorization", () => {
     expect(redirect).toHaveBeenCalledWith("/auth/login");
   });
 
+  it("sends an expired or locked session to login with the expired notice", async () => {
+    for (const reason of ["session_expired", "account_locked"]) {
+      redirect.mockClear();
+      authorizePlatformAction.mockResolvedValueOnce({
+        ok: false,
+        reason,
+        error: { code: "permission_denied", message: "errors.permissionDenied" },
+      });
+      const mod = await import("./layout");
+      const suspense = mod.default({ children: null }) as { props: { children: { type: (p: unknown) => Promise<unknown>; props: unknown } } };
+      const inner = suspense.props.children;
+      await expect(inner.type(inner.props)).rejects.toBeInstanceOf(Redirected);
+      expect(redirect).toHaveBeenCalledWith("/auth/login?expired=1");
+    }
+  });
+
   it("sends an aal1 session (reason aal2_required) to the second-factor prompt, not a login loop", async () => {
     redirect.mockClear();
     authorizePlatformAction.mockResolvedValueOnce({
