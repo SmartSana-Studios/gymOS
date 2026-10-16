@@ -69,6 +69,14 @@ context:
 - **Needs from the product owner:** a provider account (any with SMTP and good deliverability), a sending domain (for example `gymosapps.com`) with SPF and DKIM records added at the DNS host, and a from-address such as `security@gymosapps.com`. Provider names are suggestions, not checked: Resend, Postmark, Amazon SES.
 - **Not changed:** no code, config or production setting was touched by the spike.
 
+## Build notes (2026-10-16, found while building; outside the frozen block)
+
+- **Enrolment after a reset.** The frozen text says a recovery does not turn the flag off, but with the flag on a zero-factor Super Admin cannot reach `/security` (the admin layout wants aal2) and 22.6's reset script solved that by turning the whole flag off. Migration 0128 instead adds `private.recovery_enrol_allowed(user)`: true for `recovery_enrol_window_minutes` (1440) after a reset applies while the account has no verified factor. The app work (a page outside the aal2 layout that enrols the first factor only) is still to do.
+- **Delay minimum.** `session_limits_config.value` must be > 0, so the local-testing delay is 1 minute, not 0.
+- **Lock wins.** A pending reset on an account that is locked (or whose recovery email was removed) is cancelled, not applied.
+- **Done so far:** migration 0128 + rollback + 55 pgTAP assertions; `lib/mail.ts` + 8 Vitest tests; local Inbucket SMTP port in `supabase/config.toml` (needs one `supabase stop && start`).
+- **Still to do:** Server Actions, `/security` and `/auth/mfa` UI, cancel route, email templates, enable-script and reset-script changes, runbook, decisions entry, Resend sender-domain setup and production env vars.
+
 ## Code Map
 
 - `supabase/migrations/0128_*.sql` (+ `scripts/rollback-0128-*.sql`) -- new: `private.super_admin_recovery` (user_id, recovery_email, verified_at), `private.super_admin_recovery_code` (user_id, code_hash, expires_at, attempts, consumed_at, requested_at), `private.super_admin_recovery_pending` (apply_at, cancelled_at), config key `recovery_delay_minutes`. `SECURITY DEFINER` functions with locked search_path, no `authenticated` EXECUTE on the privileged ones (see the 22.7 `super_admin_locked` revoke and the anon-EXECUTE trap in `project_epic18_post_deploy_state`).
