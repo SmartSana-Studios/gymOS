@@ -1196,3 +1196,9 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 ## Deferred from: code review of spec-22-6-super-admin-bootstrap-second-device-and-recovery (2026-10-15)
 
 - Enable's all-Super-Admins refusal loop is tested only with one admin (`scripts/super-admin-aal2.test.sh` SKIPs when another Super Admin exists). A second fixture admin holding one factor would prove the loop; breaking it to check only the first admin keeps CI green. Medium if the loop regressed, unverified.
+
+## Deferred from: code review of spec-22-7-session-limits-and-step-up (2026-10-16)
+
+- Gate scoping paths untested in pgTAP: non-Super-Admin `session_gate_touch` writes no state; a session id owned by another user returns `session_expired`. Low probability; add alongside the 22-7 pgTAP patches.
+- No component tests for `StepUpPrompt`, the `AddAdminModal` / `SecurityClient` step-up retry loop, or the `?expired=1` login notice. Covered by manual browser QA today.
+- A still-live aal2 access token used directly against PostgREST is checked for session existence only, not idle/absolute age, until the next app request ends the session (unverified severity, bounded by JWT expiry). Add to the runbook "not done" list.

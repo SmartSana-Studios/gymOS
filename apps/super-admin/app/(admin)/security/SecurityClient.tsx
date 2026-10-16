@@ -39,8 +39,14 @@ export function SecurityClient({ initialFactors }: { initialFactors: FactorRow[]
         setMessage(res.error.message);
         return;
       }
-      setMessage(null);
       setStepUpFor(null);
+      if (res.data?.signOutFailed) {
+        // Fail loudly: the factor is gone but other sessions may still be live.
+        setMessage(t("security.errors.signOutFailed"));
+        router.refresh();
+        return;
+      }
+      setMessage(null);
       if (res.data?.signedOut) {
         window.location.assign("/auth/login?expired=1");
         return;

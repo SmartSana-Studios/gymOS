@@ -95,6 +95,30 @@ context:
 | Limits config has no upper bound | low | operator-only table, rejected |
 | Spec bookkeeping stale | low | handled by step 6 task marking |
 
+### Review Findings
+
+Second-pass code review of commit e8de0c4 (2026-10-16, 4 layers; first-pass triage is in the log above).
+
+- [x] [Review][Patch] (decided: option 1, fail loudly) Factor removal can leave other sessions alive, silently — `removeFactor` unenrolls and audits first, then ends sessions with a best-effort GoTrue global sign-out from the caller's access token. If the token is absent or the call errors it only logs and returns `signedOut: false` (the UI acts only on `true`), so the factor is gone while other sessions survive; `support_session_state` is also not cleared (spec Always: "removal clear[s] state and sessions"). Options: (1) fail loudly: return an error/warning so the operator knows to sign out elsewhere; (2) add a service-role call to `end_user_sessions` for the actor (clears state too, small new surface); (3) accept as is and document. Severity medium.
+- [x] [Review][Patch] Step-up prompt submit bubbles to the AddAdminModal form handler — `StepUpPrompt` renders a `<form>` inside the modal's `<form>`; React synthetic submit bubbles, so the outer `handleSubmit` runs concurrently with `issueStepUp`. Fix: render the prompt outside the form or `e.stopPropagation()` in `submit` [apps/super-admin/components/step-up-prompt.tsx:30, apps/super-admin/app/(admin)/admins/components/AddAdminModal.tsx:179]
+- [x] [Review][Patch] Provider/transient errors count as wrong codes — `issueStepUp` treats any `challengeAndVerify` error as a failed code and calls `stepup_record_failure`; five network or rate-limit errors lock the sole Super Admin (release needs the reset script). Count only an invalid-code error (confirm the GoTrue code name, e.g. `mfa_verification_failed`); return unavailable otherwise [apps/super-admin/app/(admin)/step-up-actions.ts:50]
+- [x] [Review][Patch] pgTAP gaps on deleted-clause regressions — add assertions: (a) `session_gate_touch` for a locked user returns `ok=false, reason='locked'` and removes session and state rows; (b) a successful `stepup_issue` after 3 failures zeroes `failed_count` (4 more failures do not lock); (c) `stepup_issue` returns null once locked [supabase/tests/session_limits_step_up.test.sql]
+- [x] [Review][Patch] `private.super_admin_locked(uuid)` is executable by `authenticated` — any signed-in user can probe the lock state of an arbitrary user id; callers are SECURITY DEFINER so the grant is unneeded. Revoke from `authenticated` and add a privilege assertion [supabase/migrations/0127_session_limits_step_up.sql:83]
+- [x] [Review][Defer] Gate scoping paths untested in pgTAP (non-Super-Admin pass-through writes no state; session owned by another user returns `session_expired`) [supabase/tests/session_limits_step_up.test.sql] — deferred: low-probability paths, add with the patch above if cheap
+- [x] [Review][Defer] No component tests for `StepUpPrompt`, `AddAdminModal` / `SecurityClient` step-up retry loop, or the `?expired=1` login notice [apps/super-admin/components] — deferred: user does manual browser QA; add if a component-test pattern exists
+- [x] [Review][Defer] Direct PostgREST use of a still-live aal2 token is not subject to idle/absolute limits (only session existence); limits bite on the next app request — deferred: matches the spec's helper design; record it in the runbook "not done" list (unverified how long a stolen token stays useful: bounded by JWT expiry)
+
+#### Rejected
+
+- `no_session` shows "session expired" to never-signed-in visitors — false: the layout redirects plain `/auth/login` when claims are missing; `no_session` here means a signed token whose session the provider dropped (commented in layout).
+- Lock does not invalidate outstanding grants — false: the gate denies a locked user before any consume, and the reset script clears grants.
+- Missing config key fails open (NULL limit) — low: operator-only table, rows seeded by the migration; fix adds guards.
+- Flag-off path depends on migration 0127 (gate RPC fails closed if unapplied) — low: migrations deploy before app per the runbook order.
+- First touch seeds `last_seen_at = now()` — low: only rollout/post-clear, absolute age still enforced.
+- Lockout can be triggered by a session holder; only the reset script unlocks — spec decision (2026-10-16) and documented in the runbook.
+- Two factors tried per submitted code halves the guess budget — low: 10 guesses of a 6-digit TOTP is negligible.
+- Successful step-ups not audited; subject not validated server-side; factor-id case mismatch; empty subject; limits unbounded/unaudited; per-call write cost; stale prompt on unrelated error; locked result not redirecting UI; unavailable vs expired message; `not_after` in `jwt_session_alive`; rollback script untested; reset-script `$rc` ordering; `mfa-form` not reused; sprint-status/spec bookkeeping — low or false: unreachable (lowercase uuids, app validation) or cosmetic, fixes add branches or edit the spec.
+
 ## Verification
 
 **Commands:**

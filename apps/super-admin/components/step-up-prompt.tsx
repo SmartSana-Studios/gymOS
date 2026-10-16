@@ -30,6 +30,8 @@ export function StepUpPrompt({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // This form can sit inside another form (AddAdminModal); never let the submit reach it.
+    e.stopPropagation();
     setBusy(true);
     setError(null);
     try {

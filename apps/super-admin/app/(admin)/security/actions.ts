@@ -142,7 +142,7 @@ export async function verifyFactor(input: { factorId: string; code: string }): R
   return { data: { verified: true }, error: null };
 }
 
-export async function removeFactor(input: { factorId: string }): Result<{ removed: true; signedOut: boolean }> {
+export async function removeFactor(input: { factorId: string }): Result<{ removed: true; signedOut: boolean; signOutFailed: boolean }> {
   const g = await guard();
   if (!g.ok) return { data: null, error: g.error };
   const supabase = await createClient();
@@ -199,5 +199,6 @@ export async function removeFactor(input: { factorId: string }): Result<{ remove
       console.error("[security] global sign-out failed");
     }
   }
-  return { data: { removed: true, signedOut }, error: null };
+  // A verified factor was removed but its sessions could not be ended: the caller must say so.
+  return { data: { removed: true, signedOut, signOutFailed: !isUnverified && !signedOut }, error: null };
 }

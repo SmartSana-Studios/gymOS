@@ -43,15 +43,21 @@ export async function issueStepUp(input: {
   if (listError || factors.length === 0) return fail("invalid_code", "stepUp.invalidCode");
 
   let verified = false;
+  let wrongCode = false;
   for (const f of factors) {
     const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId: f.id, code });
     if (!error) {
       verified = true;
       break;
     }
+    // Only a rejected code counts toward the lockout; provider or network errors never do.
+    if (error.code === "mfa_verification_failed" || error.code === "mfa_verification_rejected") {
+      wrongCode = true;
+    }
   }
 
   const admin = createAdminClient();
+  if (!verified && !wrongCode) return fail("unavailable", "stepUp.unavailable");
   if (!verified) {
     const { data, error } = await admin.rpc("stepup_record_failure", { p_user: authz.actorId });
     if (error) return fail("permission_denied", "errors.permissionDenied");

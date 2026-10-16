@@ -394,7 +394,8 @@
       "generic": "Une erreur s'est produite. Veuillez réessayer.",
       "enrollFailed": "Impossible de démarrer l'enregistrement. Veuillez réessayer.",
       "invalidCode": "Ce code n'est pas valide. Veuillez réessayer.",
-      "lastFactor": "Vous ne pouvez pas retirer votre dernier authentificateur vérifié."
+      "lastFactor": "Vous ne pouvez pas retirer votre dernier authentificateur vérifié.",
+      "signOutFailed": "L'authentificateur a été retiré, mais les autres sessions n'ont pas pu être fermées. Déconnectez-vous maintenant sur vos autres appareils."
     }
   },
   "admins": {
@@ -459,6 +460,7 @@
     "cancel": "Annuler",
     "verifying": "Vérification...",
     "invalidCode": "Ce code n'est pas valide. Réessayez.",
-    "locked": "Trop de codes erronés. Ce compte est verrouillé ; contactez l'opérateur de la plateforme."
+    "locked": "Trop de codes erronés. Ce compte est verrouillé ; contactez l'opérateur de la plateforme.",
+    "unavailable": "Nous n'avons pas pu vérifier le code pour le moment. Veuillez réessayer."
   }
 }

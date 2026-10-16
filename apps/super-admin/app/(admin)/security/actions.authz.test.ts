@@ -139,6 +139,15 @@ describe("security actions", () => {
     expect(JSON.stringify(rpc.mock.calls[0][1])).not.toContain("123456");
   });
 
+  it("a failed global sign-out is reported, not swallowed", async () => {
+    setup({ verified: 2, aal: "aal2" });
+    flagOn = true;
+    adminSignOut.mockResolvedValue({ error: { message: "boom" } } as never);
+    const { removeFactor } = await import("./actions");
+    const res = await removeFactor({ factorId: "f1" });
+    expect(res.data).toEqual({ removed: true, signedOut: false, signOutFailed: true });
+  });
+
   it("removal at aal1 is refused", async () => {
     setup({ verified: 2, aal: "aal1" });
     const { removeFactor } = await import("./actions");
@@ -151,7 +160,7 @@ describe("security actions", () => {
     flagOn = true;
     const { removeFactor } = await import("./actions");
     const res = await removeFactor({ factorId: "f1" });
-    expect(res.data).toEqual({ removed: true, signedOut: true });
+    expect(res.data).toEqual({ removed: true, signedOut: true, signOutFailed: false });
     expect(unenroll).toHaveBeenCalledWith({ factorId: "f1" });
     expect(rpc.mock.calls[0][1].p_action_type).toBe("super_admin_mfa_removed");
     expect(consumeStepUpMock).toHaveBeenCalledWith("sa-1", "remove_super_admin_factor", "f1");

@@ -55,7 +55,7 @@ describe("issueStepUp", () => {
   });
 
   it("a wrong code records a failure (no code sent), issues nothing", async () => {
-    challengeAndVerify.mockResolvedValue({ data: null, error: { message: "bad" } });
+    challengeAndVerify.mockResolvedValue({ data: null, error: { message: "bad", code: "mfa_verification_failed" } });
     const { issueStepUp } = await import("./step-up-actions");
     const res = await issueStepUp({ action: "remove_super_admin_factor", subjectId: "f1", code: "000000" });
     expect(res.error?.code).toBe("invalid_code");
@@ -64,8 +64,16 @@ describe("issueStepUp", () => {
     expect(JSON.stringify(adminRpc.mock.calls)).not.toContain("000000");
   });
 
+  it("a provider error is not a wrong code: nothing is counted", async () => {
+    challengeAndVerify.mockResolvedValue({ data: null, error: { message: "network", code: "unexpected_failure" } });
+    const { issueStepUp } = await import("./step-up-actions");
+    const res = await issueStepUp({ action: "remove_super_admin_factor", subjectId: "f1", code: "000000" });
+    expect(res.error?.code).toBe("unavailable");
+    expect(adminRpc).not.toHaveBeenCalled();
+  });
+
   it("the threshold failure comes back as a lock and signs the session out", async () => {
-    challengeAndVerify.mockResolvedValue({ data: null, error: { message: "bad" } });
+    challengeAndVerify.mockResolvedValue({ data: null, error: { message: "bad", code: "mfa_verification_failed" } });
     adminRpc.mockResolvedValue({ data: [{ locked: true, attempts: 5, threshold: 5 }], error: null });
     const { issueStepUp } = await import("./step-up-actions");
     const res = await issueStepUp({ action: "remove_super_admin_factor", subjectId: "f1", code: "000000" });
@@ -74,7 +82,7 @@ describe("issueStepUp", () => {
   });
 
   it("a failed failure-counter write fails closed with permission_denied", async () => {
-    challengeAndVerify.mockResolvedValue({ data: null, error: { message: "bad" } });
+    challengeAndVerify.mockResolvedValue({ data: null, error: { message: "bad", code: "mfa_verification_failed" } });
     adminRpc.mockResolvedValue({ data: null, error: { message: "db down" } });
     const { issueStepUp } = await import("./step-up-actions");
     const res = await issueStepUp({ action: "remove_super_admin_factor", subjectId: "f1", code: "000000" });

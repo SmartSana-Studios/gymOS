@@ -80,8 +80,8 @@ set search_path = public
 as $$
   select coalesce((select l.locked_at is not null from private.super_admin_lockout l where l.user_id = p_user), false);
 $$;
-revoke all on function private.super_admin_locked(uuid) from public, anon;
-grant execute on function private.super_admin_locked(uuid) to authenticated, service_role;
+revoke all on function private.super_admin_locked(uuid) from public, anon, authenticated;
+grant execute on function private.super_admin_locked(uuid) to service_role;
 
 -- True when the JWT's session_id is still a row in auth.sessions for the caller (22.1 finding:
 -- PostgREST accepts an old access token after its session row is deleted). Fails closed.
