@@ -385,6 +385,8 @@
     "unverified": "Not verified",
     "remove": "Remove",
     "addFactor": "Add authenticator",
+    "enrollTitle": "Add authenticator",
+    "close": "Close",
     "scanQr": "Scan this QR code with your authenticator app, then enter the 6-digit code.",
     "qrAlt": "Authenticator QR code",
     "manualKey": "Or enter this key manually",

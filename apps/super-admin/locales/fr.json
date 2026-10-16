@@ -385,6 +385,8 @@
     "unverified": "Non vérifié",
     "remove": "Retirer",
     "addFactor": "Ajouter un authentificateur",
+    "enrollTitle": "Ajouter un authentificateur",
+    "close": "Fermer",
     "scanQr": "Scannez ce code QR avec votre application d'authentification, puis saisissez le code à 6 chiffres.",
     "qrAlt": "Code QR de l'authentificateur",
     "manualKey": "Ou saisissez cette clé manuellement",
