@@ -83,7 +83,7 @@ export async function listFactors(): Result<FactorRow[]> {
   };
 }
 
-type RawFactor = { id: string; factor_type?: string; status?: string };
+type RawFactor = { id: string; factor_type?: string; status?: string; friendly_name?: string | null };
 
 export async function enrollFactor(input: { friendlyName?: string }): Result<EnrollResult> {
   const g = await guard();
@@ -109,7 +109,16 @@ export async function enrollFactor(input: { friendlyName?: string }): Result<Enr
     await audit(supabase, "super_admin_mfa_removed", f.id);
   }
 
-  const name = (input.friendlyName ?? "").trim().slice(0, 64) || undefined;
+  // The provider refuses two factors with the same friendly name (an empty name counts), which blocked
+  // adding the second device. Default to the first unused "Authenticator N".
+  const taken = new Set(
+    ((list as { all?: RawFactor[] } | null)?.all ?? [])
+      .filter((f) => f.status !== "unverified")
+      .map((f) => f.friendly_name ?? ""),
+  );
+  let n = 1;
+  while (taken.has(`Authenticator ${n}`)) n += 1;
+  const name = (input.friendlyName ?? "").trim().slice(0, 64) || `Authenticator ${n}`;
   const { data, error } = await supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: name });
   if (error || !data) return { data: null, error: await err("enroll_failed", "security.errors.enrollFailed") };
 
