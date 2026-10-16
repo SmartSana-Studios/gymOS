@@ -438,7 +438,8 @@ development_status:
   22-5-super-admin-second-factor-enrollment-flag-off: done
   22-6-super-admin-bootstrap-second-device-and-recovery: done
   22-7-session-limits-and-step-up: done
-  epic-22-retrospective: optional
+  22-8-super-admin-recovery-email: backlog
+  epic-22-retrospective: done
 
   epic-23: backlog
   23-0-pre-flight-checklist-product-owner: backlog
@@ -478,7 +479,7 @@ development_status:
   25-5-sitemaps-robots-and-plain-text-summary: backlog
   25-6-directory-gate-seo-verification-and-removal-timing: backlog
   epic-25-retrospective: optional
-  
+
 action_items:
   - epic: 7
     action: "Commit immediately when a story's Status is set to done, before starting
@@ -1060,7 +1061,124 @@ action_items:
     owner: "dev workflow"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-21-retro-2026-10-15.md"
-last_updated: 10-16-2026 12:00
+  - id: "epic-22-retro-item-53-route-every-exported-super-admin-server"
+    epic: 22
+    action: "Route every exported Super Admin Server Action through authorizePlatformAction
+      and add a test that every use-server export calls it; blocks enabling super_admin_aal2"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-54-option-a-add-admin-refuses-while-super_a"
+    epic: 22
+    action: "Option A: Add admin refuses while super_admin_aal2 is on; new Super Admins
+      added in a controlled bootstrap window; needs audited flag-off mode and runbook
+      section; blocks enabling super_admin_aal2"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-55-close-carried-over-blockers-serialize-re"
+    epic: 22
+    action: "Close carried-over blockers: serialize removeFactor against concurrent
+      removal, and make the claims hook return a stripped event on error; blocks enabling
+      super_admin_aal2"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-56-run-the-epic-22-browser-checklist-epic-2"
+    epic: 22
+    action: "Run the Epic 22 browser checklist (epic-22-browser-qa-checklist.md),
+      start with steps 26-27 and 20-25, and record the result in sprint-status; blocks
+      enabling super_admin_aal2"
+    owner: "owner"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-57-fix-createorpromotesuperadmin-re-auth-so"
+    epic: 22
+    action: "Fix createOrPromoteSuperAdmin re-auth so signInWithPassword does not
+      replace the Super Admin session; confirm in browser first"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-58-removefactor-run-the-global-sign-out-reg"
+    epic: 22
+    action: "removeFactor: run the global sign-out regardless of audit result and
+      return removed true with an audit flag"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-59-run-apps-super-admin-vitest-in-stage_uni"
+    epic: 22
+    action: "Run apps/super-admin Vitest in stage_unit of scripts/ci-local.sh and
+      in ci.yml"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-60-add-pgtap-allowed-assertions-for-each-pl"
+    epic: 22
+    action: "Add pgTAP allowed assertions for each platform.* capability and a flag-on
+      assertion recording the authorize_action platform contract"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-61-add-an-unlock-only-mode-with-audit-row-t"
+    epic: 22
+    action: "Add an unlock-only mode with audit row to clear super_admin_lockout without
+      removing factors or turning the flag off"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-62-billing-saas_pay-exempt-for-suspended-gy"
+    epic: 22
+    action: "billing.saas_pay exempt for suspended gyms only; deny deactivated; new
+      migration plus pgTAP case; confirm no payment-reactivation flow exists first"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-63-reconcile-docs-decisions-md-line-12-ever"
+    epic: 22
+    action: "Reconcile docs/decisions.md line 12 (every Server Action is gated) with
+      as-built and record /auth/mfa no-counter behaviour as an accepted deviation
+      in the runbook"
+    owner: "human applies"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-64-prune-the-four-stale-exempt-entries-in-s"
+    epic: 22
+    action: "Prune the four stale exempt entries in scripts/claim-inventory.exempt.json"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-65-triage-the-epic-22-retro-f10-low-severit"
+    epic: 22
+    action: "Triage the Epic 22 retro F10 low-severity list, shared step-up subject
+      normalizer, and the three open 22-7 deferrals"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-66-process-a-story-that-introduces-a-gate-o"
+    epic: 22
+    action: "Process: a story that introduces a gate or check lists its consumers
+      in the spec and carries a test that enumerates them"
+    owner: "dev workflow"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-67-process-a-deferral-worded-close-before-x"
+    epic: 22
+    action: "Process: a deferral worded close before X becomes an acceptance criterion
+      of story X, not a deferred-work line"
+    owner: "dev workflow"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+  - id: "epic-22-retro-item-68-process-a-story-that-adds-tests-to-an-ap"
+    epic: 22
+    action: "Process: a story that adds tests to an app wires that app test run into
+      ci-local.sh and ci.yml in the same story"
+    owner: "dev workflow"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
+last_updated: 10-16-2026 08:55
+# last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
+# last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
 # last_updated: 2026-10-15 (build: 22-4 in-progress -> review. Migration 0125 authorize_action (private core + service_role-only public wrapper), dashboard/super-admin lib/authz.ts, edge _shared/authorize.ts, payment-webhook initiate routes verify JWT then authorize against the payment row, call sites per spec, permission_denied code en/fr incl. mobile, claim inventory enforcing with empty baseline. pgTAP authorize_action 26/26, vitest per call site, Deno initiate tests; see docs/decisions.md 2026-10-15 22.4 entry.)
 # last_updated: 2026-10-15 (build: 22-5 in-progress -> review. Migration 0126 super_admin_aal2 flag (private.platform_flags, is_super_admin/is_super_admin_live/hook require aal2 when on, flag seeded off), super-admin /security page + Server Actions with aal gate and audit, requireSuperAdminAal2 in lib/authz.ts, TOTP enabled in local config.toml. pgTAP 18 new assertions, Vitest 10 actions tests + gated provider integration test (needs auth container restart to pick up config). ci-local --fast green.)
@@ -1238,3 +1356,8 @@ last_updated: 10-16-2026 12:00
 # last_updated: 2026-10-15 (22-3 done, merged to epic/22; migration 0124 + rollback; review: 3 layers, 71 extra InitPlan policy rewrites accepted by owner and proven identical (31 exact, 71 unwrap-identical, 35 role swaps over 137 policies), suspension assertions re-pinned, log_audit_event fail-open fixed; ci-local GREEN for ff797ac (static 4s, pgtap 46s, unit, e2e 100s). Baseline: claim-only 2 (both 22.4 server sources), null-unsafe 0, mixed 0. Deferred: payment trigger never pinned supervisor (pre-existing); historic payments not re-validated. session_id check is 22.7.)
 # last_updated: 2026-10-15 (code review 22-5: 4 layers; D1 authorizePlatformAction now requires aal2 when flag on (Vitest +2), D2 first-factor enrollment documented flag-off-only, patches: hook membership fixtures pgTAP 22 assertions, enrollFactor cleanup checks errors + audits; 3 deferred already logged; review -> done, not yet merged to epic/22, ci-local not yet run)
 # last_updated: 2026-10-15 (22-5 done, merged to epic/22 as 19fcf5a; ci-local GREEN for 3f9eafb with stamp; story branch deleted)
+# last_updated: 2026-10-16 (ad-hoc: Epic 22 local QA kit -- applied migrations 0124-0127 to the local DB, added scripts/epic22-qa/{seed,totp}.mjs, super-admin dev server on :3000; no story status changes)
+# last_updated: 2026-10-16 (ad-hoc fix: super-admin services/gyms.ts gyms->members embed was ambiguous after migration 0117 added loyalty_progress (PGRST201, /gyms list errored); pinned members!members_gym_id_fkey in both selects; uncommitted on epic/22)
+# last_updated: 2026-10-16 (ad-hoc: drafted spec-22-8-super-admin-recovery-email.md (recovery-only email code, status draft, 3 open decisions); no story key added to the status list until approved; no code changes)
+# last_updated: 2026-10-16 (ad-hoc: story 22-8 super-admin-recovery-email added to epic-22 as backlog; 30-minute recovery delay decided (not second-admin approval); spec-22-8 still draft with 2 open decisions (mail sender spike, relationship to exactly-two-factors rule); no code changes)
+# last_updated: 2026-10-16 (ad-hoc: spec-22-8 decision 3 resolved -- enable-super-admin-aal2 accepts one verified factor plus a verified recovery email, or exactly two factors; only the mail-sender spike remains open; no code changes)

@@ -1,0 +1,95 @@
+---
+title: 'Super Admin recovery email'
+type: 'feature'
+created: '2026-10-16'
+status: 'draft'
+baseline_commit: ''
+route: 'dispatch'
+review_loop_iteration: 0
+context:
+  - '{project-root}/_bmad-output/implementation-artifacts/epic-22-context.md'
+  - '{project-root}/_bmad-output/implementation-artifacts/spec-22-6-super-admin-bootstrap-second-device-and-recovery.md'
+  - '{project-root}/_bmad-output/implementation-artifacts/spec-22-7-session-limits-and-step-up.md'
+  - '{project-root}/docs/runbooks/super-admin-recovery.md'
+---
+
+<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
+
+## Intent
+
+**Problem:** A Super Admin who loses the device holding their authenticator cannot sign in. Today the only way back is an operator running `scripts/reset-super-admin-factors.mjs` with database access, and Epic 22's rule of exactly two TOTP factors only helps if the second one is on a separate device, which nothing enforces.
+
+**Approach:** A Super Admin registers a verified **recovery email**, a different mailbox from the login email. From `/auth/mfa`, after the password step, they can ask for a one-time code sent to it. A valid code removes their authenticators and sessions (the same effect as the operator reset) so they can sign in with the password and enrol a new authenticator. The code never grants aal2 and never replaces TOTP at sign-in. Recovery-only: TOTP stays the only sign-in second factor.
+
+## Boundaries & Constraints
+
+**Always:**
+- The recovery email must differ from the login email (case-insensitive, compared after trim) and be verified by a code sent to it before it is saved. Only an aal2 session can set, change or remove it, and changing or removing it needs a step-up (22.7).
+- The recovery code is 6 digits, single use, expires in 10 minutes, stored hashed (never plaintext), allows 3 wrong attempts, and a new request invalidates the previous one. At most 3 requests per hour and 5 per day per account, enforced in the database.
+- A valid code runs in one transaction: delete the account's `auth.mfa_factors` and `auth.sessions`, clear its lock, support state and step-up grants, consume the code, write one `audit_log` row. It does not turn the `super_admin_aal2` flag off.
+- Taking effect is delayed: the factor reset applies `recovery_delay_minutes` (default 30, in `private.session_limits_config`) after the code is accepted. During the delay the login email and the recovery email both get a "recovery requested" notice, and the account can cancel it from either email link or an operator can cancel it. The delay can be set to 0 for local testing only.
+- Every request, wrong code, acceptance, cancellation and application writes an audit row (`actor_id` null when unauthenticated, otherwise the user) with no code and no full recovery address in metadata (masked, for example `a***@example.com`).
+- Wrong recovery codes count toward the 22.7 lockout; a locked account cannot request or use recovery.
+- The response to a request is identical whether or not the account exists, has a recovery email, or is a Super Admin (no account enumeration). Strings en and fr.
+
+**Never:**
+- No recovery that skips the password, no code that grants aal2 or a session, no change to the sign-in prompt's use of TOTP, no email or SMS as a sign-in second factor.
+- Do not store or log a code, a hash input or the full recovery address. Do not send the code to the login email.
+- No change to flag-off behaviour. No new dependency on a paid service without the spike decision below.
+
+## I/O & Edge-Case Matrix
+
+| Scenario | Input / State | Expected Output / Behavior | Error Handling |
+|----------|--------------|---------------------------|----------------|
+| Register | aal2 Super Admin enters a different address, then the emailed code | recovery email saved as verified, one audit row | wrong code: error, not saved; same as login email: refused |
+| Register, aal1 | aal1 session or no session | refused before any email is sent | `permission_denied` |
+| Request | password-only session, account has a verified recovery email | code emailed to it, masked address shown, delay notice sent to both addresses | rate limited: generic "try again later" |
+| Request, none set | no recovery email on the account | same generic response, nothing sent, audit row | N/A |
+| Request, other user | unknown email or non-Super-Admin | same generic response, nothing sent | N/A |
+| Valid code | within 10 minutes, attempts left | reset scheduled for now + delay, notices sent | N/A |
+| Delay elapsed | no cancel | factors and sessions removed, user signs in with password and enrols again at `/security` | N/A |
+| Cancel | link from either email, or operator | scheduled reset dropped, audit row | expired link: error |
+| Wrong code | 3 times | code invalidated, counts toward lockout | locked: refused |
+| Expired or reused code | older than 10 minutes, or already consumed | refused | generic invalid code |
+
+</frozen-after-approval>
+
+## Open Decisions (1 still open; resolve before approval)
+
+1. **Mail sender.** The Super Admin app has no way to send a custom email today (dashboard uses Supabase Auth mails for password reset). Spike: use the Supabase Auth mailer, a transactional provider, or the project's SMTP. Local mail lands in Inbucket (`http://127.0.0.1:54324`); the local auth email rate limit is 2 per hour, so tests need their own limit. Confirm what production can send before building.
+2. **Delay vs. approval. RESOLVED 2026-10-16: 30-minute delay** (`recovery_delay_minutes`, default 30), no second-admin approval. Revisit if a second Super Admin becomes routine.
+3. **Relationship to "exactly two TOTP factors". RESOLVED 2026-10-16:** `enable-super-admin-aal2.mjs` accepts, per Super Admin, either exactly two verified factors, or exactly one verified factor plus a verified recovery email. Record in `docs/decisions.md`.
+
+## Code Map
+
+- `supabase/migrations/0128_*.sql` (+ `scripts/rollback-0128-*.sql`) -- new: `private.super_admin_recovery` (user_id, recovery_email, verified_at), `private.super_admin_recovery_code` (user_id, code_hash, expires_at, attempts, consumed_at, requested_at), `private.super_admin_recovery_pending` (apply_at, cancelled_at), config key `recovery_delay_minutes`. `SECURITY DEFINER` functions with locked search_path, no `authenticated` EXECUTE on the privileged ones (see the 22.7 `super_admin_locked` revoke and the anon-EXECUTE trap in `project_epic18_post_deploy_state`).
+- `apps/super-admin/app/(admin)/security/` -- recovery email section (register, change, remove) in modals, step-up on change and remove.
+- `apps/super-admin/app/auth/mfa/` -- "I can't use my authenticator" flow: request, enter code, pending/cancelled states.
+- `apps/super-admin/lib/` -- mail sender chosen in the spike; code generation uses a CSPRNG.
+- `scripts/reset-super-admin-factors.mjs` -- show a pending recovery and allow cancelling it (`--cancel-recovery`).
+- A scheduled job (pg_cron, as other jobs do) applies due resets and removes expired codes.
+- `locales/{en,fr}.json`, `docs/runbooks/super-admin-recovery.md`, `docs/decisions.md`, `sprint-status.yaml`.
+
+## Tasks & Acceptance
+
+**Execution:**
+- [ ] Spike: choose the mail sender and record the production send path and rate limits
+- [ ] Migration 0128 with tables, functions, grants, rollback and pgTAP (rate limits, attempts, expiry, single use, same-address refusal, no enumeration, delay, cancel, lock interaction)
+- [ ] Server Actions for register, request, verify, cancel; each audited and rate limited
+- [ ] `/security` recovery email section and `/auth/mfa` recovery flow, modals, en/fr
+- [ ] Enable script accepts one verified factor + verified recovery email (or exactly two factors), still refusing zero, unverified-only or three factors; its dry-run lists which rule each admin meets. Reset script cancel option, runbook update, decisions entry
+- [ ] Vitest for actions and UI states; browser checklist items added to the Epic 22 checklist
+
+**Acceptance Criteria:**
+- Given an aal2 Super Admin with a different recovery address, when they enter the emailed code, then it is saved as verified; the same address as the login email is refused.
+- Given a password-only session, when the recovery code is requested and entered, then nothing changes immediately, both mailboxes get a notice, and after the delay the account has no factors and no sessions.
+- Given a cancel link used within the delay, then the account is unchanged and the cancellation is audited.
+- Given an unknown email, a non-Super-Admin or an account with no recovery email, then the response is identical to a real request and nothing is sent.
+- Given a wrong code three times, then the code is dead and the attempts count toward the lockout.
+- Given `scripts/ci-local.sh`, when run, then GREEN.
+
+## Risks
+
+- Recovery email plus password is enough to take over the account after the delay. Mitigation: delay, notices to both mailboxes, cancel path, audit, rate limits, step-up for changes. The 30-minute delay was chosen over second-admin approval (decided 2026-10-16).
+- The mail sender is unknown; the story is blocked on the spike.
+- Epic 22's retro items 1-4 (gating Server Actions, concurrent-removal, hook-error deferrals) should land first, because this story adds new Server Actions that must use the same gate.
