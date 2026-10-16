@@ -398,6 +398,30 @@
       "invalidCode": "That code is not valid. Please try again.",
       "lastFactor": "You cannot remove your last verified authenticator.",
       "signOutFailed": "The authenticator was removed, but other sessions could not be ended. Sign out on your other devices now."
+    },
+    "recovery": {
+      "title": "Recovery email",
+      "description": "A separate mailbox that can reset your authenticators if you lose your device. It must differ from your login email.",
+      "none": "No recovery email is set.",
+      "current": "Current: {{masked}}",
+      "set": "Set recovery email",
+      "change": "Change",
+      "remove": "Remove",
+      "pending": "A recovery reset is scheduled for {{time}}.",
+      "modalTitle": "Recovery email",
+      "emailLabel": "Recovery email address",
+      "emailHint": "We will send a 6-digit code to this address to check it.",
+      "sendCode": "Send code",
+      "codeSent": "Enter the 6-digit code we sent to that address.",
+      "errors": {
+        "sameAsLogin": "The recovery email must be different from your login email.",
+        "invalidEmail": "Enter a valid email address.",
+        "invalidCode": "That code is not valid.",
+        "rateLimited": "Too many requests. Try again later.",
+        "mailFailed": "The email could not be sent. Try again.",
+        "notConfigured": "Email sending is not configured.",
+        "generic": "Something went wrong. Please try again."
+      }
     }
   },
   "admins": {
@@ -452,7 +476,19 @@
     "verify": "Verify",
     "verifying": "Verifying...",
     "invalidCode": "That code is not valid. Try again.",
-    "noFactor": "No verified authenticator is available for this account. Contact the platform operator."
+    "noFactor": "No verified authenticator is available for this account. Contact the platform operator.",
+    "recovery": {
+      "link": "Can't use your authenticator?",
+      "intro": "We will email a code to your recovery address. Using it schedules the removal of your authenticators after a delay; you can cancel from the email.",
+      "send": "Email me a code",
+      "sent": "If a recovery email is on file, a code is on its way. Enter it below.",
+      "codeLabel": "Recovery code",
+      "submit": "Confirm",
+      "scheduled": "Recovery requested. Your authenticators will be removed at {{time}}. Check your email to cancel if this was not you.",
+      "invalid": "That code is not valid.",
+      "locked": "This account is locked. Contact an operator.",
+      "failed": "Recovery could not be completed. Try again later."
+    }
   },
   "stepUp": {
     "title": "Confirm with your authenticator",
@@ -464,5 +500,17 @@
     "invalidCode": "That code is not valid. Try again.",
     "locked": "Too many wrong codes. This account is locked; contact the platform operator.",
     "unavailable": "We could not check the code right now. Please try again."
+  },
+  "mfaEnroll": {
+    "title": "Set up a new authenticator",
+    "description": "A recovery removed your previous authenticators. Add a new one to sign in."
+  },
+  "recoveryCancel": {
+    "title": "Cancel account recovery",
+    "description": "Cancel the scheduled removal of your authenticators?",
+    "confirm": "Cancel recovery",
+    "done": "Recovery cancelled. Nothing was changed.",
+    "invalid": "This link is invalid or was already used.",
+    "home": "Back to sign in"
   }
 }

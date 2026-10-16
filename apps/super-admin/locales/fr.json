@@ -398,6 +398,30 @@
       "invalidCode": "Ce code n'est pas valide. Veuillez réessayer.",
       "lastFactor": "Vous ne pouvez pas retirer votre dernier authentificateur vérifié.",
       "signOutFailed": "L'authentificateur a été retiré, mais les autres sessions n'ont pas pu être fermées. Déconnectez-vous maintenant sur vos autres appareils."
+    },
+    "recovery": {
+      "title": "E-mail de récupération",
+      "description": "Une boîte distincte qui peut réinitialiser vos authentificateurs si vous perdez votre appareil. Elle doit différer de votre e-mail de connexion.",
+      "none": "Aucun e-mail de récupération n'est défini.",
+      "current": "Actuel : {{masked}}",
+      "set": "Définir l'e-mail de récupération",
+      "change": "Modifier",
+      "remove": "Supprimer",
+      "pending": "Une réinitialisation de récupération est programmée le {{time}}.",
+      "modalTitle": "E-mail de récupération",
+      "emailLabel": "Adresse e-mail de récupération",
+      "emailHint": "Nous enverrons un code à 6 chiffres à cette adresse pour la vérifier.",
+      "sendCode": "Envoyer le code",
+      "codeSent": "Saisissez le code à 6 chiffres envoyé à cette adresse.",
+      "errors": {
+        "sameAsLogin": "L'e-mail de récupération doit être différent de votre e-mail de connexion.",
+        "invalidEmail": "Saisissez une adresse e-mail valide.",
+        "invalidCode": "Ce code n'est pas valide.",
+        "rateLimited": "Trop de demandes. Réessayez plus tard.",
+        "mailFailed": "L'e-mail n'a pas pu être envoyé. Réessayez.",
+        "notConfigured": "L'envoi d'e-mails n'est pas configuré.",
+        "generic": "Une erreur est survenue. Veuillez réessayer."
+      }
     }
   },
   "admins": {
@@ -452,7 +476,19 @@
     "verify": "Vérifier",
     "verifying": "Vérification...",
     "invalidCode": "Ce code n'est pas valide. Réessayez.",
-    "noFactor": "Aucun authentificateur vérifié n'est disponible pour ce compte. Contactez l'opérateur de la plateforme."
+    "noFactor": "Aucun authentificateur vérifié n'est disponible pour ce compte. Contactez l'opérateur de la plateforme.",
+    "recovery": {
+      "link": "Impossible d'utiliser votre authentificateur ?",
+      "intro": "Nous enverrons un code à votre adresse de récupération. L'utiliser programme la suppression de vos authentificateurs après un délai ; vous pouvez annuler depuis l'e-mail.",
+      "send": "Envoyez-moi un code",
+      "sent": "Si une adresse de récupération est enregistrée, un code est en route. Saisissez-le ci-dessous.",
+      "codeLabel": "Code de récupération",
+      "submit": "Confirmer",
+      "scheduled": "Récupération demandée. Vos authentificateurs seront supprimés le {{time}}. Consultez vos e-mails pour annuler si ce n'est pas vous.",
+      "invalid": "Ce code n'est pas valide.",
+      "locked": "Ce compte est verrouillé. Contactez un opérateur.",
+      "failed": "La récupération n'a pas pu aboutir. Réessayez plus tard."
+    }
   },
   "stepUp": {
     "title": "Confirmez avec votre application d'authentification",
@@ -464,5 +500,17 @@
     "invalidCode": "Ce code n'est pas valide. Réessayez.",
     "locked": "Trop de codes erronés. Ce compte est verrouillé ; contactez l'opérateur de la plateforme.",
     "unavailable": "Nous n'avons pas pu vérifier le code pour le moment. Veuillez réessayer."
+  },
+  "mfaEnroll": {
+    "title": "Configurer un nouvel authentificateur",
+    "description": "Une récupération a supprimé vos authentificateurs précédents. Ajoutez-en un nouveau pour vous connecter."
+  },
+  "recoveryCancel": {
+    "title": "Annuler la récupération du compte",
+    "description": "Annuler la suppression programmée de vos authentificateurs ?",
+    "confirm": "Annuler la récupération",
+    "done": "Récupération annulée. Rien n'a été modifié.",
+    "invalid": "Ce lien est invalide ou a déjà été utilisé.",
+    "home": "Retour à la connexion"
   }
 }

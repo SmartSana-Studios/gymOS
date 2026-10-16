@@ -31,7 +31,7 @@ export async function issueStepUp(input: {
   if (
     !/^\d{6}$/.test(code) ||
     !input.subjectId ||
-    (input.action !== "remove_super_admin_factor" && input.action !== "create_super_admin")
+    !["remove_super_admin_factor", "create_super_admin", "change_recovery_email", "remove_recovery_email"].includes(input.action)
   ) {
     return fail("invalid_code", "stepUp.invalidCode");
   }
