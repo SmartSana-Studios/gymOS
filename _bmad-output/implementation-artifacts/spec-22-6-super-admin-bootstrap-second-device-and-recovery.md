@@ -87,3 +87,35 @@ The 22.5 deferred item "concurrent factor removals can both pass the last-factor
 - `pnpm --filter super-admin test` -- expected: pass
 - `node scripts/check-i18n-key-parity.mjs` -- expected: clean
 - `bash scripts/ci-local.sh` -- expected: GREEN
+
+### Review Findings
+
+Code review 2026-10-15 (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor) of commit 2e3c70d.
+
+- [x] [Review][Patch] Reset refusal for an existing non-Super-Admin account is untested; deleting the `is_super_admin` guard keeps every assertion green and would let a typo wipe a regular user's factors and sessions [scripts/super-admin-aal2.test.sh]
+- [x] [Review][Patch] Runbook Bootstrap step 2 does not say to open `/auth/mfa` by hand; with the flag off the layout never redirects there, so the operator cannot reach aal2 to add factor two [docs/runbooks/super-admin-recovery.md]
+- [x] [Review][Defer] Enable's "every Super Admin" loop is only exercised with one admin; a second fixture admin with one factor is not tested [scripts/super-admin-aal2.test.sh] — deferred: needs a second fixture user and a relaxed "other Super Admins present" SKIP guard on the shared local DB; the loop itself reads correct.
+- [x] [Review][Defer] No audited way to turn the flag off without destroying factors [scripts/enable-super-admin-aal2.mjs] — deferred: already in deferred-work.md (22-6 blind hunter entry); a `--disable` mode would settle it.
+- [x] [Review][Defer] Enable holds the transaction open across the typed confirmation and does not re-check factor counts [scripts/enable-super-admin-aal2.mjs] — deferred: already in deferred-work.md (22-6 edge-case entry).
+- [x] [Review][Defer] Test script exits 1 on its SKIP paths and needs network for `npm i pg@8` [scripts/super-admin-aal2.test.sh] — deferred: already in deferred-work.md (22-6 verification-gap entry); first CI run on the epic PR settles it.
+
+#### Rejected
+
+- Non-Super-Admin aal1 users reach `/auth/mfa` via `aal2_required` (false): `authorizePlatformAction` calls `authorize_action` first (migration 0125 reads `users.is_super_admin` for `p_actor`, no aal), so non-admins are denied with `not_super_admin` before `requireSuperAdminAal2` can emit `aal2_required`.
+- `reason` is a required field and another denied path could lack it (false): every denial goes through `denied()`; a literal would fail typecheck.
+- Super Admin with no `auth.users` row passes enable (false): left join gives 0 verified, so it lands in `short` and is refused.
+- Reset flips the flag off for every Super Admin with no warning (low): by spec (Design Notes) and stated in the dry-run line and runbook; one Super Admin exists today.
+- Dual control is prose only (low): spec asks for a runbook note (PRD §8); no named harm until a second Super Admin exists.
+- Reset refuses a non-Super-Admin target (none): benign scope addition, kept.
+- `parseArgs` swallows `--apply` after `--operator`, unknown flags ignored (low): fails safe to a run that prints "DRY RUN (rolled back)".
+- Operator scripts default to the production pooler (low): the spec says copy the `prod-apply.mjs` pattern; operator always intends production.
+- MfaForm treats a `listFactors` error as no factor, no sign-out link in `noFactor` (low): rare, refresh recovers, fix adds branches.
+- `/auth/mfa` does not redirect an aal2 session; no 6-digit validation; double submit (low): needs deliberate navigation, wastes at most a challenge.
+- One wrong code costs one attempt per factor (low): inherent to the spec's lost-device design (either factor may be the survivor); fix is a UI choice.
+- Verified 2 plus 1 unverified factor passes enable (low): spec says "exactly two verified"; an unverified factor cannot authenticate.
+- `process.exit` inside `try` skips `finally`; stdin EOF handling in `confirmTyped` (low): transaction already rolled back, EOF fails safe as a mismatch.
+- `ORIG_FLAG` read failure leaves the local flag modified (low): local DB only, cleanup is best effort.
+- Duplicate emails by case in reset lookup (false): GoTrue keeps a unique index on lower(email).
+- Rehearsal AC is prose only (none): the AC asks for the result recorded in `docs/decisions.md`, which it is.
+- epics.md asserts support creation is refused while the flag is off (low): Epic 23 acceptance criterion, not a claim about 22.6 code; fix would edit a planning spec.
+- Spec status `done`, empty Review Triage Log, three overlapping sprint-status lines (low): bookkeeping, status is reset by this review's step 6.

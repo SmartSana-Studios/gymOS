@@ -11,6 +11,8 @@ cd "$(dirname "$0")/.."
 DB=${DB_CONTAINER:-supabase_db_gym_os}
 EMAIL=qa22-6-super@example.test
 UID_FIX=00000000-0000-4000-8000-000000002206
+UID_NS=00000000-0000-4000-8000-000000002207
+EMAIL_NS=qa22-6-regular@example.test
 OP=qa-22-6
 
 sql() { docker exec -i -e PGPASSWORD=postgres "$DB" psql -U postgres -h 127.0.0.1 -At -v ON_ERROR_STOP=1 -c "$1" 2>&1; }
@@ -26,7 +28,7 @@ export PROD_HOST=127.0.0.1 PROD_PORT=${LOCAL_DB_PORT:-54322} PROD_USER=postgres 
 
 ORIG_FLAG=$(sql "select enabled from private.platform_flags where flag='super_admin_aal2'")
 cleanup() {
-  sql "delete from auth.sessions where user_id='$UID_FIX'; delete from auth.mfa_factors where friendly_name like 'qa22-6-%'; delete from public.audit_log where actor_display_name='operator:$OP'; delete from auth.users where id='$UID_FIX'; update private.platform_flags set enabled = '$ORIG_FLAG' where flag='super_admin_aal2';" >/dev/null
+  sql "delete from auth.sessions where user_id in ('$UID_FIX','$UID_NS'); delete from auth.mfa_factors where friendly_name like 'qa22-6-%'; delete from public.audit_log where actor_display_name='operator:$OP'; delete from auth.users where id in ('$UID_FIX','$UID_NS'); update private.platform_flags set enabled = '$ORIG_FLAG' where flag='super_admin_aal2';" >/dev/null
   rm -f "$PWFILE"
 }
 trap cleanup EXIT
@@ -87,6 +89,13 @@ check "  still one audit row" "$(audit_n super_admin_aal2_enabled)" "1"
 
 run node $RESET nobody@example.test --apply --operator $OP <<<"reset nobody@example.test"
 check "reset unknown email exit 1" "$rc" "1"
+sql "delete from auth.users where id='$UID_NS'; insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at) values ('$UID_NS','00000000-0000-0000-0000-000000000000','authenticated','authenticated','$EMAIL_NS',now(),now()); insert into auth.mfa_factors (id,user_id,friendly_name,factor_type,status,created_at,updated_at,secret) values (gen_random_uuid(),'$UID_NS','qa22-6-ns1','totp','verified',now(),now(),'QA226SECRET'); insert into auth.sessions (id, user_id, created_at, updated_at) values (gen_random_uuid(),'$UID_NS',now(),now());" >/dev/null || { echo "FAIL non-admin fixture setup"; fail=1; }
+run node $RESET $EMAIL_NS --apply --operator $OP <<<"reset $EMAIL_NS"
+check "reset refuses a non-Super-Admin (exit 1)" "$rc" "1"
+check "  non-admin factors untouched" "$(sql "select count(*) from auth.mfa_factors where user_id='$UID_NS'")" "1"
+check "  non-admin sessions untouched" "$(sql "select count(*) from auth.sessions where user_id='$UID_NS'")" "1"
+check "  flag untouched" "$(flag)" "t"
+check "  no reset audit row" "$(audit_n super_admin_factors_reset)" "0"
 run node $RESET $EMAIL
 check "reset dry-run exit 0" "$rc" "0"
 check "  dry-run keeps factors" "$(sql "select count(*) from auth.mfa_factors where user_id='$UID_FIX'")" "2"

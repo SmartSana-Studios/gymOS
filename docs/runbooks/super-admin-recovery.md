@@ -20,7 +20,8 @@ temp dir). Set `PROD_SSL=0` only for a local database.
 1. Sign in at `/security` with the password, enroll and verify factor one (allowed at aal1; this is the
    recorded first-factor window).
 2. Add factor two at `/security` (a second factor needs aal2, so first sign out and back in and pass the
-   factor-one code challenge at `/auth/mfa`, which works with the flag off; it is just not forced on sign-in yet).
+   factor-one code challenge by opening `/auth/mfa` yourself; with the flag off nothing redirects there,
+   so type the URL after signing in).
 3. Dry run: `node scripts/enable-super-admin-aal2.mjs`. It lists every Super Admin with each factor's
    friendly name and `created_at` and states the verdict. It refuses (exit 1) unless every
    `users.is_super_admin` account has exactly two verified factors.

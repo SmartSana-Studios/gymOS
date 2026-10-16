@@ -1192,3 +1192,7 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-22-6-super-admin-bootstrap-second-device-and-recovery.md`
   summary: Enable checks factor counts, then waits on a typed confirmation inside the open transaction without re-checking or locking auth.mfa_factors.
   evidence: review (edge-case hunter); only a concurrent factor change by the sole operator can hit it; low-medium, unverified.
+
+## Deferred from: code review of spec-22-6-super-admin-bootstrap-second-device-and-recovery (2026-10-15)
+
+- Enable's all-Super-Admins refusal loop is tested only with one admin (`scripts/super-admin-aal2.test.sh` SKIPs when another Super Admin exists). A second fixture admin holding one factor would prove the loop; breaking it to check only the first admin keeps CI green. Medium if the loop regressed, unverified.
