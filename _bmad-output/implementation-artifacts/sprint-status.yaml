@@ -438,7 +438,7 @@ development_status:
   22-5-super-admin-second-factor-enrollment-flag-off: done
   22-6-super-admin-bootstrap-second-device-and-recovery: done
   22-7-session-limits-and-step-up: done
-  22-8-super-admin-recovery-email: backlog
+  22-8-super-admin-recovery-email: in-progress
   epic-22-retrospective: done
 
   epic-23: backlog
@@ -1361,3 +1361,4 @@ last_updated: 10-16-2026 08:55
 # last_updated: 2026-10-16 (ad-hoc: drafted spec-22-8-super-admin-recovery-email.md (recovery-only email code, status draft, 3 open decisions); no story key added to the status list until approved; no code changes)
 # last_updated: 2026-10-16 (ad-hoc: story 22-8 super-admin-recovery-email added to epic-22 as backlog; 30-minute recovery delay decided (not second-admin approval); spec-22-8 still draft with 2 open decisions (mail sender spike, relationship to exactly-two-factors rule); no code changes)
 # last_updated: 2026-10-16 (ad-hoc: spec-22-8 decision 3 resolved -- enable-super-admin-aal2 accepts one verified factor plus a verified recovery email, or exactly two factors; only the mail-sender spike remains open; no code changes)
+# last_updated: 2026-10-16 (build: 22-8 approved, backlog -> in-progress, baseline 4b82f29. Mail-sender spike done: prod has no custom SMTP (Supabase built-in mailer, 2 emails/hour), repo has no mailer; recommendation SMTP via nodemailer in lib/mail.ts (Inbucket locally, provider SMTP in prod). Awaiting product owner pick of provider + sending domain. Read-only prod config call, no code or settings changed.)

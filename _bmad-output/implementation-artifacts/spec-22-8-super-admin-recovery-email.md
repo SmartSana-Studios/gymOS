@@ -2,8 +2,8 @@
 title: 'Super Admin recovery email'
 type: 'feature'
 created: '2026-10-16'
-status: 'draft'
-baseline_commit: ''
+status: 'in-progress'
+baseline_commit: '4b82f29ee3e0025ddda8bea8170bfc784d9a7d3a'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -54,11 +54,20 @@ context:
 
 </frozen-after-approval>
 
-## Open Decisions (1 still open; resolve before approval)
+## Open Decisions (approved 2026-10-16; only the provider pick below is open)
 
-1. **Mail sender.** The Super Admin app has no way to send a custom email today (dashboard uses Supabase Auth mails for password reset). Spike: use the Supabase Auth mailer, a transactional provider, or the project's SMTP. Local mail lands in Inbucket (`http://127.0.0.1:54324`); the local auth email rate limit is 2 per hour, so tests need their own limit. Confirm what production can send before building.
+1. **Mail sender.** Spike run 2026-10-16, findings in "Spike result" below. Needs the product owner's pick of provider and sending domain.
 2. **Delay vs. approval. RESOLVED 2026-10-16: 30-minute delay** (`recovery_delay_minutes`, default 30), no second-admin approval. Revisit if a second Super Admin becomes routine.
 3. **Relationship to "exactly two TOTP factors". RESOLVED 2026-10-16:** `enable-super-admin-aal2.mjs` accepts, per Super Admin, either exactly two verified factors, or exactly one verified factor plus a verified recovery email. Record in `docs/decisions.md`.
+
+## Spike result (2026-10-16)
+
+- **Production today** (read-only call to the Supabase management API, no secrets printed): no custom SMTP (host, user, sender and password all unset), so Auth uses Supabase's built-in mailer. `rate_limit_email_sent` is 2 per hour for the whole project and `smtp_max_frequency` 60 s. As I understand Supabase's documented limits, the built-in mailer is meant for testing and delivers only to addresses of the project's team members; not verified here. Either way, 2 emails an hour cannot carry recovery codes plus two notices per request.
+- **Repo:** no mailer code anywhere (`[auth.email.smtp]` is commented out in `supabase/config.toml`; dashboard password reset uses the Auth mailer). The Super Admin app has no way to send mail.
+- **Why not Auth's mailer:** it only mails an auth user's own address with its fixed templates. The recovery address is not an auth user, and a notice to two addresses is not something Auth sends.
+- **Recommendation:** send from a Server Action through one small `lib/mail.ts` using SMTP (nodemailer). One code path: locally it targets Inbucket (set `smtp_port = 54325` under `[inbucket]` in `config.toml`, mail visible at http://127.0.0.1:54324), in production it targets a transactional provider's SMTP endpoint through env vars (`MAIL_SMTP_HOST/PORT/USER/PASS/FROM`), server-only, never `NEXT_PUBLIC_`. Optionally also point Supabase Auth at the same provider to lift its 2 per hour cap (separate, not required by this story).
+- **Needs from the product owner:** a provider account (any with SMTP and good deliverability), a sending domain (for example `gymosapps.com`) with SPF and DKIM records added at the DNS host, and a from-address such as `security@gymosapps.com`. Provider names are suggestions, not checked: Resend, Postmark, Amazon SES.
+- **Not changed:** no code, config or production setting was touched by the spike.
 
 ## Code Map
 
@@ -73,7 +82,7 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] Spike: choose the mail sender and record the production send path and rate limits
+- [x] Spike: choose the mail sender and record the production send path and rate limits (result below; provider pick pending)
 - [ ] Migration 0128 with tables, functions, grants, rollback and pgTAP (rate limits, attempts, expiry, single use, same-address refusal, no enumeration, delay, cancel, lock interaction)
 - [ ] Server Actions for register, request, verify, cancel; each audited and rate limited
 - [ ] `/security` recovery email section and `/auth/mfa` recovery flow, modals, en/fr
