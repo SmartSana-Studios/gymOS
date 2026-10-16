@@ -60,11 +60,27 @@ Run `enable-super-admin-aal2.mjs --apply` first (needs exactly 2 verified factor
 31. A locked account cannot sign in past the gate; `reset-super-admin-factors.mjs <email> --apply` releases it (clears lock, state, grants, turns flag off).
 32. Audit rows exist: `super_admin_stepup_failed` per wrong step-up code, `super_admin_locked` on lockout.
 
+## F. Recovery email (22-8)
+
+Needs mail: restart the Supabase stack once (`smtp_port = 54325` in config.toml), then read mail at http://127.0.0.1:54324. For speed: `limit recovery_delay_minutes 1`.
+
+34. `/security` → *Recovery email* card: set an address equal to the login email: refused. Set a different one: a 6-digit code arrives in Inbucket; a wrong code is refused; the right code saves it and the card shows a masked address.
+35. Change the address: a step-up prompt appears first; after a valid authenticator code the new address gets a code and replaces the old one.
+36. Remove it: step-up again, then the card shows none.
+37. With the flag ON and a recovery email set, sign in password-only → `/auth/mfa` → *Can't use your authenticator?* → *Email me a code* → code arrives at the recovery address only → wrong code refused (counts toward lockout) → right code shows "Recovery requested… at <time>"; you are NOT signed in.
+38. Both mailboxes (login and recovery) receive the notice with a cancel link; open it: a page with a Cancel button (opening alone does nothing); click it: "Recovery cancelled". Open it again: "invalid or already used".
+39. Repeat 37 and let the delay pass (1 min locally, up to 1 more for the cron): authenticators and sessions are gone, the flag is still ON; signing in with the password lands on `/auth/mfa/enroll`; enrol one authenticator in the modal; you reach `/gyms` at aal2. `/auth/mfa/enroll` then redirects away (window closed).
+40. A non-Super-Admin password session and an account with no recovery email see the same "code is on its way" message and receive no mail.
+41. `enable-super-admin-aal2.mjs` dry-run accepts one factor + recovery email, refuses one factor alone.
+42. `reset-super-admin-factors.mjs <email> --cancel-recovery --apply --operator <you>` cancels a pending recovery.
+
 ## Cleanup
 
 33. Restore `session_limits_config` to 30 / 480 / 5 / 5, and set the flag to the intended state for the environment.
 
 ## Results
+
+Stories covered also: 22-8 (section F).
 
 | # | Pass/Fail | Notes |
 |---|-----------|-------|

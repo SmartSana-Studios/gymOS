@@ -75,7 +75,8 @@ context:
 - **Delay minimum.** `session_limits_config.value` must be > 0, so the local-testing delay is 1 minute, not 0.
 - **Lock wins.** A pending reset on an account that is locked (or whose recovery email was removed) is cancelled, not applied.
 - **Done so far:** migration 0128 + rollback + 55 pgTAP assertions; `lib/mail.ts` + 8 Vitest tests; local Inbucket SMTP port in `supabase/config.toml` (needs one `supabase stop && start`).
-- **Still to do:** Server Actions, `/security` and `/auth/mfa` UI, cancel route, email templates, enable-script and reset-script changes, runbook, decisions entry, Resend sender-domain setup and production env vars.
+- **Also done:** Server Actions (`/security` aal2, sign-in prompt aal1, first-authenticator page, cancel route), `EnrollDialog` shared modal, email templates en/fr, enable/reset script changes (+ shell tests), runbook, decisions entry, checklist section F.
+- **Still to do:** Resend sender domain (SPF/DKIM) and production env vars (`MAIL_*`, `SUPER_ADMIN_APP_URL`), restart the local Supabase stack for Inbucket SMTP, run section F by hand, `scripts/ci-local.sh`, code review.
 
 ## Code Map
 
@@ -91,11 +92,11 @@ context:
 
 **Execution:**
 - [x] Spike: choose the mail sender and record the production send path and rate limits (result below; provider pick pending)
-- [ ] Migration 0128 with tables, functions, grants, rollback and pgTAP (rate limits, attempts, expiry, single use, same-address refusal, no enumeration, delay, cancel, lock interaction)
-- [ ] Server Actions for register, request, verify, cancel; each audited and rate limited
-- [ ] `/security` recovery email section and `/auth/mfa` recovery flow, modals, en/fr
-- [ ] Enable script accepts one verified factor + verified recovery email (or exactly two factors), still refusing zero, unverified-only or three factors; its dry-run lists which rule each admin meets. Reset script cancel option, runbook update, decisions entry
-- [ ] Vitest for actions and UI states; browser checklist items added to the Epic 22 checklist
+- [x] Migration 0128 with tables, functions, grants, rollback and pgTAP (rate limits, attempts, expiry, single use, same-address refusal, no enumeration, delay, cancel, lock interaction)
+- [x] Server Actions for register, request, verify, cancel; each audited and rate limited
+- [x] `/security` recovery email section and `/auth/mfa` recovery flow, modals, en/fr
+- [x] Enable script accepts one verified factor + verified recovery email (or exactly two factors), still refusing zero, unverified-only or three factors; its dry-run lists which rule each admin meets. Reset script cancel option, runbook update, decisions entry
+- [x] Vitest for actions and UI states; browser checklist items added to the Epic 22 checklist (section F, items 34-42)
 
 **Acceptance Criteria:**
 - Given an aal2 Super Admin with a different recovery address, when they enter the emailed code, then it is saved as verified; the same address as the login email is refused.
