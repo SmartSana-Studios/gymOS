@@ -7,6 +7,14 @@ const nextConfig: NextConfig = {
   // fix applied), so Cache Components no longer hard-fails a real `next
   // build`.
   cacheComponents: true,
+  // Dev-only "validate instant UI" checks otherwise run on every page and trip over the auth redirect whenever a
+  // session has just ended (the overlay then reports a NEXT_REDIRECT as an error). Validate only segments that opt in.
+  // No effect on `next build`.
+  experimental: {
+    instantInsights: {
+      validationLevel: "manual-warning",
+    },
+  },
   // Next 16 blocks cross-origin requests to dev-only endpoints, treating any
   // host other than the one the dev server initialized with (`localhost`) as
   // cross-origin. Browsing dev over `127.0.0.1` therefore got the HMR
