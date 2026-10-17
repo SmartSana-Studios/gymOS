@@ -11,7 +11,7 @@ import {
   setGymCategorySchema,
   type AppError,
 } from "@gymos/types";
-import { authorizePlatformAction } from "@/lib/authz";
+import { authorizeOrRedirect } from "@/lib/authz-action";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   sendTempPasswordMessage,
@@ -291,7 +291,7 @@ export async function createGym(
   const { t } = await getServerTranslation(await getRequestLocale());
 
   // Story 22.4: live Super Admin check before anything reads or writes with the service role.
-  const authz = await authorizePlatformAction("platform.gym_create");
+  const authz = await authorizeOrRedirect("platform.gym_create");
   if (!authz.ok) {
     return { data: null, error: authz.error };
   }
@@ -619,6 +619,9 @@ export async function suspendGym(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   return changeGymStatus(gymId, "suspended", "gym_suspended", input);
 }
 
@@ -626,6 +629,9 @@ export async function deactivateGym(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   return changeGymStatus(gymId, "deactivated", "gym_deactivated", input);
 }
 
@@ -633,6 +639,9 @@ export async function reinstateGym(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   return changeGymStatus(gymId, "active", "gym_reinstated", input);
 }
 
@@ -643,6 +652,9 @@ export async function changeGymTier(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
     return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
@@ -686,6 +698,9 @@ export async function overrideGymCap(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
     return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
@@ -747,6 +762,9 @@ export async function escalateGymAccess(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
     return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
@@ -785,12 +803,19 @@ export async function revokeGymAccess(
   actorId: string,
   input: unknown,
 ): Promise<{ data: { revokedCount: number } | null; error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
+  if (!authz.ok) return { data: null, error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
     return { data: null, error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
   }
   if (!gymIdSchema.safeParse(actorId).success) {
     return { data: null, error: { code: "validation_error", message: t("gyms.errors.invalidActorId") } };
+  }
+  // The revoke is scoped to one actor's escalations. The gate knows who is really calling: never trust the argument.
+  if (actorId !== authz.actorId) {
+    return { data: null, error: { code: "permission_denied", message: t("errors.permissionDenied") } };
   }
 
   const parsed = revokeGymAccessSchema.safeParse(input);
@@ -812,6 +837,9 @@ export async function changeGymCategory(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
     return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };

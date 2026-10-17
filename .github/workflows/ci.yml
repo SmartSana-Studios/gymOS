@@ -55,9 +55,10 @@ jobs:
 
       - name: Unit/component tests
         # Scoped to the apps with a wired-up test runner: dashboard
-        # (Story 2.10 QA automation) and mobile (Story 19.11, pure modules
-        # and services under vitest).
-        run: npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile
+        # (Story 2.10 QA automation), mobile (Story 19.11, pure modules
+        # and services under vitest) and super-admin (Story 22 retro item 7:
+        # the Server Action gate scan and the authz tests must actually run).
+        run: npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile --filter=@gymos/super-admin
 
   rls-tests:
     runs-on: ubuntu-latest

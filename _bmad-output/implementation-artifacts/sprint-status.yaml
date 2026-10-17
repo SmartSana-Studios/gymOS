@@ -1066,7 +1066,7 @@ action_items:
     action: "Route every exported Super Admin Server Action through authorizePlatformAction
       and add a test that every use-server export calls it; blocks enabling super_admin_aal2"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-54-option-a-add-admin-refuses-while-super_a"
     epic: 22
@@ -1074,7 +1074,7 @@ action_items:
       added in a controlled bootstrap window; needs audited flag-off mode and runbook
       section; blocks enabling super_admin_aal2"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-55-close-carried-over-blockers-serialize-re"
     epic: 22
@@ -1082,7 +1082,7 @@ action_items:
       removal, and make the claims hook return a stripped event on error; blocks enabling
       super_admin_aal2"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-56-run-the-epic-22-browser-checklist-epic-2"
     epic: 22
@@ -1090,7 +1090,7 @@ action_items:
       start with steps 26-27 and 20-25, and record the result in sprint-status; blocks
       enabling super_admin_aal2"
     owner: "owner"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-57-fix-createorpromotesuperadmin-re-auth-so"
     epic: 22
@@ -1111,7 +1111,7 @@ action_items:
     action: "Run apps/super-admin Vitest in stage_unit of scripts/ci-local.sh and
       in ci.yml"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-60-add-pgtap-allowed-assertions-for-each-pl"
     epic: 22
@@ -1369,3 +1369,7 @@ last_updated: 10-16-2026 08:55
 # last_updated: 2026-10-17 (review: 22-8 QA close-out. Section F items 34-37, 39, 41, 42 passed; 38 verified in audit/mail; 40 and 43 not run end to end in a browser. Added recovery polling plus a 2-minute sign-in button on /auth/mfa and moved login searchParams inside Suspense. ci-local GREEN for 9183785 with merge stamp. Local QA environment torn down. Status stays review: owner sign-off on items 40/43, Resend verified and prod env vars set by the owner, migration 0128 reaches production at epic end)
 # last_updated: 2026-10-17 (ad-hoc: production /gyms embed check. Prod has 0117 and loyalty_progress, so master's unpinned gyms->members embed returns PGRST201 (confirmed with a read-only unauthenticated planning request; other dashboard members embeds checked on payments/subscriptions/front_desk_alerts are fine). Hotfix PR #76 to master (cherry-pick of af57550, 2 lines in apps/super-admin/services/gyms.ts), ci-local GREEN for e1daf25. Not merged or deployed: awaiting owner go-ahead. Also: 22-8 merged into epic/22 as dc0739f, story branch deleted)
 # last_updated: 2026-10-17 (ad-hoc: hotfix PR #76 merged to master as 6072416c and deployed; owner confirmed the production Super Admin /gyms page loads again. Production gyms embed incident closed)
+# last_updated: 2026-10-17 (retro blockers 53, 54, 55 done on chore/22-retro-blockers: every Super Admin Server Action gated with a scan test (16 actions gated), Add admin refused while the flag is on plus scripts/disable-super-admin-aal2.mjs (audited bootstrap window) and runbook section, migration 0129 (last verified factor guard trigger on auth.mfa_factors with advisory lock; custom_access_token_hook fails closed) with rollback and 13 pgTAP. Item 56 (owner browser checklist) stays open; 57 (re-auth replaces session) not started. ci-local not yet run on this branch)
+# last_updated: 2026-10-17 (retro item 56 browser QA in progress with the owner: A 1-4 pass, B 9-13 and 15 pass, D 20-27 pass (24 by database evidence), fixes found by QA: step-up prompt is a modal (and no longer cancels itself under StrictMode), sign-in Verify navigates once, wrong-account login notice, admin layout opts out of dev instant validation; new on chore/22-retro-blockers: migration 0130 (owner never Super Admin, 2 triggers + 9 pgTAP) and emails for created/promoted Super Admins. Sections C, E, 28 and F items 40/43 still to run)
+# last_updated: 2026-10-17 (retro item 56 done: Epic 22 browser checklist run by the owner against the local stack. Pass: 1-4, 9-13, 15-32, 34-43; 5-8 not confirmed, 14 skipped; step 24 proved in the database. Fixes found and made during QA on chore/22-retro-blockers: step-up prompt as a modal that no longer closes the dialog under it or itself, sign-in Verify navigates once, failed page loads re-check the session and redirect to login, wrong-account login notice, Add admin password field wording, dev instant validation opt-in, country select hydration. Added: migration 0130 (owner never Super Admin), invitation emails for created/promoted Super Admins. Local QA environment torn down. Retro item 57 (re-auth replaces the session) is moot while Add admin is refused with the flag on; not started. Open: 22-8 owner sign-off recorded here (items 40, 43 passed); full ci-local stamp and merge of chore/22-retro-blockers into epic/22 pending)
+# last_updated: 2026-10-17 (code review of chore/22-retro-blockers, 4 layers, full mode against the Epic 22 retro; patches applied before merge: gate scan rewritten on the TypeScript AST (arrow and re-exports flagged, comments ignored, unclassifiable exports fail) with scanner unit tests; gated Server Actions now redirect to login when the session has ended (authorizeOrRedirect) instead of returning an error; LoadError no longer bounces on a transient authorization failure; revokeGymAccess no longer trusts a client actor id; step-up modal focuses its field; Add admin toasts are single i18n keys and no password-only mail without an app origin; removeFactor reports last_factor when GoTrue hides the trigger text (checked against the local auth service: it returns a generic database error); 0129 bypass honoured only for postgres/supabase_admin sessions (proved as supabase_auth_admin); 0130 triggers take an advisory lock; super-admin Vitest now runs in ci-local stage_unit and ci.yml (retro item 59 done); tests that pin the nested-dialog fixes now fail when the fix is removed. Not applied, with reasons in the review notes: retro items 58, 60-62, 64 are separate items outside this branch; sign-in and first-authenticator pages stay full pages by design; 0128 edited in place is safe because it was never deployed; owner-only scope of 0130 is as requested)

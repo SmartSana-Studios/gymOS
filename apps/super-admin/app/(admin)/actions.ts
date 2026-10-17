@@ -1,6 +1,7 @@
 "use server";
 
 import { localeSchema, type AppError } from "@gymos/types";
+import { authorizeOrRedirect } from "@/lib/authz-action";
 import { updateLanguagePreference as updateLanguagePreferenceRow } from "@/services/gyms";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -10,6 +11,9 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 export async function updateLanguagePreference(
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   const parsed = localeSchema.safeParse(input);
   if (!parsed.success) {
     const { t } = await getServerTranslation(await getRequestLocale());

@@ -20,7 +20,7 @@ Compiled 2026-10-16 from the story specs and `docs/runbooks/super-admin-recovery
 5. Abandon an enrollment, then enroll again: the stale unverified factor is cleaned up, no duplicate left behind.
 6. Enroll a second verified factor (with the first verified, you must be aal2 — go via `/auth/mfa` first): succeeds.
 7. Remove one factor while two exist: succeeds, and an audit row `super_admin_mfa_removed` is written.
-8. Try to remove the only remaining verified factor: blocked by the last-factor guard.
+8. Try to remove the only remaining verified factor (flag ON): blocked by the last-factor guard, in the app and also by the database (migration 0129).
 
 ## B. `/auth/mfa` — sign-in prompt (22-6)
 
@@ -49,8 +49,8 @@ Run `enable-super-admin-aal2.mjs --apply` first (needs exactly 2 verified factor
 23. Reuse a code/grant after a successful removal: a second removal asks for step-up again (single use).
 24. Let `stepup_ttl_minutes` (set to 1) lapse before confirming: the grant is refused and you are asked again.
 25. After removing a factor, the global sign-out runs: you are signed out everywhere. If sign-out is made to fail, the warning (`signOutFailed`) appears.
-26. Create a Super Admin via `AddAdminModal`: step-up prompt appears, the action succeeds only after a valid code.
-27. Promote an existing user to Super Admin: same step-up behaviour.
+26. (changed by retro item 54) With the flag ON, create a Super Admin via `AddAdminModal`: refused with the "turned off while the second factor is required" message, nothing is created, you are not signed out.
+27. Bootstrap window: `node scripts/disable-super-admin-aal2.mjs --apply --operator <you>` (flag off, factors and your session untouched), then create a new Super Admin and promote an existing user from the app: both succeed; then `node scripts/enable-super-admin-aal2.mjs` (dry run refuses until the new admin has two factors or one + recovery email).
 28. Billing and gym actions do not ask for step-up (unchanged).
 
 ## E. Lockout (22-7, flag ON)
@@ -85,3 +85,27 @@ Stories covered also: 22-8 (section F).
 
 | # | Pass/Fail | Notes |
 |---|-----------|-------|
+| 1-4 | Pass | Run by the owner, 2026-10-17. |
+| 5-8 | Not confirmed | The audit log showed no second enrolment or removal at the time (only one enrol/verify), so these are not recorded as passed. The last-factor guard itself is covered by pgTAP (migration 0129) and the app test. |
+| 9-13 | Pass | 12 passed in a private window (the first try was still signed in). 13: denied, never sent to `/auth/mfa`; the wrong-account login notice was added because of it. |
+| 14 | Skipped | Applies only with the flag OFF; step 19 covered the flag-OFF behaviour. |
+| 15 | Pass | |
+| 16-18 | Pass | Idle (16), sign back in with no loop (17), age expiry while active (18). Three fixes came out of this: failed page loads now re-check the session and go to login instead of "Something went wrong", sign-in Verify navigates once, dev instant validation set to opt-in. |
+| 19 | Pass | Flag OFF with both limits at 1 minute: no expiry, no notice, no new `super_admin_session_expired` row. |
+| 20-23 | Pass | Step-up prompt (now a modal, and no longer closes the dialog under it). 21: Enter submits once. 23 confirmed by the consumed-grant row plus the owner. |
+| 24 | Pass (database) | Not reachable in the UI as worded (the grant is issued and consumed in one action). Proved in the database with the real 1-minute limit: consume after 65 s refused, a fresh grant consumed once, a second consume refused. |
+| 25 | Pass | Other browser signed out; account had 0 sessions after the removal. |
+| 26 | Pass | Add admin refused while the flag is ON (retro item 54). |
+| 27 | Pass | Bootstrap window (`disable-super-admin-aal2.mjs`): created and promoted an admin; the window was closed by undoing the two test admins first, since the enable dry run refused (no authenticator yet), which is the intended check. |
+| 28 | Pass | Tier change, suspend, reinstate, credit and billing retry asked for no step-up; audit rows present. |
+| 29 | Pass | Three wrong step-up codes locked the account; audit `super_admin_stepup_failed` x3 and `super_admin_locked`, counts only. |
+| 30 | Pass | Wrong sign-in codes did not count toward the lock. |
+| 31 | Pass | Locked account with a correct code was sent to login; `reset-super-admin-factors.mjs` cleared the lock, state and grants, removed factors and sessions, and turned the flag off. |
+| 32 | Pass | |
+| 33 | Done | Limits restored, flag state set, QA accounts torn down (close-out). |
+| 34-39 | Pass | Recovery email set/change/remove with step-up and notices; recovery request; cancel link; applied reset opens the 60-minute enrol window; polling page with a sign-in button. |
+| 40 | Pass | A non-admin and a Super Admin with no recovery email got the identical sentence; no mail, no stored code; the non-admin wrote no audit row. |
+| 41-42 | Pass | Enable dry run accepts one factor + recovery email and refuses one factor alone; operator `--cancel-recovery`. |
+| 43 | Pass | `super_admin_recovery_cancelled` by `owner_signin` with the owner as actor; both mailboxes got the cancelled notice; the authenticator was kept. |
+
+Result: accepted with open items. Not recorded as passed: 5-8 (second-factor enrol/remove and the in-app last-factor block; the database guard is covered by pgTAP, the shell test and a real-GoTrue probe). Skipped: 14.

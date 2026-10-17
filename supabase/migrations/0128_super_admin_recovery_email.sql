@@ -399,8 +399,11 @@ begin
         jsonb_build_object('by', 'system', 'reason', 'locked_or_no_email'));
       continue;
     end if;
+    -- 0129: a recovery reset removes factors on purpose; the last-factor guard stands aside for this transaction
+    perform set_config('gymos.factor_reset', 'on', true);
     delete from auth.mfa_factors where user_id = r.user_id;
     get diagnostics v_factors = row_count;
+    perform set_config('gymos.factor_reset', 'off', true);
     perform private.end_user_sessions(r.user_id);
     delete from private.super_admin_lockout where user_id = r.user_id;
     delete from private.support_stepup where user_id = r.user_id;

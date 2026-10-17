@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 
 import { authorizePlatformAction } from "@/lib/authz";
+import { loginRedirectFor } from "@/lib/auth-redirect";
 import { createClient } from "@/lib/supabase/server";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -24,6 +25,10 @@ const NAV_LINKS = [
   { href: "/admins", labelKey: "nav.admins" },
   { href: "/security", labelKey: "nav.security" },
 ] as const;
+
+// Auth-gated: this segment reads the session and may redirect, so it is allowed to block on navigation
+// (silences the dev-only "validate instant UI" overlay; no effect on the build).
+export const instant = false;
 
 export default function AdminLayout({
   children,
@@ -58,18 +63,7 @@ async function AdminLayoutData({
   // Story 22.4: live check (users.is_super_admin at request time), not the app_role claim.
   const authz = await authorizePlatformAction("platform.admin_access");
   if (!authz.ok) {
-    // Story 22.6: a valid password session below aal2 while the flag is on goes to the
-    // second-factor prompt, never into a login loop. Every other denial stays on login.
-    redirect(
-      authz.reason === "aal2_required"
-        ? "/auth/mfa"
-        : authz.reason === "session_expired" ||
-        authz.reason === "account_locked" ||
-        // A still-signed token whose session the provider no longer knows: the session ended.
-        authz.reason === "no_session"
-          ? "/auth/login?expired=1"
-          : "/auth/login",
-    );
+    redirect(loginRedirectFor(authz.reason));
   }
 
   const { t } = await getServerTranslation(await getRequestLocale());

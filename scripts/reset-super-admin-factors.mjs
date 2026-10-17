@@ -103,7 +103,10 @@ try {
     process.exit(1);
   }
 
+  // 0129: this reset removes factors on purpose; the last-factor guard stands aside for this transaction.
+  await client.query("select set_config('gymos.factor_reset', 'on', true)");
   await client.query("delete from auth.mfa_factors where user_id = $1", [target.id]);
+  await client.query("select set_config('gymos.factor_reset', 'off', true)");
   await client.query("delete from auth.sessions where user_id = $1", [target.id]);
   // Story 22.7: clear the wrong-code lock, session state and any step-up grants.
   const lock = (await client.query("select failed_count, locked_at from private.super_admin_lockout where user_id = $1", [target.id])).rows[0];

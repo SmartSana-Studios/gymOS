@@ -258,8 +258,10 @@ export function CreateGymModal({
             onChange={(e) => setForm({ ...form, country: e.target.value })}
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           >
+            {/* Region names come from Intl.DisplayNames: Node and the browser ship different ICU data
+                (e.g. "Falkland Islands (Islas Malvinas)"), so the option text can differ at hydration. */}
             {countryOptions.map((c) => (
-              <option key={c.code} value={c.code}>
+              <option key={c.code} value={c.code} suppressHydrationWarning>
                 {c.name} ({c.callingCode})
               </option>
             ))}

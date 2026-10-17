@@ -25,7 +25,8 @@
     "description": "Saisissez votre e-mail ci-dessous pour vous connecter à votre compte",
     "noAccount": "Vous n'avez pas de compte ?",
     "signUp": "S'inscrire",
-    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter."
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
+    "wrongAccount": "Identifiants de compte incorrects."
   },
   "gyms": {
     "title": "Salles",
@@ -439,7 +440,7 @@
       "title": "Ajouter un administrateur",
       "close": "Fermer",
       "email": "E-mail *",
-      "currentPassword": "Votre mot de passe *",
+      "currentPassword": "Confirmez cette action avec votre mot de passe *",
       "submit": "Ajouter {{email}} comme Super Admin",
       "submitEmpty": "Ajouter un administrateur",
       "submitting": "Ajout…"
@@ -448,12 +449,18 @@
       "created": "{{email}} créé comme nouveau Super Admin.",
       "promoted": "{{email}} promu Super Admin.",
       "alreadySuperAdmin": "{{email}} est déjà Super Admin — aucun changement effectué.",
+      "createdEmailed": "{{email}} créé comme nouveau Super Admin. Les informations de connexion lui ont aussi été envoyées par e-mail.",
+      "createdNotEmailed": "{{email}} créé comme nouveau Super Admin. L'e-mail n'a pas pu être envoyé : transmettez-lui vous-même le mot de passe temporaire ci-dessous.",
+      "promotedEmailed": "{{email}} promu Super Admin. Il a été prévenu par e-mail.",
+      "promotedNotEmailed": "{{email}} promu Super Admin. L'e-mail n'a pas pu être envoyé : prévenez-le vous-même.",
       "copyPassword": "Copier le mot de passe temporaire",
       "passwordCopied": "Copié !",
       "dismiss": "Ignorer"
     },
     "errors": {
       "unauthorized": "Vous devez être connecté en tant que Super Admin pour effectuer cette action.",
+      "bootstrapWindow": "L'ajout d'un Super Admin est désactivé tant que le second facteur est exigé. Demandez à l'exploitant d'ouvrir une fenêtre d'amorçage (voir le guide de récupération Super Admin, « Ajouter un Super Admin »).",
+      "ownerCannotBeSuperAdmin": "Un propriétaire de salle ne peut pas être Super Admin. Utilisez un compte de plateforme distinct pour le personnel.",
       "incorrectPassword": "Ce mot de passe est incorrect."
     }
   },

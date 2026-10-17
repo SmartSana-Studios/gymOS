@@ -4,6 +4,10 @@ import { EnrollFirstFactor } from "./enroll-first-factor";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+// Auth-gated: this segment reads the session and may redirect, so it is allowed to block on navigation
+// (silences the dev-only "validate instant UI" overlay; no effect on the build).
+export const instant = false;
+
 /** Story 22.8: first authenticator after a recovery reset. Anyone else is sent back to the prompt. */
 export default async function Page() {
   const { data, error } = await (await createClient()).auth.getUser();

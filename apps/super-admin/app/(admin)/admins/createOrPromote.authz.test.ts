@@ -7,7 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const signIn = vi.fn();
 const rpc = vi.fn();
-const createAdminClientMock = vi.fn(() => ({}));
+const flagRpc = vi.fn();
+const createAdminClientMock = vi.fn(() => ({ rpc: flagRpc }));
 let allowed = true;
 let stepUpOk = true;
 const consumeStepUp = vi.fn(async () => stepUpOk);
@@ -47,6 +48,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   allowed = true;
   stepUpOk = true;
+  flagRpc.mockResolvedValue({ data: false, error: null });
 });
 
 describe("createOrPromoteSuperAdmin live authorization", () => {
@@ -63,6 +65,24 @@ describe("createOrPromoteSuperAdmin live authorization", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  it("while the second factor is required, adding an admin is refused before any password check or write", async () => {
+    flagRpc.mockResolvedValue({ data: true, error: null });
+    const { createOrPromoteSuperAdmin } = await import("./actions");
+    const res = await createOrPromoteSuperAdmin({ email: "new@example.com", currentPassword: "pw-123456" });
+    expect(res.error?.code).toBe("bootstrap_window_required");
+    expect(signIn).not.toHaveBeenCalled();
+    expect(consumeStepUp).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the flag cannot be read", async () => {
+    flagRpc.mockResolvedValue({ data: null, error: { message: "down" } });
+    const { createOrPromoteSuperAdmin } = await import("./actions");
+    const res = await createOrPromoteSuperAdmin({ email: "new@example.com", currentPassword: "pw-123456" });
+    expect(res.error?.code).toBe("bootstrap_window_required");
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
   it("without a valid step-up: step_up_required, no admin client", async () => {
     stepUpOk = false;
     signIn.mockResolvedValue({ error: null });
@@ -70,6 +90,6 @@ describe("createOrPromoteSuperAdmin live authorization", () => {
     const res = await createOrPromoteSuperAdmin({ email: "New@Example.com", currentPassword: "pw-123456" });
     expect(res.error?.code).toBe("step_up_required");
     expect(consumeStepUp).toHaveBeenCalledWith("sa-1", "create_super_admin", "new@example.com");
-    expect(createAdminClientMock).not.toHaveBeenCalled();
+    expect(flagRpc).toHaveBeenCalledTimes(1); // only the flag read; no user lookup or write
   });
 });

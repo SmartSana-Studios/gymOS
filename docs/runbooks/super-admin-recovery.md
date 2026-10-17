@@ -30,6 +30,28 @@ temp dir). Set `PROD_SSL=0` only for a local database.
    confirmation phrase. Running it again prints "already on" and changes nothing.
 5. Check: a fresh password sign-in lands on `/auth/mfa`; the code reaches `/gyms`.
 
+## Adding a Super Admin (bootstrap window)
+
+The in-app "Add admin" refuses while `super_admin_aal2` is on: a new admin would hold only a password and
+could not enrol a factor. Add one in a controlled window, as short as possible:
+
+1. Open the window: `node scripts/disable-super-admin-aal2.mjs --apply --operator <your-name>` (dry run
+   first without `--apply`). Factors and sessions are untouched; one audit row. A password alone now opens
+   a Super Admin session, so do the next steps straight away.
+2. An existing Super Admin adds the new admin in the app (Add admin). The new admin signs in with the
+   temporary password, changes it, then enrols **two** factors at `/security` (or one factor and a verified
+   recovery email).
+3. Close the window: `node scripts/enable-super-admin-aal2.mjs` (dry run) then `--apply`. It refuses unless
+   every Super Admin meets the rule.
+
+The new admin is also emailed (sign-in link, and for a new account the temporary password; for a promoted account
+a notice). The send is best effort: if the dialog says the email could not be sent, pass the details on yourself.
+Needs the mail env vars (`MAIL_*`, `SUPER_ADMIN_APP_URL`). A gym owner cannot be made a Super Admin (migration 0130,
+and the app says so): use a separate platform account for staff.
+
+While the flag is on the database also refuses to delete a Super Admin's last verified factor (migration
+0129); the operator reset script and a recovery reset set their own exemption for their transaction.
+
 ## Lost one device
 
 The other factor still works. Sign in (password + code from the surviving device), open `/security`,
