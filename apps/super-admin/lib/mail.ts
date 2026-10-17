@@ -21,6 +21,7 @@ export type MailEnv = Record<string, string | undefined>;
 type Transport = { sendMail(message: Record<string, unknown>): Promise<unknown> };
 export type TransportFactory = (options: Record<string, unknown>) => Transport;
 
+const LOCAL_HOST = /^(127\.0\.0\.1|localhost|::1)$/;
 const ADDRESS = /^[^@\s<>",;]+@[^@\s<>",;]+\.[^@\s<>",;]+$/;
 
 export function readMailConfig(env: MailEnv) {
@@ -34,9 +35,12 @@ export function readMailConfig(env: MailEnv) {
     host,
     port,
     from,
-    // 465 is implicit TLS; 587 / 25 / the local Inbucket port use STARTTLS when the server offers it.
+    // 465 is implicit TLS; 587 / 25 use STARTTLS.
     secure: port === 465,
     auth: user && pass ? { user, pass } : undefined,
+    // Credentials or codes must never go out in clear text: with auth, or any non-local host, STARTTLS is
+    // required (a downgrade makes the send fail). Only the unauthenticated local catcher may skip TLS.
+    requireTLS: port !== 465 && (Boolean(user && pass) || !LOCAL_HOST.test(host)),
   };
 }
 
@@ -59,6 +63,7 @@ export function createMailer(env: MailEnv, factory: TransportFactory = (o) => no
         host: config.host,
         port: config.port,
         secure: config.secure,
+        requireTLS: config.requireTLS,
         auth: config.auth,
         connectionTimeout: 10_000,
         greetingTimeout: 10_000,

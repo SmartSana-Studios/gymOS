@@ -92,15 +92,21 @@ No operator needed.
    (`recovery_delay_minutes`), and both mailboxes receive a notice with a **cancel link**.
 3. **After the delay** (checked every minute by pg_cron job `super_admin_recovery_apply`) the account's
    authenticators and sessions are removed. The flag stays **on**. Signing in with the password now leads to
-   `/auth/mfa/enroll`, where the first new authenticator can be enrolled. That window lasts 24 h
-   (`recovery_enrol_window_minutes`) and closes as soon as a factor is verified. Add the second one, or keep
+   `/auth/mfa/enroll`, where the first new authenticator can be enrolled. That window lasts 60 minutes
+   (`recovery_enrol_window_minutes`) and closes as soon as a factor is verified; enrol right away.
+   If it lapses, an operator full reset (above) is the way back. Add the second one, or keep
    the recovery email as the backup.
 4. **Not you?** Open the cancel link in either email, or an operator runs
    `node scripts/reset-super-admin-factors.mjs <email> --cancel-recovery --apply --operator <name>`.
    An operator full reset also cancels a scheduled recovery. A locked account is never reset by a recovery.
 
+A scheduled recovery is cancelled automatically when the real owner completes an aal2 sign-in (passes
+the authenticator code) before it applies; both mailboxes are told. The login mailbox is also told
+whenever the recovery address is set, changed or removed. There is no mail when a reset *applies*
+(pg_cron cannot send mail); the scheduling notice and its cancel link are the warning.
+
 Limits (all in `private.session_limits_config`): code valid 10 min, 3 wrong attempts then the code is dead,
-3 requests per hour and 5 per day, wrong codes also count toward the step-up lockout. Audit actions:
+3 requests per hour and 5 per day. Wrong recovery codes do **not** count toward the step-up lockout. Audit actions:
 `super_admin_recovery_requested`, `_code_failed`, `_accepted`, `_cancelled`, `_applied`, `super_admin_recovery_email_set`
 and `_removed`. Mail needs the production env vars in `apps/super-admin/.env.example` (Resend SMTP) and
 `SUPER_ADMIN_APP_URL` (the origin used in cancel links; recovery refuses to start in production without it).

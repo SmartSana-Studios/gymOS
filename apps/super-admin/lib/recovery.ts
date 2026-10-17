@@ -18,9 +18,18 @@ export function generateCancelToken(): string {
  * production when SUPER_ADMIN_APP_URL is missing (the caller then refuses to start a recovery).
  */
 export function appBaseUrl(env: Record<string, string | undefined> = process.env): string | null {
-  const configured = env.SUPER_ADMIN_APP_URL?.trim().replace(/\/+$/, "");
-  if (configured) return configured;
-  return env.NODE_ENV === "production" ? null : "http://localhost:3000";
+  const production = env.NODE_ENV === "production";
+  const configured = env.SUPER_ADMIN_APP_URL?.trim();
+  if (!configured) return production ? null : "http://localhost:3000";
+  // Must be a bare origin (no path, query or credentials); https only in production.
+  try {
+    const url = new URL(configured);
+    const bare = url.pathname === "/" && !url.search && !url.hash && !url.username && !url.password;
+    const schemeOk = url.protocol === "https:" || (!production && url.protocol === "http:");
+    return bare && schemeOk ? url.origin : null;
+  } catch {
+    return null;
+  }
 }
 
 export function cancelUrl(base: string, token: string): string {

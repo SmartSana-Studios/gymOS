@@ -4,6 +4,7 @@ import type { AppError } from "@gymos/types";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendMail } from "@/lib/mail";
+import { notifyRecoveryCancelled } from "@/lib/recovery-notify";
 import { appBaseUrl, cancelUrl, generateCancelToken, generateRecoveryCode } from "@/lib/recovery";
 import { recoveryCodeMail, recoveryScheduledMail, type MailLocale } from "@/lib/recovery-mail";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -88,4 +89,27 @@ export async function submitRecoveryCode(input: { code: string }): Result<{ appl
   }
   void toRecovery; // best effort: the recovery mailbox just proved itself by supplying the code
   return { data: { applyAt: String(row.apply_at) }, error: null };
+}
+
+/**
+ * Called by the sign-in prompt right after the authenticator code is accepted. If the session really is
+ * aal2 (checked here, never trusted from the client) and a recovery was pending, the real owner has just
+ * proved the authenticator works, so the recovery was not theirs: cancel it and tell both mailboxes.
+ * Never blocks sign-in.
+ */
+export async function cancelPendingRecoveryOnSignIn(): Promise<{ cancelled: boolean }> {
+  try {
+    const supabase = await createClient();
+    const userId = await sessionUserId();
+    if (!userId) return { cancelled: false };
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aal?.currentLevel !== "aal2") return { cancelled: false };
+    const { data } = await createAdminClient().rpc("recovery_cancel_for_user", { p_user: userId });
+    const row = Array.isArray(data) ? data[0] : null;
+    if (!row || Number(row.cancelled) < 1) return { cancelled: false };
+    await notifyRecoveryCancelled(row.login_email, row.recovery_email);
+    return { cancelled: true };
+  } catch {
+    return { cancelled: false };
+  }
 }

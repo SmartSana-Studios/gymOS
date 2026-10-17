@@ -1,6 +1,6 @@
 -- Story 22.8: Super Admin recovery email (migration 0128).
 begin;
-select plan(55);
+select plan(68);
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-000000022801', 'sa228@login.example'),
@@ -29,8 +29,8 @@ select ok((select code_hash like '$2%' and code_hash <> '123456' from private.su
 select is((select reason from private.recovery_register_verify('00000000-0000-0000-0000-000000022801', '000000')),
           'invalid', 'a wrong code is refused');
 select is((select attempts from private.super_admin_recovery_code), 1, 'attempt counted');
-select is((select failed_count from private.super_admin_lockout where user_id = '00000000-0000-0000-0000-000000022801'), 1,
-          'a wrong recovery code counts toward the lockout');
+select is((select count(*)::int from private.super_admin_lockout where user_id = '00000000-0000-0000-0000-000000022801'), 0,
+          'a wrong recovery code does not count toward the account lockout');
 select is((select count(*)::int from private.super_admin_recovery_email), 0, 'nothing saved yet');
 select is((select ok from private.recovery_register_verify('00000000-0000-0000-0000-000000022801', '123456')),
           true, 'the right code saves the address');
@@ -76,15 +76,28 @@ delete from private.super_admin_recovery_email;
 select is((select reason from private.recovery_code_issue('00000000-0000-0000-0000-000000022801', 'recover', null, '666666')),
           'no_recovery_email', 'no recovery email: refused');
 insert into private.super_admin_recovery_email (user_id, email) values ('00000000-0000-0000-0000-000000022801', 'r@rec.example');
+-- recover-purpose limits: 5 a day (older than an hour), then 3 an hour
+insert into private.super_admin_recovery_code (user_id, purpose, target_email, code_hash, requested_at, expires_at, consumed_at)
+select '00000000-0000-0000-0000-000000022801', 'recover', 'r@rec.example', 'x', now() - interval '2 hours', now() - interval '1 hour', now()
+  from generate_series(1, 5);
+select is((select reason from private.recovery_code_issue('00000000-0000-0000-0000-000000022801', 'recover', null, '656565')),
+          'rate_limited', 'the 6th recovery request in a day is rate limited');
+delete from private.super_admin_recovery_code;
+insert into private.super_admin_recovery_code (user_id, purpose, target_email, code_hash, requested_at, expires_at, consumed_at)
+select '00000000-0000-0000-0000-000000022801', 'recover', 'r@rec.example', 'x', now(), now() + interval '10 minutes', now()
+  from generate_series(1, 3);
+select is((select reason from private.recovery_code_issue('00000000-0000-0000-0000-000000022801', 'recover', null, '656565')),
+          'rate_limited', 'the 4th recovery request in an hour is rate limited');
+delete from private.super_admin_recovery_code;
 select is((select send_to from private.recovery_code_issue('00000000-0000-0000-0000-000000022801', 'recover', 'attacker@evil.example', '666666')),
           'r@rec.example', 'the code goes to the stored address, never a caller-supplied one');
 select throws_ok($$select * from private.recovery_request_verify('00000000-0000-0000-0000-000000022801', '666666', 'short')$$,
                  '42501', 'permission_denied', 'a short cancel token is refused');
 
--- wrong code counts toward the lockout, then success schedules (does not apply) the reset
+-- a wrong code never feeds the lockout, then success schedules (does not apply) the reset
 select is((select reason from private.recovery_request_verify('00000000-0000-0000-0000-000000022801', '000000', repeat('t', 40))),
           'invalid', 'a wrong recovery code is refused');
-select is((select failed_count from private.super_admin_lockout where user_id = '00000000-0000-0000-0000-000000022801'), 1, 'it counts toward the lockout');
+select is((select count(*)::int from private.super_admin_lockout where user_id = '00000000-0000-0000-0000-000000022801'), 0, 'it does not count toward the lockout');
 select is((select ok from private.recovery_request_verify('00000000-0000-0000-0000-000000022801', '666666', repeat('t', 40))),
           true, 'the right code is accepted');
 select ok((select apply_at between now() + interval '29 minutes' and now() + interval '31 minutes'
@@ -109,6 +122,16 @@ select is(private.recovery_enrol_allowed('00000000-0000-0000-0000-000000022801')
 insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, created_at, updated_at)
 values ('00000000-0000-0000-0000-0000000228f2', '00000000-0000-0000-0000-000000022801', 'new', 'totp', 'verified', now(), now());
 select is(private.recovery_enrol_allowed('00000000-0000-0000-0000-000000022801'), false, 'the window closes once a factor is verified');
+delete from auth.mfa_factors where user_id = '00000000-0000-0000-0000-000000022801';
+select is(private.recovery_enrol_allowed('00000000-0000-0000-0000-000000022801'), true, 'with no factor the window is open again');
+update private.super_admin_recovery_pending set applied_at = now() - interval '61 minutes' where applied_at is not null;
+select is(private.recovery_enrol_allowed('00000000-0000-0000-0000-000000022801'), false, 'the window closes after 60 minutes');
+update private.super_admin_recovery_pending set applied_at = now() where applied_at is not null;
+insert into private.super_admin_lockout (user_id, failed_count, locked_at) values ('00000000-0000-0000-0000-000000022801', 5, now())
+  on conflict (user_id) do update set failed_count = 5, locked_at = now();
+select is(private.recovery_enrol_allowed('00000000-0000-0000-0000-000000022801'), false, 'a locked account gets no enrolment window');
+delete from private.super_admin_lockout;
+select is(private.recovery_enrol_allowed('00000000-0000-0000-0000-000000022802'), false, 'a non-Super-Admin gets no enrolment window');
 
 -- ---- cancel -----------------------------------------------------------------------------------------
 delete from auth.mfa_factors where user_id = '00000000-0000-0000-0000-000000022801';
@@ -121,6 +144,37 @@ select is((select ok from private.recovery_cancel(repeat('c', 40))), true, 'the 
 select is((select ok from private.recovery_cancel(repeat('c', 40))), false, 'a token works once');
 update private.super_admin_recovery_pending set apply_at = now() - interval '1 minute';
 select is(private.recovery_apply_due(), 0, 'a cancelled reset is never applied');
+
+-- ---- the owner signing in at aal2 cancels a pending reset; removing the email cancels it too -------------
+delete from private.super_admin_recovery_pending;
+delete from private.super_admin_recovery_code;
+select private.recovery_code_issue('00000000-0000-0000-0000-000000022801', 'recover', null, '313131');
+select private.recovery_request_verify('00000000-0000-0000-0000-000000022801', '313131', repeat('o', 40));
+select is((select (c.cancelled, c.login_email, c.recovery_email)::text from private.recovery_cancel_for_user('00000000-0000-0000-0000-000000022801') c),
+          '(1,sa228@login.example,r@rec.example)', 'owner cancel returns the count and both addresses');
+select is((select c.cancelled from private.recovery_cancel_for_user('00000000-0000-0000-0000-000000022801') c), 0, 'nothing pending: nothing to cancel');
+select is((select actor_id from audit_log where action_type = 'super_admin_recovery_cancelled' and metadata->>'by' = 'owner_signin'),
+          '00000000-0000-0000-0000-000000022801'::uuid, 'the owner cancel audit row names the owner');
+
+delete from private.super_admin_recovery_code;
+select private.recovery_code_issue('00000000-0000-0000-0000-000000022801', 'recover', null, '323232');
+select private.recovery_request_verify('00000000-0000-0000-0000-000000022801', '323232', repeat('p', 40));
+select private.recovery_email_remove('00000000-0000-0000-0000-000000022801');
+select is((select cancelled_at is not null from private.super_admin_recovery_pending
+            where cancel_token_hash = encode(extensions.digest(repeat('p', 40), 'sha256'), 'hex')), true,
+          'removing the recovery email cancels the pending reset');
+insert into private.super_admin_recovery_email (user_id, email) values ('00000000-0000-0000-0000-000000022801', 'r@rec.example');
+
+delete from private.super_admin_recovery_code;
+select private.recovery_code_issue('00000000-0000-0000-0000-000000022801', 'recover', null, '343434');
+select private.recovery_request_verify('00000000-0000-0000-0000-000000022801', '343434', repeat('q', 40));
+delete from private.super_admin_recovery_email where user_id = '00000000-0000-0000-0000-000000022801';
+update private.super_admin_recovery_pending set apply_at = now() - interval '1 minute'
+ where cancel_token_hash = encode(extensions.digest(repeat('q', 40), 'sha256'), 'hex');
+select is(private.recovery_apply_due(), 0, 'without a recovery email a due reset is not applied');
+select is((select cancelled_at is not null from private.super_admin_recovery_pending
+            where cancel_token_hash = encode(extensions.digest(repeat('q', 40), 'sha256'), 'hex')), true, 'it is cancelled instead');
+insert into private.super_admin_recovery_email (user_id, email) values ('00000000-0000-0000-0000-000000022801', 'r@rec.example');
 
 -- ---- a lock wins over a pending reset -------------------------------------------------------------------
 delete from private.super_admin_recovery_pending;
@@ -151,6 +205,8 @@ select throws_ok($$select private.stepup_issue('00000000-0000-0000-0000-00000002
 -- ---- removal; privileges -----------------------------------------------------------------------------------
 select is(private.recovery_email_remove('00000000-0000-0000-0000-000000022801'), true, 'the recovery email can be removed');
 select is(private.recovery_email_remove('00000000-0000-0000-0000-000000022801'), false, 'removing twice is a no-op');
+select is((select count(*)::int from audit_log where action_type in ('super_admin_recovery_email_set', 'super_admin_recovery_email_removed') and actor_id is null), 0,
+          'set and remove audit rows name the signed-in Super Admin');
 select is((select count(*)::int from information_schema.routine_privileges
              where routine_schema = 'public' and routine_name like 'recovery\_%' and grantee in ('anon', 'authenticated', 'PUBLIC')), 0,
           'no recovery function is client-callable');

@@ -26,6 +26,20 @@ describe("readMailConfig", () => {
   });
 });
 
+describe("requireTLS", () => {
+  it("is required whenever credentials are set or the host is not local, except on implicit TLS", () => {
+    expect(readMailConfig(env)?.requireTLS).toBe(false); // 465 is already TLS
+    expect(readMailConfig({ ...env, MAIL_SMTP_PORT: "587" })?.requireTLS).toBe(true);
+    expect(readMailConfig({ MAIL_SMTP_HOST: "smtp.example.com", MAIL_SMTP_PORT: "25", MAIL_FROM: "a@b.c" })?.requireTLS).toBe(true);
+    expect(readMailConfig({ MAIL_SMTP_HOST: "127.0.0.1", MAIL_SMTP_PORT: "54325", MAIL_FROM: "a@b.c" })?.requireTLS).toBe(false);
+  });
+  it("is passed to the transport", async () => {
+    const factory = vi.fn(() => ({ sendMail: vi.fn(async () => ({})) }));
+    await createMailer({ ...env, MAIL_SMTP_PORT: "587" }, factory)(message);
+    expect(factory).toHaveBeenCalledWith(expect.objectContaining({ requireTLS: true }));
+  });
+});
+
 describe("createMailer", () => {
   it("does not send and says so when unconfigured", async () => {
     const factory = vi.fn();

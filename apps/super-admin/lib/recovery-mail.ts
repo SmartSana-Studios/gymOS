@@ -26,3 +26,23 @@ export function recoveryScheduledMail(applyAtIso: string, cancelLink: string, lo
     ? { subject: "Récupération du compte GymOS programmée", text: `Une récupération a été demandée pour un compte Super Admin GymOS. Les authentificateurs seront supprimés le ${when}.\n\nSi c'est vous, il n'y a rien à faire. Sinon, annulez maintenant :\n${cancelLink}` }
     : { subject: "GymOS account recovery scheduled", text: `A recovery was requested for a GymOS Super Admin account. Its authenticators will be removed at ${when}.\n\nIf this was you, there is nothing to do. If not, cancel it now:\n${cancelLink}` };
 }
+
+/** The login mailbox is told whenever the recovery address is set, changed or removed. */
+export function recoveryEmailChangedMail(masked: string, locale: MailLocale): Built {
+  return locale === "fr"
+    ? { subject: "Adresse de récupération GymOS modifiée", text: `L'adresse de récupération de votre compte Super Admin GymOS est maintenant ${masked}.\n\nSi ce n'est pas vous, changez votre mot de passe et contactez l'exploitant de la plateforme immédiatement.` }
+    : { subject: "GymOS recovery address changed", text: `The recovery address of your GymOS Super Admin account is now ${masked}.\n\nIf this was not you, change your password and contact the platform operator immediately.` };
+}
+
+export function recoveryEmailRemovedMail(locale: MailLocale): Built {
+  return locale === "fr"
+    ? { subject: "Adresse de récupération GymOS supprimée", text: "L'adresse de récupération de votre compte Super Admin GymOS a été supprimée ; toute récupération programmée est annulée.\n\nSi ce n'est pas vous, changez votre mot de passe et contactez l'exploitant de la plateforme immédiatement." }
+    : { subject: "GymOS recovery address removed", text: "The recovery address of your GymOS Super Admin account was removed; any scheduled recovery was cancelled.\n\nIf this was not you, change your password and contact the platform operator immediately." };
+}
+
+/** Both mailboxes are told when a scheduled recovery is cancelled (by the link, or by the owner signing in). */
+export function recoveryCancelledMail(locale: MailLocale): Built {
+  return locale === "fr"
+    ? { subject: "Récupération du compte GymOS annulée", text: "La récupération programmée de votre compte Super Admin GymOS a été annulée. Vos authentificateurs sont inchangés.\n\nSi vous n'êtes pas à l'origine de la demande initiale, changez votre mot de passe." }
+    : { subject: "GymOS account recovery cancelled", text: "The scheduled recovery of your GymOS Super Admin account was cancelled. Your authenticators are unchanged.\n\nIf you did not make the original request, change your password." };
+}

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { requestRecoveryCode, submitRecoveryCode } from "@/app/auth/mfa/recovery-actions";
+import { cancelPendingRecoveryOnSignIn, requestRecoveryCode, submitRecoveryCode } from "@/app/auth/mfa/recovery-actions";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,6 +54,7 @@ export function MfaForm() {
         setError(t("mfaPrompt.invalidCode"));
         return;
       }
+      await cancelPendingRecoveryOnSignIn(); // owner proved the authenticator: a pending recovery was not theirs
       router.push("/gyms");
       router.refresh();
     } catch {

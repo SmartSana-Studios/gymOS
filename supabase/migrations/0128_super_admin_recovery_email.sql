@@ -10,7 +10,8 @@
 --   super_admin_recovery_pending  scheduled resets (apply_at, cancel token hash, applied/cancelled)
 --
 -- Everything is service_role only (the app verifies the password session first and sends the mail).
--- Wrong recovery codes also count toward the 22.7 lockout (private.stepup_record_failure).
+-- Wrong recovery codes only kill the code (3 attempts); they do NOT feed the 22.7 lockout, so a password-only
+-- attacker cannot lock the owner out by guessing.
 -- After a reset applies, the account may enrol its FIRST authenticator at aal1 for
 -- recovery_enrol_window_minutes (private.recovery_enrol_allowed): the 22.6 reset script solved this by
 -- turning the whole flag off, which a recovery must not do.
@@ -22,7 +23,7 @@ insert into private.session_limits_config (key, value, note) values
   ('recovery_max_attempts',          3, 'Super Admin recovery: wrong codes before a code is dead'),
   ('recovery_requests_per_hour',     3, 'Super Admin recovery: code requests per account per hour (per purpose)'),
   ('recovery_requests_per_day',      5, 'Super Admin recovery: code requests per account per day (per purpose)'),
-  ('recovery_enrol_window_minutes', 1440, 'Super Admin recovery: first-authenticator enrolment window after a reset applies')
+  ('recovery_enrol_window_minutes', 60, 'Super Admin recovery: first-authenticator enrolment window after a reset applies')
 on conflict (key) do nothing;
 
 create table if not exists private.super_admin_recovery_email (
@@ -74,7 +75,9 @@ as $$
               else left(p_email, 1) || '***' || substring(p_email from position('@' in p_email)) end;
 $$;
 
-create or replace function private.recovery_audit(p_user uuid, p_action text, p_actor text, p_meta jsonb)
+-- p_actor_id: the signed-in Super Admin for flows the owner performs in the app (set, remove, owner
+-- cancel); null for system rows (pg_cron, token links, the unauthenticated recovery prompt).
+create or replace function private.recovery_audit(p_user uuid, p_action text, p_actor text, p_meta jsonb, p_actor_id uuid default null)
 returns void
 language sql
 volatile
@@ -82,7 +85,7 @@ security definer
 set search_path = public
 as $$
   insert into audit_log (gym_id, actor_id, actor_display_name, action_type, target_entity_type, target_entity_id, metadata)
-  values (null, null, p_actor, p_action, 'user', p_user::text, coalesce(p_meta, '{}'::jsonb));
+  values (null, p_actor_id, p_actor, p_action, 'user', p_user::text, coalesce(p_meta, '{}'::jsonb));
 $$;
 
 -- Issue a code. The app generates the 6 digits (CSPRNG), passes them once, and mails them to send_to.
@@ -168,7 +171,7 @@ begin
 end;
 $$;
 
--- Check a code. Single use; wrong codes count toward the code's attempts AND the account lockout.
+-- Check a code. Single use; wrong codes count toward the code's own attempts only (never the account lockout).
 create or replace function private.recovery_code_consume(p_user uuid, p_purpose text, p_code text)
 returns table (ok boolean, reason text, target text)
 language plpgsql
@@ -214,12 +217,7 @@ begin
      where id = v_row.id;
     perform private.recovery_audit(p_user, 'super_admin_recovery_code_failed', 'system:recovery',
       jsonb_build_object('purpose', p_purpose, 'attempts', v_row.attempts + 1, 'max', v_max));
-    perform * from private.stepup_record_failure(p_user);
-    if private.super_admin_locked(p_user) then
-      return query select false, 'locked'::text, null::text;
-    else
-      return query select false, 'invalid'::text, null::text;
-    end if;
+    return query select false, 'invalid'::text, null::text;
     return;
   end if;
 
@@ -251,7 +249,7 @@ begin
   values (p_user, v_target, now())
   on conflict (user_id) do update set email = excluded.email, verified_at = excluded.verified_at;
   perform private.recovery_audit(p_user, 'super_admin_recovery_email_set', 'system:recovery',
-    jsonb_build_object('to', private.recovery_mask_email(v_target)));
+    jsonb_build_object('to', private.recovery_mask_email(v_target)), p_user);
   return query select true, 'ok'::text, private.recovery_mask_email(v_target);
 end;
 $$;
@@ -274,7 +272,7 @@ begin
   update private.super_admin_recovery_pending set cancelled_at = now()
    where user_id = p_user and cancelled_at is null and applied_at is null;
   perform private.recovery_audit(p_user, 'super_admin_recovery_email_removed', 'system:recovery',
-    jsonb_build_object('was', private.recovery_mask_email(v_email)));
+    jsonb_build_object('was', private.recovery_mask_email(v_email)), p_user);
   return true;
 end;
 $$;
@@ -314,8 +312,9 @@ end;
 $$;
 
 -- Cancel from an email link (unauthenticated route, service role). Unknown or used token: ok=false.
+-- On success the addresses come back so the app can tell both mailboxes it was cancelled.
 create or replace function private.recovery_cancel(p_token text)
-returns table (ok boolean, user_id uuid)
+returns table (ok boolean, user_id uuid, login_email text, recovery_email text)
 language plpgsql
 volatile
 security definer
@@ -325,7 +324,7 @@ declare
   v_user uuid;
 begin
   if p_token is null or length(p_token) < 32 then
-    return query select false, null::uuid;
+    return query select false, null::uuid, null::text, null::text;
     return;
   end if;
   update private.super_admin_recovery_pending p set cancelled_at = now()
@@ -333,12 +332,43 @@ begin
      and p.cancelled_at is null and p.applied_at is null
   returning p.user_id into v_user;
   if v_user is null then
-    return query select false, null::uuid;
+    return query select false, null::uuid, null::text, null::text;
     return;
   end if;
   perform private.recovery_audit(v_user, 'super_admin_recovery_cancelled', 'system:recovery',
     jsonb_build_object('by', 'email_link'));
-  return query select true, v_user;
+  return query
+    select true, v_user,
+           (select au.email::text from auth.users au where au.id = v_user),
+           (select e.email from private.super_admin_recovery_email e where e.user_id = v_user);
+end;
+$$;
+
+-- The owner passed a real aal2 check while a recovery was pending: it was not an attacker's, so cancel it.
+-- The app calls this only after confirming the session is aal2. Returns the addresses to notify.
+create or replace function private.recovery_cancel_for_user(p_user uuid)
+returns table (cancelled integer, login_email text, recovery_email text)
+language plpgsql
+volatile
+security definer
+set search_path = public
+as $$
+declare
+  v_n integer;
+begin
+  update private.super_admin_recovery_pending set cancelled_at = now()
+   where user_id = p_user and cancelled_at is null and applied_at is null;
+  get diagnostics v_n = row_count;
+  if v_n = 0 then
+    return query select 0, null::text, null::text;
+    return;
+  end if;
+  perform private.recovery_audit(p_user, 'super_admin_recovery_cancelled', 'system:recovery',
+    jsonb_build_object('by', 'owner_signin', 'cancelled', v_n), p_user);
+  return query
+    select v_n,
+           (select au.email::text from auth.users au where au.id = p_user),
+           (select e.email from private.super_admin_recovery_email e where e.user_id = p_user);
 end;
 $$;
 
@@ -456,13 +486,14 @@ $$;
 
 -- ---- grants: service_role only ------------------------------------------------------------------------
 revoke all on function private.recovery_mask_email(text) from public, anon, authenticated;
-revoke all on function private.recovery_audit(uuid, text, text, jsonb) from public, anon, authenticated;
+revoke all on function private.recovery_audit(uuid, text, text, jsonb, uuid) from public, anon, authenticated;
 revoke all on function private.recovery_code_issue(uuid, text, text, text) from public, anon, authenticated;
 revoke all on function private.recovery_code_consume(uuid, text, text) from public, anon, authenticated;
 revoke all on function private.recovery_register_verify(uuid, text) from public, anon, authenticated;
 revoke all on function private.recovery_email_remove(uuid) from public, anon, authenticated;
 revoke all on function private.recovery_request_verify(uuid, text, text) from public, anon, authenticated;
 revoke all on function private.recovery_cancel(text) from public, anon, authenticated;
+revoke all on function private.recovery_cancel_for_user(uuid) from public, anon, authenticated;
 revoke all on function private.recovery_apply_due() from public, anon, authenticated;
 revoke all on function private.recovery_enrol_allowed(uuid) from public, anon, authenticated;
 revoke all on function private.recovery_status(uuid) from public, anon, authenticated;
@@ -473,6 +504,7 @@ grant execute on function private.recovery_register_verify(uuid, text) to servic
 grant execute on function private.recovery_email_remove(uuid) to service_role;
 grant execute on function private.recovery_request_verify(uuid, text, text) to service_role;
 grant execute on function private.recovery_cancel(text) to service_role;
+grant execute on function private.recovery_cancel_for_user(uuid) to service_role;
 grant execute on function private.recovery_enrol_allowed(uuid) to service_role;
 grant execute on function private.recovery_status(uuid) to service_role;
 grant execute on function private.stepup_issue(uuid, text, text) to service_role;
@@ -499,9 +531,14 @@ language sql volatile security definer set search_path = public
 as $$ select * from private.recovery_request_verify(p_user, p_code, p_cancel_token); $$;
 
 create or replace function public.recovery_cancel(p_token text)
-returns table (ok boolean, user_id uuid)
+returns table (ok boolean, user_id uuid, login_email text, recovery_email text)
 language sql volatile security definer set search_path = public
 as $$ select * from private.recovery_cancel(p_token); $$;
+
+create or replace function public.recovery_cancel_for_user(p_user uuid)
+returns table (cancelled integer, login_email text, recovery_email text)
+language sql volatile security definer set search_path = public
+as $$ select * from private.recovery_cancel_for_user(p_user); $$;
 
 create or replace function public.recovery_enrol_allowed(p_user uuid)
 returns boolean
@@ -518,6 +555,7 @@ revoke all on function public.recovery_register_verify(uuid, text) from public, 
 revoke all on function public.recovery_email_remove(uuid) from public, anon, authenticated;
 revoke all on function public.recovery_request_verify(uuid, text, text) from public, anon, authenticated;
 revoke all on function public.recovery_cancel(text) from public, anon, authenticated;
+revoke all on function public.recovery_cancel_for_user(uuid) from public, anon, authenticated;
 revoke all on function public.recovery_enrol_allowed(uuid) from public, anon, authenticated;
 revoke all on function public.recovery_status(uuid) from public, anon, authenticated;
 grant execute on function public.recovery_code_issue(uuid, text, text, text) to service_role;
@@ -525,6 +563,7 @@ grant execute on function public.recovery_register_verify(uuid, text) to service
 grant execute on function public.recovery_email_remove(uuid) to service_role;
 grant execute on function public.recovery_request_verify(uuid, text, text) to service_role;
 grant execute on function public.recovery_cancel(text) to service_role;
+grant execute on function public.recovery_cancel_for_user(uuid) to service_role;
 grant execute on function public.recovery_enrol_allowed(uuid) to service_role;
 grant execute on function public.recovery_status(uuid) to service_role;
 
@@ -540,9 +579,10 @@ begin
   if has_function_privilege('anon', 'public.recovery_code_issue(uuid, text, text, text)', 'execute')
      or has_function_privilege('authenticated', 'public.recovery_code_issue(uuid, text, text, text)', 'execute')
      or has_function_privilege('authenticated', 'public.recovery_cancel(text)', 'execute')
+     or has_function_privilege('authenticated', 'public.recovery_cancel_for_user(uuid)', 'execute')
      or has_function_privilege('authenticated', 'private.recovery_apply_due()', 'execute')
-     or has_function_privilege('anon', 'private.recovery_audit(uuid, text, text, jsonb)', 'execute')
-     or has_function_privilege('authenticated', 'private.recovery_audit(uuid, text, text, jsonb)', 'execute') then
+     or has_function_privilege('anon', 'private.recovery_audit(uuid, text, text, jsonb, uuid)', 'execute')
+     or has_function_privilege('authenticated', 'private.recovery_audit(uuid, text, text, jsonb, uuid)', 'execute') then
     raise exception '0128: recovery functions must be service_role only';
   end if;
   if not exists (select 1 from cron.job where jobname = 'super_admin_recovery_apply') then

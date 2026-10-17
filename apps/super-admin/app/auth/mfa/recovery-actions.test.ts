@@ -5,10 +5,11 @@ const rpcCalls: { fn: string; params: Record<string, unknown> }[] = [];
 let rpcData: Record<string, unknown> = {};
 let user: { id: string } | null = { id: "sa-1" };
 const signOut = vi.fn(async () => ({ error: null }));
+let level: string | null = "aal2";
 const send = vi.fn<(m: unknown) => Promise<{ ok: boolean; reason?: string }>>(async () => ({ ok: true }));
 
 vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(async () => ({ auth: { getUser: async () => ({ data: { user }, error: null }), signOut } })),
+  createClient: vi.fn(async () => ({ auth: { getUser: async () => ({ data: { user }, error: null }), signOut, mfa: { getAuthenticatorAssuranceLevel: async () => ({ data: { currentLevel: level }, error: null }) } } })),
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => ({
@@ -22,7 +23,7 @@ vi.mock("@/lib/mail", () => ({ sendMail: (m: unknown) => send(m) }));
 vi.mock("@/lib/i18n/get-request-locale", () => ({ getRequestLocale: vi.fn(async () => "en") }));
 vi.mock("@/lib/i18n/get-server-translation", () => ({ getServerTranslation: vi.fn(async () => ({ t: (k: string) => k })) }));
 
-import { requestRecoveryCode, submitRecoveryCode } from "./recovery-actions";
+import { cancelPendingRecoveryOnSignIn, requestRecoveryCode, submitRecoveryCode } from "./recovery-actions";
 
 const ok = { ok: true, reason: "ok", apply_at: "2026-10-16T12:30:00Z", login_email: "login@x.co", recovery_email: "rec@y.co" };
 
@@ -33,6 +34,7 @@ beforeEach(() => {
   send.mockClear();
   send.mockResolvedValue({ ok: true });
   signOut.mockClear();
+  level = "aal2";
   vi.stubEnv("SUPER_ADMIN_APP_URL", "https://admin.example.com");
 });
 
@@ -102,5 +104,32 @@ describe("submitRecoveryCode", () => {
     const res = await submitRecoveryCode({ code: "123456" });
     expect(res.error).toMatchObject({ code: "account_locked", locked: true });
     expect(signOut).toHaveBeenCalled();
+  });
+});
+
+describe("cancelPendingRecoveryOnSignIn", () => {
+  const cancelled = [{ cancelled: 1, login_email: "login@x.co", recovery_email: "rec@y.co" }];
+
+  it("cancels a pending recovery for an aal2 session and tells both mailboxes", async () => {
+    rpcData.recovery_cancel_for_user = cancelled;
+    expect(await cancelPendingRecoveryOnSignIn()).toEqual({ cancelled: true });
+    expect(rpcCalls[0]).toEqual({ fn: "recovery_cancel_for_user", params: { p_user: "sa-1" } });
+    expect(send.mock.calls.map((c) => (c[0] as { to: string }).to).sort()).toEqual(["login@x.co", "rec@y.co"]);
+  });
+  it("does nothing for an aal1 session (a password alone never cancels)", async () => {
+    level = "aal1";
+    rpcData.recovery_cancel_for_user = cancelled;
+    expect(await cancelPendingRecoveryOnSignIn()).toEqual({ cancelled: false });
+    expect(rpcCalls).toHaveLength(0);
+  });
+  it("does nothing without a session", async () => {
+    user = null;
+    expect(await cancelPendingRecoveryOnSignIn()).toEqual({ cancelled: false });
+    expect(rpcCalls).toHaveLength(0);
+  });
+  it("sends no mail when nothing was pending", async () => {
+    rpcData.recovery_cancel_for_user = [{ cancelled: 0, login_email: null, recovery_email: null }];
+    expect(await cancelPendingRecoveryOnSignIn()).toEqual({ cancelled: false });
+    expect(send).not.toHaveBeenCalled();
   });
 });

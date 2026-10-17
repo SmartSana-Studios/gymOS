@@ -12,11 +12,13 @@ const listFactors = vi.fn();
 const challengeAndVerify = vi.fn();
 const requestRecoveryCode = vi.fn();
 const submitRecoveryCode = vi.fn();
+const cancelPendingRecoveryOnSignIn = vi.fn<(...a: unknown[]) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 vi.mock("@/app/auth/mfa/recovery-actions", () => ({
   requestRecoveryCode: (...a: unknown[]) => requestRecoveryCode(...a),
   submitRecoveryCode: (...a: unknown[]) => submitRecoveryCode(...a),
+  cancelPendingRecoveryOnSignIn: (...a: unknown[]) => cancelPendingRecoveryOnSignIn(...a),
 }));
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({ auth: { mfa: { listFactors, challengeAndVerify } } }),
@@ -61,6 +63,7 @@ describe("MfaForm", () => {
     await userEvent.click(screen.getByRole("button", { name: "Verify" }));
     await waitFor(() => expect(push).toHaveBeenCalledWith("/gyms"));
     expect(challengeAndVerify).toHaveBeenLastCalledWith({ factorId: "f2", code: "123456" });
+    expect(cancelPendingRecoveryOnSignIn).toHaveBeenCalledTimes(1);
   });
 
   it("a wrong code shows an error and stays", async () => {

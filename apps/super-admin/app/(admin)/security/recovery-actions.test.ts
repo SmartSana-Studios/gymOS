@@ -21,6 +21,9 @@ vi.mock("@/lib/supabase/admin", () => ({
     }),
   })),
 }));
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(async () => ({ auth: { getUser: async () => ({ data: { user: { id: "sa-1", email: "login@x.co" } }, error: null }) } })),
+}));
 vi.mock("@/lib/mail", () => ({ sendMail: (m: unknown) => send(m) }));
 vi.mock("@/lib/i18n/get-request-locale", () => ({ getRequestLocale: vi.fn(async () => "en") }));
 vi.mock("@/lib/i18n/get-server-translation", () => ({ getServerTranslation: vi.fn(async () => ({ t: (k: string) => k })) }));
@@ -54,6 +57,14 @@ describe("requestRecoveryEmailCode", () => {
     expect(String(issue.params.p_code)).toMatch(/^\d{6}$/);
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: "r@x.co" }));
     expect(JSON.stringify(send.mock.calls)).toContain(String(issue.params.p_code));
+  });
+
+  it("fails closed when the recovery status cannot be read: no step-up skip, no code, no mail", async () => {
+    rpcData.recovery_status = null as unknown as Record<string, unknown>;
+    const res = await requestRecoveryEmailCode({ email: "n@x.co" });
+    expect(res.error?.code).toBe("recovery_failed");
+    expect(rpcCalls.some((c) => c.fn === "recovery_code_issue")).toBe(false);
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("changing an existing address needs a step-up before any code is issued", async () => {
@@ -95,6 +106,19 @@ describe("verifyRecoveryEmail", () => {
     expect((await verifyRecoveryEmail({ code: "123 456" })).data).toEqual({ masked: "r***@x.co" });
     expect(rpcCalls.find((c) => c.fn === "recovery_register_verify")!.params).toMatchObject({ p_code: "123456" });
   });
+  it("tells the login mailbox, with only the masked address", async () => {
+    rpcData.recovery_register_verify = [{ ok: true, reason: "ok", masked: "r***@x.co" }];
+    await verifyRecoveryEmail({ code: "123456" });
+    expect(send).toHaveBeenCalledTimes(1);
+    const mail = send.mock.calls[0][0] as { to: string; text: string };
+    expect(mail.to).toBe("login@x.co");
+    expect(mail.text).toContain("r***@x.co");
+  });
+  it("sends no notice for a wrong code", async () => {
+    rpcData.recovery_register_verify = [{ ok: false, reason: "invalid", masked: null }];
+    await verifyRecoveryEmail({ code: "123456" });
+    expect(send).not.toHaveBeenCalled();
+  });
   it("reports a lock distinctly and a wrong code generically", async () => {
     rpcData.recovery_register_verify = [{ ok: false, reason: "locked", masked: null }];
     expect((await verifyRecoveryEmail({ code: "123456" })).error?.code).toBe("account_locked");
@@ -113,5 +137,11 @@ describe("removeRecoveryEmail", () => {
     rpcData.recovery_email_remove = true as unknown as Record<string, unknown>;
     expect((await removeRecoveryEmail()).data).toEqual({ removed: true });
     expect(consume).toHaveBeenCalledWith("sa-1", "remove_recovery_email", "recovery");
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: "login@x.co" }));
+  });
+  it("sends no notice when nothing was removed", async () => {
+    rpcData.recovery_email_remove = false as unknown as Record<string, unknown>;
+    expect((await removeRecoveryEmail()).data).toEqual({ removed: false });
+    expect(send).not.toHaveBeenCalled();
   });
 });
