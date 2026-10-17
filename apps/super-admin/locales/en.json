@@ -449,6 +449,10 @@
       "created": "{{email}} created as a new Super Admin.",
       "promoted": "{{email}} promoted to Super Admin.",
       "alreadySuperAdmin": "{{email}} is already a Super Admin — no change made.",
+      "emailSent": "The sign-in details were also emailed to them.",
+      "emailNotSent": "The email could not be sent: pass the temporary password below to them yourself.",
+      "emailSentPromoted": "They were notified by email.",
+      "emailNotSentPromoted": "The email could not be sent: tell them yourself.",
       "copyPassword": "Copy temp password",
       "passwordCopied": "Copied!",
       "dismiss": "Dismiss"
@@ -456,6 +460,7 @@
     "errors": {
       "unauthorized": "You must be signed in as a Super Admin to do this.",
       "bootstrapWindow": "Adding a Super Admin is turned off while the second factor is required. Ask the platform operator to open a bootstrap window (see the Super Admin recovery runbook, \"Adding a Super Admin\").",
+      "ownerCannotBeSuperAdmin": "A gym owner cannot be a Super Admin. Use a separate platform account for staff.",
       "incorrectPassword": "That password is incorrect."
     }
   },

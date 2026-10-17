@@ -46,6 +46,7 @@ export function AddAdminModal({
     outcome: "created" | "promoted" | "already_super_admin",
     email: string,
     tempPassword: string | null,
+    emailed: boolean,
   ) => void;
 }) {
   const { t } = useTranslation();
@@ -110,7 +111,7 @@ export function AddAdminModal({
       }
 
       if (data) {
-        onDone(data.outcome, parsed.data.email, data.tempPassword);
+        onDone(data.outcome, parsed.data.email, data.tempPassword, data.emailed);
         setEmail("");
         setCurrentPassword("");
         setFieldErrors({});

@@ -47,12 +47,16 @@ export function AdminsPageClient({ initialAdmins }: { initialAdmins: SuperAdminR
     outcome: "created" | "promoted" | "already_super_admin",
     email: string,
     tempPassword: string | null,
+    emailed: boolean,
   ) {
     setModalOpen(false);
     if (outcome === "created") {
-      showToast(t("admins.toast.created", { email }), tempPassword ?? undefined);
+      showToast(
+        t("admins.toast.created", { email }) + " " + t(emailed ? "admins.toast.emailSent" : "admins.toast.emailNotSent"),
+        tempPassword ?? undefined,
+      );
     } else if (outcome === "promoted") {
-      showToast(t("admins.toast.promoted", { email }));
+      showToast(t("admins.toast.promoted", { email }) + " " + t(emailed ? "admins.toast.emailSentPromoted" : "admins.toast.emailNotSentPromoted"));
     } else {
       // AC #4: distinct copy -- must not read as a fresh promotion that
       // didn't actually happen (mirrors RevokeAccessDialog's `alreadyGone`

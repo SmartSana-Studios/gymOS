@@ -44,6 +44,11 @@ could not enrol a factor. Add one in a controlled window, as short as possible:
 3. Close the window: `node scripts/enable-super-admin-aal2.mjs` (dry run) then `--apply`. It refuses unless
    every Super Admin meets the rule.
 
+The new admin is also emailed (sign-in link, and for a new account the temporary password; for a promoted account
+a notice). The send is best effort: if the dialog says the email could not be sent, pass the details on yourself.
+Needs the mail env vars (`MAIL_*`, `SUPER_ADMIN_APP_URL`). A gym owner cannot be made a Super Admin (migration 0130,
+and the app says so): use a separate platform account for staff.
+
 While the flag is on the database also refuses to delete a Super Admin's last verified factor (migration
 0129); the operator reset script and a recovery reset set their own exemption for their transaction.
 
