@@ -107,7 +107,8 @@ enabled = true
 # Port to use for the email testing server web interface.
 port = 54324
 # Uncomment to expose additional ports for testing user applications that send emails.
-# smtp_port = 54325
+# Story 22.8: the Super Admin app sends recovery mail here locally (MAIL_SMTP_PORT=54325). Needs `supabase stop && supabase start` once.
+smtp_port = 54325
 # pop3_port = 54326
 # admin_email = "admin@email.com"
 # sender_name = "Admin"

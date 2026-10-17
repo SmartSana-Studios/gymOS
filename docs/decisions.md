@@ -5,6 +5,18 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-16 — Story 22.8: Super Admin recovery email (migration 0128)
+
+- **Why.** Losing the device holding the authenticator locked a Super Admin out until an operator ran the reset script, and "two TOTP factors" only helps if they live on separate devices (nothing enforces it). A recovery email gives a second, independent route back.
+- **Recovery only.** Email is never a sign-in factor and a code never grants a session or aal2. A valid code schedules the same reset as `reset-super-admin-factors.mjs`, applied after `recovery_delay_minutes` (30; chosen over second-admin approval, which needs a second admin). The 22.8 delay can be 1 minute locally; the config check requires > 0.
+- **Safeguards.** Different mailbox from the login email (verified by a code); codes are 6 digits, bcrypt-hashed, single use, 10 min, 3 attempts, 3/hour and 5/day; wrong recovery codes only kill the code and do NOT feed the 22.7 lockout (decided at review: a password-only attacker must not be able to lock the owner out); the delay; a scheduling notice to both mailboxes with a 256-bit cancel token (only its hash is stored; the login-mailbox send is mandatory and its failure cancels the schedule, the recovery-mailbox send is best effort); a cancelled notice to both mailboxes; a notice to the login mailbox whenever the recovery address is set, changed or removed; the owner passing a real aal2 sign-in cancels a pending recovery (it cannot be theirs), audit rows with masked addresses only; identical response for every refusal on the sign-in prompt (no enumeration); a locked account is never reset; changing or removing the address needs a step-up. All functions are service_role only.
+- **Flag stays on.** Unlike the operator reset, a recovery does not turn `super_admin_aal2` off (that is platform-wide). Instead `private.recovery_enrol_allowed(user)` opens, for 60 minutes (`recovery_enrol_window_minutes`, shortened from 24 h at review) after a reset applies and only while the account has no verified factor, a first-authenticator page at aal1 (`/auth/mfa/enroll`). It cannot add a second factor and closes by itself.
+- **Enable rule changed.** `enable-super-admin-aal2.mjs` now accepts, per Super Admin, exactly two verified factors OR exactly one verified factor plus a verified recovery email.
+- **Mail.** Spike: production had no custom SMTP (Supabase built-in mailer, 2 emails/hour). Decision: `apps/super-admin/lib/mail.ts` over SMTP (nodemailer): Inbucket locally, Resend SMTP in production (sender domain with SPF/DKIM). The cancel-link origin comes from `SUPER_ADMIN_APP_URL`, never from the request Host header.
+- **Revisit when.** A second Super Admin is routine (add approval as an alternative to the delay), or recovery codes / passkeys are added.
+
+---
+
 ## 2026-10-16 — Story 22.7: Super Admin session limits and step-up (migration 0127)
 
 - **Scope.** Applies only while `super_admin_aal2` is on; flag off writes nothing and behaves as before. Step-up is required only for removing a verified Super Admin factor and for creating or promoting a Super Admin (human decision, 2026-10-16); billing and gym actions are unchanged. The wrong-code lockout counts step-up attempts only, so a password holder cannot lock the sole Super Admin out through `/auth/mfa`.

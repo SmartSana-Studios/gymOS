@@ -144,5 +144,5 @@ export async function consumeStepUp(actorId: string, action: StepUpAction, subje
 }
 
 /** Story 22.7: the only actions that need a step-up (spec decision 2026-10-16). */
-export type StepUpAction = "remove_super_admin_factor" | "create_super_admin";
+export type StepUpAction = "remove_super_admin_factor" | "create_super_admin" | "change_recovery_email" | "remove_recovery_email";
 export const STEP_UP_REQUIRED_CODE = "step_up_required";

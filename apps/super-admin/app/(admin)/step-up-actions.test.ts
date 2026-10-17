@@ -54,6 +54,19 @@ describe("issueStepUp", () => {
     expect(adminRpc).toHaveBeenCalledWith("stepup_issue", { p_user: "sa-1", p_action: "create_super_admin", p_subject: "new@example.com" });
   });
 
+  it.each(["change_recovery_email", "remove_recovery_email"] as const)("issues a grant for %s", async (action) => {
+    const { issueStepUp } = await import("./step-up-actions");
+    expect((await issueStepUp({ action, subjectId: "recovery", code: "123456" })).data).toEqual({ issued: true });
+    expect(adminRpc).toHaveBeenCalledWith("stepup_issue", { p_user: "sa-1", p_action: action, p_subject: "recovery" });
+  });
+
+  it("an unknown action is refused before any provider call", async () => {
+    const { issueStepUp } = await import("./step-up-actions");
+    const res = await issueStepUp({ action: "bogus" as never, subjectId: "x", code: "123456" });
+    expect(res.error?.code).toBe("invalid_code");
+    expect(challengeAndVerify).not.toHaveBeenCalled();
+  });
+
   it("a wrong code records a failure (no code sent), issues nothing", async () => {
     challengeAndVerify.mockResolvedValue({ data: null, error: { message: "bad", code: "mfa_verification_failed" } });
     const { issueStepUp } = await import("./step-up-actions");

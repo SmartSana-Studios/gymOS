@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Story 22.6: flip the platform flag private.platform_flags('super_admin_aal2') ON, once, and only
-// when every Super Admin holds exactly two verified TOTP factors.
+// when every Super Admin holds exactly two verified TOTP factors, or (Story 22.8) exactly one verified
+// factor plus a verified recovery email.
 //
 //   node scripts/enable-super-admin-aal2.mjs                                   # dry run, rolled back
 //   node scripts/enable-super-admin-aal2.mjs --apply --operator <name>         # asks for typed confirmation
@@ -37,7 +38,8 @@ try {
 
   const admins = (await client.query(
     `select u.id, au.email, count(f.id) filter (where f.status = 'verified') as verified,
-            count(f.id) filter (where f.status <> 'verified') as unverified
+            count(f.id) filter (where f.status <> 'verified') as unverified,
+            exists (select 1 from private.super_admin_recovery_email r where r.user_id = u.id) as has_recovery_email
        from public.users u
        left join auth.users au on au.id = u.id
        left join auth.mfa_factors f on f.user_id = u.id and f.factor_type = 'totp'
@@ -56,11 +58,13 @@ try {
   const short = [];
   for (const a of admins) {
     const verified = Number(a.verified);
-    console.log(`\n${a.email ?? a.id}: ${verified} verified, ${a.unverified} unverified TOTP factor(s)`);
+    console.log(`\n${a.email ?? a.id}: ${verified} verified, ${a.unverified} unverified TOTP factor(s), recovery email: ${a.has_recovery_email ? "verified" : "none"}`);
     for (const f of factors.filter((x) => x.user_id === a.id)) {
       console.log(`  - ${f.friendly_name || "(unnamed)"}  [${f.status}]  created ${f.created_at.toISOString()}`);
     }
-    if (verified !== 2) short.push(`${a.email ?? a.id} has ${verified} verified (needs exactly 2)`);
+    const rule = verified === 2 ? "two verified factors" : verified === 1 && a.has_recovery_email ? "one verified factor + verified recovery email" : null;
+    if (rule) console.log(`  rule met: ${rule}`);
+    else short.push(`${a.email ?? a.id} has ${verified} verified factor(s), recovery email ${a.has_recovery_email ? "set" : "none"} (needs exactly 2 factors, or exactly 1 factor + a verified recovery email)`);
   }
   if (admins.length === 0) short.push("no Super Admin account exists");
 
@@ -70,7 +74,7 @@ try {
     await client.query("rollback");
     process.exit(1);
   }
-  console.log("\nVerdict: every Super Admin has exactly two verified TOTP factors.");
+  console.log("\nVerdict: every Super Admin meets the recovery rule (two verified factors, or one + a verified recovery email).");
 
   if (!apply) {
     console.log("Dry run: rolling back, nothing changed.");

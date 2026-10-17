@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { cancelPendingRecoveryOnSignIn, recoveryProgress, requestRecoveryCode, submitRecoveryCode } from "@/app/auth/mfa/recovery-actions";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,35 @@ export function MfaForm() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [recovery, setRecovery] = useState<"closed" | "ask" | "code" | "done" | "cancelled">("closed");
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [applyAt, setApplyAt] = useState<string | null>(null);
+  const [showLoginButton, setShowLoginButton] = useState(false);
+
+  // After a recovery is accepted: poll every 15 s; once the reset has applied (this session is gone) move on,
+  // and offer a sign-in button after 2 minutes so nobody is left waiting on this page.
+  useEffect(() => {
+    if (recovery !== "done") return;
+    const poll = setInterval(async () => {
+      const { state } = await recoveryProgress();
+      if (state === "applied") window.location.assign("/auth/mfa"); // login if the session is gone, else the enrol page
+      else if (state === "cancelled") setRecovery("cancelled");
+    }, 15_000);
+    const button = setTimeout(() => setShowLoginButton(true), 120_000);
+    return () => {
+      clearInterval(poll);
+      clearTimeout(button);
+    };
+  }, [recovery]);
+
+  const goToLogin = async () => {
+    try {
+      await createClient().auth.signOut({ scope: "local" });
+    } finally {
+      window.location.assign("/auth/login");
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +79,7 @@ export function MfaForm() {
         setError(t("mfaPrompt.invalidCode"));
         return;
       }
+      await cancelPendingRecoveryOnSignIn(); // owner proved the authenticator: a pending recovery was not theirs
       router.push("/gyms");
       router.refresh();
     } catch {
@@ -57,6 +88,88 @@ export function MfaForm() {
       setIsLoading(false);
     }
   };
+
+  const askForCode = async () => {
+    setIsLoading(true);
+    setRecoveryError(null);
+    try {
+      await requestRecoveryCode(); // identical answer whatever the account state
+      setRecovery("code");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const confirmCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setRecoveryError(null);
+    try {
+      const res = await submitRecoveryCode({ code: recoveryCode });
+      if (res.error) {
+        if (res.error.locked) {
+          window.location.assign("/auth/login?expired=1");
+          return;
+        }
+        setRecoveryError(res.error.message);
+        return;
+      }
+      setApplyAt(res.data?.applyAt ?? null);
+      setRecoveryCode("");
+      setRecovery("done");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const recoveryPanel = (
+    <div className="mt-6 border-t pt-4 text-sm">
+      {recovery === "closed" && (
+        <button type="button" className="underline" onClick={() => setRecovery("ask")}>
+          {t("mfaPrompt.recovery.link")}
+        </button>
+      )}
+      {recovery === "ask" && (
+        <div className="flex flex-col gap-3">
+          <p>{t("mfaPrompt.recovery.intro")}</p>
+          <Button type="button" variant="outline" disabled={isLoading} onClick={askForCode}>
+            {t("mfaPrompt.recovery.send")}
+          </Button>
+        </div>
+      )}
+      {recovery === "code" && (
+        <form onSubmit={confirmCode} className="flex flex-col gap-3">
+          <p>{t("mfaPrompt.recovery.sent")}</p>
+          <Label htmlFor="recovery-code">{t("mfaPrompt.recovery.codeLabel")}</Label>
+          <Input
+            id="recovery-code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            required
+            value={recoveryCode}
+            onChange={(e) => setRecoveryCode(e.target.value)}
+          />
+          {recoveryError && <p role="alert" className="text-red-500">{recoveryError}</p>}
+          <Button type="submit" disabled={isLoading}>{t("mfaPrompt.recovery.submit")}</Button>
+        </form>
+      )}
+      {recovery === "done" && (
+        <div className="flex flex-col gap-3">
+          <p role="status">
+            {t("mfaPrompt.recovery.scheduled", { time: applyAt ? new Date(applyAt).toLocaleString() : "" })}
+          </p>
+          <p className="text-muted-foreground">{t("mfaPrompt.recovery.waiting")}</p>
+          {showLoginButton && (
+            <Button type="button" variant="outline" onClick={goToLogin}>
+              {t("mfaPrompt.recovery.goToLogin")}
+            </Button>
+          )}
+        </div>
+      )}
+      {recovery === "cancelled" && <p role="status">{t("mfaPrompt.recovery.cancelled")}</p>}
+    </div>
+  );
 
   return (
     <Card>
@@ -87,6 +200,7 @@ export function MfaForm() {
             </Button>
           </form>
         )}
+        {recoveryPanel}
       </CardContent>
     </Card>
   );

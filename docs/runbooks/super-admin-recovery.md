@@ -13,7 +13,8 @@ temp dir). Set `PROD_SSL=0` only for a local database.
 - Migration 0126 is applied (`private.platform_flags` has `super_admin_aal2`).
 - A fresh backup (db-backup green) before any `--apply` against production.
 - Every Super Admin account has signed in and holds exactly **two verified** TOTP factors on **two
-  separate devices** (different friendly names, e.g. `phone`, `tablet`).
+  separate devices** (different friendly names, e.g. `phone`, `tablet`), **or** (Story 22.8) exactly
+  **one** verified factor plus a **verified recovery email** (a different mailbox from the login email).
 
 ## Bootstrap (turn the flag on, once)
 
@@ -78,3 +79,37 @@ Applies only while the flag is on. Limits are rows in `private.session_limits_co
   `/auth/mfa` is not counted. A locked account can only be released with the reset script above
   (`reset-super-admin-factors.mjs`), which also clears the lock, session state and step-up grants and
   turns the flag off; re-bootstrap as described.
+
+## Recovery by email (Story 22.8)
+
+For a Super Admin with a verified recovery email who has lost the device holding their authenticator.
+No operator needed.
+
+1. **Setup (once, before the flag is on).** `/security` → *Recovery email* → enter a mailbox that is NOT the
+   login email → enter the 6-digit code mailed there. Changing or removing it later asks for a step-up.
+2. **Recover.** Sign in with the password. On `/auth/mfa` choose *Can't use your authenticator?* → *Email me
+   a code* → enter the code. Nothing happens immediately: the reset is **scheduled 30 minutes later**
+   (`recovery_delay_minutes`), and both mailboxes receive a notice with a **cancel link**.
+3. **After the delay** (checked every minute by pg_cron job `super_admin_recovery_apply`) the account's
+   authenticators and sessions are removed. The flag stays **on**. Signing in with the password now leads to
+   `/auth/mfa/enroll`, where the first new authenticator can be enrolled. That window lasts 60 minutes
+   (`recovery_enrol_window_minutes`) and closes as soon as a factor is verified; enrol right away.
+   If it lapses, an operator full reset (above) is the way back. Add the second one, or keep
+   the recovery email as the backup.
+4. **Not you?** Open the cancel link in either email, or an operator runs
+   `node scripts/reset-super-admin-factors.mjs <email> --cancel-recovery --apply --operator <name>`.
+   An operator full reset also cancels a scheduled recovery. A locked account is never reset by a recovery.
+
+A scheduled recovery is cancelled automatically when the real owner completes an aal2 sign-in (passes
+the authenticator code) before it applies; both mailboxes are told. The login mailbox is also told
+whenever the recovery address is set, changed or removed. There is no mail when a reset *applies*
+(pg_cron cannot send mail); the scheduling notice and its cancel link are the warning.
+
+Limits (all in `private.session_limits_config`): code valid 10 min, 3 wrong attempts then the code is dead,
+3 requests per hour and 5 per day. Wrong recovery codes do **not** count toward the step-up lockout. Audit actions:
+`super_admin_recovery_requested`, `_code_failed`, `_accepted`, `_cancelled`, `_applied`, `super_admin_recovery_email_set`
+and `_removed`. Mail needs the production env vars in `apps/super-admin/.env.example` (Resend SMTP) and
+`SUPER_ADMIN_APP_URL` (the origin used in cancel links; recovery refuses to start in production without it).
+
+Risk to keep in mind: the password plus the recovery mailbox is enough to take the account over once the
+delay passes. Protect that mailbox like the login, and treat a notice you did not expect as an incident.

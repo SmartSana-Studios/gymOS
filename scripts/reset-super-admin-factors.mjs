@@ -7,6 +7,10 @@
 //
 //   node scripts/reset-super-admin-factors.mjs <email>                                # dry run, rolled back
 //   node scripts/reset-super-admin-factors.mjs <email> --apply --operator <name>      # typed confirmation
+//   node scripts/reset-super-admin-factors.mjs <email> --cancel-recovery [--apply --operator <name>]
+//        # Story 22.8: cancel a scheduled email recovery for that account (nothing else changes)
+//
+// A full reset also cancels any scheduled email recovery for the account.
 //
 // One transaction, one audit_log row (actor_id null, actor_display_name operator:<name>). Secrets are
 // never selected or printed.
@@ -43,6 +47,38 @@ try {
     await client.query("rollback");
     process.exit(1);
   }
+  if (flags.has("--cancel-recovery")) {
+    const pending = (await client.query(
+      "select id, apply_at from private.super_admin_recovery_pending where user_id = $1 and cancelled_at is null and applied_at is null order by apply_at",
+      [target.id],
+    )).rows;
+    console.log(`=== cancel scheduled recovery for ${email} ${apply ? "APPLY" : "DRY RUN (rolled back)"} ===`);
+    for (const r of pending) console.log(`  - due ${r.apply_at.toISOString()}`);
+    if (pending.length === 0) {
+      console.log("No scheduled recovery. Nothing to do.");
+      await client.query("rollback");
+      process.exit(0);
+    }
+    if (!apply) {
+      console.log("Dry run: rolling back, nothing changed.");
+      await client.query("rollback");
+      process.exit(0);
+    }
+    if (!(await confirmTyped(`cancel recovery ${email}`))) {
+      console.error("Confirmation did not match. Rolled back, nothing changed.");
+      await client.query("rollback");
+      process.exit(1);
+    }
+    await client.query("update private.super_admin_recovery_pending set cancelled_at = now() where user_id = $1 and cancelled_at is null and applied_at is null", [target.id]);
+    await client.query(
+      `insert into public.audit_log (gym_id, actor_id, actor_display_name, action_type, target_entity_type, target_entity_id, metadata)
+       values (null, null, $1, 'super_admin_recovery_cancelled', 'user', $2, $3::jsonb)`,
+      [`operator:${operator}`, target.id, JSON.stringify({ by: "operator", cancelled: pending.length })],
+    );
+    await client.query("commit");
+    console.log("Done: scheduled recovery cancelled, one audit_log row written.");
+    process.exit(0);
+  }
   const factors = (await client.query(
     "select id, friendly_name, factor_type, status, created_at from auth.mfa_factors where user_id = $1 order by created_at",
     [target.id],
@@ -74,6 +110,8 @@ try {
   await client.query("delete from private.super_admin_lockout where user_id = $1", [target.id]);
   await client.query("delete from private.support_session_state where user_id = $1", [target.id]);
   await client.query("delete from private.support_stepup where user_id = $1", [target.id]);
+  // Story 22.8: an operator reset supersedes any scheduled email recovery.
+  await client.query("update private.super_admin_recovery_pending set cancelled_at = now() where user_id = $1 and cancelled_at is null and applied_at is null", [target.id]);
   await client.query(
     `insert into private.platform_flags (flag, enabled) values ('super_admin_aal2', false)
      on conflict (flag) do update set enabled = false`,

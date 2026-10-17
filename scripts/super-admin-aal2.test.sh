@@ -28,7 +28,7 @@ export PROD_HOST=127.0.0.1 PROD_PORT=${LOCAL_DB_PORT:-54322} PROD_USER=postgres 
 
 ORIG_FLAG=$(sql "select enabled from private.platform_flags where flag='super_admin_aal2'")
 cleanup() {
-  sql "delete from auth.sessions where user_id in ('$UID_FIX','$UID_NS'); delete from auth.mfa_factors where friendly_name like 'qa22-6-%'; delete from public.audit_log where actor_display_name='operator:$OP'; delete from auth.users where id in ('$UID_FIX','$UID_NS'); update private.platform_flags set enabled = '$ORIG_FLAG' where flag='super_admin_aal2';" >/dev/null
+  sql "delete from auth.sessions where user_id in ('$UID_FIX','$UID_NS'); delete from auth.mfa_factors where friendly_name like 'qa22-6-%'; delete from public.audit_log where actor_display_name='operator:$OP'; delete from private.super_admin_recovery_pending where user_id = '$UID_FIX'; delete from private.super_admin_recovery_email where user_id = '$UID_FIX'; delete from auth.users where id in ('$UID_FIX','$UID_NS'); update private.platform_flags set enabled = '$ORIG_FLAG' where flag='super_admin_aal2';" >/dev/null
   rm -f "$PWFILE"
 }
 trap cleanup EXIT
@@ -111,5 +111,36 @@ check "  sessions gone" "$(sql "select count(*) from auth.sessions where user_id
 check "  flag off" "$(flag)" "f"
 check "  one audit row" "$(audit_n super_admin_factors_reset)" "1"
 check "  audit has no secret" "$(sql "select count(*) from public.audit_log where actor_display_name='operator:$OP' and metadata::text like '%QA226SECRET%'")" "0"
+
+# ---- Story 22.8: one verified factor + verified recovery email; operator cancel; reset supersedes ----
+setflag false
+factors 1 0
+run node $ENABLE
+check "enable refuses one factor without a recovery email (exit 1)" "$rc" "1"
+sql "insert into private.super_admin_recovery_email (user_id, email) values ('$UID_FIX', 'qa22-8@rec.example.test')" >/dev/null
+run node $ENABLE
+check "enable dry-run accepts one factor + recovery email (exit 0)" "$rc" "0"
+has "  names the rule" "$out" "one verified factor + verified recovery email"
+check "  flag untouched" "$(flag)" "f"
+factors 0 0
+run node $ENABLE
+check "enable refuses a recovery email alone (exit 1)" "$rc" "1"
+
+pending() { sql "select count(*) from private.super_admin_recovery_pending where user_id='$UID_FIX' and cancelled_at is null and applied_at is null"; }
+addpending() { sql "insert into private.super_admin_recovery_pending (user_id, apply_at, cancel_token_hash) values ('$UID_FIX', now() + interval '30 minutes', 'qa22-8-hash')" >/dev/null; }
+addpending
+run node $RESET $EMAIL --cancel-recovery
+check "cancel-recovery dry-run exit 0" "$rc" "0"
+check "  dry-run leaves it pending" "$(pending)" "1"
+run node $RESET $EMAIL --cancel-recovery --apply --operator $OP <<<"cancel recovery $EMAIL"
+check "cancel-recovery apply exit 0" "$rc" "0"
+check "  no longer pending" "$(pending)" "0"
+check "  one cancel audit row" "$(audit_n super_admin_recovery_cancelled)" "1"
+run node $RESET $EMAIL --cancel-recovery --apply --operator $OP <<<"cancel recovery $EMAIL"
+check "cancel-recovery with nothing pending exit 0" "$rc" "0"
+addpending
+run node $RESET $EMAIL --apply --operator $OP <<<"reset $EMAIL"
+check "full reset exit 0" "$rc" "0"
+check "  reset also cancels a scheduled recovery" "$(pending)" "0"
 
 [ "$fail" = 0 ] && echo "super-admin-aal2: all passed" || { echo "super-admin-aal2: FAILED"; exit 1; }
