@@ -1090,7 +1090,7 @@ action_items:
       start with steps 26-27 and 20-25, and record the result in sprint-status; blocks
       enabling super_admin_aal2"
     owner: "owner"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-57-fix-createorpromotesuperadmin-re-auth-so"
     epic: 22
@@ -1371,3 +1371,4 @@ last_updated: 10-16-2026 08:55
 # last_updated: 2026-10-17 (ad-hoc: hotfix PR #76 merged to master as 6072416c and deployed; owner confirmed the production Super Admin /gyms page loads again. Production gyms embed incident closed)
 # last_updated: 2026-10-17 (retro blockers 53, 54, 55 done on chore/22-retro-blockers: every Super Admin Server Action gated with a scan test (16 actions gated), Add admin refused while the flag is on plus scripts/disable-super-admin-aal2.mjs (audited bootstrap window) and runbook section, migration 0129 (last verified factor guard trigger on auth.mfa_factors with advisory lock; custom_access_token_hook fails closed) with rollback and 13 pgTAP. Item 56 (owner browser checklist) stays open; 57 (re-auth replaces session) not started. ci-local not yet run on this branch)
 # last_updated: 2026-10-17 (retro item 56 browser QA in progress with the owner: A 1-4 pass, B 9-13 and 15 pass, D 20-27 pass (24 by database evidence), fixes found by QA: step-up prompt is a modal (and no longer cancels itself under StrictMode), sign-in Verify navigates once, wrong-account login notice, admin layout opts out of dev instant validation; new on chore/22-retro-blockers: migration 0130 (owner never Super Admin, 2 triggers + 9 pgTAP) and emails for created/promoted Super Admins. Sections C, E, 28 and F items 40/43 still to run)
+# last_updated: 2026-10-17 (retro item 56 done: Epic 22 browser checklist run by the owner against the local stack. Pass: 1-4, 9-13, 15-32, 34-43; 5-8 not confirmed, 14 skipped; step 24 proved in the database. Fixes found and made during QA on chore/22-retro-blockers: step-up prompt as a modal that no longer closes the dialog under it or itself, sign-in Verify navigates once, failed page loads re-check the session and redirect to login, wrong-account login notice, Add admin password field wording, dev instant validation opt-in, country select hydration. Added: migration 0130 (owner never Super Admin), invitation emails for created/promoted Super Admins. Local QA environment torn down. Retro item 57 (re-auth replaces the session) is moot while Add admin is refused with the flag on; not started. Open: 22-8 owner sign-off recorded here (items 40, 43 passed); full ci-local stamp and merge of chore/22-retro-blockers into epic/22 pending)
