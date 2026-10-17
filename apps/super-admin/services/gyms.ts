@@ -91,7 +91,7 @@ export async function listGyms(
     .select(
       `id, name, status, category, created_at,
        tiers ( name ),
-       members ( name, phone, role )`,
+       members!members_gym_id_fkey ( name, phone, role )`,
       { count: "exact" },
     )
     .order("created_at", { ascending: false })
@@ -199,7 +199,7 @@ export async function getGymDetail(gymId: string): Promise<{
         .select(
           `id, name, status, category, created_at, tier_id, member_cap_override,
            tiers ( name, member_cap ),
-           members ( name, phone, role )`,
+           members!members_gym_id_fkey ( name, phone, role )`,
         )
         .eq("id", gymId)
         .maybeSingle(),
