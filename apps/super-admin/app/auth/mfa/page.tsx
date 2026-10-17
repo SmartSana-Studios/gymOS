@@ -4,6 +4,10 @@ import { MfaForm } from "@/components/mfa-form";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+// Auth-gated: this segment reads the session and may redirect, so it is allowed to block on navigation
+// (silences the dev-only "validate instant UI" overlay; no effect on the build).
+export const instant = false;
+
 /** Story 22.6: second-factor prompt for a password (aal1) session. It only verifies; never enrolls. */
 export default async function Page() {
   const supabase = await createClient();

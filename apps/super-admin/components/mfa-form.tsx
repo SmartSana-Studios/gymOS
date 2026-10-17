@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -13,7 +12,6 @@ import { Label } from "@/components/ui/label";
 
 export function MfaForm() {
   const { t } = useTranslation();
-  const router = useRouter();
   const [factorIds, setFactorIds] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [code, setCode] = useState("");
@@ -80,8 +78,9 @@ export function MfaForm() {
         return;
       }
       await cancelPendingRecoveryOnSignIn(); // owner proved the authenticator: a pending recovery was not theirs
-      router.push("/gyms");
-      router.refresh();
+      // Full navigation, not router.push + router.refresh: the refresh re-fetched /auth/mfa and could win over the
+      // push, so the first Verify left you on the prompt and only the second one got through.
+      window.location.assign("/gyms");
     } catch {
       setError(t("mfaPrompt.invalidCode"));
     } finally {

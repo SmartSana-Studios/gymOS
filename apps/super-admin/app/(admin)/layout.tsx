@@ -25,6 +25,10 @@ const NAV_LINKS = [
   { href: "/security", labelKey: "nav.security" },
 ] as const;
 
+// Auth-gated: this segment reads the session and may redirect, so it is allowed to block on navigation
+// (silences the dev-only "validate instant UI" overlay; no effect on the build).
+export const instant = false;
+
 export default function AdminLayout({
   children,
 }: {

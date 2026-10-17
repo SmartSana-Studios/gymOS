@@ -6,8 +6,7 @@ import { createInstance } from "i18next";
 
 import enTranslations from "../locales/en.json";
 
-const push = vi.fn();
-const refresh = vi.fn();
+const assign = vi.fn();
 const listFactors = vi.fn();
 const challengeAndVerify = vi.fn();
 const requestRecoveryCode = vi.fn();
@@ -15,7 +14,6 @@ const submitRecoveryCode = vi.fn();
 const recoveryProgress = vi.fn<() => Promise<{ state: string }>>(async () => ({ state: "waiting" }));
 const cancelPendingRecoveryOnSignIn = vi.fn<(...a: unknown[]) => Promise<{ cancelled: boolean }>>(async () => ({ cancelled: false }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 vi.mock("@/app/auth/mfa/recovery-actions", () => ({
   requestRecoveryCode: (...a: unknown[]) => requestRecoveryCode(...a),
   submitRecoveryCode: (...a: unknown[]) => submitRecoveryCode(...a),
@@ -40,6 +38,7 @@ function renderForm() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  Object.defineProperty(window, "location", { value: { assign }, configurable: true });
   listFactors.mockResolvedValue({ data: { totp: [{ id: "f1" }] }, error: null });
 });
 
@@ -50,7 +49,7 @@ describe("MfaForm", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Verify" })).not.toBeDisabled());
     await userEvent.type(screen.getByLabelText("6-digit code"), "123456");
     await userEvent.click(screen.getByRole("button", { name: "Verify" }));
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/gyms"));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/gyms"));
     expect(challengeAndVerify).toHaveBeenCalledWith({ factorId: "f1", code: "123456" });
   });
 
@@ -63,7 +62,7 @@ describe("MfaForm", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Verify" })).not.toBeDisabled());
     await userEvent.type(screen.getByLabelText("6-digit code"), "123456");
     await userEvent.click(screen.getByRole("button", { name: "Verify" }));
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/gyms"));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith("/gyms"));
     expect(challengeAndVerify).toHaveBeenLastCalledWith({ factorId: "f2", code: "123456" });
     expect(cancelPendingRecoveryOnSignIn).toHaveBeenCalledTimes(1);
   });
@@ -75,7 +74,7 @@ describe("MfaForm", () => {
     await userEvent.type(screen.getByLabelText("6-digit code"), "000000");
     await userEvent.click(screen.getByRole("button", { name: "Verify" }));
     expect(await screen.findByText(enTranslations.mfaPrompt.invalidCode)).toBeTruthy();
-    expect(push).not.toHaveBeenCalled();
+    expect(assign).not.toHaveBeenCalled();
   });
 
   it("with no verified factor it shows the message and never enrolls", async () => {
@@ -97,7 +96,7 @@ describe("MfaForm", () => {
       await userEvent.click(screen.getByRole("button", { name: "Confirm" }));
       expect(await screen.findByRole("status")).toHaveTextContent("Recovery requested");
       expect(submitRecoveryCode).toHaveBeenCalledWith({ code: "654321" });
-      expect(push).not.toHaveBeenCalled(); // a recovery code never signs anyone in
+      expect(assign).not.toHaveBeenCalled(); // a recovery code never signs anyone in
     });
 
     describe("after the reset is scheduled", () => {
