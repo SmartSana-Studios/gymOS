@@ -132,7 +132,9 @@ export function AddAdminModal({
   return (
     <dialog
       ref={dialogRef}
-      onClose={resetAndClose}
+      onClose={(e) => {
+        if (e.target === e.currentTarget) resetAndClose(); // not a nested modal's close event
+      }}
       onCancel={(e) => {
         // Blocking Escape mid-request prevents dismissing the modal while
         // an operation that's already minting real privilege is in flight.

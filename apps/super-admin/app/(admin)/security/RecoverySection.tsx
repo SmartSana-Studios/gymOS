@@ -131,7 +131,9 @@ export function RecoverySection({ status }: { status: RecoveryStatus }) {
 
       <dialog
         ref={dialogRef}
-        onClose={close}
+        onClose={(e) => {
+          if (e.target === e.currentTarget) close(); // not a nested modal's close event
+        }}
         onCancel={(e) => {
           if (pending) e.preventDefault();
         }}

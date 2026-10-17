@@ -68,8 +68,11 @@ export function StepUpPrompt({
     <dialog
       ref={dialogRef}
       aria-label={t("stepUp.title")}
-      // Esc fires "cancel". There is deliberately no onClose handler: closing the dialog from the effect cleanup
-      // (React StrictMode re-mounts in dev) would fire "close" and cancel the prompt the moment it opened.
+      // Esc fires "cancel". There is deliberately no handler that cancels on "close": closing the dialog from the
+      // effect cleanup (React StrictMode re-mounts in dev) would cancel the prompt the moment it opened. The close
+      // event is also stopped here: it travels up the React tree through the portal and would reach a parent
+      // dialog's own onClose (the recovery-email and Add admin dialogs), closing that one too.
+      onClose={(e) => e.stopPropagation()}
       onCancel={(e) => {
         e.preventDefault();
         if (!busy) onCancel();
