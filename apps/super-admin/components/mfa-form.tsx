@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { cancelPendingRecoveryOnSignIn, requestRecoveryCode, submitRecoveryCode } from "@/app/auth/mfa/recovery-actions";
+import { cancelPendingRecoveryOnSignIn, recoveryProgress, requestRecoveryCode, submitRecoveryCode } from "@/app/auth/mfa/recovery-actions";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,10 +19,35 @@ export function MfaForm() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [recovery, setRecovery] = useState<"closed" | "ask" | "code" | "done">("closed");
+  const [recovery, setRecovery] = useState<"closed" | "ask" | "code" | "done" | "cancelled">("closed");
   const [recoveryCode, setRecoveryCode] = useState("");
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [applyAt, setApplyAt] = useState<string | null>(null);
+  const [showLoginButton, setShowLoginButton] = useState(false);
+
+  // After a recovery is accepted: poll every 15 s; once the reset has applied (this session is gone) move on,
+  // and offer a sign-in button after 2 minutes so nobody is left waiting on this page.
+  useEffect(() => {
+    if (recovery !== "done") return;
+    const poll = setInterval(async () => {
+      const { state } = await recoveryProgress();
+      if (state === "applied") window.location.assign("/auth/mfa"); // login if the session is gone, else the enrol page
+      else if (state === "cancelled") setRecovery("cancelled");
+    }, 15_000);
+    const button = setTimeout(() => setShowLoginButton(true), 120_000);
+    return () => {
+      clearInterval(poll);
+      clearTimeout(button);
+    };
+  }, [recovery]);
+
+  const goToLogin = async () => {
+    try {
+      await createClient().auth.signOut({ scope: "local" });
+    } finally {
+      window.location.assign("/auth/login");
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -130,10 +155,19 @@ export function MfaForm() {
         </form>
       )}
       {recovery === "done" && (
-        <p role="status">
-          {t("mfaPrompt.recovery.scheduled", { time: applyAt ? new Date(applyAt).toLocaleString() : "" })}
-        </p>
+        <div className="flex flex-col gap-3">
+          <p role="status">
+            {t("mfaPrompt.recovery.scheduled", { time: applyAt ? new Date(applyAt).toLocaleString() : "" })}
+          </p>
+          <p className="text-muted-foreground">{t("mfaPrompt.recovery.waiting")}</p>
+          {showLoginButton && (
+            <Button type="button" variant="outline" onClick={goToLogin}>
+              {t("mfaPrompt.recovery.goToLogin")}
+            </Button>
+          )}
+        </div>
       )}
+      {recovery === "cancelled" && <p role="status">{t("mfaPrompt.recovery.cancelled")}</p>}
     </div>
   );
 

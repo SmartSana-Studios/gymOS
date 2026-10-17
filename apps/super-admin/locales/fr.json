@@ -485,6 +485,9 @@
       "codeLabel": "Code de récupération",
       "submit": "Confirmer",
       "scheduled": "Récupération demandée. Vos authentificateurs seront supprimés le {{time}}. Consultez vos e-mails pour annuler si ce n'est pas vous.",
+      "waiting": "Cette page vérifie toutes les quelques secondes et continue d'elle-même une fois la réinitialisation effectuée (jusqu'à une minute après cette heure).",
+      "goToLogin": "Aller à la connexion",
+      "cancelled": "La récupération a été annulée. Vos authentificateurs sont inchangés ; reconnectez-vous pour continuer.",
       "invalid": "Ce code n'est pas valide.",
       "locked": "Ce compte est verrouillé. Contactez un opérateur.",
       "failed": "La récupération n'a pas pu aboutir. Réessayez plus tard."

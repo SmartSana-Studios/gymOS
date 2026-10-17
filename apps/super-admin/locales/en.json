@@ -485,6 +485,9 @@
       "codeLabel": "Recovery code",
       "submit": "Confirm",
       "scheduled": "Recovery requested. Your authenticators will be removed at {{time}}. Check your email to cancel if this was not you.",
+      "waiting": "This page checks every few seconds and moves on by itself once the reset has run (it can take up to a minute after that time).",
+      "goToLogin": "Go to sign in",
+      "cancelled": "The recovery was cancelled. Your authenticators are unchanged; sign in again to continue.",
       "invalid": "That code is not valid.",
       "locked": "This account is locked. Contact an operator.",
       "failed": "Recovery could not be completed. Try again later."

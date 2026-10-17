@@ -23,7 +23,7 @@ vi.mock("@/lib/mail", () => ({ sendMail: (m: unknown) => send(m) }));
 vi.mock("@/lib/i18n/get-request-locale", () => ({ getRequestLocale: vi.fn(async () => "en") }));
 vi.mock("@/lib/i18n/get-server-translation", () => ({ getServerTranslation: vi.fn(async () => ({ t: (k: string) => k })) }));
 
-import { cancelPendingRecoveryOnSignIn, requestRecoveryCode, submitRecoveryCode } from "./recovery-actions";
+import { cancelPendingRecoveryOnSignIn, recoveryProgress, requestRecoveryCode, submitRecoveryCode } from "./recovery-actions";
 
 const ok = { ok: true, reason: "ok", apply_at: "2026-10-16T12:30:00Z", login_email: "login@x.co", recovery_email: "rec@y.co" };
 
@@ -131,5 +131,26 @@ describe("cancelPendingRecoveryOnSignIn", () => {
     rpcData.recovery_cancel_for_user = [{ cancelled: 0, login_email: null, recovery_email: null }];
     expect(await cancelPendingRecoveryOnSignIn()).toEqual({ cancelled: false });
     expect(send).not.toHaveBeenCalled();
+  });
+});
+
+describe("recoveryProgress", () => {
+  it("is applied when the session is gone (the reset removes it)", async () => {
+    user = null;
+    expect(await recoveryProgress()).toEqual({ state: "applied" });
+  });
+  it("is applied while the enrolment window is open", async () => {
+    rpcData.recovery_enrol_allowed = true as unknown as Record<string, unknown>;
+    expect(await recoveryProgress()).toEqual({ state: "applied" });
+  });
+  it("is waiting while a reset is still scheduled", async () => {
+    rpcData.recovery_enrol_allowed = false as unknown as Record<string, unknown>;
+    rpcData.recovery_status = [{ has_email: true, masked: "r***@y.co", pending_apply_at: "2026-10-16T12:30:00Z" }];
+    expect(await recoveryProgress()).toEqual({ state: "waiting" });
+  });
+  it("is cancelled when nothing is scheduled any more", async () => {
+    rpcData.recovery_enrol_allowed = false as unknown as Record<string, unknown>;
+    rpcData.recovery_status = [{ has_email: true, masked: "r***@y.co", pending_apply_at: null }];
+    expect(await recoveryProgress()).toEqual({ state: "cancelled" });
   });
 });

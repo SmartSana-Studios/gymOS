@@ -113,3 +113,23 @@ export async function cancelPendingRecoveryOnSignIn(): Promise<{ cancelled: bool
     return { cancelled: false };
   }
 }
+
+/**
+ * Polled by the sign-in prompt after a recovery was accepted. "applied": the reset has run (it removes this
+ * session, so no session left also means applied) and the page should move on; "cancelled": the pending
+ * recovery was cancelled; "waiting": still scheduled. Reveals only the caller's own state.
+ */
+export async function recoveryProgress(): Promise<{ state: "waiting" | "applied" | "cancelled" }> {
+  try {
+    const userId = await sessionUserId();
+    if (!userId) return { state: "applied" };
+    const admin = createAdminClient();
+    const { data: enrol } = await admin.rpc("recovery_enrol_allowed", { p_user: userId });
+    if (enrol === true) return { state: "applied" };
+    const { data } = await admin.rpc("recovery_status", { p_user: userId });
+    const row = Array.isArray(data) ? data[0] : null;
+    return { state: row && row.pending_apply_at == null ? "cancelled" : "waiting" };
+  } catch {
+    return { state: "waiting" };
+  }
+}
