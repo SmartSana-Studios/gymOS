@@ -1,6 +1,7 @@
 "use server";
 
 import { tierSchema, type AppError } from "@gymos/types";
+import { authorizePlatformAction } from "@/lib/authz";
 import {
   deleteTier as deleteTierRow,
   getTier,
@@ -20,6 +21,9 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 export async function createTier(
   input: unknown,
 ): Promise<{ data: { id: string } | null; error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { data: null, error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   const parsed = tierSchema.safeParse(input);
   if (!parsed.success) {
@@ -86,6 +90,9 @@ export async function editTier(
   tierId: string,
   input: unknown,
 ): Promise<{ data: { id: string } | null; error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { data: null, error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   const parsed = tierSchema.safeParse(input);
   if (!parsed.success) {
@@ -154,6 +161,9 @@ export async function editTier(
  * trusted from the client) since both the error copy and the permanent
  * audit record depend on it. */
 export async function deleteTier(tierId: string): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   const { data: tier, error: tierError } = await getTier(tierId);
   if (tierError) {

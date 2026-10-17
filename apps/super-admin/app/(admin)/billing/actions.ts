@@ -20,6 +20,9 @@ import fr from "@/locales/fr.json";
  * then audit-logs the RPC's own resolved amount/anchor-date values.
  */
 export async function markPaymentReceived(gymId: string): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
     return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
@@ -64,6 +67,9 @@ export async function applyCredit(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
     return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };

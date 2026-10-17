@@ -1,6 +1,7 @@
 "use server";
 
 import { updateMessagingInstanceSchema, type AppError } from "@gymos/types";
+import { authorizePlatformAction } from "@/lib/authz";
 import { updateMessagingInstance as updateMessagingInstanceRow } from "@/services/messaging-provider-config";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -10,6 +11,9 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
  * `{ error }` contract, never throws for expected errors (matches
  * setActivePaymentProvider's established Process Pattern). */
 export async function updateMessagingInstance(input: unknown): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   const parsed = updateMessagingInstanceSchema.safeParse(input);
   if (!parsed.success) {

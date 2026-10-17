@@ -619,6 +619,9 @@ export async function suspendGym(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   return changeGymStatus(gymId, "suspended", "gym_suspended", input);
 }
 
@@ -626,6 +629,9 @@ export async function deactivateGym(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   return changeGymStatus(gymId, "deactivated", "gym_deactivated", input);
 }
 
@@ -633,6 +639,9 @@ export async function reinstateGym(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   return changeGymStatus(gymId, "active", "gym_reinstated", input);
 }
 
@@ -643,6 +652,9 @@ export async function changeGymTier(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
     return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
@@ -686,6 +698,9 @@ export async function overrideGymCap(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
     return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
@@ -747,6 +762,9 @@ export async function escalateGymAccess(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
     return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
@@ -785,6 +803,9 @@ export async function revokeGymAccess(
   actorId: string,
   input: unknown,
 ): Promise<{ data: { revokedCount: number } | null; error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { data: null, error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
     return { data: null, error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
@@ -812,6 +833,9 @@ export async function changeGymCategory(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
+  const authz = await authorizePlatformAction("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
     return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
