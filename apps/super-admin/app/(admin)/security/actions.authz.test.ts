@@ -167,6 +167,25 @@ describe("security actions", () => {
     expect(adminSignOut).toHaveBeenCalledWith("tok-1", "global");
   });
 
+  it("a concurrent removal that slips past the count is stopped by the database and reported as last_factor (0129)", async () => {
+    setup({ verified: 2, aal: "aal2" });
+    flagOn = true;
+    unenroll.mockResolvedValue({ error: { message: "last_verified_factor: a Super Admin must keep one verified authenticator" } });
+    const { removeFactor } = await import("./actions");
+    const res = await removeFactor({ factorId: "f1" });
+    expect(res.error?.code).toBe("last_factor");
+    expect(rpc).not.toHaveBeenCalled(); // nothing was removed, so nothing is audited as removed
+    expect(adminSignOut).not.toHaveBeenCalled();
+  });
+
+  it("any other unenroll failure stays a generic remove_failed", async () => {
+    setup({ verified: 2, aal: "aal2" });
+    flagOn = true;
+    unenroll.mockResolvedValue({ error: { message: "network" } });
+    const { removeFactor } = await import("./actions");
+    expect((await removeFactor({ factorId: "f1" })).error?.code).toBe("remove_failed");
+  });
+
   it("removing a verified factor without a fresh step-up returns step_up_required and does not unenroll (22.7)", async () => {
     setup({ verified: 2, aal: "aal2" });
     flagOn = true;

@@ -1066,7 +1066,7 @@ action_items:
     action: "Route every exported Super Admin Server Action through authorizePlatformAction
       and add a test that every use-server export calls it; blocks enabling super_admin_aal2"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-54-option-a-add-admin-refuses-while-super_a"
     epic: 22
@@ -1074,7 +1074,7 @@ action_items:
       added in a controlled bootstrap window; needs audited flag-off mode and runbook
       section; blocks enabling super_admin_aal2"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-55-close-carried-over-blockers-serialize-re"
     epic: 22
@@ -1082,7 +1082,7 @@ action_items:
       removal, and make the claims hook return a stripped event on error; blocks enabling
       super_admin_aal2"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-56-run-the-epic-22-browser-checklist-epic-2"
     epic: 22
@@ -1369,3 +1369,4 @@ last_updated: 10-16-2026 08:55
 # last_updated: 2026-10-17 (review: 22-8 QA close-out. Section F items 34-37, 39, 41, 42 passed; 38 verified in audit/mail; 40 and 43 not run end to end in a browser. Added recovery polling plus a 2-minute sign-in button on /auth/mfa and moved login searchParams inside Suspense. ci-local GREEN for 9183785 with merge stamp. Local QA environment torn down. Status stays review: owner sign-off on items 40/43, Resend verified and prod env vars set by the owner, migration 0128 reaches production at epic end)
 # last_updated: 2026-10-17 (ad-hoc: production /gyms embed check. Prod has 0117 and loyalty_progress, so master's unpinned gyms->members embed returns PGRST201 (confirmed with a read-only unauthenticated planning request; other dashboard members embeds checked on payments/subscriptions/front_desk_alerts are fine). Hotfix PR #76 to master (cherry-pick of af57550, 2 lines in apps/super-admin/services/gyms.ts), ci-local GREEN for e1daf25. Not merged or deployed: awaiting owner go-ahead. Also: 22-8 merged into epic/22 as dc0739f, story branch deleted)
 # last_updated: 2026-10-17 (ad-hoc: hotfix PR #76 merged to master as 6072416c and deployed; owner confirmed the production Super Admin /gyms page loads again. Production gyms embed incident closed)
+# last_updated: 2026-10-17 (retro blockers 53, 54, 55 done on chore/22-retro-blockers: every Super Admin Server Action gated with a scan test (16 actions gated), Add admin refused while the flag is on plus scripts/disable-super-admin-aal2.mjs (audited bootstrap window) and runbook section, migration 0129 (last verified factor guard trigger on auth.mfa_factors with advisory lock; custom_access_token_hook fails closed) with rollback and 13 pgTAP. Item 56 (owner browser checklist) stays open; 57 (re-auth replaces session) not started. ci-local not yet run on this branch)

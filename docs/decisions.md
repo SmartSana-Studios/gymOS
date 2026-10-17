@@ -5,6 +5,15 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-17 — Epic 22 retro blockers: gate every action, bootstrap window, last-factor guard (migration 0129)
+
+- **Every Super Admin Server Action is gated.** All exported actions under `apps/super-admin/app` go through `authorizePlatformAction` (live role, aal2 while the flag is on, session limits, lock). A Vitest scan (`lib/server-action-gate.test.ts`) fails when a new `"use server"` export skips the gate; only three pre-session flows are exempt, each with a written reason (first-authenticator enrolment after a reset, the sign-in recovery prompt, the email cancel link). This makes the earlier "every Server Action is gated" statement true.
+- **Adding a Super Admin is refused while the flag is on (option A).** A new admin holds only a password: they cannot reach `/security` (aal2) or enrol a factor, so the account would be dead on arrival. New admins are added in a controlled bootstrap window: `scripts/disable-super-admin-aal2.mjs` (audited, factors and sessions untouched) -> create in the app -> new admin enrols -> `enable-super-admin-aal2.mjs`. While the window is open a password alone opens a Super Admin session, so it is kept as short as possible. Fails closed if the flag cannot be read.
+- **Last verified factor guard in the database.** A `BEFORE DELETE` trigger on `auth.mfa_factors` refuses to remove a flagged Super Admin's last verified factor while the flag is on, serialised per user by an advisory lock, so two concurrent removals cannot both pass the app-side count. It also closes the direct GoTrue API route. Exempt: unverified factors, non-Super-Admins, flag off, the account itself being deleted, and the two system paths that reset factors on purpose (recovery apply, `reset-super-admin-factors.mjs`), which set `gymos.factor_reset = 'on'` for their own transaction only. Risk accepted: a trigger on an `auth` table (the same grant model as the existing trigger on `auth.users`).
+- **Hook fails closed.** `custom_access_token_hook` returned the incoming event unchanged on error; it now strips `app_role` and `gym_id` on that path, so a hook error mints a token with no role.
+
+---
+
 ## 2026-10-16 — Story 22.8: Super Admin recovery email (migration 0128)
 
 - **Why.** Losing the device holding the authenticator locked a Super Admin out until an operator ran the reset script, and "two TOTP factors" only helps if they live on separate devices (nothing enforces it). A recovery email gives a second, independent route back.

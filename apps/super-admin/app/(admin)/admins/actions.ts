@@ -126,6 +126,15 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
   if (!authz.ok) {
     return { data: null, error: authz.error };
   }
+
+  // Story 22 retro item 54 (option A): while the second factor is required, new Super Admins are not added
+  // in the app. A new admin would hold only a password and could neither reach /security (aal2) nor enrol a
+  // factor, so the account would be dead on arrival. They are added in a controlled bootstrap window instead
+  // (docs/runbooks/super-admin-recovery.md, "Adding a Super Admin"). Fails closed if the flag cannot be read.
+  const { data: flagOn, error: flagError } = await createAdminClient().rpc("super_admin_aal2_required");
+  if (flagError || typeof flagOn !== "boolean" || flagOn) {
+    return { data: null, error: { code: "bootstrap_window_required", message: t("admins.errors.bootstrapWindow") } };
+  }
   const session = await createClient();
 
   // Post-review addition (2026-09-07, requested during manual testing):

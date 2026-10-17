@@ -454,6 +454,7 @@
     },
     "errors": {
       "unauthorized": "You must be signed in as a Super Admin to do this.",
+      "bootstrapWindow": "Adding a Super Admin is turned off while the second factor is required. Ask the platform operator to open a bootstrap window (see the Super Admin recovery runbook, \"Adding a Super Admin\").",
       "incorrectPassword": "That password is incorrect."
     }
   },

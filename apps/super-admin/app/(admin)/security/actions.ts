@@ -186,7 +186,14 @@ export async function removeFactor(input: { factorId: string }): Result<{ remove
   }
 
   const { error } = await supabase.auth.mfa.unenroll({ factorId: input.factorId });
-  if (error) return { data: null, error: await err("remove_failed", "security.errors.generic") };
+  if (error) {
+    // 0129: the database refuses to delete the last verified factor while the flag is on (a concurrent
+    // removal that slipped past the count above); say so instead of a generic failure.
+    if (String(error.message ?? "").includes("last_verified_factor")) {
+      return { data: null, error: await err("last_factor", "security.errors.lastFactor") };
+    }
+    return { data: null, error: await err("remove_failed", "security.errors.generic") };
+  }
   if (!(await audit(supabase, "super_admin_mfa_removed", input.factorId))) {
     return { data: null, error: await err("audit_failed", "security.errors.generic") };
   }

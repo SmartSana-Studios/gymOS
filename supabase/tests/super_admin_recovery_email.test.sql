@@ -122,7 +122,9 @@ select is(private.recovery_enrol_allowed('00000000-0000-0000-0000-000000022801')
 insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, created_at, updated_at)
 values ('00000000-0000-0000-0000-0000000228f2', '00000000-0000-0000-0000-000000022801', 'new', 'totp', 'verified', now(), now());
 select is(private.recovery_enrol_allowed('00000000-0000-0000-0000-000000022801'), false, 'the window closes once a factor is verified');
+select set_config('gymos.factor_reset', 'on', true); -- test cleanup: 0129 guard stands aside
 delete from auth.mfa_factors where user_id = '00000000-0000-0000-0000-000000022801';
+select set_config('gymos.factor_reset', 'off', true);
 select is(private.recovery_enrol_allowed('00000000-0000-0000-0000-000000022801'), true, 'with no factor the window is open again');
 update private.super_admin_recovery_pending set applied_at = now() - interval '61 minutes' where applied_at is not null;
 select is(private.recovery_enrol_allowed('00000000-0000-0000-0000-000000022801'), false, 'the window closes after 60 minutes');
@@ -134,7 +136,9 @@ delete from private.super_admin_lockout;
 select is(private.recovery_enrol_allowed('00000000-0000-0000-0000-000000022802'), false, 'a non-Super-Admin gets no enrolment window');
 
 -- ---- cancel -----------------------------------------------------------------------------------------
+select set_config('gymos.factor_reset', 'on', true); -- test cleanup: 0129 guard stands aside
 delete from auth.mfa_factors where user_id = '00000000-0000-0000-0000-000000022801';
+select set_config('gymos.factor_reset', 'off', true);
 delete from private.super_admin_recovery_pending;
 delete from private.super_admin_recovery_code;
 select private.recovery_code_issue('00000000-0000-0000-0000-000000022801', 'recover', null, '888888');

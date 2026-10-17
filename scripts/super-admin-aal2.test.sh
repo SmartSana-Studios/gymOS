@@ -28,18 +28,18 @@ export PROD_HOST=127.0.0.1 PROD_PORT=${LOCAL_DB_PORT:-54322} PROD_USER=postgres 
 
 ORIG_FLAG=$(sql "select enabled from private.platform_flags where flag='super_admin_aal2'")
 cleanup() {
-  sql "delete from auth.sessions where user_id in ('$UID_FIX','$UID_NS'); delete from auth.mfa_factors where friendly_name like 'qa22-6-%'; delete from public.audit_log where actor_display_name='operator:$OP'; delete from private.super_admin_recovery_pending where user_id = '$UID_FIX'; delete from private.super_admin_recovery_email where user_id = '$UID_FIX'; delete from auth.users where id in ('$UID_FIX','$UID_NS'); update private.platform_flags set enabled = '$ORIG_FLAG' where flag='super_admin_aal2';" >/dev/null
+  sql "delete from auth.sessions where user_id in ('$UID_FIX','$UID_NS'); select set_config('gymos.factor_reset','on',true); delete from auth.mfa_factors where friendly_name like 'qa22-6-%'; delete from public.audit_log where actor_display_name='operator:$OP'; delete from private.super_admin_recovery_pending where user_id = '$UID_FIX'; delete from private.super_admin_recovery_email where user_id = '$UID_FIX'; delete from auth.users where id in ('$UID_FIX','$UID_NS'); update private.platform_flags set enabled = '$ORIG_FLAG' where flag='super_admin_aal2';" >/dev/null
   rm -f "$PWFILE"
 }
 trap cleanup EXIT
 
 others=$(sql "select count(*) from public.users u where u.is_super_admin and u.id <> '$UID_FIX'")
 if [ "$others" != "0" ]; then echo "SKIP: local DB has other Super Admins; fixtures would be ambiguous"; exit 1; fi
-sql "delete from auth.mfa_factors where friendly_name like 'qa22-6-%'; delete from auth.users where id='$UID_FIX';" >/dev/null
+sql "select set_config('gymos.factor_reset','on',true); delete from auth.mfa_factors where friendly_name like 'qa22-6-%'; delete from auth.users where id='$UID_FIX';" >/dev/null
 sql "insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at) values ('$UID_FIX','00000000-0000-0000-0000-000000000000','authenticated','authenticated','$EMAIL',now(),now()); update public.users set is_super_admin = true where id='$UID_FIX'; insert into auth.sessions (id, user_id, created_at, updated_at) values (gen_random_uuid(),'$UID_FIX',now(),now());" >/dev/null || { echo "FAIL fixture setup"; exit 1; }
 
 factors() { # $1 verified count, $2 unverified count
-  sql "delete from auth.mfa_factors where friendly_name like 'qa22-6-%';" >/dev/null
+  sql "select set_config('gymos.factor_reset','on',true); delete from auth.mfa_factors where friendly_name like 'qa22-6-%';" >/dev/null
   local i
   for ((i=1;i<=$1;i++)); do sql "insert into auth.mfa_factors (id,user_id,friendly_name,factor_type,status,created_at,updated_at,secret) values (gen_random_uuid(),'$UID_FIX','qa22-6-v$i','totp','verified',now(),now(),'QA226SECRET');" >/dev/null; done
   for ((i=1;i<=$2;i++)); do sql "insert into auth.mfa_factors (id,user_id,friendly_name,factor_type,status,created_at,updated_at,secret) values (gen_random_uuid(),'$UID_FIX','qa22-6-u$i','totp','unverified',now(),now(),'QA226SECRET');" >/dev/null; done
@@ -86,6 +86,29 @@ run node $ENABLE --apply --operator $OP <<<"enable super admin aal2"
 check "enable repeat exit 0" "$rc" "0"
 has "enable repeat says already on" "$out" "already on"
 check "  still one audit row" "$(audit_n super_admin_aal2_enabled)" "1"
+
+# Story 22 retro item 54: audited flag-off mode (bootstrap window); factors and sessions untouched.
+DISABLE=scripts/disable-super-admin-aal2.mjs
+run node $DISABLE
+check "disable dry-run exit 0" "$rc" "0"
+check "  dry-run leaves flag on" "$(flag)" "t"
+run node $DISABLE --apply
+check "disable --apply without --operator exits 2" "$rc" "2"
+run node $DISABLE --apply --operator $OP <<<"wrong"
+check "disable wrong confirmation exit 1" "$rc" "1"
+check "  flag still on" "$(flag)" "t"
+run node $DISABLE --apply --operator $OP <<<"disable super admin aal2"
+check "disable apply exit 0" "$rc" "0"
+check "  flag off" "$(flag)" "f"
+check "  one disable audit row" "$(audit_n super_admin_aal2_disabled)" "1"
+check "  factors untouched" "$(sql "select count(*) from auth.mfa_factors where user_id='$UID_FIX'")" "2"
+check "  sessions untouched" "$(sql "select count(*) from auth.sessions where user_id='$UID_FIX'")" "1"
+run node $DISABLE --apply --operator $OP <<<"disable super admin aal2"
+check "disable repeat exit 0 (already off)" "$rc" "0"
+check "  still one disable audit row" "$(audit_n super_admin_aal2_disabled)" "1"
+run node $ENABLE --apply --operator $OP <<<"enable super admin aal2"
+check "re-enable after the window exit 0" "$rc" "0"
+check "  flag on again" "$(flag)" "t"
 
 run node $RESET nobody@example.test --apply --operator $OP <<<"reset nobody@example.test"
 check "reset unknown email exit 1" "$rc" "1"
