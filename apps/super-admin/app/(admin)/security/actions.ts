@@ -151,6 +151,16 @@ export async function verifyFactor(input: { factorId: string; code: string }): R
   return { data: { verified: true }, error: null };
 }
 
+async function stillOnlyVerifiedFactor(supabase: Awaited<ReturnType<typeof createClient>>, factorId: string): Promise<boolean> {
+  try {
+    const { data } = await supabase.auth.mfa.listFactors();
+    const verified = data?.totp ?? [];
+    return verified.length === 1 && verified[0].id === factorId;
+  } catch {
+    return false;
+  }
+}
+
 export async function removeFactor(input: { factorId: string }): Result<{ removed: true; signedOut: boolean; signOutFailed: boolean }> {
   const g = await guard();
   if (!g.ok) return { data: null, error: g.error };
@@ -187,11 +197,14 @@ export async function removeFactor(input: { factorId: string }): Result<{ remove
 
   const { error } = await supabase.auth.mfa.unenroll({ factorId: input.factorId });
   if (error) {
-    // 0129: the database refuses to delete the last verified factor while the flag is on (a concurrent
-    // removal that slipped past the count above); say so instead of a generic failure.
-    if (String(error.message ?? "").includes("last_verified_factor")) {
-      return { data: null, error: await err("last_factor", "security.errors.lastFactor") };
-    }
+    // 0129: the database refuses to delete the last verified factor while the flag is on (a concurrent removal
+    // that slipped past the count above). GoTrue hides the trigger's message behind a generic database error
+    // (checked against the local auth service), so do not rely on the text: if the factor is still there and
+    // it is the only verified one, that is the guard.
+    const refused =
+      String(error.message ?? "").includes("last_verified_factor") ||
+      (isVerified && (await stillOnlyVerifiedFactor(supabase, input.factorId)));
+    if (refused) return { data: null, error: await err("last_factor", "security.errors.lastFactor") };
     return { data: null, error: await err("remove_failed", "security.errors.generic") };
   }
   if (!(await audit(supabase, "super_admin_mfa_removed", input.factorId))) {

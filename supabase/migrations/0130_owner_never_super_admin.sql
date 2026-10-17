@@ -16,6 +16,10 @@ security definer
 set search_path = public
 as $$
 begin
+  if new.is_super_admin and (tg_op = 'INSERT' or not coalesce(old.is_super_admin, false)) then
+    -- serialise with the members trigger for the same account: two uncommitted transactions cannot both pass
+    perform pg_advisory_xact_lock(hashtextextended('super_admin_owner:' || new.id::text, 0));
+  end if;
   if new.is_super_admin
      and (tg_op = 'INSERT' or not coalesce(old.is_super_admin, false))
      and exists (
@@ -35,6 +39,9 @@ security definer
 set search_path = public
 as $$
 begin
+  if new.role = 'owner' and new.deactivated_at is null and new.user_id is not null then
+    perform pg_advisory_xact_lock(hashtextextended('super_admin_owner:' || new.user_id::text, 0));
+  end if;
   if new.role = 'owner'
      and new.deactivated_at is null
      and new.user_id is not null

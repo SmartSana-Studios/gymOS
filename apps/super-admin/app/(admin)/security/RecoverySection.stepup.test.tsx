@@ -51,7 +51,10 @@ describe("a nested modal's close event", () => {
     await userEvent.type(await waitFor(() => document.getElementById("recovery-email") as HTMLElement), "x@epic22qa.test");
     await userEvent.click(screen.getByRole("button", { name: /send code/i }));
     const stepUp = await screen.findByRole("dialog", { name: "Confirm with your authenticator" });
-    stepUp.dispatchEvent(new Event("close", { bubbles: true }));
+    expect(stepUp).toBeInTheDocument();
+    // A close event that did not come from the change dialog itself (what the nested modal's close looked like to it).
+    document.getElementById("recovery-email")!.dispatchEvent(new Event("close", { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 30)); // let any state update and effect run
     const change = document.getElementById("recovery-email")!.closest("dialog")!;
     expect(change).toHaveAttribute("open");
     expect(screen.getByRole("dialog", { name: "Confirm with your authenticator" })).toBeInTheDocument();

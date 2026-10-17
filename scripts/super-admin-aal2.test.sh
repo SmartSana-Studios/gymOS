@@ -87,6 +87,17 @@ check "enable repeat exit 0" "$rc" "0"
 has "enable repeat says already on" "$out" "already on"
 check "  still one audit row" "$(audit_n super_admin_aal2_enabled)" "1"
 
+# 0129: the factor-reset bypass is honoured only for an operator session; GoTrue's own role cannot switch the guard off.
+out_aa=$(docker exec -i -e PGPASSWORD=postgres "$DB" psql -U supabase_auth_admin -h 127.0.0.1 -d postgres -v ON_ERROR_STOP=1 -At 2>&1 <<SQLEOF
+begin;
+select set_config('gymos.factor_reset', 'on', true);
+delete from auth.mfa_factors where user_id = '$UID_FIX';
+rollback;
+SQLEOF
+)
+has "auth-admin session cannot bypass the last-factor guard" "$out_aa" "last_verified_factor"
+check "  both factors are still there" "$(sql "select count(*) from auth.mfa_factors where user_id='$UID_FIX'")" "2"
+
 # Story 22 retro item 54: audited flag-off mode (bootstrap window); factors and sessions untouched.
 DISABLE=scripts/disable-super-admin-aal2.mjs
 run node $DISABLE

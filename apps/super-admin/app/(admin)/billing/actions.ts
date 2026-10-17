@@ -1,7 +1,7 @@
 "use server";
 
 import { applyCreditSchema, gymIdSchema, type AppError } from "@gymos/types";
-import { authorizePlatformAction } from "@/lib/authz";
+import { authorizeOrRedirect } from "@/lib/authz-action";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logGymLifecycleEvent, mapAndLog } from "@/services/gyms";
@@ -20,8 +20,8 @@ import fr from "@/locales/fr.json";
  * then audit-logs the RPC's own resolved amount/anchor-date values.
  */
 export async function markPaymentReceived(gymId: string): Promise<{ error: AppError | null }> {
-  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
-  const authz = await authorizePlatformAction("platform.admin_access");
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
   if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
@@ -67,8 +67,8 @@ export async function applyCredit(
   gymId: string,
   input: unknown,
 ): Promise<{ error: AppError | null }> {
-  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
-  const authz = await authorizePlatformAction("platform.admin_access");
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
   if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   if (!gymIdSchema.safeParse(gymId).success) {
@@ -184,7 +184,7 @@ export async function triggerRetry(gymId: string): Promise<{ error: AppError | n
   }
 
   // Story 22.4: live Super Admin check before the service-role client reads owners or sends.
-  const authz = await authorizePlatformAction("platform.billing_retry");
+  const authz = await authorizeOrRedirect("platform.billing_retry");
   if (!authz.ok) {
     return { error: authz.error };
   }

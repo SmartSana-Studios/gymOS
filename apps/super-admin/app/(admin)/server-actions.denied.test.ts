@@ -13,8 +13,14 @@ const trap = (label: string) =>
     },
   });
 
+class Redirected extends Error {}
+const redirect = vi.fn((to: string) => {
+  throw new Redirected(to);
+});
+let denial = "authorization_unavailable";
+vi.mock("next/navigation", () => ({ redirect: (to: string) => redirect(to) }));
 vi.mock("@/lib/authz", () => ({
-  authorizePlatformAction: vi.fn(async () => ({ ok: false, error: { code: "permission_denied", message: "denied" }, reason: "aal2_required" })),
+  authorizePlatformAction: vi.fn(async () => ({ ok: false, error: { code: "permission_denied", message: "denied" }, reason: denial })),
 }));
 vi.mock("@/lib/supabase/server", () => trap("supabase/server"));
 vi.mock("@/lib/supabase/admin", () => trap("supabase/admin"));
@@ -53,10 +59,23 @@ describe("a denied gate stops every gated Server Action before any work", () => 
   add("updateMessagingInstance", () => import("./messaging/actions"), "updateMessagingInstance", [{}]);
   add("setActivePaymentProvider", () => import("./payment-providers/actions"), "setActivePaymentProvider", [{}]);
 
-  it.each(cases)("%s returns permission_denied and touches nothing", async (_name, run) => {
+  it.each(cases)("%s returns permission_denied and touches nothing when authorization is unavailable", async (_name, run) => {
+    denial = "authorization_unavailable";
     touched.length = 0;
     const res = await run();
     expect(res.error?.code).toBe("permission_denied");
     expect(touched).toEqual([]);
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it.each(cases)("%s redirects to login when the session has ended, and touches nothing", async (_name, run) => {
+    for (const [reason, to] of [["session_expired", "/auth/login?expired=1"], ["no_session", "/auth/login?expired=1"], ["aal2_required", "/auth/mfa"], ["not_super_admin", "/auth/login?denied=1"]] as const) {
+      denial = reason;
+      touched.length = 0;
+      redirect.mockClear();
+      await expect(run()).rejects.toBeInstanceOf(Redirected);
+      expect(redirect).toHaveBeenCalledWith(to);
+      expect(touched).toEqual([]);
+    }
   });
 });

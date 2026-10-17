@@ -70,6 +70,15 @@ describe("createOrPromoteSuperAdmin invitations", () => {
     expect(mail.text).toContain("https://admin.example.com/auth/login");
   });
 
+  it("with no app origin configured (production) it sends no password-only mail and says so", async () => {
+    vi.stubEnv("SUPER_ADMIN_APP_URL", "");
+    vi.stubEnv("NODE_ENV", "production");
+    const res = await createOrPromoteSuperAdmin(input);
+    expect(res.data).toMatchObject({ outcome: "created", tempPassword: "Tmp-Pass-123", emailed: false });
+    expect(sendMail).not.toHaveBeenCalled();
+    vi.stubEnv("NODE_ENV", "test");
+  });
+
   it("a failed email never undoes the account: emailed=false, the temp password is still returned", async () => {
     sendMail.mockResolvedValue({ ok: false });
     const res = await createOrPromoteSuperAdmin(input);

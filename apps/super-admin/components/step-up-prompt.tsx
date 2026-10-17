@@ -37,6 +37,8 @@ export function StepUpPrompt({
   useEffect(() => {
     const dialog = dialogRef.current;
     if (dialog && !dialog.open) dialog.showModal();
+    // autoFocus fires before the dialog is open; focus the field once it is.
+    dialog?.querySelector<HTMLInputElement>("#stepup-code")?.focus();
     return () => {
       if (dialog?.open) dialog.close();
     };
@@ -101,7 +103,6 @@ export function StepUpPrompt({
             autoComplete="one-time-code"
             maxLength={6}
             required
-            autoFocus
             value={code}
             onChange={(e) => setCode(e.target.value)}
           />

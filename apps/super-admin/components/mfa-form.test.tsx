@@ -36,6 +36,10 @@ function renderForm() {
   );
 }
 
+const realLocation = Object.getOwnPropertyDescriptor(window, "location")!;
+
+afterEach(() => Object.defineProperty(window, "location", realLocation));
+
 beforeEach(() => {
   vi.clearAllMocks();
   Object.defineProperty(window, "location", { value: { assign }, configurable: true });

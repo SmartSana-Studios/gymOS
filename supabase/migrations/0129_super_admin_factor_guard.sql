@@ -9,7 +9,7 @@
 --    closes the direct GoTrue API route, not only the app's removeFactor.
 --    Exempt: the account itself being deleted (cascade), unverified factors, and the system paths that
 --    reset factors on purpose (recovery apply and scripts/reset-super-admin-factors.mjs), which set
---    gymos.factor_reset = 'on' for their own transaction.
+--    gymos.factor_reset = 'on' for their own transaction (honoured only for the postgres / supabase_admin session user).
 -- Rollback: scripts/rollback-0129-super-admin-factor-guard.sql.
 
 create or replace function public.custom_access_token_hook(event jsonb)
@@ -99,7 +99,11 @@ begin
   if old.status::text <> 'verified' then
     return old;
   end if;
-  if coalesce(current_setting('gymos.factor_reset', true), '') = 'on' then
+  -- System resets (recovery apply, the operator reset script) opt out for their own transaction. The setting is only
+  -- honoured for a database operator session: a session reached through PostgREST or GoTrue (authenticator,
+  -- supabase_auth_admin) cannot switch the guard off by setting it.
+  if coalesce(current_setting('gymos.factor_reset', true), '') = 'on'
+     and session_user in ('postgres', 'supabase_admin') then
     return old;
   end if;
   if not coalesce((select u.is_super_admin from users u where u.id = old.user_id), false) then

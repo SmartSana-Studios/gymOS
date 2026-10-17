@@ -108,4 +108,4 @@ Stories covered also: 22-8 (section F).
 | 41-42 | Pass | Enable dry run accepts one factor + recovery email and refuses one factor alone; operator `--cancel-recovery`. |
 | 43 | Pass | `super_admin_recovery_cancelled` by `owner_signin` with the owner as actor; both mailboxes got the cancelled notice; the authenticator was kept. |
 
-Result: accepted. Not recorded as passed: 5-8. Skipped: 14.
+Result: accepted with open items. Not recorded as passed: 5-8 (second-factor enrol/remove and the in-app last-factor block; the database guard is covered by pgTAP, the shell test and a real-GoTrue probe). Skipped: 14.

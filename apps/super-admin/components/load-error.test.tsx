@@ -13,7 +13,7 @@ vi.mock("@/lib/i18n/get-request-locale", () => ({ getRequestLocale: vi.fn(async 
 vi.mock("@/lib/i18n/get-server-translation", () => ({ getServerTranslation: vi.fn(async () => ({ t: (k: string) => k })) }));
 
 import { LoadError } from "./load-error";
-import { loginRedirectFor } from "@/lib/auth-redirect";
+import { endsSession, loginRedirectFor } from "@/lib/auth-redirect";
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -24,11 +24,24 @@ describe("LoadError", () => {
     ["account_locked", "/auth/login?expired=1"],
     ["aal2_required", "/auth/mfa"],
     ["not_super_admin", "/auth/login?denied=1"],
-    ["authorization_unavailable", "/auth/login"],
   ])("redirects to login when the session is gone (%s)", async (reason, to) => {
     authorize.mockResolvedValue({ ok: false, reason, error: { code: "permission_denied", message: "x" } });
     await expect(LoadError()).rejects.toBeInstanceOf(Redirected);
     expect(redirect).toHaveBeenCalledWith(to);
+  });
+
+  it("a backend that cannot answer is not a reason to sign the user out: it shows the load error", async () => {
+    authorize.mockResolvedValue({ ok: false, reason: "authorization_unavailable", error: { code: "permission_denied", message: "x" } });
+    const el = (await LoadError()) as { props: { children: string } };
+    expect(redirect).not.toHaveBeenCalled();
+    expect(el.props.children).toBe("common.loadError");
+  });
+
+  it("an authorization check that throws shows the load error too", async () => {
+    authorize.mockRejectedValue(new Error("boom"));
+    const el = (await LoadError()) as { props: { children: string } };
+    expect(redirect).not.toHaveBeenCalled();
+    expect(el.props.children).toBe("common.loadError");
   });
 
   it("shows the load error only for an authorized caller", async () => {
@@ -44,5 +57,8 @@ describe("loginRedirectFor", () => {
     expect(loginRedirectFor("aal2_required")).toBe("/auth/mfa");
     expect(loginRedirectFor("session_expired")).toBe("/auth/login?expired=1");
     expect(loginRedirectFor("anything_else")).toBe("/auth/login");
+    expect(endsSession("session_expired")).toBe(true);
+    expect(endsSession("not_super_admin")).toBe(true);
+    expect(endsSession("authorization_unavailable")).toBe(false);
   });
 });

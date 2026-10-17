@@ -267,10 +267,12 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
 
     // Owner decision 2026-10-17: the new admin also gets the sign-in details by email. Best effort: a failed send
     // never undoes the account, and the temp password stays on screen for the caller either way.
-    const emailed = await sendInvite(
-      email,
-      adminCreatedMail({ email: email.trim(), tempPassword: created.tempPassword, loginUrl: appBaseUrl(), locale: await inviteLocale() }),
-    );
+    // Without a configured app origin (production, SUPER_ADMIN_APP_URL unset) there is no sign-in link to give, so a
+    // mail carrying only the password would be useless and risky: do not send it, and the caller is told so.
+    const loginUrl = appBaseUrl();
+    const emailed = loginUrl
+      ? await sendInvite(email, adminCreatedMail({ email: email.trim(), tempPassword: created.tempPassword, loginUrl, locale: await inviteLocale() }))
+      : false;
     return { data: { outcome: "created", tempPassword: created.tempPassword, emailed }, error: null };
   }
 
@@ -325,6 +327,7 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
     return { data: null, error: await mapAndLog(promoteAuditError) };
   }
 
-  const emailed = await sendInvite(email, adminPromotedMail({ loginUrl: appBaseUrl(), locale: await inviteLocale() }));
+  const promotedUrl = appBaseUrl();
+  const emailed = promotedUrl ? await sendInvite(email, adminPromotedMail({ loginUrl: promotedUrl, locale: await inviteLocale() })) : false;
   return { data: { outcome: "promoted", tempPassword: null, emailed }, error: null };
 }

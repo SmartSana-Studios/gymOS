@@ -45,6 +45,11 @@ describe("StepUpPrompt", () => {
     expect(screen.getByTestId("parent").contains(dialog)).toBe(false);
   });
 
+  it("puts the cursor in the code field once the modal is open", () => {
+    renderPrompt();
+    expect(document.activeElement).toBe(screen.getByLabelText("6-digit code"));
+  });
+
   it("pressing Enter submits the prompt once and never the parent form", async () => {
     renderPrompt();
     await userEvent.type(screen.getByLabelText(/code/i), "123456{Enter}");

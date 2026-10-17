@@ -1,7 +1,7 @@
 "use server";
 
 import { activatePaymentProviderSchema, type AppError } from "@gymos/types";
-import { authorizePlatformAction } from "@/lib/authz";
+import { authorizeOrRedirect } from "@/lib/authz-action";
 import { activatePaymentProvider as activatePaymentProviderRow } from "@/services/payment-providers";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -13,8 +13,8 @@ import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 export async function setActivePaymentProvider(
   input: unknown,
 ): Promise<{ error: AppError | null }> {
-  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role).
-  const authz = await authorizePlatformAction("platform.admin_access");
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
   if (!authz.ok) return { error: authz.error };
   const { t } = await getServerTranslation(await getRequestLocale());
   const parsed = activatePaymentProviderSchema.safeParse(input);
