@@ -85,6 +85,10 @@ exception
 end;
 $$;
 
+grant usage on schema public to supabase_auth_admin;
+grant execute on function public.custom_access_token_hook to supabase_auth_admin;
+revoke execute on function public.custom_access_token_hook from authenticated, anon, public;
+
 create or replace function private.guard_last_verified_factor()
 returns trigger
 language plpgsql
