@@ -159,3 +159,11 @@ context:
 - `low` — wrong-attempt accounting skips expired or missing codes: spec lists those as plain "refused".
 - `low` — recovery works with the flag off: only reachable after an applied recovery or by requesting one; harmless.
 - spec-edit — masked address not shown after a request: contradicts the no-enumeration rule; the fix would edit the spec.
+
+## QA and close-out (2026-10-17)
+
+- Local browser QA by the owner, checklist section F: items 34-37 and 39 passed (set/change/remove with step-up, recovery request, reset applied after the delay, enrol window). Item 38 (cancel link) verified in the audit log and Mailpit: audit `by: email_link`, both mailboxes got the cancelled notice. Item 41 (enable rule) and 42 (operator `--cancel-recovery`) verified from the scripts. Still NOT run end to end in a browser: item 43 (owner aal2 sign-in cancels a pending recovery; covered by Vitest and pgTAP), item 40 (identical answer for non-admin / no recovery email), and the reused-link and polling-switch observations of item 38.
+- Fixes found during QA: login page read `searchParams` outside Suspense (Next 16 blocking-route error, from 22.7); sign-in prompt now polls `recoveryProgress` every 15 s, moves on when the reset applied, shows a cancelled message, and offers a "Go to sign in" button after 2 minutes.
+- Local `PGRST303 JWT issued at future` on `/gyms` is WSL clock skew, not app code.
+- `scripts/ci-local.sh` GREEN for 9183785 (stamp written). Local QA environment torn down (accounts, factors, recovery data, audit rows, mail, `.env.local` mail lines; flag OFF; limits at defaults).
+- Open before `done`: Resend domain `gymosapps.com` verified and prod env vars set by the owner (not testable until migration 0128 is applied to production at epic end); owner sign-off on the browser items above; a mail when a reset applies was deliberately not built (no scheduler).
