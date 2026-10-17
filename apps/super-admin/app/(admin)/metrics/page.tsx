@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { LoadError } from "@/components/load-error";
 
 import { getPlatformMetrics, getRecentJobFailures } from "@/services/metrics";
 import { JobFailuresTable } from "./JobFailuresTable";
@@ -29,7 +30,7 @@ async function MetricsData() {
   ]);
 
   if (error || !metrics) {
-    return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
+    return <LoadError />;
   }
 
   return (
@@ -62,7 +63,7 @@ async function MetricsData() {
       </p>
 
       {jobFailuresError && (
-        <div className="text-sm text-red-600">{t("common.loadError")}</div>
+        <LoadError />
       )}
 
       {jobFailures && jobFailures.length > 0 && (
