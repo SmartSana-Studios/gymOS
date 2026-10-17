@@ -68,7 +68,9 @@ async function AdminLayoutData({
         // A still-signed token whose session the provider no longer knows: the session ended.
         authz.reason === "no_session"
           ? "/auth/login?expired=1"
-          : "/auth/login",
+          : authz.reason === "not_super_admin"
+            ? "/auth/login?denied=1" // signed in, but not a Super Admin: say so instead of reloading the form silently
+            : "/auth/login",
     );
   }
 

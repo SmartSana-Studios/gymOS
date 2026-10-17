@@ -2,7 +2,7 @@ import { Suspense } from "react";
 
 import { LoginForm } from "@/components/login-form";
 
-type SearchParams = Promise<{ expired?: string }>;
+type SearchParams = Promise<{ expired?: string; denied?: string }>;
 
 export default function Page({ searchParams }: { searchParams: SearchParams }) {
   return (
@@ -13,7 +13,8 @@ export default function Page({ searchParams }: { searchParams: SearchParams }) {
 }
 
 async function LoginPage({ searchParams }: { searchParams: SearchParams }) {
-  const { expired } = await searchParams;
-  // Story 22.7: the (admin) layout sends an idle, over-age or locked session here with ?expired=1.
-  return <LoginForm expired={expired === "1"} />;
+  const { expired, denied } = await searchParams;
+  // Story 22.7: the (admin) layout sends an idle, over-age or locked session here with ?expired=1,
+  // and a signed-in account that is not a Super Admin with ?denied=1.
+  return <LoginForm expired={expired === "1"} denied={denied === "1"} />;
 }

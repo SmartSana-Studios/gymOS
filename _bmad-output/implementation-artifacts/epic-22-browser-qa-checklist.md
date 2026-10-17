@@ -20,7 +20,7 @@ Compiled 2026-10-16 from the story specs and `docs/runbooks/super-admin-recovery
 5. Abandon an enrollment, then enroll again: the stale unverified factor is cleaned up, no duplicate left behind.
 6. Enroll a second verified factor (with the first verified, you must be aal2 — go via `/auth/mfa` first): succeeds.
 7. Remove one factor while two exist: succeeds, and an audit row `super_admin_mfa_removed` is written.
-8. Try to remove the only remaining verified factor: blocked by the last-factor guard.
+8. Try to remove the only remaining verified factor (flag ON): blocked by the last-factor guard, in the app and also by the database (migration 0129).
 
 ## B. `/auth/mfa` — sign-in prompt (22-6)
 
@@ -49,8 +49,8 @@ Run `enable-super-admin-aal2.mjs --apply` first (needs exactly 2 verified factor
 23. Reuse a code/grant after a successful removal: a second removal asks for step-up again (single use).
 24. Let `stepup_ttl_minutes` (set to 1) lapse before confirming: the grant is refused and you are asked again.
 25. After removing a factor, the global sign-out runs: you are signed out everywhere. If sign-out is made to fail, the warning (`signOutFailed`) appears.
-26. Create a Super Admin via `AddAdminModal`: step-up prompt appears, the action succeeds only after a valid code.
-27. Promote an existing user to Super Admin: same step-up behaviour.
+26. (changed by retro item 54) With the flag ON, create a Super Admin via `AddAdminModal`: refused with the "turned off while the second factor is required" message, nothing is created, you are not signed out.
+27. Bootstrap window: `node scripts/disable-super-admin-aal2.mjs --apply --operator <you>` (flag off, factors and your session untouched), then create a new Super Admin and promote an existing user from the app: both succeed; then `node scripts/enable-super-admin-aal2.mjs` (dry run refuses until the new admin has two factors or one + recovery email).
 28. Billing and gym actions do not ask for step-up (unchanged).
 
 ## E. Lockout (22-7, flag ON)

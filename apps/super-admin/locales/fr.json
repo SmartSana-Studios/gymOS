@@ -25,7 +25,8 @@
     "description": "Saisissez votre e-mail ci-dessous pour vous connecter à votre compte",
     "noAccount": "Vous n'avez pas de compte ?",
     "signUp": "S'inscrire",
-    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter."
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
+    "wrongAccount": "Identifiants de compte incorrects."
   },
   "gyms": {
     "title": "Salles",

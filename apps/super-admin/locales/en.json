@@ -25,7 +25,8 @@
     "description": "Enter your email below to login to your account",
     "noAccount": "Don't have an account?",
     "signUp": "Sign up",
-    "sessionExpired": "Your session expired. Please sign in again."
+    "sessionExpired": "Your session expired. Please sign in again.",
+    "wrongAccount": "Wrong account credentials."
   },
   "gyms": {
     "title": "Gyms",
