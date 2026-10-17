@@ -440,7 +440,7 @@
       "title": "Ajouter un administrateur",
       "close": "Fermer",
       "email": "E-mail *",
-      "currentPassword": "Votre mot de passe *",
+      "currentPassword": "Confirmez cette action avec votre mot de passe *",
       "submit": "Ajouter {{email}} comme Super Admin",
       "submitEmpty": "Ajouter un administrateur",
       "submitting": "Ajout…"

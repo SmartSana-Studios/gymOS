@@ -440,7 +440,7 @@
       "title": "Add Admin",
       "close": "Close",
       "email": "Email *",
-      "currentPassword": "Your password *",
+      "currentPassword": "Confirm this action with your password *",
       "submit": "Add {{email}} as Super Admin",
       "submitEmpty": "Add Admin",
       "submitting": "Adding…"
