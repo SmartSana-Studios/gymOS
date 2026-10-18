@@ -49,14 +49,18 @@ check_once() {
 # output was incomplete, not an assertion. That shape (and only that shape) is retried once, and the
 # retry is printed so it is visible. A 'not ok' or an ERROR is never retried.
 run_one() {
-  local f=$1 rc first
-  first=$(check_once "$f"); rc=$?
-  if [ "$rc" = 3 ]; then
-    echo "RETRY $f (incomplete output, no assertion failed; running once more)" >&2
-    check_once "$f"
-    return $?
-  fi
-  printf '%s\n' "$first"
+  local f=$1 rc out try
+  out=$(check_once "$f"); rc=$?
+  # Incomplete-output shape only (rc 3): up to 3 more tries. With the other stages running beside it, 10 files
+  # lost their output at once on 2026-10-18 and one retry was not enough (all passed alone). Only the final
+  # attempt is printed, so a retried-then-passed file never leaves a FAIL line for the summary to count.
+  for try in 1 2 3; do
+    [ "$rc" = 3 ] || break
+    echo "RETRY $f (incomplete output, no assertion failed; try $try of 3)" >&2
+    sleep 2
+    out=$(check_once "$f"); rc=$?
+  done
+  printf '%s\n' "$out"
   return "$rc"
 }
 export -f check_once
