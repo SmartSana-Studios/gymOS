@@ -109,7 +109,8 @@ insert into members (id, gym_id, user_id, role, name, phone, deactivated_at) val
 -- Coach (AC #1) -- 4 role changes, one with a full audit-metadata check.
 -- ============================================================================
 -- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
-update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000019021', '00000000-0000-0000-0000-000000019230');
+-- 0130: the gym owner (19021) can never be a Super Admin; the Super Admin actor is the separate 19230.
+update users set is_super_admin = true where id = '00000000-0000-0000-0000-000000019230';
 
 set local role authenticated;
 select set_config(
@@ -616,7 +617,7 @@ reset role;
 -- tiers_and_gym_lifecycle_rls.test.sql's own super_admin-claim convention
 -- for changing gym status.
 set local role authenticated;
-select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000019021","role":"authenticated","app_role":"super_admin"}', true);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000019230","role":"authenticated","app_role":"super_admin"}', true);
 update gyms set status = 'suspended' where id = '00000000-0000-0000-0000-000000019011';
 reset role;
 
@@ -642,7 +643,7 @@ select is(
 reset role;
 
 set local role authenticated;
-select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000019021","role":"authenticated","app_role":"super_admin"}', true);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000019230","role":"authenticated","app_role":"super_admin"}', true);
 update gyms set status = 'active' where id = '00000000-0000-0000-0000-000000019011';
 reset role;
 

@@ -65,7 +65,7 @@ insert into gyms (id, name, tier_id, capacity)
 values ('00000000-0000-0000-0000-000000022591', '22.5 Gym', '00000000-0000-0000-0000-000000022590', 30);
 insert into auth.users (id) values ('00000000-0000-0000-0000-000000022502');
 insert into members (id, gym_id, user_id, role, name) values
-  (gen_random_uuid(), '00000000-0000-0000-0000-000000022591', '00000000-0000-0000-0000-000000022501', 'owner', 'SA Member'),
+  (gen_random_uuid(), '00000000-0000-0000-0000-000000022591', '00000000-0000-0000-0000-000000022501', 'manager', 'SA Member'),
   (gen_random_uuid(), '00000000-0000-0000-0000-000000022591', '00000000-0000-0000-0000-000000022502', 'owner', 'Plain Member');
 
 create or replace function pg_temp.hook_claims(uid text, aal text) returns jsonb language sql as $f$

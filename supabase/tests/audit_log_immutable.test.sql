@@ -237,11 +237,13 @@ select throws_like(
 -- 22.3 live super admin flag: private.is_super_admin_live() reads users.is_super_admin.
 reset role;
 select set_config('request.jwt.claims', '{}', true);
-update users set is_super_admin = true where id = '00000000-0000-0000-0000-0000000000e2';
+-- 0130: the gym owner (e2) can never be a Super Admin, so the Super Admin session uses its own account (ea).
+insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000ea');
+update users set is_super_admin = true where id = '00000000-0000-0000-0000-0000000000ea';
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-0000000000e2","role":"authenticated","app_role":"super_admin"}',
+  '{"sub":"00000000-0000-0000-0000-0000000000ea","role":"authenticated","app_role":"super_admin"}',
   true
 );
 

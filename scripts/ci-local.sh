@@ -87,21 +87,20 @@ stage_deno() {
 }
 
 stage_pgtap() {
-  set -e
-  PGTAP_JOBS="${PGTAP_JOBS:-1}" bash "$ROOT/scripts/pgtap-run.sh"
+  # explicit `|| return 1` (see stage_static): `set -e` is ignored when run_stage calls this in an `if`
+  PGTAP_JOBS="${PGTAP_JOBS:-1}" bash "$ROOT/scripts/pgtap-run.sh" || return 1
   # Refund-vs-consume and loyalty-ledger race (two real sessions; pgTAP runs one). Epic 19 R-1, Epic 20 R-1.
-  bash "$ROOT/scripts/session-refund-race.sh"
+  bash "$ROOT/scripts/session-refund-race.sh" || return 1
   # job-runs-alert.sql against fixtures (Epic 20 R-4).
-  bash "$ROOT/scripts/job-runs-alert.test.sh"
+  bash "$ROOT/scripts/job-runs-alert.test.sh" || return 1
   # Super Admin aal2 enable/reset operator scripts against fixtures on the local DB (Story 22.6).
-  bash "$ROOT/scripts/super-admin-aal2.test.sh"
+  bash "$ROOT/scripts/super-admin-aal2.test.sh" || return 1
   # Claim-read inventory (Story 22.2; enforcing since 22.4): any non-exempt claim-only / null-unsafe entry fails.
-  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" pnpm run check:claims
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" pnpm run check:claims || return 1
 }
 
 stage_unit() {
-  set -e
-  npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile --filter=@gymos/super-admin
+  npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile --filter=@gymos/super-admin || return 1
 }
 
 psql_local() {
@@ -128,10 +127,9 @@ e2e_preflight() {
 }
 
 stage_e2e() {
-  set -e
   e2e_preflight || return 1
-  eval "$("$SUPABASE" status -o env 2>/dev/null)"
-  : "${API_URL:?supabase status did not export API_URL -- is the local stack running?}"
+  eval "$("$SUPABASE" status -o env 2>/dev/null)" || return 1
+  : "${API_URL:?supabase status did not export API_URL -- is the local stack running?}" || return 1
   export NEXT_PUBLIC_SUPABASE_URL=$API_URL
   export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY
   export SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
@@ -139,7 +137,7 @@ stage_e2e() {
   # Idempotent (no-op once cached); CI does the same before the suite.
   (cd apps/dashboard && npx playwright install chromium) || return 1
   # CI=1 matches the Actions environment: retries: 1, no server reuse, html report.
-  CI=1 npx turbo run test:e2e --filter=@gymos/dashboard
+  CI=1 npx turbo run test:e2e --filter=@gymos/dashboard || return 1
 }
 
 echo "ci-local: $(git rev-parse --short HEAD) on $(git rev-parse --abbrev-ref HEAD)"
