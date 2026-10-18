@@ -9,7 +9,8 @@
     "lint": "turbo run lint",
     "check:i18n": "node scripts/check-i18n-key-parity.mjs",
     "check:migrations": "node scripts/check-migration-guardrails.mjs",
-    "test:guardrails": "node --test scripts/__tests__/*.test.mjs"
+    "test:guardrails": "node --test scripts/__tests__/*.test.mjs",
+    "check:claims": "node scripts/claim-inventory.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",

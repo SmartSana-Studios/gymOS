@@ -4,10 +4,11 @@
 #
 #   scripts/ci-local.sh              # everything CI runs
 #   scripts/ci-local.sh --fast       # static + pgTAP + vitest, skip the E2E (inner loop)
-#   scripts/ci-local.sh --only e2e   # one stage: static | pgtap | unit | e2e
+#   scripts/ci-local.sh --only e2e   # one stage: static | deno | pgtap | unit | e2e
 #
 # Stages and what they mirror in ci.yml:
 #   static  typecheck job: typecheck, lint (dashboard + super-admin), i18n parity, migration guardrails
+#   deno    typecheck job: deno test for supabase/functions/payment-webhook
 #   pgtap   rls-tests job: supabase/tests/*.sql
 #   unit    typecheck job: vitest for @gymos/dashboard
 #   e2e     e2e-tests job: Playwright against the local Supabase
@@ -71,18 +72,35 @@ stage_static() {
   pnpm run test:guardrails || return 1
 }
 
+stage_deno() {
+  # Story 22.4: the payment-webhook initiate routes verify the JWT and authorize before any write
+  # or provider call; nothing else gates that wiring (check:claims exempts the file wholesale).
+  local deno_bin
+  deno_bin=$(command -v deno || true)
+  [ -z "$deno_bin" ] && [ -x "$HOME/.deno/bin/deno" ] && deno_bin="$HOME/.deno/bin/deno"
+  [ -z "$deno_bin" ] && deno_bin=$(ls "$HOME"/.npm/_npx/*/node_modules/@deno/linux-x64-glibc/deno 2>/dev/null | head -1)
+  if [ -z "$deno_bin" ]; then
+    echo "deno not found (install it, or run: npx -y deno --version to cache the npm binary)." >&2
+    return 1
+  fi
+  (cd "$ROOT/supabase/functions/payment-webhook" && "$deno_bin" test --allow-all .)
+}
+
 stage_pgtap() {
-  set -e
-  PGTAP_JOBS="${PGTAP_JOBS:-1}" bash "$ROOT/scripts/pgtap-run.sh"
+  # explicit `|| return 1` (see stage_static): `set -e` is ignored when run_stage calls this in an `if`
+  PGTAP_JOBS="${PGTAP_JOBS:-1}" bash "$ROOT/scripts/pgtap-run.sh" || return 1
   # Refund-vs-consume and loyalty-ledger race (two real sessions; pgTAP runs one). Epic 19 R-1, Epic 20 R-1.
-  bash "$ROOT/scripts/session-refund-race.sh"
+  bash "$ROOT/scripts/session-refund-race.sh" || return 1
   # job-runs-alert.sql against fixtures (Epic 20 R-4).
-  bash "$ROOT/scripts/job-runs-alert.test.sh"
+  bash "$ROOT/scripts/job-runs-alert.test.sh" || return 1
+  # Super Admin aal2 enable/reset operator scripts against fixtures on the local DB (Story 22.6).
+  bash "$ROOT/scripts/super-admin-aal2.test.sh" || return 1
+  # Claim-read inventory (Story 22.2; enforcing since 22.4): any non-exempt claim-only / null-unsafe entry fails.
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" pnpm run check:claims || return 1
 }
 
 stage_unit() {
-  set -e
-  npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile
+  npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile --filter=@gymos/super-admin || return 1
 }
 
 psql_local() {
@@ -109,10 +127,9 @@ e2e_preflight() {
 }
 
 stage_e2e() {
-  set -e
   e2e_preflight || return 1
-  eval "$("$SUPABASE" status -o env 2>/dev/null)"
-  : "${API_URL:?supabase status did not export API_URL -- is the local stack running?}"
+  eval "$("$SUPABASE" status -o env 2>/dev/null)" || return 1
+  : "${API_URL:?supabase status did not export API_URL -- is the local stack running?}" || return 1
   export NEXT_PUBLIC_SUPABASE_URL=$API_URL
   export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY
   export SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
@@ -120,7 +137,7 @@ stage_e2e() {
   # Idempotent (no-op once cached); CI does the same before the suite.
   (cd apps/dashboard && npx playwright install chromium) || return 1
   # CI=1 matches the Actions environment: retries: 1, no server reuse, html report.
-  CI=1 npx turbo run test:e2e --filter=@gymos/dashboard
+  CI=1 npx turbo run test:e2e --filter=@gymos/dashboard || return 1
 }
 
 echo "ci-local: $(git rev-parse --short HEAD) on $(git rev-parse --abbrev-ref HEAD)"
@@ -137,6 +154,7 @@ START=$SECONDS
 STAGES=()
 pids=()
 if want static; then STAGES+=(static); run_stage static stage_static & pids+=($!); fi
+if want deno;   then STAGES+=(deno);   run_stage deno   stage_deno   & pids+=($!); fi
 if want pgtap;  then STAGES+=(pgtap);  run_stage pgtap  stage_pgtap  & pids+=($!); fi
 for p in "${pids[@]:-}"; do [ -n "$p" ] && wait "$p"; done
 if want unit; then STAGES+=(unit); run_stage unit stage_unit; fi

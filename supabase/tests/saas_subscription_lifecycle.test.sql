@@ -52,6 +52,9 @@ select is(
 -- (b) a non-super_admin session's UPDATE silently pins the new columns back,
 -- mirroring the pre-existing status/tier_id/member_cap_override assertions.
 -- ============================================================================
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000009403');
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',

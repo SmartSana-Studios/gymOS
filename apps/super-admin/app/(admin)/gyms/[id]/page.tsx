@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { LoadError } from "@/components/load-error";
 import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
@@ -14,8 +15,6 @@ import {
 } from "@/services/gyms";
 import { GymDetailPageClient } from "./components/GymDetailPageClient";
 import GymDetailLoading from "./loading";
-import { getRequestLocale } from "@/lib/i18n/get-request-locale";
-import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
 // SA-03 Gym Detail. Same Server Component + explicit <Suspense> pattern as
 // gyms/page.tsx (Story 1.5's cacheComponents: true requirement). Story 1.7
@@ -94,8 +93,7 @@ async function GymDetailData({
     ownEscalationError ||
     activeEscalationsError
   ) {
-    const { t } = await getServerTranslation(await getRequestLocale());
-    return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
+    return <LoadError />;
   }
 
   if (!gym) {
@@ -141,8 +139,7 @@ async function GymDetailData({
   // the first check either way -- a failed member/payment read must not
   // render a half-page.
   if (membersError || paymentsError) {
-    const { t } = await getServerTranslation(await getRequestLocale());
-    return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
+    return <LoadError />;
   }
 
   const currentActorId = claimsData?.claims?.sub ?? null;

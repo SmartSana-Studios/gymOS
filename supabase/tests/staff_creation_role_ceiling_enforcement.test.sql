@@ -278,7 +278,7 @@ select set_config(
 
 select throws_like(
   $$select create_staff_member('00000000-0000-0000-0000-000000017109', 'Rejected By Deactivated Owner', '+237600000109', 'coach')$$,
-  '%create_staff_member: caller is not authorized to create staff%',
+  '%create_staff_member: caller has no gym-scoped session%',
   'a deactivated owner (no active membership row) is rejected -- private.current_member_role() resolves NULL, hitting the else branch'
 );
 

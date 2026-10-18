@@ -104,6 +104,20 @@ describe("initiatePayment", () => {
     expect(result.error).toEqual({ code: "gym_credentials_unavailable", message: "front desk fallback" });
   });
 
+  it("Story 22.4: a 403 permission_denied from the edge initiate route maps to the no-permission outcome", async () => {
+    invokeResult = {
+      error: new FunctionsHttpError({
+        json: async () => ({ error: "forbidden", code: "permission_denied" }),
+      }),
+    };
+    const { initiatePayment } = await import("./payments");
+
+    const result = await initiatePayment(VALID_INPUT);
+
+    expect(result.data).toBeNull();
+    expect(result.error).toEqual({ code: "permission_denied", message: "errors.permissionDenied" });
+  });
+
   it("a generic (non-gym_credentials_unavailable) Edge Function failure still falls through to mapAndLog", async () => {
     invokeResult = {
       error: new FunctionsHttpError({

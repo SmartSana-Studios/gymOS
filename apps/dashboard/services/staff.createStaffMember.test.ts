@@ -67,6 +67,16 @@ function makeSupabaseStub() {
   };
 }
 
+// Story 22.4: the live authorization wrapper is exercised in lib/authz.test.ts; here it is a switch.
+let authzDenied = false;
+vi.mock("@/lib/authz", () => ({
+  authorizeAction: vi.fn(async () =>
+    authzDenied
+      ? { ok: false, error: { code: "permission_denied", message: "errors.permissionDenied" } }
+      : { ok: true, actorId: "actor-1", gymId: "gym-1", role: "owner" },
+  ),
+}));
+
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => makeAdminStub()),
 }));
@@ -116,6 +126,7 @@ const input = { name: "Jane Coach", phone: "+237680811041", role: "coach" as con
 
 describe("createStaffMember", () => {
   beforeEach(() => {
+    authzDenied = false;
     createUserResult = { data: { user: { id: "new-user-1" } }, error: null };
     rpcResult = { data: { id: "member-1", role: "coach", gym_id: "gym-1" }, error: null };
     rpcCalls = [];
@@ -294,5 +305,23 @@ describe("createStaffMember", () => {
 
     expect(result).toEqual({ data: { tempPassword: null, smsSent: true, isExistingAccount: true }, error: null });
     expect(sendEvolutionApiMessage).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("createStaffMember live authorization (Story 22.4)", () => {
+  it("a deactivated or demoted actor gets permission_denied before any auth user is created", async () => {
+    authzDenied = true;
+    rpcCalls = [];
+    deleteAuthUserForCleanupCalls = [];
+    createUserMock.mockClear();
+    const { createStaffMember } = await import("./staff");
+
+    const result = await createStaffMember(input);
+
+    expect(result.data).toBeNull();
+    expect(result.error?.code).toBe("permission_denied");
+    expect(createUserMock).not.toHaveBeenCalled();
+    expect(rpcCalls).toEqual([]);
+    expect(deleteAuthUserForCleanupCalls).toEqual([]);
   });
 });

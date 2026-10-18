@@ -4,6 +4,13 @@ import { createClient } from "@supabase/supabase-js";
 import type { InitiatePaymentResult, PaymentProvider } from "./_shared/payment-providers/PaymentProvider.ts";
 import { TaraMoneyProvider } from "./_shared/payment-providers/TaraMoneyProvider.ts";
 import { buildCallbackUrl } from "./_shared/callbackUrl.ts";
+import {
+  authorizeAction,
+  logDenied,
+  permissionDeniedResponse,
+  verifyActor,
+  type EdgeCapability,
+} from "./_shared/authorize.ts";
 
 function jsonResponse(status: number, body: Record<string, unknown> = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -28,6 +35,35 @@ const PROVIDERS: Record<string, PaymentProvider> = {
 };
 
 /**
+ * Story 22.4: which capability applies to this payment row, then the live decision.
+ *   - payments row, actor is the user of the row's member  -> payment.initiate_own
+ *   - payments row, anyone else                            -> payment.initiate_staff (the gym's
+ *     staff roles; the database also rejects an actor with no live membership in the row's gym)
+ *   - saas_billing_payments row                            -> billing.saas_pay (the gym's Owner)
+ */
+async function authorizeInitiation(
+  actorId: string,
+  table: "payments" | "saas_billing_payments",
+  gymId: string | null,
+  memberId: string | null,
+): Promise<{ allowed: boolean; reason: string; capability: EdgeCapability }> {
+  let capability: EdgeCapability = "billing.saas_pay";
+  if (table === "payments") {
+    capability = "payment.initiate_staff";
+    if (memberId) {
+      const { data: memberRow } = await supabase
+        .from("members")
+        .select("user_id")
+        .eq("id", memberId)
+        .maybeSingle();
+      if (memberRow?.user_id === actorId) capability = "payment.initiate_own";
+    }
+  }
+  const decision = await authorizeAction(supabase, actorId, gymId, capability);
+  return { allowed: decision.allowed, reason: decision.reason, capability };
+}
+
+/**
  * Story 4.2: POST /payment-webhook/initiate/<providerKey> -- the real
  * orchestration route. Still one Edge Function (architecture.md reserves
  * Edge Functions for "the webhook receiver only" -- extending this
@@ -37,9 +73,12 @@ const PROVIDERS: Record<string, PaymentProvider> = {
  * session already passed the payments INSERT RLS policy (Task 3) -- that
  * INSERT is what proves the caller is authorized; this route trusts a
  * `paymentId` for a row that is real, `processing`, and not yet
- * provider-linked. No JWT verification is added here (verify_jwt = false is
- * required for the public webhook-receive route below, so it applies to
- * this route too) -- see the story's Dev Notes for why that's accepted.
+ * provider-linked. Story 22.4: the platform's verify_jwt = false (required for
+ * the public webhook-receive route) does not apply to this route's own
+ * authorization -- the handler verifies the caller's JWT itself and then asks
+ * public.authorize_action whether that actor may initiate THIS payment row
+ * (the member who owns it, staff of its gym, or the gym's Owner for SaaS
+ * billing), before any DB write or provider call.
  */
 async function handleInitiate(
   req: Request,
@@ -50,6 +89,13 @@ async function handleInitiate(
 ): Promise<Response> {
   if (req.method !== "POST") {
     return jsonResponse(405);
+  }
+
+  // Story 22.4: no valid JWT, no side effect (nothing is read, deleted or sent).
+  const actorId = await verifyActor(supabase, req);
+  if (!actorId) {
+    logDenied("initiate", null, null, "payment.initiate", "no_valid_session");
+    return permissionDeniedResponse();
   }
 
   let body: unknown;
@@ -66,7 +112,7 @@ async function handleInitiate(
 
   const { data: gymPaymentRow, error: gymFetchError } = await supabase
     .from("payments")
-    .select("id, status, provider_transaction_ref, amount, currency, gym_id")
+    .select("id, status, provider_transaction_ref, amount, currency, gym_id, member_id")
     .eq("id", paymentId)
     .maybeSingle();
 
@@ -107,6 +153,7 @@ async function handleInitiate(
   // globally-unique UUID primary key in only one of the two tables at a
   // time.
   let table: "payments" | "saas_billing_payments" = "payments";
+  let saasGymId: string | null = null;
   let payment: { id: string; status: string; provider_transaction_ref: string | null; amount: number; currency: string; gymId: string | null } | null =
     gymPaymentRow
       ? {
@@ -118,11 +165,12 @@ async function handleInitiate(
           gymId: gymPaymentRow.gym_id,
         }
       : null;
+  let rowMemberId: string | null = gymPaymentRow?.member_id ?? null;
 
   if (!payment) {
     const { data: saasPaymentRow, error: saasFetchError } = await supabase
       .from("saas_billing_payments")
-      .select("id, status, provider_transaction_ref, amount, currency")
+      .select("id, status, provider_transaction_ref, amount, currency, gym_id")
       .eq("id", paymentId)
       .maybeSingle();
 
@@ -149,6 +197,18 @@ async function handleInitiate(
         currency: saasPaymentRow.currency,
         gymId: null,
       };
+      rowMemberId = null;
+      saasGymId = saasPaymentRow.gym_id ?? null;
+    }
+  }
+
+  // Story 22.4: authorize the actor against THIS row's gym before any write or provider call.
+  // A nonexistent row falls through to the eligibility 400 below (nothing to authorize against).
+  if (payment) {
+    const decision = await authorizeInitiation(actorId, table, payment.gymId ?? saasGymId, rowMemberId);
+    if (!decision.allowed) {
+      logDenied("initiate", actorId, payment.gymId ?? saasGymId, decision.capability, decision.reason);
+      return permissionDeniedResponse();
     }
   }
 
@@ -329,6 +389,13 @@ async function handleInitiateLink(
     return jsonResponse(400, { error: `${providerKey} does not support hosted checkout links` });
   }
 
+  // Story 22.4: no valid JWT, no side effect.
+  const actorId = await verifyActor(supabase, req);
+  if (!actorId) {
+    logDenied("initiate-link", null, null, "billing.saas_pay", "no_valid_session");
+    return permissionDeniedResponse();
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -343,13 +410,22 @@ async function handleInitiateLink(
 
   const { data: payment, error: fetchError } = await supabase
     .from("saas_billing_payments")
-    .select("id, status, provider_transaction_ref, amount, currency")
+    .select("id, status, provider_transaction_ref, amount, currency, gym_id")
     .eq("id", paymentId)
     .maybeSingle();
 
   if (fetchError) {
     console.error(`payment-webhook: ${providerKey} initiate-link lookup failed for payment ${paymentId} — ${fetchError.message}`);
     return jsonResponse(500);
+  }
+
+  // Story 22.4: Flow B is the gym's own SaaS bill, so only the gym's live Owner may start it.
+  if (payment) {
+    const decision = await authorizeAction(supabase, actorId, payment.gym_id ?? null, "billing.saas_pay");
+    if (!decision.allowed) {
+      logDenied("initiate-link", actorId, payment.gym_id ?? null, "billing.saas_pay", decision.reason);
+      return permissionDeniedResponse();
+    }
   }
 
   if (!payment || payment.status !== "processing" || payment.provider_transaction_ref !== null) {

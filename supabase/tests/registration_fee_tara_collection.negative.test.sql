@@ -92,7 +92,7 @@ select set_config('request.jwt.claims',
 select throws_like($$ select initiate_registration_fee_payment('00000000-0000-0000-0000-0000000313d1') $$, '%permission denied%', 'a receptionist claim with no gym_id cannot start a collection');
 
 select set_config('request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-0000000313a1","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000031392"}', true);
+  '{"sub":"00000000-0000-0000-0000-00000000ff22","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000031392"}', true);
 select throws_like($$ select initiate_registration_fee_payment('00000000-0000-0000-0000-0000000313d1') $$, '%permission denied%', 'a claim with a gym_id but no app_role cannot start a collection (fails closed)');
 
 select set_config('request.jwt.claims', '{"role":"anon"}', true);

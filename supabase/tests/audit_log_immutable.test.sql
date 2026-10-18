@@ -27,6 +27,9 @@ values ('00000000-0000-0000-0000-0000000000e1', 'Audit Gym', '00000000-0000-0000
 
 insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000e2');
 update public.users set display_name = 'Real Display Name' where id = '00000000-0000-0000-0000-0000000000e2';
+-- 22.3: the gym_id claim must resolve to a live membership.
+insert into members (id, gym_id, user_id, role, name)
+values ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e2', 'owner', 'Audit Owner');
 
 -- ---------------------------------------------------------------------------
 -- log_audit_event(): system/no-session caller. Runs as service_role, NOT the
@@ -37,7 +40,6 @@ update public.users set display_name = 'Real Display Name' where id = '00000000-
 -- auth.uid() is null for it too -- this is a legitimate system-caller
 -- simulation, not just a role-bypass shortcut.
 -- ---------------------------------------------------------------------------
-
 set local role service_role;
 
 select lives_ok(
@@ -232,10 +234,16 @@ select throws_like(
 -- claims hook's shape for Super Admin sessions, Story 1.3) -- their
 -- escalated cross-gym access is itself a legitimate, audit-logged action
 -- (FR-072), so p_gym_id must pass through unchecked.
+-- 22.3 live super admin flag: private.is_super_admin_live() reads users.is_super_admin.
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+-- 0130: the gym owner (e2) can never be a Super Admin, so the Super Admin session uses its own account (ea).
+insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000ea');
+update users set is_super_admin = true where id = '00000000-0000-0000-0000-0000000000ea';
 set local role authenticated;
 select set_config(
   'request.jwt.claims',
-  '{"sub":"00000000-0000-0000-0000-0000000000e2","role":"authenticated","app_role":"super_admin"}',
+  '{"sub":"00000000-0000-0000-0000-0000000000ea","role":"authenticated","app_role":"super_admin"}',
   true
 );
 

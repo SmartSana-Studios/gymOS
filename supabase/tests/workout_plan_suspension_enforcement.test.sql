@@ -123,6 +123,10 @@ insert into workout_plan_completions (id, gym_id, member_id, plan_id, exercise_i
 -- file against the unguarded schema: tests 1-3 passed, the Section B ones did
 -- not.
 -- ============================================================================
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+insert into auth.users (id) values ('00000000-0000-0000-0000-000000020291');
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000020291');
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',

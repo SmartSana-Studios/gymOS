@@ -1,12 +1,11 @@
 import { Suspense } from "react";
+import { LoadError } from "@/components/load-error";
 
 import { parsePageSize } from "@gymos/types";
 
 import { listGymsBilling } from "@/services/billing";
 import { BillingPageClient } from "./components/BillingPageClient";
 import BillingLoading from "./loading";
-import { getRequestLocale } from "@/lib/i18n/get-request-locale";
-import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 
 // SA-07 Billing view. Same Server Component + explicit <Suspense> shape as
 // gyms/page.tsx (required under this app's `cacheComponents: true` -- see
@@ -42,8 +41,7 @@ async function BillingData({
   const { data: billingPage, error } = await listGymsBilling({ page, pageSize: parsePageSize(params.size, 5), search: params.search, status });
 
   if (error) {
-    const { t } = await getServerTranslation(await getRequestLocale());
-    return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
+    return <LoadError />;
   }
 
   return (

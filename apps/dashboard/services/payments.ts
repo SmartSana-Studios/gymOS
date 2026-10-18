@@ -168,6 +168,9 @@ export async function initiatePayment(
         // Non-JSON or unreadable body -- falls through to the generic
         // mapAndLog(invokeError) below.
       }
+      if (code === "permission_denied") {
+        return { data: null, error: { code: "permission_denied", message: t("errors.permissionDenied") } };
+      }
       if (code === "gym_credentials_unavailable") {
         return {
           data: null,
@@ -290,6 +293,9 @@ export async function initiateRegistrationFeePayment(
         code = (await invokeError.context.json())?.code;
       } catch {
         // Non-JSON or unreadable body -- falls through to mapAndLog below.
+      }
+      if (code === "permission_denied") {
+        return { data: null, error: { code: "permission_denied", message: t("errors.permissionDenied") } };
       }
       if (code === "gym_credentials_unavailable") {
         return {

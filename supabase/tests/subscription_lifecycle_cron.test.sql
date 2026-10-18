@@ -165,6 +165,9 @@ select lives_ok(
 -- super_admin_job_failures(): permission gate. (Row-shape/content coverage
 -- for an actual failure is verified hands-on -- see this story's Debug Log.)
 -- ============================================================================
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000000710');
+
 set local role authenticated;
 select set_config(
   'request.jwt.claims',

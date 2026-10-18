@@ -217,6 +217,8 @@ function RenewScreenContent() {
         setInitiateError(t('renew.errors.gymCredentialsUnavailable'));
       } else if (result.code === 'mobile_money_disabled') {
         setInitiateError(t('renew.errors.mobileMoneyDisabled'));
+      } else if (result.code === 'permission_denied') {
+        setInitiateError(t('common.permissionDenied'));
       } else if (result.code === 'no_active_plan') {
         setInitiateError(t('renew.errors.noActivePlan'));
       } else if (result.code === 'not_eligible_for_renewal') {

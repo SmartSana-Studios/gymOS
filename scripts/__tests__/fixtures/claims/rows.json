@@ -1,0 +1,7 @@
+[
+  {"kind":"policy","name":"public.t.claim_policy","file":"supabase/migrations/9999_x.sql","text":"((auth.jwt() ->> 'app_role'::text) = 'owner'::text)"},
+  {"kind":"policy","name":"public.t.live_policy","text":"(private.current_member_role() = 'owner'::member_role)"},
+  {"kind":"function","name":"public.hook(event jsonb)","text":"claims := event -> 'claims'; select 1 -- auth.jwt()"},
+  {"kind":"function","name":"public.nulls()","text":"if private.current_member_role() <> any (array['a','b']) then null; end if;"},
+  {"kind":"function","name":"public.unrelated()","text":"select 1 where gym_id = 'x'"}
+]

@@ -45,11 +45,20 @@ jobs:
       - name: Migration guardrails (AD-3 app_role lint, function privilege revokes)
         run: pnpm run check:migrations && pnpm run test:guardrails
 
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Edge function tests (payment-webhook initiate authorization, Story 22.4)
+        working-directory: supabase/functions/payment-webhook
+        run: deno test --allow-all .
+
       - name: Unit/component tests
         # Scoped to the apps with a wired-up test runner: dashboard
-        # (Story 2.10 QA automation) and mobile (Story 19.11, pure modules
-        # and services under vitest).
-        run: npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile
+        # (Story 2.10 QA automation), mobile (Story 19.11, pure modules
+        # and services under vitest) and super-admin (Story 22 retro item 7:
+        # the Server Action gate scan and the authz tests must actually run).
+        run: npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile --filter=@gymos/super-admin
 
   rls-tests:
     runs-on: ubuntu-latest
@@ -91,6 +100,12 @@ jobs:
 
       - name: Check the job_runs alert query against fixtures
         run: DB_CONTAINER=supabase_db_gym_os bash scripts/job-runs-alert.test.sh
+
+      - name: Super Admin aal2 enable/reset scripts against the local database
+        run: DB_CONTAINER=supabase_db_gym_os bash scripts/super-admin-aal2.test.sh
+
+      - name: Claim-read inventory (report mode, new claim-only entries fail)
+        run: DB_CONTAINER=supabase_db_gym_os node scripts/claim-inventory.mjs
 
       - name: Stop local Supabase
         if: always()

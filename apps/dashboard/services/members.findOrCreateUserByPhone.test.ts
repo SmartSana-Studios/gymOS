@@ -65,6 +65,16 @@ function makeAdminStub() {
   };
 }
 
+// Story 22.4: the live authorization wrapper is exercised in lib/authz.test.ts; here it is a switch.
+let authzDenied = false;
+vi.mock("@/lib/authz", () => ({
+  authorizeAction: vi.fn(async () =>
+    authzDenied
+      ? { ok: false, error: { code: "permission_denied", message: "errors.permissionDenied" } }
+      : { ok: true, actorId: "actor-1", gymId: "gym-1", role: "receptionist" },
+  ),
+}));
+
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => makeAdminStub()),
 }));
@@ -87,6 +97,7 @@ const PHONE_AS_STORED = "237699000777";
 
 describe("findOrCreateUserByPhone -- E.164 lookup normalization", () => {
   beforeEach(() => {
+    authzDenied = false;
     vi.clearAllMocks();
     usersLookupResults = [];
     usersLookupCalls = [];
@@ -194,6 +205,7 @@ describe("findOrCreateUserByPhone -- E.164 lookup normalization", () => {
  */
 describe("findOrCreateUserByPhone -- staff/member phone separation (0094)", () => {
   beforeEach(() => {
+    authzDenied = false;
     vi.clearAllMocks();
     usersLookupResults = [{ data: { id: "existing-user-1" }, error: null }];
     usersLookupCalls = [];
@@ -244,5 +256,21 @@ describe("findOrCreateUserByPhone -- staff/member phone separation (0094)", () =
 
     expect(result.data).toBeNull();
     expect(result.error?.code).toBe("unknown");
+  });
+});
+
+describe("findOrCreateUserByPhone live authorization (Story 22.4)", () => {
+  it("a denied actor never reaches the admin client: no lookup, no createUser", async () => {
+    authzDenied = true;
+    usersLookupCalls = [];
+    createUserCalls = [];
+    const { findOrCreateUserByPhone } = await import("@/services/members");
+
+    const result = await findOrCreateUserByPhone(PHONE_WITH_PLUS);
+
+    expect(result.data).toBeNull();
+    expect(result.error?.code).toBe("permission_denied");
+    expect(usersLookupCalls).toEqual([]);
+    expect(createUserCalls).toEqual([]);
   });
 });

@@ -1,6 +1,7 @@
 "use server";
 
 import { createOrPromoteSuperAdminSchema, type AppError } from "@gymos/types";
+import { authorizePlatformAction, consumeStepUp, STEP_UP_REQUIRED_CODE } from "@/lib/authz";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapAndLog } from "@/services/gyms";
@@ -12,6 +13,21 @@ import {
   displayNameFromEmail,
   findUserByEmail,
 } from "@/lib/super-admin-provisioning.mjs";
+import { sendMail } from "@/lib/mail";
+import { appBaseUrl } from "@/lib/recovery";
+import { adminCreatedMail, adminPromotedMail, type InviteLocale } from "@/lib/admin-invite-mail";
+
+async function inviteLocale(): Promise<InviteLocale> {
+  return (await getRequestLocale()) === "fr" ? "fr" : "en";
+}
+
+async function sendInvite(to: string, mail: { subject: string; text: string }): Promise<boolean> {
+  try {
+    return (await sendMail({ to: to.trim(), ...mail })).ok;
+  } catch {
+    return false;
+  }
+}
 
 export interface SuperAdminRow {
   id: string;
@@ -44,6 +60,11 @@ export async function listSuperAdmins(): Promise<{
   error: AppError | null;
 }> {
   const { t } = await getServerTranslation(await getRequestLocale());
+  // Story 22.4: live check before the admin client resolves any email.
+  const authz = await authorizePlatformAction("platform.super_admin_manage");
+  if (!authz.ok) {
+    return { data: null, error: authz.error };
+  }
   const supabase = await createClient();
   // Annotated explicitly: this app's Supabase clients are constructed
   // without the `Database` generic (lib/supabase/server.ts), so a
@@ -94,7 +115,12 @@ export async function listSuperAdmins(): Promise<{
  * write is attributed to the real calling Super Admin, not a system label.
  */
 export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
-  data: { outcome: "created" | "promoted" | "already_super_admin"; tempPassword: string | null } | null;
+  data: {
+    outcome: "created" | "promoted" | "already_super_admin";
+    tempPassword: string | null;
+    /** The sign-in details were emailed to the new/promoted admin. False = the caller must pass them on. */
+    emailed: boolean;
+  } | null;
   error: AppError | null;
 }> {
   const { t } = await getServerTranslation(await getRequestLocale());
@@ -109,21 +135,27 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
   }
   const { email, currentPassword } = parsed.data;
 
-  // AC #7: re-verify the caller's own session claims here, on top of the
-  // (admin) layout guard -- a deliberate, narrow exception to this app's
+  // AC #7 (22.4: now live, read from the database at call time, never from the `app_role`
+  // claim): re-verify the caller here, on top of the (admin) layout guard -- a deliberate, narrow exception to this app's
   // usual convention of relying on the layout guard alone (createGym etc.
   // do not re-check). NFR-020 requires this specific action to self-enforce
   // server-side because it mints the platform's highest privilege, and a
   // Server Action endpoint is reachable independently of the rendered page.
   // Do NOT generalize this pattern to other actions in this app.
-  const session = await createClient();
-  const { data: claimsData, error: claimsError } = await session.auth.getClaims();
-  if (claimsError || claimsData?.claims?.app_role !== "super_admin") {
-    return {
-      data: null,
-      error: { code: "unauthorized", message: t("admins.errors.unauthorized") },
-    };
+  const authz = await authorizePlatformAction("platform.super_admin_manage");
+  if (!authz.ok) {
+    return { data: null, error: authz.error };
   }
+
+  // Story 22 retro item 54 (option A): while the second factor is required, new Super Admins are not added
+  // in the app. A new admin would hold only a password and could neither reach /security (aal2) nor enrol a
+  // factor, so the account would be dead on arrival. They are added in a controlled bootstrap window instead
+  // (docs/runbooks/super-admin-recovery.md, "Adding a Super Admin"). Fails closed if the flag cannot be read.
+  const { data: flagOn, error: flagError } = await createAdminClient().rpc("super_admin_aal2_required");
+  if (flagError || typeof flagOn !== "boolean" || flagOn) {
+    return { data: null, error: { code: "bootstrap_window_required", message: t("admins.errors.bootstrapWindow") } };
+  }
+  const session = await createClient();
 
   // Post-review addition (2026-09-07, requested during manual testing):
   // step-up re-authentication. The acting Super Admin must prove they still
@@ -163,6 +195,12 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
     return { data: null, error: await mapAndLog(reauthError) };
   }
 
+  // Story 22.7: creating or promoting a Super Admin needs a fresh single-use step-up bound to the email.
+  // Consumed after the password check so a wrong password does not burn it.
+  if (!(await consumeStepUp(authz.actorId, "create_super_admin", email.trim().toLowerCase()))) {
+    return { data: null, error: { code: STEP_UP_REQUIRED_CODE, message: t("stepUp.title") } };
+  }
+
   const admin = createAdminClient();
 
   let existing;
@@ -170,6 +208,21 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
     existing = await findUserByEmail(admin, email);
   } catch (err) {
     return { data: null, error: await mapAndLog(err) };
+  }
+
+  // A gym owner must never be a Super Admin (migration 0130 enforces it in the database; this says so clearly).
+  if (existing) {
+    const { data: ownerRows, error: ownerError } = await admin
+      .from("members")
+      .select("id")
+      .eq("user_id", existing.id)
+      .eq("role", "owner")
+      .is("deactivated_at", null)
+      .limit(1);
+    if (ownerError) return { data: null, error: await mapAndLog(ownerError) };
+    if ((ownerRows ?? []).length > 0) {
+      return { data: null, error: { code: "owner_cannot_be_super_admin", message: t("admins.errors.ownerCannotBeSuperAdmin") } };
+    }
   }
 
   if (!existing) {
@@ -212,7 +265,15 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
       return { data: null, error: await mapAndLog(auditError) };
     }
 
-    return { data: { outcome: "created", tempPassword: created.tempPassword }, error: null };
+    // Owner decision 2026-10-17: the new admin also gets the sign-in details by email. Best effort: a failed send
+    // never undoes the account, and the temp password stays on screen for the caller either way.
+    // Without a configured app origin (production, SUPER_ADMIN_APP_URL unset) there is no sign-in link to give, so a
+    // mail carrying only the password would be useless and risky: do not send it, and the caller is told so.
+    const loginUrl = appBaseUrl();
+    const emailed = loginUrl
+      ? await sendInvite(email, adminCreatedMail({ email: email.trim(), tempPassword: created.tempPassword, loginUrl, locale: await inviteLocale() }))
+      : false;
+    return { data: { outcome: "created", tempPassword: created.tempPassword, emailed }, error: null };
   }
 
   // AC #4's idempotency check now lives inside promote_to_super_admin()
@@ -222,6 +283,9 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
     p_fallback_display_name: displayNameFromEmail(email),
   });
   if (promoteError) {
+    if (String(promoteError.message ?? "").includes("owner_is_super_admin")) {
+      return { data: null, error: { code: "owner_cannot_be_super_admin", message: t("admins.errors.ownerCannotBeSuperAdmin") } };
+    }
     return { data: null, error: await mapAndLog(promoteError) };
   }
   // No `Database` generic on this app's Supabase clients (see listSuperAdmins
@@ -233,7 +297,7 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
 
   if (alreadySuperAdmin) {
     // AC #4: no-op -- no write, no audit-log row.
-    return { data: { outcome: "already_super_admin", tempPassword: null }, error: null };
+    return { data: { outcome: "already_super_admin", tempPassword: null, emailed: false }, error: null };
   }
 
   const { error: promoteAuditError } = await session.rpc("log_audit_event", {
@@ -263,5 +327,7 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
     return { data: null, error: await mapAndLog(promoteAuditError) };
   }
 
-  return { data: { outcome: "promoted", tempPassword: null }, error: null };
+  const promotedUrl = appBaseUrl();
+  const emailed = promotedUrl ? await sendInvite(email, adminPromotedMail({ loginUrl: promotedUrl, locale: await inviteLocale() })) : false;
+  return { data: { outcome: "promoted", tempPassword: null, emailed }, error: null };
 }

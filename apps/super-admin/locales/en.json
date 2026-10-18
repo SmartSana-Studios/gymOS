@@ -14,6 +14,7 @@
     "messaging": "Messaging",
     "billing": "Billing",
     "admins": "Admins",
+    "security": "Security",
     "switchToLightTheme": "Switch to light theme",
     "switchToDarkTheme": "Switch to dark theme",
     "openMenu": "Open navigation menu",
@@ -23,7 +24,9 @@
   "auth": {
     "description": "Enter your email below to login to your account",
     "noAccount": "Don't have an account?",
-    "signUp": "Sign up"
+    "signUp": "Sign up",
+    "sessionExpired": "Your session expired. Please sign in again.",
+    "wrongAccount": "Wrong account credentials."
   },
   "gyms": {
     "title": "Gyms",
@@ -374,6 +377,54 @@
     "jobFailuresFinishedAt": "Finished",
     "jobFailuresError": "Error"
   },
+  "security": {
+    "title": "Security",
+    "description": "Protect this account with an authenticator app (TOTP).",
+    "noFactors": "No authenticator is set up.",
+    "unnamedFactor": "Authenticator",
+    "verified": "Verified",
+    "unverified": "Not verified",
+    "remove": "Remove",
+    "addFactor": "Add authenticator",
+    "enrollTitle": "Add authenticator",
+    "close": "Close",
+    "scanQr": "Scan this QR code with your authenticator app, then enter the 6-digit code.",
+    "qrAlt": "Authenticator QR code",
+    "manualKey": "Or enter this key manually",
+    "codeLabel": "6-digit code",
+    "verify": "Verify",
+    "errors": {
+      "generic": "Something went wrong. Please try again.",
+      "enrollFailed": "Could not start enrollment. Please try again.",
+      "invalidCode": "That code is not valid. Please try again.",
+      "lastFactor": "You cannot remove your last verified authenticator.",
+      "signOutFailed": "The authenticator was removed, but other sessions could not be ended. Sign out on your other devices now."
+    },
+    "recovery": {
+      "title": "Recovery email",
+      "description": "A separate mailbox that can reset your authenticators if you lose your device. It must differ from your login email.",
+      "none": "No recovery email is set.",
+      "current": "Current: {{masked}}",
+      "set": "Set recovery email",
+      "change": "Change",
+      "remove": "Remove",
+      "pending": "A recovery reset is scheduled for {{time}}.",
+      "modalTitle": "Recovery email",
+      "emailLabel": "Recovery email address",
+      "emailHint": "We will send a 6-digit code to this address to check it.",
+      "sendCode": "Send code",
+      "codeSent": "Enter the 6-digit code we sent to that address.",
+      "errors": {
+        "sameAsLogin": "The recovery email must be different from your login email.",
+        "invalidEmail": "Enter a valid email address.",
+        "invalidCode": "That code is not valid.",
+        "rateLimited": "Too many requests. Try again later.",
+        "mailFailed": "The email could not be sent. Try again.",
+        "notConfigured": "Email sending is not configured.",
+        "generic": "Something went wrong. Please try again."
+      }
+    }
+  },
   "admins": {
     "title": "Admins",
     "addAdmin": "+ Add Admin",
@@ -389,7 +440,7 @@
       "title": "Add Admin",
       "close": "Close",
       "email": "Email *",
-      "currentPassword": "Your password *",
+      "currentPassword": "Confirm this action with your password *",
       "submit": "Add {{email}} as Super Admin",
       "submitEmpty": "Add Admin",
       "submitting": "Adding…"
@@ -398,12 +449,18 @@
       "created": "{{email}} created as a new Super Admin.",
       "promoted": "{{email}} promoted to Super Admin.",
       "alreadySuperAdmin": "{{email}} is already a Super Admin — no change made.",
+      "createdEmailed": "{{email}} created as a new Super Admin. The sign-in details were also emailed to them.",
+      "createdNotEmailed": "{{email}} created as a new Super Admin. The email could not be sent: pass the temporary password below to them yourself.",
+      "promotedEmailed": "{{email}} promoted to Super Admin. They were notified by email.",
+      "promotedNotEmailed": "{{email}} promoted to Super Admin. The email could not be sent: tell them yourself.",
       "copyPassword": "Copy temp password",
       "passwordCopied": "Copied!",
       "dismiss": "Dismiss"
     },
     "errors": {
       "unauthorized": "You must be signed in as a Super Admin to do this.",
+      "bootstrapWindow": "Adding a Super Admin is turned off while the second factor is required. Ask the platform operator to open a bootstrap window (see the Super Admin recovery runbook, \"Adding a Super Admin\").",
+      "ownerCannotBeSuperAdmin": "A gym owner cannot be a Super Admin. Use a separate platform account for staff.",
       "incorrectPassword": "That password is incorrect."
     }
   },
@@ -418,5 +475,52 @@
     "previous": "Previous page",
     "next": "Next page",
     "ellipsis": "…"
+  },
+  "mfaPrompt": {
+    "title": "Second factor",
+    "description": "Enter the 6-digit code from your authenticator app to continue.",
+    "codeLabel": "6-digit code",
+    "verify": "Verify",
+    "verifying": "Verifying...",
+    "invalidCode": "That code is not valid. Try again.",
+    "noFactor": "No verified authenticator is available for this account. Contact the platform operator.",
+    "recovery": {
+      "link": "Can't use your authenticator?",
+      "intro": "We will email a code to your recovery address. Using it schedules the removal of your authenticators after a delay; you can cancel from the email.",
+      "send": "Email me a code",
+      "sent": "If a recovery email is on file, a code is on its way. Enter it below.",
+      "codeLabel": "Recovery code",
+      "submit": "Confirm",
+      "scheduled": "Recovery requested. Your authenticators will be removed at {{time}}. Check your email to cancel if this was not you.",
+      "waiting": "This page checks every few seconds and moves on by itself once the reset has run (it can take up to a minute after that time).",
+      "goToLogin": "Go to sign in",
+      "cancelled": "The recovery was cancelled. Your authenticators are unchanged; sign in again to continue.",
+      "invalid": "That code is not valid.",
+      "locked": "This account is locked. Contact an operator.",
+      "failed": "Recovery could not be completed. Try again later."
+    }
+  },
+  "stepUp": {
+    "title": "Confirm with your authenticator",
+    "description": "This action needs a fresh 6-digit code from your authenticator app.",
+    "codeLabel": "6-digit code",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "verifying": "Verifying...",
+    "invalidCode": "That code is not valid. Try again.",
+    "locked": "Too many wrong codes. This account is locked; contact the platform operator.",
+    "unavailable": "We could not check the code right now. Please try again."
+  },
+  "mfaEnroll": {
+    "title": "Set up a new authenticator",
+    "description": "A recovery removed your previous authenticators. Add a new one to sign in."
+  },
+  "recoveryCancel": {
+    "title": "Cancel account recovery",
+    "description": "Cancel the scheduled removal of your authenticators?",
+    "confirm": "Cancel recovery",
+    "done": "Recovery cancelled. Nothing was changed.",
+    "invalid": "This link is invalid or was already used.",
+    "home": "Back to sign in"
   }
 }

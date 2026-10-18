@@ -116,6 +116,13 @@ values
   ('public', 'switch_active_gym',               'Same: switching away from a suspended gym must work'),
   ('public', 'custom_access_token_hook',        'Must keep minting claims for a suspended gym, or the Owner cannot log in to pay (0073:71-73)'),
 
+  -- Epic 22 session-limit and Super Admin recovery plumbing (0127, 0128). They write the gated audit_log through
+  -- private helpers only reachable by service_role / the gated actions, and a suspended gym's staff must still be
+  -- locked out, stepped up and audited: gating them would turn a lockout record into a silent failure.
+  ('private', 'session_gate_touch',     'Idle/age/lock check on every request; also records the lock. Must run for a suspended gym too (0127)'),
+  ('private', 'stepup_record_failure',  'Records a failed step-up code (and the lock it can trigger); gating it would let a suspended gym bypass the lockout (0127)'),
+  ('private', 'recovery_audit',         'Audit writer for Super Admin recovery (no gym; platform-level), service_role only (0128)'),
+
   -- The single highest-risk entry on this list.
   ('public', 'log_audit_event', 'Writes the gated audit_log and is called BY many other RPCs including every recovery path above -- gating it would cascade and break all of them. It already validates gym IDENTITY (p_gym_id vs private.gym_id()); status is deliberately not its concern'),
 

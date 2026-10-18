@@ -1147,3 +1147,58 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-21-1-gym-category-column-setter-super-admin.md`
   summary: Four 21-1 review deferrals closed out. Pin trigger on a plain GUC: accepted risk, same pattern as 0098/0107/0117 and prescribed by AD-32; a stronger gate would be one cross-cutting change to all four pins (open as its own story if wanted). Typed errors and suspended-gym message: accepted, Settings is unreachable for a suspended gym and the generic message is the repo convention. Super Admin audit-label render test: done (`AuditTrailTab.test.tsx`). Inline status instead of toast: accepted and reconciled in epics.md 21.1.
   evidence: epic-21-retro-2026-10-15.md action items A3 and A5.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-3-live-authorization-in-the-database.md`
+  summary: `protect_payment_columns_on_staff_verify` never pinned columns for `supervisor` (its role array is owner/manager/receptionist) although `gym_staff_verify_own_payments` allows supervisors to verify, so a supervisor can alter amount/method/member on a pending payment while verifying.
+  evidence: pre-existing in the original trigger (not introduced by 22.3); 22.3 kept the same set. Settle by deciding whether supervisor should be pinned like the others.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-3-live-authorization-in-the-database.md`
+  summary: `payments_member_same_gym` only validates new writes (insert, update of member_id/gym_id); historic payment rows are not re-validated and no cleanup exists.
+  evidence: local data has 0 mismatches; production not checked. Run the count query against production before relying on it.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-4-live-authorization-in-edge-functions-and-service-paths.md`
+  summary: authorizeAction costs two extra round trips per row in member import loops; consider authorize-once-per-import.
+  evidence: findOrCreateUserByPhone and settleRegistrationFeeForImport each call getUser plus an admin RPC per row; performance only.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-4-live-authorization-in-edge-functions-and-service-paths.md`
+  summary: initiate-link success path has no passing Deno test and the Deno suite is not in ci-local.
+  evidence: the success test is one of three pre-existing baseline Deno failures; unverified that an authorized Owner still gets a checkout URL end to end.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-4-live-authorization-in-edge-functions-and-service-paths.md`
+  summary: check:claims cannot detect a service-role path with no authorization at all, and payment-webhook is exempt wholesale.
+  evidence: scanner keys on claim reads and a createAdminClient/SERVICE_ROLE_KEY regex; a wrapper helper or a new unauthenticated route escapes it.
+
+## Deferred from: code review of spec-22-4 (2026-10-15)
+
+- `getMemberRegistrationFeeState` now denies roles outside owner/manager/supervisor/receptionist (e.g. `coach`) on the audit read. Unverified (maybe-false, medium if true): check whether coach could reach member detail before 22.4.
+- `deleteAuthUserForCleanup` / `deleteMemberForCleanup` (`apps/dashboard/services/members.provisioning.ts`) are exported service-role writers with no `authorizeAction`; only reached after authorized steps today.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-5-super-admin-second-factor-enrollment-flag-off.md`
+  summary: Concurrent factor removals can both pass the last-factor check and leave zero verified factors while the flag is on.
+  evidence: check-then-act in removeFactor; needs a DB lock or RPC; medium if reachable, unverified exploit; close before 22.6 flips the flag.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-5-super-admin-second-factor-enrollment-flag-off.md`
+  summary: Super Admin has no in-app aal1 to aal2 challenge or redirect while the flag is on.
+  evidence: /security and every action gate at aal2; 22.6 AC covers the redirect to a second-factor prompt; must exist before the flag is flipped.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-5-super-admin-second-factor-enrollment-flag-off.md`
+  summary: apps/super-admin Vitest is not run by scripts/ci-local.sh stage_unit (only dashboard and mobile), so the new security tests and the env-gated provider test are ungated.
+  evidence: stage_unit filters @gymos/dashboard and @gymos/mobile only; pre-existing gap.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-5-super-admin-second-factor-enrollment-flag-off.md`
+  summary: custom_access_token_hook exception handler returns the original event unchanged, which could echo an incoming app_role at aal1 when the flag is on.
+  evidence: maybe-false, medium if true; settle by forcing a hook error at flag on and decoding the minted claims.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-6-super-admin-bootstrap-second-device-and-recovery.md`
+  summary: No audited way to turn super_admin_aal2 off without destroying factors (only the destructive reset script).
+  evidence: review (blind hunter); real gap if enable misfires with a working factor; a `--disable` mode would settle it. Medium, unverified.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-6-super-admin-bootstrap-second-device-and-recovery.md`
+  summary: scripts/super-admin-aal2.test.sh exits 1 on its SKIP paths (pg module missing, other Super Admins present) and needs `npm i pg@8` over the network in CI.
+  evidence: review (verification gap); an environment-dependent red in ci-local/ci.yml; first CI run on the epic PR settles it.
+- source_spec: `_bmad-output/implementation-artifacts/spec-22-6-super-admin-bootstrap-second-device-and-recovery.md`
+  summary: Enable checks factor counts, then waits on a typed confirmation inside the open transaction without re-checking or locking auth.mfa_factors.
+  evidence: review (edge-case hunter); only a concurrent factor change by the sole operator can hit it; low-medium, unverified.
+
+## Deferred from: code review of spec-22-6-super-admin-bootstrap-second-device-and-recovery (2026-10-15)
+
+- Enable's all-Super-Admins refusal loop is tested only with one admin (`scripts/super-admin-aal2.test.sh` SKIPs when another Super Admin exists). A second fixture admin holding one factor would prove the loop; breaking it to check only the first admin keeps CI green. Medium if the loop regressed, unverified.
+
+## Deferred from: code review of spec-22-7-session-limits-and-step-up (2026-10-16)
+
+- Gate scoping paths untested in pgTAP: non-Super-Admin `session_gate_touch` writes no state; a session id owned by another user returns `session_expired`. Low probability; add alongside the 22-7 pgTAP patches.
+- No component tests for `StepUpPrompt`, the `AddAdminModal` / `SecurityClient` step-up retry loop, or the `?expired=1` login notice. Covered by manual browser QA today.
+- A still-live aal2 access token used directly against PostgREST is checked for session existence only, not idle/absolute age, until the next app request ends the session (unverified severity, bounded by JWT expiry). Add to the runbook "not done" list.

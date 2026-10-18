@@ -395,7 +395,7 @@ Epics 1–8 are the shipped V1.0 pilot scope (`done` per `sprint-status.yaml`). 
 - **AD-41 — table-driven jobs, each its own cron:** velocity counted by `support_gate_touch()`, breach sets `users.support_locked_at`; independent jobs writing `job_runs` (AD-19): `support_inactivity_sweep` (30 d, quarterly recertification, suspended gyms excluded), `support_activity_digest` (daily per-gym Owner summary plus review queue, via AD-25), `payment_connection_cleanup` (AD-37). Revocation re-owns pending items to the proxy actor and flags them (FR-184).
 - **Step 1 spikes (verify, not decided):** claims hook receives `aal`; lower-level session cannot add a factor via the provider; deleting `auth.sessions` rows via service-role function; `vault.delete` via SQL and non-superuser definer calling `vault.*` on hosted; hosted MFA factor cap; whether the payment provider returns an account-holder name; `__Host-` cookie behavior under Supabase SSR.
 - **Story notes from the Step 1 reviews:** staff login screen becomes a Phone | Email choice with a password; reset-cooling-off executor job; attribution-column inventory; Super Admin session timeout values; the `ALTER TYPE … ADD VALUE` migration and the policy/function classification pass it triggers.
-- **Pre-flight (PRD §10.2):** TOTP enabled on production Supabase (done 2026-10-15, OQ-27); OQ-30 and OQ-31 answered; existing Owners told about support access (FR-183); Super Admin factor enrolled with recovery in place and out-of-band recovery documented (FR-191).
+- **Pre-flight (PRD §10.2):** TOTP enabled on production Supabase (done 2026-10-15, OQ-27); OQ-30 and OQ-31 answered; existing Owners told about support access (FR-183); Super Admin factor enrolled with recovery in place and out-of-band recovery documented (FR-191). Precondition recorded by 22.6: `super_admin_aal2` must be ON (enable script run, docs/runbooks/super-admin-recovery.md) before any support account is created.
 - **Steps 2–3 have no architecture coverage yet:** subdomain/DNS policy under `gymosapps.com` vs `owner.`/`portal.`, the published projection, name rules, host-only cookies (NFR-026) and public-content control need their own spine pass before landing-page and directory stories are written (spine "Deferred"). Resolved inputs already in the PRD: public site built in `apps/landing`, `*.gymosapps.com` wildcard attached to that Vercel project (PRD §12 F).
 
 ### UX Design Requirements
@@ -2928,7 +2928,7 @@ So that existing Owners are told, the legal wording is settled and the platform 
 
 **Acceptance Criteria:**
 
-**Given** story 22.6 is done
+**Given** story 22.6 is done (support-account creation is refused while `super_admin_aal2` is off, AD-38)
 **When** the checklist is reviewed
 **Then** it records that the Super Admin has two verified factors, `super_admin_aal2` is on in production, and the recovery runbook was exercised (date recorded)
 

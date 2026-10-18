@@ -7,6 +7,7 @@
  * boundary.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 
 let claimsResult: { data: { claims: Record<string, unknown> | null } | null; error: unknown };
 let providerKeyResult: { data: string | null; error: unknown };
@@ -148,5 +149,28 @@ describe("createSaasBillingHostedCheckoutLink", () => {
 
     expect(result.data).toBeNull();
     expect(result.error?.code).toBe("unknown");
+  });
+});
+
+describe("Story 22.4: a 403 permission_denied from the edge initiate routes", () => {
+  const denied = () =>
+    new FunctionsHttpError({ json: async () => ({ error: "forbidden", code: "permission_denied" }) });
+
+  it("initiateSaasBillingPayment maps it to the no-permission outcome", async () => {
+    invokeResult = { data: null, error: denied() };
+    const { initiateSaasBillingPayment } = await import("./billing");
+    const result = await initiateSaasBillingPayment("+237600000000");
+
+    expect(result.data).toBeNull();
+    expect(result.error).toEqual({ code: "permission_denied", message: "errors.permissionDenied" });
+  });
+
+  it("createSaasBillingHostedCheckoutLink maps it to the no-permission outcome", async () => {
+    invokeResult = { data: null, error: denied() };
+    const { createSaasBillingHostedCheckoutLink } = await import("./billing");
+    const result = await createSaasBillingHostedCheckoutLink();
+
+    expect(result.data).toBeNull();
+    expect(result.error).toEqual({ code: "permission_denied", message: "errors.permissionDenied" });
   });
 });

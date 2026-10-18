@@ -138,7 +138,7 @@ select set_config(
 
 select throws_like(
   $$select check_out()$$,
-  '%member is deactivated%',
+  'permission denied%',
   'a deactivated member-claim session cannot call check_out()'
 );
 

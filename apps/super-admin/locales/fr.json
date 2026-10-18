@@ -14,6 +14,7 @@
     "messaging": "Messagerie",
     "billing": "Facturation",
     "admins": "Administrateurs",
+    "security": "Sécurité",
     "switchToLightTheme": "Passer au thème clair",
     "switchToDarkTheme": "Passer au thème sombre",
     "openMenu": "Ouvrir le menu de navigation",
@@ -23,7 +24,9 @@
   "auth": {
     "description": "Saisissez votre e-mail ci-dessous pour vous connecter à votre compte",
     "noAccount": "Vous n'avez pas de compte ?",
-    "signUp": "S'inscrire"
+    "signUp": "S'inscrire",
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
+    "wrongAccount": "Identifiants de compte incorrects."
   },
   "gyms": {
     "title": "Salles",
@@ -374,6 +377,54 @@
     "jobFailuresFinishedAt": "Terminée",
     "jobFailuresError": "Erreur"
   },
+  "security": {
+    "title": "Sécurité",
+    "description": "Protégez ce compte avec une application d'authentification (TOTP).",
+    "noFactors": "Aucun authentificateur n'est configuré.",
+    "unnamedFactor": "Authentificateur",
+    "verified": "Vérifié",
+    "unverified": "Non vérifié",
+    "remove": "Retirer",
+    "addFactor": "Ajouter un authentificateur",
+    "enrollTitle": "Ajouter un authentificateur",
+    "close": "Fermer",
+    "scanQr": "Scannez ce code QR avec votre application d'authentification, puis saisissez le code à 6 chiffres.",
+    "qrAlt": "Code QR de l'authentificateur",
+    "manualKey": "Ou saisissez cette clé manuellement",
+    "codeLabel": "Code à 6 chiffres",
+    "verify": "Vérifier",
+    "errors": {
+      "generic": "Une erreur s'est produite. Veuillez réessayer.",
+      "enrollFailed": "Impossible de démarrer l'enregistrement. Veuillez réessayer.",
+      "invalidCode": "Ce code n'est pas valide. Veuillez réessayer.",
+      "lastFactor": "Vous ne pouvez pas retirer votre dernier authentificateur vérifié.",
+      "signOutFailed": "L'authentificateur a été retiré, mais les autres sessions n'ont pas pu être fermées. Déconnectez-vous maintenant sur vos autres appareils."
+    },
+    "recovery": {
+      "title": "E-mail de récupération",
+      "description": "Une boîte distincte qui peut réinitialiser vos authentificateurs si vous perdez votre appareil. Elle doit différer de votre e-mail de connexion.",
+      "none": "Aucun e-mail de récupération n'est défini.",
+      "current": "Actuel : {{masked}}",
+      "set": "Définir l'e-mail de récupération",
+      "change": "Modifier",
+      "remove": "Supprimer",
+      "pending": "Une réinitialisation de récupération est programmée le {{time}}.",
+      "modalTitle": "E-mail de récupération",
+      "emailLabel": "Adresse e-mail de récupération",
+      "emailHint": "Nous enverrons un code à 6 chiffres à cette adresse pour la vérifier.",
+      "sendCode": "Envoyer le code",
+      "codeSent": "Saisissez le code à 6 chiffres envoyé à cette adresse.",
+      "errors": {
+        "sameAsLogin": "L'e-mail de récupération doit être différent de votre e-mail de connexion.",
+        "invalidEmail": "Saisissez une adresse e-mail valide.",
+        "invalidCode": "Ce code n'est pas valide.",
+        "rateLimited": "Trop de demandes. Réessayez plus tard.",
+        "mailFailed": "L'e-mail n'a pas pu être envoyé. Réessayez.",
+        "notConfigured": "L'envoi d'e-mails n'est pas configuré.",
+        "generic": "Une erreur est survenue. Veuillez réessayer."
+      }
+    }
+  },
   "admins": {
     "title": "Administrateurs",
     "addAdmin": "+ Ajouter un administrateur",
@@ -389,7 +440,7 @@
       "title": "Ajouter un administrateur",
       "close": "Fermer",
       "email": "E-mail *",
-      "currentPassword": "Votre mot de passe *",
+      "currentPassword": "Confirmez cette action avec votre mot de passe *",
       "submit": "Ajouter {{email}} comme Super Admin",
       "submitEmpty": "Ajouter un administrateur",
       "submitting": "Ajout…"
@@ -398,12 +449,18 @@
       "created": "{{email}} créé comme nouveau Super Admin.",
       "promoted": "{{email}} promu Super Admin.",
       "alreadySuperAdmin": "{{email}} est déjà Super Admin — aucun changement effectué.",
+      "createdEmailed": "{{email}} créé comme nouveau Super Admin. Les informations de connexion lui ont aussi été envoyées par e-mail.",
+      "createdNotEmailed": "{{email}} créé comme nouveau Super Admin. L'e-mail n'a pas pu être envoyé : transmettez-lui vous-même le mot de passe temporaire ci-dessous.",
+      "promotedEmailed": "{{email}} promu Super Admin. Il a été prévenu par e-mail.",
+      "promotedNotEmailed": "{{email}} promu Super Admin. L'e-mail n'a pas pu être envoyé : prévenez-le vous-même.",
       "copyPassword": "Copier le mot de passe temporaire",
       "passwordCopied": "Copié !",
       "dismiss": "Ignorer"
     },
     "errors": {
       "unauthorized": "Vous devez être connecté en tant que Super Admin pour effectuer cette action.",
+      "bootstrapWindow": "L'ajout d'un Super Admin est désactivé tant que le second facteur est exigé. Demandez à l'exploitant d'ouvrir une fenêtre d'amorçage (voir le guide de récupération Super Admin, « Ajouter un Super Admin »).",
+      "ownerCannotBeSuperAdmin": "Un propriétaire de salle ne peut pas être Super Admin. Utilisez un compte de plateforme distinct pour le personnel.",
       "incorrectPassword": "Ce mot de passe est incorrect."
     }
   },
@@ -418,5 +475,52 @@
     "previous": "Page précédente",
     "next": "Page suivante",
     "ellipsis": "…"
+  },
+  "mfaPrompt": {
+    "title": "Second facteur",
+    "description": "Saisissez le code à 6 chiffres de votre application d'authentification pour continuer.",
+    "codeLabel": "Code à 6 chiffres",
+    "verify": "Vérifier",
+    "verifying": "Vérification...",
+    "invalidCode": "Ce code n'est pas valide. Réessayez.",
+    "noFactor": "Aucun authentificateur vérifié n'est disponible pour ce compte. Contactez l'opérateur de la plateforme.",
+    "recovery": {
+      "link": "Impossible d'utiliser votre authentificateur ?",
+      "intro": "Nous enverrons un code à votre adresse de récupération. L'utiliser programme la suppression de vos authentificateurs après un délai ; vous pouvez annuler depuis l'e-mail.",
+      "send": "Envoyez-moi un code",
+      "sent": "Si une adresse de récupération est enregistrée, un code est en route. Saisissez-le ci-dessous.",
+      "codeLabel": "Code de récupération",
+      "submit": "Confirmer",
+      "scheduled": "Récupération demandée. Vos authentificateurs seront supprimés le {{time}}. Consultez vos e-mails pour annuler si ce n'est pas vous.",
+      "waiting": "Cette page vérifie toutes les quelques secondes et continue d'elle-même une fois la réinitialisation effectuée (jusqu'à une minute après cette heure).",
+      "goToLogin": "Aller à la connexion",
+      "cancelled": "La récupération a été annulée. Vos authentificateurs sont inchangés ; reconnectez-vous pour continuer.",
+      "invalid": "Ce code n'est pas valide.",
+      "locked": "Ce compte est verrouillé. Contactez un opérateur.",
+      "failed": "La récupération n'a pas pu aboutir. Réessayez plus tard."
+    }
+  },
+  "stepUp": {
+    "title": "Confirmez avec votre application d'authentification",
+    "description": "Cette action nécessite un nouveau code à 6 chiffres de votre application d'authentification.",
+    "codeLabel": "Code à 6 chiffres",
+    "confirm": "Confirmer",
+    "cancel": "Annuler",
+    "verifying": "Vérification...",
+    "invalidCode": "Ce code n'est pas valide. Réessayez.",
+    "locked": "Trop de codes erronés. Ce compte est verrouillé ; contactez l'opérateur de la plateforme.",
+    "unavailable": "Nous n'avons pas pu vérifier le code pour le moment. Veuillez réessayer."
+  },
+  "mfaEnroll": {
+    "title": "Configurer un nouvel authentificateur",
+    "description": "Une récupération a supprimé vos authentificateurs précédents. Ajoutez-en un nouveau pour vous connecter."
+  },
+  "recoveryCancel": {
+    "title": "Annuler la récupération du compte",
+    "description": "Annuler la suppression programmée de vos authentificateurs ?",
+    "confirm": "Annuler la récupération",
+    "done": "Récupération annulée. Rien n'a été modifié.",
+    "invalid": "Ce lien est invalide ou a déjà été utilisé.",
+    "home": "Retour à la connexion"
   }
 }

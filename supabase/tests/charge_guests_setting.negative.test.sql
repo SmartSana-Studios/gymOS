@@ -51,6 +51,9 @@ insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expir
 -- ============================================================================
 -- set_guest_charging(): role matrix.
 -- ============================================================================
+-- 22.3 live super admin flag: private.is_super_admin() now also requires users.is_super_admin.
+update users set is_super_admin = true where id in ('00000000-0000-0000-0000-000000032129');
+
 set local role authenticated;
 
 select set_config('request.jwt.claims',
