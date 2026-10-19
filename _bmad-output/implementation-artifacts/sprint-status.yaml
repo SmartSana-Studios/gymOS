@@ -430,7 +430,7 @@ development_status:
   21-2-settings-gym-category-field-owner-supervisor: done
   epic-21-retrospective: done
 
-  epic-22: in-progress
+  epic-22: done
   22-1-spike-claims-hook-aal-factor-guard-session-deletion-cookies: done
   22-2-claim-read-inventory-and-ci-check-report-mode: done
   22-3-live-authorization-in-the-database: done
@@ -438,7 +438,7 @@ development_status:
   22-5-super-admin-second-factor-enrollment-flag-off: done
   22-6-super-admin-bootstrap-second-device-and-recovery: done
   22-7-session-limits-and-step-up: done
-  22-8-super-admin-recovery-email: review
+  22-8-super-admin-recovery-email: done
   epic-22-retrospective: done
 
   epic-23: backlog
@@ -1176,7 +1176,78 @@ action_items:
     owner: "dev workflow"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
-last_updated: 10-16-2026 08:55
+  - id: "epic-22-retro-item-69-turn-on-supabase-backups-or-pitr-for-the"
+    epic: 22
+    action: "Turn on Supabase backups or PITR for the production project and run docs/restore-test.md
+      once (also closes epic-19-retro-item-26)"
+    owner: "owner"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+  - id: "epic-22-retro-item-70-rehearse-scripts-rollback-0124-0130-agai"
+    epic: 22
+    action: "Rehearse scripts/rollback-0124..0130 against a scratch database brought
+      to 0123 and record the result in docs/runbooks/deploy-epic-22.md"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+  - id: "epic-22-retro-item-71-recovery-email-audit-outcome-mail_failed"
+    epic: 22
+    action: "Recovery email: audit outcome mail_failed, void the issued code and do
+      not count a failed send toward the hourly limit (new migration plus pgTAP)"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+  - id: "epic-22-retro-item-72-add-mail_-and-super_admin_app_url-to-tur"
+    epic: 22
+    action: "Add MAIL_* and SUPER_ADMIN_APP_URL to turbo.json env; put the SMTP failure
+      reason lookup in the runbook"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+  - id: "epic-22-retro-item-73-clear-message-and-auth-mfa-link-when-add"
+    epic: 22
+    action: "Clear message and /auth/mfa link when adding a second authenticator from
+      a password session; friendlier page for a stale-tab server action 404 (consider
+      Vercel Skew Protection)"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+  - id: "epic-22-retro-item-74-make-operator-scripts-runnable-without-a"
+    epic: 22
+    action: "Make operator scripts runnable without a temp install (declare pg where
+      they run) and document that prod_psql fails silently in the dev container"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+  - id: "epic-22-retro-item-75-self-test-for-scripts-ci-local-sh-a-deli"
+    epic: 22
+    action: "Self-test for scripts/ci-local.sh: a deliberately failing command in
+      each stage turns that stage red"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+  - id: "epic-22-retro-item-76-decide-whether-to-accept-epic-22-browser"
+    epic: 22
+    action: "Decide whether to accept Epic 22 browser QA steps 5-8 as unconfirmed,
+      or run them"
+    owner: "owner"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+  - id: "epic-22-retro-item-77-process-a-merge-gate-must-be-shown-capab"
+    epic: 22
+    action: "Process: a merge gate must be shown capable of failing before it is trusted;
+      run it once against a known-bad input when a gate script is changed or reused"
+    owner: "process"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+  - id: "epic-22-retro-item-78-process-test-a-deploy-runbook-end-to-end"
+    epic: 22
+    action: "Process: test a deploy runbook end to end against the real transport
+      (dry run, preflight, psql, Vercel login, pg module) before the deploy window"
+    owner: "process"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+last_updated: 10-19-2026 14:27
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1382,3 +1453,4 @@ last_updated: 10-16-2026 08:55
 # last_updated: 2026-10-19 (ad-hoc: prod recovery-email send failed with EMESSAGE and Resend logged nothing; the app logged only the code. fix/mail-log-smtp-reason: lib/mail.ts now also logs the SMTP server's refusal text (nodemailer response), single line, 200 chars, addresses and re_ keys scrubbed, never error.message; tests added. Corrected an earlier wrong claim: audit outcome 'sent' only means a code was issued, not that mail was delivered, and a code is not voided when mail fails)
 # last_updated: 2026-10-19 (ad-hoc: production recovery-email mail now works. Root cause found by the owner: MAIL_FROM was 'GymOS <hello@gymosapps.com>' and Resend refused it (EMESSAGE); the bare address hello@gymosapps.com works and the Super Admin recovery email was registered and verified in prod at 13:57 UTC. Owner wants the display name GymOS: feat/mail-from-name adds an optional MAIL_FROM_NAME so the mailer builds the header (object from), 5 tests, runbook and .env.example updated. PR open, not merged until the owner says so; set MAIL_FROM_NAME=GymOS in Vercel only after it deploys. Earlier PR #78 added SMTP refusal text to the log)
 # last_updated: 2026-10-19 (ad-hoc: super_admin_aal2 flag ENABLED in production by the owner's go-ahead, scripts/enable-super-admin-aal2.mjs --apply --operator smartsana at about 14:25 UTC after a clean dry run: 1 Super Admin (info@smartsana.com), 1 verified authenticator, verified recovery email, rule met. One audit row super_admin_aal2_enabled. Verified in the database: flag on, 1 audit row, 1 verified factor. The first permission check blocked the dry run; it was retried only after the owner repeated the instruction. Pending: owner signs in again to confirm the code prompt; a second authenticator is optional; MAIL_FROM_NAME=GymOS in Vercel; production data backup still missing)
+# last_updated: 2026-10-19 (Epic 22 post-deploy retrospective run (bmad-retrospective, interactive): epic-22-retro-2026-10-19.md, verdict accepted-with-open-items. Story 22-8 closed done on the owner's sign-off, epic-22 set done. 10 new action items 69-78 (backups/PITR, rollback rehearsal, mail_failed handling, turbo env, second-authenticator message, operator script deps, ci-local self-test, QA 5-8 decision, two process lessons). Findings: ci-local gate reported pgtap/unit/e2e failures as passes (fixed), 0130 and 0127/0128 helpers broke older pgTAP files hidden by it, no production backup at migration time, deploy transport rebuilt on the management API, production mail failed on a display-name From. Proposed done, awaiting owner confirmation: epic-22 items 63 and 68, epic-19 item 24)

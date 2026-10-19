@@ -2,7 +2,7 @@
 title: 'Super Admin recovery email'
 type: 'feature'
 created: '2026-10-16'
-status: 'review'
+status: 'done'
 baseline_commit: '4b82f29ee3e0025ddda8bea8170bfc784d9a7d3a'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -167,3 +167,10 @@ context:
 - Local `PGRST303 JWT issued at future` on `/gyms` is WSL clock skew, not app code.
 - `scripts/ci-local.sh` GREEN for 9183785 (stamp written). Local QA environment torn down (accounts, factors, recovery data, audit rows, mail, `.env.local` mail lines; flag OFF; limits at defaults).
 - Open before `done`: Resend domain `gymosapps.com` verified and prod env vars set by the owner (not testable until migration 0128 is applied to production at epic end); owner sign-off on the browser items above; a mail when a reset applies was deliberately not built (no scheduler).
+
+## Production and sign-off (2026-10-19)
+
+- Migration 0128 reached production on 2026-10-17 with 0124-0130 (`scripts/deploy-0124-0130.sh`); code deployed by PR #77 (master `02cdb25`). The open items above are closed: the Resend domain `gymosapps.com` is verified and the Vercel env vars are set.
+- **Production proof of the registration half:** the owner registered the Super Admin's recovery email on 2026-10-19 (code issued 13:56 UTC, entered at 13:57 UTC with 0 wrong attempts, audit `super_admin_recovery_email_set`, one verified row). Getting there took four failed sends: Resend refused `MAIL_FROM="GymOS <hello@gymosapps.com>"` with `EMESSAGE`; the bare `hello@gymosapps.com` worked. PR #78 now logs the SMTP refusal text; PR #79 adds an optional `MAIL_FROM_NAME` so the mailer builds the display name.
+- **Not proven in production:** the sign-in recovery (code, 30-minute delayed reset, cancel link). It was proven locally (checklist F, items 34-40, 43) and is not exercised on production because doing so would remove the Super Admin's only authenticator. The `super_admin_aal2` flag was enabled on 2026-10-19 with one verified factor plus this verified recovery email, and a code sign-in was confirmed.
+- Owner sign-off: given 2026-10-19 ("run the retrospective and close review on 22-8"). Story closed `done`.
