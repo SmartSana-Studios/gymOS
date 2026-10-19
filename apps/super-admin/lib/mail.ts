@@ -49,6 +49,18 @@ function clean(value: string): string | null {
   return /[\r\n]/.test(value) ? null : value.trim();
 }
 
+/** The SMTP server's refusal text for the operator log: single line, capped, with addresses and API keys removed. */
+export function smtpReason(error: unknown): string {
+  const response = (error as { response?: unknown } | null)?.response;
+  if (typeof response !== "string") return "";
+  return response
+    .replace(/[^\s<>",;]+@[^\s<>",;]+/g, "[address]")
+    .replace(/\bre_[A-Za-z0-9_-]+/g, "[key]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200);
+}
+
 export function createMailer(env: MailEnv, factory: TransportFactory = (o) => nodemailer.createTransport(o)) {
   return async function send(message: MailMessage): Promise<MailResult> {
     const config = readMailConfig(env);
@@ -72,9 +84,13 @@ export function createMailer(env: MailEnv, factory: TransportFactory = (o) => no
       await transport.sendMail({ from: config.from, to, subject, text: message.text, html: message.html });
       return { ok: true };
     } catch (error) {
-      // Only the error class and SMTP code: the message can echo the recipient.
+      // The error class and SMTP code, plus the server's own refusal text (nodemailer's `response`, e.g.
+      // "550 ... domain is not verified"), which is what tells an operator WHY (EMESSAGE alone does not).
+      // Not `error.message`, and the response is scrubbed of anything address- or key-shaped first.
       const code = (error as { code?: unknown } | null)?.code;
-      console.error("[mail] send failed", typeof code === "string" ? code : "unknown");
+      const reason = smtpReason(error);
+      if (reason) console.error("[mail] send failed", typeof code === "string" ? code : "unknown", reason);
+      else console.error("[mail] send failed", typeof code === "string" ? code : "unknown");
       return { ok: false, reason: "send_failed" };
     }
   };
