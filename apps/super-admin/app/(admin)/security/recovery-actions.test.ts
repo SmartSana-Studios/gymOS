@@ -94,6 +94,20 @@ describe("requestRecoveryEmailCode", () => {
     send.mockResolvedValue({ ok: false, reason: "not_configured" });
     expect((await requestRecoveryEmailCode({ email: "r@x.co" })).error?.message).toBe("security.recovery.errors.notConfigured");
   });
+
+  it("voids the code and gives the attempt back when the mail cannot be sent", async () => {
+    rpcData.recovery_code_issue = [{ ok: true, reason: "ok", send_to: "r@x.co" }];
+    send.mockResolvedValue({ ok: false, reason: "send_failed" });
+    const res = await requestRecoveryEmailCode({ email: "r@x.co" });
+    expect(res.error?.code).toBe("mail_failed");
+    expect(rpcCalls.find((c) => c.fn === "recovery_code_mail_failed")?.params).toEqual({ p_user: "sa-1", p_purpose: "register" });
+  });
+
+  it("does not report a failed send when the mail went out", async () => {
+    rpcData.recovery_code_issue = [{ ok: true, reason: "ok", send_to: "r@x.co" }];
+    await requestRecoveryEmailCode({ email: "r@x.co" });
+    expect(rpcCalls.some((c) => c.fn === "recovery_code_mail_failed")).toBe(false);
+  });
 });
 
 describe("verifyRecoveryEmail", () => {

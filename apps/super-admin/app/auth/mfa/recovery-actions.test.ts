@@ -49,6 +49,17 @@ describe("requestRecoveryCode", () => {
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ to: "rec@y.co" }));
     expect(rpcCalls[0].params).toMatchObject({ p_user: "sa-1", p_purpose: "recover", p_email: null });
   });
+  it("answers the same, but voids the code and gives the attempt back, when the mail cannot be sent", async () => {
+    rpcData.recovery_code_issue = [{ ok: true, reason: "ok", send_to: "rec@y.co" }];
+    send.mockResolvedValue({ ok: false, reason: "send_failed" });
+    expect(await requestRecoveryCode()).toEqual({ data: { requested: true }, error: null });
+    expect(rpcCalls.find((c) => c.fn === "recovery_code_mail_failed")?.params).toEqual({ p_user: "sa-1", p_purpose: "recover" });
+  });
+  it("does not report a failed send when the mail went out", async () => {
+    rpcData.recovery_code_issue = [{ ok: true, reason: "ok", send_to: "rec@y.co" }];
+    await requestRecoveryCode();
+    expect(rpcCalls.some((c) => c.fn === "recovery_code_mail_failed")).toBe(false);
+  });
   it.each(["not_eligible", "no_recovery_email", "rate_limited", "locked", "already_pending"])(
     "answers exactly the same and sends nothing for %s (no enumeration)",
     async (reason) => {
