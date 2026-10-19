@@ -1,7 +1,7 @@
 /** Story 22.8: the mail sender is configured from env, fails closed, and never leaks recipients to logs. */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createMailer, readMailConfig, type MailEnv } from "./mail";
+import { smtpReason, createMailer, readMailConfig, type MailEnv } from "./mail";
 
 const env: MailEnv = { MAIL_SMTP_HOST: "smtp.resend.com", MAIL_SMTP_PORT: "465", MAIL_SMTP_USER: "resend", MAIL_SMTP_PASS: "re_key", MAIL_FROM: "GymOS Security <security@gymosapps.com>" };
 const message = { to: "r@rec.example", subject: "Your code", text: "123456" };
@@ -72,9 +72,33 @@ describe("createMailer", () => {
     expect(JSON.stringify(log.mock.calls)).not.toContain("rec.example");
   });
 
+  it("logs the server's refusal text so the operator can see why, scrubbed of addresses and keys", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const response = "550 The gymosapps.com domain is not verified. Sent to r@rec.example with key re_AbC123_x-y";
+    const factory = () => ({ sendMail: vi.fn(async () => { throw Object.assign(new Error("Message failed: r@rec.example"), { code: "EMESSAGE", response }); }) });
+    expect(await createMailer(env, factory)(message)).toEqual({ ok: false, reason: "send_failed" });
+    expect(log).toHaveBeenCalledWith("[mail] send failed", "EMESSAGE", "550 The gymosapps.com domain is not verified. Sent to [address] with key [key]");
+    const logged = JSON.stringify(log.mock.calls);
+    expect(logged).not.toContain("rec.example");
+    expect(logged).not.toContain("re_AbC123");
+    expect(logged).not.toContain("Message failed");
+  });
+
   it("also survives a transport that cannot even be created", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const factory = () => { throw new Error("boom"); };
     expect(await createMailer(env, factory)(message)).toEqual({ ok: false, reason: "send_failed" });
+  });
+});
+
+describe("smtpReason", () => {
+  it("is empty when the error has no server response", () => {
+    expect(smtpReason(new Error("x"))).toBe("");
+    expect(smtpReason(null)).toBe("");
+    expect(smtpReason({ response: 5 })).toBe("");
+  });
+  it("collapses whitespace and caps the length", () => {
+    expect(smtpReason({ response: "550   a\n b" })).toBe("550 a b");
+    expect(smtpReason({ response: "x".repeat(500) })).toHaveLength(200);
   });
 });
