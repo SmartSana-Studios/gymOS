@@ -860,7 +860,7 @@ action_items:
     action: "Wire scripts/session-refund-race.sh into ci-local.sh/CI or declare it
       a pre-merge gate for lock-order edits to consume_guest_session/apply_session_refund"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
   - id: "epic-19-retro-item-25-deploy-the-payment-webhook-edge-function"
     epic: 19
@@ -1140,7 +1140,7 @@ action_items:
       as-built and record /auth/mfa no-counter behaviour as an accepted deviation
       in the runbook"
     owner: "human applies"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-64-prune-the-four-stale-exempt-entries-in-s"
     epic: 22
@@ -1174,7 +1174,7 @@ action_items:
     action: "Process: a story that adds tests to an app wires that app test run into
       ci-local.sh and ci.yml in the same story"
     owner: "dev workflow"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-69-turn-on-supabase-backups-or-pitr-for-the"
     epic: 22
@@ -1247,7 +1247,7 @@ action_items:
     owner: "process"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
-last_updated: 10-19-2026 14:56
+last_updated: 10-19-2026 15:05
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1456,3 +1456,4 @@ last_updated: 10-19-2026 14:56
 # last_updated: 2026-10-19 (Epic 22 post-deploy retrospective run (bmad-retrospective, interactive): epic-22-retro-2026-10-19.md, verdict accepted-with-open-items. Story 22-8 closed done on the owner's sign-off, epic-22 set done. 10 new action items 69-78 (backups/PITR, rollback rehearsal, mail_failed handling, turbo env, second-authenticator message, operator script deps, ci-local self-test, QA 5-8 decision, two process lessons). Findings: ci-local gate reported pgtap/unit/e2e failures as passes (fixed), 0130 and 0127/0128 helpers broke older pgTAP files hidden by it, no production backup at migration time, deploy transport rebuilt on the management API, production mail failed on a display-name From. Proposed done, awaiting owner confirmation: epic-22 items 63 and 68, epic-19 item 24)
 # last_updated: 2026-10-19 (ad-hoc: retro items 71 and 72 built on fix/recovery-mail-failure, not merged. Migration 0131 recovery_mail_failed: mail_failed_at column, private/public.recovery_code_mail_failed (voids the live code, audits outcome mail_failed), recovery_code_issue excludes failed sends from the 3/hour and daily limits with a wider 3x cap over all requests; rollback script; 13 pgTAP assertions; both mail call sites report a failed send (tests proven to fail without the fix). turbo.json env gets SUPER_ADMIN_APP_URL and MAIL_*; runbook mail troubleshooting section; scripts/deploy-migration.sh applies one migration via the management API. Production still at 0130: 0131 not applied, owner go-ahead needed. Production backup still not enabled (owner action, item 69))
 # last_updated: 2026-10-19 (ad-hoc: retro items 71 and 72 shipped. PR #80 merged to master as 6decacd; migration 0131 recovery_mail_failed applied to PRODUCTION before the merge with scripts/deploy-migration.sh (head was 0130; ledger now 0131; column mail_failed_at present, public.recovery_code_mail_failed callable by service_role only, aal2 flag still on); super-admin deployed by Vercel. Items 71 and 72 set done. Still open: backups/PITR (item 69, owner), owner confirmation of proposed transitions for epic-22 items 63 and 68 and epic-19 item 24, rollback rehearsal (item 70))
+# last_updated: 2026-10-19 (ad-hoc: owner confirmed the three proposed retro status changes ('apply open'): epic-22 items 63 and 68 and epic-19 item 24 set done with the evidence recorded in epic-22-retro-2026-10-19.md. Remaining open for epic 22: 57, 58, 60, 61, 62, 64, 65, 66, 67, 69 (backups, owner), 70, 73-78)
