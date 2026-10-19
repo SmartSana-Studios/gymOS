@@ -44,7 +44,13 @@ export async function requestRecoveryCode(): Result<{ requested: true }> {
   const row = Array.isArray(data) ? data[0] : null;
   if (row?.ok === true && typeof row.send_to === "string") {
     const locale = (await getRequestLocale()) as MailLocale;
-    await sendMail({ to: row.send_to, ...recoveryCodeMail(code, 10, locale) });
+    const sent = await sendMail({ to: row.send_to, ...recoveryCodeMail(code, 10, locale) });
+    // The answer to the caller is the same either way (no enumeration), but a code that never left must not stay
+    // live or count against the hourly limit.
+    if (!sent.ok) {
+      const { error } = await createAdminClient().rpc("recovery_code_mail_failed", { p_user: userId, p_purpose: "recover" });
+      if (error) console.error("[recovery] could not record the failed send", error.code);
+    }
   }
   return { data: { requested: true }, error: null };
 }

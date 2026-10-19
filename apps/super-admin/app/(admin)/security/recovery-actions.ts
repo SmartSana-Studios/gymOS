@@ -97,6 +97,10 @@ export async function requestRecoveryEmailCode(input: { email: string }): Result
   const minutes = 10;
   const sent = await sendMail({ to: row.send_to, ...registerCodeMail(code, minutes, locale) });
   if (!sent.ok) {
+    // Void the code that never left and give the attempt back (migration 0131), so a mail outage does not
+    // lock the owner out of retrying for an hour.
+    const { error: voidError } = await admin.rpc("recovery_code_mail_failed", { p_user: g.actorId, p_purpose: "register" });
+    if (voidError) console.error("[recovery] could not record the failed send", voidError.code);
     return fail("mail_failed", sent.reason === "not_configured" ? "security.recovery.errors.notConfigured" : "security.recovery.errors.mailFailed");
   }
   return { data: { sent: true }, error: null };

@@ -135,3 +135,13 @@ and `_removed`. Mail needs the production env vars in `apps/super-admin/.env.exa
 
 Risk to keep in mind: the password plus the recovery mailbox is enough to take the account over once the
 delay passes. Protect that mailbox like the login, and treat a notice you did not expect as an incident.
+
+## Mail troubleshooting (recovery codes and invitations)
+
+Symptom in the app: "L'e-mail n'a pas pu être envoyé" / "The email could not be sent" (the setup says "not configured" only when a `MAIL_*` setting is missing).
+
+1. Vercel project `gymos-super-admin` -> Logs, search `[mail] send failed`. The line carries the SMTP code and, since PR #78, the server's own refusal text, for example `EMESSAGE 550 ... domain is not verified`. Addresses and API keys are scrubbed from it.
+2. Common causes with Resend: `EAUTH` (wrong `MAIL_SMTP_USER`, which must be `resend`, or a bad API key in `MAIL_SMTP_PASS`); `EMESSAGE` (the From address is refused: production refused `MAIL_FROM="GymOS <hello@gymosapps.com>"` on 2026-10-19; use the bare `hello@gymosapps.com` and set `MAIL_FROM_NAME=GymOS` for the display name); `ESOCKET` / `ETIMEDOUT` (host must be `smtp.resend.com`, port `465`).
+3. After changing a Vercel variable, redeploy: variables apply to new deployments only.
+4. A failed send voids the code it issued and does not count toward the 3-per-hour limit (migration 0131), so retrying is safe. Every request, failed or not, still counts toward a wider cap of 9 per hour. In the audit log a failed send shows as two `super_admin_recovery_requested` rows: outcome `sent` (the code was issued) followed by `mail_failed`.
+5. A page left open across a deploy returns 404 for its next action ("Something went wrong"): reload it.

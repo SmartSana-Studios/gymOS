@@ -37,7 +37,14 @@
         "NEXT_PUBLIC_FACEBOOK_URL",
         "NEXT_PUBLIC_GETSOCIAL_URL",
         "NEXT_PUBLIC_SHOW_TESTIMONIALS",
-        "VERCEL_PROJECT_PRODUCTION_URL"
+        "VERCEL_PROJECT_PRODUCTION_URL",
+        "SUPER_ADMIN_APP_URL",
+        "MAIL_SMTP_HOST",
+        "MAIL_SMTP_PORT",
+        "MAIL_SMTP_USER",
+        "MAIL_SMTP_PASS",
+        "MAIL_FROM",
+        "MAIL_FROM_NAME"
       ]
     },
     "typecheck": {
