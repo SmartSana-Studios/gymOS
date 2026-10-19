@@ -21,7 +21,7 @@ The new apps call `authorize_action` and the new RPCs, so they must not go out b
 2. **Backup**: take a Supabase dashboard backup / PITR marker now and note the time. 0124 rewrites policies and cannot be undone
    piecemeal except with the rollback scripts below.
 3. **Env (Vercel, super-admin project)**: `SUPER_ADMIN_APP_URL` (the public https origin, required in production: without it no
-   recovery or invitation mail is sent) and `MAIL_SMTP_HOST/PORT/USER/PASS`, `MAIL_FROM` (Resend, sender `hello@gymosapps.com`,
+   recovery or invitation mail is sent) and `MAIL_SMTP_HOST/PORT/USER/PASS`, `MAIL_FROM` (Resend; the bare address `hello@gymosapps.com` — a `Name <address>` value was refused in production — plus optional `MAIL_FROM_NAME=GymOS` for the display name;
    domain verified). Set before the app deploy, not after.
 4. **Migrations**: `./scripts/deploy-0124-0130.sh`. One transaction per migration, ledger row inside it, stops at the first
    failure. It prints the verification block; read it (flag false, 3 guard triggers, hook not callable by `authenticated`/`anon`).

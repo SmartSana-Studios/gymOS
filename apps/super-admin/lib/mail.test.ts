@@ -1,7 +1,7 @@
 /** Story 22.8: the mail sender is configured from env, fails closed, and never leaks recipients to logs. */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { smtpReason, createMailer, readMailConfig, type MailEnv } from "./mail";
+import { fromHeader, smtpReason, createMailer, readMailConfig, type MailEnv } from "./mail";
 
 const env: MailEnv = { MAIL_SMTP_HOST: "smtp.resend.com", MAIL_SMTP_PORT: "465", MAIL_SMTP_USER: "resend", MAIL_SMTP_PASS: "re_key", MAIL_FROM: "GymOS Security <security@gymosapps.com>" };
 const message = { to: "r@rec.example", subject: "Your code", text: "123456" };
@@ -100,5 +100,30 @@ describe("smtpReason", () => {
   it("collapses whitespace and caps the length", () => {
     expect(smtpReason({ response: "550   a\n b" })).toBe("550 a b");
     expect(smtpReason({ response: "x".repeat(500) })).toHaveLength(200);
+  });
+});
+
+describe("From display name", () => {
+  it("is optional: without MAIL_FROM_NAME the From value is passed through unchanged", () => {
+    const c = readMailConfig({ ...env, MAIL_FROM: "hello@gymosapps.com" })!;
+    expect(c.fromName).toBeUndefined();
+    expect(fromHeader(c)).toBe("hello@gymosapps.com");
+  });
+  it("builds {name, address} from MAIL_FROM_NAME and a bare MAIL_FROM", () => {
+    const c = readMailConfig({ ...env, MAIL_FROM: "hello@gymosapps.com", MAIL_FROM_NAME: " GymOS " })!;
+    expect(fromHeader(c)).toEqual({ name: "GymOS", address: "hello@gymosapps.com" });
+  });
+  it("takes just the address out of a 'Name <address>' MAIL_FROM when a name is set", () => {
+    const c = readMailConfig({ ...env, MAIL_FROM: "Old Name <hello@gymosapps.com>", MAIL_FROM_NAME: "GymOS" })!;
+    expect(fromHeader(c)).toEqual({ name: "GymOS", address: "hello@gymosapps.com" });
+  });
+  it("ignores a name containing a line break", () => {
+    const c = readMailConfig({ ...env, MAIL_FROM: "hello@gymosapps.com", MAIL_FROM_NAME: "GymOS\r\nBcc: x@y.z" })!;
+    expect(c.fromName).toBeUndefined();
+  });
+  it("is what the transport receives", async () => {
+    const sendMail = vi.fn(async () => ({}));
+    await createMailer({ ...env, MAIL_FROM: "hello@gymosapps.com", MAIL_FROM_NAME: "GymOS" }, () => ({ sendMail }))(message);
+    expect(sendMail).toHaveBeenCalledWith(expect.objectContaining({ from: { name: "GymOS", address: "hello@gymosapps.com" } }));
   });
 });
