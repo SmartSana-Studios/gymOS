@@ -15,7 +15,7 @@ import nodemailer from "nodemailer";
 export type MailMessage = { to: string; subject: string; text: string; html?: string };
 export type MailResult = { ok: true } | { ok: false; reason: "not_configured" | "invalid_message" | "send_failed" };
 
-/** Reads MAIL_SMTP_HOST, MAIL_SMTP_PORT, MAIL_SMTP_USER, MAIL_SMTP_PASS and MAIL_FROM. */
+/** Reads MAIL_SMTP_HOST, MAIL_SMTP_PORT, MAIL_SMTP_USER, MAIL_SMTP_PASS, MAIL_FROM and the optional MAIL_FROM_NAME. */
 export type MailEnv = Record<string, string | undefined>;
 
 type Transport = { sendMail(message: Record<string, unknown>): Promise<unknown> };
@@ -29,12 +29,17 @@ export function readMailConfig(env: MailEnv) {
   const from = env.MAIL_FROM?.trim();
   const port = Number(env.MAIL_SMTP_PORT ?? 587);
   if (!host || !from || !Number.isInteger(port) || port < 1 || port > 65535) return null;
+  // MAIL_FROM_NAME is the display name ("GymOS"), kept apart from the address so the header is built by the
+  // mailer, not by whatever quoting the env value happened to be stored with. A CR/LF in it is ignored (header injection).
+  const rawName = env.MAIL_FROM_NAME?.trim();
+  const fromName = rawName && !/[\r\n]/.test(rawName) ? rawName : undefined;
   const user = env.MAIL_SMTP_USER?.trim();
   const pass = env.MAIL_SMTP_PASS;
   return {
     host,
     port,
     from,
+    fromName,
     // 465 is implicit TLS; 587 / 25 use STARTTLS.
     secure: port === 465,
     auth: user && pass ? { user, pass } : undefined,
@@ -47,6 +52,17 @@ export function readMailConfig(env: MailEnv) {
 /** Header-injection guard: a CR or LF anywhere in a header-bound value would let a caller add headers. */
 function clean(value: string): string | null {
   return /[\r\n]/.test(value) ? null : value.trim();
+}
+
+/** `Name <a@b.c>` or `a@b.c` -> the bare address. */
+function bareAddress(from: string): string {
+  const m = /<([^<>]+)>\s*$/.exec(from);
+  return (m ? m[1] : from).trim();
+}
+
+/** The From header value: an object when a display name is configured (the mailer quotes and encodes it). */
+export function fromHeader(config: { from: string; fromName?: string }): string | { name: string; address: string } {
+  return config.fromName ? { name: config.fromName, address: bareAddress(config.from) } : config.from;
 }
 
 /** The SMTP server's refusal text for the operator log: single line, capped, with addresses and API keys removed. */
@@ -81,7 +97,7 @@ export function createMailer(env: MailEnv, factory: TransportFactory = (o) => no
         greetingTimeout: 10_000,
         socketTimeout: 15_000,
       });
-      await transport.sendMail({ from: config.from, to, subject, text: message.text, html: message.html });
+      await transport.sendMail({ from: fromHeader(config), to, subject, text: message.text, html: message.html });
       return { ok: true };
     } catch (error) {
       // The error class and SMTP code, plus the server's own refusal text (nodemailer's `response`, e.g.
