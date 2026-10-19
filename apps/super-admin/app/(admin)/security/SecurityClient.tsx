@@ -38,15 +38,21 @@ export function SecurityClient({ initialFactors, recovery }: { initialFactors: F
       setStepUpFor(null);
       if (res.data?.signOutFailed) {
         // Fail loudly: the factor is gone but other sessions may still be live.
-        setMessage(t("security.errors.signOutFailed"));
+        setMessage(
+          res.data.auditFailed
+            ? `${t("security.errors.signOutFailed")} ${t("security.errors.removedNotAudited")}`
+            : t("security.errors.signOutFailed"),
+        );
         router.refresh();
         return;
       }
-      setMessage(null);
       if (res.data?.signedOut) {
+        // Every session ended, including this one: the sign-in page is next, so there is no page left to show an
+        // audit notice on (the failure is logged server-side).
         window.location.assign("/auth/login?expired=1");
         return;
       }
+      setMessage(res.data?.auditFailed ? t("security.errors.removedNotAudited") : null);
       router.refresh();
     });
 

@@ -107,7 +107,7 @@ Baseline at close (local DB after all migrations): **claim-only 7 — 22.3: 5, 2
 - Only reads of the `app_role`, `gym_id` or `role` claim count (`auth.jwt()` in any spelling, `request.jwt.claims`; in sources `claims.x`, `claims['x']`, `app_metadata.x`, `.app_role`, destructuring). A bare `getClaims()`, or a read of `sub`, `aal` or `session_id`, is not a claim read, so the later `session_id`/`aal` checks (22.1 decision, 22.5, 22.7) do not become claim-only entries.
 - `live-checked` for sources means the file mentions `current_member_role`; `getUser()` is not a live role check.
 - A body that reads the role/gym claim directly and also calls a live helper stays `live-checked` (AC) and is additionally listed under `mixed`, informational and never failing (most are policies that pair `current_member_role()` with the claim-derived gym id).
-- An exempt entry that matches no inventory row prints a "stale exempt" note (the `payment-webhook` entry is pre-registered for 22.4).
+- An exempt entry that matches no inventory row prints a "stale exempt" note (the edge-function and cron entries pre-registered for 22.4 were pruned on 2026-10-19: none of those four files reads a claim, so the exempt list is now just the claims hook).
 - Default source scan: `supabase/functions`, `lib`, each `apps/*` top-level files plus `app`, `lib`, `components`, `src`, and `packages/*`; an empty scan exits 2.
 - Wired: unit tests in the static stage (`test:guardrails`), DB run in the pgtap stage of `ci-local.sh` and the `rls-tests` job of `ci.yml`.
 - 22.3 retired the forced claim-only list (`CLAIM_HELPERS`, now `LIVE_HELPERS` in `scripts/claim-inventory.mjs`) and regenerated the baseline with `--write-baseline`.

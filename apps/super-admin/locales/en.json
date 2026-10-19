@@ -398,7 +398,8 @@
       "enrollFailed": "Could not start enrollment. Please try again.",
       "invalidCode": "That code is not valid. Please try again.",
       "lastFactor": "You cannot remove your last verified authenticator.",
-      "signOutFailed": "The authenticator was removed, but other sessions could not be ended. Sign out on your other devices now."
+      "signOutFailed": "The authenticator was removed, but other sessions could not be ended. Sign out on your other devices now.",
+      "removedNotAudited": "The authenticator was removed, but its audit record could not be written. Tell the platform operator."
     },
     "recovery": {
       "title": "Recovery email",

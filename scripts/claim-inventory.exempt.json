@@ -1,9 +1,5 @@
 {
   "entries": [
-    { "kind": "function", "name": "public.custom_access_token_hook(event jsonb)", "reason": "The claims hook writes the claims; it is the issuer, not a consumer of them." },
-    { "kind": "edge", "name": "supabase/functions/payment-webhook/index.ts", "reason": "Provider webhook authenticated by signature (receive route); its user-initiated initiate routes verify the JWT and call authorize_action (22.4)." },
-    { "kind": "edge", "name": "supabase/functions/gym-qr-display/index.ts", "reason": "Polled by e-ink display hardware with a device bearer token; no user claims." },
-    { "kind": "edge", "name": "supabase/functions/send-sms-hook/index.ts", "reason": "GoTrue Send SMS Hook authenticated by its signed Standard Webhooks signature; no user claims." },
-    { "kind": "server", "name": "apps/dashboard/app/api/cron/saas-billing-reminders/route.ts", "reason": "Cron route authenticated by CRON_SECRET; no user session or claims." }
+    { "kind": "function", "name": "public.custom_access_token_hook(event jsonb)", "reason": "The claims hook writes the claims; it is the issuer, not a consumer of them." }
   ]
 }

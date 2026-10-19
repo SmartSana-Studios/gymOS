@@ -161,7 +161,7 @@ async function stillOnlyVerifiedFactor(supabase: Awaited<ReturnType<typeof creat
   }
 }
 
-export async function removeFactor(input: { factorId: string }): Result<{ removed: true; signedOut: boolean; signOutFailed: boolean }> {
+export async function removeFactor(input: { factorId: string }): Result<{ removed: true; signedOut: boolean; signOutFailed: boolean; auditFailed: boolean }> {
   const g = await guard();
   if (!g.ok) return { data: null, error: g.error };
   const supabase = await createClient();
@@ -207,9 +207,9 @@ export async function removeFactor(input: { factorId: string }): Result<{ remove
     if (refused) return { data: null, error: await err("last_factor", "security.errors.lastFactor") };
     return { data: null, error: await err("remove_failed", "security.errors.generic") };
   }
-  if (!(await audit(supabase, "super_admin_mfa_removed", input.factorId))) {
-    return { data: null, error: await err("audit_failed", "security.errors.generic") };
-  }
+  // The factor is already gone. An audit failure must not stop the sessions from being ended (a stale device or
+  // session must not outlive its factor), so record it, carry on, and report it (epic 22 retro item 58).
+  const auditOk = await audit(supabase, "super_admin_mfa_removed", input.factorId);
 
   // Story 22.7: removing a verified factor ends every session of this user (a stale device or
   // session must not outlive its factor). Existing admin client, global scope; no new RPC.
@@ -229,5 +229,5 @@ export async function removeFactor(input: { factorId: string }): Result<{ remove
     }
   }
   // A verified factor was removed but its sessions could not be ended: the caller must say so.
-  return { data: { removed: true, signedOut, signOutFailed: !isUnverified && !signedOut }, error: null };
+  return { data: { removed: true, signedOut, signOutFailed: !isUnverified && !signedOut, auditFailed: !auditOk }, error: null };
 }

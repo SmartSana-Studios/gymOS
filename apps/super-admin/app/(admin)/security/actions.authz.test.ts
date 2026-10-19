@@ -145,7 +145,18 @@ describe("security actions", () => {
     adminSignOut.mockResolvedValue({ error: { message: "boom" } } as never);
     const { removeFactor } = await import("./actions");
     const res = await removeFactor({ factorId: "f1" });
-    expect(res.data).toEqual({ removed: true, signedOut: false, signOutFailed: true });
+    expect(res.data).toEqual({ removed: true, signedOut: false, signOutFailed: true, auditFailed: false });
+  });
+
+  it("an audit failure after the factor is gone still ends every session and is reported (retro item 58)", async () => {
+    setup({ verified: 2, aal: "aal2" });
+    flagOn = true;
+    rpc.mockResolvedValue({ error: { code: "XX000" } });
+    const { removeFactor } = await import("./actions");
+    const res = await removeFactor({ factorId: "f1" });
+    expect(res.error).toBeNull();
+    expect(res.data).toEqual({ removed: true, signedOut: true, signOutFailed: false, auditFailed: true });
+    expect(adminSignOut).toHaveBeenCalledWith("tok-1", "global");
   });
 
   it("removal at aal1 is refused", async () => {
@@ -160,7 +171,7 @@ describe("security actions", () => {
     flagOn = true;
     const { removeFactor } = await import("./actions");
     const res = await removeFactor({ factorId: "f1" });
-    expect(res.data).toEqual({ removed: true, signedOut: true, signOutFailed: false });
+    expect(res.data).toEqual({ removed: true, signedOut: true, signOutFailed: false, auditFailed: false });
     expect(unenroll).toHaveBeenCalledWith({ factorId: "f1" });
     expect(rpc.mock.calls[0][1].p_action_type).toBe("super_admin_mfa_removed");
     expect(consumeStepUpMock).toHaveBeenCalledWith("sa-1", "remove_super_admin_factor", "f1");
@@ -265,11 +276,13 @@ describe("security actions", () => {
     expect((await verifyFactor({ factorId: "new-f", code: "123456" })).error?.code).toBe("audit_failed");
   });
 
-  it("remove audit failure returns audit_failed", async () => {
+  it("remove audit failure no longer returns an error: the factor is gone, so it is reported as removed with auditFailed", async () => {
     setup({ verified: 2, aal: "aal2" });
     rpc.mockResolvedValue({ data: null, error: { code: "x" } });
     const { removeFactor } = await import("./actions");
-    expect((await removeFactor({ factorId: "f1" })).error?.code).toBe("audit_failed");
+    const res = await removeFactor({ factorId: "f1" });
+    expect(res.error).toBeNull();
+    expect(res.data?.auditFailed).toBe(true);
   });
 
   it("enroll audit failure unenrolls the new factor and returns audit_failed", async () => {
