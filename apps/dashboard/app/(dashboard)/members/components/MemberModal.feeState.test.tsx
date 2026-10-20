@@ -156,7 +156,7 @@ describe("MemberModal registration fee line (Story 18.6)", () => {
       data: null,
       error: { code: "permission_denied", message: "errors.permissionDenied" },
     });
-    await renderView({ ...baseMember, registrationFeeSettledAt: null } as typeof baseMember, 5000);
+    await renderView({ ...baseMember, registrationFeeSettledAt: null } as never, 5000);
     await waitFor(() => expect(getMemberRegistrationFeeStateAction).toHaveBeenCalledTimes(1));
     expect(screen.queryByText("members.modal.view.registrationFee")).not.toBeInTheDocument();
     expect(screen.queryByText("members.feeState.awaiting")).not.toBeInTheDocument();
