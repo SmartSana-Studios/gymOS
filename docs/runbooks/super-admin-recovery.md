@@ -98,9 +98,18 @@ Applies only while the flag is on. Limits are rows in `private.session_limits_co
   authenticator code, valid 5 minutes, single use, bound to that factor or email.
 - **Locked after wrong codes.** Five wrong step-up codes lock the account and remove its sessions
   (audit rows `super_admin_stepup_failed` and `super_admin_locked`, counts only). The sign-in prompt at
-  `/auth/mfa` is not counted. A locked account can only be released with the reset script above
-  (`reset-super-admin-factors.mjs`), which also clears the lock, session state and step-up grants and
-  turns the flag off; re-bootstrap as described.
+  `/auth/mfa` is not counted. Release a locked account with the unlock script, which clears only the lock
+  (factors, the flag and recovery data are untouched; the Super Admin signs in again with password + code):
+
+  ```
+  node scripts/unlock-super-admin.mjs <email>                                  # dry run: says whether it is locked
+  node scripts/unlock-super-admin.mjs <email> --apply --operator <name>        # type: unlock <email>
+  ```
+
+  One audit row `super_admin_unlocked` (operator, attempts before, factors kept). It refuses an unknown
+  email and a non-Super-Admin, and does nothing for an account that is not locked. Use the full reset
+  (`reset-super-admin-factors.mjs`) only when the authenticator itself is lost: it also deletes the factors and
+  sessions and turns the flag off, so re-bootstrap as described.
 
 ## Recovery by email (Story 22.8)
 

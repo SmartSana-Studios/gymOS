@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Story 22.6: exercises scripts/enable-super-admin-aal2.mjs and scripts/reset-super-admin-factors.mjs
+# Story 22.6: exercises scripts/enable-super-admin-aal2.mjs, scripts/reset-super-admin-factors.mjs
+# and (retro item 61) scripts/unlock-super-admin.mjs
 # against the LOCAL database (never production). Fixtures (one Super Admin, factors named qa22-6-*,
 # one session, audit rows by operator qa-22-6) are created and removed by this script; the flag is
 # restored to its original value on exit. Needs the local Supabase stack, node and the `pg` module
@@ -120,6 +121,40 @@ check "  still one disable audit row" "$(audit_n super_admin_aal2_disabled)" "1"
 run node $ENABLE --apply --operator $OP <<<"enable super admin aal2"
 check "re-enable after the window exit 0" "$rc" "0"
 check "  flag on again" "$(flag)" "t"
+
+# Epic 22 retro item 61: unlock-only. A locked account is released; factors, sessions and the flag are untouched.
+UNLOCK=scripts/unlock-super-admin.mjs
+lockrow() { sql "select coalesce((select locked_at is not null from private.super_admin_lockout where user_id='$UID_FIX'), false)"; }
+sessions_n() { sql "select count(*) from auth.sessions where user_id='$UID_FIX'"; }
+S0=$(sessions_n)
+run node $UNLOCK $EMAIL
+check "unlock of an unlocked account exit 0" "$rc" "0"
+has "  says not locked" "$out" "Not locked"
+sql "insert into private.super_admin_lockout (user_id, failed_count, locked_at) values ('$UID_FIX', 5, now()) on conflict (user_id) do update set failed_count = 5, locked_at = now()" >/dev/null
+run node $UNLOCK $EMAIL
+check "unlock dry-run exit 0" "$rc" "0"
+has "  dry-run reports the lock" "$out" "LOCKED since"
+check "  dry-run keeps the lock" "$(lockrow)" "t"
+run node $UNLOCK $EMAIL --apply
+check "unlock --apply without --operator exits 2" "$rc" "2"
+run node $UNLOCK $EMAIL --apply --operator $OP <<<"wrong"
+check "unlock wrong confirmation exit 1" "$rc" "1"
+check "  lock kept" "$(lockrow)" "t"
+run node $UNLOCK nobody@example.test --apply --operator $OP <<<"unlock nobody@example.test"
+check "unlock unknown email exit 1" "$rc" "1"
+run node $UNLOCK $EMAIL_NS --apply --operator $OP <<<"unlock $EMAIL_NS"
+check "unlock refuses a non-Super-Admin (exit 1)" "$rc" "1"
+run node $UNLOCK $EMAIL --apply --operator $OP <<<"unlock $EMAIL"
+check "unlock apply exit 0" "$rc" "0"
+check "  lock cleared" "$(lockrow)" "f"
+check "  factors untouched" "$(sql "select count(*) from auth.mfa_factors where user_id='$UID_FIX' and status='verified'")" "2"
+check "  sessions untouched" "$(sessions_n)" "$S0"
+check "  flag untouched" "$(flag)" "t"
+check "  one unlock audit row" "$(audit_n super_admin_unlocked)" "1"
+check "  audit says how many attempts" "$(sql "select metadata->>'attempts_before' from public.audit_log where actor_display_name='operator:$OP' and action_type='super_admin_unlocked'")" "5"
+run node $UNLOCK $EMAIL --apply --operator $OP <<<"unlock $EMAIL"
+check "unlock repeat exit 0 (nothing to do)" "$rc" "0"
+check "  still one unlock audit row" "$(audit_n super_admin_unlocked)" "1"
 
 run node $RESET nobody@example.test --apply --operator $OP <<<"reset nobody@example.test"
 check "reset unknown email exit 1" "$rc" "1"
