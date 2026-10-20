@@ -37,6 +37,7 @@ The new apps call `authorize_action` and the new RPCs, so they must not go out b
   management-API scripts (`deploy-migration.sh`, `deploy-0124-0130.sh`) for migrations; they print the ledger so an empty result is visible.
 - The operator scripts need `pg`: `npm ci --prefix scripts/operator` once (pinned, outside the pnpm workspace).
 - `scripts/deploy-readiness.sh` checks all of this read-only before a deploy window (see below).
+- **Stale tabs after a deploy.** Vercel Skew Protection is a Pro-plan feature and the projects are not on Pro (owner checked, 2026-10-20), so a page left open across a deploy fails on its next action (a 404 and a generic error) until it is reloaded. Say "reload the page" in any smoke-test or support instruction. If the plan is ever upgraded and Skew Protection is switched on, an old tab will keep calling the OLD app code against the NEW database: use a two-step deploy for any migration that removes or renames a column or function.
 
 ## Smoke test (after the apps are live)
 
