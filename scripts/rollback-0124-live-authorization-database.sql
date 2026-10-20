@@ -29,10 +29,12 @@ begin
   return raw::uuid;
 exception
   when others then
-    raise warning 'private.gym_id() failed to parse gym_id claim: %', sqlerrm;
     return null;
 end;
 $$;
+-- Production's body before 0124 had no `raise warning` here (migration 0009 does; production had drifted from it). Rollback
+-- rehearsal 2026-10-20 diffed the rolled-back definition against production as it was before the epic and found this one
+-- line, so this restores what production actually had.
 
 create or replace function private.is_super_admin()
 returns boolean
@@ -45,6 +47,9 @@ $$;
 
 grant execute on function private.gym_id() to public;
 grant execute on function private.is_super_admin() to public;
+-- 0124 revoked this trigger function's PUBLIC execute (line 2754 of the migration); production had the default grant. A trigger
+-- function's EXECUTE is only checked when the trigger is created, so this has no functional effect, but a rollback restores it.
+grant execute on function private.protect_payment_columns_on_staff_verify() to public;
 
 alter policy "gym_staff_read_own_attendance_events" on public.attendance_events
   using (((gym_id = private.gym_id()) AND ((auth.jwt() ->> 'app_role'::text) = ANY (ARRAY['owner'::text, 'manager'::text, 'supervisor'::text, 'receptionist'::text]))));
