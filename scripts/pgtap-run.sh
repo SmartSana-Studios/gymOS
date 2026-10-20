@@ -26,9 +26,10 @@ docker exec -e PGPASSWORD=postgres "$DB_CONTAINER" psql -U postgres -h 127.0.0.1
 # One psql pass over a file. Prints the verdict line; returns 0 ok, 1 assertion/ERROR failure,
 # 3 "incomplete output" (no 'not ok', no ERROR, but the plan or some ok lines are missing).
 check_once() {
-  local f=$1 out
+  local f=$1 out dockerrc
   out=$(docker exec -i -e PGPASSWORD=postgres "$DB_CONTAINER" \
     psql -U postgres -h 127.0.0.1 -At -v ON_ERROR_STOP=0 -f - <"$f" 2>&1)
+  dockerrc=$?
   local plan oks nots errs
   plan=$(printf '%s\n' "$out" | sed -n 's/^1\.\.\([0-9]\+\).*/\1/p' | head -1)
   oks=$(printf '%s\n' "$out" | grep -c '^ok ')
@@ -40,7 +41,18 @@ check_once() {
   fi
   echo "FAIL $f (plan=${plan:-none} ok=$oks not_ok=$nots errors=$errs)"
   printf '%s\n' "$out" | grep -E '^not ok |^# |ERROR:' | head -12 | sed 's/^/     /'
-  if [ "$nots" = 0 ] && [ "$errs" = 0 ]; then return 3; fi
+  if [ "$nots" = 0 ] && [ "$errs" = 0 ]; then
+    # Keep the evidence for the incomplete-output flake (epic 20 retro item 39): what docker returned and how much.
+    if [ -n "${PGTAP_FLAKE_DIR:-}" ]; then
+      mkdir -p "$PGTAP_FLAKE_DIR"
+      {
+        printf 'file=%s file_bytes=%s docker_exit=%s out_bytes=%s ok=%s plan=%s\n--- first 40 lines ---\n' \
+          "$f" "$(stat -c %s "$f")" "$dockerrc" "${#out}" "$oks" "${plan:-none}"
+        printf '%s\n' "$out" | head -40
+      } > "$PGTAP_FLAKE_DIR/$(basename "$f").$(date +%s%N).out"
+    fi
+    return 3
+  fi
   return 1
 }
 
