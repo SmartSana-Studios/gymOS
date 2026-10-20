@@ -86,7 +86,7 @@ Stories covered also: 22-8 (section F).
 | # | Pass/Fail | Notes |
 |---|-----------|-------|
 | 1-4 | Pass | Run by the owner, 2026-10-17. |
-| 5-8 | Not confirmed | The audit log showed no second enrolment or removal at the time (only one enrol/verify), so these are not recorded as passed. The last-factor guard itself is covered by pgTAP (migration 0129) and the app test. |
+| 5-8 | Skipped by owner decision (2026-10-20) | Never walked in a browser: the audit log showed no second enrolment or removal at the time (only one enrol/verify), so they are NOT recorded as passed. The owner accepted skipping them, on the evidence of automated coverage: 5 (`actions.authz.test.ts` stale unverified factors cleaned), 6 (aal2 rule for a second factor; now an actionable message with a link, `SecurityClient.enroll.test.tsx`), 7 (removal with two factors removes and audits; a factor was also removed in steps 20-25), 8 (the last-factor guard in the app and in the database: `super_admin_factor_guard.test.sql`, 13 assertions, migration 0129). Do not try 8 on the production account. |
 | 9-13 | Pass | 12 passed in a private window (the first try was still signed in). 13: denied, never sent to `/auth/mfa`; the wrong-account login notice was added because of it. |
 | 14 | Skipped | Applies only with the flag OFF; step 19 covered the flag-OFF behaviour. |
 | 15 | Pass | |
