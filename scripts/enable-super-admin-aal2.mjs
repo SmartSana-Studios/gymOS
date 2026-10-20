@@ -23,19 +23,12 @@ const CONFIRM = "enable super admin aal2";
 const client = makeClient();
 let exitCode = 0;
 await client.connect();
-try {
-  await client.query("begin");
-  await client.query("set local lock_timeout = '10s'");
-  const flag = (await client.query(
-    "select enabled from private.platform_flags where flag = 'super_admin_aal2' for update",
-  )).rows[0];
-  if (!flag) throw new Error("private.platform_flags has no super_admin_aal2 row (migration 0126 not applied?)");
-  if (flag.enabled) {
-    console.log("super_admin_aal2 is already on. Nothing changed.");
-    await client.query("rollback");
-    process.exit(0);
-  }
 
+// The rule lives in ONE place and runs twice inside the open transaction (read committed, so each read sees what other
+// sessions have committed): before the typed confirmation (what the operator reads) and again AFTER it. A factor can be
+// removed during the seconds or minutes the operator takes to type, and the flag is still off, so migration 0129's
+// last-factor guard is not active yet. Epic 22 retro item 65 (F10).
+async function loadState() {
   const admins = (await client.query(
     `select u.id, au.email, count(f.id) filter (where f.status = 'verified') as verified,
             count(f.id) filter (where f.status <> 'verified') as unverified,
@@ -53,20 +46,53 @@ try {
       where u.is_super_admin and f.factor_type = 'totp'
       order by f.user_id, f.created_at`,
   )).rows;
+  return { admins, factors };
+}
+
+/** The recovery rule for one Super Admin: the rule met (a label), or null. */
+function ruleMet(a) {
+  const verified = Number(a.verified);
+  return verified === 2 ? "two verified factors" : verified === 1 && a.has_recovery_email ? "one verified factor + verified recovery email" : null;
+}
+
+/** Why the flag may not be enabled for this state: one line per Super Admin that fails the rule (empty = every one passes). */
+function shortfalls({ admins }) {
+  const short = [];
+  for (const a of admins) {
+    if (!ruleMet(a)) {
+      short.push(`${a.email ?? a.id} has ${Number(a.verified)} verified factor(s), recovery email ${a.has_recovery_email ? "set" : "none"} (needs exactly 2 factors, or exactly 1 factor + a verified recovery email)`);
+    }
+  }
+  if (admins.length === 0) short.push("no Super Admin account exists");
+  return short;
+}
+
+try {
+  await client.query("begin");
+  await client.query("set local lock_timeout = '10s'");
+  const flag = (await client.query(
+    "select enabled from private.platform_flags where flag = 'super_admin_aal2' for update",
+  )).rows[0];
+  if (!flag) throw new Error("private.platform_flags has no super_admin_aal2 row (migration 0126 not applied?)");
+  if (flag.enabled) {
+    console.log("super_admin_aal2 is already on. Nothing changed.");
+    await client.query("rollback");
+    process.exit(0);
+  }
+
+  let { admins, factors } = await loadState();
 
   console.log(`=== enable super_admin_aal2 ${apply ? "APPLY" : "DRY RUN (rolled back)"} ===`);
-  const short = [];
   for (const a of admins) {
     const verified = Number(a.verified);
     console.log(`\n${a.email ?? a.id}: ${verified} verified, ${a.unverified} unverified TOTP factor(s), recovery email: ${a.has_recovery_email ? "verified" : "none"}`);
     for (const f of factors.filter((x) => x.user_id === a.id)) {
       console.log(`  - ${f.friendly_name || "(unnamed)"}  [${f.status}]  created ${f.created_at.toISOString()}`);
     }
-    const rule = verified === 2 ? "two verified factors" : verified === 1 && a.has_recovery_email ? "one verified factor + verified recovery email" : null;
+    const rule = ruleMet(a);
     if (rule) console.log(`  rule met: ${rule}`);
-    else short.push(`${a.email ?? a.id} has ${verified} verified factor(s), recovery email ${a.has_recovery_email ? "set" : "none"} (needs exactly 2 factors, or exactly 1 factor + a verified recovery email)`);
   }
-  if (admins.length === 0) short.push("no Super Admin account exists");
+  const short = shortfalls({ admins });
 
   if (short.length > 0) {
     console.error("\nREFUSED, flag unchanged:");
@@ -83,6 +109,16 @@ try {
   }
   if (!(await confirmTyped(CONFIRM))) {
     console.error("Confirmation did not match. Rolled back, nothing changed.");
+    await client.query("rollback");
+    process.exit(1);
+  }
+
+  // Re-check after the confirmation: the Super Admins may have changed while the operator was typing.
+  ({ admins, factors } = await loadState());
+  const recheck = shortfalls({ admins });
+  if (recheck.length > 0) {
+    console.error("\nREFUSED after the confirmation, flag unchanged: the Super Admins changed while you were confirming.");
+    for (const r of recheck) console.error(`  - ${r}`);
     await client.query("rollback");
     process.exit(1);
   }

@@ -122,6 +122,30 @@ run node $ENABLE --apply --operator $OP <<<"enable super admin aal2"
 check "re-enable after the window exit 0" "$rc" "0"
 check "  flag on again" "$(flag)" "t"
 
+# Epic 22 retro item 65: the rule is re-checked AFTER the typed confirmation. The confirmation is fed late so the script is
+# waiting at its prompt while the database changes underneath it.
+delayed() { # $1 seconds to wait before the confirmation is typed
+  ( sleep "$1"; echo "enable super admin aal2" ) | node $ENABLE --apply --operator $OP 2>&1
+}
+setflag false; factors 2 0
+out=$(delayed 3); rc=$?
+check "late confirmation, nothing changes meanwhile: enable exit 0 (control)" "$rc" "0"
+check "  flag on" "$(flag)" "t"
+ENABLED_BEFORE=$(audit_n super_admin_aal2_enabled)
+setflag false; factors 2 0
+LATE=$(mktemp)
+( delayed 6 > "$LATE" 2>&1; echo $? > "$LATE.rc" ) &
+LATE_PID=$!
+sleep 3
+sql "delete from auth.mfa_factors where friendly_name = 'qa22-6-v1'" >/dev/null
+wait $LATE_PID
+check "a verified factor removed while the script waits: enable refuses (exit 1)" "$(cat "$LATE.rc")" "1"
+has "  says it changed while confirming" "$(cat "$LATE")" "REFUSED after the confirmation"
+check "  flag unchanged" "$(flag)" "f"
+check "  no extra enable audit row" "$(audit_n super_admin_aal2_enabled)" "$ENABLED_BEFORE"
+rm -f "$LATE" "$LATE.rc"
+factors 2 0; setflag true
+
 # Epic 22 retro item 61: unlock-only. A locked account is released; factors, sessions and the flag are untouched.
 UNLOCK=scripts/unlock-super-admin.mjs
 lockrow() { sql "select coalesce((select locked_at is not null from private.super_admin_lockout where user_id='$UID_FIX'), false)"; }

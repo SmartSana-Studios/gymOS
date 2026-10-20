@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { normalizeStepUpSubject } from "@/lib/step-up-subject";
 
 /**
  * Story 22.7: issue a single-use step-up grant. The fresh TOTP is verified HERE, server side, on the
@@ -36,7 +37,7 @@ export async function issueStepUp(input: {
     return fail("invalid_code", "stepUp.invalidCode");
   }
 
-  const subject = input.subjectId.trim().toLowerCase();
+  const subject = normalizeStepUpSubject(input.subjectId);
   const supabase = await createClient();
   const { data: list, error: listError } = await supabase.auth.mfa.listFactors();
   const factors = list?.totp ?? []; // verified factors only

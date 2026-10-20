@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import { normalizeStepUpSubject } from "@/lib/step-up-subject";
 
 /** Story 22.4: platform capabilities, all Super Admin only (private.capability_roles). */
 export type PlatformCapability =
@@ -135,7 +136,7 @@ export async function consumeStepUp(actorId: string, action: StepUpAction, subje
     const { data, error } = await createAdminClient().rpc("stepup_consume", {
       p_user: actorId,
       p_action: action,
-      p_subject: subjectId,
+      p_subject: normalizeStepUpSubject(subjectId), // same normalisation as issueStepUp (retro F5)
     });
     return !error && data === true;
   } catch {
