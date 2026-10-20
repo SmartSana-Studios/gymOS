@@ -1097,7 +1097,7 @@ action_items:
     action: "Fix createOrPromoteSuperAdmin re-auth so signInWithPassword does not
       replace the Super Admin session; confirm in browser first"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-58-removefactor-run-the-global-sign-out-reg"
     epic: 22
@@ -1153,7 +1153,7 @@ action_items:
     action: "Triage the Epic 22 retro F10 low-severity list, shared step-up subject
       normalizer, and the three open 22-7 deferrals"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-66-process-a-story-that-introduces-a-gate-o"
     epic: 22
@@ -1247,7 +1247,35 @@ action_items:
     owner: "process"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
-last_updated: 10-20-2026 10:12
+  - id: "epic-22-retro-item-79-item-65-fix-now-batch-shared-step-up-sub"
+    epic: 22
+    action: "Item 65 fix-now batch: shared step-up subject normalizer with a pinning
+      test (F5); enable-super-admin-aal2.mjs re-checks the rule inside the transaction
+      after the typed confirmation, with a shell test using a delayed confirmation;
+      two pgTAP cases for session_gate_touch (non-Super-Admin caller writes no state,
+      another user session id returns session_expired); runbook known limit for a
+      live aal2 token used directly against PostgREST"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+  - id: "epic-22-retro-item-80-item-65-owner-check-sign-in-to-the-dashb"
+    epic: 22
+    action: "Item 65 owner check: sign in to the dashboard as a coach and confirm
+      the member fee modal is either not reachable or shows a sane state (member.registration_fee_state
+      denies coach)"
+    owner: "owner"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+  - id: "epic-22-retro-item-81-item-65-deferred-bundle-nightly-purge-of"
+    epic: 22
+    action: "Item 65 deferred bundle: nightly purge of support_session_state rows
+      with no matching auth.sessions row; decide the message when a suspended or deactivated
+      gym denies payment initiation (gymSuspended vs generic); component test for
+      the SecurityClient step-up retry loop"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+last_updated: 10-20-2026 09:45
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1470,3 +1498,4 @@ last_updated: 10-20-2026 10:12
 # last_updated: 2026-10-20 (ad-hoc: retro item 62 shipped. Migration 0132 saas_pay_suspended_only applied to PRODUCTION with scripts/deploy-migration.sh (head was 0131, ledger now 0132) and verified read-only: suspended-only condition present, old condition absent, service_role only, aal2 flag still on, 1 active gym. PR #85 merged to master after local CI green for 0cdb413 and all GitHub checks green; no app change. Item 62 set done. Remaining open for epic 22: 57 (owner decision), 65, 66, 67, 69 (backups, owner), 70, 73-78; epic 20 item 39 in-progress)
 # last_updated: 2026-10-20 (ad-hoc: epic 22 retro item 70, rollback rehearsal, done on test/rollback-rehearsal, PR pending. All nine rollbacks (0132 to 0124) run in order in one rolled-back transaction on the local database and were diffed against production before the epic (the definitions snapshot) and production now: the 43 epic functions, the 8 private tables with their columns, indexes and constraints and the cron job are removed, nothing left behind; policies and triggers identical. Two defects found and fixed in rollback-0124: private.gym_id() restored with a warning line production never had (migration 0009 vs production drift) and the PUBLIC execute on private.protect_payment_columns_on_staff_verify() not restored. After the fix all 33 changed definitions are identical and every changed grant is restored. New scripts/rollback-rehearsal.sh (repeatable, always rolls back, proven to fail on a broken rollback); runbook rollback section rewritten (order: apps and edge function first, then the database; what a rollback deletes). Not proven: pre-epic apps against the rolled-back database. Nothing applied to production. Item 70 set done after merge)
 # last_updated: 2026-10-20 (ad-hoc: retro item 70 shipped. PR #86 merged to master after local CI green for 936d25d and all GitHub checks green; scripts and docs only, nothing applied to production. Item 70 set done. Remaining open for epic 22: 57 (owner decision), 65, 66, 67, 69 (backups, owner), 73-78; epic 20 item 39 in-progress)
+# last_updated: 2026-10-20 (ad-hoc: epic 22 retro item 57 closed as moot (Add admin is refused while the flag is on; checklist steps 26 and 27 passed in the bootstrap window) and item 65 triaged, both set done. Every F10 item, F5 and the three 22-7 deferrals were re-checked against the code; results in the Item 65 triage section of epic-22-retro-2026-10-19.md: 4 fix now (shared step-up normalizer, enable script re-check after the typed confirmation, two session_gate_touch pgTAP cases, a runbook known limit), 1 owner check (coach and the fee modal), 3 deferred (support_session_state purge, suspended-gym denial message, SecurityClient retry-loop test), 3 accepted (consumeStepUp order, double aal2 call, webhook denial leaves the row, UUID oracle) and 1 dropped (staff paying own row is not reachable). 3 new action items added for them. No code changed)
