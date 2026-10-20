@@ -96,6 +96,10 @@ SQL
 
 if [ "$MODE" = "verify" ]; then verify; exit 0; fi
 
+# docs/decisions.md (V1.6 release runbook, section 3): a fresh GREEN db-backup run immediately before the migrations.
+# One backup covers the whole batch. Refuses to apply if it is not green. (SKIP_DB_BACKUP="<reason>" skips on purpose, loudly.)
+uv run --no-project python scripts/lib/require-db-backup.py || { echo "No green backup: nothing was applied." >&2; exit 1; }
+
 echo "=== head BEFORE ==="
 H="$(HEAD)"; echo "$H"
 case "$H" in *'"head":"0123"'*) ;; *) echo "Expected head 0123 -- stopping without applying anything."; exit 1 ;; esac
