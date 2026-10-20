@@ -398,6 +398,8 @@
       "enrollFailed": "Could not start enrollment. Please try again.",
       "invalidCode": "That code is not valid. Please try again.",
       "lastFactor": "You cannot remove your last verified authenticator.",
+      "verifyFirst": "To add another authenticator, first confirm with your current one: enter your code on the verification page, then open Security again.",
+      "verifyFirstLink": "Enter my code",
       "signOutFailed": "The authenticator was removed, but other sessions could not be ended. Sign out on your other devices now.",
       "removedNotAudited": "The authenticator was removed, but its audit record could not be written. Tell the platform operator."
     },

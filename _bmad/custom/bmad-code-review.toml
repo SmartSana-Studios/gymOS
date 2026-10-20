@@ -1,0 +1,9 @@
+# Team customization (committed). Lists append to the skill defaults.
+# Source: Epic 22 retrospective, docs: _bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md
+
+[workflow]
+persistent_facts = [
+  "GATES REACH THEIR CONSUMERS (Epic 22 retro 66): when a story introduces a gate or check (an authorization function, a guard, a limit, a scan), its spec lists every consumer the gate must cover, and a test enumerates them (a scan that fails when a new consumer skips the gate). One green review per story does not prove the gate reaches its consumers: the 22-7 session gate reached 5 of about 25 Super Admin actions with every per-story review green.",
+  "DEFERRALS THAT NAME A LATER STORY ARE ACCEPTANCE CRITERIA (Epic 22 retro 67): a deferral worded 'close before X' or 'before the flag is on' belongs in story X's acceptance criteria, not in deferred-work.md. Before closing a story, search deferred-work.md for lines that name it and move them into its criteria.",
+  "A GATE MUST BE SHOWN CAPABLE OF FAILING (Epic 22 retro 77): when a gate script (scripts/ci-local.sh, a pgTAP runner, a CI job) is changed or reused, run it once against a known-bad input and say so. Read the per-stage lines, not only the final GREEN: on 2026-10-17 ci-local reported pgtap PASS with FAIL lines in its log because `set -e` is ignored inside an `if`. scripts/ci-local.selftest.sh now guards that; run it when you touch ci-local.sh.",
+]

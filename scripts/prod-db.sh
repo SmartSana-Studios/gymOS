@@ -1,3 +1,8 @@
+# WARNING (found 2026-10-17): from the devcontainer this FAILS SILENTLY. The container has no network, so prod_psql /
+# prod_pg_dump print nothing and still exit 0. Use it only from a machine with network access. From the devcontainer use
+# scripts/deploy-migration.sh / scripts/deploy-0124-0130.sh (Supabase management API) for deploys and the operator scripts
+# (scripts/*.mjs, pg over the host network) for the rest. Never trust an empty result from here: check the output is non-empty.
+#
 # Sourced by the production deploy scripts. Runs psql / pg_dump INSIDE the local
 # Supabase DB container, because this devcontainer has no host psql/pg_dump and
 # the container ships PostgreSQL 17 clients (same major as the hosted project).

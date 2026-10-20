@@ -16,6 +16,8 @@ export function SecurityClient({ initialFactors, recovery }: { initialFactors: F
   const [pending, start] = useTransition();
   const [enroll, setEnroll] = useState<EnrollResult | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // The aal2_required error comes with a link to the code page (retro item 73).
+  const [needsVerify, setNeedsVerify] = useState(false);
   const [enrollError, setEnrollError] = useState<string | null>(null);
   const [stepUpFor, setStepUpFor] = useState<string | null>(null);
 
@@ -60,7 +62,17 @@ export function SecurityClient({ initialFactors, recovery }: { initialFactors: F
     <div className="max-w-xl space-y-6">
       <h1 className="text-xl font-semibold">{t("security.title")}</h1>
       <p className="text-sm text-muted-foreground">{t("security.description")}</p>
-      {message && <div role="alert" className="text-sm text-red-600">{message}</div>}
+      {message && (
+        <div role="alert" className="text-sm text-red-600">
+          {message}
+          {needsVerify && (
+            <>
+              {" "}
+              <a href="/auth/mfa" className="underline">{t("security.errors.verifyFirstLink")}</a>
+            </>
+          )}
+        </div>
+      )}
 
       <ul className="space-y-2">
         {initialFactors.length === 0 && <li className="text-sm">{t("security.noFactors")}</li>}
@@ -99,9 +111,11 @@ export function SecurityClient({ initialFactors, recovery }: { initialFactors: F
           start(async () => {
             const res = await enrollFactor({});
             if (res.error || !res.data) {
+              setNeedsVerify(res.error?.code === "aal2_required");
               setMessage(res.error?.message ?? t("security.errors.generic"));
               return;
             }
+            setNeedsVerify(false);
             setMessage(null);
             setEnrollError(null);
             setEnroll(res.data);

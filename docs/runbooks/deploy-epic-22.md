@@ -31,6 +31,13 @@ The new apps call `authorize_action` and the new RPCs, so they must not go out b
 8. Mobile: the changes are minor (`pay-session`, `renew`, `payments.ts` error mapping). No EAS build is needed to stay correct;
    ship it with the next normal build.
 
+## Tooling notes (from the 2026-10-17 deploy)
+
+- `scripts/prod-db.sh` (`prod_psql`, `prod_pg_dump`) fails SILENTLY from the devcontainer: no network, no output, exit 0. Use the
+  management-API scripts (`deploy-migration.sh`, `deploy-0124-0130.sh`) for migrations; they print the ledger so an empty result is visible.
+- The operator scripts need `pg`: `npm ci --prefix scripts/operator` once (pinned, outside the pnpm workspace).
+- `scripts/deploy-readiness.sh` checks all of this read-only before a deploy window (see below).
+
 ## Smoke test (after the apps are live)
 
 - Super Admin signs in at the Super Admin app, `/gyms` lists the gym, open the gym. No second-factor prompt appears (flag off).
