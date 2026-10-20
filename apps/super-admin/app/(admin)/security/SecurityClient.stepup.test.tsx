@@ -9,6 +9,9 @@ import enTranslations from "../../../locales/en.json";
 
 const removeFactor = vi.fn();
 const assign = vi.fn();
+// Test-only labels for the mocked prompt (constants, not JSX literals: the i18n lint rule applies to test files too).
+const ACCEPT = "code accepted";
+const CANCEL = "cancel prompt";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("./actions", () => ({
   enrollFactor: vi.fn(),
@@ -21,8 +24,8 @@ vi.mock("@/components/enroll-dialog", () => ({ EnrollDialog: () => null }));
 vi.mock("@/components/step-up-prompt", () => ({
   StepUpPrompt: (p: { action: string; subjectId: string; onIssued: () => void; onCancel: () => void }) => (
     <div data-testid="prompt" data-action={p.action} data-subject={p.subjectId}>
-      <button onClick={p.onIssued}>code accepted</button>
-      <button onClick={p.onCancel}>cancel prompt</button>
+      <button onClick={p.onIssued}>{ACCEPT}</button>
+      <button onClick={p.onCancel}>{CANCEL}</button>
     </div>
   ),
 }));
