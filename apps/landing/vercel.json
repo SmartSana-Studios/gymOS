@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "ignoreCommand": "[ \"$VERCEL_FORCE_BUILD\" = \"1\" ] && exit 1 || npx turbo-ignore@2.10.3 --fallback=origin/master"
+}
