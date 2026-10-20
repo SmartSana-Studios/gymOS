@@ -393,7 +393,7 @@ export async function confirmCsvImport(
   }
   const importExempt = gymSettings.registrationFee > 0;
 
-  const successes: { memberId: string; userId: string; authUserCreated: boolean }[] = [];
+  const successes: { memberId: string; gymId: string; userId: string; authUserCreated: boolean }[] = [];
 
   for (const row of validatedRows) {
     const { data: provisioned, error: provisionError } = await provisionMemberRow({
@@ -413,7 +413,7 @@ export async function confirmCsvImport(
     if (provisionError || !provisioned) {
       for (let i = successes.length - 1; i >= 0; i--) {
         const prior = successes[i];
-        await deleteMemberForCleanup(prior.memberId);
+        await deleteMemberForCleanup(prior.memberId, prior.gymId);
         if (prior.authUserCreated) {
           await deleteAuthUserForCleanup(prior.userId);
         }
@@ -426,6 +426,7 @@ export async function confirmCsvImport(
 
     successes.push({
       memberId: provisioned.id,
+      gymId: provisioned.gymId,
       userId: provisioned.userId,
       authUserCreated: provisioned.authUserCreated,
     });

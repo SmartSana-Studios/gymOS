@@ -130,6 +130,9 @@ export async function findOrCreateUserByPhone(
   return { data: { userId: created.user.id, created: true }, error: null };
 }
 
+/** A cleanup may only undo what the same request just created: nothing older than this (epic 22 retro, cleanup helpers). */
+const CLEANUP_MAX_AGE_MS = 60 * 60 * 1000;
+
 /** Compensating cleanup for `createMember`'s orchestration: if `insertMember`
  * fails (cap-trigger race, RLS, unexpected error) after
  * `findOrCreateUserByPhone` freshly provisioned a brand-new `auth.users` row
@@ -140,6 +143,22 @@ export async function findOrCreateUserByPhone(
  * same no-cross-table-transaction rationale. */
 export async function deleteAuthUserForCleanup(userId: string): Promise<void> {
   const admin = createAdminClient();
+  // Epic 22 retro (cleanup helpers): this deletes with the service-role key, which bypasses row-level rules, so it refuses
+  // anything but the record it exists to undo: an account created within the last hour, attached to no member, and not a
+  // platform (Super Admin) account. Any doubt (a failed lookup) refuses; an orphaned placeholder account is the accepted,
+  // logged outcome (see above).
+  const refuse = (why: string) => console.error(`[members] cleanup refused to delete auth user ${userId}: ${why}`);
+  const { data: found, error: lookupError } = await admin.auth.admin.getUserById(userId);
+  const createdAt = found?.user?.created_at ? Date.parse(found.user.created_at) : Number.NaN;
+  if (lookupError || !Number.isFinite(createdAt)) return refuse("could not confirm the account is new");
+  if (Date.now() - createdAt > CLEANUP_MAX_AGE_MS) return refuse("the account is not fresh");
+  const { data: attached, error: attachedError } = await admin.from("members").select("id").eq("user_id", userId).limit(1);
+  if (attachedError) return refuse("could not check memberships");
+  if ((attached ?? []).length > 0) return refuse("the account belongs to a member");
+  const { data: platform, error: platformError } = await admin.from("users").select("is_super_admin").eq("id", userId).maybeSingle();
+  if (platformError) return refuse("could not check for a platform account");
+  if (platform?.is_super_admin) return refuse("the account is a platform account");
+
   const { error } = await admin.auth.admin.deleteUser(userId);
   if (error) {
     console.error(
@@ -250,8 +269,22 @@ export async function insertSubscription(
  * may have *reused* an existing account from another gym's membership;
  * deleting it would be destructive to that other membership. An orphaned
  * brand-new placeholder `auth.users` row is an accepted, logged edge case. */
-export async function deleteMemberForCleanup(memberId: string): Promise<void> {
+export async function deleteMemberForCleanup(memberId: string, gymId: string): Promise<void> {
   const admin = createAdminClient();
+  // Epic 22 retro (cleanup helpers): service-role delete by id, so it refuses anything but a member row of THIS gym, of role
+  // 'member', created within the last hour. A wrong id, a staff row or another gym's member is left alone and logged.
+  const { data: row, error: lookupError } = await admin
+    .from("members")
+    .select("id, created_at")
+    .eq("id", memberId)
+    .eq("gym_id", gymId)
+    .eq("role", "member")
+    .maybeSingle();
+  const createdAt = row?.created_at ? Date.parse(row.created_at) : Number.NaN;
+  if (lookupError || !row || !Number.isFinite(createdAt) || Date.now() - createdAt > CLEANUP_MAX_AGE_MS) {
+    console.error(`[members] cleanup refused to delete member ${memberId}: not a fresh member row of this gym`);
+    return;
+  }
   // subscriptions.member_id references members(id) with no ON DELETE CASCADE
   // -- the member delete below raises a foreign-key violation whenever a
   // subscription row was already committed (e.g. the CSV import batch
@@ -265,7 +298,7 @@ export async function deleteMemberForCleanup(memberId: string): Promise<void> {
       subscriptionError,
     );
   }
-  const { error } = await admin.from("members").delete().eq("id", memberId);
+  const { error } = await admin.from("members").delete().eq("id", memberId).eq("gym_id", gymId);
   if (error) {
     console.error(
       `[members] compensating cleanup failed to delete member ${memberId} after a failed subscription insert`,
@@ -349,7 +382,7 @@ async function settleRegistrationFeeForImport(memberId: string, gymId: string): 
 export async function provisionMemberRow(
   input: ProvisionMemberRowInput,
 ): Promise<{
-  data: { id: string; userId: string; authUserCreated: boolean } | null;
+  data: { id: string; gymId: string; userId: string; authUserCreated: boolean } | null;
   error: AppError | null;
 }> {
   const { data: userResult, error: userError } = await findOrCreateUserByPhone(input.phone);
@@ -376,7 +409,7 @@ export async function provisionMemberRow(
   if (input.importExempt) {
     const { error: settleError } = await settleRegistrationFeeForImport(memberRow.id, memberRow.gymId);
     if (settleError) {
-      await deleteMemberForCleanup(memberRow.id);
+      await deleteMemberForCleanup(memberRow.id, memberRow.gymId);
       return { data: null, error: settleError };
     }
   }
@@ -390,13 +423,13 @@ export async function provisionMemberRow(
       expiryDate: input.expiryDate ?? null,
     });
     if (subscriptionError) {
-      await deleteMemberForCleanup(memberRow.id);
+      await deleteMemberForCleanup(memberRow.id, memberRow.gymId);
       return { data: null, error: subscriptionError };
     }
   }
 
   return {
-    data: { id: memberRow.id, userId: userResult.userId, authUserCreated: userResult.created },
+    data: { id: memberRow.id, gymId: memberRow.gymId, userId: userResult.userId, authUserCreated: userResult.created },
     error: null,
   };
 }
