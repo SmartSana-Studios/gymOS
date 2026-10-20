@@ -1160,14 +1160,14 @@ action_items:
     action: "Process: a story that introduces a gate or check lists its consumers
       in the spec and carries a test that enumerates them"
     owner: "dev workflow"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-67-process-a-deferral-worded-close-before-x"
     epic: 22
     action: "Process: a deferral worded close before X becomes an acceptance criterion
       of story X, not a deferred-work line"
     owner: "dev workflow"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-68-process-a-story-that-adds-tests-to-an-ap"
     epic: 22
@@ -1213,21 +1213,21 @@ action_items:
       a password session; friendlier page for a stale-tab server action 404 (consider
       Vercel Skew Protection)"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
   - id: "epic-22-retro-item-74-make-operator-scripts-runnable-without-a"
     epic: 22
     action: "Make operator scripts runnable without a temp install (declare pg where
       they run) and document that prod_psql fails silently in the dev container"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
   - id: "epic-22-retro-item-75-self-test-for-scripts-ci-local-sh-a-deli"
     epic: 22
     action: "Self-test for scripts/ci-local.sh: a deliberately failing command in
       each stage turns that stage red"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
   - id: "epic-22-retro-item-76-decide-whether-to-accept-epic-22-browser"
     epic: 22
@@ -1241,14 +1241,14 @@ action_items:
     action: "Process: a merge gate must be shown capable of failing before it is trusted;
       run it once against a known-bad input when a gate script is changed or reused"
     owner: "process"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
   - id: "epic-22-retro-item-78-process-test-a-deploy-runbook-end-to-end"
     epic: 22
     action: "Process: test a deploy runbook end to end against the real transport
       (dry run, preflight, psql, Vercel login, pg module) before the deploy window"
     owner: "process"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
   - id: "epic-22-retro-item-79-item-65-fix-now-batch-shared-step-up-sub"
     epic: 22
@@ -1276,7 +1276,7 @@ action_items:
       gym denies payment initiation (gymSuspended vs generic); component test for
       the SecurityClient step-up retry loop"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
   - id: "epic-22-retro-item-82-make-the-pre-migration-backup-impossible"
     epic: 22
@@ -1295,7 +1295,7 @@ action_items:
       from the app (the session id comes from the verified token), found while writing
       the item 65 scoping tests"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
   - id: "epic-22-retro-item-84-ux-decision-item-81-leftover-when-a-susp"
     epic: 22
@@ -1306,7 +1306,7 @@ action_items:
     owner: "owner"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
-last_updated: 10-20-2026 14:30
+last_updated: 10-20-2026 13:09
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1537,3 +1537,4 @@ last_updated: 10-20-2026 14:30
 # last_updated: 2026-10-20 (ad-hoc: retro item 79 shipped. PR #87 merged to master after master was merged into it (the status file conflicted: its new item 82 was renumbered to 83), local CI green for 17642f4 and all GitHub checks green; super-admin deployed by Vercel (the step-up subject normaliser is live; no migration). Item 79 set done. Owner asked to fix all open items at once; working through them next)
 # last_updated: 2026-10-20 (ad-hoc: owner asked to fix all open items at once. After merging PR #87 (item 79 done) the rest is on chore/epic22-open-items, PR pending, migration 0133 NOT applied to production. 73: adding a second authenticator from a password session now returns aal2_required with an explanation and a link to /auth/mfa (en/fr), tests fail without it; stale-tab 404: documented, Vercel Skew Protection is a plan setting for the owner. 74: operator scripts use a pinned scripts/operator package (npm ci --prefix scripts/operator) outside the pnpm workspace; a first attempt with pnpm add bumped @supabase, next and tanstack in the lockfile and was reverted completely; prod_psql silent failure documented in prod-db.sh and the runbook. 75: scripts/ci-local.selftest.sh (lint that every stage command can fail its stage, run_stage known-bad input, every stage wired), 3 mutations caught, in ci-local and ci.yml; the last deno command gained || return 1. 78: scripts/deploy-readiness.sh (read-only: token, ledger head, gh, last green db-backup, pg module, prod_psql silent failure, Vercel CLI), run for real. 66, 67, 77, 78 plus the backup lessons are standing rules in _bmad/custom/bmad-build.toml, bmad-code-review.toml and bmad-retrospective.toml (persistent_facts, resolved). 81: SecurityClient step-up retry loop test (a broken retry is caught) and migration 0133 (nightly support_session_state purge, pg_cron 03:15 UTC); 83: session_gate_touch scopes its delete to the caller in 0133, regression test fails on the old function, rollback script and rollback rehearsal extended to 10 scripts. Owner items 76 and 80 got decision aids in the retro; a new owner item tracks the UX wording for suspended/deactivated payment denials. Items set done after merge and, for 81 and 83, after 0133 is applied to production)
 # last_updated: 2026-10-20 (ad-hoc: first real evidence for epic 20 item 39 (pgTAP incomplete output): flagged_payment_reason, docker_exit=0, 3085 bytes, plan line present, tail missing, so the docker exec output stream was cut short while docker reported success. pgtap-run.sh now appends a PGTAP_EOF sentinel and prints eof_marker on RETRY/FAIL lines to confirm truncation directly. Item 39 stays in-progress until it repeats; the planned fix if it does is to run psql inside the container writing to a file and read the file back)
+# last_updated: 2026-10-20 (ad-hoc: the open Epic 22 items shipped. Migration 0133 session_gate_hygiene applied to PRODUCTION with scripts/deploy-migration.sh after deploy-readiness.sh passed and a fresh green db-backup (run 39427351100, taken by the script); verified read-only: session_gate_touch scoped to the caller, support_session_state_purge scheduled 15 3 * * * and active, anon and authenticated cannot call, service_role can, aal2 flag still on, 1 active gym. PR #89 merged to master as 3f84dce after local CI green for b3fabf9 and all GitHub checks green; super-admin deployed. Items 66, 67, 73, 74, 75, 77, 78, 81 and 83 set done. Still open for epic 22: 76 and 80 (owner), the payment-denial wording (owner); epic 20 item 39 in-progress (first evidence recorded); epic 19 item 26 restore test (owner, needs the age key))
