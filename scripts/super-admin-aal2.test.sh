@@ -14,6 +14,8 @@ EMAIL=qa22-6-super@example.test
 UID_FIX=00000000-0000-4000-8000-000000002206
 UID_NS=00000000-0000-4000-8000-000000002207
 EMAIL_NS=qa22-6-regular@example.test
+UID_B=00000000-0000-4000-8000-000000002208   # a second Super Admin, created only inside the multi-admin block below
+EMAIL_B=qa22-6-zsecond@example.test        # sorts after EMAIL, so a check of only the first admin would miss it
 OP=qa-22-6
 
 sql() { docker exec -i -e PGPASSWORD=postgres "$DB" psql -U postgres -h 127.0.0.1 -At -v ON_ERROR_STOP=1 -c "$1" 2>&1; }
@@ -32,6 +34,7 @@ export PROD_HOST=127.0.0.1 PROD_PORT=${LOCAL_DB_PORT:-54322} PROD_USER=postgres 
 ORIG_FLAG=$(sql "select enabled from private.platform_flags where flag='super_admin_aal2'")
 cleanup() {
   sql "delete from auth.sessions where user_id in ('$UID_FIX','$UID_NS'); select set_config('gymos.factor_reset','on',true); delete from auth.mfa_factors where friendly_name like 'qa22-6-%'; delete from public.audit_log where actor_display_name='operator:$OP'; delete from private.super_admin_recovery_pending where user_id = '$UID_FIX'; delete from private.super_admin_recovery_email where user_id = '$UID_FIX'; delete from auth.users where id in ('$UID_FIX','$UID_NS'); update private.platform_flags set enabled = '$ORIG_FLAG' where flag='super_admin_aal2';" >/dev/null
+  sql "select set_config('gymos.factor_reset','on',true); delete from auth.mfa_factors where user_id='$UID_B'; delete from private.super_admin_recovery_email where user_id='$UID_B'; delete from auth.users where id='$UID_B';" >/dev/null
   rm -f "$PWFILE"
 }
 trap cleanup EXIT
@@ -147,6 +150,23 @@ check "  flag unchanged" "$(flag)" "f"
 check "  no extra enable audit row" "$(audit_n super_admin_aal2_enabled)" "$ENABLED_BEFORE"
 rm -f "$LATE" "$LATE.rc"
 factors 2 0; setflag true
+
+# Epic 22 deferral (22-6): the enable rule is checked for EVERY Super Admin, not only the first one. B sorts after A by email.
+setflag false; factors 2 0
+sql "insert into auth.users (id, instance_id, aud, role, email, created_at, updated_at) values ('$UID_B','00000000-0000-0000-0000-000000000000','authenticated','authenticated','$EMAIL_B',now(),now()); update public.users set is_super_admin = true where id='$UID_B'; insert into auth.mfa_factors (id,user_id,friendly_name,factor_type,status,created_at,updated_at,secret) values (gen_random_uuid(),'$UID_B','qa22-6-b-v1','totp','verified',now(),now(),'QA226SECRET');" >/dev/null || { echo "FAIL second admin fixture"; fail=1; }
+run node $ENABLE --apply --operator $OP <<<"enable super admin aal2"
+check "two Super Admins, the second has 1 factor and no recovery email: enable refuses (exit 1)" "$rc" "1"
+has "  and names the second admin" "$out" "$EMAIL_B"
+check "  flag unchanged" "$(flag)" "f"
+run node $ENABLE
+has "  the dry run lists the first admin" "$out" "$EMAIL: 2 verified"
+has "  and the second admin" "$out" "$EMAIL_B: 1 verified"
+sql "insert into private.super_admin_recovery_email (user_id, email) values ('$UID_B', 'qa22-6-b@rec.example.test')" >/dev/null
+run node $ENABLE --apply --operator $OP <<<"enable super admin aal2"
+check "once the second admin has a verified recovery email: enable passes (exit 0)" "$rc" "0"
+check "  flag on" "$(flag)" "t"
+sql "select set_config('gymos.factor_reset','on',true); delete from auth.mfa_factors where user_id='$UID_B'; delete from private.super_admin_recovery_email where user_id='$UID_B'; delete from auth.users where id='$UID_B';" >/dev/null
+check "  second admin removed again (the rest of the file sees one Super Admin)" "$(sql "select count(*) from public.users where is_super_admin and id <> '$UID_FIX'")" "0"
 
 # Epic 22 retro item 61: unlock-only. A locked account is released; factors, sessions and the flag are untouched.
 UNLOCK=scripts/unlock-super-admin.mjs

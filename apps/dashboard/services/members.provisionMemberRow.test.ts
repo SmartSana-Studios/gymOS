@@ -35,6 +35,10 @@ function chain(client: "session" | "admin", table: string, op: string, payload?:
   };
   builder.maybeSingle = async () => {
     if (table === "members" && op === "update") return settleResult;
+    // The cleanup helper first confirms the row is a FRESH member row of this gym (epic 22 retro, cleanup helpers).
+    if (table === "members" && op === "select" && client === "admin") {
+      return { data: { id: "member-1", created_at: new Date().toISOString() }, error: null };
+    }
     if (table === "users") return { data: null, error: null };
     return { data: null, error: null };
   };
@@ -49,6 +53,7 @@ function makeClient(client: "session" | "admin") {
       getClaims: async () => ({ data: { claims: { gym_id: "gym-1" } }, error: null }),
       admin: {
         createUser: async () => ({ data: { user: { id: "user-1" } }, error: null }),
+        getUserById: async () => ({ data: { user: { id: "user-1", created_at: new Date().toISOString() } }, error: null }),
         deleteUser: async () => {
           ops.push({ client, table: "auth.users", op: "deleteUser" });
           return { error: null };

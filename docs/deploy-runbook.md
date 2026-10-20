@@ -326,12 +326,12 @@ practical policy this runbook recommends:
    hand-editing the production schema or force-pushing history. This
    matches how this project already treats every other schema change
    (migrations are the source of truth, per §3).
-2. **Data recovery is the production backup (the daily R2 dump, see below),
+2. **Data recovery is the production backup (the hourly R2 dump, see below),
    not migration rollback.** Point-in-time recovery (PITR)
    and daily backups are Supabase *platform* features tied to the
    project's pricing tier. **Observed 2026-10-11:** production has PITR
    off and no platform backups listed. **Decided 2026-10-11:** accept
-   that, and rely on the daily encrypted dump to Cloudflare R2
+   that, and rely on the hourly encrypted dump to Cloudflare R2 (nightly until 2026-10-20)
    (`.github/workflows/db-backup.yaml`, 30-day retention); PITR / tier
    upgrade deferred, revisit **2026-12-31**; last tested restore: **2026-10-20, passed**
    (first run). Details in `docs/decisions.md`, "V1.6 release runbook"
