@@ -1104,7 +1104,7 @@ action_items:
     action: "removeFactor: run the global sign-out regardless of audit result and
       return removed true with an audit flag"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-59-run-apps-super-admin-vitest-in-stage_uni"
     epic: 22
@@ -1146,7 +1146,7 @@ action_items:
     epic: 22
     action: "Prune the four stale exempt entries in scripts/claim-inventory.exempt.json"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-65-triage-the-epic-22-retro-f10-low-severit"
     epic: 22
@@ -1247,7 +1247,7 @@ action_items:
     owner: "process"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
-last_updated: 10-19-2026 15:05
+last_updated: 10-20-2026 07:59
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1458,3 +1458,4 @@ last_updated: 10-19-2026 15:05
 # last_updated: 2026-10-19 (ad-hoc: retro items 71 and 72 shipped. PR #80 merged to master as 6decacd; migration 0131 recovery_mail_failed applied to PRODUCTION before the merge with scripts/deploy-migration.sh (head was 0130; ledger now 0131; column mail_failed_at present, public.recovery_code_mail_failed callable by service_role only, aal2 flag still on); super-admin deployed by Vercel. Items 71 and 72 set done. Still open: backups/PITR (item 69, owner), owner confirmation of proposed transitions for epic-22 items 63 and 68 and epic-19 item 24, rollback rehearsal (item 70))
 # last_updated: 2026-10-19 (ad-hoc: owner confirmed the three proposed retro status changes ('apply open'): epic-22 items 63 and 68 and epic-19 item 24 set done with the evidence recorded in epic-22-retro-2026-10-19.md. Remaining open for epic 22: 57, 58, 60, 61, 62, 64, 65, 66, 67, 69 (backups, owner), 70, 73-78)
 # last_updated: 2026-10-19 (ad-hoc: retro items 58 and 64 built on fix/retro-58-64, PR pending. 58: removeFactor no longer returns audit_failed after the factor is gone; it still ends every session and returns removed:true with auditFailed:true; the page shows a removedNotAudited notice (en/fr); old test that pinned audit_failed replaced, new tests fail without the fix, SecurityClient.removed.test.tsx added. 64: the four stale exempt entries pruned from scripts/claim-inventory.exempt.json, counts unchanged (claim-only 0, live-checked 123, exempt 1, null-unsafe 0), none of the four files reads a claim, decisions.md note updated. Items set done after merge)
+# last_updated: 2026-10-20 (ad-hoc: retro items 58 and 64 shipped. PR #81 merged to master as 6cd8f19 after local CI green for 47cbba2 and all GitHub checks green (Actions runners were backed up, about 14 minutes); super-admin deployed by Vercel; no migration. Items 58 and 64 set done. Remaining open for epic 22: 57 (owner decision), 60, 61, 62, 65, 66, 67, 69 (backups, owner), 70, 73-78)
