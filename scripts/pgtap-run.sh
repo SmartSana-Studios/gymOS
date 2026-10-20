@@ -10,6 +10,10 @@
 #   scripts/pgtap-run.sh [files...]     (default: every supabase/tests/*.test.sql)
 #   PGTAP_JOBS=4 scripts/pgtap-run.sh   (files run concurrently on the SAME db;
 #                                         only safe on a pristine database)
+#   PGTAP_FLAKE_DIR=<dir> scripts/pgtap-run.sh
+#                                       (keeps docker's exit status, byte counts and the head of the output of any
+#                                        "incomplete output" run, for the epic 20 retro item 39 flake. The same facts
+#                                        are always printed on the RETRY / FAIL lines.)
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -26,9 +30,10 @@ docker exec -e PGPASSWORD=postgres "$DB_CONTAINER" psql -U postgres -h 127.0.0.1
 # One psql pass over a file. Prints the verdict line; returns 0 ok, 1 assertion/ERROR failure,
 # 3 "incomplete output" (no 'not ok', no ERROR, but the plan or some ok lines are missing).
 check_once() {
-  local f=$1 out
+  local f=$1 out dockerrc
   out=$(docker exec -i -e PGPASSWORD=postgres "$DB_CONTAINER" \
     psql -U postgres -h 127.0.0.1 -At -v ON_ERROR_STOP=0 -f - <"$f" 2>&1)
+  dockerrc=$?
   local plan oks nots errs
   plan=$(printf '%s\n' "$out" | sed -n 's/^1\.\.\([0-9]\+\).*/\1/p' | head -1)
   oks=$(printf '%s\n' "$out" | grep -c '^ok ')
@@ -40,7 +45,23 @@ check_once() {
   fi
   echo "FAIL $f (plan=${plan:-none} ok=$oks not_ok=$nots errors=$errs)"
   printf '%s\n' "$out" | grep -E '^not ok |^# |ERROR:' | head -12 | sed 's/^/     /'
-  if [ "$nots" = 0 ] && [ "$errs" = 0 ]; then return 3; fi
+  if [ "$nots" = 0 ] && [ "$errs" = 0 ]; then
+    # Say WHY in the normal log (epic 20 retro item 39): docker's exit status, how much came back, and the first
+    # lines. A connection failure ("psql: error: ... FATAL ...", "Error response from daemon ...") never contains
+    # the text "ERROR:", so it lands in this branch and used to leave no trace of its cause.
+    printf '     docker_exit=%s out_bytes=%s first_lines=[%s]\n' "$dockerrc" "${#out}" \
+      "$(printf '%s\n' "$out" | grep -v '^$' | head -3 | cut -c1-160 | tr '\n' '|')"
+    # Keep the evidence for the incomplete-output flake (epic 20 retro item 39): what docker returned and how much.
+    if [ -n "${PGTAP_FLAKE_DIR:-}" ]; then
+      mkdir -p "$PGTAP_FLAKE_DIR"
+      {
+        printf 'file=%s file_bytes=%s docker_exit=%s out_bytes=%s ok=%s plan=%s\n--- first 40 lines ---\n' \
+          "$f" "$(stat -c %s "$f")" "$dockerrc" "${#out}" "$oks" "${plan:-none}"
+        printf '%s\n' "$out" | head -40
+      } > "$PGTAP_FLAKE_DIR/$(basename "$f").$(date +%s%N).out"
+    fi
+    return 3
+  fi
   return 1
 }
 
@@ -56,7 +77,7 @@ run_one() {
   # attempt is printed, so a retried-then-passed file never leaves a FAIL line for the summary to count.
   for try in 1 2 3; do
     [ "$rc" = 3 ] || break
-    echo "RETRY $f (incomplete output, no assertion failed; try $try of 3)" >&2
+    echo "RETRY $f (incomplete output, no assertion failed; try $try of 3) $(printf '%s\n' "$out" | grep -m1 'docker_exit=' | sed 's/^ *//')" >&2
     sleep 2
     out=$(check_once "$f"); rc=$?
   done
