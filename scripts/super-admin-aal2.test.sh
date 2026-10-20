@@ -4,7 +4,7 @@
 # against the LOCAL database (never production). Fixtures (one Super Admin, factors named qa22-6-*,
 # one session, audit rows by operator qa-22-6) are created and removed by this script; the flag is
 # restored to its original value on exit. Needs the local Supabase stack, node and the `pg` module
-# (PG_MODULE_DIR=<dir>/node_modules, or `npm i pg@8` is run into a temp dir).
+# (PG_MODULE_DIR=<dir>/node_modules, or the pinned scripts/operator package, installed with `npm ci --prefix scripts/operator`).
 #
 #   scripts/super-admin-aal2.test.sh
 set -uo pipefail
@@ -18,11 +18,13 @@ OP=qa-22-6
 
 sql() { docker exec -i -e PGPASSWORD=postgres "$DB" psql -U postgres -h 127.0.0.1 -At -v ON_ERROR_STOP=1 -c "$1" 2>&1; }
 
-# pg module for the scripts.
+# pg module for the scripts: PG_MODULE_DIR if given, otherwise the pinned scripts/operator package (installed once with
+# `npm ci --prefix scripts/operator`, which the scripts themselves look for).
 if [ -z "${PG_MODULE_DIR:-}" ] || [ ! -d "${PG_MODULE_DIR}/pg" ]; then
-  TMPPG=$(mktemp -d)
-  (cd "$TMPPG" && npm i --silent --no-audit --no-fund pg@8 >/dev/null 2>&1) || { echo "SKIP: pg module unavailable (set PG_MODULE_DIR)"; exit 1; }
-  export PG_MODULE_DIR="$TMPPG/node_modules"
+  if [ ! -d scripts/operator/node_modules/pg ]; then
+    npm ci --silent --no-audit --no-fund --prefix scripts/operator >/dev/null 2>&1 || { echo "SKIP: pg module unavailable (npm ci --prefix scripts/operator failed; or set PG_MODULE_DIR)"; exit 1; }
+  fi
+  unset PG_MODULE_DIR
 fi
 PWFILE=$(mktemp); echo postgres > "$PWFILE"
 export PROD_HOST=127.0.0.1 PROD_PORT=${LOCAL_DB_PORT:-54322} PROD_USER=postgres PROD_DB=postgres PROD_SSL=0 PROD_PASSWORD_FILE="$PWFILE"

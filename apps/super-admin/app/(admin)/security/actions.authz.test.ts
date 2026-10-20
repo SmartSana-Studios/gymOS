@@ -109,7 +109,8 @@ describe("security actions", () => {
     setup({ verified: 1, aal: "aal1" });
     const { enrollFactor } = await import("./actions");
     const res = await enrollFactor({});
-    expect(res.error?.code).toBe("permission_denied");
+    expect(res.error?.code).toBe("aal2_required"); // retro item 73: an actionable error, not a generic permission denial
+    expect(res.error?.message).toBe("security.errors.verifyFirst");
     expect(enroll).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
   });

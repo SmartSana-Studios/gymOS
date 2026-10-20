@@ -3,15 +3,18 @@
 // file, never printed. Set PROD_SSL=0 to point it at the local Supabase DB (scripts/super-admin-aal2.test.sh).
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 
 const req = createRequire(import.meta.url);
 
 function loadPg() {
-  const tries = [process.env.PG_MODULE_DIR && join(process.env.PG_MODULE_DIR, "pg"), "pg"].filter(Boolean);
+  // PG_MODULE_DIR (explicit) -> scripts/operator/node_modules (one-time: npm ci --prefix scripts/operator) -> any resolvable "pg".
+  const here = dirname(fileURLToPath(import.meta.url));
+  const tries = [process.env.PG_MODULE_DIR && join(process.env.PG_MODULE_DIR, "pg"), join(here, "..", "operator", "node_modules", "pg"), "pg"].filter(Boolean);
   for (const t of tries) { try { return req(t); } catch { /* next */ } }
-  console.error("pg module not found. `npm i pg@8` in a temp dir and set PG_MODULE_DIR=<dir>/node_modules.");
+  console.error("pg module not found. run `npm ci --prefix scripts/operator` once (or set PG_MODULE_DIR=<dir>/node_modules).");
   process.exit(2);
 }
 

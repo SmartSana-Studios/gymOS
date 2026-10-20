@@ -5,8 +5,9 @@ dry-run, and write one `audit_log` row per applied run (`actor_display_name` = `
 
 Connection (same as `scripts/prod-apply.mjs`): `PROD_HOST`, `PROD_PORT`, `PROD_USER`, `PROD_DB` from env
 (defaults point at the deployed pooler), password from `~/.supabase-db-password` (`PROD_PASSWORD_FILE`
-overrides), never printed. `pg` is loaded from `PG_MODULE_DIR=<dir>/node_modules` (`npm i pg@8` in a
-temp dir). Set `PROD_SSL=0` only for a local database.
+overrides), never printed. `pg` comes from the pinned `scripts/operator` package: run `npm ci --prefix scripts/operator`
+once (or point `PG_MODULE_DIR=<dir>/node_modules` at another install). It is deliberately outside the pnpm workspace, so installing it never
+touches the apps' dependencies. Set `PROD_SSL=0` only for a local database.
 
 ## Preconditions
 

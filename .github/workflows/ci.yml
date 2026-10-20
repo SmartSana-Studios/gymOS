@@ -48,6 +48,9 @@ jobs:
       - name: Deploy scripts refuse to run without a green db-backup (fake gh)
         run: PYTHON_CMD=python3 bash scripts/require-db-backup.test.sh
 
+      - name: The local gate can fail (ci-local self-test)
+        run: bash scripts/ci-local.selftest.sh
+
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x

@@ -96,7 +96,8 @@ export async function enrollFactor(input: { friendlyName?: string }): Result<Enr
 
   // A second factor needs aal2, decided here before the provider is called.
   if (verifiedCount > 0 && (await currentAal(supabase)) !== "aal2") {
-    return { data: null, error: await err("permission_denied", "errors.permissionDenied") };
+    // Epic 22 retro item 73: say what to do, not "you do not have permission". The page links to /auth/mfa.
+    return { data: null, error: await err("aal2_required", "security.errors.verifyFirst") };
   }
 
   // Clear abandoned unverified factors so retries do not pile up toward the cap.

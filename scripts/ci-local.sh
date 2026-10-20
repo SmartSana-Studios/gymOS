@@ -72,6 +72,8 @@ stage_static() {
   pnpm run test:guardrails || return 1
   # The deploy scripts refuse to apply a migration without a green db-backup run (against a fake gh; never touches GitHub).
   bash "$ROOT/scripts/require-db-backup.test.sh" || return 1
+  # The gate itself: every stage command can fail its stage (the 2026-10-17 false green), and run_stage turns a failure red.
+  bash "$ROOT/scripts/ci-local.selftest.sh" || return 1
 }
 
 stage_deno() {
@@ -85,7 +87,7 @@ stage_deno() {
     echo "deno not found (install it, or run: npx -y deno --version to cache the npm binary)." >&2
     return 1
   fi
-  (cd "$ROOT/supabase/functions/payment-webhook" && "$deno_bin" test --allow-all .)
+  (cd "$ROOT/supabase/functions/payment-webhook" && "$deno_bin" test --allow-all .) || return 1
 }
 
 stage_pgtap() {

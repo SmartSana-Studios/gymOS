@@ -37,9 +37,11 @@ import { homedir } from "node:os";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const req = createRequire(import.meta.url);
 function loadPg() {
-  const tries = [process.env.PG_MODULE_DIR && join(process.env.PG_MODULE_DIR, "pg"), "pg"].filter(Boolean);
+  // PG_MODULE_DIR (explicit) -> scripts/operator/node_modules (one-time: npm ci --prefix scripts/operator) -> any resolvable "pg".
+  const here = dirname(fileURLToPath(import.meta.url));
+  const tries = [process.env.PG_MODULE_DIR && join(process.env.PG_MODULE_DIR, "pg"), join(here, "operator", "node_modules", "pg"), "pg"].filter(Boolean);
   for (const t of tries) { try { return req(t); } catch { /* next */ } }
-  console.error("pg module not found. `npm i pg@8` in a temp dir and set PG_MODULE_DIR=<dir>/node_modules.");
+  console.error("pg module not found. run `npm ci --prefix scripts/operator` once (or set PG_MODULE_DIR=<dir>/node_modules).");
   process.exit(2);
 }
 const { Client } = loadPg();

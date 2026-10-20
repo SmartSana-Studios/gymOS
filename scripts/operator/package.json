@@ -1,0 +1,8 @@
+{
+  "name": "gymos-operator-scripts",
+  "private": true,
+  "description": "Dependencies of the operator scripts in scripts/ (enable/disable/reset/unlock Super Admin, prod-apply). Deliberately NOT part of the pnpm workspace, so installing it never touches the apps' dependency tree. One-time: npm ci --prefix scripts/operator",
+  "dependencies": {
+    "pg": "8.23.1"
+  }
+}
