@@ -34,7 +34,7 @@ export async function mapAndLog(rawError: unknown): Promise<AppError> {
 // enum, 0001_extensions_and_enums.sql). Super Admin is a platform-level
 // flag, never seen here -- (dashboard)/layout.tsx redirects a
 // super_admin-only session before this type is ever relevant.
-export type MemberRole = "member" | "coach" | "receptionist" | "manager" | "supervisor" | "owner";
+export type MemberRole = "member" | "coach" | "receptionist" | "manager" | "supervisor" | "owner" | "support";
 
 // Only these roles have a place on apps/dashboard. "member" is a real,
 // valid member_role value (the gym-customer role, mobile-app/phone-OTP

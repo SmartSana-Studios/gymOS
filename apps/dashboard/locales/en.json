@@ -24,7 +24,8 @@
     "receptionist": "Receptionist",
     "manager": "Manager",
     "supervisor": "Supervisor",
-    "owner": "Owner"
+    "owner": "Owner",
+    "support": "GymOS Support"
   },
   "sidebar": {
     "logout": "Log out",

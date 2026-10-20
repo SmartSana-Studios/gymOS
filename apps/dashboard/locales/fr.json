@@ -24,7 +24,8 @@
     "receptionist": "Réceptionniste",
     "manager": "Gérant",
     "supervisor": "Superviseur",
-    "owner": "Propriétaire"
+    "owner": "Propriétaire",
+    "support": "Support GymOS"
   },
   "sidebar": {
     "logout": "Se déconnecter",

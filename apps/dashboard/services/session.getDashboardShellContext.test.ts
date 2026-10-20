@@ -212,4 +212,14 @@ describe("getDashboardShellContext -- suspension short-circuit (Story 11.4)", ()
     expect(result).toEqual({ data: null, error: null, suspended: null });
     expect(fromCalls).toEqual([]);
   });
+
+  it("gives a support session with a gym claim no dashboard context (support stays denied until 23.6)", async () => {
+    claimsResult.data!.claims = { sub: USER_ID, app_role: "support", gym_id: "gym-1" };
+    const { getDashboardShellContext } = await import("./session");
+
+    const result = await getDashboardShellContext();
+
+    expect(result).toEqual({ data: null, error: null, suspended: null });
+    expect(fromCalls).toEqual([]);
+  });
 });

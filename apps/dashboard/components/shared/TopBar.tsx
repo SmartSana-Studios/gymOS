@@ -15,6 +15,7 @@ const ROLE_LABEL_KEY: Record<MemberRole, string> = {
   manager: "role.manager",
   supervisor: "role.supervisor",
   owner: "role.owner",
+  support: "role.support",
 };
 
 /**
