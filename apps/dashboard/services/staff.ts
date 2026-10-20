@@ -119,7 +119,7 @@ export async function listStaff(): Promise<{ data: StaffListRow[] | null; error:
     .from("members")
     .select("id, name, phone, role, user_id, deactivated_at")
     .eq("gym_id", gymId)
-    .neq("role", "member")
+    .in("role", ["owner", "supervisor", "manager", "receptionist", "coach"])
     .order("created_at", { ascending: true });
 
   if (error) {

@@ -550,6 +550,7 @@ export async function listGymMembers(
     .from("members")
     .select("id, name, phone, role, join_date, deactivated_at", { count: "exact" })
     .eq("gym_id", gymId)
+    .neq("role", "support")
     .order("join_date", { ascending: false })
     .order("id", { ascending: false })
     .range(from, to);

@@ -1210,3 +1210,9 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-1-support-role-assignment-live-gate.md`
   summary: Rollback scripts for 0134/0135 are hand-copied function bodies that were only applied once on the local DB and never compared with the 0124/0061/0129/0065/0074/0133 bodies.
   evidence: Review (verification gap and blind hunter) found no test or drill; add a rollback round trip that diffs the restored definitions against the pre-0135 ones before the Epic 23 production deploy.
+
+## Deferred from: code review of spec-23-2-support-excluded-from-counts-caps-notifications-metrics (2026-10-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-2-support-excluded-from-counts-caps-notifications-metrics.md`
+  summary: The quiet-gym "no dispatch to support" pgTAP proof has no positive control showing the job does dispatch to a member in the same fixture.
+  evidence: Medium if real (unverified): the job needs a low occupancy band and an open window, so zero dispatches could pass vacuously; the structural check that the body filters `m.role = 'member'` is the actual guarantee. A control assertion would settle it.
