@@ -1216,7 +1216,7 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | OQ-28 | **Landing page content language** — whether a gym enters content in one language or both, and how the page chooses (FR-208). | Product owner | Before landing-page stories |
 | OQ-29 | **Directory thin-page threshold** — default 3 published gyms per listing (FR-212); confirm or change. | Product owner | Before directory stories |
 | OQ-30 | **Resolved (2026-10-20)** — confirmed by the product owner (docs/decisions.md, Story 23.0): default as written: switching "Allow GymOS Support" off suspends assignments, switching on re-activates those that were active, and assignments made while off stay pending (FR-177, FR-183). | — | — |
-| OQ-31 | **Legal review** — liability terms for support actions (FR-187), publishing a gym's phone and address (FR-197), and support access to member data under the applicable data-protection law. | Product owner, counsel | Before release of step 1 and step 2 |
+| OQ-31 | **Resolved by owner risk acceptance (2026-10-20), not reviewed by counsel (docs/decisions.md, Story 23.0)** — liability terms for support actions (FR-187), publishing a gym's phone and address (FR-197), and support access to member data under the applicable data-protection law. | — | — |
 
 ---
 

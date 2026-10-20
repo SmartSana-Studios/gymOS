@@ -5,7 +5,7 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
-## 2026-10-20 — Story 23.0: GymOS Support pre-flight checklist (owner answers; two items still open)
+## 2026-10-20 — Story 23.0: GymOS Support pre-flight checklist (owner answers; release items still open)
 
 Owner answers given 2026-10-20 in the 23.0 session. No application code, migration or config changed. Spec: `_bmad-output/implementation-artifacts/spec-23-0-pre-flight-checklist-product-owner.md`.
 
@@ -16,11 +16,20 @@ Owner answers given 2026-10-20 in the 23.0 session. No application code, migrati
 - **Super Admin factors.** Recorded as it is, which differs from the AC wording "two verified factors": one verified TOTP factor plus a verified recovery email, after the 2026-10-20 owner decision not to add a second authenticator. `enable-super-admin-aal2.mjs` accepts exactly this combination (0128). `super_admin_aal2` is on in production and 22.6 is done.
 
 **Still open (23.0 stays in-progress)**
-- **OQ-31 (legal: support liability wording, public phone/address, member data under data-protection law).** Not answered. Blocks 23.8 and the release of Epic 23.
-- **Owner notice to existing gyms (FR-183).** EN/FR text not written or approved; send date not set. Must be sent before the release date. Blocks release, not the build.
-- **Recovery runbook exercise date.** The AC asks for the date the Super Admin recovery runbook was exercised. No record found in the repo (the retro records the add-admin bootstrap window, not a recovery). Owner to give the date or run it.
+- **OQ-31** — see "Decided later the same day" below: closed by owner risk acceptance, not legally reviewed.
+- **Owner notice to existing gyms (FR-183).** EN/FR draft written (below), not approved; send date not set. Must be sent before the release date.
+- **Recovery runbook exercise date.** Owner to run the runbook and record the date; no earlier record found in the repo.
 
-**Not blocked.** 23.1 and 23.2 can start; 23.3 is unblocked by OQ-30; 23.8 is blocked by OQ-31.
+**Not blocked.** All of Epic 23 can be built; the release waits on the Owner notice (approval and send date) and the recovery runbook exercise.
+
+**Decided later the same day (owner, 2026-10-20)**
+- **OQ-31 closed by owner risk acceptance.** Not legally reviewed: the owner accepts the risk and proceeds. The customer-terms wording on support liability (FR-187), publishing a gym's phone and address (FR-197) and support access to member data is owner-approved, **not reviewed by counsel**. 23.8 is no longer blocked. Revisit if a customer or regulator raises it; counsel review stays a recommended step before wide rollout.
+- **Owner notice (FR-183).** Draft EN/FR text below, **pending owner approval**. Send date not set; it must be recorded before the release date, and the notice goes in-app and by the gym's usual channel. Blocks release, not the build.
+- **Recovery runbook exercise.** The owner will run `docs/runbooks/super-admin-recovery.md` and record the date here. Needed before release, not before building. Date: _not yet recorded_.
+
+**Draft Owner notice (not approved, not sent)**
+- EN: "GymOS is adding an optional support service. If you turn on 'Allow GymOS Support' in Settings, a GymOS support person can help set up your gym and handle payments and refunds on your behalf. You will see them only as 'GymOS Support', never by name, and every action is recorded. It is OFF for your gym until you turn it on, and you can turn it off at any time; access ends immediately. Nothing changes unless you choose it."
+- FR: "GymOS ajoute un service d'assistance optionnel. Si vous activez « Autoriser l'assistance GymOS » dans les Paramètres, une personne de l'assistance GymOS peut vous aider à configurer votre salle et à gérer les paiements et remboursements en votre nom. Vous la verrez uniquement sous le nom « Assistance GymOS », jamais par son nom, et chaque action est enregistrée. Cette option est DÉSACTIVÉE pour votre salle tant que vous ne l'activez pas, et vous pouvez la désactiver à tout moment ; l'accès s'arrête immédiatement. Rien ne change si vous ne le choisissez pas."
 
 ---
 

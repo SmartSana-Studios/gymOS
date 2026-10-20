@@ -22,7 +22,7 @@ context:
 2. All assumption values confirmed unchanged: velocity 10/h per gym, 20/h per account, 3 payment-connection changes/day per gym; 60 s cutoff; 30-day inactivity; 30-minute cooling-off; 3-business-day disclosure answer; Super Admin session limits 8 h absolute and 30 min idle; 5-minute step-up.
 3. All four deferrable items kept: velocity lock, daily digest, quarterly recertification, inactivity sweep.
 4. Super Admin factors: record the real state (one TOTP factor plus verified recovery email, per the 2026-10-20 owner decision against a second authenticator) and flag that it differs from the AC wording "two verified factors". `enable-super-admin-aal2.mjs` accepts this combination (migration 0128).
-5. OQ-31 and the Owner notice have no owner answer yet: record both as open, OQ-31 blocking 23.8 and release, the notice send date blocking release. Draft EN/FR notice text may be added as a draft, never as approved.
+5. (Updated later 2026-10-20) OQ-31 closed by owner risk acceptance, not legally reviewed. Owner notice: EN/FR draft recorded as pending approval, send date open (blocks release). Recovery runbook exercise date open, owner to run it (blocks release).
 
 </frozen-after-approval>
 
