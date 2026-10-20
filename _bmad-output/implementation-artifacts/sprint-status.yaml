@@ -1125,7 +1125,7 @@ action_items:
     action: "Add an unlock-only mode with audit row to clear super_admin_lockout without
       removing factors or turning the flag off"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-62-billing-saas_pay-exempt-for-suspended-gy"
     epic: 22
@@ -1247,7 +1247,7 @@ action_items:
     owner: "process"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
-last_updated: 10-20-2026 07:59
+last_updated: 10-20-2026 08:17
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1460,3 +1460,4 @@ last_updated: 10-20-2026 07:59
 # last_updated: 2026-10-19 (ad-hoc: retro items 58 and 64 built on fix/retro-58-64, PR pending. 58: removeFactor no longer returns audit_failed after the factor is gone; it still ends every session and returns removed:true with auditFailed:true; the page shows a removedNotAudited notice (en/fr); old test that pinned audit_failed replaced, new tests fail without the fix, SecurityClient.removed.test.tsx added. 64: the four stale exempt entries pruned from scripts/claim-inventory.exempt.json, counts unchanged (claim-only 0, live-checked 123, exempt 1, null-unsafe 0), none of the four files reads a claim, decisions.md note updated. Items set done after merge)
 # last_updated: 2026-10-20 (ad-hoc: retro items 58 and 64 shipped. PR #81 merged to master as 6cd8f19 after local CI green for 47cbba2 and all GitHub checks green (Actions runners were backed up, about 14 minutes); super-admin deployed by Vercel; no migration. Items 58 and 64 set done. Remaining open for epic 22: 57 (owner decision), 60, 61, 62, 65, 66, 67, 69 (backups, owner), 70, 73-78)
 # last_updated: 2026-10-20 (ad-hoc: retro item 61 built on feat/unlock-super-admin, PR pending. scripts/unlock-super-admin.mjs: audited unlock-only for a Super Admin locked by wrong step-up codes; clears only private.super_admin_lockout, typed phrase 'unlock <email>', one super_admin_unlocked audit row, refuses unknown and non-Super-Admin accounts, does nothing when not locked; factors, sessions, recovery data and the aal2 flag untouched. 10 new checks in scripts/super-admin-aal2.test.sh (local DB only, all pass); runbook lockout section updated. Item 61 set done after merge)
+# last_updated: 2026-10-20 (ad-hoc: retro item 61 shipped. PR #82 merged to master after local CI green for 8754d85 and all GitHub checks green; scripts and docs only, nothing deployed; scripts/unlock-super-admin.mjs available for operators. Item 61 set done. Remaining open for epic 22: 57 (owner decision), 60, 62, 65, 66, 67, 69 (backups, owner), 70, 73-78)
