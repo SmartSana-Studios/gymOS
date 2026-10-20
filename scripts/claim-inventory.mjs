@@ -63,6 +63,10 @@ const LIVE_HELPERS = new Set([
   "private.is_super_admin",
   "private.current_member_role",
   "private.current_gym_status",
+  // 23.1: reads the gym_id claim and checks it against a live members row and private.support_live(); support_live itself
+  // is the live gate (assignment, switch, AAL2, session state), so both are live-checked by construction.
+  "private.support_gym_id",
+  "private.support_live",
 ]);
 const NULL_UNSAFE_RE = /(?:<>|!=)\s*(?:any|all)\s*\(|\bnot\s+in\s*\(/i;
 const ROLE_RE = /role/i;

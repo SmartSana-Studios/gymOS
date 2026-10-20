@@ -592,6 +592,7 @@ export type Database = {
       gyms: {
         Row: {
           alert_auto_dismiss_minutes: number
+          allow_gymos_support: boolean
           capacity: number | null
           category: string
           charge_guests_per_session: boolean
@@ -624,6 +625,7 @@ export type Database = {
         }
         Insert: {
           alert_auto_dismiss_minutes?: number
+          allow_gymos_support?: boolean
           capacity?: number | null
           category?: string
           charge_guests_per_session?: boolean
@@ -656,6 +658,7 @@ export type Database = {
         }
         Update: {
           alert_auto_dismiss_minutes?: number
+          allow_gymos_support?: boolean
           capacity?: number | null
           category?: string
           charge_guests_per_session?: boolean
@@ -1759,6 +1762,64 @@ export type Database = {
           },
         ]
       }
+      support_assignments: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          created_by: string | null
+          ended_at: string | null
+          gym_id: string
+          id: string
+          reason: string | null
+          state: string
+          support_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          gym_id: string
+          id?: string
+          reason?: string | null
+          state?: string
+          support_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          gym_id?: string
+          id?: string
+          reason?: string | null
+          state?: string
+          support_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_assignments_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_assignments_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_assignments_support_user_id_fkey"
+            columns: ["support_user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tiers: {
         Row: {
           annual_price: number
@@ -2728,6 +2789,7 @@ export type Database = {
         | "manager"
         | "owner"
         | "supervisor"
+        | "support"
       payment_discrepancy_type:
         | "missing_internal_record"
         | "stale_processing"
@@ -2883,6 +2945,7 @@ export const Constants = {
         "manager",
         "owner",
         "supervisor",
+        "support",
       ],
       payment_discrepancy_type: [
         "missing_internal_record",

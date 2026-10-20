@@ -1202,3 +1202,11 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - Gate scoping paths untested in pgTAP: non-Super-Admin `session_gate_touch` writes no state; a session id owned by another user returns `session_expired`. Low probability; add alongside the 22-7 pgTAP patches.
 - No component tests for `StepUpPrompt`, the `AddAdminModal` / `SecurityClient` step-up retry loop, or the `?expired=1` login notice. Covered by manual browser QA today.
 - A still-live aal2 access token used directly against PostgREST is checked for session existence only, not idle/absolute age, until the next app request ends the session (unverified severity, bounded by JWT expiry). Add to the runbook "not done" list.
+
+## Deferred from: code review of spec-23-1-support-role-assignment-live-gate (2026-10-20)
+
+- support_assignments has no CHECK tying `activated_at`/`ended_at` to `state`, no `updated_at` trigger, and no transition rules (the pgTAP test revives `ended` -> `active`). Add in 23.3/23.5, which own the transitions.
+- "Active support membership implies active assignment and switch on" holds only on `members` writes. Suspending an assignment or turning the switch off leaves the row active; every consumer checks live. 23.3 and 23.5 must call `private.support_set_membership(.., false)`; put that in their acceptance criteria before they start.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-1-support-role-assignment-live-gate.md`
+  summary: Rollback scripts for 0134/0135 are hand-copied function bodies that were only applied once on the local DB and never compared with the 0124/0061/0129/0065/0074/0133 bodies.
+  evidence: Review (verification gap and blind hunter) found no test or drill; add a rollback round trip that diffs the restored definitions against the pre-0135 ones before the Epic 23 production deploy.

@@ -5,6 +5,15 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-20 — Story 23.1: support role, assignment record and live gate (migrations 0134, 0135; not yet applied to production)
+
+- **Support is resolved only by `private.support_gym_id()`.** `private.gym_id()` and `private.current_member_role()` return NULL for a support membership. Review found that 41 migrations carry policies of the form `gym_id = private.gym_id()` with no role check (plans, classes, class_sessions and more), so a helper that resolved support would have let a live support user read them before 23.6. The epic AC wording ("the helpers return `support` / the gym") is deliberately not followed; 23.6 opts each capability in by name using `support_gym_id()`. Owner decision, 2026-10-20.
+- **Live gate** `private.support_live(user, gym)` (service_role/definer only): assignment active, Owner switch on, gym active, account activated/unlocked/no reset pending (`private.support_accounts`, written by 23.4/23.10/23.11), JWT aal2 always, session alive, `support_session_state` inside the 22.7 limits. Nothing writes the session state for support until 23.6 wires `session_gate_touch`, so no support session can pass yet.
+- **Owner switch** `gyms.allow_gymos_support`: existing gyms false, new gyms default true; changes are refused unless the transaction sets `gymos.allow_support_setter = 'on'` (23.3's setter). The membership writer `private.support_set_membership` and the members constraint trigger use `gymos.support_membership_writer` the same way. These are transaction GUCs, not secrets: they stop code that does not know them, and rely on grants for the rest.
+- **Known and accepted for now:** a support `members` row stays active when its assignment is suspended/ended or the switch goes off; every consumer checks the live gate, and 23.3/23.5 must call the writer with `false`. A support row counts in staff counts until 23.2. The hook emits the support claim for any active assignment at aal2 (harmless: no helper resolves it). Rollback scripts for 0135 are hand-copied and were not drilled (deferred-work).
+
+---
+
 ## 2026-10-20 — Story 23.0: GymOS Support pre-flight checklist (owner answers; release items still open)
 
 Owner answers given 2026-10-20 in the 23.0 session. No application code, migration or config changed. Spec: `_bmad-output/implementation-artifacts/spec-23-0-pre-flight-checklist-product-owner.md`.
