@@ -531,7 +531,7 @@ Rules for every production migration: (a) the db-backup workflow has been trigge
 - **Decision (accept the platform posture, add our own backup):** a daily age-encrypted full dump (all schemas, grants kept, roles) plus a Storage file copy to a private Cloudflare R2 bucket (EU jurisdiction, 30-day lifecycle), via `.github/workflows/db-backup.yaml` (PRs #35/#36, `0 2 * * *` UTC plus `workflow_dispatch`; first fully green run 2026-10-11).
 - **Retention:** 30 days (R2 lifecycle). **RPO:** up to 24 hours. **RTO:** not measured.
 - **Plan tier / PITR:** upgrade deferred. Revisit **2026-12-31**. Owner: `josephfeussi`.
-- **Last tested restore: never tested.** This line is updated with the date of the first restore, which is the rehearsal in section 4.
+- **Last tested restore: 2026-10-20, PASSED.** Dump `db.2026-10-20T1305Z.dump.age` (4,766,275 bytes encrypted, 4,764,923 decrypted), downloaded from R2 in the Cloudflare dashboard and decrypted on the owner's machine with the owner's key (the key matched), then restored with `scripts/restore-test.sh --dump` into a throwaway database on the local Supabase Postgres 17: migration head 0132 (as expected for a dump taken just before 0133), 202 functions, counts gyms=1 members=3 payments=2 subscriptions=3 audit_log=33 guest_sessions=0 loyalty_events=0, every one equal to production; 9 pg_restore error lines, all Supabase-managed objects, none unexpected; the restore step took 5 s (the whole procedure, download and decrypt by hand, is not timed, so RTO stays unmeasured). Not covered by the test: Vault secrets (per-gym Tara credentials) do not decrypt in another project, and the Storage file copy was not checked here. The scratch database and the decrypted copy were deleted. (Earlier dated entries below that say "never tested" are history.)
 - **Per-migration step:** trigger `db-backup` (`workflow_dispatch`) immediately before each production migration and confirm the run green; abort the release if it is red. This is the "pre-migration dump" used in section 2.
 - **Key custody:** the age private key is held by the owner outside GitHub; only the public key is a repo secret. Losing it makes every dump unreadable, so confirm it is stored in a second place at the first restore test. A failed scheduled `db-backup` run emails the person who last edited its cron line (GitHub's default); the owner checks the Actions tab weekly until a dedicated alert exists, since a silently failing backup is the likeliest way this posture degrades.
 
@@ -567,7 +567,7 @@ Rules for every production migration: (a) the db-backup workflow has been trigge
 | PITR / paid tier | deferred | 2026-12-31 | josephfeussi |
 | Secrets rotation procedure | deferred | 2026-11-30 (before 19.12) | josephfeussi |
 | `job_runs` failure-alert Action | not built | gates 19.12 | josephfeussi |
-| First restore test (updates "never tested") | not done | with first rehearsal, before 0106 goes to production; also a gate for 19.12 | josephfeussi |
+| First restore test (updates "never tested") | **done 2026-10-20, passed** (see the Last tested restore line above) | with first rehearsal, before 0106 goes to production; also a gate for 19.12 | josephfeussi |
 | Epic 18 retro item 22 (rotate exposed Tara key/webhook secret, revoke tokens) | open | before 19.12 | josephfeussi |
 | 19.11 mobile build live in both stores | not started | gates 19.12 (0115) | josephfeussi |
 
