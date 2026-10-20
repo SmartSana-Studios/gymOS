@@ -1118,7 +1118,7 @@ action_items:
     action: "Add pgTAP allowed assertions for each platform.* capability and a flag-on
       assertion recording the authorize_action platform contract"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-61-add-an-unlock-only-mode-with-audit-row-t"
     epic: 22
@@ -1247,7 +1247,7 @@ action_items:
     owner: "process"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
-last_updated: 10-20-2026 08:17
+last_updated: 10-20-2026 08:59
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1464,3 +1464,4 @@ last_updated: 10-20-2026 08:17
 # last_updated: 2026-10-20 (ad-hoc: epic 20 retro item 39 (pgTAP incomplete-output flake) worked on fix/pgtap-flake, NOT root-caused. Could not reproduce in about 800 trial runs: 30 idle, 60 under 8 busy CPU loops, 80 beside typecheck and lint, 400 stdin deliveries through docker exec -i (0 truncated), a full pgtap stage beside static, and 2 full ci-local runs (0 retries). Hypotheses not confirmed: docker exec stdin/stdout loss, DB connection exhaustion (36 of 100 at rest, no OOM). Added instead: RETRY/FAIL lines now print docker_exit, out_bytes and the first lines for an incomplete run, and PGTAP_FLAKE_DIR keeps the raw evidence, so the next occurrence names its cause. A connection error never contains the text ERROR: and lands in the incomplete branch, which is the leading untested explanation. Item 39 stays in-progress)
 # last_updated: 2026-10-20 (ad-hoc: PR #83 merged to master: pgtap-run.sh now prints docker_exit, out_bytes and the first lines for an incomplete run, PGTAP_FLAKE_DIR keeps raw evidence; scripts only, nothing deployed. Epic 20 retro item 39 stays in-progress: the flake is not root-caused, the next occurrence will carry its cause in the log)
 # last_updated: 2026-10-20 (ad-hoc: epic 22 retro item 60 built on test/authorize-action-platform, PR pending. supabase/tests/authorize_action_platform.test.sql (12 assertions): every platform.* capability per actor type (live Super Admin, plain user, gym owner, demoted Super Admin, unknown capability, no actor), the set of platform capabilities pinned from the function body, and the recorded contract that authorize_action is blind to the aal2 flag and the lockout (enforced in lib/authz.ts). Mutation-checked in rolled-back transactions: new capability, owner allowed, flag honoured and stale access are all caught. apps/super-admin/lib/platform-capabilities.test.ts pins the PlatformCapability type against the latest capability_roles migration (fails on drift, proven). Tests only, no migration, no deploy. Item 60 set done after merge)
+# last_updated: 2026-10-20 (ad-hoc: retro item 60 shipped. PR #84 merged to master after local CI green for 902223f and all GitHub checks green; tests only, nothing deployed. Item 60 set done. Remaining open for epic 22: 57 (owner decision), 62, 65, 66, 67, 69 (backups, owner), 70, 73-78; epic 20 item 39 in-progress)
