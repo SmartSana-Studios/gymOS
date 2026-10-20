@@ -441,8 +441,8 @@ development_status:
   22-8-super-admin-recovery-email: done
   epic-22-retrospective: done
 
-  epic-23: backlog
-  23-0-pre-flight-checklist-product-owner: backlog
+  epic-23: in-progress
+  23-0-pre-flight-checklist-product-owner: in-progress
   23-1-support-role-assignment-record-and-live-gate: backlog
   23-2-support-excluded-from-counts-caps-notifications-metrics: backlog
   23-3-allow-gymos-support-switch-and-gymos-support-row: backlog
@@ -1593,3 +1593,4 @@ last_updated: 10-20-2026 16:47
 # last_updated: 2026-10-20 (ad-hoc: CORRECTION. The hourly db-backup schedule merged earlier today is not delivered hourly: no scheduled run appeared by 16:46 UTC (first expected 16:17), and measuring the repo history shows GitHub fires the hourly job-runs-alert cron every 4.9 h (median, worst 8.4 h) and the nightly db-backup started 5-7 h late every night. Real RPO is up to ~9 h, not the 1 h I wrote in decisions.md, the retro, the runbook and the memory; all four corrected. The watcher item closed with this finding. Open owner decision: add an exact trigger (pg_cron + pg_net, or a Cloudflare Worker) or accept the real cadence. PR #93 (Vercel ignore build step) is open and green on GitHub; Vercel shows the rate-limit block on two projects)
 # last_updated: 2026-10-20 (ad-hoc: PR #93 merged as 9a83981 after master was merged into it (status file conflicts only), local CI green for 5e178b0 and the three Actions checks green; Vercel showed the build-cap block on all three projects by then. The ignoreCommand (npx turbo-ignore@2.10.3 --fallback=origin/master, VERCEL_FORCE_BUILD=1 to force) is on master; epic 19 item 35 stays in-progress until Vercel is seen skipping a docs-only push, which needs the cap to reset (about 24 h). Owner decision on the backup cadence: accept the real GitHub cadence (up to ~9 h between scheduled dumps) for now; no external trigger. A stale 'RPO about 1 h' comment in db-backup.yaml needs a small PR)
 # last_updated: 2026-10-20 (ad-hoc: fix/db-backup-comment: the stale RPO about 1 h comment in .github/workflows/db-backup.yaml replaced by the measured cadence; comment-only, the schedule itself is unchanged)
+# last_updated: 2026-10-20 (build: epic 23 started, 23-0 pre-flight in-progress, docs only. Owner answered: OQ-30 suspend-not-delete confirmed, all assumption values confirmed, all four deferrable items kept (velocity lock, daily digest, quarterly recertification, inactivity sweep), Super Admin factor state recorded as one TOTP plus recovery email (differs from the AC wording). Recorded in docs/decisions.md and PRD OQ-30. Still open before 23-0 can be done: OQ-31 legal wording (blocks 23-8 and release), Owner notice text and send date (blocks release), date the recovery runbook was exercised. epic-23-context.md compiled)

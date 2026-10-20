@@ -5,6 +5,25 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-20 — Story 23.0: GymOS Support pre-flight checklist (owner answers; two items still open)
+
+Owner answers given 2026-10-20 in the 23.0 session. No application code, migration or config changed. Spec: `_bmad-output/implementation-artifacts/spec-23-0-pre-flight-checklist-product-owner.md`.
+
+**Decided**
+- **OQ-30 answered.** Switching "Allow GymOS Support" off suspends assignments (not deletes); switching on restores the ones that were active; assignments made while off stay pending (FR-177, FR-183). Unblocks 23.3.
+- **Assumption values confirmed unchanged.** Velocity 10/h per gym, 20/h per account, 3 payment-connection changes/day per gym; 60 s cutoff for live subscriptions and signed links; 30-day inactivity; 30-minute factor-reset cooling-off; 3-business-day disclosure answer; Super Admin session limits 8 h absolute / 30 min idle and 5-minute step-up (already live in `private.session_limits_config`, migration 0127: 480 / 30 / 5). The support values (velocity, cutoff, inactivity, cooling-off) are not yet in that table; each is added to `private.session_limits_config` (or its sibling) by the story that reads it (23.1 gate, 23.10 velocity, 23.11 inactivity and cooling-off), with the `[ASSUMPTION]` tag and a test that the code reads them from there.
+- **Deferrable items: all four KEPT** — velocity lock and daily digest (23.10), quarterly recertification and inactivity sweep (23.11). None is marked deferred.
+- **Super Admin factors.** Recorded as it is, which differs from the AC wording "two verified factors": one verified TOTP factor plus a verified recovery email, after the 2026-10-20 owner decision not to add a second authenticator. `enable-super-admin-aal2.mjs` accepts exactly this combination (0128). `super_admin_aal2` is on in production and 22.6 is done.
+
+**Still open (23.0 stays in-progress)**
+- **OQ-31 (legal: support liability wording, public phone/address, member data under data-protection law).** Not answered. Blocks 23.8 and the release of Epic 23.
+- **Owner notice to existing gyms (FR-183).** EN/FR text not written or approved; send date not set. Must be sent before the release date. Blocks release, not the build.
+- **Recovery runbook exercise date.** The AC asks for the date the Super Admin recovery runbook was exercised. No record found in the repo (the retro records the add-admin bootstrap window, not a recovery). Owner to give the date or run it.
+
+**Not blocked.** 23.1 and 23.2 can start; 23.3 is unblocked by OQ-30; 23.8 is blocked by OQ-31.
+
+---
+
 ## 2026-10-17 — Epic 22 retro blockers: gate every action, bootstrap window, last-factor guard (migration 0129)
 
 - **Every Super Admin Server Action is gated.** All exported actions under `apps/super-admin` go through `authorizePlatformAction` (live role, aal2 while the flag is on, session limits, lock), mostly via `authorizeOrRedirect`, which redirects to login or the code prompt when the session itself is unusable instead of returning an error the page would show as a failure. A Vitest scan on the TypeScript AST (`lib/server-action-gate.test.ts`) fails when a `"use server"` export skips the gate, ignores the gate's name in comments or strings, and fails closed on export forms it cannot classify (`export { x }`, `export * from`, `export default`). Only three pre-session flows are exempt, each with a written reason (first-authenticator enrolment after a reset, the sign-in recovery prompt, the email cancel link). The Super Admin Vitest suite now runs in `ci-local.sh` and `ci.yml`, so the scan is actually enforced.
