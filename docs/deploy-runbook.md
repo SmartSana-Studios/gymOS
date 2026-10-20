@@ -209,6 +209,24 @@ Three jobs in `.github/workflows/ci.yml`, triggered on every push and PR:
    dashboard without any manual step). `apps/dashboard/vercel.json` exists
    and registers the SaaS-billing reminder cron.
 
+   **Vercel builds are skipped when nothing relevant changed (since 2026-10-20).** The Hobby plan caps builds per day, and
+   docs-only, scripts-only, test-only and migration-only pushes were using the cap up (a 24-hour "Deployment rate limited" block
+   on 2026-10-20). Each of `apps/dashboard`, `apps/super-admin` and `apps/landing` now has an `ignoreCommand` in its
+   `vercel.json`: `npx turbo-ignore@2.10.3 --fallback=origin/master`, pinned to the repo's Turborepo version and guarded by
+   `scripts/__tests__/vercel-ignore-build-step.test.mjs`. Turborepo's dependency graph decides: an app builds when its own
+   files, a workspace package it uses (`packages/types`), its part of the lockfile, `turbo.json` or `tsconfig.base.json`
+   changed since the **last successful build on that branch**, so a skipped push is still included in the next build.
+   Verified on real commits in a fresh clone: a docs+scripts merge builds nothing; an app change builds only that app; a
+   `packages/types` change builds the dashboard and super-admin but not landing; a missing comparison ref builds everything.
+   - **Force a build** (the skip is wrong, or a build-time environment variable changed, which is not a commit): set the
+     project environment variable `VERCEL_FORCE_BUILD=1` in Vercel (Settings, Environment Variables), push or redeploy, then
+     remove it. Whether the dashboard's manual **Redeploy** button honours the skip is unverified.
+   - **Not skipped on purpose:** a missing comparison commit (first push of a branch whose master ref is not in Vercel's
+     clone) builds everything.
+   - A skipped build is shown by Vercel as ignored/canceled, not as a failure. Changes that do not touch an app (`docs/`,
+     `scripts/`, `_bmad-output/`, `supabase/`, the mobile app) no longer deploy anything; migrations and edge functions are
+     still applied by hand (see section 3).
+
    **Production domains (attached 2026-10-02):**
 
    | App | Domain |
