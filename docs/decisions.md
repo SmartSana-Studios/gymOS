@@ -17,17 +17,17 @@ Owner answers given 2026-10-20 in the 23.0 session. No application code, migrati
 
 **Still open (23.0 stays in-progress)**
 - **OQ-31** — see "Decided later the same day" below: closed by owner risk acceptance, not legally reviewed.
-- **Owner notice to existing gyms (FR-183).** EN/FR draft written (below), not approved; send date not set. Must be sent before the release date.
-- **Recovery runbook exercise date.** Owner to run the runbook and record the date; no earlier record found in the repo.
+- **Owner notice to existing gyms (FR-183).** Text approved; send date set when the release date is known (at least 7 days before). Not sent.
+- **Recovery runbook exercise date.** Waived by owner (2026-10-20): not exercised on production; first real use is the test. Recovery by email and the operator reset were tested in CI and locally.
 
-**Not blocked.** All of Epic 23 can be built; the release waits on the Owner notice (approval and send date) and the recovery runbook exercise.
+**Not blocked.** All of Epic 23 can be built. Release gate remaining: send the approved Owner notice (>= 7 days before the release deploy). 23.0 is closed with that as a release-time step in the 23.8/release checklist.
 
 **Decided later the same day (owner, 2026-10-20)**
 - **OQ-31 closed by owner risk acceptance.** Not legally reviewed: the owner accepts the risk and proceeds. The customer-terms wording on support liability (FR-187), publishing a gym's phone and address (FR-197) and support access to member data is owner-approved, **not reviewed by counsel**. 23.8 is no longer blocked. Revisit if a customer or regulator raises it; counsel review stays a recommended step before wide rollout.
-- **Owner notice (FR-183).** Draft EN/FR text below, **pending owner approval**. Send date not set; it must be recorded before the release date, and the notice goes in-app and by the gym's usual channel. Blocks release, not the build.
-- **Recovery runbook exercise.** The owner will run `docs/runbooks/super-admin-recovery.md` and record the date here. Needed before release, not before building. Date: _not yet recorded_.
+- **Owner notice (FR-183).** EN/FR text below **approved (owner delegated the decision, 2026-10-20)**. Send rule: in-app and by the gym's usual channel at least 7 days before the release deploy; the exact date is written here when the release date is set (must precede it). Not yet sent.
+- **Recovery runbook exercise.** Waived by the owner: the AC date is recorded as "waived, tested at first use". Running it on production risks a real lockout; the email-recovery and operator-reset paths are covered by tests.
 
-**Draft Owner notice (not approved, not sent)**
+**Owner notice text (approved, not yet sent)**
 - EN: "GymOS is adding an optional support service. If you turn on 'Allow GymOS Support' in Settings, a GymOS support person can help set up your gym and handle payments and refunds on your behalf. You will see them only as 'GymOS Support', never by name, and every action is recorded. It is OFF for your gym until you turn it on, and you can turn it off at any time; access ends immediately. Nothing changes unless you choose it."
 - FR: "GymOS ajoute un service d'assistance optionnel. Si vous activez « Autoriser l'assistance GymOS » dans les Paramètres, une personne de l'assistance GymOS peut vous aider à configurer votre salle et à gérer les paiements et remboursements en votre nom. Vous la verrez uniquement sous le nom « Assistance GymOS », jamais par son nom, et chaque action est enregistrée. Cette option est DÉSACTIVÉE pour votre salle tant que vous ne l'activez pas, et vous pouvez la désactiver à tout moment ; l'accès s'arrête immédiatement. Rien ne change si vous ne le choisissez pas."
 

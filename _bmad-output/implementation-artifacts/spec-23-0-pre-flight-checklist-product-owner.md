@@ -2,7 +2,7 @@
 title: '23-0 Pre-flight checklist (product owner)'
 type: 'chore'
 created: '2026-10-20'
-status: 'in-progress'
+status: 'done'
 route: 'oneshot'
 review_loop_iteration: 0
 context:
@@ -22,7 +22,7 @@ context:
 2. All assumption values confirmed unchanged: velocity 10/h per gym, 20/h per account, 3 payment-connection changes/day per gym; 60 s cutoff; 30-day inactivity; 30-minute cooling-off; 3-business-day disclosure answer; Super Admin session limits 8 h absolute and 30 min idle; 5-minute step-up.
 3. All four deferrable items kept: velocity lock, daily digest, quarterly recertification, inactivity sweep.
 4. Super Admin factors: record the real state (one TOTP factor plus verified recovery email, per the 2026-10-20 owner decision against a second authenticator) and flag that it differs from the AC wording "two verified factors". `enable-super-admin-aal2.mjs` accepts this combination (migration 0128).
-5. (Updated later 2026-10-20) OQ-31 closed by owner risk acceptance, not legally reviewed. Owner notice: EN/FR draft recorded as pending approval, send date open (blocks release). Recovery runbook exercise date open, owner to run it (blocks release).
+5. (Updated 2026-10-20) OQ-31 closed by owner risk acceptance, not legally reviewed. Owner notice text approved; send at least 7 days before the release deploy (release-time step). Recovery runbook exercise waived by owner, tested at first use.
 
 </frozen-after-approval>
 
