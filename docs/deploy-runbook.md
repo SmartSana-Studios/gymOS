@@ -333,8 +333,8 @@ practical policy this runbook recommends:
    off and no platform backups listed. **Decided 2026-10-11:** accept
    that, and rely on the daily encrypted dump to Cloudflare R2
    (`.github/workflows/db-backup.yaml`, 30-day retention); PITR / tier
-   upgrade deferred, revisit **2026-12-31**; last tested restore: never
-   tested. Details in `docs/decisions.md`, "V1.6 release runbook"
+   upgrade deferred, revisit **2026-12-31**; last tested restore: **2026-10-20, passed**
+   (first run). Details in `docs/decisions.md`, "V1.6 release runbook"
    (2026-10-11), section 3.
 3. **Every production migration gets a pre-flight step** (destructive
    ones above all): trigger the `db-backup` workflow and confirm it green

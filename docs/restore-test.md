@@ -1,6 +1,6 @@
 # Restore test (V1.6 gate for 0115)
 
-Purpose: prove that a `db-backup` dump can actually be decrypted and restored, and record the date.
+Purpose: prove that a `db-backup` dump can actually be decrypted and restored, and record the date. **First run: 2026-10-20, passed** (see `docs/decisions.md` section 3). The route that worked: download the dump from the Cloudflare dashboard, decrypt it on your own machine (`age -d -i <key> -o db.dump <file>.age`), copy it into the devcontainer (`docker cp`), run `scripts/restore-test.sh --dump db.dump`, then delete the copy.
 Until it has been done once, the runbook line "last tested restore" stays **never tested**
 (`docs/decisions.md`, V1.6 release runbook, section 3). Nothing here touches production: the dump
 is read from R2 and restored into a throwaway local database.
