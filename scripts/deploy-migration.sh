@@ -4,7 +4,7 @@
 #
 #   scripts/deploy-migration.sh 0131 [--verify]
 #
-# Refuses unless the ledger head is exactly the previous version, runs the file and inserts the ledger row in ONE
+# Refuses unless a fresh green db-backup exists (triggers one if needed) and the ledger head is exactly the previous version, runs the file and inserts the ledger row in ONE
 # transaction, and prints the ledger afterwards. Read-only with --verify. Token: ~/.supabase/access-token.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -30,6 +30,11 @@ run_sql() {
 ledger() { echo "select version, name from supabase_migrations.schema_migrations order by version desc limit 3;" | run_sql; }
 
 if [ "${2:-}" = "--verify" ]; then ledger; exit 0; fi
+
+# docs/decisions.md (V1.6 release runbook, section 3): a fresh GREEN db-backup run immediately before each production
+# migration. Reuses one from the last 30 minutes, otherwise triggers one and waits. Refuses to apply if it is not green.
+# (SKIP_DB_BACKUP="<reason>" skips on purpose, loudly.)
+uv run --no-project python scripts/lib/require-db-backup.py || { echo "No green backup: nothing was applied." >&2; exit 1; }
 
 HEAD="$(echo "select max(version) as head from supabase_migrations.schema_migrations;" | run_sql)"
 echo "head before: $HEAD"

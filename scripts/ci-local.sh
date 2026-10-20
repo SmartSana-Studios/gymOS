@@ -7,7 +7,7 @@
 #   scripts/ci-local.sh --only e2e   # one stage: static | deno | pgtap | unit | e2e
 #
 # Stages and what they mirror in ci.yml:
-#   static  typecheck job: typecheck, lint (dashboard + super-admin), i18n parity, migration guardrails
+#   static  typecheck job: typecheck, lint (dashboard + super-admin), i18n parity, migration guardrails, require-db-backup test
 #   deno    typecheck job: deno test for supabase/functions/payment-webhook
 #   pgtap   rls-tests job: supabase/tests/*.sql
 #   unit    typecheck job: vitest for @gymos/dashboard
@@ -70,6 +70,8 @@ stage_static() {
   pnpm run check:i18n || return 1
   pnpm run check:migrations || return 1
   pnpm run test:guardrails || return 1
+  # The deploy scripts refuse to apply a migration without a green db-backup run (against a fake gh; never touches GitHub).
+  bash "$ROOT/scripts/require-db-backup.test.sh" || return 1
 }
 
 stage_deno() {
