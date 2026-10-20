@@ -1263,11 +1263,14 @@ action_items:
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
   - id: "epic-22-retro-item-80-item-65-owner-check-sign-in-to-the-dashb"
     epic: 22
-    action: "Item 65 owner check: sign in to the dashboard as a coach and confirm
-      the member fee modal is either not reachable or shows a sane state (member.registration_fee_state
-      denies coach)"
+    action: "CLOSED 2026-10-20 after checking: a coach never sees the registration-fee
+      line. The Members page is not in the coach navigation (the coach uses /coach,
+      which does not call the fee check); by direct URL a coach sees only assigned
+      members, and the modal treats a denied fee check as informational (no line,
+      no error). Proven by MemberModal.feeState.test.tsx (denied result shows nothing;
+      breaking the handling fails it). Not walked in a browser"
     owner: "owner"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
   - id: "epic-22-retro-item-81-item-65-deferred-bundle-nightly-purge-of"
     epic: 22
@@ -1299,12 +1302,17 @@ action_items:
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
   - id: "epic-22-retro-item-84-ux-decision-item-81-leftover-when-a-susp"
     epic: 22
-    action: "UX decision (item 81 leftover): when a suspended or deactivated gym denies
-      a payment initiation, mobile and dashboard show the generic permission_denied
-      message instead of the existing gymSuspended copy; decide the wording (deactivated
-      is not the same as suspended) and I will map the gym_not_active reason to it"
+    action: "CLOSED 2026-10-20 after checking, no change needed: in the normal path
+      every gym RPC refuses a non-active gym first ('is not active', migration 0090)
+      and mobile maps it to gym_suspended, which already reads GymOS is temporarily
+      unavailable for this gym (same text for suspended and deactivated). The generic
+      permission_denied only appears if the gym changes status between the RPC and
+      the edge call. Option if ever wanted: make the edge function return code gym_suspended
+      for reason gym_not_active and let the mobile invoke-error mapping accept it
+      (edge deploy plus a mobile build). Checked by reading the code, not by running
+      the app"
     owner: "owner"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
 last_updated: 10-20-2026 15:07
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
@@ -1541,3 +1549,4 @@ last_updated: 10-20-2026 15:07
 # last_updated: 2026-10-20 (ad-hoc: owner decision on epic 22 retro item 76: accept and skip browser QA steps 5-8. Recorded in the checklist Results table as Skipped by owner decision (not as passed) with the automated coverage for each step, and in the retro. Item 76 set done. Still open for epic 22: 80 (owner coach check) and 84 (owner wording for the suspended or deactivated payment denial); epic 19 item 26 restore test (owner); epic 20 item 39 in-progress)
 # last_updated: 2026-10-20 (ad-hoc: the production backup RESTORE TEST PASSED, epic 19 item 26 set done. Route: the owner downloaded db.2026-10-20T1305Z.dump.age from the Cloudflare R2 dashboard, decrypted it in their own WSL with their age key (it matched; no key or token entered the devcontainer), copied the decrypted dump into restore-test-drop/ with docker cp, and scripts/restore-test.sh --dump restored it into a scratch database on the local Supabase Postgres 17: head 0132 (expected, taken just before 0133), 202 functions, gyms=1 members=3 payments=2 subscriptions=3 audit_log=33 guest_sessions=0 loyalty_events=0 all equal to production, 9 expected Supabase-managed error lines, none unexpected, restore step 5 s. The decrypted copy and the scratch database were deleted; git ignores restore-test-drop/. A first local rehearsal failed only because docker exec returned before pg_dump finished and I copied a half-written file (checksums at every docker cp hop were identical). Recorded in docs/decisions.md section 3, deploy-runbook.md, restore-test.md, deploy-epic-22.md, the retro and the backup memory. Not covered: Vault secrets, the Storage copy in R2, RTO of the whole procedure. Owner follow-ups: confirm the age key is stored in a second place, delete the WSL copies ~/db.dump and the downloaded .age)
 # last_updated: 2026-10-20 (ad-hoc housekeeping at the owner's request: deleted ~/gymos-backups from the devcontainer, the plain-JSON pre-Epic-18 production snapshot of 2026-10-08 (9 files, 56 KB: members, payments, subscriptions, refunds, gyms, functions, policies, triggers, migrations; it held real member emails and phone numbers unencrypted). Nothing depended on it: it was only the default output folder of scripts/backup-before-epic18.sh, which recreates it. The encrypted nightly R2 dump is the backup; the restore test passed on 2026-10-20. The owner's own copies in WSL (~/db.dump, the downloaded .age, gymos-backup.key) are theirs to clean up)
+# last_updated: 2026-10-20 (ad-hoc: owner asked to close items 80 and 84, then to check them first. Checked: 80 a coach never sees the registration-fee line (not in the coach navigation, direct URL shows assigned members only, the modal ignores a denied fee check); new MemberModal.feeState test for the permission-denied result, broken-handling mutation caught; not walked in a browser. 84 no change needed: gym RPCs refuse a non-active gym first and mobile already shows the friendly gymSuspended text for suspended and deactivated; generic text only in a status-change race; read from the code, not run. Both set done with the evidence in the item text and the retro. PR pending for the test. Nothing else open for epic 22 except the restore test (epic 19 item 26, owner) and epic 20 item 39 (flake, in-progress))

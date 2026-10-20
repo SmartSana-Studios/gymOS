@@ -149,4 +149,18 @@ describe("MemberModal registration fee line (Story 18.6)", () => {
     expect(screen.queryByText("members.feeState.awaiting")).not.toBeInTheDocument();
     expect(screen.queryByText("members.modal.view.registrationFee")).not.toBeInTheDocument();
   });
+  // Epic 22 retro item 80: member.registration_fee_state denies the coach role. The action then answers with a
+  // permission-denied ERROR (not a rejection). The modal must show no fee line, and no error, for it.
+  it("a coach, whose fee check is denied, sees no fee line and no error", async () => {
+    getMemberRegistrationFeeStateAction.mockResolvedValue({
+      data: null,
+      error: { code: "permission_denied", message: "errors.permissionDenied" },
+    });
+    await renderView({ ...baseMember, registrationFeeSettledAt: null } as never, 5000);
+    await waitFor(() => expect(getMemberRegistrationFeeStateAction).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText("members.modal.view.registrationFee")).not.toBeInTheDocument();
+    expect(screen.queryByText("members.feeState.awaiting")).not.toBeInTheDocument();
+    expect(screen.queryByText("errors.permissionDenied")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });
