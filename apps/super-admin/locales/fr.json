@@ -398,7 +398,8 @@
       "enrollFailed": "Impossible de démarrer l'enregistrement. Veuillez réessayer.",
       "invalidCode": "Ce code n'est pas valide. Veuillez réessayer.",
       "lastFactor": "Vous ne pouvez pas retirer votre dernier authentificateur vérifié.",
-      "signOutFailed": "L'authentificateur a été retiré, mais les autres sessions n'ont pas pu être fermées. Déconnectez-vous maintenant sur vos autres appareils."
+      "signOutFailed": "L'authentificateur a été retiré, mais les autres sessions n'ont pas pu être fermées. Déconnectez-vous maintenant sur vos autres appareils.",
+      "removedNotAudited": "L'authentificateur a été retiré, mais son entrée dans le journal d'audit n'a pas pu être écrite. Prévenez l'opérateur de la plateforme."
     },
     "recovery": {
       "title": "E-mail de récupération",
