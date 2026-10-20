@@ -16,6 +16,7 @@ import {
 import { sendMail } from "@/lib/mail";
 import { appBaseUrl } from "@/lib/recovery";
 import { adminCreatedMail, adminPromotedMail, type InviteLocale } from "@/lib/admin-invite-mail";
+import { normalizeStepUpSubject } from "@/lib/step-up-subject";
 
 async function inviteLocale(): Promise<InviteLocale> {
   return (await getRequestLocale()) === "fr" ? "fr" : "en";
@@ -197,7 +198,7 @@ export async function createOrPromoteSuperAdmin(input: unknown): Promise<{
 
   // Story 22.7: creating or promoting a Super Admin needs a fresh single-use step-up bound to the email.
   // Consumed after the password check so a wrong password does not burn it.
-  if (!(await consumeStepUp(authz.actorId, "create_super_admin", email.trim().toLowerCase()))) {
+  if (!(await consumeStepUp(authz.actorId, "create_super_admin", normalizeStepUpSubject(email)))) {
     return { data: null, error: { code: STEP_UP_REQUIRED_CODE, message: t("stepUp.title") } };
   }
 

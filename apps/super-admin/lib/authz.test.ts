@@ -75,6 +75,14 @@ describe("authorizePlatformAction", () => {
     expect((await authorizePlatformAction("platform.admin_access")).ok).toBe(false);
   });
 
+  it("consumeStepUp normalises the subject exactly as issueStepUp does, so a grant issued for one spelling is found by another (retro F5)", async () => {
+    const { consumeStepUp } = await import("./authz");
+    await consumeStepUp("sa-1", "create_super_admin", "  New@Example.COM ");
+    expect(rpcCalls.at(-1)?.params.p_subject).toBe("new@example.com");
+    await consumeStepUp("sa-1", "remove_super_admin_factor", "3F2A9C10-1111-4222-8333-444455556666");
+    expect(rpcCalls.at(-1)?.params.p_subject).toBe("3f2a9c10-1111-4222-8333-444455556666");
+  });
+
   it("consumeStepUp passes actor, action and subject and is true only on a consumed grant", async () => {
     const { consumeStepUp } = await import("./authz");
     expect(await consumeStepUp("sa-1", "create_super_admin", "a@b.c")).toBe(true);

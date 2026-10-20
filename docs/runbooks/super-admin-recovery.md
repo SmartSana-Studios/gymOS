@@ -111,6 +111,14 @@ Applies only while the flag is on. Limits are rows in `private.session_limits_co
   (`reset-super-admin-factors.mjs`) only when the authenticator itself is lost: it also deletes the factors and
   sessions and turns the flag off, so re-bootstrap as described.
 
+
+**Known limit (not done, by decision).** The idle (30 min) and over-age (8 h) limits are enforced by the app on each request
+(`touchSessionGate`). A still-live aal2 access token used directly against the database API (PostgREST) is checked for the aal2
+claim, the live Super Admin flag, that its session still exists, and the lockout (`private.is_super_admin()`), but NOT for idle time
+or age. So a session that has been deleted (a factor removed, an operator reset, a lockout, an expiry the app has already enforced)
+stops working at once, while an idle or over-age session whose row still exists keeps working against the database API until the
+app's next request ends it or the access token expires (at most one hour). Found in the 22-7 review (2026-10-16), recorded here
+2026-10-20.
 ## Recovery by email (Story 22.8)
 
 For a Super Admin with a verified recovery email who has lost the device holding their authenticator.
