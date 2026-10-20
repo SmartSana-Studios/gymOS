@@ -963,11 +963,19 @@ action_items:
     ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-10-14.md"
   - id: "epic-20-retro-item-39-make-the-pgtap-stage-reliable-find-why-p"
     epic: 20
-    action: "Make the pgTAP stage reliable: find why plan=none or missing-test failures
-      appear when it runs beside the static stage; serialize or retry with a recorded
-      rerun"
+    action: "FIXED 2026-10-20 (pgtap-run.sh rewritten). Root cause: docker streams
+      lose data under load. Seen: docker exec stdout cut short with exit 0 (3085 bytes,
+      plan line present), docker exec returning before its command finished (a half-written
+      pg_dump), and docker cp results failing their checksum three times in a row.
+      The runner no longer streams anything: it copies the scripts in once, runs psql
+      inside the container writing files plus checksums and a done marker, waits for
+      the marker, copies the results out once and verifies them before reading a line.
+      Whole suite 19.5 s against 29.5 s, identical results for all 155 files; failure
+      modes injected (copy cut once, copy cut always, early exec return) are recovered
+      or fail loudly; 10 full runs under heavy load, the one real copy failure was
+      caught and recovered. Reopen if a false green or a false failure ever appears"
     owner: "dev"
-    status: in-progress
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-20-retro-2026-10-14.md"
   - id: "epic-20-retro-item-40-decide-the-repair-path-for-swallowed-loy"
     epic: 20
@@ -1333,7 +1341,7 @@ action_items:
     owner: "dev"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
-last_updated: 10-20-2026 15:58
+last_updated: 10-20-2026 16:15
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1571,3 +1579,4 @@ last_updated: 10-20-2026 15:58
 # last_updated: 2026-10-20 (ad-hoc: owner asked to close items 80 and 84, then to check them first. Checked: 80 a coach never sees the registration-fee line (not in the coach navigation, direct URL shows assigned members only, the modal ignores a denied fee check); new MemberModal.feeState test for the permission-denied result, broken-handling mutation caught; not walked in a browser. 84 no change needed: gym RPCs refuse a non-active gym first and mobile already shows the friendly gymSuspended text for suspended and deactivated; generic text only in a status-change race; read from the code, not run. Both set done with the evidence in the item text and the retro. PR pending for the test. Nothing else open for epic 22 except the restore test (epic 19 item 26, owner) and epic 20 item 39 (flake, in-progress))
 # last_updated: 2026-10-20 (ad-hoc: owner decisions worked through. PR #90 merged as 67d881f (items 80 and 84 closed on master) after a recovery: my merge command cleaned up after a REFUSED merge and deleted the branch, closing the PR; restored from the local commit, merged master in, reopened and merged; cleanup now only runs when the PR reads MERGED. Decisions: hourly db-backup (minute 17 UTC) and PITR deferred with written triggers, nothing purchased; no second authenticator (email recovery); Skew Protection left to the owner (new owner item); all three small tasks done on chore/epic22-decisions: the enable check is tested with two Super Admins (a first-admin-only check is caught), deleteAuthUserForCleanup and deleteMemberForCleanup refuse anything but a fresh, unattached, non-platform record of the right gym (every guard removed in turn is caught), provisionMemberRow now returns gymId. PR pending; the hourly schedule is unconfirmed until it reaches master)
 # last_updated: 2026-10-20 (ad-hoc: owner checked Vercel Skew Protection: it is a Pro-plan feature, not available on the current plan. Decision: not upgrading for it; the Skew Protection owner item closed as not available; runbook and retro record the stale-tab behaviour and the two-step deploy caution if it is ever enabled. PR #91 merged earlier as fdf943a; the first hourly db-backup run at about 16:17 UTC is being watched)
+# last_updated: 2026-10-20 (ad-hoc: epic 20 retro item 39 (pgTAP incomplete output) FIXED and set done on fix/pgtap-file-capture, PR pending. Root cause: docker streams lose data under load (exec stdout cut short with exit 0, exec returning before its command finished, docker cp results failing their checksum 3 times in a row). scripts/pgtap-run.sh rewritten: scripts copied in once, psql runs inside the container writing files, checksums and a done marker, the host waits for the marker, copies the results out once and verifies them; bad copy repeated with backoff (5 tries), incomplete files re-run (3 more times); same interface and output. Whole suite 19.5 s vs 29.5 s with identical results for all 155 files; three injected docker failure modes handled; 10 loaded full runs, one real copy failure caught and recovered. Reopen if a false green or false failure appears. The hourly db-backup watcher is still waiting for its first scheduled run)
