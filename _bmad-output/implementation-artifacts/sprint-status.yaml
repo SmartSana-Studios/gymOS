@@ -1178,10 +1178,13 @@ action_items:
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-16.md"
   - id: "epic-22-retro-item-69-turn-on-supabase-backups-or-pitr-for-the"
     epic: 22
-    action: "Turn on Supabase backups or PITR for the production project and run docs/restore-test.md
-      once (also closes epic-19-retro-item-26)"
+    action: "CLOSED 2026-10-20, superseded: production is on the Supabase free plan
+      (no platform backups or PITR) and the owner keeps the nightly encrypted dump
+      to Cloudflare R2 (db-backup workflow, decided 2026-10-11, green every day since);
+      PITR deferred to 2026-12-31. The record said there was no backup; that was wrong.
+      The restore test is still open as epic-19-retro-item-26"
     owner: "owner"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
   - id: "epic-22-retro-item-70-rehearse-scripts-rollback-0124-0130-agai"
     epic: 22
@@ -1275,7 +1278,16 @@ action_items:
     owner: "dev"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
-  - id: "epic-22-retro-item-82-defence-in-depth-private-session_gate_to"
+  - id: "epic-22-retro-item-82-make-the-pre-migration-backup-impossible"
+    epic: 22
+    action: "Make the pre-migration backup impossible to skip: scripts/deploy-migration.sh
+      and scripts/deploy-0124-0130.sh trigger the db-backup workflow (gh workflow
+      run db-backup.yaml), wait for it green, and refuse to apply otherwise (docs/decisions.md,
+      V1.6 release runbook section 3 requires it; it was skipped for 0124-0132)"
+    owner: "dev"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
+  - id: "epic-22-retro-item-83-defence-in-depth-private-session_gate_to"
     epic: 22
     action: "Defence in depth: private.session_gate_touch deletes support_session_state
       by session_id alone when the session does not belong to the caller (0127, the
@@ -1285,7 +1297,7 @@ action_items:
     owner: "dev"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
-last_updated: 10-20-2026 11:30
+last_updated: 10-20-2026 11:57
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1509,4 +1521,7 @@ last_updated: 10-20-2026 11:30
 # last_updated: 2026-10-20 (ad-hoc: epic 22 retro item 70, rollback rehearsal, done on test/rollback-rehearsal, PR pending. All nine rollbacks (0132 to 0124) run in order in one rolled-back transaction on the local database and were diffed against production before the epic (the definitions snapshot) and production now: the 43 epic functions, the 8 private tables with their columns, indexes and constraints and the cron job are removed, nothing left behind; policies and triggers identical. Two defects found and fixed in rollback-0124: private.gym_id() restored with a warning line production never had (migration 0009 vs production drift) and the PUBLIC execute on private.protect_payment_columns_on_staff_verify() not restored. After the fix all 33 changed definitions are identical and every changed grant is restored. New scripts/rollback-rehearsal.sh (repeatable, always rolls back, proven to fail on a broken rollback); runbook rollback section rewritten (order: apps and edge function first, then the database; what a rollback deletes). Not proven: pre-epic apps against the rolled-back database. Nothing applied to production. Item 70 set done after merge)
 # last_updated: 2026-10-20 (ad-hoc: retro item 70 shipped. PR #86 merged to master after local CI green for 936d25d and all GitHub checks green; scripts and docs only, nothing applied to production. Item 70 set done. Remaining open for epic 22: 57 (owner decision), 65, 66, 67, 69 (backups, owner), 73-78; epic 20 item 39 in-progress)
 # last_updated: 2026-10-20 (ad-hoc: epic 22 retro item 57 closed as moot (Add admin is refused while the flag is on; checklist steps 26 and 27 passed in the bootstrap window) and item 65 triaged, both set done. Every F10 item, F5 and the three 22-7 deferrals were re-checked against the code; results in the Item 65 triage section of epic-22-retro-2026-10-19.md: 4 fix now (shared step-up normalizer, enable script re-check after the typed confirmation, two session_gate_touch pgTAP cases, a runbook known limit), 1 owner check (coach and the fee modal), 3 deferred (support_session_state purge, suspended-gym denial message, SecurityClient retry-loop test), 3 accepted (consumeStepUp order, double aal2 call, webhook denial leaves the row, UUID oracle) and 1 dropped (staff paying own row is not reachable). 3 new action items added for them. No code changed)
+# last_updated: 2026-10-20 (ad-hoc: retro item 69 CLOSED as superseded and the record corrected. I had reported that production has no data backup; wrong. Production is on the Supabase free plan (no platform backups or PITR, by design) and the owner keeps the nightly age-encrypted dump to Cloudflare R2 (db-backup workflow, decided 2026-10-11, green every day 2026-10-11 to 2026-10-20, latest 4.7 MB dump 2026-10-20T0723Z); owner confirmed keep it. Also disclosed: the decision's rule to trigger db-backup immediately before each production migration was skipped for 0124-0132 (fallback was the nightly dump, about 17 hours older for 0124-0130). Corrected: epic-22-retro-2026-10-19.md N4 and action item 1, deploy-epic-22.md steps 2 and rollback 4, item 69 text. Still open: restore never tested (epic-19-retro-item-26, owner, needs the age key); new dev item to make deploy scripts trigger and verify db-backup. No PITR purchased)
+# last_updated: 2026-10-20 (ad-hoc: epic 22 retro item 82 built on feat/deploy-requires-backup, PR pending, nothing applied to production. scripts/lib/require-db-backup.py: the deploy scripts (deploy-migration.sh and deploy-0124-0130.sh, apply mode only) reuse a green db-backup run under 30 minutes old, wait for one in progress, or trigger one and wait, and refuse to apply anything unless it finishes green; SKIP_DB_BACKUP needs a written reason. 23 checks in scripts/require-db-backup.test.sh against a fake gh (reuse, stale, failed-run-not-counted, triggered run fails or hangs, in progress not duplicated, cannot trigger, no gh, skip rules), two breakages caught, also passes under Python 3.12; wired into ci-local (static) and ci.yml with PYTHON_CMD=python3. Proven for real once: it triggered db-backup run 39416633564, waited 88 s, finished green. Runbook step 2 and the backup memory updated. Item 82 set done after merge)
+# last_updated: 2026-10-20 (ad-hoc: retro item 82 shipped. PR #88 merged to master after local CI green for 2b8a800 and all GitHub checks green; scripts and docs only, nothing applied to production. The deploy scripts now require a fresh green db-backup run before applying a migration. Item 82 set done. PR #87 (item 79 batch) still open awaiting the owner's go; it will need master merged into it because both PRs append to this file)
 # last_updated: 2026-10-20 (ad-hoc: epic 22 retro item 79 (the item 65 fix-now batch) built on fix/retro-79-batch, PR pending, nothing applied to production. (1) F5: lib/step-up-subject.ts normalizeStepUpSubject used by issueStepUp, consumeStepUp (so removeFactor, recovery and admin callers cannot drift) and the admin call site; unit test plus a consumeStepUp test that fails without the fix. (2) enable-super-admin-aal2.mjs re-checks the rule inside the transaction AFTER the typed confirmation; shell test with a late confirmation: the OLD script enabled the flag with a single factor and no recovery email when a factor was removed while it waited, the new one refuses. (3) session_gate_scoping.test.sql (6 assertions, both mutations caught). (4) runbook known limit for a live aal2 token against PostgREST, checked against private.is_super_admin first (it does check session existence and the lock, not idle or age). New finding recorded as an action item: session_gate_touch deletes state by session_id only. Item 79 set done after merge)

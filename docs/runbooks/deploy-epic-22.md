@@ -18,7 +18,7 @@ Production head before: **0123**. The `super_admin_aal2` flag stays **OFF** thro
 The new apps call `authorize_action` and the new RPCs, so they must not go out before the database.
 
 1. **Preflight** (read-only): `./scripts/deploy-0124-0130.sh --preflight`. Every line must be PASS. (Run 2026-10-17: all PASS.)
-2. **Backup**: take a Supabase dashboard backup / PITR marker now and note the time. 0124 rewrites policies and cannot be undone
+2. **Backup**: the deploy scripts do this for you. `scripts/deploy-migration.sh` and `scripts/deploy-0124-0130.sh` (apply mode only; `--verify` and `--preflight` never do) call `scripts/lib/require-db-backup.py`, which reuses a GREEN `db-backup` run from the last 30 minutes, waits for one in progress, or triggers one (`workflow_dispatch`) and waits, and refuses to apply anything unless it finishes green (the rule in `docs/decisions.md`, V1.6 release runbook, section 3; it dumps every schema, encrypted, to R2). The project is on the Supabase free plan: there is no platform backup or PITR. To skip on purpose, set `SKIP_DB_BACKUP="<a real reason>"` (printed as a warning). 0124 rewrites policies and cannot be undone
    piecemeal except with the rollback scripts below.
 3. **Env (Vercel, super-admin project)**: `SUPER_ADMIN_APP_URL` (the public https origin, required in production: without it no
    recovery or invitation mail is sent) and `MAIL_SMTP_HOST/PORT/USER/PASS`, `MAIL_FROM` (Resend; the bare address `hello@gymosapps.com` — a `Name <address>` value was refused in production — plus optional `MAIL_FROM_NAME=GymOS` for the display name;
@@ -47,7 +47,7 @@ Rehearsed 2026-10-20 (not run against production). Read this whole section befor
 1. Redeploy the Super Admin and dashboard apps from before the epic (`a0f0597` plus the gyms-embed hotfix `6072416`) on Vercel.
 2. Redeploy `payment-webhook` v6 (the version before the epic).
 3. Then the database, in reverse order, one transaction: `scripts/rollback-0132-...` down to `scripts/rollback-0124-...` (`psql -v ON_ERROR_STOP=1 --single-transaction -f <file>`), and delete the ledger rows for the versions rolled back.
-4. If a rollback itself fails, stop: restore from the backup in step 2 of the deploy order. (Production had no data backup at deploy time; the only fallback was a definitions snapshot. Turn backups on before relying on this.)
+4. If a rollback itself fails, stop and restore from the `db-backup` dump taken in step 2 of the deploy order (decrypt with the owner's age key; `docs/restore-test.md`). RPO is up to 24 hours when you rely on the nightly dump instead of a fresh one. The restore has never been tested, so rehearse it before you need it. For the 2026-10-17 deploy of 0124-0130 the fresh dump was NOT taken (the nightly one from 06:48 UTC was the fallback).
 
 **What a rollback deletes (data, not just code).**
 - 0126: the `super_admin_aal2` flag goes, so the second factor stops being required for everyone; sign-in is password-only again.
