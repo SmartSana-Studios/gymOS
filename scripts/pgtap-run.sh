@@ -31,9 +31,13 @@ docker exec -e PGPASSWORD=postgres "$DB_CONTAINER" psql -U postgres -h 127.0.0.1
 # 3 "incomplete output" (no 'not ok', no ERROR, but the plan or some ok lines are missing).
 check_once() {
   local f=$1 out dockerrc
-  out=$(docker exec -i -e PGPASSWORD=postgres "$DB_CONTAINER" \
-    psql -U postgres -h 127.0.0.1 -At -v ON_ERROR_STOP=0 -f - <"$f" 2>&1)
+  # A sentinel line after the script: if the output ends WITHOUT it while docker exited 0, the output stream was cut short
+  # (seen 2026-10-20: docker_exit=0, 3085 bytes, plan line present, tail missing), which is different from psql stopping early.
+  out=$({ cat "$f"; printf '\n\\echo PGTAP_EOF\n'; } | docker exec -i -e PGPASSWORD=postgres "$DB_CONTAINER" \
+    psql -U postgres -h 127.0.0.1 -At -v ON_ERROR_STOP=0 -f - 2>&1)
   dockerrc=$?
+  local eof
+  eof=$(printf '%s\n' "$out" | grep -c '^PGTAP_EOF$')
   local plan oks nots errs
   plan=$(printf '%s\n' "$out" | sed -n 's/^1\.\.\([0-9]\+\).*/\1/p' | head -1)
   oks=$(printf '%s\n' "$out" | grep -c '^ok ')
@@ -49,14 +53,14 @@ check_once() {
     # Say WHY in the normal log (epic 20 retro item 39): docker's exit status, how much came back, and the first
     # lines. A connection failure ("psql: error: ... FATAL ...", "Error response from daemon ...") never contains
     # the text "ERROR:", so it lands in this branch and used to leave no trace of its cause.
-    printf '     docker_exit=%s out_bytes=%s first_lines=[%s]\n' "$dockerrc" "${#out}" \
+    printf '     docker_exit=%s out_bytes=%s eof_marker=%s first_lines=[%s]\n' "$dockerrc" "${#out}" "$eof" \
       "$(printf '%s\n' "$out" | grep -v '^$' | head -3 | cut -c1-160 | tr '\n' '|')"
     # Keep the evidence for the incomplete-output flake (epic 20 retro item 39): what docker returned and how much.
     if [ -n "${PGTAP_FLAKE_DIR:-}" ]; then
       mkdir -p "$PGTAP_FLAKE_DIR"
       {
-        printf 'file=%s file_bytes=%s docker_exit=%s out_bytes=%s ok=%s plan=%s\n--- first 40 lines ---\n' \
-          "$f" "$(stat -c %s "$f")" "$dockerrc" "${#out}" "$oks" "${plan:-none}"
+        printf 'file=%s file_bytes=%s docker_exit=%s out_bytes=%s eof_marker=%s ok=%s plan=%s\n--- first 40 lines ---\n' \
+          "$f" "$(stat -c %s "$f")" "$dockerrc" "${#out}" "$eof" "$oks" "${plan:-none}"
         printf '%s\n' "$out" | head -40
       } > "$PGTAP_FLAKE_DIR/$(basename "$f").$(date +%s%N).out"
     fi
