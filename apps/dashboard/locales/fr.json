@@ -1464,5 +1464,24 @@
       "alreadyInProgress": "Un paiement mobile money est déjà en cours pour ce membre.",
       "configMissing": "Les paramètres de séance sont manquants. Veuillez contacter le support."
     }
+  },
+  "supportInvite": {
+    "title": "Support GymOS",
+    "passwordBody": "Étape 1 sur 2 : choisissez votre mot de passe.",
+    "totpBody": "Étape 2 sur 2 : configurez votre application d'authentification.",
+    "doneBody": "Votre compte est prêt. Connectez-vous avec votre e-mail et votre mot de passe, puis votre code d'authentification.",
+    "invalid": "Ce lien est invalide, expiré ou déjà utilisé. Demandez une nouvelle invitation à l'exploitant de la plateforme.",
+    "password": "Mot de passe",
+    "confirm": "Confirmer le mot de passe",
+    "passwordHint": "12 caractères au minimum.",
+    "mismatch": "Les deux mots de passe ne correspondent pas.",
+    "weak": "Choisissez un mot de passe d'au moins 12 caractères.",
+    "continue": "Continuer",
+    "showQr": "Afficher mon code QR",
+    "qrAlt": "Code QR pour ajouter le compte à votre application d'authentification",
+    "code": "Code à 6 chiffres de votre application",
+    "verify": "Vérifier et terminer",
+    "codeWrong": "Ce code n'a pas été accepté. Essayez le code actuel.",
+    "signIn": "Aller à la connexion"
   }
 }

@@ -1464,5 +1464,24 @@
       "alreadyInProgress": "A mobile money payment for this member is already in progress.",
       "configMissing": "Session settings are missing. Please contact support."
     }
+  },
+  "supportInvite": {
+    "title": "GymOS support",
+    "passwordBody": "Step 1 of 2: choose your password.",
+    "totpBody": "Step 2 of 2: set up your authenticator app.",
+    "doneBody": "Your account is ready. Sign in with your email and password, then your authenticator code.",
+    "invalid": "This link is invalid, expired or already used. Ask the platform operator for a new invitation.",
+    "password": "Password",
+    "confirm": "Confirm password",
+    "passwordHint": "At least 12 characters.",
+    "mismatch": "The two passwords do not match.",
+    "weak": "Choose a password of at least 12 characters.",
+    "continue": "Continue",
+    "showQr": "Show my QR code",
+    "qrAlt": "QR code to add the account to your authenticator app",
+    "code": "6-digit code from your authenticator",
+    "verify": "Verify and finish",
+    "codeWrong": "That code was not accepted. Try the current code.",
+    "signIn": "Go to sign in"
   }
 }

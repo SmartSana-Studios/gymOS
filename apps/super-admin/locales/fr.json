@@ -14,6 +14,7 @@
     "messaging": "Messagerie",
     "billing": "Facturation",
     "admins": "Administrateurs",
+    "support": "Support GymOS",
     "security": "Sécurité",
     "switchToLightTheme": "Passer au thème clair",
     "switchToDarkTheme": "Passer au thème sombre",
@@ -525,5 +526,49 @@
     "done": "Récupération annulée. Rien n'a été modifié.",
     "invalid": "Ce lien est invalide ou a déjà été utilisé.",
     "home": "Retour à la connexion"
+  },
+  "support": {
+    "title": "Support GymOS",
+    "empty": "Aucun compte de support pour le moment.",
+    "create": {
+      "name": "Nom",
+      "email": "E-mail GymOS",
+      "submit": "Créer le compte",
+      "hint": "L'adresse doit être une boîte @gymosapps.com déjà existante. Le compte est créé inactif ; envoyez l'invitation pour que la personne choisisse un mot de passe et un authentificateur."
+    },
+    "columns": {
+      "name": "Nom",
+      "email": "E-mail",
+      "state": "État",
+      "invite": "Invitation",
+      "actions": "Actions"
+    },
+    "state": {
+      "active": "Actif",
+      "inactive": "Non activé",
+      "assignable": "assignable"
+    },
+    "invite": {
+      "none": "Aucune invitation envoyée",
+      "pending": "Valable jusqu'au {{when}}",
+      "expired": "Expirée",
+      "used": "Utilisée",
+      "dead": "Remplacée ou verrouillée"
+    },
+    "actions": {
+      "sendInvite": "Envoyer l'invitation",
+      "resendInvite": "Envoyer une nouvelle invitation"
+    },
+    "toast": {
+      "created": "Compte de support créé. Envoyez l'invitation quand vous êtes prêt.",
+      "inviteSent": "Invitation envoyée par e-mail."
+    },
+    "errors": {
+      "refused": "Ce compte n'a pas pu être créé ou invité.",
+      "nameRequired": "Saisissez un nom (100 caractères maximum).",
+      "domain": "Utilisez une adresse @gymosapps.com.",
+      "notConfigured": "L'adresse du tableau de bord n'est pas configurée : impossible de construire le lien d'invitation.",
+      "mailFailed": "L'invitation a été émise mais l'e-mail n'a pas pu être envoyé. Envoyez une nouvelle invitation pour réessayer."
+    }
   }
 }

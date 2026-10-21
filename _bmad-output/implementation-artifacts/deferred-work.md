@@ -1240,3 +1240,18 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-3-allow-gymos-support-switch-and-gymos-support-row.md`
   summary: Switch-on restore calls `support_set_membership(.., true)` per row; if one switch-suspended assignee gained a non-support membership in the gym while off, it raises and the whole Owner toggle rolls back.
   evidence: Fails loud and closed, unreachable until 23-10/23-11; when they land, make the setter skip or tolerate such rows together with the account-state check above.
+
+## Deferred from: build of spec-23-4-create-support-account-and-invite (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
+  summary: Which gym is active right after a multi-gym support sign-in.
+  evidence: 23-6 decides; recommend forcing a pick (no default gym) so a request always acts on exactly one explicit gym.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
+  summary: The dashboard sign-in does not yet ask for the TOTP code for a support account, and nothing wires `session_gate_touch` for support requests.
+  evidence: 23-6 owns the support request path; until then a support user signs in at aal1 and the live gate denies (aal2 required), so nothing leaks.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
+  summary: Removing a support account (Super Admin deletes the auth user) is blocked by the `support_accounts` foreign key; no remove or re-invite-after-activation flow exists.
+  evidence: 23-5 (remove) and 23-11 (factor reset reuses the invite) own it; `issue_support_invite` currently refuses an activated account.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
+  summary: Invite emails depend on MAIL_* and DASHBOARD_APP_URL being set in the Super Admin app's production environment, and on the shared Supabase project allowing the magic-link/OTP mint used for the invitee's TOTP session.
+  evidence: Check both before the Epic 23 production deploy; without DASHBOARD_APP_URL the invite action refuses (not_configured) and issues nothing.

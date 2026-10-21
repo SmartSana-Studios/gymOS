@@ -2104,6 +2104,10 @@ export type Database = {
         Args: { p_provider_key: string }
         Returns: undefined
       }
+      activate_support_account: {
+        Args: { p_token: string }
+        Returns: { ok: boolean; reason: string }[]
+      }
       active_payment_provider: { Args: never; Returns: string }
       add_session_note: {
         Args: { p_member_id: string; p_note_text: string }
@@ -2288,6 +2292,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_support_account: {
+        Args: { p_display_name: string; p_email: string; p_user_id: string }
+        Returns: string
+      }
       create_workout_plan: {
         Args: { p_exercises: Json; p_member_id: string; p_name: string }
         Returns: string
@@ -2372,6 +2380,19 @@ export type Database = {
           webhook_secret: string
         }[]
       }
+      get_support_accounts: {
+        Args: never
+        Returns: {
+          activated: boolean
+          activated_at: string | null
+          assignable: boolean
+          display_name: string | null
+          email: string
+          invite_expires_at: string | null
+          invite_state: string
+          user_id: string
+        }[]
+      }
       get_workout_plan_viewer_context: {
         Args: { p_plan_id: string }
         Returns: {
@@ -2424,6 +2445,10 @@ export type Database = {
           payment_id: string
           provider_key: string
         }[]
+      }
+      issue_support_invite: {
+        Args: { p_token: string; p_user_id: string }
+        Returns: string
       }
       list_active_gym_data_escalations: {
         Args: { p_gym_id: string }
@@ -2706,6 +2731,12 @@ export type Database = {
           started_at: string
         }[]
       }
+      support_invite_code_failed: { Args: { p_token: string }; Returns: boolean }
+      support_invite_inspect: {
+        Args: { p_token: string }
+        Returns: { email: string; ok: boolean; step: string; user_id: string }[]
+      }
+      support_invite_mark_password_set: { Args: { p_token: string }; Returns: boolean }
       switch_active_gym: { Args: { p_gym_id: string }; Returns: undefined }
       take_ownership_of_workout_plan: {
         Args: { p_plan_id: string }
