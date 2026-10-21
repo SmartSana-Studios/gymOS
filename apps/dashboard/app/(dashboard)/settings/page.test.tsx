@@ -11,8 +11,10 @@ vi.mock("@/lib/i18n/get-server-translation", () => ({
 }));
 
 const getGymSettings = vi.fn();
+const getGymosSupportStatus = vi.fn();
 vi.mock("@/services/gym-settings", () => ({
   getGymSettings: (...a: unknown[]) => getGymSettings(...a),
+  getGymosSupportStatus: (...a: unknown[]) => getGymosSupportStatus(...a),
 }));
 vi.mock("@/services/gym-payment-credentials", () => ({
   getGymPaymentConnectionStatus: vi.fn(async () => ({ data: null, error: null })),
@@ -52,6 +54,7 @@ async function renderedForm(): Promise<ReactElement<Record<string, unknown>>> {
 describe("SettingsPage role prop", () => {
   beforeEach(() => {
     getGymSettings.mockReset().mockResolvedValue({ data: { chargeGuestsPerSession: false }, error: null });
+    getGymosSupportStatus.mockReset().mockResolvedValue({ data: { allowed: true, state: "none", lastActedAt: null }, error: null });
     getDashboardShellContext.mockReset();
     listPlans.mockReset().mockResolvedValue({ data: [], error: null });
   });
@@ -59,6 +62,13 @@ describe("SettingsPage role prop", () => {
   it("passes the shell role to SettingsForm", async () => {
     getDashboardShellContext.mockResolvedValue({ data: { role: "owner" }, error: null, suspended: null });
     expect((await renderedForm()).props.role).toBe("owner");
+  });
+
+  it("passes the Owner-only GymOS Support status, and nothing for another role", async () => {
+    getDashboardShellContext.mockResolvedValue({ data: { role: "owner" }, error: null, suspended: null });
+    expect((await renderedForm()).props.gymosSupportStatus).toEqual({ allowed: true, state: "none", lastActedAt: null });
+    getDashboardShellContext.mockResolvedValue({ data: { role: "supervisor" }, error: null, suspended: null });
+    expect((await renderedForm()).props.gymosSupportStatus).toBeNull();
   });
 
   it.each([
@@ -72,6 +82,7 @@ describe("SettingsPage role prop", () => {
 
 describe("SettingsPage loyaltyPlans", () => {
   beforeEach(() => {
+    getGymosSupportStatus.mockReset().mockResolvedValue({ data: null, error: null });
     getGymSettings.mockReset().mockResolvedValue({ data: { chargeGuestsPerSession: false }, error: null });
     getDashboardShellContext.mockReset().mockResolvedValue({ data: { role: "owner" }, error: null, suspended: null });
   });

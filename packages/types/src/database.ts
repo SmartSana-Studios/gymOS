@@ -1772,6 +1772,7 @@ export type Database = {
           id: string
           reason: string | null
           state: string
+          suspended_by_switch: boolean
           support_user_id: string
           updated_at: string
         }
@@ -1784,6 +1785,7 @@ export type Database = {
           id?: string
           reason?: string | null
           state?: string
+          suspended_by_switch?: boolean
           support_user_id: string
           updated_at?: string
         }
@@ -1796,6 +1798,7 @@ export type Database = {
           id?: string
           reason?: string | null
           state?: string
+          suspended_by_switch?: boolean
           support_user_id?: string
           updated_at?: string
         }
@@ -2336,6 +2339,14 @@ export type Database = {
         Args: { p_gym_id: string }
         Returns: string
       }
+      get_gymos_support_status: {
+        Args: { p_gym_id: string }
+        Returns: {
+          allowed: boolean
+          last_acted_at: string | null
+          state: string
+        }[]
+      }
       get_gym_payment_connection_status: {
         Args: { p_provider_key: string }
         Returns: {
@@ -2663,6 +2674,10 @@ export type Database = {
       run_quiet_gym_alert_job: { Args: never; Returns: undefined }
       run_saas_billing_lifecycle_job: { Args: never; Returns: undefined }
       run_subscription_lifecycle_job: { Args: never; Returns: undefined }
+      set_allow_gymos_support: {
+        Args: { p_gym_id: string; p_on: boolean }
+        Returns: undefined
+      }
       set_guest_charging: { Args: { p_enabled: boolean }; Returns: undefined }
       set_gym_category: {
         Args: { p_category: string; p_gym_id: string }

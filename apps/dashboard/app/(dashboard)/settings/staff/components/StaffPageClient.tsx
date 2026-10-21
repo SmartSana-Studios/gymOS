@@ -61,10 +61,13 @@ export function StaffPageClient({
   initialStaff,
   role,
   callerMemberId,
+  showGymosSupportRow = false,
 }: {
   initialStaff: StaffListRow[];
   role: MemberRole;
   callerMemberId: string | null;
+  /** Story 23.3: the fixed "GymOS Support" row, shown while the Owner switch is on. */
+  showGymosSupportRow?: boolean;
 }) {
   const { t } = useTranslation();
   const canCreate = CAN_CREATE.includes(role);
@@ -138,7 +141,7 @@ export function StaffPageClient({
         )}
       </div>
 
-      {staff.length === 0 ? (
+      {staff.length === 0 && !showGymosSupportRow ? (
         <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
           {t("staff.emptyNoStaff")}
         </div>
@@ -156,6 +159,16 @@ export function StaffPageClient({
               </tr>
             </thead>
             <tbody>
+              {showGymosSupportRow && pg.page === 1 && (
+                <tr className="border-t" data-testid="gymos-support-row">
+                  <td className="px-4 py-2">{t("staff.gymosSupport.name")}</td>
+                  <td className="px-4 py-2">
+                    <Badge variant="secondary">{t("staff.gymosSupport.role")}</Badge>
+                  </td>
+                  <td className="px-4 py-2">{"\u2014"}</td>
+                  {canCreate && <td className="px-4 py-2" />}
+                </tr>
+              )}
               {pg.pageItems.map((row) => (
                 <tr key={row.id} className="border-t">
                   <td className="px-4 py-2">{row.name}</td>

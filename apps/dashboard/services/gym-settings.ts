@@ -458,3 +458,67 @@ export async function setGymCategory(
   }
   return { data: { ok: true }, error: null };
 }
+
+/** Story 23.3: the Owner's "Allow GymOS Support" switch (0137). The RPC is the real
+ * boundary: Owner of this gym only, active gym, audited, suspends or restores the
+ * switch-suspended assignments in one transaction. */
+export async function setAllowGymosSupport(
+  on: boolean,
+): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+  const { error } = await supabase.rpc("set_allow_gymos_support", { p_gym_id: gymId, p_on: on });
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: { ok: true }, error: null };
+}
+
+export type GymosSupportState = "off" | "none" | "assigned" | "waiting";
+
+export interface GymosSupportStatus {
+  allowed: boolean;
+  state: GymosSupportState;
+  /** Newest session activity of the gym's support; null = not yet. */
+  lastActedAt: string | null;
+}
+
+/** Story 23.3: the Owner-only readout (`get_gymos_support_status`). Never an individual or a count. */
+export async function getGymosSupportStatus(): Promise<{
+  data: GymosSupportStatus | null;
+  error: AppError | null;
+}> {
+  const supabase = await createClient();
+  const { gymId, error: gymIdError } = await getCallerGymId(supabase);
+  if (gymIdError || !gymId) {
+    return { data: null, error: gymIdError };
+  }
+  const { data, error } = await supabase.rpc("get_gymos_support_status", { p_gym_id: gymId });
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  const row = data?.[0];
+  if (!row) {
+    return { data: null, error: await gymNotFoundError("no GymOS Support status row") };
+  }
+  const state: GymosSupportState =
+    row.state === "assigned" || row.state === "waiting" || row.state === "none" ? row.state : "off";
+  return { data: { allowed: row.allowed, state, lastActedAt: row.last_acted_at ?? null }, error: null };
+}
+
+/** Story 23.3: whether the "GymOS Support" staff row shows (the switch is on). Any staff
+ * role can read their own gym; a failure hides the row rather than the staff list. */
+export async function getAllowGymosSupport(): Promise<boolean> {
+  const supabase = await createClient();
+  const { gymId } = await getCallerGymId(supabase);
+  if (!gymId) return false;
+  const { data, error } = await supabase.from("gyms").select("allow_gymos_support").eq("id", gymId).maybeSingle();
+  if (error) {
+    await mapAndLog(error);
+    return false;
+  }
+  return data?.allow_gymos_support === true;
+}

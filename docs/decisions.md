@@ -5,6 +5,14 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-21 — Story 23.3: Allow GymOS Support switch and GymOS Support row (migration 0137; not yet applied to production)
+
+- **Setter** `set_allow_gymos_support(gym, on)`: Owner of that gym only (`private.gym_id()` and `current_member_role() = owner`; Supervisor, Manager, support and Super Admin refused), gym must be active, and it is the only code that opens `gymos.allow_support_setter`. Off suspends `active` assignments (marked `suspended_by_switch`) and calls `support_set_membership(id, false)`; on restores only marked ones; pending and other suspended stay. All under `private.support_gym_lock(gym)` (advisory xact lock, key reused by 23.5). One audit row `allow_gymos_support_changed` with old and new; an unchanged value writes nothing.
+- **Readout** `get_gymos_support_status(gym)` (Owner only): state off, none, assigned or waiting, plus newest session `last_seen_at` of the gym's non-ended assignments (placeholder until 23.8 audited actions). Never an individual or a count. The staff list shows a fixed "GymOS Support" row while the switch is on, read through a plain gyms select so every staff role sees it.
+- `support_assignments.updated_at` trigger added. A pgTAP writer scan fails if any other function updates `allow_gymos_support` or names the setter GUC.
+
+---
+
 ## 2026-10-20 — Story 23.1: support role, assignment record and live gate (migrations 0134, 0135; not yet applied to production)
 
 - **Support is resolved only by `private.support_gym_id()`.** `private.gym_id()` and `private.current_member_role()` return NULL for a support membership. Review found that 41 migrations carry policies of the form `gym_id = private.gym_id()` with no role check (plans, classes, class_sessions and more), so a helper that resolved support would have let a live support user read them before 23.6. The epic AC wording ("the helpers return `support` / the gym") is deliberately not followed; 23.6 opts each capability in by name using `support_gym_id()`. Owner decision, 2026-10-20.

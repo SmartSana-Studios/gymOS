@@ -130,7 +130,8 @@
       "qrCode": "QR Code",
       "payments": "Payment Account",
       "billing": "Billing",
-      "staff": "Staff"
+      "staff": "Staff",
+      "gymosSupport": "GymOS Support"
     },
     "sectionDescriptions": {
       "branding": "Logo, gym name & brand color",
@@ -141,7 +142,8 @@
       "qrCode": "Check-in code for your gym",
       "payments": "Connect your Tara Money account for mobile-money payments",
       "billing": "Your GymOS subscription",
-      "staff": "Manage staff accounts and roles"
+      "staff": "Manage staff accounts and roles",
+      "gymosSupport": "Let GymOS staff help set up and run your gym"
     },
     "staffSummary_one": "{{count}} staff member",
     "staffSummary_other": "{{count}} staff members",
@@ -288,9 +290,28 @@
         "k": "Enter a whole number from 3 to 24",
         "r": "Enter a whole number from 1 to 30"
       }
+    },
+    "gymosSupport": {
+      "title": "GymOS Support",
+      "description": "Let GymOS staff help set up and run your gym",
+      "label": "Allow GymOS Support",
+      "state": {
+        "off": "GymOS Support is turned off by you.",
+        "none": "GymOS Support is allowed. No one is assigned.",
+        "assigned": "GymOS Support is allowed and assigned.",
+        "waiting": "GymOS Support is allowed. An assignment is waiting for GymOS to confirm."
+      },
+      "lastActed": "Last acted: {{when}}",
+      "lastActedNever": "not yet",
+      "confirmOff": "Turn off GymOS Support? Anyone assigned loses access to your gym immediately.",
+      "confirmOn": "Allow GymOS Support? Assigned GymOS staff can work in your gym.",
+      "savedOn": "GymOS Support allowed.",
+      "savedOff": "GymOS Support turned off.",
+      "saveFailed": "Couldn't change GymOS Support. Try again."
     }
   },
   "staff": {
+    "gymosSupport": {"name":"GymOS Support","role":"GymOS Support"},
     "title": "Staff",
     "addStaff": "+ Add staff",
     "addStaffButton": "Add staff",

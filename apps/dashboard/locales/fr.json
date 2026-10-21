@@ -130,7 +130,8 @@
       "qrCode": "Code QR",
       "payments": "Compte de paiement",
       "billing": "Facturation",
-      "staff": "Personnel"
+      "staff": "Personnel",
+      "gymosSupport": "Support GymOS"
     },
     "sectionDescriptions": {
       "branding": "Logo, nom de la salle et couleur de marque",
@@ -141,7 +142,8 @@
       "qrCode": "Code de présence de votre salle",
       "payments": "Connectez votre compte Tara Money pour les paiements mobile money",
       "billing": "Votre abonnement GymOS",
-      "staff": "Gérez les comptes et les rôles du personnel"
+      "staff": "Gérez les comptes et les rôles du personnel",
+      "gymosSupport": "Laissez l'équipe GymOS vous aider à configurer et gérer votre salle"
     },
     "staffSummary_one": "{{count}} membre du personnel",
     "staffSummary_other": "{{count}} membres du personnel",
@@ -288,9 +290,28 @@
         "k": "Saisissez un nombre entier de 3 à 24",
         "r": "Saisissez un nombre entier de 1 à 30"
       }
+    },
+    "gymosSupport": {
+      "title": "Support GymOS",
+      "description": "Laissez l'équipe GymOS vous aider à configurer et gérer votre salle",
+      "label": "Autoriser le support GymOS",
+      "state": {
+        "off": "Le support GymOS est désactivé par vous.",
+        "none": "Le support GymOS est autorisé. Personne n'est affecté.",
+        "assigned": "Le support GymOS est autorisé et affecté.",
+        "waiting": "Le support GymOS est autorisé. Une affectation attend la confirmation de GymOS."
+      },
+      "lastActed": "Dernière action : {{when}}",
+      "lastActedNever": "pas encore",
+      "confirmOff": "Désactiver le support GymOS ? Toute personne affectée perd immédiatement l'accès à votre salle.",
+      "confirmOn": "Autoriser le support GymOS ? Le personnel GymOS affecté pourra travailler dans votre salle.",
+      "savedOn": "Support GymOS autorisé.",
+      "savedOff": "Support GymOS désactivé.",
+      "saveFailed": "Impossible de modifier le support GymOS. Réessayez."
     }
   },
   "staff": {
+    "gymosSupport": {"name":"Support GymOS","role":"Support GymOS"},
     "title": "Personnel",
     "addStaff": "+ Ajouter un membre du personnel",
     "addStaffButton": "Ajouter un membre du personnel",
