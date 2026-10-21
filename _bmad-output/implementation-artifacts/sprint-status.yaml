@@ -451,7 +451,7 @@ development_status:
   23-6-capability-allow-list-and-denied-set-matrix: done
   23-7-hidden-identity-per-gym-proxy-actor: done
   23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces: done
-  23-9-support-connects-the-payment-account: review
+  23-9-support-connects-the-payment-account: done
   23-10-revocation-owner-visibility-and-velocity-lock: backlog
   23-11-lifecycle-inactivity-recertification-and-factor-reset: backlog
   epic-23-retrospective: optional
@@ -1633,3 +1633,4 @@ last_updated: 10-21-2026
 # last_updated: 2026-10-21 (build: 23-9 backlog -> in-progress on feat/23-9-support-connects-the-payment-account off epic/23 after 23-8 merged (3500c70); spec approved, implementing)
 # last_updated: 2026-10-21 (build: 23-9 implemented on feat/23-9-support-connects-the-payment-account, in-progress -> review. Migration 0143 (retire-and-insert credentials with partial uniques, payments.credentials_id + pin trigger + backfill, support_connect_gym_payment_credentials behind the support_payment_connection step-up, staff_notices + email_outbox, payment_connection_cleanup cron), rollback script, pgTAP support_payment_connection (81) plus updated suites, payment-webhook credential identity + deno tests, Settings form for support, notice bells (dashboard Owner, Super Admin), e-mail worker in the Super Admin app reusing lib/mail.ts, credentials_id scan, docs. Local only, not applied to production; do not enable support for any gym.)
 # last_updated: 2026-10-21 (review: 23-9 code review complete on feat/23-9-support-connects-the-payment-account, three layers; 12 patches applied, deferrals recorded in deferred-work.md; story stays review pending local CI and merge to epic/23)
+# last_updated: 2026-10-21 (merge: 23-9 review -> done; full local CI GREEN for 1bba5c4, merged into epic/23 as a711c31)
