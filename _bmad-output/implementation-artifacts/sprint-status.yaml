@@ -444,7 +444,7 @@ development_status:
   epic-23: in-progress
   23-0-pre-flight-checklist-product-owner: done
   23-1-support-role-assignment-record-and-live-gate: done
-  23-2-support-excluded-from-counts-caps-notifications-metrics: review
+  23-2-support-excluded-from-counts-caps-notifications-metrics: done
   23-3-allow-gymos-support-switch-and-gymos-support-row: backlog
   23-4-create-support-account-and-invite: backlog
   23-5-assign-unassign-and-remove: backlog
@@ -1350,7 +1350,7 @@ action_items:
     owner: "dev"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
-last_updated: 10-20-2026 16:47
+last_updated: 10-21-2026
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1603,3 +1603,4 @@ last_updated: 10-20-2026 16:47
 # last_updated: 2026-10-20 (build: 23-1 merged into epic/23 (ci-local: static/deno/unit/e2e green; pgtap green except loyalty_subscriber_rule, a UTC-midnight clock flake unrelated to 23-1); 23-2 backlog -> in-progress on feat/23-2-support-excluded-from-counts off epic/23; spec approved, implementing)
 # last_updated: 2026-10-20 (build: 23-2 implemented on feat/23-2-support-excluded-from-counts, uncommitted. Migration 0136 (private.staff_roles(); update_staff_role, deactivate_staff_member, staff_account_for_reset, create_staff_member refuse a support target; gym_member_count and platform_metrics exclude support) with rollback; pgTAP support_excluded_from_counts 40/40; support_role_live_gate function list updated; listStaff/listGymMembers TS filters + unit tests. ci-local: static/deno/unit/e2e green, pgtap green except loyalty_subscriber_rule clock flake. Applied to LOCAL db only. Status left in-progress for review)
 # last_updated: 2026-10-20 (build: 23-2 in-progress -> review on feat/23-2-support-excluded-from-counts. 0136 staff_roles() + staff RPCs/gym_member_count/platform_metrics exclude support; 53 pgTAP assertions; review: 3 layers, 3 patched, 1 deferred (quiet-gym positive control). Local only, not merged)
+# last_updated: 2026-10-21 (review: 23-2 independent bmad-code-review, 4 layers; 2 low patches applied (policy cat_pol classification + widened negation regexes, pgTAP 54/54, shown capable of failing; dead set_config removed; TS neq assertion), 2 deferred (rollback 0136 drill added to deferred-work; quiet-gym control already filed), 7 rejected. review -> done. Uncommitted, local only)

@@ -1216,3 +1216,9 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-2-support-excluded-from-counts-caps-notifications-metrics.md`
   summary: The quiet-gym "no dispatch to support" pgTAP proof has no positive control showing the job does dispatch to a member in the same fixture.
   evidence: Medium if real (unverified): the job needs a low occupancy band and an open window, so zero dispatches could pass vacuously; the structural check that the body filters `m.role = 'member'` is the actual guarantee. A control assertion would settle it.
+
+## Deferred from: code review of spec-23-2-support-excluded-from-counts-caps-notifications-metrics (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-2-support-excluded-from-counts-caps-notifications-metrics.md`
+  summary: Rollback `scripts/rollback-0136-support-excluded-from-staff-counts.sql` restores six hand-copied function bodies and was never drilled; the 23-1 entry above names only 0134/0135.
+  evidence: Extend the 23-1 rollback round trip to 0136 (apply 0136, run the rollback, diff `pg_get_functiondef` of the six functions and the ACLs against the pre-0136 definitions, assert `private.staff_roles()` is gone) before the Epic 23 production deploy.

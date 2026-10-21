@@ -1,6 +1,6 @@
 -- Story 23.2: support excluded from staff counts, caps, notifications and metrics (migration 0136).
 begin;
-select plan(53);
+select plan(54);
 
 -- ---- fixtures ---------------------------------------------------------------------------------------------------
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
@@ -71,7 +71,6 @@ select throws_ok($$select create_staff_member('00000000-0000-0000-0000-000000232
 -- control: the same RPCs still work on a real staff target
 select lives_ok($$select update_staff_role('00000000-0000-0000-0000-000000232205', 'Supervisor Renamed', 'manager')$$, 'control: owner can still change a supervisor');
 
-select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000232105","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000232001","app_role":"manager"}', true);
 -- the supervisor was just demoted to manager above, so use the Owner again for a supervisor-caller proof below
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000232102","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000232001","app_role":"owner"}', true);
 select lives_ok($$select update_staff_role('00000000-0000-0000-0000-000000232205', 'Supervisor Back', 'supervisor')$$, 'control: owner restores the supervisor');
@@ -136,7 +135,7 @@ create temp table cat_found as
   select distinct n.nspname || '.' || p.proname as name
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname in ('public', 'private') and p.prokind in ('f', 'p')
-    and (p.prosrc ~ '''supervisor''' or p.prosrc ~* '(<>|!=) *''member''' or p.prosrc ~* 'not +in *\(''member''');
+    and (p.prosrc ~ '''supervisor''' or p.prosrc ~* '(<>|!=)\s*(all\s*\()?\s*(array\[[^]]*)?''member''|not\s+in\s*\([^)]*''member''|''member''\s*(<>|!=)');
 select is((select coalesce(string_agg(name, ', ' order by name), '') from cat_found where name not in (select name from cat_fn)), '',
           'catalog: every function naming supervisor or negating member is classified');
 
@@ -144,23 +143,60 @@ select is((select coalesce(string_agg(name, ', ' order by name), '') from cat_fo
 select is((select coalesce(string_agg(n.nspname || '.' || p.proname, ', ' order by p.proname), '')
            from pg_proc p join pg_namespace n on n.oid = p.pronamespace
            where n.nspname in ('public', 'private') and p.prokind in ('f', 'p')
-             and (p.prosrc ~* '(<>|!=) *''member''' or p.prosrc ~* 'not +in *\(''member''')
+             and p.prosrc ~* '(<>|!=)\s*(all\s*\()?\s*(array\[[^]]*)?''member''|not\s+in\s*\([^)]*''member''|''member''\s*(<>|!=)'
              and (n.nspname || '.' || p.proname) not in (select name from cat_fn where includes_support)), '',
           'catalog: only the classified includes-support functions negate member');
 select is((select coalesce(string_agg(name, ', '), '') from cat_fn where includes_support and name not in
            (select n.nspname || '.' || p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-             where p.prosrc ~* '(<>|!=) *''member''')), '', 'catalog: the includes-support entries really are the ones that negate member');
+             where p.prosrc ~* '(<>|!=)\s*(all\s*\()?\s*(array\[[^]]*)?''member''|not\s+in\s*\([^)]*''member''|''member''\s*(<>|!=)')), '', 'catalog: the includes-support entries really are the ones that negate member');
 
 -- Policies carry explicit role lists (support is never in them); a policy that negates member must be reviewed.
 select is((select count(*)::int from pg_policies
-           where coalesce(qual, '') || coalesce(with_check, '') ~ '(<>|!=) *''member'''), 0, 'catalog: no policy negates member');
+           where coalesce(qual, '') || coalesce(with_check, '') ~* '(<>|!=)\s*(all\s*\()?\s*(array\[[^]]*)?''member''|not\s+in\s*\([^)]*''member''|''member''\s*(<>|!=)'), 0, 'catalog: no policy negates member');
 select is((select count(*)::int from pg_policies
            where coalesce(qual, '') || coalesce(with_check, '') ~ '''support'''
              and policyname not in ('support_gate_probe')), 0, 'catalog: no existing policy lists support (denied by default until 23.6)');
-create temp table cat_pol as
-  select schemaname || '.' || tablename || '.' || policyname as name from pg_policies
-  where coalesce(qual, '') || coalesce(with_check, '') ~ '''supervisor''';
-select cmp_ok((select count(*)::int from cat_pol), '>', 0, 'catalog: supervisor policies are found (the scan is live)');
+-- Every policy naming 'supervisor' is classified here (each lists explicit roles, so support never matches). A new one fails until added.
+create temp table cat_pol (name text primary key);
+insert into cat_pol (name) values
+  ('public.attendance_events.gym_staff_read_own_attendance_events'),
+  ('public.audit_log.manager_or_owner_read_own_audit_log'),
+  ('public.class_bookings.gym_staff_read_own_class_bookings'),
+  ('public.classes.manager_or_owner_insert_own_classes'),
+  ('public.classes.manager_or_owner_update_own_classes'),
+  ('public.coach_assignments.manager_or_owner_read_own_coach_assignments'),
+  ('public.front_desk_alerts.gym_staff_dismiss_own_front_desk_alerts'),
+  ('public.front_desk_alerts.gym_staff_read_own_front_desk_alerts'),
+  ('public.guest_sessions.gym_staff_read_own_guest_sessions'),
+  ('public.loyalty_events.gym_staff_read_own_loyalty_events'),
+  ('public.loyalty_progress.gym_staff_read_own_loyalty_progress'),
+  ('public.members.gym_staff_read_own_members'),
+  ('public.members.manager_or_owner_insert_own_members'),
+  ('public.members.manager_or_owner_update_own_members'),
+  ('public.members.member_read_gym_staff_members'),
+  ('public.payment_discrepancies.gym_staff_read_own_payment_discrepancies'),
+  ('public.payments.gym_staff_insert_own_payments'),
+  ('public.payments.gym_staff_read_own_payments'),
+  ('public.payments.gym_staff_verify_own_payments'),
+  ('public.plans.manager_or_owner_delete_own_plans'),
+  ('public.plans.manager_or_owner_insert_own_plans'),
+  ('public.plans.manager_or_owner_update_own_plans'),
+  ('public.refunds.gym_staff_read_own_refunds'),
+  ('public.refunds.manager_or_owner_insert_own_refunds'),
+  ('public.session_attempts.gym_staff_read_own_session_attempts'),
+  ('public.session_notes.manager_or_owner_read_own_session_notes'),
+  ('public.subscriptions.gym_staff_read_own_subscriptions'),
+  ('public.subscriptions.manager_or_owner_insert_own_subscriptions'),
+  ('public.subscriptions.manager_or_owner_update_own_subscriptions'),
+  ('public.workout_plan_completions.manager_or_owner_read_own_workout_plan_completions'),
+  ('public.workout_plan_exercises.manager_or_owner_read_own_workout_plan_exercises'),
+  ('public.workout_plans.manager_or_owner_read_own_workout_plan')
+;
+select is((select coalesce(string_agg(schemaname || '.' || tablename || '.' || policyname, ', ' order by policyname), '') from pg_policies
+           where coalesce(qual, '') || coalesce(with_check, '') ~ '''supervisor'''
+             and schemaname || '.' || tablename || '.' || policyname not in (select name from cat_pol)), '',
+          'catalog: every policy naming supervisor is classified');
+select cmp_ok((select count(*)::int from pg_policies where coalesce(qual, '') || coalesce(with_check, '') ~ '''supervisor'''), '>=', (select count(*)::int from cat_pol), 'catalog: supervisor policies are found (the scan is live)');
 select is((select count(*)::int from cat_pol p join pg_policies pp on p.name = pp.schemaname || '.' || pp.tablename || '.' || pp.policyname
            where coalesce(pp.qual, '') || coalesce(pp.with_check, '') !~ '(ARRAY\[|= ''owner''|= ANY)'), 0,
           'catalog: every supervisor policy uses an explicit role list (excludes support)');

@@ -33,5 +33,6 @@ describe("listStaff", () => {
     expect(inCall?.[1]).toBe("role");
     expect(inCall?.[2]).toEqual(["owner", "supervisor", "manager", "receptionist", "coach"]);
     expect(inCall?.[2]).not.toContain("support");
+    expect(filters.some(([m]) => m === "neq")).toBe(false);
   });
 });

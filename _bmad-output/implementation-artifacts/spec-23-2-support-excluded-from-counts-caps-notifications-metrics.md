@@ -91,3 +91,22 @@ Why keep phone guards inclusive: they protect identity separation, not staff cou
 - `scripts/pgtap-run.sh supabase/tests/support_excluded_from_counts.test.sql` -- expected: all ok
 - `node scripts/check-migration-guardrails.mjs` -- expected: clean
 - `scripts/ci-local.sh` -- expected: GREEN, read per-stage lines
+
+### Review Findings
+
+Independent code review 2026-10-21 (branch diff vs epic/23; Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor).
+
+- [x] [Review][Patch] Catalog scan is a heuristic, not the per-item classification the spec asks for (low) [supabase/tests/support_excluded_from_counts.test.sql:139-165] — functions use the explicit `cat_fn` list, policies only a regex (`ARRAY[`, `= 'owner'`, `= ANY`), and the negation regexes miss `not in ('x','member')`, `<> all (...)`, a negation split across a newline, and the policy side has no negation scan at all. Widen the regexes and add a `cat_pol` classification list so a new `'supervisor'` policy fails CI until classified.
+- [x] [Review][Patch] Dead `set_config` and contradicting comment, and the TS test never asserts `.neq("role","member")` is gone (low) [supabase/tests/support_excluded_from_counts.test.sql:74-76; apps/dashboard/services/staff.listStaff.support.test.ts:35-41] — delete the manager `set_config` that is immediately overwritten; add `expect(filters.some(([m]) => m === "neq")).toBe(false)`.
+- [x] [Review][Defer] Rollback 0136 is hand-copied (~400 lines) and never drilled; its header says "see deferred-work" but the only entry names 0134/0135 [scripts/rollback-0136-support-excluded-from-staff-counts.sql:1] — deferred: extend the 23-1 rollback-drill deferral to 0136 so one round trip covers 0134-0136 before the Epic 23 production deploy.
+- [x] [Review][Defer] Quiet-gym "no dispatch to support" proof has no positive control and can pass vacuously [supabase/tests/support_excluded_from_counts.test.sql:101-108] — deferred: already recorded in deferred-work.md by the in-flow review (medium if real, unverified); a control assertion that the same fixture dispatches to a member would settle it.
+
+#### Rejected
+
+- Zero-alert proof is vacuous because `gym_id()` is NULL for support (Blind, Edge, Auditor) — low: true (0135 `private.gym_id()` excludes support), but the story changes no policy; the denial is 23-1's and the owner control row proves the fixture is live. Not worth a new fixture.
+- `create_staff_member` lets an Owner add a support user who has no active row at the gym, and the guard is a deny-list (Edge, Blind, Auditor) — low: needs an Owner to type a support person's phone; the result is an ordinary staff row, and `support_set_membership` (0135:231) already refuses a later assignment at that gym. Guard adds a branch for an unlikely path.
+- Staff role list duplicated in `staff.ts` vs `staff_roles()`/`session.ts` (Blind, Edge, Verification Gap) — low: a new enum role already needs `session.ts STAFF_ROLES` updated; no new divergence. `session.ts:44` confirmed by inspection to exclude support.
+- `gym_member_count`/`platform_metrics` use literal `<> 'support'` (Auditor) — false: those functions count members plus staff by design, so `staff_roles()` (which omits member) is the wrong definition there.
+- Non-SQL consumers of the "role != member" idiom are unscanned (Blind) — false: repo grep finds no remaining `.neq("role","member")`; the TS consumers use `.eq("role","member")`, and `members.provisioning.ts:83` correctly treats support as a conflict.
+- `staff_roles()` granted to authenticated/service_role (Blind) — false: it returns a constant array in `private`, same grant shape as the sibling functions.
+- Spec status `done`, empty Change Log, 40/53 assertion counts, `last_updated` header (Blind, Auditor) — fix edits the spec under review.
