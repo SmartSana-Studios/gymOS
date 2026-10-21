@@ -43,3 +43,25 @@ describe("AuditTrailTab gym_category_changed label", () => {
     expect(screen.getByText("Catégorie modifiée")).toBeTruthy();
   });
 });
+
+describe("AuditTrailTab real person (Story 23.8)", () => {
+  function renderWith(realActors: Record<string, { subjectId: string; realUserId: string; name: string | null; email: string | null; recordedAt: string }>) {
+    const i18n = createInstance();
+    i18n.use(initReactI18next).init({ lng: "en", resources: RESOURCES, interpolation: { escapeValue: false }, react: { useSuspense: false } });
+    return render(
+      <I18nextProvider i18n={i18n}>
+        <AuditTrailTab entries={[{ ...ENTRY, actorDisplayName: "GymOS Support" } as AuditTrailEntry]} realActors={realActors} />
+      </I18nextProvider>,
+    );
+  }
+
+  it("shows the real person under a GymOS Support entry", () => {
+    renderWith({ [ENTRY.id]: { subjectId: ENTRY.id, realUserId: "u-1", name: "Zed Realperson", email: "zed@gymosapps.com", recordedAt: "2026-10-21T10:00:00Z" } });
+    expect(screen.getByText("Real person: Zed Realperson (zed@gymosapps.com)")).toBeTruthy();
+  });
+
+  it("shows nothing extra when no identity was returned", () => {
+    renderWith({});
+    expect(screen.queryByText(/Real person/)).toBeNull();
+  });
+});

@@ -33,6 +33,8 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     auth: { getClaims: vi.fn(async () => ({ data: { claims: { gym_id: "gym-a" } }, error: null })) },
     from: vi.fn((table: string) => makeBuilder(table)),
+    // 23.8: an actor no membership explains is checked against the gym's support proxy
+    rpc: vi.fn(async () => ({ data: null, error: null })),
   })),
 }));
 vi.mock("@/services/session", () => ({

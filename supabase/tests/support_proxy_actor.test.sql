@@ -220,7 +220,10 @@ create temp table writer_exempt (fn text primary key, reason text not null);
 insert into writer_exempt (fn, reason) values
   ('assign_support(uuid,uuid,text)',          'support lifecycle: Super Admin records who assigned (gym_id is never exposed to gym roles)'),
   ('escalate_gym_data_access(uuid,text)',     'Super Admin action: the escalating Super Admin is recorded as itself'),
-  ('revoke_gym_data_access(uuid,uuid,text)',  'Super Admin action: the revoking Super Admin is recorded as itself');
+  ('revoke_gym_data_access(uuid,uuid,text)',  'Super Admin action: the revoking Super Admin is recorded as itself'),
+  ('answer_audit_disclosure_request(uuid,text)',  'Super Admin action (23.8): the answering Super Admin is recorded as itself, never gym visible'),
+  ('file_audit_disclosure_request(uuid,text)',    'Owner-only action (23.8): current_member_role() is NULL for support, so requested_by is always the Owner'),
+  ('private.record_support_identity(text,uuid,uuid)', 'the real-identity writer itself (23.8): it records auth.uid() on purpose, Super Admin read only');
 
 create or replace function pg_temp.unlisted_writers() returns setof text language sql as $f$
   select p.oid::regprocedure::text
@@ -272,6 +275,8 @@ insert into fk_class (col, class, note) values
   ('refunds.actor_id',                          'actor_converted', 'aa_support_force_actor trigger'),
   ('gym_data_escalations.actor_id',             'actor_exempt',    'Super Admin escalation'),
   ('gym_data_escalations.revoked_by',           'actor_exempt',    'Super Admin revoke'),
+  ('audit_disclosure_requests.requested_by',    'non_actor',       'the Owner who filed the request (Owner-only function; 23.8)'),
+  ('audit_disclosure_requests.answered_by',     'actor_exempt',    'Super Admin answers; never gym visible (23.8)'),
   ('support_assignments.created_by',            'actor_exempt',    'Super Admin assigns; never gym visible'),
   ('private.support_invites.created_by',        'actor_exempt',    'Super Admin invites; never gym visible'),
   ('device_push_tokens.user_id',                'non_actor',       'own device token'),
@@ -297,6 +302,7 @@ select is((select array_agg(c) from pg_temp.unclassified_fk() c), array['zz_bad_
 create temp table users_reader_exempt (fn text primary key, reason text not null);
 insert into users_reader_exempt (fn, reason) values
   ('assign_support(uuid,uuid,text)',                       'Super Admin action; reads one user by id'),
+  ('get_support_action_identity(text,uuid[])',             'Super Admin read of the real person (23.8)'),
   ('create_support_account(uuid,text,text)',               'Super Admin action; reads one user by id'),
   ('custom_access_token_hook(jsonb)',                      'reads the signing-in user by id; a proxy has no members row and is banned'),
   ('get_support_accounts()',                               'lists support_accounts rows (the proxy has none) joined to users'),

@@ -221,3 +221,67 @@ describe("Story 23.5 assignment actions", () => {
 function createAdminOverride(updateUserById: ReturnType<typeof vi.fn>) {
   authAdmin.updateUserById = updateUserById;
 }
+
+describe("Story 23.8: real actors and the disclosure inbox", () => {
+  const AUDIT = "00000000-0000-4000-8000-0000000000c1";
+  const REQ = "00000000-0000-4000-8000-0000000000d1";
+
+  it("listRealActors refuses a denied caller before any read", async () => {
+    allowed = false;
+    const { listRealActors } = await import("./actions");
+    const res = await listRealActors([AUDIT]);
+    expect(res.error?.code).toBe("permission_denied");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("listRealActors reads only valid audit row ids and keys the result by row", async () => {
+    rpc.mockResolvedValue({
+      data: [{ subject_table: "audit_log", subject_id: AUDIT, real_user_id: UID, real_name: "Zed", real_email: "zed@gymosapps.com", gym_id: "g", recorded_at: "2026-10-21T10:00:00Z" }],
+      error: null,
+    });
+    const { listRealActors } = await import("./actions");
+    const res = await listRealActors([AUDIT, "not-a-uuid"]);
+    expect(rpc).toHaveBeenCalledWith("get_support_action_identity", { p_subject_table: "audit_log", p_subject_ids: [AUDIT] });
+    expect(res.data[AUDIT]).toMatchObject({ name: "Zed", email: "zed@gymosapps.com", realUserId: UID });
+  });
+
+  it("listRealActors makes no call for an empty list", async () => {
+    const { listRealActors } = await import("./actions");
+    await listRealActors(["nope"]);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("listDisclosureInbox maps the rows", async () => {
+    rpc.mockResolvedValue({
+      data: [{ id: REQ, gym_id: "g1", gym_name: "Gym A", audit_log_id: AUDIT, audit_action_type: "refund_recorded", audit_created_at: "t0", question: "Who?", requested_at: "t1", answer_due_at: "t2", overdue: true, answered_at: null, answer: null }],
+      error: null,
+    });
+    const { listDisclosureInbox } = await import("./actions");
+    const res = await listDisclosureInbox();
+    expect(rpc).toHaveBeenCalledWith("get_disclosure_inbox");
+    expect(res.data?.[0]).toMatchObject({ id: REQ, gymName: "Gym A", overdue: true, question: "Who?" });
+  });
+
+  it("answerDisclosureRequest stores the answer, refuses a bad id before any call, and maps a refusal code", async () => {
+    const { answerDisclosureRequest } = await import("./actions");
+    const bad = await answerDisclosureRequest({ requestId: "x", answer: "A reply" });
+    expect(bad.error?.code).toBe("validation_error");
+    expect(rpc).not.toHaveBeenCalled();
+
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "ok" }], error: null });
+    await expect(answerDisclosureRequest({ requestId: REQ, answer: "A reply" })).resolves.toEqual({ data: { code: "ok" }, error: null });
+    expect(rpc).toHaveBeenCalledWith("answer_audit_disclosure_request", { p_request_id: REQ, p_answer: "A reply" });
+
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "already_answered" }], error: null });
+    const refused = await answerDisclosureRequest({ requestId: REQ, answer: "Again" });
+    expect(refused.error?.code).toBe("already_answered");
+  });
+
+  it("answerDisclosureRequest refuses a denied caller", async () => {
+    allowed = false;
+    const { answerDisclosureRequest } = await import("./actions");
+    const res = await answerDisclosureRequest({ requestId: REQ, answer: "A reply" });
+    expect(res.error?.code).toBe("permission_denied");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});

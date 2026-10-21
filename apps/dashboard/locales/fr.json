@@ -1342,7 +1342,30 @@
       "sessionLatePayment": "Paiement de séance tardif appliqué",
       "sessionRefundApplied": "Remboursement de séance appliqué",
       "sessionConsumed": "Séance utilisée",
-      "sessionAttemptBlocked": "Séance requise : entrée refusée"
+      "sessionAttemptBlocked": "Séance requise : entrée refusée",
+      "allowGymosSupportChanged": "Accès du support GymOS modifié",
+      "auditDisclosureRequested": "Demande d'information déposée",
+      "auditDisclosureAnswered": "Demande d'information traitée"
+    },
+    "disclosure": {
+      "title": "Questions sur ce journal",
+      "request": "Poser une question sur cette entrée",
+      "dialogTitle": "Interroger GymOS sur cette entrée",
+      "questionLabel": "Que souhaitez-vous savoir ?",
+      "questionHint": "GymOS répond par téléphone ou par e-mail. La date limite s'affiche une fois la demande envoyée.",
+      "submit": "Envoyer la demande",
+      "cancel": "Annuler",
+      "sent": "Demande envoyée. GymOS répondra avant le {{date}}.",
+      "due": "Réponse attendue le {{date}}",
+      "answered": "Répondu le {{date}}",
+      "open": "En attente de GymOS",
+      "answerLabel": "Réponse",
+      "entry": "Entrée {{id}}",
+      "errors": {
+        "questionInvalid": "Écrivez une question de 3 à 500 caractères.",
+        "notFound": "Cette entrée est introuvable.",
+        "alreadyOpen": "Vous avez déjà une question en cours sur cette entrée."
+      }
     }
   },
   "saasBilling": {

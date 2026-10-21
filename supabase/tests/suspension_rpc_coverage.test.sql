@@ -257,6 +257,9 @@ select is(
   --   support_assignments     - RLS on with no client policy and no client grant (Super Admin reads
   --                             through functions only), so a restrictive policy would be a no-op;
   --                             Super Admin must manage assignments of a suspended gym (0135)
+  --   support_action_identity, audit_disclosure_requests - same shape as support_assignments (0142):
+  --                             RLS on, no client policy, no client grant; read only through Super Admin
+  --                             functions, and the Owner function runs under the tenant gate of audit_log
   --
   -- exercise_library is the one that needs re-reading rather than re-deriving:
   -- its gym_id is NULLABLE and all 15 seeded rows are platform defaults
@@ -265,7 +268,7 @@ select is(
   -- ever needs to close its coach INSERT, add a SEPARATE, narrower
   -- RESTRICTIVE ... FOR INSERT policy under a DIFFERENT name -- reusing
   -- `tenant_active_gate` would silently change assertion 1's count above.
-  'exercise_library, gym_data_escalations, gym_payment_credentials, saas_billing_notices, saas_billing_payments, support_assignments',
+  'audit_disclosure_requests, exercise_library, gym_data_escalations, gym_payment_credentials, saas_billing_notices, saas_billing_payments, support_action_identity, support_assignments',
   'the set of gym_id-bearing tables WITHOUT tenant_active_gate is unchanged -- a new one is invisible to the guardrail above, so it must be justified here (Story 11.8 code review)'
 );
 

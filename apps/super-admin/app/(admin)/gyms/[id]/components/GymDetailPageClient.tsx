@@ -23,6 +23,7 @@ import { GymCategoryEditor } from "./GymCategoryEditor";
 import { EscalateAccessDialog } from "./EscalateAccessDialog";
 import { ActiveAccessList } from "./ActiveAccessList";
 import { AuditTrailTab } from "./AuditTrailTab";
+import type { RealActor } from "../../../support/actions";
 import { GymMembersTable } from "./GymMembersTable";
 import { GymPaymentsTable } from "./GymPaymentsTable";
 import { hasLapsed, useNow } from "./use-now";
@@ -42,6 +43,7 @@ export function GymDetailPageClient({
   gym,
   tiers,
   auditTrail,
+  realActors,
   expiresAt,
   activeEscalations,
   currentActorId,
@@ -53,6 +55,7 @@ export function GymDetailPageClient({
   gym: GymDetail;
   tiers: TierOption[];
   auditTrail: AuditTrailEntry[];
+  realActors?: Record<string, RealActor>;
   /**
    * When the current Super Admin's own live grant on this gym expires, or
    * null if they hold none. A timestamp rather than Story 1.7's `escalated`
@@ -219,7 +222,7 @@ export function GymDetailPageClient({
         onRevoked={() => router.refresh()}
       />
 
-      <AuditTrailTab entries={auditTrail} />
+      <AuditTrailTab entries={auditTrail} realActors={realActors} />
 
       <GymSupportPanel gymId={gym.id} assignments={supportAssignments} accounts={supportAccounts} />
 

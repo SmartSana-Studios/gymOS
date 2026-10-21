@@ -1,6 +1,7 @@
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { AuditTrailEntry } from "@/services/gyms";
+import type { RealActor } from "../../../support/actions";
 
 const ACTION_LABEL_KEY: Record<string, string> = {
   gym_created: "gyms.auditTrail.action.gym_created",
@@ -69,7 +70,14 @@ function describeEntry(
  * (every action type, not just escalations -- Dev Notes Open Question 2),
  * newest first, no filter controls (unlike Epic 7's fuller AD-12 page).
  */
-export function AuditTrailTab({ entries }: { entries: AuditTrailEntry[] }) {
+export function AuditTrailTab({
+  entries,
+  realActors = {},
+}: {
+  entries: AuditTrailEntry[];
+  /** Story 23.8: the real person behind a "GymOS Support" entry, keyed by audit row id. Shown here only (Super Admin at aal2). */
+  realActors?: Record<string, RealActor>;
+}) {
   const { t, i18n } = useTranslation();
   const holderNames = resolveHolderNames(entries);
   return (
@@ -89,6 +97,14 @@ export function AuditTrailTab({ entries }: { entries: AuditTrailEntry[] }) {
               <span className="text-xs text-muted-foreground">
                 {entry.actorDisplayName} · {new Date(entry.createdAt).toLocaleString(i18n.language)}
               </span>
+              {realActors[entry.id] && (
+                <span className="text-xs font-medium">
+                  {t("gyms.auditTrail.realActor", {
+                    name: realActors[entry.id].name ?? realActors[entry.id].realUserId.slice(0, 8),
+                    email: realActors[entry.id].email ?? "—",
+                  })}
+                </span>
+              )}
             </li>
           ))}
         </ul>

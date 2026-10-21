@@ -333,3 +333,98 @@ export async function removeSupportAccount(input: unknown): Promise<SupportOutco
   if (!isUuid(raw.userId) || typeof raw.reason !== "string") return badInput(t);
   return runSupportFunction("remove_support_account", { p_user_id: raw.userId, p_reason: raw.reason });
 }
+
+// ---------------------------------------------------------------------------
+// Story 23.8 (0142): the real person behind a support action, and the Owner disclosure inbox. Super Admin at aal2 only; the database
+// re-checks both. The individual's name and address are shown here and on nowhere a gym role can reach.
+// ---------------------------------------------------------------------------
+
+export interface RealActor {
+  subjectId: string;
+  realUserId: string;
+  name: string | null;
+  email: string | null;
+  recordedAt: string;
+}
+
+/** The real person for each of these audit rows. A row support did not write has none. A refusal degrades to an empty map. */
+export async function listRealActors(auditLogIds: string[]): Promise<{ data: Record<string, RealActor>; error: AppError | null }> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: {}, error: authz.error };
+  const ids = auditLogIds.filter((id) => isUuid(id));
+  if (ids.length === 0) return { data: {}, error: null };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_support_action_identity", { p_subject_table: "audit_log", p_subject_ids: ids });
+  if (error) return { data: {}, error: await mapAndLog(error) };
+  const byId: Record<string, RealActor> = {};
+  for (const row of data ?? []) {
+    byId[row.subject_id] = {
+      subjectId: row.subject_id,
+      realUserId: row.real_user_id,
+      name: row.real_name,
+      email: row.real_email,
+      recordedAt: row.recorded_at,
+    };
+  }
+  return { data: byId, error: null };
+}
+
+export interface DisclosureInboxRow {
+  id: string;
+  gymId: string;
+  gymName: string;
+  auditLogId: string;
+  auditActionType: string;
+  auditCreatedAt: string;
+  question: string;
+  requestedAt: string;
+  answerDueAt: string;
+  overdue: boolean;
+  answeredAt: string | null;
+  answer: string | null;
+}
+
+export async function listDisclosureInbox(): Promise<{ data: DisclosureInboxRow[] | null; error: AppError | null }> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_disclosure_inbox");
+  if (error) return { data: null, error: await mapAndLog(error) };
+  return {
+    data: (data ?? []).map((r: NonNullable<typeof data>[number]) => ({
+      id: r.id,
+      gymId: r.gym_id,
+      gymName: r.gym_name,
+      auditLogId: r.audit_log_id,
+      auditActionType: r.audit_action_type,
+      auditCreatedAt: r.audit_created_at,
+      question: r.question,
+      requestedAt: r.requested_at,
+      answerDueAt: r.answer_due_at,
+      overdue: r.overdue,
+      answeredAt: r.answered_at,
+      answer: r.answer,
+    })),
+    error: null,
+  };
+}
+
+/** Stores the answer (delivered to the Owner outside the product) and writes the audit row. */
+export async function answerDisclosureRequest(input: unknown): Promise<{ data: { code: string } | null; error: AppError | null }> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const raw = (input ?? {}) as { requestId?: unknown; answer?: unknown };
+  if (!isUuid(raw.requestId) || typeof raw.answer !== "string") {
+    return { data: null, error: { code: "validation_error", message: t("support.errors.refused") } };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("answer_audit_disclosure_request", { p_request_id: raw.requestId, p_answer: raw.answer });
+  if (error) return { data: null, error: await mapAndLog(error) };
+  const row = data?.[0];
+  if (!row?.ok) {
+    const code = row?.code ?? "refused";
+    return { data: null, error: { code, message: t(`support.disclosure.codes.${code}`, { defaultValue: t("support.errors.refused") }) } };
+  }
+  return { data: { code: row.code }, error: null };
+}

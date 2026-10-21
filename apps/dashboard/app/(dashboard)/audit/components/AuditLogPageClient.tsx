@@ -8,9 +8,12 @@ import { Button } from "@/components/ui/button";
 import { TablePagination } from "@/components/TablePagination";
 import { useUrlPagination } from "@/hooks/use-table-pagination";
 import type { AuditLogRow, AuditActorOption } from "@/services/auditLog";
+import type { DisclosureRequest } from "@/services/auditDisclosure";
 import type { MemberRole } from "@/services/session";
 import { AUDIT_ACTION_TYPE_LABEL_KEY } from "../auditLabels";
 import { exportAuditLogCsvAction } from "../actions";
+import { DisclosureRequestDialog } from "./DisclosureRequestDialog";
+import { DisclosureRequestsPanel } from "./DisclosureRequestsPanel";
 
 function actionLabel(
   t: (key: string) => string,
@@ -60,6 +63,7 @@ export function AuditLogPageClient({
   actorId,
   role,
   actorOptions,
+  disclosureRequests = [],
 }: {
   initialRows: AuditLogRow[];
   total: number;
@@ -70,6 +74,8 @@ export function AuditLogPageClient({
   actorId: string;
   role: MemberRole;
   actorOptions: AuditActorOption[];
+  /** Story 23.8: the Owner's own questions about audit entries (empty for every other role). */
+  disclosureRequests?: DisclosureRequest[];
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -79,6 +85,7 @@ export function AuditLogPageClient({
 
   const [toast, setToast] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [askAbout, setAskAbout] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -192,6 +199,8 @@ export function AuditLogPageClient({
         </div>
       </div>
 
+      <DisclosureRequestsPanel requests={disclosureRequests} />
+
       <TablePagination compact page={page} pageSize={pageSize} total={total} {...pagination} />
 
       {initialRows.length === 0 ? (
@@ -208,6 +217,7 @@ export function AuditLogPageClient({
                 <th className="p-3 font-medium">{t("audit.table.action")}</th>
                 <th className="p-3 font-medium">{t("audit.table.target")}</th>
                 <th className="p-3 font-medium">{t("audit.table.details")}</th>
+                {role === "owner" && <th className="p-3 font-medium"><span className="sr-only">{t("audit.disclosure.request")}</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -218,6 +228,13 @@ export function AuditLogPageClient({
                   <td className="p-3">{actionLabel(t, row.actionType, row.metadata)}</td>
                   <td className="p-3">{targetLabel(row)}</td>
                   <td className="p-3">{detailsLabel(row.metadata)}</td>
+                  {role === "owner" && (
+                    <td className="p-3">
+                      <Button variant="outline" size="sm" onClick={() => setAskAbout(row.id)}>
+                        {t("audit.disclosure.request")}
+                      </Button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -226,6 +243,18 @@ export function AuditLogPageClient({
       )}
 
       <TablePagination page={page} pageSize={pageSize} total={total} {...pagination} />
+
+      {askAbout && (
+        <DisclosureRequestDialog
+          auditLogId={askAbout}
+          onClose={() => setAskAbout(null)}
+          onDone={(answerDueAt) => {
+            setAskAbout(null);
+            showToast(t("audit.disclosure.sent", { date: new Date(answerDueAt).toLocaleDateString(i18n.language) }));
+            router.refresh();
+          }}
+        />
+      )}
 
       {toast && (
         <div
