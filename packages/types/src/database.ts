@@ -2630,6 +2630,35 @@ export type Database = {
           suspended_by_switch: boolean
         }[]
       }
+      get_support_locks: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          display_name: string | null
+          email: string | null
+          gym_names: string | null
+          locked_at: string
+          locked_reason: string | null
+          user_id: string
+        }[]
+      }
+      get_support_review_queue: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          flagged_at: string
+          member_id: string
+          member_since: string
+          name: string
+          role: Database["public"]["Enums"]["member_role"]
+        }[]
+      }
+      clear_support_review: {
+        Args: { p_member_id: string }
+        Returns: { code: string; ok: boolean }[]
+      }
+      unlock_support_account: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
+      }
       get_workout_plan_viewer_context: {
         Args: { p_plan_id: string }
         Returns: {

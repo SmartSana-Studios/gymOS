@@ -536,6 +536,21 @@
     "home": "Back to sign in"
   },
   "support": {
+    "locks": {
+      "title": "Locked accounts",
+      "empty": "No locked accounts.",
+      "hint": "An account locks itself when it passes a safety limit. Enter a reason above (3 to 500 characters), then unlock; the lock, the unlock and the reason are recorded.",
+      "unlock": "Unlock",
+      "confirmUnlock": "Unlock this account? The reason you entered is recorded.",
+      "unlocked": "Account unlocked. Its earlier actions no longer count toward the limits.",
+      "reasons": {
+        "velocity_gym": "Too many actions in one gym within an hour",
+        "velocity_account": "Too many actions across gyms within an hour",
+        "velocity_payment": "Too many payment-connection changes in one gym within a day",
+        "stepup_failures": "Too many wrong step-up codes",
+        "unknown": "Locked"
+      }
+    },
     "disclosure": {
       "title": "Owner disclosure requests",
       "empty": "No disclosure requests.",
@@ -615,6 +630,7 @@
       "not_activated": "The account has not finished setting up, so it cannot be confirmed yet.",
       "switch_off": "The Owner has GymOS support turned off for this gym, so it cannot be confirmed.",
       "already_ended": "That assignment has already ended.",
+      "not_locked": "That account is not locked.",
       "already_deactivated": "That account is already deactivated.",
       "activated": "This account has been activated. Deactivate it instead of removing it."
     },

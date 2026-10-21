@@ -50,6 +50,8 @@ insert into payments (id, gym_id, member_id, amount, currency, method, status, p
   ('00000000-0000-0000-0000-000000237702', '00000000-0000-0000-0000-000000237002', '00000000-0000-0000-0000-000000237205', 1000, 'XAF', 'cash', 'verified', 'session');
 
 insert into private.support_accounts (user_id, activated_at) values ('00000000-0000-0000-0000-000000237101', now());
+-- 23.10: a live support caller may write only allow-listed audit action types; these probe types stand in for them
+insert into private.support_audit_actions values ('proxy_probe');
 insert into public.support_assignments (id, support_user_id, gym_id, state, activated_at) values
   ('00000000-0000-0000-0000-000000237401', '00000000-0000-0000-0000-000000237101', '00000000-0000-0000-0000-000000237001', 'active', now()),
   ('00000000-0000-0000-0000-000000237402', '00000000-0000-0000-0000-000000237101', '00000000-0000-0000-0000-000000237002', 'active', now());
@@ -308,6 +310,7 @@ insert into users_reader_exempt (fn, reason) values
   ('custom_access_token_hook(jsonb)',                      'reads the signing-in user by id; a proxy has no members row and is banned'),
   ('get_support_accounts()',                               'lists support_accounts rows (the proxy has none) joined to users'),
   ('get_support_assignments(uuid,uuid)',                   'lists support_assignments rows (the proxy has none) joined to users'),
+  ('get_support_locks()',                                     'lists locked support_accounts rows (the proxy has none) joined to users'),
   ('issue_support_invite(uuid,text,uuid)',                 'Super Admin action; reads one user by id'),
   ('list_super_admins()',                                  'filters is_super_admin, which a proxy can never be (users_support_proxy_not_super_admin)'),
   ('log_audit_event(text,uuid,text,text,jsonb,text)',      'reads the actor display name by id'),

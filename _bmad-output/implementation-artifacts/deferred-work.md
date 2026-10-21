@@ -1412,3 +1412,42 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-9-support-connects-the-payment-account.md`
   summary: Webhook credential-mismatch guard skips payments with a NULL credentials_id; the Super Admin NoticeBell has no component test; check-credentials-id scan is regex based; database.ts was hand-edited.
   evidence: Review 23-9 (low each); regenerate database.ts at the next type generation.
+
+## Deferred from: build of spec-23-10-revocation-owner-visibility-and-velocity-lock (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED by 23-10 (migration 0144): created_by_support pin and insert-only tagging; log_audit_event allow-list for a live support caller; get_support_action_identity audits each read; per-user wrong step-up counter with audit row for support; set_allow_gymos_support restore skips accounts that are not activated / locked / reset-pending / deactivated and people who gained another membership.
+  evidence: docs/decisions.md 23-10 entry; support_revocation_velocity_lock.test.sql.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: The velocity lock (and the idle/absolute limits) only run when `private.session_gate_touch` is called for a support session; the dashboard request path does not call it yet.
+  evidence: 23-6b must wire it before support is enabled for any gym; the database side and its tests are complete.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: The Owner review queue lists staff support CREATED (members.created_by_support). Staff support merely edited (create_staff_member replace-in-place) are not queued; they appear only in the daily digest count.
+  evidence: Replace-in-place no longer tags a pre-existing row (23-6 deferral); queueing edits would need an identity row for members, which 0142 does not write.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: Velocity counts one action as one transaction (count of distinct recorded_at over support_action_identity). A support action that writes no audit, payment or refund row is not counted; two actions inside one transaction count once.
+  evidence: Every allow-listed write audits, so none is known to be missed; revisit if an allow-listed write without an audit row is added.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: Limits are all [ASSUMPTION] (10/h per gym, 20/h per account, 3 payment-connection changes/day, 60 s); the 60 s cutoff is a stored value, not an enforced timer (access ends on the next request).
+  evidence: 23.0 confirms or changes them in private.session_limits_config. The "restrict audit action types" criterion (retro 67) is now in the 23.10 criteria in epics.md.
+
+## Deferred from: review of spec-23-10-revocation-owner-visibility-and-velocity-lock (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: The velocity lock and the 60 s cutoff are inert until the dashboard request path calls `session_gate_touch` (23-6b); `support_revocation_cutoff_seconds` is stored but nothing reads it.
+  evidence: Add a dashboard test that a support request goes through the gate and is denied on `locked`, and test any Realtime or signed-link path against the cutoff, in 23-6b criteria (retro 67). Support stays off for every gym until then.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: A switch-suspended assignment skipped on restore (account locked, not activated or reset-pending) stays suspended after unlock.
+  evidence: Low-medium; the Owner toggle or a Super Admin re-assign recovers it. Revisit with 23-11 (lifecycle).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: No catalog scan proves every audit action type written by an allow-listed support RPC is in `private.support_audit_actions`.
+  evidence: Unverified medium: a missing type makes that support action raise at runtime. Add the scan in 23-6b.
+
+## Deferred from: code review of spec-23-10 (2026-10-21)
+
+- Digest failure status and suspended-gym exclusion are unasserted in section H of support_revocation_velocity_lock.test.sql; force a notice-insert error and a suspended gym with a countable action.
+- Rollback-0144 drops unlock but leaves `locked_at` set (UNVERIFIED medium): read the rollback and add a preflight that raises when any support account is locked.
+- Unlock sends no Owner "resumed" notice (23-11 with the restore deferral).
+- Replace-in-place staff edits bypass the review queue (digest counts them only); revisit if "support-touched" is wanted.
+- Velocity lock/60 s cutoff inert and allow-list catalog scan: already recorded above for 23-6b.
+- Gym-wide velocity alert (a burst across several support people) is not built; the lock now counts only the toucher's own actions (23-10 review decision). Add a Super Admin alert if wanted.

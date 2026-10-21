@@ -536,6 +536,21 @@
     "home": "Retour à la connexion"
   },
   "support": {
+    "locks": {
+      "title": "Comptes verrouillés",
+      "empty": "Aucun compte verrouillé.",
+      "hint": "Un compte se verrouille de lui-même lorsqu'il dépasse une limite de sécurité. Saisissez un motif ci-dessus (3 à 500 caractères), puis déverrouillez ; le verrouillage, le déverrouillage et le motif sont consignés.",
+      "unlock": "Déverrouiller",
+      "confirmUnlock": "Déverrouiller ce compte ? Le motif saisi est consigné.",
+      "unlocked": "Compte déverrouillé. Ses actions précédentes ne comptent plus dans les limites.",
+      "reasons": {
+        "velocity_gym": "Trop d'actions dans une salle en une heure",
+        "velocity_account": "Trop d'actions entre salles en une heure",
+        "velocity_payment": "Trop de changements de connexion de paiement dans une salle en un jour",
+        "stepup_failures": "Trop de codes de confirmation erronés",
+        "unknown": "Verrouillé"
+      }
+    },
     "disclosure": {
       "title": "Demandes d'information des propriétaires",
       "empty": "Aucune demande d'information.",
@@ -615,6 +630,7 @@
       "not_activated": "Le compte n'a pas terminé sa configuration ; il ne peut pas encore être confirmé.",
       "switch_off": "Le propriétaire a désactivé le support GymOS pour cette salle ; la confirmation est impossible.",
       "already_ended": "Cette affectation est déjà terminée.",
+      "not_locked": "Ce compte n'est pas verrouillé.",
       "already_deactivated": "Ce compte est déjà désactivé.",
       "activated": "Ce compte a été activé. Désactivez-le au lieu de le supprimer."
     },

@@ -7,8 +7,11 @@ import {
   resendStaffTempPassword,
   updateStaffRole,
   deactivateStaffMember,
+  listSupportReviewQueue,
+  clearSupportReview,
   type CreateStaffMemberResult,
   type StaffListRow,
+  type SupportReviewRow,
 } from "@/services/staff";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
@@ -105,4 +108,19 @@ export async function deactivateStaffMemberAction(
   }
 
   return deactivateStaffMember(parsedId.data, parsedInput.data);
+}
+
+/** Story 23.10: the Owner's review queue of staff created by GymOS Support. The RPC refuses anyone but the Owner. */
+export async function getSupportReviewQueueAction(): Promise<{ data: SupportReviewRow[] | null; error: AppError | null }> {
+  return listSupportReviewQueue();
+}
+
+/** Story 23.10: "I have reviewed this person" — removes them from the queue; never deactivates. */
+export async function clearSupportReviewAction(memberId: unknown): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const parsed = memberIdSchema.safeParse(memberId);
+  if (!parsed.success) {
+    return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
+  }
+  return clearSupportReview(parsed.data);
 }

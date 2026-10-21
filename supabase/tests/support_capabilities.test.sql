@@ -76,6 +76,8 @@ insert into payments (id, gym_id, member_id, amount, currency, method, status, p
   ('00000000-0000-0000-0000-000000236703', '00000000-0000-0000-0000-000000236002', '00000000-0000-0000-0000-000000236209', 1000, 'XAF', 'cash', 'verified', 'session');
 
 insert into private.support_accounts (user_id, activated_at) values ('00000000-0000-0000-0000-000000236101', now());
+-- 23.10: probe action types allowed for a live support caller
+insert into private.support_audit_actions values ('support_probe');
 insert into public.support_assignments (id, support_user_id, gym_id, state, activated_at) values
   ('00000000-0000-0000-0000-000000236401', '00000000-0000-0000-0000-000000236101', '00000000-0000-0000-0000-000000236001', 'active', now());
 insert into auth.sessions (id, user_id, created_at, updated_at) values

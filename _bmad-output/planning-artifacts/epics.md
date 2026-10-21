@@ -3308,6 +3308,10 @@ So that nothing is half-finished or unreviewed after a person leaves.
 **When** a support person makes a request
 **Then** they are denied like every staff account (FR-132), and no job counts that gym toward inactivity
 
+**Given** a live support caller writes an audit event (retro 67, moved from 23.8)
+**When** the action type is not one the allow-listed capabilities produce
+**Then** the write is refused with a typed error (`support_audit_action_not_allowed`), and reading a real identity writes one audit row
+
 ---
 
 ### Story 23.11: Lifecycle — Inactivity, Recertification & Factor Reset
