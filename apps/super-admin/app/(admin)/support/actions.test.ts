@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 let allowed = true;
 const rpc = vi.fn();
 const createUser = vi.fn();
+const adminRpc = vi.fn();
 const deleteUser = vi.fn();
 const getUserById = vi.fn();
 const sendMail = vi.fn();
@@ -14,7 +15,7 @@ vi.mock("@/lib/authz-action", () => ({
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({ rpc: (...a: unknown[]) => rpc(...a) })) }));
 vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: () => ({ auth: { admin: { createUser, deleteUser, getUserById } } }),
+  createAdminClient: () => ({ rpc: (...a: unknown[]) => adminRpc(...a), auth: { admin: { createUser, deleteUser, getUserById } } }),
 }));
 vi.mock("@/services/gyms", () => ({ mapAndLog: vi.fn(async () => ({ code: "unknown", message: "m" })) }));
 vi.mock("@/lib/mail", () => ({ sendMail: (...a: unknown[]) => sendMail(...a) }));
@@ -26,6 +27,7 @@ const UID = "00000000-0000-4000-8000-0000000000aa";
 beforeEach(() => {
   allowed = true;
   rpc.mockReset();
+  adminRpc.mockReset();
   createUser.mockReset();
   deleteUser.mockReset();
   getUserById.mockReset();
@@ -76,13 +78,15 @@ describe("createSupportAccount", () => {
 describe("sendSupportInvite", () => {
   it("issues a hashed-side token and mails the link; the link never comes back to the browser", async () => {
     getUserById.mockResolvedValue({ data: { user: { email: "sup@gymosapps.com" } }, error: null });
-    rpc.mockResolvedValue({ data: "2026-10-22T00:00:00Z", error: null });
+    adminRpc.mockResolvedValue({ data: "2026-10-22T00:00:00Z", error: null });
     sendMail.mockResolvedValue({ ok: true });
     const { sendSupportInvite } = await import("./actions");
     const res = await sendSupportInvite(UID);
     expect(res).toEqual({ data: { sent: true }, error: null });
-    const [name, args] = rpc.mock.calls[0] as [string, { p_user_id: string; p_token: string }];
+    const [name, args] = adminRpc.mock.calls[0] as [string, { p_user_id: string; p_token: string; p_actor: string }];
     expect(name).toBe("issue_support_invite");
+    expect(args).toMatchObject({ p_user_id: UID, p_actor: "sa-1" });
+    expect(rpc).not.toHaveBeenCalled();
     const mail = sendMail.mock.calls[0][0] as { to: string; text: string };
     expect(mail.to).toBe("sup@gymosapps.com");
     expect(mail.text).toContain(`https://owner.gymosapps.com/support-invite?t=${encodeURIComponent(args.p_token)}`);
@@ -94,7 +98,7 @@ describe("sendSupportInvite", () => {
     const { sendSupportInvite } = await import("./actions");
     const res = await sendSupportInvite(UID);
     expect(res.error?.code).toBe("not_configured");
-    expect(rpc).not.toHaveBeenCalled();
+    expect(adminRpc).not.toHaveBeenCalled();
   });
 
   it("refuses an account whose address is not @gymosapps.com", async () => {
@@ -102,12 +106,12 @@ describe("sendSupportInvite", () => {
     const { sendSupportInvite } = await import("./actions");
     const res = await sendSupportInvite(UID);
     expect(res.error?.code).toBe("support_invite_refused");
-    expect(rpc).not.toHaveBeenCalled();
+    expect(adminRpc).not.toHaveBeenCalled();
   });
 
   it("reports a failed send without exposing the link", async () => {
     getUserById.mockResolvedValue({ data: { user: { email: "sup@gymosapps.com" } }, error: null });
-    rpc.mockResolvedValue({ data: "x", error: null });
+    adminRpc.mockResolvedValue({ data: "x", error: null });
     sendMail.mockResolvedValue({ ok: false, reason: "send_failed" });
     const { sendSupportInvite } = await import("./actions");
     const res = await sendSupportInvite(UID);

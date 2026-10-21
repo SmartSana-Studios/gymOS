@@ -68,7 +68,11 @@ export async function setInvitePassword(token: unknown, password: unknown, deps:
       return { ok: false, weak: true };
     }
     const { error } = await deps.admin.auth.admin.updateUserById(found.userId, { password });
-    if (error) return { ok: false };
+    if (error) {
+      // A password the auth server rejects (too weak, same as before) keeps the form open; anything else is a plain failure.
+      const e = error as { code?: string; status?: number };
+      return e.code === "weak_password" || e.code === "same_password" || e.status === 422 ? { ok: false, weak: true } : { ok: false };
+    }
     const { data: marked, error: markError } = await deps.admin.rpc("support_invite_mark_password_set", { p_token: token });
     if (markError || marked !== true) return { ok: false };
     return { ok: true };
@@ -138,6 +142,10 @@ export async function verifyTotpAndActivate(
     if (!client) return { ok: false, canRetry: true };
     const { error } = await client.auth.mfa.challengeAndVerify({ factorId, code });
     if (error) {
+      // Only a real wrong-code answer counts against the invite; a transient auth error is retried uncounted.
+      const e = error as { code?: string; message?: string };
+      const wrongCode = e.code === "mfa_verification_failed" || /invalid totp code/i.test(e.message ?? "");
+      if (!wrongCode) return { ok: false, canRetry: true };
       // A wrong code counts against the invite; the invite dies at the limit.
       const { data: stillOpen } = await deps.admin.rpc("support_invite_code_failed", { p_token: token });
       return { ok: false, canRetry: stillOpen === true };

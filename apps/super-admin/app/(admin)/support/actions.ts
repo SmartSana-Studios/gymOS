@@ -108,7 +108,7 @@ export async function createSupportAccount(input: unknown): Promise<{ data: { us
 }
 
 /**
- * Issues a fresh invite (earlier ones are superseded) and emails the link to the account's @gymosapps.com address. The
+ * Issues a fresh invite (earlier ones are superseded; service-role call with the authorised Super Admin as p_actor) and emails the link to the account's @gymosapps.com address. The
  * link is never returned to the browser, logged or audited.
  */
 export async function sendSupportInvite(userId: unknown): Promise<{ data: { sent: true } | null; error: AppError | null }> {
@@ -129,8 +129,13 @@ export async function sendSupportInvite(userId: unknown): Promise<{ data: { sent
   }
 
   const token = generateSupportInviteToken();
-  const session = await createClient();
-  const { error: rpcError } = await session.rpc("issue_support_invite", { p_user_id: userId, p_token: token });
+  // Issuance is service_role only: the token exists only on this server and in the mailbox, never in a browser session.
+  // The actor is the Super Admin the gate just authorised; the database re-verifies it live.
+  const { error: rpcError } = await createAdminClient().rpc("issue_support_invite", {
+    p_user_id: userId,
+    p_token: token,
+    p_actor: authz.actorId,
+  });
   if (rpcError) {
     if (String(rpcError.message ?? "").includes("support_invite_refused")) {
       return { data: null, error: { code: "support_invite_refused", message: t("support.errors.refused") } };

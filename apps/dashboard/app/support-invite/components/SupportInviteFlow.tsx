@@ -36,9 +36,10 @@ export function SupportInviteFlow({ token, initialStep }: { token: string | null
       if (!token) return;
       const res = await beginSupportTotp(token);
       if (!res.ok) {
-        setStep("invalid");
+        setError(t("supportInvite.enrollRetry"));
         return;
       }
+      setError(null);
       setEnrollment({ factorId: res.factorId, qrCode: res.qrCode, secret: res.secret });
     });
   }
@@ -63,7 +64,8 @@ export function SupportInviteFlow({ token, initialStep }: { token: string | null
       setStep("totp");
       const enroll = await beginSupportTotp(token);
       if (!enroll.ok) {
-        setStep("invalid");
+        // The password is already saved: stay on step 2 and let the person retry the QR code.
+        setError(t("supportInvite.enrollRetry"));
         return;
       }
       setEnrollment({ factorId: enroll.factorId, qrCode: enroll.qrCode, secret: enroll.secret });
@@ -116,7 +118,10 @@ export function SupportInviteFlow({ token, initialStep }: { token: string | null
           )}
 
           {step === "totp" && !enrollment && (
-            <Button onClick={startEnrollment} disabled={pending} className="w-full">{t("supportInvite.showQr")}</Button>
+            <div className="flex flex-col gap-4">
+              {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+              <Button onClick={startEnrollment} disabled={pending} className="w-full">{t("supportInvite.showQr")}</Button>
+            </div>
           )}
           {step === "totp" && enrollment && (
             <form onSubmit={submitCode} className="flex flex-col gap-4">

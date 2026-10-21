@@ -1481,6 +1481,7 @@
     "qrAlt": "QR code to add the account to your authenticator app",
     "code": "6-digit code from your authenticator",
     "verify": "Verify and finish",
+    "enrollRetry": "We could not show the QR code. Please try again.",
     "codeWrong": "That code was not accepted. Try the current code.",
     "signIn": "Go to sign in"
   }

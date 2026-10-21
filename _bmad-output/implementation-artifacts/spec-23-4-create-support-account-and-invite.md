@@ -5,7 +5,7 @@ created: '2026-10-21'
 baseline_commit: 'e41bf1802cf879ce7dfd6b02c16a070a75bbec31'
 status: 'review'
 route: 'dispatch'
-review_loop_iteration: 0
+review_loop_iteration: 1
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-23-context.md'
 ---
@@ -95,3 +95,21 @@ context:
 - `scripts/pgtap-run.sh` on the new test file -- expected: all ok
 - `node scripts/check-migration-guardrails.mjs` -- expected: clean
 - `bash scripts/ci-local.sh` -- expected: GREEN on all five stages
+
+## Review Triage Log (round 1)
+
+Layers: blind-hunter, edge-case-hunter, verification-gap. Gate GREEN on d4fbd4d before review.
+| Finding | Verdict | Route | Evidence |
+|---|---|---|---|
+| `issue_support_invite` takes a caller-chosen token and is callable by a Super Admin session, so a Super Admin knows the link and can activate without the mailbox | medium | intent_gap -> owner chose option 2 | Frozen intent: "the link is the only secret, the mailbox is the binding". Owner 2026-10-21: only the server issues invites; actor passed and verified server-side. |
+| Transient failure or password rejected by Auth shows terminal "invalid link" | medium | patch | SupportInviteFlow.submitPassword/startEnrollment; setInvitePassword collapses updateUserById errors. |
+| Any `challengeAndVerify` error counts as a wrong code | medium | patch | supportInvite.ts verifyTotpAndActivate calls support_invite_code_failed on every error. |
+| Token in URL: no Referrer-Policy | low | patch | page.tsx sets only robots; one metadata line. |
+| Activation collision legs (non-support membership, phone) untested | medium | patch | Only is_super_admin leg exercised. |
+| issue_support_invite after activation untested | medium | patch | Deleting the guard keeps all tests green. |
+| Invite-state labels used/dead untested; no real-GoTrue test; no component tests; public actions have no IP rate limit; mistyped address leaves a stuck account | low/medium | defer | Display-only, manual local run done, server re-checks every call; removal is 23-5/23-11. |
+| defaultDeps outside try; concurrent verify/enrol; uncounted mint failures; plus-aliases; mail-failure label; orphan auth user on double failure; get_support_accounts without flag; no audit for invalid token; any-verified-factor check; cosmetics | low | rejected | Loud misconfig / rare / admin-only / no actor to attribute / fix adds machinery. capability_roles verified: only the new arm differs from 0125. |
+
+## Spec Change Log (round 1)
+
+- Trigger: Super Admin could mint and know the invite link. Amended: invite issuance moves behind service_role only; token generated server-side; actor passed explicitly and re-verified as Super Admin in the database. KEEP: hashed storage, 24 h, attempts limits, audit under the real Super Admin, `get_support_accounts`, the invitee flow.

@@ -2447,7 +2447,7 @@ export type Database = {
         }[]
       }
       issue_support_invite: {
-        Args: { p_token: string; p_user_id: string }
+        Args: { p_actor: string; p_token: string; p_user_id: string }
         Returns: string
       }
       list_active_gym_data_escalations: {

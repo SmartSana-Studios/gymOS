@@ -1,6 +1,6 @@
 -- Story 23.4: create a support account and invite it (migration 0138).
 begin;
-select plan(76);
+select plan(86);
 
 create or replace function pg_temp.claims(uid text, app_role text, aal text) returns void language plpgsql as $f$
 begin
@@ -47,18 +47,17 @@ values ('00000000-0000-0000-0000-0000000234a0', '00000000-0000-0000-0000-0000002
 
 -- ---- ACLs -------------------------------------------------------------------------------------------------------
 select is((select count(*)::int from unnest(array[
-    'public.create_support_account(uuid, text, text)', 'public.issue_support_invite(uuid, text)', 'public.get_support_accounts()',
+    'public.create_support_account(uuid, text, text)', 'public.get_support_accounts()',
     'public.support_invite_inspect(text)', 'public.support_invite_mark_password_set(text)', 'public.support_invite_code_failed(text)',
     'public.activate_support_account(text)', 'private.support_email_collision(text, uuid)', 'private.support_invite_check(text)',
-    'private.support_audit(uuid, text, text, uuid, jsonb)']) f
+    'private.support_audit(uuid, text, text, uuid, jsonb)', 'public.issue_support_invite(uuid, text, uuid)']) f
    where has_function_privilege('anon', f, 'execute')), 0, 'no new function is callable by anon');
 select is((select count(*)::int from unnest(array[
     'public.support_invite_inspect(text)', 'public.support_invite_mark_password_set(text)', 'public.support_invite_code_failed(text)',
     'public.activate_support_account(text)', 'private.support_email_collision(text, uuid)', 'private.support_invite_check(text)',
-    'private.support_audit(uuid, text, text, uuid, jsonb)']) f
+    'private.support_audit(uuid, text, text, uuid, jsonb)', 'public.issue_support_invite(uuid, text, uuid)']) f
    where has_function_privilege('authenticated', f, 'execute')), 0, 'invite-side and private functions are not callable by authenticated');
 select is(has_function_privilege('authenticated', 'public.create_support_account(uuid, text, text)', 'execute')
-          and has_function_privilege('authenticated', 'public.issue_support_invite(uuid, text)', 'execute')
           and has_function_privilege('authenticated', 'public.get_support_accounts()', 'execute'), true, 'Super Admin side is callable by authenticated');
 select is(has_table_privilege('authenticated', 'private.support_invites', 'select') or has_table_privilege('anon', 'private.support_invites', 'select'),
           false, 'support_invites: no client grant');
@@ -79,8 +78,8 @@ select throws_ok($$select create_support_account('00000000-0000-0000-0000-000000
 select pg_temp.claims('00000000-0000-0000-0000-000000234102', 'owner', 'aal2');
 select throws_ok($$select create_support_account('00000000-0000-0000-0000-000000234111', 'Sup One', 'sup.one@gymosapps.com')$$,
                  'P0001', 'permission denied', 'non-admin: creation refused');
-select throws_ok($$select issue_support_invite('00000000-0000-0000-0000-000000234111', '00000000-0000-0000-0000-0000000234a1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')$$,
-                 'P0001', 'permission denied', 'non-admin: invite refused');
+select throws_ok($$select issue_support_invite('00000000-0000-0000-0000-000000234111', '00000000-0000-0000-0000-0000000234a1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '00000000-0000-0000-0000-000000234101')$$,
+                 '42501', null, 'non-admin session: no EXECUTE on invite issuance');
 select throws_ok($$select get_support_accounts()$$, 'P0001', 'permission denied', 'non-admin: state read refused');
 reset role;
 select is((select count(*)::int from private.support_accounts where user_id = '00000000-0000-0000-0000-000000234111'), 0, 'refused attempts wrote nothing');
@@ -112,6 +111,8 @@ select is(pg_temp.err($$select create_support_account('00000000-0000-0000-0000-0
 select is((select assignable::text || '|' || activated::text || '|' || invite_state from get_support_accounts() where user_id = '00000000-0000-0000-0000-000000234111'),
           'true|false|none', 'state read: assignable, not activated, no invite');
 
+select throws_ok($$select issue_support_invite('00000000-0000-0000-0000-000000234111', '00000000-0000-0000-0000-000000234090.' || repeat('e', 64), '00000000-0000-0000-0000-000000234101')$$, '42501', null, 'a Super Admin session at aal2 cannot call issuance directly (no EXECUTE), so it never learns a link');
+
 -- ---- collision: every source, one identical message -------------------------------------------------------------
 select is(pg_temp.err($$select create_support_account('00000000-0000-0000-0000-000000234121', 'Dup', 'Other@GymOSApps.com')$$), 'support_account_refused', 'collision: auth user (case-insensitive)');
 select is(pg_temp.err($$select create_support_account('00000000-0000-0000-0000-000000234122', 'Dup', 'Staff.Dup@gymosapps.com')$$), 'support_account_refused', 'collision: gym member email');
@@ -126,11 +127,9 @@ select is((select count(*)::int from private.support_accounts where user_id in (
 create or replace function pg_temp.tok(n int, c text) returns text language sql as $f$
   select '00000000-0000-0000-0000-00000023' || lpad(n::text, 4, '0') || '.' || repeat(c, 64) $f$;
 
-set local role authenticated;
-select pg_temp.claims('00000000-0000-0000-0000-000000234101', 'super_admin', 'aal2');
-select is(pg_temp.err($$select issue_support_invite('00000000-0000-0000-0000-000000234111', 'not-a-token')$$), 'support_invite_refused', 'a malformed token cannot be stored');
-select is(pg_temp.err($$select issue_support_invite('00000000-0000-0000-0000-000000234112', pg_temp.tok(4001, 'a'))$$), 'support_invite_refused', 'no invite for an id without an account');
-select is(pg_temp.err($$select issue_support_invite('00000000-0000-0000-0000-000000234111', pg_temp.tok(4001, 'a'))$$), 'ok', 'invite issued');
+select is(pg_temp.err($$select issue_support_invite('00000000-0000-0000-0000-000000234111', 'not-a-token', '00000000-0000-0000-0000-000000234101')$$), 'support_invite_refused', 'a malformed token cannot be stored');
+select is(pg_temp.err($$select issue_support_invite('00000000-0000-0000-0000-000000234112', pg_temp.tok(4001, 'a'), '00000000-0000-0000-0000-000000234101')$$), 'support_invite_refused', 'no invite for an id without an account');
+select is(pg_temp.err($$select issue_support_invite('00000000-0000-0000-0000-000000234111', pg_temp.tok(4001, 'a'), '00000000-0000-0000-0000-000000234101')$$), 'ok', 'invite issued');
 reset role;
 select is((select count(*)::int from private.support_invites where user_id = '00000000-0000-0000-0000-000000234111'
             and token_hash = encode(extensions.digest(pg_temp.tok(4001, 'a'), 'sha256'), 'hex')), 1, 'the SHA-256 of the token is stored');
@@ -162,10 +161,7 @@ select support_invite_inspect(pg_temp.tok(4001, 'c')) from generate_series(1, 4)
 select is((select count(*)::int from support_invite_inspect(pg_temp.tok(4001, 'a')) where ok), 0, 'after 5 wrong secrets the invite is dead');
 
 -- re-issue supersedes
-set local role authenticated;
-select pg_temp.claims('00000000-0000-0000-0000-000000234101', 'super_admin', 'aal2');
-select is(pg_temp.err($$select issue_support_invite('00000000-0000-0000-0000-000000234111', pg_temp.tok(4002, 'd'))$$), 'ok', 're-issue works');
-reset role;
+select is(pg_temp.err($$select issue_support_invite('00000000-0000-0000-0000-000000234111', pg_temp.tok(4002, 'd'), '00000000-0000-0000-0000-000000234101')$$), 'ok', 're-issue works');
 select is((select count(*)::int from support_invite_inspect(pg_temp.tok(4001, 'a')) where ok), 0, 'the earlier invite is superseded');
 select is((select count(*)::int from support_invite_inspect(pg_temp.tok(4002, 'd')) where ok and step = 'password'), 1, 'the new invite works');
 
@@ -214,8 +210,8 @@ select is((select ok from activate_support_account(pg_temp.tok(4002, 'd'))), fal
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000234101', 'super_admin', 'aal2');
 select is((select invite_state from get_support_accounts() where user_id = '00000000-0000-0000-0000-000000234111'), 'expired', 'state read: expired');
-select issue_support_invite('00000000-0000-0000-0000-000000234111', pg_temp.tok(4003, 'f'));
 reset role;
+select issue_support_invite('00000000-0000-0000-0000-000000234111', pg_temp.tok(4003, 'f'), '00000000-0000-0000-0000-000000234101');
 
 select is((select ok::text || reason from activate_support_account(pg_temp.tok(4003, 'f'))), 'falsepassword_not_set', 'a fresh invite starts at the password step');
 select support_invite_mark_password_set(pg_temp.tok(4003, 'f'));
@@ -243,11 +239,38 @@ select set_config('request.jwt.claims', null, true);
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000234101', 'super_admin', 'aal2');
 select create_support_account('00000000-0000-0000-0000-000000234112', 'Sup Two', 'sup.two@gymosapps.com');
-select issue_support_invite('00000000-0000-0000-0000-000000234112', pg_temp.tok(4004, '1'));
 reset role;
+select issue_support_invite('00000000-0000-0000-0000-000000234112', pg_temp.tok(4004, '1'), '00000000-0000-0000-0000-000000234101');
 select support_invite_code_failed(pg_temp.tok(4004, '1')) from generate_series(1, 4);
 select is(support_invite_code_failed(pg_temp.tok(4004, '1')), false, 'the fifth wrong code kills the invite');
 select is((select count(*)::int from support_invite_inspect(pg_temp.tok(4004, '1')) where ok), 0, 'a dead invite no longer opens');
+
+-- ---- issuance is server-only with a live-checked actor; activation-time collision legs ----------------------------------------
+select is(pg_temp.err($$select issue_support_invite('00000000-0000-0000-0000-000000234112', pg_temp.tok(4091, '2'), '00000000-0000-0000-0000-000000234102')$$),
+          'permission denied', 'service call with a non-admin p_actor is refused');
+select is(pg_temp.err($$select issue_support_invite('00000000-0000-0000-0000-000000234112', pg_temp.tok(4091, '2'), null)$$),
+          'permission denied', 'service call with no p_actor is refused');
+select is(pg_temp.err($$select issue_support_invite('00000000-0000-0000-0000-000000234111', pg_temp.tok(4092, '3'), '00000000-0000-0000-0000-000000234101')$$),
+          'support_invite_refused', 'issuing an invite for an activated account is refused');
+select is(pg_temp.err($$select issue_support_invite('00000000-0000-0000-0000-000000234199', pg_temp.tok(4093, '4'), '00000000-0000-0000-0000-000000234101')$$),
+          'support_invite_refused', 'issuing an invite for an unknown account is refused');
+select is((select count(*)::int from audit_log where action_type = 'support_invite_issued' and actor_id <> '00000000-0000-0000-0000-000000234101'), 0, 'every invite audit row names the p_actor Super Admin');
+select is((select created_by from private.support_invites where id = '00000000-0000-0000-0000-000000234004'), '00000000-0000-0000-0000-000000234101'::uuid, 'created_by is p_actor');
+
+insert into private.support_accounts (user_id) values ('00000000-0000-0000-0000-000000234113'), ('00000000-0000-0000-0000-000000234114');
+select issue_support_invite('00000000-0000-0000-0000-000000234113', pg_temp.tok(4005, '5'), '00000000-0000-0000-0000-000000234101');
+select issue_support_invite('00000000-0000-0000-0000-000000234114', pg_temp.tok(4006, '6'), '00000000-0000-0000-0000-000000234101');
+select support_invite_mark_password_set(pg_temp.tok(4005, '5'));
+select support_invite_mark_password_set(pg_temp.tok(4006, '6'));
+insert into auth.mfa_factors (id, user_id, friendly_name, factor_type, status, created_at, updated_at) values
+  ('00000000-0000-0000-0000-0000000234f3', '00000000-0000-0000-0000-000000234113', 'verified', 'totp', 'verified', now(), now()),
+  ('00000000-0000-0000-0000-0000000234f4', '00000000-0000-0000-0000-000000234114', 'verified', 'totp', 'verified', now(), now());
+insert into members (gym_id, user_id, role, name) values ('00000000-0000-0000-0000-000000234001', '00000000-0000-0000-0000-000000234113', 'coach', 'Coach Three');
+select is((select reason from activate_support_account(pg_temp.tok(4005, '5'))), 'collision', 'activation refused after the pending account gained a coach membership');
+update auth.users set phone = '237600000999' where id = '00000000-0000-0000-0000-000000234114';
+select is((select reason from activate_support_account(pg_temp.tok(4006, '6'))), 'collision', 'activation refused after the pending account gained a phone');
+select is((select count(*)::int from private.support_accounts where activated_at is not null and user_id in
+           ('00000000-0000-0000-0000-000000234113', '00000000-0000-0000-0000-000000234114')), 0, 'neither collided account was activated');
 
 -- ---- writer scan (retro 66) ------------------------------------------------------------------------------------
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p

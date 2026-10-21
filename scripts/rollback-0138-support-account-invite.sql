@@ -8,7 +8,7 @@ drop function if exists public.support_invite_code_failed(text);
 drop function if exists public.support_invite_mark_password_set(text);
 drop function if exists public.support_invite_inspect(text);
 drop function if exists public.get_support_accounts();
-drop function if exists public.issue_support_invite(uuid, text);
+drop function if exists public.issue_support_invite(uuid, text, uuid);
 drop function if exists public.create_support_account(uuid, text, text);
 drop function if exists private.support_invite_check(text);
 drop function if exists private.support_email_collision(text, uuid);

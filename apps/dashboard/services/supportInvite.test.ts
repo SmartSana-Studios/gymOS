@@ -9,7 +9,7 @@ const TOKEN = "00000000-0000-4000-8000-000000000001." + "a".repeat(64);
 const UID = "00000000-0000-4000-8000-0000000000aa";
 const FACTOR = "00000000-0000-4000-8000-0000000000f1";
 
-function makeDeps(opts: { inspect?: unknown; rpc?: Record<string, unknown>; verifyError?: boolean } = {}) {
+function makeDeps(opts: { inspect?: unknown; rpc?: Record<string, unknown>; verifyError?: boolean; transientError?: boolean; updateError?: unknown } = {}) {
   const rpcCalls: [string, unknown][] = [];
   const rpcResults: Record<string, unknown> = {
     support_invite_inspect: opts.inspect === undefined ? [{ ok: true, step: "password", user_id: UID, email: "sup@gymosapps.com" }] : opts.inspect,
@@ -18,11 +18,11 @@ function makeDeps(opts: { inspect?: unknown; rpc?: Record<string, unknown>; veri
     activate_support_account: [{ ok: true, reason: "ok" }],
     ...opts.rpc,
   };
-  const updateUserById = vi.fn(async () => ({ error: null }));
+  const updateUserById = vi.fn(async () => ({ error: (opts.updateError ?? null) as unknown }));
   const deleteFactor = vi.fn(async () => ({ error: null }));
   const signOut = vi.fn(async () => ({ error: null }));
   const enroll = vi.fn(async () => ({ data: { id: FACTOR, totp: { qr_code: "data:image/svg+xml;utf8,<svg/>", secret: "SECRET" } }, error: null }));
-  const challengeAndVerify = vi.fn(async () => ({ data: {}, error: opts.verifyError ? { message: "bad" } : null }));
+  const challengeAndVerify = vi.fn(async () => ({ data: {}, error: opts.verifyError ? { code: opts.transientError ? "unexpected_failure" : "mfa_verification_failed", message: "bad" } : null }));
   const admin = {
     rpc: vi.fn(async (name: string, args: unknown) => {
       rpcCalls.push([name, args]);
@@ -70,6 +70,13 @@ describe("setInvitePassword", () => {
     expect(await setInvitePassword(TOKEN, "short", m.deps)).toEqual({ ok: false, weak: true });
     expect(m.updateUserById).not.toHaveBeenCalled();
   });
+  it("keeps the form open when the auth server rejects the password", async () => {
+    const m = makeDeps({ updateError: { code: "weak_password", status: 422 } });
+    expect(await setInvitePassword(TOKEN, "correct horse battery", m.deps)).toEqual({ ok: false, weak: true });
+    expect(m.rpcCalls.map(([n]) => n)).not.toContain("support_invite_mark_password_set");
+    const other = makeDeps({ updateError: { code: "unexpected_failure", status: 500 } });
+    expect(await setInvitePassword(TOKEN, "correct horse battery", other.deps)).toEqual({ ok: false });
+  });
   it("refuses when the invite is already past the password step", async () => {
     const m = makeDeps({ inspect: [{ ok: true, step: "totp", user_id: UID, email: "sup@gymosapps.com" }] });
     expect(await setInvitePassword(TOKEN, "correct horse battery", m.deps)).toEqual({ ok: false });
@@ -106,6 +113,13 @@ describe("TOTP enrolment bound to the invite", () => {
     const m = makeDeps({ inspect: totpInspect, verifyError: true });
     expect(await verifyTotpAndActivate(TOKEN, FACTOR, "123456", m.deps)).toEqual({ ok: false, canRetry: true });
     expect(m.rpcCalls.map(([n]) => n)).toContain("support_invite_code_failed");
+    expect(m.rpcCalls.map(([n]) => n)).not.toContain("activate_support_account");
+  });
+
+  it("a transient auth error is retryable and is not counted against the invite", async () => {
+    const m = makeDeps({ inspect: totpInspect, verifyError: true, transientError: true });
+    expect(await verifyTotpAndActivate(TOKEN, FACTOR, "123456", m.deps)).toEqual({ ok: false, canRetry: true });
+    expect(m.rpcCalls.map(([n]) => n)).not.toContain("support_invite_code_failed");
     expect(m.rpcCalls.map(([n]) => n)).not.toContain("activate_support_account");
   });
 

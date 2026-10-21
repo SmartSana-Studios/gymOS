@@ -1481,6 +1481,7 @@
     "qrAlt": "Code QR pour ajouter le compte à votre application d'authentification",
     "code": "Code à 6 chiffres de votre application",
     "verify": "Vérifier et terminer",
+    "enrollRetry": "Nous n'avons pas pu afficher le code QR. Veuillez réessayer.",
     "codeWrong": "Ce code n'a pas été accepté. Essayez le code actuel.",
     "signIn": "Aller à la connexion"
   }

@@ -9,6 +9,8 @@ import { SupportInviteFlow } from "./components/SupportInviteFlow";
 export const metadata: Metadata = {
   title: "GymOS support",
   robots: { index: false, follow: false },
+  // The token is in the URL: never leak it in a Referer header.
+  referrer: "no-referrer",
 };
 
 export default function SupportInvitePage({ searchParams }: { searchParams: Promise<{ t?: string | string[] }> }) {
