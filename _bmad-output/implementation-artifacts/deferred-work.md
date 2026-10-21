@@ -1245,10 +1245,10 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
   summary: Which gym is active right after a multi-gym support sign-in.
-  evidence: 23-6 decides; recommend forcing a pick (no default gym) so a request always acts on exactly one explicit gym.
+  evidence: 23-6 decides; recommend forcing a pick (no default gym) so a request always acts on exactly one explicit gym. CLOSED by 23-6 (2026-10-21): decided as recommended and moved to 23-6b (explicit gym picker, no default gym), see the 23-6 planning entry below.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
   summary: The dashboard sign-in does not yet ask for the TOTP code for a support account, and nothing wires `session_gate_touch` for support requests.
-  evidence: 23-6 owns the support request path; until then a support user signs in at aal1 and the live gate denies (aal2 required), so nothing leaks.
+  evidence: 23-6 owns the support request path; until then a support user signs in at aal1 and the live gate denies (aal2 required), so nothing leaks. CLOSED by 23-6 (2026-10-21): the database half shipped in 0140; the TOTP sign-in and the `session_gate_touch` wiring moved to 23-6b, see the 23-6 planning entry below.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
   summary: Removing a support account (Super Admin deletes the auth user) is blocked by the `support_accounts` foreign key; no remove or re-invite-after-activation flow exists.
   evidence: 23-5 (remove) and 23-11 (factor reset reuses the invite) own it; `issue_support_invite` currently refuses an activated account. **Remove half resolved 2026-10-21 (Story 23.5): `remove_support_account` deletes a never-activated account, its invites, assignments and auth user; an activated one is deactivated (`deactivate_support_account`), never deleted. The 23-11 re-invite after factor reset remains open.**
@@ -1290,3 +1290,36 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - AC1/AC3 are proven indirectly: enrollment and the Owner switch are simulated with direct UPDATEs, and "next request denied" is asserted after unassign only. Add the real `activate_support_account` / `set_allow_gymos_support` paths and the gate check after deactivate and remove.
 - No component tests for `SupportAssignmentsPanel`, `GymSupportPanel` and the new `SupportPageClient` branches.
 - AC6: no ci-local GREEN recorded for the final tree; run `scripts/ci-local.sh` before the merge to epic/23.
+
+## Deferred from: planning of spec-23-6-capability-allow-list-and-denied-set-matrix (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: 23-6b dashboard support request path: TOTP sign-in at aal2, `session_gate_touch` on every dashboard request and server action, explicit gym picker (no default gym), `support` accepted in the shell and nav, session-expired banner.
+  evidence: Split from 23-6 by owner decision 2026-10-21. Until it ships no support session passes the live gate (no `support_session_state` row). Closes the two 23-4 deferrals that name 23-6 (active gym after sign-in; TOTP and gate wiring). Must ship before support is enabled for any gym.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: 23-6c dashboard step-up for support: issue/consume UI and server actions for refunds, waivers and staff creation, reusing the Super Admin pattern.
+  evidence: Split from 23-6 by owner decision 2026-10-21. The database half (step-up required, action names added to the 0127 list) stays in 23-6; the dashboard cannot yet obtain a grant, so these three writes are unusable by support until 23-6c.
+
+## Deferred from: build of spec-23-6-capability-allow-list-and-denied-set-matrix (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: Dashboard service paths that gate on `private.capability_roles` / `authorize_action` (`staff.create`, `member.provision`, `member.registration_fee_state`, `payment.initiate_staff`) do not list support; the live role helper returns NULL for support, so the dashboard cannot reach the allow-listed database objects through those paths.
+  evidence: 0140 opts in the database objects only. 23-6b must decide how `authorize_action` resolves a live support caller (likely a `support_capabilities`-backed branch) when it wires the request path.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: Audit rows written by an allow-listed RPC still carry the real support person as `actor_id` and `actor_display_name` (the support user's `display_name`, or "GymOS Support" when unset).
+  evidence: Proxy actor is 23-7, audit under the individual is 23-8. Do not enable support for any gym before 23-7 ships. `log_audit_event` now accepts the support gym (0140), so these rows are written today.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: The pre-existing policy `read gyms of own active memberships` still admits a support membership row without the live gate (it reads `members` directly).
+  evidence: Gives a support person with a stale active membership read access to the gym row only (name, settings, `allow_gymos_support`). Memberships are deactivated by the writer when the switch goes off or the assignment ends, so the window is only drift. Tighten with the gym-picker work in 23-6b.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: Owner review queue for support-created staff (`members.created_by_support` is written; nothing reads it yet), and the `created_by_support` tag is visible to every gym staff reader of `members`.
+  evidence: Queue and Owner-facing wording belong to 23-10 (Owner visibility). The tag names no individual.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: Decision to confirm: direct writes to `subscriptions` (insert, update) and deleting a plan are inside the allow-list under "member records and plans"; support also reads and verifies pending payments by direct UPDATE (amount pinned).
+  evidence: Chosen to match what a Supervisor can do through the dashboard today. Remove the matching `support_*` policy and its `support_capabilities` row to narrow.
+
+## Deferred from: review of spec-23-6-capability-allow-list-and-denied-set-matrix (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: `members.created_by_support` has no pin trigger (any role with member UPDATE can clear it) and `create_staff_member` replace-in-place also tags a pre-existing row.
+  evidence: Fix with the 23-10 Owner review queue, the first reader of the tag: pin the column to a bypass GUC set only by `create_staff_member`, and tag only the insert branch.

@@ -119,7 +119,7 @@ select throws_ok($$insert into members (gym_id, user_id, role, name) values ('00
 -- A new match fails this test until it is added to the right list.
 create temp table cat_fn (name text primary key, includes_support boolean not null);
 insert into cat_fn (name, includes_support) values
-  ('private.capability_roles', false), ('private.staff_roles', false), ('private.guest_sessions_period', false),
+  ('private.capability_roles', false), ('private.staff_roles', false), ('private.guest_sessions_period', false), ('private.support_rpc_role', false),
   ('public.assign_coach', false), ('public.check_out_member', false), ('public.confirm_renewal', false), ('public.create_class', false),
   ('public.create_staff_member', false), ('public.deactivate_staff_member', false), ('public.effective_loyalty', false),
   ('public.guest_charging_impact', false), ('public.initiate_registration_fee_payment', false), ('public.list_guest_sessions_paid', false),

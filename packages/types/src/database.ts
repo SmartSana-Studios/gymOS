@@ -857,6 +857,7 @@ export type Database = {
       members: {
         Row: {
           created_at: string
+          created_by_support: boolean
           deactivated_at: string | null
           dob: string | null
           email: string | null
@@ -878,6 +879,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by_support?: boolean
           deactivated_at?: string | null
           dob?: string | null
           email?: string | null
@@ -899,6 +901,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by_support?: boolean
           deactivated_at?: string | null
           dob?: string | null
           email?: string | null

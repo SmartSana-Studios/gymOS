@@ -1,6 +1,6 @@
 -- Story 23.1: support role, assignment record and live gate (migrations 0134, 0135).
 begin;
-select plan(94);
+select plan(95);
 
 -- ---- fixtures ---------------------------------------------------------------------------------------------------
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
@@ -372,7 +372,8 @@ select is((select array_agg(c.relname::text order by c.relname) from pg_class c 
 select pg_temp.claims('00000000-0000-0000-0000-000000231101', '00000000-0000-0000-0000-000000231001', 'support', 'aal2', '00000000-0000-0000-0000-0000000231a3');
 select is(pg_temp.seen(), '00000000-0000-0000-0000-000000231001|-|-', 'zero-row proof runs with a fully live support session');
 set local role authenticated;
-select is(pg_temp.rows_visible(), '', 'a fully live support user reads 0 rows from every readable table with a gym_id column');
+-- 23.6 opted the allow-list tables in (support_capabilities.test.sql proves each one and the denied set); every other table stays at zero.
+select is(pg_temp.rows_visible(), 'members=1 payments=1 plans=1 refunds=1 subscriptions=1 ', 'a fully live support user reads rows only from the allow-listed tables (members, payments, plans, refunds, subscriptions) and 0 from every other table with a gym_id column');
 reset role;
 
 -- ---- catalog: nothing existing lists support; the consumers of the gate are exactly the expected ones -------------------------------
@@ -391,15 +392,17 @@ select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname ord
           array['private.support_gym_id']::text[],
           'consumers of support_live are exactly support_gym_id (a new consumer must be added here deliberately)');
 
-select is((select count(*)::int from pg_policies where coalesce(qual, '') || coalesce(with_check, '') ~ 'support_assignments|support_accounts|support_gym_id|support_live'), 0,
-          'no RLS policy reads the assignment tables or calls the support gate (23.6 opts a capability in deliberately)');
+select is((select count(*)::int from pg_policies where coalesce(qual, '') || coalesce(with_check, '') ~ 'support_assignments|support_accounts|support_live'), 0,
+          'no RLS policy reads the assignment tables or the live gate directly');
+select is((select count(*)::int from pg_policies where coalesce(qual, '') || coalesce(with_check, '') ~ 'support_gym_id'), (select count(*)::int from private.support_capabilities where kind = 'policy'),
+          'the policies that call the support gate are exactly the 23.6 allow-list (support_capabilities.test.sql)');
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
               and p.prosrc ~ 'support_assignments|support_accounts'),
           array['public.activate_support_account', 'public.assign_support', 'public.confirm_support_assignment', 'public.create_support_account', 'public.custom_access_token_hook',
                 'public.deactivate_support_account', 'public.get_gymos_support_status', 'public.get_support_accounts', 'public.get_support_assignments',
                 'private.guard_support_assignment_transition', 'private.guard_support_membership', 'public.issue_support_invite', 'public.list_own_active_gym_memberships',
-                'public.remove_support_account', 'private.session_gate_touch', 'public.set_allow_gymos_support', 'private.support_invite_check', 'public.support_invite_inspect',
+                'public.remove_support_account', 'private.session_gate_touch', 'public.set_allow_gymos_support', 'private.stepup_issue', 'private.support_invite_check', 'public.support_invite_inspect',
                 'private.support_live', 'private.support_set_membership', 'public.switch_active_gym', 'public.unassign_support']::text[],
           'readers of the assignment tables are exactly the expected functions (a new reader must be added here deliberately)');
 
