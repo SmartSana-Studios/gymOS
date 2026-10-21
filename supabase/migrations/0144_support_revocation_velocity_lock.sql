@@ -203,7 +203,7 @@ begin
     v_en1 := 'GymOS Support access to your gym has ended.';
     v_fr1 := 'L''accès de GymOS Support à votre salle a pris fin.';
   end if;
-  if p_cause is distinct from 'gym_suspended' and (v_pay + v_sub > 0 or v_new > 0) then
+  if p_cause is distinct from 'gym_suspended' and (v_pay + v_sub > 0 or v_new > 0 or v_staff > 0) then
     v_en := v_en1
          || case when v_pay > 0 then ' ' || v_pay || ' payment(s) started by GymOS Support are still pending.' else '' end
          || case when v_sub > 0 then ' ' || v_sub || ' subscription payment(s) started by GymOS Support are still pending.' else '' end
@@ -256,6 +256,13 @@ declare
   v_gym  record;
   v_what text;
 begin
+  -- gym locks first, in gym order, then the account row: the same order as deactivate and unlock, so they cannot deadlock
+  for v_gym in
+    select distinct a.gym_id from public.support_assignments a where a.support_user_id = p_user and a.state <> 'ended' order by a.gym_id
+  loop
+    perform private.support_gym_lock(v_gym.gym_id);
+  end loop;
+
   update private.support_accounts set locked_at = now(), locked_reason = left(coalesce(p_reason, 'unknown'), 60)
    where user_id = p_user and locked_at is null;
   get diagnostics v_n = row_count;
@@ -272,7 +279,7 @@ begin
   for v_gym in
     select distinct a.gym_id from public.support_assignments a where a.support_user_id = p_user and a.state <> 'ended' order by a.gym_id
   loop
-    perform private.support_gym_lock(v_gym.gym_id);
+    perform private.support_gym_lock(v_gym.gym_id);   -- re-entrant
     perform private.support_revoke_access(v_gym.gym_id, p_user, 'locked');
   end loop;
 
@@ -325,11 +332,11 @@ begin
         from public.support_action_identity i
         join public.gyms g on g.id = i.gym_id and g.status = 'active'
         left join private.support_accounts sa on sa.user_id = i.real_user_id
-       where i.recorded_at > now() - interval '1 hour'
+       where i.real_user_id = p_user
+         and i.recorded_at > now() - interval '1 hour'
          and i.recorded_at > coalesce(sa.velocity_reset_at, '-infinity'::timestamptz)
          and i.gym_id in (select a.gym_id from public.support_assignments a where a.support_user_id = p_user and a.state <> 'ended')
-       group by i.gym_id
-      having bool_or(i.real_user_id = p_user)) x
+       group by i.gym_id) x
      where x.n > v_gym_limit) then
     return 'velocity_gym';
   end if;
@@ -350,12 +357,12 @@ begin
         from public.support_action_identity i
         join public.gyms g on g.id = i.gym_id and g.status = 'active'
         left join private.support_accounts sa on sa.user_id = i.real_user_id
-       where i.subject_table = 'gym_payment_credentials'
+       where i.real_user_id = p_user
+         and i.subject_table = 'gym_payment_credentials'
          and i.recorded_at > now() - interval '1 day'
          and i.recorded_at > coalesce(sa.velocity_reset_at, '-infinity'::timestamptz)
          and i.gym_id in (select a.gym_id from public.support_assignments a where a.support_user_id = p_user and a.state <> 'ended')
-       group by i.gym_id
-      having bool_or(i.real_user_id = p_user)) x
+       group by i.gym_id) x
      where x.n > v_pay_limit) then
     return 'velocity_payment';
   end if;
@@ -701,6 +708,7 @@ declare
   v_old    boolean;
   v_status gym_status;
   v_a      record;
+  v_suspended integer := 0;
 begin
   if p_gym_id is null
      or p_on is null
@@ -733,8 +741,11 @@ begin
     loop
       update support_assignments set state = 'suspended', suspended_by_switch = true where id = v_a.id;
       perform private.support_set_membership(v_a.id, false);
+      v_suspended := v_suspended + 1;
     end loop;
-    perform private.support_revoke_access(p_gym_id, null, 'switch_off');
+    if v_suspended > 0 then
+      perform private.support_revoke_access(p_gym_id, null, 'switch_off');
+    end if;
   else
     for v_a in
       select id from support_assignments
@@ -1115,13 +1126,18 @@ begin
   if p_user is not null
      and not coalesce((select u.is_super_admin from users u where u.id = p_user), false)
      and exists (select 1 from private.support_accounts sa where sa.user_id = p_user and sa.activated_at is not null and sa.deactivated_at is null) then
+    if exists (select 1 from private.support_accounts sa where sa.user_id = p_user and sa.locked_at is not null) then
+      -- already locked: nothing more to count or audit, and the caller must not say "retry"
+      return query select true, coalesce((select l.failed_count from private.super_admin_lockout l where l.user_id = p_user), 0), v_threshold;
+      return;
+    end if;
     insert into private.super_admin_lockout (user_id, failed_count) values (p_user, 1)
     on conflict (user_id) do update set failed_count = private.super_admin_lockout.failed_count + 1
     returning failed_count into v_count;
     insert into audit_log (gym_id, actor_id, actor_display_name, action_type, target_entity_type, target_entity_id, metadata)
     values (null, null, 'system:step_up', 'support_stepup_failed', 'user', p_user::text,
             jsonb_build_object('attempts', v_count, 'threshold', v_threshold));
-    if v_count >= v_threshold and exists (select 1 from private.support_accounts sa where sa.user_id = p_user and sa.locked_at is null) then
+    if v_count >= v_threshold then
       perform private.support_lock_account(p_user, 'stepup_failures');
       v_locked := true;
     end if;

@@ -10,7 +10,7 @@
 --   I. per-user wrong step-up counter for support
 --   J. consumer-enumeration scan (every revocation path calls the one routine; a new one that skips it fails) and the catalog
 begin;
-select plan(130);
+select plan(137);
 
 create or replace function pg_temp.claims(uid text, app_role text, aal text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -247,6 +247,47 @@ reset role;
 select pg_temp.no_claims();
 select is((select state from support_assignments where id = '00000000-0000-0000-0000-000000240403'), 'suspended', 'restore skips an assignment whose account is locked');
 update private.support_accounts set locked_at = null where user_id = '00000000-0000-0000-0000-000000240106';
+-- the other three conditions of the restore filter: not activated, reset pending, deactivated
+update private.support_accounts set activated_at = null where user_id = '00000000-0000-0000-0000-000000240106';
+set local role authenticated;
+select pg_temp.as_owner_b();
+select set_allow_gymos_support('00000000-0000-0000-0000-000000240002', false);
+select set_allow_gymos_support('00000000-0000-0000-0000-000000240002', true);
+reset role;
+select pg_temp.no_claims();
+select is((select state from support_assignments where id = '00000000-0000-0000-0000-000000240403'), 'suspended', 'restore skips an assignment whose account is not activated');
+update private.support_accounts set activated_at = now() where user_id = '00000000-0000-0000-0000-000000240106';
+update private.support_accounts set reset_pending_at = now() where user_id = '00000000-0000-0000-0000-000000240106';
+set local role authenticated;
+select pg_temp.as_owner_b();
+select set_allow_gymos_support('00000000-0000-0000-0000-000000240002', false);
+select set_allow_gymos_support('00000000-0000-0000-0000-000000240002', true);
+reset role;
+select pg_temp.no_claims();
+select is((select state from support_assignments where id = '00000000-0000-0000-0000-000000240403'), 'suspended', 'restore skips an assignment whose account has a reset pending');
+update private.support_accounts set reset_pending_at = null where user_id = '00000000-0000-0000-0000-000000240106';
+update private.support_accounts set deactivated_at = now() where user_id = '00000000-0000-0000-0000-000000240106';
+set local role authenticated;
+select pg_temp.as_owner_b();
+select set_allow_gymos_support('00000000-0000-0000-0000-000000240002', false);
+select set_allow_gymos_support('00000000-0000-0000-0000-000000240002', true);
+reset role;
+select pg_temp.no_claims();
+select is((select state from support_assignments where id = '00000000-0000-0000-0000-000000240403'), 'suspended', 'restore skips an assignment whose account is deactivated');
+update private.support_accounts set deactivated_at = null where user_id = '00000000-0000-0000-0000-000000240106';
+-- a switch-off with no active assignment is not a revocation: no audit row
+select count(*)::int as ended_rows_d0 from audit_log where action_type = 'gymos_support_access_ended' and gym_id = '00000000-0000-0000-0000-000000240002' \gset
+set local role authenticated;
+select pg_temp.as_owner_b();
+select set_allow_gymos_support('00000000-0000-0000-0000-000000240002', false);
+reset role;
+select pg_temp.no_claims();
+select is((select count(*)::int from audit_log where action_type = 'gymos_support_access_ended' and gym_id = '00000000-0000-0000-0000-000000240002') - :ended_rows_d0, 0, 'a switch-off with nothing active to suspend writes no access-ended row');
+set local role authenticated;
+select pg_temp.as_owner_b();
+select set_allow_gymos_support('00000000-0000-0000-0000-000000240002', true);
+reset role;
+select pg_temp.no_claims();
 -- gained another membership while the switch was off: skipped, and the toggle does not abort
 set local role authenticated;
 select pg_temp.as_owner_b();
@@ -372,6 +413,9 @@ delete from support_action_identity where real_user_id = '00000000-0000-0000-000
 select pg_temp.act(pg_temp.uid(x'240107'::int), pg_temp.uid(x'240003'::int), 11);
 select is(private.support_velocity_breach('00000000-0000-0000-0000-000000240107'), 'velocity_gym', 'two people in a gym: the one who burst is over the limit');
 select is(private.support_velocity_breach('00000000-0000-0000-0000-000000240106'), null, 'two people in a gym: the quiet one is not locked for it');
+select pg_temp.act(pg_temp.uid(x'240106'::int), pg_temp.uid(x'240003'::int), 1);
+select is(private.support_velocity_breach('00000000-0000-0000-0000-000000240106'), null, 'two people in a gym: one who acted once is not locked for the other person''s burst');
+delete from support_action_identity where real_user_id = '00000000-0000-0000-0000-000000240106';
 delete from support_action_identity where real_user_id = '00000000-0000-0000-0000-000000240107';
 select pg_temp.act(pg_temp.uid(x'240107'::int), pg_temp.uid(x'240003'::int), 4, 'gym_payment_credentials', 60);
 select is(private.support_velocity_breach('00000000-0000-0000-0000-000000240107'), 'velocity_payment', 'two people in a gym: the one who changed the payment connection 4 times is over the limit');
@@ -443,6 +487,9 @@ select is((select count(*)::int from audit_log where action_type = 'support_step
 select is((select attempts || '/' || locked from private.stepup_record_failure('00000000-0000-0000-0000-00000024010f')), '5/true', 'step-up: the 5th wrong code locks the account');
 select is((select locked_reason from private.support_accounts where user_id = '00000000-0000-0000-0000-00000024010f'), 'stepup_failures', 'with its reason');
 select throws_ok($$select private.stepup_issue('00000000-0000-0000-0000-00000024010f', 'support_refund', 'x')$$, '42501', 'permission_denied', 'a locked account is issued no step-up');
+select count(*)::int as sf1 from audit_log where action_type = 'support_stepup_failed' and target_entity_id = '00000000-0000-0000-0000-00000024010f' \gset
+select is((select locked::text from private.stepup_record_failure('00000000-0000-0000-0000-00000024010f')), 'true', 'step-up: a wrong code on an already locked account reports locked, not retry');
+select is((select count(*)::int from audit_log where action_type = 'support_stepup_failed' and target_entity_id = '00000000-0000-0000-0000-00000024010f') - :sf1, 0, 'and writes no further audit row');
 select is((select attempts || '/' || locked from private.stepup_record_failure('00000000-0000-0000-0000-000000240101')), '1/false', 'another account has its own counter');
 select is((select attempts || '/' || locked from private.stepup_record_failure('00000000-0000-0000-0000-000000240103')), '1/false', 'the Super Admin counter is unchanged');
 

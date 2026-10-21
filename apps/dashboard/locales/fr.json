@@ -328,7 +328,7 @@
     "supportTag": "Créé par Support GymOS",
     "supportReview": {
       "title": "Personnel créé par Support GymOS",
-      "description": "L'accès de Support GymOS à votre salle a pris fin. Ces comptes du personnel ont été créés par Support GymOS et sont toujours actifs. Examinez chacun : conservez-le ici ou désactivez-le depuis le menu d'actions ci-dessous.",
+      "description": "L'accès de Support GymOS à votre salle a été suspendu ou a pris fin. Ces comptes du personnel ont été créés par Support GymOS et sont toujours actifs. Examinez chacun : conservez-le ici ou désactivez-le depuis le menu d'actions ci-dessous.",
       "keep": "Conserver",
       "kept": "{{name}} a été conservé."
     },

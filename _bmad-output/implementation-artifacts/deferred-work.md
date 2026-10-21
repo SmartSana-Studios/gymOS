@@ -1442,3 +1442,12 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
   summary: No catalog scan proves every audit action type written by an allow-listed support RPC is in `private.support_audit_actions`.
   evidence: Unverified medium: a missing type makes that support action raise at runtime. Add the scan in 23-6b.
+
+## Deferred from: code review of spec-23-10 (2026-10-21)
+
+- Digest failure status and suspended-gym exclusion are unasserted in section H of support_revocation_velocity_lock.test.sql; force a notice-insert error and a suspended gym with a countable action.
+- Rollback-0144 drops unlock but leaves `locked_at` set (UNVERIFIED medium): read the rollback and add a preflight that raises when any support account is locked.
+- Unlock sends no Owner "resumed" notice (23-11 with the restore deferral).
+- Replace-in-place staff edits bypass the review queue (digest counts them only); revisit if "support-touched" is wanted.
+- Velocity lock/60 s cutoff inert and allow-list catalog scan: already recorded above for 23-6b.
+- Gym-wide velocity alert (a burst across several support people) is not built; the lock now counts only the toucher's own actions (23-10 review decision). Add a Super Admin alert if wanted.

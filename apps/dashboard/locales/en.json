@@ -328,7 +328,7 @@
     "supportTag": "Created by GymOS Support",
     "supportReview": {
       "title": "Staff created by GymOS Support",
-      "description": "GymOS Support access to your gym has ended. These staff accounts were created by GymOS Support and are still active. Review each one: keep them here, or deactivate them from the actions menu below.",
+      "description": "GymOS Support access to your gym was paused or ended. These staff accounts were created by GymOS Support and are still active. Review each one: keep them here, or deactivate them from the actions menu below.",
       "keep": "Keep",
       "kept": "{{name}} was kept."
     },
