@@ -26,6 +26,8 @@ import { AuditTrailTab } from "./AuditTrailTab";
 import { GymMembersTable } from "./GymMembersTable";
 import { GymPaymentsTable } from "./GymPaymentsTable";
 import { hasLapsed, useNow } from "./use-now";
+import { GymSupportPanel } from "../../../support/components/GymSupportPanel";
+import type { SupportAccountRow, SupportAssignmentRow } from "../../../support/actions";
 
 const STATUS_LABEL_KEY: Record<string, string> = {
   active: "gyms.create.statusActive",
@@ -45,6 +47,8 @@ export function GymDetailPageClient({
   currentActorId,
   members,
   payments,
+  supportAssignments,
+  supportAccounts,
 }: {
   gym: GymDetail;
   tiers: TierOption[];
@@ -73,6 +77,9 @@ export function GymDetailPageClient({
    */
   members: GymMemberPage | null;
   payments: GymPaymentPage | null;
+  /** Story 23.5: Super Admin only; the individual's name is shown here and nowhere an Owner can reach. */
+  supportAssignments: SupportAssignmentRow[];
+  supportAccounts: SupportAccountRow[];
 }) {
   const router = useRouter();
   const { t, i18n } = useTranslation();
@@ -213,6 +220,8 @@ export function GymDetailPageClient({
       />
 
       <AuditTrailTab entries={auditTrail} />
+
+      <GymSupportPanel gymId={gym.id} assignments={supportAssignments} accounts={supportAccounts} />
 
       <GymMembersTable members={members} />
 

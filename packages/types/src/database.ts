@@ -2124,6 +2124,10 @@ export type Database = {
         Args: { p_coach_id: string; p_member_id: string }
         Returns: string
       }
+      assign_support: {
+        Args: { p_gym_id: string; p_reason: string; p_user_id: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
+      }
       book_class_session: {
         Args: { p_class_session_id: string }
         Returns: {
@@ -2235,6 +2239,10 @@ export type Database = {
         }
         Returns: Record<string, unknown>
       }
+      confirm_support_assignment: {
+        Args: { p_assignment_id: string; p_reason: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
+      }
       connect_gym_payment_credentials: {
         Args: {
           p_api_key: string
@@ -2330,6 +2338,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      deactivate_support_account: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
+      }
       disconnect_gym_payment_credentials: {
         Args: { p_provider_key: string }
         Returns: undefined
@@ -2391,6 +2403,23 @@ export type Database = {
           invite_expires_at: string | null
           invite_state: string
           user_id: string
+        }[]
+      }
+      get_support_assignments: {
+        Args: { p_gym_id?: string; p_user_id?: string }
+        Returns: {
+          activated_at: string | null
+          assignment_id: string
+          created_at: string
+          display_name: string | null
+          email: string | null
+          ended_at: string | null
+          gym_id: string
+          gym_name: string
+          reason: string | null
+          state: string
+          support_user_id: string
+          suspended_by_switch: boolean
         }[]
       }
       get_workout_plan_viewer_context: {
@@ -2737,7 +2766,15 @@ export type Database = {
         Returns: { email: string; ok: boolean; step: string; user_id: string }[]
       }
       support_invite_mark_password_set: { Args: { p_token: string }; Returns: boolean }
+      remove_support_account: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
+      }
       switch_active_gym: { Args: { p_gym_id: string }; Returns: undefined }
+      unassign_support: {
+        Args: { p_assignment_id: string; p_reason: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
+      }
       take_ownership_of_workout_plan: {
         Args: { p_plan_id: string }
         Returns: undefined

@@ -110,6 +110,9 @@ jobs:
       - name: Super Admin aal2 enable/reset scripts against the local database
         run: DB_CONTAINER=supabase_db_gym_os bash scripts/super-admin-aal2.test.sh
 
+      - name: Support assignment vs Owner switch race (two real sessions)
+        run: DB_CONTAINER=supabase_db_gym_os bash scripts/support-assignments-race.test.sh
+
       - name: Claim-read inventory (report mode, new claim-only entries fail)
         run: DB_CONTAINER=supabase_db_gym_os node scripts/claim-inventory.mjs
 

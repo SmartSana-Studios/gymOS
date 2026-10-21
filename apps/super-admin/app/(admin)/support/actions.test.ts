@@ -6,6 +6,7 @@ const createUser = vi.fn();
 const adminRpc = vi.fn();
 const deleteUser = vi.fn();
 const getUserById = vi.fn();
+const authAdmin: Record<string, unknown> = {};
 const sendMail = vi.fn();
 
 vi.mock("@/lib/authz-action", () => ({
@@ -15,7 +16,7 @@ vi.mock("@/lib/authz-action", () => ({
 }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({ rpc: (...a: unknown[]) => rpc(...a) })) }));
 vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: () => ({ rpc: (...a: unknown[]) => adminRpc(...a), auth: { admin: { createUser, deleteUser, getUserById } } }),
+  createAdminClient: () => ({ rpc: (...a: unknown[]) => adminRpc(...a), auth: { admin: { createUser, deleteUser, getUserById, signOut: async () => ({}), get updateUserById() { return authAdmin.updateUserById; } } } }),
 }));
 vi.mock("@/services/gyms", () => ({ mapAndLog: vi.fn(async () => ({ code: "unknown", message: "m" })) }));
 vi.mock("@/lib/mail", () => ({ sendMail: (...a: unknown[]) => sendMail(...a) }));
@@ -118,3 +119,105 @@ describe("sendSupportInvite", () => {
     expect(res.error?.code).toBe("mail_failed");
   });
 });
+
+describe("Story 23.5 assignment actions", () => {
+  const GYM = "00000000-0000-4000-8000-0000000000bb";
+  const AID = "00000000-0000-4000-8000-0000000000cc";
+  const updateUserById = vi.fn();
+
+  it("refuses a denied caller before any database call", async () => {
+    allowed = false;
+    const a = await import("./actions");
+    for (const run of [
+      () => a.assignSupport({ userId: UID, gymId: GYM, reason: "valid reason" }),
+      () => a.confirmSupportAssignment({ assignmentId: AID, reason: "valid reason" }),
+      () => a.unassignSupport({ assignmentId: AID, reason: "valid reason" }),
+      () => a.deactivateSupportAccount({ userId: UID, reason: "valid reason" }),
+      () => a.removeSupportAccount({ userId: UID, reason: "valid reason" }),
+      () => a.listSupportAssignments(),
+    ]) {
+      expect((await run()).error?.code).toBe("permission_denied");
+    }
+    expect(rpc).not.toHaveBeenCalled();
+    expect(adminRpc).not.toHaveBeenCalled();
+  });
+
+  it("assigns as the Super Admin's own session (never the service role) and maps a refusal code to text", async () => {
+    const { assignSupport } = await import("./actions");
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "pending", assignment_id: AID }], error: null });
+    expect(await assignSupport({ userId: UID, gymId: GYM, reason: "onboarding" })).toEqual({ data: { code: "pending", assignmentId: AID }, error: null });
+    expect(rpc).toHaveBeenCalledWith("assign_support", { p_user_id: UID, p_gym_id: GYM, p_reason: "onboarding" });
+    expect(adminRpc).not.toHaveBeenCalled();
+
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "other_membership", assignment_id: null }], error: null });
+    const refused = await assignSupport({ userId: UID, gymId: GYM, reason: "onboarding" });
+    expect(refused.error).toEqual({ code: "other_membership", message: "support.codes.other_membership" });
+  });
+
+  it("rejects malformed ids and a missing reason before calling the database", async () => {
+    const { assignSupport, unassignSupport } = await import("./actions");
+    expect((await assignSupport({ userId: "x", gymId: GYM, reason: "valid reason" })).error?.code).toBe("validation_error");
+    expect((await unassignSupport({ assignmentId: AID })).error?.code).toBe("validation_error");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  const ACCOUNTS = { data: [{ user_id: UID }], error: null };
+
+  it("deactivate: confirms the target, bans first, then deactivates; a repeat on a deactivated account is a success", async () => {
+    const mod = await import("./actions");
+    updateUserById.mockReset();
+    updateUserById.mockResolvedValue({ error: null });
+    createAdminOverride(updateUserById);
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce(ACCOUNTS);
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "deactivated", assignment_id: null }], error: null });
+    const first = await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" });
+    expect(first.error).toBeNull();
+    expect(updateUserById).toHaveBeenCalledWith(UID, { ban_duration: "876000h" });
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(["get_support_accounts", "deactivate_support_account"]);
+
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce(ACCOUNTS);
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "already_deactivated", assignment_id: null }], error: null });
+    const again = await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" });
+    expect(again.error).toBeNull();
+    expect(again.data?.code).toBe("deactivated");
+  });
+
+  it("deactivate: a failed ban stops before the database call, and a retry succeeds", async () => {
+    const mod = await import("./actions");
+    createAdminOverride(updateUserById);
+    updateUserById.mockReset();
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce(ACCOUNTS);
+    updateUserById.mockResolvedValueOnce({ error: new Error("auth down") });
+    const failed = await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" });
+    expect(failed.error?.code).toBe("ban_failed");
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(["get_support_accounts"]);
+
+    rpc.mockResolvedValueOnce(ACCOUNTS);
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "deactivated", assignment_id: null }], error: null });
+    updateUserById.mockResolvedValueOnce({ error: null });
+    expect((await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" })).error).toBeNull();
+    expect(updateUserById).toHaveBeenCalledTimes(2);
+  });
+
+  it("deactivate: an invalid reason or a user that is not a support account bans nobody", async () => {
+    const mod = await import("./actions");
+    createAdminOverride(updateUserById);
+    updateUserById.mockClear();
+    rpc.mockReset();
+    const bad = await mod.deactivateSupportAccount({ userId: UID, reason: "x" });
+    expect(bad.error?.code).toBe("reason_invalid");
+    expect(rpc).not.toHaveBeenCalled();
+
+    rpc.mockResolvedValueOnce({ data: [{ user_id: "00000000-0000-4000-8000-0000000000dd" }], error: null });
+    const stranger = await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" });
+    expect(stranger.error?.code).toBe("not_found");
+    expect(updateUserById).not.toHaveBeenCalled();
+  });
+});
+
+function createAdminOverride(updateUserById: ReturnType<typeof vi.fn>) {
+  authAdmin.updateUserById = updateUserById;
+}

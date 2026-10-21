@@ -546,29 +546,84 @@
     "state": {
       "active": "Active",
       "inactive": "Not activated",
-      "assignable": "assignable"
+      "assignable": "assignable",
+      "deactivated": "Deactivated"
     },
     "invite": {
       "none": "No invite sent",
       "pending": "Valid until {{when}}",
       "expired": "Expired",
       "used": "Used",
-      "dead": "Replaced or locked"
+      "dead": "Replaced or locked",
+      "deactivated": "Deactivated"
     },
     "actions": {
       "sendInvite": "Send invite",
-      "resendInvite": "Send a new invite"
+      "resendInvite": "Send a new invite",
+      "deactivate": "Deactivate",
+      "remove": "Remove",
+      "confirmDeactivate": "Deactivate this account? It ends every assignment, signs the person out and cannot be undone here.",
+      "confirmRemove": "Remove this account? It was never activated; the account and its sign-in are deleted."
     },
     "toast": {
       "created": "Support account created. Send the invite when ready.",
-      "inviteSent": "Invite emailed."
+      "inviteSent": "Invite emailed.",
+      "deactivated": "Account deactivated.",
+      "removed": "Account removed."
     },
     "errors": {
       "refused": "This account could not be created or invited.",
       "nameRequired": "Enter a name (up to 100 characters).",
       "domain": "Use an @gymosapps.com address.",
       "notConfigured": "The dashboard address is not configured, so no invite link can be built.",
-      "mailFailed": "The invite was issued but the email could not be sent. Send a new invite to try again."
+      "mailFailed": "The invite was issued but the email could not be sent. Send a new invite to try again.",
+      "banFailed": "Blocking the account's sign-in failed, so nothing was changed. Deactivate again to retry."
+    },
+    "codes": {
+      "reason_invalid": "Enter a reason of 3 to 500 characters.",
+      "gym_not_active": "That gym is not active.",
+      "target_super_admin": "A Super Admin cannot be assigned as GymOS support.",
+      "not_assignable": "That account cannot be assigned.",
+      "deactivated": "That account is deactivated.",
+      "already_assigned": "That person already has an open assignment in this gym.",
+      "other_membership": "That person already has another role in this gym.",
+      "not_found": "Not found.",
+      "not_pending": "Only a pending assignment can be confirmed.",
+      "not_activated": "The account has not finished setting up, so it cannot be confirmed yet.",
+      "switch_off": "The Owner has GymOS support turned off for this gym, so it cannot be confirmed.",
+      "already_ended": "That assignment has already ended.",
+      "already_deactivated": "That account is already deactivated.",
+      "activated": "This account has been activated. Deactivate it instead of removing it."
+    },
+    "assign": {
+      "title": "Assigned GymOS support",
+      "person": "Person",
+      "gym": "Gym",
+      "choose": "Choose…",
+      "submit": "Assign",
+      "hint": "Assigned people stay pending until the account is activated and the Owner allows GymOS support; a pending assignment goes live only when you confirm it.",
+      "empty": "No open assignments.",
+      "since": "Since",
+      "confirm": "Confirm",
+      "unassign": "Unassign",
+      "reason": "Reason (required for every action, 3 to 500 characters)",
+      "reasonHint": "Why are you doing this?",
+      "endedCount": "{{count}} ended assignment(s)",
+      "state": {
+        "pending": "Pending",
+        "active": "Active",
+        "suspended": "Suspended",
+        "ended": "Ended",
+        "suspendedBySwitch": "Suspended (the Owner turned support off)"
+      },
+      "done": {
+        "ok": "Done.",
+        "active": "Assigned and active.",
+        "pending": "Assigned; waiting for confirmation.",
+        "ended": "Assignment ended.",
+        "deactivated": "Account deactivated.",
+        "removed": "Account removed."
+      }
     }
   }
 }

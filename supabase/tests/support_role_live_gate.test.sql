@@ -97,6 +97,9 @@ select pg_temp.claims('00000000-0000-0000-0000-000000231101', '00000000-0000-000
 select is(pg_temp.seen(), '-|-|-', 'claim names a gym with only a pending assignment: support_gym_id is NULL');
 select pg_temp.claims('00000000-0000-0000-0000-000000231101', '00000000-0000-0000-0000-000000231001', 'support', 'aal2', '00000000-0000-0000-0000-0000000231a1');
 
+-- These legs flip assignments through arbitrary states to prove each gate leg; the transition rules themselves are proven in
+-- support_assignments.test.sql (Story 23.5), so the guard trigger is off for the rest of this file (rolled back with it).
+alter table public.support_assignments disable trigger guard_support_assignment_transition;
 -- ---- each gate leg, one at a time (mutation: removing a leg from support_live fails the matching test) ---------------
 update public.support_assignments set state = 'pending' where id = '00000000-0000-0000-0000-000000231401';
 select is(pg_temp.seen(), '-|-|-', 'leg assignment pending: denied');
@@ -228,7 +231,7 @@ update public.support_assignments set state = 'suspended' where id in ('00000000
 select is(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal2') ->> 'app_role', null, 'hook: suspended assignments get no claims');
 update public.support_assignments set state = 'pending' where id in ('00000000-0000-0000-0000-000000231401', '00000000-0000-0000-0000-000000231402');
 select is(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal2') ->> 'gym_id', null, 'hook: pending assignments get no gym_id');
-update public.support_assignments set state = 'ended' where id in ('00000000-0000-0000-0000-000000231401', '00000000-0000-0000-0000-000000231402');
+update public.support_assignments set state = 'ended', ended_at = now() where id in ('00000000-0000-0000-0000-000000231401', '00000000-0000-0000-0000-000000231402');
 select is(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal2') ->> 'app_role', null, 'hook: ended assignments get no claims');
 select is(pg_temp.hook('00000000-0000-0000-0000-000000231102', 'aal1') ->> 'app_role', 'owner', 'hook: owner unchanged at aal1');
 
@@ -379,7 +382,7 @@ select is((select count(*)::int from pg_constraint where pg_get_constraintdef(oi
           'no CHECK / constraint mentions the support role');
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.prosrc like '%''support''%'),
-          array['public.create_staff_member', 'private.current_member_role', 'public.custom_access_token_hook', 'private.guard_support_membership', 'private.gym_id',
+          array['public.assign_support', 'public.confirm_support_assignment', 'public.create_staff_member', 'private.current_member_role', 'public.custom_access_token_hook', 'private.guard_support_membership', 'private.gym_id',
                 'public.gym_member_count', 'public.list_own_active_gym_memberships', 'public.platform_metrics', 'private.support_email_collision', 'private.support_gym_id', 'private.support_set_membership', 'public.switch_active_gym']::text[],
           'only the expected functions mention the support role');
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
@@ -393,9 +396,11 @@ select is((select count(*)::int from pg_policies where coalesce(qual, '') || coa
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
               and p.prosrc ~ 'support_assignments|support_accounts'),
-          array['public.activate_support_account', 'public.create_support_account', 'public.custom_access_token_hook', 'public.get_gymos_support_status', 'public.get_support_accounts',
-                'private.guard_support_membership', 'public.issue_support_invite', 'public.list_own_active_gym_memberships', 'private.session_gate_touch',
-                'public.set_allow_gymos_support', 'public.support_invite_inspect', 'private.support_live', 'private.support_set_membership', 'public.switch_active_gym']::text[],
+          array['public.activate_support_account', 'public.assign_support', 'public.confirm_support_assignment', 'public.create_support_account', 'public.custom_access_token_hook',
+                'public.deactivate_support_account', 'public.get_gymos_support_status', 'public.get_support_accounts', 'public.get_support_assignments',
+                'private.guard_support_assignment_transition', 'private.guard_support_membership', 'public.issue_support_invite', 'public.list_own_active_gym_memberships',
+                'public.remove_support_account', 'private.session_gate_touch', 'public.set_allow_gymos_support', 'private.support_invite_check', 'public.support_invite_inspect',
+                'private.support_live', 'private.support_set_membership', 'public.switch_active_gym', 'public.unassign_support']::text[],
           'readers of the assignment tables are exactly the expected functions (a new reader must be added here deliberately)');
 
 select * from finish();

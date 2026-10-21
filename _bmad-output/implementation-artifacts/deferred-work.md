@@ -1205,8 +1205,8 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 
 ## Deferred from: code review of spec-23-1-support-role-assignment-live-gate (2026-10-20)
 
-- support_assignments has no CHECK tying `activated_at`/`ended_at` to `state`, and no transition rules (the pgTAP test revives `ended` -> `active`). Add in 23.5, which owns the transitions. (The `updated_at` trigger landed in 23.3.)
-- "Active support membership implies active assignment and switch on" holds only on `members` writes; every consumer checks live. Resolved in 23.3 for the switch (0137 calls `private.support_set_membership(.., false)`); 23.5 must do the same on unassign/remove and put that in its acceptance criteria before it starts.
+- support_assignments has no CHECK tying `activated_at`/`ended_at` to `state`, and no transition rules (the pgTAP test revives `ended` -> `active`). Add in 23.5, which owns the transitions. (The `updated_at` trigger landed in 23.3.) **Resolved 2026-10-21 (Story 23.5, 0139): CHECK `support_assignments_state_facts_chk` and the transition trigger `guard_support_assignment_transition` (ended is terminal); the 23-1 test now switches the trigger off only for its gate-leg flips.**
+- "Active support membership implies active assignment and switch on" holds only on `members` writes; every consumer checks live. Resolved in 23.3 for the switch (0137 calls `private.support_set_membership(.., false)`); 23.5 must do the same on unassign/remove and put that in its acceptance criteria before it starts. **Resolved 2026-10-21 (Story 23.5): unassign, deactivate and the switch end or suspend the assignment and call `support_set_membership(.., false)` under the per-gym lock; pgTAP checks the invariant and the two-session race (`scripts/support-assignments-race.test.sh`).**
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-1-support-role-assignment-live-gate.md`
   summary: Rollback scripts for 0134/0135 are hand-copied function bodies that were only applied once on the local DB and never compared with the 0124/0061/0129/0065/0074/0133 bodies.
   evidence: Review (verification gap and blind hunter) found no test or drill; add a rollback round trip that diffs the restored definitions against the pre-0135 ones before the Epic 23 production deploy.
@@ -1230,7 +1230,7 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
   evidence: Low today (nothing deactivates accounts yet); 23-10/23-11 must end or lock the assignment (not only the account) so the restore skips it, and `set_allow_gymos_support` should then skip rows whose account is not activated.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-3-allow-gymos-support-switch-and-gymos-support-row.md`
   summary: Nothing stops an assignment going pending -> active while the switch is off except the membership trigger.
-  evidence: 23-5 must refuse activation while `allow_gymos_support` is false (put it in its acceptance criteria); the live gate already denies in the meantime.
+  evidence: 23-5 must refuse activation while `allow_gymos_support` is false (put it in its acceptance criteria); the live gate already denies in the meantime. **Resolved 2026-10-21 (Story 23.5): `confirm_support_assignment` re-checks switch, account and gym and refuses with a typed code; nothing activates automatically.**
 
 ## Deferred from: code review of spec-23-3-allow-gymos-support-switch-and-gymos-support-row (2026-10-21, round 2)
 
@@ -1251,7 +1251,7 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
   evidence: 23-6 owns the support request path; until then a support user signs in at aal1 and the live gate denies (aal2 required), so nothing leaks.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
   summary: Removing a support account (Super Admin deletes the auth user) is blocked by the `support_accounts` foreign key; no remove or re-invite-after-activation flow exists.
-  evidence: 23-5 (remove) and 23-11 (factor reset reuses the invite) own it; `issue_support_invite` currently refuses an activated account.
+  evidence: 23-5 (remove) and 23-11 (factor reset reuses the invite) own it; `issue_support_invite` currently refuses an activated account. **Remove half resolved 2026-10-21 (Story 23.5): `remove_support_account` deletes a never-activated account, its invites, assignments and auth user; an activated one is deactivated (`deactivate_support_account`), never deleted. The 23-11 re-invite after factor reset remains open.**
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
   summary: Invite emails depend on MAIL_* and DASHBOARD_APP_URL being set in the Super Admin app's production environment.
   evidence: Check both before the Epic 23 production deploy; without DASHBOARD_APP_URL the invite action refuses (not_configured) and issues nothing.
@@ -1272,4 +1272,21 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
   evidence: Add an edge or per-IP limit before the Epic 23 production deploy; the 256-bit secret makes guessing impractical but unauthenticated calls are unbounded.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
   summary: A mistyped @gymosapps.com address leaves a stuck, never-activatable account (the mailbox is the binding).
-  evidence: 23-5/23-11 own removal; until then the Super Admin cannot delete it (support_accounts foreign key).
+  evidence: 23-5/23-11 own removal; until then the Super Admin cannot delete it (support_accounts foreign key). **Resolved 2026-10-21 (Story 23.5): `remove_support_account`.**
+
+## Deferred from: review of spec-23-5-assign-unassign-and-remove (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-5-assign-unassign-and-remove.md`
+  summary: No test shows a banned (deactivated) support user is refused a real password sign-in against GoTrue; the ban is covered only by a mocked admin client.
+  evidence: The live gate denies once assignments end, so nothing leaks; add to the scripted invitee/e2e run deferred from 23-4.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-5-assign-unassign-and-remove.md`
+  summary: Rollback `scripts/rollback-0139-support-assign-unassign-remove.sql` was proven once by hand and re-embeds hand-copied 0138 function bodies.
+  evidence: Extend the 0134-0137 rollback round trip to 0139 before the Epic 23 production deploy.
+
+## Deferred from: code review of spec-23-5-assign-unassign-and-remove (2026-10-21)
+
+- `support_invite_check` deactivated leg is not pinned by a test of its own: the pgTAP case also supersedes the invite, so dropping the clause still passes. Add a live-invite plus `deactivated_at` case.
+- No way to reverse a wrong deactivation or reuse the @gymosapps.com address (irreversible by design in 23-5). Record it in 23-11 (re-invite after factor reset).
+- AC1/AC3 are proven indirectly: enrollment and the Owner switch are simulated with direct UPDATEs, and "next request denied" is asserted after unassign only. Add the real `activate_support_account` / `set_allow_gymos_support` paths and the gate check after deactivate and remove.
+- No component tests for `SupportAssignmentsPanel`, `GymSupportPanel` and the new `SupportPageClient` branches.
+- AC6: no ci-local GREEN recorded for the final tree; run `scripts/ci-local.sh` before the merge to epic/23.

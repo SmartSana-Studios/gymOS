@@ -24,7 +24,7 @@ export interface SupportAccountRow {
   assignable: boolean;
   activated: boolean;
   activatedAt: string | null;
-  inviteState: "none" | "pending" | "expired" | "used" | "dead";
+  inviteState: "none" | "pending" | "expired" | "used" | "dead" | "deactivated";
   inviteExpiresAt: string | null;
 }
 
@@ -152,4 +152,184 @@ export async function sendSupportInvite(userId: unknown): Promise<{ data: { sent
   }
   if (!sent) return { data: null, error: { code: "mail_failed", message: t("support.errors.mailFailed") } };
   return { data: { sent: true }, error: null };
+}
+
+// ===== Story 23.5: assign, confirm, unassign, deactivate, remove =====
+
+export interface SupportAssignmentRow {
+  assignmentId: string;
+  supportUserId: string;
+  displayName: string | null;
+  email: string | null;
+  gymId: string;
+  gymName: string;
+  state: "pending" | "active" | "suspended" | "ended";
+  reason: string | null;
+  createdAt: string;
+  activatedAt: string | null;
+  endedAt: string | null;
+  suspendedBySwitch: boolean;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isUuid = (v: unknown): v is string => typeof v === "string" && UUID_RE.test(v);
+
+/** The typed result the five database functions return. */
+interface SupportResultRow {
+  ok: boolean;
+  code: string;
+  assignment_id: string | null;
+}
+
+/** The individual's name and address come back here only: Super Admin at the support section and the gym detail page. */
+export async function listSupportAssignments(
+  filter: { gymId?: string; userId?: string } = {},
+): Promise<{ data: SupportAssignmentRow[] | null; error: AppError | null }> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  if ((filter.gymId !== undefined && !isUuid(filter.gymId)) || (filter.userId !== undefined && !isUuid(filter.userId))) {
+    return { data: null, error: { code: "validation_error", message: "invalid filter" } };
+  }
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_support_assignments", {
+    p_gym_id: filter.gymId ?? null,
+    p_user_id: filter.userId ?? null,
+  } as never);
+  if (error) return { data: null, error: await mapAndLog(error) };
+  const rows = (data ?? []) as {
+    assignment_id: string;
+    support_user_id: string;
+    display_name: string | null;
+    email: string | null;
+    gym_id: string;
+    gym_name: string;
+    state: SupportAssignmentRow["state"];
+    reason: string | null;
+    created_at: string;
+    activated_at: string | null;
+    ended_at: string | null;
+    suspended_by_switch: boolean;
+  }[];
+  return {
+    data: rows.map((r) => ({
+      assignmentId: r.assignment_id,
+      supportUserId: r.support_user_id,
+      displayName: r.display_name,
+      email: r.email,
+      gymId: r.gym_id,
+      gymName: r.gym_name,
+      state: r.state,
+      reason: r.reason,
+      createdAt: r.created_at,
+      activatedAt: r.activated_at,
+      endedAt: r.ended_at,
+      suspendedBySwitch: r.suspended_by_switch,
+    })),
+    error: null,
+  };
+}
+
+/** Active gyms an assignment can be made in (the database re-checks). */
+export async function listAssignableGyms(): Promise<{ data: { id: string; name: string }[] | null; error: AppError | null }> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("gyms").select("id, name").eq("status", "active").order("name").limit(500);
+  if (error) return { data: null, error: await mapAndLog(error) };
+  return { data: (data ?? []) as { id: string; name: string }[], error: null };
+}
+
+type SupportOutcome = { data: { code: string; assignmentId: string | null } | null; error: AppError | null };
+
+/** Runs one of the five functions as the real Super Admin (their session, not service role) and maps the typed result. */
+async function runSupportFunction(fn: string, args: Record<string, unknown>): Promise<SupportOutcome> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc(fn as never, args as never);
+  if (error) return { data: null, error: await mapAndLog(error) };
+  const row = ((data ?? []) as SupportResultRow[])[0];
+  if (!row) return { data: null, error: { code: "support_refused", message: t("support.errors.refused") } };
+  if (!row.ok) {
+    return { data: null, error: { code: row.code, message: t(`support.codes.${row.code}`, { defaultValue: t("support.errors.refused") }) } };
+  }
+  return { data: { code: row.code, assignmentId: row.assignment_id }, error: null };
+}
+
+function badInput(t: (k: string) => string): SupportOutcome {
+  return { data: null, error: { code: "validation_error", message: t("support.errors.refused") } };
+}
+
+export async function assignSupport(input: unknown): Promise<SupportOutcome> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const raw = (input ?? {}) as { userId?: unknown; gymId?: unknown; reason?: unknown };
+  if (!isUuid(raw.userId) || !isUuid(raw.gymId) || typeof raw.reason !== "string") return badInput(t);
+  return runSupportFunction("assign_support", { p_user_id: raw.userId, p_gym_id: raw.gymId, p_reason: raw.reason });
+}
+
+export async function confirmSupportAssignment(input: unknown): Promise<SupportOutcome> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const raw = (input ?? {}) as { assignmentId?: unknown; reason?: unknown };
+  if (!isUuid(raw.assignmentId) || typeof raw.reason !== "string") return badInput(t);
+  return runSupportFunction("confirm_support_assignment", { p_assignment_id: raw.assignmentId, p_reason: raw.reason });
+}
+
+export async function unassignSupport(input: unknown): Promise<SupportOutcome> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const raw = (input ?? {}) as { assignmentId?: unknown; reason?: unknown };
+  if (!isUuid(raw.assignmentId) || typeof raw.reason !== "string") return badInput(t);
+  return runSupportFunction("unassign_support", { p_assignment_id: raw.assignmentId, p_reason: raw.reason });
+}
+
+/**
+ * Bans the auth user so it cannot sign in again, then deactivates the account in the database (assignments ended, memberships
+ * off, sessions deleted, invites dead). Every step is repeatable, so a failure at either step is retried by calling again.
+ */
+export async function deactivateSupportAccount(input: unknown): Promise<SupportOutcome> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const raw = (input ?? {}) as { userId?: unknown; reason?: unknown };
+  if (!isUuid(raw.userId) || typeof raw.reason !== "string") return badInput(t);
+  const reason = raw.reason.trim();
+  if (reason.length < 3 || reason.length > 500) {
+    return { data: null, error: { code: "reason_invalid", message: t("support.codes.reason_invalid") } };
+  }
+
+  // Ban first: a crash between the two steps leaves a banned, not-yet-deactivated account (safe; Deactivate again finishes
+  // it) instead of a deactivated account that can still sign in. The ban uses the service role, so the target is first
+  // confirmed to be a support account through the caller's own session; the database re-checks everything afterwards.
+  const supabase = await createClient();
+  const { data: accounts, error: listError } = await supabase.rpc("get_support_accounts");
+  if (listError) return { data: null, error: await mapAndLog(listError) };
+  if (!((accounts ?? []) as { user_id: string }[]).some((a) => a.user_id === raw.userId)) {
+    return { data: null, error: { code: "not_found", message: t("support.codes.not_found") } };
+  }
+  try {
+    const admin = createAdminClient();
+    const { error: banError } = await admin.auth.admin.updateUserById(raw.userId, { ban_duration: "876000h" });
+    if (banError) throw banError;
+  } catch (err) {
+    console.error("[deactivateSupportAccount] banning the auth user failed; nothing was deactivated", err);
+    return { data: null, error: { code: "ban_failed", message: t("support.errors.banFailed") } };
+  }
+
+  const res = await runSupportFunction("deactivate_support_account", { p_user_id: raw.userId, p_reason: reason });
+  if (res.error && res.error.code === "already_deactivated") return { data: { code: "deactivated", assignmentId: null }, error: null };
+  return res;
+}
+
+/** Removes an account that was never activated (mistyped address): the database deletes it and its auth user. */
+export async function removeSupportAccount(input: unknown): Promise<SupportOutcome> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const raw = (input ?? {}) as { userId?: unknown; reason?: unknown };
+  if (!isUuid(raw.userId) || typeof raw.reason !== "string") return badInput(t);
+  return runSupportFunction("remove_support_account", { p_user_id: raw.userId, p_reason: raw.reason });
 }
