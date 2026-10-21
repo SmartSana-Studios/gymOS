@@ -13,6 +13,7 @@ import {
   listTiers,
   type AuditTrailEntry,
 } from "@/services/gyms";
+import { listSupportAccounts, listSupportAssignments } from "../../support/actions";
 import { GymDetailPageClient } from "./components/GymDetailPageClient";
 import GymDetailLoading from "./loading";
 
@@ -65,6 +66,8 @@ async function GymDetailData({
     { data: tiers, error: tiersError },
     { data: auditTrail, error: auditTrailError },
     { data: ownEscalation, error: ownEscalationError },
+    { data: supportAssignments, error: supportAssignmentsError },
+    { data: supportAccounts, error: supportAccountsError },
     { data: activeEscalations, error: activeEscalationsError },
     { data: claimsData },
   ] = await Promise.all([
@@ -77,6 +80,8 @@ async function GymDetailData({
     // rendered "Access granted" over a lapsed grant while RLS correctly
     // returned nothing.
     getActiveEscalationForCurrentActor(id),
+    listSupportAssignments({ gymId: id }),
+    listSupportAccounts(),
     // Every Super Admin currently holding access to this gym (AC #3), which
     // is what makes another admin's grant revocable at all.
     listActiveEscalations(id),
@@ -91,6 +96,8 @@ async function GymDetailData({
     tiersError ||
     auditTrailError ||
     ownEscalationError ||
+    supportAssignmentsError ||
+    supportAccountsError ||
     activeEscalationsError
   ) {
     return <LoadError />;
@@ -181,6 +188,8 @@ async function GymDetailData({
       currentActorId={currentActorId}
       members={membersPage}
       payments={paymentsPage}
+      supportAssignments={supportAssignments ?? []}
+      supportAccounts={supportAccounts ?? []}
     />
   );
 }

@@ -546,29 +546,84 @@
     "state": {
       "active": "Actif",
       "inactive": "Non activé",
-      "assignable": "assignable"
+      "assignable": "assignable",
+      "deactivated": "Désactivé"
     },
     "invite": {
       "none": "Aucune invitation envoyée",
       "pending": "Valable jusqu'au {{when}}",
       "expired": "Expirée",
       "used": "Utilisée",
-      "dead": "Remplacée ou verrouillée"
+      "dead": "Remplacée ou verrouillée",
+      "deactivated": "Désactivé"
     },
     "actions": {
       "sendInvite": "Envoyer l'invitation",
-      "resendInvite": "Envoyer une nouvelle invitation"
+      "resendInvite": "Envoyer une nouvelle invitation",
+      "deactivate": "Désactiver",
+      "remove": "Supprimer",
+      "confirmDeactivate": "Désactiver ce compte ? Toutes les affectations prennent fin, la personne est déconnectée et l'action est irréversible ici.",
+      "confirmRemove": "Supprimer ce compte ? Il n'a jamais été activé ; le compte et sa connexion sont supprimés."
     },
     "toast": {
       "created": "Compte de support créé. Envoyez l'invitation quand vous êtes prêt.",
-      "inviteSent": "Invitation envoyée par e-mail."
+      "inviteSent": "Invitation envoyée par e-mail.",
+      "deactivated": "Compte désactivé.",
+      "removed": "Compte supprimé."
     },
     "errors": {
       "refused": "Ce compte n'a pas pu être créé ou invité.",
       "nameRequired": "Saisissez un nom (100 caractères maximum).",
       "domain": "Utilisez une adresse @gymosapps.com.",
       "notConfigured": "L'adresse du tableau de bord n'est pas configurée : impossible de construire le lien d'invitation.",
-      "mailFailed": "L'invitation a été émise mais l'e-mail n'a pas pu être envoyé. Envoyez une nouvelle invitation pour réessayer."
+      "mailFailed": "L'invitation a été émise mais l'e-mail n'a pas pu être envoyé. Envoyez une nouvelle invitation pour réessayer.",
+      "banFailed": "Le compte est désactivé et ses affectations sont terminées, mais le blocage de la connexion a échoué. Désactivez à nouveau pour réessayer."
+    },
+    "codes": {
+      "reason_invalid": "Saisissez un motif de 3 à 500 caractères.",
+      "gym_not_active": "Cette salle n'est pas active.",
+      "target_super_admin": "Un Super Admin ne peut pas être affecté comme support GymOS.",
+      "not_assignable": "Ce compte ne peut pas être affecté.",
+      "deactivated": "Ce compte est désactivé.",
+      "already_assigned": "Cette personne a déjà une affectation ouverte dans cette salle.",
+      "other_membership": "Cette personne a déjà un autre rôle dans cette salle.",
+      "not_found": "Introuvable.",
+      "not_pending": "Seule une affectation en attente peut être confirmée.",
+      "not_activated": "Le compte n'a pas terminé sa configuration ; il ne peut pas encore être confirmé.",
+      "switch_off": "Le propriétaire a désactivé le support GymOS pour cette salle ; la confirmation est impossible.",
+      "already_ended": "Cette affectation est déjà terminée.",
+      "already_deactivated": "Ce compte est déjà désactivé.",
+      "activated": "Ce compte a été activé. Désactivez-le au lieu de le supprimer."
+    },
+    "assign": {
+      "title": "Support GymOS affecté",
+      "person": "Personne",
+      "gym": "Salle",
+      "choose": "Choisir…",
+      "submit": "Affecter",
+      "hint": "Une personne affectée reste en attente tant que le compte n'est pas activé et que le propriétaire n'autorise pas le support GymOS ; une affectation en attente ne devient active que si vous la confirmez.",
+      "empty": "Aucune affectation ouverte.",
+      "since": "Depuis",
+      "confirm": "Confirmer",
+      "unassign": "Retirer",
+      "reason": "Motif (obligatoire pour chaque action, 3 à 500 caractères)",
+      "reasonHint": "Pourquoi cette action ?",
+      "endedCount": "{{count}} affectation(s) terminée(s)",
+      "state": {
+        "pending": "En attente",
+        "active": "Active",
+        "suspended": "Suspendue",
+        "ended": "Terminée",
+        "suspendedBySwitch": "Suspendue (le propriétaire a désactivé le support)"
+      },
+      "done": {
+        "ok": "Terminé.",
+        "active": "Affectée et active.",
+        "pending": "Affectée ; en attente de confirmation.",
+        "ended": "Affectation terminée.",
+        "deactivated": "Compte désactivé.",
+        "removed": "Compte supprimé."
+      }
     }
   }
 }

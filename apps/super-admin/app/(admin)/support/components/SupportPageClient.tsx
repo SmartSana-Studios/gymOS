@@ -6,16 +6,34 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createSupportAccount, sendSupportInvite, type SupportAccountRow } from "../actions";
+import {
+  createSupportAccount,
+  deactivateSupportAccount,
+  removeSupportAccount,
+  sendSupportInvite,
+  type SupportAccountRow,
+  type SupportAssignmentRow,
+} from "../actions";
+import { REASON_MAX, REASON_MIN, SupportAssignmentsPanel } from "./SupportAssignmentsPanel";
 
 /** Story 23.4: GymOS support accounts (names and addresses are visible here only). Create, then send the invite. */
-export function SupportPageClient({ initialAccounts }: { initialAccounts: SupportAccountRow[] }) {
+export function SupportPageClient({
+  initialAccounts,
+  assignments,
+  gyms,
+}: {
+  initialAccounts: SupportAccountRow[];
+  assignments: SupportAssignmentRow[];
+  gyms: { id: string; name: string }[];
+}) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
+  const [reason, setReason] = useState("");
   const [pending, startTransition] = useTransition();
+  const reasonOk = reason.trim().length >= REASON_MIN && reason.trim().length <= REASON_MAX;
 
   function create(e: React.FormEvent) {
     e.preventDefault();
@@ -36,6 +54,16 @@ export function SupportPageClient({ initialAccounts }: { initialAccounts: Suppor
     startTransition(async () => {
       const { error } = await sendSupportInvite(userId);
       setMessage(error ? { kind: "error", text: error.message } : { kind: "ok", text: t("support.toast.inviteSent") });
+      router.refresh();
+    });
+  }
+
+  function accountAction(kind: "deactivate" | "remove", userId: string) {
+    if (!window.confirm(t(kind === "deactivate" ? "support.actions.confirmDeactivate" : "support.actions.confirmRemove"))) return;
+    startTransition(async () => {
+      const run = kind === "deactivate" ? deactivateSupportAccount : removeSupportAccount;
+      const { error } = await run({ userId, reason });
+      setMessage(error ? { kind: "error", text: error.message } : { kind: "ok", text: t(kind === "deactivate" ? "support.toast.deactivated" : "support.toast.removed") });
       router.refresh();
     });
   }
@@ -66,6 +94,11 @@ export function SupportPageClient({ initialAccounts }: { initialAccounts: Suppor
         <p className="text-xs text-muted-foreground sm:col-span-3">{t("support.create.hint")}</p>
       </form>
 
+      <label className="block space-y-1 text-sm">
+        <span className="font-medium">{t("support.assign.reason")}</span>
+        <Input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={REASON_MAX} placeholder={t("support.assign.reasonHint")} />
+      </label>
+
       {message && (
         <p role="status" className={message.kind === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
           {message.text}
@@ -92,14 +125,24 @@ export function SupportPageClient({ initialAccounts }: { initialAccounts: Suppor
                   <td className="py-2 pl-3 pr-4">{row.displayName ?? "—"}</td>
                   <td className="py-2 pr-4">{row.email}</td>
                   <td className="py-2 pr-4">
-                    {row.activated ? t("support.state.active") : t("support.state.inactive")}
+                    {row.inviteState === "deactivated" ? t("support.state.deactivated") : row.activated ? t("support.state.active") : t("support.state.inactive")}
                     {row.assignable ? ` · ${t("support.state.assignable")}` : ""}
                   </td>
                   <td className="py-2 pr-4">{inviteLabel(row)}</td>
                   <td className="py-2 pr-3">
-                    {!row.activated && (
+                    {!row.activated && row.inviteState !== "deactivated" && (
                       <Button size="sm" variant="outline" disabled={pending} onClick={() => invite(row.userId)}>
                         {row.inviteState === "none" ? t("support.actions.sendInvite") : t("support.actions.resendInvite")}
+                      </Button>
+                    )}
+                    {row.inviteState !== "deactivated" && (
+                      <Button size="sm" variant="outline" className="ml-2" disabled={pending || !reasonOk} onClick={() => accountAction("deactivate", row.userId)}>
+                        {t("support.actions.deactivate")}
+                      </Button>
+                    )}
+                    {!row.activated && (
+                      <Button size="sm" variant="outline" className="ml-2" disabled={pending || !reasonOk} onClick={() => accountAction("remove", row.userId)}>
+                        {t("support.actions.remove")}
                       </Button>
                     )}
                   </td>
@@ -109,6 +152,8 @@ export function SupportPageClient({ initialAccounts }: { initialAccounts: Suppor
           </table>
         </div>
       )}
+
+      <SupportAssignmentsPanel assignments={assignments} accounts={initialAccounts} gyms={gyms} reason={reason} onMessage={setMessage} />
     </div>
   );
 }

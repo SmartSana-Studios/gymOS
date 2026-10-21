@@ -447,7 +447,7 @@ development_status:
   23-2-support-excluded-from-counts-caps-notifications-metrics: done
   23-3-allow-gymos-support-switch-and-gymos-support-row: done
   23-4-create-support-account-and-invite: done
-  23-5-assign-unassign-and-remove: backlog
+  23-5-assign-unassign-and-remove: review
   23-6-capability-allow-list-and-denied-set-matrix: backlog
   23-7-hidden-identity-per-gym-proxy-actor: backlog
   23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces: backlog
@@ -1614,3 +1614,6 @@ last_updated: 10-21-2026
 # last_updated: 2026-10-21 (build: 23-4 in-progress -> review on feat/23-4-create-support-account-and-invite. Migration 0138 (support_invites, collision check, create_support_account, service-role-only issue_support_invite, activate_support_account, get_support_accounts), Super Admin /support section, dashboard /support-invite two-step page (password, TOTP). Support has no phone: email + password then TOTP (owner decision, docs/decisions.md). Three-layer review: 1 intent_gap resolved by owner (server-only issuance), 5 patch groups applied, 5 deferred, rest rejected. ci-local GREEN on all five stages for 5128cae. Not applied to production; needs DASHBOARD_APP_URL and MAIL_* in Super Admin prod env and magic-link verification enabled on prod Supabase.)
 # last_updated: 2026-10-21 (build: 23-4 review -> done; merged into epic/23 after GREEN ci-local on all five stages for 5128cae (later commit changed docs only))
 # last_updated: 2026-10-21 (ad-hoc, 23-4 follow-up on fix/23-4-password-signin-instead-of-magic-link off epic/23: the invitee's server-side aal1 session now comes from an email + password sign-in with the password just set, not an admin magic link, so production no longer needs magic-link verification. services/supportInvite.ts mintSession, actions, SupportInviteFlow (resends password per step, asks again after a reload), tests 16/16. Proved against the local Supabase: sign-in aal1, TOTP enroll, real-code verify, factor verified. No migration.)
+# last_updated: 2026-10-21 (build: 23-5 status backlog -> in-progress)
+# last_updated: 2026-10-21 (build: 23-5 implemented on story/23-5, uncommitted. Migration 0139 (deactivated_at, state CHECK and transition trigger, assign_support, confirm_support_assignment, unassign_support, deactivate_support_account, remove_support_account, get_support_assignments; invite check/issue refuse a deactivated account) + rollback (round trip proven in a rolled-back transaction); pgTAP support_assignments 102/102, 23.1/23.3/23.4 tests adjusted and green; two-session race script green; Super Admin /support assignments + deactivate/remove, gym detail panel, EN/FR, actions and denied tests (vitest 398 pass, tsc clean). Applied to LOCAL db only. ci-local not yet run; status stays in-progress until it is)
+# last_updated: 2026-10-21 (build: 23-5 status in-progress -> review; reviewed, 4 patches applied, 2 deferrals)
