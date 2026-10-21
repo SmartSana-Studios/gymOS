@@ -34,6 +34,7 @@ Super Admin creates GymOS support people by invite and assigns them to gyms many
 - Account creation: inactive until a verified factor; invite is single-use, stored hashed, 24 h expiry, bound to verified phone, no temporary password; unverified email/phone makes the account not assignable. Creation is refused while `super_admin_aal2` is off. Pending assignments become active only by explicit Super Admin confirmation.
 - Revocation: in-flight operations complete or roll back; pending items re-owned to the gym proxy; subscriptions/signed links stop within 60 s. Suspended gyms deny support like any staff and do not count toward inactivity.
 - Assumption-tagged values to confirm in 23.0 and keep in the single configuration location from 22.7: velocity limits (10/h per gym, 20/h per account, 3 payment changes/day per gym), 60 s cutoff, 30-day inactivity, 30-minute cooling-off, 3-business-day disclosure answer. Deferrable: velocity lock, daily digest, quarterly recertification, inactivity sweep (mark deferred in the story, do not delete).
+- A live support caller writing an audit event with an action type the allow-listed capabilities do not produce is refused with a typed error (`support_audit_action_not_allowed`); reading a real identity writes one audit row.
 - Every Super Admin action and invite step writes one `audit_log` row (never links or secrets). Phone/email changes for support go through Super Admin at AAL2 only. Bilingual EN/FR for Owner-facing text.
 
 ## Technical Decisions

@@ -384,7 +384,7 @@ select is((select count(*)::int from pg_constraint where pg_get_constraintdef(oi
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.prosrc like '%''support''%'),
           array['public.assign_support', 'public.confirm_support_assignment', 'public.create_staff_member', 'private.current_member_role', 'public.custom_access_token_hook', 'private.guard_support_membership', 'private.gym_id',
-                'public.gym_member_count', 'public.list_own_active_gym_memberships', 'public.platform_metrics', 'public.set_allow_gymos_support', 'private.support_email_collision', 'private.support_gym_id', 'private.support_set_membership', 'public.switch_active_gym']::text[],
+                'public.gym_member_count', 'public.list_own_active_gym_memberships', 'public.platform_metrics', 'public.set_allow_gymos_support', 'private.support_email_collision', 'private.support_gym_id', 'private.support_restore_assignments', 'private.support_set_membership', 'public.switch_active_gym']::text[],
           'only the expected functions mention the support role');
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
@@ -399,11 +399,16 @@ select is((select count(*)::int from pg_policies where coalesce(qual, '') || coa
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
               and p.prosrc ~ 'support_assignments|support_accounts'),
-          array['public.activate_support_account', 'public.assign_support', 'public.confirm_support_assignment', 'public.create_support_account', 'public.custom_access_token_hook',
-                'public.deactivate_support_account', 'public.get_gymos_support_status', 'public.get_support_accounts', 'public.get_support_assignments', 'public.get_support_locks',
-                'private.guard_support_assignment_transition', 'private.guard_support_membership', 'public.issue_support_invite', 'public.list_own_active_gym_memberships',
-                'public.remove_support_account', 'private.session_gate_touch', 'public.set_allow_gymos_support', 'private.stepup_issue', 'private.stepup_record_failure', 'private.support_invite_check', 'public.support_invite_inspect',
-                'private.support_live', 'private.support_lock_account', 'private.support_revoke_access', 'private.support_revoke_on_gym_status', 'private.support_set_membership', 'private.support_velocity_breach', 'public.switch_active_gym', 'public.unassign_support', 'public.unlock_support_account']::text[],
+          array['public.activate_support_account', 'public.assign_support', 'public.cancel_support_factor_reset', 'public.change_support_contact', 'public.claim_support_factor_resets',
+                'public.confirm_support_assignment', 'public.create_support_account', 'public.custom_access_token_hook', 'public.deactivate_support_account',
+                'public.get_gymos_support_status', 'public.get_support_accounts', 'public.get_support_assignments', 'public.get_support_lifecycle', 'public.get_support_locks',
+                'private.guard_support_assignment_transition', 'private.guard_support_membership', 'public.issue_support_invite', 'public.issue_support_reset_invite',
+                'public.list_own_active_gym_memberships', 'public.recertify_support_account', 'public.remove_support_account', 'private.session_gate_touch',
+                'public.set_allow_gymos_support', 'public.start_support_factor_reset', 'private.stepup_issue', 'private.stepup_record_failure', 'private.support_contact_drift_check',
+                'private.support_contact_drifted', 'private.support_inactivity_sweep', 'private.support_invite_check', 'public.support_invite_inspect', 'private.support_live',
+                'private.support_lock_account', 'private.support_reset_executed', 'private.support_restore_assignments', 'private.support_revoke_access',
+                'private.support_revoke_on_gym_status', 'private.support_set_membership', 'private.support_velocity_breach', 'public.switch_active_gym', 'public.unassign_support',
+                'public.unlock_support_account']::text[],
           'readers of the assignment tables are exactly the expected functions (a new reader must be added here deliberately)');
 
 select * from finish();

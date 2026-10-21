@@ -2600,6 +2600,45 @@ export type Database = {
       }
       finish_email_outbox: { Args: { p_error?: string | null; p_id: string; p_sent: boolean }; Returns: undefined }
       record_email_outbox_run: { Args: { p_failed: number; p_sent: number; p_started_at?: string }; Returns: undefined }
+      cancel_support_factor_reset: { Args: { p_token: string }; Returns: { ok: boolean }[] }
+      change_support_contact: {
+        Args: { p_email: string; p_phone?: string | null; p_reason: string; p_user_id: string }
+        Returns: { code: string; ok: boolean; previous_email: string | null }[]
+      }
+      claim_support_factor_resets: {
+        Args: { p_limit?: number }
+        Returns: { email: string | null; reset_id: string; user_id: string }[]
+      }
+      get_support_lifecycle: {
+        Args: never
+        Returns: {
+          activated: boolean
+          deactivated: boolean
+          display_name: string | null
+          email: string | null
+          last_active_at: string | null
+          locked_at: string | null
+          locked_reason: string | null
+          recertification_lapsed: boolean
+          recertify_due_at: string | null
+          reset_executes_at: string | null
+          reset_pending_at: string | null
+          reset_state: string | null
+          user_id: string
+        }[]
+      }
+      issue_support_reset_invite: { Args: { p_reset_id: string; p_token: string }; Returns: string }
+      recertify_support_account: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
+      }
+      record_support_factor_reset_run: { Args: { p_done: number; p_failed: number; p_started_at?: string }; Returns: undefined }
+      start_support_factor_reset: {
+        Args: { p_cancel_link: string; p_cancel_token: string; p_identity_note: string; p_user_id: string }
+        Returns: { code: string; executes_at: string | null; ok: boolean; reset_id: string | null }[]
+      }
+      support_factor_reset_done: { Args: { p_factors_removed?: number; p_reset_id: string }; Returns: boolean }
+      support_factor_reset_failed: { Args: { p_error: string; p_reset_id: string }; Returns: boolean }
       get_support_accounts: {
         Args: never
         Returns: {

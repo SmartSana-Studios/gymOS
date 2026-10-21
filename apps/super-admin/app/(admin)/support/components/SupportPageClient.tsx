@@ -13,9 +13,11 @@ import {
   sendSupportInvite,
   type SupportAccountRow,
   type SupportAssignmentRow,
+  type SupportLifecycleRow,
   type SupportLockRow,
 } from "../actions";
 import { REASON_MAX, REASON_MIN, SupportAssignmentsPanel } from "./SupportAssignmentsPanel";
+import { SupportLifecyclePanel } from "./SupportLifecyclePanel";
 import { SupportLocksPanel } from "./SupportLocksPanel";
 
 /** Story 23.4: GymOS support accounts (names and addresses are visible here only). Create, then send the invite. */
@@ -24,12 +26,15 @@ export function SupportPageClient({
   assignments,
   gyms,
   locks = [],
+  lifecycle = [],
 }: {
   initialAccounts: SupportAccountRow[];
   assignments: SupportAssignmentRow[];
   gyms: { id: string; name: string }[];
   /** Story 23.10: accounts locked by a safety limit, waiting for a Super Admin review. */
   locks?: SupportLockRow[];
+  /** Story 23.11: recertification, reset and contact state per activated person. */
+  lifecycle?: SupportLifecycleRow[];
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -72,6 +77,9 @@ export function SupportPageClient({
       router.refresh();
     });
   }
+
+  // Story 23.11: after an executed authenticator reset the person is re-invited from the same table
+  const resetExecuted = new Set(lifecycle.filter((l) => l.resetState === "executed").map((l) => l.userId));
 
   function inviteLabel(row: SupportAccountRow): string {
     if (row.inviteState === "pending" && row.inviteExpiresAt) {
@@ -135,7 +143,7 @@ export function SupportPageClient({
                   </td>
                   <td className="py-2 pr-4">{inviteLabel(row)}</td>
                   <td className="py-2 pr-3">
-                    {!row.activated && row.inviteState !== "deactivated" && (
+                    {(!row.activated || resetExecuted.has(row.userId)) && row.inviteState !== "deactivated" && (
                       <Button size="sm" variant="outline" disabled={pending} onClick={() => invite(row.userId)}>
                         {row.inviteState === "none" ? t("support.actions.sendInvite") : t("support.actions.resendInvite")}
                       </Button>
@@ -159,6 +167,8 @@ export function SupportPageClient({
       )}
 
       <SupportAssignmentsPanel assignments={assignments} accounts={initialAccounts} gyms={gyms} reason={reason} onMessage={setMessage} />
+
+      <SupportLifecyclePanel rows={lifecycle} reason={reason} onMessage={setMessage} />
 
       <SupportLocksPanel locks={locks} reason={reason} onMessage={setMessage} />
     </div>

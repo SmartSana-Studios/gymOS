@@ -1529,5 +1529,12 @@
     "enrollRetry": "We could not show the QR code. Please try again.",
     "codeWrong": "That code was not accepted. Try the current code.",
     "signIn": "Go to sign in"
+  },
+  "supportResetCancel": {
+    "title": "Cancel authenticator reset",
+    "body": "A reset of your GymOS support authenticator is scheduled. If you did not ask for it, cancel it now.",
+    "confirm": "Cancel the reset",
+    "done": "The reset was cancelled. Your authenticator is unchanged. Your sessions stay ended, so sign in again.",
+    "invalid": "This link is invalid, expired or already used."
   }
 }

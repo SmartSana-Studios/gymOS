@@ -161,3 +161,20 @@ export async function verifyTotpAndActivate(
     await endSession(client);
   }
 }
+
+/**
+ * Story 23.11: the person cancels a pending authenticator reset from the link in their e-mail. The link token is the only credential
+ * (single use, hashed, valid only inside the cooling-off window); every failure of any kind answers the same `{ ok: false }`.
+ */
+export type CancelResetResult = { ok: boolean };
+
+export async function cancelFactorReset(token: unknown, deps: Pick<InviteDeps, "admin"> = { admin: createAdminClient() }): Promise<CancelResetResult> {
+  try {
+    if (typeof token !== "string" || token.length < 32 || token.length > 200 || !/^[0-9A-Za-z_-]+$/.test(token)) return { ok: false };
+    const { data, error } = await deps.admin.rpc("cancel_support_factor_reset", { p_token: token });
+    const row = Array.isArray(data) ? data[0] : null;
+    return { ok: !error && row?.ok === true };
+  } catch {
+    return { ok: false };
+  }
+}

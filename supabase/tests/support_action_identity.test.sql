@@ -383,7 +383,10 @@ insert into identity_none (col, reason) values
   ('members.user_id',                            'membership owner'),
   ('private.support_accounts.user_id',           'the support account itself'),
   ('support_assignments.support_user_id',        'the assigned person'),
-  ('private.support_invites.user_id',            'the invited person');
+  ('private.support_invites.user_id',            'the invited person'),
+  ('private.support_factor_resets.started_by',   'Super Admin starts a reset (23.11); never gym visible'),
+  ('private.support_factor_resets.user_id',      'the person whose authenticator is reset'),
+  ('private.support_last_active.user_id',        'the person''s own last activity (23.11)');
 create or replace function pg_temp.user_fk_cols() returns setof text language sql as $f$
   select c.conrelid::regclass::text || '.' || a.attname
     from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any (c.conkey)

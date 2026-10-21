@@ -1529,5 +1529,12 @@
     "enrollRetry": "Nous n'avons pas pu afficher le code QR. Veuillez réessayer.",
     "codeWrong": "Ce code n'a pas été accepté. Essayez le code actuel.",
     "signIn": "Aller à la connexion"
+  },
+  "supportResetCancel": {
+    "title": "Annuler la réinitialisation de l'authentificateur",
+    "body": "Une réinitialisation de votre authentificateur GymOS support est programmée. Si vous ne l'avez pas demandée, annulez-la maintenant.",
+    "confirm": "Annuler la réinitialisation",
+    "done": "La réinitialisation a été annulée. Votre authentificateur est inchangé. Vos sessions restent fermées : reconnectez-vous.",
+    "invalid": "Ce lien est invalide, expiré ou déjà utilisé."
   }
 }

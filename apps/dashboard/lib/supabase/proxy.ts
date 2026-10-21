@@ -74,7 +74,10 @@ export async function updateSession(request: NextRequest) {
     // Story 23.4: the support invitee has no session yet; the single-use link token is the credential and every step
     // re-checks it in the database (services/supportInvite.ts). Exact path or a child, not a prefix match on other routes.
     request.nextUrl.pathname !== "/support-invite" &&
-    !request.nextUrl.pathname.startsWith("/support-invite/")
+    !request.nextUrl.pathname.startsWith("/support-invite/") &&
+    // Story 23.11: the cancel link of a support authenticator reset, opened by a person who has just lost access (same reasoning).
+    request.nextUrl.pathname !== "/support-reset-cancel" &&
+    !request.nextUrl.pathname.startsWith("/support-reset-cancel/")
   ) {
     // `/` is AD-02 Overview (protected, Receptionist+) -- not the starter's
     // public marketing page anymore, so it is deliberately no longer

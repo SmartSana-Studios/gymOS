@@ -18,8 +18,14 @@ describe("updateSession for a signed-out request", () => {
     expect(res.headers.get("location")).toBeNull();
   });
 
+  it("lets the support factor-reset executor route through without a redirect (Story 23.11)", async () => {
+    const res = await call("/api/support-factor-reset/execute");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("location")).toBeNull();
+  });
+
   it("still redirects a neighbouring path to the login page", async () => {
-    for (const path of ["/api/email-outbox/other", "/api/email-outbox/drain/extra", "/gyms"]) {
+    for (const path of ["/api/email-outbox/other", "/api/email-outbox/drain/extra", "/api/support-factor-reset/other", "/api/support-factor-reset/execute/extra", "/gyms"]) {
       const res = await call(path);
       expect(res.status).toBe(307);
       expect(res.headers.get("location")).toContain("/auth/login");

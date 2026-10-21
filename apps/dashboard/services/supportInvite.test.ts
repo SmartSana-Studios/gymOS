@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => ({}) }));
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { beginTotpEnrollment, inspectInvite, setInvitePassword, verifyTotpAndActivate, type InviteDeps } from "./supportInvite";
+import { beginTotpEnrollment, cancelFactorReset, inspectInvite, setInvitePassword, verifyTotpAndActivate, type InviteDeps } from "./supportInvite";
 
 const TOKEN = "00000000-0000-4000-8000-000000000001." + "a".repeat(64);
 const PASSWORD = "correct horse battery staple";
@@ -159,5 +159,30 @@ describe("TOTP enrolment bound to the invite", () => {
     const m = makeDeps({ inspect: totpInspect });
     expect(await verifyTotpAndActivate(TOKEN, FACTOR, "12ab56", PASSWORD, m.deps)).toEqual({ ok: false, canRetry: true });
     expect(m.challengeAndVerify).not.toHaveBeenCalled();
+  });
+});
+
+describe("cancelFactorReset (Story 23.11)", () => {
+  const CANCEL = "c".repeat(64);
+  const depsWith = (rpc: (name: string, args: unknown) => Promise<{ data: unknown; error: unknown }>) => ({ admin: { rpc: vi.fn(rpc) } as unknown as SupabaseClient });
+
+  it("cancels with a well-formed token and reports ok", async () => {
+    const deps = depsWith(async () => ({ data: [{ ok: true }], error: null }));
+    expect(await cancelFactorReset(CANCEL, deps)).toEqual({ ok: true });
+    expect(deps.admin.rpc).toHaveBeenCalledWith("cancel_support_factor_reset", { p_token: CANCEL });
+  });
+
+  it("every failure is the same plain answer: unknown or used link, database error, thrown error", async () => {
+    expect(await cancelFactorReset(CANCEL, depsWith(async () => ({ data: [{ ok: false }], error: null })))).toEqual({ ok: false });
+    expect(await cancelFactorReset(CANCEL, depsWith(async () => ({ data: null, error: { message: "boom" } })))).toEqual({ ok: false });
+    expect(await cancelFactorReset(CANCEL, depsWith(async () => { throw new Error("down"); }))).toEqual({ ok: false });
+  });
+
+  it("a malformed token never reaches the database", async () => {
+    const deps = depsWith(async () => ({ data: [{ ok: true }], error: null }));
+    for (const bad of [undefined, "", "short", "x".repeat(300), "a b".repeat(20), 42]) {
+      expect(await cancelFactorReset(bad, deps)).toEqual({ ok: false });
+    }
+    expect(deps.admin.rpc).not.toHaveBeenCalled();
   });
 });

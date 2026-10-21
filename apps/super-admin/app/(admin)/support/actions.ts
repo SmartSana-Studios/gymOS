@@ -3,6 +3,9 @@
 import type { AppError } from "@gymos/types";
 
 import { authorizeOrRedirect } from "@/lib/authz-action";
+import { consumeStepUp, STEP_UP_REQUIRED_CODE } from "@/lib/authz";
+import { drainEmailOutbox } from "@/lib/email-outbox";
+import { executeDueFactorResets, generateResetCancelToken, supportResetCancelLink, type ResetExecutorClient } from "@/lib/support-reset";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapAndLog } from "@/services/gyms";
@@ -480,4 +483,182 @@ export async function unlockSupportAccount(input: unknown): Promise<SupportOutco
   const raw = (input ?? {}) as { userId?: unknown; reason?: unknown };
   if (!isUuid(raw.userId) || typeof raw.reason !== "string") return badInput(t);
   return runSupportFunction("unlock_support_account", { p_user_id: raw.userId, p_reason: raw.reason });
+}
+
+// ---------------------------------------------------------------------------
+// Story 23.11 (0145): recertification, authenticator reset and contact changes. Super Admin at aal2 only; the database re-checks.
+// ---------------------------------------------------------------------------
+
+export interface SupportLifecycleRow {
+  userId: string;
+  displayName: string | null;
+  email: string | null;
+  activated: boolean;
+  deactivated: boolean;
+  lockedAt: string | null;
+  lockedReason: string | null;
+  recertifyDueAt: string | null;
+  recertificationLapsed: boolean;
+  resetPendingAt: string | null;
+  /** cooling_off | due | executing | executed, or null when no reset is open. */
+  resetState: string | null;
+  resetExecutesAt: string | null;
+  lastActiveAt: string | null;
+}
+
+export async function listSupportLifecycle(): Promise<{ data: SupportLifecycleRow[] | null; error: AppError | null }> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_support_lifecycle");
+  if (error) return { data: null, error: await mapAndLog(error) };
+  return {
+    data: (data ?? []).map((r: NonNullable<typeof data>[number]) => ({
+      userId: r.user_id,
+      displayName: r.display_name,
+      email: r.email,
+      activated: r.activated,
+      deactivated: r.deactivated,
+      lockedAt: r.locked_at,
+      lockedReason: r.locked_reason,
+      recertifyDueAt: r.recertify_due_at,
+      recertificationLapsed: r.recertification_lapsed,
+      resetPendingAt: r.reset_pending_at,
+      resetState: r.reset_state,
+      resetExecutesAt: r.reset_executes_at,
+      lastActiveAt: r.last_active_at,
+    })),
+    error: null,
+  };
+}
+
+/** Recertifies one person (a reason is mandatory). The database moves the due date, restores suspended assignments and audits it. */
+export async function recertifySupportAccount(input: unknown): Promise<SupportOutcome> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const raw = (input ?? {}) as { userId?: unknown; reason?: unknown };
+  if (!isUuid(raw.userId) || typeof raw.reason !== "string") return badInput(t);
+  return runSupportFunction("recertify_support_account", { p_user_id: raw.userId, p_reason: raw.reason });
+}
+
+/**
+ * Starts an authenticator reset: a fresh step-up code bound to this person, then the database (sessions ended, cooling-off, frozen
+ * contact, cancel link e-mailed to the address on file). The token is made here; only its hash is stored. The e-mail is delivered at once
+ * through the outbox worker (the daily run is the fallback).
+ */
+export async function startSupportFactorReset(
+  input: unknown,
+): Promise<{ data: { executesAt: string } | null; error: AppError | null }> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const raw = (input ?? {}) as { userId?: unknown; identityNote?: unknown };
+  if (!isUuid(raw.userId) || typeof raw.identityNote !== "string") {
+    return { data: null, error: { code: "validation_error", message: t("support.errors.refused") } };
+  }
+  const note = raw.identityNote.trim();
+  if (note.length < 3 || note.length > 500) {
+    return { data: null, error: { code: "reason_invalid", message: t("support.codes.reason_invalid") } };
+  }
+  const origin = dashboardBaseUrl();
+  if (!origin) return { data: null, error: { code: "not_configured", message: t("support.errors.notConfigured") } };
+
+  if (!(await consumeStepUp(authz.actorId, "start_support_factor_reset", raw.userId))) {
+    return { data: null, error: { code: STEP_UP_REQUIRED_CODE, message: t("stepUp.title") } };
+  }
+
+  const token = generateResetCancelToken();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("start_support_factor_reset", {
+    p_user_id: raw.userId,
+    p_identity_note: note,
+    p_cancel_token: token,
+    p_cancel_link: supportResetCancelLink(origin, token),
+  });
+  if (error) return { data: null, error: await mapAndLog(error) };
+  const row = (data ?? [])[0];
+  if (!row) return { data: null, error: { code: "support_refused", message: t("support.errors.refused") } };
+  if (!row.ok) {
+    return { data: null, error: { code: row.code, message: t(`support.codes.${row.code}`, { defaultValue: t("support.errors.refused") }) } };
+  }
+
+  // deliver the person's e-mail now (best effort: the daily run retries a failure)
+  try {
+    await drainEmailOutbox(createAdminClient(), sendMail);
+  } catch {
+    console.error("[startSupportFactorReset] immediate e-mail delivery failed; the daily run will retry");
+  }
+  return { data: { executesAt: row.executes_at ?? "" }, error: null };
+}
+
+/** Runs the executor now (the same function the daily cron calls) for resets whose cooling-off has ended. */
+export async function runDueFactorResets(): Promise<{ data: { claimed: number; done: number; failed: number } | null; error: AppError | null }> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  try {
+    const result = await executeDueFactorResets(createAdminClient() as unknown as ResetExecutorClient, sendMail, dashboardBaseUrl());
+    if (result.error) return { data: null, error: { code: result.error, message: t("support.errors.notConfigured") } };
+    return { data: { claimed: result.claimed, done: result.done, failed: result.failed }, error: null };
+  } catch {
+    return { data: null, error: { code: "execute_failed", message: t("support.errors.refused") } };
+  }
+}
+
+/**
+ * The only path for a support person's address. The database validates and records it (aal2, reason, refused during a reset, audited);
+ * this action then applies it to the auth user and, if that fails, records the previous address again so the nightly drift check does
+ * not lock a healthy account. Support accounts keep no phone (the database answers phone_not_allowed).
+ */
+export async function changeSupportContact(input: unknown): Promise<SupportOutcome> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const raw = (input ?? {}) as { userId?: unknown; email?: unknown; phone?: unknown; reason?: unknown };
+  if (!isUuid(raw.userId) || typeof raw.email !== "string" || typeof raw.reason !== "string" || (raw.phone !== undefined && typeof raw.phone !== "string")) {
+    return badInput(t);
+  }
+  const email = raw.email.trim().toLowerCase();
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("change_support_contact", {
+    p_user_id: raw.userId,
+    p_email: email,
+    p_phone: (raw.phone as string | undefined) || null,
+    p_reason: raw.reason,
+  });
+  if (error) return { data: null, error: await mapAndLog(error) };
+  const row = (data ?? [])[0];
+  if (!row) return { data: null, error: { code: "support_refused", message: t("support.errors.refused") } };
+  if (!row.ok) {
+    return { data: null, error: { code: row.code, message: t(`support.codes.${row.code}`, { defaultValue: t("support.errors.refused") }) } };
+  }
+
+  let applied = false;
+  try {
+    const { error: updateError } = await createAdminClient().auth.admin.updateUserById(raw.userId, { email, email_confirm: true, phone: "" });
+    applied = !updateError;
+  } catch {
+    applied = false;
+  }
+  if (!applied) {
+    if (row.previous_email) {
+      // put the record back (audited like any change) so record and auth agree again
+      let reverted = false;
+      try {
+        const { data: back, error: backError } = await supabase.rpc("change_support_contact", {
+          p_user_id: raw.userId,
+          p_email: row.previous_email,
+          p_phone: null,
+          p_reason: "automatic revert: the new address could not be applied",
+        });
+        reverted = !backError && (back ?? [])[0]?.ok === true;
+      } catch {
+        reverted = false;
+      }
+      if (!reverted) return { data: null, error: { code: "contact_revert_failed", message: t("support.errors.contactRevertFailed") } };
+    }
+    return { data: null, error: { code: "contact_apply_failed", message: t("support.errors.contactApplyFailed") } };
+  }
+  return { data: { code: "changed", assignmentId: null }, error: null };
 }

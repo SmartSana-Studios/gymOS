@@ -6,6 +6,7 @@
 --                   (the workflow runs hourly, so each failure is reported once or twice).
 --  * not running  : a known job whose latest run is older than its allowed gap, or that never ran.
 --                   Frequent jobs (15 min / 5 min cadence) get 45 minutes; the daily jobs get 27 hours.
+--                   support_factor_reset_executor is the Super Admin app's daily Vercel Cron run (it writes a row even when it had nothing to do).
 -- A job name missing from `expected` is still covered for failures but not for "not running":
 -- add new cron jobs here when they ship.
 with expected(job_name, max_gap) as (
@@ -17,6 +18,10 @@ with expected(job_name, max_gap) as (
     ('payment_reconciliation',     interval '27 hours'),
     ('payment_connection_cleanup', interval '27 hours'),
     ('support_activity_digest',    interval '27 hours'),
+    ('support_inactivity_sweep',   interval '27 hours'),
+    ('support_contact_drift_check', interval '27 hours'),
+    ('support_factor_reset_due',   interval '45 minutes'),
+    ('support_factor_reset_executor', interval '27 hours'),
     ('saas_billing_lifecycle',     interval '27 hours'),
     ('subscription_lifecycle',     interval '27 hours'),
     ('loyalty_sweep',              interval '27 hours'),

@@ -328,15 +328,15 @@ select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') 
           'every assignment writer takes the per-gym lock');
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
             where p.prokind = 'f' and p.prosrc ~* '(insert\s+into|update|delete\s+from)\s+(only\s+)?(public\.)?support_assignments\M'),
-          array['assign_support', 'confirm_support_assignment', 'deactivate_support_account', 'remove_support_account', 'set_allow_gymos_support', 'unassign_support'],
+          array['assign_support', 'confirm_support_assignment', 'deactivate_support_account', 'remove_support_account', 'set_allow_gymos_support', 'support_restore_assignments', 'unassign_support'],
           'only the listed functions write support_assignments (an unlisted writer fails here)');
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
             where p.prokind = 'f' and p.prosrc ~* '(insert\s+into|update|delete\s+from)\s+(only\s+)?private\.support_accounts\M'),
-          array['activate_support_account', 'create_support_account', 'deactivate_support_account', 'remove_support_account', 'support_lock_account', 'unlock_support_account'],
+          array['activate_support_account', 'cancel_support_factor_reset', 'change_support_contact', 'create_support_account', 'deactivate_support_account', 'recertify_support_account', 'remove_support_account', 'start_support_factor_reset', 'support_lock_account', 'unlock_support_account'],
           'only the listed functions write private.support_accounts');
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
             where p.prokind = 'f' and p.prosrc ~* 'support_set_membership\('),
-          array['assign_support', 'confirm_support_assignment', 'deactivate_support_account', 'set_allow_gymos_support', 'unassign_support'],
+          array['assign_support', 'confirm_support_assignment', 'deactivate_support_account', 'set_allow_gymos_support', 'support_restore_assignments', 'unassign_support'],
           'only the listed functions call the support membership writer');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace
             and p.proname in ('assign_support', 'confirm_support_assignment', 'unassign_support', 'deactivate_support_account', 'remove_support_account', 'get_support_assignments')

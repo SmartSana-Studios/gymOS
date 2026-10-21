@@ -14,6 +14,12 @@ vi.mock("@/lib/authz-action", () => ({
     allowed ? { ok: true, actorId: "sa-1" } : { ok: false, error: { code: "permission_denied", message: "denied" }, reason: "x" },
   ),
 }));
+let stepUpOk = true;
+const consumeStepUp = vi.fn(async () => stepUpOk);
+vi.mock("@/lib/authz", () => ({
+  STEP_UP_REQUIRED_CODE: "step_up_required",
+  consumeStepUp: (...a: unknown[]) => (consumeStepUp as (...x: unknown[]) => Promise<boolean>)(...a),
+}));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({ rpc: (...a: unknown[]) => rpc(...a) })) }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({ rpc: (...a: unknown[]) => adminRpc(...a), auth: { admin: { createUser, deleteUser, getUserById, signOut: async () => ({}), get updateUserById() { return authAdmin.updateUserById; } } } }),
@@ -33,6 +39,8 @@ beforeEach(() => {
   deleteUser.mockReset();
   getUserById.mockReset();
   sendMail.mockReset();
+  consumeStepUp.mockClear();
+  stepUpOk = true;
   process.env.DASHBOARD_APP_URL = "https://owner.gymosapps.com";
 });
 
@@ -342,5 +350,97 @@ describe("Story 23.10 locks", () => {
     expect((await unlockSupportAccount({ userId: "x", reason: "valid reason" })).error?.code).toBe("validation_error");
     expect((await unlockSupportAccount({ userId: LUID })).error?.code).toBe("validation_error");
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("Story 23.11: recertify, factor reset and contact change", () => {
+  it("recertify runs as the Super Admin's own session and maps a refusal", async () => {
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "recertified", assignment_id: null }], error: null });
+    const { recertifySupportAccount } = await import("./actions");
+    expect((await recertifySupportAccount({ userId: UID, reason: "quarterly review" })).data).toEqual({ code: "recertified", assignmentId: null });
+    expect(rpc).toHaveBeenCalledWith("recertify_support_account", { p_user_id: UID, p_reason: "quarterly review" });
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "reason_invalid", assignment_id: null }], error: null });
+    expect((await recertifySupportAccount({ userId: UID, reason: "" })).error?.code).toBe("reason_invalid");
+    allowed = false;
+    expect((await recertifySupportAccount({ userId: UID, reason: "quarterly review" })).error?.code).toBe("permission_denied");
+  });
+
+  it("reset: a denied caller, a bad note or a missing step-up never reaches the database", async () => {
+    const { startSupportFactorReset } = await import("./actions");
+    allowed = false;
+    expect((await startSupportFactorReset({ userId: UID, identityNote: "called back" })).error?.code).toBe("permission_denied");
+    allowed = true;
+    expect((await startSupportFactorReset({ userId: UID, identityNote: " " })).error?.code).toBe("reason_invalid");
+    stepUpOk = false;
+    const res = await startSupportFactorReset({ userId: UID, identityNote: "called back" });
+    expect(res.error?.code).toBe("step_up_required");
+    expect(consumeStepUp).toHaveBeenCalledWith("sa-1", "start_support_factor_reset", UID);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("reset: sends only the hash-side facts (a 64-hex token and a link on the configured origin), then delivers the e-mail at once", async () => {
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "started", reset_id: "r1", executes_at: "2026-10-21T12:30:00Z" }], error: null });
+    adminRpc.mockResolvedValue({ data: [], error: null });
+    const { startSupportFactorReset } = await import("./actions");
+    const res = await startSupportFactorReset({ userId: UID, identityNote: "called back on the number on file" });
+    expect(res.data).toEqual({ executesAt: "2026-10-21T12:30:00Z" });
+    const [name, args] = rpc.mock.calls[0] as [string, { p_cancel_token: string; p_cancel_link: string; p_identity_note: string }];
+    expect(name).toBe("start_support_factor_reset");
+    expect(args.p_cancel_token).toMatch(/^[0-9a-f]{64}$/);
+    expect(args.p_cancel_link).toBe(`https://owner.gymosapps.com/support-reset-cancel?t=${args.p_cancel_token}`);
+    expect(adminRpc).toHaveBeenCalledWith("claim_email_outbox", expect.anything());
+  });
+
+  it("reset: a database refusal is a typed error, not a success", async () => {
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "already_pending", reset_id: null, executes_at: null }], error: null });
+    const { startSupportFactorReset } = await import("./actions");
+    expect((await startSupportFactorReset({ userId: UID, identityNote: "called back" })).error?.code).toBe("already_pending");
+  });
+
+  it("contact change: records, applies to the auth user, and puts the record back if applying fails", async () => {
+    authAdmin.updateUserById = vi.fn(async () => ({ error: null }));
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "changed", previous_email: "old@gymosapps.com" }], error: null });
+    const { changeSupportContact } = await import("./actions");
+    expect((await changeSupportContact({ userId: UID, email: " New@GymOSApps.com ", reason: "name change" })).data?.code).toBe("changed");
+    expect(rpc).toHaveBeenCalledWith("change_support_contact", { p_user_id: UID, p_email: "new@gymosapps.com", p_phone: null, p_reason: "name change" });
+    expect(authAdmin.updateUserById).toHaveBeenCalledWith(UID, { email: "new@gymosapps.com", email_confirm: true, phone: "" });
+
+    rpc.mockReset();
+    authAdmin.updateUserById = vi.fn(async () => ({ error: { message: "x" } }));
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "changed", previous_email: "old@gymosapps.com" }], error: null });
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "changed", previous_email: "new@gymosapps.com" }], error: null });
+    const failed = await changeSupportContact({ userId: UID, email: "new@gymosapps.com", reason: "name change" });
+    expect(failed.error?.code).toBe("contact_apply_failed");
+    expect(rpc).toHaveBeenLastCalledWith("change_support_contact", expect.objectContaining({ p_email: "old@gymosapps.com" }));
+  });
+
+  it("contact change: if the revert itself fails the outcome says so (contact_revert_failed), not a clean revert", async () => {
+    authAdmin.updateUserById = vi.fn(async () => ({ error: { message: "x" } }));
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "changed", previous_email: "old@gymosapps.com" }], error: null });
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "reset_in_progress", previous_email: "new@gymosapps.com" }], error: null });
+    const { changeSupportContact } = await import("./actions");
+    expect((await changeSupportContact({ userId: UID, email: "new@gymosapps.com", reason: "name change" })).error?.code).toBe("contact_revert_failed");
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "changed", previous_email: "old@gymosapps.com" }], error: null });
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "down" } });
+    expect((await changeSupportContact({ userId: UID, email: "new@gymosapps.com", reason: "name change" })).error?.code).toBe("contact_revert_failed");
+  });
+
+  it("contact change: also clears a stray phone on the auth user (the way back from a phone drift lock)", async () => {
+    authAdmin.updateUserById = vi.fn(async () => ({ error: null }));
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "changed", previous_email: "same@gymosapps.com" }], error: null });
+    const { changeSupportContact } = await import("./actions");
+    await changeSupportContact({ userId: UID, email: "same@gymosapps.com", reason: "stray phone removed" });
+    expect(authAdmin.updateUserById).toHaveBeenCalledWith(UID, expect.objectContaining({ phone: "" }));
+  });
+
+  it("contact change: a database refusal (reset in progress, phone) never touches the auth user", async () => {
+    authAdmin.updateUserById = vi.fn();
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "reset_in_progress", previous_email: "old@gymosapps.com" }], error: null });
+    const { changeSupportContact } = await import("./actions");
+    expect((await changeSupportContact({ userId: UID, email: "new@gymosapps.com", reason: "name change" })).error?.code).toBe("reset_in_progress");
+    expect(authAdmin.updateUserById).not.toHaveBeenCalled();
+    allowed = false;
+    expect((await changeSupportContact({ userId: UID, email: "new@gymosapps.com", reason: "name change" })).error?.code).toBe("permission_denied");
   });
 });
