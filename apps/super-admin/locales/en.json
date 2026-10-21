@@ -14,6 +14,7 @@
     "messaging": "Messaging",
     "billing": "Billing",
     "admins": "Admins",
+    "support": "GymOS support",
     "security": "Security",
     "switchToLightTheme": "Switch to light theme",
     "switchToDarkTheme": "Switch to dark theme",
@@ -525,5 +526,49 @@
     "done": "Recovery cancelled. Nothing was changed.",
     "invalid": "This link is invalid or was already used.",
     "home": "Back to sign in"
+  },
+  "support": {
+    "title": "GymOS support",
+    "empty": "No support accounts yet.",
+    "create": {
+      "name": "Name",
+      "email": "GymOS email",
+      "submit": "Create account",
+      "hint": "The address must be a @gymosapps.com mailbox that already exists. The account is created inactive; send the invite so the person can set a password and an authenticator."
+    },
+    "columns": {
+      "name": "Name",
+      "email": "Email",
+      "state": "State",
+      "invite": "Invite",
+      "actions": "Actions"
+    },
+    "state": {
+      "active": "Active",
+      "inactive": "Not activated",
+      "assignable": "assignable"
+    },
+    "invite": {
+      "none": "No invite sent",
+      "pending": "Valid until {{when}}",
+      "expired": "Expired",
+      "used": "Used",
+      "dead": "Replaced or locked"
+    },
+    "actions": {
+      "sendInvite": "Send invite",
+      "resendInvite": "Send a new invite"
+    },
+    "toast": {
+      "created": "Support account created. Send the invite when ready.",
+      "inviteSent": "Invite emailed."
+    },
+    "errors": {
+      "refused": "This account could not be created or invited.",
+      "nameRequired": "Enter a name (up to 100 characters).",
+      "domain": "Use an @gymosapps.com address.",
+      "notConfigured": "The dashboard address is not configured, so no invite link can be built.",
+      "mailFailed": "The invite was issued but the email could not be sent. Send a new invite to try again."
+    }
   }
 }

@@ -1,0 +1,30 @@
+"use server";
+
+import {
+  beginTotpEnrollment,
+  inspectInvite,
+  setInvitePassword,
+  verifyTotpAndActivate,
+  type EnrollResult,
+  type InspectResult,
+  type PasswordResult,
+  type VerifyResult,
+} from "@/services/supportInvite";
+
+// Public by design (the invite link is the credential; see services/supportInvite.ts). Each action re-checks the invite.
+
+export async function inspectSupportInvite(token: string): Promise<InspectResult> {
+  return inspectInvite(token);
+}
+
+export async function setSupportInvitePassword(token: string, password: string): Promise<PasswordResult> {
+  return setInvitePassword(token, password);
+}
+
+export async function beginSupportTotp(token: string): Promise<EnrollResult> {
+  return beginTotpEnrollment(token);
+}
+
+export async function verifySupportTotp(token: string, factorId: string, code: string): Promise<VerifyResult> {
+  return verifyTotpAndActivate(token, factorId, code);
+}

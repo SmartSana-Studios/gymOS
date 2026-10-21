@@ -57,8 +57,8 @@ select is((select reason from public.authorize_action(null, null, 'platform.admi
 -- ---- pin the set: adding a platform capability must come with a test here ------------------------------------------------------
 select is((select array_agg(m[1] order by m[1])
              from regexp_matches(pg_get_functiondef('private.capability_roles(text)'::regprocedure), '''(platform\.[a-z_]+)''', 'g') as m),
-  array['platform.admin_access', 'platform.billing_retry', 'platform.gym_create', 'platform.super_admin_manage'],
-  'the platform capabilities in capability_roles are exactly the four covered here');
+  array['platform.admin_access', 'platform.billing_retry', 'platform.gym_create', 'platform.super_admin_manage', 'platform.support_manage'],
+  'the platform capabilities in capability_roles are exactly the five covered here (platform.support_manage: support_account_invite.test.sql)');
 select is((select string_agg(cap || '=' || private.capability_roles(cap)::text, ', ' order by cap)
              from unnest(array['platform.admin_access', 'platform.billing_retry', 'platform.gym_create', 'platform.super_admin_manage']) as cap),
   'platform.admin_access={super_admin}, platform.billing_retry={super_admin}, platform.gym_create={super_admin}, platform.super_admin_manage={super_admin}',

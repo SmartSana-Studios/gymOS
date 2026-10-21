@@ -10,7 +10,8 @@ export type PlatformCapability =
   | "platform.admin_access"
   | "platform.gym_create"
   | "platform.billing_retry"
-  | "platform.super_admin_manage";
+  | "platform.super_admin_manage"
+  | "platform.support_manage";
 
 export type AuthorizeResult =
   | { ok: true; actorId: string }

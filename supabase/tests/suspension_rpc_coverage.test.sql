@@ -122,6 +122,7 @@ values
   ('private', 'session_gate_touch',     'Idle/age/lock check on every request; also records the lock. Must run for a suspended gym too (0127)'),
   ('private', 'stepup_record_failure',  'Records a failed step-up code (and the lock it can trigger); gating it would let a suspended gym bypass the lockout (0127)'),
   ('private', 'recovery_audit',         'Audit writer for Super Admin recovery (no gym; platform-level), service_role only (0128)'),
+  ('private', 'support_audit',          'Audit writer for support account invite steps (no gym; platform-level), service_role only (0138)'),
 
   -- Epic 23: the only writer of a support membership. Service_role only; it must be able to remove support access from a suspended gym.
   -- A suspended gym already denies live support through private.support_live (gym status leg), so gating the writer adds nothing.

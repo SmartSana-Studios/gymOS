@@ -380,7 +380,7 @@ select is((select count(*)::int from pg_constraint where pg_get_constraintdef(oi
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.prosrc like '%''support''%'),
           array['public.create_staff_member', 'private.current_member_role', 'public.custom_access_token_hook', 'private.guard_support_membership', 'private.gym_id',
-                'public.gym_member_count', 'public.list_own_active_gym_memberships', 'public.platform_metrics', 'private.support_gym_id', 'private.support_set_membership', 'public.switch_active_gym']::text[],
+                'public.gym_member_count', 'public.list_own_active_gym_memberships', 'public.platform_metrics', 'private.support_email_collision', 'private.support_gym_id', 'private.support_set_membership', 'public.switch_active_gym']::text[],
           'only the expected functions mention the support role');
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
@@ -393,8 +393,9 @@ select is((select count(*)::int from pg_policies where coalesce(qual, '') || coa
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
               and p.prosrc ~ 'support_assignments|support_accounts'),
-          array['public.custom_access_token_hook', 'public.get_gymos_support_status', 'private.guard_support_membership', 'public.list_own_active_gym_memberships', 'private.session_gate_touch',
-                'public.set_allow_gymos_support', 'private.support_live', 'private.support_set_membership', 'public.switch_active_gym']::text[],
+          array['public.activate_support_account', 'public.create_support_account', 'public.custom_access_token_hook', 'public.get_gymos_support_status', 'public.get_support_accounts',
+                'private.guard_support_membership', 'public.issue_support_invite', 'public.list_own_active_gym_memberships', 'private.session_gate_touch',
+                'public.set_allow_gymos_support', 'public.support_invite_inspect', 'private.support_live', 'private.support_set_membership', 'public.switch_active_gym']::text[],
           'readers of the assignment tables are exactly the expected functions (a new reader must be added here deliberately)');
 
 select * from finish();

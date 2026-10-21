@@ -58,6 +58,10 @@ describe("a denied gate stops every gated Server Action before any work", () => 
   add("updateLanguagePreference", () => import("./actions"), "updateLanguagePreference", ["fr"]);
   add("updateMessagingInstance", () => import("./messaging/actions"), "updateMessagingInstance", [{}]);
   add("setActivePaymentProvider", () => import("./payment-providers/actions"), "setActivePaymentProvider", [{}]);
+  const support = () => import("./support/actions");
+  add("listSupportAccounts", support, "listSupportAccounts", []);
+  add("createSupportAccount", support, "createSupportAccount", [{ displayName: "A", email: "a@gymosapps.com" }]);
+  add("sendSupportInvite", support, "sendSupportInvite", [ACTOR]);
 
   it.each(cases)("%s returns permission_denied and touches nothing when authorization is unavailable", async (_name, run) => {
     denial = "authorization_unavailable";

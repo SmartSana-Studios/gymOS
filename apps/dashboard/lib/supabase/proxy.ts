@@ -70,7 +70,11 @@ export async function updateSession(request: NextRequest) {
     // them with a 307 to /auth/login, which reads as "no privacy policy" and
     // fails review -- the page itself renders fine, so this would only ever
     // have surfaced from outside a logged-in browser session.
-    !request.nextUrl.pathname.startsWith("/privacy")
+    !request.nextUrl.pathname.startsWith("/privacy") &&
+    // Story 23.4: the support invitee has no session yet; the single-use link token is the credential and every step
+    // re-checks it in the database (services/supportInvite.ts). Exact path or a child, not a prefix match on other routes.
+    request.nextUrl.pathname !== "/support-invite" &&
+    !request.nextUrl.pathname.startsWith("/support-invite/")
   ) {
     // `/` is AD-02 Overview (protected, Receptionist+) -- not the starter's
     // public marketing page anymore, so it is deliberately no longer
