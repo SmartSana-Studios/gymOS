@@ -1863,10 +1863,12 @@ export type Database = {
           display_name: string | null
           id: string
           is_super_admin: boolean
+          is_support_proxy: boolean
           must_change_password: boolean
           phone: string | null
           photo_url: string | null
           preferred_language: string
+          support_proxy_gym_id: string | null
         }
         Insert: {
           active_gym_id?: string | null
@@ -1874,10 +1876,12 @@ export type Database = {
           display_name?: string | null
           id: string
           is_super_admin?: boolean
+          is_support_proxy?: boolean
           must_change_password?: boolean
           phone?: string | null
           photo_url?: string | null
           preferred_language?: string
+          support_proxy_gym_id?: string | null
         }
         Update: {
           active_gym_id?: string | null
@@ -1885,15 +1889,23 @@ export type Database = {
           display_name?: string | null
           id?: string
           is_super_admin?: boolean
+          is_support_proxy?: boolean
           must_change_password?: boolean
           phone?: string | null
           photo_url?: string | null
           preferred_language?: string
+          support_proxy_gym_id?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "users_active_gym_id_fkey"
             columns: ["active_gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_support_proxy_gym_id_fkey"
+            columns: ["support_proxy_gym_id"]
             referencedRelation: "gyms"
             referencedColumns: ["id"]
           },

@@ -1307,7 +1307,7 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
   evidence: 0140 opts in the database objects only. 23-6b must decide how `authorize_action` resolves a live support caller (likely a `support_capabilities`-backed branch) when it wires the request path.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
   summary: Audit rows written by an allow-listed RPC still carry the real support person as `actor_id` and `actor_display_name` (the support user's `display_name`, or "GymOS Support" when unset).
-  evidence: Proxy actor is 23-7, audit under the individual is 23-8. Do not enable support for any gym before 23-7 ships. `log_audit_event` now accepts the support gym (0140), so these rows are written today.
+  evidence: Proxy actor is 23-7, audit under the individual is 23-8. Do not enable support for any gym before 23-7 ships. `log_audit_event` now accepts the support gym (0140), so these rows are written today. CLOSED by 23-7 (2026-10-21, migration 0141): a live support caller now writes the gym proxy id and "GymOS Support"; the real individual is recorded by 23-8.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
   summary: The pre-existing policy `read gyms of own active memberships` still admits a support membership row without the live gate (it reads `members` directly).
   evidence: Gives a support person with a stale active membership read access to the gym row only (name, settings, `allow_gymos_support`). Memberships are deactivated by the writer when the switch goes off or the assignment ends, so the window is only drift. Tighten with the gym-picker work in 23-6b.
@@ -1344,3 +1344,27 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
   summary: "No support session passes the live gate until 23-6b" is prose only.
   evidence: Owner rejected a kill-switch; 23-6b must ship before support is enabled for any gym.
+
+## Deferred from: build of spec-23-7-hidden-identity-per-gym-proxy-actor (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
+  summary: Screens that show "recorded by" resolve the actor name through `members`; the proxy has no `members` row, so a support-recorded payment, refund or audit entry shows no name there until 23-8 resolves "GymOS Support". The audit rows themselves already carry `actor_display_name = 'GymOS Support'`.
+  evidence: By design (spec Never list). 23-8 also adds `support_action_identity` (the real individual, Super Admin read only). Do not enable support for any gym before 23-8 ships.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
+  summary: Super Admin and support lifecycle writers still store the real `auth.uid()` (`assign_support.created_by`, `escalate_gym_data_access`, `revoke_gym_data_access`, and the `gym_id IS NULL` audit rows of 23.4/23.5). They are named exemptions in `support_proxy_actor.test.sql`.
+  evidence: None of these is gym visible (gym_id NULL or Super Admin only). If one ever becomes gym visible it must move to `private.actor_id()`; the scan lists them so the decision is visible.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
+  summary: Deleting a gym cascades to its proxy `users` row but not to the banned `auth.users` row (no gym delete path exists today; `users.support_proxy_gym_id` is `on delete cascade`).
+  evidence: Harmless orphan (banned, no password, no identity). Clean up in whatever story adds a gym delete.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
+  summary: Direct non-support inserts into `payments` / `refunds` still accept a client-supplied `actor_id` (the trigger forces the actor only for a live support caller, per spec).
+  evidence: Pre-existing; no policy pins it. A forged actor by an Owner/Manager names a user of their own choosing. Consider pinning to `auth.uid()` for all callers in a later hardening pass.
+
+## Deferred from: code review of spec-23-7-hidden-identity-per-gym-proxy-actor (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
+  summary: Behavioral (not source-text) tests for the converted writers `connect_gym_payment_credentials`, `update_messaging_instance`, `front_desk_alerts_protect_columns` and `initiate_*`.
+  evidence: Support cannot reach them today; 23-9 must add an assertion that the stored actor is the proxy when it opens the payment connection to support.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
+  summary: Deleting a gym cascades its proxy `users` row; audit/payment FKs to `users` and the orphan banned `auth.users` row are unproven.
+  evidence: No gym-delete path with data exists today; decide before one is added.
