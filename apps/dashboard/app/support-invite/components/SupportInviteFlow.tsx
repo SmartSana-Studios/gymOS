@@ -22,6 +22,8 @@ export function SupportInviteFlow({ token, initialStep }: { token: string | null
   const { t } = useTranslation();
   const [step, setStep] = useState<Step>(token && initialStep ? initialStep : "invalid");
   const [password, setPassword] = useState("");
+  // Arriving straight at step 2 (a reload) means the password is not in memory: ask for it again.
+  const askPassword = initialStep === "totp";
   const [confirm, setConfirm] = useState("");
   const [code, setCode] = useState("");
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
@@ -34,7 +36,7 @@ export function SupportInviteFlow({ token, initialStep }: { token: string | null
   function startEnrollment() {
     startTransition(async () => {
       if (!token) return;
-      const res = await beginSupportTotp(token);
+      const res = await beginSupportTotp(token, password);
       if (!res.ok) {
         setError(t("supportInvite.enrollRetry"));
         return;
@@ -59,10 +61,10 @@ export function SupportInviteFlow({ token, initialStep }: { token: string | null
         else setStep("invalid");
         return;
       }
-      setPassword("");
+      // The password stays in memory only until activation: each step signs in again server-side to enrol and verify.
       setConfirm("");
       setStep("totp");
-      const enroll = await beginSupportTotp(token);
+      const enroll = await beginSupportTotp(token, password);
       if (!enroll.ok) {
         // The password is already saved: stay on step 2 and let the person retry the QR code.
         setError(t("supportInvite.enrollRetry"));
@@ -77,14 +79,18 @@ export function SupportInviteFlow({ token, initialStep }: { token: string | null
     setError(null);
     startTransition(async () => {
       if (!token || !enrollment) return;
-      const res = await verifySupportTotp(token, enrollment.factorId, code.trim());
+      const res = await verifySupportTotp(token, enrollment.factorId, code.trim(), password);
       if (res.ok) {
+        setPassword("");
         setStep("done");
         return;
       }
       setCode("");
       if (res.canRetry) setError(t("supportInvite.codeWrong"));
-      else setStep("invalid");
+      else {
+        setPassword("");
+        setStep("invalid");
+      }
     });
   }
 
@@ -119,8 +125,15 @@ export function SupportInviteFlow({ token, initialStep }: { token: string | null
 
           {step === "totp" && !enrollment && (
             <div className="flex flex-col gap-4">
+              {/* After a reload the password is gone from memory: ask for it again before the QR code. */}
+              {askPassword && (
+                <div className="grid gap-2">
+                  <Label htmlFor="support-password-again">{t("supportInvite.password")}</Label>
+                  <Input id="support-password-again" type="password" autoComplete="current-password" value={password} disabled={pending} onChange={(e) => setPassword(e.target.value)} />
+                </div>
+              )}
               {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
-              <Button onClick={startEnrollment} disabled={pending} className="w-full">{t("supportInvite.showQr")}</Button>
+              <Button onClick={startEnrollment} disabled={pending || !password} className="w-full">{t("supportInvite.showQr")}</Button>
             </div>
           )}
           {step === "totp" && enrollment && (

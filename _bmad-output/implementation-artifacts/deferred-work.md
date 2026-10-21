@@ -1253,7 +1253,7 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
   summary: Removing a support account (Super Admin deletes the auth user) is blocked by the `support_accounts` foreign key; no remove or re-invite-after-activation flow exists.
   evidence: 23-5 (remove) and 23-11 (factor reset reuses the invite) own it; `issue_support_invite` currently refuses an activated account.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
-  summary: Invite emails depend on MAIL_* and DASHBOARD_APP_URL being set in the Super Admin app's production environment, and on the shared Supabase project allowing the magic-link/OTP mint used for the invitee's TOTP session.
+  summary: Invite emails depend on MAIL_* and DASHBOARD_APP_URL being set in the Super Admin app's production environment.
   evidence: Check both before the Epic 23 production deploy; without DASHBOARD_APP_URL the invite action refuses (not_configured) and issues nothing.
 
 ## Deferred from: review of spec-23-4-create-support-account-and-invite (2026-10-21)

@@ -21,10 +21,10 @@ export async function setSupportInvitePassword(token: string, password: string):
   return setInvitePassword(token, password);
 }
 
-export async function beginSupportTotp(token: string): Promise<EnrollResult> {
-  return beginTotpEnrollment(token);
+export async function beginSupportTotp(token: string, password: string): Promise<EnrollResult> {
+  return beginTotpEnrollment(token, password);
 }
 
-export async function verifySupportTotp(token: string, factorId: string, code: string): Promise<VerifyResult> {
-  return verifyTotpAndActivate(token, factorId, code);
+export async function verifySupportTotp(token: string, factorId: string, code: string, password: string): Promise<VerifyResult> {
+  return verifyTotpAndActivate(token, factorId, code, password);
 }
