@@ -8,7 +8,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * and every failure of any kind returns the same `{ ok: false }` (no reason, no hint which check failed).
  *
  * TOTP enrolment runs only here (AD-38): a short-lived aal1 session is minted server-side for the invite's account
- * (never handed to the browser), used to enrol and verify the factor, and ended when the account is activated.
+ * (never handed to the browser) by an ordinary email + password sign-in with the password just set, used to enrol and verify
+ * the factor, and ended after each call (activation also ends every session). The page resends the password for each step.
  */
 
 export const SUPPORT_PASSWORD_MIN_LENGTH = 12;
@@ -81,14 +82,12 @@ export async function setInvitePassword(token: unknown, password: unknown, deps:
   }
 }
 
-/** A session for the invite's account, minted server-side from an admin-issued link. Never returned to the browser. */
-async function mintSession(deps: InviteDeps, email: string): Promise<SupabaseClient | null> {
-  const { data, error } = await deps.admin.auth.admin.generateLink({ type: "magiclink", email });
-  const hashed = data?.properties?.hashed_token;
-  if (error || !hashed) return null;
+/** A short-lived aal1 session for the invite's account: an ordinary email + password sign-in with the password the person just set. Never returned to the browser. */
+async function mintSession(deps: InviteDeps, email: string, password: unknown): Promise<SupabaseClient | null> {
+  if (typeof password !== "string" || password.length === 0 || password.length > 128) return null;
   const client = deps.anon();
-  const { data: verified, error: verifyError } = await client.auth.verifyOtp({ token_hash: hashed, type: "magiclink" });
-  if (verifyError || !verified?.session) return null;
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+  if (error || !data?.session) return null;
   return client;
 }
 
@@ -100,7 +99,7 @@ async function endSession(client: SupabaseClient | null) {
   }
 }
 
-export async function beginTotpEnrollment(token: unknown, deps: InviteDeps = defaultDeps()): Promise<EnrollResult> {
+export async function beginTotpEnrollment(token: unknown, password: unknown, deps: InviteDeps = defaultDeps()): Promise<EnrollResult> {
   let client: SupabaseClient | null = null;
   try {
     const found = await inspect(deps, token);
@@ -112,7 +111,7 @@ export async function beginTotpEnrollment(token: unknown, deps: InviteDeps = def
       await deps.admin.auth.admin.mfa.deleteFactor({ id: f.id, userId: found.userId });
     }
 
-    client = await mintSession(deps, found.email);
+    client = await mintSession(deps, found.email, password);
     if (!client) return { ok: false };
     const { data, error } = await client.auth.mfa.enroll({ factorType: "totp", friendlyName: "GymOS support" });
     if (error || !data?.id || !data.totp) return { ok: false };
@@ -128,6 +127,7 @@ export async function verifyTotpAndActivate(
   token: unknown,
   factorId: unknown,
   code: unknown,
+  password: unknown,
   deps: InviteDeps = defaultDeps(),
 ): Promise<VerifyResult> {
   let client: SupabaseClient | null = null;
@@ -138,7 +138,7 @@ export async function verifyTotpAndActivate(
       return { ok: false, canRetry: true };
     }
 
-    client = await mintSession(deps, found.email);
+    client = await mintSession(deps, found.email, password);
     if (!client) return { ok: false, canRetry: true };
     const { error } = await client.auth.mfa.challengeAndVerify({ factorId, code });
     if (error) {
