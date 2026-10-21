@@ -104,3 +104,32 @@ Restore needs a marker because `suspended` will also be reached by 23-5/23-10; o
 - `scripts/pgtap-run.sh supabase/tests/allow_gymos_support_switch.test.sql` -- expected: all ok
 - `node scripts/check-migration-guardrails.mjs` -- expected: clean
 - `scripts/ci-local.sh` -- expected: GREEN
+
+### Review Findings
+
+Round 2 (bmad-code-review, 2026-10-21; Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor).
+
+- [x] [Review][Patch] `updated_at maintained` assertion passes without the trigger (`now()` is constant in the test transaction, so `updated_at >= created_at` always holds); back-date `updated_at` explicitly, update the row, assert it moved [supabase/tests/allow_gymos_support_switch.test.sql:114]
+- [x] [Review][Patch] No test for the staff page wiring of `showGymosSupportRow` (`getAllowGymosSupport().catch(() => false)` -> `StaffPageClient`); add a `staff/page.test.tsx` asserting true passes through and a rejection yields false with the list still rendered [apps/dashboard/app/(dashboard)/settings/staff/page.tsx]
+- [x] [Review][Patch] Writer scan regex misses aliased (`update gyms g set`), `update only` and `as` forms; widen it [supabase/tests/allow_gymos_support_switch.test.sql:139]
+- [x] [Review][Patch] `suspended gym refused` and `direct update refused` pass `null` as the expected message, so any P0001 passes; assert the message [supabase/tests/allow_gymos_support_switch.test.sql:70,76]
+- [x] [Review][Patch] The switch-on audit row (`{"old": false, "new": true}`) is never asserted; only the off transition is [supabase/tests/allow_gymos_support_switch.test.sql:132]
+- [x] [Review][Patch] Unused locale keys `settings.sectionTitles.gymosSupport` and `settings.sectionDescriptions.gymosSupport` (the section reads `settings.gymosSupport.*`); remove from en and fr [apps/dashboard/locales/en.json:134,146]
+- [x] [Review][Patch] Garbled 23-1 edits in deferred-work.md (double parenthetical; `[original:]` text kept inline); rewrite both bullets cleanly [_bmad-output/implementation-artifacts/deferred-work.md:1208]
+- [x] [Review][Defer] Rollback `rollback-0137-allow-gymos-support-switch.sql` is undrilled and drops `suspended_by_switch`, the only record of which assignments to restore — deferred: same class as the 0134/0135/0136 entries; extend the rollback round trip to 0137 before the Epic 23 production deploy [scripts/rollback-0137-allow-gymos-support-switch.sql]
+- [x] [Review][Defer] Switch-on restore raises (rolling the whole toggle back) if a switch-suspended assignee gained a non-support membership in the gym while off, and does not skip locked or unactivated accounts — deferred: fails loud and closed, not reachable until 23-10/23-11; those stories must end or lock the assignment, and the setter should then skip or tolerate such rows [supabase/migrations/0137_allow_gymos_support_switch.sql:1264]
+
+#### Rejected
+
+- `last_acted_at` joins session state across gyms (blind, edge) — low; spec Design Notes make it a placeholder until 23-8 and the fix needs a gym column on session state. Note for the owner: it is a timestamp only, but it can reflect a shared support user's activity in another gym.
+- "Last acted" overstates what the data shows (blind) — low; spec-defined wording.
+- `settings/page.tsx` does not catch a thrown status read (edge, blind) — low; the neighbouring `getDashboardShellContext` and `listPlans` calls have the same shape and the service returns errors rather than throwing.
+- Fallback readout after a committed switch-on with a failed re-read says "none" (blind) — low; rare double failure, fix adds machinery.
+- Staff row hides when `getAllowGymosSupport` fails (blind, auditor) — low; deliberate fail-closed UI choice, already triaged in round 1.
+- Audit row carries no counts (blind) — spec freezes the metadata to exactly old and new.
+- "Next request fails the live gate" has no test here (auditor, blind, VG) — low; 23-1 pins the `support_live` legs, already triaged in round 1.
+- Readout states `none` and `waiting` unasserted (blind) — low; trivial CASE branches, covered by the `assigned` and `off` cases and the UI tests.
+- Switch-on skips restore when the value is unchanged but rows are still switch-suspended (edge) — false; only the setter can write the column (23-1 guard), so that state is unreachable.
+- Staff row gating on page 1 versus filtered empty state (edge) — maybe-false and low; not enough to act on.
+- Spec file `status: done` vs sprint-status `review`, empty Implementation Notes, `37/37` vs `plan(38)` in the history line (blind) — the fix edits the spec or a log under review.
+- `database.ts` ordering and `state: string`, locale JSON style, em-dash cell, `window.confirm`, focus-visible, `text-red-600`, French phrasing, e2e task ticked (blind, auditor) — cosmetic or speculative; fixes add machinery.

@@ -1205,8 +1205,8 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 
 ## Deferred from: code review of spec-23-1-support-role-assignment-live-gate (2026-10-20)
 
-- support_assignments has no CHECK tying `activated_at`/`ended_at` to `state`, no transition rules (the `updated_at` trigger landed in 23.3) (the pgTAP test revives `ended` -> `active`). Add in 23.3/23.5, which own the transitions.
-- RESOLVED in 23.3 for the switch (0137 calls `support_set_membership(.., false)`); 23.5 still owns unassign/remove. [original:] "Active support membership implies active assignment and switch on" holds only on `members` writes. Suspending an assignment or turning the switch off leaves the row active; every consumer checks live. 23.3 and 23.5 must call `private.support_set_membership(.., false)`; put that in their acceptance criteria before they start.
+- support_assignments has no CHECK tying `activated_at`/`ended_at` to `state`, and no transition rules (the pgTAP test revives `ended` -> `active`). Add in 23.5, which owns the transitions. (The `updated_at` trigger landed in 23.3.)
+- "Active support membership implies active assignment and switch on" holds only on `members` writes; every consumer checks live. Resolved in 23.3 for the switch (0137 calls `private.support_set_membership(.., false)`); 23.5 must do the same on unassign/remove and put that in its acceptance criteria before it starts.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-1-support-role-assignment-live-gate.md`
   summary: Rollback scripts for 0134/0135 are hand-copied function bodies that were only applied once on the local DB and never compared with the 0124/0061/0129/0065/0074/0133 bodies.
   evidence: Review (verification gap and blind hunter) found no test or drill; add a rollback round trip that diffs the restored definitions against the pre-0135 ones before the Epic 23 production deploy.
@@ -1231,3 +1231,12 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-3-allow-gymos-support-switch-and-gymos-support-row.md`
   summary: Nothing stops an assignment going pending -> active while the switch is off except the membership trigger.
   evidence: 23-5 must refuse activation while `allow_gymos_support` is false (put it in its acceptance criteria); the live gate already denies in the meantime.
+
+## Deferred from: code review of spec-23-3-allow-gymos-support-switch-and-gymos-support-row (2026-10-21, round 2)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-3-allow-gymos-support-switch-and-gymos-support-row.md`
+  summary: Rollback `scripts/rollback-0137-allow-gymos-support-switch.sql` was never drilled, and dropping `suspended_by_switch` loses which assignments the switch suspended.
+  evidence: Extend the 0134/0135/0136 rollback round trip to 0137 before the Epic 23 production deploy; decide what happens to assignments left `suspended` by the switch.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-3-allow-gymos-support-switch-and-gymos-support-row.md`
+  summary: Switch-on restore calls `support_set_membership(.., true)` per row; if one switch-suspended assignee gained a non-support membership in the gym while off, it raises and the whole Owner toggle rolls back.
+  evidence: Fails loud and closed, unreachable until 23-10/23-11; when they land, make the setter skip or tolerate such rows together with the account-state check above.

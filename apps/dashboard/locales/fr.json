@@ -130,8 +130,7 @@
       "qrCode": "Code QR",
       "payments": "Compte de paiement",
       "billing": "Facturation",
-      "staff": "Personnel",
-      "gymosSupport": "Support GymOS"
+      "staff": "Personnel"
     },
     "sectionDescriptions": {
       "branding": "Logo, nom de la salle et couleur de marque",
@@ -142,8 +141,7 @@
       "qrCode": "Code de présence de votre salle",
       "payments": "Connectez votre compte Tara Money pour les paiements mobile money",
       "billing": "Votre abonnement GymOS",
-      "staff": "Gérez les comptes et les rôles du personnel",
-      "gymosSupport": "Laissez l'équipe GymOS vous aider à configurer et gérer votre salle"
+      "staff": "Gérez les comptes et les rôles du personnel"
     },
     "staffSummary_one": "{{count}} membre du personnel",
     "staffSummary_other": "{{count}} membres du personnel",

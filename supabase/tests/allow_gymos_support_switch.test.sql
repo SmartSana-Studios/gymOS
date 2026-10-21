@@ -1,6 +1,6 @@
 -- Story 23.3: Allow GymOS Support switch and status read (migration 0137).
 begin;
-select plan(38);
+select plan(39);
 
 create or replace function pg_temp.claims(uid text, gym text, app_role text) returns void language plpgsql as $f$
 begin
@@ -70,13 +70,13 @@ select throws_ok($$select set_allow_gymos_support('00000000-0000-0000-0000-00000
 select pg_temp.claims('00000000-0000-0000-0000-000000233106', '00000000-0000-0000-0000-000000233002', 'owner');
 select throws_ok($$select set_allow_gymos_support('00000000-0000-0000-0000-000000233001', false)$$, 'P0001', 'permission denied', 'other gym''s owner refused');
 select pg_temp.claims('00000000-0000-0000-0000-000000233109', '00000000-0000-0000-0000-000000233003', 'owner');
-select throws_ok($$select set_allow_gymos_support('00000000-0000-0000-0000-000000233003', false)$$, 'P0001', null, 'suspended gym refused');
+select throws_ok($$select set_allow_gymos_support('00000000-0000-0000-0000-000000233003', false)$$, 'P0001', 'set_allow_gymos_support: gym 00000000-0000-0000-0000-000000233003 is not active', 'suspended gym refused');
 reset role;
 select is((select allow_gymos_support from gyms where id = '00000000-0000-0000-0000-000000233001'), true, 'refusals wrote nothing');
 select is((select count(*)::int from audit_log where action_type = 'allow_gymos_support_changed'), 0, 'refusals logged nothing');
 
 -- ---- direct write refused by the 23-1 guard --------------------------------------------------------------------
-select throws_ok($$update gyms set allow_gymos_support = false where id = '00000000-0000-0000-0000-000000233001'$$, 'P0001', null, 'direct update refused');
+select throws_ok($$update gyms set allow_gymos_support = false where id = '00000000-0000-0000-0000-000000233001'$$, 'P0001', 'allow_gymos_support: only the audited setter may change this column', 'direct update refused');
 
 -- ---- status readout ---------------------------------------------------------------------------------------------
 set local role authenticated;
@@ -111,7 +111,12 @@ select is((select state || ':' || suspended_by_switch from support_assignments w
 select is((select state || ':' || suspended_by_switch from support_assignments where id = '00000000-0000-0000-0000-000000233404'), 'suspended:false', 'other suspended untouched');
 select is((select count(*)::int from audit_log where action_type = 'allow_gymos_support_changed' and gym_id = '00000000-0000-0000-0000-000000233001'
             and metadata = '{"old": true, "new": false}'::jsonb), 1, 'one audit row with old and new');
-select ok((select updated_at from support_assignments where id = '00000000-0000-0000-0000-000000233401') >= (select created_at from support_assignments where id = '00000000-0000-0000-0000-000000233401'), 'updated_at maintained');
+-- updated_at: back-date it with triggers off, then update with the trigger on; now() is constant in this transaction, so comparing to created_at proves nothing
+set local session_replication_role = replica;
+update support_assignments set updated_at = '2000-01-01' where id = '00000000-0000-0000-0000-000000233402';
+set local session_replication_role = origin;
+update support_assignments set suspended_by_switch = false where id = '00000000-0000-0000-0000-000000233402';
+select ok((select updated_at from support_assignments where id = '00000000-0000-0000-0000-000000233402') > '2000-01-01', 'updated_at maintained by the trigger');
 
 -- no change: no write, no audit
 set local role authenticated;
@@ -130,6 +135,8 @@ set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000233102', '00000000-0000-0000-0000-000000233001', 'owner');
 select lives_ok($$select set_allow_gymos_support('00000000-0000-0000-0000-000000233001', true)$$, 'owner turns on');
 reset role;
+select is((select count(*)::int from audit_log where action_type = 'allow_gymos_support_changed' and gym_id = '00000000-0000-0000-0000-000000233001'
+            and metadata = '{"old": false, "new": true}'::jsonb), 1, 'one audit row for the switch-on');
 select is((select state || ':' || suspended_by_switch from support_assignments where id = '00000000-0000-0000-0000-000000233401'), 'active:false', 'marked one restored, marker cleared');
 select is((select count(*)::int from members where user_id = '00000000-0000-0000-0000-000000233101' and role = 'support' and deactivated_at is null), 1, 'support membership restored');
 select is((select count(*)::int from support_assignments where gym_id = '00000000-0000-0000-0000-000000233001' and state = 'pending'), 2, 'both pending stay pending');
@@ -137,7 +144,7 @@ select is((select state from support_assignments where id = '00000000-0000-0000-
 
 -- ---- writer scan (retro 66) ------------------------------------------------------------------------------------
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
-            where p.prokind = 'f' and p.prosrc ~* 'update\s+(public\.)?gyms\s+set[^;]*allow_gymos_support'),
+            where p.prokind = 'f' and p.prosrc ~* 'update\s+(only\s+)?(public\.)?gyms(\s+(as\s+)?\w+)?\s+set[^;]*allow_gymos_support'),
           array['set_allow_gymos_support'], 'only the setter updates allow_gymos_support');
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
             where p.prokind = 'f' and p.prosrc ilike '%allow_support_setter%'),

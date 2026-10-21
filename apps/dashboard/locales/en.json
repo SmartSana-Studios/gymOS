@@ -130,8 +130,7 @@
       "qrCode": "QR Code",
       "payments": "Payment Account",
       "billing": "Billing",
-      "staff": "Staff",
-      "gymosSupport": "GymOS Support"
+      "staff": "Staff"
     },
     "sectionDescriptions": {
       "branding": "Logo, gym name & brand color",
@@ -142,8 +141,7 @@
       "qrCode": "Check-in code for your gym",
       "payments": "Connect your Tara Money account for mobile-money payments",
       "billing": "Your GymOS subscription",
-      "staff": "Manage staff accounts and roles",
-      "gymosSupport": "Let GymOS staff help set up and run your gym"
+      "staff": "Manage staff accounts and roles"
     },
     "staffSummary_one": "{{count}} staff member",
     "staffSummary_other": "{{count}} staff members",
