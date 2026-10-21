@@ -106,3 +106,29 @@ Layers: blind-hunter, edge-case-hunter, verification-gap.
 - `scripts/pgtap-run.sh` on the new and changed test files -- expected: all ok
 - `node scripts/check-migration-guardrails.mjs` -- expected: clean
 - `bash scripts/ci-local.sh` -- expected: GREEN on all stages
+
+### Review Findings
+
+Round 2 (2026-10-21), four layers: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor.
+
+- [x] [Review][Patch] Ban the auth user before calling the DB function in `deactivateSupportAccount` (decided: option 1, fail-safe order) — medium (edge-case-hunter) [apps/super-admin/app/(admin)/support/actions.ts:295]. A crash between the DB commit and the ban left the account unbanned with no retry. Validate the reason first so a bad reason cannot ban an account that stays active; a repeat Deactivate finishes the job. **Fixed:** `deactivateSupportAccount` validates the reason, confirms the target is a support account through the caller's session (the ban uses the service role), bans, then calls the DB function; `already_deactivated` is a success. Tests in actions.test.ts; banFailed copy updated (en, fr).
+- [x] [Review][Patch] Ban retry unreachable from the UI — medium (blind-hunter+edge-case-hunter) [apps/super-admin/app/(admin)/support/components/SupportPageClient.tsx:138]. `ban_failed` tells the admin "Deactivate again to retry", but the Deactivate button is hidden once `inviteState === "deactivated"`; `deactivateSupportAccount` already re-bans on `already_deactivated`. Show a retry control for deactivated rows. **Fixed:** superseded by the ban-first order: a failed ban now leaves the account NOT deactivated, so the Deactivate button stays visible and is the retry. No UI change.
+- [x] [Review][Patch] Race coverage proves only assign; the lock in confirm, unassign, deactivate and remove is checked by a `prosrc` text match — medium (verification-gap+blind-hunter) [scripts/support-assignments-race.test.sh, supabase/tests/support_assignments.test.sql]. Removing or moving `support_gym_lock` in those four passes every test. Add a confirm-vs-Owner-OFF run and an unassign/deactivate-vs-Owner-ON run. **Fixed:** scripts/support-assignments-race.test.sh runs 3 (confirm vs Owner OFF) and 4 (unassign vs Owner ON); shown capable of failing by removing the lock from confirm on the local DB (run 3 FAILED), then restored. Deactivate and remove still rest on the prosrc scan.
+- [x] [Review][Patch] `confirm_support_assignment` and `unassign_support` do not re-check the row after `FOR UPDATE` — low (edge-case-hunter+blind-hunter) [supabase/migrations/0139_support_assign_unassign_remove.sql:349,407]. A concurrent `remove_support_account` deletes the row; confirm then writes a misleading `gym_not_active` refusal with a null target, unassign calls `support_set_membership(null)` and raises. Add `if not found then return not_found`. **Fixed:** both return `not_found` when the row is gone after the lock (migration 0139).
+- [x] [Review][Defer] `support_invite_check` deactivated leg is never exercised on its own [supabase/tests/support_assignments.test.sql:2421] — deferred: redundant with the invite supersede step today; pin it with a live-invite plus `deactivated_at` case.
+- [x] [Review][Defer] No path to reverse a wrong deactivation or reuse its @gymosapps.com address — deferred: irreversible by design in this story; 23-11 owns re-invite after factor reset, record it there.
+- [x] [Review][Defer] AC1/AC3 proofs are indirect: enrollment and the Owner switch are simulated with direct UPDATEs, and "next request denied" is asserted only after unassign, not deactivate or remove — deferred: behavior follows from the code; add the real `activate_support_account`/`set_allow_gymos_support` paths and the gate check to the scripted run.
+- [x] [Review][Defer] No component tests for `SupportAssignmentsPanel`, `GymSupportPanel` or the new `SupportPageClient` branches — deferred: server actions are covered; they would have caught the unreachable retry.
+- [x] [Review][Defer] AC6: no ci-local GREEN recorded for the final tree after the review patches — deferred: run `scripts/ci-local.sh` before merging to epic/23 and record it.
+
+#### Rejected
+
+- `deactivate_support_account` lock order (gym lock after account lock for a late-added gym) — low: Postgres aborts one side with a deadlock error, no corruption, and the window needs an assign mid-deactivate.
+- Refusal audit rows inconsistent across functions, NULL-target refusal rows, audit flood — low: design choice; fixes add branches.
+- Race script flakiness (25M-row timing, shared /tmp paths, owner-never-started, empty timestamps) — low: fails loudly, not silently green.
+- Gym detail page fatal on support lookup error / capability may be missing — false: `platform.support_manage` maps to `super_admin` only (0138:49) and this is the Super Admin app.
+- Shared reason box not cleared; no confirm on unassign/confirm; identical button names; plurals — low: cosmetic, fix spans three components.
+- `activated_at` writer scan narrow; `service_role` grants dead weight; `clock_timestamp()` vs `now()`; `deactivated` code ambiguity; 500-row limits; `database.ts` ordering; `as never` casts — low: no named harm.
+- Rollback hand-copied bodies and no round trip — already in deferred-work.md.
+- 23-1 test disables the transition trigger; auth-user delete moved into the DB; remove deletes ended rows — low: recorded in decisions.md.
+- Spec status/checkbox/duplicate-heading inconsistencies — fix is to edit the spec under review.

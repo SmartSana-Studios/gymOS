@@ -1282,3 +1282,11 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-5-assign-unassign-and-remove.md`
   summary: Rollback `scripts/rollback-0139-support-assign-unassign-remove.sql` was proven once by hand and re-embeds hand-copied 0138 function bodies.
   evidence: Extend the 0134-0137 rollback round trip to 0139 before the Epic 23 production deploy.
+
+## Deferred from: code review of spec-23-5-assign-unassign-and-remove (2026-10-21)
+
+- `support_invite_check` deactivated leg is not pinned by a test of its own: the pgTAP case also supersedes the invite, so dropping the clause still passes. Add a live-invite plus `deactivated_at` case.
+- No way to reverse a wrong deactivation or reuse the @gymosapps.com address (irreversible by design in 23-5). Record it in 23-11 (re-invite after factor reset).
+- AC1/AC3 are proven indirectly: enrollment and the Owner switch are simulated with direct UPDATEs, and "next request denied" is asserted after unassign only. Add the real `activate_support_account` / `set_allow_gymos_support` paths and the gate check after deactivate and remove.
+- No component tests for `SupportAssignmentsPanel`, `GymSupportPanel` and the new `SupportPageClient` branches.
+- AC6: no ci-local GREEN recorded for the final tree; run `scripts/ci-local.sh` before the merge to epic/23.

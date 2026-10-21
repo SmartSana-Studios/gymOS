@@ -161,43 +161,59 @@ describe("Story 23.5 assignment actions", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("deactivate: database first, then ban; a repeat on a deactivated account still bans", async () => {
+  const ACCOUNTS = { data: [{ user_id: UID }], error: null };
+
+  it("deactivate: confirms the target, bans first, then deactivates; a repeat on a deactivated account is a success", async () => {
     const mod = await import("./actions");
-    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "deactivated", assignment_id: null }], error: null });
+    updateUserById.mockReset();
     updateUserById.mockResolvedValue({ error: null });
     createAdminOverride(updateUserById);
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce(ACCOUNTS);
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "deactivated", assignment_id: null }], error: null });
     const first = await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" });
     expect(first.error).toBeNull();
     expect(updateUserById).toHaveBeenCalledWith(UID, { ban_duration: "876000h" });
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(["get_support_accounts", "deactivate_support_account"]);
 
-    updateUserById.mockClear();
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce(ACCOUNTS);
     rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "already_deactivated", assignment_id: null }], error: null });
     const again = await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" });
     expect(again.error).toBeNull();
-    expect(updateUserById).toHaveBeenCalledTimes(1);
+    expect(again.data?.code).toBe("deactivated");
   });
 
-  it("deactivate: a failed ban is reported as ban_failed and a retry bans again", async () => {
+  it("deactivate: a failed ban stops before the database call, and a retry succeeds", async () => {
     const mod = await import("./actions");
     createAdminOverride(updateUserById);
     updateUserById.mockReset();
-    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "deactivated", assignment_id: null }], error: null });
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce(ACCOUNTS);
     updateUserById.mockResolvedValueOnce({ error: new Error("auth down") });
     const failed = await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" });
     expect(failed.error?.code).toBe("ban_failed");
-    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "already_deactivated", assignment_id: null }], error: null });
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(["get_support_accounts"]);
+
+    rpc.mockResolvedValueOnce(ACCOUNTS);
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "deactivated", assignment_id: null }], error: null });
     updateUserById.mockResolvedValueOnce({ error: null });
     expect((await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" })).error).toBeNull();
     expect(updateUserById).toHaveBeenCalledTimes(2);
   });
 
-  it("deactivate: a refusal that is not 'already deactivated' bans nobody", async () => {
+  it("deactivate: an invalid reason or a user that is not a support account bans nobody", async () => {
     const mod = await import("./actions");
     createAdminOverride(updateUserById);
     updateUserById.mockClear();
-    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "reason_invalid", assignment_id: null }], error: null });
-    const res = await mod.deactivateSupportAccount({ userId: UID, reason: "x" });
-    expect(res.error?.code).toBe("reason_invalid");
+    rpc.mockReset();
+    const bad = await mod.deactivateSupportAccount({ userId: UID, reason: "x" });
+    expect(bad.error?.code).toBe("reason_invalid");
+    expect(rpc).not.toHaveBeenCalled();
+
+    rpc.mockResolvedValueOnce({ data: [{ user_id: "00000000-0000-4000-8000-0000000000dd" }], error: null });
+    const stranger = await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" });
+    expect(stranger.error?.code).toBe("not_found");
     expect(updateUserById).not.toHaveBeenCalled();
   });
 });

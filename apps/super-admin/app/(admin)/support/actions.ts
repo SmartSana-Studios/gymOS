@@ -287,9 +287,8 @@ export async function unassignSupport(input: unknown): Promise<SupportOutcome> {
 }
 
 /**
- * Deactivates the account in the database (assignments ended, memberships off, sessions deleted, invites dead), then bans the
- * auth user so it cannot sign in again. A repeat call on an already-deactivated account still applies the ban, so a ban that
- * failed the first time can be retried.
+ * Bans the auth user so it cannot sign in again, then deactivates the account in the database (assignments ended, memberships
+ * off, sessions deleted, invites dead). Every step is repeatable, so a failure at either step is retried by calling again.
  */
 export async function deactivateSupportAccount(input: unknown): Promise<SupportOutcome> {
   const authz = await authorizeOrRedirect("platform.support_manage");
@@ -297,18 +296,32 @@ export async function deactivateSupportAccount(input: unknown): Promise<SupportO
   const { t } = await getServerTranslation(await getRequestLocale());
   const raw = (input ?? {}) as { userId?: unknown; reason?: unknown };
   if (!isUuid(raw.userId) || typeof raw.reason !== "string") return badInput(t);
-  const res = await runSupportFunction("deactivate_support_account", { p_user_id: raw.userId, p_reason: raw.reason });
-  if (res.error && res.error.code !== "already_deactivated") return res;
+  const reason = raw.reason.trim();
+  if (reason.length < 3 || reason.length > 500) {
+    return { data: null, error: { code: "reason_invalid", message: t("support.codes.reason_invalid") } };
+  }
 
+  // Ban first: a crash between the two steps leaves a banned, not-yet-deactivated account (safe; Deactivate again finishes
+  // it) instead of a deactivated account that can still sign in. The ban uses the service role, so the target is first
+  // confirmed to be a support account through the caller's own session; the database re-checks everything afterwards.
+  const supabase = await createClient();
+  const { data: accounts, error: listError } = await supabase.rpc("get_support_accounts");
+  if (listError) return { data: null, error: await mapAndLog(listError) };
+  if (!((accounts ?? []) as { user_id: string }[]).some((a) => a.user_id === raw.userId)) {
+    return { data: null, error: { code: "not_found", message: t("support.codes.not_found") } };
+  }
   try {
     const admin = createAdminClient();
     const { error: banError } = await admin.auth.admin.updateUserById(raw.userId, { ban_duration: "876000h" });
     if (banError) throw banError;
   } catch (err) {
-    console.error("[deactivateSupportAccount] the account is deactivated but banning the auth user failed", err);
+    console.error("[deactivateSupportAccount] banning the auth user failed; nothing was deactivated", err);
     return { data: null, error: { code: "ban_failed", message: t("support.errors.banFailed") } };
   }
-  return res.error ? { data: { code: "deactivated", assignmentId: null }, error: null } : res;
+
+  const res = await runSupportFunction("deactivate_support_account", { p_user_id: raw.userId, p_reason: reason });
+  if (res.error && res.error.code === "already_deactivated") return { data: { code: "deactivated", assignmentId: null }, error: null };
+  return res;
 }
 
 /** Removes an account that was never activated (mistyped address): the database deletes it and its auth user. */

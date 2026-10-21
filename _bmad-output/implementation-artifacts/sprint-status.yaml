@@ -447,7 +447,7 @@ development_status:
   23-2-support-excluded-from-counts-caps-notifications-metrics: done
   23-3-allow-gymos-support-switch-and-gymos-support-row: done
   23-4-create-support-account-and-invite: done
-  23-5-assign-unassign-and-remove: review
+  23-5-assign-unassign-and-remove: done
   23-6-capability-allow-list-and-denied-set-matrix: backlog
   23-7-hidden-identity-per-gym-proxy-actor: backlog
   23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces: backlog
@@ -1617,3 +1617,4 @@ last_updated: 10-21-2026
 # last_updated: 2026-10-21 (build: 23-5 status backlog -> in-progress)
 # last_updated: 2026-10-21 (build: 23-5 implemented on story/23-5, uncommitted. Migration 0139 (deactivated_at, state CHECK and transition trigger, assign_support, confirm_support_assignment, unassign_support, deactivate_support_account, remove_support_account, get_support_assignments; invite check/issue refuse a deactivated account) + rollback (round trip proven in a rolled-back transaction); pgTAP support_assignments 102/102, 23.1/23.3/23.4 tests adjusted and green; two-session race script green; Super Admin /support assignments + deactivate/remove, gym detail panel, EN/FR, actions and denied tests (vitest 398 pass, tsc clean). Applied to LOCAL db only. ci-local not yet run; status stays in-progress until it is)
 # last_updated: 2026-10-21 (build: 23-5 status in-progress -> review; reviewed, 4 patches applied, 2 deferrals)
+# last_updated: 2026-10-21 (code-review 23-5 round 2: 4 patches applied (ban-first deactivate with support-account precheck, not_found re-check after lock in confirm/unassign, race script runs 3+4 shown capable of failing, retry UI superseded), 5 deferrals in deferred-work.md; review -> done. ci-local 5/5 PASS on a dirty tree, so no merge stamp: commit, then re-run scripts/ci-local.sh before merging to epic/23)

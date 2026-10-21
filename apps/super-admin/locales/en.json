@@ -577,7 +577,7 @@
       "domain": "Use an @gymosapps.com address.",
       "notConfigured": "The dashboard address is not configured, so no invite link can be built.",
       "mailFailed": "The invite was issued but the email could not be sent. Send a new invite to try again.",
-      "banFailed": "The account is deactivated and its assignments ended, but blocking its sign-in failed. Deactivate again to retry."
+      "banFailed": "Blocking the account's sign-in failed, so nothing was changed. Deactivate again to retry."
     },
     "codes": {
       "reason_invalid": "Enter a reason of 3 to 500 characters.",

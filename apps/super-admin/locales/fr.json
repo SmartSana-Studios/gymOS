@@ -577,7 +577,7 @@
       "domain": "Utilisez une adresse @gymosapps.com.",
       "notConfigured": "L'adresse du tableau de bord n'est pas configurée : impossible de construire le lien d'invitation.",
       "mailFailed": "L'invitation a été émise mais l'e-mail n'a pas pu être envoyé. Envoyez une nouvelle invitation pour réessayer.",
-      "banFailed": "Le compte est désactivé et ses affectations sont terminées, mais le blocage de la connexion a échoué. Désactivez à nouveau pour réessayer."
+      "banFailed": "Le blocage de la connexion du compte a échoué, rien n'a été modifié. Désactivez à nouveau pour réessayer."
     },
     "codes": {
       "reason_invalid": "Saisissez un motif de 3 à 500 caractères.",

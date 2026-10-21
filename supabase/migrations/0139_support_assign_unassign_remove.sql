@@ -347,6 +347,10 @@ begin
   perform private.support_gym_lock(v_pre.gym_id);
 
   select * into v_a from public.support_assignments a where a.id = p_assignment_id for update;
+  if not found then   -- removed between the unlocked read and the lock
+    return query select false, 'not_found'::text, null::uuid;
+    return;
+  end if;
   select g.status, g.allow_gymos_support into v_gym from public.gyms g where g.id = v_a.gym_id;
   select sa.activated_at, sa.deactivated_at into v_acct from private.support_accounts sa where sa.user_id = v_a.support_user_id;
 
@@ -405,6 +409,10 @@ begin
   perform private.support_gym_lock(v_pre.gym_id);
 
   select * into v_a from public.support_assignments a where a.id = p_assignment_id for update;
+  if not found then   -- removed between the unlocked read and the lock
+    return query select false, 'not_found'::text, null::uuid;
+    return;
+  end if;
   if v_a.state = 'ended' then
     return query select false, 'already_ended'::text, v_a.id;
     return;
