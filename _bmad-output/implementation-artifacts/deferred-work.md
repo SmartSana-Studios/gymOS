@@ -1323,3 +1323,24 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
   summary: `members.created_by_support` has no pin trigger (any role with member UPDATE can clear it) and `create_staff_member` replace-in-place also tags a pre-existing row.
   evidence: Fix with the 23-10 Owner review queue, the first reader of the tag: pin the column to a bypass GUC set only by `create_staff_member`, and tag only the insert branch.
+
+## Deferred from: code review of spec-23-6-capability-allow-list-and-denied-set-matrix (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: `protect_payment_columns_on_staff_verify` does not pin `purpose`/`voided_at` for support.
+  evidence: Same as the owner/manager/receptionist rule it extends; pre-existing.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: `log_audit_event` lets a live support caller write arbitrary action types into its own gym.
+  evidence: Same for Supervisor today; restrict action types when 23-8 reworks audit actor identity.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: Unverified medium: step-up grants may not be bound to role, phone, amount or reason.
+  evidence: Settle by reading `stepup_issue` subject binding when 23-6c builds the issue UI.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: Unverified medium: "subscription status" in the denied set may mean member subscription status as well as `saas_billing_status`.
+  evidence: Settled by the owner decision on support subscription writes (review round 2).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: Unverified medium: callers of `current_gym_status()` not enumerated for the role-before-suspension rule.
+  evidence: Enumerate callers and add a catalog test in 23-6b.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: "No support session passes the live gate until 23-6b" is prose only.
+  evidence: Owner rejected a kill-switch; 23-6b must ship before support is enabled for any gym.

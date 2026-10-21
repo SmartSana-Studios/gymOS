@@ -6,7 +6,7 @@
 --   E. step-up (refund, waiver, staff creation) and the staff ceiling
 --   F. revocation leaves support-created staff active and tagged
 begin;
-select plan(133);
+select plan(146);
 
 create or replace function pg_temp.claims(uid text, app_role text, aal text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -244,6 +244,14 @@ select pg_temp.live_support();
 select is(pg_temp.visible(), '0/0/0/0/0', 'idle session: zero rows');
 reset role;
 update private.support_session_state set last_seen_at = now();
+-- assignment not active, every other gate valid
+update public.support_assignments set state = 'suspended' where id = '00000000-0000-0000-0000-000000236401';
+set local role authenticated;
+select pg_temp.live_support();
+select is(pg_temp.visible(), '0/0/0/0/0', 'assignment suspended: zero rows');
+select is(pg_temp.err($$select set_gym_category('00000000-0000-0000-0000-000000236001', 'other')$$), 'P0001:permission denied', 'assignment suspended: RPC refused');
+reset role;
+update public.support_assignments set state = 'active' where id = '00000000-0000-0000-0000-000000236401';
 
 -- ============================================================================================================
 -- C. allow-list: a live support session succeeds
@@ -318,7 +326,7 @@ select alike(pg_temp.err($$update gyms set saas_billing_anchor_date = current_da
 select alike(pg_temp.err($$update gyms set saas_billing_status = 'past_due' where id = '00000000-0000-0000-0000-000000236001'$$), '42501:support_denied%', 'denied: subscription status');
 select alike(pg_temp.err($$update gyms set status = 'suspended' where id = '00000000-0000-0000-0000-000000236001'$$), '42501:support_denied%', 'denied: suspension');
 select alike(pg_temp.err($$update gyms set status = 'deactivated' where id = '00000000-0000-0000-0000-000000236001'$$), '42501:support_denied%', 'denied: deactivate the gym');
-select is((with r as (select pg_temp.rows($$delete from gyms where id = '00000000-0000-0000-0000-000000236001'$$) as v) select v = '0' or v like '42501:%' from r), true, 'denied: delete the gym (no rows, or no privilege)');
+select is(pg_temp.rows($$delete from gyms where id = '00000000-0000-0000-0000-000000236001'$$), '0', 'denied: delete the gym (no delete policy, zero rows)');
 select is(pg_temp.err($$select log_audit_event('support_probe', '00000000-0000-0000-0000-000000236002')$$), 'P0001:log_audit_event: p_gym_id does not match the caller''s own gym', 'a live support session cannot audit into another gym');
 select is(pg_temp.err($$select log_audit_event('support_probe', '00000000-0000-0000-0000-000000236001')$$), 'ok', 'a live support session can audit into its own gym');
 select alike(pg_temp.err($$update gyms set allow_gymos_support = false where id = '00000000-0000-0000-0000-000000236001'$$), '42501:support_denied%', 'denied: allow_gymos_support (direct update)');
@@ -344,6 +352,15 @@ select is(pg_temp.rows($$update members set role = 'owner' where user_id = auth.
 select is(pg_temp.err($$select update_staff_role((select id from members where user_id = auth.uid() and role = 'support'), 'GymOS Support', 'manager')$$),
           'P0001:update_staff_role: caller has no gym-scoped session', 'denied: change its own role (RPC)');
 select is(pg_temp.rows($$delete from members where role <> 'member'$$), '0', 'denied: deleting staff rows');
+-- a member row cannot be promoted: the WITH CHECK (role = 'member') is what stops it, not the USING filter
+select alike(pg_temp.err($$update members set role = 'owner' where id = '00000000-0000-0000-0000-000000236204'$$), '42501:%', 'denied: promote a member to owner');
+select alike(pg_temp.err($$update members set role = 'supervisor' where id = '00000000-0000-0000-0000-000000236204'$$), '42501:%', 'denied: promote a member to supervisor');
+select alike(pg_temp.err($$update members set role = 'manager' where id = '00000000-0000-0000-0000-000000236204'$$), '42501:%', 'denied: promote a member to manager');
+select is((select role::text from members where id = '00000000-0000-0000-0000-000000236204'), 'member', 'the member row kept its role');
+-- payment policy predicates
+select alike(pg_temp.err($$insert into payments (gym_id, member_id, amount, currency, method, status, purpose) values ('00000000-0000-0000-0000-000000236001', '00000000-0000-0000-0000-000000236204', 100, 'XAF', 'cash', 'verified', 'subscription')$$), '42501:%', 'denied: insert an already verified payment');
+select alike(pg_temp.err($$insert into payments (gym_id, member_id, amount, currency, method, status, purpose) values ('00000000-0000-0000-0000-000000236001', '00000000-0000-0000-0000-000000236204', 100, 'XAF', 'cash', 'pending', 'registration_fee')$$), '42501:%', 'denied: insert a registration_fee payment directly');
+select is(pg_temp.rows($$update payments set status = 'flagged' where id = '00000000-0000-0000-0000-000000236701'$$), '0', 'denied: change the status of a payment that is not pending');
 select is(pg_temp.err($$select count(*) from classes$$), 'ok', 'classes read statement runs');
 select is((select count(*)::int from classes), 0, 'an unlisted table (classes) shows nothing');
 select is((select count(*)::int from audit_log), 0, 'an unlisted table (audit_log) shows nothing');
@@ -377,6 +394,19 @@ select is(pg_temp.err($$insert into refunds (gym_id, payment_id, amount, reason,
 select is(pg_temp.err($$insert into refunds (gym_id, payment_id, amount, reason, actor_id) values ('00000000-0000-0000-0000-000000236001', '00000000-0000-0000-0000-000000236701', 500, 'again', '00000000-0000-0000-0000-000000236101')$$),
           'P0001:step_up_required: support_refund needs a valid single-use step-up for this subject', 'the grant is single use');
 select is((select count(*)::int from refunds), 1, 'allow-list: read refunds');
+reset role;
+-- refund policy predicates, each with a valid grant (a failed statement rolls its grant use back)
+insert into payments (id, gym_id, member_id, amount, currency, method, status, purpose) values
+  ('00000000-0000-0000-0000-000000236704', '00000000-0000-0000-0000-000000236001', '00000000-0000-0000-0000-000000236204', 1000, 'XAF', 'cash', 'verified', 'registration_fee');
+select pg_temp.grant_stepup('support_refund', '00000000-0000-0000-0000-000000236701');
+select pg_temp.grant_stepup('support_refund', '00000000-0000-0000-0000-000000236704');
+select pg_temp.grant_stepup('support_refund', '00000000-0000-0000-0000-000000236703');
+set local role authenticated;
+select pg_temp.live_support();
+select alike(pg_temp.err($$insert into refunds (gym_id, payment_id, amount, reason, actor_id) values ('00000000-0000-0000-0000-000000236001', '00000000-0000-0000-0000-000000236701', 2001, 'r', '00000000-0000-0000-0000-000000236101')$$), '42501:%', 'denied: a refund larger than the payment');
+select alike(pg_temp.err($$insert into refunds (gym_id, payment_id, amount, reason, actor_id) values ('00000000-0000-0000-0000-000000236001', '00000000-0000-0000-0000-000000236704', 100, 'r', '00000000-0000-0000-0000-000000236101')$$), '23514:registration_fee_not_refundable%', 'denied: a refund of a registration_fee payment');
+select alike(pg_temp.err($$insert into refunds (gym_id, payment_id, amount, reason, actor_id) values ('00000000-0000-0000-0000-000000236001', '00000000-0000-0000-0000-000000236703', 100, 'r', '00000000-0000-0000-0000-000000236101')$$), '42501:%', 'denied: a refund of another gym''s payment, grant in hand');
+select is((select count(*)::int from refunds), 1, 'the refused refunds wrote nothing');
 reset role;
 select pg_temp.grant_stepup('support_waive_registration_fee', '00000000-0000-0000-0000-000000236208');
 update private.support_stepup set expires_at = now() - interval '1 minute' where action = 'support_waive_registration_fee';

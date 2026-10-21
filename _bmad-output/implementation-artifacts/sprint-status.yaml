@@ -448,7 +448,7 @@ development_status:
   23-3-allow-gymos-support-switch-and-gymos-support-row: done
   23-4-create-support-account-and-invite: done
   23-5-assign-unassign-and-remove: done
-  23-6-capability-allow-list-and-denied-set-matrix: review
+  23-6-capability-allow-list-and-denied-set-matrix: done
   23-7-hidden-identity-per-gym-proxy-actor: backlog
   23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces: backlog
   23-9-support-connects-the-payment-account: backlog
@@ -1620,3 +1620,4 @@ last_updated: 10-21-2026
 # last_updated: 2026-10-21 (code-review 23-5 round 2: 4 patches applied (ban-first deactivate with support-account precheck, not_found re-check after lock in confirm/unassign, race script runs 3+4 shown capable of failing, retry UI superseded), 5 deferrals in deferred-work.md; review -> done. ci-local 5/5 PASS on a dirty tree, so no merge stamp: commit, then re-run scripts/ci-local.sh before merging to epic/23)
 # last_updated: 2026-10-21 (build: 23-6 planned, split (dashboard path -> 23-6b, step-up UI -> 23-6c in deferred-work.md); status backlog -> in-progress)
 # last_updated: 2026-10-21 (build: 23-6 implemented on epic/23, uncommitted. Migration 0140 (private.support_capabilities, support_rpc_gym_id/support_rpc_role/support_stepup_require helpers, 20 support_* policies, 11 RPCs opted in, gym-column guard trigger aa_guard_support_gym_columns, refund step-up trigger, members.created_by_support, stepup_issue extended for support actions, log_audit_event and current_gym_status resolve the support gym, payment column pin extended); rollback script rehearsed; support_capabilities.test.sql (125) added, four older pgTAP files updated; pgtap 161/161, guardrails clean, typecheck green; ci-local not run; status in-progress -> review)
+# last_updated: 2026-10-21 (code-review 23-6 round 2: 4 layers, 2 decisions resolved by owner as accepted Supervisor-equivalent risk (recorded in decisions.md), 4 test patches applied to support_capabilities.test.sql (plan 133 -> 146, file passes 146/146; one expectation corrected to registration_fee_not_refundable), 7 deferred to deferred-work.md; ci-local not run; status review -> done)
