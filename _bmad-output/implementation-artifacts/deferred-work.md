@@ -1365,6 +1365,6 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
   summary: Behavioral (not source-text) tests for the converted writers `connect_gym_payment_credentials`, `update_messaging_instance`, `front_desk_alerts_protect_columns` and `initiate_*`.
   evidence: Support cannot reach them today; 23-9 must add an assertion that the stored actor is the proxy when it opens the payment connection to support.
-- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
-  summary: Deleting a gym cascades its proxy `users` row; audit/payment FKs to `users` and the orphan banned `auth.users` row are unproven.
-  evidence: No gym-delete path with data exists today; decide before one is added.
+
+- Historic `payments`/`refunds`/`audit_log` rows may hold a support person's real `users.id` from 0140 (unverified, medium). Settle with a prod query joining the actor columns to support `members`; do before 23-8 enables support.
+- Raw `auth.users` insert in `ensure_support_proxy` leaves token columns NULL; GoTrue admin `listUsers`/`findUserByEmail` may fail (unverified, medium). Settle by running the real admin API against a local DB with proxies, before the master merge.

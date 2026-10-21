@@ -892,6 +892,23 @@ end;
 $function$
 ;
 
+-- restore 0019's body of the self-update pin (without the two proxy columns)
+CREATE OR REPLACE FUNCTION private.protect_self_managed_user_columns()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+begin
+  if auth.uid() = new.id then
+    new.phone := old.phone;
+    new.is_super_admin := old.is_super_admin;
+    new.created_at := old.created_at;
+  end if;
+  return new;
+end;
+$function$
+;
+
 drop function if exists private.support_force_actor();
 drop function if exists private.gym_support_proxy_trigger();
 drop function if exists private.actor_id();

@@ -4,7 +4,7 @@
 -- payments.actor_id, refunds.actor_id or audit_log.actor_id could identify and correlate the person across gyms. Now:
 --
 -- * Every gym has ONE proxy `users` row (is_support_proxy, display_name 'GymOS Support', null phone and email) backed by a BANNED
---   auth.users row (no password, no email, banned forever, no members row, never signable-in). A trigger on gyms creates it in the same
+--   auth.users row (no password, no email, banned until 2999-12-31, no members row, never signable-in). A trigger on gyms creates it in the same
 --   transaction as the gym, so a failure to create it rolls the gym back (fail closed). Existing gyms are backfilled below.
 -- * private.actor_id() returns the proxy of the live support gym (resolved ONLY through private.support_gym_id()), else auth.uid().
 --   Non-support behavior is unchanged.
@@ -25,6 +25,26 @@ alter table public.users
   add constraint users_support_proxy_gym_consistent check (is_support_proxy = (support_proxy_gym_id is not null)),
   add constraint users_support_proxy_not_super_admin check (not (is_support_proxy and is_super_admin));
 create unique index users_support_proxy_gym_id_key on public.users (support_proxy_gym_id) where support_proxy_gym_id is not null;
+
+-- a signed-in user can update their own users row (0015); pin the proxy markers back so a self-update cannot set or clear them
+-- (body = 0019's version plus the two new pins)
+create or replace function private.protect_self_managed_user_columns()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if auth.uid() = new.id then
+    new.phone := old.phone;
+    new.is_super_admin := old.is_super_admin;
+    new.created_at := old.created_at;
+    new.is_support_proxy := old.is_support_proxy;
+    new.support_proxy_gym_id := old.support_proxy_gym_id;
+  end if;
+  return new;
+end;
+$$;
+revoke all on function private.protect_self_managed_user_columns() from public, anon;
 
 -- ===== create (idempotently) the proxy of one gym =====
 create or replace function private.ensure_support_proxy(p_gym_id uuid)
