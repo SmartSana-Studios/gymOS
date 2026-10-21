@@ -1356,7 +1356,6 @@
       "submit": "Send request",
       "cancel": "Cancel",
       "sent": "Request sent. GymOS will answer by {{date}}.",
-      "empty": "You have not asked about any entry yet.",
       "due": "Answer due {{date}}",
       "answered": "Answered {{date}}",
       "open": "Waiting for GymOS",

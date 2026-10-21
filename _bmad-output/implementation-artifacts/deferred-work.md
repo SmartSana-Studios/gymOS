@@ -1390,3 +1390,10 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
   summary: Reading the real identity through get_support_action_identity is not audited, and a disclosure answer is free text that could name the individual.
   evidence: Not required by the 23-8 spec (review 23-8, low); decide in 23-10 whether an identity lookup writes an audit row, and give the answer form guidance not to name the person.
+
+## Deferred from: code review of spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces (2026-10-21)
+
+- The "restrict action types support may write" deferral is moved to 23-10 only in this file; add it to the 23-10 criteria in the epics file (retro 67).
+- `private.record_support_identity` is granted EXECUTE to `authenticated` because `front_desk_alerts_protect_columns` is not SECURITY DEFINER; private schema is unexposed and the function is a no-op outside a live support session. Consider making the trigger definer and revoking the grant.
+- Per-surface leak proof is narrower than the 23-8 spec list: no error-log test, TS leak test is Owner-only, notifications and member-notes unseeded in the SQL scan, RPC returns unscanned, member message templates untested (review 23-8, medium, decided 1a). Reason: no error-log table; scan controls already show it can fail.
+- Super Admin reads the real person only for audit_log rows via a "GymOS Support" display-string match; payments, refunds, gym_payment_credentials and messaging_provider_config identity rows have no reader (review 23-8, medium, decided 2b). Widen the reader and key it on the proxy id in 23-9/23-10.

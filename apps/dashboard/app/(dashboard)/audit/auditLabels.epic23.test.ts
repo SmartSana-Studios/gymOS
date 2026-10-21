@@ -35,7 +35,25 @@ describe("audit labels for Epic 23 action types", () => {
   });
 
   it("has the disclosure copy in both locales", () => {
-    for (const key of ["audit.disclosure.request", "audit.disclosure.submit", "audit.disclosure.sent", "audit.disclosure.errors.notFound"]) {
+    // every key the disclosure dialog, panel and REFUSAL_KEY read (the component tests mock t as the identity function)
+    for (const key of [
+      "audit.disclosure.title",
+      "audit.disclosure.request",
+      "audit.disclosure.dialogTitle",
+      "audit.disclosure.questionLabel",
+      "audit.disclosure.questionHint",
+      "audit.disclosure.submit",
+      "audit.disclosure.cancel",
+      "audit.disclosure.sent",
+      "audit.disclosure.due",
+      "audit.disclosure.answered",
+      "audit.disclosure.open",
+      "audit.disclosure.answerLabel",
+      "audit.disclosure.entry",
+      "audit.disclosure.errors.questionInvalid",
+      "audit.disclosure.errors.notFound",
+      "audit.disclosure.errors.alreadyOpen",
+    ]) {
       expect(typeof resolve(en, key), key).toBe("string");
       expect(typeof resolve(fr, key), key).toBe("string");
     }

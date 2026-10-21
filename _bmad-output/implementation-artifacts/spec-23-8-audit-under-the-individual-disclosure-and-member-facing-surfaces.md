@@ -111,3 +111,23 @@ Decisions made without the owner (not user-visible choices): member side shows t
 - `scripts/pgtap-run.sh supabase/tests/support_action_identity.test.sql supabase/tests/support_proxy_actor.test.sql supabase/tests/support_capabilities.test.sql` -- expected: all ok
 - `node scripts/check-migration-guardrails.mjs` -- expected: clean
 - `bash scripts/ci-local.sh` -- expected: GREEN on all stages
+
+### Review Findings
+
+- [x] [Review][Defer] Per-surface leak proof (decided 1a: accepted as a recorded deferral; reason: no error-log table exists and the scan's positive controls already prove it can fail) is narrower than the spec's list — error logs have no test, the TS leak test runs as Owner only, notifications and member-notes are not seeded in the SQL scan, RPC return values are never scanned, member message templates are untested (mobile changed `getPaymentReceipt` only). Medium. Options: accept as recorded deferral, or add the tests before 23-9.
+- [x] [Review][Defer] Super Admin can read (decided 2b: widen the reader and key it on the proxy id in 23-9/23-10; reason: nothing reads those rows yet, the data is kept) the real person only for `audit_log` rows, and picks the rows by matching the display string "GymOS Support" (`gyms/[id]/page.tsx:183`). Identity rows for payments, refunds, gym_payment_credentials and messaging_provider_config have no reader. Medium. Decide: widen the reader now or in 23-9/23-10, and key the lookup on the proxy id instead of a label.
+- [ ] [Review][Patch] ci-local was not re-run after the review patches (AC 3: GREEN on all stages for the final code) [scripts/ci-local.sh]
+- [ ] [Review][Patch] Locale check covers 4 of 15 `audit.disclosure.*` keys and every `t` mock echoes the key; assert en/fr presence for every key the components and REFUSAL_KEY use [apps/dashboard/app/(dashboard)/audit/auditLabels.epic23.test.ts:258]
+- [ ] [Review][Patch] Remove unused `audit.disclosure.empty` from en.json and fr.json (panel returns null when empty)
+- [x] [Review][Defer] Deferral "restrict action types support may write" is moved to 23-10 only as a sentence in deferred-work.md; add it to the 23-10 criteria in the epics file — deferred: fix edits another spec
+- [x] [Review][Defer] `private.record_support_identity` is granted EXECUTE to `authenticated` only because `front_desk_alerts_protect_columns` is not SECURITY DEFINER [0142_support_action_identity.sql:66] — deferred: private schema is not exposed to PostgREST and the function is a no-op outside a live support session; making the trigger definer is a separate change
+
+#### Rejected
+- Spec front matter `status: done` vs sprint `review`: fix edits the spec under review.
+- `add_business_days` IMMUTABLE / unbounded loop: false; it uses the literal 'UTC' so it is deterministic, and the day count comes from a config row this migration seeds (line 20).
+- Missing `disclosure_answer_business_days` row: the migration seeds it; only a manual delete reaches it.
+- Concurrent `already_open` race returns a raw unique error: low, needs two same-instant Owner clicks; the index still stops the duplicate.
+- Rollback script drops identity rows with no guard: low, manual script, comment asks for an export.
+- Answer free text could name the individual / identity lookup not audited: low, already in deferred-work for 23-10.
+- `resolveActorNames` swallows proxy errors: low, intentional per its comment. `listMemberGuestSessions` blank names on error: unchanged from before.
+- Vacuous `label.length > 3` test, receipt blank when `gymName` empty, inbox shared message state and unlocalised error, FR string wording, "Entry <uuid8>" label, ask button on open rows (already deferred), answer audit row `gym_id` NULL: low or cosmetic, fix needs new branches or state.
