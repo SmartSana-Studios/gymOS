@@ -88,7 +88,7 @@ select private.support_set_membership('00000000-0000-0000-0000-000000236401', tr
 -- ============================================================================================================
 -- A. catalog
 -- ============================================================================================================
-select is((select count(*)::int from private.support_capabilities), 31, 'the allow-list holds 31 objects (20 policies, 11 RPCs): a change is deliberate');
+select is((select count(*)::int from private.support_capabilities), 34, 'the allow-list holds 34 objects (20 policies, 14 RPCs): a change is deliberate');
 select is(has_table_privilege('authenticated', 'private.support_capabilities', 'select') or has_table_privilege('anon', 'private.support_capabilities', 'select'),
           false, 'support_capabilities is not readable by clients');
 select is((select count(*)::int from private.support_capabilities c
@@ -194,7 +194,10 @@ select is((select coalesce(array_agg(kind || ':' || name order by kind, name), '
           '{}'::text[], 'catalog: no policy or function naming ''supervisor'' is unclassified');
 select is((select coalesce(array_agg(kind || ':' || name order by kind, name), '{}') from cls where (kind, name) not in (select kind, name from found_sup)),
           '{}'::text[], 'catalog: no classification is stale');
-select is((select coalesce(array_agg(name order by name), '{}') from cls where kind = 'function' and support = 'includes'),
+-- the two payment-connection RPCs (23.9) check no role list, so they never name 'supervisor'; they are classified by their capability
+select is((select coalesce(array_agg(name order by name), '{}') from (
+              select name from cls where kind = 'function' and support = 'includes'
+              union select object_name from private.support_capabilities where capability = 'payment_connection') x),
           (select coalesce(array_agg(object_name order by object_name), '{}') from private.support_capabilities where kind = 'rpc'),
           'catalog: the functions classified includes-support are exactly the listed RPCs');
 select is((select count(*)::int from cls c join pg_proc p on p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.proname = c.name

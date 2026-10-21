@@ -112,7 +112,7 @@ async function handleInitiate(
 
   const { data: gymPaymentRow, error: gymFetchError } = await supabase
     .from("payments")
-    .select("id, status, provider_transaction_ref, amount, currency, gym_id, member_id")
+    .select("id, status, provider_transaction_ref, amount, currency, gym_id, member_id, credentials_id")
     .eq("id", paymentId)
     .maybeSingle();
 
@@ -154,7 +154,7 @@ async function handleInitiate(
   // time.
   let table: "payments" | "saas_billing_payments" = "payments";
   let saasGymId: string | null = null;
-  let payment: { id: string; status: string; provider_transaction_ref: string | null; amount: number; currency: string; gymId: string | null } | null =
+  let payment: { id: string; status: string; provider_transaction_ref: string | null; amount: number; currency: string; gymId: string | null; credentialsId?: string | null } | null =
     gymPaymentRow
       ? {
           id: gymPaymentRow.id,
@@ -163,6 +163,7 @@ async function handleInitiate(
           amount: gymPaymentRow.amount,
           currency: gymPaymentRow.currency,
           gymId: gymPaymentRow.gym_id,
+          credentialsId: gymPaymentRow.credentials_id ?? null,
         }
       : null;
   let rowMemberId: string | null = gymPaymentRow?.member_id ?? null;
@@ -265,7 +266,8 @@ async function handleInitiate(
       // gym -- payments.gym_id already exists at initiate time, no lookup
       // needed. Story 11.3: Flow B (payment.gymId === null, matched from
       // saas_billing_payments) routes to the platform context instead.
-      routingContext: payment.gymId !== null ? { type: "gym", gymId: payment.gymId } : { type: "platform" },
+      // 23.9: verified under the credential row recorded at initiation (payments.credentials_id), not whichever row is active now.
+      routingContext: payment.gymId !== null ? { type: "gym", gymId: payment.gymId, credentialsId: payment.credentialsId ?? null } : { type: "platform" },
     });
   } catch (err) {
     // A thrown (not returned) error -- e.g. a non-timeout network failure
@@ -311,6 +313,7 @@ async function handleInitiate(
       const { error: attentionError } = await supabase.rpc("mark_gym_payment_credentials_needs_attention", {
         p_gym_id: payment.gymId,
         p_provider_key: providerKey,
+        p_credentials_id: payment.credentialsId ?? null,
       });
       if (attentionError) {
         console.error(
@@ -527,7 +530,7 @@ export default {
       // lookup.
       const { data: paymentRow, error: lookupError } = await supabase
         .from("payments")
-        .select("id, gym_id, status")
+        .select("id, gym_id, status, credentials_id")
         .eq("provider_transaction_ref", event.providerTransactionRef)
         .maybeSingle();
 
@@ -644,6 +647,15 @@ export default {
         return jsonResponse(200);
       }
 
+      // 23.9: the delivery must verify under the credential the payment was initiated with.
+      const verifiedCredentialsId = event.resolvedRoutingContext.type === "gym" ? event.resolvedRoutingContext.credentialsId ?? null : null;
+      if (paymentRow.credentials_id && verifiedCredentialsId && paymentRow.credentials_id !== verifiedCredentialsId) {
+        console.error(
+          `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} verified under a different credential than payment ${paymentRow.id} was initiated with -- refusing to complete, leaving for reconciliation`,
+        );
+        return jsonResponse(200);
+      }
+
       // Defence in depth on top of the shared-secret header: ask the provider
       // itself (an authenticated call from our side) whether this transaction
       // succeeded. Only an explicit decline blocks completion; "unconfirmed"
@@ -652,7 +664,7 @@ export default {
       if (provider.confirmPaymentStatus) {
         const confirmation = await provider.confirmPaymentStatus({
           productId: paymentRow.id,
-          routingContext: { type: "gym", gymId: paymentRow.gym_id },
+          routingContext: { type: "gym", gymId: paymentRow.gym_id, credentialsId: paymentRow.credentials_id ?? null },
         });
         if (confirmation.state === "declined") {
           console.error(

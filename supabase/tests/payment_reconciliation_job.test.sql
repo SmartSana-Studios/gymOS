@@ -68,6 +68,7 @@ insert into gym_payment_credentials (id, gym_id, provider_key, credentials_secre
 -- too-recent processing (not yet past the threshold). p3/p4: already-verified
 -- rows matched by a webhook event below (amount mismatch / amount match).
 -- ============================================================================
+-- 23.9: p5/p6 carry provider 'taramoney', so the insert stamps them with Gym A's credentials_id; reconciliation joins on it.
 -- p5/p6 (Gym A, Story 4.14): p5's matched webhook event settles to the
 -- wrong businessId; p6's matches Gym A's own connected business_id_plain.
 -- p7 (Gym B, Story 4.14): Gym B never connected (no gym_payment_credentials
@@ -78,15 +79,15 @@ insert into gym_payment_credentials (id, gym_id, provider_key, credentials_secre
 -- a payment settled before the gym ever connected isn't retroactively
 -- flagged even though its webhook's businessId disagrees with what Gym A
 -- has connected today (the exact historical-flood scenario the fix closes).
-insert into payments (id, gym_id, member_id, amount, currency, method, status, created_at) values
-  ('00000000-0000-0000-0000-000000009601', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 5000, 'XAF', 'mtn_momo', 'processing', now() - interval '11 minutes'),
-  ('00000000-0000-0000-0000-000000009602', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 5000, 'XAF', 'mtn_momo', 'processing', now() - interval '5 minutes'),
-  ('00000000-0000-0000-0000-000000009603', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 10000, 'XAF', 'orange_money', 'verified', now()),
-  ('00000000-0000-0000-0000-000000009604', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 8000, 'XAF', 'orange_money', 'verified', now()),
-  ('00000000-0000-0000-0000-000000009605', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 6000, 'XAF', 'orange_money', 'verified', now()),
-  ('00000000-0000-0000-0000-000000009606', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 7000, 'XAF', 'orange_money', 'verified', now()),
-  ('00000000-0000-0000-0000-000000009607', '00000000-0000-0000-0000-000000009512', '00000000-0000-0000-0000-000000009562', 9000, 'XAF', 'orange_money', 'verified', now()),
-  ('00000000-0000-0000-0000-000000009608', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 4000, 'XAF', 'orange_money', 'verified', now() - interval '30 days');
+insert into payments (id, gym_id, member_id, amount, currency, method, status, provider, created_at) values
+  ('00000000-0000-0000-0000-000000009601', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 5000, 'XAF', 'mtn_momo', 'processing', null, now() - interval '11 minutes'),
+  ('00000000-0000-0000-0000-000000009602', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 5000, 'XAF', 'mtn_momo', 'processing', null, now() - interval '5 minutes'),
+  ('00000000-0000-0000-0000-000000009603', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 10000, 'XAF', 'orange_money', 'verified', null, now()),
+  ('00000000-0000-0000-0000-000000009604', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 8000, 'XAF', 'orange_money', 'verified', null, now()),
+  ('00000000-0000-0000-0000-000000009605', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 6000, 'XAF', 'orange_money', 'verified', 'taramoney', now()),
+  ('00000000-0000-0000-0000-000000009606', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 7000, 'XAF', 'orange_money', 'verified', 'taramoney', now()),
+  ('00000000-0000-0000-0000-000000009607', '00000000-0000-0000-0000-000000009512', '00000000-0000-0000-0000-000000009562', 9000, 'XAF', 'orange_money', 'verified', null, now()),
+  ('00000000-0000-0000-0000-000000009608', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009561', 4000, 'XAF', 'orange_money', 'verified', null, now() - interval '30 days');
 
 -- payment_webhook_events fixtures. 'taramoney' is seeded globally by 0029
 -- (0029_payment_provider_registry.sql), no per-test payment_providers row
@@ -286,7 +287,7 @@ select is(
   (select count(*)::int from payment_discrepancies
     where discrepancy_type = 'wrong_account_settlement' and webhook_event_id = '00000000-0000-0000-0000-000000009707'),
   0,
-  'review-finding fix: a payment settled before its gym''s connected_at is not retroactively flagged, even though the webhook''s businessId disagrees with what the gym has connected today -- the check is anchored to p.created_at >= g.connected_at'
+  'review-finding fix: a payment settled before its gym''s connected_at is not retroactively flagged, even though the webhook''s businessId disagrees with what the gym has connected today -- the check joins on payments.credentials_id (23.9), and a payment from before any connection has none'
 );
 
 -- ============================================================================

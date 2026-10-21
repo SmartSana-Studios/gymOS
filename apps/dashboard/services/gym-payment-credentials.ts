@@ -77,6 +77,27 @@ export async function connectGymPaymentCredentials(
   return { error: null };
 }
 
+/** Story 23.9: thin wrapper over support_connect_gym_payment_credentials() -- a live support session with a valid single-use step-up
+ * (support_payment_connection, bound to the gym) connects or replaces the gym's account. The RPC takes the gym from the live support
+ * assignment, never from the client, and refuses without the step-up. */
+export async function connectGymPaymentCredentialsAsSupport(
+  providerKey: string,
+  input: ConnectGymPaymentCredentialsInput,
+): Promise<{ error: AppError | null }> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("support_connect_gym_payment_credentials", {
+    p_provider_key: providerKey,
+    p_api_key: input.apiKey,
+    p_business_id: input.businessId,
+    p_webhook_secret: input.webhookSecret,
+  });
+
+  if (error) {
+    return { error: await mapAndLog(error) };
+  }
+  return { error: null };
+}
+
 /** Thin wrapper over disconnect_gym_payment_credentials() -- Owner-only,
  * idempotent no-op if no connection exists for this gym/provider. */
 export async function disconnectGymPaymentCredentials(

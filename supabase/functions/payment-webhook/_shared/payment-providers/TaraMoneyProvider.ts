@@ -204,6 +204,7 @@ export class TaraMoneyProvider implements PaymentProvider {
       const { data, error } = await this.supabase.rpc("get_gym_payment_credentials_for_service", {
         p_gym_id: params.routingContext.gymId,
         p_provider_key: this.providerKey,
+        p_credentials_id: params.routingContext.credentialsId ?? null,
       });
       if (error) {
         // A transient RPC/DB failure -- distinct from "genuinely not
@@ -324,6 +325,7 @@ export class TaraMoneyProvider implements PaymentProvider {
       const { data, error } = await this.supabase.rpc("get_gym_payment_credentials_for_service", {
         p_gym_id: params.routingContext.gymId,
         p_provider_key: this.providerKey,
+        p_credentials_id: params.routingContext.credentialsId ?? null,
       });
       if (error) return { state: "unconfirmed", detail: `credential lookup failed: ${error.message}` };
       const row = Array.isArray(data) ? data[0] : undefined;
@@ -501,6 +503,9 @@ export class TaraMoneyProvider implements PaymentProvider {
       const { data, error } = await this.supabase.rpc("get_gym_payment_credentials_by_business_id", {
         p_business_id: rawPayload.businessId,
         p_provider_key: this.providerKey,
+        // 23.9: prefer the credential row the payment was initiated under (matched by the provider ref or our own product id)
+        p_provider_ref: rawPayload.paymentId,
+        p_product_id: typeof rawPayload.productId === "string" ? rawPayload.productId : null,
       });
       const row = Array.isArray(data) ? data[0] : undefined;
 
@@ -514,7 +519,7 @@ export class TaraMoneyProvider implements PaymentProvider {
         return { valid: false };
       }
 
-      routingContext = { type: "gym", gymId: row.gym_id };
+      routingContext = { type: "gym", gymId: row.gym_id, credentialsId: row.credentials_id ?? null };
       webhookSecret = row.webhook_secret;
       resolvedGymId = row.gym_id;
     }

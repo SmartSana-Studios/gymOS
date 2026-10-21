@@ -209,7 +209,7 @@ select is((select count(*)::int from pg_proc p where p.oid in (
             'log_audit_event(text,uuid,text,text,jsonb,text)'::regprocedure, 'confirm_renewal(uuid,text,text,boolean)'::regprocedure,
             'initiate_registration_fee_payment(uuid)'::regprocedure, 'initiate_session_payment()'::regprocedure,
             'record_registration_fee(uuid,text,text)'::regprocedure, 'record_session_payment(uuid,text,text)'::regprocedure,
-            'connect_gym_payment_credentials(text,text,text,text)'::regprocedure, 'update_messaging_instance(text)'::regprocedure,
+            'private.connect_payment_credentials(uuid,text,text,text,text,boolean)'::regprocedure, 'update_messaging_instance(text)'::regprocedure,
             'front_desk_alerts_protect_columns()'::regprocedure) and p.prosrc ~ 'private\.actor_id\(\)'), 9, 'all nine converted writers call private.actor_id()');
 
 -- ============================================================================================================
@@ -269,7 +269,8 @@ create temp table fk_class (col text primary key, class text not null check (cla
 insert into fk_class (col, class, note) values
   ('audit_log.actor_id',                        'actor_converted', 'log_audit_event'),
   ('front_desk_alerts.dismissed_by',            'actor_converted', 'front_desk_alerts_protect_columns'),
-  ('gym_payment_credentials.connected_by',      'actor_converted', 'connect_gym_payment_credentials'),
+  ('gym_payment_credentials.connected_by',      'actor_converted', 'connect_payment_credentials (shared by the Owner and support connect functions)'),
+  ('staff_notices.user_id',                     'non_actor',       'the recipient of an in-app notice (23.9)'),
   ('messaging_provider_config.updated_by',      'actor_converted', 'update_messaging_instance (Super Admin only)'),
   ('payments.actor_id',                         'actor_converted', 'record_* / initiate_* RPCs and the aa_support_force_actor trigger'),
   ('refunds.actor_id',                          'actor_converted', 'aa_support_force_actor trigger'),

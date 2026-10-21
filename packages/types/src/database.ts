@@ -606,6 +606,8 @@ export type Database = {
           id: string
           needs_attention: boolean
           provider_key: string
+          retired_at: string | null
+          secret_deleted_at: string | null
           updated_at: string
         }
         Insert: {
@@ -618,6 +620,8 @@ export type Database = {
           id?: string
           needs_attention?: boolean
           provider_key: string
+          retired_at?: string | null
+          secret_deleted_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -630,6 +634,8 @@ export type Database = {
           id?: string
           needs_attention?: boolean
           provider_key?: string
+          retired_at?: string | null
+          secret_deleted_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1236,6 +1242,7 @@ export type Database = {
           actor_id: string | null
           amount: number
           created_at: string
+          credentials_id: string | null
           currency: string
           flagged_reason: string | null
           gym_id: string
@@ -1255,6 +1262,7 @@ export type Database = {
           actor_id?: string | null
           amount: number
           created_at?: string
+          credentials_id?: string | null
           currency?: string
           flagged_reason?: string | null
           gym_id: string
@@ -1274,6 +1282,7 @@ export type Database = {
           actor_id?: string | null
           amount?: number
           created_at?: string
+          credentials_id?: string | null
           currency?: string
           flagged_reason?: string | null
           gym_id?: string
@@ -2542,22 +2551,55 @@ export type Database = {
         }[]
       }
       get_gym_payment_credentials_by_business_id: {
-        Args: { p_business_id: string; p_provider_key: string }
+        Args: { p_business_id: string; p_product_id?: string | null; p_provider_key: string; p_provider_ref?: string | null }
         Returns: {
           api_key: string
           business_id: string
+          credentials_id: string
           gym_id: string
           webhook_secret: string
         }[]
       }
       get_gym_payment_credentials_for_service: {
-        Args: { p_gym_id: string; p_provider_key: string }
+        Args: { p_credentials_id?: string | null; p_gym_id: string; p_provider_key: string }
         Returns: {
           api_key: string
           business_id: string
+          credentials_id: string
           webhook_secret: string
         }[]
       }
+      get_staff_notices: {
+        Args: { p_limit?: number }
+        Returns: {
+          body_en: string
+          body_fr: string
+          created_at: string
+          id: string
+          notice_type: string
+          read_at: string | null
+          title_en: string
+          title_fr: string
+        }[]
+      }
+      count_unread_staff_notices: { Args: never; Returns: number }
+      mark_staff_notices_read: { Args: { p_ids?: string[] | null }; Returns: number }
+      get_support_connection_gym: { Args: never; Returns: string | null }
+      support_connect_gym_payment_credentials: {
+        Args: {
+          p_api_key: string
+          p_business_id: string
+          p_provider_key: string
+          p_webhook_secret: string
+        }
+        Returns: undefined
+      }
+      claim_email_outbox: {
+        Args: { p_limit?: number }
+        Returns: { attempts: number; body: string; id: string; recipient_email: string; subject: string }[]
+      }
+      finish_email_outbox: { Args: { p_error?: string | null; p_id: string; p_sent: boolean }; Returns: undefined }
+      record_email_outbox_run: { Args: { p_failed: number; p_sent: number; p_started_at?: string }; Returns: undefined }
       get_support_accounts: {
         Args: never
         Returns: {
@@ -2805,7 +2847,7 @@ export type Database = {
         }
       }
       mark_gym_payment_credentials_needs_attention: {
-        Args: { p_gym_id: string; p_provider_key: string }
+        Args: { p_credentials_id?: string | null; p_gym_id: string; p_provider_key: string }
         Returns: undefined
       }
       materialize_class_sessions: {

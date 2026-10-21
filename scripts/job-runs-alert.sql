@@ -15,6 +15,7 @@ with expected(job_name, max_gap) as (
     ('quiet_gym_alert',            interval '45 minutes'),
     ('class_session_materializer', interval '27 hours'),
     ('payment_reconciliation',     interval '27 hours'),
+    ('payment_connection_cleanup', interval '27 hours'),
     ('saas_billing_lifecycle',     interval '27 hours'),
     ('subscription_lifecycle',     interval '27 hours'),
     ('loyalty_sweep',              interval '27 hours'),

@@ -15,7 +15,7 @@
 -- secret), and the guard must no-op when that secret is unseeded.
 
 begin;
-select plan(44);
+select plan(46);
 
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000000901'), -- owner, gym A
@@ -182,15 +182,19 @@ select lives_ok(
 
 reset role;
 select is(
-  (select count(*) from gym_payment_credentials where gym_id = '00000000-0000-0000-0000-000000000405')::int, 1,
-  'reconnecting does not create a second row -- upsert, not insert'
+  (select count(*) from gym_payment_credentials where gym_id = '00000000-0000-0000-0000-000000000405' and retired_at is null)::int, 1,
+  'reconnecting leaves exactly one ACTIVE row (23.9: the old one is retired, not overwritten)'
 );
-
 select is(
-  (select credentials_secret_id = :'secret_id_1' from gym_payment_credentials where gym_id = '00000000-0000-0000-0000-000000000405'),
-  true,
-  'reconnecting replaces the same Vault secret (vault.update_secret), not a new one'
+  (select count(*) from gym_payment_credentials where gym_id = '00000000-0000-0000-0000-000000000405' and retired_at is not null)::int, 1,
+  'reconnecting retires the previous row instead of overwriting it'
 );
+select is(
+  (select count(*) from vault.secrets where id = :'secret_id_1')::int, 1,
+  'the retired row keeps its own Vault secret (an in-flight payment is still verified with it)'
+);
+select credentials_secret_id as secret_id_2 from gym_payment_credentials where gym_id = '00000000-0000-0000-0000-000000000405' and retired_at is null \gset
+select isnt(:'secret_id_2'::uuid, :'secret_id_1'::uuid, 'the replacement is stored under a new Vault secret');
 
 -- ============================================================================
 -- disconnect_gym_payment_credentials(): removes the row and the Vault
@@ -211,7 +215,7 @@ select is(
 
 reset role;
 select is(
-  (select count(*) from vault.secrets where id = :'secret_id_1')::int, 0,
+  (select count(*) from vault.secrets where id = :'secret_id_2')::int, 0,
   'the underlying Vault secret is actually deleted, not just the gym_payment_credentials row'
 );
 
@@ -411,7 +415,7 @@ select throws_like(
 reset role;
 
 select is(
-  (select business_id_plain from gym_payment_credentials where gym_id = '00000000-0000-0000-0000-000000000407' and provider_key = 'taramoney')::text, 'ab',
+  (select business_id_plain from gym_payment_credentials where gym_id = '00000000-0000-0000-0000-000000000407' and provider_key = 'taramoney' and retired_at is null)::text, 'ab',
   'the rejected platform-collision attempt leaves gym C''s existing connection untouched'
 );
 
@@ -437,9 +441,9 @@ select throws_like(
 reset role;
 
 select is(
-  (select count(*)::int from gym_payment_credentials where gym_id = '00000000-0000-0000-0000-000000000405'),
+  (select count(*)::int from gym_payment_credentials where gym_id = '00000000-0000-0000-0000-000000000405' and retired_at is null),
   0,
-  'the rejected fresh-connect attempt leaves gym A with no gym_payment_credentials row'
+  'the rejected fresh-connect attempt leaves gym A with no active gym_payment_credentials row'
 );
 
 set local role authenticated;

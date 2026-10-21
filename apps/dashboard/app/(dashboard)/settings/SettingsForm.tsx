@@ -102,7 +102,7 @@ export function SettingsForm({
   const logo = useLogoUpload(initial.logoUrl);
   const { logoUrl, uploadingLogo } = logo;
   const qr = useQrCode({ initialToken: initial.gymToken, showToast });
-  const payments = usePayments({ initialConnection: initialPaymentConnection, showToast });
+  const payments = usePayments({ initialConnection: initialPaymentConnection, showToast, isSupport: role === "support" });
   const charge = useGuestCharging({ initialValue: initial.chargeGuestsPerSession, showToast });
   // Story 20.5: mirrors the saved loyalty switch for the turn-off dialog; the section reports changes.
   const [loyaltyActive, setLoyaltyActive] = useState(initial.loyaltyEnabled);

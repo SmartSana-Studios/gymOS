@@ -367,8 +367,8 @@ select ok((select (length(seen) - length(replace(seen, '=', ''))) from owner_wal
           'proof is not vacuous: the owner sees rows in at least 10 gym-scoped tables (' || (select seen from owner_walk) || ')');
 select is((select array_agg(c.relname::text order by c.relname) from pg_class c join pg_attribute at on at.attrelid = c.oid and at.attname = 'gym_id' and not at.attisdropped
             where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and not has_table_privilege('authenticated', c.oid, 'select')),
-          array['audit_disclosure_requests', 'gym_data_escalations', 'support_action_identity', 'support_assignments']::text[],
-          'the only gym_id tables the walk cannot read are the four with no client grant (a new one must be added here deliberately)');
+          array['audit_disclosure_requests', 'gym_data_escalations', 'staff_notices', 'support_action_identity', 'support_assignments']::text[],
+          'the only gym_id tables the walk cannot read are the five with no client grant (a new one must be added here deliberately)');
 select pg_temp.claims('00000000-0000-0000-0000-000000231101', '00000000-0000-0000-0000-000000231001', 'support', 'aal2', '00000000-0000-0000-0000-0000000231a3');
 select is(pg_temp.seen(), '00000000-0000-0000-0000-000000231001|-|-', 'zero-row proof runs with a fully live support session');
 set local role authenticated;
