@@ -393,8 +393,8 @@ select is((select count(*)::int from pg_policies where coalesce(qual, '') || coa
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
               and p.prosrc ~ 'support_assignments|support_accounts'),
-          array['public.custom_access_token_hook', 'private.guard_support_membership', 'public.list_own_active_gym_memberships', 'private.session_gate_touch',
-                'private.support_live', 'private.support_set_membership', 'public.switch_active_gym']::text[],
+          array['public.custom_access_token_hook', 'public.get_gymos_support_status', 'private.guard_support_membership', 'public.list_own_active_gym_memberships', 'private.session_gate_touch',
+                'public.set_allow_gymos_support', 'private.support_live', 'private.support_set_membership', 'public.switch_active_gym']::text[],
           'readers of the assignment tables are exactly the expected functions (a new reader must be added here deliberately)');
 
 select * from finish();

@@ -22,6 +22,8 @@ import { MembershipSection } from "./MembershipSection";
 import { PaymentDialogs, PaymentsCard, usePayments } from "./PaymentsSection";
 import { QrCodeCard, QrRegenerateDialog, useQrCode } from "./QrCodeSection";
 import { StaffSection } from "./StaffSection";
+import { GymosSupportSection } from "./GymosSupportSection";
+import type { GymosSupportStatus } from "@/services/gym-settings";
 import type { FieldErrors } from "./settingsFormTypes";
 import { useLogoUpload } from "./useLogoUpload";
 
@@ -34,6 +36,7 @@ export function SettingsForm({
   role = null,
   loyaltyEnabled,
   loyaltyPlans = [],
+  gymosSupportStatus = null,
 }: {
   initial: GymSettingsRow;
   initialPaymentConnection: GymPaymentConnectionStatus | null;
@@ -47,6 +50,8 @@ export function SettingsForm({
   loyaltyEnabled?: boolean;
   /** Story 20.5: the gym's non-pay-per-session plans, for the subscriber discount readout. */
   loyaltyPlans?: LoyaltyPlanDuration[];
+  /** Story 23.3: the Owner-only GymOS Support readout; null for any other role (the section is not rendered). */
+  gymosSupportStatus?: GymosSupportStatus | null;
 }) {
   const { t, i18n } = useTranslation();
   const countryOptions = useMemo(() => listPhoneCountries(i18n.language), [i18n.language]);
@@ -200,6 +205,10 @@ export function SettingsForm({
             />
 
             <StaffSection staffCount={staffCount} />
+
+            {role === "owner" && gymosSupportStatus && (
+              <GymosSupportSection initial={gymosSupportStatus} onSaved={showToast} />
+            )}
           </div>
 
           {/* Right column: how the gym operates -- localization, membership

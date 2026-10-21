@@ -17,6 +17,8 @@ import {
   logGymSettingsChange,
   regenerateQrCode as regenerateQrCodeRow,
   setGuestCharging as setGuestChargingRow,
+  getGymosSupportStatus,
+  setAllowGymosSupport,
   setGymCategory as setGymCategoryRow,
   setLoyaltyProgram as setLoyaltyProgramRow,
   setRegistrationFee,
@@ -424,4 +426,27 @@ export async function saveGymCategory(
     return { data: null, error: { code: error?.code ?? "unknown", message: t("settings.category.saveFailed") } };
   }
   return { data, error: null };
+}
+
+/**
+ * Story 23.3: the Owner's "Allow GymOS Support" switch, through `set_allow_gymos_support()` (0137). The RPC is the
+ * authorization boundary (Owner of this gym only) and writes the audit row. Any refusal is one fixed, translated message.
+ */
+export async function saveAllowGymosSupport(
+  input: unknown,
+): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const failure = (code: string): { data: null; error: AppError } => ({
+    data: null,
+    error: { code, message: t("settings.gymosSupport.saveFailed") },
+  });
+  if (typeof input !== "boolean") return failure("validation_error");
+  const { data, error } = await setAllowGymosSupport(input);
+  if (error || !data) return failure(error?.code ?? "unknown");
+  return { data, error: null };
+}
+
+/** Story 23.3: re-reads the Owner-only readout after a change. */
+export async function loadGymosSupportStatus() {
+  return getGymosSupportStatus();
 }
