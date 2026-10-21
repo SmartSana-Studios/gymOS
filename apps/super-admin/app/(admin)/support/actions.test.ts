@@ -245,6 +245,16 @@ describe("Story 23.8: real actors and the disclosure inbox", () => {
     expect(res.data[AUDIT]).toMatchObject({ name: "Zed", email: "zed@gymosapps.com", realUserId: UID });
   });
 
+  it("listRealActors reads the identity of payments, refunds and connected credential rows too (23.9), and refuses any other table", async () => {
+    rpc.mockResolvedValue({ data: [], error: null });
+    const { listRealActors } = await import("./actions");
+    await listRealActors([AUDIT], "gym_payment_credentials");
+    expect(rpc).toHaveBeenCalledWith("get_support_action_identity", { p_subject_table: "gym_payment_credentials", p_subject_ids: [AUDIT] });
+    rpc.mockClear();
+    await listRealActors([AUDIT], "users" as never);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it("listRealActors makes no call for an empty list", async () => {
     const { listRealActors } = await import("./actions");
     await listRealActors(["nope"]);

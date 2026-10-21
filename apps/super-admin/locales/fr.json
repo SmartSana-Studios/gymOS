@@ -5,6 +5,13 @@
     "refresh": "Actualiser",
     "later": "Plus tard"
   },
+  "notices": {
+    "bellLabel": "Notifications",
+    "bellLabelUnread": "Notifications, {{count}} non lue(s)",
+    "title": "Notifications",
+    "empty": "Aucune notification.",
+    "loadError": "Impossible de charger les notifications."
+  },
   "nav": {
     "brand": "GymOS Super Admin",
     "gyms": "Salles",

@@ -1397,3 +1397,18 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - `private.record_support_identity` is granted EXECUTE to `authenticated` because `front_desk_alerts_protect_columns` is not SECURITY DEFINER; private schema is unexposed and the function is a no-op outside a live support session. Consider making the trigger definer and revoking the grant.
 - Per-surface leak proof is narrower than the 23-8 spec list: no error-log test, TS leak test is Owner-only, notifications and member-notes unseeded in the SQL scan, RPC returns unscanned, member message templates untested (review 23-8, medium, decided 1a). Reason: no error-log table; scan controls already show it can fail.
 - Super Admin reads the real person only for audit_log rows via a "GymOS Support" display-string match; payments, refunds, gym_payment_credentials and messaging_provider_config identity rows have no reader (review 23-8, medium, decided 2b). Widen the reader and key it on the proxy id in 23-9/23-10.
+
+## Deferred from: code review of spec-23-9-support-connects-the-payment-account (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-9-support-connects-the-payment-account.md`
+  summary: Support step-up has no local lockout or failure audit; only Supabase's MFA rate limit applies to wrong codes.
+  evidence: Accepted in docs/decisions.md (the 22.7 counter is Super Admin only). Medium; add a per-user counter and audit row before support is enabled for any gym (23-10 or 23-11).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-9-support-connects-the-payment-account.md`
+  summary: The Settings payment form for support is unreachable until 23-6b admits the support role in the dashboard shell; close before support is enabled for any gym (belongs in 23-6b criteria).
+  evidence: decisions.md 23-9 entry; the database function, action and form are tested but no end-to-end path exists.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-9-support-connects-the-payment-account.md`
+  summary: Email retry is daily only (Vercel Hobby cron) and `payment_connection_email` is not in the job-runs alert list; a backlog or rows stuck at `failed` are not alerted.
+  evidence: Review 23-9 (low); add an alert row when a paid cron plan or a second trigger exists.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-9-support-connects-the-payment-account.md`
+  summary: Webhook credential-mismatch guard skips payments with a NULL credentials_id; the Super Admin NoticeBell has no component test; check-credentials-id scan is regex based; database.ts was hand-edited.
+  evidence: Review 23-9 (low each); regenerate database.ts at the next type generation.

@@ -5,6 +5,13 @@
     "refresh": "Refresh",
     "later": "Later"
   },
+  "notices": {
+    "bellLabel": "Notices",
+    "bellLabelUnread": "Notices, {{count}} unread",
+    "title": "Notices",
+    "empty": "No notices.",
+    "loadError": "Couldn't load notices."
+  },
   "nav": {
     "brand": "GymOS Super Admin",
     "gyms": "Gyms",

@@ -347,14 +347,23 @@ export interface RealActor {
   recordedAt: string;
 }
 
-/** The real person for each of these audit rows. A row support did not write has none. A refusal degrades to an empty map. */
-export async function listRealActors(auditLogIds: string[]): Promise<{ data: Record<string, RealActor>; error: AppError | null }> {
+/** The tables whose rows carry a support identity (23.7/23.8/23.9): the audit trail, payments, refunds and connected credential rows. */
+export type IdentitySubjectTable = "audit_log" | "payments" | "refunds" | "gym_payment_credentials";
+const IDENTITY_SUBJECT_TABLES: readonly IdentitySubjectTable[] = ["audit_log", "payments", "refunds", "gym_payment_credentials"];
+
+/** The real person for each of these rows (audit rows by default; also payments, refunds and credential rows, which the gym sees under the proxy).
+ * A row support did not write has none. A refusal degrades to an empty map. */
+export async function listRealActors(
+  auditLogIds: string[],
+  subjectTable: IdentitySubjectTable = "audit_log",
+): Promise<{ data: Record<string, RealActor>; error: AppError | null }> {
   const authz = await authorizeOrRedirect("platform.support_manage");
   if (!authz.ok) return { data: {}, error: authz.error };
+  if (!IDENTITY_SUBJECT_TABLES.includes(subjectTable)) return { data: {}, error: null };
   const ids = auditLogIds.filter((id) => isUuid(id));
   if (ids.length === 0) return { data: {}, error: null };
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_support_action_identity", { p_subject_table: "audit_log", p_subject_ids: ids });
+  const { data, error } = await supabase.rpc("get_support_action_identity", { p_subject_table: subjectTable, p_subject_ids: ids });
   if (error) return { data: {}, error: await mapAndLog(error) };
   const byId: Record<string, RealActor> = {};
   for (const row of data ?? []) {

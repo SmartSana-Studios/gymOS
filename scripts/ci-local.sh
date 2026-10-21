@@ -69,6 +69,8 @@ stage_static() {
   npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin || return 1
   pnpm run check:i18n || return 1
   pnpm run check:migrations || return 1
+  # Story 23.9: payment initiators and credential lookups verify under payments.credentials_id
+  pnpm run check:credentials-id || return 1
   pnpm run test:guardrails || return 1
   # The deploy scripts refuse to apply a migration without a green db-backup run (against a fake gh; never touches GitHub).
   bash "$ROOT/scripts/require-db-backup.test.sh" || return 1

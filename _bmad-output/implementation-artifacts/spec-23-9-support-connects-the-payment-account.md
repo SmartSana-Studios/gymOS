@@ -2,7 +2,7 @@
 title: '23-9 Support connects the payment account'
 type: 'feature'
 created: '2026-10-21'
-status: 'in-progress'
+status: 'done'
 baseline_commit: '3500c7064ee2c8e56339390330458cacd2356484'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -61,14 +61,14 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/0143_support_payment_connection.sql` -- `retired_at`, partial uniques, `payments.credentials_id` + backfill, support connect function, `stepup_issue` value, capability rows, lookup functions by credential id, cleanup function + cron, `staff_notices` + email delivery queue -- AD-37
-- [ ] `supabase/migrations/…` rollback script `scripts/rollback-0143-*.sql` -- reversible
-- [ ] initiate/reconcile/webhook code paths (above) -- verify under `credentials_id`
-- [ ] `supabase/tests/support_payment_connection.test.sql` -- step-up refusal, retire/rollback, collision guard, proxy `connected_by` and one identity row (23-7/23-8 deferrals), pre-swap payment verification, cleanup rules, audit holds no value
-- [ ] `supabase/functions/payment-webhook/index.test.ts` -- deleted credential gives 401 before writes
-- [ ] Settings payment form for live support, `staff_notices` bell in dashboard and Super Admin headers, Resend worker (queue drain, retry, `job_runs`), services, tests and EN/FR copy
-- [ ] widen `get_support_action_identity` reader to proxy-keyed rows
-- [ ] a scan that fails when a payment initiator or credential lookup skips `credentials_id` (every consumer listed above)
+- [x] `supabase/migrations/0143_support_payment_connection.sql` -- `retired_at`, partial uniques, `payments.credentials_id` + backfill, support connect function, `stepup_issue` value, capability rows, lookup functions by credential id, cleanup function + cron, `staff_notices` + email delivery queue -- AD-37
+- [x] `supabase/migrations/…` rollback script `scripts/rollback-0143-*.sql` -- reversible
+- [x] initiate/reconcile/webhook code paths (above) -- verify under `credentials_id`
+- [x] `supabase/tests/support_payment_connection.test.sql` -- step-up refusal, retire/rollback, collision guard, proxy `connected_by` and one identity row (23-7/23-8 deferrals), pre-swap payment verification, cleanup rules, audit holds no value
+- [x] `supabase/functions/payment-webhook/index.test.ts` -- deleted credential gives 401 before writes
+- [x] Settings payment form for live support, `staff_notices` bell in dashboard and Super Admin headers, Resend worker (queue drain, retry, `job_runs`), services, tests and EN/FR copy
+- [x] widen `get_support_action_identity` reader to proxy-keyed rows
+- [x] a scan that fails when a payment initiator or credential lookup skips `credentials_id` (every consumer listed above)
 
 **Acceptance Criteria:**
 - Given any item in the I/O matrix, the behavior matches.
@@ -77,10 +77,46 @@ context:
 
 ## Implementation Notes
 
+- Migration `0143_support_payment_connection.sql`, rollback `scripts/rollback-0143-support-payment-connection.sql` (rehearsed in a rolled-back transaction), pgTAP `support_payment_connection.test.sql` (81), new scan `scripts/check-credentials-id.mjs` (+ `__tests__/credentials-id-scan.test.mjs`). Full decisions in `docs/decisions.md` (2026-10-21, Story 23.9).
+- Choices the spec left open: (1) the Owner and support connect functions share `private.connect_payment_credentials`; only a support change writes notices and e-mails (an Owner's own change notifies nobody). (2) The "cap 14" in the cleanup rule is read as a hard cap: at 14 days the secret goes even if a payment is still open. (3) Owner disconnect retires a row any payment references and deletes one nothing references. (4) A trigger stamps/pins `payments.credentials_id` so the dashboard's client-side insert is covered as well as the three initiator RPCs. (5) The e-mail worker is the Super Admin app route `/api/email-outbox/drain` (owner message: reuse `apps/super-admin/lib/mail.ts`); the dashboard only nudges it. (6) `get_gym_payment_connection_status` is also an allow-listed RPC so the Settings form can show the state to support.
+- Not done / limits: the dashboard shell does not admit a support session yet (23-6b), so the Settings form for support is wired and tested but unreachable; wrong support authenticator codes are not counted toward a lockout (the 22.7 counter is Super Admin only); production needs `CRON_SECRET` on the Super Admin project and (optionally) `EMAIL_DRAIN_SECRET` + `SUPER_ADMIN_APP_URL` on the dashboard project; SMS stays off.
+
 ## Spec Change Log
 
 ## Review Triage Log
 
+| Finding | Verdict | Route / evidence |
+|---|---|---|
+| Bell marks read from stale `unread` closure (dashboard + Super Admin) | medium | patch: after `await load()` the closure value is the pre-load count, so a notice that arrived since the last poll is never marked read |
+| Super Admin bell mounted twice (desktop nav + MobileNavMenu), two pollers | low | patch: render once |
+| `finish_email_outbox` / `record_email_outbox_run` errors ignored | medium | patch: row stays `sending`, reclaimed after 10 min, duplicate alert e-mail |
+| Drain has no try/catch or maxDuration; claimed rows stranded | medium | patch |
+| `claim_email_outbox` reclaims `sending` rows with no attempts cap | medium | patch: poison row retried forever; reclaim only while attempts < 5, else mark failed |
+| `email_outbox` / `staff_notices` never purged (addresses kept forever) | medium | patch: purge sent/failed >90 days and notices >180 days inside the cleanup job |
+| `get_support_connection_gym` error ignored in connect action | low | patch: direct correction |
+| Proxy exemption for `/api/email-outbox/drain` untested | medium | patch: add proxy test |
+| `credentials_id` forwarding in TaraMoneyProvider / webhook only source-scanned | medium | patch: argument-capture tests |
+| Owner disconnect rewrite (retire vs delete, secret kept while pending) untested | medium | patch: pgTAP |
+| `mark_gym_payment_credentials_needs_attention` retired / id filter unpinned | low | patch: pgTAP |
+| Dashboard bell: mark-read on open, owner-only TopBar, FR, staff-notices mapping untested | medium | patch |
+| Suspended-gym refusal of support connect untested | low | patch: pgTAP; step-up stays unconsumed |
+| Unused `markAllRead` locale key | low | patch: delete (23-8 precedent) |
+| Retired-credential business-id lookup resolves any retired row that has some payment | low | reject: needs the retired merchant's own webhook secret to verify; fix adds branching |
+| Payment inserted with no active credential stays unpinned | low | reject: initiators that need a credential refuse without one |
+| Nudge awaited up to 4 s in connect action | low | reject: best-effort, rare slow path |
+| `listFactors` error shown as invalid code | low | reject: cosmetic |
+| User both Owner and Super Admin gets two notices | low | reject: rare |
+| Gym with no active owner / owner without e-mail gets no Owner notice | low | reject: Super Admin still alerted |
+| Scan is regex based | low | defer |
+| Webhook mismatch guard skips NULL ids (legacy payments) | low | defer: legacy settled payments only |
+| `database.ts` hand-edited | low | defer: regenerate when the type generator is next run |
+| Super Admin bell untested | low | defer |
+| Daily-only retry (Hobby cron); `payment_connection_email` not in job-runs alert | low | defer |
+| Support step-up has no local lockout / failure audit | medium | defer: accepted in decisions.md (22.7 counter is Super Admin only); Supabase MFA rate limit applies |
+| 14-day cap deletes a secret still under a processing payment | low | false-alarm: spec says "cap 14"; recorded as a judgment call |
+| Settings form unreachable for support until 23-6b | low | known: split by owner decision (decisions.md) |
+| Bilingual e-mail body and FR "non lue(s)" wording | low | reject: cosmetic |
+| `.env.example` URL port mismatch | low | patch: direct correction |
 ## Design Notes
 
 `stepup_issue` only accepts listed actions and support ones must start `support_`, so the epic's `payment_connection` is stored as `support_payment_connection`. Replacement must not bump a shared row in place: the old reconciliation anchor `connected_at` lives on each row, so a new row gets its own anchor.

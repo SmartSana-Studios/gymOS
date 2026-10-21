@@ -9,6 +9,7 @@ import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { AdminNavLink } from "@/components/AdminNavLink";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { NoticeBell } from "@/components/NoticeBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LogoutButton } from "@/components/logout-button";
 import { MobileNavMenu } from "@/components/MobileNavMenu";
@@ -100,6 +101,11 @@ async function AdminLayoutData({
           <LanguageToggle />
           <ThemeToggle />
           <LogoutButton />
+        </div>
+
+        {/* Story 23.9: one bell for every width (a second mount would poll twice). */}
+        <div className="ml-auto md:ml-0">
+          <NoticeBell />
         </div>
 
         <MobileNavMenu navLinks={navLinks} />

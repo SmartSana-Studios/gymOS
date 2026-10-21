@@ -5,6 +5,7 @@ import { updateLanguagePreference as updateLanguagePreferenceRow, switchActiveGy
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { getGuestSessionsSummary } from "@/services/guestSessions";
+import { getStaffNotices, markStaffNoticesRead, type StaffNotice } from "@/services/staff-notices";
 import { parseGuestSessionsPeriod, type GuestSessionsSummary } from "@/lib/guest-sessions";
 
 /** Sidebar language toggle. Never trusts client input -- re-validates
@@ -45,4 +46,16 @@ export async function getGuestSessionsSummaryAction(
   period: unknown,
 ): Promise<{ data: GuestSessionsSummary | null; error: AppError | null }> {
   return getGuestSessionsSummary(parseGuestSessionsPeriod(typeof period === "string" ? period : null));
+}
+
+/** Story 23.9: the header bell. Both read and write only the caller's own notices (the database keys them on the signed-in user). */
+export async function getStaffNoticesAction(): Promise<{
+  data: { notices: StaffNotice[]; unread: number } | null;
+  error: AppError | null;
+}> {
+  return getStaffNotices(20);
+}
+
+export async function markStaffNoticesReadAction(): Promise<{ error: AppError | null }> {
+  return markStaffNoticesRead();
 }

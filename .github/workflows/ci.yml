@@ -43,7 +43,7 @@ jobs:
         run: pnpm run check:i18n
 
       - name: Migration guardrails (AD-3 app_role lint, function privilege revokes)
-        run: pnpm run check:migrations && pnpm run test:guardrails
+        run: pnpm run check:migrations && pnpm run check:credentials-id && pnpm run test:guardrails
 
       - name: Deploy scripts refuse to run without a green db-backup (fake gh)
         run: PYTHON_CMD=python3 bash scripts/require-db-backup.test.sh

@@ -42,6 +42,13 @@
     "switchToLightTheme": "Switch to light theme",
     "switchToDarkTheme": "Switch to dark theme"
   },
+  "notices": {
+    "bellLabel": "Notices",
+    "bellLabelUnread": "Notices, {{count}} unread",
+    "title": "Notices",
+    "empty": "No notices.",
+    "loadError": "Couldn't load notices."
+  },
   "overview": {
     "title": "Overview",
     "cards": {
@@ -209,7 +216,14 @@
       "disconnectConfirmBody": "Members will no longer see the automated mobile-money payment option. Cash and other manual methods are unaffected.",
       "disconnectedToast": "Payment account disconnected.",
       "disconnectFailedToast": "Couldn't disconnect. Try again.",
-      "needsAttention": "Your Tara Money connection needs attention — reconnect below to resume automated mobile-money payments."
+      "needsAttention": "Your Tara Money connection needs attention — reconnect below to resume automated mobile-money payments.",
+      "supportConnectDialogBody": "You are connecting this gym's account as GymOS Support. The Owner is told immediately that GymOS Support updated the payment account. A fresh authenticator code is required.",
+      "supportCodeLabel": "Authenticator code *",
+      "supportCodeHelp": "The 6-digit code from your authenticator app. It allows this one change.",
+      "supportCodeRequiredError": "Enter the 6-digit authenticator code",
+      "supportCodeInvalid": "That code was not accepted. Try the current code.",
+      "supportStepUpUnavailable": "Couldn't confirm the code right now. Try again.",
+      "replaceWarning": "Connecting a new account replaces the current one for new payments. Payments already started finish under the account they began with."
     },
     "billing": {
       "intervalMonthly": "Monthly",

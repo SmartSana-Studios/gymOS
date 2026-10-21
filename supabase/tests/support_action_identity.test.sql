@@ -365,7 +365,7 @@ insert into identity_cover (col, how) values
   ('audit_log.actor_id',                     'trigger:audit_log'),
   ('payments.actor_id',                      'trigger:payments'),
   ('refunds.actor_id',                       'trigger:refunds'),
-  ('gym_payment_credentials.connected_by',   'function:connect_gym_payment_credentials(text,text,text,text)'),
+  ('gym_payment_credentials.connected_by',   'function:private.connect_payment_credentials(uuid,text,text,text,text,boolean)'),
   ('messaging_provider_config.updated_by',   'function:update_messaging_instance(text)'),
   ('front_desk_alerts.dismissed_by',         'function:front_desk_alerts_protect_columns()');
 create temp table identity_none (col text primary key, reason text not null);
@@ -377,6 +377,7 @@ insert into identity_none (col, reason) values
   ('audit_disclosure_requests.requested_by',     'Owner-only function; current_member_role() is NULL for support'),
   ('audit_disclosure_requests.answered_by',      'Super Admin answers; never gym visible'),
   ('device_push_tokens.user_id',                 'own device token'),
+  ('staff_notices.user_id',                      'the recipient of an in-app notice (23.9); not an actor'),
   ('members.user_id',                            'membership owner'),
   ('private.support_accounts.user_id',           'the support account itself'),
   ('support_assignments.support_user_id',        'the assigned person'),
@@ -442,7 +443,7 @@ update identity_cover set how = 'function:zz_new_writer()' where col = 'zz_bad_a
 select is((select array_agg(c) from pg_temp.uncovered_cols() c), array['zz_bad_actor.done_by']::text[], 'scan: a function cover that does not call record_support_identity is caught');
 -- the real converted writers pass the same test
 select is((select count(*)::int from pg_proc p where p.oid in (
-            'connect_gym_payment_credentials(text,text,text,text)'::regprocedure, 'update_messaging_instance(text)'::regprocedure, 'front_desk_alerts_protect_columns()'::regprocedure)
+            'private.connect_payment_credentials(uuid,text,text,text,text,boolean)'::regprocedure, 'update_messaging_instance(text)'::regprocedure, 'front_desk_alerts_protect_columns()'::regprocedure)
               and p.prosrc ~ 'private\.record_support_identity\('), 3, 'the three non-trigger writers call private.record_support_identity()');
 
 select * from finish();

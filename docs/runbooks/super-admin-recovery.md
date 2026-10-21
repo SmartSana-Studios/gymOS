@@ -163,3 +163,12 @@ Symptom in the app: "L'e-mail n'a pas pu être envoyé" / "The email could not b
 3. After changing a Vercel variable, redeploy: variables apply to new deployments only.
 4. A failed send voids the code it issued and does not count toward the 3-per-hour limit (migration 0131), so retrying is safe. Every request, failed or not, still counts toward a wider cap of 9 per hour. In the audit log a failed send shows as two `super_admin_recovery_requested` rows: outcome `sent` (the code was issued) followed by `mail_failed`.
 5. A page left open across a deploy returns 404 for its next action ("Something went wrong"): reload it.
+
+## Payment-connection alert e-mails (Story 23.9)
+
+The same Resend sender (`apps/super-admin/lib/mail.ts`, the `MAIL_*` settings above) also sends the alert e-mails queued when GymOS Support connects or replaces a gym's payment account (table `email_outbox`). Nothing else is needed on the Resend side. The route `/api/email-outbox/drain` needs `CRON_SECRET` set on the `gymos-super-admin` Vercel project (it is also the bearer secret of the daily Vercel Cron); the dashboard project can set `EMAIL_DRAIN_SECRET` to the same value and `SUPER_ADMIN_APP_URL` so the e-mails go out immediately instead of at the next daily run.
+
+- Where to look: Vercel logs `[mail] send failed` as above; `select status, attempts, last_error, created_at from email_outbox order by created_at desc limit 20;` (host psql, `scripts/prod-db.sh`); `job_runs` rows named `payment_connection_email` (a run that had any failed send is `failure`).
+- A failed send is retried by the next drain with a growing delay and is marked `failed` after 5 attempts. To send a stuck `failed` row again: `update email_outbox set status = 'pending', attempts = 0, next_attempt_at = now() where id = '<id>';`, then trigger the route: `curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://portal.gymosapps.com/api/email-outbox/drain`.
+- The in-app notice (bell) is written in the same transaction as the change; an e-mail problem never hides it.
+

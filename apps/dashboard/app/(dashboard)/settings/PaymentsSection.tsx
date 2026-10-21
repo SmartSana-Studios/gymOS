@@ -41,15 +41,19 @@ const PAYMENT_FIELD_MESSAGE_KEYS: Record<keyof PaymentFieldErrors, { required: s
 export function usePayments({
   initialConnection,
   showToast,
+  isSupport = false,
 }: {
   initialConnection: GymPaymentConnectionStatus | null;
   showToast: (message: string) => void;
+  /** Story 23.9: a live GymOS Support session connects through this form with a fresh authenticator code. */
+  isSupport?: boolean;
 }) {
   const { t } = useTranslation();
   const [paymentConnection, setPaymentConnection] = useState(initialConnection);
   const [paymentForm, setPaymentForm] = useState({ apiKey: "", businessId: "", webhookSecret: "" });
   const [paymentFieldErrors, setPaymentFieldErrors] = useState<PaymentFieldErrors>({});
   const [paymentFormError, setPaymentFormError] = useState<string | null>(null);
+  const [authCode, setAuthCode] = useState("");
   const [connectOpen, setConnectOpen] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const connectDialogRef = useRef<HTMLDialogElement>(null);
@@ -73,6 +77,7 @@ export function usePayments({
     setPaymentForm({ apiKey: "", businessId: "", webhookSecret: "" });
     setPaymentFieldErrors({});
     setPaymentFormError(null);
+    setAuthCode("");
     setConnectOpen(true);
   }
 
@@ -99,9 +104,14 @@ export function usePayments({
       return;
     }
 
+    if (isSupport && !/^\d{6}$/.test(authCode.replace(/\s+/g, ""))) {
+      setPaymentFormError(t("settings.payments.supportCodeRequiredError"));
+      return;
+    }
+
     setConnecting(true);
     try {
-      const { data, error } = await connectPaymentProvider(parsed.data);
+      const { data, error } = await connectPaymentProvider(isSupport ? { ...parsed.data, authCode } : parsed.data);
       if (error || !data) {
         setPaymentFormError(error?.message ?? t("common.somethingWentWrong"));
         return;
@@ -114,6 +124,7 @@ export function usePayments({
       // successful connect.
       connectDialogRef.current?.close();
       setConnectOpen(false);
+      setAuthCode("");
       showToast(t("settings.payments.connectedToast"));
     } catch {
       setPaymentFormError(t("common.somethingWentWrong"));
@@ -144,6 +155,9 @@ export function usePayments({
   }
 
   return {
+    isSupport,
+    authCode,
+    setAuthCode,
     paymentConnection,
     paymentForm,
     setPaymentForm,
@@ -165,7 +179,7 @@ type PaymentsState = ReturnType<typeof usePayments>;
 
 export function PaymentsCard({ payments }: { payments: PaymentsState }) {
   const { t } = useTranslation();
-  const { paymentConnection, setDisconnectOpen, openConnectDialog } = payments;
+  const { paymentConnection, setDisconnectOpen, openConnectDialog, isSupport } = payments;
   return (
         <Card>
           <SectionHeader
@@ -201,14 +215,16 @@ export function PaymentsCard({ payments }: { payments: PaymentsState }) {
                     <Button type="button" variant="outline" size="sm" onClick={openConnectDialog}>
                       {t("settings.payments.reconnect")}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDisconnectOpen(true)}
-                    >
-                      {t("settings.payments.disconnect")}
-                    </Button>
+                    {!isSupport && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDisconnectOpen(true)}
+                      >
+                        {t("settings.payments.disconnect")}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -227,7 +243,7 @@ export function PaymentsCard({ payments }: { payments: PaymentsState }) {
 
 export function PaymentDialogs({ payments }: { payments: PaymentsState }) {
   const { t } = useTranslation();
-  const { paymentForm, setPaymentForm, paymentFieldErrors, paymentFormError, setConnectOpen, connecting, connectDialogRef, setDisconnectOpen, disconnecting, disconnectDialogRef, handleConnectSubmit, handleDisconnectConfirm } = payments;
+  const { isSupport, authCode, setAuthCode, paymentConnection, paymentForm, setPaymentForm, paymentFieldErrors, paymentFormError, setConnectOpen, connecting, connectDialogRef, setDisconnectOpen, disconnecting, disconnectDialogRef, handleConnectSubmit, handleDisconnectConfirm } = payments;
   return (
     <>
       <dialog
@@ -241,7 +257,10 @@ export function PaymentDialogs({ payments }: { payments: PaymentsState }) {
         <form onSubmit={handleConnectSubmit} className="space-y-4 p-6">
           <div className="space-y-1">
             <h2 className="text-lg font-semibold">{t("settings.payments.connectDialogTitle")}</h2>
-            <p className="text-sm text-muted-foreground">{t("settings.payments.connectDialogBody")}</p>
+            <p className="text-sm text-muted-foreground">
+              {isSupport ? t("settings.payments.supportConnectDialogBody") : t("settings.payments.connectDialogBody")}
+            </p>
+            {paymentConnection && <p className="text-sm text-muted-foreground">{t("settings.payments.replaceWarning")}</p>}
           </div>
 
           <div className="space-y-2">
@@ -281,6 +300,21 @@ export function PaymentDialogs({ payments }: { payments: PaymentsState }) {
               <p className="text-sm text-red-600">{paymentFieldErrors.webhookSecret}</p>
             )}
           </div>
+
+          {isSupport && (
+            <div className="space-y-2">
+              <Label htmlFor="paymentAuthCode">{t("settings.payments.supportCodeLabel")}</Label>
+              <Input
+                id="paymentAuthCode"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={7}
+                value={authCode}
+                onChange={(e) => setAuthCode(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">{t("settings.payments.supportCodeHelp")}</p>
+            </div>
+          )}
 
           {paymentFormError && <p className="text-sm text-red-600">{paymentFormError}</p>}
 

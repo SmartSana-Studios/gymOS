@@ -89,7 +89,7 @@ Deno.test("verifyWebhookSignature: valid header + valid payload + matching gym r
       providerTransactionRef: "pay1",
       businessId: "biz1",
       resolvedGymId: "gym-a",
-      resolvedRoutingContext: { type: "gym", gymId: "gym-a" },
+      resolvedRoutingContext: { type: "gym", gymId: "gym-a", credentialsId: null },
       status: "verified",
       amount: 100,
       currency: "XAF",
@@ -152,7 +152,7 @@ Deno.test("verifyWebhookSignature: unrecognized businessId (zero rows from the l
   assertEquals(calls.length, 1, "the businessId lookup itself is a legitimate read, expected once");
   assertEquals(calls[0], {
     fn: "get_gym_payment_credentials_by_business_id",
-    args: { p_business_id: "unknown-business-id", p_provider_key: "taramoney" },
+    args: { p_business_id: "unknown-business-id", p_provider_key: "taramoney", p_provider_ref: "pay1", p_product_id: null },
   });
 });
 
@@ -367,7 +367,7 @@ Deno.test("verifyWebhookSignature: amount entirely absent defaults to 0 and stil
       providerTransactionRef: "pay1",
       businessId: "biz1",
       resolvedGymId: "gym-a",
-      resolvedRoutingContext: { type: "gym", gymId: "gym-a" },
+      resolvedRoutingContext: { type: "gym", gymId: "gym-a", credentialsId: null },
       status: "verified",
       amount: 0,
       currency: "XAF",
@@ -388,7 +388,7 @@ Deno.test("verifyWebhookSignature: status FAILURE normalizes to event.status 'fl
       providerTransactionRef: "pay1",
       businessId: "biz1",
       resolvedGymId: "gym-a",
-      resolvedRoutingContext: { type: "gym", gymId: "gym-a" },
+      resolvedRoutingContext: { type: "gym", gymId: "gym-a", credentialsId: null },
       status: "flagged",
       amount: 100,
       currency: "XAF",
@@ -494,7 +494,7 @@ Deno.test("verifyWebhookSignature: parses the real 2026-07-31 stand-in-account w
       providerTransactionRef: "643539724",
       businessId: "wxND8vZv5v",
       resolvedGymId: "gym-a",
-      resolvedRoutingContext: { type: "gym", gymId: "gym-a" },
+      resolvedRoutingContext: { type: "gym", gymId: "gym-a", credentialsId: null },
       status: "verified",
       amount: 50,
       currency: "XAF",
@@ -534,7 +534,7 @@ Deno.test("verifyWebhookSignature: parses the real 2026-08-13 real-account webho
       providerTransactionRef: "165126343",
       businessId: "9FmIZg9GBB",
       resolvedGymId: "gym-a",
-      resolvedRoutingContext: { type: "gym", gymId: "gym-a" },
+      resolvedRoutingContext: { type: "gym", gymId: "gym-a", credentialsId: null },
       status: "verified",
       amount: 100,
       currency: "XAF",
@@ -974,5 +974,63 @@ Deno.test("verifyWebhookSignature: an unknown or in-flight status is still rejec
   for (const status of ["PENDING", "PROCESSING", "", "banana"]) {
     const payload = JSON.stringify({ businessId: "biz1", paymentId: "pay1", status });
     assertEquals(await provider.verifyWebhookSignature(payload, headers(SECRET)), { valid: false });
+  }
+});
+
+// ---- Story 23.9: the credential row a payment started under is the one resolved ----------------------
+
+Deno.test("initiate(): a routing context with credentialsId asks the lookup for exactly that credential row", async () => {
+  const { supabase, calls } = makeMockSupabase({ get_gym_payment_credentials_for_service: { data: [], error: null } });
+  const fetchStub = stubFetchNoCallsExpected();
+  try {
+    await new TaraMoneyProvider(supabase).initiate({
+      amount: 100,
+      currency: "XAF",
+      reference: "ref1",
+      callbackUrl: "https://example.com/callback",
+      phoneNumber: "237600000000",
+      routingContext: { type: "gym", gymId: "gym-a", credentialsId: "cred-1" },
+    });
+    assertEquals(calls[0], {
+      fn: "get_gym_payment_credentials_for_service",
+      args: { p_gym_id: "gym-a", p_provider_key: "taramoney", p_credentials_id: "cred-1" },
+    });
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+Deno.test("initiate(): no credentialsId resolves the active row (p_credentials_id null)", async () => {
+  const { supabase, calls } = makeMockSupabase({ get_gym_payment_credentials_for_service: { data: [], error: null } });
+  const fetchStub = stubFetchNoCallsExpected();
+  try {
+    await new TaraMoneyProvider(supabase).initiate({
+      amount: 100,
+      currency: "XAF",
+      reference: "ref1",
+      callbackUrl: "https://example.com/callback",
+      phoneNumber: "237600000000",
+      routingContext: { type: "gym", gymId: "gym-a" },
+    });
+    assertEquals(calls[0].args.p_credentials_id, null);
+  } finally {
+    fetchStub.restore();
+  }
+});
+
+Deno.test("confirmPaymentStatus(): a routing context with credentialsId asks the lookup for exactly that credential row", async () => {
+  const { supabase, calls } = makeMockSupabase({ get_gym_payment_credentials_for_service: { data: [GYM_A_ROW], error: null } });
+  const stub = stubStatusFetch(() => new Response(JSON.stringify({ status: "SUCCESS" })));
+  try {
+    await new TaraMoneyProvider(supabase).confirmPaymentStatus({
+      productId: "pay-1",
+      routingContext: { type: "gym", gymId: "gym-a", credentialsId: "cred-old" },
+    });
+    assertEquals(calls[0], {
+      fn: "get_gym_payment_credentials_for_service",
+      args: { p_gym_id: "gym-a", p_provider_key: "taramoney", p_credentials_id: "cred-old" },
+    });
+  } finally {
+    stub.restore();
   }
 });
