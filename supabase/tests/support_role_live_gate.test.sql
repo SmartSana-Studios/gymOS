@@ -367,8 +367,8 @@ select ok((select (length(seen) - length(replace(seen, '=', ''))) from owner_wal
           'proof is not vacuous: the owner sees rows in at least 10 gym-scoped tables (' || (select seen from owner_walk) || ')');
 select is((select array_agg(c.relname::text order by c.relname) from pg_class c join pg_attribute at on at.attrelid = c.oid and at.attname = 'gym_id' and not at.attisdropped
             where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p') and not has_table_privilege('authenticated', c.oid, 'select')),
-          array['audit_disclosure_requests', 'gym_data_escalations', 'staff_notices', 'support_action_identity', 'support_assignments']::text[],
-          'the only gym_id tables the walk cannot read are the five with no client grant (a new one must be added here deliberately)');
+          array['audit_disclosure_requests', 'gym_data_escalations', 'staff_notices', 'support_action_identity', 'support_assignments', 'support_staff_review']::text[],
+          'the only gym_id tables the walk cannot read are the six with no client grant (a new one must be added here deliberately)');
 select pg_temp.claims('00000000-0000-0000-0000-000000231101', '00000000-0000-0000-0000-000000231001', 'support', 'aal2', '00000000-0000-0000-0000-0000000231a3');
 select is(pg_temp.seen(), '00000000-0000-0000-0000-000000231001|-|-', 'zero-row proof runs with a fully live support session');
 set local role authenticated;
@@ -384,7 +384,7 @@ select is((select count(*)::int from pg_constraint where pg_get_constraintdef(oi
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.prosrc like '%''support''%'),
           array['public.assign_support', 'public.confirm_support_assignment', 'public.create_staff_member', 'private.current_member_role', 'public.custom_access_token_hook', 'private.guard_support_membership', 'private.gym_id',
-                'public.gym_member_count', 'public.list_own_active_gym_memberships', 'public.platform_metrics', 'private.support_email_collision', 'private.support_gym_id', 'private.support_set_membership', 'public.switch_active_gym']::text[],
+                'public.gym_member_count', 'public.list_own_active_gym_memberships', 'public.platform_metrics', 'public.set_allow_gymos_support', 'private.support_email_collision', 'private.support_gym_id', 'private.support_set_membership', 'public.switch_active_gym']::text[],
           'only the expected functions mention the support role');
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
@@ -400,10 +400,10 @@ select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname ord
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
               and p.prosrc ~ 'support_assignments|support_accounts'),
           array['public.activate_support_account', 'public.assign_support', 'public.confirm_support_assignment', 'public.create_support_account', 'public.custom_access_token_hook',
-                'public.deactivate_support_account', 'public.get_gymos_support_status', 'public.get_support_accounts', 'public.get_support_assignments',
+                'public.deactivate_support_account', 'public.get_gymos_support_status', 'public.get_support_accounts', 'public.get_support_assignments', 'public.get_support_locks',
                 'private.guard_support_assignment_transition', 'private.guard_support_membership', 'public.issue_support_invite', 'public.list_own_active_gym_memberships',
-                'public.remove_support_account', 'private.session_gate_touch', 'public.set_allow_gymos_support', 'private.stepup_issue', 'private.support_invite_check', 'public.support_invite_inspect',
-                'private.support_live', 'private.support_set_membership', 'public.switch_active_gym', 'public.unassign_support']::text[],
+                'public.remove_support_account', 'private.session_gate_touch', 'public.set_allow_gymos_support', 'private.stepup_issue', 'private.stepup_record_failure', 'private.support_invite_check', 'public.support_invite_inspect',
+                'private.support_live', 'private.support_lock_account', 'private.support_revoke_access', 'private.support_revoke_on_gym_status', 'private.support_set_membership', 'private.support_velocity_breach', 'public.switch_active_gym', 'public.unassign_support', 'public.unlock_support_account']::text[],
           'readers of the assignment tables are exactly the expected functions (a new reader must be added here deliberately)');
 
 select * from finish();

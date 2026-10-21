@@ -210,7 +210,7 @@ insert into cat_count values
   ('public.list_bookable_class_sessions', 'class capacity'), ('public.list_free_guest_sessions', 'guest sessions'),
   ('public.list_guest_sessions_paid', 'guest sessions'), ('public.list_my_classes', 'class capacity'),
   ('public.list_session_attempts', 'attempts'), ('public.platform_metrics', 'excludes support'),
-  ('public.run_quiet_gym_alert_job', 'role = member only'), ('public.update_workout_plan', 'coach/member plans');
+  ('public.run_quiet_gym_alert_job', 'role = member only'), ('private.support_revoke_access', 'Owner review queue of support-created staff, not a head count'), ('public.update_workout_plan', 'coach/member plans');
 select is((select coalesce(string_agg(n.nspname || '.' || p.proname, ', ' order by p.proname), '')
            from pg_proc p join pg_namespace n on n.oid = p.pronamespace
            where n.nspname in ('public', 'private') and p.prokind = 'f' and p.prosrc ~* 'count\(' and p.prosrc ~* 'members'

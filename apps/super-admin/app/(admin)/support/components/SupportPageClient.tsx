@@ -13,18 +13,23 @@ import {
   sendSupportInvite,
   type SupportAccountRow,
   type SupportAssignmentRow,
+  type SupportLockRow,
 } from "../actions";
 import { REASON_MAX, REASON_MIN, SupportAssignmentsPanel } from "./SupportAssignmentsPanel";
+import { SupportLocksPanel } from "./SupportLocksPanel";
 
 /** Story 23.4: GymOS support accounts (names and addresses are visible here only). Create, then send the invite. */
 export function SupportPageClient({
   initialAccounts,
   assignments,
   gyms,
+  locks = [],
 }: {
   initialAccounts: SupportAccountRow[];
   assignments: SupportAssignmentRow[];
   gyms: { id: string; name: string }[];
+  /** Story 23.10: accounts locked by a safety limit, waiting for a Super Admin review. */
+  locks?: SupportLockRow[];
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -154,6 +159,8 @@ export function SupportPageClient({
       )}
 
       <SupportAssignmentsPanel assignments={assignments} accounts={initialAccounts} gyms={gyms} reason={reason} onMessage={setMessage} />
+
+      <SupportLocksPanel locks={locks} reason={reason} onMessage={setMessage} />
     </div>
   );
 }

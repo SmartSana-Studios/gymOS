@@ -43,12 +43,31 @@ describe("issueSupportStepUp", () => {
     expect(adminRpc).not.toHaveBeenCalled();
   });
 
-  it("a rejected code issues nothing", async () => {
+  it("a rejected code issues nothing and is counted for that user (Story 23.10)", async () => {
     challengeAndVerify.mockResolvedValue({ error: { code: "mfa_verification_failed" } });
+    adminRpc.mockResolvedValue({ data: [{ locked: false, attempts: 1, threshold: 5 }], error: null });
     const { issueSupportStepUp } = await import("./support-stepup");
 
     expect(await issueSupportStepUp(INPUT)).toBe("invalid_code");
-    expect(adminRpc).not.toHaveBeenCalled();
+    expect(adminRpc).toHaveBeenCalledTimes(1);
+    expect(adminRpc).toHaveBeenCalledWith("stepup_record_failure", { p_user: "support-1" });
+  });
+
+  it("the wrong code that reaches the threshold reports the lock and still issues nothing", async () => {
+    challengeAndVerify.mockResolvedValue({ error: { code: "mfa_verification_failed" } });
+    adminRpc.mockResolvedValue({ data: [{ locked: true, attempts: 5, threshold: 5 }], error: null });
+    const { issueSupportStepUp } = await import("./support-stepup");
+
+    expect(await issueSupportStepUp(INPUT)).toBe("locked");
+    expect(adminRpc).not.toHaveBeenCalledWith("stepup_issue", expect.anything());
+  });
+
+  it("a failed count never turns a wrong code into a pass", async () => {
+    challengeAndVerify.mockResolvedValue({ error: { code: "mfa_verification_failed" } });
+    adminRpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    const { issueSupportStepUp } = await import("./support-stepup");
+
+    expect(await issueSupportStepUp(INPUT)).toBe("invalid_code");
   });
 
   it("a provider failure is 'unavailable', not a wrong code", async () => {
@@ -56,6 +75,7 @@ describe("issueSupportStepUp", () => {
     const { issueSupportStepUp } = await import("./support-stepup");
 
     expect(await issueSupportStepUp(INPUT)).toBe("unavailable");
+    expect(adminRpc).not.toHaveBeenCalled();
   });
 
   it("no enrolled authenticator cannot pass", async () => {

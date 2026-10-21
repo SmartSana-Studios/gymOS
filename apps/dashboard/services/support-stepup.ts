@@ -9,10 +9,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * database refuses to issue it to anyone but an activated, unlocked support account, and `support_connect_gym_payment_credentials`
  * consumes it inside the same transaction as the write. The code is never stored or logged.
  *
- * Wrong codes are not counted toward a lockout here: the 22.7 lockout counter covers Super Admin accounts only (`stepup_record_failure`
- * is a no-op for anyone else), and Supabase's own MFA rate limit still applies to the verify call.
+ * Wrong codes are counted per user in the database (`stepup_record_failure`, Story 23.10): each writes an audit row (counts only) and
+ * the threshold locks the account and ends its sessions. Supabase's own MFA rate limit still applies to the verify call.
  */
-export type SupportStepUpResult = "issued" | "invalid_code" | "unavailable";
+export type SupportStepUpResult = "issued" | "invalid_code" | "unavailable" | "locked";
 
 export async function issueSupportStepUp(input: {
   action: "support_payment_connection";
@@ -41,9 +41,16 @@ export async function issueSupportStepUp(input: {
     }
     if (error.code === "mfa_verification_failed" || error.code === "mfa_verification_rejected") wrongCode = true;
   }
-  if (!verified) return wrongCode ? "invalid_code" : "unavailable";
-
   const admin = createAdminClient();
+
+  if (!verified) {
+    if (!wrongCode) return "unavailable";
+    // Only a rejected code counts; provider or network errors never do. A failed count must not turn a wrong code into a pass.
+    const { data } = await admin.rpc("stepup_record_failure", { p_user: userId });
+    const row = Array.isArray(data) ? data[0] : null;
+    return row?.locked === true ? "locked" : "invalid_code";
+  }
+
   const { data: expires, error } = await admin.rpc("stepup_issue", {
     p_user: userId,
     p_action: input.action,

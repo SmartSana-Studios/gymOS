@@ -222,6 +222,7 @@
       "supportCodeHelp": "The 6-digit code from your authenticator app. It allows this one change.",
       "supportCodeRequiredError": "Enter the 6-digit authenticator code",
       "supportCodeInvalid": "That code was not accepted. Try the current code.",
+      "supportLocked": "Too many wrong codes. This account was locked; GymOS will review it.",
       "supportStepUpUnavailable": "Couldn't confirm the code right now. Try again.",
       "replaceWarning": "Connecting a new account replaces the current one for new payments. Payments already started finish under the account they began with."
     },
@@ -324,6 +325,13 @@
   },
   "staff": {
     "gymosSupport": {"name":"GymOS Support","role":"GymOS Support"},
+    "supportTag": "Created by GymOS Support",
+    "supportReview": {
+      "title": "Staff created by GymOS Support",
+      "description": "GymOS Support access to your gym has ended. These staff accounts were created by GymOS Support and are still active. Review each one: keep them here, or deactivate them from the actions menu below.",
+      "keep": "Keep",
+      "kept": "{{name}} was kept."
+    },
     "title": "Staff",
     "addStaff": "+ Add staff",
     "addStaffButton": "Add staff",

@@ -200,6 +200,18 @@ describe("connectPaymentProvider as a live GymOS Support session (23.9)", () => 
     expect(nudgeEmailOutbox).not.toHaveBeenCalled();
   });
 
+  it("a wrong code that locks the account is reported as locked and nothing is written", async () => {
+    issueSupportStepUp.mockResolvedValue("locked");
+    const { connectPaymentProvider } = await import("./actions");
+
+    const result = await connectPaymentProvider({ ...VALID_INPUT, authCode: "000000" });
+
+    expect(result.data).toBeNull();
+    expect(result.error?.code).toBe("account_locked");
+    expect(connectGymPaymentCredentialsAsSupport).not.toHaveBeenCalled();
+    expect(nudgeEmailOutbox).not.toHaveBeenCalled();
+  });
+
   it("an unavailable step-up (provider or database) is reported and nothing is written", async () => {
     issueSupportStepUp.mockResolvedValue("unavailable");
     const { connectPaymentProvider } = await import("./actions");

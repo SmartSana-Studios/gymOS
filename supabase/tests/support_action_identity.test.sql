@@ -67,6 +67,8 @@ insert into attendance_events (gym_id, member_id) values ('00000000-0000-0000-00
 update gyms set charge_guests_per_session = true where id = '00000000-0000-0000-0000-000000238001';
 
 insert into private.support_accounts (user_id, activated_at) values ('00000000-0000-0000-0000-000000238101', now());
+-- 23.10: probe action types allowed for a live support caller
+insert into private.support_audit_actions values ('identity_probe'), ('identity_blocked_probe');
 insert into public.support_assignments (id, support_user_id, gym_id, state, activated_at) values
   ('00000000-0000-0000-0000-000000238401', '00000000-0000-0000-0000-000000238101', '00000000-0000-0000-0000-000000238001', 'active', now());
 insert into auth.sessions (id, user_id, created_at, updated_at) values

@@ -134,6 +134,8 @@ describe("Story 23.5 assignment actions", () => {
       () => a.unassignSupport({ assignmentId: AID, reason: "valid reason" }),
       () => a.deactivateSupportAccount({ userId: UID, reason: "valid reason" }),
       () => a.removeSupportAccount({ userId: UID, reason: "valid reason" }),
+      () => a.unlockSupportAccount({ userId: UID, reason: "valid reason" }),
+      () => a.listSupportLocks(),
       () => a.listSupportAssignments(),
     ]) {
       expect((await run()).error?.code).toBe("permission_denied");
@@ -292,6 +294,53 @@ describe("Story 23.8: real actors and the disclosure inbox", () => {
     const { answerDisclosureRequest } = await import("./actions");
     const res = await answerDisclosureRequest({ requestId: REQ, answer: "A reply" });
     expect(res.error?.code).toBe("permission_denied");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("Story 23.10 locks", () => {
+  const LUID = "00000000-0000-4000-8000-0000000000aa";
+
+  it("lists the locked accounts through the Super Admin's own session", async () => {
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce({
+      data: [{ user_id: LUID, display_name: "Pat", email: "pat@gymosapps.com", locked_at: "2026-10-21T10:00:00Z", locked_reason: "velocity_gym", gym_names: "Gym A" }],
+      error: null,
+    });
+    const { listSupportLocks } = await import("./actions");
+    const res = await listSupportLocks();
+    expect(rpc).toHaveBeenCalledWith("get_support_locks");
+    expect(adminRpc).not.toHaveBeenCalled();
+    expect(res.data).toEqual([
+      { userId: LUID, displayName: "Pat", email: "pat@gymosapps.com", lockedAt: "2026-10-21T10:00:00Z", lockedReason: "velocity_gym", gymNames: "Gym A" },
+    ]);
+  });
+
+  it("unlocks with the reason, as the real Super Admin (never the service role)", async () => {
+    rpc.mockReset();
+    adminRpc.mockReset();
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "unlocked", assignment_id: null }], error: null });
+    const { unlockSupportAccount } = await import("./actions");
+    const res = await unlockSupportAccount({ userId: LUID, reason: "checked with the person" });
+    expect(res).toEqual({ data: { code: "unlocked", assignmentId: null }, error: null });
+    expect(rpc).toHaveBeenCalledWith("unlock_support_account", { p_user_id: LUID, p_reason: "checked with the person" });
+    expect(adminRpc).not.toHaveBeenCalled();
+  });
+
+  it("maps a refusal (reason too short, not locked) to text", async () => {
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "reason_invalid", assignment_id: null }], error: null });
+    const { unlockSupportAccount } = await import("./actions");
+    expect((await unlockSupportAccount({ userId: LUID, reason: "x" })).error).toEqual({ code: "reason_invalid", message: "support.codes.reason_invalid" });
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "not_locked", assignment_id: null }], error: null });
+    expect((await unlockSupportAccount({ userId: LUID, reason: "valid reason" })).error?.code).toBe("not_locked");
+  });
+
+  it("rejects a malformed id or a missing reason before the database", async () => {
+    rpc.mockReset();
+    const { unlockSupportAccount } = await import("./actions");
+    expect((await unlockSupportAccount({ userId: "x", reason: "valid reason" })).error?.code).toBe("validation_error");
+    expect((await unlockSupportAccount({ userId: LUID })).error?.code).toBe("validation_error");
     expect(rpc).not.toHaveBeenCalled();
   });
 });

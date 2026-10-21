@@ -191,6 +191,9 @@ export async function connectPaymentProvider(
     if (stepUp === "invalid_code") {
       return { data: null, error: { code: "invalid_code", message: t("settings.payments.supportCodeInvalid") } };
     }
+    if (stepUp === "locked") {
+      return { data: null, error: { code: "account_locked", message: t("settings.payments.supportLocked") } };
+    }
     if (stepUp === "unavailable") {
       return { data: null, error: { code: "step_up_unavailable", message: t("settings.payments.supportStepUpUnavailable") } };
     }

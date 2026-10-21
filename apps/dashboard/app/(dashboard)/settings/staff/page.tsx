@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { listStaff } from "@/services/staff";
+import { listStaff, listSupportReviewQueue } from "@/services/staff";
 import { getAllowGymosSupport } from "@/services/gym-settings";
 import { getDashboardShellContext } from "@/services/session";
 import { StaffPageClient } from "./components/StaffPageClient";
@@ -56,12 +56,16 @@ async function StaffData() {
     return <div className="text-sm text-red-600">{t("common.loadError")}</div>;
   }
 
+  // Story 23.10: the Owner's review queue of staff GymOS Support created. A failed read hides the panel, never the staff list.
+  const reviewQueue = shell.role === "owner" ? ((await listSupportReviewQueue().catch(() => ({ data: null }))).data ?? []) : [];
+
   return (
     <StaffPageClient
       initialStaff={staff ?? []}
       role={shell.role}
       callerMemberId={shell.memberId}
       showGymosSupportRow={showGymosSupportRow}
+      initialReviewQueue={reviewQueue}
     />
   );
 }

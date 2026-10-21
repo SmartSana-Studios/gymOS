@@ -437,3 +437,47 @@ export async function answerDisclosureRequest(input: unknown): Promise<{ data: {
   }
   return { data: { code: row.code }, error: null };
 }
+
+// ---------------------------------------------------------------------------
+// Story 23.10 (0144): accounts locked by the velocity limit or by too many wrong step-up codes, and the unlock with a recorded reason.
+// ---------------------------------------------------------------------------
+
+export interface SupportLockRow {
+  userId: string;
+  displayName: string | null;
+  email: string | null;
+  lockedAt: string;
+  /** velocity_gym | velocity_account | velocity_payment | stepup_failures (a code, translated in the panel). */
+  lockedReason: string | null;
+  gymNames: string | null;
+}
+
+/** The locked accounts, with the individual's name (visible here only). */
+export async function listSupportLocks(): Promise<{ data: SupportLockRow[] | null; error: AppError | null }> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_support_locks");
+  if (error) return { data: null, error: await mapAndLog(error) };
+  return {
+    data: (data ?? []).map((r: NonNullable<typeof data>[number]) => ({
+      userId: r.user_id,
+      displayName: r.display_name,
+      email: r.email,
+      lockedAt: r.locked_at,
+      lockedReason: r.locked_reason,
+      gymNames: r.gym_names,
+    })),
+    error: null,
+  };
+}
+
+/** Unlocks one account. The reason (3 to 500 characters) is mandatory; the database records the lock, the unlock and the reason. */
+export async function unlockSupportAccount(input: unknown): Promise<SupportOutcome> {
+  const authz = await authorizeOrRedirect("platform.support_manage");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const raw = (input ?? {}) as { userId?: unknown; reason?: unknown };
+  if (!isUuid(raw.userId) || typeof raw.reason !== "string") return badInput(t);
+  return runSupportFunction("unlock_support_account", { p_user_id: raw.userId, p_reason: raw.reason });
+}

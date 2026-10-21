@@ -80,6 +80,8 @@ export interface StaffListRow {
   phone: string | null;
   role: string;
   status: StaffStatus;
+  /** Story 23.10: created by GymOS Support (the tag names no individual). */
+  createdBySupport: boolean;
 }
 
 interface StaffRowFromDb {
@@ -89,6 +91,7 @@ interface StaffRowFromDb {
   role: string;
   user_id: string;
   deactivated_at: string | null;
+  created_by_support: boolean;
 }
 
 /** AC #5: every non-'member'-role row in the gym, name/role/status. Status
@@ -117,7 +120,7 @@ export async function listStaff(): Promise<{ data: StaffListRow[] | null; error:
 
   const { data, error } = await supabase
     .from("members")
-    .select("id, name, phone, role, user_id, deactivated_at")
+    .select("id, name, phone, role, user_id, deactivated_at, created_by_support")
     .eq("gym_id", gymId)
     .in("role", ["owner", "supervisor", "manager", "receptionist", "coach"])
     .order("created_at", { ascending: true });
@@ -154,7 +157,7 @@ export async function listStaff(): Promise<{ data: StaffListRow[] | null; error:
       } else {
         status = "active";
       }
-      return { id: row.id, name: row.name, phone: row.phone, role: row.role, status };
+      return { id: row.id, name: row.name, phone: row.phone, role: row.role, status, createdBySupport: row.created_by_support === true };
     }),
     error: null,
   };
@@ -479,6 +482,7 @@ export async function updateStaffRole(
       phone: data.phone,
       role: data.role,
       status: userRow?.must_change_password ? "pending_activation" : "active",
+      createdBySupport: data.created_by_support === true,
     },
     error: null,
   };
@@ -504,4 +508,39 @@ export async function deactivateStaffMember(
   }
 
   return { error: null };
+}
+
+export interface SupportReviewRow {
+  memberId: string;
+  name: string;
+  role: string;
+  flaggedAt: string;
+}
+
+/** Story 23.10: staff GymOS Support created, waiting for the Owner's review after support access ended
+ * (`get_support_review_queue`, 0144). Owner only: the RPC refuses anyone else. Names the staff member, never a support person. */
+export async function listSupportReviewQueue(): Promise<{ data: SupportReviewRow[] | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_support_review_queue");
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return {
+    data: (data ?? []).map((r: NonNullable<typeof data>[number]) => ({ memberId: r.member_id, name: r.name, role: r.role, flaggedAt: r.flagged_at })),
+    error: null,
+  };
+}
+
+/** Story 23.10: the Owner has looked at this staff member and keeps them (`clear_support_review`). Nothing is deactivated. */
+export async function clearSupportReview(memberId: string): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("clear_support_review", { p_member_id: memberId });
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  const row = data?.[0];
+  if (!row?.ok) {
+    return { data: null, error: await staffNotFoundError("clear_support_review matched no queue row") };
+  }
+  return { data: { ok: true }, error: null };
 }

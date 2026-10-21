@@ -17,8 +17,8 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import type { MemberRole } from "@/services/session";
-import type { StaffListRow, StaffStatus } from "@/services/staff";
-import { getStaffList, resendStaffTempPasswordAction } from "../actions";
+import type { StaffListRow, StaffStatus, SupportReviewRow } from "@/services/staff";
+import { clearSupportReviewAction, getStaffList, resendStaffTempPasswordAction } from "../actions";
 import { AddStaffModal } from "./AddStaffModal";
 import { EditStaffModal } from "./EditStaffModal";
 import { DeactivateStaffDialog } from "./DeactivateStaffDialog";
@@ -62,12 +62,15 @@ export function StaffPageClient({
   role,
   callerMemberId,
   showGymosSupportRow = false,
+  initialReviewQueue = [],
 }: {
   initialStaff: StaffListRow[];
   role: MemberRole;
   callerMemberId: string | null;
   /** Story 23.3: the fixed "GymOS Support" row, shown while the Owner switch is on. */
   showGymosSupportRow?: boolean;
+  /** Story 23.10: staff GymOS Support created, waiting for the Owner's review (Owner only; empty for everyone else). */
+  initialReviewQueue?: SupportReviewRow[];
 }) {
   const { t } = useTranslation();
   const canCreate = CAN_CREATE.includes(role);
@@ -80,6 +83,8 @@ export function StaffPageClient({
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [editingRow, setEditingRow] = useState<StaffListRow | null>(null);
   const [deactivatingRow, setDeactivatingRow] = useState<StaffListRow | null>(null);
+  const [reviewQueue, setReviewQueue] = useState(initialReviewQueue);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   // 4000ms was too short to read the longer toast messages (e.g. Story
   // 9.4's "already registered on GymOS" copy) before they auto-dismissed --
@@ -95,6 +100,23 @@ export function StaffPageClient({
   async function refreshStaff() {
     const { data } = await getStaffList();
     if (data) setStaff(data);
+  }
+
+  // Story 23.10: the Owner keeps this person. Nothing is deactivated; the row only leaves the queue.
+  async function handleKeep(row: SupportReviewRow) {
+    if (reviewingId) return;
+    setReviewingId(row.memberId);
+    try {
+      const { data, error } = await clearSupportReviewAction(row.memberId);
+      if (error || !data) {
+        showToast(error?.message ?? t("common.somethingWentWrong"));
+        return;
+      }
+      setReviewQueue((q) => q.filter((r) => r.memberId !== row.memberId));
+      showToast(t("staff.supportReview.kept", { name: row.name }));
+    } finally {
+      setReviewingId(null);
+    }
   }
 
   // Story 9.2 (AC #4): credential-invalidating action -- unlike the
@@ -141,6 +163,40 @@ export function StaffPageClient({
         )}
       </div>
 
+      {reviewQueue.length > 0 && (
+        <section
+          aria-labelledby="supportReviewTitle"
+          data-testid="support-review-queue"
+          className="space-y-3 rounded-md border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-950/30"
+        >
+          <div className="space-y-1">
+            <h2 id="supportReviewTitle" className="text-base font-semibold">
+              {t("staff.supportReview.title")}
+            </h2>
+            <p className="text-sm text-muted-foreground">{t("staff.supportReview.description")}</p>
+          </div>
+          <ul className="divide-y">
+            {reviewQueue.map((row) => (
+              <li key={row.memberId} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <span>
+                  {row.name}
+                  <span className="ml-2 text-muted-foreground">{t(ROLE_LABEL_KEY[row.role] ?? row.role)}</span>
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={reviewingId !== null}
+                  onClick={() => void handleKeep(row)}
+                >
+                  {t("staff.supportReview.keep")}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {staff.length === 0 && !showGymosSupportRow ? (
         <div className="rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
           {t("staff.emptyNoStaff")}
@@ -171,7 +227,14 @@ export function StaffPageClient({
               )}
               {pg.pageItems.map((row) => (
                 <tr key={row.id} className="border-t">
-                  <td className="px-4 py-2">{row.name}</td>
+                  <td className="px-4 py-2">
+                    {row.name}
+                    {row.createdBySupport && (
+                      <Badge variant="outline" className="ml-2" data-testid="created-by-support-tag">
+                        {t("staff.supportTag")}
+                      </Badge>
+                    )}
+                  </td>
                   <td className="px-4 py-2">
                     <Badge variant="secondary">{t(ROLE_LABEL_KEY[row.role] ?? row.role)}</Badge>
                   </td>

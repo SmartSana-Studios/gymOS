@@ -275,7 +275,7 @@ select is((select count(*)::int from private.support_accounts where activated_at
 -- ---- writer scan (retro 66) ------------------------------------------------------------------------------------
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
             where p.prokind = 'f' and p.prosrc ~* '(insert\s+into|update|delete\s+from)\s+(only\s+)?private\.support_accounts\M'),
-          array['activate_support_account', 'create_support_account', 'deactivate_support_account', 'remove_support_account'], 'only the 23.4 and 23.5 functions write private.support_accounts');
+          array['activate_support_account', 'create_support_account', 'deactivate_support_account', 'remove_support_account', 'support_lock_account', 'unlock_support_account'], 'only the 23.4 and 23.5 functions write private.support_accounts');
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
             where p.prokind = 'f' and p.prosrc ~* 'update\s+private\.support_accounts\s+set\s+activated_at\s*='),
           array['activate_support_account'], 'only the activation function sets support_accounts.activated_at');

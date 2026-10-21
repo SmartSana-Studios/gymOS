@@ -87,7 +87,7 @@ describe("updateStaffRole", () => {
     ]);
     expect(usersSelectCalls).toEqual([{ table: "users", column: "id", id: "staff-user-1" }]);
     expect(result).toEqual({
-      data: { id: MEMBER_ID, name: "Jane Manager", phone: "+237680811041", role: "manager", status: "active" },
+      data: { id: MEMBER_ID, name: "Jane Manager", phone: "+237680811041", role: "manager", status: "active", createdBySupport: false },
       error: null,
     });
   });
@@ -140,6 +140,7 @@ describe("updateStaffRole", () => {
       phone: "+237680811041",
       role: "manager",
       status: "active",
+      createdBySupport: false,
     });
     expect(consoleErrorSpy).toHaveBeenCalled();
     consoleErrorSpy.mockRestore();

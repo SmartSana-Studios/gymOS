@@ -11,7 +11,11 @@ vi.mock("@/lib/i18n/get-server-translation", () => ({
 }));
 
 const listStaff = vi.fn();
-vi.mock("@/services/staff", () => ({ listStaff: (...a: unknown[]) => listStaff(...a) }));
+const listSupportReviewQueue = vi.fn();
+vi.mock("@/services/staff", () => ({
+  listStaff: (...a: unknown[]) => listStaff(...a),
+  listSupportReviewQueue: (...a: unknown[]) => listSupportReviewQueue(...a),
+}));
 const getAllowGymosSupport = vi.fn();
 vi.mock("@/services/gym-settings", () => ({
   getAllowGymosSupport: (...a: unknown[]) => getAllowGymosSupport(...a),
@@ -42,6 +46,7 @@ describe("StaffPage GymOS Support row wiring", () => {
     listStaff.mockReset().mockResolvedValue({ data: [{ id: "m1" }], error: null });
     getDashboardShellContext.mockReset().mockResolvedValue({ data: { role: "manager", memberId: "m1" }, error: null });
     getAllowGymosSupport.mockReset();
+    listSupportReviewQueue.mockReset().mockResolvedValue({ data: [], error: null });
   });
 
   it("passes showGymosSupportRow true when the switch is on", async () => {
@@ -60,6 +65,37 @@ describe("StaffPage GymOS Support row wiring", () => {
     getAllowGymosSupport.mockRejectedValue(new Error("boom"));
     const el = await renderedClient();
     expect(el.props.showGymosSupportRow).toBe(false);
+    expect(el.props.initialStaff).toEqual([{ id: "m1" }]);
+  });
+});
+
+describe("StaffPage support review queue wiring (Story 23.10)", () => {
+  const queue = [{ memberId: "m9", name: "Coach", role: "coach", flaggedAt: "2026-10-21T10:00:00Z" }];
+
+  beforeEach(() => {
+    listStaff.mockReset().mockResolvedValue({ data: [{ id: "m1" }], error: null });
+    getAllowGymosSupport.mockReset().mockResolvedValue(true);
+    listSupportReviewQueue.mockReset().mockResolvedValue({ data: queue, error: null });
+  });
+
+  it("hands the Owner the queue", async () => {
+    getDashboardShellContext.mockReset().mockResolvedValue({ data: { role: "owner", memberId: "m1" }, error: null });
+    const el = await renderedClient();
+    expect(el.props.initialReviewQueue).toEqual(queue);
+  });
+
+  it("does not even ask for the queue when the caller is not the Owner", async () => {
+    getDashboardShellContext.mockReset().mockResolvedValue({ data: { role: "supervisor", memberId: "m1" }, error: null });
+    const el = await renderedClient();
+    expect(el.props.initialReviewQueue).toEqual([]);
+    expect(listSupportReviewQueue).not.toHaveBeenCalled();
+  });
+
+  it("a failed queue read hides the panel and the staff list still renders", async () => {
+    getDashboardShellContext.mockReset().mockResolvedValue({ data: { role: "owner", memberId: "m1" }, error: null });
+    listSupportReviewQueue.mockRejectedValue(new Error("boom"));
+    const el = await renderedClient();
+    expect(el.props.initialReviewQueue).toEqual([]);
     expect(el.props.initialStaff).toEqual([{ id: "m1" }]);
   });
 });

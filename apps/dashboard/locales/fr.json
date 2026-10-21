@@ -222,6 +222,7 @@
       "supportCodeHelp": "Le code à 6 chiffres de votre application d'authentification. Il autorise ce seul changement.",
       "supportCodeRequiredError": "Saisissez le code d'authentification à 6 chiffres",
       "supportCodeInvalid": "Ce code n'a pas été accepté. Essayez le code actuel.",
+      "supportLocked": "Trop de codes erronés. Ce compte a été verrouillé ; GymOS va l'examiner.",
       "supportStepUpUnavailable": "Impossible de confirmer le code pour le moment. Réessayez.",
       "replaceWarning": "Connecter un nouveau compte remplace l'actuel pour les nouveaux paiements. Les paiements déjà commencés se terminent sous le compte avec lequel ils ont démarré."
     },
@@ -324,6 +325,13 @@
   },
   "staff": {
     "gymosSupport": {"name":"Support GymOS","role":"Support GymOS"},
+    "supportTag": "Créé par Support GymOS",
+    "supportReview": {
+      "title": "Personnel créé par Support GymOS",
+      "description": "L'accès de Support GymOS à votre salle a pris fin. Ces comptes du personnel ont été créés par Support GymOS et sont toujours actifs. Examinez chacun : conservez-le ici ou désactivez-le depuis le menu d'actions ci-dessous.",
+      "keep": "Conserver",
+      "kept": "{{name}} a été conservé."
+    },
     "title": "Personnel",
     "addStaff": "+ Ajouter un membre du personnel",
     "addStaffButton": "Ajouter un membre du personnel",
