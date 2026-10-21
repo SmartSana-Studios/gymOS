@@ -1451,3 +1451,9 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - Replace-in-place staff edits bypass the review queue (digest counts them only); revisit if "support-touched" is wanted.
 - Velocity lock/60 s cutoff inert and allow-list catalog scan: already recorded above for 23-6b.
 - Gym-wide velocity alert (a burst across several support people) is not built; the lock now counts only the toucher's own actions (23-10 review decision). Add a Super Admin alert if wanted.
+
+## Deferred from: code review of spec-23-11-lifecycle-inactivity-recertification-and-factor-reset (2026-10-21)
+
+- Backfill of `recorded_email` / `recertify_due_at` on pre-0145 rows is untested: run the two statements in a rolled-back transaction on a pre-0145-shaped row before the production migration, assert `support_live` is true.
+- `change_support_contact` hardcodes `@gymosapps.com` (UNVERIFIED medium): check whether the invite path enforces the same domain; if not, align them or move the domain to config.
+- Stray bullet about `support_audit_action_not_allowed` in epic-23-context.md belongs to 23-10; move or drop at merge.

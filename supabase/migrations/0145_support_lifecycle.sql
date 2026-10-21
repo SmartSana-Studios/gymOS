@@ -1014,18 +1014,41 @@ begin
   update private.support_factor_resets f set state = 'cancelled', cancelled_at = now(), last_error = 'account_not_pending'
    where f.state in ('cooling_off', 'due', 'executing')
      and not exists (select 1 from private.support_accounts sa where sa.user_id = f.user_id and sa.deactivated_at is null and sa.reset_pending_at is not null);
+  -- a reset whose cancel e-mail was still not delivered 24 hours after the cooling-off ended is abandoned (the person was never told):
+  -- the account is no longer pending, the sessions stay ended, Super Admins are alerted to check the address and start again
+  for r in
+    select f.id, f.user_id from private.support_factor_resets f
+     where f.state = 'due' and f.executes_at < now() - interval '24 hours'
+       and not exists (select 1 from public.email_outbox o where o.id = f.outbox_id and o.status = 'sent')
+     order by f.executes_at
+     for update skip locked
+  loop
+    update private.support_factor_resets set state = 'cancelled', cancelled_at = now(), last_error = 'notice_undelivered' where id = r.id;
+    update private.support_accounts sa set reset_pending_at = null where sa.user_id = r.user_id;
+    perform private.support_audit(r.user_id, 'system:support_reset', 'support_factor_reset_abandoned', r.user_id,
+      jsonb_build_object('reset_id', r.id, 'cause', 'notice_undelivered'));
+    perform private.notify_super_admins('support_factor_reset_abandoned',
+      'A support factor reset was abandoned',
+      'Une réinitialisation d''authentificateur du support a été abandonnée',
+      'The cancel e-mail of a pending authenticator reset was not delivered within 24 hours of the cooling-off, so the reset was cancelled and the person''s sessions stay ended. Check their address and start the reset again.',
+      'L''e-mail d''annulation d''une réinitialisation d''authentificateur en attente n''a pas été remis dans les 24 heures suivant le délai de réflexion : la réinitialisation est annulée et les sessions de la personne restent fermées. Vérifiez son adresse et recommencez.');
+  end loop;
   for r in
     select f.id, f.user_id from private.support_factor_resets f
      where (f.state = 'due' or (f.state = 'executing' and f.claimed_at < now() - interval '10 minutes'))
        -- the person must have been told first: the cancel e-mail has to be delivered before the factor can be removed
        and exists (select 1 from public.email_outbox o where o.id = f.outbox_id and o.status = 'sent')
+       -- a locked or drifted account (its auth e-mail is no longer the one on file) is never executed: the invite would go to a stranger
+       and not exists (select 1 from private.support_accounts sa where sa.user_id = f.user_id and sa.locked_at is not null)
+       and not private.support_contact_drifted(f.user_id)
      order by f.executes_at
      limit greatest(coalesce(p_limit, 10), 1)
      for update skip locked
   loop
     if exists (select 1 from private.support_accounts sa where sa.user_id = r.user_id and sa.deactivated_at is null and sa.reset_pending_at is not null) then
       update private.support_factor_resets set state = 'executing', claimed_at = now(), attempts = attempts + 1 where id = r.id;
-      return query select r.id, r.user_id, (select lower(au.email)::text from auth.users au where au.id = r.user_id);
+      -- the invite goes to the e-mail on file, never to whatever the auth user holds now
+      return query select r.id, r.user_id, (select sa.recorded_email::text from private.support_accounts sa where sa.user_id = r.user_id);
     else
       update private.support_factor_resets set state = 'cancelled', cancelled_at = now(), last_error = 'account_not_pending' where id = r.id;
     end if;

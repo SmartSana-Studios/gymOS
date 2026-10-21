@@ -106,3 +106,31 @@ context:
 
 **Commands:**
 - `bash scripts/ci-local.sh` -- expected: GREEN, every stage PASS
+
+### Review Findings
+
+Code review 2026-10-21 (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor). 1 decision-needed pair, 1 patch, 3 deferred.
+
+- [x] [Review][Patch] Reset executor mails the invite to the live auth e-mail and ignores lock/drift [supabase/migrations/0145_support_lifecycle.sql:1003-1034] — `claim_support_factor_resets` returns `lower(au.email)` from auth.users and never checks `locked_at` or `support_contact_drifted()`. A password holder who changes the auth e-mail after the 03:20 drift check (or on a locked account) gets the factor removed and a live invite at 05:40. Fix: claim skips accounts that are locked or drifted, and returns `recorded_email`; add a pgTAP case for a drifted claim. (acceptance-auditor) APPLIED: claim skips locked/drifted accounts and returns recorded_email; 3 pgTAP cases.
+- [x] [Review][Decision] Cancel link dies when the 5-minute cron marks the reset due, though the factor is removed only at the daily executor (up to ~24 h later) [supabase/migrations/0145_support_lifecycle.sql:937-955] — `cancel_support_factor_reset` needs `state = 'cooling_off' and executes_at > now()`. Option A: keep the window as specified (30 min, e-mail already says "no earlier than"). Option B: accept cancel in `due` too (until the executor claims it). (blind-hunter + edge-case-hunter) RESOLVED 2026-10-21: option A, keep the 30-minute window as specified (rejected). RESOLVED 2026-10-21: keep the 30-minute window as specified (rejected).
+- [x] [Review][Decision] A reset whose cancel e-mail is never sent stays `due` forever with no alert [supabase/migrations/0145_support_lifecycle.sql:1022] — claim requires `email_outbox.status = 'sent'`; a failed row or a nulled `outbox_id` leaves the account `reset_pending` and locked out, with no job_runs failure, notice or timeout. Options: alert Super Admins after N hours; mark the reset failed/cancelled after N hours; accept (panel shows `reset_state`). (blind-hunter + edge-case-hunter) RESOLVED 2026-10-21: auto-cancel 24 h after the cooling-off ends and alert Super Admins. APPLIED in claim_support_factor_resets (state cancelled, last_error notice_undelivered, audit support_factor_reset_abandoned); 4 pgTAP cases. RESOLVED 2026-10-21: auto-cancel 24 h after the cooling-off ends and alert Super Admins. APPLIED in claim_support_factor_resets (state cancelled, last_error notice_undelivered, audit support_factor_reset_abandoned); 4 pgTAP cases.
+- [x] [Review][Defer] Pre-existing-row backfill of `recorded_email` / `recertify_due_at` has no test [supabase/migrations/0145_support_lifecycle.sql:72] — deferred: one-time event; run the two statements in a rolled-back transaction on a pre-0145-shaped row before the prod migration. (verification-gap)
+- [x] [Review][Defer] `change_support_contact` hardcodes `@gymosapps\.com` in SQL [supabase/migrations/0145_support_lifecycle.sql:1344] — deferred (unverified medium): settle by checking whether invite creation enforces the same domain; if not, the two paths disagree. (blind-hunter + acceptance-auditor)
+- [x] [Review][Defer] Stray 23-10 bullet (`support_audit_action_not_allowed`) added to epic-23-context.md [epic-23-context.md:37] — deferred: edits an agent-context file; unrelated to 23-11, move or drop at merge.
+
+#### Rejected
+
+- Step-up consumed before RPC refusal (low): redo of a code, fix adds validation duplication.
+- Null `recorded_email` never drifts (low): insert trigger and backfill fill it; accounts need an auth user.
+- Unbounded retries / re-mail (low): `record_support_factor_reset_run` failures reach job-runs-alert; re-mail only after a done-write failure.
+- Executor used-link branch after a failed done-write (low): state label only; access works.
+- Recertification notice missed if the sweep skips a night (low): access is denied regardless, panel shows it, job failure alerts; fix needs a new column.
+- Contact-change non-atomic window and dead `p_phone` argument (low): daily job vs. millisecond gap; unlock path recovers.
+- Lapsed `recertify_due_at` after reset still denies (false): intended, recertification is its own step.
+- Unlock does not warn of lapsed recertification; Owner "resumed" notice (low): cosmetic, already in deferred-work.
+- Rollback script can strand pending resets (low): header already says to finish them first; guard adds branching.
+- 5-minute due cron writes 288 job_runs rows/day (low): negligible volume.
+- Audit via `support_audit` instead of `support_admin_audit` for cancel/execute (false): those have no admin actor.
+- ~24 h executor latency; e-mail-only notification; step-up in app not SQL; sessions not ended at recert lapse (false): accepted owner decisions / 22.8 pattern / gate denies each request.
+- Phone mass-lock on existing rows (false): production has no support accounts before 0133 (23-8 historic-row check).
+- Spec frontmatter `status: done`, empty change log (rejected): fix edits the spec under review.

@@ -332,7 +332,7 @@ select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') 
           'only the listed functions write support_assignments (an unlisted writer fails here)');
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
             where p.prokind = 'f' and p.prosrc ~* '(insert\s+into|update|delete\s+from)\s+(only\s+)?private\.support_accounts\M'),
-          array['activate_support_account', 'cancel_support_factor_reset', 'change_support_contact', 'create_support_account', 'deactivate_support_account', 'recertify_support_account', 'remove_support_account', 'start_support_factor_reset', 'support_lock_account', 'unlock_support_account'],
+          array['activate_support_account', 'cancel_support_factor_reset', 'change_support_contact', 'claim_support_factor_resets', 'create_support_account', 'deactivate_support_account', 'recertify_support_account', 'remove_support_account', 'start_support_factor_reset', 'support_lock_account', 'unlock_support_account'],
           'only the listed functions write private.support_accounts');
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
             where p.prokind = 'f' and p.prosrc ~* 'support_set_membership\('),

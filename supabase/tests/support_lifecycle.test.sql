@@ -8,7 +8,7 @@
 --   G. restore of switch-suspended assignments after unlock / recertification (23-10 deferral)
 --   H. catalog: limits, crons, privileges, scans
 begin;
-select plan(164);
+select plan(171);
 
 create or replace function pg_temp.claims(uid text, app_role text, aal text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -336,6 +336,30 @@ select is((select string_agg(user_id::text, ',') from claim_support_factor_reset
 delete from private.support_factor_resets where cancel_token_hash in ('h-stale', 'h-fresh');
 update private.support_accounts set reset_pending_at = null where user_id in ('00000000-0000-0000-0000-000000250111', '00000000-0000-0000-0000-000000250101');
 
+-- claim guards: a drifted or locked account is not executed, the invite goes to the e-mail on file; an undelivered notice is abandoned after 24 h
+update private.support_accounts set reset_pending_at = now() where user_id = '00000000-0000-0000-0000-000000250111';
+insert into private.support_factor_resets (user_id, started_by, executes_at, cancel_token_hash, outbox_id, identity_note, state) values
+  ('00000000-0000-0000-0000-000000250111', '00000000-0000-0000-0000-000000250103', now() - interval '1 hour', 'h-guard', '00000000-0000-0000-0000-0000000250e1', 'guard', 'due');
+select lower(email) as mail0 from auth.users where id = '00000000-0000-0000-0000-000000250111' \gset
+update auth.users set email = 'stranger@example.com' where id = '00000000-0000-0000-0000-000000250111';
+select is((select count(*)::int from claim_support_factor_resets(10)), 0, 'executor: an account whose auth e-mail drifted from the one on file is not claimed');
+update auth.users set email = :'mail0' where id = '00000000-0000-0000-0000-000000250111';
+update private.support_accounts set locked_at = now() where user_id = '00000000-0000-0000-0000-000000250111';
+select is((select count(*)::int from claim_support_factor_resets(10)), 0, 'executor: a locked account is not claimed');
+update private.support_accounts set locked_at = null where user_id = '00000000-0000-0000-0000-000000250111';
+select is((select email from claim_support_factor_resets(10)), (select recorded_email from private.support_accounts where user_id = '00000000-0000-0000-0000-000000250111'), 'executor: the claim returns the e-mail on file');
+delete from private.support_factor_resets where cancel_token_hash = 'h-guard';
+
+insert into email_outbox (id, recipient_email, subject, body, status) values ('00000000-0000-0000-0000-0000000250e2', 'x@x.example', 's', 'b', 'failed');
+insert into private.support_factor_resets (user_id, started_by, executes_at, cancel_token_hash, outbox_id, identity_note, state) values
+  ('00000000-0000-0000-0000-000000250111', '00000000-0000-0000-0000-000000250103', now() - interval '25 hours', 'h-undelivered', '00000000-0000-0000-0000-0000000250e2', 'undelivered', 'due');
+select count(*)::int as an0 from staff_notices where notice_type = 'support_factor_reset_abandoned' \gset
+select is((select count(*)::int from claim_support_factor_resets(10)), 0, 'executor: a reset whose notice was not delivered is not claimed');
+select is((select state || '/' || last_error from private.support_factor_resets where cancel_token_hash = 'h-undelivered'), 'cancelled/notice_undelivered', 'executor: it is abandoned 24 h after the cooling-off');
+select is((select reset_pending_at is null from private.support_accounts where user_id = '00000000-0000-0000-0000-000000250111'), true, 'executor: the abandoned account is no longer reset-pending');
+select is((select count(*)::int from staff_notices where notice_type = 'support_factor_reset_abandoned') - :an0 >= 1, true, 'executor: Super Admin is alerted to the abandoned reset');
+delete from private.support_factor_resets where cancel_token_hash = 'h-undelivered';
+
 -- ============================================================================================================
 -- F. contact changes and drift
 -- ============================================================================================================
@@ -485,7 +509,7 @@ select is((select count(*)::int from pg_trigger t where t.tgrelid = 'auth.mfa_fa
 -- every writer of private.support_accounts is on the list (retro 66); a new one must be added here by name
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
             where p.prokind = 'f' and p.prosrc ~* '(insert\s+into|update|delete\s+from)\s+(only\s+)?private\.support_accounts\M'),
-          array['activate_support_account', 'cancel_support_factor_reset', 'change_support_contact', 'create_support_account', 'deactivate_support_account', 'recertify_support_account',
+          array['activate_support_account', 'cancel_support_factor_reset', 'change_support_contact', 'claim_support_factor_resets', 'create_support_account', 'deactivate_support_account', 'recertify_support_account',
                 'remove_support_account', 'start_support_factor_reset', 'support_lock_account', 'unlock_support_account']::text[], 'scan: the writers of private.support_accounts');
 -- every path that sets reset_pending_at or locks ends access through the one routine
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
