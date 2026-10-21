@@ -122,6 +122,7 @@
       "title": "Journal d'audit",
       "empty": "Aucune activité d'audit enregistrée pour cette salle pour le moment.",
       "revokedTarget": "{{label}} — {{holder}}",
+      "realActor": "Personne réelle : {{name}} ({{email}})",
       "action": {
         "gym_created": "Salle créée",
         "gym_suspended": "Salle suspendue",
@@ -528,6 +529,21 @@
     "home": "Retour à la connexion"
   },
   "support": {
+    "disclosure": {
+      "title": "Demandes d'information des propriétaires",
+      "empty": "Aucune demande d'information.",
+      "row": "À propos de {{action}} le {{date}}",
+      "due": "Réponse attendue le",
+      "overdue": "En retard, réponse attendue le",
+      "answerLabel": "Réponse",
+      "submit": "Envoyer la réponse",
+      "answered": "Réponse enregistrée. Transmettez-la au propriétaire par téléphone ou par e-mail.",
+      "codes": {
+        "answer_invalid": "Écrivez une réponse de 3 à 2000 caractères.",
+        "not_found": "Cette demande n'existe plus.",
+        "already_answered": "Cette demande a déjà reçu une réponse."
+      }
+    },
     "title": "Support GymOS",
     "empty": "Aucun compte de support pour le moment.",
     "create": {

@@ -55,6 +55,70 @@ export type Database = {
           },
         ]
       }
+      audit_disclosure_requests: {
+        Row: {
+          answer: string | null
+          answer_due_at: string
+          answered_at: string | null
+          answered_by: string | null
+          audit_log_id: string
+          gym_id: string
+          id: string
+          question: string
+          requested_at: string
+          requested_by: string
+        }
+        Insert: {
+          answer?: string | null
+          answer_due_at: string
+          answered_at?: string | null
+          answered_by?: string | null
+          audit_log_id: string
+          gym_id: string
+          id?: string
+          question: string
+          requested_at?: string
+          requested_by: string
+        }
+        Update: {
+          answer?: string | null
+          answer_due_at?: string
+          answered_at?: string | null
+          answered_by?: string | null
+          audit_log_id?: string
+          gym_id?: string
+          id?: string
+          question?: string
+          requested_at?: string
+          requested_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_disclosure_requests_answered_by_fkey"
+            columns: ["answered_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_disclosure_requests_audit_log_id_fkey"
+            columns: ["audit_log_id"]
+            referencedRelation: "audit_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_disclosure_requests_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_disclosure_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action_type: string
@@ -1765,6 +1829,40 @@ export type Database = {
           },
         ]
       }
+      support_action_identity: {
+        Row: {
+          gym_id: string
+          id: string
+          real_user_id: string
+          recorded_at: string
+          subject_id: string
+          subject_table: string
+        }
+        Insert: {
+          gym_id: string
+          id?: string
+          real_user_id: string
+          recorded_at?: string
+          subject_id: string
+          subject_table: string
+        }
+        Update: {
+          gym_id?: string
+          id?: string
+          real_user_id?: string
+          recorded_at?: string
+          subject_id?: string
+          subject_table?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_action_identity_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_assignments: {
         Row: {
           activated_at: string | null
@@ -2139,6 +2237,10 @@ export type Database = {
         Args: { p_coach_id: string; p_member_id: string }
         Returns: string
       }
+      answer_audit_disclosure_request: {
+        Args: { p_answer: string; p_request_id: string }
+        Returns: { code: string; ok: boolean }[]
+      }
       assign_support: {
         Args: { p_gym_id: string; p_reason: string; p_user_id: string }
         Returns: { assignment_id: string | null; code: string; ok: boolean }[]
@@ -2373,6 +2475,55 @@ export type Database = {
       get_active_escalation_expiry: {
         Args: { p_gym_id: string }
         Returns: string
+      }
+      file_audit_disclosure_request: {
+        Args: { p_audit_log_id: string; p_question: string }
+        Returns: { answer_due_at: string | null; code: string; ok: boolean; request_id: string | null }[]
+      }
+      get_disclosure_inbox: {
+        Args: never
+        Returns: {
+          answer: string | null
+          answer_due_at: string
+          answered_at: string | null
+          audit_action_type: string
+          audit_created_at: string
+          audit_log_id: string
+          gym_id: string
+          gym_name: string
+          id: string
+          overdue: boolean
+          question: string
+          requested_at: string
+        }[]
+      }
+      get_gym_disclosure_requests: {
+        Args: never
+        Returns: {
+          answer: string | null
+          answer_due_at: string
+          answered_at: string | null
+          audit_log_id: string
+          id: string
+          question: string
+          requested_at: string
+        }[]
+      }
+      get_gym_support_proxy_id: {
+        Args: never
+        Returns: string
+      }
+      get_support_action_identity: {
+        Args: { p_subject_ids: string[]; p_subject_table: string }
+        Returns: {
+          gym_id: string
+          real_email: string | null
+          real_name: string | null
+          real_user_id: string
+          recorded_at: string
+          subject_id: string
+          subject_table: string
+        }[]
       }
       get_gymos_support_status: {
         Args: { p_gym_id: string }

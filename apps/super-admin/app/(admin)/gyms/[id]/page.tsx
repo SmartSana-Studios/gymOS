@@ -13,7 +13,7 @@ import {
   listTiers,
   type AuditTrailEntry,
 } from "@/services/gyms";
-import { listSupportAccounts, listSupportAssignments } from "../../support/actions";
+import { listRealActors, listSupportAccounts, listSupportAssignments } from "../../support/actions";
 import { GymDetailPageClient } from "./components/GymDetailPageClient";
 import GymDetailLoading from "./loading";
 
@@ -178,11 +178,17 @@ async function GymDetailData({
     return entry;
   });
 
+  // Story 23.8: the real person behind each "GymOS Support" entry. Super Admin only; a refusal (for example the flag is off) only
+  // hides the names, it does not block the page.
+  const supportEntryIds = auditTrailForDisplay.filter((entry) => entry.actorDisplayName === "GymOS Support").map((entry) => entry.id);
+  const { data: realActors } = await listRealActors(supportEntryIds);
+
   return (
     <GymDetailPageClient
       gym={gym}
       tiers={tiers ?? []}
       auditTrail={auditTrailForDisplay}
+      realActors={realActors}
       expiresAt={ownEscalation?.expiresAt ?? null}
       activeEscalations={activeEscalations ?? []}
       currentActorId={currentActorId}

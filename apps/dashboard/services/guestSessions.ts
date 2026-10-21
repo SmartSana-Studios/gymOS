@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { type AppError } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
+import { resolveActorNames } from "@/services/actorNames";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import {
@@ -80,17 +81,8 @@ export async function listMemberGuestSessions(
   // Recorder names: payments.actor_id is the staff user id; resolve through
   // the gym's own members rows (same approach as getMemberRegistrationFeeState).
   const actorIds = [...new Set(payments.map((p) => p?.actor_id).filter((id): id is string => Boolean(id)))];
-  const names = new Map<string, string>();
-  if (actorIds.length > 0) {
-    const { data: actors } = await supabase
-      .from("members")
-      .select("user_id, name")
-      .eq("gym_id", gymId)
-      .in("user_id", actorIds);
-    for (const actor of actors ?? []) {
-      if (actor.user_id) names.set(actor.user_id, actor.name);
-    }
-  }
+  // A failed lookup leaves the recorder blank, as before; the proxy resolves to "GymOS Support" (23.8).
+  const names = (await resolveActorNames(supabase, gymId, actorIds)).data ?? new Map<string, string>();
 
   const cutoff = Date.now() - HISTORY_DAYS * 86_400_000;
   const now = Date.now();

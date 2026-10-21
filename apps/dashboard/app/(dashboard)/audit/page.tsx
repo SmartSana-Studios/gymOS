@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { parsePage, parsePageSize } from "@gymos/types";
 
 import { listAuditLog, listAuditActors, AUDIT_LOG_PAGE_SIZE, resolveAuditDateRange } from "@/services/auditLog";
+import { listDisclosureRequests } from "@/services/auditDisclosure";
 import { getDashboardShellContext } from "@/services/session";
 import { AuditLogPageClient } from "./components/AuditLogPageClient";
 import AuditLoading from "./loading";
@@ -65,6 +66,13 @@ async function AuditData({
     console.error(`AuditData: listAuditActors failed -- ${actorsError.message}`);
   }
 
+  // Owner-only RPC (it refuses anyone else, so it is not called for a Manager or Supervisor); a failure only hides the panel.
+  const { data: disclosureRequests, error: disclosureError } =
+    shell.role === "owner" ? await listDisclosureRequests() : { data: [], error: null };
+  if (disclosureError) {
+    console.error(`AuditData: listDisclosureRequests failed -- ${disclosureError.message}`);
+  }
+
   return (
     <AuditLogPageClient
       initialRows={auditLogPage?.rows ?? []}
@@ -76,6 +84,7 @@ async function AuditData({
       actorId={params.actorId ?? ""}
       role={shell.role}
       actorOptions={actorsError ? [] : (actorOptions ?? [])}
+      disclosureRequests={shell.role === "owner" && !disclosureError ? (disclosureRequests ?? []) : []}
     />
   );
 }

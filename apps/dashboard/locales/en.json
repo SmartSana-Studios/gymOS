@@ -1342,7 +1342,31 @@
       "sessionLatePayment": "Late paid session payment applied",
       "sessionRefundApplied": "Paid session refund applied",
       "sessionConsumed": "Session used",
-      "sessionAttemptBlocked": "Entry blocked: session required"
+      "sessionAttemptBlocked": "Entry blocked: session required",
+      "allowGymosSupportChanged": "GymOS Support access changed",
+      "auditDisclosureRequested": "Disclosure request filed",
+      "auditDisclosureAnswered": "Disclosure request answered"
+    },
+    "disclosure": {
+      "title": "Questions about this log",
+      "request": "Ask about this entry",
+      "dialogTitle": "Ask GymOS about this entry",
+      "questionLabel": "What would you like to know?",
+      "questionHint": "GymOS answers by phone or email. The due date is shown once you send the request.",
+      "submit": "Send request",
+      "cancel": "Cancel",
+      "sent": "Request sent. GymOS will answer by {{date}}.",
+      "empty": "You have not asked about any entry yet.",
+      "due": "Answer due {{date}}",
+      "answered": "Answered {{date}}",
+      "open": "Waiting for GymOS",
+      "answerLabel": "Answer",
+      "entry": "Entry {{id}}",
+      "errors": {
+        "questionInvalid": "Write a question of 3 to 500 characters.",
+        "notFound": "That entry could not be found.",
+        "alreadyOpen": "You already have an open question about this entry."
+      }
     }
   },
   "saasBilling": {

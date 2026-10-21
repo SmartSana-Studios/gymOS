@@ -1,6 +1,7 @@
 "use server";
 
 import { exportAuditLogCsv, type ExportAuditLogCsvResult } from "@/services/auditLog";
+import { fileDisclosureRequest, type FileDisclosureResult } from "@/services/auditDisclosure";
 
 // Story 7.2: Audit Log Dashboard Page. A deliberate, documented deviation
 // from architecture.md:331's stale "no actions.ts" note for this route,
@@ -17,4 +18,13 @@ export async function exportAuditLogCsvAction(params: {
   actorId?: string;
 }): Promise<ExportAuditLogCsvResult> {
   return exportAuditLogCsv(params);
+}
+
+// Story 23.8: the Owner's question about one audit row (0142). Thin passthrough; the RPC is the Owner-only,
+// own-gym-only boundary.
+export async function fileDisclosureRequestAction(
+  auditLogId: string,
+  question: string,
+): Promise<FileDisclosureResult> {
+  return fileDisclosureRequest(auditLogId, question);
 }

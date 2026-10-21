@@ -1331,7 +1331,7 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
   evidence: Same as the owner/manager/receptionist rule it extends; pre-existing.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
   summary: `log_audit_event` lets a live support caller write arbitrary action types into its own gym.
-  evidence: Same for Supervisor today; restrict action types when 23-8 reworks audit actor identity.
+  evidence: Same for Supervisor today; restrict action types when 23-8 reworks audit actor identity. MOVED by 23-8 (2026-10-21, migration 0142): the accountability half is closed (every support-written audit row now has a `support_action_identity` row holding the real individual, Super Admin read only). Restricting which action types support may write is not in the 23-8 spec; it moves to the 23-10 criteria with the Owner visibility work, and support stays off for every gym until then.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
   summary: Unverified medium: step-up grants may not be bound to role, phone, amount or reason.
   evidence: Settle by reading `stepup_issue` subject binding when 23-6c builds the issue UI.
@@ -1349,7 +1349,7 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
   summary: Screens that show "recorded by" resolve the actor name through `members`; the proxy has no `members` row, so a support-recorded payment, refund or audit entry shows no name there until 23-8 resolves "GymOS Support". The audit rows themselves already carry `actor_display_name = 'GymOS Support'`.
-  evidence: By design (spec Never list). 23-8 also adds `support_action_identity` (the real individual, Super Admin read only). Do not enable support for any gym before 23-8 ships.
+  evidence: By design (spec Never list). 23-8 also adds `support_action_identity` (the real individual, Super Admin read only). Do not enable support for any gym before 23-8 ships. CLOSED by 23-8 (2026-10-21, migration 0142): `services/actorNames.ts` (dashboard) and `getPaymentReceipt` (mobile) resolve the proxy through `get_gym_support_proxy_id()`; payments, refunds, guest-session recorders, waived-by and the audit actor filter read "GymOS Support", the member app shows the gym. `support_action_identity` is written with every action. Support still stays off until 23-9..23-11 and the master merge.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
   summary: Super Admin and support lifecycle writers still store the real `auth.uid()` (`assign_support.created_by`, `escalate_gym_data_access`, `revoke_gym_data_access`, and the `gym_id IS NULL` audit rows of 23.4/23.5). They are named exemptions in `support_proxy_actor.test.sql`.
   evidence: None of these is gym visible (gym_id NULL or Super Admin only). If one ever becomes gym visible it must move to `private.actor_id()`; the scan lists them so the decision is visible.
@@ -1366,5 +1366,27 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
   summary: Behavioral (not source-text) tests for the converted writers `connect_gym_payment_credentials`, `update_messaging_instance`, `front_desk_alerts_protect_columns` and `initiate_*`.
   evidence: Support cannot reach them today; 23-9 must add an assertion that the stored actor is the proxy when it opens the payment connection to support.
 
-- Historic `payments`/`refunds`/`audit_log` rows may hold a support person's real `users.id` from 0140 (unverified, medium). Settle with a prod query joining the actor columns to support `members`; do before 23-8 enables support.
+- Historic `payments`/`refunds`/`audit_log` rows may hold a support person's real `users.id` from 0140 (unverified, medium). Settle with a prod query joining the actor columns to support `members`; do before 23-8 enables support. CLOSED by 23-8 (2026-10-21): checked read-only on local (0 rows in every actor column) and on production (migrations at 0133: the `support` role value and `private.support_accounts` do not exist there, so no row can hold a support id). Recorded in docs/decisions.md.
 - Raw `auth.users` insert in `ensure_support_proxy` leaves token columns NULL; GoTrue admin `listUsers`/`findUserByEmail` may fail (unverified, medium). Settle by running the real admin API against a local DB with proxies, before the master merge.
+
+## Deferred from: build of spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: Behavioral tests that a live support session writes `connected_by` and `updated_by` identity rows are not possible yet: support cannot reach `connect_gym_payment_credentials` (Owner only) or `update_messaging_instance` (Super Admin only). Only the `dismissed_by` writer is exercised end to end; the other two are covered by the identity-cover scan (the body must call `private.record_support_identity`).
+  evidence: 23-9 opens the payment connection to support and must add a pgTAP assertion that a support connect writes the proxy as `connected_by` and one `gym_payment_credentials` identity row.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: Error logs (Sentry) and CSV exports are app code, not database surfaces, so the per-surface pgTAP scan does not reach them. They are covered by dashboard unit tests (CSV outputs and the services' read lists) and by the fact that no service reads the identity table, not by a scan of Sentry payloads.
+  evidence: Unverified medium: a thrown database error that embeds a user id in its message would be logged by `mapAndLog`. No current function raises a message with the support person's id (`support_proxy_missing` and `support_identity_missing` carry none). Re-check when 23-10 adds new raise sites.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: The disclosure answer is delivered outside the product; there is no notification to the Owner when it is stored, and no reminder to the Super Admin before `answer_due_at`.
+  evidence: By design (spec Design Notes). The Super Admin inbox marks overdue requests; a reminder job can come with the 23-10 digest.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: The Owner's disclosure request panel shows only "Entry <uuid prefix>" and offers "Ask about this entry" on rows that already have an open request.
+  evidence: Real but cosmetic (review 23-8, low); show the audit action and date and hide the button for open rows before support is enabled for any gym.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: The Super Admin disclosure inbox shows no Owner contact to deliver the answer to.
+  evidence: Owner contact is reachable from the gym detail page (review 23-8, low); add it to the inbox row.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: Reading the real identity through get_support_action_identity is not audited, and a disclosure answer is free text that could name the individual.
+  evidence: Not required by the 23-8 spec (review 23-8, low); decide in 23-10 whether an identity lookup writes an audit row, and give the answer form guidance not to name the person.
