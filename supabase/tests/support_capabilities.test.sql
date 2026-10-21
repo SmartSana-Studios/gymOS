@@ -117,8 +117,8 @@ select is((select count(*)::int from private.support_capabilities c join pg_proc
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
             where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.proname <> 'support_gym_id'
               and p.prosrc like '%support_gym_id%'),
-          array['current_gym_status', 'guard_support_gym_columns', 'log_audit_event', 'protect_payment_columns_on_staff_verify', 'support_rpc_gym_id', 'support_stepup_require']::text[],
-          'catalog: the direct consumers of support_gym_id are exactly the helpers, the two triggers, status and audit');
+          array['actor_id', 'current_gym_status', 'guard_support_gym_columns', 'log_audit_event', 'protect_payment_columns_on_staff_verify', 'support_force_actor', 'support_rpc_gym_id', 'support_stepup_require']::text[],
+          'catalog: the direct consumers of support_gym_id are exactly the helpers, the three triggers, status, audit and the actor (23.7)');
 
 -- classification of every policy / function that names 'supervisor'. A new one fails until it is added here, deliberately.
 create temp table cls (kind text, name text, support text, primary key (kind, name));
@@ -284,7 +284,7 @@ select is(pg_temp.err($$select set_gym_category('00000000-0000-0000-0000-0000002
 select is(pg_temp.err($$select set_gym_category('00000000-0000-0000-0000-000000236002', 'yoga_studio')$$), 'P0001:permission denied', 'category of another gym is refused');
 select is((select category || ':' || loyalty_enabled || ':' || charge_guests_per_session from gyms where id = '00000000-0000-0000-0000-000000236001'), 'yoga_studio:true:true', 'the settings changed');
 reset role;
-select is((select array_agg(action_type order by action_type) from audit_log where gym_id = '00000000-0000-0000-0000-000000236001' and actor_id = '00000000-0000-0000-0000-000000236101'),
+select is((select array_agg(action_type order by action_type) from audit_log where gym_id = '00000000-0000-0000-0000-000000236001' and actor_id = (select id from users where support_proxy_gym_id = '00000000-0000-0000-0000-000000236001')),
           array['guest_charging_changed', 'guest_charging_changed', 'gym_category_changed', 'loyalty_program_changed', 'plan_price_changed', 'registration_fee_changed'],
           'each allow-listed RPC audited its change');
 -- members created after the fee is on are unsettled
@@ -311,7 +311,7 @@ select is(pg_temp.err($$select record_session_payment('00000000-0000-0000-0000-0
 select is(pg_temp.err($$select renew_subscription('00000000-0000-0000-0000-000000236204', 'renewed by support')$$), 'ok', 'allow-list: renew a subscription');
 select is(pg_temp.err($$select confirm_renewal('00000000-0000-0000-0000-000000236204', 'cash', 'confirmed by support')$$), 'ok', 'allow-list: confirm a renewal');
 reset role;
-select is((select count(*)::int from audit_log where actor_id = '00000000-0000-0000-0000-000000236101'
+select is((select count(*)::int from audit_log where actor_id = (select id from users where support_proxy_gym_id = '00000000-0000-0000-0000-000000236001')
             and action_type in ('registration_fee_recorded', 'session_payment_recorded', 'subscription_manual_renewal', 'renewal_confirmed')), 4, 'the payment RPCs audited');
 
 -- ============================================================================================================

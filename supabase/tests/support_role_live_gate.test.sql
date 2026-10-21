@@ -377,7 +377,7 @@ select is(pg_temp.rows_visible(), 'members=1 payments=1 plans=1 refunds=1 subscr
 reset role;
 
 -- ---- catalog: nothing existing lists support; the consumers of the gate are exactly the expected ones -------------------------------
-select is((select count(*)::int from pg_policies where coalesce(qual, '') || coalesce(with_check, '') like '%''support''%'), 0,
+select is((select count(*)::int from pg_policies where coalesce(qual, '') || coalesce(with_check, '') like '%''support''%' and policyname <> 'hide_support_membership'), 0,
           'no RLS policy mentions the support role');
 select is((select count(*)::int from pg_constraint where pg_get_constraintdef(oid) like '%''support''%'), 0,
           'no CHECK / constraint mentions the support role');

@@ -155,7 +155,7 @@ select is((select count(*)::int from pg_policies
            where coalesce(qual, '') || coalesce(with_check, '') ~* '(<>|!=)\s*(all\s*\()?\s*(array\[[^]]*)?''member''|not\s+in\s*\([^)]*''member''|''member''\s*(<>|!=)'), 0, 'catalog: no policy negates member');
 select is((select count(*)::int from pg_policies
            where coalesce(qual, '') || coalesce(with_check, '') ~ '''support'''
-             and policyname not in ('support_gate_probe')), 0, 'catalog: no existing policy lists support (denied by default until 23.6)');
+             and policyname not in ('support_gate_probe', 'hide_support_membership')), 0, 'catalog: no existing policy lists support (denied by default until 23.6)');
 -- Every policy naming 'supervisor' is classified here (each lists explicit roles, so support never matches). A new one fails until added.
 create temp table cat_pol (name text primary key);
 insert into cat_pol (name) values
