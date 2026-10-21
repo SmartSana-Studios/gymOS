@@ -32,7 +32,7 @@ import { StaffPageClient } from "./components/StaffPageClient";
 async function renderedClient(): Promise<ReactElement<Record<string, unknown>>> {
   const suspense = StaffPage() as ReactElement<{ children: ReactElement<unknown, () => Promise<ReactElement>> }>;
   const staffData = suspense.props.children;
-  const out = await staffData.type({});
+  const out = await staffData.type();
   expect(out.type).toBe(StaffPageClient);
   return out as ReactElement<Record<string, unknown>>;
 }
