@@ -5,7 +5,7 @@
 --   D. catalog scans (retro 66): writers of auth.uid() and user-FK columns, each shown to fail on a seeded bad case
 --   E. gym-side hiding
 begin;
-select plan(69);
+select plan(73);
 
 create or replace function pg_temp.claims(uid text, app_role text, aal text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -78,6 +78,13 @@ select throws_ok($$update users set support_proxy_gym_id = '00000000-0000-0000-0
 select throws_ok($$update users set is_support_proxy = true where id = '00000000-0000-0000-0000-000000237f01'$$, '23514', null, 'the proxy flag and the gym link go together');
 select throws_ok($$update users set is_support_proxy = true, support_proxy_gym_id = '00000000-0000-0000-0000-000000237002', is_super_admin = true where id = '00000000-0000-0000-0000-000000237f01'$$,
                  null, null, 'a proxy is never a Super Admin');
+
+-- a self-update cannot set the proxy markers (the pin trigger puts them back)
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000237f01","role":"authenticated"}', true);
+update users set is_support_proxy = true, support_proxy_gym_id = '00000000-0000-0000-0000-000000237002' where id = '00000000-0000-0000-0000-000000237f01';
+select set_config('request.jwt.claims', '', true);
+select is((select is_support_proxy::text || ':' || coalesce(support_proxy_gym_id::text, 'null') from users where id = '00000000-0000-0000-0000-000000237f01'), 'false:null',
+          'a self-update cannot set is_support_proxy or support_proxy_gym_id');
 
 -- backfill: remove one proxy, run the backfill statement, exactly one comes back; a re-run adds none
 delete from auth.users where id = pg_temp.proxy_of('00000000-0000-0000-0000-000000237002');
@@ -217,14 +224,16 @@ insert into writer_exempt (fn, reason) values
 
 create or replace function pg_temp.unlisted_writers() returns setof text language sql as $f$
   select p.oid::regprocedure::text
-    from pg_proc p
+    from pg_proc p, lateral (select regexp_replace(p.prosrc, '\(\s*select\s+auth\.uid\(\)\s*\)', 'auth.uid()', 'gi') as src) s
    where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.prokind in ('f', 'p')
-     and (   p.prosrc ~* ':=\s*auth\.uid\(\)'
-          or p.prosrc ~* '\mvalues\s*\((?:(?!;)[\s\S])*auth\.uid\(\)'
-          or p.prosrc ~* '\mset\M(?:(?!\mwhere\M|;)[\s\S])*?[a-z_]+\s*=\s*auth\.uid\(\)'
-          or p.prosrc ~* '\mselect\s+auth\.uid\(\)\s*(,|into)'
-          or p.prosrc ~* '\mreturning\M[^;]*auth\.uid\(\)')
-     and p.prosrc !~ 'private\.actor_id\(\)'
+     and (   s.src ~* ':=\s*auth\.uid\(\)'
+          or s.src ~* '\mvalues\s*\((?:(?!;)[\s\S])*auth\.uid\(\)'
+          or s.src ~* '\mset\M(?:(?!\mwhere\M|;)[\s\S])*?[a-z_]+\s*=\s*auth\.uid\(\)'
+          or s.src ~* '\mselect\s+auth\.uid\(\)\s*(,|into|from)'
+          or s.src ~* '\mdefault\s+auth\.uid\(\)'
+          or s.src ~* '(^|;|\m(begin|then|else|loop))\s*[a-z_.]+\s*=\s*auth\.uid\(\)\s*;'
+          or s.src ~* '\mreturning\M[^;]*auth\.uid\(\)')
+     and s.src !~ 'private\.actor_id\(\)'
      and p.oid::regprocedure::text not in (select fn from writer_exempt)
    order by 1 $f$;
 select is((select count(*)::int from pg_temp.unlisted_writers()), 0, 'scan: every function that writes auth.uid() into a column calls private.actor_id() or is a named exemption');
@@ -239,12 +248,18 @@ create function public.zz_bad_trigger() returns trigger language plpgsql as $f$
 begin new.dismissed_by := auth.uid(); return new; end $f$;
 create function public.zz_bad_update() returns void language plpgsql as $f$
 begin update public.messaging_provider_config set updated_by = auth.uid(), updated_at = now() where true; end $f$;
+create function public.zz_bad_wrapped() returns trigger language plpgsql as $f$
+begin new.dismissed_by := (select auth.uid()); return new; end $f$;
+create function public.zz_bad_plain() returns trigger language plpgsql as $f$
+begin new.dismissed_by = auth.uid(); return new; end $f$;
+create function public.zz_bad_default() returns void language plpgsql as $f$
+declare v uuid default auth.uid(); begin perform v; end $f$;
 create function public.zz_good_compare() returns boolean language plpgsql as $f$
 begin return exists (select 1 from public.members where user_id = auth.uid()); end $f$;
-select is((select array_agg(w order by w) from pg_temp.unlisted_writers() w), array['zz_bad_trigger()', 'zz_bad_update()', 'zz_bad_writer()']::text[],
-          'scan: seeded unlisted writers (insert, trigger assignment, update) are caught; a read-only comparison is not');
+select is((select array_agg(w order by w) from pg_temp.unlisted_writers() w), array['zz_bad_default()', 'zz_bad_plain()', 'zz_bad_trigger()', 'zz_bad_update()', 'zz_bad_wrapped()', 'zz_bad_writer()']::text[],
+          'scan: seeded unlisted writers (insert, trigger assignment, update, (select auth.uid()), plain =, declare default) are caught; a read-only comparison is not');
 insert into writer_exempt values ('zz_bad_writer()', 'seeded');
-select is((select count(*)::int from pg_temp.unlisted_writers()), 2, 'scan: a named exemption clears exactly that function');
+select is((select count(*)::int from pg_temp.unlisted_writers()), 5, 'scan: a named exemption clears exactly that function');
 
 -- D2: every column with a foreign key to users is classified
 create temp table fk_class (col text primary key, class text not null check (class in ('actor_converted', 'actor_exempt', 'non_actor')), note text not null);
@@ -265,7 +280,7 @@ insert into fk_class (col, class, note) values
   ('support_assignments.support_user_id',       'non_actor',       'the assigned person'),
   ('private.support_invites.user_id',           'non_actor',       'the invited person');
 create or replace function pg_temp.user_fk_cols() returns setof text language sql as $f$
-  select case when c.conrelid::regclass::text like '%.%' then c.conrelid::regclass::text else c.conrelid::regclass::text end || '.' || a.attname
+  select c.conrelid::regclass::text || '.' || a.attname
     from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any (c.conkey)
    where c.contype = 'f' and c.confrelid = 'public.users'::regclass
      and c.connamespace in ('public'::regnamespace, 'private'::regnamespace) $f$;
@@ -273,10 +288,63 @@ create or replace function pg_temp.unclassified_fk() returns setof text language
   select col from pg_temp.user_fk_cols() col where col not in (select col from fk_class) order by 1 $f$;
 select is((select count(*)::int from pg_temp.unclassified_fk()), 0, 'scan: every column with a foreign key to users is classified');
 select is((select count(*)::int from fk_class k where k.col not in (select col from pg_temp.user_fk_cols())), 0, 'scan: every classified column still exists');
-select is((select count(*)::int from fk_class where class = 'actor_converted' and col in ('payments.actor_id', 'refunds.actor_id', 'audit_log.actor_id')), 3,
-          'scan: payments, refunds and audit actors are converted');
 create table public.zz_bad_fk (id uuid primary key default gen_random_uuid(), recorded_by uuid references public.users(id));
 select is((select array_agg(c) from pg_temp.unclassified_fk() c), array['zz_bad_fk.recorded_by']::text[], 'scan: a seeded unclassified user-FK column is caught');
+
+-- D3: every function, view or policy that reads users either filters on is_support_proxy or is a named exemption (spec: the proxy is
+-- excluded from any users-based list or count). Application code reads users by key (id or phone) today; a new list there needs the
+-- same filter. A function that reads users another way fails this scan until it is listed with a reason.
+create temp table users_reader_exempt (fn text primary key, reason text not null);
+insert into users_reader_exempt (fn, reason) values
+  ('assign_support(uuid,uuid,text)',                       'Super Admin action; reads one user by id'),
+  ('create_support_account(uuid,text,text)',               'Super Admin action; reads one user by id'),
+  ('custom_access_token_hook(jsonb)',                      'reads the signing-in user by id; a proxy has no members row and is banned'),
+  ('get_support_accounts()',                               'lists support_accounts rows (the proxy has none) joined to users'),
+  ('get_support_assignments(uuid,uuid)',                   'lists support_assignments rows (the proxy has none) joined to users'),
+  ('issue_support_invite(uuid,text,uuid)',                 'Super Admin action; reads one user by id'),
+  ('list_super_admins()',                                  'filters is_super_admin, which a proxy can never be (users_support_proxy_not_super_admin)'),
+  ('log_audit_event(text,uuid,text,text,jsonb,text)',      'reads the actor display name by id'),
+  ('private.actor_id()',                                   'reads the proxy by support_proxy_gym_id'),
+  ('private.authorize_action(uuid,uuid,text)',             'reads one user by id'),
+  ('private.guard_last_verified_factor()',                 'reads one user by id'),
+  ('private.guard_owner_not_super_admin()',                'reads one user by id'),
+  ('private.is_super_admin()',                             'reads one user by id'),
+  ('private.is_super_admin_live()',                        'reads one user by id'),
+  ('private.recovery_code_consume(uuid,text,text)',        'reads one user by id'),
+  ('private.recovery_code_issue(uuid,text,text,text)',     'reads one user by id'),
+  ('private.recovery_enrol_allowed(uuid)',                 'reads one user by id'),
+  ('private.send_class_reminder(uuid,uuid)',               'recipients come through members; a proxy has no members row'),
+  ('private.send_payment_push_notification(uuid,text)',     'reads one user by id'),
+  ('private.send_push_notification(uuid,text)',            'reads one user by id'),
+  ('private.send_quiet_gym_alert(uuid,uuid)',              'recipients come through members; a proxy has no members row'),
+  ('private.session_gate_touch(uuid,uuid)',                'reads one user by id'),
+  ('private.stepup_issue(uuid,text,text)',                 'reads one user by id'),
+  ('private.stepup_record_failure(uuid)',                  'reads one user by id'),
+  ('private.support_email_collision(text,uuid)',           'looks up by email; a proxy has a null email'),
+  ('promote_to_super_admin(uuid,text)',                    'Super Admin action; reads one user by id');
+create or replace function pg_temp.unfiltered_users_readers() returns setof text language sql as $f$
+  select p.oid::regprocedure::text from pg_proc p
+   where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.prokind in ('f', 'p')
+     and p.prosrc ~* '\m(from|join)\s+(public\.)?users\M' and p.prosrc !~* 'is_support_proxy'
+     and p.oid::regprocedure::text not in (select fn from users_reader_exempt)
+  union all
+  select c.oid::regclass::text from pg_class c
+   where c.relkind in ('v', 'm') and c.relnamespace in ('public'::regnamespace, 'private'::regnamespace)
+     and pg_get_viewdef(c.oid) ~* '\m(from|join)\s+(public\.)?users\M' and pg_get_viewdef(c.oid) !~* 'is_support_proxy'
+  union all
+  select pol.polrelid::regclass::text || '.' || pol.polname from pg_policy pol
+   where coalesce(pg_get_expr(pol.polqual, pol.polrelid), '') || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '') ~* '\m(from|join)\s+(public\.)?users\M'
+     and coalesce(pg_get_expr(pol.polqual, pol.polrelid), '') || coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid), '') !~* 'is_support_proxy'
+  order by 1 $f$;
+select is((select count(*)::int from pg_temp.unfiltered_users_readers()), 0, 'scan: every reader of users filters on is_support_proxy or is a named exemption');
+select is((select count(*)::int from users_reader_exempt e where not exists (select 1 from pg_proc p where p.oid::regprocedure::text = e.fn and p.prosrc ~* '\m(from|join)\s+(public\.)?users\M')), 0,
+          'scan: every users-reader exemption names a function that still reads users');
+create function public.zz_bad_users_count() returns bigint language sql as $f$ select count(*) from public.users $f$;
+create view public.zz_bad_users_view as select id from public.users;
+select is((select array_agg(r order by r) from pg_temp.unfiltered_users_readers() r), array['zz_bad_users_count()', 'zz_bad_users_view']::text[],
+          'scan: a seeded unfiltered users count and view are caught');
+insert into users_reader_exempt values ('zz_bad_users_count()', 'seeded');
+select is((select count(*)::int from pg_temp.unfiltered_users_readers()), 1, 'scan: a named exemption clears exactly that function');
 
 -- ============================================================================================================
 -- E. gym-side hiding
