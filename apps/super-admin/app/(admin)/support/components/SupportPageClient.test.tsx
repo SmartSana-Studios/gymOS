@@ -46,7 +46,7 @@ const life = (resetState: string | null): SupportLifecycleRow => ({
 const WHY = "Why are you doing this?";
 
 function renderPage(props: Partial<React.ComponentProps<typeof SupportPageClient>> = {}) {
-  renderWithI18n(<SupportPageClient initialAccounts={[]} assignments={[]} gyms={[{ id: "g1", name: "Gym A" }]} {...props} />);
+  renderWithI18n(<SupportPageClient initialAccounts={[]} assignments={[]} gyms={[{ id: "g1", name: "Gym A" }]} disclosures={[]} {...props} />);
 }
 
 beforeEach(() => {
@@ -55,6 +55,24 @@ beforeEach(() => {
 });
 
 describe("SupportPageClient layout", () => {
+  it("badges the Locked and Disclosure tabs with their counts, and shows a load error in the tab instead of the empty state", () => {
+    search = "tab=locks";
+    renderPage({
+      locks: [LOCK],
+      disclosures: [{ id: "d1", gymId: "g1", gymName: "Gym A", auditLogId: "a1", auditActionType: "x", auditCreatedAt: "2026-10-01T10:00:00Z", question: "Q?", requestedAt: "2026-10-01T10:00:00Z", answerDueAt: "2026-10-05T10:00:00Z", overdue: true, answeredAt: null, answer: null }],
+    });
+    const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
+    expect(tabs).toContain("Locked accounts1");
+    expect(tabs).toContain("Disclosure requests1");
+  });
+
+  it("a failed locks load shows the error in the Locked tab, not No locked accounts", () => {
+    search = "tab=locks";
+    renderPage({ loadErrors: { locks: "Could not load locks" } });
+    expect(screen.getByRole("alert").textContent).toBe("Could not load locks");
+    expect(screen.queryByText("No locked accounts.")).toBeNull();
+  });
+
   it("shows the three top buttons and five tabs in order, Accounts selected, and no inline form or page-wide reason box", () => {
     renderPage();
     expect(screen.getByRole("button", { name: "Create account" })).toBeTruthy();
@@ -71,7 +89,7 @@ describe("SupportPageClient layout", () => {
   it("opens the tab named in ?tab= and falls back to Accounts for an unknown value", () => {
     search = "tab=locks";
     renderPage({ locks: [LOCK] });
-    expect(screen.getByRole("tab", { name: "Locked accounts" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: /^Locked accounts/ }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByText("Pat Locked")).toBeTruthy();
   });
 
@@ -84,7 +102,7 @@ describe("SupportPageClient layout", () => {
   it("choosing a tab shows it and writes ?tab= to the URL", async () => {
     const user = userEvent.setup();
     renderPage({ locks: [LOCK] });
-    await user.click(screen.getByRole("tab", { name: "Locked accounts" }));
+    await user.click(screen.getByRole("tab", { name: /^Locked accounts/ }));
     expect(replace).toHaveBeenCalledWith("/support?tab=locks", { scroll: false });
     expect(screen.getByText("Pat Locked")).toBeTruthy();
   });

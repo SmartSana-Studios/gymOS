@@ -22,7 +22,7 @@ function deferUntilMenuClosed(fn: () => void) {
   setTimeout(fn, 0);
 }
 
-/** The per-row "Actions" dropdown (Members page pattern). Renders nothing when no action is valid for the row. */
+/** The per-row "Actions" dropdown (Members page pattern). Renders a dash when no action is valid for the row. */
 export function RowActions({ name, actions, disabled }: { name: string; actions: RowAction[]; disabled?: boolean }) {
   const { t } = useTranslation();
   if (actions.length === 0) return <span className="text-muted-foreground">{EMPTY_CELL}</span>;

@@ -117,3 +117,30 @@ Reason handling moves from shared page state to each modal's own state, so a sta
 
 **Manual checks (if no CLI):**
 - Browser on :3001 as `admin@epic23qa.test`: create account, assign, confirm/unassign, unlock, recertify, reset, answer a disclosure; switch tabs, reload, change rows per page; check dark mode and a narrow window.
+
+### Review Findings
+
+Code review 2026-10-22 (4 layers: Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor).
+
+- [x] [Review][Decision] (resolved: error shown inside the tab, patched) Load errors for locks, lifecycle and inbox show below the tabs while the tab says "No locked accounts." / "No disclosure requests." — On a failed load the Locked accounts tab reads as "nothing locked", a safe-looking wrong state for a safety list. Options: (a) pass the load error into each tab and render it there instead of the empty state; (b) move the banner above the tabs; (c) keep as is. Promoted from the existing deferral because tabs hide the banner's context.
+- [x] [Review][Decision] (resolved: count badge on Locked and Disclosure-overdue tabs, patched) Tabs carry no count or marker, so locked accounts, overdue disclosure requests and lapsed recertifications are out of sight until the tab is opened — Spec says do not drop the overdue state; the overdue marker survives inside its tab, but an overdue request is no longer visible without a click. Options: (a) badge/dot on Locked, Lifecycle, Disclosure tabs; (b) accept and leave to the owner.
+- [x] [Review][Patch] `support.assign.inactive` (added) and `support.lifecycle.runDue` (left behind) are unused locale keys, contradicting the triage-log claim that dead keys were removed [apps/super-admin/locales/en.json:558, :727; fr.json same keys]
+- [x] [Review][Patch] `disclosures` is optional with a `[]` default, so dropping it from page.tsx type-checks and every client test still passes while the tab silently shows "No disclosure requests." — make it required [apps/super-admin/app/(admin)/support/components/SupportPageClient.tsx:43,53]
+- [x] [Review][Patch] Disclosure answer validated on the trimmed text but sent untrimmed; send `trimmed` like every other modal sends `reason.trim()` [apps/super-admin/app/(admin)/support/components/DisclosureInbox.tsx:97]. Then drop the matching deferred-work.md line (not added as a bug: maxLength=2000 caps the raw value).
+- [x] [Review][Patch] Unrelated blank line inserted before `normalize-path@3.0.0` in the lockfile; revert that hunk [pnpm-lock.yaml:~13757]
+- [x] [Review][Patch] `RowActions` doc comment says it renders nothing when no action is valid, but it renders a "—" cell [apps/super-admin/app/(admin)/support/components/RowActions.tsx]
+- [x] [Review][Defer] Status message never cleared, survives tab switches [SupportPageClient.tsx] — deferred: pre-existing, already in deferred-work.md
+- [x] [Review][Defer] `resetOpen` is true for every non-null `resetState`, hiding Reset and Change address after `executed` [SupportLifecyclePanel.tsx:68] — deferred: unchanged logic, already in deferred-work.md; `executed` is documented as "waiting for the person to enrol a new authenticator" so hiding may be intended. Settle by confirming the intended behaviour with the owner (medium if wrong).
+
+#### Rejected
+- Reset modal field labelled "Identity check" not "Reason" (false): `startSupportFactorReset` takes `identityNote`, the spec's reason rule cannot apply literally.
+- Confirm wording changed for recertify/unlock (low): the `window.confirm` became modal text; wording tweak, nothing breaks.
+- Tab state not re-synced with URL after mount (low): reload and shared links work; no in-app link changes `?tab=`; fix adds an effect.
+- Pagination resets on tab switch (low): functional, no data loss.
+- Busy modal uncloseable on a hung request (low): adds a branch for an unshown failure.
+- Step-up retry/cancel untested (false): Verification Gap traced the step-up retry for reset as asserted by the new vitest files.
+- Missing tests for Run-due error path, `?tab=` param preservation, Create-modal disabled submit (low): negligible.
+- `deferUntilMenuClosed` shipped in production code (low): documented workaround for Radix focus loop.
+- Modal a11y inconsistencies, four copies of dialog scaffolding (low): refactor larger than a direct correction.
+- AssignSupportModal stale `userId` after refresh (low): server refuses; only a confusing error.
+- README A8 blur wording, `th` index keys / `scope`, empty Implementation Notes, spec `status: 'done'` vs sprint `review` (low/spec edits): negligible, or fix is a spec edit; status is set by this review.

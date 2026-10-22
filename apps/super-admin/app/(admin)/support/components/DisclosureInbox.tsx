@@ -94,7 +94,7 @@ function AnswerModal({ request, onClose, onDone }: { request: DisclosureInboxRow
     setBusy(true);
     setError(null);
     try {
-      const { error: err } = await answerDisclosureRequest({ requestId: request.id, answer });
+      const { error: err } = await answerDisclosureRequest({ requestId: request.id, answer: trimmed });
       if (err) {
         setError(err.message);
         return;

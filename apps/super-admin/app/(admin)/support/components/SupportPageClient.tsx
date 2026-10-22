@@ -30,6 +30,14 @@ function parseTab(value: string | null | undefined): SupportTab {
   return (SUPPORT_TABS as readonly string[]).includes(value ?? "") ? (value as SupportTab) : "accounts";
 }
 
+function TabError({ text }: { text: string }) {
+  return (
+    <p role="alert" className="text-sm text-destructive">
+      {text}
+    </p>
+  );
+}
+
 /**
  * Story 23.4 / 23.12: GymOS support. Top buttons open the create and assign modals; the five sections are tabs (the selected tab is in
  * the URL as `?tab=`). Names and addresses are visible here only.
@@ -40,7 +48,8 @@ export function SupportPageClient({
   gyms,
   locks = [],
   lifecycle = [],
-  disclosures = [],
+  disclosures,
+  loadErrors = {},
 }: {
   initialAccounts: SupportAccountRow[];
   assignments: SupportAssignmentRow[];
@@ -50,7 +59,9 @@ export function SupportPageClient({
   /** Story 23.11: recertification, reset and contact state per activated person. */
   lifecycle?: SupportLifecycleRow[];
   /** Story 23.8: Owner disclosure requests. */
-  disclosures?: DisclosureInboxRow[];
+  disclosures: DisclosureInboxRow[];
+  /** Load failures per tab: shown in the tab instead of an empty list that would read as "nothing here". */
+  loadErrors?: { locks?: string; lifecycle?: string; disclosure?: string };
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -60,6 +71,10 @@ export function SupportPageClient({
   const [message, setMessage] = useState<SupportMessage | null>(null);
   const [modal, setModal] = useState<"create" | "assign" | null>(null);
   const [pending, startTransition] = useTransition();
+  const badges: Partial<Record<SupportTab, number>> = {
+    locks: locks.length,
+    disclosure: disclosures.filter((r) => r.overdue).length,
+  };
 
   function selectTab(value: string) {
     const next = parseTab(value);
@@ -108,6 +123,9 @@ export function SupportPageClient({
             {SUPPORT_TABS.map((key) => (
               <TabsTrigger key={key} value={key}>
                 {t(`support.tabs.${key}`)}
+                {(badges[key] ?? 0) > 0 && (
+                  <span className="ml-2 rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">{badges[key]}</span>
+                )}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -119,13 +137,13 @@ export function SupportPageClient({
           <SupportAssignmentsPanel assignments={assignments} onMessage={setMessage} />
         </TabsContent>
         <TabsContent value="locks">
-          <SupportLocksPanel locks={locks} onMessage={setMessage} />
+          {loadErrors.locks ? <TabError text={loadErrors.locks} /> : <SupportLocksPanel locks={locks} onMessage={setMessage} />}
         </TabsContent>
         <TabsContent value="lifecycle">
-          <SupportLifecyclePanel rows={lifecycle} onMessage={setMessage} />
+          {loadErrors.lifecycle ? <TabError text={loadErrors.lifecycle} /> : <SupportLifecyclePanel rows={lifecycle} onMessage={setMessage} />}
         </TabsContent>
         <TabsContent value="disclosure">
-          <DisclosureInbox requests={disclosures} onMessage={setMessage} />
+          {loadErrors.disclosure ? <TabError text={loadErrors.disclosure} /> : <DisclosureInbox requests={disclosures} onMessage={setMessage} />}
         </TabsContent>
       </Tabs>
 

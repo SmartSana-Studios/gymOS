@@ -555,7 +555,6 @@
       "identityNote": "Vérification d'identité (obligatoire, 3 à 500 caractères)",
       "identityNoteHint": "Comment avez-vous confirmé que c'est bien la personne (rappel, visio, pièce d'identité) ?",
       "resetExplain": "La personne est déconnectée maintenant et n'a plus accès tant qu'elle n'a pas enregistré un nouvel authentificateur. Elle reçoit un lien d'annulation par e-mail ; les changements de coordonnées sont gelés.",
-      "runDue": "Exécuter les réinitialisations dues",
       "ran": "{{done}} réinitialisation(s) exécutée(s), {{failed}} en échec.",
       "resetStarted": "Réinitialisation lancée. L'authentificateur est supprimé après {{when}} sauf annulation par la personne.",
       "reset": {
@@ -723,8 +722,7 @@
         "ended": "Affectation terminée.",
         "deactivated": "Compte désactivé.",
         "removed": "Compte supprimé."
-      },
-      "inactive": "non activé"
+      }
     },
     "tabs": {
       "accounts": "Comptes",

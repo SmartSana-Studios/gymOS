@@ -555,7 +555,6 @@
       "identityNote": "Identity check (required, 3 to 500 characters)",
       "identityNoteHint": "How did you confirm this is the person (call back, video, ID)?",
       "resetExplain": "The person is signed out now and has no access until they enrol a new authenticator. They are e-mailed a cancel link; contact changes are frozen.",
-      "runDue": "Run due resets now",
       "ran": "{{done}} reset(s) executed, {{failed}} failed.",
       "resetStarted": "Reset started. The authenticator is removed after {{when}} unless the person cancels.",
       "reset": {
@@ -723,8 +722,7 @@
         "ended": "Assignment ended.",
         "deactivated": "Account deactivated.",
         "removed": "Account removed."
-      },
-      "inactive": "not activated"
+      }
     },
     "tabs": {
       "accounts": "Accounts",

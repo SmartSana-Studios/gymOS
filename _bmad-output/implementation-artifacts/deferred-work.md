@@ -1504,14 +1504,12 @@ Every entry above that names 23-6b is closed here or re-homed with a reason (mig
   evidence: Found 2026-10-21 23:13 UTC while gating 23-6b. The gym timezone is Africa/Douala (UTC+1), so from 23:00 UTC the gym's local date is already tomorrow while the test's `current_date` is still today. The same test passes at any other hour and nothing in 23-6b touches it. Fix the test to take today from the gym's own timezone.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-12-support-page-tabs-and-modals.md`
-  summary: Disclosure answer is sent untrimmed, while validity is judged on the trimmed length.
-  evidence: Pre-existing (the original inbox sent the raw text). Settle by checking whether answer_audit_disclosure_request trims p_answer; if not, a padded answer can exceed 2000 characters.
-- source_spec: `_bmad-output/implementation-artifacts/spec-23-12-support-page-tabs-and-modals.md`
   summary: The support page status message is never cleared, so a success or error line survives tab switches and later actions.
   evidence: Pre-existing behaviour of SupportPageClient and GymSupportPanel; more visible now that sections are tabs.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-12-support-page-tabs-and-modals.md`
-  summary: Load errors for locks, lifecycle and the disclosure inbox render below the tabs while their tab shows the plain empty state.
-  evidence: Pre-existing placement in support/page.tsx; the tab now hides the banner's context. Unverified severity: low.
-- source_spec: `_bmad-output/implementation-artifacts/spec-23-12-support-page-tabs-and-modals.md`
   summary: SupportLifecyclePanel treats every non-null resetState as an open reset and hides Reset and Change address for it.
   evidence: Logic unchanged from the original panel. Marked unverified (medium if wrong): confirm the resetState values returned by the lifecycle RPC, e.g. whether an executed or cancelled reset should keep the actions hidden.
+
+## Deferred from: code review of spec-23-12-support-page-tabs-and-modals (2026-10-22)
+
+- Status message never cleared and `resetOpen` hiding actions after `executed`: both already recorded above from the build session; nothing new. For `resetOpen`, `executed` is documented as waiting for re-enrolment, so the hiding may be intended.

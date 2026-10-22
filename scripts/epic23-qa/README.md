@@ -45,8 +45,8 @@ waivers, staff creation, payment connection code) is 23-6c, so those four action
 | A6 | Actions > send a second invite (**Send a new invite**) | the first link now says invalid (superseded) |
 | A7 | `qa23-fresh` → Actions > **Send invite**, finish the invite page (section I) | row turns Active |
 | A8 | **Assign to gym** (modal): person `qa23-fresh`, Gym A, reason `x` | submit stays disabled and the field says to enter 3–500 characters |
-| A9 | Assign with a proper reason | modal closes; Assignments tab shows it **pending** (new accounts need explicit confirmation) |
-| A10 | Assignments tab → Actions > **Confirm**, reason in the modal | becomes active; Gym A's Owner sees "assigned" (section O) |
+| A9 | Assign `qa23-fresh` (activated in A7) to Gym A with a proper reason | modal closes; Assignments tab shows it **active** (activated account, Gym A switch ON). For a **pending** row assign anyone to Gym B (switch OFF) or an account that was never activated |
+| A10 | a pending row (e.g. `qa23-active` in Gym B; needs Gym B switch ON, else `switch_off` refusal) → Actions > **Confirm**, reason in the modal | becomes active; Gym A's Owner sees "assigned" (section O) |
 | A11 | Assign `qa23-active` to Gym A again | "already has an open assignment in this gym" shown in the modal, which stays open |
 | A12 | Assign anyone to the **Suspended** gym | "That gym is not active" in the modal |
 | A13 | Assignments tab → `qa23-second` → Actions > **Unassign**, reason in the modal | assignment ended; audit row written |
@@ -63,12 +63,12 @@ waivers, staff creation, payment connection code) is 23-6c, so those four action
 | L4 | Unlock `qa23-idle` with a reason in the modal | unlocked; earlier assignments restored if the Owner switch is on (23-10 deferral); audit row |
 | L5 | **Lifecycle** tab: `qa23-recert` | "Recertification overdue since …: no access" |
 | L6 | Actions > **Recertify**, reason in the modal | "Recertified. The next due date is set."; 90 days out |
-| L7 | `lifecycle.mjs recert-due qa23-second`, refresh | now shows overdue; that person has no gym access until recertified |
+| L7 | `lifecycle.mjs recert-due second`, refresh | now shows overdue; that person has no gym access until recertified |
 | L8 | `qa23-reset` → Actions > **Reset authenticator**, no identity note | submit disabled until the note is 3–500 chars |
 | L9 | Same with a note | "Reset started…"; person signed out immediately; state "Reset waiting until …"; Inbucket mail to the person with a cancel link |
 | L10 | While pending: open Actions for that person | only **Recertify** is offered (no reset, no change address) while a reset is open |
 | L11 | Open the cancel link (`/support-reset-cancel?…` on :3000) | reset cancelled; sessions stay revoked; Super Admin alerted; second use of the link fails |
-| L12 | Start a new reset, `lifecycle.mjs reset-due qa23-reset`, then the top **Run due resets** button | "1 reset(s) executed"; old factor removed; a new single-use invite is mailed (Inbucket) |
+| L12 | Start a new reset, `lifecycle.mjs reset-due reset`, then the top **Run due resets** button | "1 reset(s) executed"; old factor removed; a new single-use invite is mailed (Inbucket) |
 | L13 | Finish that invite page | account active again, new authenticator works (`totp.mjs qa23-reset` will be stale: use the app) |
 | L14 | Actions > **Change address** (no reset open), new address and reason in the modal, to `qa23-moved@gymosapps.com` | "Address changed and recorded."; a non-@gymosapps.com address is refused |
 | L15 | `lifecycle.mjs digest` | Gym A's Owner gets the activity digest (notification history) |
