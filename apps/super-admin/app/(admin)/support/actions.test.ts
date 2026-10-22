@@ -82,6 +82,14 @@ describe("createSupportAccount", () => {
     expect(b.error?.message).toBe(a.error?.message);
     expect(deleteUser).toHaveBeenCalledWith(UID);
   });
+
+  it("refuses a malformed assignments filter with the translated message and does not call the database", async () => {
+    const { listSupportAssignments } = await import("./actions");
+    const r = await listSupportAssignments({ gymId: "not-a-uuid" });
+    expect(r.error?.message).toBe("support.errors.refused");
+    expect(r.data).toBeNull();
+    expect(rpc).not.toHaveBeenCalled();
+  });
 });
 
 describe("sendSupportInvite", () => {

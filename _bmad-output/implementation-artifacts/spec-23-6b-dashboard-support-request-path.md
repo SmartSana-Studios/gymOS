@@ -55,13 +55,13 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `supabase/migrations/0146_support_request_path.sql` + rollback -- hook fallback excludes support; `support_begin_session()`, `list_own_support_gyms()`, `support_live_for()`, `authorize_action(p_actor,p_gym_id,p_capability,p_session default null)` with the support branch, `capability_roles` lists support for the four capabilities, `support_read_own_gym` policy and the memberships policy excludes support -- so the request path exists and no default gym is possible.
-- [ ] `apps/dashboard/lib/supabase/proxy.ts` -- gate call for aal2 requests, revoked-mid-session redirect -- one place covers every consumer.
-- [ ] `apps/dashboard/app/auth/mfa/*`, `app/support-gym/*`, `login-form.tsx`, `services/session.ts`, shell, nav, role lists, EN/FR strings -- sign-in code step, picker, role admitted, expired banner.
-- [ ] `apps/dashboard/lib/authz.ts` and the edge `authorize.ts` -- send `p_session`.
-- [ ] `supabase/tests/support_request_path.test.sql` -- hook never defaults a support gym; picker list; `support_begin_session`; capability matrix live vs not (locked, recert, switch off, expired); catalog: every caller of `current_gym_status()` listed with role-before-suspension; every audit action type written by an allow-listed support RPC is in `private.support_audit_actions`; every table in the Realtime publication that support can read is reachable only through the live gate.
-- [ ] Vitest -- proxy (gate runs for aal2 and for a Server Action POST, denied on `locked`, fail closed), login routing, MFA form, picker, shell role, scan that no gate exemption exists beyond the auth exemptions.
-- [ ] `scripts/epic23-qa` -- `smoke.mjs` runs the request path; README browser rows.
+- [x] `supabase/migrations/0146_support_request_path.sql` + rollback -- hook fallback excludes support; `support_begin_session()`, `list_own_support_gyms()`, `support_live_for()`, `authorize_action(p_actor,p_gym_id,p_capability,p_session default null)` with the support branch, `capability_roles` lists support for the four capabilities, `support_read_own_gym` policy and the memberships policy excludes support -- so the request path exists and no default gym is possible.
+- [x] `apps/dashboard/lib/supabase/proxy.ts` -- gate call for aal2 requests, revoked-mid-session redirect -- one place covers every consumer.
+- [x] `apps/dashboard/app/auth/mfa/*`, `app/support-gym/*`, `login-form.tsx`, `services/session.ts`, shell, nav, role lists, EN/FR strings -- sign-in code step, picker, role admitted, expired banner.
+- [x] `apps/dashboard/lib/authz.ts` and the edge `authorize.ts` -- send `p_session`.
+- [x] `supabase/tests/support_request_path.test.sql` -- hook never defaults a support gym; picker list; `support_begin_session`; capability matrix live vs not (locked, recert, switch off, expired); catalog: every caller of `current_gym_status()` listed with role-before-suspension; every audit action type written by an allow-listed support RPC is in `private.support_audit_actions`; every table in the Realtime publication that support can read is reachable only through the live gate.
+- [x] Vitest -- proxy (gate runs for aal2 and for a Server Action POST, denied on `locked`, fail closed), login routing, MFA form, picker, shell role, scan that no gate exemption exists beyond the auth exemptions.
+- [x] `scripts/epic23-qa` -- `smoke.mjs` runs the request path; README browser rows.
 
 **Acceptance Criteria:**
 - Given a support person with a factor, when they sign in on the dashboard, then they must pass the code step and pick a gym before any data loads.

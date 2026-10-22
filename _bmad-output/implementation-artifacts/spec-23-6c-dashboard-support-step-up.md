@@ -52,13 +52,13 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `apps/dashboard/services/support-stepup.ts` -- verify/issue split, three new actions -- one place for the rule.
-- [ ] Refund, waiver and staff-creation server actions and services -- verify, issue, write; staff creation verifies first -- so the write consumes the grant.
-- [ ] `RecordRefundModal`, `WaiveRegistrationFeeDialog`, `AddStaffModal` -- code field for `support`, EN/FR strings, error mapping, lock redirect.
-- [ ] `apps/dashboard/components/mfa-form.tsx` and a server action -- record wrong sign-in codes in the same counter.
-- [ ] Vitest for each action (valid, wrong, locked, missing, staff role unchanged, replay) and each dialog; pgTAP only if a database object changes.
-- [ ] `scripts/epic23-qa/smoke.mjs` and README -- the three flows with real JWTs and a real TOTP.
-- [ ] `deferred-work.md` -- close every entry naming 23-6c.
+- [x] `apps/dashboard/services/support-stepup.ts` -- verify/issue split, three new actions -- one place for the rule.
+- [x] Refund, waiver and staff-creation server actions and services -- verify, issue, write; staff creation verifies first -- so the write consumes the grant.
+- [x] `RecordRefundModal`, `WaiveRegistrationFeeDialog`, `AddStaffModal` -- code field for `support`, EN/FR strings, error mapping, lock redirect.
+- [x] `apps/dashboard/components/mfa-form.tsx` and a server action -- record wrong sign-in codes in the same counter.
+- [x] Vitest for each action (valid, wrong, locked, missing, staff role unchanged, replay) and each dialog; pgTAP only if a database object changes.
+- [x] `scripts/epic23-qa/smoke.mjs` and README -- the three flows with real JWTs and a real TOTP.
+- [x] `deferred-work.md` -- close every entry naming 23-6c.
 
 **Acceptance Criteria:**
 - Given a live support session, when it records a refund, waives a fee or creates a staff member with a valid code, then the write succeeds and the grant cannot be reused.

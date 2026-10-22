@@ -10,7 +10,7 @@
 --   I. per-user wrong step-up counter for support
 --   J. consumer-enumeration scan (every revocation path calls the one routine; a new one that skips it fails) and the catalog
 begin;
-select plan(137);
+select plan(136);
 
 create or replace function pg_temp.claims(uid text, app_role text, aal text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -191,7 +191,6 @@ select pg_temp.live_s1();
 select is(private.support_live('00000000-0000-0000-0000-000000240101', '00000000-0000-0000-0000-000000240001'), false, 'unassign: access ends on the very next request (inside the 60 s cutoff)');
 select is(private.support_gym_id(), null, 'unassign: the support person no longer resolves a gym');
 select pg_temp.no_claims();
-select is(private.session_limit('support_revocation_cutoff_seconds'), 60, 'the 60 s cutoff is held in the limits table');
 select is((select count(*)::int from audit_log where action_type = 'gymos_support_access_ended' and gym_id = '00000000-0000-0000-0000-000000240001' and metadata->>'cause' = 'unassigned'), 1,
           'unassign: one gym-scoped audit row (the Owner can read it)');
 select is((select (metadata->>'pending_payments') || '/' || (metadata->>'pending_subscription_payments') || '/' || (metadata->>'staff_in_review') from audit_log
@@ -497,10 +496,10 @@ select is((select attempts || '/' || locked from private.stepup_record_failure('
 -- J. scan and catalog
 -- ============================================================================================================
 select is((select array_agg(key order by key) from private.session_limits_config where key in
-             ('velocity_gym_per_hour', 'velocity_account_per_hour', 'velocity_payment_changes_per_day', 'support_revocation_cutoff_seconds')),
-          array['support_revocation_cutoff_seconds', 'velocity_account_per_hour', 'velocity_gym_per_hour', 'velocity_payment_changes_per_day']::text[], 'the four limits live in the limits table');
+             ('velocity_gym_per_hour', 'velocity_account_per_hour', 'velocity_payment_changes_per_day')),
+          array['velocity_account_per_hour', 'velocity_gym_per_hour', 'velocity_payment_changes_per_day']::text[], 'the three limits live in the limits table (the unused 60 s cutoff was removed by 0148)');
 select is((select private.session_limit('velocity_gym_per_hour') || '/' || private.session_limit('velocity_account_per_hour') || '/' || private.session_limit('velocity_payment_changes_per_day')), '10/20/3', 'at 10 per hour per gym, 20 per hour per account, 3 payment changes a day');
-select ok((select bool_and(note like '[ASSUMPTION]%') from private.session_limits_config where key like 'velocity\_%' or key = 'support_revocation_cutoff_seconds'), 'each is tagged [ASSUMPTION]');
+select ok((select bool_and(note like '[ASSUMPTION]%') from private.session_limits_config where key like 'velocity\_%'), 'each is tagged [ASSUMPTION]');
 
 -- every function that ends access (an assignment ended or suspended, an account locked or deactivated) calls the one routine
 create or replace function pg_temp.revocation_consumers() returns text[] language sql as $f$

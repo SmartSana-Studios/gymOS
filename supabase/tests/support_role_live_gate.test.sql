@@ -393,8 +393,8 @@ select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname ord
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
               and p.proname <> 'support_live' and p.prosrc like '%support_live%'),
-          array['private.authorize_action', 'private.support_gym_id']::text[],
-          'consumers of support_live are exactly support_gym_id (a new consumer must be added here deliberately)');
+          array['private.authorize_action', 'private.support_gym_id', 'private.support_live_for']::text[],
+          'consumers of support_live are exactly support_gym_id and support_live_for (which reaches it through support_live_core) (a new consumer must be added here deliberately)');
 
 select is((select count(*)::int from pg_policies where coalesce(qual, '') || coalesce(with_check, '') ~ 'support_assignments|support_accounts|support_live'), 0,
           'no RLS policy reads the assignment tables or the live gate directly');
@@ -409,7 +409,7 @@ select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname ord
                 'private.guard_support_assignment_transition', 'private.guard_support_membership', 'public.issue_support_invite', 'public.issue_support_reset_invite',
                 'public.list_own_active_gym_memberships', 'public.list_own_support_gyms', 'public.recertify_support_account', 'public.remove_support_account', 'private.session_gate_touch',
                 'public.set_allow_gymos_support', 'public.start_support_factor_reset', 'private.stepup_issue', 'private.stepup_record_failure', 'public.support_begin_session', 'private.support_contact_drift_check',
-                'private.support_contact_drifted', 'private.support_inactivity_sweep', 'private.support_invite_check', 'public.support_invite_inspect', 'private.support_live', 'private.support_live_for',
+                'private.support_contact_drifted', 'private.support_inactivity_sweep', 'private.support_invite_check', 'public.support_invite_inspect', 'private.support_live_core',
                 'private.support_lock_account', 'private.support_reset_executed', 'private.support_restore_assignments', 'private.support_revoke_access',
                 'private.support_revoke_on_gym_status', 'private.support_set_membership', 'private.support_velocity_breach', 'public.switch_active_gym', 'public.unassign_support',
                 'public.unlock_support_account']::text[],
