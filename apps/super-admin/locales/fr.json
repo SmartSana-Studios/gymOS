@@ -538,7 +538,7 @@
   "support": {
     "lifecycle": {
       "title": "Recertification, réinitialisation de l'authentificateur et adresse",
-      "hint": "Chaque personne est recertifiée tous les 90 jours : après l'échéance, elle n'a plus accès tant que vous ne l'avez pas recertifiée (saisissez un motif ci-dessus). Une réinitialisation ferme ses sessions aussitôt, attend 30 minutes pendant lesquelles elle reçoit un e-mail et peut annuler, puis supprime son authentificateur et envoie une nouvelle invitation à usage unique.",
+      "hint": "Chaque personne est recertifiée tous les 90 jours : après l'échéance, elle n'a plus accès tant que vous ne l'avez pas recertifiée. Une réinitialisation ferme ses sessions aussitôt, attend 30 minutes pendant lesquelles elle reçoit un e-mail et peut annuler, puis supprime son authentificateur et envoie une nouvelle invitation à usage unique.",
       "empty": "Aucune personne du support activée.",
       "due": "Recertification due le {{date}}",
       "lapsed": "Recertification en retard depuis le {{date}} : pas d'accès",
@@ -549,13 +549,12 @@
       "recertified": "Recertifiée. La prochaine échéance est fixée.",
       "changeEmail": "Changer l'adresse",
       "newEmail": "Nouvelle adresse @gymosapps.com",
-      "emailExplain": "Le motif saisi ci-dessus est enregistré. Refusé tant qu'une réinitialisation est ouverte. Les comptes de support n'ont pas de numéro de téléphone.",
+      "emailExplain": "Le motif saisi est enregistré. Refusé tant qu'une réinitialisation est ouverte. Les comptes de support n'ont pas de numéro de téléphone.",
       "changeEmailSubmit": "Changer l'adresse",
       "emailChanged": "Adresse modifiée et enregistrée.",
       "identityNote": "Vérification d'identité (obligatoire, 3 à 500 caractères)",
       "identityNoteHint": "Comment avez-vous confirmé que c'est bien la personne (rappel, visio, pièce d'identité) ?",
       "resetExplain": "La personne est déconnectée maintenant et n'a plus accès tant qu'elle n'a pas enregistré un nouvel authentificateur. Elle reçoit un lien d'annulation par e-mail ; les changements de coordonnées sont gelés.",
-      "cancel": "Annuler",
       "runDue": "Exécuter les réinitialisations dues",
       "ran": "{{done}} réinitialisation(s) exécutée(s), {{failed}} en échec.",
       "resetStarted": "Réinitialisation lancée. L'authentificateur est supprimé après {{when}} sauf annulation par la personne.",
@@ -567,14 +566,18 @@
         "due": "Réinitialisation due, exécutée au prochain passage",
         "executing": "Réinitialisation en cours",
         "executed": "Réinitialisation exécutée : en attente de l'enregistrement d'un nouvel authentificateur (renvoyez une invitation depuis le tableau des comptes si besoin)"
+      },
+      "columns": {
+        "status": "Recertification",
+        "reset": "Réinitialisation"
       }
     },
     "locks": {
       "title": "Comptes verrouillés",
       "empty": "Aucun compte verrouillé.",
-      "hint": "Un compte se verrouille de lui-même lorsqu'il dépasse une limite de sécurité. Saisissez un motif ci-dessus (3 à 500 caractères), puis déverrouillez ; le verrouillage, le déverrouillage et le motif sont consignés.",
+      "hint": "Un compte se verrouille de lui-même lorsqu'il dépasse une limite de sécurité. Déverrouillez-le avec un motif (3 à 500 caractères) ; le verrouillage, le déverrouillage et le motif sont consignés.",
       "unlock": "Déverrouiller",
-      "confirmUnlock": "Déverrouiller ce compte ? Le motif saisi est consigné.",
+      "confirmUnlock": "Déverrouiller ce compte ? Le motif saisi est enregistré.",
       "unlocked": "Compte déverrouillé. Ses actions précédentes ne comptent plus dans les limites.",
       "reasons": {
         "velocity_gym": "Trop d'actions dans une salle en une heure",
@@ -584,6 +587,11 @@
         "inactivity": "Aucune activité depuis trop longtemps",
         "contact_drift": "E-mail ou téléphone modifié hors de la modification par un Super Admin",
         "unknown": "Verrouillé"
+      },
+      "columns": {
+        "reason": "Cause",
+        "when": "Verrouillé",
+        "gyms": "Salles"
       }
     },
     "disclosure": {
@@ -599,7 +607,15 @@
         "answer_invalid": "Écrivez une réponse de 3 à 2000 caractères.",
         "not_found": "Cette demande n'existe plus.",
         "already_answered": "Cette demande a déjà reçu une réponse."
-      }
+      },
+      "columns": {
+        "gym": "Salle",
+        "about": "Concerne",
+        "question": "Question",
+        "status": "Statut"
+      },
+      "answer": "Répondre",
+      "answerField": "Réponse (3 à 2000 caractères)"
     },
     "title": "Support GymOS",
     "empty": "Aucun compte de support pour le moment.",
@@ -692,8 +708,6 @@
       "since": "Depuis",
       "confirm": "Confirmer",
       "unassign": "Retirer",
-      "reason": "Motif (obligatoire pour chaque action, 3 à 500 caractères)",
-      "reasonHint": "Pourquoi cette action ?",
       "endedCount": "{{count}} affectation(s) terminée(s)",
       "state": {
         "pending": "En attente",
@@ -709,7 +723,46 @@
         "ended": "Affectation terminée.",
         "deactivated": "Compte désactivé.",
         "removed": "Compte supprimé."
-      }
+      },
+      "inactive": "non activé"
+    },
+    "tabs": {
+      "accounts": "Comptes",
+      "assignments": "Affectations",
+      "locks": "Comptes verrouillés",
+      "lifecycle": "Cycle de vie",
+      "disclosure": "Demandes de divulgation"
+    },
+    "top": {
+      "create": "Créer un compte",
+      "assign": "Affecter à une salle",
+      "runDue": "Lancer les réinitialisations dues"
+    },
+    "menu": {
+      "button": "Actions",
+      "label": "Actions pour {{name}}"
+    },
+    "modal": {
+      "reason": "Motif (3 à 500 caractères)",
+      "reasonHint": "Pourquoi cette action ?",
+      "reasonInvalid": "Saisissez un motif de 3 à 500 caractères.",
+      "cancel": "Annuler",
+      "working": "En cours…",
+      "title": {
+        "confirm": "Confirmer l'affectation",
+        "unassign": "Retirer",
+        "deactivate": "Désactiver le compte",
+        "remove": "Supprimer le compte",
+        "unlock": "Déverrouiller le compte",
+        "recertify": "Recertifier",
+        "reset": "Réinitialiser l'authentificateur",
+        "email": "Changer l'adresse",
+        "answer": "Répondre à la demande de divulgation",
+        "assign": "Affecter à une salle",
+        "create": "Créer un compte"
+      },
+      "confirmConfirm": "Confirmer cette affectation pour la rendre active ? Le motif saisi est enregistré.",
+      "confirmUnassign": "Retirer cette personne de la salle ? Le motif saisi est enregistré."
     }
   }
 }

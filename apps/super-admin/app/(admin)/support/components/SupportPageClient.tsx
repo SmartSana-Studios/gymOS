@@ -1,32 +1,46 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  createSupportAccount,
-  deactivateSupportAccount,
-  removeSupportAccount,
-  sendSupportInvite,
+  runDueFactorResets,
+  type DisclosureInboxRow,
   type SupportAccountRow,
   type SupportAssignmentRow,
   type SupportLifecycleRow,
   type SupportLockRow,
 } from "../actions";
-import { REASON_MAX, REASON_MIN, SupportAssignmentsPanel } from "./SupportAssignmentsPanel";
+import { AssignSupportModal } from "./AssignSupportModal";
+import type { SupportMessage } from "./constants";
+import { CreateSupportAccountModal } from "./CreateSupportAccountModal";
+import { DisclosureInbox } from "./DisclosureInbox";
+import { SupportAccountsPanel } from "./SupportAccountsPanel";
+import { SupportAssignmentsPanel } from "./SupportAssignmentsPanel";
 import { SupportLifecyclePanel } from "./SupportLifecyclePanel";
 import { SupportLocksPanel } from "./SupportLocksPanel";
 
-/** Story 23.4: GymOS support accounts (names and addresses are visible here only). Create, then send the invite. */
+export const SUPPORT_TABS = ["accounts", "assignments", "locks", "lifecycle", "disclosure"] as const;
+type SupportTab = (typeof SUPPORT_TABS)[number];
+
+function parseTab(value: string | null | undefined): SupportTab {
+  return (SUPPORT_TABS as readonly string[]).includes(value ?? "") ? (value as SupportTab) : "accounts";
+}
+
+/**
+ * Story 23.4 / 23.12: GymOS support. Top buttons open the create and assign modals; the five sections are tabs (the selected tab is in
+ * the URL as `?tab=`). Names and addresses are visible here only.
+ */
 export function SupportPageClient({
   initialAccounts,
   assignments,
   gyms,
   locks = [],
   lifecycle = [],
+  disclosures = [],
 }: {
   initialAccounts: SupportAccountRow[];
   assignments: SupportAssignmentRow[];
@@ -35,82 +49,52 @@ export function SupportPageClient({
   locks?: SupportLockRow[];
   /** Story 23.11: recertification, reset and contact state per activated person. */
   lifecycle?: SupportLifecycleRow[];
+  /** Story 23.8: Owner disclosure requests. */
+  disclosures?: DisclosureInboxRow[];
 }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
-  const [displayName, setDisplayName] = useState("");
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
-  const [reason, setReason] = useState("");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<SupportTab>(parseTab(searchParams?.get("tab")));
+  const [message, setMessage] = useState<SupportMessage | null>(null);
+  const [modal, setModal] = useState<"create" | "assign" | null>(null);
   const [pending, startTransition] = useTransition();
-  const reasonOk = reason.trim().length >= REASON_MIN && reason.trim().length <= REASON_MAX;
 
-  function create(e: React.FormEvent) {
-    e.preventDefault();
-    startTransition(async () => {
-      const { error } = await createSupportAccount({ displayName, email });
-      if (error) {
-        setMessage({ kind: "error", text: error.message });
-        return;
-      }
-      setDisplayName("");
-      setEmail("");
-      setMessage({ kind: "ok", text: t("support.toast.created") });
-      router.refresh();
-    });
+  function selectTab(value: string) {
+    const next = parseTab(value);
+    setTab(next);
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.set("tab", next);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
-  function invite(userId: string) {
+  function runDue() {
     startTransition(async () => {
-      const { error } = await sendSupportInvite(userId);
-      setMessage(error ? { kind: "error", text: error.message } : { kind: "ok", text: t("support.toast.inviteSent") });
+      const { data, error } = await runDueFactorResets();
+      setMessage(
+        error
+          ? { kind: "error", text: error.message }
+          : { kind: "ok", text: t("support.lifecycle.ran", { done: data?.done ?? 0, failed: data?.failed ?? 0 }) },
+      );
       router.refresh();
     });
-  }
-
-  function accountAction(kind: "deactivate" | "remove", userId: string) {
-    if (!window.confirm(t(kind === "deactivate" ? "support.actions.confirmDeactivate" : "support.actions.confirmRemove"))) return;
-    startTransition(async () => {
-      const run = kind === "deactivate" ? deactivateSupportAccount : removeSupportAccount;
-      const { error } = await run({ userId, reason });
-      setMessage(error ? { kind: "error", text: error.message } : { kind: "ok", text: t(kind === "deactivate" ? "support.toast.deactivated" : "support.toast.removed") });
-      router.refresh();
-    });
-  }
-
-  // Story 23.11: after an executed authenticator reset the person is re-invited from the same table
-  const resetExecuted = new Set(lifecycle.filter((l) => l.resetState === "executed").map((l) => l.userId));
-
-  function inviteLabel(row: SupportAccountRow): string {
-    if (row.inviteState === "pending" && row.inviteExpiresAt) {
-      return t("support.invite.pending", { when: new Date(row.inviteExpiresAt).toLocaleString(i18n.language) });
-    }
-    return t(`support.invite.${row.inviteState}`);
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">{t("support.title")}</h1>
-
-      <form onSubmit={create} className="grid gap-3 rounded-md border p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-        <label className="space-y-1 text-sm">
-          <span className="font-medium">{t("support.create.name")}</span>
-          <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={100} required />
-        </label>
-        <label className="space-y-1 text-sm">
-          <span className="font-medium">{t("support.create.email")}</span>
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@gymosapps.com" required />
-        </label>
-        <Button type="submit" disabled={pending}>
-          {t("support.create.submit")}
-        </Button>
-        <p className="text-xs text-muted-foreground sm:col-span-3">{t("support.create.hint")}</p>
-      </form>
-
-      <label className="block space-y-1 text-sm">
-        <span className="font-medium">{t("support.assign.reason")}</span>
-        <Input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={REASON_MAX} placeholder={t("support.assign.reasonHint")} />
-      </label>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">{t("support.title")}</h1>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setModal("create")}>{t("support.top.create")}</Button>
+          <Button variant="outline" onClick={() => setModal("assign")}>
+            {t("support.top.assign")}
+          </Button>
+          <Button variant="outline" disabled={pending} onClick={runDue}>
+            {t("support.top.runDue")}
+          </Button>
+        </div>
+      </div>
 
       {message && (
         <p role="status" className={message.kind === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
@@ -118,59 +102,35 @@ export function SupportPageClient({
         </p>
       )}
 
-      {initialAccounts.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("support.empty")}</p>
-      ) : (
-        <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-muted-foreground">
-                <th className="py-2 pl-3 pr-4 font-medium">{t("support.columns.name")}</th>
-                <th className="py-2 pr-4 font-medium">{t("support.columns.email")}</th>
-                <th className="py-2 pr-4 font-medium">{t("support.columns.state")}</th>
-                <th className="py-2 pr-4 font-medium">{t("support.columns.invite")}</th>
-                <th className="py-2 pr-3 font-medium">{t("support.columns.actions")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {initialAccounts.map((row) => (
-                <tr key={row.userId} className="border-b last:border-b-0">
-                  <td className="py-2 pl-3 pr-4">{row.displayName ?? "—"}</td>
-                  <td className="py-2 pr-4">{row.email}</td>
-                  <td className="py-2 pr-4">
-                    {row.inviteState === "deactivated" ? t("support.state.deactivated") : row.activated ? t("support.state.active") : t("support.state.inactive")}
-                    {row.assignable ? ` · ${t("support.state.assignable")}` : ""}
-                  </td>
-                  <td className="py-2 pr-4">{inviteLabel(row)}</td>
-                  <td className="py-2 pr-3">
-                    {(!row.activated || resetExecuted.has(row.userId)) && row.inviteState !== "deactivated" && (
-                      <Button size="sm" variant="outline" disabled={pending} onClick={() => invite(row.userId)}>
-                        {row.inviteState === "none" ? t("support.actions.sendInvite") : t("support.actions.resendInvite")}
-                      </Button>
-                    )}
-                    {row.inviteState !== "deactivated" && (
-                      <Button size="sm" variant="outline" className="ml-2" disabled={pending || !reasonOk} onClick={() => accountAction("deactivate", row.userId)}>
-                        {t("support.actions.deactivate")}
-                      </Button>
-                    )}
-                    {!row.activated && (
-                      <Button size="sm" variant="outline" className="ml-2" disabled={pending || !reasonOk} onClick={() => accountAction("remove", row.userId)}>
-                        {t("support.actions.remove")}
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <Tabs value={tab} onValueChange={selectTab}>
+        <div className="overflow-x-auto">
+          <TabsList>
+            {SUPPORT_TABS.map((key) => (
+              <TabsTrigger key={key} value={key}>
+                {t(`support.tabs.${key}`)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
         </div>
-      )}
+        <TabsContent value="accounts">
+          <SupportAccountsPanel accounts={initialAccounts} lifecycle={lifecycle} onMessage={setMessage} />
+        </TabsContent>
+        <TabsContent value="assignments">
+          <SupportAssignmentsPanel assignments={assignments} onMessage={setMessage} />
+        </TabsContent>
+        <TabsContent value="locks">
+          <SupportLocksPanel locks={locks} onMessage={setMessage} />
+        </TabsContent>
+        <TabsContent value="lifecycle">
+          <SupportLifecyclePanel rows={lifecycle} onMessage={setMessage} />
+        </TabsContent>
+        <TabsContent value="disclosure">
+          <DisclosureInbox requests={disclosures} onMessage={setMessage} />
+        </TabsContent>
+      </Tabs>
 
-      <SupportAssignmentsPanel assignments={assignments} accounts={initialAccounts} gyms={gyms} reason={reason} onMessage={setMessage} />
-
-      <SupportLifecyclePanel rows={lifecycle} reason={reason} onMessage={setMessage} />
-
-      <SupportLocksPanel locks={locks} reason={reason} onMessage={setMessage} />
+      {modal === "create" && <CreateSupportAccountModal onClose={() => setModal(null)} onMessage={setMessage} />}
+      {modal === "assign" && <AssignSupportModal accounts={initialAccounts} gyms={gyms} onClose={() => setModal(null)} onMessage={setMessage} />}
     </div>
   );
 }

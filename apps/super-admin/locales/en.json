@@ -538,24 +538,23 @@
   "support": {
     "lifecycle": {
       "title": "Recertification, authenticator reset and address",
-      "hint": "Each person is recertified every 90 days: after the due date they have no access until you recertify them (enter a reason above). A reset ends their sessions at once, waits 30 minutes during which they are e-mailed and can cancel, then removes their authenticator and sends a new single-use invite.",
+      "hint": "Each person is recertified every 90 days: after the due date they have no access until you recertify them. A reset ends their sessions at once, waits 30 minutes during which they are e-mailed and can cancel, then removes their authenticator and sends a new single-use invite.",
       "empty": "No activated support person.",
       "due": "Recertification due {{date}}",
       "lapsed": "Recertification overdue since {{date}}: no access",
       "noDue": "No recertification date",
       "lastActive": "last active {{date}}",
       "recertify": "Recertify",
-      "confirmRecertify": "Recertify this person? The reason you entered is recorded and the next due date is set.",
+      "confirmRecertify": "Recertify this person? The reason you enter is recorded and the next due date is set.",
       "recertified": "Recertified. The next due date is set.",
       "changeEmail": "Change address",
       "newEmail": "New @gymosapps.com address",
-      "emailExplain": "The reason entered above is recorded. Refused while a reset is open. Support accounts keep no phone number.",
+      "emailExplain": "The reason you enter is recorded. Refused while a reset is open. Support accounts keep no phone number.",
       "changeEmailSubmit": "Change address",
       "emailChanged": "Address changed and recorded.",
       "identityNote": "Identity check (required, 3 to 500 characters)",
       "identityNoteHint": "How did you confirm this is the person (call back, video, ID)?",
       "resetExplain": "The person is signed out now and has no access until they enrol a new authenticator. They are e-mailed a cancel link; contact changes are frozen.",
-      "cancel": "Cancel",
       "runDue": "Run due resets now",
       "ran": "{{done}} reset(s) executed, {{failed}} failed.",
       "resetStarted": "Reset started. The authenticator is removed after {{when}} unless the person cancels.",
@@ -567,14 +566,18 @@
         "due": "Reset due, runs at the next executor run",
         "executing": "Reset running",
         "executed": "Reset executed: waiting for the person to enrol a new authenticator (send a new invite from the accounts table if needed)"
+      },
+      "columns": {
+        "status": "Recertification",
+        "reset": "Reset"
       }
     },
     "locks": {
       "title": "Locked accounts",
       "empty": "No locked accounts.",
-      "hint": "An account locks itself when it passes a safety limit. Enter a reason above (3 to 500 characters), then unlock; the lock, the unlock and the reason are recorded.",
+      "hint": "An account locks itself when it passes a safety limit. Unlock it with a reason (3 to 500 characters); the lock, the unlock and the reason are recorded.",
       "unlock": "Unlock",
-      "confirmUnlock": "Unlock this account? The reason you entered is recorded.",
+      "confirmUnlock": "Unlock this account? The reason you enter is recorded.",
       "unlocked": "Account unlocked. Its earlier actions no longer count toward the limits.",
       "reasons": {
         "velocity_gym": "Too many actions in one gym within an hour",
@@ -584,6 +587,11 @@
         "inactivity": "No activity for too long",
         "contact_drift": "E-mail or phone changed outside the Super Admin change",
         "unknown": "Locked"
+      },
+      "columns": {
+        "reason": "Why",
+        "when": "Locked",
+        "gyms": "Gyms"
       }
     },
     "disclosure": {
@@ -599,7 +607,15 @@
         "answer_invalid": "Write an answer of 3 to 2000 characters.",
         "not_found": "That request no longer exists.",
         "already_answered": "That request is already answered."
-      }
+      },
+      "columns": {
+        "gym": "Gym",
+        "about": "About",
+        "question": "Question",
+        "status": "Status"
+      },
+      "answer": "Answer",
+      "answerField": "Answer (3 to 2000 characters)"
     },
     "title": "GymOS support",
     "empty": "No support accounts yet.",
@@ -692,8 +708,6 @@
       "since": "Since",
       "confirm": "Confirm",
       "unassign": "Unassign",
-      "reason": "Reason (required for every action, 3 to 500 characters)",
-      "reasonHint": "Why are you doing this?",
       "endedCount": "{{count}} ended assignment(s)",
       "state": {
         "pending": "Pending",
@@ -709,7 +723,46 @@
         "ended": "Assignment ended.",
         "deactivated": "Account deactivated.",
         "removed": "Account removed."
-      }
+      },
+      "inactive": "not activated"
+    },
+    "tabs": {
+      "accounts": "Accounts",
+      "assignments": "Assignments",
+      "locks": "Locked accounts",
+      "lifecycle": "Lifecycle",
+      "disclosure": "Disclosure requests"
+    },
+    "top": {
+      "create": "Create account",
+      "assign": "Assign to gym",
+      "runDue": "Run due resets"
+    },
+    "menu": {
+      "button": "Actions",
+      "label": "Actions for {{name}}"
+    },
+    "modal": {
+      "reason": "Reason (3 to 500 characters)",
+      "reasonHint": "Why are you doing this?",
+      "reasonInvalid": "Enter a reason of 3 to 500 characters.",
+      "cancel": "Cancel",
+      "working": "Working…",
+      "title": {
+        "confirm": "Confirm assignment",
+        "unassign": "Unassign",
+        "deactivate": "Deactivate account",
+        "remove": "Remove account",
+        "unlock": "Unlock account",
+        "recertify": "Recertify",
+        "reset": "Reset authenticator",
+        "email": "Change address",
+        "answer": "Answer disclosure request",
+        "assign": "Assign to gym",
+        "create": "Create account"
+      },
+      "confirmConfirm": "Confirm this assignment so it goes live? The reason you enter is recorded.",
+      "confirmUnassign": "Unassign this person from the gym? The reason you enter is recorded."
     }
   }
 }

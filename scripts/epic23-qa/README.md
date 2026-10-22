@@ -37,39 +37,40 @@ waivers, staff creation, payment connection code) is 23-6c, so those four action
 ## A. Super Admin app (`:3001`, sign in with password, then the authenticator code)
 | # | Do | Expect |
 |---|---|---|
-| A1 | Open **GymOS support** | seven accounts listed with name, email, state (Active / Not activated), invite column |
-| A2 | Create account: name `Test Person`, email `qa23-new@gymosapps.com` | toast "Support account created"; row shows Not activated, "No invite sent" |
-| A3 | Create with `someone@gmail.com` | refused, domain message (only @gymosapps.com) |
-| A4 | Create again with `qa23-active@gymosapps.com` | the generic refusal, no hint that it exists |
-| A5 | `qa23-new` → **Send invite** | toast "Invite emailed"; Inbucket has the mail; link, no password, no code in it |
-| A6 | Send a second invite | the first link now says invalid (superseded) |
-| A7 | `qa23-fresh` → **Send invite**, finish the invite page (section I) | row turns Active |
-| A8 | Assign `qa23-fresh` to Gym A with reason `x` | refused: reason must be 3–500 characters |
-| A9 | Assign with a proper reason | assignment appears **pending** (new accounts need explicit confirmation) |
-| A10 | Confirm it | becomes active; Gym A's Owner sees "assigned" (section O) |
-| A11 | Assign `qa23-active` to Gym A again | "already has an open assignment in this gym" |
-| A12 | Assign anyone to the **Suspended** gym | "That gym is not active" |
-| A13 | Unassign `qa23-second` from Gym A with a reason | assignment ended; audit row written |
-| A14 | `qa23-new` (never activated) → **Remove** | account and sign-in deleted |
-| A15 | `qa23-active` → **Deactivate** | all assignments end, sessions signed out, cannot be undone here |
+| A1 | Open **GymOS support** | top buttons **Create account**, **Assign to gym**, **Run due resets**; five tabs (Accounts, Assignments, Locked accounts, Lifecycle, Disclosure requests), Accounts selected; no inline form or page-wide reason box. Accounts tab lists seven accounts with name, email, state (Active / Not activated), invite column and an **Actions** menu per row. Click **Locked accounts**, reload: the same tab stays open (`?tab=locks`); an unknown `?tab=` opens Accounts |
+| A2 | **Create account** (modal): name `Test Person`, email `qa23-new@gymosapps.com` | modal closes, message "Support account created"; row shows Not activated, "No invite sent" |
+| A3 | Create with `someone@gmail.com` | refused inside the modal, domain message (only @gymosapps.com); modal stays open |
+| A4 | Create again with `qa23-active@gymosapps.com` | the generic refusal inside the modal, no hint that it exists |
+| A5 | `qa23-new` → Actions > **Send invite** | message "Invite emailed"; Inbucket has the mail; link, no password, no code in it |
+| A6 | Actions > send a second invite (**Send a new invite**) | the first link now says invalid (superseded) |
+| A7 | `qa23-fresh` → Actions > **Send invite**, finish the invite page (section I) | row turns Active |
+| A8 | **Assign to gym** (modal): person `qa23-fresh`, Gym A, reason `x` | submit stays disabled and the field says to enter 3–500 characters |
+| A9 | Assign with a proper reason | modal closes; Assignments tab shows it **pending** (new accounts need explicit confirmation) |
+| A10 | Assignments tab → Actions > **Confirm**, reason in the modal | becomes active; Gym A's Owner sees "assigned" (section O) |
+| A11 | Assign `qa23-active` to Gym A again | "already has an open assignment in this gym" shown in the modal, which stays open |
+| A12 | Assign anyone to the **Suspended** gym | "That gym is not active" in the modal |
+| A13 | Assignments tab → `qa23-second` → Actions > **Unassign**, reason in the modal | assignment ended; audit row written |
+| A14 | `qa23-new` (never activated) → Actions > **Remove**, reason in the modal | account and sign-in deleted |
+| A15 | `qa23-active` → Actions > **Deactivate**, reason in the modal | the modal warns that it cannot be undone here; all assignments end, sessions signed out |
+| A16 | Make 11+ rows visible (e.g. set rows per page to 5 on Accounts, Assignments) and switch tabs; open the gym detail page of Gym A | each tab has its own rows-per-page selector and page buttons (like Gyms); the gym page's support panel has **Assign to gym** with the gym fixed (no gym field) and the same Actions menu and modals; check dark mode and a phone-width window |
 
 ## L. Lifecycle (23-11) and locks (23-10), Super Admin app
 | # | Do | Expect |
 |---|---|---|
-| L1 | `lifecycle.mjs status`, then `lifecycle.mjs sweep` | `qa23-idle` becomes LOCKED:inactivity; `job_runs` row success; Owner A notified; Locked accounts panel lists it with "No activity for too long" |
+| L1 | `lifecycle.mjs status`, then `lifecycle.mjs sweep` | `qa23-idle` becomes LOCKED:inactivity; `job_runs` row success; Owner A notified; **Locked accounts** tab lists it with "No activity for too long" |
 | L2 | Re-run `sweep` | locks nothing else (idempotent); `qa23-active`/`second` untouched (fresh activity) |
-| L3 | Locked accounts → `qa23-locked` and `qa23-idle`: unlock with no reason | refused (reason 3–500 chars) |
-| L4 | Unlock `qa23-idle` with a reason | unlocked; earlier assignments restored if the Owner switch is on (23-10 deferral); audit row |
-| L5 | Recertification panel: `qa23-recert` | "Recertification overdue since …: no access" |
-| L6 | **Recertify** with a reason | "Recertified. The next due date is set."; 90 days out |
+| L3 | Locked accounts tab → `qa23-locked` and `qa23-idle`: Actions > **Unlock** with no reason | submit disabled until the reason is 3–500 chars |
+| L4 | Unlock `qa23-idle` with a reason in the modal | unlocked; earlier assignments restored if the Owner switch is on (23-10 deferral); audit row |
+| L5 | **Lifecycle** tab: `qa23-recert` | "Recertification overdue since …: no access" |
+| L6 | Actions > **Recertify**, reason in the modal | "Recertified. The next due date is set."; 90 days out |
 | L7 | `lifecycle.mjs recert-due qa23-second`, refresh | now shows overdue; that person has no gym access until recertified |
-| L8 | `qa23-reset` → **Reset authenticator**, no identity note | refused (3–500 chars) |
+| L8 | `qa23-reset` → Actions > **Reset authenticator**, no identity note | submit disabled until the note is 3–500 chars |
 | L9 | Same with a note | "Reset started…"; person signed out immediately; state "Reset waiting until …"; Inbucket mail to the person with a cancel link |
-| L10 | While pending: **Change address** for that person | refused while a reset is open |
+| L10 | While pending: open Actions for that person | only **Recertify** is offered (no reset, no change address) while a reset is open |
 | L11 | Open the cancel link (`/support-reset-cancel?…` on :3000) | reset cancelled; sessions stay revoked; Super Admin alerted; second use of the link fails |
-| L12 | Start a new reset, `lifecycle.mjs reset-due qa23-reset`, then **Run due resets now** | "1 reset(s) executed"; old factor removed; a new single-use invite is mailed (Inbucket) |
+| L12 | Start a new reset, `lifecycle.mjs reset-due qa23-reset`, then the top **Run due resets** button | "1 reset(s) executed"; old factor removed; a new single-use invite is mailed (Inbucket) |
 | L13 | Finish that invite page | account active again, new authenticator works (`totp.mjs qa23-reset` will be stale: use the app) |
-| L14 | **Change address** (no reset open) to `qa23-moved@gymosapps.com` | "Address changed and recorded."; a non-@gymosapps.com address is refused |
+| L14 | Actions > **Change address** (no reset open), new address and reason in the modal, to `qa23-moved@gymosapps.com` | "Address changed and recorded."; a non-@gymosapps.com address is refused |
 | L15 | `lifecycle.mjs digest` | Gym A's Owner gets the activity digest (notification history) |
 | L16 | `lifecycle.mjs drift` | no false positive for untouched accounts |
 
@@ -86,7 +87,7 @@ waivers, staff creation, payment connection code) is 23-6c, so those four action
 | O8 | ownerS (suspended gym) | cannot change the switch (gym is not active) |
 | O9 | Audit page (ownerA) | "GymOS Support access changed" rows; no support person's name, email, phone anywhere |
 | O10 | Switch EN → FR | all GymOS Support strings translated |
-| O11 | Disclosure: an audit row written by support → file a disclosure request | appears in Super Admin → Owner disclosure requests; answer it; due date shown; overdue styling when past |
+| O11 | Disclosure: an audit row written by support → file a disclosure request | appears in Super Admin → **Disclosure requests** tab; Actions > **Answer** opens a modal; due date shown; overdue styling when past |
 | O12 | (staff creation by support needs the 23-6c step-up UI) | the "Staff created by GymOS Support" review card appears on the staff page only when such staff exist |
 
 ## I. Invite page (`:3000/support-invite?t=…`, token from the Inbucket mail)

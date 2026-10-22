@@ -3,7 +3,6 @@ import { Suspense } from "react";
 import { LoadError } from "@/components/load-error";
 
 import { listAssignableGyms, listDisclosureInbox, listSupportAccounts, listSupportAssignments, listSupportLifecycle, listSupportLocks } from "./actions";
-import { DisclosureInbox } from "./components/DisclosureInbox";
 import { SupportPageClient } from "./components/SupportPageClient";
 
 export default function SupportPage() {
@@ -26,7 +25,7 @@ async function SupportData() {
   if (accounts.error || assignments.error || gyms.error) return <LoadError />;
   return (
     <div className="space-y-6">
-      <SupportPageClient initialAccounts={accounts.data ?? []} assignments={assignments.data ?? []} gyms={gyms.data ?? []} locks={locks.data ?? []} lifecycle={lifecycle.data ?? []} />
+      <SupportPageClient initialAccounts={accounts.data ?? []} assignments={assignments.data ?? []} gyms={gyms.data ?? []} locks={locks.data ?? []} lifecycle={lifecycle.data ?? []} disclosures={inbox.data ?? []} />
       {locks.error && (
         <p role="alert" className="text-sm text-red-600">
           {locks.error.message}
@@ -42,7 +41,6 @@ async function SupportData() {
           {inbox.error.message}
         </p>
       )}
-      <DisclosureInbox requests={inbox.data ?? []} />
     </div>
   );
 }
