@@ -55,7 +55,9 @@ export async function updateSession(request: NextRequest) {
     // the deploy's commit SHA.
     request.nextUrl.pathname !== "/api/version" &&
     // Story 23.9: the e-mail queue worker is called by Vercel Cron and the dashboard with a bearer secret; the route checks it.
-    request.nextUrl.pathname !== "/api/email-outbox/drain"
+    request.nextUrl.pathname !== "/api/email-outbox/drain" &&
+    // Story 23.11: the support factor-reset executor, called by Vercel Cron with the same bearer secret; the route checks it.
+    request.nextUrl.pathname !== "/api/support-factor-reset/execute"
   ) {
     // `/` is the (admin) route group's own real landing page (redirects to
     // /gyms) as of this cleanup -- not the starter's public marketing page

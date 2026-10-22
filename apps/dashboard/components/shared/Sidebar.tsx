@@ -23,6 +23,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GymSwitcher } from "./GymSwitcher";
 
+// Story 23-6b: "support" (GymOS Support) sees only what the database allow-list covers (members, staff creation, plans, subscriptions,
+// payments, settings); Overview, Attendance, Classes and the Audit Log are not on it.
 // Role visibility matrix (EXPERIENCE.md, Admin Dashboard -- Sidebar). Kept
 // as a flat, explicit table -- no derived "role level" abstraction that
 // isn't in the spec. A Coach session matches only the last row. `labelKey`
@@ -35,11 +37,11 @@ const NAV_ITEMS: {
   roles: MemberRole[];
 }[] = [
   { labelKey: "nav.overview", href: "/", icon: LayoutDashboard, roles: ["receptionist", "manager", "supervisor", "owner"] },
-  { labelKey: "nav.members", href: "/members", icon: Users, roles: ["receptionist", "manager", "supervisor", "owner"] },
-  { labelKey: "nav.staff", href: "/settings/staff", icon: UserCog, roles: ["owner", "supervisor"] },
-  { labelKey: "nav.plans", href: "/plans", icon: Tag, roles: ["manager", "supervisor", "owner"] },
-  { labelKey: "nav.subscriptions", href: "/subscriptions", icon: CreditCard, roles: ["manager", "supervisor", "owner"] },
-  { labelKey: "nav.payments", href: "/payments", icon: Wallet, roles: ["receptionist", "manager", "supervisor", "owner"] },
+  { labelKey: "nav.members", href: "/members", icon: Users, roles: ["receptionist", "manager", "supervisor", "owner", "support"] },
+  { labelKey: "nav.staff", href: "/settings/staff", icon: UserCog, roles: ["owner", "supervisor", "support"] },
+  { labelKey: "nav.plans", href: "/plans", icon: Tag, roles: ["manager", "supervisor", "owner", "support"] },
+  { labelKey: "nav.subscriptions", href: "/subscriptions", icon: CreditCard, roles: ["manager", "supervisor", "owner", "support"] },
+  { labelKey: "nav.payments", href: "/payments", icon: Wallet, roles: ["receptionist", "manager", "supervisor", "owner", "support"] },
   { labelKey: "nav.attendance", href: "/attendance", icon: ClipboardList, roles: ["receptionist", "manager", "supervisor", "owner"] },
   // Story 12.3 widened this one item to include supervisor. The gap it noted
   // ("scoped to only this nav item, not nav.attendance above") is now closed:
@@ -47,7 +49,7 @@ const NAV_ITEMS: {
   // "Manager-plus" definition, alongside migration 0093's RLS/RPC widening.
   { labelKey: "nav.classes", href: "/classes", icon: CalendarDays, roles: ["receptionist", "manager", "owner", "supervisor"] },
   { labelKey: "nav.auditLog", href: "/audit", icon: ScrollText, roles: ["manager", "supervisor", "owner"] },
-  { labelKey: "nav.settings", href: "/settings", icon: Settings, roles: ["owner", "supervisor"] },
+  { labelKey: "nav.settings", href: "/settings", icon: Settings, roles: ["owner", "supervisor", "support"] },
   { labelKey: "nav.coachPortal", href: "/coach", icon: Dumbbell, roles: ["coach"] },
 ];
 

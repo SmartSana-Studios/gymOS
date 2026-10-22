@@ -2,9 +2,11 @@
 
 import {
   beginTotpEnrollment,
+  cancelFactorReset,
   inspectInvite,
   setInvitePassword,
   verifyTotpAndActivate,
+  type CancelResetResult,
   type EnrollResult,
   type InspectResult,
   type PasswordResult,
@@ -27,4 +29,9 @@ export async function beginSupportTotp(token: string, password: string): Promise
 
 export async function verifySupportTotp(token: string, factorId: string, code: string, password: string): Promise<VerifyResult> {
   return verifyTotpAndActivate(token, factorId, code, password);
+}
+
+/** Story 23.11: cancel a pending authenticator reset (the link token is the credential). */
+export async function cancelSupportFactorReset(token: string): Promise<CancelResetResult> {
+  return cancelFactorReset(token);
 }

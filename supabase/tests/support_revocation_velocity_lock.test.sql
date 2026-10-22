@@ -508,24 +508,24 @@ create or replace function pg_temp.revocation_consumers() returns text[] languag
    where p.prokind = 'f' and p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
      and (p.prosrc ~* 'update\s+(public\.)?support_assignments\s+set\s+[^;]*?\mstate\s*=\s*(?!\s*''(active|pending)'')'
           or p.prosrc ~* 'delete\s+from\s+(public\.)?support_assignments'
-          or p.prosrc ~* 'update\s+private\.support_accounts\s+set\s+[^;]*?\m(locked_at|deactivated_at)\s*=\s*(?!\s*null)') $f$;
+          or p.prosrc ~* 'update\s+private\.support_accounts\s+set\s+[^;]*?\m(locked_at|deactivated_at|reset_pending_at)\s*=\s*(?!\s*null)') $f$;
 create or replace function pg_temp.consumers_missing_routine() returns text[] language sql as $f$
   select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
    where p.prokind = 'f' and p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
      and (p.prosrc ~* 'update\s+(public\.)?support_assignments\s+set\s+[^;]*?\mstate\s*=\s*(?!\s*''(active|pending)'')'
           or p.prosrc ~* 'delete\s+from\s+(public\.)?support_assignments'
-          or p.prosrc ~* 'update\s+private\.support_accounts\s+set\s+[^;]*?\m(locked_at|deactivated_at)\s*=\s*(?!\s*null)')
+          or p.prosrc ~* 'update\s+private\.support_accounts\s+set\s+[^;]*?\m(locked_at|deactivated_at|reset_pending_at)\s*=\s*(?!\s*null)')
      -- remove_support_account deletes only never-activated accounts' assignments (all pending or ended): nothing was ever live, so there is
      -- no access to revoke. The one documented exemption.
      and p.proname <> 'remove_support_account'
      and p.prosrc !~ 'support_revoke_access' $f$;
-select is(pg_temp.revocation_consumers(), array['deactivate_support_account', 'remove_support_account', 'set_allow_gymos_support', 'support_lock_account', 'unassign_support']::text[],
-          'scan: the revocation paths are exactly unassign, deactivate, switch off and lock (plus remove, a documented exemption) (a new one must be added here deliberately)');
+select is(pg_temp.revocation_consumers(), array['deactivate_support_account', 'remove_support_account', 'set_allow_gymos_support', 'start_support_factor_reset', 'support_lock_account', 'unassign_support']::text[],
+          'scan: the revocation paths are exactly unassign, deactivate, switch off and lock (plus remove, a documented exemption) (a new one must be added here deliberately; 23.11 added the factor reset start)');
 select is(pg_temp.consumers_missing_routine(), '{}'::text[], 'scan: every revocation path calls private.support_revoke_access');
 select is((select array_agg(p.proname::text order by p.proname) from pg_proc p
             where p.prokind = 'f' and p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.prosrc ~ 'support_revoke_access\('),
-          array['deactivate_support_account', 'set_allow_gymos_support', 'support_lock_account', 'support_revoke_on_gym_status', 'unassign_support']::text[],
-          'scan: the callers of the routine are those four and the gym-status trigger function');
+          array['deactivate_support_account', 'set_allow_gymos_support', 'start_support_factor_reset', 'support_lock_account', 'support_revoke_on_gym_status', 'unassign_support']::text[],
+          'scan: the callers of the routine are those five (23.11 added the factor reset start) and the gym-status trigger function');
 select is((select count(*)::int from pg_trigger where tgrelid = 'public.gyms'::regclass and tgname = 'zz_support_revoke_on_gym_status' and not tgisinternal), 1, 'a suspended gym is a revocation path: the trigger is installed');
 -- shown failing: a new path that skips the routine is caught
 create function public.zz_bad_revoker() returns void language plpgsql as $f$

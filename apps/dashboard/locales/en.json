@@ -1398,7 +1398,8 @@
     "switchGymPrompt": "You belong to another gym you can switch to:"
   },
   "auth": {
-    "privacyPolicy": "Privacy Policy"
+    "privacyPolicy": "Privacy Policy",
+    "sessionExpired": "Your session expired. Please sign in again."
   },
   "phoneInput": {
     "selectCountry": "Select country",
@@ -1529,5 +1530,37 @@
     "enrollRetry": "We could not show the QR code. Please try again.",
     "codeWrong": "That code was not accepted. Try the current code.",
     "signIn": "Go to sign in"
+  },
+  "supportResetCancel": {
+    "title": "Cancel authenticator reset",
+    "body": "A reset of your GymOS support authenticator is scheduled. If you did not ask for it, cancel it now.",
+    "confirm": "Cancel the reset",
+    "done": "The reset was cancelled. Your authenticator is unchanged. Your sessions stay ended, so sign in again.",
+    "invalid": "This link is invalid, expired or already used."
+  },
+  "supportAccess": {
+    "mfaTitle": "Second factor",
+    "mfaDescription": "Enter the 6-digit code from your authenticator app to continue.",
+    "codeLabel": "6-digit code",
+    "verify": "Verify",
+    "verifying": "Verifying...",
+    "invalidCode": "That code is not valid. Try again.",
+    "noFactor": "No verified authenticator is available for this account. Contact GymOS.",
+    "pickerTitle": "Choose a gym",
+    "pickerDescription": "Pick the gym you are working in. You act on one gym at a time.",
+    "noGym": "No gym is assigned to you right now.",
+    "entering": "Opening...",
+    "switchFailed": "Couldn't open that gym. Try again or choose another.",
+    "signInFailed": "Something went wrong signing you in. Sign in again.",
+    "backToSignIn": "Back to sign in",
+    "signOut": "Sign out"
+  },
+  "supportStepUp": {
+    "codeLabel": "Authenticator code *",
+    "codeHelp": "The 6-digit code from your authenticator app. It allows this one change.",
+    "codeRequired": "Enter the 6-digit authenticator code",
+    "codeInvalid": "That code was not accepted. Try the current code.",
+    "locked": "Too many wrong codes. This account was locked; GymOS will review it.",
+    "unavailable": "Couldn't confirm the code right now. Try again."
   }
 }

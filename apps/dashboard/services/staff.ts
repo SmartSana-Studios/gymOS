@@ -9,6 +9,7 @@ import { deleteAuthUserForCleanup } from "@/services/members";
 import { sendEvolutionApiMessage } from "@/lib/messaging/EvolutionApiMessageProvider";
 import { captureServerEvent } from "@/lib/analytics";
 import { authorizeAction } from "@/lib/authz";
+import { isLiveSupportSession, isWellFormedSupportCode, issueSupportGrant, supportStepUpError, verifySupportCode } from "@/services/support-stepup";
 
 /** Story 9.2 Task 1: dashboard's own copy, pointing at itself -- distinct
  * from apps/super-admin's own getDashboardAppUrl() (that one points
@@ -197,6 +198,8 @@ export interface CreateStaffMemberResult {
  * replace-in-place at the same gym (AC #2). */
 export async function createStaffMember(
   input: CreateStaffMemberInput,
+  /** Story 23-6c: the fresh authenticator code a live support session must present (ignored for every other role). */
+  opts: { authCode?: string } = {},
 ): Promise<{ data: CreateStaffMemberResult | null; error: AppError | null }> {
   const supabase = await createClient();
   const { t } = await getServerTranslation(await getRequestLocale());
@@ -207,6 +210,21 @@ export async function createStaffMember(
   const authz = await authorizeAction("staff.create");
   if (!authz.ok) {
     return { data: null, error: authz.error };
+  }
+
+  // Story 23-6c: a live support session verifies its authenticator code BEFORE any auth user is provisioned (a wrong code must
+  // leave nothing behind); the grant is issued below, once the user id is known, because the grant is bound to that id.
+  let supportUserId: string | null = null;
+  if (await isLiveSupportSession()) {
+    if (!isWellFormedSupportCode(opts.authCode)) {
+      return { data: null, error: supportStepUpError("code_required", t) };
+    }
+    // A throw is "unavailable", never a pass.
+    const verified = await verifySupportCode(opts.authCode as string).catch(() => ({ status: "unavailable" as const }));
+    if (verified.status !== "verified") {
+      return { data: null, error: supportStepUpError(verified.status, t) };
+    }
+    supportUserId = verified.userId;
   }
 
   const admin = createAdminClient();
@@ -264,6 +282,17 @@ export async function createStaffMember(
     }
     userId = provisioned.userId;
     isExistingAccount = false;
+  }
+
+  if (supportUserId) {
+    const grant = await issueSupportGrant({ userId: supportUserId, action: "support_create_staff", subjectId: userId }).catch(() => "unavailable" as const);
+    if (grant !== "issued") {
+      // Same cleanup as a rejected RPC: only a user this call created is removed.
+      if (!isExistingAccount) {
+        await deleteAuthUserForCleanup(userId);
+      }
+      return { data: null, error: supportStepUpError("unavailable", t) };
+    }
   }
 
   const { data: staffRow, error: rpcError } = await supabase.rpc("create_staff_member", {

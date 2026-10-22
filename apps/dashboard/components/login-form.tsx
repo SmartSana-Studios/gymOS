@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 // AD-01: two distinct error surfaces -- "invalid credentials" renders
 // inline below the password field (AC #2's literal requirement); network/
@@ -44,8 +45,9 @@ function mapLoginError(
 export function LoginForm({
   className,
   redirectTo,
+  expired = false,
   ...props
-}: React.ComponentPropsWithoutRef<"div"> & { redirectTo?: string }) {
+}: React.ComponentPropsWithoutRef<"div"> & { redirectTo?: string; expired?: boolean }) {
   // Story 9.1's staff accounts (Supervisor/Manager/Receptionist/Coach) are
   // provisioned with a phone and NO email, so an email-only field left every
   // non-Owner role unable to sign in at all. See loginSchema's own note for the
@@ -85,14 +87,22 @@ export function LoginForm({
         setFormError(mapped.formError);
         return;
       }
-      // `redirectTo` comes from an untrusted query param (`?next=`). A
-      // single leading "/" isn't enough -- "//evil.com" also starts with
-      // "/" but browsers treat it as a protocol-relative URL, sending a
-      // freshly-authenticated user off-site (Review finding: open redirect).
-      const safeRedirect =
-        redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")
-          ? redirectTo
-          : "/";
+      // `redirectTo` comes from an untrusted query param (`?next=`); see safeRedirectPath.
+      const safeRedirect = safeRedirectPath(redirectTo);
+      // Story 23-6b: a person with a verified authenticator (GymOS Support) must pass the code step before any data loads. Staff
+      // with no factor have nextLevel aal1 and go straight on, as before.
+      const { data: assurance, error: assuranceError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (assuranceError) {
+        // Fail closed: if we cannot tell whether a second factor is owed, the session is not carried on.
+        await supabase.auth.signOut({ scope: "local" });
+        setFormError(t("common.somethingWentWrong"));
+        return;
+      }
+      if (assurance?.nextLevel === "aal2" && assurance.currentLevel !== "aal2") {
+        // Full navigation: a router.push + refresh pair can re-fetch the login page over the push (the same race super-admin recorded).
+        window.location.assign(`/auth/mfa?next=${encodeURIComponent(safeRedirect)}`);
+        return;
+      }
       router.push(safeRedirect);
       router.refresh();
     } catch (error: unknown) {
@@ -111,6 +121,11 @@ export function LoginForm({
           <CardTitle className="text-2xl">{t("auth.title")}</CardTitle>
         </CardHeader>
         <CardContent>
+          {expired && (
+            <p role="status" className="mb-4 text-sm text-amber-600">
+              {t("auth.sessionExpired")}
+            </p>
+          )}
           <form onSubmit={handleLogin}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">

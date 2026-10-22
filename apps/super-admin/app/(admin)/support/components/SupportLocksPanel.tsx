@@ -1,69 +1,62 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Unlock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { Button } from "@/components/ui/button";
 import { unlockSupportAccount, type SupportLockRow } from "../actions";
-import { REASON_MAX, REASON_MIN } from "./SupportAssignmentsPanel";
+import type { SupportMessage } from "./constants";
+import { PagedTable } from "./PagedTable";
+import { RowActions } from "./RowActions";
+import { SupportActionModal } from "./SupportActionModal";
 
 /**
- * Story 23.10: accounts locked by the velocity limit or by wrong step-up codes. Super Admin reviews each one and unlocks it with a
- * recorded reason (the shared reason field of the page). The lock, the unlock and the reason are audited in the database.
+ * Story 23.10 / 23.12: accounts locked by the velocity limit or by wrong step-up codes. Super Admin reviews each one and unlocks it with
+ * a reason collected in a modal. The lock, the unlock and the reason are audited in the database.
  */
-export function SupportLocksPanel({
-  locks,
-  reason,
-  onMessage,
-}: {
-  locks: SupportLockRow[];
-  reason: string;
-  onMessage: (m: { kind: "ok" | "error"; text: string }) => void;
-}) {
+export function SupportLocksPanel({ locks, onMessage }: { locks: SupportLockRow[]; onMessage: (m: SupportMessage) => void }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const reasonOk = reason.trim().length >= REASON_MIN && reason.trim().length <= REASON_MAX;
-
-  function unlock(userId: string) {
-    if (!window.confirm(t("support.locks.confirmUnlock"))) return;
-    startTransition(async () => {
-      const { error } = await unlockSupportAccount({ userId, reason });
-      onMessage(error ? { kind: "error", text: error.message } : { kind: "ok", text: t("support.locks.unlocked") });
-      router.refresh();
-    });
-  }
+  const [target, setTarget] = useState<SupportLockRow | null>(null);
 
   return (
-    <section className="space-y-3 rounded-md border p-6" aria-label={t("support.locks.title")}>
-      <h2 className="text-sm font-semibold text-muted-foreground">{t("support.locks.title")}</h2>
-      {locks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{t("support.locks.empty")}</p>
-      ) : (
-        <>
-          <p className="text-xs text-muted-foreground">{t("support.locks.hint")}</p>
-          <ul className="space-y-3 text-sm">
-            {locks.map((lock) => (
-              <li key={lock.userId} className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 last:border-b-0">
-                <div className="space-y-0.5">
-                  <p className="font-medium">
-                    {lock.displayName ?? "—"} <span className="font-normal text-muted-foreground">{lock.email}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t(`support.locks.reasons.${lock.lockedReason ?? "unknown"}`, { defaultValue: t("support.locks.reasons.unknown") })} ·{" "}
-                    {new Date(lock.lockedAt).toLocaleString(i18n.language)}
-                    {lock.gymNames ? ` · ${lock.gymNames}` : ""}
-                  </p>
-                </div>
-                <Button size="sm" variant="outline" disabled={pending || !reasonOk} onClick={() => unlock(lock.userId)}>
-                  {t("support.locks.unlock")}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </>
+    <div className="space-y-3">
+      {locks.length > 0 && <p className="text-xs text-muted-foreground">{t("support.locks.hint")}</p>}
+      <PagedTable
+        items={locks}
+        empty={t("support.locks.empty")}
+        label={t("support.locks.title")}
+        head={[t("support.columns.name"), t("support.locks.columns.reason"), t("support.locks.columns.when"), t("support.locks.columns.gyms"), t("support.columns.actions")]}
+        row={(lock) => (
+          <tr key={lock.userId} className="border-b last:border-b-0">
+            <td className="py-2 pl-3 pr-4">
+              <span className="font-medium">{lock.displayName ?? "—"}</span> <span className="text-muted-foreground">{lock.email}</span>
+            </td>
+            <td className="py-2 pr-4">{t(`support.locks.reasons.${lock.lockedReason ?? "unknown"}`, { defaultValue: t("support.locks.reasons.unknown") })}</td>
+            <td className="py-2 pr-4">{new Date(lock.lockedAt).toLocaleString(i18n.language)}</td>
+            <td className="py-2 pr-4">{lock.gymNames ?? "—"}</td>
+            <td className="py-2 pr-3">
+              <RowActions name={lock.displayName ?? lock.email ?? "—"} actions={[{ key: "unlock", label: t("support.locks.unlock"), icon: <Unlock size={14} />, onSelect: () => setTarget(lock) }]} />
+            </td>
+          </tr>
+        )}
+      />
+      {target && (
+        <SupportActionModal
+          key={target.userId}
+          title={t("support.modal.title.unlock")}
+          description={t("support.locks.confirmUnlock")}
+          submitLabel={t("support.locks.unlock")}
+          run={(reason) => unlockSupportAccount({ userId: target.userId, reason })}
+          onDone={() => {
+            onMessage({ kind: "ok", text: t("support.locks.unlocked") });
+            setTarget(null);
+            router.refresh();
+          }}
+          onClose={() => setTarget(null)}
+        />
       )}
-    </section>
+    </div>
   );
 }

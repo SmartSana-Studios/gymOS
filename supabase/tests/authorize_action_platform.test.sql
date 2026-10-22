@@ -75,9 +75,9 @@ select is((select allowed from public.authorize_action('00000000-0000-0000-0000-
   true, 'a locked Super Admin is still allowed here: the lock is enforced by touchSessionGate in lib/authz.ts');
 
 -- ---- who can call it ----------------------------------------------------------------------------------------------------------------
-select ok(not has_function_privilege('anon', 'public.authorize_action(uuid, uuid, text)', 'execute')
-      and not has_function_privilege('authenticated', 'public.authorize_action(uuid, uuid, text)', 'execute')
-      and has_function_privilege('service_role', 'public.authorize_action(uuid, uuid, text)', 'execute'),
+select ok(not has_function_privilege('anon', 'public.authorize_action(uuid, uuid, text, uuid)', 'execute')
+      and not has_function_privilege('authenticated', 'public.authorize_action(uuid, uuid, text, uuid)', 'execute')
+      and has_function_privilege('service_role', 'public.authorize_action(uuid, uuid, text, uuid)', 'execute'),
   'public.authorize_action is callable by service_role only');
 
 select * from finish();

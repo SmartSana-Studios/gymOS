@@ -225,7 +225,8 @@ insert into writer_exempt (fn, reason) values
   ('revoke_gym_data_access(uuid,uuid,text)',  'Super Admin action: the revoking Super Admin is recorded as itself'),
   ('answer_audit_disclosure_request(uuid,text)',  'Super Admin action (23.8): the answering Super Admin is recorded as itself, never gym visible'),
   ('file_audit_disclosure_request(uuid,text)',    'Owner-only action (23.8): current_member_role() is NULL for support, so requested_by is always the Owner'),
-  ('private.record_support_identity(text,uuid,uuid)', 'the real-identity writer itself (23.8): it records auth.uid() on purpose, Super Admin read only');
+  ('private.record_support_identity(text,uuid,uuid)', 'the real-identity writer itself (23.8): it records auth.uid() on purpose, Super Admin read only'),
+  ('start_support_factor_reset(uuid,text,text,text)', 'Super Admin action (23.11): the Super Admin who starts a reset is recorded as itself, never gym visible');
 
 create or replace function pg_temp.unlisted_writers() returns setof text language sql as $f$
   select p.oid::regprocedure::text
@@ -286,7 +287,10 @@ insert into fk_class (col, class, note) values
   ('members.user_id',                           'non_actor',       'membership owner'),
   ('private.support_accounts.user_id',          'non_actor',       'the support account itself'),
   ('support_assignments.support_user_id',       'non_actor',       'the assigned person'),
-  ('private.support_invites.user_id',           'non_actor',       'the invited person');
+  ('private.support_invites.user_id',           'non_actor',       'the invited person'),
+  ('private.support_factor_resets.started_by',  'actor_exempt',    'Super Admin starts a reset (23.11); never gym visible'),
+  ('private.support_factor_resets.user_id',     'non_actor',       'the person whose authenticator is reset'),
+  ('private.support_last_active.user_id',       'non_actor',       'the person''s own last activity (23.11)');
 create or replace function pg_temp.user_fk_cols() returns setof text language sql as $f$
   select c.conrelid::regclass::text || '.' || a.attname
     from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = any (c.conkey)
@@ -311,11 +315,12 @@ insert into users_reader_exempt (fn, reason) values
   ('get_support_accounts()',                               'lists support_accounts rows (the proxy has none) joined to users'),
   ('get_support_assignments(uuid,uuid)',                   'lists support_assignments rows (the proxy has none) joined to users'),
   ('get_support_locks()',                                     'lists locked support_accounts rows (the proxy has none) joined to users'),
+  ('get_support_lifecycle()',                              'lists support_accounts rows (the proxy has none) joined to users (23.11)'),
   ('issue_support_invite(uuid,text,uuid)',                 'Super Admin action; reads one user by id'),
   ('list_super_admins()',                                  'filters is_super_admin, which a proxy can never be (users_support_proxy_not_super_admin)'),
   ('log_audit_event(text,uuid,text,text,jsonb,text)',      'reads the actor display name by id'),
   ('private.actor_id()',                                   'reads the proxy by support_proxy_gym_id'),
-  ('private.authorize_action(uuid,uuid,text)',             'reads one user by id'),
+  ('private.authorize_action(uuid,uuid,text,uuid)',             'reads one user by id'),
   ('private.guard_last_verified_factor()',                 'reads one user by id'),
   ('private.guard_owner_not_super_admin()',                'reads one user by id'),
   ('private.is_super_admin()',                             'reads one user by id'),

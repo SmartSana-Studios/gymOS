@@ -8,6 +8,7 @@ import { createStaffMemberSchema, type CreateStaffMemberInput } from "@gymos/typ
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SupportCodeField, goToLoginExpired, isSupportCodeWellFormed } from "@/components/support-code-field";
 import { PhoneInput } from "@/components/ui/phone-input";
 import type { MemberRole } from "@/services/session";
 import { createStaffMemberAction } from "../actions";
@@ -24,6 +25,8 @@ const selectClassName =
 const ROLE_OPTIONS_BY_CALLER: Record<string, CreateStaffMemberInput["role"][]> = {
   owner: ["supervisor", "manager", "receptionist", "coach"],
   supervisor: ["manager", "receptionist", "coach"],
+  // Story 23-6b: GymOS Support creates staff within the Supervisor ceiling (0140).
+  support: ["manager", "receptionist", "coach"],
 };
 
 const ROLE_LABEL_KEY: Record<CreateStaffMemberInput["role"], string> = {
@@ -64,6 +67,8 @@ export function AddStaffModal({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [authCode, setAuthCode] = useState("");
+  const isSupport = callerRole === "support";
 
   const roleOptions = ROLE_OPTIONS_BY_CALLER[callerRole] ?? [];
 
@@ -71,6 +76,7 @@ export function AddStaffModal({
   if (open && !syncedOpen) {
     setSyncedOpen(true);
     setForm(emptyForm);
+    setAuthCode("");
     setFieldErrors({});
     setFormError(null);
   } else if (!open && syncedOpen) {
@@ -115,10 +121,20 @@ export function AddStaffModal({
       return;
     }
 
+    if (isSupport && !isSupportCodeWellFormed(authCode)) {
+      setFormError(t("supportStepUp.codeRequired"));
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const { data, error } = await createStaffMemberAction(parsed.data);
+      const { data, error } = await createStaffMemberAction(isSupport ? { ...parsed.data, authCode } : parsed.data);
       if (error || !data) {
+        setAuthCode("");
+        if (error?.code === "account_locked") {
+          goToLoginExpired();
+          return;
+        }
         // AD-17's documented rejection copy: a stale/bypassed client
         // attempting a role the RPC's own ceiling check rejects. Highlights
         // the Role field rather than a generic form-level error, matching
@@ -132,6 +148,7 @@ export function AddStaffModal({
       }
       onCreated(data.tempPassword, data.smsSent, parsed.data.phone, data.isExistingAccount);
     } catch {
+      setAuthCode("");
       setFormError(t("common.somethingWentWrong"));
     } finally {
       setSubmitting(false);
@@ -204,6 +221,8 @@ export function AddStaffModal({
           </select>
           {fieldErrors.role && <p className="text-sm text-red-600">{fieldErrors.role}</p>}
         </div>
+
+        {isSupport && <SupportCodeField id="staffAuthCode" value={authCode} onChange={setAuthCode} disabled={submitting} />}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="outline" disabled={submitting} onClick={resetAndClose}>
