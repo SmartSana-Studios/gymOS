@@ -135,7 +135,7 @@ describe("exportPaymentsCsv", () => {
     expect(result.error?.code).toBe("forbidden");
   });
 
-  it.each(["owner", "manager", "supervisor", "receptionist"])("allows %s", async (allowed) => {
+  it.each(["owner", "manager", "supervisor", "receptionist", "support"])("allows %s", async (allowed) => {
     role = allowed;
     const result = await exportPaymentsCsv({});
     expect(result.error).toBeNull();

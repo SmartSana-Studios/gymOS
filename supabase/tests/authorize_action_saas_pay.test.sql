@@ -59,9 +59,9 @@ select is(pg_temp.verdict('00000000-0000-0000-0000-000000023222', '00000000-0000
 select is(pg_temp.verdict('00000000-0000-0000-0000-000000023222', null, 'billing.saas_pay'),
   'false:no_gym:-', 'billing.saas_pay with no gym is refused');
 
-select ok(not has_function_privilege('anon', 'public.authorize_action(uuid, uuid, text)', 'execute')
-      and not has_function_privilege('authenticated', 'public.authorize_action(uuid, uuid, text)', 'execute')
-      and has_function_privilege('service_role', 'public.authorize_action(uuid, uuid, text)', 'execute'),
+select ok(not has_function_privilege('anon', 'public.authorize_action(uuid, uuid, text, uuid)', 'execute')
+      and not has_function_privilege('authenticated', 'public.authorize_action(uuid, uuid, text, uuid)', 'execute')
+      and has_function_privilege('service_role', 'public.authorize_action(uuid, uuid, text, uuid)', 'execute'),
   'authorize_action stays callable by service_role only');
 
 select * from finish();

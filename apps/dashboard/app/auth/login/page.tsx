@@ -12,7 +12,7 @@ import { LoginForm } from "@/components/login-form";
 export default function Page({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; expired?: string }>;
 }) {
   return (
     <Suspense fallback={<LoginForm />}>
@@ -24,8 +24,9 @@ export default function Page({
 async function LoginFormWithRedirect({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; expired?: string }>;
 }) {
-  const { next } = await searchParams;
-  return <LoginForm redirectTo={next} />;
+  const { next, expired } = await searchParams;
+  // Story 23-6b: the request proxy sends an idle, over-age, locked or revoked second-factor session here with ?expired=1.
+  return <LoginForm redirectTo={next} expired={expired === "1"} />;
 }

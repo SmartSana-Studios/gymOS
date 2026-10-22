@@ -8,6 +8,8 @@ import {
   authorizeAction,
   logDenied,
   permissionDeniedResponse,
+  gymIdFromToken,
+  sessionIdFromToken,
   verifyActor,
   type EdgeCapability,
 } from "./_shared/authorize.ts";
@@ -46,6 +48,8 @@ async function authorizeInitiation(
   table: "payments" | "saas_billing_payments",
   gymId: string | null,
   memberId: string | null,
+  sessionId: string | null = null,
+  jwtGymId: string | null = null,
 ): Promise<{ allowed: boolean; reason: string; capability: EdgeCapability }> {
   let capability: EdgeCapability = "billing.saas_pay";
   if (table === "payments") {
@@ -59,7 +63,7 @@ async function authorizeInitiation(
       if (memberRow?.user_id === actorId) capability = "payment.initiate_own";
     }
   }
-  const decision = await authorizeAction(supabase, actorId, gymId, capability);
+  const decision = await authorizeAction(supabase, actorId, gymId, capability, sessionId, jwtGymId);
   return { allowed: decision.allowed, reason: decision.reason, capability };
 }
 
@@ -206,7 +210,7 @@ async function handleInitiate(
   // Story 22.4: authorize the actor against THIS row's gym before any write or provider call.
   // A nonexistent row falls through to the eligibility 400 below (nothing to authorize against).
   if (payment) {
-    const decision = await authorizeInitiation(actorId, table, payment.gymId ?? saasGymId, rowMemberId);
+    const decision = await authorizeInitiation(actorId, table, payment.gymId ?? saasGymId, rowMemberId, sessionIdFromToken(req), gymIdFromToken(req));
     if (!decision.allowed) {
       logDenied("initiate", actorId, payment.gymId ?? saasGymId, decision.capability, decision.reason);
       return permissionDeniedResponse();

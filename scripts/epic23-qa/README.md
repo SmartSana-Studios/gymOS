@@ -9,7 +9,7 @@ cd apps/super-admin && pnpm dev -p 3001          # http://localhost:3001  (Super
 cd apps/dashboard   && pnpm dev                  # http://localhost:3000  (Owner dashboard, invite page)
 node scripts/epic23-qa/totp.mjs [handle]         # current authenticator code for a QA account
 node scripts/epic23-qa/lifecycle.mjs status      # accounts / assignments / resets at a glance
-node scripts/epic23-qa/smoke.mjs                 # 6 database-level checks with real JWTs
+node scripts/epic23-qa/smoke.mjs                 # the support request path end to end with real JWTs (code step, picker, gate, revoke)
 ```
 Mail (invites, factor-reset notices) goes to Inbucket at http://127.0.0.1:54324, never to a real mailbox
 (`MAIL_SMTP_*` was added to `apps/super-admin/.env.local`; restart the Super Admin dev server after the first seed).
@@ -29,11 +29,10 @@ Mail (invites, factor-reset notices) goes to Inbucket at http://127.0.0.1:54324,
 | `qa23-locked@` | | | velocity-locked |
 | `qa23-fresh@` | | | created, never invited |
 
-## Not testable in a browser yet (by design in the delivered stories)
-The dashboard request path for a support person (TOTP sign-in, `session_gate_touch`, gym picker) is story 23-6b and the
-step-up UI is 23-6c, both deferred (docs/decisions.md, Story 23.6). So a support person cannot use the Owner dashboard
-yet; their behaviour inside a gym is tested at the database level (`smoke.mjs`, plus the pgTAP suite in `ci-local.sh`).
-Everything the Super Admin and the Owner see, and the invite page, is testable by clicking.
+## The support request path (story 23-6b)
+A support person now signs in on the Owner dashboard: password, authenticator code, gym picker, then the dashboard in the chosen
+gym. Section S below is the browser run; `smoke.mjs` plays the same calls at the database level. The step-up UI (refunds, fee
+waivers, staff creation, payment connection code) is 23-6c, so those four actions still ask for a step-up the UI cannot give yet.
 
 ## A. Super Admin app (`:3001`, sign in with password, then the authenticator code)
 | # | Do | Expect |
@@ -88,7 +87,7 @@ Everything the Super Admin and the Owner see, and the invite page, is testable b
 | O9 | Audit page (ownerA) | "GymOS Support access changed" rows; no support person's name, email, phone anywhere |
 | O10 | Switch EN → FR | all GymOS Support strings translated |
 | O11 | Disclosure: an audit row written by support → file a disclosure request | appears in Super Admin → Owner disclosure requests; answer it; due date shown; overdue styling when past |
-| O12 | (needs 23-6b to produce staff created by support) | the "Staff created by GymOS Support" review card appears on the staff page only when such staff exist; nothing to see yet |
+| O12 | (staff creation by support needs the 23-6c step-up UI) | the "Staff created by GymOS Support" review card appears on the staff page only when such staff exist |
 
 ## I. Invite page (`:3000/support-invite?t=…`, token from the Inbucket mail)
 | # | Do | Expect |
@@ -102,7 +101,25 @@ Everything the Super Admin and the Owner see, and the invite page, is testable b
 | I7 | Reload the same link | generic invalid-link message, no hint why (single use) |
 | I8 | Open a link 24 h old / a mangled token | the same generic message |
 
+## S. Support person on the Owner dashboard (`:3000`)
+Account state: `qa23-active@gymosapps.com`, password `Epic23Support!`, code from `node scripts/epic23-qa/totp.mjs qa23-active`.
+Active in Gym A, pending in Gym B. `ownerA@epic23qa.test` (password `Epic19Pass!`) is the Gym A Owner. Run `seed.mjs` first.
+| # | Do | Expect |
+|---|---|---|
+| S1 | Sign in as `qa23-active@gymosapps.com` with the password | straight to the code step (`/auth/mfa`), no dashboard data yet |
+| S2 | Enter a wrong code | one generic message, you can retry |
+| S3 | Enter the right code | the gym picker (`/support-gym`) lists **Gym A** only (B is pending); nothing is preselected |
+| S4 | Click Gym A | Members page of Gym A; header shows "GymOS Support" (no name, no email); sidebar: Members, Staff, Plans, Subscriptions, Payments, Settings only |
+| S5 | Open Settings | gym settings, guest charging, category, loyalty and the payment connection card are there; no GymOS Support (Owner) section |
+| S6 | Open Settings > payment connection > Connect | the connect dialog (with the authenticator code field) opens: the 23-9 flow is reachable |
+| S7 | In another window, Super Admin: unassign `qa23-active` from Gym A (reason), then reload the dashboard tab | sent back to the gym picker, which says no gym is assigned; **Sign out** returns to the login page |
+| S8 | Re-assign and confirm in Super Admin, sign in again | code step, picker lists Gym A again |
+| S9 | Leave the dashboard tab idle past the idle limit (30 min), or age the session: `docker exec supabase_db_gym_os psql -U postgres -c "update private.support_session_state set last_seen_at = now() - interval '2 hours' where user_id = (select id from auth.users where email = 'qa23-active@gymosapps.com')"`, then reload | login page with "Your session expired. Please sign in again." |
+| S10 | `qa23-recert@gymosapps.com` signs in, passes the code, picks Gym A | refused within one request: back to the login page (recertification overdue) |
+| S11 | `ownerA@epic23qa.test` signs in | no code step, dashboard as before |
+| S12 | Switch EN to FR on the code step and picker pages | strings translated |
+
 ## Automated safety net
-`smoke.mjs` (6 checks above) and `bash scripts/ci-local.sh` (pgTAP covers the denied-set matrix, hidden identity, velocity
-limits, revocation, lifecycle). Run `ci-local.sh` on a **pristine** DB: `seed.mjs` leaves QA data, so reset first
+`smoke.mjs` and `bash scripts/ci-local.sh` (pgTAP covers the denied-set matrix, hidden identity, velocity
+limits, revocation, lifecycle, and the request path in `support_request_path.test.sql`). Run `ci-local.sh` on a **pristine** DB: `seed.mjs` leaves QA data, so reset first
 (`npx --no-install supabase db reset`).

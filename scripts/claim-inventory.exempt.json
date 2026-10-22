@@ -1,5 +1,7 @@
 {
   "entries": [
-    { "kind": "function", "name": "public.custom_access_token_hook(event jsonb)", "reason": "The claims hook writes the claims; it is the issuer, not a consumer of them." }
+    { "kind": "function", "name": "public.custom_access_token_hook(event jsonb)", "reason": "The claims hook writes the claims; it is the issuer, not a consumer of them." },
+    { "kind": "server", "name": "apps/dashboard/lib/authz.ts", "reason": "23-6b: the gym_id claim is only a hint for which gym to ask about; public.authorize_action decides live (membership, status, support live gate). For a support actor the target gym must also equal the claim, which can only narrow access." },
+    { "kind": "server", "name": "apps/dashboard/lib/supabase/proxy.ts", "reason": "23-6b: app_role, gym_id and aal are read only to route (code step, gym picker); the access decision is session_gate_touch and the live database gate, never this claim read." }
   ]
 }

@@ -120,6 +120,16 @@ describe("(dashboard) Overview page — Coach redirect", () => {
     expect(redirect).toHaveBeenCalledWith("/coach/overview");
   });
 
+  it("Story 23-6b: redirects GymOS Support to /members and triggers no Overview fetch", async () => {
+    getDashboardShellContext.mockResolvedValue(shellFor("support"));
+
+    await expect(renderGate()).rejects.toBe(REDIRECT_SENTINEL);
+    expect(redirect).toHaveBeenCalledWith("/members");
+    for (const [name, fetch] of Object.entries(OVERVIEW_FETCHES)) {
+      expect(fetch, name).not.toHaveBeenCalled();
+    }
+  });
+
   it("decides the redirect before any other Overview fetch, so a Coach triggers none of them", async () => {
     getDashboardShellContext.mockResolvedValue(shellFor("coach"));
 

@@ -390,7 +390,7 @@ const INITIATE_PAYMENT_ROW = {
 // /auth/v1/user (JWT verification), the members lookup behind the own-payment check, and the
 // public.authorize_action RPC. Everything else falls through to the stub.
 interface ActorLayer {
-  rpcCalls: { p_actor: string; p_gym_id: string | null; p_capability: string }[];
+  rpcCalls: { p_actor: string; p_gym_id: string | null; p_capability: string; p_session?: string | null }[];
 }
 function withActor(
   opts: { validJwt?: string; actorId?: string; memberUserId?: string; allowed?: boolean; reason?: string } = {},
@@ -925,6 +925,20 @@ Deno.test("payment-webhook initiate route: actor not allowed for the row's gym -
     assertEquals(layer.rpcCalls[0].p_gym_id, "gym-a", "the gym comes from the payment row, not the request");
     assertEquals(layer.rpcCalls[0].p_capability, "payment.initiate_staff");
     assertEquals(stub.calls.some((c) => c.startsWith("DELETE")), false);
+  } finally {
+    stub.restore();
+  }
+});
+
+Deno.test("payment-webhook initiate route: authorize_action receives the bearer token's session_id as p_session (23-6b)", async () => {
+  const b64 = (v: unknown) => btoa(JSON.stringify(v)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const jwt = `${b64({ alg: "HS256" })}.${b64({ sub: "actor-1", session_id: "sess-42" })}.sig`;
+  const stub = stubFetchServingPaymentRowOnly(INITIATE_PAYMENT_ROW);
+  const layer = withActor({ validJwt: jwt, allowed: false, reason: "not_member", memberUserId: "someone-else" });
+  try {
+    await handler.fetch(initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" }, `Bearer ${jwt}`));
+    assertEquals(layer.rpcCalls.length, 1);
+    assertEquals(layer.rpcCalls[0].p_session, "sess-42");
   } finally {
     stub.restore();
   }

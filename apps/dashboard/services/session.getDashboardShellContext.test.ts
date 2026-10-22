@@ -213,8 +213,71 @@ describe("getDashboardShellContext -- suspension short-circuit (Story 11.4)", ()
     expect(fromCalls).toEqual([]);
   });
 
-  it("gives a support session with a gym claim no dashboard context (support stays denied until 23.6)", async () => {
-    claimsResult.data!.claims = { sub: USER_ID, app_role: "support", gym_id: "gym-1" };
+  it("Story 23-6b: admits a support session with a gym claim as role support", async () => {
+    claimsResult.data!.claims = { sub: USER_ID, email: "person@example.com", app_role: "support", gym_id: GYM_ID };
+    tableResultQueues.gyms = [{ data: { name: "FitZone", status: "active" }, error: null }];
+    tableResultQueues.members = [
+      { data: { id: "member-1", name: "GymOS Support" }, error: null },
+      { data: [{ gym_id: GYM_ID, role: "support" }], error: null },
+    ];
+    tableResultQueues.users = [{ data: { must_change_password: false }, error: null }];
+    rpcResult = { data: [{ gym_id: GYM_ID, gym_name: "FitZone" }], error: null };
+    const { getDashboardShellContext } = await import("./session");
+
+    const result = await getDashboardShellContext();
+
+    expect(result.error).toBeNull();
+    expect(result.suspended).toBeNull();
+    expect(result.data).toMatchObject({ gymId: GYM_ID, gymName: "FitZone", role: "support", availableGyms: [] });
+  });
+
+  it("Story 23-6b: the shell shows the role name for support, never the person's name or e-mail", async () => {
+    claimsResult.data!.claims = { sub: USER_ID, email: "person@example.com", app_role: "support", gym_id: GYM_ID };
+    tableResultQueues.gyms = [{ data: { name: "FitZone", status: "active" }, error: null }];
+    // the member row read fails: the e-mail fallback used for every other role must not apply
+    tableResultQueues.members = [
+      { data: null, error: { message: "boom" } },
+      { data: [], error: null },
+    ];
+    tableResultQueues.users = [{ data: { must_change_password: false }, error: null }];
+    rpcResult = { data: [], error: null };
+    const { getDashboardShellContext } = await import("./session");
+
+    const result = await getDashboardShellContext();
+
+    expect(result.data?.memberName).toBe("role.support");
+    expect(JSON.stringify(result)).not.toContain("person@example.com");
+  });
+
+  it("Story 23-6b: a support person with several active assignments gets the switcher list from list_own_support_gyms", async () => {
+    claimsResult.data!.claims = { sub: USER_ID, app_role: "support", gym_id: GYM_ID };
+    tableResultQueues.gyms = [{ data: { name: "FitZone", status: "active" }, error: null }];
+    tableResultQueues.members = [
+      { data: { id: "member-1", name: "GymOS Support" }, error: null },
+      { data: [{ gym_id: GYM_ID, role: "support" }, { gym_id: "g2", role: "support" }], error: null },
+    ];
+    tableResultQueues.users = [{ data: { must_change_password: false }, error: null }];
+    rpcResult = {
+      data: [
+        { gym_id: GYM_ID, gym_name: "FitZone" },
+        { gym_id: "g2", gym_name: "Second Gym" },
+      ],
+      error: null,
+    };
+    const { getDashboardShellContext } = await import("./session");
+
+    const result = await getDashboardShellContext();
+
+    expect(result.data?.availableGyms).toEqual([
+      { gymId: GYM_ID, gymName: "FitZone", role: "support" },
+      { gymId: "g2", gymName: "Second Gym", role: "support" },
+    ]);
+    // the other gym's row is not readable through the live gate, so its name is never read from gyms
+    expect(fromCalls.filter((t) => t === "gyms")).toHaveLength(1);
+  });
+
+  it("still gives a member-role session no dashboard context", async () => {
+    claimsResult.data!.claims = { sub: USER_ID, app_role: "member", gym_id: "gym-1" };
     const { getDashboardShellContext } = await import("./session");
 
     const result = await getDashboardShellContext();

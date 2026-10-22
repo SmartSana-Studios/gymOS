@@ -1,6 +1,6 @@
 -- Story 23.1: support role, assignment record and live gate (migrations 0134, 0135).
 begin;
-select plan(95);
+select plan(97);
 
 -- ---- fixtures ---------------------------------------------------------------------------------------------------
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
@@ -213,15 +213,19 @@ select private.support_set_membership('00000000-0000-0000-0000-000000231402', tr
 create or replace function pg_temp.hook(uid text, aal text) returns jsonb language sql as $f$
   select public.custom_access_token_hook(jsonb_build_object('user_id', uid,
            'claims', jsonb_build_object('sub', uid, 'aal', aal, 'role', 'authenticated'))) -> 'claims' $f$;
-select is(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal2') ->> 'app_role', 'support', 'hook: active assignment at aal2 gets app_role support');
-select ok(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal2') ->> 'gym_id' in ('00000000-0000-0000-0000-000000231001', '00000000-0000-0000-0000-000000231002'), 'hook: emits the gym of an active support row');
+-- Story 23-6b: no default gym. Without an explicit active_gym_id the hook emits nothing for a support person.
+select is(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal2') ->> 'app_role', null, 'hook: support with no explicit gym gets no app_role (no default gym)');
+select is(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal2') ->> 'gym_id', null, 'hook: support with no explicit gym gets no gym_id (no default gym)');
+update users set active_gym_id = '00000000-0000-0000-0000-000000231001' where id = '00000000-0000-0000-0000-000000231101';
+select is(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal2') ->> 'app_role', 'support', 'hook: active assignment at aal2 with an explicit gym gets app_role support');
+select ok(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal2') ->> 'gym_id' in ('00000000-0000-0000-0000-000000231001', '00000000-0000-0000-0000-000000231002'), 'hook: emits the explicit gym of an active support row');
 select is(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal1') ->> 'app_role', null, 'hook: aal1 gets no app_role');
 select is(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal1') ->> 'gym_id', null, 'hook: aal1 gets no gym_id');
 -- preferred gym that is not live: the support row still exists but its assignment is suspended -> the hook must not emit it
 update public.support_assignments set state = 'suspended' where id = '00000000-0000-0000-0000-000000231402';
 update users set active_gym_id = '00000000-0000-0000-0000-000000231002' where id = '00000000-0000-0000-0000-000000231101';
-select is(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal2') ->> 'gym_id', '00000000-0000-0000-0000-000000231001',
-          'hook: active_gym_id pointing at a non-live support gym falls through to the live one');
+select is(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal2') ->> 'gym_id', null,
+          'hook: active_gym_id pointing at a non-live support gym does not fall through to another support gym (23-6b: no default)');
 update public.support_assignments set state = 'suspended' where id = '00000000-0000-0000-0000-000000231401';
 select is(pg_temp.hook('00000000-0000-0000-0000-000000231101', 'aal2') ->> 'gym_id', null,
           'hook: active_gym_id pointing at a non-live support gym and no live gym: no gym_id');
@@ -377,19 +381,19 @@ select is(pg_temp.rows_visible(), 'members=1 payments=1 plans=1 refunds=1 subscr
 reset role;
 
 -- ---- catalog: nothing existing lists support; the consumers of the gate are exactly the expected ones -------------------------------
-select is((select count(*)::int from pg_policies where coalesce(qual, '') || coalesce(with_check, '') like '%''support''%' and policyname <> 'hide_support_membership'), 0,
+select is((select count(*)::int from pg_policies where coalesce(qual, '') || coalesce(with_check, '') like '%''support''%' and policyname not in ('hide_support_membership', 'read gyms of own active memberships')), 0,
           'no RLS policy mentions the support role');
 select is((select count(*)::int from pg_constraint where pg_get_constraintdef(oid) like '%''support''%'), 0,
           'no CHECK / constraint mentions the support role');
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.prosrc like '%''support''%'),
-          array['public.assign_support', 'public.confirm_support_assignment', 'public.create_staff_member', 'private.current_member_role', 'public.custom_access_token_hook', 'private.guard_support_membership', 'private.gym_id',
+          array['public.assign_support', 'private.authorize_action', 'private.capability_roles', 'public.confirm_support_assignment', 'public.create_staff_member', 'private.current_member_role', 'public.custom_access_token_hook', 'private.guard_support_membership', 'private.gym_id',
                 'public.gym_member_count', 'public.list_own_active_gym_memberships', 'public.platform_metrics', 'public.set_allow_gymos_support', 'private.support_email_collision', 'private.support_gym_id', 'private.support_restore_assignments', 'private.support_set_membership', 'public.switch_active_gym']::text[],
           'only the expected functions mention the support role');
 select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname order by p.proname)
              from pg_proc p where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace)
               and p.proname <> 'support_live' and p.prosrc like '%support_live%'),
-          array['private.support_gym_id']::text[],
+          array['private.authorize_action', 'private.support_gym_id']::text[],
           'consumers of support_live are exactly support_gym_id (a new consumer must be added here deliberately)');
 
 select is((select count(*)::int from pg_policies where coalesce(qual, '') || coalesce(with_check, '') ~ 'support_assignments|support_accounts|support_live'), 0,
@@ -403,9 +407,9 @@ select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname ord
                 'public.confirm_support_assignment', 'public.create_support_account', 'public.custom_access_token_hook', 'public.deactivate_support_account',
                 'public.get_gymos_support_status', 'public.get_support_accounts', 'public.get_support_assignments', 'public.get_support_lifecycle', 'public.get_support_locks',
                 'private.guard_support_assignment_transition', 'private.guard_support_membership', 'public.issue_support_invite', 'public.issue_support_reset_invite',
-                'public.list_own_active_gym_memberships', 'public.recertify_support_account', 'public.remove_support_account', 'private.session_gate_touch',
-                'public.set_allow_gymos_support', 'public.start_support_factor_reset', 'private.stepup_issue', 'private.stepup_record_failure', 'private.support_contact_drift_check',
-                'private.support_contact_drifted', 'private.support_inactivity_sweep', 'private.support_invite_check', 'public.support_invite_inspect', 'private.support_live',
+                'public.list_own_active_gym_memberships', 'public.list_own_support_gyms', 'public.recertify_support_account', 'public.remove_support_account', 'private.session_gate_touch',
+                'public.set_allow_gymos_support', 'public.start_support_factor_reset', 'private.stepup_issue', 'private.stepup_record_failure', 'public.support_begin_session', 'private.support_contact_drift_check',
+                'private.support_contact_drifted', 'private.support_inactivity_sweep', 'private.support_invite_check', 'public.support_invite_inspect', 'private.support_live', 'private.support_live_for',
                 'private.support_lock_account', 'private.support_reset_executed', 'private.support_restore_assignments', 'private.support_revoke_access',
                 'private.support_revoke_on_gym_status', 'private.support_set_membership', 'private.support_velocity_breach', 'public.switch_active_gym', 'public.unassign_support',
                 'public.unlock_support_account']::text[],

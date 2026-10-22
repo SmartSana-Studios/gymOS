@@ -65,17 +65,18 @@ const STATUS_LABEL_KEY: Record<(typeof STATUS_OPTIONS)[number], string> = {
 // role sits ABOVE Manager in the hierarchy (Owner -> Supervisor -> Manager),
 // so anything Manager can do here it can do too. UI-hiding half only; the real
 // enforcement is manager_or_owner_insert/update_own_members, widened alongside.
-const CAN_MANAGE: MemberRole[] = ["manager", "supervisor", "owner"];
+const CAN_MANAGE: MemberRole[] = ["manager", "supervisor", "owner", "support"];
 
 // Migration 0102: the front desk registers walk-ins, so a receptionist may also
 // create a member and assign the first plan (the two INSERT policies). Editing,
 // CSV import, deactivation and waiving stay manager-plus.
-const CAN_CREATE: MemberRole[] = ["receptionist", "manager", "supervisor", "owner"];
+const CAN_CREATE: MemberRole[] = ["receptionist", "manager", "supervisor", "owner", "support"];
 
 // Story 18.6 registration-fee actions. These mirror the RPCs (the RPC is the
 // authority): collect is any staff role that can record payments, waive and
 // assign-plan are Manager-plus, void is owner and supervisor only.
-const CAN_COLLECT_FEE: MemberRole[] = ["receptionist", "manager", "supervisor", "owner"];
+// Story 23-6b: GymOS Support is on the allow-list for member records, fee collection and waivers, but not for voiding a fee payment.
+const CAN_COLLECT_FEE: MemberRole[] = ["receptionist", "manager", "supervisor", "owner", "support"];
 const CAN_VOID_FEE: MemberRole[] = ["supervisor", "owner"];
 
 export function MembersPageClient({

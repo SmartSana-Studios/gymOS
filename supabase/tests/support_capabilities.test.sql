@@ -90,7 +90,7 @@ select private.support_set_membership('00000000-0000-0000-0000-000000236401', tr
 -- ============================================================================================================
 -- A. catalog
 -- ============================================================================================================
-select is((select count(*)::int from private.support_capabilities), 34, 'the allow-list holds 34 objects (20 policies, 14 RPCs): a change is deliberate');
+select is((select count(*)::int from private.support_capabilities), 35, 'the allow-list holds 35 objects (21 policies, 14 RPCs): a change is deliberate');
 select is(has_table_privilege('authenticated', 'private.support_capabilities', 'select') or has_table_privilege('anon', 'private.support_capabilities', 'select'),
           false, 'support_capabilities is not readable by clients');
 select is((select count(*)::int from private.support_capabilities c

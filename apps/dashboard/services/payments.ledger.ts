@@ -287,7 +287,7 @@ function csvEscape(value: string): string {
   return safeValue;
 }
 
-const LEDGER_EXPORT_ROLES = ["owner", "manager", "supervisor", "receptionist"];
+const LEDGER_EXPORT_ROLES = ["owner", "manager", "supervisor", "receptionist", "support"];
 
 /** Mirrors `exportSubscriptionsCsv`: count pre-check against the 1,000-row
  * ceiling, then a capped data query, honouring the purpose/member filter. */

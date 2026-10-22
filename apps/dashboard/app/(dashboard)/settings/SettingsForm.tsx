@@ -77,8 +77,8 @@ export function SettingsForm({
 
   // Story 19.9a: the charge-guests control, the loyalty program and the
   // category field render for owner/supervisor only.
-  const canManageGuestCharging = role === "owner" || role === "supervisor";
-  const canManageCategory = role === "owner" || role === "supervisor";
+  const canManageGuestCharging = role === "owner" || role === "supervisor" || role === "support";
+  const canManageCategory = role === "owner" || role === "supervisor" || role === "support";
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);

@@ -107,6 +107,11 @@ async function OverviewGate() {
     redirect("/coach/overview");
   }
 
+  // Story 23-6b: GymOS Support has no Overview (its figures are not on the allow-list); it lands on Members.
+  if (shell?.role === "support") {
+    redirect("/members");
+  }
+
   return (
     <Suspense fallback={<OverviewSkeleton showGymHealth={canSeeGymHealth(shell)} />}>
       <OverviewData shell={shell} />

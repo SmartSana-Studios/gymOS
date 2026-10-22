@@ -320,7 +320,7 @@ insert into users_reader_exempt (fn, reason) values
   ('list_super_admins()',                                  'filters is_super_admin, which a proxy can never be (users_support_proxy_not_super_admin)'),
   ('log_audit_event(text,uuid,text,text,jsonb,text)',      'reads the actor display name by id'),
   ('private.actor_id()',                                   'reads the proxy by support_proxy_gym_id'),
-  ('private.authorize_action(uuid,uuid,text)',             'reads one user by id'),
+  ('private.authorize_action(uuid,uuid,text,uuid)',             'reads one user by id'),
   ('private.guard_last_verified_factor()',                 'reads one user by id'),
   ('private.guard_owner_not_super_admin()',                'reads one user by id'),
   ('private.is_super_admin()',                             'reads one user by id'),

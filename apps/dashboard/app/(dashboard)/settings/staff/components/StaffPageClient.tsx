@@ -31,7 +31,7 @@ import { DeactivateStaffDialog } from "./DeactivateStaffDialog";
 // reaching this route directly (RLS is the real read gate, per this file's
 // page.tsx comment) must not see a create affordance that would only fail
 // server-side (AC #3: no staff-creation UI at all for Manager).
-const CAN_CREATE: MemberRole[] = ["owner", "supervisor"];
+const CAN_CREATE: MemberRole[] = ["owner", "supervisor", "support"];
 
 const ROLE_LABEL_KEY: Record<string, string> = {
   supervisor: "role.supervisor",

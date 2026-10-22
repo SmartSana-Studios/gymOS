@@ -1398,7 +1398,8 @@
     "switchGymPrompt": "You belong to another gym you can switch to:"
   },
   "auth": {
-    "privacyPolicy": "Privacy Policy"
+    "privacyPolicy": "Privacy Policy",
+    "sessionExpired": "Your session expired. Please sign in again."
   },
   "phoneInput": {
     "selectCountry": "Select country",
@@ -1536,5 +1537,22 @@
     "confirm": "Cancel the reset",
     "done": "The reset was cancelled. Your authenticator is unchanged. Your sessions stay ended, so sign in again.",
     "invalid": "This link is invalid, expired or already used."
+  },
+  "supportAccess": {
+    "mfaTitle": "Second factor",
+    "mfaDescription": "Enter the 6-digit code from your authenticator app to continue.",
+    "codeLabel": "6-digit code",
+    "verify": "Verify",
+    "verifying": "Verifying...",
+    "invalidCode": "That code is not valid. Try again.",
+    "noFactor": "No verified authenticator is available for this account. Contact GymOS.",
+    "pickerTitle": "Choose a gym",
+    "pickerDescription": "Pick the gym you are working in. You act on one gym at a time.",
+    "noGym": "No gym is assigned to you right now.",
+    "entering": "Opening...",
+    "switchFailed": "Couldn't open that gym. Try again or choose another.",
+    "signInFailed": "Something went wrong signing you in. Sign in again.",
+    "backToSignIn": "Back to sign in",
+    "signOut": "Sign out"
   }
 }

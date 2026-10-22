@@ -109,6 +109,16 @@ describe("Sidebar", () => {
       }
       expect(screen.queryByRole("link", { name: "nav.coachPortal" })).toBeNull();
     });
+
+    it("Story 23-6b: GymOS Support sees exactly what the allow-list covers, nothing else", () => {
+      renderSidebar("support");
+
+      const hrefs = screen.getAllByRole("link").map((l) => l.getAttribute("href"));
+      expect(hrefs).toEqual(["/members", "/settings/staff", "/plans", "/subscriptions", "/payments", "/settings"]);
+      for (const absent of ["nav.overview", "nav.attendance", "nav.classes", "nav.auditLog", "nav.coachPortal"]) {
+        expect(screen.queryByRole("link", { name: absent }), absent).toBeNull();
+      }
+    });
   });
 
   describe("active state", () => {

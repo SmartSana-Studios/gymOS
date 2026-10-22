@@ -37,21 +37,55 @@ export async function verifyActor(supabase: SupabaseClient, req: Request): Promi
   }
 }
 
+/**
+ * Story 23-6b: the session id of an already VERIFIED bearer token (verifyActor validated it with the auth server), read from the
+ * token's payload. A GymOS Support actor is allowed only while the live gate holds for this session. Null when it cannot be read.
+ */
+export function sessionIdFromToken(req: Request): string | null {
+  return stringClaim(req, "session_id");
+}
+
+/** The `gym_id` claim of an already verified bearer token, or null. A support session may act only on this gym. */
+export function gymIdFromToken(req: Request): string | null {
+  return stringClaim(req, "gym_id");
+}
+
+function stringClaim(req: Request, name: string): string | null {
+  const token = bearerToken(req);
+  if (!token) return null;
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(payload.length / 4) * 4, "="));
+    const value = (JSON.parse(json) as Record<string, unknown>)[name];
+    return typeof value === "string" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Calls the shared decision. Any error fails closed (deny). */
 export async function authorizeAction(
   supabase: SupabaseClient,
   actorId: string,
   gymId: string | null,
   capability: EdgeCapability,
+  sessionId: string | null = null,
+  jwtGymId: string | null = null,
 ): Promise<AuthorizeDecision> {
   try {
     const { data, error } = await supabase.rpc("authorize_action", {
       p_actor: actorId,
       p_gym_id: gymId,
       p_capability: capability,
+      p_session: sessionId,
     });
     const row = Array.isArray(data) ? data[0] : null;
     if (error || !row) return { allowed: false, reason: "authorization_unavailable", role: null };
+    // Story 23-6b: a support session acts on exactly the gym in its own verified token, not on any other gym it is assigned to.
+    if (row.allowed === true && row.actor_role === "support" && (jwtGymId === null || jwtGymId !== gymId)) {
+      return { allowed: false, reason: "support_wrong_gym", role: "support" };
+    }
     return {
       allowed: row.allowed === true,
       reason: String(row.reason ?? "denied"),

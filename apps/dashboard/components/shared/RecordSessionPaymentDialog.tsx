@@ -20,7 +20,7 @@ const NOTE_MAX_LENGTH = 200;
 // Bank transfer is a manager-and-above method (record_session_payment, 0108);
 // for a receptionist it is absent from the DOM, not just disabled. The RPC
 // is the authority either way.
-const BANK_TRANSFER_ROLES = ["manager", "supervisor", "owner"];
+const BANK_TRANSFER_ROLES = ["manager", "supervisor", "owner", "support"];
 
 const selectClassName =
   "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";

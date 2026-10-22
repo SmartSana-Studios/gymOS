@@ -1398,7 +1398,8 @@
     "switchGymPrompt": "Vous appartenez à une autre salle vers laquelle vous pouvez basculer :"
   },
   "auth": {
-    "privacyPolicy": "Politique de confidentialité"
+    "privacyPolicy": "Politique de confidentialité",
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter."
   },
   "phoneInput": {
     "selectCountry": "Sélectionner le pays",
@@ -1536,5 +1537,22 @@
     "confirm": "Annuler la réinitialisation",
     "done": "La réinitialisation a été annulée. Votre authentificateur est inchangé. Vos sessions restent fermées : reconnectez-vous.",
     "invalid": "Ce lien est invalide, expiré ou déjà utilisé."
+  },
+  "supportAccess": {
+    "mfaTitle": "Second facteur",
+    "mfaDescription": "Saisissez le code à 6 chiffres de votre application d'authentification pour continuer.",
+    "codeLabel": "Code à 6 chiffres",
+    "verify": "Vérifier",
+    "verifying": "Vérification...",
+    "invalidCode": "Ce code n'est pas valide. Réessayez.",
+    "noFactor": "Aucun authentificateur vérifié n'est disponible pour ce compte. Contactez GymOS.",
+    "pickerTitle": "Choisissez une salle",
+    "pickerDescription": "Choisissez la salle dans laquelle vous travaillez. Vous agissez sur une seule salle à la fois.",
+    "noGym": "Aucune salle ne vous est attribuée pour le moment.",
+    "entering": "Ouverture...",
+    "switchFailed": "Impossible d'ouvrir cette salle. Réessayez ou choisissez-en une autre.",
+    "signInFailed": "Une erreur est survenue lors de la connexion. Reconnectez-vous.",
+    "backToSignIn": "Retour à la connexion",
+    "signOut": "Se déconnecter"
   }
 }

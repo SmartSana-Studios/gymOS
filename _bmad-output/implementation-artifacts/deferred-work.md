@@ -1457,3 +1457,48 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - Backfill of `recorded_email` / `recertify_due_at` on pre-0145 rows is untested: run the two statements in a rolled-back transaction on a pre-0145-shaped row before the production migration, assert `support_live` is true.
 - `change_support_contact` hardcodes `@gymosapps.com` (UNVERIFIED medium): check whether the invite path enforces the same domain; if not, align them or move the domain to config.
 - Stray bullet about `support_audit_action_not_allowed` in epic-23-context.md belongs to 23-10; move or drop at merge.
+
+## Closed by 23-6b: dashboard support request path (2026-10-21)
+
+Every entry above that names 23-6b is closed here or re-homed with a reason (migration 0146, `support_request_path.test.sql`, `proxy.gate.test.ts`, `scripts/epic23-qa/smoke.mjs`).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: CLOSED by 23-6b: TOTP sign-in at aal2 (`/auth/mfa`), `session_gate_touch` on every aal2 request in the proxy (pages, Server Actions, route handlers), explicit gym picker (hook fallback excludes support, `support_begin_session`), `support` admitted in the shell, nav and role lists, session-expired banner. Closes the 23-4 deferrals on active gym after sign-in and on TOTP/gate wiring.
+  evidence: docs/decisions.md 23-6b entry; support_request_path.test.sql A-B, proxy.gate.test.ts, mfa-form / support-gym-picker / login-form tests, smoke.mjs.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: CLOSED by 23-6b: `authorize_action` resolves a live support caller through `support_live_for(user, gym, session)` and `capability_roles` lists support for the four service-path capabilities.
+  evidence: 0146; support_request_path.test.sql section C (live, locked, recertification, reset pending, idle, absolute, switch off, assignment inactive, no session).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: CLOSED by 23-6b: the "read gyms of own active memberships" policy no longer admits a support membership; support reads its gym through `support_read_own_gym` (live gate).
+  evidence: 0146; support_request_path.test.sql section D.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: CLOSED by 23-6b: callers of `current_gym_status()` are enumerated and the role-before-suspension rule is a catalog test.
+  evidence: support_request_path.test.sql E1-E3 (six callers with no role helper are named in the test).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: "No support session passes the live gate until 23-6b" is no longer prose only: a support session now passes it through the proxy gate, and the proxy test fails if a path can bypass it. Support is still enabled for no gym; the owner-rejected kill switch stays rejected.
+  evidence: proxy.gate.test.ts (scan of the gate position and of the matcher); smoke.mjs.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-9-support-connects-the-payment-account.md`
+  summary: CLOSED by 23-6b for the shell: a live support person reaches Settings and the 23-9 connect dialog. The step-up code the dialog asks for is the existing 23-9 flow; refunds, fee waivers and staff creation need the 23-6c step-up UI.
+  evidence: SettingsForm already passes `isSupport`; Sidebar/role tests; browser row S6 in scripts/epic23-qa/README.md.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED by 23-6b: the velocity lock and idle/absolute limits now run because the proxy calls `session_gate_touch` for every aal2 request, and a locked answer signs the session out (proxy.gate.test.ts, smoke.mjs "locked").
+  evidence: proxy.gate.test.ts; smoke.mjs.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: Re-homed (60 s cutoff, Realtime and signed links): the cutoff is enforced per event by RLS (a Realtime row for a session that is idle, unassigned or locked is not delivered, tested for `payments` and `front_desk_alerts`) and per request by the gate and the picker check, both immediate. The stored `support_revocation_cutoff_seconds` is still read by nothing; no support-specific signed link exists. Re-home: remove the unused setting or wire it if a long-lived subscription is ever added (23-10 owner).
+  evidence: support_request_path.test.sql E7-E12.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED by 23-6b: audit-action completeness scan. Every action type reachable from an allow-listed RPC or a trigger is in `support_audit_actions`, apart from three named ones no support capability triggers.
+  evidence: support_request_path.test.sql E4-E6.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: Not done (re-homed): the dashboard e2e (Playwright) has no support scenario; the browser run is the manual section S of scripts/epic23-qa/README.md (the owner runs browser QA). Wrong authenticator codes at the dashboard sign-in are limited only by Supabase's MFA rate limit (no local counter, as for the 23-9 step-up).
+  evidence: Re-home to 23-6c (the step-up counter) before support is enabled for any gym.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: A support person who passes the authenticator code and leaves before `support_begin_session()` runs keeps the last-used gym in the next token (the hook honours `users.active_gym_id`), so the picker is skipped in that window.
+  evidence: Unverified medium (review of 23-6b). It is only ever a gym they are still assigned to. Settle with a per-session pick (the hook honours a support gym only when `switch_active_gym` recorded it for that session id); that changes the frozen "clears after the code is verified" wording, so it needs an owner decision. Before support is enabled for any gym.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: `private.support_live_for` repeats every leg of `private.support_live` (0145) with the session passed in; the two can drift.
+  evidence: Review of 23-6b. Add a parity pgTAP test (same answer for lock, recertification, idle, absolute and switch-off), or make `support_live` call `support_live_for` once a story may touch the gate.
+- source_spec: none
+  summary: `supabase/tests/loyalty_subscriber_rule.test.sql` fails between 23:00 and 24:00 UTC (tests 8, 14, 20: expiry dates one day off).
+  evidence: Found 2026-10-21 23:13 UTC while gating 23-6b. The gym timezone is Africa/Douala (UTC+1), so from 23:00 UTC the gym's local date is already tomorrow while the test's `current_date` is still today. The same test passes at any other hour and nothing in 23-6b touches it. Fix the test to take today from the gym's own timezone.

@@ -2855,6 +2855,10 @@ export type Database = {
           role: Database["public"]["Enums"]["member_role"]
         }[]
       }
+      list_own_support_gyms: {
+        Args: never
+        Returns: { gym_id: string; gym_name: string }[]
+      }
       list_session_attempts: {
         Args: { p_limit?: number; p_offset?: number; p_period: string }
         Returns: {
@@ -3046,6 +3050,7 @@ export type Database = {
         Args: { p_reason: string; p_user_id: string }
         Returns: { assignment_id: string | null; code: string; ok: boolean }[]
       }
+      support_begin_session: { Args: never; Returns: undefined }
       switch_active_gym: { Args: { p_gym_id: string }; Returns: undefined }
       unassign_support: {
         Args: { p_assignment_id: string; p_reason: string }

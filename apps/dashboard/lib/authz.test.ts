@@ -43,8 +43,34 @@ describe("authorizeAction", () => {
     expect(res).toEqual({ ok: true, actorId: "actor-1", gymId: "gym-claim", role: "owner" });
     expect(rpcCalls[0]).toEqual({
       fn: "authorize_action",
-      params: { p_actor: "actor-1", p_gym_id: "gym-claim", p_capability: "staff.create" },
+      params: { p_actor: "actor-1", p_gym_id: "gym-claim", p_capability: "staff.create", p_session: null },
     });
+  });
+
+  it("Story 23-6b: sends the verified token's session id so a support actor is judged against the live gate of THIS session", async () => {
+    claimsResult = { data: { claims: { gym_id: "gym-claim", app_role: "support", session_id: "sess-1" } } };
+    rpcResult = { data: [{ allowed: true, reason: "allowed", actor_role: "support" }], error: null };
+    const res = await authorizeAction("member.provision", { gymId: "gym-claim" });
+    expect(res).toEqual({ ok: true, actorId: "actor-1", gymId: "gym-claim", role: "support" });
+    expect(rpcCalls[0].params).toEqual({ p_actor: "actor-1", p_gym_id: "gym-claim", p_capability: "member.provision", p_session: "sess-1" });
+  });
+
+  it("Story 23-6b: a support session cannot act on a second assigned gym (target gym must equal the token's gym)", async () => {
+    claimsResult = { data: { claims: { gym_id: "gym-claim", app_role: "support", session_id: "sess-1" } } };
+    rpcResult = { data: [{ allowed: true, reason: "allowed", actor_role: "support" }], error: null };
+    const res = await authorizeAction("member.provision", { gymId: "gym-other" });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error.code).toBe("permission_denied");
+    const same = await authorizeAction("member.provision", { gymId: "gym-claim" });
+    expect(same.ok).toBe(true);
+  });
+
+  it("Story 23-6b: a support actor the database calls not live is permission_denied", async () => {
+    claimsResult = { data: { claims: { gym_id: "gym-claim", app_role: "support", session_id: "sess-1" } } };
+    rpcResult = { data: [{ allowed: false, reason: "support_not_live", actor_role: "support" }], error: null };
+    const res = await authorizeAction("staff.create");
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error.code).toBe("permission_denied");
   });
 
   it("prefers the target row's gym over the claim", async () => {

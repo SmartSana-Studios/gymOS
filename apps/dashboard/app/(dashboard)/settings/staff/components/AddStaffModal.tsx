@@ -24,6 +24,8 @@ const selectClassName =
 const ROLE_OPTIONS_BY_CALLER: Record<string, CreateStaffMemberInput["role"][]> = {
   owner: ["supervisor", "manager", "receptionist", "coach"],
   supervisor: ["manager", "receptionist", "coach"],
+  // Story 23-6b: GymOS Support creates staff within the Supervisor ceiling (0140).
+  support: ["manager", "receptionist", "coach"],
 };
 
 const ROLE_LABEL_KEY: Record<CreateStaffMemberInput["role"], string> = {
