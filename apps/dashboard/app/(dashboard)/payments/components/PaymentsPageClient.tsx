@@ -320,6 +320,7 @@ export function PaymentsPageClient({
         <RecordRefundModal
           recordedByName={recordedByName}
           loyaltyEnabled={loyaltyEnabled}
+          isSupport={role === "support"}
           onClose={() => setRefundModalOpen(false)}
           onSaved={(warning, sessionOutcome) => {
             setRefundModalOpen(false);

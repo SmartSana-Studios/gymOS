@@ -1297,8 +1297,8 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
   summary: 23-6b dashboard support request path: TOTP sign-in at aal2, `session_gate_touch` on every dashboard request and server action, explicit gym picker (no default gym), `support` accepted in the shell and nav, session-expired banner.
   evidence: Split from 23-6 by owner decision 2026-10-21. Until it ships no support session passes the live gate (no `support_session_state` row). Closes the two 23-4 deferrals that name 23-6 (active gym after sign-in; TOTP and gate wiring). Must ship before support is enabled for any gym.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
-  summary: 23-6c dashboard step-up for support: issue/consume UI and server actions for refunds, waivers and staff creation, reusing the Super Admin pattern.
-  evidence: Split from 23-6 by owner decision 2026-10-21. The database half (step-up required, action names added to the 0127 list) stays in 23-6; the dashboard cannot yet obtain a grant, so these three writes are unusable by support until 23-6c.
+  summary: CLOSED by 23-6c: dashboard step-up for support: issue/consume UI and server actions for refunds, waivers and staff creation, reusing the Super Admin pattern.
+  evidence: Split from 23-6 by owner decision 2026-10-21. The database half (step-up required, action names added to the 0127 list) stays in 23-6; the dashboard cannot yet obtain a grant, so these three writes are unusable by support until 23-6c. Closed: services/support-stepup.ts (verify/issue split), the refund, waiver and staff-creation actions, the three dialogs, vitest beside each, and smoke.mjs (real JWTs, real TOTP: no grant refused, valid code accepted, single-use, bound to the subject).
 
 ## Deferred from: build of spec-23-6-capability-allow-list-and-denied-set-matrix (2026-10-21)
 
@@ -1333,8 +1333,8 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
   summary: `log_audit_event` lets a live support caller write arbitrary action types into its own gym.
   evidence: Same for Supervisor today; restrict action types when 23-8 reworks audit actor identity. MOVED by 23-8 (2026-10-21, migration 0142): the accountability half is closed (every support-written audit row now has a `support_action_identity` row holding the real individual, Super Admin read only). Restricting which action types support may write is not in the 23-8 spec; it moves to the 23-10 criteria with the Owner visibility work, and support stays off for every gym until then.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
-  summary: Unverified medium: step-up grants may not be bound to role, phone, amount or reason.
-  evidence: Settle by reading `stepup_issue` subject binding when 23-6c builds the issue UI.
+  summary: CLOSED by 23-6c: step-up grants are bound to (action, subject) only, not to role, phone, amount or reason.
+  evidence: Settled as the recorded decision (spec-23-6c): the subject binding (payment id, member id, new staff user id) plus the 5-minute single-use window is the limit; confirmed by smoke.mjs (a grant for payment A does not authorise payment B).
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
   summary: Unverified medium: "subscription status" in the denied set may mean member subscription status as well as `saas_billing_status`.
   evidence: Settled by the owner decision on support subscription writes (review round 2).
@@ -1491,7 +1491,7 @@ Every entry above that names 23-6b is closed here or re-homed with a reason (mig
   evidence: support_request_path.test.sql E4-E6.
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
   summary: Not done (re-homed): the dashboard e2e (Playwright) has no support scenario; the browser run is the manual section S of scripts/epic23-qa/README.md (the owner runs browser QA). Wrong authenticator codes at the dashboard sign-in are limited only by Supabase's MFA rate limit (no local counter, as for the 23-9 step-up).
-  evidence: Re-home to 23-6c (the step-up counter) before support is enabled for any gym.
+  evidence: CLOSED by 23-6c: the sign-in form reports a rejected code to recordMfaFailureAction (stepup_record_failure), so sign-in and the three dialogs share one per-user counter; at the threshold the account locks and the person lands on the login page with the expired notice (mfa-form.test.tsx, smoke.mjs lock section).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
   summary: A support person who passes the authenticator code and leaves before `support_begin_session()` runs keeps the last-used gym in the next token (the hook honours `users.active_gym_id`), so the picker is skipped in that window.

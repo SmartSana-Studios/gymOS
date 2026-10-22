@@ -23,6 +23,8 @@ vi.mock("@/lib/supabase/client", () => ({
     },
   }),
 }));
+const recordMfaFailureAction = vi.fn();
+vi.mock("@/app/auth/mfa/actions", () => ({ recordMfaFailureAction: (...a: unknown[]) => recordMfaFailureAction(...a) }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
 import { MfaForm } from "./mfa-form";
@@ -34,6 +36,7 @@ async function submit(code: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  recordMfaFailureAction.mockResolvedValue({ locked: false });
   listFactors.mockResolvedValue({ data: { totp: [{ id: "f1" }] }, error: null });
   challengeAndVerify.mockResolvedValue({ error: null });
   rpc.mockResolvedValue({ error: null });
@@ -96,5 +99,42 @@ describe("MfaForm", () => {
     render(<MfaForm />);
     expect(await screen.findByRole("alert")).toHaveTextContent("supportAccess.noFactor");
     expect(screen.queryByLabelText("supportAccess.codeLabel")).toBeNull();
+  });
+
+  describe("Story 23-6c: wrong codes are counted", () => {
+    it("a rejected code is reported to the server counter and still shows the generic message", async () => {
+      challengeAndVerify.mockResolvedValue({ error: { code: "mfa_verification_failed", message: "Invalid TOTP code entered" } });
+      render(<MfaForm />);
+      await submit("000000");
+      expect(await screen.findByRole("alert")).toHaveTextContent("supportAccess.invalidCode");
+      expect(recordMfaFailureAction).toHaveBeenCalledTimes(1);
+      expect(recordMfaFailureAction).toHaveBeenCalledWith();
+      expect(assign).not.toHaveBeenCalled();
+    });
+
+    it("at the threshold the session ends locally and the person lands on the login page with the expired notice", async () => {
+      challengeAndVerify.mockResolvedValue({ error: { code: "mfa_verification_failed" } });
+      recordMfaFailureAction.mockResolvedValue({ locked: true });
+      render(<MfaForm />);
+      await submit("000000");
+      await waitFor(() => expect(assign).toHaveBeenCalledWith("/auth/login?expired=1"));
+      expect(signOut).toHaveBeenCalledWith({ scope: "local" });
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("a provider error that is not a rejected code is never counted", async () => {
+      challengeAndVerify.mockResolvedValue({ error: { code: "unexpected_failure", message: "boom" } });
+      render(<MfaForm />);
+      await submit("000000");
+      expect(await screen.findByRole("alert")).toHaveTextContent("supportAccess.invalidCode");
+      expect(recordMfaFailureAction).not.toHaveBeenCalled();
+    });
+
+    it("an accepted code is never reported", async () => {
+      render(<MfaForm />);
+      await submit("123456");
+      await waitFor(() => expect(assign).toHaveBeenCalledWith("/support-gym"));
+      expect(recordMfaFailureAction).not.toHaveBeenCalled();
+    });
   });
 });

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { createClient } from "@/lib/supabase/client";
+import { recordMfaFailureAction } from "@/app/auth/mfa/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,21 @@ export function MfaForm({ next = "/" }: { next?: string }) {
         if (!verifyError) break;
       }
       if (verifyError) {
+        // Story 23-6c: a rejected code (not a provider error) is counted in the per-user step-up counter; at the threshold the
+        // account is locked and its sessions ended, so the person lands on the login page with the expired notice.
+        const rejectedCode = (verifyError as { code?: string }).code;
+        if (rejectedCode === "mfa_verification_failed" || rejectedCode === "mfa_verification_rejected") {
+          const { locked } = await recordMfaFailureAction().catch(() => ({ locked: false }));
+          if (locked) {
+            try {
+              await supabase.auth.signOut({ scope: "local" });
+            } catch {
+              // the session is already ended server side
+            }
+            window.location.assign("/auth/login?expired=1");
+            return;
+          }
+        }
         setError(t("supportAccess.invalidCode"));
         return;
       }

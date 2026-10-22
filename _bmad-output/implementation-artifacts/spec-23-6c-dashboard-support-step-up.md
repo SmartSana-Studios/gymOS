@@ -2,7 +2,8 @@
 title: '23-6c Dashboard step-up for support'
 type: 'feature'
 created: '2026-10-21'
-status: 'ready-for-dev'
+status: 'done'
+baseline_commit: '726476a7c5e5123a94e9e46d3669d3dbd7d9ea84'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -69,6 +70,22 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+| # | Finding | Verdict | Route | Evidence |
+|---|---------|---------|-------|----------|
+| 1 | Sign-in wrong-code count is client-reported; any session can call the action | low | rejected | Self-lock only (a person can already lock themselves with wrong codes); Supabase rate limit still applies; the spec chose a server action. |
+| 2 | Failure counter never resets on a successful sign-in | medium | patch | Confirmed in stepup_record_failure: only stepup_issue resets failed_count, so typos spread over weeks reach the lock. Fix: reset in support_begin_session (migration 0147). |
+| 3 | isLiveSupportSession returns false on RPC error | low | rejected | Fails closed at the database (step_up_required); nothing is written. |
+| 4 | Dialogs keep the spent code after an error and on reopen | medium | patch | A stale code resubmitted is rejected and counts toward the lock. |
+| 5 | Pasted "123 456 " truncated by maxLength 7 | low | patch | Direct fix: normalise to 6 digits on change, drop maxLength. |
+| 6 | issueSupportGrant or verify throwing leaves an orphan auth user | medium | patch | Cleanup runs only on a returned non-issued result; wrap the call. |
+| 7 | isSupport wiring in PaymentsPageClient and MembersPageClient untested | medium | patch | Dropping or inverting the prop breaks the feature with no test failing. |
+| 8 | recordMfaFailureAction wrapper untested | low | patch | Thin wrapper; two cases. |
+| 9 | Non-support wrong sign-in code is counted | low | false | stepup_record_failure returns (false, 0) for anyone without an activated support account. |
+| 10 | Grant not bound to amount or reason | low | false | Recorded decision in the spec (Never). |
+| 11 | Grant lingers or code spent after a failed write | low | rejected | Grant is bound to the subject, so a retry reuses it by design. |
+| 12 | Duplicated 6-digit regex; inline authCode cast; aria and autofocus; README hardcodes 5; test location leaks; smoke re-implements and leaves data | low | rejected | Cosmetic or QA-only; fixes add code for no named failure. |
+| 13 | Locked account then correct code; multi-factor last-error; staff replay and sign-in e2e in smoke; staff action test lacks replay | low | rejected | Locked sessions are ended before this point; remaining items are narrow gaps behind existing coverage. |
 
 ## Design Notes
 

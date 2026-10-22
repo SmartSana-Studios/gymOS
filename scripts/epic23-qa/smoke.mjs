@@ -88,5 +88,60 @@ try {
 }
 check("second: with the assignment active again the same session is live", (await members(second, st.gyms.A)) > 0);
 
+// ---- 23-6c: refund, fee waiver and staff creation need a single-use grant from a fresh code (what the dashboard dialogs do) ----
+// The dashboard verifies the code on the caller's own session, then the service role records the grant (stepup_issue); the write consumes it.
+const activeEmail = "qa23-active@gymosapps.com";
+let lastCode = null;
+async function stepUp(s, email, action, subject) {
+  const f = (await s.c.auth.mfa.listFactors()).data.totp[0];
+  let code;
+  do { code = await freshTotp(st.secrets[email]); if (code === lastCode) await new Promise((r) => setTimeout(r, 1500)); } while (code === lastCode);
+  lastCode = code;
+  const v = await s.c.auth.mfa.challengeAndVerify({ factorId: f.id, code });
+  if (v.error) return { verified: false, error: v.error.message };
+  const g = await admin.rpc("stepup_issue", { p_user: s.claims.sub, p_action: action, p_subject: subject });
+  return { verified: true, grant: !g.error && !!g.data, error: g.error?.message };
+}
+const one = async (sql) => psql(sql).trim();
+const memberIds = (await admin.from("members").select("id").eq("gym_id", st.gyms.A).eq("role", "member").order("created_at")).data.map((m) => m.id);
+const paymentOf = async (member) => (await admin.from("payments").insert({ gym_id: st.gyms.A, member_id: member, amount: 5000, method: "cash", status: "verified", reason: "QA refund target" }).select("id").single()).data.id;
+const payA = await paymentOf(memberIds[0]);
+const refund = (payment) => active.c.from("refunds").insert({ gym_id: st.gyms.A, payment_id: payment, amount: 1000, reason: "QA refund by support" });
+check("refund: no grant, the write is refused with the step-up error", /step_up_required/.test((await refund(payA)).error?.message ?? ""));
+const su1 = await stepUp(active, activeEmail, "support_refund", payA);
+check("refund: a valid code issues the grant", su1.verified && su1.grant, su1.error ?? "");
+check("refund: with the grant the refund is recorded", !(await refund(payA)).error);
+const payB = await paymentOf(memberIds[1]);
+check("refund: the grant is single-use and bound to its payment (another payment is refused)", /step_up_required/.test((await refund(payB)).error?.message ?? ""));
+
+// the seed members are settled on insert; put one back to "awaiting the fee" so there is something to waive
+psql(`update public.members set registration_fee_settled_at = null where id = '${memberIds[2]}'`);
+const waive = (member) => active.c.rpc("waive_registration_fee", { p_member_id: member, p_reason: "QA waiver by support" });
+check("waive: no grant, refused with the step-up error", /step_up_required/.test((await waive(memberIds[2])).error?.message ?? ""));
+const su2 = await stepUp(active, activeEmail, "support_waive_registration_fee", memberIds[2]);
+check("waive: a valid code issues the grant", su2.verified && su2.grant, su2.error ?? "");
+check("waive: with the grant the fee is waived", !(await waive(memberIds[2])).error);
+check("waive: replaying the same grant is refused by the database", /step_up_required/.test((await waive(memberIds[2])).error?.message ?? ""));
+
+const staffPhone = `2376990${String(Date.now()).slice(-5)}`;
+const newStaff = await admin.auth.admin.createUser({ phone: `+${staffPhone}`, password: "Epic23Staff!1", phone_confirm: true });
+const createStaff = () => active.c.rpc("create_staff_member", { p_user_id: newStaff.data.user.id, p_name: "QA Support Hire", p_phone: `+${staffPhone}`, p_role: "coach" });
+check("staff: no grant, refused with the step-up error", /step_up_required/.test((await createStaff()).error?.message ?? ""));
+const su3 = await stepUp(active, activeEmail, "support_create_staff", newStaff.data.user.id);
+check("staff: a valid code issues the grant bound to the new user id", su3.verified && su3.grant, su3.error ?? "");
+const created = await createStaff();
+check("staff: with the grant the staff member is created", !created.error, created.error?.message ?? "");
+
+// ---- wrong codes are counted in one per-user counter and lock the account (sign-in and dialogs share it) ----
+const lockSession = await afterCodeStep("second");
+await pickGym(lockSession, st.gyms.A);
+const wrong = await lockSession.c.auth.mfa.challengeAndVerify({ factorId: (await lockSession.c.auth.mfa.listFactors()).data.totp[0].id, code: "000000" });
+check("lock: a wrong code is rejected by the provider with the rejected-code error", ["mfa_verification_failed", "mfa_verification_rejected"].includes(wrong.error?.code), wrong.error?.code ?? "");
+let counted = (await admin.rpc("stepup_record_failure", { p_user: lockSession.claims.sub })).data?.[0];
+check("lock: the first wrong code is counted and does not lock", counted && counted.locked === false && counted.attempts === 1);
+for (let i = 1; i < (counted?.threshold ?? 5); i++) counted = (await admin.rpc("stepup_record_failure", { p_user: lockSession.claims.sub })).data?.[0];
+check("lock: the threshold locks the account", counted?.locked === true);
+check("lock: the gate then answers locked and nothing is readable", (await gate(lockSession)).ok === false && (await members(lockSession, st.gyms.A)) === 0);
+
 console.log(bad ? `\n${bad} FAILED` : "\nall passed");
 process.exit(bad ? 1 : 0);

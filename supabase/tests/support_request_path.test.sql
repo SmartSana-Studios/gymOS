@@ -5,7 +5,7 @@
 --   D. gym read policies: a stale support membership reads nothing, a live session reads exactly its gym
 --   E. catalogs: current_gym_status callers, audit actions of allow-listed RPCs, Realtime tables behind the live gate
 begin;
-select plan(62);
+select plan(65);
 
 create or replace function pg_temp.claims(uid text, app_role text, aal text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -103,6 +103,27 @@ select pg_temp.claims('00000000-0000-0000-0000-00236b000102', null, 'aal2', null
 select lives_ok($$select public.support_begin_session()$$, 'B4 a person with no support assignment can call it');
 reset role;
 select is((select active_gym_id from users where id = '00000000-0000-0000-0000-00236b000102'), '00000000-0000-0000-0000-00236b000001', 'B5 ... and nothing changes for them');
+
+-- B5a-c (23-6c, migration 0147): an accepted code clears the run of wrong sign-in codes, except for a locked account
+insert into private.super_admin_lockout (user_id, failed_count) values ('00000000-0000-0000-0000-00236b000101', 3) on conflict (user_id) do update set failed_count = 3;
+set local role authenticated;
+select pg_temp.claims('00000000-0000-0000-0000-00236b000101', null, 'aal2', null, '00000000-0000-0000-0000-0000236ba001');
+select public.support_begin_session();
+reset role;
+select is((select failed_count from private.super_admin_lockout where user_id = '00000000-0000-0000-0000-00236b000101'), 0, 'B5a support_begin_session clears the wrong-code counter');
+update private.super_admin_lockout set failed_count = 3 where user_id = '00000000-0000-0000-0000-00236b000101';
+update private.support_accounts set locked_at = now() where user_id = '00000000-0000-0000-0000-00236b000101';
+set local role authenticated;
+select pg_temp.claims('00000000-0000-0000-0000-00236b000101', null, 'aal2', null, '00000000-0000-0000-0000-0000236ba001');
+select public.support_begin_session();
+reset role;
+select is((select failed_count from private.super_admin_lockout where user_id = '00000000-0000-0000-0000-00236b000101'), 3, 'B5b a locked account keeps its count');
+update private.support_accounts set locked_at = null where user_id = '00000000-0000-0000-0000-00236b000101';
+delete from private.super_admin_lockout where user_id = '00000000-0000-0000-0000-00236b000101';
+set local role authenticated;
+select pg_temp.claims('00000000-0000-0000-0000-00236b000102', null, 'aal2', null, '00000000-0000-0000-0000-0000236ba003');
+select lives_ok($$select public.support_begin_session()$$, 'B5c a person with no support account is untouched and raises nothing');
+reset role;
 
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-00236b000101', null, 'aal2', null, '00000000-0000-0000-0000-0000236ba001');

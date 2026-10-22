@@ -94,3 +94,65 @@ describe("issueSupportStepUp", () => {
     expect(await issueSupportStepUp(INPUT)).toBe("unavailable");
   });
 });
+
+describe("Story 23-6c: widened actions and the verify/issue split", () => {
+  beforeEach(() => {
+    challengeAndVerify.mockReset();
+    listFactors.mockReset();
+    adminRpc.mockReset();
+    listFactors.mockResolvedValue({ data: { totp: [{ id: "f1" }] }, error: null });
+  });
+
+  it.each([
+    ["support_refund", "payment-1"],
+    ["support_waive_registration_fee", "member-1"],
+    ["support_create_staff", "user-1"],
+  ] as const)("issues a %s grant bound to its subject after a valid code", async (action, subjectId) => {
+    challengeAndVerify.mockResolvedValue({ error: null });
+    adminRpc.mockResolvedValue({ data: "2026-10-21T12:00:00Z", error: null });
+    const { issueSupportStepUp } = await import("./support-stepup");
+
+    expect(await issueSupportStepUp({ action, subjectId, code: "123456" })).toBe("issued");
+    expect(adminRpc).toHaveBeenCalledWith("stepup_issue", { p_user: "support-1", p_action: action, p_subject: subjectId });
+  });
+
+  it("verifySupportCode verifies and counts but never issues a grant", async () => {
+    challengeAndVerify.mockResolvedValue({ error: null });
+    const { verifySupportCode } = await import("./support-stepup");
+
+    expect(await verifySupportCode("123456")).toEqual({ status: "verified", userId: "support-1" });
+    expect(adminRpc).not.toHaveBeenCalled();
+  });
+
+  it("verifySupportCode counts a rejected code and reports the lock", async () => {
+    challengeAndVerify.mockResolvedValue({ error: { code: "mfa_verification_failed" } });
+    adminRpc.mockResolvedValue({ data: [{ locked: true, attempts: 5, threshold: 5 }], error: null });
+    const { verifySupportCode } = await import("./support-stepup");
+
+    expect(await verifySupportCode("123456")).toEqual({ status: "locked" });
+    expect(adminRpc).toHaveBeenCalledWith("stepup_record_failure", { p_user: "support-1" });
+  });
+
+  it("verifySupportCode refuses a missing or non-numeric code without touching the provider", async () => {
+    const { verifySupportCode } = await import("./support-stepup");
+
+    expect(await verifySupportCode("")).toEqual({ status: "invalid_code" });
+    expect(await verifySupportCode("12ab56")).toEqual({ status: "invalid_code" });
+    expect(challengeAndVerify).not.toHaveBeenCalled();
+  });
+
+  it("issueSupportGrant reports an unavailable grant when the database refuses", async () => {
+    adminRpc.mockResolvedValue({ data: null, error: { message: "not a support account" } });
+    const { issueSupportGrant } = await import("./support-stepup");
+
+    expect(await issueSupportGrant({ userId: "u", action: "support_create_staff", subjectId: "s" })).toBe("unavailable");
+  });
+
+  it("recordSupportCodeFailure counts against the caller and reports the lock", async () => {
+    adminRpc.mockResolvedValue({ data: [{ locked: true, attempts: 5, threshold: 5 }], error: null });
+    const { recordSupportCodeFailure } = await import("./support-stepup");
+
+    expect(await recordSupportCodeFailure()).toBe(true);
+    expect(adminRpc).toHaveBeenCalledWith("stepup_record_failure", { p_user: "support-1" });
+  });
+});

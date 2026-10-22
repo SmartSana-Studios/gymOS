@@ -118,8 +118,13 @@ Active in Gym A, pending in Gym B. `ownerA@epic23qa.test` (password `Epic19Pass!
 | S10 | `qa23-recert@gymosapps.com` signs in, passes the code, picks Gym A | refused within one request: back to the login page (recertification overdue) |
 | S11 | `ownerA@epic23qa.test` signs in | no code step, dashboard as before |
 | S12 | Switch EN to FR on the code step and picker pages | strings translated |
+| S13 | As `qa23-active` in Gym A: Payments > Record refund, pick a member and payment, type the current code from `totp.mjs active` | refund recorded; the same code cannot be reused for the next dialog (wait for the next 30 s code) |
+| S14 | Members > a member awaiting the fee > Waive, reason + current code | fee waived. A wrong code shows "That code was not accepted" and nothing is written |
+| S15 | Settings > Staff > Add staff (phone, role, current code) | staff member created. A wrong code creates no account |
+| S16 | Type a wrong code on the sign-in code step (S2), or in a dialog above, until the limit (5) | account locked, sent to the login page with the expired notice. Reset with `node scripts/epic23-qa/seed.mjs` |
+| S17 | As `ownerA@`: record a refund, waive a fee, add staff | no code field in any of the three dialogs |
 
 ## Automated safety net
-`smoke.mjs` and `bash scripts/ci-local.sh` (pgTAP covers the denied-set matrix, hidden identity, velocity
+`smoke.mjs` (now also the 23-6c step-up flows: refund, waiver, staff creation with a real TOTP, single-use, subject binding, and the wrong-code lock) and `bash scripts/ci-local.sh` (pgTAP covers the denied-set matrix, hidden identity, velocity
 limits, revocation, lifecycle, and the request path in `support_request_path.test.sql`). Run `ci-local.sh` on a **pristine** DB: `seed.mjs` leaves QA data, so reset first
 (`npx --no-install supabase db reset`).

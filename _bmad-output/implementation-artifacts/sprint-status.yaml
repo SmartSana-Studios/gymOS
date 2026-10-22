@@ -450,7 +450,7 @@ development_status:
   23-5-assign-unassign-and-remove: done
   23-6-capability-allow-list-and-denied-set-matrix: done
   23-6b-dashboard-support-request-path: done
-  23-6c-dashboard-support-step-up: ready-for-dev
+  23-6c-dashboard-support-step-up: done
   23-7-hidden-identity-per-gym-proxy-actor: done
   23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces: done
   23-9-support-connects-the-payment-account: done
@@ -1645,3 +1645,4 @@ last_updated: 10-21-2026
 # last_updated: 2026-10-21 (build: 23-11 review layers done (blind, edge-case, verification-gap); 10 patches applied, rest rejected as low or owner-decided; ci-local GREEN on all five stages after the patches; story stays review pending merge to epic/23. Migration 0145 not applied to production; do not enable support for any gym.)
 # last_updated: 2026-10-21 (review: 23-11 four-layer code review, review -> done. 1 patch applied (claim skips locked/drifted accounts and mails recorded_email), decision 2 resolved as auto-cancel of a reset whose cancel e-mail is undelivered 24 h after cooling-off (+ Super Admin alert), decision 1 kept the 30-minute cancel window. 7 pgTAP cases added, 3 writer scans updated; full pgtap 166/166 files passed locally; ci-local not re-run. 3 deferrals in deferred-work.md (backfill proof before prod migration, hardcoded @gymosapps.com, stray 23-10 bullet in epic-23-context.md). Migration 0145 still local only, not applied to production.)
 # last_updated: 2026-10-21 (build: 23-6b dashboard support request path implemented on feat/23-6b-dashboard-support-request-path, uncommitted. Migration 0146 (hook fallback excludes support, support_begin_session, list_own_support_gyms, support_live_for, authorize_action p_session, capability_roles lists support for 4 capabilities, support_read_own_gym) + rollback; dashboard proxy gate, /auth/mfa, /support-gym, shell/nav/role lists, EN/FR; edge authorize passes p_session; pgTAP support_request_path (62) + updated catalogs, vitest, deno, smoke.mjs and README section S. pgtap 167/167 and static, deno, unit, e2e PASS (pgtap failed once inside ci-local on a result-copy flake, green on rerun). Not applied to production; 23-6c step-up UI still open)
+# last_updated: 2026-10-22 (build: 23-6c dashboard step-up for support implemented on feat/23-6b-dashboard-support-request-path, uncommitted. support-stepup.ts verify/issue split + three new actions; refund, waiver and staff-creation actions/services issue a bound single-use grant for a live support session; code field in the three dialogs (support only), EN/FR; sign-in wrong codes counted via recordMfaFailureAction; no database change. dashboard vitest 187 files green, tsc clean, smoke.mjs all passed; 23-6c in-progress -> review)

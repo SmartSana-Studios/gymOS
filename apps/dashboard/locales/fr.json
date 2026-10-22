@@ -1554,5 +1554,13 @@
     "signInFailed": "Une erreur est survenue lors de la connexion. Reconnectez-vous.",
     "backToSignIn": "Retour à la connexion",
     "signOut": "Se déconnecter"
+  },
+  "supportStepUp": {
+    "codeLabel": "Code d'authentification *",
+    "codeHelp": "Le code à 6 chiffres de votre application d'authentification. Il autorise ce seul changement.",
+    "codeRequired": "Saisissez le code d'authentification à 6 chiffres",
+    "codeInvalid": "Ce code n'a pas été accepté. Essayez le code actuel.",
+    "locked": "Trop de codes erronés. Ce compte a été verrouillé ; GymOS va l'examiner.",
+    "unavailable": "Impossible de confirmer le code pour le moment. Réessayez."
   }
 }

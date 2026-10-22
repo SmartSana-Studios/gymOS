@@ -45,7 +45,9 @@ export async function createStaffMemberAction(
     };
   }
 
-  return createStaffMember(parsed.data);
+  // Story 23-6c: only a live support session uses the code; the service ignores it otherwise.
+  const authCode = typeof (input as { authCode?: unknown } | null)?.authCode === "string" ? (input as { authCode: string }).authCode : undefined;
+  return createStaffMember(parsed.data, { authCode });
 }
 
 /** Story 9.2 (AC #4): "Resend password" action. `staff_account_for_reset()`

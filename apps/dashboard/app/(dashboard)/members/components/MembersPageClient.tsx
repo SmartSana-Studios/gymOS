@@ -617,6 +617,7 @@ export function MembersPageClient({
       {waivingMember && (
         <WaiveRegistrationFeeDialog
           member={waivingMember}
+          isSupport={role === "support"}
           onClose={() => setWaivingMember(null)}
           onDone={() => {
             const member = waivingMember;

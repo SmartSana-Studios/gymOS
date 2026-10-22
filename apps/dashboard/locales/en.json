@@ -1554,5 +1554,13 @@
     "signInFailed": "Something went wrong signing you in. Sign in again.",
     "backToSignIn": "Back to sign in",
     "signOut": "Sign out"
+  },
+  "supportStepUp": {
+    "codeLabel": "Authenticator code *",
+    "codeHelp": "The 6-digit code from your authenticator app. It allows this one change.",
+    "codeRequired": "Enter the 6-digit authenticator code",
+    "codeInvalid": "That code was not accepted. Try the current code.",
+    "locked": "Too many wrong codes. This account was locked; GymOS will review it.",
+    "unavailable": "Couldn't confirm the code right now. Try again."
   }
 }
