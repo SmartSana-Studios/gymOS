@@ -457,7 +457,7 @@ development_status:
   23-10-revocation-owner-visibility-and-velocity-lock: done
   23-11-lifecycle-inactivity-recertification-and-factor-reset: done
   23-12-support-page-tabs-and-modals: done
-  epic-23-retrospective: optional
+  epic-23-retrospective: done
 
   epic-24: backlog
   24-1-spike-pooler-role-dns-precedence-host-cookies-autossl: backlog
@@ -1353,7 +1353,78 @@ action_items:
     owner: "dev"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
-last_updated: 10-21-2026
+  - id: "epic-23-retro-item-87-decide-the-invite-rate-limit-g2-a-db-cou"
+    epic: 23
+    action: "Decide the invite rate limit (G2): a DB counter per IP (stores IPs, privacy-policy
+      impact) or a Vercel firewall rule (plan-dependent), before the first production
+      support invite"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-88-decide-the-picker-window-g6-a-person-who"
+    epic: 23
+    action: "Decide the picker window (G6): a person who passes the code and leaves
+      before support_begin_session runs keeps the last-used gym in the next token"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-89-decide-whether-the-super-admin-identity"
+    epic: 23
+    action: "Decide whether the Super Admin identity reader must cover non-audit support
+      rows (payments, refunds, credentials, messaging) (G7)"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-90-decide-whether-to-build-the-owner-resume"
+    epic: 23
+    action: "Decide whether to build the Owner resumed notice when support is unlocked,
+      or drop it (R6)"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-91-decide-confirm_renewal-date-semantics-ut"
+    epic: 23
+    action: "Decide confirm_renewal date semantics: UTC current_date vs gym-local
+      date, which differ by a day from 23:00 to 24:00 UTC (D10)"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-92-run-readme-sections-o-s-and-i-of-scripts"
+    epic: 23
+    action: "Run README sections O, S and I of scripts/epic23-qa on staging data before
+      enabling support for any gym, and record the result"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-93-reset-the-local-db-and-run-the-full-scri"
+    epic: 23
+    action: "Reset the local DB and run the full scripts/ci-local.sh outside 23:00-24:00
+      UTC on fix/23-retro-closure, then merge to epic/23 (0148, 0149, rehearsal, runbook)"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-94-remove-expo-token-and-supabase-db-passwo"
+    epic: 23
+    action: "Remove ~/.expo-token and ~/.supabase-db-password from the devcontainer
+      and revoke them at the providers (still open from Epic 19 item 29)"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-95-story-add-the-duplicate-delivery-check-a"
+    epic: 23
+    action: "Story: add the duplicate-delivery check and status confirmation to the
+      SaaS billing webhook branch of payment-webhook (Epic 18 item 21)"
+    owner: "dev loop"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-96-follow-docs-runbooks-deploy-epic-23-md-r"
+    epic: 23
+    action: "Follow docs/runbooks/deploy-epic-23.md (release gates, env, ordered per-migration
+      deploy with backup) before any production deploy of 0134-0149"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+last_updated: 10-22-2026 23:15
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1651,3 +1722,4 @@ last_updated: 10-21-2026
 # last_updated: 2026-10-22 (build: 23-12 Super Admin GymOS Support page rebuilt as top action buttons, five URL-backed tabs, standard paginated tables, per-row Actions menus and reason modals; no change to actions.ts, migrations or the dashboard. Status in-progress -> review. static PASS, unit PASS (Super Admin 522 tests), review: 3 layers, 5 patches applied, 4 deferrals in deferred-work.md. Row menus open their modal one tick after the menu closes (Radix focus loop in jsdom). Local commit on feat/23-6b-dashboard-support-request-path; manual browser QA is the owner's)
 # last_updated: 2026-10-22 (ad-hoc, non-story: owner browser QA of 23-12 on :3001, rows A1-A16 and L1-L16 all pass; README fixes: A9 assigns an activated account as active not pending, A10 needs a pending row, lifecycle.mjs takes short handles; no story status change)
 # last_updated: 2026-10-22 (ad-hoc, non-story: reset local DB, full ci-local GREEN on 4e9f16c, merged 23-6b/23-6c/23-12 into epic/23 as d7533ef (merged tree identical to tested tree), pushed epic/23, deleted merged local branches feat/23-6b and feat/23-11; master and prod deploy untouched; owner browser QA for sections O, I, S not recorded)
+# last_updated: 2026-10-22 (ad-hoc, non-story: Epic 23 retrospective run (verdict accepted-with-open-items, retro key done, 10 open action items) and closure pass on fix/23-retro-closure: migrations 0148 (shared live-gate predicate, switch-on restore recertification leg, unused 60 s setting removed) and 0149 (proxy auth.users rows readable by GoTrue: admin listUsers 500 -> 200), rollback-rehearsal-epic23.sh 16/16, 0144 rollback guard, deploy-epic-23 runbook, spec/context/deferred-work reconciliation; static and unit PASS, support pgTAP files pass on the local DB, full ci-local on a pristine DB NOT yet run; branch not merged to epic/23; master and production untouched)
