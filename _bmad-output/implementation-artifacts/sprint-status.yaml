@@ -1401,7 +1401,7 @@ action_items:
     action: "Reset the local DB and run the full scripts/ci-local.sh outside 23:00-24:00
       UTC on fix/23-retro-closure, then merge to epic/23 (0148, 0149, rehearsal, runbook)"
     owner: "smartsana"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
   - id: "epic-23-retro-item-94-remove-expo-token-and-supabase-db-passwo"
     epic: 23
@@ -1424,7 +1424,7 @@ action_items:
     owner: "smartsana"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
-last_updated: 10-22-2026 23:19
+last_updated: 10-23-2026 00:04
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1723,3 +1723,4 @@ last_updated: 10-22-2026 23:19
 # last_updated: 2026-10-22 (ad-hoc, non-story: owner browser QA of 23-12 on :3001, rows A1-A16 and L1-L16 all pass; README fixes: A9 assigns an activated account as active not pending, A10 needs a pending row, lifecycle.mjs takes short handles; no story status change)
 # last_updated: 2026-10-22 (ad-hoc, non-story: reset local DB, full ci-local GREEN on 4e9f16c, merged 23-6b/23-6c/23-12 into epic/23 as d7533ef (merged tree identical to tested tree), pushed epic/23, deleted merged local branches feat/23-6b and feat/23-11; master and prod deploy untouched; owner browser QA for sections O, I, S not recorded)
 # last_updated: 2026-10-22 (ad-hoc, non-story: Epic 23 retrospective run (verdict accepted-with-open-items, retro key done, 10 open action items) and closure pass on fix/23-retro-closure: migrations 0148 (shared live-gate predicate, switch-on restore recertification leg, unused 60 s setting removed) and 0149 (proxy auth.users rows readable by GoTrue: admin listUsers 500 -> 200), rollback-rehearsal-epic23.sh 16/16, 0144 rollback guard, deploy-epic-23 runbook, spec/context/deferred-work reconciliation; static and unit PASS, support pgTAP files pass on the local DB, full ci-local on a pristine DB NOT yet run; branch not merged to epic/23; master and production untouched)
+# last_updated: 2026-10-23 (ad-hoc, non-story: owner reset the local DB; full ci-local GREEN on 867079a on a pristine DB at 00:00 UTC (deno, static, pgtap, unit, e2e; pgtap log has no not-ok lines; the four files that failed on the polluted DB pass); fix/23-retro-closure merged into epic/23 as 17b9de7 (tree identical to the tested tree), pushed, local branch deleted; retro action item 93 done; master and production untouched)
