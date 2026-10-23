@@ -5,6 +5,13 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-23 — One CSV template: only name and phone required (Story 26.2)
+
+Owner asked for ONE import template instead of a second members-only one. Header `member_name,phone,plan_type,join_date,subscription_status,expiry_date,birth_year,profession,neighborhood`; only `member_name` and `phone` must be present. Each row decides: with `plan_type` it follows the plan import exactly and, in a fee gym, is settled at import (`importExempt`, owner decision); without one it creates no subscription and is NOT exempt, so the 0098 trigger leaves it awaiting the fee (fee-0 gym: settled). Status or expiry without a plan is a row error. A fee-0 gym with any no-plan row shows a warning and the server refuses to confirm unless the action carries a literal `true` acknowledgement. Audit: plan rows unchanged; no-plan rows write `{ join_date, via, awaiting_registration_fee }` with no name and no phone. No migration. The first two-template attempt was set aside.
+
+Audit trade-off: the audit row of a row without a plan carries no name, phone or plan id, so it cannot be traced to a line of the CSV except through the member id (the target) and the import's row count; rows with a plan keep their existing metadata. The import result and the toast say how many were created and how many are awaiting (the awaiting number is computed from the gym's fee at import time, which is what the 0098 trigger uses).
+
+
 ## 2026-10-23 — Epic 23 retro decisions (migrations 0150-0153; not yet applied to production)
 
 Owner asked for a recommendation on every open decision and then for all of them to be done. Outcomes, with the evidence they rest on:

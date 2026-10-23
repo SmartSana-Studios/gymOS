@@ -49,6 +49,10 @@ Member app: phone `+237 699000001`, OTP `123456` (Awaiting Mobile).
 
 **T11 Import exemption (18.5)** — Members → Import → `scripts/epic18-qa/import-sample.csv`. Imported members are settled (no badge), keep their plan/status. Cap: awaiting members count toward the tier member cap (Grind = 100).
 
+**T11b Name-and-phone import (26.2)** — Login `ownerA@epic23qa.test` / `Epic19Pass!` on :3000, Gym A, Members → Import → `scripts/epic18-qa/import-members-only-sample.csv` (synthetic, two columns only). Account state: no `Sample Ada`/`Sample Bea` member yet; the tier cap has room for two more. **Fee gym** (set the registration fee to 2000 in Settings first): both people are created with no plan and show "Awaiting registration fee" (Collect / Waive); the preview says "2 rows have no plan"; the result says 2 created, 2 awaiting. **Fee 0** (set the fee back to 0, reset the two people with `node scripts/epic18-qa/seed.mjs` or delete them): a warning appears and Confirm stays disabled until the box is ticked; the result says 2 created, 0 awaiting.
+
+**T11c Mixed import (26.2)** — same login and gym, fee 2000, plan `Monthly Standard` exists (create it if not), `scripts/epic18-qa/import-mixed-sample.csv` (nine columns, synthetic). Cy has a plan: settled with a subscription, no badge. Di and Ed have none: both "Awaiting registration fee"; Di keeps birth year, profession and neighborhood, Ed keeps the join date 2026-09-01. The preview says "2 rows have no plan"; the result says 3 created, 2 awaiting.
+
 **T12 Fee 0 gym** — Set fee to 0 as owner, add a member: created settled with plan fields as before; nothing about the fee appears. Set back to 5000.
 
 **T13 FR** — switch dashboard/app to French; all above strings translated.

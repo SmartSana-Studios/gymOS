@@ -4,7 +4,7 @@
 
 ## Goal
 
-A gym taking over an existing roster (names, phones, ages, professions, neighborhoods, no plan data) can load it in one step, then decide person by person who owes the registration fee and which plan they get. This adds optional profile fields to members and a second, members-only CSV import that leaves everyone awaiting the fee with no plan, the opposite of today's plan import.
+A gym taking over an existing roster (names, phones, ages, professions, neighborhoods, no plan data) can load it in one step, then decide person by person who owes the registration fee and which plan they get. This adds optional profile fields to members and plan-optional rows in the one CSV import: a row without a plan leaves the person awaiting the fee.
 
 ## Stories
 
@@ -17,11 +17,11 @@ A gym taking over an existing roster (names, phones, ages, professions, neighbor
 - Birth year is shown only as an approximate age (current year minus birth year, labelled approximate in EN and FR), never as a date of birth; no birth year shows nothing, not zero. The existing optional `dob` is unchanged.
 - Member export includes the three fields; the formula-injection guard covers the two text fields.
 - Privacy policy page and `docs/privacy-policy.md` list the new data categories and purpose in EN and FR. The member app neither shows nor collects them.
-- Members-only import: header exactly `member_name,phone,birth_year,profession,neighborhood`. The existing six-column plan import is unchanged; any other header is refused with the invalid-template message naming both templates' columns.
-- Rows create members with normalized/validated phone (E.164, gym country for local numbers), the profile fields, `join_date` = import date, no subscription, no plan. Names are one field, first then last, Title Case.
-- Fee gym (fee > 0): members are left awaiting the fee (not settled, not import-exempt), same as a member added by hand. Fee 0: import allowed, but preview shows a clear warning (nobody awaits a fee) and proceeds only after the Owner confirms.
+- One import template (renegotiated 2026-10-23): header `member_name,phone,plan_type,join_date,subscription_status,expiry_date,birth_year,profession,neighborhood`; only `member_name` and `phone` are required. A row with a plan behaves as today (settled in a fee gym); a row without one creates no subscription and awaits the fee. Status or expiry without a plan is a row error.
+- Rows create members with normalized/validated phone (E.164, gym country for local numbers), the profile fields, and either a plan (as today) or none. A row without a plan has no subscription and its `join_date` is optional (blank means the import date). Names are one field, first then last, Title Case.
+- Fee gym (fee > 0): members are left awaiting the fee (not settled, not import-exempt), same as a member added by hand. Fee 0: import allowed, but a clear warning is shown and the server refuses to confirm without an explicit acknowledgement.
 - Validation matches the plan import: duplicate phone in file, phone already in the gym, missing name/phone, birth year outside 1900 to the current year, over 1000 rows are reported per row and nothing imports if any row fails.
-- Result states members created and members awaiting the fee. One audit row per batch with counts only (no names or phones). No rows under any other gym.
+- Result states members created and members awaiting the fee. One audit row per member; rows without a plan carry no name and no phone. No rows under any other gym.
 - The real roster file is personal data: never committed, logged or printed; tests use synthetic rows only.
 
 ## Technical Decisions
