@@ -1606,3 +1606,12 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 - source_spec: `_bmad-output/implementation-artifacts/spec-26-1-member-profile-fields.md`
   summary: The members export (`exportMembersCsv`) has no role check of its own beyond row security, and writes no audit row for an export.
   evidence: Pre-existing: the action calls the service directly. The export now carries more personal data to the same population (whoever can read members of the gym). Decide whether exports should be limited by role and audited.
+
+## Deferred from: review of spec-26-2-members-only-csv-import (2026-10-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-26-2-members-only-csv-import.md`
+  summary: The `onImported(count, awaiting, warning)` to toast mapping in `MembersPageClient` is not covered by any page-level test.
+  evidence: Review finding (verification gap). No test renders `MembersPageClient`'s import handler; the modal test mocks `onImported`, and the locale test only keeps the placeholders. A swapped `count` and `awaiting` would show a wrong number in the toast (data is correct).
+- source_spec: `_bmad-output/implementation-artifacts/spec-26-2-members-only-csv-import.md`
+  summary: The import preview does not show birth year, profession or neighborhood, so a shifted column among those three is not visible before confirming.
+  evidence: Review finding (blind hunter). The preview shows name, phone, plan, status, join date and expiry for the first 5 rows. Mitigated for the case that matters (a mis-mapped plan column) by the new "N rows have no plan" line.

@@ -6206,44 +6206,40 @@ So that I know who my members are, and a roster I take over does not lose that i
 
 ---
 
-### Story 26.2: Members-Only CSV Import: No Plan, Awaiting the Fee
+### Story 26.2: One CSV Template: Only Name and Phone Required, Plan Optional
 
 As an Owner taking over an existing roster,
-I want to import names, phones and profile details without any plan,
+I want to import names, phones and profile details without any plan data,
 So that every person is on file awaiting the registration fee and I decide each case individually.
 
-*Delivers FR-217, FR-218. A second import template next to the existing plan import (Story 2.4). The existing six-column import and its Story 18.5 behaviour (a fee gym's rows are settled) do not change.*
+*Delivers FR-217, FR-218. ONE import template (Story 2.4's, extended); there is no second template and no mode. Header `member_name,phone,plan_type,join_date,subscription_status,expiry_date,birth_year,profession,neighborhood`; only `member_name` and `phone` are required, the rest may be absent or blank. A row with a plan behaves exactly as before (Story 18.5: settled in a fee gym); a row without a plan creates no subscription and is left awaiting the fee by the 0098 trigger.*
 
 **Acceptance Criteria:**
 
-**Given** a CSV whose header row is exactly `member_name,phone,birth_year,profession,neighborhood`
-**When** it is uploaded
-**Then** it is recognised as the members-only template, a file with the existing six columns is still handled by the existing import unchanged, and any other header row is refused with the existing invalid-template message naming the expected columns of both templates
+**Given** a file with only `member_name` and `phone` (or the old six columns)
+**When** it is imported into a fee gym
+**Then** a row without a plan creates a member with no subscription awaiting the fee, a row with a plan is imported and settled as before, and the result states how many were created and how many are awaiting
 
-**Given** a valid members-only row
-**When** the import is confirmed
-**Then** a member is created with the name, the phone normalized and validated as today (E.164, the gym's country for local numbers), the three optional profile fields, `join_date` set to the import date, and no subscription and no plan
+**Given** a fee-0 gym and a file with rows that have no plan
+**When** it is validated
+**Then** a clear warning is shown, Confirm is gated on an acknowledgement, and the server refuses to confirm without an explicit acknowledgement
 
-**Given** a gym whose registration fee is above 0
-**When** members are imported this way
-**Then** each member is left awaiting the fee (not settled, not import-exempt), so the Owner can collect or waive the fee and then assign the first plan, exactly as for a member added by hand
+**Given** a row without a plan
+**When** it carries a subscription status or an expiry date
+**Then** it is a row error saying a plan is required; its join date is optional (blank is the UTC import date, a future date is an error)
 
-**Given** a gym whose registration fee is 0
-**When** the import is previewed
-**Then** it is allowed, a clear warning says nobody will be awaiting a fee because none is set, and the import proceeds only after the Owner confirms with that warning shown
+**Given** the usual validation (repeated phone, existing member, bad birth year or text over 120 characters, more than 1000 rows, tier cap)
+**When** any row fails
+**Then** nothing is imported and the errors say why; a mid-import failure rolls earlier rows back and audits nothing
 
-**Given** the same validation as the plan import
-**When** rows are checked
-**Then** a repeated phone inside the file, a phone that already belongs to a member of the gym, a missing name or phone, a birth year outside 1900 to the current year, and more than 1000 rows are each reported per row and nothing is imported when any row fails
-
-**Given** the import ran
-**When** the result is shown
-**Then** it states how many members were created and how many are awaiting the fee, one audit row records the batch (counts only, no names or phones), and no member row is created under any other gym
+**Given** the audit
+**When** a row without a plan is imported
+**Then** its `member_created` row has `join_date`, `via` and `awaiting_registration_fee` and no name and no phone; a plan row's audit is unchanged
 
 **Given** a CSV file of real members
 **When** this story is built and tested
 **Then** the tests use synthetic rows only, and no real member data is committed, logged or printed
 
-**Given** the gates this story relies on (the member-creation path, the fee state, the audit write)
-**When** a test enumerates their consumers
-**Then** the members-only import passes through each, and a new importer that skips one fails the scan
+**Given** the member-creation path
+**When** a test enumerates the callers of `provisionMemberRow`
+**Then** an unlisted caller fails the scan

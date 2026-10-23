@@ -18,7 +18,7 @@ import { describe, expect, it } from "vitest";
 type Writer = { file: string; kind: "insert" | "update" | "upsert"; count: number };
 
 const CARRIES_THE_FIELDS: (Writer & { why: string })[] = [
-  { file: "apps/dashboard/services/members.provisioning.ts", kind: "insert", count: 1, why: "insertMember: create path, also used by the plan CSV import (which passes null)" },
+  { file: "apps/dashboard/services/members.provisioning.ts", kind: "insert", count: 1, why: "insertMember: create path, also used by the CSV import (one template: profile fields from the file, plan optional per row)" },
   { file: "apps/dashboard/services/members.changes.ts", kind: "update", count: 1, why: "updateMember (member edit)" },
 ];
 

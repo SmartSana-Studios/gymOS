@@ -23,7 +23,7 @@ const PREVIEW_ROW_COUNT = 5;
 type Step = "upload" | "result" | "confirming";
 
 type ValidationResult =
-  | { valid: true; rows: ValidatedCsvRow[]; skippedBlankRows: number[] }
+  | { valid: true; rows: ValidatedCsvRow[]; skippedBlankRows: number[]; feeFreeWithoutPlan: boolean }
   | { valid: false; errors: CsvRowError[] };
 
 const STATUS_LABEL_KEY: Record<string, string> = {
@@ -68,7 +68,7 @@ export function CsvImportModal({
   phoneCountry,
 }: {
   onClose: () => void;
-  onImported: (count: number, warning?: string) => void;
+  onImported: (count: number, awaiting: number, warning?: string) => void;
   /** The gym's own country (gyms.country, ISO alpha-2) -- shown so the manager
    * knows how phone numbers without a country code will be read. Display only:
    * the server re-reads the gym's country and does the actual normalization. */
@@ -86,6 +86,7 @@ export function CsvImportModal({
   const [validating, setValidating] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [acknowledged, setAcknowledged] = useState(false);
   const [isLargeImport, setIsLargeImport] = useState(false);
 
   useEffect(() => {
@@ -119,6 +120,7 @@ export function CsvImportModal({
       setIsLargeImport(dataRowCount > LARGE_IMPORT_ROW_THRESHOLD);
       const result = await validateCsvImport(text);
       setValidation(result);
+      setAcknowledged(false);
       setStep("result");
     } catch {
       setValidation({
@@ -136,18 +138,26 @@ export function CsvImportModal({
     setConfirming(true);
     setConfirmError(null);
     try {
-      const { data, error } = await confirmCsvImport(rawText);
+      const { data, error } = await confirmCsvImport(
+        rawText,
+        validation?.valid && validation.feeFreeWithoutPlan ? acknowledged : undefined,
+      );
       // Matches MemberModal's own createMember handling: "audit_log_failed"
       // means every member was provisioned correctly, just the audit-log
       // write itself failed -- treat it as success with a warning, not a
       // blocked import.
       if (error && error.code !== "audit_log_failed") {
         setConfirmError(error.message);
+        // The gym's fee became 0 after this file was validated: show the warning and its checkbox so the Owner can
+        // acknowledge and retry without re-uploading.
+        if (error.code === "csv_fee_ack_required" && validation?.valid) {
+          setValidation({ ...validation, feeFreeWithoutPlan: true });
+        }
         setStep("result");
         return;
       }
       if (data) {
-        onImported(data.count, error?.code === "audit_log_failed" ? error.message : undefined);
+        onImported(data.count, data.awaiting, error?.code === "audit_log_failed" ? error.message : undefined);
       }
     } catch {
       setConfirmError(t("common.somethingWentWrong"));
@@ -161,6 +171,7 @@ export function CsvImportModal({
     setFile(null);
     setRawText("");
     setValidation(null);
+    setAcknowledged(false);
     setConfirmError(null);
     setStep("upload");
   }
@@ -168,6 +179,8 @@ export function CsvImportModal({
   // Row errors can run to hundreds on a bad file -- paginate that table (the preview is already capped).
   const errorPg = useClientPagination(validation && !validation.valid ? validation.errors : []);
   const previewRows = validation?.valid ? validation.rows.slice(0, PREVIEW_ROW_COUNT) : [];
+  // Rows without a plan are added without a subscription; say how many, so a misspelled or empty plan column is noticed.
+  const noPlanCount = validation?.valid ? validation.rows.filter((row) => row.planId === null).length : 0;
   // A template-level failure (missing column, empty file, or an
   // unexpected infra error) has no row of its own -- the Server Action
   // wrapper surfaces it as a single synthetic `row: 0` entry, rendered here
@@ -283,6 +296,11 @@ export function CsvImportModal({
                 <p className="text-sm text-green-700">
                   {t("members.csvImport.successSummary", { count: validation.rows.length })}
                 </p>
+                {noPlanCount > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {t("members.csvImport.noPlanSummary", { count: noPlanCount })}
+                  </p>
+                )}
                 {validation.skippedBlankRows.length > 0 && (
                   <p className="text-sm text-muted-foreground">
                     {t("members.csvImport.blankRowsSkipped", {
@@ -310,11 +328,13 @@ export function CsvImportModal({
                           <tr key={row.row} className="border-b last:border-0">
                             <td className="p-2">{row.name}</td>
                             <td className="p-2">{row.phone}</td>
-                            <td className="p-2">{row.planName}</td>
+                            <td className="p-2">{row.planName ?? "—"}</td>
                             <td className="p-2">
-                              {STATUS_LABEL_KEY[row.subscriptionStatus]
-                                ? t(STATUS_LABEL_KEY[row.subscriptionStatus])
-                                : row.subscriptionStatus}
+                              {row.subscriptionStatus === null
+                                ? "—"
+                                : STATUS_LABEL_KEY[row.subscriptionStatus]
+                                  ? t(STATUS_LABEL_KEY[row.subscriptionStatus])
+                                  : row.subscriptionStatus}
                             </td>
                             <td className="p-2">{row.joinDate}</td>
                             <td className="p-2">{row.expiryDate ?? "—"}</td>
@@ -324,11 +344,28 @@ export function CsvImportModal({
                     </table>
                   </div>
                 </div>
+                {validation.feeFreeWithoutPlan && (
+                  <div className="space-y-2 rounded-md border border-amber-400 bg-amber-50 p-3 text-sm text-amber-900">
+                    <p>{t("members.csvImport.feeFreeWarning")}</p>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={acknowledged}
+                        onChange={(e) => setAcknowledged(e.target.checked)}
+                      />
+                      {t("members.csvImport.feeFreeAcknowledge")}
+                    </label>
+                  </div>
+                )}
                 <div className="flex justify-end gap-2 pt-2">
                   <Button type="button" variant="outline" onClick={resetAndClose}>
                     {t("common.cancel")}
                   </Button>
-                  <Button type="button" onClick={handleConfirm}>
+                  <Button
+                    type="button"
+                    onClick={handleConfirm}
+                    disabled={validation.feeFreeWithoutPlan && !acknowledged}
+                  >
                     {t("members.csvImport.confirmImportButton")}
                     <ArrowRight />
                   </Button>

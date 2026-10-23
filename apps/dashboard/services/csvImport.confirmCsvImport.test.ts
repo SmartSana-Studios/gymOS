@@ -50,6 +50,25 @@ function makeRows(n: number): ValidatedCsvRow[] {
     joinDate: "2026-01-15",
     subscriptionStatus: "active" as const,
     expiryDate: "2099-02-14",
+    birthYear: null,
+    profession: null,
+    neighborhood: null,
+  }));
+}
+
+function makeNoPlanRows(n: number): ValidatedCsvRow[] {
+  return Array.from({ length: n }, (_, i) => ({
+    row: i + 2,
+    name: `Person ${i + 1}`,
+    phone: `+23768091104${i}`,
+    planId: null,
+    planName: null,
+    joinDate: "2026-10-23",
+    subscriptionStatus: null,
+    expiryDate: null,
+    birthYear: 1990,
+    profession: "Baker",
+    neighborhood: "Bonanjo",
   }));
 }
 
@@ -77,7 +96,7 @@ describe("confirmCsvImport (Story 18.5)", () => {
   it("fee above 0: every row is provisioned with importExempt and no payment is written", async () => {
     const result = await confirmCsvImport(makeRows(3));
 
-    expect(result).toEqual({ data: { count: 3 }, error: null });
+    expect(result).toEqual({ data: { count: 3, awaiting: 0 }, error: null });
     expect(provisionMemberRow).toHaveBeenCalledTimes(3);
     for (const call of provisionMemberRow.mock.calls) {
       expect(call[0]).toMatchObject({ importExempt: true, planId: "plan-1", subscriptionStatus: "active" });
@@ -106,7 +125,7 @@ describe("confirmCsvImport (Story 18.5)", () => {
 
     const result = await confirmCsvImport(makeRows(2));
 
-    expect(result).toEqual({ data: { count: 2 }, error: null });
+    expect(result).toEqual({ data: { count: 2, awaiting: 0 }, error: null });
     for (const call of provisionMemberRow.mock.calls) {
       expect(call[0]).not.toHaveProperty("importExempt");
     }
@@ -154,5 +173,94 @@ describe("confirmCsvImport (Story 18.5)", () => {
 
     expect(result.error?.code).toBe("member_cap_reached");
     expect(provisionMemberRow).not.toHaveBeenCalled();
+  });
+
+  // Story 26.2: one template, each row decides for itself.
+  it("fee gym: a no-plan row is not exempt, has no plan fields, carries the profile fields and awaits", async () => {
+    const result = await confirmCsvImport(makeNoPlanRows(3));
+
+    expect(result).toEqual({ data: { count: 3, awaiting: 3 }, error: null });
+    for (const call of provisionMemberRow.mock.calls) {
+      expect(call[0]).not.toHaveProperty("importExempt");
+      expect(call[0]).not.toHaveProperty("planId");
+      expect(call[0]).not.toHaveProperty("subscriptionStatus");
+      expect(call[0]).toMatchObject({ birthYear: 1990, profession: "Baker", neighborhood: "Bonanjo" });
+    }
+  });
+
+  it("fee gym: the no-plan audit has no name and no phone", async () => {
+    await confirmCsvImport(makeNoPlanRows(2));
+
+    for (const call of logMemberChange.mock.calls) {
+      expect(call[2]).toEqual({ join_date: "2026-10-23", via: "csv_import", awaiting_registration_fee: true });
+      expect(call[2]).not.toHaveProperty("name");
+      expect(call[2]).not.toHaveProperty("phone");
+    }
+  });
+
+  it("fee gym, mixed file: the plan row is exempt and audited as before, the other awaits", async () => {
+    const rows = [...makeRows(1), ...makeNoPlanRows(1)];
+
+    const result = await confirmCsvImport(rows);
+
+    expect(result).toEqual({ data: { count: 2, awaiting: 1 }, error: null });
+    expect(provisionMemberRow.mock.calls[0][0]).toMatchObject({ importExempt: true, planId: "plan-1" });
+    expect(provisionMemberRow.mock.calls[1][0]).not.toHaveProperty("importExempt");
+    expect(logMemberChange.mock.calls[0][2]).toMatchObject({ name: "Member 1", registration_fee_exempt: true });
+    expect(logMemberChange.mock.calls[1][2]).not.toHaveProperty("name");
+  });
+
+  it("fee 0: no-plan rows are refused without the acknowledgement and nothing is written", async () => {
+    setFee(0);
+
+    for (const options of [undefined, {}, { acknowledgeNoFee: false }, { acknowledgeNoFee: "true" as unknown as boolean }]) {
+      const result = await confirmCsvImport(makeNoPlanRows(2), options);
+      expect(result.data).toBeNull();
+      expect(result.error?.code).toBe("csv_fee_ack_required");
+    }
+    expect(provisionMemberRow).not.toHaveBeenCalled();
+    expect(logMemberChange).not.toHaveBeenCalled();
+  });
+
+  it("fee 0: acknowledged no-plan rows are imported, none awaiting", async () => {
+    setFee(0);
+
+    const result = await confirmCsvImport(makeNoPlanRows(2), { acknowledgeNoFee: true });
+
+    expect(result).toEqual({ data: { count: 2, awaiting: 0 }, error: null });
+    expect(provisionMemberRow).toHaveBeenCalledTimes(2);
+    expect(logMemberChange.mock.calls[0][2]).toEqual({
+      join_date: "2026-10-23",
+      via: "csv_import",
+      awaiting_registration_fee: false,
+    });
+  });
+
+  it("fee 0: plan-only files need no acknowledgement", async () => {
+    setFee(0);
+    const result = await confirmCsvImport(makeRows(1));
+    expect(result.error).toBeNull();
+  });
+
+  it("no-plan rows over the cap: refused before any write", async () => {
+    memberCountForGym.mockResolvedValue({ count: 99, cap: 100, error: null });
+    const result = await confirmCsvImport(makeNoPlanRows(2));
+    expect(result.error?.code).toBe("member_cap_reached");
+    expect(provisionMemberRow).not.toHaveBeenCalled();
+  });
+
+  it("no-plan rows, failure on row 3 of 3: earlier rows rolled back and nothing audited", async () => {
+    let n = 0;
+    provisionMemberRow.mockImplementation(async () => {
+      n += 1;
+      if (n === 3) return { data: null, error: { code: "unknown", message: "boom" } };
+      return { data: { id: `member-${n}`, userId: `user-${n}`, authUserCreated: true }, error: null };
+    });
+
+    const result = await confirmCsvImport(makeNoPlanRows(3));
+
+    expect(result.error?.code).toBe("csv_import_failed");
+    expect(deleteMemberForCleanup.mock.calls.map((c) => c[0])).toEqual(["member-2", "member-1"]);
+    expect(logMemberChange).not.toHaveBeenCalled();
   });
 });

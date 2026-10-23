@@ -80,7 +80,7 @@ const emergencyContactSchema = z.string().trim().max(200, "Emergency contact is 
 // database check allows up to 2100 because a check cannot use the date).
 // Text is trimmed, at most 120 characters, and blank becomes null.
 const BIRTH_YEAR_MIN = 1900;
-const birthYearSchema = z
+export const birthYearSchema = z
   .number("Enter a valid birth year")
   .int("Enter a valid birth year")
   .min(BIRTH_YEAR_MIN, "Enter a valid birth year")
@@ -89,7 +89,7 @@ const birthYearSchema = z
   })
   .optional()
   .nullable();
-const profileTextSchema = z
+export const profileTextSchema = z
   .string()
   .trim()
   .max(120, "Too long")

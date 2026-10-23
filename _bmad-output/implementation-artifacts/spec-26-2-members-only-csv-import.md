@@ -2,7 +2,7 @@
 title: '26-2 One CSV template: only name and phone required, plan optional'
 type: 'feature'
 created: '2026-10-23'
-status: 'in-progress'
+status: 'done'
 baseline_commit: '451a75330145da6729cb6764c6c99e33a79a9a22'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -68,14 +68,14 @@ Audit: one `member_created` row per member. A plan row keeps exactly today's met
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `packages/types/src/schemas/member.ts`, `csvImport.ts` -- export the 26.1 field schemas; required-columns constant and the nine-column download header; plan-optional row schema with the no-plan rules
-- [ ] `apps/dashboard/services/csvImport.ts` -- required-columns header check; per-row plan handling in validate; per-row `importExempt`, profile fields, audit shape and the fee-0 acknowledgement in confirm; the result `{ count, awaiting }`
-- [ ] `apps/dashboard/app/(dashboard)/members/actions.ts` -- acknowledgement argument, fee-0 flag on validate, server refusal without it
-- [ ] `CsvImportModal.tsx`, `MembersPageClient.tsx` -- one template download (nine columns), preview that tolerates blank plan cells, fee-0 warning gating Confirm, result copy with the awaiting count
-- [ ] `locales/en.json`, `locales/fr.json` -- strings, parity
-- [ ] tests -- row schema (name and phone only, with a plan, each no-plan rule, bounds); header check (required only, missing phone, duplicate column, six-column file); validate (mixed file, duplicate phone, existing member, row errors, 1001 rows, fee-0 flag); confirm (fee gym: plan row exempt and no-plan row not, no-plan audit has no name or phone, plan audit unchanged; fee-0: refused without acknowledgement, imported with it; cap before writes; mid-import rollback with nothing audited); actions (acknowledgement passed through, only literal `true` counts, re-validation, plan-only file unchanged); modal (mocked `t`, no literal strings in JSX); a scan listing every non-test `provisionMemberRow(` call site
-- [ ] `docs/decisions.md`, sample file, `README.md:50`, `epics.md` and `epic-26-context.md` -- documentation
-- [ ] the I/O matrix: every row covered by a test that runs
+- [x] `packages/types/src/schemas/member.ts`, `csvImport.ts` -- export the 26.1 field schemas; required-columns constant and the nine-column download header; plan-optional row schema with the no-plan rules
+- [x] `apps/dashboard/services/csvImport.ts` -- required-columns header check; per-row plan handling in validate; per-row `importExempt`, profile fields, audit shape and the fee-0 acknowledgement in confirm; the result `{ count, awaiting }`
+- [x] `apps/dashboard/app/(dashboard)/members/actions.ts` -- acknowledgement argument, fee-0 flag on validate, server refusal without it
+- [x] `CsvImportModal.tsx`, `MembersPageClient.tsx` -- one template download (nine columns), preview that tolerates blank plan cells, fee-0 warning gating Confirm, result copy with the awaiting count
+- [x] `locales/en.json`, `locales/fr.json` -- strings, parity
+- [x] tests -- row schema (name and phone only, with a plan, each no-plan rule, bounds); header check (required only, missing phone, duplicate column, six-column file); validate (mixed file, duplicate phone, existing member, row errors, 1001 rows, fee-0 flag); confirm (fee gym: plan row exempt and no-plan row not, no-plan audit has no name or phone, plan audit unchanged; fee-0: refused without acknowledgement, imported with it; cap before writes; mid-import rollback with nothing audited); actions (acknowledgement passed through, only literal `true` counts, re-validation, plan-only file unchanged); modal (mocked `t`, no literal strings in JSX); a scan listing every non-test `provisionMemberRow(` call site
+- [x] `docs/decisions.md`, sample file, `README.md:50`, `epics.md` and `epic-26-context.md` -- documentation
+- [x] the I/O matrix: every row covered by a test that runs
 
 **Acceptance Criteria:**
 - Given a file with only `member_name` and `phone`, when imported into a fee gym, then every person exists with no subscription and is awaiting the registration fee, and the result says how many were created and how many are awaiting
@@ -96,6 +96,38 @@ Audit: one `member_created` row per member. A plan row keeps exactly today's met
 - 2026-10-23, human renegotiation (not a review loopback): the approved spec described TWO templates detected by header (a members-only template beside the plan template). The owner asked for ONE template where only `member_name` and `phone` are required. The intent block was rewritten accordingly; the first implementation (two-template detection, separate members-only validate and confirm) was set aside (git stash `26-2 two-template attempt` and `scratchpad/26-2-two-template-attempt.diff`) and is not to be reapplied as is. KEEP from that attempt: the fee-0 acknowledgement enforced by the server and passed through the action as a literal `true`; the per-member audit without name or phone; the view that `provisionMemberRow` with no plan and no `importExempt` is what leaves a member awaiting; the mutation-tested confirm, cap and rollback tests; the `provisionMemberRow` call-sites scan. Decision recorded: a row with a plan in a fee gym stays settled (owner, 2026-10-23).
 
 ## Review Triage Log
+
+Iteration 0 (single-template build). Layers: blind-hunter, edge-case-hunter, verification-gap. Verdict | route | evidence.
+
+| Finding | Verdict | Route | Evidence |
+|---|---|---|---|
+| Missing-column error does not assert the column is named (VG, BH) | medium | patch | The `t` mock ignored variables. It now echoes them; tests assert only `phone` is named for a file without it, and `member_name, phone` when both are missing, never optional columns. |
+| Fee became 0 between validate and confirm: server refuses, modal has no checkbox, Owner stuck until re-upload (EC, BH) | medium | patch | Modal now turns the warning and checkbox on when the server answers `csv_fee_ack_required`; test drives refusal then retry with `true`; mutation proof: disabling the handler fails it. |
+| Old file with a blank or misspelled plan column silently becomes plan-less members (EC, BH) | medium | patch | Behaviour is what the owner asked for, but it must not be silent: the preview now says "N rows have no plan" (EN, FR) and the test mutation-proofs it. Listing detected/ignored headers rejected: more UI for the same signal. |
+| "Has a plan" tested three different ways in `confirmCsvImport` (BH) | low | patch | One `hasPlan` type guard now drives the exemption, the counts, the audit shape and the subscription write. Unreachable mismatch before (validate guarantees both or neither), but one definition cannot drift. |
+| `provisionMemberRow` call-site scan weaker than its name: subset only, needs a literal `(`, misses aliases and references, scans only dashboard, counts comments (VG, EC, BH) | low | patch | Rewritten: set equality with the listed files, searches the identifier, strips comments, scans `apps/`; plus a check that `importExempt: true` appears once, behind `feeGym && hasPlan(row)`. Mutation proof: an unlisted aliased reference fails it. |
+| Sample CSV is a five-column profile file, not name-and-phone only; no mixed sample; no test feeds samples through the header check (VG, EC, BH) | low | patch | `import-members-only-sample.csv` is now two columns; new nine-column `import-mixed-sample.csv`; a test maps all three samples. |
+| QA step does not restate login and account state; no mixed-file step (BH) | low | patch | README T11b rewritten with login, gym, fee setup and expected counts; T11c added for the mixed file. |
+| Stale text in `epic-26-context.md` ("join_date = import date, no plan") contradicts mixed rows (BH) | low | patch | Bullet rewritten. |
+| Audit of a no-plan row can no longer be traced to a CSV line (BH) | low | patch | Stated in the `docs/decisions.md` entry. |
+| Toast prints "0 awaiting" for plan-only files and fee-0 gyms (BH) | low | patch | `importSuccessToastPlain` used when nothing awaits; a locale test keeps the placeholders in EN and FR. "1 members" plural rejected: the app's copy has no plural forms anywhere. |
+| Toast wiring in `MembersPageClient` (`count`, `awaiting` mapping) has no page-level test (VG) | low | defer | The page is not rendered in any test today. Recorded in deferred-work. |
+| `plan` local typed with a conditional-type trick (BH) | low | patch | Now `PlanRow`. |
+| Preview does not show birth year, profession, neighborhood (BH) | low | defer | Display only; the no-plan line catches the mapping mistake that matters. Recorded in deferred-work. |
+| `awaiting` is computed from the gym's fee, not read from the database after insert (VG, EC) | low | rejected | The 0098 trigger keys on the same fee; the window is the length of one import. A per-row read for a display number is not worth the extra queries. |
+| `registrationFee` NaN makes `<= 0` and `> 0` disagree (EC) | false | rejected | `gyms.registration_fee` is integer NOT NULL with a check `>= 0` (0098); NaN is unreachable. |
+| Plan row with an invalid or future join date reports duplicate or misleading errors (EC) | low | rejected | Probed: an invalid date reports "invalid", not "missing". The extra "cannot be in the future" for a malformed date comes from the existing `.iso.date().refine()` chain, unchanged by this story. |
+| Join date default differs between preview and write across UTC midnight (EC) | false | rejected | Confirm re-validates from the raw text in the same request and computes the date once per run. |
+| Stale acknowledgement carried after a failed re-validate (EC) | false | rejected | A failed validate leaves an invalid result with no checkbox, and the next valid validate resets it (`setAcknowledged(false)` in `handleValidate`). |
+| Whitespace-only `plan_type` would hit `.min(1)` instead of becoming a no-plan row (BH) | false | rejected | `blankToUndefined` trims, so it is a no-plan row (probed). The case had no test; added. |
+| "1000 rows" test passes with invalid phones (BH) | low | rejected | That is the property: the row limit is enforced before any row is validated. |
+| `joinDate` assertion can flake across 00:00 UTC (BH) | low | rejected | Millisecond window once a day; fake timers add complexity to async mocks. |
+| Expiry-only on a no-plan row is tested only at the schema layer (BH) | low | rejected | The rule lives in the schema; validate and confirm do not reimplement it. |
+| Row-level error text for the new rules is English-only in `packages/types` (BH) | low | rejected | Every existing row message in that schema is an English string by design (AD-07 per-row copy); the banner and fee messages are translated. |
+| No test runs the real `mapCsvRows`, `validateCsvImport` and `confirmCsvImport` together (BH) | low | rejected | Needs a database; the layers are typed against each other and covered separately, and the full CI runs the suite. |
+| Spec `in-review` while sprint-status says `in-progress` (BH) | false | rejected | The workflow prescribes these statuses at this point; sprint-status moves at the next step. |
+| "Update the template help text" ticked though no help text changed (BH) | false | rejected | The invalid-template message now lists only missing REQUIRED columns (verified in `en.json`); there is no separate help text to change. |
+| `mapCsvRows` duplicate-column check "matches claim" (EC) | false | rejected | The reviewer's own note: no defect. |
 
 ## Design Notes
 

@@ -676,9 +676,14 @@ export function MembersPageClient({
         <CsvImportModal
           onClose={() => setCsvImportOpen(false)}
           phoneCountry={phoneCountry}
-          onImported={(count, warning) => {
+          onImported={(count, awaiting, warning) => {
             setCsvImportOpen(false);
-            showToast(warning ?? t("members.csvImport.importSuccessToast", { count }));
+            showToast(
+              warning ??
+                (awaiting > 0
+                  ? t("members.csvImport.importSuccessToast", { count, awaiting })
+                  : t("members.csvImport.importSuccessToastPlain", { count })),
+            );
             router.refresh();
           }}
         />
