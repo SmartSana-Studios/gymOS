@@ -8,7 +8,7 @@
 --   G. restore of switch-suspended assignments after unlock / recertification (23-10 deferral)
 --   H. catalog: limits, crons, privileges, scans
 begin;
-select plan(171);
+select plan(174);
 
 create or replace function pg_temp.claims(uid text, app_role text, aal text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -418,6 +418,9 @@ update auth.users set phone = null where id = '00000000-0000-0000-0000-000000250
 -- ============================================================================================================
 -- G. restore of switch-suspended assignments (23-10 deferral)
 -- ============================================================================================================
+-- an Owner for the resumed notice (the fixture gym had none)
+insert into auth.users (id, email, email_confirmed_at) values ('00000000-0000-0000-0000-000000250190', 'owner-resumed-250@x.example', now());
+insert into members (gym_id, user_id, role, name, phone) values ('00000000-0000-0000-0000-000000250003', '00000000-0000-0000-0000-000000250190', 'owner', 'Owner Resumed', '+237600250990');
 -- P8: locked while the Owner turns the switch off and on: the assignment stays suspended; unlock restores it
 update private.support_accounts set locked_at = now(), locked_reason = 'velocity_gym' where user_id = '00000000-0000-0000-0000-000000250113';
 update public.support_assignments set state = 'suspended', suspended_by_switch = true where id = '00000000-0000-0000-0000-000000250408';
@@ -432,6 +435,9 @@ select is((select state from public.support_assignments where id = '00000000-000
 select is((select count(*)::int from members where user_id = '00000000-0000-0000-0000-000000250113' and gym_id = '00000000-0000-0000-0000-000000250003' and role = 'support' and deactivated_at is null), 1, 'restore: and its support membership');
 select is((select (metadata ->> 'assignments_restored')::int from audit_log where action_type = 'support_account_unlocked' and target_entity_id = '00000000-0000-0000-0000-000000250113'), 1, 'restore: the unlock audit row counts it');
 select is((select last_active_at > now() - interval '1 minute' from private.support_last_active where user_id = '00000000-0000-0000-0000-000000250113'), true, 'unlock restarts the idle clock');
+select is((select count(*)::int from audit_log where action_type = 'gymos_support_access_resumed' and gym_id = '00000000-0000-0000-0000-000000250003' and actor_id is null and actor_display_name = 'system:support_unlock' and metadata = '{"cause": "unlocked"}'::jsonb), 1, 'resumed: the unlock writes one gym-scoped audit row, system actor, no individual named');
+select is((select count(*)::int from staff_notices where notice_type = 'support_access_resumed' and gym_id = '00000000-0000-0000-0000-000000250003' and user_id = '00000000-0000-0000-0000-000000250190'), 1, 'resumed: the Owner of that gym gets one notice');
+select is((select count(*)::int from staff_notices where notice_type = 'support_access_resumed' and gym_id = '00000000-0000-0000-0000-000000250003' and (body_en ilike '%@%' or title_en ilike '%@%')), 0, 'resumed: the notice names nobody');
 -- recertify restores a suspended assignment of a lapsed account
 update private.support_accounts set recertify_due_at = now() - interval '1 day' where user_id = '00000000-0000-0000-0000-000000250113';
 update public.support_assignments set state = 'suspended', suspended_by_switch = true where id = '00000000-0000-0000-0000-000000250408';

@@ -1565,3 +1565,26 @@ Migrations 0148 and 0149, `scripts/rollback-rehearsal-epic23.sh`, `support_retro
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-11-lifecycle-inactivity-recertification-and-factor-reset.md`
   summary: A support person whose recertification is overdue signs in, passes the code, can pick the gym, and then sees the generic "Something went wrong on our end" error on every gym page. No data is exposed (the live gate denies every row), but there is no message saying why and no redirect to the login page. README row S10 had promised a redirect.
   evidence: Reproduced 2026-10-23 as `qa23-recert` (assignment active, recertification overdue). Dashboard log: `switchActiveGym` succeeded, then `[gym-settings] resolved to not_found: gym row not found for read (stale claim or RLS-denied)` and the Overview error. `smoke.mjs` asserts the same at the database level ("recert: the gate itself is ok (recertification is a live-check leg)"; "sees nothing in Gym A"). Fail-closed as designed in 23-11; the open question is UX. Options: leave it, or let the proxy gate answer a distinct "recertification overdue" state (as it already does for `locked`) and show a clear page. Owner decision.
+
+## Closed by the Epic 23 retro decisions (2026-10-23)
+
+Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-10-23 entry). Source: the owner QA findings above.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: CLOSED by 0150: a support person is no longer sent to `/auth/update-password` on first entering a gym; activation clears `must_change_password` (and activated accounts are backfilled).
+  evidence: support_account_invite.test.sql 66 and 68 (68 fails with 0150 rolled back); seeded accounts now show the flag false.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-11-lifecycle-inactivity-recertification-and-factor-reset.md`
+  summary: CLOSED by 0153 and the proxy: an overdue recertification shows a clear "Recertification overdue" page instead of the generic error. The denial itself is unchanged (the live gate).
+  evidence: support_retro_closure.test.sql E1-E4; proxy.gate.test.ts "proxy overdue recertification" (5 cases); README S10. Browser check pending.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6c-dashboard-support-step-up.md`
+  summary: DECIDED, unchanged: a support person still cannot read the staff list (least privilege). The toast after adding someone now says so and that the Owner reviews the account.
+  evidence: StaffPageClient.supportNote.test.tsx; docs/decisions.md 2026-10-23.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: CLOSED by 0151: a support refund writes a `refund_recorded` audit row, so the Owner can file a disclosure on it and the Super Admin reader shows the real person (this was the identity-reader gap, G7).
+  evidence: smoke.mjs "refund: a support refund writes one refund_recorded audit row" and "that audit row has the real person behind it".
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED by 0152: unlock tells the Owner access is back (audit row `gymos_support_access_resumed` and a notice, naming nobody); the audit page labels `ended` and `resumed` in EN and FR.
+  evidence: support_lifecycle.test.sql 145-147 (145 and 146 fail with 0152 rolled back); auditLabels.epic23.test.ts.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: DECIDED, accepted: the picker window (G6) and the invite rate limit (G2). Reasons are in docs/decisions.md; the firewall rule for G2 is a setting to add if the plan allows.
+  evidence: docs/decisions.md 2026-10-23; docs/runbooks/deploy-epic-23.md.

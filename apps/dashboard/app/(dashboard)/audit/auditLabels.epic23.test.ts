@@ -8,7 +8,7 @@ import en from "@/locales/en.json";
 import fr from "@/locales/fr.json";
 import { AUDIT_ACTION_TYPE_LABEL_KEY } from "./auditLabels";
 
-const EPIC_23_ACTION_TYPES = ["allow_gymos_support_changed", "audit_disclosure_requested", "audit_disclosure_answered"];
+const EPIC_23_ACTION_TYPES = ["allow_gymos_support_changed", "gymos_support_access_ended", "gymos_support_access_resumed", "audit_disclosure_requested", "audit_disclosure_answered"];
 
 function resolve(locale: unknown, key: string): unknown {
   return key.split(".").reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], locale);

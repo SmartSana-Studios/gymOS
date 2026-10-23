@@ -101,7 +101,21 @@ export async function updateSession(request: NextRequest) {
     // a gym whose assignment has since been unassigned, switched off or suspended (the JWT can outlive it), goes back to the picker.
     const onPicker = pathname === "/support-gym" || pathname.startsWith("/support-gym/");
     const onAuth = pathname.startsWith("/auth/");
-    if (!onPicker && !onAuth) {
+    // Epic 23 retro: a person whose recertification is overdue is refused by the live gate (every gym row reads as empty). Say why
+    // instead of letting the pages fail with a generic error. This is a message only: the denial does not depend on it.
+    const onRecertification = pathname === "/support-recertification" || pathname.startsWith("/support-recertification/");
+    if (claims.app_role === "support" && !onRecertification && !onAuth) {
+      const { data: overdue } = await supabase.rpc("support_recertification_overdue");
+      if (overdue === true) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/support-recertification";
+        url.search = "";
+        const redirect = NextResponse.redirect(url);
+        supabaseResponse.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
+        return redirect;
+      }
+    }
+    if (!onPicker && !onAuth && !onRecertification) {
       let needsPicker = false;
       if (claims.app_role === "support") {
         const { data: gyms, error: gymsError } = await supabase.rpc("list_own_support_gyms");

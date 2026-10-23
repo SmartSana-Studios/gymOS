@@ -110,18 +110,18 @@ Active in Gym A, pending in Gym B. `ownerA@epic23qa.test` (password `Epic19Pass!
 | S1 | Sign in as `qa23-active@gymosapps.com` with the password | straight to the code step (`/auth/mfa`), no dashboard data yet |
 | S2 | Enter a wrong code | one generic message, you can retry |
 | S3 | Enter the right code | the gym picker (`/support-gym`) lists **Gym A** only (B is pending); nothing is preselected |
-| S4 | Click Gym A | Members page of Gym A; header shows "GymOS Support" (no name, no email); sidebar: Members, Staff, Plans, Subscriptions, Payments, Settings only |
+| S4 | Click Gym A | Members page of Gym A; header shows "GymOS Support" (no name, no email); sidebar: Members, Staff, Plans, Subscriptions, Payments, Settings only. The first entry to a gym does NOT go through a password-change page (0150 clears the flag when the invite is activated; accounts made by `seed.mjs` after 0150 behave the same) |
 | S5 | Open Settings | gym settings, guest charging, category, loyalty and the payment connection card are there; no GymOS Support (Owner) section |
 | S6 | Open Settings > payment connection > Connect | the connect dialog (with the authenticator code field) opens: the 23-9 flow is reachable |
 | S7 | In another window, Super Admin: unassign `qa23-active` from Gym A (reason), then reload the dashboard tab | sent back to the gym picker, which says no gym is assigned; **Sign out** returns to the login page |
 | S8 | Re-assign and confirm in Super Admin, sign in again | code step, picker lists Gym A again |
 | S9 | Leave the dashboard tab idle past the idle limit (30 min), or age the session: `docker exec supabase_db_gym_os psql -U postgres -c "update private.support_session_state set last_seen_at = now() - interval '2 hours' where user_id = (select id from auth.users where email = 'qa23-active@gymosapps.com')"`, then reload | login page with "Your session expired. Please sign in again." |
-| S10 | `qa23-recert@gymosapps.com` (assignment active, recertification overdue: after `lifecycle.mjs recert-due recert` on an account that was recertified, because an overdue person is skipped when the Owner switch goes back on and then has no assignment to pick) signs in, passes the code, picks Gym A | **no data is readable**: the Gym A pages show the generic "Something went wrong on our end" error (the gym row read is denied by the live gate). It is not a redirect to the login page. Owner decision pending on a clearer message; see deferred-work.md |
+| S10 | `qa23-recert@gymosapps.com` (assignment active, recertification overdue: recertify it in Super Admin first, then `lifecycle.mjs recert-due recert`, because an overdue person is skipped when the Owner switch goes back on and then has no assignment to pick) signs in, passes the code, picks Gym A | the **"Recertification overdue"** page (EN/FR) with a Sign out button, on the next request after picking. No Gym A data is readable (the live gate denies every row). Not the generic error page |
 | S11 | `ownerA@epic23qa.test` signs in | no code step, dashboard as before |
 | S12 | Switch EN to FR on the code step and picker pages | strings translated |
 | S13 | As `qa23-active` in Gym A: Payments > Record refund, pick a member and payment, type the current code from `totp.mjs active` | refund recorded; the same code cannot be reused for the next dialog (wait for the next 30 s code) |
 | S14 | Members > a member awaiting the fee > Waive, reason + current code | fee waived. A wrong code shows "That code was not accepted" and nothing is written |
-| S15 | Settings > Staff > Add staff (phone, role, current code) | staff member created. A wrong code creates no account |
+| S15 | Settings > Staff > Add staff (phone, role, current code) | staff member created; the toast adds that a GymOS Support person cannot see the staff list and the Owner will review the account. The list stays empty for support (least privilege); the Owner sees the person. A wrong code creates no account |
 | S16 | Type a wrong code on the sign-in code step (S2), or in a dialog above, until the limit (5) | account locked, sent to the login page with the expired notice. Reset with `node scripts/epic23-qa/seed.mjs` |
 | S17 | As `ownerA@`: record a refund, waive a fee, add staff | no code field in any of the three dialogs |
 

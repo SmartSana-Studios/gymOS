@@ -124,6 +124,7 @@ values
   ('private', 'recovery_audit',         'Audit writer for Super Admin recovery (no gym; platform-level), service_role only (0128)'),
   ('private', 'support_audit',          'Audit writer for support account invite steps (no gym; platform-level), service_role only (0138)'),
   ('private', 'support_revoke_access',  'Revocation runs when a gym is suspended or support is switched off; it writes the gym-scoped audit row and must not be gated (0144)'),
+  ('public', 'unlock_support_account',  'Unlocking is an account action and must work while any of the person''s gyms is suspended; its gym-scoped resumed audit row is written only for a gym where the assignment was just restored, which needs an active gym (0152)'),
   ('private', 'support_lock_account',    'The velocity or step-up lock records its revocation in each gym the person was assigned to, suspended or not (0144)'),
 
   -- Epic 23: the only writer of a support membership. Service_role only; it must be able to remove support access from a suspended gym.

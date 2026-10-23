@@ -297,6 +297,8 @@ export function StaffPageClient({
           onClose={() => setModalOpen(false)}
           onCreated={async (tempPassword, smsSent, phone, isExistingAccount) => {
             setModalOpen(false);
+            // Epic 23 retro: a GymOS Support person cannot read the staff list (least privilege), so say where the new person went.
+            const supportNote = role === "support" ? " " + t("staff.toast.supportNote") : "";
             await refreshStaff();
             if (isExistingAccount) {
               // Review finding: this branch previously ignored smsSent,
@@ -306,9 +308,9 @@ export function StaffPageClient({
               // (none was generated for this path), so a failed send must
               // at least surface as a distinct message telling the admin to
               // notify the person another way.
-              showToast(t(smsSent ? "staff.toast.createdExistingAccount" : "staff.toast.createdExistingAccountNoSms", { phone }));
+              showToast(t(smsSent ? "staff.toast.createdExistingAccount" : "staff.toast.createdExistingAccountNoSms", { phone }) + supportNote);
             } else {
-              showToast(t(smsSent ? "staff.toast.createdSms" : "staff.toast.createdNoSms", { phone }), tempPassword ?? undefined);
+              showToast(t(smsSent ? "staff.toast.createdSms" : "staff.toast.createdNoSms", { phone }) + supportNote, tempPassword ?? undefined);
             }
           }}
         />

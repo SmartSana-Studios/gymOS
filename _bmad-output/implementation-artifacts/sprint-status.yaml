@@ -505,7 +505,7 @@ action_items:
       (adopt Vitest, or ratify pgTAP + typecheck + manual as the permanent standard
       in docs/decisions.md)"
     owner: "smartsana"
-    status: open
+    status: done
   - epic: 8
     action: "apps/dashboard's local node_modules/next was broken (MODULE_NOT_FOUND
       on next/dist/bin/next) -- root cause: the `next@16.2.12` folder was missing
@@ -1359,42 +1359,42 @@ action_items:
       impact) or a Vercel firewall rule (plan-dependent), before the first production
       support invite"
     owner: "smartsana"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
   - id: "epic-23-retro-item-88-decide-the-picker-window-g6-a-person-who"
     epic: 23
     action: "Decide the picker window (G6): a person who passes the code and leaves
       before support_begin_session runs keeps the last-used gym in the next token"
     owner: "smartsana"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
   - id: "epic-23-retro-item-89-decide-whether-the-super-admin-identity"
     epic: 23
     action: "Decide whether the Super Admin identity reader must cover non-audit support
       rows (payments, refunds, credentials, messaging) (G7)"
     owner: "smartsana"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
   - id: "epic-23-retro-item-90-decide-whether-to-build-the-owner-resume"
     epic: 23
     action: "Decide whether to build the Owner resumed notice when support is unlocked,
       or drop it (R6)"
     owner: "smartsana"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
   - id: "epic-23-retro-item-91-decide-confirm_renewal-date-semantics-ut"
     epic: 23
     action: "Decide confirm_renewal date semantics: UTC current_date vs gym-local
       date, which differ by a day from 23:00 to 24:00 UTC (D10)"
     owner: "smartsana"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
   - id: "epic-23-retro-item-92-run-readme-sections-o-s-and-i-of-scripts"
     epic: 23
     action: "Run README sections O, S and I of scripts/epic23-qa on staging data before
       enabling support for any gym, and record the result"
     owner: "smartsana"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
   - id: "epic-23-retro-item-93-reset-the-local-db-and-run-the-full-scri"
     epic: 23
@@ -1424,7 +1424,37 @@ action_items:
     owner: "smartsana"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
-last_updated: 10-23-2026 00:04
+  - id: "epic-23-retro-item-97-story-move-confirm_renewal-start_date-an"
+    epic: 23
+    action: "Story: move confirm_renewal start_date and carry to the gym-local date
+      (UTC current_date differs by a day from 23:00 to 24:00 UTC); fixes loyalty_subscriber_rule.test.sql
+      failing in that hour"
+    owner: "dev loop"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-98-add-a-vercel-firewall-rate-limit-rule-on"
+    epic: 23
+    action: "Add a Vercel firewall rate-limit rule on /support-invite if the plan
+      allows it (a setting, not code)"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-99-reset-the-local-db-and-run-the-full-scri"
+    epic: 23
+    action: "Reset the local DB and run the full scripts/ci-local.sh outside 23:00-24:00
+      UTC on fix/23-decisions (0150-0153, proxy, labels), then merge to epic/23"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-100-browser-check-the-new-pages-overdue-rece"
+    epic: 23
+    action: "Browser-check the new pages: overdue recertification page (README S10),
+      the support toast after adding staff (S15), and no password-change page on first
+      entry (S4)"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+last_updated: 10-23-2026 13:10
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)

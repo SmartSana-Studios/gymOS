@@ -1,6 +1,6 @@
 # Deploy Epic 23 (GymOS support) to production
 
-Migrations **0134-0149** + the Super Admin / dashboard apps + the `payment-webhook` edge function (23-9 touched it).
+Migrations **0134-0153** + the Super Admin / dashboard apps + the `payment-webhook` edge function (23-9 touched it).
 Production head before: expected **0133** (`docs/decisions.md` records every Epic 23 migration as not yet applied; confirm with `scripts/deploy-readiness.sh 0134`, which reads the ledger).
 This runbook is the release gate for the retro items G1-G8 in `_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md`.
 Production has real gyms: **support is enabled for no gym** by this deploy (every gym's "Allow GymOS Support" switch is OFF), so the
@@ -23,13 +23,13 @@ deploy itself gives no support person any access. Enabling a gym is a separate, 
 
 | Gate | How it is closed | Status on 2026-10-22 |
 |---|---|---|
-| G1 rollback rehearsal | `bash scripts/rollback-rehearsal-epic23.sh` (needs the local ledger at 0149). Runs 0149..0134 in one rolled-back transaction. | passes: 16 of 16 |
-| G2 invite abuse | The four public invite actions (`apps/dashboard/app/support-invite`) have only per-invite attempt counters, no IP or edge limit. | **open**: see "Open at release" |
+| G1 rollback rehearsal | `bash scripts/rollback-rehearsal-epic23.sh` (needs the local ledger at 0153). Runs 0153..0134 in one rolled-back transaction. | passes: 20 of 20 |
+| G2 invite abuse | Accepted (2026-10-23): the token is a 256-bit secret, an invite dies after 5 wrong secrets or 5 wrong codes (both proven on throwaway accounts), single use, 24 hours. No per-IP counter (it would store IPs). Add a Vercel firewall rule on `/support-invite` if the plan allows it. | accepted; firewall rule is a setting to add |
 | G3 env and secrets | Table below. | documented here and in both `.env.example` files |
 | G4 GoTrue and proxy rows | Migration 0149. After applying 0141 and 0149, `GET /auth/v1/admin/users?page=1&per_page=1000` with the service key must answer 200. | fixed and proven locally (500 -> 200) |
 | G5 0145 backfill | The two `update` statements in 0145 section 2 set `recorded_email` and `recertify_due_at` for existing accounts. Proven locally in a rolled-back transaction: before, `support_live_for` is false (fails closed); after, the e-mail is recorded in lower case, the due date is 90 days out and the account is live. | proven; production has no support accounts yet, so the backfill touches no row there |
-| G6 picker window | Owner decision pending (a person who passes the code and leaves before `support_begin_session()` keeps the last-used gym in the next token). | **open** |
-| G7 identity reader | Owner decision pending (Super Admin identity reader covers audit rows only). | **open** |
+| G6 picker window | Accepted (2026-10-23): the gap is the milliseconds between `challengeAndVerify` and `support_begin_session()`; the person has passed password and code, lands in a gym they chose before that is still assigned, and the live gate applies. See `docs/decisions.md`. | accepted |
+| G7 identity reader | Closed (2026-10-23): migration 0151 makes a support refund write a `refund_recorded` audit row, so the Owner can file a disclosure on it and the Super Admin reader shows the real person. Proven in `smoke.mjs`. | fixed |
 | G8 rollback of 0144 | The script now refuses while any support account is locked (unlock first). Rehearsal clears locks inside its rolled-back transaction. | fixed |
 
 ## Env (Vercel)
@@ -49,8 +49,8 @@ Set them before the app deploy, not after.
 
 1. `bash scripts/deploy-readiness.sh 0134` (read-only). Every line must be PASS.
 2. Backup: `scripts/deploy-migration.sh` calls `scripts/lib/require-db-backup.py` itself (reuses a GREEN `db-backup` run from the last 30 minutes, or triggers one) and refuses without it. Trigger one by hand first if in doubt.
-3. Apply **one migration at a time, in order**: `scripts/deploy-migration.sh 0134`, `0135`, ... `0149`. Each refuses unless the ledger head is exactly the previous version, runs in one transaction with its ledger row, and prints the ledger. Read it after each.
-4. Verify: `scripts/deploy-migration.sh 0149 --verify`, then the Admin API check from gate G4.
+3. Apply **one migration at a time, in order**: `scripts/deploy-migration.sh 0134`, `0135`, ... `0153`. Each refuses unless the ledger head is exactly the previous version, runs in one transaction with its ledger row, and prints the ledger. Read it after each.
+4. Verify: `scripts/deploy-migration.sh 0153 --verify`, then the Admin API check from gate G4.
 5. Edge function: deploy `payment-webhook`.
 6. Env (above), then PR `epic/23` -> master, CI green, merge. Vercel deploys both apps.
 7. Smoke test (below).
@@ -66,13 +66,13 @@ Set them before the app deploy, not after.
 
 ## Rollback
 
-`scripts/rollback-NNNN-*.sql` for each migration, newest first (0149 ... 0134), after rolling the apps back. Rehearse with
+`scripts/rollback-NNNN-*.sql` for each migration, newest first (0153 ... 0134), after rolling the apps back. Rehearse with
 `bash scripts/rollback-rehearsal-epic23.sh`. Two known limits: `alter type ... add value` cannot be undone, so 0134 leaves `'support'`
 in `member_role`; and the 0144 rollback refuses until every locked support account is unlocked.
 
 ## Open at release
 
-- **G2: rate limit on the public invite actions.** Not built. A support invite needs the secret token, which limits abuse to anyone
-  holding or guessing a token (per-invite attempt counters apply), but there is no limit per IP. Decide whether to build an edge limit
-  before the first support invite is sent in production.
-- **G6, G7:** owner decisions, see the table.
+- **G2 firewall rule:** if the Vercel plan allows a rate-limit rule, add one on `/support-invite`. It is a setting, not code, and nothing else depends on it.
+- **Queued stories, not part of this deploy:** `confirm_renewal` date semantics (UTC `current_date` vs the gym-local date; a one-day difference from 23:00 to 24:00 UTC) and the SaaS billing webhook duplicate-delivery check.
+- **Owner-only:** remove and revoke `~/.expo-token` and `~/.supabase-db-password`.
+- **Also in this release (migrations 0150-0153):** activation clears the forced second password change; support refunds write an audit row; unlock tells the Owner access is back; an overdue recertification gets a clear page (the dashboard proxy calls `support_recertification_overdue()` for support sessions, so apply 0153 before the dashboard goes out).

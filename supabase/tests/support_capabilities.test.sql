@@ -119,7 +119,7 @@ select is((select count(*)::int from private.support_capabilities c join pg_proc
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
             where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.proname <> 'support_gym_id'
               and p.prosrc like '%support_gym_id%'),
-          array['actor_id', 'current_gym_status', 'guard_support_gym_columns', 'log_audit_event', 'protect_payment_columns_on_staff_verify', 'record_support_identity', 'support_force_actor', 'support_rpc_gym_id', 'support_stepup_require']::text[],
+          array['actor_id', 'current_gym_status', 'guard_support_gym_columns', 'log_audit_event', 'protect_payment_columns_on_staff_verify', 'record_support_identity', 'support_force_actor', 'support_refund_audit_trigger', 'support_rpc_gym_id', 'support_stepup_require']::text[],
           'catalog: the direct consumers of support_gym_id are exactly the helpers, the three triggers, status, audit and the actor (23.7)');
 
 -- classification of every policy / function that names 'supervisor'. A new one fails until it is added here, deliberately.
