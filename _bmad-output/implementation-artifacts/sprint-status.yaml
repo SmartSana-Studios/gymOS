@@ -441,7 +441,7 @@ development_status:
   22-8-super-admin-recovery-email: done
   epic-22-retrospective: done
 
-  epic-23: in-progress
+  epic-23: done
   23-0-pre-flight-checklist-product-owner: done
   23-1-support-role-assignment-record-and-live-gate: done
   23-2-support-excluded-from-counts-caps-notifications-metrics: done
@@ -483,7 +483,7 @@ development_status:
   25-6-directory-gate-seo-verification-and-removal-timing: backlog
   epic-25-retrospective: optional
 
-  epic-26: in-progress
+  epic-26: done
   26-1-member-profile-fields-birth-year-profession-neighborhood: done
   26-2-members-only-csv-import-no-plan-awaiting-the-fee: done
   epic-26-retrospective: optional
@@ -1772,3 +1772,4 @@ last_updated: 10-23-2026 15:07
 # last_updated: 2026-10-23 (build: story 26-2 one CSV template implemented on feat/26-2-members-only-csv-import: only member_name and phone required, plan optional per row, fee-0 acknowledgement enforced by the server, no-plan audit without name or phone, tests added; static and unit ci-local stages PASS on a dirty tree, full ci-local not yet run; status stays in-progress)
 # last_updated: 2026-10-23 (build: story 26-2 ONE CSV template (only member_name and phone required; a row with a plan stays settled in a fee gym, a row without a plan is left awaiting; fee-0 gym needs a server-enforced acknowledgement) in-progress -> review on feat/26-2-members-only-csv-import: the first two-template build was set aside after the owner changed the intent, the single-template build reviewed by 3 independent layers, ~26 findings triaged (13 patched with mutation proofs, 2 deferrals in deferred-work.md, the rest rejected with evidence); static PASS, unit PASS (dashboard 1578 tests); full ci-local on a pristine DB NOT yet run; not merged to epic/26; not pushed)
 # last_updated: 2026-10-23 (owner reset the local DB again; full ci-local GREEN on 73ae161 on a pristine DB (deno, static, pgtap 169/169, unit dashboard 1578 tests, e2e); story 26-2 merged into epic/26 as dca8136 (tree identical to the tested tree), local branch deleted, story review -> done; the superseded two-template stash dropped (patch kept in the scratchpad); epic/26 NOT pushed, master and production untouched; epic-26 stays in-progress until its merge, like epic-23)
+# last_updated: 2026-10-23 (ad-hoc, non-story: Epics 23 and 26 DEPLOYED TO PRODUCTION on the owner's go-ahead: fresh green db-backup run 39995770404, migrations 0134-0154 applied one at a time (production head 0133 -> 0154), payment-webhook v7 -> v8, PR #95 epic/26 -> master merged as b874c76 after GitHub typecheck, e2e and rls-tests all green, three Vercel production deployments succeeded; verified live: support off for every gym, proxy user per gym, no anon-callable new function, login hook OK, apps serve b874c76, cron routes protected; epic-23 and epic-26 set to done; entry added to docs/decisions.md; ui/superadmin-container still unmerged; branches epic/23 and epic/26 to be deleted after verifying merged)

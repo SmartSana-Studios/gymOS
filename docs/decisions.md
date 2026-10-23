@@ -5,6 +5,18 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-10-23 — Epics 23 and 26 deployed to production
+
+Applied in this order, with the owner's go-ahead ("start now"), at about 17:30 to 17:50 UTC.
+
+- **Database.** A fresh green `db-backup` run (39995770404, 17:31 UTC) first. Then `scripts/deploy-migration.sh` for 0134 through 0154, one at a time, each atomic with its ledger row; production head went 0133 to 0154. Verified read-only afterwards: support switch off for every gym (0 on), one gym and one hidden proxy user with no NULL GoTrue token columns, none of the 140 functions these migrations touched callable by `anon`, the login hook still returns `app_role` and `gym_id` for the Owner, the three member profile columns present, no support accounts or assignments, six new scheduled jobs active, no failed job runs.
+- **Edge function.** `payment-webhook` v7 to v8 (`supabase functions deploy --use-api`; the version was confirmed through the management API because the CLI's exit code is not proof). An unsigned request to the real provider route answers 401.
+- **Apps.** PR #95 (`epic/26` into `master`, 77 commits) merged as `b874c76` after typecheck, e2e and rls-tests passed on GitHub. All three Vercel production deployments succeeded; the dashboard and Super Admin `/api/version` both return `b874c76`. The new cron routes answer 401 without the secret, `/support` redirects an anonymous visitor to sign-in, the privacy page shows the 2026-10-23 text.
+- **Not done / still open.** No support account exists and no gym has the switch on, so support is dark in production until the Owner switch is used. Restoring from the R2 backup has still never been tested. The Super Admin centred-container change (`ui/superadmin-container`) is not in this deploy. Environment variables for support invite mail (`DASHBOARD_APP_URL`, `CRON_SECRET`, `EMAIL_DRAIN_SECRET`) were not needed for this deploy and are needed before the first support account is invited; see `docs/runbooks/deploy-epic-23.md`.
+- **Rollback, if ever needed.** Newest first, `scripts/rollback-0154-*.sql` down to `0134`, after rolling the apps back and redeploying `payment-webhook` v7. The 0144 rollback refuses while any support account is locked.
+
+---
+
 ## 2026-10-23 — One CSV template: only name and phone required (Story 26.2)
 
 Owner asked for ONE import template instead of a second members-only one. Header `member_name,phone,plan_type,join_date,subscription_status,expiry_date,birth_year,profession,neighborhood`; only `member_name` and `phone` must be present. Each row decides: with `plan_type` it follows the plan import exactly and, in a fee gym, is settled at import (`importExempt`, owner decision); without one it creates no subscription and is NOT exempt, so the 0098 trigger leaves it awaiting the fee (fee-0 gym: settled). Status or expiry without a plan is a row error. A fee-0 gym with any no-plan row shows a warning and the server refuses to confirm unless the action carries a literal `true` acknowledgement. Audit: plan rows unchanged; no-plan rows write `{ join_date, via, awaiting_registration_fee }` with no name and no phone. No migration. The first two-template attempt was set aside.
