@@ -93,8 +93,8 @@ const EN: PrivacyPolicyDocument = {
         rows: [
           [
             "Identity",
-            "Name, phone number, optional email address, optional date of birth",
-            "Creating your account, signing you in with a one-time code sent to your phone, and identifying you at check-in",
+            "Name, phone number, optional email address, optional date of birth, optional year of birth, optional profession and optional neighborhood (entered by gym staff)",
+            "Creating your account, signing you in with a one-time code sent to your phone, and identifying you at check-in; the optional year of birth, profession and neighborhood let your gym know who its members are",
           ],
           [
             "Profile photo",
@@ -246,8 +246,8 @@ const FR: PrivacyPolicyDocument = {
         rows: [
           [
             "Identité",
-            "Nom, numéro de téléphone, adresse e-mail facultative, date de naissance facultative",
-            "Créer votre compte, vous connecter à l'aide d'un code à usage unique envoyé sur votre téléphone, et vous identifier à l'accueil",
+            "Nom, numéro de téléphone, adresse e-mail facultative, date de naissance facultative, année de naissance, profession et quartier facultatifs (saisis par le personnel de la salle)",
+            "Créer votre compte, vous connecter à l'aide d'un code à usage unique envoyé sur votre téléphone, et vous identifier à l'accueil ; l'année de naissance, la profession et le quartier facultatifs permettent à votre salle de connaître ses membres",
           ],
           [
             "Photo de profil",

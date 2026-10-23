@@ -78,6 +78,9 @@ const identity = {
   dob: null,
   photoUrl: null,
   emergencyContact: null,
+  birthYear: null,
+  profession: null,
+  neighborhood: null,
   joinDate: "2026-01-15",
 };
 
@@ -131,6 +134,9 @@ describe("createMember (Story 18.5)", () => {
         dob: null,
         photoUrl: null,
         emergencyContact: null,
+        birthYear: null,
+        profession: null,
+        neighborhood: null,
         joinDate: "2026-01-15",
         planId: PLAN_ID,
         subscriptionStatus: "active",
@@ -209,6 +215,9 @@ describe("createMember (Story 18.5)", () => {
         dob: null,
         photoUrl: null,
         emergencyContact: null,
+        birthYear: null,
+        profession: null,
+        neighborhood: null,
         joinDate: "2026-01-15",
       });
       expect(call).not.toHaveProperty("planId");
@@ -285,6 +294,28 @@ describe("createMember (Story 18.5)", () => {
 
       expect(result.data).toEqual({ id: "3fa85f64-5717-4562-b3fc-2c963f66afa6" });
       expect(result.error?.code).toBe("audit_log_failed");
+    });
+  });
+
+  describe.each([
+    ["fee above 0", 5000, identity],
+    ["fee 0", 0, feeZeroInput],
+  ])("profile fields (Story 26.1), %s", (_label, fee, base) => {
+    it("carries the trimmed values to provisionMemberRow", async () => {
+      setFee(fee);
+      const { createMember } = await import("./actions");
+      await createMember({ ...base, birthYear: 1984, profession: " Soudeur ", neighborhood: "Ngui" });
+      expect(provisionMemberRow).toHaveBeenCalledWith(
+        expect.objectContaining({ birthYear: 1984, profession: "Soudeur", neighborhood: "Ngui" }),
+      );
+    });
+
+    it("refuses a bad birth year and writes nothing", async () => {
+      setFee(fee);
+      const { createMember } = await import("./actions");
+      const result = await createMember({ ...base, birthYear: 1850 });
+      expect(result.error).not.toBeNull();
+      expect(provisionMemberRow).not.toHaveBeenCalled();
     });
   });
 

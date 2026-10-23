@@ -27,6 +27,7 @@ See "What changed since the last revision" at the bottom.
 | Email address | Yes, optional (`members.email`) | No | Optional | App functionality |
 | Date of birth | Yes, optional (`members.dob`) | No | Optional | App functionality |
 | Other info (emergency contact) | Yes, optional (`members.emergency_contact`) | No | Optional | App functionality (safety) |
+| Other info (year of birth, profession, neighborhood) | Yes, optional (`members.birth_year`, `members.profession`, `members.neighborhood`); entered by gym staff in the dashboard, not collected or shown by the mobile app | No | Optional | App functionality (the gym knows who its members are) |
 
 The phone number is shared with whichever messaging provider in
 `send-sms-hook`'s ordered fallback chain actually delivers the message —
@@ -175,4 +176,5 @@ third-party marketing purposes.
 | Added: **analytics sharing with PostHog**, and the anonymous PostHog device ID under Device or other IDs | Story 9.5 wired PostHog into the mobile app |
 | Added: phone-number **sharing with the messaging provider chain** | Previously omitted entirely; OTP/invite delivery has always sent the number to a third party |
 | Added: App activity now names `class_bookings`, `workout_plan_completions`, `notifications`, `member_preferences` | Epics 12, 13, and Story 6.7 shipped after the previous revision |
+| Added (2026-10-23, Story 26.1): **Other info** row for optional year of birth, profession and neighborhood, entered by gym staff | New optional member profile fields (migration 0154); privacy policy Identity row and date updated to match |
 | Added: required-vs-optional column, permissions grounding, third-party summary table | Play Console asks for required/optional per data type; the form was previously unanswerable from this file alone |

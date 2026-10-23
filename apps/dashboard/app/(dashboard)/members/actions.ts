@@ -158,6 +158,9 @@ export async function createMember(
     dob: member.dob ?? null,
     photoUrl: member.photoUrl ?? null,
     emergencyContact: member.emergencyContact ?? null,
+    birthYear: member.birthYear ?? null,
+    profession: member.profession ?? null,
+    neighborhood: member.neighborhood ?? null,
     joinDate: member.joinDate,
     planId: member.planId,
     subscriptionStatus: member.subscriptionStatus,
@@ -237,6 +240,9 @@ async function createAwaitingMember(
     dob: member.dob ?? null,
     photoUrl: member.photoUrl ?? null,
     emergencyContact: member.emergencyContact ?? null,
+    birthYear: member.birthYear ?? null,
+    profession: member.profession ?? null,
+    neighborhood: member.neighborhood ?? null,
     joinDate: member.joinDate,
   });
   if (provisionError || !provisioned) {
@@ -353,6 +359,9 @@ export async function editMember(
     dob: member.dob ?? null,
     photoUrl: member.photoUrl ?? null,
     emergencyContact: member.emergencyContact ?? null,
+    birthYear: member.birthYear ?? null,
+    profession: member.profession ?? null,
+    neighborhood: member.neighborhood ?? null,
   });
   if (error) {
     return { data: null, error };

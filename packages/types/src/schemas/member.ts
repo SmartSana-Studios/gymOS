@@ -75,6 +75,28 @@ export const emailSchema = z.email("Enter a valid email address").optional().nul
 const photoUrlSchema = z.url("Enter a valid URL").max(2048, "URL is too long").optional().nullable();
 const emergencyContactSchema = z.string().trim().max(200, "Emergency contact is too long").optional().nullable();
 
+// Story 26.1: optional profile facts. Birth year is a whole year from 1900 up
+// to the current year; "not after this year" is checked at call time (the
+// database check allows up to 2100 because a check cannot use the date).
+// Text is trimmed, at most 120 characters, and blank becomes null.
+const BIRTH_YEAR_MIN = 1900;
+const birthYearSchema = z
+  .number("Enter a valid birth year")
+  .int("Enter a valid birth year")
+  .min(BIRTH_YEAR_MIN, "Enter a valid birth year")
+  .refine((val) => val <= new Date().getUTCFullYear(), {
+    message: "Birth year cannot be in the future",
+  })
+  .optional()
+  .nullable();
+const profileTextSchema = z
+  .string()
+  .trim()
+  .max(120, "Too long")
+  .transform((val) => (val === "" ? null : val))
+  .optional()
+  .nullable();
+
 // AC #1: create a member with name/phone/plan (required) plus optional
 // email/dob/photo/emergency contact. `expiryDate`'s presence/absence
 // depends on the selected plan's `plan_type` (pay_per_session has no fixed
@@ -91,6 +113,9 @@ export const createMemberSchema = z
     dob: dobSchema,
     photoUrl: photoUrlSchema,
     emergencyContact: emergencyContactSchema,
+    birthYear: birthYearSchema,
+    profession: profileTextSchema,
+    neighborhood: profileTextSchema,
     // Not z.uuid(): that enforces RFC 4122's version/variant nibbles, which
     // Postgres' own uuid column type does not -- a hand-seeded id like
     // "dddddddd-0000-0000-0000-000000000004" (this product's Play Store
@@ -155,6 +180,9 @@ export const createFeeGymMemberSchema = z.object({
   dob: dobSchema,
   photoUrl: photoUrlSchema,
   emergencyContact: emergencyContactSchema,
+  birthYear: birthYearSchema,
+  profession: profileTextSchema,
+  neighborhood: profileTextSchema,
   joinDate: z
     .iso.date("Enter a valid join date")
     .refine((val) => val <= todayIso(), {
@@ -188,6 +216,9 @@ export const editMemberSchema = z.object({
   dob: dobSchema,
   photoUrl: photoUrlSchema,
   emergencyContact: emergencyContactSchema,
+  birthYear: birthYearSchema,
+  profession: profileTextSchema,
+  neighborhood: profileTextSchema,
 });
 
 export type EditMemberInput = z.infer<typeof editMemberSchema>;

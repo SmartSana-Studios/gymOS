@@ -92,6 +92,21 @@ describe("getMemberListRow", () => {
     expect(data).toMatchObject({ id: ID, name: "Amina", planName: "Monthly", status: "active", expiryDate: "2026-12-01" });
   });
 
+  it("selects and maps the profile fields so the edit form is pre-filled (Story 26.1)", async () => {
+    result = {
+      data: {
+        id: ID, name: "Amina", phone: "+237680811041", email: null, dob: null, photo_url: null, emergency_contact: null,
+        birth_year: 1984, profession: "Soudeur", neighborhood: "Ngui",
+        join_date: "2026-01-01", deactivated_at: null, registration_fee_settled_at: "2026-01-02T00:00:00Z", subscriptions: [],
+      },
+      error: null,
+    };
+    const { data } = await getMemberListRow(ID);
+    const select = calls.find((c) => c[0] === "select");
+    expect(String(select?.[1])).toContain("birth_year, profession, neighborhood");
+    expect(data).toMatchObject({ birthYear: 1984, profession: "Soudeur", neighborhood: "Ngui" });
+  });
+
   it("maps a query error", async () => {
     result = { data: null, error: { message: "boom" } };
     const { data, error } = await getMemberListRow(ID);
