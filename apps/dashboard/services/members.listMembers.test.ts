@@ -96,6 +96,26 @@ describe("listMembers (Story 18.5)", () => {
     });
   });
 
+  it("selects and maps the profile fields (Story 26.1)", async () => {
+    result = {
+      data: [
+        {
+          id: "m3", name: "Profile", phone: "+237680811043", email: null, dob: null, photo_url: null,
+          emergency_contact: null, birth_year: 1984, profession: "Welder", neighborhood: "Ngui",
+          join_date: "2026-01-15", deactivated_at: null, registration_fee_settled_at: null, subscriptions: [],
+        },
+      ],
+      count: 1,
+      error: null,
+    };
+    const { listMembers } = await import("./members");
+
+    const out = await listMembers({});
+
+    expect(selectString()).toContain("birth_year, profession, neighborhood");
+    expect(out.data?.rows[0]).toMatchObject({ birthYear: 1984, profession: "Welder", neighborhood: "Ngui" });
+  });
+
   it("the awaiting filter is registration_fee_settled_at IS NULL on members, with a left (not inner) subscriptions join", async () => {
     const { listMembers } = await import("./members");
 

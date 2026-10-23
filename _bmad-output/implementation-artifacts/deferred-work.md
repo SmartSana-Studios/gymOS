@@ -1588,3 +1588,21 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
   summary: DECIDED, accepted: the picker window (G6) and the invite rate limit (G2). Reasons are in docs/decisions.md; the firewall rule for G2 is a setting to add if the plan allows.
   evidence: docs/decisions.md 2026-10-23; docs/runbooks/deploy-epic-23.md.
+
+## Split at build of 26.1 (2026-10-23)
+
+- source_spec: none
+  summary: Story 26.2, the members-only CSV import (no plan, members left awaiting the registration fee, fee 0 allowed with a warning), is deferred to follow 26.1.
+  evidence: Split from the Epic 26 request: 26.2 reads and writes the three profile fields that 26.1 adds, so it builds on 26.1's migration and forms; its acceptance criteria are in epics.md (Epic 26) and in the spec the build creates for it after 26.1 is done.
+
+## Deferred from: review of spec-26-1-member-profile-fields (2026-10-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-26-1-member-profile-fields.md`
+  summary: The privacy policy has no stated route for a member to ask staff to correct or delete their year of birth, profession or neighborhood, and a change of the policy date has no notice to existing members.
+  evidence: Review finding (blind hunter). It concerns the whole policy text and the product's handling of policy changes, not the three fields alone, so it is a legal and product decision. The EN wording of the Identity row was tightened in 26.1; the owner should read the policy changes before release.
+- source_spec: `_bmad-output/implementation-artifacts/spec-26-1-member-profile-fields.md`
+  summary: `csvEscape` in `apps/dashboard/services/members.export.ts` neutralises a leading `=`, `+`, `-` or `@` but not a leading tab or carriage return, which spreadsheet formula-injection guidance also lists.
+  evidence: Pre-existing guard (names were already free text in the export). 26.1 adds two more free-text columns through it, so the exposure grew slightly. One-line change to the guard's character class plus a test.
+- source_spec: `_bmad-output/implementation-artifacts/spec-26-1-member-profile-fields.md`
+  summary: The members export (`exportMembersCsv`) has no role check of its own beyond row security, and writes no audit row for an export.
+  evidence: Pre-existing: the action calls the service directly. The export now carries more personal data to the same population (whoever can read members of the gym). Decide whether exports should be limited by role and audited.

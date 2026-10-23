@@ -926,6 +926,7 @@ export type Database = {
       }
       members: {
         Row: {
+          birth_year: number | null
           created_at: string
           created_by_support: boolean
           deactivated_at: string | null
@@ -939,15 +940,18 @@ export type Database = {
           id: string
           join_date: string
           name: string
+          neighborhood: string | null
           onboarding_completed_at: string | null
           phone: string | null
           photo_url: string | null
+          profession: string | null
           registration_fee_settled_at: string | null
           role: Database["public"]["Enums"]["member_role"]
           starting_weight_kg: number | null
           user_id: string
         }
         Insert: {
+          birth_year?: number | null
           created_at?: string
           created_by_support?: boolean
           deactivated_at?: string | null
@@ -961,15 +965,18 @@ export type Database = {
           id?: string
           join_date?: string
           name: string
+          neighborhood?: string | null
           onboarding_completed_at?: string | null
           phone?: string | null
           photo_url?: string | null
+          profession?: string | null
           registration_fee_settled_at?: string | null
           role: Database["public"]["Enums"]["member_role"]
           starting_weight_kg?: number | null
           user_id: string
         }
         Update: {
+          birth_year?: number | null
           created_at?: string
           created_by_support?: boolean
           deactivated_at?: string | null
@@ -983,9 +990,11 @@ export type Database = {
           id?: string
           join_date?: string
           name?: string
+          neighborhood?: string | null
           onboarding_completed_at?: string | null
           phone?: string | null
           photo_url?: string | null
+          profession?: string | null
           registration_fee_settled_at?: string | null
           role?: Database["public"]["Enums"]["member_role"]
           starting_weight_kg?: number | null

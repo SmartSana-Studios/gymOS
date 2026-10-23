@@ -38,7 +38,7 @@ export async function listMembers(params: {
   let query = supabase
     .from("members")
     .select(
-      `id, name, phone, email, dob, photo_url, emergency_contact, join_date, deactivated_at, registration_fee_settled_at, ${subscriptionsSelect}`,
+      `id, name, phone, email, dob, photo_url, emergency_contact, birth_year, profession, neighborhood, join_date, deactivated_at, registration_fee_settled_at, ${subscriptionsSelect}`,
       { count: "exact" },
     )
     .eq("gym_id", gymId)

@@ -616,6 +616,9 @@
       "dob": "Date de naissance",
       "photoUrl": "URL de la photo de profil",
       "emergencyContact": "Contact d'urgence",
+      "birthYear": "Année de naissance",
+      "profession": "Profession",
+      "neighborhood": "Quartier",
       "plan": "Formule *",
       "selectPlan": "Sélectionnez une formule",
       "billingIntervalReadonly": "Intervalle de facturation : {{interval}}",
@@ -629,13 +632,18 @@
         "joinDate": "Date d'adhésion",
         "subscriptionStatus": "Statut de l'abonnement",
         "expiryDate": "Date d'expiration",
-        "registrationFee": "Frais d'inscription"
+        "registrationFee": "Frais d'inscription",
+        "approxAge": "Âge (approximatif)",
+        "approxAgeValue": "Environ {{age}} ans"
       },
       "errors": {
         "nameInvalid": "Le nom est requis (2 à 100 caractères)",
         "phoneInvalid": "Saisissez un numéro de téléphone valide",
         "emailInvalid": "Saisissez une adresse e-mail valide",
         "dobInvalid": "Saisissez une date de naissance valide (doit être dans le passé, le membre doit avoir au moins 10 ans)",
+        "birthYearInvalid": "Saisissez une année de naissance à quatre chiffres, de 1900 à cette année",
+        "professionInvalid": "La profession est trop longue (120 caractères maximum)",
+        "neighborhoodInvalid": "Le quartier est trop long (120 caractères maximum)",
         "planRequired": "Sélectionnez une formule",
         "joinDateInvalid": "Saisissez une date d'adhésion valide (ne peut pas être dans le futur)",
         "expiryDateInvalid": "Saisissez une date d'expiration valide (doit être postérieure ou égale à la date d'adhésion)"

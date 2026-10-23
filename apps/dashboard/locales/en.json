@@ -616,6 +616,9 @@
       "dob": "Date of Birth",
       "photoUrl": "Profile Photo URL",
       "emergencyContact": "Emergency Contact",
+      "birthYear": "Birth year",
+      "profession": "Profession",
+      "neighborhood": "Neighborhood",
       "plan": "Plan *",
       "selectPlan": "Select a plan",
       "billingIntervalReadonly": "Billing interval: {{interval}}",
@@ -629,13 +632,18 @@
         "joinDate": "Join Date",
         "subscriptionStatus": "Subscription Status",
         "expiryDate": "Expiry Date",
-        "registrationFee": "Registration fee"
+        "registrationFee": "Registration fee",
+        "approxAge": "Age (approximate)",
+        "approxAgeValue": "About {{age}} years"
       },
       "errors": {
         "nameInvalid": "Name is required (2-100 characters)",
         "phoneInvalid": "Enter a valid phone number",
         "emailInvalid": "Enter a valid email address",
         "dobInvalid": "Enter a valid date of birth (must be in the past, member must be at least 10 years old)",
+        "birthYearInvalid": "Enter a four-digit birth year from 1900 up to this year",
+        "professionInvalid": "Profession is too long (120 characters at most)",
+        "neighborhoodInvalid": "Neighborhood is too long (120 characters at most)",
         "planRequired": "Select a plan",
         "joinDateInvalid": "Enter a valid join date (cannot be in the future)",
         "expiryDateInvalid": "Enter a valid expiry date (must be on or after the join date)"

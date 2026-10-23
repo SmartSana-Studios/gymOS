@@ -29,6 +29,9 @@ interface FieldErrors {
   phone?: string;
   email?: string;
   dob?: string;
+  birthYear?: string;
+  profession?: string;
+  neighborhood?: string;
   planId?: string;
   joinDate?: string;
   expiryDate?: string;
@@ -58,6 +61,9 @@ const FIELD_ERROR_KEY: Record<keyof FieldErrors, string> = {
   phone: "members.modal.errors.phoneInvalid",
   email: "members.modal.errors.emailInvalid",
   dob: "members.modal.errors.dobInvalid",
+  birthYear: "members.modal.errors.birthYearInvalid",
+  profession: "members.modal.errors.professionInvalid",
+  neighborhood: "members.modal.errors.neighborhoodInvalid",
   planId: "members.modal.errors.planRequired",
   joinDate: "members.modal.errors.joinDateInvalid",
   expiryDate: "members.modal.errors.expiryDateInvalid",
@@ -111,12 +117,26 @@ const emptyForm = {
   dob: "",
   photoUrl: "",
   emergencyContact: "",
+  birthYear: "",
+  profession: "",
+  neighborhood: "",
   planId: "",
   joinDate: todayLocalDateString(),
   subscriptionStatus: "active" as MemberSubscriptionStatus,
   expiryDate: "",
   coachId: "",
 };
+
+// Story 26.1: blank saves as null. A birth year that is not exactly four digits
+// becomes NaN so the schema refuses it and the error shows inline on the field.
+function profileFieldsFromForm(form: { birthYear: string; profession: string; neighborhood: string }) {
+  const year = form.birthYear.trim();
+  return {
+    birthYear: year === "" ? null : /^\d{4}$/.test(year) ? Number(year) : Number.NaN,
+    profession: form.profession.trim() === "" ? null : form.profession,
+    neighborhood: form.neighborhood.trim() === "" ? null : form.neighborhood,
+  };
+}
 
 function formFromMember(member: MemberListRow | null) {
   if (!member) return emptyForm;
@@ -127,6 +147,9 @@ function formFromMember(member: MemberListRow | null) {
     dob: member.dob ?? "",
     photoUrl: member.photoUrl ?? "",
     emergencyContact: member.emergencyContact ?? "",
+    birthYear: member.birthYear == null ? "" : String(member.birthYear),
+    profession: member.profession ?? "",
+    neighborhood: member.neighborhood ?? "",
     planId: member.planId ?? "",
     joinDate: member.joinDate,
     subscriptionStatus: (member.status === "no_active_plan" ? "active" : member.status),
@@ -365,6 +388,7 @@ export function MemberModal({
 }) {
   const { t, i18n } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const [currentYear] = useState(() => new Date().getUTCFullYear());
   const [form, setForm] = useState(emptyForm);
   // Create mode only: Personal Info (step 1) / Membership (step 2) -- the
   // single-column form crammed 11 fields into one scroll, easy to lose track
@@ -603,6 +627,7 @@ export function MemberModal({
         dob: form.dob === "" ? null : form.dob,
         photoUrl: form.photoUrl.trim() === "" ? null : form.photoUrl,
         emergencyContact: form.emergencyContact.trim() === "" ? null : form.emergencyContact,
+        ...profileFieldsFromForm(form),
         joinDate: form.joinDate,
       };
       // Fee gym: no plan, status or expiry in the parse or the createMember
@@ -629,7 +654,15 @@ export function MemberModal({
         // validation failure can still land on step 1's own fields (name/
         // phone/email/dob) -- jump back so the error is actually visible
         // instead of stranded behind the membership step.
-        if (errors.name || errors.phone || errors.email || errors.dob) {
+        if (
+          errors.name ||
+          errors.phone ||
+          errors.email ||
+          errors.dob ||
+          errors.birthYear ||
+          errors.profession ||
+          errors.neighborhood
+        ) {
           setStep(1);
         }
         return;
@@ -678,6 +711,7 @@ export function MemberModal({
         dob: form.dob === "" ? null : form.dob,
         photoUrl: form.photoUrl.trim() === "" ? null : form.photoUrl,
         emergencyContact: form.emergencyContact.trim() === "" ? null : form.emergencyContact,
+        ...profileFieldsFromForm(form),
       });
 
       if (!parsed.success) {
@@ -828,6 +862,18 @@ export function MemberModal({
                 label={t("members.modal.emergencyContact")}
                 value={editingMember.emergencyContact ?? "—"}
               />
+              {editingMember.birthYear != null && (
+                <DetailField
+                  label={t("members.modal.view.approxAge")}
+                  value={t("members.modal.view.approxAgeValue", { age: currentYear - editingMember.birthYear })}
+                />
+              )}
+              {editingMember.profession && (
+                <DetailField label={t("members.modal.profession")} value={editingMember.profession} />
+              )}
+              {editingMember.neighborhood && (
+                <DetailField label={t("members.modal.neighborhood")} value={editingMember.neighborhood} />
+              )}
               <DetailField label={t("members.modal.view.plan")} value={editingMember.planName ?? "—"} />
               <DetailField
                 label={t("members.modal.view.joinDate")}
@@ -949,6 +995,37 @@ export function MemberModal({
                 value={form.emergencyContact}
                 onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="memberBirthYear">{t("members.modal.birthYear")}</Label>
+              <Input
+                id="memberBirthYear"
+                inputMode="numeric"
+                value={form.birthYear}
+                onChange={(e) => setForm({ ...form, birthYear: e.target.value })}
+              />
+              {fieldErrors.birthYear && <p className="text-sm text-red-600">{fieldErrors.birthYear}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="memberProfession">{t("members.modal.profession")}</Label>
+              <Input
+                id="memberProfession"
+                value={form.profession}
+                onChange={(e) => setForm({ ...form, profession: e.target.value })}
+              />
+              {fieldErrors.profession && <p className="text-sm text-red-600">{fieldErrors.profession}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="memberNeighborhood">{t("members.modal.neighborhood")}</Label>
+              <Input
+                id="memberNeighborhood"
+                value={form.neighborhood}
+                onChange={(e) => setForm({ ...form, neighborhood: e.target.value })}
+              />
+              {fieldErrors.neighborhood && <p className="text-sm text-red-600">{fieldErrors.neighborhood}</p>}
             </div>
               </>
             )}

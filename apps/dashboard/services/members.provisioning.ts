@@ -175,6 +175,9 @@ export interface InsertMemberInput {
   dob: string | null;
   photoUrl: string | null;
   emergencyContact: string | null;
+  birthYear: number | null;
+  profession: string | null;
+  neighborhood: string | null;
   joinDate: string;
 }
 
@@ -208,6 +211,9 @@ export async function insertMember(
       photo_url: input.photoUrl,
       join_date: input.joinDate,
       emergency_contact: input.emergencyContact,
+      birth_year: input.birthYear,
+      profession: input.profession,
+      neighborhood: input.neighborhood,
     })
     .select("id")
     .single();
@@ -314,6 +320,9 @@ export interface ProvisionMemberRowInput {
   dob: string | null;
   photoUrl: string | null;
   emergencyContact: string | null;
+  birthYear: number | null;
+  profession: string | null;
+  neighborhood: string | null;
   joinDate: string;
   /** Story 18.5: optional. A fee-gym create has no plan and no subscription
    * (the member is awaiting the registration fee); when `planId` is absent
@@ -397,6 +406,9 @@ export async function provisionMemberRow(
     dob: input.dob,
     photoUrl: input.photoUrl,
     emergencyContact: input.emergencyContact,
+    birthYear: input.birthYear,
+    profession: input.profession,
+    neighborhood: input.neighborhood,
     joinDate: input.joinDate,
   });
   if (memberError || !memberRow) {
