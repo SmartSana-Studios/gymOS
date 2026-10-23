@@ -410,7 +410,7 @@ select is((select array_agg(p.pronamespace::regnamespace || '.' || p.proname ord
                 'public.list_own_active_gym_memberships', 'public.list_own_support_gyms', 'public.recertify_support_account', 'public.remove_support_account', 'private.session_gate_touch',
                 'public.set_allow_gymos_support', 'public.start_support_factor_reset', 'private.stepup_issue', 'private.stepup_record_failure', 'public.support_begin_session', 'private.support_contact_drift_check',
                 'private.support_contact_drifted', 'private.support_inactivity_sweep', 'private.support_invite_check', 'public.support_invite_inspect', 'private.support_live_core',
-                'private.support_lock_account', 'private.support_reset_executed', 'private.support_restore_assignments', 'private.support_revoke_access',
+                'private.support_lock_account', 'public.support_recertification_overdue', 'private.support_reset_executed', 'private.support_restore_assignments', 'private.support_revoke_access',
                 'private.support_revoke_on_gym_status', 'private.support_set_membership', 'private.support_velocity_breach', 'public.switch_active_gym', 'public.unassign_support',
                 'public.unlock_support_account']::text[],
           'readers of the assignment tables are exactly the expected functions (a new reader must be added here deliberately)');
