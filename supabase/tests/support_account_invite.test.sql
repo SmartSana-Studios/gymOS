@@ -1,6 +1,6 @@
 -- Story 23.4: create a support account and invite it (migration 0138).
 begin;
-select plan(86);
+select plan(88);
 
 create or replace function pg_temp.claims(uid text, app_role text, aal text) returns void language plpgsql as $f$
 begin
@@ -216,7 +216,9 @@ select issue_support_invite('00000000-0000-0000-0000-000000234111', pg_temp.tok(
 select is((select ok::text || reason from activate_support_account(pg_temp.tok(4003, 'f'))), 'falsepassword_not_set', 'a fresh invite starts at the password step');
 select support_invite_mark_password_set(pg_temp.tok(4003, 'f'));
 select set_config('request.jwt.claims', null, true);
+select is((select must_change_password from users where id = (select user_id from private.support_invites where id = '00000000-0000-0000-0000-000000234003')), true, 'before activation the account still carries the default must_change_password = true');
 select is((select ok::text || reason from activate_support_account(pg_temp.tok(4003, 'f'))), 'trueok', 'valid link, password set, TOTP verified: activated');
+select is((select must_change_password from users where id = (select user_id from private.support_invites where id = '00000000-0000-0000-0000-000000234003')), false, 'activation clears must_change_password (the password was chosen on the invite page, so no second change is asked for)');
 select is((select (activated_at is not null)::text from private.support_accounts where user_id = '00000000-0000-0000-0000-000000234111'), 'true', 'activated_at is set');
 select is((select count(*)::int from audit_log where action_type = 'support_account_activated' and target_entity_id = '00000000-0000-0000-0000-000000234111'), 1, 'one activation audit row');
 select is((select count(*)::int from auth.sessions where user_id = '00000000-0000-0000-0000-000000234111'), 0, 'the enrolment session is ended');

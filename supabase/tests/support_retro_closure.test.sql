@@ -3,8 +3,9 @@
 --   B. switch ON does not restore a person whose recertification has lapsed (and still restores the others)
 --   C. the unused 60 s cutoff setting is gone
 --   D. support proxy rows carry no NULL GoTrue token column (migration 0149)
+--   E. support_recertification_overdue (migration 0153)
 begin;
-select plan(23);
+select plan(27);
 
 create or replace function pg_temp.claims(uid text, app_role text, aal text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -139,6 +140,18 @@ select cmp_ok((select count(*)::int from auth.users where raw_app_meta_data ->> 
 select is((select count(*)::int from auth.users where raw_app_meta_data ->> 'provider' = 'support_proxy'
              and (confirmation_token is null or recovery_token is null or email_change_token_new is null or email_change is null)), 0,
           'D2 no proxy row has a NULL GoTrue token column (a NULL there makes GoTrue admin listUsers answer 500)');
+
+-- ============================================================================================================
+-- E. support_recertification_overdue (migration 0153): the caller's own state, as a boolean
+-- ============================================================================================================
+select pg_temp.claims(pg_temp.u(2348101), 'support', 'aal2', pg_temp.u(2348001), pg_temp.u(2348901));
+select is(public.support_recertification_overdue(), false, 'E1 a current recertification is not overdue');
+update private.support_accounts set recertify_due_at = now() - interval '1 minute' where user_id = pg_temp.u(2348101)::uuid;
+select is(public.support_recertification_overdue(), true, 'E2 a lapsed recertification is overdue');
+update private.support_accounts set recertify_due_at = now() + interval '30 days' where user_id = pg_temp.u(2348101)::uuid;
+select pg_temp.claims(pg_temp.u(2348110), 'owner', 'aal2', pg_temp.u(2348001));
+select is(public.support_recertification_overdue(), false, 'E3 someone who is not a support person is never overdue');
+select is(has_function_privilege('anon', 'public.support_recertification_overdue()', 'execute'), false, 'E4 anon cannot call it');
 
 select * from finish();
 rollback;

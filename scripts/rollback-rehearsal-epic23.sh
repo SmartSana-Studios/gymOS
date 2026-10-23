@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
-# Rehearse the Epic 23 rollbacks (0149 .. 0134) on the LOCAL database, inside ONE transaction that is always rolled back,
-# so the database is left exactly as it was. Proves, on a database that has all of 0134-0149 applied:
+# Rehearse the Epic 23 rollbacks (0153 .. 0134) on the LOCAL database, inside ONE transaction that is always rolled back,
+# so the database is left exactly as it was. Proves, on a database that has all of 0134-0153 applied:
 #   * every rollback script runs, in reverse order, without an error;
 #   * afterwards the Epic 23 objects are gone (support tables, support functions, the two support cron jobs, the proxy
 #     columns) and the Epic 22 objects the epic built on are still there.
-# It does NOT prove the rolled-back definitions equal what production had (production has none of 0134-0149 yet, so the
+# It does NOT prove the rolled-back definitions equal what production had (production has none of 0134-0153 yet, so the
 # comparison is against the previous migration, which the retro diffed by text), and it does not undo `alter type ... add
 # value` (an enum value cannot be dropped: 0134 leaves 'support' in member_role on purpose).
 #
-#   bash scripts/rollback-rehearsal-epic23.sh   (needs the local Supabase stack: supabase_db_gym_os, ledger at 0149)
+#   bash scripts/rollback-rehearsal-epic23.sh   (needs the local Supabase stack: supabase_db_gym_os, ledger at 0153)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 DB="${DB_CONTAINER:-supabase_db_gym_os}"
-VERSIONS="0149 0148 0147 0146 0145 0144 0143 0142 0141 0140 0139 0138 0137 0136 0135 0134"
+VERSIONS="0153 0152 0151 0150 0149 0148 0147 0146 0145 0144 0143 0142 0141 0140 0139 0138 0137 0136 0135 0134"
 N=$(echo $VERSIONS | wc -w)
 
 docker ps --format '{{.Names}}' | grep -qx "$DB" || { echo "local database container '$DB' is not running" >&2; exit 2; }
 head=$(docker exec "$DB" psql -U postgres -d postgres -Atc "select max(version) from supabase_migrations.schema_migrations")
-[ "$head" = "0149" ] || { echo "expected the local ledger at 0149 (all of 0134-0149 applied), found '$head'" >&2; exit 2; }
+[ "$head" = "0153" ] || { echo "expected the local ledger at 0153 (all of 0134-0153 applied), found '$head'" >&2; exit 2; }
 
 sql=$(mktemp); trap 'rm -f "$sql"' EXIT
 {
@@ -60,5 +60,5 @@ printf '%s\n' "$out" | grep -q 'authorize_action present: true$' || fail=1
 printf '%s\n' "$out" | grep -q 'custom_access_token_hook present: true$' || fail=1
 printf '%s\n' "$out" | grep -q 'log_audit_event present: true$' || fail=1
 after=$(docker exec "$DB" psql -U postgres -d postgres -Atc "select max(version) from supabase_migrations.schema_migrations; select to_regclass('private.support_accounts') is not null")
-[ "$after" = $'0149\nt' ] || { echo "the database was NOT left as it was: $after" >&2; fail=1; }
+[ "$after" = $'0153\nt' ] || { echo "the database was NOT left as it was: $after" >&2; fail=1; }
 [ "$fail" = 0 ] && echo "epic 23 rollback rehearsal: all passed (the database was left untouched)" || { echo "epic 23 rollback rehearsal: FAILED" >&2; exit 1; }

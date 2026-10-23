@@ -111,6 +111,10 @@ check("refund: no grant, the write is refused with the step-up error", /step_up_
 const su1 = await stepUp(active, activeEmail, "support_refund", payA);
 check("refund: a valid code issues the grant", su1.verified && su1.grant, su1.error ?? "");
 check("refund: with the grant the refund is recorded", !(await refund(payA)).error);
+const refundAudit = (await admin.from("audit_log").select("id, action_type, actor_id").eq("action_type", "refund_recorded").eq("gym_id", st.gyms.A)).data ?? [];
+check("refund: a support refund writes one refund_recorded audit row, under the gym proxy", refundAudit.length === 1 && !!refundAudit[0].actor_id, JSON.stringify(refundAudit));
+const refundIdentity = refundAudit.length ? psql(`select real_user_id from support_action_identity where subject_table = 'audit_log' and subject_id = '${refundAudit[0].id}'`).split("\n").filter(Boolean) : [];
+check("refund: that audit row has the real person behind it (what the Super Admin reader shows)", refundIdentity.length === 1, JSON.stringify(refundIdentity));
 const payB = await paymentOf(memberIds[1]);
 check("refund: the grant is single-use and bound to its payment (another payment is refused)", /step_up_required/.test((await refund(payB)).error?.message ?? ""));
 

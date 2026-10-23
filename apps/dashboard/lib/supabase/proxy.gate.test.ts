@@ -14,10 +14,15 @@ type Claims = Record<string, unknown> | null;
 let claims: Claims;
 let gateResult: { data: unknown; error: unknown } | "throw";
 let assignedGyms: { data: unknown; error: unknown };
+let recertOverdue: { data: unknown; error: unknown };
 const gateCalls: Record<string, unknown>[] = [];
 const getClaims = vi.fn(async () => ({ data: claims ? { claims } : null }));
 const signOut = vi.fn(async () => ({ error: null }));
-const userRpc = vi.fn(async (fn: string) => (fn === "list_own_support_gyms" ? assignedGyms : { data: null, error: null }));
+const userRpc = vi.fn(async (fn: string) => {
+  if (fn === "list_own_support_gyms") return assignedGyms;
+  if (fn === "support_recertification_overdue") return recertOverdue;
+  return { data: null, error: null };
+});
 
 vi.mock("@supabase/ssr", () => ({
   createServerClient: vi.fn((_url: string, _key: string, opts: { cookies: { setAll: (c: { name: string; value: string; options?: object }[]) => void } }) => ({
@@ -57,6 +62,7 @@ beforeEach(() => {
   claims = { ...SUPPORT };
   gateResult = { data: [{ ok: true, reason: "ok" }], error: null };
   assignedGyms = { data: [{ gym_id: "g1", gym_name: "Gym One" }], error: null };
+  recertOverdue = { data: false, error: null };
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://localhost:54321");
   vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-key");
 });
@@ -101,7 +107,7 @@ describe("proxy session gate", () => {
     const res = await updateSession(req("/members"));
     expect(res.status).not.toBe(307);
     expect(gateCalls).toHaveLength(0);
-    expect(userRpc).not.toHaveBeenCalled();
+    expect(userRpc).not.toHaveBeenCalledWith("list_own_support_gyms");
   });
 
   it.each([
@@ -199,9 +205,41 @@ describe("proxy explicit gym", () => {
     const { updateSession } = await import("./proxy");
     await updateSession(req("/support-gym"));
     await updateSession(req("/api/version"));
-    expect(userRpc).not.toHaveBeenCalled();
+    expect(userRpc).not.toHaveBeenCalledWith("list_own_support_gyms");
   });
 });
+describe("proxy overdue recertification", () => {
+  it("sends a support session whose recertification is overdue to the explanation page", async () => {
+    recertOverdue = { data: true, error: null };
+    const { updateSession } = await import("./proxy");
+    const res = await updateSession(req("/members"));
+    expect(res.status).toBe(307);
+    expect(new URL(res.headers.get("location")!).pathname).toBe("/support-recertification");
+  });
+
+  it("does not redirect again from the explanation page itself (no loop)", async () => {
+    recertOverdue = { data: true, error: null };
+    const { updateSession } = await import("./proxy");
+    const res = await updateSession(req("/support-recertification"));
+    expect(res.status).not.toBe(307);
+    expect(userRpc).not.toHaveBeenCalledWith("support_recertification_overdue");
+  });
+
+  it("lets a support session that is not overdue through", async () => {
+    const { updateSession } = await import("./proxy");
+    const res = await updateSession(req("/members"));
+    expect(res.status).not.toBe(307);
+    expect(userRpc).toHaveBeenCalledWith("support_recertification_overdue");
+  });
+
+  it("does not ask for anyone who is not a support session (Owners and staff pay nothing)", async () => {
+    claims = { sub: "u2", aal: "aal2", session_id: "s2", app_role: "owner", gym_id: "g1" };
+    const { updateSession } = await import("./proxy");
+    await updateSession(req("/members"));
+    expect(userRpc).not.toHaveBeenCalledWith("support_recertification_overdue");
+  });
+});
+
 
 describe("no gate exemption beyond the auth exemptions (scan)", () => {
   const here = dirname(fileURLToPath(import.meta.url));

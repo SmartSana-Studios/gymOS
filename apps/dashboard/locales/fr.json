@@ -398,6 +398,7 @@
     "toast": {
       "createdSms": "Compte du personnel créé. Mot de passe temporaire envoyé à {{phone}}.",
       "createdNoSms": "Compte du personnel créé. Impossible d'envoyer le mot de passe temporaire à {{phone}} automatiquement — partagez-le ci-dessous.",
+      "supportNote": "En tant que GymOS Support, vous ne voyez pas la liste du personnel. Le propriétaire la voit et examinera ce compte.",
       "createdExistingAccount": "{{phone}} était déjà enregistré sur GymOS — accès accordé.",
       "createdExistingAccountNoSms": "{{phone}} était déjà enregistré sur GymOS — accès accordé, mais nous n'avons pas pu l'en informer automatiquement. Prévenez-le/la qu'il/elle peut se connecter avec son mot de passe existant.",
       "resendSms": "Nouveau mot de passe temporaire envoyé à {{phone}}.",
@@ -1366,6 +1367,8 @@
       "sessionConsumed": "Séance utilisée",
       "sessionAttemptBlocked": "Séance requise : entrée refusée",
       "allowGymosSupportChanged": "Accès du support GymOS modifié",
+      "gymosSupportAccessEnded": "Accès du support GymOS terminé",
+      "gymosSupportAccessResumed": "Accès du support GymOS rétabli",
       "auditDisclosureRequested": "Demande d'information déposée",
       "auditDisclosureAnswered": "Demande d'information traitée"
     },
@@ -1549,6 +1552,8 @@
     "pickerTitle": "Choisissez une salle",
     "pickerDescription": "Choisissez la salle dans laquelle vous travaillez. Vous agissez sur une seule salle à la fois.",
     "noGym": "Aucune salle ne vous est attribuée pour le moment.",
+    "recertTitle": "Recertification en retard",
+    "recertBody": "Votre recertification GymOS Support est en retard : vous n'avez accès à aucune salle tant que GymOS ne vous a pas recertifié. Contactez GymOS.",
     "entering": "Ouverture...",
     "switchFailed": "Impossible d'ouvrir cette salle. Réessayez ou choisissez-en une autre.",
     "signInFailed": "Une erreur est survenue lors de la connexion. Reconnectez-vous.",
