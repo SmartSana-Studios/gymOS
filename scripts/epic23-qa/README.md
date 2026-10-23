@@ -97,10 +97,10 @@ waivers, staff creation, payment connection code) is 23-6c, so those four action
 | I2 | Password under 12 chars | rejected |
 | I3 | Mismatched confirm | "The two passwords do not match." |
 | I4 | Valid password | Step 2 of 2: QR + secret |
-| I5 | Wrong 6-digit code | generic failure, retry allowed; the invite dies after the attempt limit |
+| I5 | Wrong 6-digit code, up to 4 times, then the correct one | generic failure each time, retry allowed; the correct code still works on the 5th try (`code_attempts` is 4). After **5 wrong codes** the invite is dead: even the correct code is refused and the link shows the generic invalid message (`support_invite_max_code_attempts` = 5) |
 | I6 | Correct code (`node -e` or any app on the printed secret) | "Your account is ready." Super Admin list shows Active |
 | I7 | Reload the same link | generic invalid-link message, no hint why (single use) |
-| I8 | Open a link 24 h old / a mangled token | the same generic message |
+| I8 | Open a link 24 h old, or a mangled token | the same generic message. A wrong secret only counts toward the limit if the token is well-formed: the uuid before the dot is kept and the secret after it is exactly 64 hex characters. After **5 such wrong secrets** the invite is dead, including the real link (`support_invite_max_attempts` = 5). A malformed token (wrong length, non-hex) is ignored and counts for nothing |
 
 ## S. Support person on the Owner dashboard (`:3000`)
 Account state: `qa23-active@gymosapps.com`, password `Epic23Support!`, code from `node scripts/epic23-qa/totp.mjs qa23-active`.
