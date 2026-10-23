@@ -484,7 +484,7 @@ development_status:
   epic-25-retrospective: optional
 
   epic-26: in-progress
-  26-1-member-profile-fields-birth-year-profession-neighborhood: review
+  26-1-member-profile-fields-birth-year-profession-neighborhood: done
   26-2-members-only-csv-import-no-plan-awaiting-the-fee: backlog
   epic-26-retrospective: optional
 
@@ -1766,3 +1766,4 @@ last_updated: 10-23-2026 15:07
 # last_updated: 2026-10-23 (build: story 26-1 member profile fields (birth year, profession, neighborhood) backlog -> in-progress on feat/26-1-member-profile-fields (stacked epic/26 on epic/23), spec spec-26-1-member-profile-fields.md approved, baseline 40d8631; epic-26 already in-progress)
 # last_updated: 2026-10-23 (build: 26-1 implemented on feat/26-1-member-profile-fields, uncommitted: migration 0154 + rollback + pgTAP (11/11), schemas, services, MemberModal, export, writers scan test, privacy copy EN/FR + POLICY_LAST_UPDATED 2026-10-23 + play-store-data-safety; ci-local static and unit PASS on a dirty tree, full pristine-DB run still owed to the owner; status left in-progress)
 # last_updated: 2026-10-23 (build: story 26-1 member profile fields in-progress -> review on feat/26-1-member-profile-fields: migration 0154 (birth_year, profession, neighborhood; self-edit pin extended; verify block) with rollback, schemas, services, modal, export, privacy copy and play-store doc, writers scan; review by 3 independent layers, 20 findings triaged (4 patches applied with mutation proofs, 3 deferrals in deferred-work.md, the rest rejected with evidence); static PASS, unit PASS, 12 pgTAP assertions and the members-adjacent pgTAP files PASS on the local DB; full ci-local on a pristine DB NOT yet run (owner reset needed, outside 23:00-24:00 UTC); not merged to epic/26)
+# last_updated: 2026-10-23 (owner reset the local DB; full ci-local GREEN on 23ea30a on a pristine DB (deno, static, pgtap 169/169 with member_profile_fields 12, unit 1526 dashboard tests, e2e); story 26-1 merged into epic/26 as 3d83274 (tree identical to the tested tree), local branch feat/26-1-member-profile-fields deleted, story review -> done; epic/26 NOT pushed (build workflow says never auto-push); next story 26-2 members-only CSV import; ui/superadmin-container 8422837 still awaits a ci-local before merging into epic/23)
