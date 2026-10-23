@@ -2,7 +2,8 @@
 title: '26-2 Members-only CSV import: no plan, awaiting the fee'
 type: 'feature'
 created: '2026-10-23'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_commit: '451a75330145da6729cb6764c6c99e33a79a9a22'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
