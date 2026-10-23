@@ -660,6 +660,10 @@ FR-211: Epic 25 - SEO and AI-SEO outcomes
 FR-212: Epic 25 - Thin listings not indexed
 FR-213: Epic 25 - Category filter, amends FR-172
 FR-214: Epic 25 - Removal from directory within FR-207 times
+FR-215: Epic 26 - A member record carries an optional birth year, profession and neighborhood, entered by staff and shown with the member
+FR-216: Epic 26 - The birth year is shown as an approximate age and never as an exact date of birth; the existing optional dob is unchanged
+FR-217: Epic 26 - A members-only CSV import (name, phone and the three profile fields, no plan) creates members awaiting the registration fee, so the Owner decides each person individually
+FR-218: Epic 26 - The existing plan import is unchanged, and a gym with a registration fee of 0 can still run the members-only import, with a warning
 NFR-023: Epic 22 - Live authorization everywhere; generated claim-read inventory and CI check
 NFR-024: Epic 24 - Public site reads only the published projection
 NFR-025: Epic 24/25 - p75 LCP target
@@ -6142,3 +6146,104 @@ So that it's easier to scan and feels consistent with the rest of the redesigned
 **Given** navigation destinations, edit-mode behavior, the language-toggle optimistic update, and the notification-toggle optimistic update are all pre-existing and correct today
 **When** this story ships
 **Then** none of that logic changes — this is a presentational/containment-only pass, the same discipline as Story 15.3
+
+---
+
+## Epic 26: Member Roster Import & Profile Fields
+
+**Goal:** A gym that takes over an existing roster (a paper or spreadsheet file with names, phones, ages, professions and neighborhoods, and no plan data) can load it in one step and then decide, person by person, who owes the registration fee and which plan they get.
+
+**Owner decisions (2026-10-23):** (1) the age is stored as a **birth year**, shown as an approximate age; (2) imported members are **awaiting the registration fee** and have **no plan**, the opposite of today's plan import, which settles each row; (3) when the gym's fee is 0 the import is **allowed with a warning** (the owner sets fees and settings before importing); (4) names are one field, first name then last name, Title Case; (5) built on `epic/23` so migration numbers follow Epic 23's (0154 onward); (6) the real roster file is personal data: never committed, never printed, and tests use synthetic rows.
+
+**Requirements covered:** FR-215, FR-216, FR-217, FR-218.
+
+### Epic 26 — Stories
+
+| # | Story | Migration | Depends on |
+|---|---|---|---|
+| 26.1 | Member Profile Fields: Birth Year, Profession, Neighborhood | next free at merge time (0154 on epic/23) | 2.3, 18.1 |
+| 26.2 | Members-Only CSV Import: No Plan, Awaiting the Fee | none expected (the importer reuses the member-creation path) | 26.1, 18.5, 2.4 |
+
+---
+
+### Story 26.1: Member Profile Fields: Birth Year, Profession, Neighborhood
+
+As an Owner or front-desk staff member,
+I want to record and see a member's birth year, profession and neighborhood,
+So that I know who my members are, and a roster I take over does not lose that information.
+
+*Delivers FR-215, FR-216. Adds three nullable columns to `public.members`. Nothing about who can read or write a member row changes: the existing member policies and RPCs apply to the new columns exactly as they do to `phone`.*
+
+**Acceptance Criteria:**
+
+**Given** the `members` table
+**When** the migration ships
+**Then** `birth_year smallint` (between 1900 and 2100), `profession text` and `neighborhood text` (each at most 120 characters after trimming) exist, all nullable, every existing row is null, and the existing `dob` column is untouched and still optional
+
+**Given** an Owner, Supervisor, Manager or Receptionist creating or editing a member
+**When** they fill the three optional fields and save
+**Then** the values are saved trimmed, a blank value is saved as null, a birth year outside 1900 to the current year is refused inline, and nothing is required
+
+**Given** a member with a birth year
+**When** the member detail, the members list or an export shows their age
+**Then** it shows an approximate age (the current year minus the birth year, labelled as approximate in EN and FR), never a date of birth, and a member without a birth year shows nothing rather than a zero
+
+**Given** the member export
+**When** it is generated
+**Then** it includes the three fields, and the existing formula-injection guard applies to the two text fields
+
+**Given** the writers of `members` rows (the create and edit member paths, the plan CSV import, the support staff-creation path, the members-only import in 26.2)
+**When** a test enumerates them
+**Then** each either accepts and validates the three fields or leaves them null, and a writer that is added later without being listed fails the scan
+
+**Given** the privacy policy page and `docs/privacy-policy.md`
+**When** this story ships
+**Then** both list the new data categories (birth year, profession, neighborhood) and their purpose, in EN and FR, and the member app neither shows nor collects them in this epic
+
+**Given** the platform rules on hidden identity, audit and the gym-scoped member policies
+**When** the fields are added
+**Then** no policy, trigger or audit action changes, and a pgTAP test proves a member of another gym still cannot read them
+
+---
+
+### Story 26.2: Members-Only CSV Import: No Plan, Awaiting the Fee
+
+As an Owner taking over an existing roster,
+I want to import names, phones and profile details without any plan,
+So that every person is on file awaiting the registration fee and I decide each case individually.
+
+*Delivers FR-217, FR-218. A second import template next to the existing plan import (Story 2.4). The existing six-column import and its Story 18.5 behaviour (a fee gym's rows are settled) do not change.*
+
+**Acceptance Criteria:**
+
+**Given** a CSV whose header row is exactly `member_name,phone,birth_year,profession,neighborhood`
+**When** it is uploaded
+**Then** it is recognised as the members-only template, a file with the existing six columns is still handled by the existing import unchanged, and any other header row is refused with the existing invalid-template message naming the expected columns of both templates
+
+**Given** a valid members-only row
+**When** the import is confirmed
+**Then** a member is created with the name, the phone normalized and validated as today (E.164, the gym's country for local numbers), the three optional profile fields, `join_date` set to the import date, and no subscription and no plan
+
+**Given** a gym whose registration fee is above 0
+**When** members are imported this way
+**Then** each member is left awaiting the fee (not settled, not import-exempt), so the Owner can collect or waive the fee and then assign the first plan, exactly as for a member added by hand
+
+**Given** a gym whose registration fee is 0
+**When** the import is previewed
+**Then** it is allowed, a clear warning says nobody will be awaiting a fee because none is set, and the import proceeds only after the Owner confirms with that warning shown
+
+**Given** the same validation as the plan import
+**When** rows are checked
+**Then** a repeated phone inside the file, a phone that already belongs to a member of the gym, a missing name or phone, a birth year outside 1900 to the current year, and more than 1000 rows are each reported per row and nothing is imported when any row fails
+
+**Given** the import ran
+**When** the result is shown
+**Then** it states how many members were created and how many are awaiting the fee, one audit row records the batch (counts only, no names or phones), and no member row is created under any other gym
+
+**Given** a CSV file of real members
+**When** this story is built and tested
+**Then** the tests use synthetic rows only, and no real member data is committed, logged or printed
+
+**Given** the gates this story relies on (the member-creation path, the fee state, the audit write)
+**When** a test enumerates their consumers
+**Then** the members-only import passes through each, and a new importer that skips one fails the scan
