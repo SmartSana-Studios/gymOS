@@ -191,7 +191,8 @@ export async function listSupportAssignments(
   const authz = await authorizeOrRedirect("platform.support_manage");
   if (!authz.ok) return { data: null, error: authz.error };
   if ((filter.gymId !== undefined && !isUuid(filter.gymId)) || (filter.userId !== undefined && !isUuid(filter.userId))) {
-    return { data: null, error: { code: "validation_error", message: "invalid filter" } };
+    const { t } = await getServerTranslation(await getRequestLocale());
+    return { data: null, error: { code: "validation_error", message: t("support.errors.refused") } };
   }
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_support_assignments", {

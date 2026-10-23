@@ -68,7 +68,7 @@ context:
 - [x] `scripts/rollback-0139-support-assign-unassign-remove.sql` -- drop new objects
 - [x] `supabase/tests/support_assignments.test.sql` + concurrency script -- matrix rows, each refusal, each caller denied, membership removed on end, writer scan, lock race, ACLs
 - [x] `apps/super-admin` support page, gym detail panel, actions, locales, authz and denied-action tests
-- [ ] types, `docs/decisions.md`, `deferred-work.md` (close the 23-1, 23-3 and 23-4 lines this story owns), `sprint-status.yaml`
+- [x] types, `docs/decisions.md`, `deferred-work.md` (close the 23-1, 23-3 and 23-4 lines this story owns), `sprint-status.yaml`
 
 **Acceptance Criteria:**
 - Given a pending assignment, when enrollment completes and the switch is on, then it stays `pending` until a Super Admin confirms.

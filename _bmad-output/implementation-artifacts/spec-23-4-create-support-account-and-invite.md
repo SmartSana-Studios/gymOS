@@ -3,7 +3,7 @@ title: '23-4 Create Support Account & Invite'
 type: 'feature'
 created: '2026-10-21'
 baseline_commit: 'e41bf1802cf879ce7dfd6b02c16a070a75bbec31'
-status: 'review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 1
 context:

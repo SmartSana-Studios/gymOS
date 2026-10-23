@@ -1513,3 +1513,41 @@ Every entry above that names 23-6b is closed here or re-homed with a reason (mig
 ## Deferred from: code review of spec-23-12-support-page-tabs-and-modals (2026-10-22)
 
 - Status message never cleared and `resetOpen` hiding actions after `executed`: both already recorded above from the build session; nothing new. For `resetOpen`, `executed` is documented as waiting for re-enrolment, so the hiding may be intended.
+
+## Closed by the Epic 23 retrospective closure (2026-10-22)
+
+Migrations 0148 and 0149, `scripts/rollback-rehearsal-epic23.sh`, `support_retro_closure.test.sql`, `docs/runbooks/deploy-epic-23.md`. Source: `epic-23-retro-2026-10-22.md`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: CLOSED by 0148: `support_live` and `support_live_for` repeated every leg of the live gate; both now call `private.support_live_core`, and `support_retro_closure.test.sql` section A asserts they agree on every leg.
+  evidence: 0148; support_retro_closure.test.sql A1-A15 (negative run against the pre-0148 functions fails B4, B5, C1).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED by 0148: `support_revocation_cutoff_seconds` was read by nothing; the setting is removed and the epic context says the guarantee is the next request.
+  evidence: 0148 section 3; support_retro_closure.test.sql C1; epic-23-context.md "As built".
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
+  summary: CLOSED by 0149: raw `auth.users` proxy rows had NULL GoTrue token columns, which made the Admin API user listing answer HTTP 500. Reproduced locally (500), fixed (200). Production had not applied 0141 yet.
+  evidence: 0149; support_retro_closure.test.sql D1-D2 (D2 fails with 0149 rolled back).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-11-lifecycle-inactivity-recertification-and-factor-reset.md`
+  summary: PROVEN: the 0145 backfill of `recorded_email` and `recertify_due_at` on rows that pre-date 0145 (rolled-back transaction on the local DB): before, `support_live_for` is false (fails closed); after, the e-mail is recorded in lower case, the due date is 90 days out and the account is live.
+  evidence: scratch proof 2026-10-22, recorded in docs/runbooks/deploy-epic-23.md gate G5. Production has no support accounts, so the backfill touches no row there.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED: rollback of 0144 left `locked_at` set with no unlock function. The script now refuses while any support account is locked.
+  evidence: scripts/rollback-0144-support-revocation-velocity-lock.sql guard; rehearsal clears locks inside its rolled-back transaction.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-1-support-role-assignment-live-gate.md`
+  summary: CLOSED: rollbacks for 0134-0149 were never rehearsed as a set. `bash scripts/rollback-rehearsal-epic23.sh` runs all 16 in reverse in one rolled-back transaction (16 of 16 pass; Epic 22 objects kept).
+  evidence: scripts/rollback-rehearsal-epic23.sh. It proves the scripts run and remove the Epic 23 objects; it does not prove they equal production's prior definitions (production has none of 0134-0149 yet).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-9-support-connects-the-payment-account.md`
+  summary: CLOSED in code by 23-10 and 23-6c (not marked at the time): the support step-up counter before support is enabled; one per-user counter shared by sign-in and the three dialogs.
+  evidence: deferred-work.md entries marked CLOSED by 23-6c; 0147; mfa-form tests.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED in code by 23-11 (not marked at the time): restore of switch-suspended assignments on unlock and recertify.
+  evidence: 0145 `private.support_restore_assignments`; support_lifecycle.test.sql. A related gap, the switch-on restore skipping the recertification leg, was fixed in 0148.
+- source_spec: `_bmad-output/implementation-artifacts/epic-23-context.md`
+  summary: CLOSED: the stray `support_audit_action_not_allowed` bullet is labelled as 23.10's rule, and the context file has an "As built" block for the divergences the owner decided.
+  evidence: epic-23-context.md line 37 and the final section.
+
+## Deferred from: Epic 23 retrospective closure (2026-10-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md`
+  summary: The `loyalty_subscriber_rule.test.sql` clock failure (tests 8, 14, 20) is not only a test artefact. `confirm_renewal` sets `start_date` and the carry of remaining days from the database's `current_date` (UTC), while the loyalty rule judges "on time" in the gym's local date (`now() at time zone gyms.timezone`, 0119 line 153; Douala is UTC+1). Between 23:00 and 24:00 UTC the two dates differ by one day, so a renewal made in the first local hour of a day can carry or stamp one day differently from what the rule assumes.
+  evidence: Reproduced 2026-10-22 23:05 UTC: the file fails at M1 (`new_expiry` is not `start_date + 30`); it passes at any other hour. `0121_early_renewal_carries_remaining_days.sql` lines 106 and 342-345 use `current_date`. Not changed here: it is subscription-date logic in a live path and needs an owner decision (move `confirm_renewal` to the gym-local date, or accept UTC). Until then, run the full `ci-local.sh` outside 23:00-24:00 UTC.

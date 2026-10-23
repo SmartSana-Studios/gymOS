@@ -6,6 +6,15 @@
 -- email_outbox rows written by 0144 stay. The replaced functions go back to their 0143-era bodies.
 -- Run only with the dashboard and the Super Admin app rolled back first (they call the functions dropped here).
 
+-- Guard (Epic 23 retro G8): this script drops public.unlock_support_account and the lock-reason columns but leaves locked_at as it is, so a
+-- locked account would stay locked with no way to unlock it. Refuse until none is locked (Super Admin > GymOS support > Locked accounts).
+do $$
+begin
+  if exists (select 1 from private.support_accounts where locked_at is not null) then
+    raise exception 'rollback 0144: unlock every locked support account first, then run this script again';
+  end if;
+end $$;
+
 select cron.unschedule('support_activity_digest');
 drop function if exists private.support_activity_digest();
 
