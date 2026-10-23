@@ -2,7 +2,8 @@
 title: '26-1 Member profile fields: birth year, profession, neighborhood'
 type: 'feature'
 created: '2026-10-23'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_commit: '40d8631306474255db4f71066d3394ff038dcd03'
 route: 'dispatch'
 review_loop_iteration: 0
 context:

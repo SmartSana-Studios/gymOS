@@ -484,7 +484,7 @@ development_status:
   epic-25-retrospective: optional
 
   epic-26: in-progress
-  26-1-member-profile-fields-birth-year-profession-neighborhood: backlog
+  26-1-member-profile-fields-birth-year-profession-neighborhood: in-progress
   26-2-members-only-csv-import-no-plan-awaiting-the-fee: backlog
   epic-26-retrospective: optional
 
@@ -1763,3 +1763,4 @@ last_updated: 10-23-2026 15:07
 # last_updated: 2026-10-23 (ad-hoc, non-story: owner browser QA of README section I (invite page) I1-I8 all pass, plus both invite limits proven on throwaway accounts: 4 wrong codes then the correct one activates (code_attempts 4, limit 5); 5 wrong codes kill the invite (correct code refused, no factor verified); 5 well-formed wrong link secrets kill the invite (attempts 5); a malformed token counts for nothing by design. README I5 and I8 reworded. qa23-fresh went through the real invite flow and still has must_change_password true, which confirms the forced second password change finding. Sections O, S and I are all done.)
 # last_updated: 2026-10-23 (ad-hoc, non-story: owner reset the local DB; full ci-local GREEN on 822ca69 on a pristine DB (the first full run failed: three catalog guards needed the 0151-0153 functions added, fixed in 822ca69; an e2e build timeout and one support-assignments-race failure both happened under a load average of about 66 and did not recur with the load calm); fix/23-decisions (0150-0153, proxy recertification page, labels, decisions.md entry, runbook) merged into epic/23 as b194340 (tree identical to the tested tree), pushed, local branch deleted; retro action item 99 done; master and production untouched)
 # last_updated: 2026-10-23 (ad-hoc, non-story: Epic 26 'Member roster import and profile fields' defined at the owner's request (stories 26.1 member profile fields: birth year, profession, neighborhood; 26.2 members-only CSV import, no plan, awaiting the registration fee) in epics.md (FR-215 to FR-218) and sprint-status; owner decisions: birth year stored not age, fee 0 allowed with a warning, names first-then-last Title Case, stacked on epic/23 (migrations 0154+), subagents allowed for review; real roster file cleaned locally (102 of 105 rows importable, 3 set aside), git-excluded; separately ui/superadmin-container 8422837 (centred page container in the Super Admin app) awaits a full ci-local before merging into epic/23)
+# last_updated: 2026-10-23 (build: story 26-1 member profile fields (birth year, profession, neighborhood) backlog -> in-progress on feat/26-1-member-profile-fields (stacked epic/26 on epic/23), spec spec-26-1-member-profile-fields.md approved, baseline 40d8631; epic-26 already in-progress)
