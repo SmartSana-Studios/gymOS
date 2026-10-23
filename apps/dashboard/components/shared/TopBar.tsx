@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LanguageToggle } from "@/components/shared/LanguageToggle";
 import { ThemeToggle } from "@/components/shared/ThemeToggle";
+import { NoticeBell } from "@/components/shared/NoticeBell";
 import type { MemberRole } from "@/services/session";
 import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -15,6 +16,7 @@ const ROLE_LABEL_KEY: Record<MemberRole, string> = {
   manager: "role.manager",
   supervisor: "role.supervisor",
   owner: "role.owner",
+  support: "role.support",
 };
 
 /**
@@ -59,6 +61,8 @@ export function TopBar({
       {title && <h1 className="truncate text-sm font-medium">{title}</h1>}
 
       <div className="ml-auto flex items-center gap-1 sm:gap-2">
+        {/* Story 23.9: the Owner's in-app notices (payment-connection changes by GymOS Support). */}
+        {role === "owner" && <NoticeBell />}
         <LanguageToggle />
         <ThemeToggle />
 

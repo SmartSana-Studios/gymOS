@@ -34,6 +34,7 @@ Super Admin creates GymOS support people by invite and assigns them to gyms many
 - Account creation: inactive until a verified factor; invite is single-use, stored hashed, 24 h expiry, bound to verified phone, no temporary password; unverified email/phone makes the account not assignable. Creation is refused while `super_admin_aal2` is off. Pending assignments become active only by explicit Super Admin confirmation.
 - Revocation: in-flight operations complete or roll back; pending items re-owned to the gym proxy; subscriptions/signed links stop within 60 s. Suspended gyms deny support like any staff and do not count toward inactivity.
 - Assumption-tagged values to confirm in 23.0 and keep in the single configuration location from 22.7: velocity limits (10/h per gym, 20/h per account, 3 payment changes/day per gym), 60 s cutoff, 30-day inactivity, 30-minute cooling-off, 3-business-day disclosure answer. Deferrable: velocity lock, daily digest, quarterly recertification, inactivity sweep (mark deferred in the story, do not delete).
+- (Story 23.10, built in 0144 as `private.support_audit_actions`.) A live support caller writing an audit event with an action type the allow-listed capabilities do not produce is refused with a typed error (`support_audit_action_not_allowed`); reading a real identity writes one audit row.
 - Every Super Admin action and invite step writes one `audit_log` row (never links or secrets). Phone/email changes for support go through Super Admin at AAL2 only. Bilingual EN/FR for Owner-facing text.
 
 ## Technical Decisions
@@ -61,4 +62,17 @@ Super Admin creates GymOS support people by invite and assigns them to gyms many
 - Epic 22 prerequisites: live helpers and gate (22.3, 22.4), second-factor gate, session limits and step-up (22.7), Super Admin bootstrap and `super_admin_aal2` flag (22.6). Step-up and the limits configuration location come from 22.7.
 - 23.0 gates the rest: OQ-30 (suspend, not delete, assignments on opt-out) blocks 23.3; OQ-31 (terms wording, disclosure answer) blocks 23.8; the Owner notice must be sent before release; 23.0 confirmed/deferred decisions govern 23.10 and 23.11.
 - 23.1 underpins everything. Chains: 23.1 → 23.2; 23.1 → 23.3 and 23.4 → 23.5 → 23.6 → 23.7 → 23.8; 23.6 + 23.7 → 23.9; 23.7 → 23.10; 23.5 + 22.7 → 23.11.
+- 23.6 must wire `private.session_gate_touch` into the dashboard request path for support users: until then no support session can pass the live gate, because `private.support_live` needs a `support_session_state` row and only `session_gate_touch` writes it (23.1). 23.6 (and any later story that lets support in) must use `private.support_gym_id()`: `gym_id()` and `current_member_role()` return NULL for support by owner decision (docs/decisions.md, Story 23.1).
+- 23.4, 23.10 and 23.11 are the writers of `private.support_accounts` (activated_at, locked_at, reset_pending_at); nothing writes it before them, so a support user is never live until 23.4 activates the account.
 - 23.6 is the story that makes support useful; 23.9 adds the payment connection to its allow-list. 23.7 is the largest (touches every actor-writing function). 23.4 reuses its invite for 23.11's reset. 23.10's digest item on public page contact/about text applies once Epic 24 exists.
+
+## As built (reconciled after the Epic 23 retrospective, 2026-10-22)
+
+Where the build diverged from the wording above by owner decision. The decisions themselves are in the specs and `docs/decisions.md`.
+
+- **No phone for support.** A support person is a `@gymosapps.com` e-mail account. The invite is an e-mail link, then a password, then an authenticator code (23-4; `spec-23-4`). Wherever this file says "verified phone" or "phone one-time code", read e-mail invite plus authenticator.
+- **Factor reset notices are e-mail only**, and the cooling-off does not freeze contact changes at the provider. A nightly drift check (`support_contact_drift_check`, 0145) detects a changed address or phone and locks the account, so a change is detected within a day rather than prevented (`spec-23-11`, owner decision 2).
+- **Role helpers.** `current_member_role()` and `gym_id()` return NULL for a support person; `private.support_gym_id()` is the only resolver (23-1 triage log). The live gate is `private.support_live` / `support_live_for`, both over one predicate, `private.support_live_core` (0148).
+- **Revocation is enforced on every request**, not within a configured number of seconds. The unused `support_revocation_cutoff_seconds` setting was removed (0148); the guarantee is "the next request", and Realtime events re-check the gate.
+- **Pending items are not re-owned.** Since 23-7 every support-written row already carries the gym proxy as actor, so revocation flags pending payments instead (`spec-23-10`).
+- **Not built:** an Owner "resumed" notice when support is unlocked (named for 23-11, dropped). Open owner decision, see the retrospective.

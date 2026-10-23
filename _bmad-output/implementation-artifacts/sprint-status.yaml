@@ -443,18 +443,21 @@ development_status:
 
   epic-23: in-progress
   23-0-pre-flight-checklist-product-owner: done
-  23-1-support-role-assignment-record-and-live-gate: backlog
-  23-2-support-excluded-from-counts-caps-notifications-metrics: backlog
-  23-3-allow-gymos-support-switch-and-gymos-support-row: backlog
-  23-4-create-support-account-and-invite: backlog
-  23-5-assign-unassign-and-remove: backlog
-  23-6-capability-allow-list-and-denied-set-matrix: backlog
-  23-7-hidden-identity-per-gym-proxy-actor: backlog
-  23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces: backlog
-  23-9-support-connects-the-payment-account: backlog
-  23-10-revocation-owner-visibility-and-velocity-lock: backlog
-  23-11-lifecycle-inactivity-recertification-and-factor-reset: backlog
-  epic-23-retrospective: optional
+  23-1-support-role-assignment-record-and-live-gate: done
+  23-2-support-excluded-from-counts-caps-notifications-metrics: done
+  23-3-allow-gymos-support-switch-and-gymos-support-row: done
+  23-4-create-support-account-and-invite: done
+  23-5-assign-unassign-and-remove: done
+  23-6-capability-allow-list-and-denied-set-matrix: done
+  23-6b-dashboard-support-request-path: done
+  23-6c-dashboard-support-step-up: done
+  23-7-hidden-identity-per-gym-proxy-actor: done
+  23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces: done
+  23-9-support-connects-the-payment-account: done
+  23-10-revocation-owner-visibility-and-velocity-lock: done
+  23-11-lifecycle-inactivity-recertification-and-factor-reset: done
+  23-12-support-page-tabs-and-modals: done
+  epic-23-retrospective: done
 
   epic-24: backlog
   24-1-spike-pooler-role-dns-precedence-host-cookies-autossl: backlog
@@ -480,6 +483,11 @@ development_status:
   25-6-directory-gate-seo-verification-and-removal-timing: backlog
   epic-25-retrospective: optional
 
+  epic-26: in-progress
+  26-1-member-profile-fields-birth-year-profession-neighborhood: done
+  26-2-members-only-csv-import-no-plan-awaiting-the-fee: done
+  epic-26-retrospective: optional
+
 action_items:
   - epic: 7
     action: "Commit immediately when a story's Status is set to done, before starting
@@ -502,7 +510,7 @@ action_items:
       (adopt Vitest, or ratify pgTAP + typecheck + manual as the permanent standard
       in docs/decisions.md)"
     owner: "smartsana"
-    status: open
+    status: done
   - epic: 8
     action: "apps/dashboard's local node_modules/next was broken (MODULE_NOT_FOUND
       on next/dist/bin/next) -- root cause: the `next@16.2.12` folder was missing
@@ -768,14 +776,14 @@ action_items:
     action: "Add a hosted-vs-local function/policy ACL diff to the production migration
       checklist"
     owner: "dev"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-08.md"
   - id: "epic-18-retro-item-12-capture-a-genuine-tara-cancel-webhook-as"
     epic: 18
     action: "Capture a genuine Tara cancel webhook as a Deno fixture and run the Deno
       suite (or confirm CI runs it)"
     owner: "dev"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-08.md"
   - id: "epic-18-retro-item-13-confirm-story-18-7-on-a-physical-device"
     epic: 18
@@ -823,7 +831,7 @@ action_items:
     epic: 18
     action: "Split apps/dashboard/services/members.ts by concern when next touched"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-18-retro-2026-10-08.md"
   - id: "epic-18-retro-item-20-keep-sprint-status-yaml-parseable-bookke"
     epic: 18
@@ -881,7 +889,7 @@ action_items:
     action: "Throwaway-gym check that a new gym starts with charge_guests_per_session
       ON; psql proof of 0115 with mixed-flag gyms and one dry run of rollback-0115"
     owner: "owner"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
   - id: "epic-19-retro-item-28-decide-the-lapsed-paid-session-state-and"
     epic: 19
@@ -917,7 +925,7 @@ action_items:
     action: "Split apps/dashboard/services/payments.ts and members.ts by concern when
       next touched; extract usePaymentStatusWatch"
     owner: "dev"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-19-retro-2026-10-12.md"
   - id: "epic-19-retro-item-33-file-a-short-spec-or-decisions-md-entry"
     epic: 19
@@ -1350,7 +1358,108 @@ action_items:
     owner: "dev"
     status: done
     ref: "_bmad-output/implementation-artifacts/epic-22-retro-2026-10-19.md"
-last_updated: 10-20-2026 16:47
+  - id: "epic-23-retro-item-87-decide-the-invite-rate-limit-g2-a-db-cou"
+    epic: 23
+    action: "Decide the invite rate limit (G2): a DB counter per IP (stores IPs, privacy-policy
+      impact) or a Vercel firewall rule (plan-dependent), before the first production
+      support invite"
+    owner: "smartsana"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-88-decide-the-picker-window-g6-a-person-who"
+    epic: 23
+    action: "Decide the picker window (G6): a person who passes the code and leaves
+      before support_begin_session runs keeps the last-used gym in the next token"
+    owner: "smartsana"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-89-decide-whether-the-super-admin-identity"
+    epic: 23
+    action: "Decide whether the Super Admin identity reader must cover non-audit support
+      rows (payments, refunds, credentials, messaging) (G7)"
+    owner: "smartsana"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-90-decide-whether-to-build-the-owner-resume"
+    epic: 23
+    action: "Decide whether to build the Owner resumed notice when support is unlocked,
+      or drop it (R6)"
+    owner: "smartsana"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-91-decide-confirm_renewal-date-semantics-ut"
+    epic: 23
+    action: "Decide confirm_renewal date semantics: UTC current_date vs gym-local
+      date, which differ by a day from 23:00 to 24:00 UTC (D10)"
+    owner: "smartsana"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-92-run-readme-sections-o-s-and-i-of-scripts"
+    epic: 23
+    action: "Run README sections O, S and I of scripts/epic23-qa on staging data before
+      enabling support for any gym, and record the result"
+    owner: "smartsana"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-93-reset-the-local-db-and-run-the-full-scri"
+    epic: 23
+    action: "Reset the local DB and run the full scripts/ci-local.sh outside 23:00-24:00
+      UTC on fix/23-retro-closure, then merge to epic/23 (0148, 0149, rehearsal, runbook)"
+    owner: "smartsana"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-94-remove-expo-token-and-supabase-db-passwo"
+    epic: 23
+    action: "Remove ~/.expo-token and ~/.supabase-db-password from the devcontainer
+      and revoke them at the providers (still open from Epic 19 item 29)"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-95-story-add-the-duplicate-delivery-check-a"
+    epic: 23
+    action: "Story: add the duplicate-delivery check and status confirmation to the
+      SaaS billing webhook branch of payment-webhook (Epic 18 item 21)"
+    owner: "dev loop"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-96-follow-docs-runbooks-deploy-epic-23-md-r"
+    epic: 23
+    action: "Follow docs/runbooks/deploy-epic-23.md (release gates, env, ordered per-migration
+      deploy with backup) before any production deploy of 0134-0149"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-97-story-move-confirm_renewal-start_date-an"
+    epic: 23
+    action: "Story: move confirm_renewal start_date and carry to the gym-local date
+      (UTC current_date differs by a day from 23:00 to 24:00 UTC); fixes loyalty_subscriber_rule.test.sql
+      failing in that hour"
+    owner: "dev loop"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-98-add-a-vercel-firewall-rate-limit-rule-on"
+    epic: 23
+    action: "Add a Vercel firewall rate-limit rule on /support-invite if the plan
+      allows it (a setting, not code)"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-99-reset-the-local-db-and-run-the-full-scri"
+    epic: 23
+    action: "Reset the local DB and run the full scripts/ci-local.sh outside 23:00-24:00
+      UTC on fix/23-decisions (0150-0153, proxy, labels), then merge to epic/23"
+    owner: "smartsana"
+    status: done
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+  - id: "epic-23-retro-item-100-browser-check-the-new-pages-overdue-rece"
+    epic: 23
+    action: "Browser-check the new pages: overdue recertification page (README S10),
+      the support toast after adding staff (S15), and no password-change page on first
+      entry (S4)"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md"
+last_updated: 10-23-2026 15:07
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1596,3 +1705,70 @@ last_updated: 10-20-2026 16:47
 # last_updated: 2026-10-20 (build: epic 23 started, 23-0 pre-flight in-progress, docs only. Owner answered: OQ-30 suspend-not-delete confirmed, all assumption values confirmed, all four deferrable items kept (velocity lock, daily digest, quarterly recertification, inactivity sweep), Super Admin factor state recorded as one TOTP plus recovery email (differs from the AC wording). Recorded in docs/decisions.md and PRD OQ-30. Still open before 23-0 can be done: OQ-31 legal wording (blocks 23-8 and release), Owner notice text and send date (blocks release), date the recovery runbook was exercised. epic-23-context.md compiled)
 # last_updated: 2026-10-20 (ad-hoc: 23-0 open questions decided, docs only. OQ-31 closed by owner risk acceptance (not reviewed by counsel), so 23-8 is unblocked; EN/FR Owner notice drafted in docs/decisions.md pending owner approval, send date open; recovery runbook exercise left to the owner, date open. 23-0 stays in-progress until the notice is approved and sent and the runbook date is recorded; both gate the release, not the build)
 # last_updated: 2026-10-20 (build: 23-0 pre-flight DONE, docs only. Owner notice EN/FR text approved (send >= 7 days before the release deploy, a release-time step, not yet sent); recovery runbook exercise waived by owner (tested at first use); OQ-30 and OQ-31 closed; values confirmed; all four deferrable items kept. 23-1 is next)
+# last_updated: 2026-10-20 (build: 23-1 backlog -> in-progress on feat/23-1-support-role-assignment-live-gate off epic/23; spec approved, implementing)
+# last_updated: 2026-10-20 (build: 23-1 implemented on feat/23-1-support-role-assignment-live-gate, uncommitted. Migrations 0134 (enum) and 0135 (support_assignments, private.support_accounts, gyms.allow_gymos_support + guard trigger, support_set_membership writer + members constraint trigger, private.support_live, gym_id/current_member_role/hook/switch_active_gym/list/session_gate_touch support branches) with rollbacks; pgTAP support_role_live_gate 88/88 after the loopback (gym_id() and current_member_role() are NULL for support; private.support_gym_id() resolves the live gym) with per-leg mutation check; suspension_rpc_coverage updated for the new writer and table; types, MemberRole, role.support EN/FR. ci-local full run green (static, deno, pgtap, unit, e2e). Applied to LOCAL db only. Status left in-progress for review)
+# last_updated: 2026-10-20 (build: 23-1 in-progress -> review. Two review rounds; round 1 found gym-only RLS policies would admit a live support user, owner chose gym_id()/current_member_role() NULL for support with private.support_gym_id() as the only resolver; round 2 added the dashboard rejection test. Migrations 0134, 0135 on feat/23-1-support-role-assignment-live-gate, NOT applied to production, local CI run before commit)
+# last_updated: 2026-10-20 (code review: 23-1 review -> done. 4 layers; 1 decision (hook dual-role row: left as is, owner), 4 patches applied (support_gym_id claim-binding tests, catalog scan of readers of the assignment tables and policies, support_assignments types, deferral heading), 3 deferred (lifecycle CHECKs and invariant to 23.3/23.5, rollback drill). pgtap support_role_live_gate green at plan(94); binding tests shown to fail with the claim clause removed. ci-local not re-run after the patches.)
+# last_updated: 2026-10-20 (build: 23-1 merged into epic/23 (ci-local: static/deno/unit/e2e green; pgtap green except loyalty_subscriber_rule, a UTC-midnight clock flake unrelated to 23-1); 23-2 backlog -> in-progress on feat/23-2-support-excluded-from-counts off epic/23; spec approved, implementing)
+# last_updated: 2026-10-20 (build: 23-2 implemented on feat/23-2-support-excluded-from-counts, uncommitted. Migration 0136 (private.staff_roles(); update_staff_role, deactivate_staff_member, staff_account_for_reset, create_staff_member refuse a support target; gym_member_count and platform_metrics exclude support) with rollback; pgTAP support_excluded_from_counts 40/40; support_role_live_gate function list updated; listStaff/listGymMembers TS filters + unit tests. ci-local: static/deno/unit/e2e green, pgtap green except loyalty_subscriber_rule clock flake. Applied to LOCAL db only. Status left in-progress for review)
+# last_updated: 2026-10-20 (build: 23-2 in-progress -> review on feat/23-2-support-excluded-from-counts. 0136 staff_roles() + staff RPCs/gym_member_count/platform_metrics exclude support; 53 pgTAP assertions; review: 3 layers, 3 patched, 1 deferred (quiet-gym positive control). Local only, not merged)
+# last_updated: 2026-10-21 (review: 23-2 independent bmad-code-review, 4 layers; 2 low patches applied (policy cat_pol classification + widened negation regexes, pgTAP 54/54, shown capable of failing; dead set_config removed; TS neq assertion), 2 deferred (rollback 0136 drill added to deferred-work; quiet-gym control already filed), 7 rejected. review -> done. Uncommitted, local only)
+# last_updated: 2026-10-21 (build: 23-2 closed out and merged into epic/23 after a GREEN ci-local; 23-3 backlog -> in-progress on feat/23-3-allow-gymos-support-switch-and-gymos-support-row off epic/23; spec approved, implementing)
+# last_updated: 2026-10-21 (build: 23-3 implemented on feat/23-3-allow-gymos-support-switch-and-gymos-support-row, uncommitted. Migration 0137 (set_allow_gymos_support, get_gymos_support_status, support_gym_lock, suspended_by_switch, updated_at trigger) + rollback; pgTAP allow_gymos_support_switch 37/37; dashboard GymosSupportSection, staff row, EN/FR, service wrappers + tests. Applied to LOCAL db only (0136 also applied locally, was missing). Status left in-progress for review)
+# last_updated: 2026-10-21 (build: 23-3 in-progress -> review on feat/23-3-allow-gymos-support-switch-and-gymos-support-row. Migration 0137 (set_allow_gymos_support, get_gymos_support_status, suspended_by_switch, support_gym_lock); Settings switch + fixed GymOS Support staff row, EN/FR. Three-layer review: 8 patches applied, 2 deferred, rest rejected. ci-local GREEN on all five stages. Not applied to production.)
+# last_updated: 2026-10-21 (code review of 23-3, round 2: 7 patches applied (pgTAP updated_at assertion now back-dated and shown to fail without the trigger, aliased writer-scan regex, exact refusal messages, switch-on audit row, plan 39; staff page.test.tsx; unused locale keys removed; deferred-work text fixed), 2 deferred (0137 rollback drill, switch-on restore vs non-support membership/account state), 12 rejected. pgTAP 39/39, settings vitest 168/168. 23-3 review -> done; not yet committed or merged into epic/23)
+# last_updated: 2026-10-21 (build: 23-3 committed and merged into epic/23 after a GREEN ci-local on all five stages (static, deno, pgtap, unit, e2e). Fixed a staff page.test.tsx typecheck error found by the static stage. 23-4 branch feat/23-4-create-support-account-and-invite cut off epic/23, planning next)
+# last_updated: 2026-10-21 (build: 23-4 backlog -> in-progress on feat/23-4-create-support-account-and-invite off epic/23; spec approved with owner decisions: invite by email, invitee page in dashboard, email trusted at creation, support has no phone so email + password then TOTP; implementing)
+# last_updated: 2026-10-21 (build: 23-4 implemented on feat/23-4-create-support-account-and-invite, uncommitted. Migration 0138 (support_invites, collision check, create_support_account, issue_support_invite, get_support_accounts, invite inspect/password/code-failed, activate_support_account, platform.support_manage) + rollback; pgTAP support_account_invite 76/76; Super Admin /support section + invite mail (EN/FR); dashboard /support-invite two-step route + service; live local run of the invite flow passed. Applied to LOCAL db only. Status -> review; ci-local run pending)
+# last_updated: 2026-10-21 (build: 23-4 in-progress -> review on feat/23-4-create-support-account-and-invite. Migration 0138 (support_invites, collision check, create_support_account, service-role-only issue_support_invite, activate_support_account, get_support_accounts), Super Admin /support section, dashboard /support-invite two-step page (password, TOTP). Support has no phone: email + password then TOTP (owner decision, docs/decisions.md). Three-layer review: 1 intent_gap resolved by owner (server-only issuance), 5 patch groups applied, 5 deferred, rest rejected. ci-local GREEN on all five stages for 5128cae. Not applied to production; needs DASHBOARD_APP_URL and MAIL_* in Super Admin prod env and magic-link verification enabled on prod Supabase.)
+# last_updated: 2026-10-21 (build: 23-4 review -> done; merged into epic/23 after GREEN ci-local on all five stages for 5128cae (later commit changed docs only))
+# last_updated: 2026-10-21 (ad-hoc, 23-4 follow-up on fix/23-4-password-signin-instead-of-magic-link off epic/23: the invitee's server-side aal1 session now comes from an email + password sign-in with the password just set, not an admin magic link, so production no longer needs magic-link verification. services/supportInvite.ts mintSession, actions, SupportInviteFlow (resends password per step, asks again after a reload), tests 16/16. Proved against the local Supabase: sign-in aal1, TOTP enroll, real-code verify, factor verified. No migration.)
+# last_updated: 2026-10-21 (build: 23-5 status backlog -> in-progress)
+# last_updated: 2026-10-21 (build: 23-5 implemented on story/23-5, uncommitted. Migration 0139 (deactivated_at, state CHECK and transition trigger, assign_support, confirm_support_assignment, unassign_support, deactivate_support_account, remove_support_account, get_support_assignments; invite check/issue refuse a deactivated account) + rollback (round trip proven in a rolled-back transaction); pgTAP support_assignments 102/102, 23.1/23.3/23.4 tests adjusted and green; two-session race script green; Super Admin /support assignments + deactivate/remove, gym detail panel, EN/FR, actions and denied tests (vitest 398 pass, tsc clean). Applied to LOCAL db only. ci-local not yet run; status stays in-progress until it is)
+# last_updated: 2026-10-21 (build: 23-5 status in-progress -> review; reviewed, 4 patches applied, 2 deferrals)
+# last_updated: 2026-10-21 (code-review 23-5 round 2: 4 patches applied (ban-first deactivate with support-account precheck, not_found re-check after lock in confirm/unassign, race script runs 3+4 shown capable of failing, retry UI superseded), 5 deferrals in deferred-work.md; review -> done. ci-local 5/5 PASS on a dirty tree, so no merge stamp: commit, then re-run scripts/ci-local.sh before merging to epic/23)
+# last_updated: 2026-10-21 (build: 23-6 planned, split (dashboard path -> 23-6b, step-up UI -> 23-6c in deferred-work.md); status backlog -> in-progress)
+# last_updated: 2026-10-21 (build: 23-6 implemented on epic/23, uncommitted. Migration 0140 (private.support_capabilities, support_rpc_gym_id/support_rpc_role/support_stepup_require helpers, 20 support_* policies, 11 RPCs opted in, gym-column guard trigger aa_guard_support_gym_columns, refund step-up trigger, members.created_by_support, stepup_issue extended for support actions, log_audit_event and current_gym_status resolve the support gym, payment column pin extended); rollback script rehearsed; support_capabilities.test.sql (125) added, four older pgTAP files updated; pgtap 161/161, guardrails clean, typecheck green; ci-local not run; status in-progress -> review)
+# last_updated: 2026-10-21 (code-review 23-6 round 2: 4 layers, 2 decisions resolved by owner as accepted Supervisor-equivalent risk (recorded in decisions.md), 4 test patches applied to support_capabilities.test.sql (plan 133 -> 146, file passes 146/146; one expectation corrected to registration_fee_not_refundable), 7 deferred to deferred-work.md; ci-local not run; status review -> done)
+# last_updated: 2026-10-21 (build: 23-7 backlog -> in-progress on feat/23-7-hidden-identity-per-gym-proxy-actor off epic/23; spec approved, implementing)
+# last_updated: 2026-10-21 (build: 23-7 implemented on feat/23-7-hidden-identity-per-gym-proxy-actor, uncommitted. Migration 0141 (users.is_support_proxy/support_proxy_gym_id, gym-insert proxy trigger with backfill, private.actor_id(), nine converted actor writers, aa_support_force_actor on payments and refunds, RESTRICTIVE hide_support_membership on members); rollback script rehearsed with data; support_proxy_actor.test.sql with writer and user-FK scans shown to fail on seeded cases; four older pgTAP files updated; pgTAP support_proxy_actor 69/69, support_capabilities 146/146, support_role_live_gate 95/95; migration guardrails clean; ci-local (dirty tree, before the review fixes): static, deno, pgtap, unit, e2e all PASS; local only, not applied to production; actor_id() fails closed, proxy banned_until finite 2999-12-31, hide_support_membership branches and UPDATE/DELETE proven; status in-progress -> review)
+# last_updated: 2026-10-21 (build: 23-7 review complete on feat/23-7-hidden-identity-per-gym-proxy-actor. Three-layer review: 4 patches applied (actor_id fails closed, finite banned_until, hide_support_membership allowed-branch tests, docs), 2 deferred, rest rejected. ci-local GREEN on all five stages after the patches (static, deno, pgtap, unit, e2e); guardrails clean. Migration 0141 not applied to production. Do not enable support for any gym before 23-8.)
+# last_updated: 2026-10-21 (build: 23-7 merged into epic/23 as cf01e79 after a GREEN ci-local on dfb35a9 (stamp written); feature branch deleted, never pushed. 23-7 stays in review. Not applied to production; do not enable support for any gym before 23-8)
+# last_updated: 2026-10-21 (review: 23-7 round 2, four layers (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor). 1 decision resolved (add users-reader scan), 4 patches applied (self-update pin of is_support_proxy/support_proxy_gym_id, writer-scan regexes widened, dead test code, header comment), 4 deferred (2 unverified medium: historic real-id actor rows, GoTrue vs NULL token columns; both to settle before 23-8 / the master merge), 10 rejected. ci-local GREEN on 2983d5c (stamp written), merged into epic/23, branch deleted. Not applied to production; do not enable support for any gym before 23-8. status review -> done)
+# last_updated: 2026-10-21 (build: 23-8 backlog -> in-progress on feat/23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces off epic/23; spec approved, implementing)
+# last_updated: 2026-10-21 (build: 23-8 implemented on feat/23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces, in-progress -> review. Migration 0142 (support_action_identity written by AFTER INSERT triggers on audit_log/payments/refunds and the three non-trigger writers, Super Admin read at AAL2, Owner disclosure request + Super Admin answer, disclosure_answer_business_days = 3, get_gym_support_proxy_id), rollback script, pgTAP support_action_identity.test.sql (91), dashboard actorNames/auditDisclosure/UI, mobile receipt shows the gym, super-admin real-person audit view and disclosure inbox, types, decisions.md (historic-row check: 0 local, production has no support role at 0133), deferred-work closed/moved. Local only, not applied to production; do not enable support for any gym before 23-9..23-11 and the master merge.)
+# last_updated: 2026-10-21 (build: 23-8 in-progress -> review on feat/23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces. Migration 0142 (support_action_identity, audit_disclosure_requests, disclosure_answer_business_days), dashboard/mobile/super-admin surfaces. Three-layer review: 4 patches applied, 3 deferred, rest rejected. ci-local GREEN before the review patches (TS test/service patches only after; targeted tests + guardrails green); not re-run. Not applied to production; do not enable support for any gym before 23-9..23-11.)
+# last_updated: 2026-10-21 (review: 23-8 code review complete on feat/23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces. Four layers: 2 decisions (per-surface leak proof gaps accepted as recorded deferral; Super Admin identity reader widening and proxy-id lookup moved to 23-9/23-10), 3 patches applied (full audit.disclosure locale key check, unused empty key removed, ci-local re-run), 2 deferred (23-10 criteria carry of the action-type restriction, record_support_identity EXECUTE grant), about 14 rejected. ci-local GREEN on all five stages for a16ab0b (stamp written). 23-8 -> done. Not merged to epic/23 yet. Migration 0142 not applied to production.)
+# last_updated: 2026-10-21 (build: 23-9 backlog -> in-progress on feat/23-9-support-connects-the-payment-account off epic/23 after 23-8 merged (3500c70); spec approved, implementing)
+# last_updated: 2026-10-21 (build: 23-9 implemented on feat/23-9-support-connects-the-payment-account, in-progress -> review. Migration 0143 (retire-and-insert credentials with partial uniques, payments.credentials_id + pin trigger + backfill, support_connect_gym_payment_credentials behind the support_payment_connection step-up, staff_notices + email_outbox, payment_connection_cleanup cron), rollback script, pgTAP support_payment_connection (81) plus updated suites, payment-webhook credential identity + deno tests, Settings form for support, notice bells (dashboard Owner, Super Admin), e-mail worker in the Super Admin app reusing lib/mail.ts, credentials_id scan, docs. Local only, not applied to production; do not enable support for any gym.)
+# last_updated: 2026-10-21 (review: 23-9 code review complete on feat/23-9-support-connects-the-payment-account, three layers; 12 patches applied, deferrals recorded in deferred-work.md; story stays review pending local CI and merge to epic/23)
+# last_updated: 2026-10-21 (merge: 23-9 review -> done; full local CI GREEN for 1bba5c4, merged into epic/23 as a711c31)
+# last_updated: 2026-10-21 (build: 23-10 backlog -> in-progress on feat/23-10-revocation-owner-visibility-and-velocity-lock off epic/23; spec approved (one story kept, digest by in-app notice + email), implementing)
+# last_updated: 2026-10-21 (build: 23-10 implemented on feat/23-10-revocation-owner-visibility-and-velocity-lock, in-progress -> review. Migration 0144 (one revocation routine called by unassign / deactivate / switch off / lock / gym suspension, Owner review queue + tag, daily support_activity_digest cron, velocity limits in session_limits_config with the lock returned from session_gate_touch, Super Admin lock list + unlock with reason, deferral fixes: log_audit_event allow-list, audited identity read, per-user step-up counter, switch restore skips unusable accounts, created_by_support pin), rollback script round-tripped locally, pgTAP support_revocation_velocity_lock (126) plus eight older suites updated (164/164), dashboard review queue + tag + step-up lock, Super Admin Locked accounts panel, vitest, decisions.md. Local only, not applied to production; do not enable support for any gym. ci-local not run by the build agent)
+# last_updated: 2026-10-21 (build: 23-10 review layers done (blind, edge-case, verification-gap); 5 patches applied (per-person velocity breach, revoke notice wording, real_user_id index, wider consumer scan, deferred-work wording) + live-gate reader list; 3 deferrals to 23-6b/23-11 recorded in deferred-work.md. Full ci-local GREEN on all five stages (first run failed pgtap on the new reader, fixed). Migration 0144 local only, NOT applied to production. Committed on the story branch, not merged)
+# last_updated: 2026-10-21 (review: 23-10 independent code review on b791086 (four layers). 2 decisions resolved (Owner notice also when staff still await review; velocity lock counts the toucher's own actions), 8 patches applied: notice gate, per-person velocity, switch-off guard, lock-order deadlock, step-up already-locked, review-queue wording en/fr, restore-skip pgTAP cases, SupportPageClient test; migration 0144 rolled back and re-applied locally. 6 deferred, 13 rejected. Full ci-local GREEN on all five stages. 23-10 -> done. Gym-wide burst alert not built (deferred). Not merged to epic/23; 0144 not applied to production)
+# last_updated: 2026-10-21 (build: 23-11 backlog -> in-progress on feat/23-11-lifecycle-inactivity-recertification-and-factor-reset off epic/23 after 23-10 merged; spec approved (email-only notices, nightly drift check for contact freeze, kept as one story), implementing)
+# last_updated: 2026-10-21 (build: 23-11 implemented on feat/23-11-lifecycle-inactivity-recertification-and-factor-reset, in-progress -> review. Migration 0145 (inactivity sweep via the lock + revocation routine, quarterly recertification enforced by support_live, factor reset start/cancel/due/claim/invite/done with a hashed cancel token and reset_pending kept until the new factor is verified, Super Admin-only contact change + nightly drift check, restore of switch-suspended assignments after unlock/recertify), rollback script round-tripped locally, pgTAP support_lifecycle (153) plus six older suites updated, job-runs-alert list extended, dashboard cancel page + proxy exemption, Super Admin lifecycle panel + executor route + daily cron + step-up action + EN/FR, vitest, decisions.md. Local only, not applied to production; do not enable support for any gym. Build agent ran ci-local --fast; see report for the final result)
+# last_updated: 2026-10-21 (build: 23-11 review layers done (blind, edge-case, verification-gap); 10 patches applied, rest rejected as low or owner-decided; ci-local GREEN on all five stages after the patches; story stays review pending merge to epic/23. Migration 0145 not applied to production; do not enable support for any gym.)
+# last_updated: 2026-10-21 (review: 23-11 four-layer code review, review -> done. 1 patch applied (claim skips locked/drifted accounts and mails recorded_email), decision 2 resolved as auto-cancel of a reset whose cancel e-mail is undelivered 24 h after cooling-off (+ Super Admin alert), decision 1 kept the 30-minute cancel window. 7 pgTAP cases added, 3 writer scans updated; full pgtap 166/166 files passed locally; ci-local not re-run. 3 deferrals in deferred-work.md (backfill proof before prod migration, hardcoded @gymosapps.com, stray 23-10 bullet in epic-23-context.md). Migration 0145 still local only, not applied to production.)
+# last_updated: 2026-10-21 (build: 23-6b dashboard support request path implemented on feat/23-6b-dashboard-support-request-path, uncommitted. Migration 0146 (hook fallback excludes support, support_begin_session, list_own_support_gyms, support_live_for, authorize_action p_session, capability_roles lists support for 4 capabilities, support_read_own_gym) + rollback; dashboard proxy gate, /auth/mfa, /support-gym, shell/nav/role lists, EN/FR; edge authorize passes p_session; pgTAP support_request_path (62) + updated catalogs, vitest, deno, smoke.mjs and README section S. pgtap 167/167 and static, deno, unit, e2e PASS (pgtap failed once inside ci-local on a result-copy flake, green on rerun). Not applied to production; 23-6c step-up UI still open)
+# last_updated: 2026-10-22 (build: 23-6c dashboard step-up for support implemented on feat/23-6b-dashboard-support-request-path, uncommitted. support-stepup.ts verify/issue split + three new actions; refund, waiver and staff-creation actions/services issue a bound single-use grant for a live support session; code field in the three dialogs (support only), EN/FR; sign-in wrong codes counted via recordMfaFailureAction; no database change. dashboard vitest 187 files green, tsc clean, smoke.mjs all passed; 23-6c in-progress -> review)
+# last_updated: 2026-10-22 (code review: 23-12 4 layers, 2 decisions resolved, 7 patches applied (load error shown inside its tab, count badges on Locked and overdue Disclosure tabs, disclosures prop required, trimmed answer, dead locale keys, lockfile and comment cleanups), 2 pre-existing deferrals kept; unit PASS 524, tsc clean; status review -> done, changes uncommitted on feat/23-6b-dashboard-support-request-path)
+# last_updated: 2026-10-22 (build: 23-12 Super Admin GymOS Support page rebuilt as top action buttons, five URL-backed tabs, standard paginated tables, per-row Actions menus and reason modals; no change to actions.ts, migrations or the dashboard. Status in-progress -> review. static PASS, unit PASS (Super Admin 522 tests), review: 3 layers, 5 patches applied, 4 deferrals in deferred-work.md. Row menus open their modal one tick after the menu closes (Radix focus loop in jsdom). Local commit on feat/23-6b-dashboard-support-request-path; manual browser QA is the owner's)
+# last_updated: 2026-10-22 (ad-hoc, non-story: owner browser QA of 23-12 on :3001, rows A1-A16 and L1-L16 all pass; README fixes: A9 assigns an activated account as active not pending, A10 needs a pending row, lifecycle.mjs takes short handles; no story status change)
+# last_updated: 2026-10-22 (ad-hoc, non-story: reset local DB, full ci-local GREEN on 4e9f16c, merged 23-6b/23-6c/23-12 into epic/23 as d7533ef (merged tree identical to tested tree), pushed epic/23, deleted merged local branches feat/23-6b and feat/23-11; master and prod deploy untouched; owner browser QA for sections O, I, S not recorded)
+# last_updated: 2026-10-22 (ad-hoc, non-story: Epic 23 retrospective run (verdict accepted-with-open-items, retro key done, 10 open action items) and closure pass on fix/23-retro-closure: migrations 0148 (shared live-gate predicate, switch-on restore recertification leg, unused 60 s setting removed) and 0149 (proxy auth.users rows readable by GoTrue: admin listUsers 500 -> 200), rollback-rehearsal-epic23.sh 16/16, 0144 rollback guard, deploy-epic-23 runbook, spec/context/deferred-work reconciliation; static and unit PASS, support pgTAP files pass on the local DB, full ci-local on a pristine DB NOT yet run; branch not merged to epic/23; master and production untouched)
+# last_updated: 2026-10-23 (ad-hoc, non-story: owner reset the local DB; full ci-local GREEN on 867079a on a pristine DB at 00:00 UTC (deno, static, pgtap, unit, e2e; pgtap log has no not-ok lines; the four files that failed on the polluted DB pass); fix/23-retro-closure merged into epic/23 as 17b9de7 (tree identical to the tested tree), pushed, local branch deleted; retro action item 93 done; master and production untouched)
+# last_updated: 2026-10-23 (ad-hoc, non-story: owner browser QA of README sections O (O1-O12) and S (S1-S17) for 23-6b/6c/9/10/11 all pass; database checks: refund recorded as the proxy with the real person held in support_action_identity, waiver settled, wrong-code lock after 5 (reason stepup_failures, sessions ended), disclosure request filed and answered (due 2026-10-28), 0148 recertification skip seen live on switch-on; findings recorded in deferred-work.md and left for owner decision: support cannot see the staff list (RLS, least privilege), seeded/invited support accounts are forced through /auth/update-password on first gym entry (must_change_password never cleared by the invite flow, unconfirmed on a real-invite account), overdue recertification shows a generic error page instead of a clear message (no data exposed); README S10 corrected; section I (invite page) only partly exercised in the 23-12 session)
+# last_updated: 2026-10-23 (ad-hoc, non-story: owner browser QA of README section I (invite page) I1-I8 all pass, plus both invite limits proven on throwaway accounts: 4 wrong codes then the correct one activates (code_attempts 4, limit 5); 5 wrong codes kill the invite (correct code refused, no factor verified); 5 well-formed wrong link secrets kill the invite (attempts 5); a malformed token counts for nothing by design. README I5 and I8 reworded. qa23-fresh went through the real invite flow and still has must_change_password true, which confirms the forced second password change finding. Sections O, S and I are all done.)
+# last_updated: 2026-10-23 (ad-hoc, non-story: owner reset the local DB; full ci-local GREEN on 822ca69 on a pristine DB (the first full run failed: three catalog guards needed the 0151-0153 functions added, fixed in 822ca69; an e2e build timeout and one support-assignments-race failure both happened under a load average of about 66 and did not recur with the load calm); fix/23-decisions (0150-0153, proxy recertification page, labels, decisions.md entry, runbook) merged into epic/23 as b194340 (tree identical to the tested tree), pushed, local branch deleted; retro action item 99 done; master and production untouched)
+# last_updated: 2026-10-23 (ad-hoc, non-story: Epic 26 'Member roster import and profile fields' defined at the owner's request (stories 26.1 member profile fields: birth year, profession, neighborhood; 26.2 members-only CSV import, no plan, awaiting the registration fee) in epics.md (FR-215 to FR-218) and sprint-status; owner decisions: birth year stored not age, fee 0 allowed with a warning, names first-then-last Title Case, stacked on epic/23 (migrations 0154+), subagents allowed for review; real roster file cleaned locally (102 of 105 rows importable, 3 set aside), git-excluded; separately ui/superadmin-container 8422837 (centred page container in the Super Admin app) awaits a full ci-local before merging into epic/23)
+# last_updated: 2026-10-23 (build: story 26-1 member profile fields (birth year, profession, neighborhood) backlog -> in-progress on feat/26-1-member-profile-fields (stacked epic/26 on epic/23), spec spec-26-1-member-profile-fields.md approved, baseline 40d8631; epic-26 already in-progress)
+# last_updated: 2026-10-23 (build: 26-1 implemented on feat/26-1-member-profile-fields, uncommitted: migration 0154 + rollback + pgTAP (11/11), schemas, services, MemberModal, export, writers scan test, privacy copy EN/FR + POLICY_LAST_UPDATED 2026-10-23 + play-store-data-safety; ci-local static and unit PASS on a dirty tree, full pristine-DB run still owed to the owner; status left in-progress)
+# last_updated: 2026-10-23 (build: story 26-1 member profile fields in-progress -> review on feat/26-1-member-profile-fields: migration 0154 (birth_year, profession, neighborhood; self-edit pin extended; verify block) with rollback, schemas, services, modal, export, privacy copy and play-store doc, writers scan; review by 3 independent layers, 20 findings triaged (4 patches applied with mutation proofs, 3 deferrals in deferred-work.md, the rest rejected with evidence); static PASS, unit PASS, 12 pgTAP assertions and the members-adjacent pgTAP files PASS on the local DB; full ci-local on a pristine DB NOT yet run (owner reset needed, outside 23:00-24:00 UTC); not merged to epic/26)
+# last_updated: 2026-10-23 (owner reset the local DB; full ci-local GREEN on 23ea30a on a pristine DB (deno, static, pgtap 169/169 with member_profile_fields 12, unit 1526 dashboard tests, e2e); story 26-1 merged into epic/26 as 3d83274 (tree identical to the tested tree), local branch feat/26-1-member-profile-fields deleted, story review -> done; epic/26 NOT pushed (build workflow says never auto-push); next story 26-2 members-only CSV import; ui/superadmin-container 8422837 still awaits a ci-local before merging into epic/23)
+# last_updated: 2026-10-23 (build: story 26-2 members-only CSV import backlog -> in-progress on feat/26-2-members-only-csv-import (off epic/26), spec spec-26-2-members-only-csv-import.md approved (one member_created audit row per member without name or phone; both template downloads offered), baseline 451a753)
+# last_updated: 2026-10-23 (build: story 26-2 intent renegotiated by the owner mid-build: ONE CSV template where only member_name and phone are required (plan, dates, status, birth year, profession, neighborhood optional) instead of two templates detected by header; a row with a plan stays settled in a fee gym, a row without a plan is left awaiting; the first two-template build was set aside (git stash and scratchpad patch), spec rewritten and re-approved, status stays in-progress, baseline 451a753 kept)
+# last_updated: 2026-10-23 (build: story 26-2 one CSV template implemented on feat/26-2-members-only-csv-import: only member_name and phone required, plan optional per row, fee-0 acknowledgement enforced by the server, no-plan audit without name or phone, tests added; static and unit ci-local stages PASS on a dirty tree, full ci-local not yet run; status stays in-progress)
+# last_updated: 2026-10-23 (build: story 26-2 ONE CSV template (only member_name and phone required; a row with a plan stays settled in a fee gym, a row without a plan is left awaiting; fee-0 gym needs a server-enforced acknowledgement) in-progress -> review on feat/26-2-members-only-csv-import: the first two-template build was set aside after the owner changed the intent, the single-template build reviewed by 3 independent layers, ~26 findings triaged (13 patched with mutation proofs, 2 deferrals in deferred-work.md, the rest rejected with evidence); static PASS, unit PASS (dashboard 1578 tests); full ci-local on a pristine DB NOT yet run; not merged to epic/26; not pushed)
+# last_updated: 2026-10-23 (owner reset the local DB again; full ci-local GREEN on 73ae161 on a pristine DB (deno, static, pgtap 169/169, unit dashboard 1578 tests, e2e); story 26-2 merged into epic/26 as dca8136 (tree identical to the tested tree), local branch deleted, story review -> done; the superseded two-template stash dropped (patch kept in the scratchpad); epic/26 NOT pushed, master and production untouched; epic-26 stays in-progress until its merge, like epic-23)

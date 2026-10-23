@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { AppError } from "@gymos/types";
 import { mapAndLog } from "@/services/session";
+import { resolveActorNames } from "@/services/actorNames";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import type { GuestSessionStateEmbed } from "./payments";
@@ -111,20 +112,11 @@ async function mapLedgerRows(
   rows: LedgerRowFromDb[],
 ): Promise<{ data: PaymentLedgerRow[] | null; error: AppError | null }> {
   const actorUserIds = [...new Set(rows.map((row) => row.actor_id).filter((id): id is string => Boolean(id)))];
-  const actorNameByUserId = new Map<string, string>();
-  if (actorUserIds.length > 0) {
-    const { data: actorRows, error: actorError } = await supabase
-      .from("members")
-      .select("user_id, name")
-      .eq("gym_id", gymId)
-      .in("user_id", actorUserIds);
-    if (actorError) {
-      return { data: null, error: await mapAndLog(actorError) };
-    }
-    for (const row of actorRows ?? []) {
-      actorNameByUserId.set(row.user_id, row.name);
-    }
+  const actorNames = await resolveActorNames(supabase, gymId, actorUserIds);
+  if (actorNames.error) {
+    return { data: null, error: actorNames.error };
   }
+  const actorNameByUserId = actorNames.data;
   return {
     data: rows.map((row) => ({
       id: row.id,
@@ -249,20 +241,11 @@ export async function listRefundHistory(): Promise<{
 
   const rows = (data ?? []) as unknown as RefundHistoryRowFromDb[];
   const actorUserIds = [...new Set(rows.map((row) => row.actor_id))];
-  const actorNameByUserId = new Map<string, string>();
-  if (actorUserIds.length > 0) {
-    const { data: actorRows, error: actorError } = await supabase
-      .from("members")
-      .select("user_id, name")
-      .eq("gym_id", gymId)
-      .in("user_id", actorUserIds);
-    if (actorError) {
-      return { data: null, error: await mapAndLog(actorError) };
-    }
-    for (const row of actorRows ?? []) {
-      actorNameByUserId.set(row.user_id, row.name);
-    }
+  const actorNames = await resolveActorNames(supabase, gymId, actorUserIds);
+  if (actorNames.error) {
+    return { data: null, error: actorNames.error };
   }
+  const actorNameByUserId = actorNames.data;
 
   return {
     data: {
@@ -304,7 +287,7 @@ function csvEscape(value: string): string {
   return safeValue;
 }
 
-const LEDGER_EXPORT_ROLES = ["owner", "manager", "supervisor", "receptionist"];
+const LEDGER_EXPORT_ROLES = ["owner", "manager", "supervisor", "receptionist", "support"];
 
 /** Mirrors `exportSubscriptionsCsv`: count pre-check against the 1,000-row
  * ceiling, then a capped data query, honouring the purpose/member filter. */

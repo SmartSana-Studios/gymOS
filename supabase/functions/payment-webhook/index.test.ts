@@ -390,7 +390,7 @@ const INITIATE_PAYMENT_ROW = {
 // /auth/v1/user (JWT verification), the members lookup behind the own-payment check, and the
 // public.authorize_action RPC. Everything else falls through to the stub.
 interface ActorLayer {
-  rpcCalls: { p_actor: string; p_gym_id: string | null; p_capability: string }[];
+  rpcCalls: { p_actor: string; p_gym_id: string | null; p_capability: string; p_session?: string | null }[];
 }
 function withActor(
   opts: { validJwt?: string; actorId?: string; memberUserId?: string; allowed?: boolean; reason?: string } = {},
@@ -930,6 +930,20 @@ Deno.test("payment-webhook initiate route: actor not allowed for the row's gym -
   }
 });
 
+Deno.test("payment-webhook initiate route: authorize_action receives the bearer token's session_id as p_session (23-6b)", async () => {
+  const b64 = (v: unknown) => btoa(JSON.stringify(v)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const jwt = `${b64({ alg: "HS256" })}.${b64({ sub: "actor-1", session_id: "sess-42" })}.sig`;
+  const stub = stubFetchServingPaymentRowOnly(INITIATE_PAYMENT_ROW);
+  const layer = withActor({ validJwt: jwt, allowed: false, reason: "not_member", memberUserId: "someone-else" });
+  try {
+    await handler.fetch(initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" }, `Bearer ${jwt}`));
+    assertEquals(layer.rpcCalls.length, 1);
+    assertEquals(layer.rpcCalls[0].p_session, "sess-42");
+  } finally {
+    stub.restore();
+  }
+});
+
 Deno.test("payment-webhook initiate route: the member who owns the row is evaluated as payment.initiate_own", async () => {
   Deno.env.set("TARAMONEY_INITIATION_ENABLED", "false");
   const stub = stubFetchServingPaymentRowOnly(INITIATE_PAYMENT_ROW);
@@ -1003,5 +1017,96 @@ Deno.test("payment-webhook initiate-link route: a non-Owner of the row's gym -> 
     assertEquals(layer.rpcCalls[0].p_gym_id, "gym-b");
   } finally {
     stub.restore();
+  }
+});
+
+// ---- Story 23.9: credential identity -------------------------------------------------------------------------------
+
+Deno.test("payment-webhook taramoney receive route: a webhook whose credential is deleted (the lookup returns no row) gets 401 before any database write (23.9)", async () => {
+  const stub = stubFetchServingBusinessIdLookupOnly([]);
+  try {
+    const req = receiveRequest({ "tara-webhook-secret": SECRET }, {
+      businessId: "biz-deleted",
+      paymentId: "pay-deleted",
+      productId: "payment-1",
+      status: "SUCCESS",
+    });
+    const res = await handler.fetch(req);
+    assertEquals(res.status, 401);
+    assertEquals(stub.writeCallsCount(), 0, "a deleted credential must be rejected before any DB write");
+  } finally {
+    stub.restore();
+  }
+});
+
+Deno.test("payment-webhook taramoney receive route: the business-id lookup is told which payment the delivery is for, so a retired credential still resolves (23.9)", async () => {
+  const bodies: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    if (href.includes("/rest/v1/rpc/get_gym_payment_credentials_by_business_id")) {
+      bodies.push(String(init?.body ?? ""));
+      return Promise.resolve(new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json" } }));
+    }
+    throw new Error(`stubFetch: unexpected DB access ${href}`);
+  }) as typeof fetch;
+  try {
+    await handler.fetch(receiveRequest({ "tara-webhook-secret": SECRET }, {
+      businessId: "biz1", paymentId: "pay1", productId: "payment-1", status: "SUCCESS",
+    }));
+    const sent = JSON.parse(bodies[0]);
+    assertEquals(sent.p_provider_ref, "pay1");
+    assertEquals(sent.p_product_id, "payment-1");
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+Deno.test("payment-webhook taramoney receive route: a delivery verified under a different credential than the payment was initiated with is not completed (23.9)", async () => {
+  const stub = stubFetchFullFlow(
+    [{ ...GYM_A_ROW, credentials_id: "cred-new" }],
+    { id: "payment-1", gym_id: "gym-a", credentials_id: "cred-old" } as { id: string; gym_id: string },
+  );
+  try {
+    const res = await handler.fetch(receiveRequest({ "tara-webhook-secret": SECRET }, {
+      businessId: "biz1", paymentId: "pay1", status: "SUCCESS", amount: "5000",
+    }));
+    assertEquals(res.status, 200);
+    assertEquals(stub.completeVerifiedPaymentCalled(), false);
+  } finally {
+    stub.restore();
+  }
+});
+
+// ---- Story 23.9: the initiate route carries the payment's credential row through ---------------------
+
+Deno.test("payment-webhook taramoney initiate route: the credential row recorded on the payment is looked up, and a failing one is the one flagged (23.9)", async () => {
+  const rpcBodies: Record<string, Record<string, unknown>> = {};
+  const original = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    const method = init?.method ?? "GET";
+    if (href.includes("/rest/v1/payments?") && method === "GET") {
+      return Promise.resolve(
+        new Response(JSON.stringify({ ...INITIATE_PAYMENT_ROW, credentials_id: "cred-1" }), { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    }
+    if (href.includes("/rest/v1/payments?") && method === "DELETE") return Promise.resolve(new Response(null, { status: 204 }));
+    for (const fn of ["get_gym_payment_credentials_for_service", "mark_gym_payment_credentials_needs_attention"]) {
+      if (href.includes(`/rest/v1/rpc/${fn}`)) {
+        rpcBodies[fn] = JSON.parse(String(init?.body ?? "{}"));
+        return Promise.resolve(new Response(fn.startsWith("get_") ? "[]" : null, { status: 200, headers: { "Content-Type": "application/json" } }));
+      }
+    }
+    throw new Error(`stubFetch: unexpected DB access ${method} ${href}`);
+  }) as typeof fetch;
+  withActor();
+  try {
+    const res = await handler.fetch(initiateRequest({ paymentId: "pay1", phoneNumber: "237600000000" }));
+    assertEquals(res.status, 502);
+    assertEquals(rpcBodies.get_gym_payment_credentials_for_service.p_credentials_id, "cred-1");
+    assertEquals(rpcBodies.mark_gym_payment_credentials_needs_attention.p_credentials_id, "cred-1");
+  } finally {
+    globalThis.fetch = original;
   }
 });

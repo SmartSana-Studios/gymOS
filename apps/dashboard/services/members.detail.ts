@@ -179,7 +179,7 @@ export async function getMemberListRow(
   const { data, error } = await supabase
     .from("members")
     .select(
-      "id, name, phone, email, dob, photo_url, emergency_contact, join_date, deactivated_at, registration_fee_settled_at, subscriptions(status, expiry_date, plan_id, created_at, plans(name, plan_type))",
+      "id, name, phone, email, dob, photo_url, emergency_contact, birth_year, profession, neighborhood, join_date, deactivated_at, registration_fee_settled_at, subscriptions(status, expiry_date, plan_id, created_at, plans(name, plan_type))",
     )
     .eq("gym_id", gymId)
     .eq("role", "member")

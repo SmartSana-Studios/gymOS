@@ -57,16 +57,21 @@ export async function authorizeAction(
       return denied(capability, null, gymId, "no_session");
     }
 
+    // Story 23-6b: the session id comes from the verified token. A GymOS Support actor is allowed only while the live gate holds for
+    // THIS session (the service-role call carries no JWT of the person); every other role ignores it.
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const claims = claimsData?.claims as { gym_id?: string; session_id?: string } | undefined;
     if (!gymId) {
-      const { data: claimsData } = await supabase.auth.getClaims();
-      gymId = (claimsData?.claims as { gym_id?: string } | undefined)?.gym_id ?? null;
+      gymId = claims?.gym_id ?? null;
     }
+    const sessionId = typeof claims?.session_id === "string" ? claims.session_id : null;
 
     const admin = createAdminClient();
     const { data, error } = await admin.rpc("authorize_action", {
       p_actor: actorId,
       p_gym_id: gymId,
       p_capability: capability,
+      p_session: sessionId,
     });
     const row = Array.isArray(data) ? data[0] : null;
     if (error || !row) {
@@ -74,6 +79,10 @@ export async function authorizeAction(
     }
     if (row.allowed !== true) {
       return denied(capability, actorId, gymId, String(row.reason ?? "denied"));
+    }
+    // Story 23-6b: a support session acts on exactly the gym in its own verified token, not on any other gym it is assigned to.
+    if (row.actor_role === "support" && gymId !== (claims?.gym_id ?? null)) {
+      return denied(capability, actorId, gymId, "support_wrong_gym");
     }
     return { ok: true, actorId, gymId: gymId as string, role: String(row.actor_role ?? "") };
   } catch {

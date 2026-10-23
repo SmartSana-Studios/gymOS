@@ -168,6 +168,16 @@ describe("getMemberRegistrationFeeState (Story 18.6)", () => {
     expect(calls).toContainEqual(["admin:audit_log", "limit", 1]);
   });
 
+  it("names a fee waived by the support proxy GymOS Support when no membership explains the actor", async () => {
+    waiveRow = { actor_id: "proxy-1", actor_display_name: "GymOS Support", metadata: { reason: "Goodwill" }, created_at: SETTLED_AT };
+    actorRows = [];
+    const { getMemberRegistrationFeeState } = await import("./members");
+
+    const result = await getMemberRegistrationFeeState("m1");
+
+    expect(result.data).toEqual({ kind: "waived", waivedByName: "GymOS Support", reason: "Goodwill" });
+  });
+
   it("shows a receptionist only that the fee was waived, with no name or reason", async () => {
     role = "receptionist";
     waiveRow = { actor_id: "user-1", actor_display_name: "Marie Owner", metadata: { reason: "Friend of the owner" }, created_at: SETTLED_AT };

@@ -23,9 +23,12 @@ import { GymCategoryEditor } from "./GymCategoryEditor";
 import { EscalateAccessDialog } from "./EscalateAccessDialog";
 import { ActiveAccessList } from "./ActiveAccessList";
 import { AuditTrailTab } from "./AuditTrailTab";
+import type { RealActor } from "../../../support/actions";
 import { GymMembersTable } from "./GymMembersTable";
 import { GymPaymentsTable } from "./GymPaymentsTable";
 import { hasLapsed, useNow } from "./use-now";
+import { GymSupportPanel } from "../../../support/components/GymSupportPanel";
+import type { SupportAccountRow, SupportAssignmentRow } from "../../../support/actions";
 
 const STATUS_LABEL_KEY: Record<string, string> = {
   active: "gyms.create.statusActive",
@@ -40,15 +43,19 @@ export function GymDetailPageClient({
   gym,
   tiers,
   auditTrail,
+  realActors,
   expiresAt,
   activeEscalations,
   currentActorId,
   members,
   payments,
+  supportAssignments,
+  supportAccounts,
 }: {
   gym: GymDetail;
   tiers: TierOption[];
   auditTrail: AuditTrailEntry[];
+  realActors?: Record<string, RealActor>;
   /**
    * When the current Super Admin's own live grant on this gym expires, or
    * null if they hold none. A timestamp rather than Story 1.7's `escalated`
@@ -73,6 +80,9 @@ export function GymDetailPageClient({
    */
   members: GymMemberPage | null;
   payments: GymPaymentPage | null;
+  /** Story 23.5: Super Admin only; the individual's name is shown here and nowhere an Owner can reach. */
+  supportAssignments: SupportAssignmentRow[];
+  supportAccounts: SupportAccountRow[];
 }) {
   const router = useRouter();
   const { t, i18n } = useTranslation();
@@ -212,7 +222,9 @@ export function GymDetailPageClient({
         onRevoked={() => router.refresh()}
       />
 
-      <AuditTrailTab entries={auditTrail} />
+      <AuditTrailTab entries={auditTrail} realActors={realActors} />
+
+      <GymSupportPanel gymId={gym.id} assignments={supportAssignments} accounts={supportAccounts} />
 
       <GymMembersTable members={members} />
 

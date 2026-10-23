@@ -123,4 +123,16 @@ export const AUDIT_ACTION_TYPE_LABEL_KEY: Record<string, string> = {
   session_refund_applied: "audit.actionTypes.sessionRefundApplied",
   session_consumed: "audit.actionTypes.sessionConsumed",
   session_attempt_blocked: "audit.actionTypes.sessionAttemptBlocked",
+  // Story 23.3. Written by set_allow_gymos_support() (0137), gym-scoped, actor the Owner.
+  allow_gymos_support_changed: "audit.actionTypes.allowGymosSupportChanged",
+  // Story 23.10 / Epic 23 retro. Written by the system when GymOS Support access to the gym ends (0144) or comes back after an unlock
+  // (0152); gym-scoped, metadata { cause }, never names an individual.
+  gymos_support_access_ended: "audit.actionTypes.gymosSupportAccessEnded",
+  gymos_support_access_resumed: "audit.actionTypes.gymosSupportAccessResumed",
+  // Story 23.8 (0142). audit_disclosure_requested is written when an Owner asks about one audit row,
+  // gym-scoped, target = the request, metadata { audit_log_id, answer_due_at }. audit_disclosure_answered
+  // is the Super Admin answer's own record (no gym), so an Owner never reads it here; it is labelled
+  // for completeness.
+  audit_disclosure_requested: "audit.actionTypes.auditDisclosureRequested",
+  audit_disclosure_answered: "audit.actionTypes.auditDisclosureAnswered",
 };

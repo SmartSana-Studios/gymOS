@@ -67,7 +67,7 @@ export async function exportMembersCsv(params: {
 
   let dataQuery = supabase
     .from("members")
-    .select(`id, name, phone, email, join_date, deactivated_at, ${subscriptionsSelect}`)
+    .select(`id, name, phone, email, join_date, deactivated_at, birth_year, profession, neighborhood, ${subscriptionsSelect}`)
     .eq("gym_id", gymId)
     .eq("role", "member")
     .order("name", { ascending: true })
@@ -93,6 +93,10 @@ export async function exportMembersCsv(params: {
     "subscription_status",
     "expiry_date",
     "last_check_in_date",
+    // Story 26.1: profile fields, appended after the existing columns.
+    "birth_year",
+    "profession",
+    "neighborhood",
   ];
   const lines = [header.join(",")];
 
@@ -107,6 +111,9 @@ export async function exportMembersCsv(params: {
         csvEscape(sub?.status ?? ""),
         csvEscape(sub?.expiry_date ?? ""),
         "", // last_check_in_date: no data source yet (attendance_events is Epic 3)
+        row.birth_year == null ? "" : String(row.birth_year),
+        csvEscape(row.profession ?? ""),
+        csvEscape(row.neighborhood ?? ""),
       ].join(","),
     );
   }

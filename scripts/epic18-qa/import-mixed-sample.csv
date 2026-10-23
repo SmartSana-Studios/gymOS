@@ -1,0 +1,4 @@
+member_name,phone,plan_type,join_date,subscription_status,expiry_date,birth_year,profession,neighborhood
+Sample Cy,+237671800503,Monthly Standard,2026-10-07,active,2099-11-06,1985,Welder,Ngui
+Sample Di,+237671800504,,,,,1992,Teacher,Bastos
+Sample Ed,+237671800505,,2026-09-01,,,,,

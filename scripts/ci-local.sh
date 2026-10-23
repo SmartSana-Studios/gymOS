@@ -69,6 +69,8 @@ stage_static() {
   npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin || return 1
   pnpm run check:i18n || return 1
   pnpm run check:migrations || return 1
+  # Story 23.9: payment initiators and credential lookups verify under payments.credentials_id
+  pnpm run check:credentials-id || return 1
   pnpm run test:guardrails || return 1
   # The deploy scripts refuse to apply a migration without a green db-backup run (against a fake gh; never touches GitHub).
   bash "$ROOT/scripts/require-db-backup.test.sh" || return 1
@@ -99,6 +101,8 @@ stage_pgtap() {
   bash "$ROOT/scripts/job-runs-alert.test.sh" || return 1
   # Super Admin aal2 enable/reset operator scripts against fixtures on the local DB (Story 22.6).
   bash "$ROOT/scripts/super-admin-aal2.test.sh" || return 1
+  # Assign / confirm vs the Owner switch on one gym (two real sessions; Story 23.5).
+  bash "$ROOT/scripts/support-assignments-race.test.sh" || return 1
   # Claim-read inventory (Story 22.2; enforcing since 22.4): any non-exempt claim-only / null-unsafe entry fails.
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" pnpm run check:claims || return 1
 }

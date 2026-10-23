@@ -12,6 +12,9 @@ export interface UpdateMemberInput {
   dob: string | null;
   photoUrl: string | null;
   emergencyContact: string | null;
+  birthYear: number | null;
+  profession: string | null;
+  neighborhood: string | null;
 }
 
 /** Edit-mode fields only (Scope Note's Edit-mode boundary) -- no phone,
@@ -38,6 +41,9 @@ export async function updateMember(
       dob: input.dob,
       photo_url: input.photoUrl,
       emergency_contact: input.emergencyContact,
+      birth_year: input.birthYear,
+      profession: input.profession,
+      neighborhood: input.neighborhood,
     })
     .eq("gym_id", gymId)
     .eq("id", memberId)

@@ -33,6 +33,11 @@ vi.mock("@/services/members", () => ({
   getMemberRegistrationFeeState: (...args: unknown[]) => getMemberRegistrationFeeState(...args),
 }));
 
+// Story 23-6c: a staff role is never a live support session, so the step-up path stays out of these tests.
+vi.mock("@/services/support-stepup", async (importActual) => ({
+  ...(await importActual<typeof import("@/services/support-stepup")>()),
+  isLiveSupportSession: vi.fn(async () => false),
+}));
 vi.mock("@/lib/featureFlags", () => ({ getMobileMoneyAvailability: vi.fn() }));
 vi.mock("@/lib/i18n/get-request-locale", () => ({ getRequestLocale: vi.fn(async () => "en") }));
 vi.mock("@/lib/i18n/get-server-translation", () => ({

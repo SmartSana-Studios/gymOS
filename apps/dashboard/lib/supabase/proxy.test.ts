@@ -62,3 +62,31 @@ describe("updateSession", () => {
     expect(response.headers.get("location")).toContain("/auth/login");
   });
 });
+
+describe("updateSession: support invite route", () => {
+  it("does not redirect an unauthenticated request to /support-invite (the link token is the credential)", async () => {
+    const { updateSession } = await import("./proxy");
+    for (const path of ["/support-invite?t=abc", "/support-invite"]) {
+      const response = await updateSession(new NextRequest(`http://localhost:3000${path}`));
+      expect(response.status).not.toBe(307);
+      expect(response.headers.get("location")).toBeNull();
+    }
+  });
+
+  it("does not redirect an unauthenticated request to /support-reset-cancel (Story 23.11: the link token is the credential)", async () => {
+    const { updateSession } = await import("./proxy");
+    for (const path of ["/support-reset-cancel?t=abc", "/support-reset-cancel"]) {
+      const response = await updateSession(new NextRequest(`http://localhost:3000${path}`));
+      expect(response.status).not.toBe(307);
+      expect(response.headers.get("location")).toBeNull();
+    }
+    const lookalike = await updateSession(new NextRequest("http://localhost:3000/support-reset-cancels"));
+    expect(lookalike.status).toBe(307);
+  });
+
+  it("does not exempt look-alike paths", async () => {
+    const { updateSession } = await import("./proxy");
+    const response = await updateSession(new NextRequest("http://localhost:3000/support-invites"));
+    expect(response.status).toBe(307);
+  });
+});

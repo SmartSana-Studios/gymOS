@@ -55,6 +55,70 @@ export type Database = {
           },
         ]
       }
+      audit_disclosure_requests: {
+        Row: {
+          answer: string | null
+          answer_due_at: string
+          answered_at: string | null
+          answered_by: string | null
+          audit_log_id: string
+          gym_id: string
+          id: string
+          question: string
+          requested_at: string
+          requested_by: string
+        }
+        Insert: {
+          answer?: string | null
+          answer_due_at: string
+          answered_at?: string | null
+          answered_by?: string | null
+          audit_log_id: string
+          gym_id: string
+          id?: string
+          question: string
+          requested_at?: string
+          requested_by: string
+        }
+        Update: {
+          answer?: string | null
+          answer_due_at?: string
+          answered_at?: string | null
+          answered_by?: string | null
+          audit_log_id?: string
+          gym_id?: string
+          id?: string
+          question?: string
+          requested_at?: string
+          requested_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_disclosure_requests_answered_by_fkey"
+            columns: ["answered_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_disclosure_requests_audit_log_id_fkey"
+            columns: ["audit_log_id"]
+            referencedRelation: "audit_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_disclosure_requests_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_disclosure_requests_requested_by_fkey"
+            columns: ["requested_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action_type: string
@@ -542,6 +606,8 @@ export type Database = {
           id: string
           needs_attention: boolean
           provider_key: string
+          retired_at: string | null
+          secret_deleted_at: string | null
           updated_at: string
         }
         Insert: {
@@ -554,6 +620,8 @@ export type Database = {
           id?: string
           needs_attention?: boolean
           provider_key: string
+          retired_at?: string | null
+          secret_deleted_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -566,6 +634,8 @@ export type Database = {
           id?: string
           needs_attention?: boolean
           provider_key?: string
+          retired_at?: string | null
+          secret_deleted_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -592,6 +662,7 @@ export type Database = {
       gyms: {
         Row: {
           alert_auto_dismiss_minutes: number
+          allow_gymos_support: boolean
           capacity: number | null
           category: string
           charge_guests_per_session: boolean
@@ -624,6 +695,7 @@ export type Database = {
         }
         Insert: {
           alert_auto_dismiss_minutes?: number
+          allow_gymos_support?: boolean
           capacity?: number | null
           category?: string
           charge_guests_per_session?: boolean
@@ -656,6 +728,7 @@ export type Database = {
         }
         Update: {
           alert_auto_dismiss_minutes?: number
+          allow_gymos_support?: boolean
           capacity?: number | null
           category?: string
           charge_guests_per_session?: boolean
@@ -853,7 +926,9 @@ export type Database = {
       }
       members: {
         Row: {
+          birth_year: number | null
           created_at: string
+          created_by_support: boolean
           deactivated_at: string | null
           dob: string | null
           email: string | null
@@ -865,16 +940,20 @@ export type Database = {
           id: string
           join_date: string
           name: string
+          neighborhood: string | null
           onboarding_completed_at: string | null
           phone: string | null
           photo_url: string | null
+          profession: string | null
           registration_fee_settled_at: string | null
           role: Database["public"]["Enums"]["member_role"]
           starting_weight_kg: number | null
           user_id: string
         }
         Insert: {
+          birth_year?: number | null
           created_at?: string
+          created_by_support?: boolean
           deactivated_at?: string | null
           dob?: string | null
           email?: string | null
@@ -886,16 +965,20 @@ export type Database = {
           id?: string
           join_date?: string
           name: string
+          neighborhood?: string | null
           onboarding_completed_at?: string | null
           phone?: string | null
           photo_url?: string | null
+          profession?: string | null
           registration_fee_settled_at?: string | null
           role: Database["public"]["Enums"]["member_role"]
           starting_weight_kg?: number | null
           user_id: string
         }
         Update: {
+          birth_year?: number | null
           created_at?: string
+          created_by_support?: boolean
           deactivated_at?: string | null
           dob?: string | null
           email?: string | null
@@ -907,9 +990,11 @@ export type Database = {
           id?: string
           join_date?: string
           name?: string
+          neighborhood?: string | null
           onboarding_completed_at?: string | null
           phone?: string | null
           photo_url?: string | null
+          profession?: string | null
           registration_fee_settled_at?: string | null
           role?: Database["public"]["Enums"]["member_role"]
           starting_weight_kg?: number | null
@@ -1166,6 +1251,7 @@ export type Database = {
           actor_id: string | null
           amount: number
           created_at: string
+          credentials_id: string | null
           currency: string
           flagged_reason: string | null
           gym_id: string
@@ -1185,6 +1271,7 @@ export type Database = {
           actor_id?: string | null
           amount: number
           created_at?: string
+          credentials_id?: string | null
           currency?: string
           flagged_reason?: string | null
           gym_id: string
@@ -1204,6 +1291,7 @@ export type Database = {
           actor_id?: string | null
           amount?: number
           created_at?: string
+          credentials_id?: string | null
           currency?: string
           flagged_reason?: string | null
           gym_id?: string
@@ -1759,6 +1847,101 @@ export type Database = {
           },
         ]
       }
+      support_action_identity: {
+        Row: {
+          gym_id: string
+          id: string
+          real_user_id: string
+          recorded_at: string
+          subject_id: string
+          subject_table: string
+        }
+        Insert: {
+          gym_id: string
+          id?: string
+          real_user_id: string
+          recorded_at?: string
+          subject_id: string
+          subject_table: string
+        }
+        Update: {
+          gym_id?: string
+          id?: string
+          real_user_id?: string
+          recorded_at?: string
+          subject_id?: string
+          subject_table?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_action_identity_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_assignments: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          created_by: string | null
+          ended_at: string | null
+          gym_id: string
+          id: string
+          reason: string | null
+          state: string
+          suspended_by_switch: boolean
+          support_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          gym_id: string
+          id?: string
+          reason?: string | null
+          state?: string
+          suspended_by_switch?: boolean
+          support_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          gym_id?: string
+          id?: string
+          reason?: string | null
+          state?: string
+          suspended_by_switch?: boolean
+          support_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_assignments_created_by_fkey"
+            columns: ["created_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_assignments_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_assignments_support_user_id_fkey"
+            columns: ["support_user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tiers: {
         Row: {
           annual_price: number
@@ -1796,10 +1979,12 @@ export type Database = {
           display_name: string | null
           id: string
           is_super_admin: boolean
+          is_support_proxy: boolean
           must_change_password: boolean
           phone: string | null
           photo_url: string | null
           preferred_language: string
+          support_proxy_gym_id: string | null
         }
         Insert: {
           active_gym_id?: string | null
@@ -1807,10 +1992,12 @@ export type Database = {
           display_name?: string | null
           id: string
           is_super_admin?: boolean
+          is_support_proxy?: boolean
           must_change_password?: boolean
           phone?: string | null
           photo_url?: string | null
           preferred_language?: string
+          support_proxy_gym_id?: string | null
         }
         Update: {
           active_gym_id?: string | null
@@ -1818,15 +2005,23 @@ export type Database = {
           display_name?: string | null
           id?: string
           is_super_admin?: boolean
+          is_support_proxy?: boolean
           must_change_password?: boolean
           phone?: string | null
           photo_url?: string | null
           preferred_language?: string
+          support_proxy_gym_id?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "users_active_gym_id_fkey"
             columns: ["active_gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "users_support_proxy_gym_id_fkey"
+            columns: ["support_proxy_gym_id"]
             referencedRelation: "gyms"
             referencedColumns: ["id"]
           },
@@ -2040,6 +2235,10 @@ export type Database = {
         Args: { p_provider_key: string }
         Returns: undefined
       }
+      activate_support_account: {
+        Args: { p_token: string }
+        Returns: { ok: boolean; reason: string }[]
+      }
       active_payment_provider: { Args: never; Returns: string }
       add_session_note: {
         Args: { p_member_id: string; p_note_text: string }
@@ -2055,6 +2254,14 @@ export type Database = {
       assign_coach: {
         Args: { p_coach_id: string; p_member_id: string }
         Returns: string
+      }
+      answer_audit_disclosure_request: {
+        Args: { p_answer: string; p_request_id: string }
+        Returns: { code: string; ok: boolean }[]
+      }
+      assign_support: {
+        Args: { p_gym_id: string; p_reason: string; p_user_id: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
       }
       book_class_session: {
         Args: { p_class_session_id: string }
@@ -2167,6 +2374,10 @@ export type Database = {
         }
         Returns: Record<string, unknown>
       }
+      confirm_support_assignment: {
+        Args: { p_assignment_id: string; p_reason: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
+      }
       connect_gym_payment_credentials: {
         Args: {
           p_api_key: string
@@ -2224,6 +2435,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_support_account: {
+        Args: { p_display_name: string; p_email: string; p_user_id: string }
+        Returns: string
+      }
       create_workout_plan: {
         Args: { p_exercises: Json; p_member_id: string; p_name: string }
         Returns: string
@@ -2258,6 +2473,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      deactivate_support_account: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
+      }
       disconnect_gym_payment_credentials: {
         Args: { p_provider_key: string }
         Returns: undefined
@@ -2275,6 +2494,63 @@ export type Database = {
         Args: { p_gym_id: string }
         Returns: string
       }
+      file_audit_disclosure_request: {
+        Args: { p_audit_log_id: string; p_question: string }
+        Returns: { answer_due_at: string | null; code: string; ok: boolean; request_id: string | null }[]
+      }
+      get_disclosure_inbox: {
+        Args: never
+        Returns: {
+          answer: string | null
+          answer_due_at: string
+          answered_at: string | null
+          audit_action_type: string
+          audit_created_at: string
+          audit_log_id: string
+          gym_id: string
+          gym_name: string
+          id: string
+          overdue: boolean
+          question: string
+          requested_at: string
+        }[]
+      }
+      get_gym_disclosure_requests: {
+        Args: never
+        Returns: {
+          answer: string | null
+          answer_due_at: string
+          answered_at: string | null
+          audit_log_id: string
+          id: string
+          question: string
+          requested_at: string
+        }[]
+      }
+      get_gym_support_proxy_id: {
+        Args: never
+        Returns: string
+      }
+      get_support_action_identity: {
+        Args: { p_subject_ids: string[]; p_subject_table: string }
+        Returns: {
+          gym_id: string
+          real_email: string | null
+          real_name: string | null
+          real_user_id: string
+          recorded_at: string
+          subject_id: string
+          subject_table: string
+        }[]
+      }
+      get_gymos_support_status: {
+        Args: { p_gym_id: string }
+        Returns: {
+          allowed: boolean
+          last_acted_at: string | null
+          state: string
+        }[]
+      }
       get_gym_payment_connection_status: {
         Args: { p_provider_key: string }
         Returns: {
@@ -2284,21 +2560,152 @@ export type Database = {
         }[]
       }
       get_gym_payment_credentials_by_business_id: {
-        Args: { p_business_id: string; p_provider_key: string }
+        Args: { p_business_id: string; p_product_id?: string | null; p_provider_key: string; p_provider_ref?: string | null }
         Returns: {
           api_key: string
           business_id: string
+          credentials_id: string
           gym_id: string
           webhook_secret: string
         }[]
       }
       get_gym_payment_credentials_for_service: {
-        Args: { p_gym_id: string; p_provider_key: string }
+        Args: { p_credentials_id?: string | null; p_gym_id: string; p_provider_key: string }
         Returns: {
           api_key: string
           business_id: string
+          credentials_id: string
           webhook_secret: string
         }[]
+      }
+      get_staff_notices: {
+        Args: { p_limit?: number }
+        Returns: {
+          body_en: string
+          body_fr: string
+          created_at: string
+          id: string
+          notice_type: string
+          read_at: string | null
+          title_en: string
+          title_fr: string
+        }[]
+      }
+      count_unread_staff_notices: { Args: never; Returns: number }
+      mark_staff_notices_read: { Args: { p_ids?: string[] | null }; Returns: number }
+      get_support_connection_gym: { Args: never; Returns: string | null }
+      support_connect_gym_payment_credentials: {
+        Args: {
+          p_api_key: string
+          p_business_id: string
+          p_provider_key: string
+          p_webhook_secret: string
+        }
+        Returns: undefined
+      }
+      claim_email_outbox: {
+        Args: { p_limit?: number }
+        Returns: { attempts: number; body: string; id: string; recipient_email: string; subject: string }[]
+      }
+      finish_email_outbox: { Args: { p_error?: string | null; p_id: string; p_sent: boolean }; Returns: undefined }
+      record_email_outbox_run: { Args: { p_failed: number; p_sent: number; p_started_at?: string }; Returns: undefined }
+      cancel_support_factor_reset: { Args: { p_token: string }; Returns: { ok: boolean }[] }
+      change_support_contact: {
+        Args: { p_email: string; p_phone?: string | null; p_reason: string; p_user_id: string }
+        Returns: { code: string; ok: boolean; previous_email: string | null }[]
+      }
+      claim_support_factor_resets: {
+        Args: { p_limit?: number }
+        Returns: { email: string | null; reset_id: string; user_id: string }[]
+      }
+      get_support_lifecycle: {
+        Args: never
+        Returns: {
+          activated: boolean
+          deactivated: boolean
+          display_name: string | null
+          email: string | null
+          last_active_at: string | null
+          locked_at: string | null
+          locked_reason: string | null
+          recertification_lapsed: boolean
+          recertify_due_at: string | null
+          reset_executes_at: string | null
+          reset_pending_at: string | null
+          reset_state: string | null
+          user_id: string
+        }[]
+      }
+      issue_support_reset_invite: { Args: { p_reset_id: string; p_token: string }; Returns: string }
+      recertify_support_account: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
+      }
+      record_support_factor_reset_run: { Args: { p_done: number; p_failed: number; p_started_at?: string }; Returns: undefined }
+      start_support_factor_reset: {
+        Args: { p_cancel_link: string; p_cancel_token: string; p_identity_note: string; p_user_id: string }
+        Returns: { code: string; executes_at: string | null; ok: boolean; reset_id: string | null }[]
+      }
+      support_factor_reset_done: { Args: { p_factors_removed?: number; p_reset_id: string }; Returns: boolean }
+      support_factor_reset_failed: { Args: { p_error: string; p_reset_id: string }; Returns: boolean }
+      get_support_accounts: {
+        Args: never
+        Returns: {
+          activated: boolean
+          activated_at: string | null
+          assignable: boolean
+          display_name: string | null
+          email: string
+          invite_expires_at: string | null
+          invite_state: string
+          user_id: string
+        }[]
+      }
+      get_support_assignments: {
+        Args: { p_gym_id?: string; p_user_id?: string }
+        Returns: {
+          activated_at: string | null
+          assignment_id: string
+          created_at: string
+          display_name: string | null
+          email: string | null
+          ended_at: string | null
+          gym_id: string
+          gym_name: string
+          reason: string | null
+          state: string
+          support_user_id: string
+          suspended_by_switch: boolean
+        }[]
+      }
+      get_support_locks: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          display_name: string | null
+          email: string | null
+          gym_names: string | null
+          locked_at: string
+          locked_reason: string | null
+          user_id: string
+        }[]
+      }
+      get_support_review_queue: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          flagged_at: string
+          member_id: string
+          member_since: string
+          name: string
+          role: Database["public"]["Enums"]["member_role"]
+        }[]
+      }
+      clear_support_review: {
+        Args: { p_member_id: string }
+        Returns: { code: string; ok: boolean }[]
+      }
+      unlock_support_account: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
       }
       get_workout_plan_viewer_context: {
         Args: { p_plan_id: string }
@@ -2352,6 +2759,10 @@ export type Database = {
           payment_id: string
           provider_key: string
         }[]
+      }
+      issue_support_invite: {
+        Args: { p_actor: string; p_token: string; p_user_id: string }
+        Returns: string
       }
       list_active_gym_data_escalations: {
         Args: { p_gym_id: string }
@@ -2453,6 +2864,10 @@ export type Database = {
           role: Database["public"]["Enums"]["member_role"]
         }[]
       }
+      list_own_support_gyms: {
+        Args: never
+        Returns: { gym_id: string; gym_name: string }[]
+      }
       list_session_attempts: {
         Args: { p_limit?: number; p_offset?: number; p_period: string }
         Returns: {
@@ -2513,7 +2928,7 @@ export type Database = {
         }
       }
       mark_gym_payment_credentials_needs_attention: {
-        Args: { p_gym_id: string; p_provider_key: string }
+        Args: { p_credentials_id?: string | null; p_gym_id: string; p_provider_key: string }
         Returns: undefined
       }
       materialize_class_sessions: {
@@ -2602,6 +3017,10 @@ export type Database = {
       run_quiet_gym_alert_job: { Args: never; Returns: undefined }
       run_saas_billing_lifecycle_job: { Args: never; Returns: undefined }
       run_subscription_lifecycle_job: { Args: never; Returns: undefined }
+      set_allow_gymos_support: {
+        Args: { p_gym_id: string; p_on: boolean }
+        Returns: undefined
+      }
       set_guest_charging: { Args: { p_enabled: boolean }; Returns: undefined }
       set_gym_category: {
         Args: { p_category: string; p_gym_id: string }
@@ -2630,7 +3049,22 @@ export type Database = {
           started_at: string
         }[]
       }
+      support_invite_code_failed: { Args: { p_token: string }; Returns: boolean }
+      support_invite_inspect: {
+        Args: { p_token: string }
+        Returns: { email: string; ok: boolean; step: string; user_id: string }[]
+      }
+      support_invite_mark_password_set: { Args: { p_token: string }; Returns: boolean }
+      remove_support_account: {
+        Args: { p_reason: string; p_user_id: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
+      }
+      support_begin_session: { Args: never; Returns: undefined }
       switch_active_gym: { Args: { p_gym_id: string }; Returns: undefined }
+      unassign_support: {
+        Args: { p_assignment_id: string; p_reason: string }
+        Returns: { assignment_id: string | null; code: string; ok: boolean }[]
+      }
       take_ownership_of_workout_plan: {
         Args: { p_plan_id: string }
         Returns: undefined
@@ -2728,6 +3162,7 @@ export type Database = {
         | "manager"
         | "owner"
         | "supervisor"
+        | "support"
       payment_discrepancy_type:
         | "missing_internal_record"
         | "stale_processing"
@@ -2883,6 +3318,7 @@ export const Constants = {
         "manager",
         "owner",
         "supervisor",
+        "support",
       ],
       payment_discrepancy_type: [
         "missing_internal_record",

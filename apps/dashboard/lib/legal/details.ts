@@ -64,8 +64,10 @@ export const LEGAL_DETAILS: LegalDetails = {
  * info@smartsana.com to hello@gymosapps.com, which is the §6 data-deletion
  * contact route declared to Play (docs/play-store-data-safety.md). A member
  * who wrote to the old address needs the date to tell them the route moved.
+ * 2026-10-23 is the Story 26.1 bump: the Identity row now lists the optional
+ * year of birth, profession and neighborhood entered by gym staff.
  */
-export const POLICY_LAST_UPDATED = "2026-10-02";
+export const POLICY_LAST_UPDATED = "2026-10-23";
 
 /** Field names still unsupplied, in declaration order. Empty === publishable. */
 export function missingLegalDetails(details: LegalDetails = LEGAL_DETAILS): (keyof LegalDetails)[] {

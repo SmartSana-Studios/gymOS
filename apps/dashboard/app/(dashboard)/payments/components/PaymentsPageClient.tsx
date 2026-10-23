@@ -139,7 +139,7 @@ export function PaymentsPageClient({
         <h1 className="text-2xl font-semibold">{t("payments.title")}</h1>
         <div className="flex gap-2">
           <Button onClick={() => setRecordModalOpen(true)}>{t("payments.recordPaymentButton")}</Button>
-          {(role === "owner" || role === "manager" || role === "supervisor") && (
+          {(role === "owner" || role === "manager" || role === "supervisor" || role === "support") && (
             <Button variant="outline" onClick={() => setRefundModalOpen(true)}>
               {t("payments.recordRefundButton")}
             </Button>
@@ -320,6 +320,7 @@ export function PaymentsPageClient({
         <RecordRefundModal
           recordedByName={recordedByName}
           loyaltyEnabled={loyaltyEnabled}
+          isSupport={role === "support"}
           onClose={() => setRefundModalOpen(false)}
           onSaved={(warning, sessionOutcome) => {
             setRefundModalOpen(false);

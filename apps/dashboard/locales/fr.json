@@ -24,7 +24,8 @@
     "receptionist": "Réceptionniste",
     "manager": "Gérant",
     "supervisor": "Superviseur",
-    "owner": "Propriétaire"
+    "owner": "Propriétaire",
+    "support": "Support GymOS"
   },
   "sidebar": {
     "logout": "Se déconnecter",
@@ -40,6 +41,13 @@
     "openNavigationMenu": "Ouvrir le menu de navigation",
     "switchToLightTheme": "Passer au thème clair",
     "switchToDarkTheme": "Passer au thème sombre"
+  },
+  "notices": {
+    "bellLabel": "Notifications",
+    "bellLabelUnread": "Notifications, {{count}} non lue(s)",
+    "title": "Notifications",
+    "empty": "Aucune notification.",
+    "loadError": "Impossible de charger les notifications."
   },
   "overview": {
     "title": "Aperçu",
@@ -208,7 +216,15 @@
       "disconnectConfirmBody": "Les membres ne verront plus l'option de paiement automatique par mobile money. L'espèce et les autres méthodes manuelles ne sont pas affectées.",
       "disconnectedToast": "Compte de paiement déconnecté.",
       "disconnectFailedToast": "Impossible de déconnecter. Réessayez.",
-      "needsAttention": "Votre connexion Tara Money nécessite votre attention — reconnectez-vous ci-dessous pour reprendre les paiements automatiques par mobile money."
+      "needsAttention": "Votre connexion Tara Money nécessite votre attention — reconnectez-vous ci-dessous pour reprendre les paiements automatiques par mobile money.",
+      "supportConnectDialogBody": "Vous connectez le compte de cette salle en tant que GymOS Support. Le propriétaire est informé immédiatement que GymOS Support a mis à jour le compte de paiement. Un code d'authentification récent est requis.",
+      "supportCodeLabel": "Code d'authentification *",
+      "supportCodeHelp": "Le code à 6 chiffres de votre application d'authentification. Il autorise ce seul changement.",
+      "supportCodeRequiredError": "Saisissez le code d'authentification à 6 chiffres",
+      "supportCodeInvalid": "Ce code n'a pas été accepté. Essayez le code actuel.",
+      "supportLocked": "Trop de codes erronés. Ce compte a été verrouillé ; GymOS va l'examiner.",
+      "supportStepUpUnavailable": "Impossible de confirmer le code pour le moment. Réessayez.",
+      "replaceWarning": "Connecter un nouveau compte remplace l'actuel pour les nouveaux paiements. Les paiements déjà commencés se terminent sous le compte avec lequel ils ont démarré."
     },
     "billing": {
       "intervalMonthly": "Mensuel",
@@ -287,9 +303,35 @@
         "k": "Saisissez un nombre entier de 3 à 24",
         "r": "Saisissez un nombre entier de 1 à 30"
       }
+    },
+    "gymosSupport": {
+      "title": "Support GymOS",
+      "description": "Laissez l'équipe GymOS vous aider à configurer et gérer votre salle",
+      "label": "Autoriser le support GymOS",
+      "state": {
+        "off": "Le support GymOS est désactivé par vous.",
+        "none": "Le support GymOS est autorisé. Personne n'est affecté.",
+        "assigned": "Le support GymOS est autorisé et affecté.",
+        "waiting": "Le support GymOS est autorisé. Une affectation attend la confirmation de GymOS."
+      },
+      "lastActed": "Dernière action : {{when}}",
+      "lastActedNever": "pas encore",
+      "confirmOff": "Désactiver le support GymOS ? Toute personne affectée perd immédiatement l'accès à votre salle.",
+      "confirmOn": "Autoriser le support GymOS ? Le personnel GymOS affecté pourra travailler dans votre salle.",
+      "savedOn": "Support GymOS autorisé.",
+      "savedOff": "Support GymOS désactivé.",
+      "saveFailed": "Impossible de modifier le support GymOS. Réessayez."
     }
   },
   "staff": {
+    "gymosSupport": {"name":"Support GymOS","role":"Support GymOS"},
+    "supportTag": "Créé par Support GymOS",
+    "supportReview": {
+      "title": "Personnel créé par Support GymOS",
+      "description": "L'accès de Support GymOS à votre salle a été suspendu ou a pris fin. Ces comptes du personnel ont été créés par Support GymOS et sont toujours actifs. Examinez chacun : conservez-le ici ou désactivez-le depuis le menu d'actions ci-dessous.",
+      "keep": "Conserver",
+      "kept": "{{name}} a été conservé."
+    },
     "title": "Personnel",
     "addStaff": "+ Ajouter un membre du personnel",
     "addStaffButton": "Ajouter un membre du personnel",
@@ -356,6 +398,7 @@
     "toast": {
       "createdSms": "Compte du personnel créé. Mot de passe temporaire envoyé à {{phone}}.",
       "createdNoSms": "Compte du personnel créé. Impossible d'envoyer le mot de passe temporaire à {{phone}} automatiquement — partagez-le ci-dessous.",
+      "supportNote": "En tant que GymOS Support, vous ne voyez pas la liste du personnel. Le propriétaire la voit et examinera ce compte.",
       "createdExistingAccount": "{{phone}} était déjà enregistré sur GymOS — accès accordé.",
       "createdExistingAccountNoSms": "{{phone}} était déjà enregistré sur GymOS — accès accordé, mais nous n'avons pas pu l'en informer automatiquement. Prévenez-le/la qu'il/elle peut se connecter avec son mot de passe existant.",
       "resendSms": "Nouveau mot de passe temporaire envoyé à {{phone}}.",
@@ -573,6 +616,9 @@
       "dob": "Date de naissance",
       "photoUrl": "URL de la photo de profil",
       "emergencyContact": "Contact d'urgence",
+      "birthYear": "Année de naissance",
+      "profession": "Profession",
+      "neighborhood": "Quartier",
       "plan": "Formule *",
       "selectPlan": "Sélectionnez une formule",
       "billingIntervalReadonly": "Intervalle de facturation : {{interval}}",
@@ -586,13 +632,18 @@
         "joinDate": "Date d'adhésion",
         "subscriptionStatus": "Statut de l'abonnement",
         "expiryDate": "Date d'expiration",
-        "registrationFee": "Frais d'inscription"
+        "registrationFee": "Frais d'inscription",
+        "approxAge": "Âge (approximatif)",
+        "approxAgeValue": "Environ {{age}} ans"
       },
       "errors": {
         "nameInvalid": "Le nom est requis (2 à 100 caractères)",
         "phoneInvalid": "Saisissez un numéro de téléphone valide",
         "emailInvalid": "Saisissez une adresse e-mail valide",
         "dobInvalid": "Saisissez une date de naissance valide (doit être dans le passé, le membre doit avoir au moins 10 ans)",
+        "birthYearInvalid": "Saisissez une année de naissance à quatre chiffres, de 1900 à cette année",
+        "professionInvalid": "La profession est trop longue (120 caractères maximum)",
+        "neighborhoodInvalid": "Le quartier est trop long (120 caractères maximum)",
         "planRequired": "Sélectionnez une formule",
         "joinDateInvalid": "Saisissez une date d'adhésion valide (ne peut pas être dans le futur)",
         "expiryDateInvalid": "Saisissez une date d'expiration valide (doit être postérieure ou égale à la date d'adhésion)"
@@ -697,8 +748,13 @@
       },
       "importing": "Importation…",
       "importingLarge": "Importation… cela peut prendre un moment",
-      "importSuccessToast": "{{count}} membres importés.",
+      "importSuccessToast": "{{count}} membres importés, {{awaiting}} en attente des frais d'inscription.",
+      "importSuccessToastPlain": "{{count}} membres importés.",
+      "noPlanSummary": "{{count}} lignes n'ont pas de formule. Ces membres sont ajoutés sans abonnement. Si ce n'est pas voulu, vérifiez la colonne de la formule dans votre fichier.",
+      "feeFreeWarning": "Cette salle n'a pas de frais d'inscription : les lignes sans formule n'attendront donc aucun frais. Elles sont créées comme des membres ordinaires sans abonnement.",
+      "feeFreeAcknowledge": "Je comprends, importer quand même",
       "errors": {
+        "feeAckRequired": "Confirmez que les membres sans formule n'attendront pas de frais d'inscription, puis relancez l'importation.",
         "invalidTemplate": "Le CSV ne contient pas les colonnes requises : {{columns}}",
         "emptyFile": "Le fichier CSV ne contient aucune ligne de données à importer.",
         "planNotConfigured": "La formule « {{value}} » n'est pas configurée pour cette salle",
@@ -1322,7 +1378,32 @@
       "sessionLatePayment": "Paiement de séance tardif appliqué",
       "sessionRefundApplied": "Remboursement de séance appliqué",
       "sessionConsumed": "Séance utilisée",
-      "sessionAttemptBlocked": "Séance requise : entrée refusée"
+      "sessionAttemptBlocked": "Séance requise : entrée refusée",
+      "allowGymosSupportChanged": "Accès du support GymOS modifié",
+      "gymosSupportAccessEnded": "Accès du support GymOS terminé",
+      "gymosSupportAccessResumed": "Accès du support GymOS rétabli",
+      "auditDisclosureRequested": "Demande d'information déposée",
+      "auditDisclosureAnswered": "Demande d'information traitée"
+    },
+    "disclosure": {
+      "title": "Questions sur ce journal",
+      "request": "Poser une question sur cette entrée",
+      "dialogTitle": "Interroger GymOS sur cette entrée",
+      "questionLabel": "Que souhaitez-vous savoir ?",
+      "questionHint": "GymOS répond par téléphone ou par e-mail. La date limite s'affiche une fois la demande envoyée.",
+      "submit": "Envoyer la demande",
+      "cancel": "Annuler",
+      "sent": "Demande envoyée. GymOS répondra avant le {{date}}.",
+      "due": "Réponse attendue le {{date}}",
+      "answered": "Répondu le {{date}}",
+      "open": "En attente de GymOS",
+      "answerLabel": "Réponse",
+      "entry": "Entrée {{id}}",
+      "errors": {
+        "questionInvalid": "Écrivez une question de 3 à 500 caractères.",
+        "notFound": "Cette entrée est introuvable.",
+        "alreadyOpen": "Vous avez déjà une question en cours sur cette entrée."
+      }
     }
   },
   "saasBilling": {
@@ -1333,7 +1414,8 @@
     "switchGymPrompt": "Vous appartenez à une autre salle vers laquelle vous pouvez basculer :"
   },
   "auth": {
-    "privacyPolicy": "Politique de confidentialité"
+    "privacyPolicy": "Politique de confidentialité",
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter."
   },
   "phoneInput": {
     "selectCountry": "Sélectionner le pays",
@@ -1444,5 +1526,59 @@
       "alreadyInProgress": "Un paiement mobile money est déjà en cours pour ce membre.",
       "configMissing": "Les paramètres de séance sont manquants. Veuillez contacter le support."
     }
+  },
+  "supportInvite": {
+    "title": "Support GymOS",
+    "passwordBody": "Étape 1 sur 2 : choisissez votre mot de passe.",
+    "totpBody": "Étape 2 sur 2 : configurez votre application d'authentification.",
+    "doneBody": "Votre compte est prêt. Connectez-vous avec votre e-mail et votre mot de passe, puis votre code d'authentification.",
+    "invalid": "Ce lien est invalide, expiré ou déjà utilisé. Demandez une nouvelle invitation à l'exploitant de la plateforme.",
+    "password": "Mot de passe",
+    "confirm": "Confirmer le mot de passe",
+    "passwordHint": "12 caractères au minimum.",
+    "mismatch": "Les deux mots de passe ne correspondent pas.",
+    "weak": "Choisissez un mot de passe d'au moins 12 caractères.",
+    "continue": "Continuer",
+    "showQr": "Afficher mon code QR",
+    "qrAlt": "Code QR pour ajouter le compte à votre application d'authentification",
+    "code": "Code à 6 chiffres de votre application",
+    "verify": "Vérifier et terminer",
+    "enrollRetry": "Nous n'avons pas pu afficher le code QR. Veuillez réessayer.",
+    "codeWrong": "Ce code n'a pas été accepté. Essayez le code actuel.",
+    "signIn": "Aller à la connexion"
+  },
+  "supportResetCancel": {
+    "title": "Annuler la réinitialisation de l'authentificateur",
+    "body": "Une réinitialisation de votre authentificateur GymOS support est programmée. Si vous ne l'avez pas demandée, annulez-la maintenant.",
+    "confirm": "Annuler la réinitialisation",
+    "done": "La réinitialisation a été annulée. Votre authentificateur est inchangé. Vos sessions restent fermées : reconnectez-vous.",
+    "invalid": "Ce lien est invalide, expiré ou déjà utilisé."
+  },
+  "supportAccess": {
+    "mfaTitle": "Second facteur",
+    "mfaDescription": "Saisissez le code à 6 chiffres de votre application d'authentification pour continuer.",
+    "codeLabel": "Code à 6 chiffres",
+    "verify": "Vérifier",
+    "verifying": "Vérification...",
+    "invalidCode": "Ce code n'est pas valide. Réessayez.",
+    "noFactor": "Aucun authentificateur vérifié n'est disponible pour ce compte. Contactez GymOS.",
+    "pickerTitle": "Choisissez une salle",
+    "pickerDescription": "Choisissez la salle dans laquelle vous travaillez. Vous agissez sur une seule salle à la fois.",
+    "noGym": "Aucune salle ne vous est attribuée pour le moment.",
+    "recertTitle": "Recertification en retard",
+    "recertBody": "Votre recertification GymOS Support est en retard : vous n'avez accès à aucune salle tant que GymOS ne vous a pas recertifié. Contactez GymOS.",
+    "entering": "Ouverture...",
+    "switchFailed": "Impossible d'ouvrir cette salle. Réessayez ou choisissez-en une autre.",
+    "signInFailed": "Une erreur est survenue lors de la connexion. Reconnectez-vous.",
+    "backToSignIn": "Retour à la connexion",
+    "signOut": "Se déconnecter"
+  },
+  "supportStepUp": {
+    "codeLabel": "Code d'authentification *",
+    "codeHelp": "Le code à 6 chiffres de votre application d'authentification. Il autorise ce seul changement.",
+    "codeRequired": "Saisissez le code d'authentification à 6 chiffres",
+    "codeInvalid": "Ce code n'a pas été accepté. Essayez le code actuel.",
+    "locked": "Trop de codes erronés. Ce compte a été verrouillé ; GymOS va l'examiner.",
+    "unavailable": "Impossible de confirmer le code pour le moment. Réessayez."
   }
 }

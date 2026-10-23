@@ -57,8 +57,8 @@ select is((select reason from public.authorize_action(null, null, 'platform.admi
 -- ---- pin the set: adding a platform capability must come with a test here ------------------------------------------------------
 select is((select array_agg(m[1] order by m[1])
              from regexp_matches(pg_get_functiondef('private.capability_roles(text)'::regprocedure), '''(platform\.[a-z_]+)''', 'g') as m),
-  array['platform.admin_access', 'platform.billing_retry', 'platform.gym_create', 'platform.super_admin_manage'],
-  'the platform capabilities in capability_roles are exactly the four covered here');
+  array['platform.admin_access', 'platform.billing_retry', 'platform.gym_create', 'platform.super_admin_manage', 'platform.support_manage'],
+  'the platform capabilities in capability_roles are exactly the five covered here (platform.support_manage: support_account_invite.test.sql)');
 select is((select string_agg(cap || '=' || private.capability_roles(cap)::text, ', ' order by cap)
              from unnest(array['platform.admin_access', 'platform.billing_retry', 'platform.gym_create', 'platform.super_admin_manage']) as cap),
   'platform.admin_access={super_admin}, platform.billing_retry={super_admin}, platform.gym_create={super_admin}, platform.super_admin_manage={super_admin}',
@@ -75,9 +75,9 @@ select is((select allowed from public.authorize_action('00000000-0000-0000-0000-
   true, 'a locked Super Admin is still allowed here: the lock is enforced by touchSessionGate in lib/authz.ts');
 
 -- ---- who can call it ----------------------------------------------------------------------------------------------------------------
-select ok(not has_function_privilege('anon', 'public.authorize_action(uuid, uuid, text)', 'execute')
-      and not has_function_privilege('authenticated', 'public.authorize_action(uuid, uuid, text)', 'execute')
-      and has_function_privilege('service_role', 'public.authorize_action(uuid, uuid, text)', 'execute'),
+select ok(not has_function_privilege('anon', 'public.authorize_action(uuid, uuid, text, uuid)', 'execute')
+      and not has_function_privilege('authenticated', 'public.authorize_action(uuid, uuid, text, uuid)', 'execute')
+      and has_function_privilege('service_role', 'public.authorize_action(uuid, uuid, text, uuid)', 'execute'),
   'public.authorize_action is callable by service_role only');
 
 select * from finish();

@@ -5,6 +5,13 @@
     "refresh": "Actualiser",
     "later": "Plus tard"
   },
+  "notices": {
+    "bellLabel": "Notifications",
+    "bellLabelUnread": "Notifications, {{count}} non lue(s)",
+    "title": "Notifications",
+    "empty": "Aucune notification.",
+    "loadError": "Impossible de charger les notifications."
+  },
   "nav": {
     "brand": "GymOS Super Admin",
     "gyms": "Salles",
@@ -14,6 +21,7 @@
     "messaging": "Messagerie",
     "billing": "Facturation",
     "admins": "Administrateurs",
+    "support": "Support GymOS",
     "security": "Sécurité",
     "switchToLightTheme": "Passer au thème clair",
     "switchToDarkTheme": "Passer au thème sombre",
@@ -121,6 +129,7 @@
       "title": "Journal d'audit",
       "empty": "Aucune activité d'audit enregistrée pour cette salle pour le moment.",
       "revokedTarget": "{{label}} — {{holder}}",
+      "realActor": "Personne réelle : {{name}} ({{email}})",
       "action": {
         "gym_created": "Salle créée",
         "gym_suspended": "Salle suspendue",
@@ -525,5 +534,233 @@
     "done": "Récupération annulée. Rien n'a été modifié.",
     "invalid": "Ce lien est invalide ou a déjà été utilisé.",
     "home": "Retour à la connexion"
+  },
+  "support": {
+    "lifecycle": {
+      "title": "Recertification, réinitialisation de l'authentificateur et adresse",
+      "hint": "Chaque personne est recertifiée tous les 90 jours : après l'échéance, elle n'a plus accès tant que vous ne l'avez pas recertifiée. Une réinitialisation ferme ses sessions aussitôt, attend 30 minutes pendant lesquelles elle reçoit un e-mail et peut annuler, puis supprime son authentificateur et envoie une nouvelle invitation à usage unique.",
+      "empty": "Aucune personne du support activée.",
+      "due": "Recertification due le {{date}}",
+      "lapsed": "Recertification en retard depuis le {{date}} : pas d'accès",
+      "noDue": "Pas de date de recertification",
+      "lastActive": "dernière activité le {{date}}",
+      "recertify": "Recertifier",
+      "confirmRecertify": "Recertifier cette personne ? Le motif saisi est enregistré et la prochaine échéance est fixée.",
+      "recertified": "Recertifiée. La prochaine échéance est fixée.",
+      "changeEmail": "Changer l'adresse",
+      "newEmail": "Nouvelle adresse @gymosapps.com",
+      "emailExplain": "Le motif saisi est enregistré. Refusé tant qu'une réinitialisation est ouverte. Les comptes de support n'ont pas de numéro de téléphone.",
+      "changeEmailSubmit": "Changer l'adresse",
+      "emailChanged": "Adresse modifiée et enregistrée.",
+      "identityNote": "Vérification d'identité (obligatoire, 3 à 500 caractères)",
+      "identityNoteHint": "Comment avez-vous confirmé que c'est bien la personne (rappel, visio, pièce d'identité) ?",
+      "resetExplain": "La personne est déconnectée maintenant et n'a plus accès tant qu'elle n'a pas enregistré un nouvel authentificateur. Elle reçoit un lien d'annulation par e-mail ; les changements de coordonnées sont gelés.",
+      "ran": "{{done}} réinitialisation(s) exécutée(s), {{failed}} en échec.",
+      "resetStarted": "Réinitialisation lancée. L'authentificateur est supprimé après {{when}} sauf annulation par la personne.",
+      "reset": {
+        "action": "Réinitialiser l'authentificateur",
+        "start": "Lancer la réinitialisation",
+        "pending": "Réinitialisation en attente",
+        "cooling_off": "Réinitialisation en attente jusqu'au {{when}}",
+        "due": "Réinitialisation due, exécutée au prochain passage",
+        "executing": "Réinitialisation en cours",
+        "executed": "Réinitialisation exécutée : en attente de l'enregistrement d'un nouvel authentificateur (renvoyez une invitation depuis le tableau des comptes si besoin)"
+      },
+      "columns": {
+        "status": "Recertification",
+        "reset": "Réinitialisation"
+      }
+    },
+    "locks": {
+      "title": "Comptes verrouillés",
+      "empty": "Aucun compte verrouillé.",
+      "hint": "Un compte se verrouille de lui-même lorsqu'il dépasse une limite de sécurité. Déverrouillez-le avec un motif (3 à 500 caractères) ; le verrouillage, le déverrouillage et le motif sont consignés.",
+      "unlock": "Déverrouiller",
+      "confirmUnlock": "Déverrouiller ce compte ? Le motif saisi est enregistré.",
+      "unlocked": "Compte déverrouillé. Ses actions précédentes ne comptent plus dans les limites.",
+      "reasons": {
+        "velocity_gym": "Trop d'actions dans une salle en une heure",
+        "velocity_account": "Trop d'actions entre salles en une heure",
+        "velocity_payment": "Trop de changements de connexion de paiement dans une salle en un jour",
+        "stepup_failures": "Trop de codes de confirmation erronés",
+        "inactivity": "Aucune activité depuis trop longtemps",
+        "contact_drift": "E-mail ou téléphone modifié hors de la modification par un Super Admin",
+        "unknown": "Verrouillé"
+      },
+      "columns": {
+        "reason": "Cause",
+        "when": "Verrouillé",
+        "gyms": "Salles"
+      }
+    },
+    "disclosure": {
+      "title": "Demandes d'information des propriétaires",
+      "empty": "Aucune demande d'information.",
+      "row": "À propos de {{action}} le {{date}}",
+      "due": "Réponse attendue le",
+      "overdue": "En retard, réponse attendue le",
+      "answerLabel": "Réponse",
+      "submit": "Envoyer la réponse",
+      "answered": "Réponse enregistrée. Transmettez-la au propriétaire par téléphone ou par e-mail.",
+      "codes": {
+        "answer_invalid": "Écrivez une réponse de 3 à 2000 caractères.",
+        "not_found": "Cette demande n'existe plus.",
+        "already_answered": "Cette demande a déjà reçu une réponse."
+      },
+      "columns": {
+        "gym": "Salle",
+        "about": "Concerne",
+        "question": "Question",
+        "status": "Statut"
+      },
+      "answer": "Répondre",
+      "answerField": "Réponse (3 à 2000 caractères)"
+    },
+    "title": "Support GymOS",
+    "empty": "Aucun compte de support pour le moment.",
+    "create": {
+      "name": "Nom",
+      "email": "E-mail GymOS",
+      "submit": "Créer le compte",
+      "hint": "L'adresse doit être une boîte @gymosapps.com déjà existante. Le compte est créé inactif ; envoyez l'invitation pour que la personne choisisse un mot de passe et un authentificateur."
+    },
+    "columns": {
+      "name": "Nom",
+      "email": "E-mail",
+      "state": "État",
+      "invite": "Invitation",
+      "actions": "Actions"
+    },
+    "state": {
+      "active": "Actif",
+      "inactive": "Non activé",
+      "assignable": "assignable",
+      "deactivated": "Désactivé"
+    },
+    "invite": {
+      "none": "Aucune invitation envoyée",
+      "pending": "Valable jusqu'au {{when}}",
+      "expired": "Expirée",
+      "used": "Utilisée",
+      "dead": "Remplacée ou verrouillée",
+      "deactivated": "Désactivé"
+    },
+    "actions": {
+      "sendInvite": "Envoyer l'invitation",
+      "resendInvite": "Envoyer une nouvelle invitation",
+      "deactivate": "Désactiver",
+      "remove": "Supprimer",
+      "confirmDeactivate": "Désactiver ce compte ? Toutes les affectations prennent fin, la personne est déconnectée et l'action est irréversible ici.",
+      "confirmRemove": "Supprimer ce compte ? Il n'a jamais été activé ; le compte et sa connexion sont supprimés."
+    },
+    "toast": {
+      "created": "Compte de support créé. Envoyez l'invitation quand vous êtes prêt.",
+      "inviteSent": "Invitation envoyée par e-mail.",
+      "deactivated": "Compte désactivé.",
+      "removed": "Compte supprimé."
+    },
+    "errors": {
+      "refused": "Ce compte n'a pas pu être créé ou invité.",
+      "nameRequired": "Saisissez un nom (100 caractères maximum).",
+      "domain": "Utilisez une adresse @gymosapps.com.",
+      "notConfigured": "L'adresse du tableau de bord n'est pas configurée : impossible de construire le lien d'invitation.",
+      "mailFailed": "L'invitation a été émise mais l'e-mail n'a pas pu être envoyé. Envoyez une nouvelle invitation pour réessayer.",
+      "banFailed": "Le blocage de la connexion du compte a échoué, rien n'a été modifié. Désactivez à nouveau pour réessayer.",
+      "contactApplyFailed": "La nouvelle adresse a été enregistrée mais n'a pas pu être appliquée à la connexion, elle a donc été remise comme avant. Réessayez.",
+      "contactRevertFailed": "La nouvelle adresse n'a pas pu être appliquée et l'enregistrement n'a pas pu être remis comme avant. La vérification nocturne verrouillera le compte tant que vous n'aurez pas enregistré la bonne adresse."
+    },
+    "codes": {
+      "reason_invalid": "Saisissez un motif de 3 à 500 caractères.",
+      "gym_not_active": "Cette salle n'est pas active.",
+      "target_super_admin": "Un Super Admin ne peut pas être affecté comme support GymOS.",
+      "not_assignable": "Ce compte ne peut pas être affecté.",
+      "deactivated": "Ce compte est désactivé.",
+      "already_assigned": "Cette personne a déjà une affectation ouverte dans cette salle.",
+      "other_membership": "Cette personne a déjà un autre rôle dans cette salle.",
+      "not_found": "Introuvable.",
+      "not_pending": "Seule une affectation en attente peut être confirmée.",
+      "not_activated": "Le compte n'a pas terminé sa configuration ; il ne peut pas encore être confirmé.",
+      "switch_off": "Le propriétaire a désactivé le support GymOS pour cette salle ; la confirmation est impossible.",
+      "already_ended": "Cette affectation est déjà terminée.",
+      "not_locked": "Ce compte n'est pas verrouillé.",
+      "already_deactivated": "Ce compte est déjà désactivé.",
+      "activated": "Ce compte a été activé. Désactivez-le au lieu de le supprimer.",
+      "invalid_request": "La demande n'est pas valide.",
+      "already_pending": "Une réinitialisation est déjà en cours pour cette personne.",
+      "reset_in_progress": "Une réinitialisation est en cours pour cette personne : l'adresse est gelée.",
+      "phone_not_allowed": "Les comptes de support n'ont pas de numéro de téléphone.",
+      "email_invalid": "Utilisez une adresse @gymosapps.com.",
+      "collision": "Cette adresse ne peut pas être utilisée.",
+      "unchanged": "C'est déjà l'adresse enregistrée.",
+      "contact_drift": "L'adresse de connexion diffère de celle enregistrée. Enregistrez d'abord la bonne adresse, puis déverrouillez.",
+      "step_up_required": "Confirmez d'abord avec votre application d'authentification.",
+      "contact_apply_failed": "La nouvelle adresse n'a pas pu être appliquée à la connexion."
+    },
+    "assign": {
+      "title": "Support GymOS affecté",
+      "person": "Personne",
+      "gym": "Salle",
+      "choose": "Choisir…",
+      "submit": "Affecter",
+      "hint": "Une personne affectée reste en attente tant que le compte n'est pas activé et que le propriétaire n'autorise pas le support GymOS ; une affectation en attente ne devient active que si vous la confirmez.",
+      "empty": "Aucune affectation ouverte.",
+      "since": "Depuis",
+      "confirm": "Confirmer",
+      "unassign": "Retirer",
+      "endedCount": "{{count}} affectation(s) terminée(s)",
+      "state": {
+        "pending": "En attente",
+        "active": "Active",
+        "suspended": "Suspendue",
+        "ended": "Terminée",
+        "suspendedBySwitch": "Suspendue (le propriétaire a désactivé le support)"
+      },
+      "done": {
+        "ok": "Terminé.",
+        "active": "Affectée et active.",
+        "pending": "Affectée ; en attente de confirmation.",
+        "ended": "Affectation terminée.",
+        "deactivated": "Compte désactivé.",
+        "removed": "Compte supprimé."
+      }
+    },
+    "tabs": {
+      "accounts": "Comptes",
+      "assignments": "Affectations",
+      "locks": "Comptes verrouillés",
+      "lifecycle": "Cycle de vie",
+      "disclosure": "Demandes de divulgation"
+    },
+    "top": {
+      "create": "Créer un compte",
+      "assign": "Affecter à une salle",
+      "runDue": "Lancer les réinitialisations dues"
+    },
+    "menu": {
+      "button": "Actions",
+      "label": "Actions pour {{name}}"
+    },
+    "modal": {
+      "reason": "Motif (3 à 500 caractères)",
+      "reasonHint": "Pourquoi cette action ?",
+      "reasonInvalid": "Saisissez un motif de 3 à 500 caractères.",
+      "cancel": "Annuler",
+      "working": "En cours…",
+      "title": {
+        "confirm": "Confirmer l'affectation",
+        "unassign": "Retirer",
+        "deactivate": "Désactiver le compte",
+        "remove": "Supprimer le compte",
+        "unlock": "Déverrouiller le compte",
+        "recertify": "Recertifier",
+        "reset": "Réinitialiser l'authentificateur",
+        "email": "Changer l'adresse",
+        "answer": "Répondre à la demande de divulgation",
+        "assign": "Affecter à une salle",
+        "create": "Créer un compte"
+      },
+      "confirmConfirm": "Confirmer cette affectation pour la rendre active ? Le motif saisi est enregistré.",
+      "confirmUnassign": "Retirer cette personne de la salle ? Le motif saisi est enregistré."
+    }
   }
 }

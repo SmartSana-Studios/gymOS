@@ -12,7 +12,9 @@
  * platform-level Tara Money credentials, read from env vars rather than a
  * per-gym Vault lookup.
  */
-export type PaymentRoutingContext = { type: "gym"; gymId: string } | { type: "platform" };
+export type PaymentRoutingContext =
+  | { type: "gym"; gymId: string; /** The payments.credentials_id recorded at initiation (23.9); null/absent resolves the active row. */ credentialsId?: string | null }
+  | { type: "platform" };
 
 /**
  * Distinguishes "this gym has no usable Tara Money connection right now" (an

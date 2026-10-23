@@ -77,6 +77,27 @@ vi.mock("@/lib/authz", () => ({
   ),
 }));
 
+// Story 23-6c: the step-up service is a switch here (its own rules are in support-stepup.test.ts).
+let liveSupport = false;
+let verifyResult: { status: string; userId?: string } = { status: "verified", userId: "support-1" };
+let grantResult = "issued";
+const grantCalls: unknown[] = [];
+const verifyCalls: string[] = [];
+vi.mock("@/services/support-stepup", async (importActual) => ({
+  ...(await importActual<typeof import("@/services/support-stepup")>()),
+  isLiveSupportSession: vi.fn(async () => liveSupport),
+  verifySupportCode: vi.fn(async (code: string) => {
+    verifyCalls.push(code);
+    if (verifyResult.status === "throw") throw new Error("boom");
+    return verifyResult;
+  }),
+  issueSupportGrant: vi.fn(async (a: unknown) => {
+    grantCalls.push(a);
+    if (grantResult === "throw") throw new Error("boom");
+    return grantResult;
+  }),
+}));
+
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => makeAdminStub()),
 }));
@@ -127,6 +148,11 @@ const input = { name: "Jane Coach", phone: "+237680811041", role: "coach" as con
 describe("createStaffMember", () => {
   beforeEach(() => {
     authzDenied = false;
+    liveSupport = false;
+    verifyResult = { status: "verified", userId: "support-1" };
+    grantResult = "issued";
+    grantCalls.length = 0;
+    verifyCalls.length = 0;
     createUserResult = { data: { user: { id: "new-user-1" } }, error: null };
     rpcResult = { data: { id: "member-1", role: "coach", gym_id: "gym-1" }, error: null };
     rpcCalls = [];
@@ -305,6 +331,123 @@ describe("createStaffMember", () => {
 
     expect(result).toEqual({ data: { tempPassword: null, smsSent: true, isExistingAccount: true }, error: null });
     expect(sendEvolutionApiMessage).toHaveBeenCalledTimes(1);
+  });
+
+  describe("Story 23-6c: live support session", () => {
+    beforeEach(() => {
+      liveSupport = true;
+    });
+
+    it("verifies the code BEFORE provisioning, issues the grant bound to the new user id, then creates the staff member", async () => {
+      const { createStaffMember } = await import("./staff");
+
+      const result = await createStaffMember(input, { authCode: "123456" });
+
+      expect(result.error).toBeNull();
+      expect(verifyCalls).toEqual(["123456"]);
+      expect(grantCalls).toEqual([{ userId: "support-1", action: "support_create_staff", subjectId: "new-user-1" }]);
+      expect(rpcCalls.map((c) => c.fn)).toEqual(["create_staff_member"]);
+    });
+
+    it("binds the grant to the existing user's id when the phone already resolves to an account", async () => {
+      usersLookupResult = { data: { id: "existing-9" }, error: null };
+      const { createStaffMember } = await import("./staff");
+
+      await createStaffMember(input, { authCode: "123456" });
+
+      expect(grantCalls).toEqual([{ userId: "support-1", action: "support_create_staff", subjectId: "existing-9" }]);
+      expect(createUserMock).not.toHaveBeenCalled();
+    });
+
+    it.each([undefined, "", "12ab56", "12345"])("a missing or malformed code (%s) is refused before anything is provisioned", async (code) => {
+      const { createStaffMember } = await import("./staff");
+
+      const result = await createStaffMember(input, { authCode: code });
+
+      expect(result.error?.code).toBe("code_required");
+      expect(verifyCalls).toEqual([]);
+      expect(createUserMock).not.toHaveBeenCalled();
+      expect(rpcCalls).toEqual([]);
+    });
+
+    it.each([
+      ["invalid_code", "invalid_code"],
+      ["locked", "account_locked"],
+      ["unavailable", "step_up_unavailable"],
+    ])("a %s verification provisions nothing and writes nothing", async (status, code) => {
+      verifyResult = { status };
+      const { createStaffMember } = await import("./staff");
+
+      const result = await createStaffMember(input, { authCode: "123456" });
+
+      expect(result.error?.code).toBe(code);
+      expect(createUserMock).not.toHaveBeenCalled();
+      expect(grantCalls).toEqual([]);
+      expect(rpcCalls).toEqual([]);
+    });
+
+    it("a grant that cannot be issued removes the user this call created and does not call the RPC", async () => {
+      grantResult = "unavailable";
+      const { createStaffMember } = await import("./staff");
+
+      const result = await createStaffMember(input, { authCode: "123456" });
+
+      expect(result.error?.code).toBe("step_up_unavailable");
+      expect(deleteAuthUserForCleanupCalls).toEqual(["new-user-1"]);
+      expect(rpcCalls).toEqual([]);
+    });
+
+    it("a throw while issuing the grant is 'unavailable' and removes the user this call created", async () => {
+      grantResult = "throw";
+      const { createStaffMember } = await import("./staff");
+
+      const result = await createStaffMember(input, { authCode: "123456" });
+
+      expect(result.error?.code).toBe("step_up_unavailable");
+      expect(deleteAuthUserForCleanupCalls).toEqual(["new-user-1"]);
+      expect(rpcCalls).toEqual([]);
+    });
+
+    it("a throw while issuing the grant never deletes an existing account", async () => {
+      grantResult = "throw";
+      usersLookupResult = { data: { id: "existing-9" }, error: null };
+      const { createStaffMember } = await import("./staff");
+
+      const result = await createStaffMember(input, { authCode: "123456" });
+
+      expect(result.error?.code).toBe("step_up_unavailable");
+      expect(deleteAuthUserForCleanupCalls).toEqual([]);
+    });
+
+    it("a throw while verifying the code is 'unavailable' and provisions nothing", async () => {
+      verifyResult = { status: "throw" };
+      const { createStaffMember } = await import("./staff");
+
+      const result = await createStaffMember(input, { authCode: "123456" });
+
+      expect(result.error?.code).toBe("step_up_unavailable");
+      expect(createUserMock).not.toHaveBeenCalled();
+    });
+
+    it("a refused RPC after the grant keeps the existing cleanup of a user this call created", async () => {
+      rpcResult = { data: null, error: { message: "step-up required" } };
+      const { createStaffMember } = await import("./staff");
+
+      const result = await createStaffMember(input, { authCode: "123456" });
+
+      expect(result.error).not.toBeNull();
+      expect(deleteAuthUserForCleanupCalls).toEqual(["new-user-1"]);
+    });
+  });
+
+  it("Story 23-6c: a staff role ignores a supplied code entirely (no verify, no grant)", async () => {
+    const { createStaffMember } = await import("./staff");
+
+    const result = await createStaffMember(input, { authCode: "123456" });
+
+    expect(result.error).toBeNull();
+    expect(verifyCalls).toEqual([]);
+    expect(grantCalls).toEqual([]);
   });
 });
 

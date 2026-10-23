@@ -1,4 +1,5 @@
 import {
+  CSV_REQUIRED_COLUMNS,
   CSV_TEMPLATE_COLUMNS,
   csvMemberRowSchema,
   type AppError,
@@ -8,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
-import { listPlans } from "@/services/plans";
+import { listPlans, type PlanRow } from "@/services/plans";
 import { getGymSettings } from "@/services/gym-settings";
 import { normalizePhoneForCountry, resolvePhoneCountry } from "@/lib/phone";
 import type { CountryCode } from "libphonenumber-js";
@@ -59,11 +60,15 @@ export interface ValidatedCsvRow {
   row: number;
   name: string;
   phone: string;
-  planId: string;
-  planName: string;
+  /** Null on a row without a plan: it creates no subscription. */
+  planId: string | null;
+  planName: string | null;
   joinDate: string;
-  subscriptionStatus: MemberSubscriptionStatus;
+  subscriptionStatus: MemberSubscriptionStatus | null;
   expiryDate: string | null;
+  birthYear: number | null;
+  profession: string | null;
+  neighborhood: string | null;
 }
 
 export interface MappedCsvRow {
@@ -106,7 +111,7 @@ export async function mapCsvRows(
     columnIndex.set(key, index);
   });
 
-  const missing = CSV_TEMPLATE_COLUMNS.filter((col) => !columnIndex.has(col));
+  const missing = CSV_REQUIRED_COLUMNS.filter((col) => !columnIndex.has(col));
   // A required column name appearing twice in the header is just as
   // ambiguous as a missing one -- the column-index map above silently kept
   // only the last match, which would otherwise misread every row.
@@ -174,6 +179,9 @@ const SCHEMA_FIELD_TO_COLUMN: Record<string, string> = {
   joinDate: "join_date",
   subscriptionStatus: "subscription_status",
   expiryDate: "expiry_date",
+  birthYear: "birth_year",
+  profession: "profession",
+  neighborhood: "neighborhood",
 };
 
 /** `country` is the gym's own: a phone written without a country code is read
@@ -186,6 +194,9 @@ function toCsvMemberRowCandidate(raw: Record<string, string>, country: CountryCo
     joinDate: raw.join_date ?? "",
     subscriptionStatus: raw.subscription_status ?? "",
     expiryDate: raw.expiry_date ?? "",
+    birthYear: raw.birth_year ?? "",
+    profession: raw.profession ?? "",
+    neighborhood: raw.neighborhood ?? "",
   };
 }
 
@@ -196,9 +207,20 @@ function toCsvMemberRowCandidate(raw: Record<string, string>, country: CountryCo
  * check across every row before returning -- never short-circuits on the
  * first failing check *category* (AC #1's "all rows validated before any
  * are written"). */
+/** Story 26.2: one definition of "this row has a plan" for the exemption, the counts, the audit shape and the subscription write, so
+ * they cannot disagree. A validated row always has both or neither. */
+function hasPlan(
+  row: ValidatedCsvRow,
+): row is ValidatedCsvRow & { planId: string; subscriptionStatus: MemberSubscriptionStatus } {
+  return row.planId !== null && row.subscriptionStatus !== null;
+}
+
 export async function validateCsvImport(
   rawRowObjects: MappedCsvRow[],
-): Promise<{ valid: true; rows: ValidatedCsvRow[] } | { valid: false; errors: CsvRowError[] }> {
+): Promise<
+  | { valid: true; rows: ValidatedCsvRow[]; feeFreeWithoutPlan: boolean }
+  | { valid: false; errors: CsvRowError[] }
+> {
   const { t } = await getServerTranslation(await getRequestLocale());
   const errors: CsvRowError[] = [];
 
@@ -252,28 +274,33 @@ export async function validateCsvImport(
     if (!entry) return null;
     const { row, data } = entry;
 
-    const plan = plansByName.get(data.planName.toLowerCase());
-    if (!plan) {
-      errors.push({
-        row,
-        column: "plan_type",
-        message: t("members.csvImport.errors.planNotConfigured", { value: data.planName }),
-      });
-      return null;
-    }
+    // Plan resolution and the expiry rules run only for a row with a plan; a
+    // row without one creates no subscription.
+    let plan: PlanRow | undefined;
+    if (data.planName !== undefined) {
+      plan = plansByName.get(data.planName.toLowerCase());
+      if (!plan) {
+        errors.push({
+          row,
+          column: "plan_type",
+          message: t("members.csvImport.errors.planNotConfigured", { value: data.planName }),
+        });
+        return null;
+      }
 
-    const expiryRequired = plan.planType !== "pay_per_session";
-    if (expiryRequired && !data.expiryDate) {
-      errors.push({
-        row,
-        column: "expiry_date",
-        message: t("members.csvImport.errors.expiryDateRequiredForPlan"),
-      });
-      return null;
-    }
-    if (!expiryRequired && data.expiryDate) {
-      errors.push({ row, column: "expiry_date", message: t("members.errors.expiryDateNotAllowed") });
-      return null;
+      const expiryRequired = plan.planType !== "pay_per_session";
+      if (expiryRequired && !data.expiryDate) {
+        errors.push({
+          row,
+          column: "expiry_date",
+          message: t("members.csvImport.errors.expiryDateRequiredForPlan"),
+        });
+        return null;
+      }
+      if (!expiryRequired && data.expiryDate) {
+        errors.push({ row, column: "expiry_date", message: t("members.errors.expiryDateNotAllowed") });
+        return null;
+      }
     }
 
     // In-file duplicate phone detection (Scope Note #7a) -- without this,
@@ -297,11 +324,15 @@ export async function validateCsvImport(
       row,
       name: data.memberName,
       phone: data.phone,
-      planId: plan.id,
-      planName: plan.name,
-      joinDate: data.joinDate,
-      subscriptionStatus: data.subscriptionStatus,
+      planId: plan?.id ?? null,
+      planName: plan?.name ?? null,
+      // A row without a plan may leave the join date blank: the UTC import date.
+      joinDate: data.joinDate ?? new Date().toISOString().slice(0, 10),
+      subscriptionStatus: plan ? (data.subscriptionStatus ?? null) : null,
       expiryDate: data.expiryDate ?? null,
+      birthYear: data.birthYear ?? null,
+      profession: data.profession ?? null,
+      neighborhood: data.neighborhood ?? null,
     };
   });
 
@@ -349,7 +380,13 @@ export async function validateCsvImport(
     return { valid: false, errors };
   }
 
-  return { valid: true, rows: resolvedRows.filter((row): row is ValidatedCsvRow => row !== null) };
+  const validRows = resolvedRows.filter((row): row is ValidatedCsvRow => row !== null);
+  return {
+    valid: true,
+    rows: validRows,
+    // A fee-0 gym with a row without a plan: nobody will await a fee.
+    feeFreeWithoutPlan: gym.registrationFee <= 0 && validRows.some((row) => !hasPlan(row)),
+  };
 }
 
 /** Step 2 (Confirm) entrypoint (AC #3). Batch cap fast-fail, then loops
@@ -364,7 +401,8 @@ export async function validateCsvImport(
  * supplied "already validated" array from a prior request. */
 export async function confirmCsvImport(
   validatedRows: ValidatedCsvRow[],
-): Promise<{ data: { count: number } | null; error: AppError | null }> {
+  options: { acknowledgeNoFee?: boolean } = {},
+): Promise<{ data: { count: number; awaiting: number } | null; error: AppError | null }> {
   const { t } = await getServerTranslation(await getRequestLocale());
 
   const { count, cap, error: countError } = await memberCountForGym();
@@ -391,7 +429,20 @@ export async function confirmCsvImport(
   if (gymSettingsError || !gymSettings) {
     return { data: null, error: gymSettingsError };
   }
-  const importExempt = gymSettings.registrationFee > 0;
+  const feeGym = gymSettings.registrationFee > 0;
+  const hasNoPlanRow = validatedRows.some((row) => !hasPlan(row));
+  // A fee-0 gym's no-plan rows are settled by the trigger, so nobody awaits a
+  // fee: the Owner must have acknowledged that. Only a literal true counts.
+  if (!feeGym && hasNoPlanRow && options.acknowledgeNoFee !== true) {
+    return {
+      data: null,
+      error: { code: "csv_fee_ack_required", message: t("members.csvImport.errors.feeAckRequired") },
+    };
+  }
+  // The decision is per row: a plan row in a fee gym is settled at import; a
+  // row without a plan is left to the 0098 trigger (awaiting in a fee gym).
+  const exemptFor = (row: ValidatedCsvRow) => feeGym && hasPlan(row);
+  const awaiting = feeGym ? validatedRows.filter((row) => !hasPlan(row)).length : 0;
 
   const successes: { memberId: string; gymId: string; userId: string; authUserCreated: boolean }[] = [];
 
@@ -403,11 +454,14 @@ export async function confirmCsvImport(
       dob: null,
       photoUrl: null,
       emergencyContact: null,
+      birthYear: row.birthYear,
+      profession: row.profession,
+      neighborhood: row.neighborhood,
       joinDate: row.joinDate,
-      planId: row.planId,
-      subscriptionStatus: row.subscriptionStatus,
-      expiryDate: row.expiryDate,
-      ...(importExempt ? { importExempt: true } : {}),
+      ...(hasPlan(row)
+        ? { planId: row.planId, subscriptionStatus: row.subscriptionStatus, expiryDate: row.expiryDate }
+        : {}),
+      ...(exemptFor(row) ? { importExempt: true } : {}),
     });
 
     if (provisionError || !provisioned) {
@@ -443,16 +497,21 @@ export async function confirmCsvImport(
   for (let i = 0; i < validatedRows.length; i++) {
     const row = validatedRows[i];
     const memberId = successes[i].memberId;
-    const { error: auditError } = await logMemberChange("member_created", memberId, {
-      name: row.name,
-      phone: row.phone,
-      plan_id: row.planId,
-      join_date: row.joinDate,
-      via: "csv_import",
-      // Only a fee gym's import carries the key: for a fee-0 gym the audit
-      // metadata is exactly what it was.
-      ...(importExempt ? { registration_fee_exempt: true } : {}),
-    });
+    // A row without a plan: no name and no phone in the audit metadata.
+    const metadata =
+      !hasPlan(row)
+        ? { join_date: row.joinDate, via: "csv_import", awaiting_registration_fee: feeGym }
+        : {
+            name: row.name,
+            phone: row.phone,
+            plan_id: row.planId,
+            join_date: row.joinDate,
+            via: "csv_import",
+            // Only a fee gym's import carries the key: for a fee-0 gym the audit
+            // metadata is exactly what it was.
+            ...(feeGym ? { registration_fee_exempt: true } : {}),
+          };
+    const { error: auditError } = await logMemberChange("member_created", memberId, metadata);
     if (auditError) {
       failedAuditRows.push(row.row);
     }
@@ -464,7 +523,7 @@ export async function confirmCsvImport(
   // the members themselves were provisioned correctly either way).
   if (failedAuditRows.length > 0) {
     return {
-      data: { count: validatedRows.length },
+      data: { count: validatedRows.length, awaiting },
       error: {
         code: "audit_log_failed",
         message: t("members.csvImport.errors.auditLogFailedRows", {
@@ -475,5 +534,5 @@ export async function confirmCsvImport(
     };
   }
 
-  return { data: { count: validatedRows.length }, error: null };
+  return { data: { count: validatedRows.length, awaiting }, error: null };
 }

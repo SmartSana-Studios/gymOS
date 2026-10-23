@@ -1,0 +1,454 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+let allowed = true;
+const rpc = vi.fn();
+const createUser = vi.fn();
+const adminRpc = vi.fn();
+const deleteUser = vi.fn();
+const getUserById = vi.fn();
+const authAdmin: Record<string, unknown> = {};
+const sendMail = vi.fn();
+
+vi.mock("@/lib/authz-action", () => ({
+  authorizeOrRedirect: vi.fn(async () =>
+    allowed ? { ok: true, actorId: "sa-1" } : { ok: false, error: { code: "permission_denied", message: "denied" }, reason: "x" },
+  ),
+}));
+let stepUpOk = true;
+const consumeStepUp = vi.fn(async () => stepUpOk);
+vi.mock("@/lib/authz", () => ({
+  STEP_UP_REQUIRED_CODE: "step_up_required",
+  consumeStepUp: (...a: unknown[]) => (consumeStepUp as (...x: unknown[]) => Promise<boolean>)(...a),
+}));
+vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn(async () => ({ rpc: (...a: unknown[]) => rpc(...a) })) }));
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: () => ({ rpc: (...a: unknown[]) => adminRpc(...a), auth: { admin: { createUser, deleteUser, getUserById, signOut: async () => ({}), get updateUserById() { return authAdmin.updateUserById; } } } }),
+}));
+vi.mock("@/services/gyms", () => ({ mapAndLog: vi.fn(async () => ({ code: "unknown", message: "m" })) }));
+vi.mock("@/lib/mail", () => ({ sendMail: (...a: unknown[]) => sendMail(...a) }));
+vi.mock("@/lib/i18n/get-request-locale", () => ({ getRequestLocale: vi.fn(async () => "en") }));
+vi.mock("@/lib/i18n/get-server-translation", () => ({ getServerTranslation: vi.fn(async () => ({ t: (k: string) => k })) }));
+
+const UID = "00000000-0000-4000-8000-0000000000aa";
+
+beforeEach(() => {
+  allowed = true;
+  rpc.mockReset();
+  adminRpc.mockReset();
+  createUser.mockReset();
+  deleteUser.mockReset();
+  getUserById.mockReset();
+  sendMail.mockReset();
+  consumeStepUp.mockClear();
+  stepUpOk = true;
+  process.env.DASHBOARD_APP_URL = "https://owner.gymosapps.com";
+});
+
+describe("createSupportAccount", () => {
+  it("refuses a denied caller before any work", async () => {
+    allowed = false;
+    const { createSupportAccount } = await import("./actions");
+    const res = await createSupportAccount({ displayName: "A", email: "a@gymosapps.com" });
+    expect(res.error?.code).toBe("permission_denied");
+    expect(createUser).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-gymosapps.com address before creating anything", async () => {
+    const { createSupportAccount } = await import("./actions");
+    const res = await createSupportAccount({ displayName: "A", email: "a@x.example" });
+    expect(res.error?.code).toBe("validation_error");
+    expect(createUser).not.toHaveBeenCalled();
+  });
+
+  it("creates a password-less confirmed auth user, then the account", async () => {
+    createUser.mockResolvedValue({ data: { user: { id: UID } }, error: null });
+    rpc.mockResolvedValue({ data: UID, error: null });
+    const { createSupportAccount } = await import("./actions");
+    const res = await createSupportAccount({ displayName: " Sup ", email: "Sup@GymOSApps.com" });
+    expect(res).toEqual({ data: { userId: UID }, error: null });
+    expect(createUser).toHaveBeenCalledWith({ email: "sup@gymosapps.com", email_confirm: true });
+    expect(rpc).toHaveBeenCalledWith("create_support_account", { p_user_id: UID, p_display_name: "Sup", p_email: "sup@gymosapps.com" });
+  });
+
+  it("answers an existing address and a database refusal with the same message, and removes the new auth user", async () => {
+    const { createSupportAccount } = await import("./actions");
+    createUser.mockResolvedValueOnce({ data: { user: null }, error: { message: "exists" } });
+    const a = await createSupportAccount({ displayName: "A", email: "a@gymosapps.com" });
+    createUser.mockResolvedValueOnce({ data: { user: { id: UID } }, error: null });
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "support_account_refused" } });
+    const b = await createSupportAccount({ displayName: "A", email: "a@gymosapps.com" });
+    expect(a.error?.message).toBe("support.errors.refused");
+    expect(b.error?.message).toBe(a.error?.message);
+    expect(deleteUser).toHaveBeenCalledWith(UID);
+  });
+
+  it("refuses a malformed assignments filter with the translated message and does not call the database", async () => {
+    const { listSupportAssignments } = await import("./actions");
+    const r = await listSupportAssignments({ gymId: "not-a-uuid" });
+    expect(r.error?.message).toBe("support.errors.refused");
+    expect(r.data).toBeNull();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("sendSupportInvite", () => {
+  it("issues a hashed-side token and mails the link; the link never comes back to the browser", async () => {
+    getUserById.mockResolvedValue({ data: { user: { email: "sup@gymosapps.com" } }, error: null });
+    adminRpc.mockResolvedValue({ data: "2026-10-22T00:00:00Z", error: null });
+    sendMail.mockResolvedValue({ ok: true });
+    const { sendSupportInvite } = await import("./actions");
+    const res = await sendSupportInvite(UID);
+    expect(res).toEqual({ data: { sent: true }, error: null });
+    const [name, args] = adminRpc.mock.calls[0] as [string, { p_user_id: string; p_token: string; p_actor: string }];
+    expect(name).toBe("issue_support_invite");
+    expect(args).toMatchObject({ p_user_id: UID, p_actor: "sa-1" });
+    expect(rpc).not.toHaveBeenCalled();
+    const mail = sendMail.mock.calls[0][0] as { to: string; text: string };
+    expect(mail.to).toBe("sup@gymosapps.com");
+    expect(mail.text).toContain(`https://owner.gymosapps.com/support-invite?t=${encodeURIComponent(args.p_token)}`);
+    expect(JSON.stringify(res)).not.toContain(args.p_token);
+  });
+
+  it("builds no link and issues nothing without a configured dashboard origin", async () => {
+    delete process.env.DASHBOARD_APP_URL;
+    const { sendSupportInvite } = await import("./actions");
+    const res = await sendSupportInvite(UID);
+    expect(res.error?.code).toBe("not_configured");
+    expect(adminRpc).not.toHaveBeenCalled();
+  });
+
+  it("refuses an account whose address is not @gymosapps.com", async () => {
+    getUserById.mockResolvedValue({ data: { user: { email: "x@x.example" } }, error: null });
+    const { sendSupportInvite } = await import("./actions");
+    const res = await sendSupportInvite(UID);
+    expect(res.error?.code).toBe("support_invite_refused");
+    expect(adminRpc).not.toHaveBeenCalled();
+  });
+
+  it("reports a failed send without exposing the link", async () => {
+    getUserById.mockResolvedValue({ data: { user: { email: "sup@gymosapps.com" } }, error: null });
+    adminRpc.mockResolvedValue({ data: "x", error: null });
+    sendMail.mockResolvedValue({ ok: false, reason: "send_failed" });
+    const { sendSupportInvite } = await import("./actions");
+    const res = await sendSupportInvite(UID);
+    expect(res.error?.code).toBe("mail_failed");
+  });
+});
+
+describe("Story 23.5 assignment actions", () => {
+  const GYM = "00000000-0000-4000-8000-0000000000bb";
+  const AID = "00000000-0000-4000-8000-0000000000cc";
+  const updateUserById = vi.fn();
+
+  it("refuses a denied caller before any database call", async () => {
+    allowed = false;
+    const a = await import("./actions");
+    for (const run of [
+      () => a.assignSupport({ userId: UID, gymId: GYM, reason: "valid reason" }),
+      () => a.confirmSupportAssignment({ assignmentId: AID, reason: "valid reason" }),
+      () => a.unassignSupport({ assignmentId: AID, reason: "valid reason" }),
+      () => a.deactivateSupportAccount({ userId: UID, reason: "valid reason" }),
+      () => a.removeSupportAccount({ userId: UID, reason: "valid reason" }),
+      () => a.unlockSupportAccount({ userId: UID, reason: "valid reason" }),
+      () => a.listSupportLocks(),
+      () => a.listSupportAssignments(),
+    ]) {
+      expect((await run()).error?.code).toBe("permission_denied");
+    }
+    expect(rpc).not.toHaveBeenCalled();
+    expect(adminRpc).not.toHaveBeenCalled();
+  });
+
+  it("assigns as the Super Admin's own session (never the service role) and maps a refusal code to text", async () => {
+    const { assignSupport } = await import("./actions");
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "pending", assignment_id: AID }], error: null });
+    expect(await assignSupport({ userId: UID, gymId: GYM, reason: "onboarding" })).toEqual({ data: { code: "pending", assignmentId: AID }, error: null });
+    expect(rpc).toHaveBeenCalledWith("assign_support", { p_user_id: UID, p_gym_id: GYM, p_reason: "onboarding" });
+    expect(adminRpc).not.toHaveBeenCalled();
+
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "other_membership", assignment_id: null }], error: null });
+    const refused = await assignSupport({ userId: UID, gymId: GYM, reason: "onboarding" });
+    expect(refused.error).toEqual({ code: "other_membership", message: "support.codes.other_membership" });
+  });
+
+  it("rejects malformed ids and a missing reason before calling the database", async () => {
+    const { assignSupport, unassignSupport } = await import("./actions");
+    expect((await assignSupport({ userId: "x", gymId: GYM, reason: "valid reason" })).error?.code).toBe("validation_error");
+    expect((await unassignSupport({ assignmentId: AID })).error?.code).toBe("validation_error");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  const ACCOUNTS = { data: [{ user_id: UID }], error: null };
+
+  it("deactivate: confirms the target, bans first, then deactivates; a repeat on a deactivated account is a success", async () => {
+    const mod = await import("./actions");
+    updateUserById.mockReset();
+    updateUserById.mockResolvedValue({ error: null });
+    createAdminOverride(updateUserById);
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce(ACCOUNTS);
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "deactivated", assignment_id: null }], error: null });
+    const first = await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" });
+    expect(first.error).toBeNull();
+    expect(updateUserById).toHaveBeenCalledWith(UID, { ban_duration: "876000h" });
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(["get_support_accounts", "deactivate_support_account"]);
+
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce(ACCOUNTS);
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "already_deactivated", assignment_id: null }], error: null });
+    const again = await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" });
+    expect(again.error).toBeNull();
+    expect(again.data?.code).toBe("deactivated");
+  });
+
+  it("deactivate: a failed ban stops before the database call, and a retry succeeds", async () => {
+    const mod = await import("./actions");
+    createAdminOverride(updateUserById);
+    updateUserById.mockReset();
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce(ACCOUNTS);
+    updateUserById.mockResolvedValueOnce({ error: new Error("auth down") });
+    const failed = await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" });
+    expect(failed.error?.code).toBe("ban_failed");
+    expect(rpc.mock.calls.map((c) => c[0])).toEqual(["get_support_accounts"]);
+
+    rpc.mockResolvedValueOnce(ACCOUNTS);
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "deactivated", assignment_id: null }], error: null });
+    updateUserById.mockResolvedValueOnce({ error: null });
+    expect((await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" })).error).toBeNull();
+    expect(updateUserById).toHaveBeenCalledTimes(2);
+  });
+
+  it("deactivate: an invalid reason or a user that is not a support account bans nobody", async () => {
+    const mod = await import("./actions");
+    createAdminOverride(updateUserById);
+    updateUserById.mockClear();
+    rpc.mockReset();
+    const bad = await mod.deactivateSupportAccount({ userId: UID, reason: "x" });
+    expect(bad.error?.code).toBe("reason_invalid");
+    expect(rpc).not.toHaveBeenCalled();
+
+    rpc.mockResolvedValueOnce({ data: [{ user_id: "00000000-0000-4000-8000-0000000000dd" }], error: null });
+    const stranger = await mod.deactivateSupportAccount({ userId: UID, reason: "left the company" });
+    expect(stranger.error?.code).toBe("not_found");
+    expect(updateUserById).not.toHaveBeenCalled();
+  });
+});
+
+function createAdminOverride(updateUserById: ReturnType<typeof vi.fn>) {
+  authAdmin.updateUserById = updateUserById;
+}
+
+describe("Story 23.8: real actors and the disclosure inbox", () => {
+  const AUDIT = "00000000-0000-4000-8000-0000000000c1";
+  const REQ = "00000000-0000-4000-8000-0000000000d1";
+
+  it("listRealActors refuses a denied caller before any read", async () => {
+    allowed = false;
+    const { listRealActors } = await import("./actions");
+    const res = await listRealActors([AUDIT]);
+    expect(res.error?.code).toBe("permission_denied");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("listRealActors reads only valid audit row ids and keys the result by row", async () => {
+    rpc.mockResolvedValue({
+      data: [{ subject_table: "audit_log", subject_id: AUDIT, real_user_id: UID, real_name: "Zed", real_email: "zed@gymosapps.com", gym_id: "g", recorded_at: "2026-10-21T10:00:00Z" }],
+      error: null,
+    });
+    const { listRealActors } = await import("./actions");
+    const res = await listRealActors([AUDIT, "not-a-uuid"]);
+    expect(rpc).toHaveBeenCalledWith("get_support_action_identity", { p_subject_table: "audit_log", p_subject_ids: [AUDIT] });
+    expect(res.data[AUDIT]).toMatchObject({ name: "Zed", email: "zed@gymosapps.com", realUserId: UID });
+  });
+
+  it("listRealActors reads the identity of payments, refunds and connected credential rows too (23.9), and refuses any other table", async () => {
+    rpc.mockResolvedValue({ data: [], error: null });
+    const { listRealActors } = await import("./actions");
+    await listRealActors([AUDIT], "gym_payment_credentials");
+    expect(rpc).toHaveBeenCalledWith("get_support_action_identity", { p_subject_table: "gym_payment_credentials", p_subject_ids: [AUDIT] });
+    rpc.mockClear();
+    await listRealActors([AUDIT], "users" as never);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("listRealActors makes no call for an empty list", async () => {
+    const { listRealActors } = await import("./actions");
+    await listRealActors(["nope"]);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("listDisclosureInbox maps the rows", async () => {
+    rpc.mockResolvedValue({
+      data: [{ id: REQ, gym_id: "g1", gym_name: "Gym A", audit_log_id: AUDIT, audit_action_type: "refund_recorded", audit_created_at: "t0", question: "Who?", requested_at: "t1", answer_due_at: "t2", overdue: true, answered_at: null, answer: null }],
+      error: null,
+    });
+    const { listDisclosureInbox } = await import("./actions");
+    const res = await listDisclosureInbox();
+    expect(rpc).toHaveBeenCalledWith("get_disclosure_inbox");
+    expect(res.data?.[0]).toMatchObject({ id: REQ, gymName: "Gym A", overdue: true, question: "Who?" });
+  });
+
+  it("answerDisclosureRequest stores the answer, refuses a bad id before any call, and maps a refusal code", async () => {
+    const { answerDisclosureRequest } = await import("./actions");
+    const bad = await answerDisclosureRequest({ requestId: "x", answer: "A reply" });
+    expect(bad.error?.code).toBe("validation_error");
+    expect(rpc).not.toHaveBeenCalled();
+
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "ok" }], error: null });
+    await expect(answerDisclosureRequest({ requestId: REQ, answer: "A reply" })).resolves.toEqual({ data: { code: "ok" }, error: null });
+    expect(rpc).toHaveBeenCalledWith("answer_audit_disclosure_request", { p_request_id: REQ, p_answer: "A reply" });
+
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "already_answered" }], error: null });
+    const refused = await answerDisclosureRequest({ requestId: REQ, answer: "Again" });
+    expect(refused.error?.code).toBe("already_answered");
+  });
+
+  it("answerDisclosureRequest refuses a denied caller", async () => {
+    allowed = false;
+    const { answerDisclosureRequest } = await import("./actions");
+    const res = await answerDisclosureRequest({ requestId: REQ, answer: "A reply" });
+    expect(res.error?.code).toBe("permission_denied");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("Story 23.10 locks", () => {
+  const LUID = "00000000-0000-4000-8000-0000000000aa";
+
+  it("lists the locked accounts through the Super Admin's own session", async () => {
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce({
+      data: [{ user_id: LUID, display_name: "Pat", email: "pat@gymosapps.com", locked_at: "2026-10-21T10:00:00Z", locked_reason: "velocity_gym", gym_names: "Gym A" }],
+      error: null,
+    });
+    const { listSupportLocks } = await import("./actions");
+    const res = await listSupportLocks();
+    expect(rpc).toHaveBeenCalledWith("get_support_locks");
+    expect(adminRpc).not.toHaveBeenCalled();
+    expect(res.data).toEqual([
+      { userId: LUID, displayName: "Pat", email: "pat@gymosapps.com", lockedAt: "2026-10-21T10:00:00Z", lockedReason: "velocity_gym", gymNames: "Gym A" },
+    ]);
+  });
+
+  it("unlocks with the reason, as the real Super Admin (never the service role)", async () => {
+    rpc.mockReset();
+    adminRpc.mockReset();
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "unlocked", assignment_id: null }], error: null });
+    const { unlockSupportAccount } = await import("./actions");
+    const res = await unlockSupportAccount({ userId: LUID, reason: "checked with the person" });
+    expect(res).toEqual({ data: { code: "unlocked", assignmentId: null }, error: null });
+    expect(rpc).toHaveBeenCalledWith("unlock_support_account", { p_user_id: LUID, p_reason: "checked with the person" });
+    expect(adminRpc).not.toHaveBeenCalled();
+  });
+
+  it("maps a refusal (reason too short, not locked) to text", async () => {
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "reason_invalid", assignment_id: null }], error: null });
+    const { unlockSupportAccount } = await import("./actions");
+    expect((await unlockSupportAccount({ userId: LUID, reason: "x" })).error).toEqual({ code: "reason_invalid", message: "support.codes.reason_invalid" });
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "not_locked", assignment_id: null }], error: null });
+    expect((await unlockSupportAccount({ userId: LUID, reason: "valid reason" })).error?.code).toBe("not_locked");
+  });
+
+  it("rejects a malformed id or a missing reason before the database", async () => {
+    rpc.mockReset();
+    const { unlockSupportAccount } = await import("./actions");
+    expect((await unlockSupportAccount({ userId: "x", reason: "valid reason" })).error?.code).toBe("validation_error");
+    expect((await unlockSupportAccount({ userId: LUID })).error?.code).toBe("validation_error");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe("Story 23.11: recertify, factor reset and contact change", () => {
+  it("recertify runs as the Super Admin's own session and maps a refusal", async () => {
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "recertified", assignment_id: null }], error: null });
+    const { recertifySupportAccount } = await import("./actions");
+    expect((await recertifySupportAccount({ userId: UID, reason: "quarterly review" })).data).toEqual({ code: "recertified", assignmentId: null });
+    expect(rpc).toHaveBeenCalledWith("recertify_support_account", { p_user_id: UID, p_reason: "quarterly review" });
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "reason_invalid", assignment_id: null }], error: null });
+    expect((await recertifySupportAccount({ userId: UID, reason: "" })).error?.code).toBe("reason_invalid");
+    allowed = false;
+    expect((await recertifySupportAccount({ userId: UID, reason: "quarterly review" })).error?.code).toBe("permission_denied");
+  });
+
+  it("reset: a denied caller, a bad note or a missing step-up never reaches the database", async () => {
+    const { startSupportFactorReset } = await import("./actions");
+    allowed = false;
+    expect((await startSupportFactorReset({ userId: UID, identityNote: "called back" })).error?.code).toBe("permission_denied");
+    allowed = true;
+    expect((await startSupportFactorReset({ userId: UID, identityNote: " " })).error?.code).toBe("reason_invalid");
+    stepUpOk = false;
+    const res = await startSupportFactorReset({ userId: UID, identityNote: "called back" });
+    expect(res.error?.code).toBe("step_up_required");
+    expect(consumeStepUp).toHaveBeenCalledWith("sa-1", "start_support_factor_reset", UID);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("reset: sends only the hash-side facts (a 64-hex token and a link on the configured origin), then delivers the e-mail at once", async () => {
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "started", reset_id: "r1", executes_at: "2026-10-21T12:30:00Z" }], error: null });
+    adminRpc.mockResolvedValue({ data: [], error: null });
+    const { startSupportFactorReset } = await import("./actions");
+    const res = await startSupportFactorReset({ userId: UID, identityNote: "called back on the number on file" });
+    expect(res.data).toEqual({ executesAt: "2026-10-21T12:30:00Z" });
+    const [name, args] = rpc.mock.calls[0] as [string, { p_cancel_token: string; p_cancel_link: string; p_identity_note: string }];
+    expect(name).toBe("start_support_factor_reset");
+    expect(args.p_cancel_token).toMatch(/^[0-9a-f]{64}$/);
+    expect(args.p_cancel_link).toBe(`https://owner.gymosapps.com/support-reset-cancel?t=${args.p_cancel_token}`);
+    expect(adminRpc).toHaveBeenCalledWith("claim_email_outbox", expect.anything());
+  });
+
+  it("reset: a database refusal is a typed error, not a success", async () => {
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "already_pending", reset_id: null, executes_at: null }], error: null });
+    const { startSupportFactorReset } = await import("./actions");
+    expect((await startSupportFactorReset({ userId: UID, identityNote: "called back" })).error?.code).toBe("already_pending");
+  });
+
+  it("contact change: records, applies to the auth user, and puts the record back if applying fails", async () => {
+    authAdmin.updateUserById = vi.fn(async () => ({ error: null }));
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "changed", previous_email: "old@gymosapps.com" }], error: null });
+    const { changeSupportContact } = await import("./actions");
+    expect((await changeSupportContact({ userId: UID, email: " New@GymOSApps.com ", reason: "name change" })).data?.code).toBe("changed");
+    expect(rpc).toHaveBeenCalledWith("change_support_contact", { p_user_id: UID, p_email: "new@gymosapps.com", p_phone: null, p_reason: "name change" });
+    expect(authAdmin.updateUserById).toHaveBeenCalledWith(UID, { email: "new@gymosapps.com", email_confirm: true, phone: "" });
+
+    rpc.mockReset();
+    authAdmin.updateUserById = vi.fn(async () => ({ error: { message: "x" } }));
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "changed", previous_email: "old@gymosapps.com" }], error: null });
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "changed", previous_email: "new@gymosapps.com" }], error: null });
+    const failed = await changeSupportContact({ userId: UID, email: "new@gymosapps.com", reason: "name change" });
+    expect(failed.error?.code).toBe("contact_apply_failed");
+    expect(rpc).toHaveBeenLastCalledWith("change_support_contact", expect.objectContaining({ p_email: "old@gymosapps.com" }));
+  });
+
+  it("contact change: if the revert itself fails the outcome says so (contact_revert_failed), not a clean revert", async () => {
+    authAdmin.updateUserById = vi.fn(async () => ({ error: { message: "x" } }));
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "changed", previous_email: "old@gymosapps.com" }], error: null });
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "reset_in_progress", previous_email: "new@gymosapps.com" }], error: null });
+    const { changeSupportContact } = await import("./actions");
+    expect((await changeSupportContact({ userId: UID, email: "new@gymosapps.com", reason: "name change" })).error?.code).toBe("contact_revert_failed");
+    rpc.mockReset();
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "changed", previous_email: "old@gymosapps.com" }], error: null });
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "down" } });
+    expect((await changeSupportContact({ userId: UID, email: "new@gymosapps.com", reason: "name change" })).error?.code).toBe("contact_revert_failed");
+  });
+
+  it("contact change: also clears a stray phone on the auth user (the way back from a phone drift lock)", async () => {
+    authAdmin.updateUserById = vi.fn(async () => ({ error: null }));
+    rpc.mockResolvedValueOnce({ data: [{ ok: true, code: "changed", previous_email: "same@gymosapps.com" }], error: null });
+    const { changeSupportContact } = await import("./actions");
+    await changeSupportContact({ userId: UID, email: "same@gymosapps.com", reason: "stray phone removed" });
+    expect(authAdmin.updateUserById).toHaveBeenCalledWith(UID, expect.objectContaining({ phone: "" }));
+  });
+
+  it("contact change: a database refusal (reset in progress, phone) never touches the auth user", async () => {
+    authAdmin.updateUserById = vi.fn();
+    rpc.mockResolvedValueOnce({ data: [{ ok: false, code: "reset_in_progress", previous_email: "old@gymosapps.com" }], error: null });
+    const { changeSupportContact } = await import("./actions");
+    expect((await changeSupportContact({ userId: UID, email: "new@gymosapps.com", reason: "name change" })).error?.code).toBe("reset_in_progress");
+    expect(authAdmin.updateUserById).not.toHaveBeenCalled();
+    allowed = false;
+    expect((await changeSupportContact({ userId: UID, email: "new@gymosapps.com", reason: "name change" })).error?.code).toBe("permission_denied");
+  });
+});

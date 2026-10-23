@@ -1,0 +1,142 @@
+---
+title: '23-10 Revocation, Owner visibility and velocity lock'
+type: 'feature'
+created: '2026-10-21'
+status: 'done'
+baseline_commit: '4b0817e890d8ed2dd3d09139caef153468efe5a6'
+route: 'dispatch'
+review_loop_iteration: 0
+context:
+  - '{project-root}/_bmad-output/implementation-artifacts/epic-23-context.md'
+---
+
+<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
+
+## Intent
+
+**Problem:** When support access ends nothing tells the Owner what is left behind, support-created staff sit untagged and unreviewed, the Owner hears nothing about what support did, and a runaway support account is never stopped.
+
+**Approach:** One revocation routine shared by every way access ends; an Owner review queue and tag for support-created staff; a daily `support_activity_digest`; a velocity counter in `session_gate_touch` that locks the account; a Super Admin unlock with a recorded reason. Items 23.0 marked deferred are skipped, not deleted (all four were kept).
+
+## Boundaries & Constraints
+
+**Always:** Migration 0144 with a rollback script. Limits live in `private.session_limits_config` (10/h per gym, 20/h per account, 3 payment-connection changes/day per gym, 60 s cutoff, all `[ASSUMPTION]`). Count from `support_action_identity` rows. The breach is returned as a result so the lock commits (never raised). Lock, unlock and reason are audited (`private.support_admin_audit`); mandatory reason on unlock. Notices go through `staff_notices` + `email_outbox` (23-9), names no individual, EN/FR. Gate every revocation path (unassign, deactivate, switch off, lock, suspended gym) on the one routine; a scan test lists every consumer and fails when a new one skips it (retro 66). New raise sites carry no user id. Suspended gyms deny support and are excluded from any inactivity count.
+
+**Decisions (planner, no intent gap):** Since 23-7 support-written rows already carry the gym proxy as actor, "re-owned to the proxy" is already true; revocation instead flags pending payments and subscriptions support started (via identity rows) in an Owner notice. `created_by_support` is pinned by a bypass GUC set only in the insert branch of `create_staff_member` (23-6 deferral). `log_audit_event` for a live support caller accepts only an allow-list of action types (23-8 deferral). Reading a real identity (`get_support_action_identity`) writes one audit row (23-8 deferral). Super Admin lock alert reaches every Super Admin. Per-user wrong step-up counter with audit row for support (23-9 deferral). `set_allow_gymos_support` restore skips assignments whose account is not activated, locked or reset-pending (23-3 deferrals).
+
+**Decisions (owner, 2026-10-21):** Keep 23-10 as one story (token count ~1,900 accepted). The daily digest is delivered as an in-app notice plus email through the outbox, like payment-connection changes.
+
+**Never:** No automatic deactivation of support-created staff. No credential or individual name in any notice. Do not enable support for any gym. No Epic 24 digest line (skipped until it exists).
+
+## I/O & Edge-Case Matrix
+
+| Scenario | Input / State | Expected Output / Behavior | Error Handling |
+|----------|--------------|---------------------------|----------------|
+| Unassign / switch off / deactivate | Pending support items exist | Access ends next request (≤60 s), Owner notice lists pending items, review queue filled | N/A |
+| Support-created staff | Revocation | Listed in queue, tagged "created by GymOS Support", stay active | N/A |
+| Digest | Support acted in the last day | One notice and email with counts of refunds, waivers, staff created/edited | No action: nothing sent; `job_runs` row either way |
+| Per-gym breach | 11th action in an hour | Account locked, sessions ended, Super Admin alerted, lock commits | Result `locked`, no raise |
+| Per-account / payment breach | 21st action/h, 4th connection change/day | Same | Same |
+| Locked account | Support request | Denied | `locked` |
+| Unlock | Super Admin AAL2, reason | `support_locked_at` cleared, audit row with reason | `reason_invalid` |
+| Suspended gym | Support request or sweep | Denied; not counted | N/A |
+| Disallowed audit action | Support calls `log_audit_event` with other type | Refused | typed error |
+
+</frozen-after-approval>
+
+## Code Map
+
+- `supabase/migrations/0135_support_assignments_live_gate.sql:429-500` -- `session_gate_touch`: add the velocity check and return `locked`; `support_live` (88) already denies locked and suspended.
+- `supabase/migrations/0139_support_assign_unassign_remove.sql:386-505` -- `unassign_support`, `deactivate_support_account`: call the revocation routine; `0137` `set_allow_gymos_support` (switch off/restore) likewise.
+- `supabase/migrations/0127_session_limits_step_up.sql:15-70` -- `session_limits_config`, `session_limit()`: add the velocity keys.
+- `supabase/migrations/0142_support_action_identity.sql` -- identity rows to count; `get_support_action_identity` (audit the read).
+- `supabase/migrations/0143_support_payment_connection.sql:72-300` -- `staff_notices`, `email_outbox`, `notify_payment_connection_change` (pattern), cron + `job_runs` (663-674).
+- `supabase/migrations/0140_support_capability_allow_list.sql:261,1260,1289` -- `created_by_support`; `create_staff_member`.
+- `apps/dashboard/app/(dashboard)/settings/GymosSupportSection.tsx`, staff list page -- review queue and tag; EN/FR strings.
+- `apps/super-admin/app/(admin)/support/` -- locks list, Unlock action with reason; `actions.ts`.
+- `supabase/tests/support_*.test.sql` -- models; `docs/decisions.md` -- record choices.
+
+## Tasks & Acceptance
+
+**Execution:**
+- [x] `supabase/migrations/0144_support_revocation_velocity_lock.sql` + `scripts/rollback-0144-*.sql` -- revocation routine, queue/tag reader, digest + cron, velocity keys and check, lock/unlock, deferral fixes
+- [x] `supabase/tests/support_revocation_velocity_lock.test.sql` -- one named test per matrix row, consumer-enumeration scan, gate shown failing
+- [x] dashboard review queue, tag, notices EN/FR; Super Admin locks and Unlock; services and tests
+- [x] `docs/decisions.md`, sprint-status
+
+**Acceptance Criteria:**
+- Given any matrix row, the behavior matches.
+- Given each 23.10 criterion in `epics.md`, a named test covers it.
+- `bash scripts/ci-local.sh` is green.
+
+## Implementation Notes
+
+- Migration `0144_support_revocation_velocity_lock.sql`, rollback `scripts/rollback-0144-support-revocation-velocity-lock.sql`, pgTAP `support_revocation_velocity_lock.test.sql`. The spec's `users.support_locked_at` is the existing `private.support_accounts.locked_at`, with `locked_reason` and `velocity_reset_at` beside it. Decisions in `docs/decisions.md` (Story 23.10).
+- Limits: the velocity lock only bites once `session_gate_touch` is called from the dashboard request path (23-6b); the review queue lists support-created staff only; one action counts as one transaction.
+
+## Spec Change Log
+
+## Review Triage Log
+
+| Finding | Verdict | Route / evidence |
+|---|---|---|
+| Per-gym / per-payment velocity count locks the toucher, not the offender | medium | patch: only breach when p_user has own rows in the window; two-user pgTAP |
+| Revoke notice says "ended" while others remain assigned, and on a reversible lock | medium | patch: wording by cause / remaining assignments |
+| No index on support_action_identity (real_user_id, recorded_at) for the per-request count | medium | patch: add index + rollback |
+| Consumer scan matches one SQL clause order only (blind, verification-gap, edge-case) | medium | patch: widen regex, seeded reordered-clause failing case |
+| deferred-work.md 23-8 entry contradicts diff | low | patch: direct correction |
+| Velocity lock never exercised from the dashboard request path | medium | defer: 23-6b wires session_gate_touch; known, support off for every gym |
+| 60 s cutoff stored but nothing reads it; no mechanism/test for live subscriptions or signed links | medium (unverified) | defer: dashboard admits no support session until 23-6b; the live gate already denies per request. Settle by testing a Realtime/signed-link path in 23-6b |
+| Restore skips a switch-suspended assignment and nothing restores it after unlock | low-medium | defer: Owner toggle or Super Admin re-assign recovers; revisit in 23-11 |
+| log_audit_event allow-list has no completeness test against allow-listed RPCs | medium (unverified) | defer: add a catalog scan in 23-6b |
+| Digest rolling window, no watermark, duplicate on manual re-run; last error only; counted sent with no Owner | low | reject: daily cron, cosmetic/rare |
+| Unlock clears super_admin_lockout of a dual-role user | false | a Super Admin cannot hold a support account (epic constraint), so no dual-role user exists |
+| Step-up failure counter never resets | false | 0127 stepup_issue resets failed_count on success (line 271) |
+| stepup_record_failure returns locked=false on an already-locked account / lost race | low | reject: locked sessions are ended, cosmetic |
+| One action = one transaction, 11th action commits before the lock | low | reject: documented design, breach is returned so the lock commits |
+| GUC pin on created_by_support liftable inside the same transaction | low | reject: same pattern as the allow-switch setter GUC |
+| FR "Support GymOS" vs "GymOS Support" in SQL notices | low | reject: mixed convention already shipped in 23-3 and 23-9 |
+| Review queue UI: stale row after list deactivate, Keep only, clear_support_review ignores deactivated | low | reject: cosmetic, reload clears it |
+| get_support_action_identity audit row stores only table and count | low | reject: owner-invisible by design |
+| Other issueSupportStepUp callers / `deactivated` code key | low | reject: single caller; code already translated |
+| Unlock on locked-notice, repeated revoke resends notice, wrapper untested | low | reject |
+
+## Verification
+
+**Commands:**
+- `bash scripts/ci-local.sh` -- expected: GREEN, every stage PASS
+
+### Review Findings
+
+Code review 2026-10-21 (independent pass on b791086 vs epic/23; layers: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor).
+
+- [x] [Review][Patch] (decided: notify also when staff still await review, v_staff > 0) Owner notice policy: when must the Owner be told? — The notice fires only when `v_pay + v_sub > 0 or v_new > 0` (`v_new` = newly queued rows). A later revocation with staff still awaiting review (`v_staff > 0`, `v_new = 0`) and a revocation with nothing pending send no Owner notice; only a gym audit row. Options: (a) keep, document narrower wording; (b) also notify when `v_staff > 0`; (c) always notify. [supabase/migrations/0144_support_revocation_velocity_lock.sql:206] (blind-hunter+edge-case-hunter+acceptance-auditor, medium)
+- [x] [Review][Patch] (decided: lock only the person whose own count crosses the limit; gym-wide count becomes an alert) Gym-wide velocity count can lock a non-offender — `support_velocity_breach` counts every support person's rows per gym/payment and locks whoever touches next if they have at least one row; A's 10 actions lock B's next touch. Options: (a) accept as a gym-wide limit and document; (b) per-person count for the lock, gym-wide only as an alert. [supabase/migrations/0144_support_revocation_velocity_lock.sql:322-361] (blind-hunter, medium)
+- [x] [Review][Patch] Switch-off writes a false "access ended" audit row and may notify with no support access — `set_allow_gymos_support` calls `support_revoke_access(..., 'switch_off')` unconditionally; guard on at least one assignment actually suspended. [supabase/migrations/0144_support_revocation_velocity_lock.sql:737]
+- [x] [Review][Patch] `support_lock_account` takes the account row before the gym advisory locks; `deactivate_support_account` and unlock take gym locks first — lock/deactivate race can deadlock (40P01) and the lock does not commit. Take gym locks (ordered) before the update. [supabase/migrations/0144_support_revocation_velocity_lock.sql:259-277]
+- [x] [Review][Patch] Review-queue copy says access "has ended" unconditionally (en and fr `staff.supportReview.description`); false after a lock or while another person is assigned. Use neutral wording. [apps/dashboard StaffPageClient.tsx:174]
+- [x] [Review][Patch] `stepup_record_failure` returns `locked=false` for an already-locked support account, so the caller reports `invalid_code` and audit rows keep growing; return locked=true and skip the audit row when already locked. [supabase/migrations/0144_support_revocation_velocity_lock.sql:1124]
+- [x] [Review][Patch] Restore skip conditions pinned for locked only; add pgTAP cases for not activated, reset pending and deactivated (section D of support_revocation_velocity_lock.test.sql). [supabase/migrations/0144_support_revocation_velocity_lock.sql:744-745]
+- [x] [Review][Patch] No test renders `SupportPageClient`/page with the Locked accounts panel wired to `listSupportLocks`; add a small render test. [apps/super-admin/app/(admin)/support/components/SupportPageClient.tsx:159]
+- [x] [Review][Defer] Digest failure status and suspended-gym exclusion unasserted — deferred: digest is cosmetic, support off for every gym.
+- [x] [Review][Defer] Velocity lock and 60 s cutoff inert until dashboard calls `session_gate_touch` — deferred: already recorded for 23-6b.
+- [x] [Review][Defer] Allow-list completeness has no catalog scan (fails closed) — deferred: already recorded for 23-6b.
+- [x] [Review][Defer] Replace-in-place staff edits bypass the review queue — deferred: matches spec wording, recorded; digest counts them.
+- [x] [Review][Defer] Unlock sends no Owner notice and does not restore switch-suspended assignments — deferred: restore recorded for 23-11.
+- [x] [Review][Defer] Rollback leaves `locked_at` set with no unlock tool — deferred (unverified medium): read rollback-0144 and add a preflight raise if any account is locked.
+
+#### Rejected
+
+- Lock returns false with no account row (false/low: only a race or absent row; account already locked or no support account).
+- Velocity check before session lookup (false: breach depends on the user's own rows, not the session id).
+- `v_other` uses state='active' only (false: a suspended or pending assignment gives no access, so "ended" is accurate).
+- Dashboard ignores `stepup_record_failure` error (low, guard-adding fix, unlikely).
+- Step-up counter has no time window (pre-existing Super Admin design, not this change).
+- Digest trailing ";" and rolling window (low, unverified; digest cosmetic).
+- service_role grants on revoke/lock routines (low: service role is trusted).
+- Lock audit bypasses `support_admin_audit` (low: no Super Admin actor; audited with reason).
+- No backfill of `created_by_support` (low: support enabled for no gym).
+- Gym-status trigger skips when no assignment (low, spec-consistent).
+- `remove` path exempt from routine (spec-consistent).
+- Unlock UX (window.confirm, shared reason), queue stale refresh, deep link, FR naming (low, UX polish).
+- Notice-type label mapping unverified (maybe-false, low).

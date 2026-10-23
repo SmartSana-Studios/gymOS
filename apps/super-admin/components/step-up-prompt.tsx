@@ -23,7 +23,7 @@ export function StepUpPrompt({
   onIssued,
   onCancel,
 }: {
-  action: "remove_super_admin_factor" | "create_super_admin" | "change_recovery_email" | "remove_recovery_email";
+  action: "remove_super_admin_factor" | "create_super_admin" | "change_recovery_email" | "remove_recovery_email" | "start_support_factor_reset";
   subjectId: string;
   onIssued: () => void;
   onCancel: () => void;

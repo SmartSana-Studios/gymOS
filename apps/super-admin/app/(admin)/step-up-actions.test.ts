@@ -54,7 +54,7 @@ describe("issueStepUp", () => {
     expect(adminRpc).toHaveBeenCalledWith("stepup_issue", { p_user: "sa-1", p_action: "create_super_admin", p_subject: "new@example.com" });
   });
 
-  it.each(["change_recovery_email", "remove_recovery_email"] as const)("issues a grant for %s", async (action) => {
+  it.each(["change_recovery_email", "remove_recovery_email", "start_support_factor_reset"] as const)("issues a grant for %s", async (action) => {
     const { issueStepUp } = await import("./step-up-actions");
     expect((await issueStepUp({ action, subjectId: "recovery", code: "123456" })).data).toEqual({ issued: true });
     expect(adminRpc).toHaveBeenCalledWith("stepup_issue", { p_user: "sa-1", p_action: action, p_subject: "recovery" });

@@ -159,6 +159,14 @@ export async function getPaymentReceipt(
       .eq('gym_id', memberGymId)
       .maybeSingle();
     actorName = actorRow?.name ?? null;
+    // Story 23.8 (FR-195): a record GymOS support made is recorded under the gym's proxy actor, which has no membership row. The member sees the
+    // gym there -- never a person, and never "GymOS Support" as a person. The proxy id is opaque; the real support person is not readable here.
+    if (actorName === null) {
+      const { data: proxyId } = await supabase.rpc('get_gym_support_proxy_id');
+      if (typeof proxyId === 'string' && proxyId === row.actor_id) {
+        actorName = gymName;
+      }
+    }
   }
 
   let sessionUsableUntil: string | null = null;

@@ -34,14 +34,16 @@ export async function mapAndLog(rawError: unknown): Promise<AppError> {
 // enum, 0001_extensions_and_enums.sql). Super Admin is a platform-level
 // flag, never seen here -- (dashboard)/layout.tsx redirects a
 // super_admin-only session before this type is ever relevant.
-export type MemberRole = "member" | "coach" | "receptionist" | "manager" | "supervisor" | "owner";
+export type MemberRole = "member" | "coach" | "receptionist" | "manager" | "supervisor" | "owner" | "support";
 
 // Only these roles have a place on apps/dashboard. "member" is a real,
 // valid member_role value (the gym-customer role, mobile-app/phone-OTP
 // auth) -- if a member-role account also happens to have an email/password
 // credential and signs in here, it must not silently render an empty
 // Sidebar with no nav items and no explanation (Review finding).
-const STAFF_ROLES: readonly MemberRole[] = ["receptionist", "manager", "supervisor", "owner", "coach"];
+// Story 23-6b: "support" (GymOS Support) is admitted. Its request path is gated in lib/supabase/proxy.ts (second factor, session gate,
+// explicit gym) and the database allow-list decides what it may touch, so the shell only has to render it as a role.
+const STAFF_ROLES: readonly MemberRole[] = ["receptionist", "manager", "supervisor", "owner", "coach", "support"];
 
 export interface DashboardShellContext {
   gymId: string;
@@ -282,7 +284,9 @@ export const getDashboardShellContext = cache(async (): Promise<{
   // own email rather than erroring the whole shell (edge case: claims are
   // stale relative to a mid-session deactivation, or the query above failed).
   const { t } = await getServerTranslation(await getRequestLocale());
-  const memberName = memberResult.data?.name ?? claims.email ?? t("sidebar.unknownUser");
+  // Story 23-6b: the gym never learns who a support person is -- the shell shows the role name, never the person's name or e-mail.
+  const memberName =
+    role === "support" ? t("role.support") : (memberResult.data?.name ?? claims.email ?? t("sidebar.unknownUser"));
 
   // Story 9.6: same "display nicety, not a security boundary" reasoning as
   // memberResult above -- a failed lookup here just means no switcher shows,
@@ -295,7 +299,14 @@ export const getDashboardShellContext = cache(async (): Promise<{
   const distinctGymIds = [...new Set(memberships.map((m) => m.gym_id))];
 
   let availableGyms: DashboardShellContext["availableGyms"] = [];
-  if (distinctGymIds.length > 1) {
+  if (role === "support") {
+    // Story 23-6b: a support person switches only between gyms with an active assignment (the picker's own list). The gym rows of
+    // the others are not readable through the live gate, so the names come from the definer function.
+    const supportGyms = await listSupportGyms();
+    if (supportGyms.data && supportGyms.data.length > 1) {
+      availableGyms = supportGyms.data.map((g) => ({ gymId: g.gymId, gymName: g.gymName, role: "support" as MemberRole }));
+    }
+  } else if (distinctGymIds.length > 1) {
     // Only fetched for the minority multi-gym case -- no extra round trip
     // for the common single-gym session. The new "read gyms of own active
     // memberships" RLS policy (0065) is what makes this return every
@@ -329,6 +340,25 @@ export const getDashboardShellContext = cache(async (): Promise<{
     suspended: null,
   };
 });
+
+/**
+ * Story 23-6b: the gyms a GymOS Support person may enter -- active assignments on gyms whose Owner switch is on and which are
+ * active. The database answers only for an aal2 session (`list_own_support_gyms`, 0146); an empty list means "no gym assigned".
+ */
+export async function listSupportGyms(): Promise<{
+  data: { gymId: string; gymName: string }[] | null;
+  error: AppError | null;
+}> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("list_own_support_gyms");
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return {
+    data: ((data ?? []) as { gym_id: string; gym_name: string }[]).map((g) => ({ gymId: g.gym_id, gymName: g.gym_name })),
+    error: null,
+  };
+}
 
 /**
  * Story 9.6: switches the caller's session to a different gym they hold an

@@ -9,6 +9,7 @@
     "lint": "turbo run lint",
     "check:i18n": "node scripts/check-i18n-key-parity.mjs",
     "check:migrations": "node scripts/check-migration-guardrails.mjs",
+    "check:credentials-id": "node scripts/check-credentials-id.mjs",
     "test:guardrails": "node --test scripts/__tests__/*.test.mjs",
     "check:claims": "node scripts/claim-inventory.mjs"
   },

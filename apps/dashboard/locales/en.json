@@ -24,7 +24,8 @@
     "receptionist": "Receptionist",
     "manager": "Manager",
     "supervisor": "Supervisor",
-    "owner": "Owner"
+    "owner": "Owner",
+    "support": "GymOS Support"
   },
   "sidebar": {
     "logout": "Log out",
@@ -40,6 +41,13 @@
     "openNavigationMenu": "Open navigation menu",
     "switchToLightTheme": "Switch to light theme",
     "switchToDarkTheme": "Switch to dark theme"
+  },
+  "notices": {
+    "bellLabel": "Notices",
+    "bellLabelUnread": "Notices, {{count}} unread",
+    "title": "Notices",
+    "empty": "No notices.",
+    "loadError": "Couldn't load notices."
   },
   "overview": {
     "title": "Overview",
@@ -208,7 +216,15 @@
       "disconnectConfirmBody": "Members will no longer see the automated mobile-money payment option. Cash and other manual methods are unaffected.",
       "disconnectedToast": "Payment account disconnected.",
       "disconnectFailedToast": "Couldn't disconnect. Try again.",
-      "needsAttention": "Your Tara Money connection needs attention — reconnect below to resume automated mobile-money payments."
+      "needsAttention": "Your Tara Money connection needs attention — reconnect below to resume automated mobile-money payments.",
+      "supportConnectDialogBody": "You are connecting this gym's account as GymOS Support. The Owner is told immediately that GymOS Support updated the payment account. A fresh authenticator code is required.",
+      "supportCodeLabel": "Authenticator code *",
+      "supportCodeHelp": "The 6-digit code from your authenticator app. It allows this one change.",
+      "supportCodeRequiredError": "Enter the 6-digit authenticator code",
+      "supportCodeInvalid": "That code was not accepted. Try the current code.",
+      "supportLocked": "Too many wrong codes. This account was locked; GymOS will review it.",
+      "supportStepUpUnavailable": "Couldn't confirm the code right now. Try again.",
+      "replaceWarning": "Connecting a new account replaces the current one for new payments. Payments already started finish under the account they began with."
     },
     "billing": {
       "intervalMonthly": "Monthly",
@@ -287,9 +303,35 @@
         "k": "Enter a whole number from 3 to 24",
         "r": "Enter a whole number from 1 to 30"
       }
+    },
+    "gymosSupport": {
+      "title": "GymOS Support",
+      "description": "Let GymOS staff help set up and run your gym",
+      "label": "Allow GymOS Support",
+      "state": {
+        "off": "GymOS Support is turned off by you.",
+        "none": "GymOS Support is allowed. No one is assigned.",
+        "assigned": "GymOS Support is allowed and assigned.",
+        "waiting": "GymOS Support is allowed. An assignment is waiting for GymOS to confirm."
+      },
+      "lastActed": "Last acted: {{when}}",
+      "lastActedNever": "not yet",
+      "confirmOff": "Turn off GymOS Support? Anyone assigned loses access to your gym immediately.",
+      "confirmOn": "Allow GymOS Support? Assigned GymOS staff can work in your gym.",
+      "savedOn": "GymOS Support allowed.",
+      "savedOff": "GymOS Support turned off.",
+      "saveFailed": "Couldn't change GymOS Support. Try again."
     }
   },
   "staff": {
+    "gymosSupport": {"name":"GymOS Support","role":"GymOS Support"},
+    "supportTag": "Created by GymOS Support",
+    "supportReview": {
+      "title": "Staff created by GymOS Support",
+      "description": "GymOS Support access to your gym was paused or ended. These staff accounts were created by GymOS Support and are still active. Review each one: keep them here, or deactivate them from the actions menu below.",
+      "keep": "Keep",
+      "kept": "{{name}} was kept."
+    },
     "title": "Staff",
     "addStaff": "+ Add staff",
     "addStaffButton": "Add staff",
@@ -356,6 +398,7 @@
     "toast": {
       "createdSms": "Staff account created. Temp password sent to {{phone}}.",
       "createdNoSms": "Staff account created. Could not send the temp password to {{phone}} automatically — share it below.",
+      "supportNote": "You cannot see the staff list as GymOS Support. The Owner can, and will review this account.",
       "createdExistingAccount": "{{phone}} was already registered on GymOS — access granted.",
       "createdExistingAccountNoSms": "{{phone}} was already registered on GymOS — access granted, but we couldn't notify them automatically. Let them know they can log in with their existing password.",
       "resendSms": "New temp password sent to {{phone}}.",
@@ -573,6 +616,9 @@
       "dob": "Date of Birth",
       "photoUrl": "Profile Photo URL",
       "emergencyContact": "Emergency Contact",
+      "birthYear": "Birth year",
+      "profession": "Profession",
+      "neighborhood": "Neighborhood",
       "plan": "Plan *",
       "selectPlan": "Select a plan",
       "billingIntervalReadonly": "Billing interval: {{interval}}",
@@ -586,13 +632,18 @@
         "joinDate": "Join Date",
         "subscriptionStatus": "Subscription Status",
         "expiryDate": "Expiry Date",
-        "registrationFee": "Registration fee"
+        "registrationFee": "Registration fee",
+        "approxAge": "Age (approximate)",
+        "approxAgeValue": "About {{age}} years"
       },
       "errors": {
         "nameInvalid": "Name is required (2-100 characters)",
         "phoneInvalid": "Enter a valid phone number",
         "emailInvalid": "Enter a valid email address",
         "dobInvalid": "Enter a valid date of birth (must be in the past, member must be at least 10 years old)",
+        "birthYearInvalid": "Enter a four-digit birth year from 1900 up to this year",
+        "professionInvalid": "Profession is too long (120 characters at most)",
+        "neighborhoodInvalid": "Neighborhood is too long (120 characters at most)",
         "planRequired": "Select a plan",
         "joinDateInvalid": "Enter a valid join date (cannot be in the future)",
         "expiryDateInvalid": "Enter a valid expiry date (must be on or after the join date)"
@@ -697,8 +748,13 @@
       },
       "importing": "Importing…",
       "importingLarge": "Importing… this may take a moment",
-      "importSuccessToast": "{{count}} members imported.",
+      "importSuccessToast": "{{count}} members imported, {{awaiting}} awaiting the registration fee.",
+      "importSuccessToastPlain": "{{count}} members imported.",
+      "noPlanSummary": "{{count}} rows have no plan. Those members are added without a subscription. If that is not what you expect, check the plan column in your file.",
+      "feeFreeWarning": "This gym has no registration fee, so the rows without a plan will not be awaiting a fee. They are created as regular members with no subscription.",
+      "feeFreeAcknowledge": "I understand, import them anyway",
       "errors": {
+        "feeAckRequired": "Confirm that members without a plan will not be awaiting a registration fee, then import again.",
         "invalidTemplate": "The CSV is missing required columns: {{columns}}",
         "emptyFile": "The CSV file has no data rows to import.",
         "planNotConfigured": "Plan \"{{value}}\" is not configured for this gym",
@@ -1322,7 +1378,32 @@
       "sessionLatePayment": "Late paid session payment applied",
       "sessionRefundApplied": "Paid session refund applied",
       "sessionConsumed": "Session used",
-      "sessionAttemptBlocked": "Entry blocked: session required"
+      "sessionAttemptBlocked": "Entry blocked: session required",
+      "allowGymosSupportChanged": "GymOS Support access changed",
+      "gymosSupportAccessEnded": "GymOS Support access ended",
+      "gymosSupportAccessResumed": "GymOS Support access resumed",
+      "auditDisclosureRequested": "Disclosure request filed",
+      "auditDisclosureAnswered": "Disclosure request answered"
+    },
+    "disclosure": {
+      "title": "Questions about this log",
+      "request": "Ask about this entry",
+      "dialogTitle": "Ask GymOS about this entry",
+      "questionLabel": "What would you like to know?",
+      "questionHint": "GymOS answers by phone or email. The due date is shown once you send the request.",
+      "submit": "Send request",
+      "cancel": "Cancel",
+      "sent": "Request sent. GymOS will answer by {{date}}.",
+      "due": "Answer due {{date}}",
+      "answered": "Answered {{date}}",
+      "open": "Waiting for GymOS",
+      "answerLabel": "Answer",
+      "entry": "Entry {{id}}",
+      "errors": {
+        "questionInvalid": "Write a question of 3 to 500 characters.",
+        "notFound": "That entry could not be found.",
+        "alreadyOpen": "You already have an open question about this entry."
+      }
     }
   },
   "saasBilling": {
@@ -1333,7 +1414,8 @@
     "switchGymPrompt": "You belong to another gym you can switch to:"
   },
   "auth": {
-    "privacyPolicy": "Privacy Policy"
+    "privacyPolicy": "Privacy Policy",
+    "sessionExpired": "Your session expired. Please sign in again."
   },
   "phoneInput": {
     "selectCountry": "Select country",
@@ -1444,5 +1526,59 @@
       "alreadyInProgress": "A mobile money payment for this member is already in progress.",
       "configMissing": "Session settings are missing. Please contact support."
     }
+  },
+  "supportInvite": {
+    "title": "GymOS support",
+    "passwordBody": "Step 1 of 2: choose your password.",
+    "totpBody": "Step 2 of 2: set up your authenticator app.",
+    "doneBody": "Your account is ready. Sign in with your email and password, then your authenticator code.",
+    "invalid": "This link is invalid, expired or already used. Ask the platform operator for a new invitation.",
+    "password": "Password",
+    "confirm": "Confirm password",
+    "passwordHint": "At least 12 characters.",
+    "mismatch": "The two passwords do not match.",
+    "weak": "Choose a password of at least 12 characters.",
+    "continue": "Continue",
+    "showQr": "Show my QR code",
+    "qrAlt": "QR code to add the account to your authenticator app",
+    "code": "6-digit code from your authenticator",
+    "verify": "Verify and finish",
+    "enrollRetry": "We could not show the QR code. Please try again.",
+    "codeWrong": "That code was not accepted. Try the current code.",
+    "signIn": "Go to sign in"
+  },
+  "supportResetCancel": {
+    "title": "Cancel authenticator reset",
+    "body": "A reset of your GymOS support authenticator is scheduled. If you did not ask for it, cancel it now.",
+    "confirm": "Cancel the reset",
+    "done": "The reset was cancelled. Your authenticator is unchanged. Your sessions stay ended, so sign in again.",
+    "invalid": "This link is invalid, expired or already used."
+  },
+  "supportAccess": {
+    "mfaTitle": "Second factor",
+    "mfaDescription": "Enter the 6-digit code from your authenticator app to continue.",
+    "codeLabel": "6-digit code",
+    "verify": "Verify",
+    "verifying": "Verifying...",
+    "invalidCode": "That code is not valid. Try again.",
+    "noFactor": "No verified authenticator is available for this account. Contact GymOS.",
+    "pickerTitle": "Choose a gym",
+    "pickerDescription": "Pick the gym you are working in. You act on one gym at a time.",
+    "noGym": "No gym is assigned to you right now.",
+    "recertTitle": "Recertification overdue",
+    "recertBody": "Your GymOS Support recertification is overdue, so you have no access to any gym until GymOS recertifies you. Contact GymOS.",
+    "entering": "Opening...",
+    "switchFailed": "Couldn't open that gym. Try again or choose another.",
+    "signInFailed": "Something went wrong signing you in. Sign in again.",
+    "backToSignIn": "Back to sign in",
+    "signOut": "Sign out"
+  },
+  "supportStepUp": {
+    "codeLabel": "Authenticator code *",
+    "codeHelp": "The 6-digit code from your authenticator app. It allows this one change.",
+    "codeRequired": "Enter the 6-digit authenticator code",
+    "codeInvalid": "That code was not accepted. Try the current code.",
+    "locked": "Too many wrong codes. This account was locked; GymOS will review it.",
+    "unavailable": "Couldn't confirm the code right now. Try again."
   }
 }

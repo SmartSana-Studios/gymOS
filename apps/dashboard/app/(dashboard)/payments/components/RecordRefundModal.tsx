@@ -8,6 +8,7 @@ import { recordRefundSchema } from "@gymos/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SupportCodeField, goToLoginExpired, isSupportCodeWellFormed } from "@/components/support-code-field";
 import type { RefundEligiblePaymentRow } from "@/services/payments";
 import { PAYMENT_METHOD_LABEL_KEY } from "../paymentLabels";
 import { listRefundEligiblePaymentsAction, recordRefundAction, searchMembersForPaymentAction } from "../actions";
@@ -39,10 +40,13 @@ const FIELD_ERROR_KEY: Record<Exclude<keyof FieldErrors, "memberId" | "paymentId
 export function RecordRefundModal({
   recordedByName,
   loyaltyEnabled = false,
+  isSupport = false,
   onClose,
   onSaved,
 }: {
   recordedByName: string;
+  /** Story 23-6c: a GymOS Support session types a fresh authenticator code; staff roles see no change. */
+  isSupport?: boolean;
   /** Story 19.9b: whether the gym runs a loyalty programme -- only then do the
    * refund notices mention stamps and free days. */
   loyaltyEnabled?: boolean;
@@ -52,6 +56,7 @@ export function RecordRefundModal({
 }) {
   const { t, i18n } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const [authCode, setAuthCode] = useState("");
 
   const [memberId, setMemberId] = useState<string | null>(null);
   const [memberDisplay, setMemberDisplay] = useState("");
@@ -196,10 +201,21 @@ export function RecordRefundModal({
       return;
     }
 
+    if (isSupport && !isSupportCodeWellFormed(authCode)) {
+      setFormError(t("supportStepUp.codeRequired"));
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const { data, error } = await recordRefundAction(parsed.data);
+      const { data, error } = await recordRefundAction(isSupport ? { ...parsed.data, authCode } : parsed.data);
       if (error) {
+        // A code is single-use: whatever went wrong, the spent one must not be resubmitted.
+        setAuthCode("");
+        if (error.code === "account_locked") {
+          goToLoginExpired();
+          return;
+        }
         if (error.code === "audit_log_failed") {
           onSaved(error.message);
           return;
@@ -209,6 +225,7 @@ export function RecordRefundModal({
       }
       onSaved(undefined, data?.sessionOutcome ?? undefined);
     } catch {
+      setAuthCode("");
       setFormError(t("common.somethingWentWrong"));
     } finally {
       setSubmitting(false);
@@ -359,6 +376,8 @@ export function RecordRefundModal({
           <Label htmlFor="refundRecordedBy">{t("payments.refundModal.recordedBy")}</Label>
           <Input id="refundRecordedBy" value={recordedByName} disabled />
         </div>
+
+        {isSupport && <SupportCodeField id="refundAuthCode" value={authCode} onChange={setAuthCode} disabled={submitting} />}
 
         {formError && <p className="text-sm text-red-600">{formError}</p>}
 

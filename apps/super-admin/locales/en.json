@@ -5,6 +5,13 @@
     "refresh": "Refresh",
     "later": "Later"
   },
+  "notices": {
+    "bellLabel": "Notices",
+    "bellLabelUnread": "Notices, {{count}} unread",
+    "title": "Notices",
+    "empty": "No notices.",
+    "loadError": "Couldn't load notices."
+  },
   "nav": {
     "brand": "GymOS Super Admin",
     "gyms": "Gyms",
@@ -14,6 +21,7 @@
     "messaging": "Messaging",
     "billing": "Billing",
     "admins": "Admins",
+    "support": "GymOS support",
     "security": "Security",
     "switchToLightTheme": "Switch to light theme",
     "switchToDarkTheme": "Switch to dark theme",
@@ -121,6 +129,7 @@
       "title": "Audit trail",
       "empty": "No audit activity recorded for this gym yet.",
       "revokedTarget": "{{label}} — {{holder}}",
+      "realActor": "Real person: {{name}} ({{email}})",
       "action": {
         "gym_created": "Gym created",
         "gym_suspended": "Gym suspended",
@@ -525,5 +534,233 @@
     "done": "Recovery cancelled. Nothing was changed.",
     "invalid": "This link is invalid or was already used.",
     "home": "Back to sign in"
+  },
+  "support": {
+    "lifecycle": {
+      "title": "Recertification, authenticator reset and address",
+      "hint": "Each person is recertified every 90 days: after the due date they have no access until you recertify them. A reset ends their sessions at once, waits 30 minutes during which they are e-mailed and can cancel, then removes their authenticator and sends a new single-use invite.",
+      "empty": "No activated support person.",
+      "due": "Recertification due {{date}}",
+      "lapsed": "Recertification overdue since {{date}}: no access",
+      "noDue": "No recertification date",
+      "lastActive": "last active {{date}}",
+      "recertify": "Recertify",
+      "confirmRecertify": "Recertify this person? The reason you enter is recorded and the next due date is set.",
+      "recertified": "Recertified. The next due date is set.",
+      "changeEmail": "Change address",
+      "newEmail": "New @gymosapps.com address",
+      "emailExplain": "The reason you enter is recorded. Refused while a reset is open. Support accounts keep no phone number.",
+      "changeEmailSubmit": "Change address",
+      "emailChanged": "Address changed and recorded.",
+      "identityNote": "Identity check (required, 3 to 500 characters)",
+      "identityNoteHint": "How did you confirm this is the person (call back, video, ID)?",
+      "resetExplain": "The person is signed out now and has no access until they enrol a new authenticator. They are e-mailed a cancel link; contact changes are frozen.",
+      "ran": "{{done}} reset(s) executed, {{failed}} failed.",
+      "resetStarted": "Reset started. The authenticator is removed after {{when}} unless the person cancels.",
+      "reset": {
+        "action": "Reset authenticator",
+        "start": "Start reset",
+        "pending": "Reset pending",
+        "cooling_off": "Reset waiting until {{when}}",
+        "due": "Reset due, runs at the next executor run",
+        "executing": "Reset running",
+        "executed": "Reset executed: waiting for the person to enrol a new authenticator (send a new invite from the accounts table if needed)"
+      },
+      "columns": {
+        "status": "Recertification",
+        "reset": "Reset"
+      }
+    },
+    "locks": {
+      "title": "Locked accounts",
+      "empty": "No locked accounts.",
+      "hint": "An account locks itself when it passes a safety limit. Unlock it with a reason (3 to 500 characters); the lock, the unlock and the reason are recorded.",
+      "unlock": "Unlock",
+      "confirmUnlock": "Unlock this account? The reason you enter is recorded.",
+      "unlocked": "Account unlocked. Its earlier actions no longer count toward the limits.",
+      "reasons": {
+        "velocity_gym": "Too many actions in one gym within an hour",
+        "velocity_account": "Too many actions across gyms within an hour",
+        "velocity_payment": "Too many payment-connection changes in one gym within a day",
+        "stepup_failures": "Too many wrong step-up codes",
+        "inactivity": "No activity for too long",
+        "contact_drift": "E-mail or phone changed outside the Super Admin change",
+        "unknown": "Locked"
+      },
+      "columns": {
+        "reason": "Why",
+        "when": "Locked",
+        "gyms": "Gyms"
+      }
+    },
+    "disclosure": {
+      "title": "Owner disclosure requests",
+      "empty": "No disclosure requests.",
+      "row": "About {{action}} on {{date}}",
+      "due": "Answer due",
+      "overdue": "Overdue, answer was due",
+      "answerLabel": "Answer",
+      "submit": "Send answer",
+      "answered": "Answer stored. Deliver it to the Owner by phone or email.",
+      "codes": {
+        "answer_invalid": "Write an answer of 3 to 2000 characters.",
+        "not_found": "That request no longer exists.",
+        "already_answered": "That request is already answered."
+      },
+      "columns": {
+        "gym": "Gym",
+        "about": "About",
+        "question": "Question",
+        "status": "Status"
+      },
+      "answer": "Answer",
+      "answerField": "Answer (3 to 2000 characters)"
+    },
+    "title": "GymOS support",
+    "empty": "No support accounts yet.",
+    "create": {
+      "name": "Name",
+      "email": "GymOS email",
+      "submit": "Create account",
+      "hint": "The address must be a @gymosapps.com mailbox that already exists. The account is created inactive; send the invite so the person can set a password and an authenticator."
+    },
+    "columns": {
+      "name": "Name",
+      "email": "Email",
+      "state": "State",
+      "invite": "Invite",
+      "actions": "Actions"
+    },
+    "state": {
+      "active": "Active",
+      "inactive": "Not activated",
+      "assignable": "assignable",
+      "deactivated": "Deactivated"
+    },
+    "invite": {
+      "none": "No invite sent",
+      "pending": "Valid until {{when}}",
+      "expired": "Expired",
+      "used": "Used",
+      "dead": "Replaced or locked",
+      "deactivated": "Deactivated"
+    },
+    "actions": {
+      "sendInvite": "Send invite",
+      "resendInvite": "Send a new invite",
+      "deactivate": "Deactivate",
+      "remove": "Remove",
+      "confirmDeactivate": "Deactivate this account? It ends every assignment, signs the person out and cannot be undone here.",
+      "confirmRemove": "Remove this account? It was never activated; the account and its sign-in are deleted."
+    },
+    "toast": {
+      "created": "Support account created. Send the invite when ready.",
+      "inviteSent": "Invite emailed.",
+      "deactivated": "Account deactivated.",
+      "removed": "Account removed."
+    },
+    "errors": {
+      "refused": "This account could not be created or invited.",
+      "nameRequired": "Enter a name (up to 100 characters).",
+      "domain": "Use an @gymosapps.com address.",
+      "notConfigured": "The dashboard address is not configured, so no invite link can be built.",
+      "mailFailed": "The invite was issued but the email could not be sent. Send a new invite to try again.",
+      "banFailed": "Blocking the account's sign-in failed, so nothing was changed. Deactivate again to retry.",
+      "contactApplyFailed": "The new address was recorded but could not be applied to the sign-in, so it was put back. Try again.",
+      "contactRevertFailed": "The new address could not be applied and the record could not be put back. The nightly check will lock the account until you record the right address."
+    },
+    "codes": {
+      "reason_invalid": "Enter a reason of 3 to 500 characters.",
+      "gym_not_active": "That gym is not active.",
+      "target_super_admin": "A Super Admin cannot be assigned as GymOS support.",
+      "not_assignable": "That account cannot be assigned.",
+      "deactivated": "That account is deactivated.",
+      "already_assigned": "That person already has an open assignment in this gym.",
+      "other_membership": "That person already has another role in this gym.",
+      "not_found": "Not found.",
+      "not_pending": "Only a pending assignment can be confirmed.",
+      "not_activated": "The account has not finished setting up, so it cannot be confirmed yet.",
+      "switch_off": "The Owner has GymOS support turned off for this gym, so it cannot be confirmed.",
+      "already_ended": "That assignment has already ended.",
+      "not_locked": "That account is not locked.",
+      "already_deactivated": "That account is already deactivated.",
+      "activated": "This account has been activated. Deactivate it instead of removing it.",
+      "invalid_request": "The request is not valid.",
+      "already_pending": "A reset is already pending for this person.",
+      "reset_in_progress": "A reset is in progress for this person, so the address is frozen.",
+      "phone_not_allowed": "Support accounts keep no phone number.",
+      "email_invalid": "Use an @gymosapps.com address.",
+      "collision": "That address cannot be used.",
+      "unchanged": "That is already the recorded address.",
+      "contact_drift": "The sign-in address differs from the recorded one. Record the right address first, then unlock.",
+      "step_up_required": "Confirm with your authenticator first.",
+      "contact_apply_failed": "The new address could not be applied to the sign-in."
+    },
+    "assign": {
+      "title": "Assigned GymOS support",
+      "person": "Person",
+      "gym": "Gym",
+      "choose": "Choose…",
+      "submit": "Assign",
+      "hint": "Assigned people stay pending until the account is activated and the Owner allows GymOS support; a pending assignment goes live only when you confirm it.",
+      "empty": "No open assignments.",
+      "since": "Since",
+      "confirm": "Confirm",
+      "unassign": "Unassign",
+      "endedCount": "{{count}} ended assignment(s)",
+      "state": {
+        "pending": "Pending",
+        "active": "Active",
+        "suspended": "Suspended",
+        "ended": "Ended",
+        "suspendedBySwitch": "Suspended (the Owner turned support off)"
+      },
+      "done": {
+        "ok": "Done.",
+        "active": "Assigned and active.",
+        "pending": "Assigned; waiting for confirmation.",
+        "ended": "Assignment ended.",
+        "deactivated": "Account deactivated.",
+        "removed": "Account removed."
+      }
+    },
+    "tabs": {
+      "accounts": "Accounts",
+      "assignments": "Assignments",
+      "locks": "Locked accounts",
+      "lifecycle": "Lifecycle",
+      "disclosure": "Disclosure requests"
+    },
+    "top": {
+      "create": "Create account",
+      "assign": "Assign to gym",
+      "runDue": "Run due resets"
+    },
+    "menu": {
+      "button": "Actions",
+      "label": "Actions for {{name}}"
+    },
+    "modal": {
+      "reason": "Reason (3 to 500 characters)",
+      "reasonHint": "Why are you doing this?",
+      "reasonInvalid": "Enter a reason of 3 to 500 characters.",
+      "cancel": "Cancel",
+      "working": "Working…",
+      "title": {
+        "confirm": "Confirm assignment",
+        "unassign": "Unassign",
+        "deactivate": "Deactivate account",
+        "remove": "Remove account",
+        "unlock": "Unlock account",
+        "recertify": "Recertify",
+        "reset": "Reset authenticator",
+        "email": "Change address",
+        "answer": "Answer disclosure request",
+        "assign": "Assign to gym",
+        "create": "Create account"
+      },
+      "confirmConfirm": "Confirm this assignment so it goes live? The reason you enter is recorded.",
+      "confirmUnassign": "Unassign this person from the gym? The reason you enter is recorded."
+    }
   }
 }

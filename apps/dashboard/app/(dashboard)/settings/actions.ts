@@ -17,6 +17,8 @@ import {
   logGymSettingsChange,
   regenerateQrCode as regenerateQrCodeRow,
   setGuestCharging as setGuestChargingRow,
+  getGymosSupportStatus,
+  setAllowGymosSupport,
   setGymCategory as setGymCategoryRow,
   setLoyaltyProgram as setLoyaltyProgramRow,
   setRegistrationFee,
@@ -25,11 +27,16 @@ import {
 } from "@/services/gym-settings";
 import {
   connectGymPaymentCredentials,
+  connectGymPaymentCredentialsAsSupport,
   disconnectGymPaymentCredentials,
   getGymPaymentConnectionStatus,
   maskBusinessId,
   type GymPaymentConnectionStatus,
 } from "@/services/gym-payment-credentials";
+import { createClient } from "@/lib/supabase/server";
+import { mapAndLog } from "@/services/session";
+import { issueSupportStepUp } from "@/services/support-stepup";
+import { nudgeEmailOutbox } from "@/services/email-outbox-trigger";
 import {
   createSaasBillingHostedCheckoutLink,
   getGymBillingInfo,
@@ -160,6 +167,7 @@ export async function connectPaymentProvider(
 ): Promise<{ data: { status: GymPaymentConnectionStatus } | null; error: AppError | null }> {
   const { t } = await getServerTranslation(await getRequestLocale());
   const parsed = connectGymPaymentCredentialsSchema.safeParse(input);
+  const authCode = typeof (input as { authCode?: unknown } | null)?.authCode === "string" ? (input as { authCode: string }).authCode : "";
   if (!parsed.success) {
     const firstIssue = parsed.error.issues[0];
     return {
@@ -168,9 +176,38 @@ export async function connectPaymentProvider(
     };
   }
 
-  const { error } = await connectGymPaymentCredentials(TARAMONEY_PROVIDER_KEY, parsed.data);
+  // Story 23.9: a live support session connects through the same form, with a fresh authenticator code. The code is verified here and
+  // turned into a single-use step-up bound to this gym; the RPC takes the gym from the live assignment and consumes the grant.
+  // The database decides whether this is a live support session (its live gate), not a claim read here.
+  const supabase = await createClient();
+  const { data: supportGymId, error: probeError } = await supabase.rpc("get_support_connection_gym");
+  if (probeError) {
+    return { data: null, error: await mapAndLog(probeError) };
+  }
+  const bySupport = typeof supportGymId === "string" && supportGymId.length > 0;
+
+  if (bySupport) {
+    const stepUp = await issueSupportStepUp({ action: "support_payment_connection", subjectId: supportGymId as string, code: authCode });
+    if (stepUp === "invalid_code") {
+      return { data: null, error: { code: "invalid_code", message: t("settings.payments.supportCodeInvalid") } };
+    }
+    if (stepUp === "locked") {
+      return { data: null, error: { code: "account_locked", message: t("settings.payments.supportLocked") } };
+    }
+    if (stepUp === "unavailable") {
+      return { data: null, error: { code: "step_up_unavailable", message: t("settings.payments.supportStepUpUnavailable") } };
+    }
+  }
+
+  const { error } = bySupport
+    ? await connectGymPaymentCredentialsAsSupport(TARAMONEY_PROVIDER_KEY, parsed.data)
+    : await connectGymPaymentCredentials(TARAMONEY_PROVIDER_KEY, parsed.data);
   if (error) {
     return { data: null, error };
+  }
+  if (bySupport) {
+    // The change committed (notices + queued e-mail are in the same transaction); ask the Super Admin app to send now. Best effort.
+    await nudgeEmailOutbox();
   }
 
   const { data: status, error: statusError } = await getGymPaymentConnectionStatus(TARAMONEY_PROVIDER_KEY);
@@ -424,4 +461,27 @@ export async function saveGymCategory(
     return { data: null, error: { code: error?.code ?? "unknown", message: t("settings.category.saveFailed") } };
   }
   return { data, error: null };
+}
+
+/**
+ * Story 23.3: the Owner's "Allow GymOS Support" switch, through `set_allow_gymos_support()` (0137). The RPC is the
+ * authorization boundary (Owner of this gym only) and writes the audit row. Any refusal is one fixed, translated message.
+ */
+export async function saveAllowGymosSupport(
+  input: unknown,
+): Promise<{ data: { ok: true } | null; error: AppError | null }> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  const failure = (code: string): { data: null; error: AppError } => ({
+    data: null,
+    error: { code, message: t("settings.gymosSupport.saveFailed") },
+  });
+  if (typeof input !== "boolean") return failure("validation_error");
+  const { data, error } = await setAllowGymosSupport(input);
+  if (error || !data) return failure(error?.code ?? "unknown");
+  return { data, error: null };
+}
+
+/** Story 23.3: re-reads the Owner-only readout after a change. */
+export async function loadGymosSupportStatus() {
+  return getGymosSupportStatus();
 }

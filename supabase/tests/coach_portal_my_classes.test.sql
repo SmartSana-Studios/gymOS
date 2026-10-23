@@ -193,8 +193,9 @@ select policies_are('public', 'class_bookings',
   ARRAY['gym_staff_read_own_class_bookings', 'member_read_own_class_bookings', 'tenant_active_gate'],
   'class_bookings policies are unchanged');
 select policies_are('public', 'members',
-  ARRAY['coach_read_assigned_members', 'gym_staff_read_own_members', 'manager_or_owner_insert_own_members',
+  ARRAY['coach_read_assigned_members', 'hide_support_membership', 'gym_staff_read_own_members', 'manager_or_owner_insert_own_members',
         'manager_or_owner_update_own_members', 'member_read_gym_staff_members', 'self_read_own_membership',
+        'support_insert_own_members', 'support_read_own_members', 'support_update_own_members',
         'self_update_own_member_onboarding_fields', 'super_admin_escalated_read_members',
         'super_admin_insert_owner_member', 'super_admin_read_owner_members', 'tenant_active_gate'],
   'members policies are unchanged');

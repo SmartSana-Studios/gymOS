@@ -1,4 +1,4 @@
-import { getGymSettings } from "@/services/gym-settings";
+import { getGymSettings, getGymosSupportStatus } from "@/services/gym-settings";
 import { getGymPaymentConnectionStatus } from "@/services/gym-payment-credentials";
 import { getGymBillingInfo, listSelectableTiers } from "@/services/billing";
 import { listStaff } from "@/services/staff";
@@ -63,6 +63,9 @@ export default async function SettingsPage() {
     .filter((plan) => plan.planType !== "pay_per_session" && plan.durationDays !== null)
     .map((plan) => ({ name: plan.name, durationDays: plan.durationDays as number }));
 
+  // Story 23.3: the Owner-only GymOS Support readout; a failure just hides the section.
+  const gymosSupportStatus = shell?.role === "owner" ? (await getGymosSupportStatus()).data : null;
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">{t("settings.title")}</h1>
@@ -74,6 +77,7 @@ export default async function SettingsPage() {
         staffCount={staff?.length ?? 0}
         role={shell?.role ?? null}
         loyaltyPlans={loyaltyPlans}
+        gymosSupportStatus={gymosSupportStatus}
       />
     </div>
   );

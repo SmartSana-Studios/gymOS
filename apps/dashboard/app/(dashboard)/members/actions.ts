@@ -158,6 +158,9 @@ export async function createMember(
     dob: member.dob ?? null,
     photoUrl: member.photoUrl ?? null,
     emergencyContact: member.emergencyContact ?? null,
+    birthYear: member.birthYear ?? null,
+    profession: member.profession ?? null,
+    neighborhood: member.neighborhood ?? null,
     joinDate: member.joinDate,
     planId: member.planId,
     subscriptionStatus: member.subscriptionStatus,
@@ -237,6 +240,9 @@ async function createAwaitingMember(
     dob: member.dob ?? null,
     photoUrl: member.photoUrl ?? null,
     emergencyContact: member.emergencyContact ?? null,
+    birthYear: member.birthYear ?? null,
+    profession: member.profession ?? null,
+    neighborhood: member.neighborhood ?? null,
     joinDate: member.joinDate,
   });
   if (provisionError || !provisioned) {
@@ -353,6 +359,9 @@ export async function editMember(
     dob: member.dob ?? null,
     photoUrl: member.photoUrl ?? null,
     emergencyContact: member.emergencyContact ?? null,
+    birthYear: member.birthYear ?? null,
+    profession: member.profession ?? null,
+    neighborhood: member.neighborhood ?? null,
   });
   if (error) {
     return { data: null, error };
@@ -513,7 +522,7 @@ export async function exportMembersCsv(params: {
 export async function validateCsvImport(
   rawText: string,
 ): Promise<
-  | { valid: true; rows: ValidatedCsvRow[]; skippedBlankRows: number[] }
+  | { valid: true; rows: ValidatedCsvRow[]; skippedBlankRows: number[]; feeFreeWithoutPlan: boolean }
   | { valid: false; errors: CsvRowError[] }
 > {
   const rows = parseCsvRows(rawText);
@@ -540,7 +549,8 @@ export async function validateCsvImport(
  * Step 1 already showed per-row detail, so nothing is lost. */
 export async function confirmCsvImport(
   rawText: string,
-): Promise<{ data: { count: number } | null; error: AppError | null }> {
+  acknowledgeNoFee?: boolean,
+): Promise<{ data: { count: number; awaiting: number } | null; error: AppError | null }> {
   const { t } = await getServerTranslation(await getRequestLocale());
   const rows = parseCsvRows(rawText);
   const mapped = await mapCsvRows(rows);
@@ -554,5 +564,7 @@ export async function confirmCsvImport(
       error: { code: "csv_import_failed", message: t("members.csvImport.errors.midImportFailure") },
     };
   }
-  return confirmCsvImportRows(validation.rows);
+  // Story 26.2: only the literal `true` acknowledges a fee-0 gym's rows without
+  // a plan; the service enforces it, this keeps a truthy non-boolean out.
+  return confirmCsvImportRows(validation.rows, { acknowledgeNoFee: acknowledgeNoFee === true });
 }

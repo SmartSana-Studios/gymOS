@@ -95,11 +95,11 @@ select is((select reason from public.authorize_action('00000000-0000-0000-0000-0
   'gym_not_active', 'owner of a suspended gym is still denied payment.initiate_staff');
 
 -- privileges
-select is(has_function_privilege('anon', 'public.authorize_action(uuid,uuid,text)', 'EXECUTE')
-  or has_function_privilege('authenticated', 'public.authorize_action(uuid,uuid,text)', 'EXECUTE'),
+select is(has_function_privilege('anon', 'public.authorize_action(uuid,uuid,text,uuid)', 'EXECUTE')
+  or has_function_privilege('authenticated', 'public.authorize_action(uuid,uuid,text,uuid)', 'EXECUTE'),
   false, 'public.authorize_action is not executable by anon or authenticated');
-select is(has_function_privilege('service_role', 'public.authorize_action(uuid,uuid,text)', 'EXECUTE')
-  and has_function_privilege('service_role', 'private.authorize_action(uuid,uuid,text)', 'EXECUTE'),
+select is(has_function_privilege('service_role', 'public.authorize_action(uuid,uuid,text,uuid)', 'EXECUTE')
+  and has_function_privilege('service_role', 'private.authorize_action(uuid,uuid,text,uuid)', 'EXECUTE'),
   true, 'service_role may execute both');
 
 select * from finish();

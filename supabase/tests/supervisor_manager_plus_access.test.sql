@@ -157,10 +157,10 @@ select is(
 );
 
 select ok(
-  (select p.prosrc like '%current_member_role()%' and p.prosrc like '%''supervisor''%'
+  (select (p.prosrc like '%current_member_role()%' or p.prosrc like '%support_rpc_role(''confirm_renewal'')%') and p.prosrc like '%''supervisor''%'
    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname = 'confirm_renewal'),
-  'confirm_renewal() is gated by current_member_role() and names supervisor'
+  'confirm_renewal() is gated by the live role (current_member_role(), through the support helper) and names supervisor'
 );
 
 select is(

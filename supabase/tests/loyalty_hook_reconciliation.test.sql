@@ -8,6 +8,12 @@
 begin;
 select plan(25);
 
+-- A real pg_cron run on a developer database leaves committed job_runs rows this transaction cannot see past; count the
+-- rows these runs add, never the absolute number.
+create temp table pg_temp_jr_before as
+  select count(*) filter (where status = 'success') as ok, count(*) filter (where status = 'failure') as bad
+    from job_runs where job_name = 'loyalty_hook_repair';
+
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-000000082001', 'HR Tier', 6000, 60000, null);
 
@@ -144,7 +150,7 @@ select is((select count(*)::int from loyalty_events where member_id = '00000000-
 select is((select guest_stamps from loyalty_progress where member_id = '00000000-0000-0000-0000-000000082058'), 0,
   'reversal: the counter is back to 0');
 
-select is((select count(*)::int from job_runs where job_name = 'loyalty_hook_repair' and status = 'success'), 1,
+select is((select count(*)::int from job_runs where job_name = 'loyalty_hook_repair' and status = 'success') - (select ok::int from pg_temp_jr_before), 1,
   'run 1 recorded a success in job_runs');
 
 -- ---------------------------------------------------------------------------
@@ -178,7 +184,7 @@ select is((select count(*)::int from loyalty_events where member_id = '00000000-
   'isolation: the next member is repaired although an earlier item failed');
 select is((select count(*)::int from loyalty_events where member_id = '00000000-0000-0000-0000-000000082059'), 0,
   'isolation: the failing item wrote no ledger row');
-select is((select count(*)::int from job_runs where job_name = 'loyalty_hook_repair' and status = 'failure'), 1,
+select is((select count(*)::int from job_runs where job_name = 'loyalty_hook_repair' and status = 'failure') - (select bad::int from pg_temp_jr_before), 1,
   'isolation: the run is recorded as a failure');
 select is((select count(*)::int from job_runs where job_name = 'loyalty_hook' and status = 'failure' and error like 'repair:earn%'), 1,
   'isolation: the failure feeds the loyalty_hook alert row');

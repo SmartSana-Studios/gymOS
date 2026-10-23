@@ -1202,3 +1202,416 @@ Epic 19 is fully deployed (0106-0116 in production, mobile 1.5 promoted, job_run
 - Gate scoping paths untested in pgTAP: non-Super-Admin `session_gate_touch` writes no state; a session id owned by another user returns `session_expired`. Low probability; add alongside the 22-7 pgTAP patches.
 - No component tests for `StepUpPrompt`, the `AddAdminModal` / `SecurityClient` step-up retry loop, or the `?expired=1` login notice. Covered by manual browser QA today.
 - A still-live aal2 access token used directly against PostgREST is checked for session existence only, not idle/absolute age, until the next app request ends the session (unverified severity, bounded by JWT expiry). Add to the runbook "not done" list.
+
+## Deferred from: code review of spec-23-1-support-role-assignment-live-gate (2026-10-20)
+
+- support_assignments has no CHECK tying `activated_at`/`ended_at` to `state`, and no transition rules (the pgTAP test revives `ended` -> `active`). Add in 23.5, which owns the transitions. (The `updated_at` trigger landed in 23.3.) **Resolved 2026-10-21 (Story 23.5, 0139): CHECK `support_assignments_state_facts_chk` and the transition trigger `guard_support_assignment_transition` (ended is terminal); the 23-1 test now switches the trigger off only for its gate-leg flips.**
+- "Active support membership implies active assignment and switch on" holds only on `members` writes; every consumer checks live. Resolved in 23.3 for the switch (0137 calls `private.support_set_membership(.., false)`); 23.5 must do the same on unassign/remove and put that in its acceptance criteria before it starts. **Resolved 2026-10-21 (Story 23.5): unassign, deactivate and the switch end or suspend the assignment and call `support_set_membership(.., false)` under the per-gym lock; pgTAP checks the invariant and the two-session race (`scripts/support-assignments-race.test.sh`).**
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-1-support-role-assignment-live-gate.md`
+  summary: Rollback scripts for 0134/0135 are hand-copied function bodies that were only applied once on the local DB and never compared with the 0124/0061/0129/0065/0074/0133 bodies.
+  evidence: Review (verification gap and blind hunter) found no test or drill; add a rollback round trip that diffs the restored definitions against the pre-0135 ones before the Epic 23 production deploy.
+
+## Deferred from: code review of spec-23-2-support-excluded-from-counts-caps-notifications-metrics (2026-10-20)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-2-support-excluded-from-counts-caps-notifications-metrics.md`
+  summary: The quiet-gym "no dispatch to support" pgTAP proof has no positive control showing the job does dispatch to a member in the same fixture.
+  evidence: Medium if real (unverified): the job needs a low occupancy band and an open window, so zero dispatches could pass vacuously; the structural check that the body filters `m.role = 'member'` is the actual guarantee. A control assertion would settle it.
+
+## Deferred from: code review of spec-23-2-support-excluded-from-counts-caps-notifications-metrics (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-2-support-excluded-from-counts-caps-notifications-metrics.md`
+  summary: Rollback `scripts/rollback-0136-support-excluded-from-staff-counts.sql` restores six hand-copied function bodies and was never drilled; the 23-1 entry above names only 0134/0135.
+  evidence: Extend the 23-1 rollback round trip to 0136 (apply 0136, run the rollback, diff `pg_get_functiondef` of the six functions and the ACLs against the pre-0136 definitions, assert `private.staff_roles()` is gone) before the Epic 23 production deploy.
+
+## Deferred from: code review of spec-23-3-allow-gymos-support-switch-and-gymos-support-row (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-3-allow-gymos-support-switch-and-gymos-support-row.md`
+  summary: Switching the Owner switch on restores every switch-suspended assignment without re-checking the support account (deactivated, locked or reset-pending while the gym was off).
+  evidence: Low today (nothing deactivates accounts yet); 23-10/23-11 must end or lock the assignment (not only the account) so the restore skips it, and `set_allow_gymos_support` should then skip rows whose account is not activated.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-3-allow-gymos-support-switch-and-gymos-support-row.md`
+  summary: Nothing stops an assignment going pending -> active while the switch is off except the membership trigger.
+  evidence: 23-5 must refuse activation while `allow_gymos_support` is false (put it in its acceptance criteria); the live gate already denies in the meantime. **Resolved 2026-10-21 (Story 23.5): `confirm_support_assignment` re-checks switch, account and gym and refuses with a typed code; nothing activates automatically.**
+
+## Deferred from: code review of spec-23-3-allow-gymos-support-switch-and-gymos-support-row (2026-10-21, round 2)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-3-allow-gymos-support-switch-and-gymos-support-row.md`
+  summary: Rollback `scripts/rollback-0137-allow-gymos-support-switch.sql` was never drilled, and dropping `suspended_by_switch` loses which assignments the switch suspended.
+  evidence: Extend the 0134/0135/0136 rollback round trip to 0137 before the Epic 23 production deploy; decide what happens to assignments left `suspended` by the switch.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-3-allow-gymos-support-switch-and-gymos-support-row.md`
+  summary: Switch-on restore calls `support_set_membership(.., true)` per row; if one switch-suspended assignee gained a non-support membership in the gym while off, it raises and the whole Owner toggle rolls back.
+  evidence: Fails loud and closed, unreachable until 23-10/23-11; when they land, make the setter skip or tolerate such rows together with the account-state check above.
+
+## Deferred from: build of spec-23-4-create-support-account-and-invite (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
+  summary: Which gym is active right after a multi-gym support sign-in.
+  evidence: 23-6 decides; recommend forcing a pick (no default gym) so a request always acts on exactly one explicit gym. CLOSED by 23-6 (2026-10-21): decided as recommended and moved to 23-6b (explicit gym picker, no default gym), see the 23-6 planning entry below.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
+  summary: The dashboard sign-in does not yet ask for the TOTP code for a support account, and nothing wires `session_gate_touch` for support requests.
+  evidence: 23-6 owns the support request path; until then a support user signs in at aal1 and the live gate denies (aal2 required), so nothing leaks. CLOSED by 23-6 (2026-10-21): the database half shipped in 0140; the TOTP sign-in and the `session_gate_touch` wiring moved to 23-6b, see the 23-6 planning entry below.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
+  summary: Removing a support account (Super Admin deletes the auth user) is blocked by the `support_accounts` foreign key; no remove or re-invite-after-activation flow exists.
+  evidence: 23-5 (remove) and 23-11 (factor reset reuses the invite) own it; `issue_support_invite` currently refuses an activated account. **Remove half resolved 2026-10-21 (Story 23.5): `remove_support_account` deletes a never-activated account, its invites, assignments and auth user; an activated one is deactivated (`deactivate_support_account`), never deleted. The 23-11 re-invite after factor reset remains open.**
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
+  summary: Invite emails depend on MAIL_* and DASHBOARD_APP_URL being set in the Super Admin app's production environment.
+  evidence: Check both before the Epic 23 production deploy; without DASHBOARD_APP_URL the invite action refuses (not_configured) and issues nothing.
+
+## Deferred from: review of spec-23-4-create-support-account-and-invite (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
+  summary: Invite-state labels `used` and `dead` in `get_support_accounts` are not asserted by any test.
+  evidence: Add pgTAP assertions for both labels (consumed invite; superseded or attempt-locked invite).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
+  summary: No end-to-end test of the invitee flow against a real GoTrue; it was exercised once by hand against the local stack.
+  evidence: Add a scripted run (create user, invite, password, enrol, verify, activate) to the e2e or a local QA script.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
+  summary: No component tests for `SupportInviteFlow` (dashboard) or `SupportPageClient` (Super Admin).
+  evidence: Add render tests for the step transitions, the retry paths and the generic failure screen.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
+  summary: No IP or edge rate limit on the four public invite actions; only the per-invite attempt counters limit guessing.
+  evidence: Add an edge or per-IP limit before the Epic 23 production deploy; the 256-bit secret makes guessing impractical but unauthenticated calls are unbounded.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-4-create-support-account-and-invite.md`
+  summary: A mistyped @gymosapps.com address leaves a stuck, never-activatable account (the mailbox is the binding).
+  evidence: 23-5/23-11 own removal; until then the Super Admin cannot delete it (support_accounts foreign key). **Resolved 2026-10-21 (Story 23.5): `remove_support_account`.**
+
+## Deferred from: review of spec-23-5-assign-unassign-and-remove (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-5-assign-unassign-and-remove.md`
+  summary: No test shows a banned (deactivated) support user is refused a real password sign-in against GoTrue; the ban is covered only by a mocked admin client.
+  evidence: The live gate denies once assignments end, so nothing leaks; add to the scripted invitee/e2e run deferred from 23-4.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-5-assign-unassign-and-remove.md`
+  summary: Rollback `scripts/rollback-0139-support-assign-unassign-remove.sql` was proven once by hand and re-embeds hand-copied 0138 function bodies.
+  evidence: Extend the 0134-0137 rollback round trip to 0139 before the Epic 23 production deploy.
+
+## Deferred from: code review of spec-23-5-assign-unassign-and-remove (2026-10-21)
+
+- `support_invite_check` deactivated leg is not pinned by a test of its own: the pgTAP case also supersedes the invite, so dropping the clause still passes. Add a live-invite plus `deactivated_at` case.
+- No way to reverse a wrong deactivation or reuse the @gymosapps.com address (irreversible by design in 23-5). Record it in 23-11 (re-invite after factor reset).
+- AC1/AC3 are proven indirectly: enrollment and the Owner switch are simulated with direct UPDATEs, and "next request denied" is asserted after unassign only. Add the real `activate_support_account` / `set_allow_gymos_support` paths and the gate check after deactivate and remove.
+- No component tests for `SupportAssignmentsPanel`, `GymSupportPanel` and the new `SupportPageClient` branches.
+- AC6: no ci-local GREEN recorded for the final tree; run `scripts/ci-local.sh` before the merge to epic/23.
+
+## Deferred from: planning of spec-23-6-capability-allow-list-and-denied-set-matrix (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: 23-6b dashboard support request path: TOTP sign-in at aal2, `session_gate_touch` on every dashboard request and server action, explicit gym picker (no default gym), `support` accepted in the shell and nav, session-expired banner.
+  evidence: Split from 23-6 by owner decision 2026-10-21. Until it ships no support session passes the live gate (no `support_session_state` row). Closes the two 23-4 deferrals that name 23-6 (active gym after sign-in; TOTP and gate wiring). Must ship before support is enabled for any gym.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: CLOSED by 23-6c: dashboard step-up for support: issue/consume UI and server actions for refunds, waivers and staff creation, reusing the Super Admin pattern.
+  evidence: Split from 23-6 by owner decision 2026-10-21. The database half (step-up required, action names added to the 0127 list) stays in 23-6; the dashboard cannot yet obtain a grant, so these three writes are unusable by support until 23-6c. Closed: services/support-stepup.ts (verify/issue split), the refund, waiver and staff-creation actions, the three dialogs, vitest beside each, and smoke.mjs (real JWTs, real TOTP: no grant refused, valid code accepted, single-use, bound to the subject).
+
+## Deferred from: build of spec-23-6-capability-allow-list-and-denied-set-matrix (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: Dashboard service paths that gate on `private.capability_roles` / `authorize_action` (`staff.create`, `member.provision`, `member.registration_fee_state`, `payment.initiate_staff`) do not list support; the live role helper returns NULL for support, so the dashboard cannot reach the allow-listed database objects through those paths.
+  evidence: 0140 opts in the database objects only. 23-6b must decide how `authorize_action` resolves a live support caller (likely a `support_capabilities`-backed branch) when it wires the request path.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: Audit rows written by an allow-listed RPC still carry the real support person as `actor_id` and `actor_display_name` (the support user's `display_name`, or "GymOS Support" when unset).
+  evidence: Proxy actor is 23-7, audit under the individual is 23-8. Do not enable support for any gym before 23-7 ships. `log_audit_event` now accepts the support gym (0140), so these rows are written today. CLOSED by 23-7 (2026-10-21, migration 0141): a live support caller now writes the gym proxy id and "GymOS Support"; the real individual is recorded by 23-8.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: The pre-existing policy `read gyms of own active memberships` still admits a support membership row without the live gate (it reads `members` directly).
+  evidence: Gives a support person with a stale active membership read access to the gym row only (name, settings, `allow_gymos_support`). Memberships are deactivated by the writer when the switch goes off or the assignment ends, so the window is only drift. Tighten with the gym-picker work in 23-6b.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: Owner review queue for support-created staff (`members.created_by_support` is written; nothing reads it yet), and the `created_by_support` tag is visible to every gym staff reader of `members`.
+  evidence: Queue and Owner-facing wording belong to 23-10 (Owner visibility). The tag names no individual.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: Decision to confirm: direct writes to `subscriptions` (insert, update) and deleting a plan are inside the allow-list under "member records and plans"; support also reads and verifies pending payments by direct UPDATE (amount pinned).
+  evidence: Chosen to match what a Supervisor can do through the dashboard today. Remove the matching `support_*` policy and its `support_capabilities` row to narrow.
+
+## Deferred from: review of spec-23-6-capability-allow-list-and-denied-set-matrix (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: `members.created_by_support` has no pin trigger (any role with member UPDATE can clear it) and `create_staff_member` replace-in-place also tags a pre-existing row.
+  evidence: Fix with the 23-10 Owner review queue, the first reader of the tag: pin the column to a bypass GUC set only by `create_staff_member`, and tag only the insert branch.
+
+## Deferred from: code review of spec-23-6-capability-allow-list-and-denied-set-matrix (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: `protect_payment_columns_on_staff_verify` does not pin `purpose`/`voided_at` for support.
+  evidence: Same as the owner/manager/receptionist rule it extends; pre-existing.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: `log_audit_event` lets a live support caller write arbitrary action types into its own gym.
+  evidence: Same for Supervisor today; restrict action types when 23-8 reworks audit actor identity. MOVED by 23-8 (2026-10-21, migration 0142): the accountability half is closed (every support-written audit row now has a `support_action_identity` row holding the real individual, Super Admin read only). Restricting which action types support may write is not in the 23-8 spec; it moves to the 23-10 criteria with the Owner visibility work, and support stays off for every gym until then.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: CLOSED by 23-6c: step-up grants are bound to (action, subject) only, not to role, phone, amount or reason.
+  evidence: Settled as the recorded decision (spec-23-6c): the subject binding (payment id, member id, new staff user id) plus the 5-minute single-use window is the limit; confirmed by smoke.mjs (a grant for payment A does not authorise payment B).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: Unverified medium: "subscription status" in the denied set may mean member subscription status as well as `saas_billing_status`.
+  evidence: Settled by the owner decision on support subscription writes (review round 2).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: Unverified medium: callers of `current_gym_status()` not enumerated for the role-before-suspension rule.
+  evidence: Enumerate callers and add a catalog test in 23-6b.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: "No support session passes the live gate until 23-6b" is prose only.
+  evidence: Owner rejected a kill-switch; 23-6b must ship before support is enabled for any gym.
+
+## Deferred from: build of spec-23-7-hidden-identity-per-gym-proxy-actor (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
+  summary: Screens that show "recorded by" resolve the actor name through `members`; the proxy has no `members` row, so a support-recorded payment, refund or audit entry shows no name there until 23-8 resolves "GymOS Support". The audit rows themselves already carry `actor_display_name = 'GymOS Support'`.
+  evidence: By design (spec Never list). 23-8 also adds `support_action_identity` (the real individual, Super Admin read only). Do not enable support for any gym before 23-8 ships. CLOSED by 23-8 (2026-10-21, migration 0142): `services/actorNames.ts` (dashboard) and `getPaymentReceipt` (mobile) resolve the proxy through `get_gym_support_proxy_id()`; payments, refunds, guest-session recorders, waived-by and the audit actor filter read "GymOS Support", the member app shows the gym. `support_action_identity` is written with every action. Support still stays off until 23-9..23-11 and the master merge.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
+  summary: Super Admin and support lifecycle writers still store the real `auth.uid()` (`assign_support.created_by`, `escalate_gym_data_access`, `revoke_gym_data_access`, and the `gym_id IS NULL` audit rows of 23.4/23.5). They are named exemptions in `support_proxy_actor.test.sql`.
+  evidence: None of these is gym visible (gym_id NULL or Super Admin only). If one ever becomes gym visible it must move to `private.actor_id()`; the scan lists them so the decision is visible.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
+  summary: Deleting a gym cascades to its proxy `users` row but not to the banned `auth.users` row (no gym delete path exists today; `users.support_proxy_gym_id` is `on delete cascade`).
+  evidence: Harmless orphan (banned, no password, no identity). Clean up in whatever story adds a gym delete.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
+  summary: Direct non-support inserts into `payments` / `refunds` still accept a client-supplied `actor_id` (the trigger forces the actor only for a live support caller, per spec).
+  evidence: Pre-existing; no policy pins it. A forged actor by an Owner/Manager names a user of their own choosing. Consider pinning to `auth.uid()` for all callers in a later hardening pass.
+
+## Deferred from: code review of spec-23-7-hidden-identity-per-gym-proxy-actor (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
+  summary: Behavioral (not source-text) tests for the converted writers `connect_gym_payment_credentials`, `update_messaging_instance`, `front_desk_alerts_protect_columns` and `initiate_*`.
+  evidence: Support cannot reach them today; 23-9 must add an assertion that the stored actor is the proxy when it opens the payment connection to support.
+
+- Historic `payments`/`refunds`/`audit_log` rows may hold a support person's real `users.id` from 0140 (unverified, medium). Settle with a prod query joining the actor columns to support `members`; do before 23-8 enables support. CLOSED by 23-8 (2026-10-21): checked read-only on local (0 rows in every actor column) and on production (migrations at 0133: the `support` role value and `private.support_accounts` do not exist there, so no row can hold a support id). Recorded in docs/decisions.md.
+- Raw `auth.users` insert in `ensure_support_proxy` leaves token columns NULL; GoTrue admin `listUsers`/`findUserByEmail` may fail (unverified, medium). Settle by running the real admin API against a local DB with proxies, before the master merge.
+
+## Deferred from: build of spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: Behavioral tests that a live support session writes `connected_by` and `updated_by` identity rows are not possible yet: support cannot reach `connect_gym_payment_credentials` (Owner only) or `update_messaging_instance` (Super Admin only). Only the `dismissed_by` writer is exercised end to end; the other two are covered by the identity-cover scan (the body must call `private.record_support_identity`).
+  evidence: 23-9 opens the payment connection to support and must add a pgTAP assertion that a support connect writes the proxy as `connected_by` and one `gym_payment_credentials` identity row.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: Error logs (Sentry) and CSV exports are app code, not database surfaces, so the per-surface pgTAP scan does not reach them. They are covered by dashboard unit tests (CSV outputs and the services' read lists) and by the fact that no service reads the identity table, not by a scan of Sentry payloads.
+  evidence: Unverified medium: a thrown database error that embeds a user id in its message would be logged by `mapAndLog`. No current function raises a message with the support person's id (`support_proxy_missing` and `support_identity_missing` carry none). Re-check when 23-10 adds new raise sites.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: The disclosure answer is delivered outside the product; there is no notification to the Owner when it is stored, and no reminder to the Super Admin before `answer_due_at`.
+  evidence: By design (spec Design Notes). The Super Admin inbox marks overdue requests; a reminder job can come with the 23-10 digest.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: The Owner's disclosure request panel shows only "Entry <uuid prefix>" and offers "Ask about this entry" on rows that already have an open request.
+  evidence: Real but cosmetic (review 23-8, low); show the audit action and date and hide the button for open rows before support is enabled for any gym.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: The Super Admin disclosure inbox shows no Owner contact to deliver the answer to.
+  evidence: Owner contact is reachable from the gym detail page (review 23-8, low); add it to the inbox row.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: Reading the real identity through get_support_action_identity is not audited, and a disclosure answer is free text that could name the individual.
+  evidence: Not required by the 23-8 spec (review 23-8, low); decide in 23-10 whether an identity lookup writes an audit row, and give the answer form guidance not to name the person.
+
+## Deferred from: code review of spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces (2026-10-21)
+
+- The "restrict action types support may write" deferral is moved to 23-10 only in this file; add it to the 23-10 criteria in the epics file (retro 67).
+- `private.record_support_identity` is granted EXECUTE to `authenticated` because `front_desk_alerts_protect_columns` is not SECURITY DEFINER; private schema is unexposed and the function is a no-op outside a live support session. Consider making the trigger definer and revoking the grant.
+- Per-surface leak proof is narrower than the 23-8 spec list: no error-log test, TS leak test is Owner-only, notifications and member-notes unseeded in the SQL scan, RPC returns unscanned, member message templates untested (review 23-8, medium, decided 1a). Reason: no error-log table; scan controls already show it can fail.
+- Super Admin reads the real person only for audit_log rows via a "GymOS Support" display-string match; payments, refunds, gym_payment_credentials and messaging_provider_config identity rows have no reader (review 23-8, medium, decided 2b). Widen the reader and key it on the proxy id in 23-9/23-10.
+
+## Deferred from: code review of spec-23-9-support-connects-the-payment-account (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-9-support-connects-the-payment-account.md`
+  summary: Support step-up has no local lockout or failure audit; only Supabase's MFA rate limit applies to wrong codes.
+  evidence: Accepted in docs/decisions.md (the 22.7 counter is Super Admin only). Medium; add a per-user counter and audit row before support is enabled for any gym (23-10 or 23-11).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-9-support-connects-the-payment-account.md`
+  summary: The Settings payment form for support is unreachable until 23-6b admits the support role in the dashboard shell; close before support is enabled for any gym (belongs in 23-6b criteria).
+  evidence: decisions.md 23-9 entry; the database function, action and form are tested but no end-to-end path exists.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-9-support-connects-the-payment-account.md`
+  summary: Email retry is daily only (Vercel Hobby cron) and `payment_connection_email` is not in the job-runs alert list; a backlog or rows stuck at `failed` are not alerted.
+  evidence: Review 23-9 (low); add an alert row when a paid cron plan or a second trigger exists.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-9-support-connects-the-payment-account.md`
+  summary: Webhook credential-mismatch guard skips payments with a NULL credentials_id; the Super Admin NoticeBell has no component test; check-credentials-id scan is regex based; database.ts was hand-edited.
+  evidence: Review 23-9 (low each); regenerate database.ts at the next type generation.
+
+## Deferred from: build of spec-23-10-revocation-owner-visibility-and-velocity-lock (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED by 23-10 (migration 0144): created_by_support pin and insert-only tagging; log_audit_event allow-list for a live support caller; get_support_action_identity audits each read; per-user wrong step-up counter with audit row for support; set_allow_gymos_support restore skips accounts that are not activated / locked / reset-pending / deactivated and people who gained another membership.
+  evidence: docs/decisions.md 23-10 entry; support_revocation_velocity_lock.test.sql.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: The velocity lock (and the idle/absolute limits) only run when `private.session_gate_touch` is called for a support session; the dashboard request path does not call it yet.
+  evidence: 23-6b must wire it before support is enabled for any gym; the database side and its tests are complete.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: The Owner review queue lists staff support CREATED (members.created_by_support). Staff support merely edited (create_staff_member replace-in-place) are not queued; they appear only in the daily digest count.
+  evidence: Replace-in-place no longer tags a pre-existing row (23-6 deferral); queueing edits would need an identity row for members, which 0142 does not write.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: Velocity counts one action as one transaction (count of distinct recorded_at over support_action_identity). A support action that writes no audit, payment or refund row is not counted; two actions inside one transaction count once.
+  evidence: Every allow-listed write audits, so none is known to be missed; revisit if an allow-listed write without an audit row is added.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: Limits are all [ASSUMPTION] (10/h per gym, 20/h per account, 3 payment-connection changes/day, 60 s); the 60 s cutoff is a stored value, not an enforced timer (access ends on the next request).
+  evidence: 23.0 confirms or changes them in private.session_limits_config. The "restrict audit action types" criterion (retro 67) is now in the 23.10 criteria in epics.md.
+
+## Deferred from: review of spec-23-10-revocation-owner-visibility-and-velocity-lock (2026-10-21)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: The velocity lock and the 60 s cutoff are inert until the dashboard request path calls `session_gate_touch` (23-6b); `support_revocation_cutoff_seconds` is stored but nothing reads it.
+  evidence: Add a dashboard test that a support request goes through the gate and is denied on `locked`, and test any Realtime or signed-link path against the cutoff, in 23-6b criteria (retro 67). Support stays off for every gym until then.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: A switch-suspended assignment skipped on restore (account locked, not activated or reset-pending) stays suspended after unlock.
+  evidence: Low-medium; the Owner toggle or a Super Admin re-assign recovers it. Revisit with 23-11 (lifecycle).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: No catalog scan proves every audit action type written by an allow-listed support RPC is in `private.support_audit_actions`.
+  evidence: Unverified medium: a missing type makes that support action raise at runtime. Add the scan in 23-6b.
+
+## Deferred from: code review of spec-23-10 (2026-10-21)
+
+- Digest failure status and suspended-gym exclusion are unasserted in section H of support_revocation_velocity_lock.test.sql; force a notice-insert error and a suspended gym with a countable action.
+- Rollback-0144 drops unlock but leaves `locked_at` set (UNVERIFIED medium): read the rollback and add a preflight that raises when any support account is locked.
+- Unlock sends no Owner "resumed" notice (23-11 with the restore deferral).
+- Replace-in-place staff edits bypass the review queue (digest counts them only); revisit if "support-touched" is wanted.
+- Velocity lock/60 s cutoff inert and allow-list catalog scan: already recorded above for 23-6b.
+- Gym-wide velocity alert (a burst across several support people) is not built; the lock now counts only the toucher's own actions (23-10 review decision). Add a Super Admin alert if wanted.
+
+## Deferred from: code review of spec-23-11-lifecycle-inactivity-recertification-and-factor-reset (2026-10-21)
+
+- Backfill of `recorded_email` / `recertify_due_at` on pre-0145 rows is untested: run the two statements in a rolled-back transaction on a pre-0145-shaped row before the production migration, assert `support_live` is true.
+- `change_support_contact` hardcodes `@gymosapps.com` (UNVERIFIED medium): check whether the invite path enforces the same domain; if not, align them or move the domain to config.
+- Stray bullet about `support_audit_action_not_allowed` in epic-23-context.md belongs to 23-10; move or drop at merge.
+
+## Closed by 23-6b: dashboard support request path (2026-10-21)
+
+Every entry above that names 23-6b is closed here or re-homed with a reason (migration 0146, `support_request_path.test.sql`, `proxy.gate.test.ts`, `scripts/epic23-qa/smoke.mjs`).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: CLOSED by 23-6b: TOTP sign-in at aal2 (`/auth/mfa`), `session_gate_touch` on every aal2 request in the proxy (pages, Server Actions, route handlers), explicit gym picker (hook fallback excludes support, `support_begin_session`), `support` admitted in the shell, nav and role lists, session-expired banner. Closes the 23-4 deferrals on active gym after sign-in and on TOTP/gate wiring.
+  evidence: docs/decisions.md 23-6b entry; support_request_path.test.sql A-B, proxy.gate.test.ts, mfa-form / support-gym-picker / login-form tests, smoke.mjs.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: CLOSED by 23-6b: `authorize_action` resolves a live support caller through `support_live_for(user, gym, session)` and `capability_roles` lists support for the four service-path capabilities.
+  evidence: 0146; support_request_path.test.sql section C (live, locked, recertification, reset pending, idle, absolute, switch off, assignment inactive, no session).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: CLOSED by 23-6b: the "read gyms of own active memberships" policy no longer admits a support membership; support reads its gym through `support_read_own_gym` (live gate).
+  evidence: 0146; support_request_path.test.sql section D.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: CLOSED by 23-6b: callers of `current_gym_status()` are enumerated and the role-before-suspension rule is a catalog test.
+  evidence: support_request_path.test.sql E1-E3 (six callers with no role helper are named in the test).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6-capability-allow-list-and-denied-set-matrix.md`
+  summary: "No support session passes the live gate until 23-6b" is no longer prose only: a support session now passes it through the proxy gate, and the proxy test fails if a path can bypass it. Support is still enabled for no gym; the owner-rejected kill switch stays rejected.
+  evidence: proxy.gate.test.ts (scan of the gate position and of the matcher); smoke.mjs.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-9-support-connects-the-payment-account.md`
+  summary: CLOSED by 23-6b for the shell: a live support person reaches Settings and the 23-9 connect dialog. The step-up code the dialog asks for is the existing 23-9 flow; refunds, fee waivers and staff creation need the 23-6c step-up UI.
+  evidence: SettingsForm already passes `isSupport`; Sidebar/role tests; browser row S6 in scripts/epic23-qa/README.md.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED by 23-6b: the velocity lock and idle/absolute limits now run because the proxy calls `session_gate_touch` for every aal2 request, and a locked answer signs the session out (proxy.gate.test.ts, smoke.mjs "locked").
+  evidence: proxy.gate.test.ts; smoke.mjs.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: Re-homed (60 s cutoff, Realtime and signed links): the cutoff is enforced per event by RLS (a Realtime row for a session that is idle, unassigned or locked is not delivered, tested for `payments` and `front_desk_alerts`) and per request by the gate and the picker check, both immediate. The stored `support_revocation_cutoff_seconds` is still read by nothing; no support-specific signed link exists. Re-home: remove the unused setting or wire it if a long-lived subscription is ever added (23-10 owner).
+  evidence: support_request_path.test.sql E7-E12.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED by 23-6b: audit-action completeness scan. Every action type reachable from an allow-listed RPC or a trigger is in `support_audit_actions`, apart from three named ones no support capability triggers.
+  evidence: support_request_path.test.sql E4-E6.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: Not done (re-homed): the dashboard e2e (Playwright) has no support scenario; the browser run is the manual section S of scripts/epic23-qa/README.md (the owner runs browser QA). Wrong authenticator codes at the dashboard sign-in are limited only by Supabase's MFA rate limit (no local counter, as for the 23-9 step-up).
+  evidence: CLOSED by 23-6c: the sign-in form reports a rejected code to recordMfaFailureAction (stepup_record_failure), so sign-in and the three dialogs share one per-user counter; at the threshold the account locks and the person lands on the login page with the expired notice (mfa-form.test.tsx, smoke.mjs lock section).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: A support person who passes the authenticator code and leaves before `support_begin_session()` runs keeps the last-used gym in the next token (the hook honours `users.active_gym_id`), so the picker is skipped in that window.
+  evidence: Unverified medium (review of 23-6b). It is only ever a gym they are still assigned to. Settle with a per-session pick (the hook honours a support gym only when `switch_active_gym` recorded it for that session id); that changes the frozen "clears after the code is verified" wording, so it needs an owner decision. Before support is enabled for any gym.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: `private.support_live_for` repeats every leg of `private.support_live` (0145) with the session passed in; the two can drift.
+  evidence: Review of 23-6b. Add a parity pgTAP test (same answer for lock, recertification, idle, absolute and switch-off), or make `support_live` call `support_live_for` once a story may touch the gate.
+- source_spec: none
+  summary: `supabase/tests/loyalty_subscriber_rule.test.sql` fails between 23:00 and 24:00 UTC (tests 8, 14, 20: expiry dates one day off).
+  evidence: Found 2026-10-21 23:13 UTC while gating 23-6b. The gym timezone is Africa/Douala (UTC+1), so from 23:00 UTC the gym's local date is already tomorrow while the test's `current_date` is still today. The same test passes at any other hour and nothing in 23-6b touches it. Fix the test to take today from the gym's own timezone.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-12-support-page-tabs-and-modals.md`
+  summary: The support page status message is never cleared, so a success or error line survives tab switches and later actions.
+  evidence: Pre-existing behaviour of SupportPageClient and GymSupportPanel; more visible now that sections are tabs.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-12-support-page-tabs-and-modals.md`
+  summary: SupportLifecyclePanel treats every non-null resetState as an open reset and hides Reset and Change address for it.
+  evidence: Logic unchanged from the original panel. Marked unverified (medium if wrong): confirm the resetState values returned by the lifecycle RPC, e.g. whether an executed or cancelled reset should keep the actions hidden.
+
+## Deferred from: code review of spec-23-12-support-page-tabs-and-modals (2026-10-22)
+
+- Status message never cleared and `resetOpen` hiding actions after `executed`: both already recorded above from the build session; nothing new. For `resetOpen`, `executed` is documented as waiting for re-enrolment, so the hiding may be intended.
+
+## Closed by the Epic 23 retrospective closure (2026-10-22)
+
+Migrations 0148 and 0149, `scripts/rollback-rehearsal-epic23.sh`, `support_retro_closure.test.sql`, `docs/runbooks/deploy-epic-23.md`. Source: `epic-23-retro-2026-10-22.md`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: CLOSED by 0148: `support_live` and `support_live_for` repeated every leg of the live gate; both now call `private.support_live_core`, and `support_retro_closure.test.sql` section A asserts they agree on every leg.
+  evidence: 0148; support_retro_closure.test.sql A1-A15 (negative run against the pre-0148 functions fails B4, B5, C1).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED by 0148: `support_revocation_cutoff_seconds` was read by nothing; the setting is removed and the epic context says the guarantee is the next request.
+  evidence: 0148 section 3; support_retro_closure.test.sql C1; epic-23-context.md "As built".
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-7-hidden-identity-per-gym-proxy-actor.md`
+  summary: CLOSED by 0149: raw `auth.users` proxy rows had NULL GoTrue token columns, which made the Admin API user listing answer HTTP 500. Reproduced locally (500), fixed (200). Production had not applied 0141 yet.
+  evidence: 0149; support_retro_closure.test.sql D1-D2 (D2 fails with 0149 rolled back).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-11-lifecycle-inactivity-recertification-and-factor-reset.md`
+  summary: PROVEN: the 0145 backfill of `recorded_email` and `recertify_due_at` on rows that pre-date 0145 (rolled-back transaction on the local DB): before, `support_live_for` is false (fails closed); after, the e-mail is recorded in lower case, the due date is 90 days out and the account is live.
+  evidence: scratch proof 2026-10-22, recorded in docs/runbooks/deploy-epic-23.md gate G5. Production has no support accounts, so the backfill touches no row there.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED: rollback of 0144 left `locked_at` set with no unlock function. The script now refuses while any support account is locked.
+  evidence: scripts/rollback-0144-support-revocation-velocity-lock.sql guard; rehearsal clears locks inside its rolled-back transaction.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-1-support-role-assignment-live-gate.md`
+  summary: CLOSED: rollbacks for 0134-0149 were never rehearsed as a set. `bash scripts/rollback-rehearsal-epic23.sh` runs all 16 in reverse in one rolled-back transaction (16 of 16 pass; Epic 22 objects kept).
+  evidence: scripts/rollback-rehearsal-epic23.sh. It proves the scripts run and remove the Epic 23 objects; it does not prove they equal production's prior definitions (production has none of 0134-0149 yet).
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-9-support-connects-the-payment-account.md`
+  summary: CLOSED in code by 23-10 and 23-6c (not marked at the time): the support step-up counter before support is enabled; one per-user counter shared by sign-in and the three dialogs.
+  evidence: deferred-work.md entries marked CLOSED by 23-6c; 0147; mfa-form tests.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED in code by 23-11 (not marked at the time): restore of switch-suspended assignments on unlock and recertify.
+  evidence: 0145 `private.support_restore_assignments`; support_lifecycle.test.sql. A related gap, the switch-on restore skipping the recertification leg, was fixed in 0148.
+- source_spec: `_bmad-output/implementation-artifacts/epic-23-context.md`
+  summary: CLOSED: the stray `support_audit_action_not_allowed` bullet is labelled as 23.10's rule, and the context file has an "As built" block for the divergences the owner decided.
+  evidence: epic-23-context.md line 37 and the final section.
+
+## Deferred from: Epic 23 retrospective closure (2026-10-22)
+
+- source_spec: `_bmad-output/implementation-artifacts/epic-23-retro-2026-10-22.md`
+  summary: The `loyalty_subscriber_rule.test.sql` clock failure (tests 8, 14, 20) is not only a test artefact. `confirm_renewal` sets `start_date` and the carry of remaining days from the database's `current_date` (UTC), while the loyalty rule judges "on time" in the gym's local date (`now() at time zone gyms.timezone`, 0119 line 153; Douala is UTC+1). Between 23:00 and 24:00 UTC the two dates differ by one day, so a renewal made in the first local hour of a day can carry or stamp one day differently from what the rule assumes.
+  evidence: Reproduced 2026-10-22 23:05 UTC: the file fails at M1 (`new_expiry` is not `start_date + 30`); it passes at any other hour. `0121_early_renewal_carries_remaining_days.sql` lines 106 and 342-345 use `current_date`. Not changed here: it is subscription-date logic in a live path and needs an owner decision (move `confirm_renewal` to the gym-local date, or accept UTC). Until then, run the full `ci-local.sh` outside 23:00-24:00 UTC.
+
+## Deferred from: owner browser QA S15 (2026-10-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6c-dashboard-support-step-up.md`
+  summary: A support person who adds staff (Settings > Staff > Add staff) never sees them, or any other staff, in the Staff list. The row is created (member `A New Staff`, role manager, `created_by_support = true`, step-up code consumed) but the list stays empty.
+  evidence: Reproduced 2026-10-23 as `qa23-active` in Gym A. Cause: policy `support_read_own_members` limits a live support session to `role = 'member'` rows, so the staff query in `apps/dashboard/services/staff.ts` (`listStaff`) returns nothing for support, not even the Owner. Read as that session: 5 `members` rows, 0 staff-role rows. This is least privilege working as written, not a leak; the open question is the UX. Options: leave it (the Owner sees the new person and the review card), show support a confirmation and a count, or add a narrow read of only the staff it created. Owner decision.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: A support person is sent to the generic `/auth/update-password` page the first time they enter a gym, even though they already set a password in the invite. `users.must_change_password` defaults to true (0016) and neither the invite flow (`supportInvite.ts`, 0138) nor `activate_support_account` clears it. Whatever new password they type there replaces the one from the invite.
+  evidence: Reproduced 2026-10-23 in owner browser QA: `qa23-active` (seeded with the flag true like every other seeded support account) was redirected to `/auth/update-password` after picking Gym A, changed the password, and the seeded `Epic23Support!` then failed with `invalid_credentials` at the auth service while `qa23-second`, `qa23-idle` and `qa23-reset` still accepted it. The layout redirect is `app/(dashboard)/layout` (`redirect("/auth/update-password")`). `qa23-new` never saw it because it had no gym to enter. CONFIRMED on the real invite flow, 2026-10-23: `qa23-fresh` was created, invited, given a password on the invite page and enrolled an authenticator (activated, one verified factor) and still has `must_change_password = true`, so it would be sent to `/auth/update-password` on first entering a gym. Fix options: clear the flag in `activate_support_account` (database) or in `verifyTotpAndActivate`, or exempt support from the gate. Owner decision; README S1-S4 currently assume no such page.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-11-lifecycle-inactivity-recertification-and-factor-reset.md`
+  summary: A support person whose recertification is overdue signs in, passes the code, can pick the gym, and then sees the generic "Something went wrong on our end" error on every gym page. No data is exposed (the live gate denies every row), but there is no message saying why and no redirect to the login page. README row S10 had promised a redirect.
+  evidence: Reproduced 2026-10-23 as `qa23-recert` (assignment active, recertification overdue). Dashboard log: `switchActiveGym` succeeded, then `[gym-settings] resolved to not_found: gym row not found for read (stale claim or RLS-denied)` and the Overview error. `smoke.mjs` asserts the same at the database level ("recert: the gate itself is ok (recertification is a live-check leg)"; "sees nothing in Gym A"). Fail-closed as designed in 23-11; the open question is UX. Options: leave it, or let the proxy gate answer a distinct "recertification overdue" state (as it already does for `locked`) and show a clear page. Owner decision.
+
+## Closed by the Epic 23 retro decisions (2026-10-23)
+
+Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-10-23 entry). Source: the owner QA findings above.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: CLOSED by 0150: a support person is no longer sent to `/auth/update-password` on first entering a gym; activation clears `must_change_password` (and activated accounts are backfilled).
+  evidence: support_account_invite.test.sql 66 and 68 (68 fails with 0150 rolled back); seeded accounts now show the flag false.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-11-lifecycle-inactivity-recertification-and-factor-reset.md`
+  summary: CLOSED by 0153 and the proxy: an overdue recertification shows a clear "Recertification overdue" page instead of the generic error. The denial itself is unchanged (the live gate).
+  evidence: support_retro_closure.test.sql E1-E4; proxy.gate.test.ts "proxy overdue recertification" (5 cases); README S10. Browser check pending.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6c-dashboard-support-step-up.md`
+  summary: DECIDED, unchanged: a support person still cannot read the staff list (least privilege). The toast after adding someone now says so and that the Owner reviews the account.
+  evidence: StaffPageClient.supportNote.test.tsx; docs/decisions.md 2026-10-23.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-8-audit-under-the-individual-disclosure-and-member-facing-surfaces.md`
+  summary: CLOSED by 0151: a support refund writes a `refund_recorded` audit row, so the Owner can file a disclosure on it and the Super Admin reader shows the real person (this was the identity-reader gap, G7).
+  evidence: smoke.mjs "refund: a support refund writes one refund_recorded audit row" and "that audit row has the real person behind it".
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-10-revocation-owner-visibility-and-velocity-lock.md`
+  summary: CLOSED by 0152: unlock tells the Owner access is back (audit row `gymos_support_access_resumed` and a notice, naming nobody); the audit page labels `ended` and `resumed` in EN and FR.
+  evidence: support_lifecycle.test.sql 145-147 (145 and 146 fail with 0152 rolled back); auditLabels.epic23.test.ts.
+- source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
+  summary: DECIDED, accepted: the picker window (G6) and the invite rate limit (G2). Reasons are in docs/decisions.md; the firewall rule for G2 is a setting to add if the plan allows.
+  evidence: docs/decisions.md 2026-10-23; docs/runbooks/deploy-epic-23.md.
+
+## Split at build of 26.1 (2026-10-23)
+
+- source_spec: none
+  summary: Story 26.2, the members-only CSV import (no plan, members left awaiting the registration fee, fee 0 allowed with a warning), is deferred to follow 26.1.
+  evidence: Split from the Epic 26 request: 26.2 reads and writes the three profile fields that 26.1 adds, so it builds on 26.1's migration and forms; its acceptance criteria are in epics.md (Epic 26) and in the spec the build creates for it after 26.1 is done.
+
+## Deferred from: review of spec-26-1-member-profile-fields (2026-10-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-26-1-member-profile-fields.md`
+  summary: The privacy policy has no stated route for a member to ask staff to correct or delete their year of birth, profession or neighborhood, and a change of the policy date has no notice to existing members.
+  evidence: Review finding (blind hunter). It concerns the whole policy text and the product's handling of policy changes, not the three fields alone, so it is a legal and product decision. The EN wording of the Identity row was tightened in 26.1; the owner should read the policy changes before release.
+- source_spec: `_bmad-output/implementation-artifacts/spec-26-1-member-profile-fields.md`
+  summary: `csvEscape` in `apps/dashboard/services/members.export.ts` neutralises a leading `=`, `+`, `-` or `@` but not a leading tab or carriage return, which spreadsheet formula-injection guidance also lists.
+  evidence: Pre-existing guard (names were already free text in the export). 26.1 adds two more free-text columns through it, so the exposure grew slightly. One-line change to the guard's character class plus a test.
+- source_spec: `_bmad-output/implementation-artifacts/spec-26-1-member-profile-fields.md`
+  summary: The members export (`exportMembersCsv`) has no role check of its own beyond row security, and writes no audit row for an export.
+  evidence: Pre-existing: the action calls the service directly. The export now carries more personal data to the same population (whoever can read members of the gym). Decide whether exports should be limited by role and audited.
+
+## Deferred from: review of spec-26-2-members-only-csv-import (2026-10-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-26-2-members-only-csv-import.md`
+  summary: The `onImported(count, awaiting, warning)` to toast mapping in `MembersPageClient` is not covered by any page-level test.
+  evidence: Review finding (verification gap). No test renders `MembersPageClient`'s import handler; the modal test mocks `onImported`, and the locale test only keeps the placeholders. A swapped `count` and `awaiting` would show a wrong number in the toast (data is correct).
+- source_spec: `_bmad-output/implementation-artifacts/spec-26-2-members-only-csv-import.md`
+  summary: The import preview does not show birth year, profession or neighborhood, so a shifted column among those three is not visible before confirming.
+  evidence: Review finding (blind hunter). The preview shows name, phone, plan, status, join date and expiry for the first 5 rows. Mitigated for the case that matters (a mis-mapped plan column) by the new "N rows have no plan" line.

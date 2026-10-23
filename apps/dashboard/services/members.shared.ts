@@ -58,6 +58,9 @@ export interface MemberListRow {
   dob: string | null;
   photoUrl: string | null;
   emergencyContact: string | null;
+  birthYear: number | null;
+  profession: string | null;
+  neighborhood: string | null;
   planId: string | null;
   planName: string | null;
   planType: string | null;
@@ -86,6 +89,9 @@ export interface MemberRowFromDb {
   dob: string | null;
   photo_url: string | null;
   emergency_contact: string | null;
+  birth_year?: number | null;
+  profession?: string | null;
+  neighborhood?: string | null;
   join_date: string;
   deactivated_at: string | null;
   registration_fee_settled_at?: string | null;
@@ -107,6 +113,9 @@ export function toMemberListRow(row: MemberRowFromDb): MemberListRow {
     dob: row.dob,
     photoUrl: row.photo_url,
     emergencyContact: row.emergency_contact,
+    birthYear: row.birth_year ?? null,
+    profession: row.profession ?? null,
+    neighborhood: row.neighborhood ?? null,
     planId: sub?.plan_id ?? null,
     planName: sub?.plans?.name ?? null,
     planType: sub?.plans?.plan_type ?? null,

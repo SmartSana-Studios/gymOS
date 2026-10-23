@@ -36,6 +36,13 @@ import {
   type RefundEligiblePaymentRow,
   type SessionPaymentPreview,
 } from "@/services/payments";
+import {
+  isLiveSupportSession,
+  isWellFormedSupportCode,
+  issueSupportStepUp,
+  supportStepUpError,
+  type SupportGrantAction,
+} from "@/services/support-stepup";
 import { listMemberGuestSessions, type MemberGuestSession } from "@/services/guestSessions";
 import { getDashboardShellContext } from "@/services/session";
 import { getMemberRegistrationFeeState, type MemberRegistrationFeeState } from "@/services/members";
@@ -148,6 +155,24 @@ export async function listRefundEligiblePaymentsAction(
   return listRefundEligiblePayments(memberId);
 }
 
+/**
+ * Story 23-6c: a live support session must present a fresh authenticator code for a refund, a fee waiver or staff creation. The code
+ * is verified server side and turned into a single-use grant bound to (action, subject); the write consumes it. The database decides
+ * whether this is a live support session. Returns the error to show, or null when nothing is needed or the grant was issued.
+ */
+async function requireSupportGrant(
+  action: SupportGrantAction,
+  subjectId: string,
+  input: unknown,
+  t: (key: string) => string,
+): Promise<AppError | null> {
+  if (!(await isLiveSupportSession())) return null;
+  const code = (input as { authCode?: unknown } | null)?.authCode;
+  if (!isWellFormedSupportCode(code)) return supportStepUpError("code_required", t);
+  const result = await issueSupportStepUp({ action, subjectId, code: code as string });
+  return result === "issued" ? null : supportStepUpError(result, t);
+}
+
 /** AC #1: Record Refund. Same `audit_log_failed`-code-means-"saved but log
  * the warning" pattern as `recordPayment`/`verifyPaymentAction`/
  * `flagPaymentAction` -- the refund row is not rolled back if only the
@@ -163,6 +188,9 @@ export async function recordRefundAction(
   if (!parsed.success) {
     return { data: null, error: { code: "validation_error", message: t("common.invalidInput") } };
   }
+
+  const stepUpError = await requireSupportGrant("support_refund", parsed.data.paymentId, input, t);
+  if (stepUpError) return { data: null, error: stepUpError };
 
   const { data, error } = await recordRefund(parsed.data);
   if (error || !data) {
@@ -305,6 +333,8 @@ export async function waiveRegistrationFeeAction(input: unknown): Promise<{ erro
   if (!parsed.success) {
     return { error: { code: "validation_error", message: t("common.invalidInput") } };
   }
+  const stepUpError = await requireSupportGrant("support_waive_registration_fee", parsed.data.memberId, input, t);
+  if (stepUpError) return { error: stepUpError };
   return waiveRegistrationFee(parsed.data);
 }
 

@@ -122,6 +122,14 @@ values
   ('private', 'session_gate_touch',     'Idle/age/lock check on every request; also records the lock. Must run for a suspended gym too (0127)'),
   ('private', 'stepup_record_failure',  'Records a failed step-up code (and the lock it can trigger); gating it would let a suspended gym bypass the lockout (0127)'),
   ('private', 'recovery_audit',         'Audit writer for Super Admin recovery (no gym; platform-level), service_role only (0128)'),
+  ('private', 'support_audit',          'Audit writer for support account invite steps (no gym; platform-level), service_role only (0138)'),
+  ('private', 'support_revoke_access',  'Revocation runs when a gym is suspended or support is switched off; it writes the gym-scoped audit row and must not be gated (0144)'),
+  ('public', 'unlock_support_account',  'Unlocking is an account action and must work while any of the person''s gyms is suspended; its gym-scoped resumed audit row is written only for a gym where the assignment was just restored, which needs an active gym (0152)'),
+  ('private', 'support_lock_account',    'The velocity or step-up lock records its revocation in each gym the person was assigned to, suspended or not (0144)'),
+
+  -- Epic 23: the only writer of a support membership. Service_role only; it must be able to remove support access from a suspended gym.
+  -- A suspended gym already denies live support through private.support_live (gym status leg), so gating the writer adds nothing.
+  ('private', 'support_set_membership', 'Super Admin plumbing: adds or removes a support membership, including removal from a suspended gym; support_live denies suspended gyms itself (0135)'),
 
   -- The single highest-risk entry on this list.
   ('public', 'log_audit_event', 'Writes the gated audit_log and is called BY many other RPCs including every recovery path above -- gating it would cascade and break all of them. It already validates gym IDENTITY (p_gym_id vs private.gym_id()); status is deliberately not its concern'),
@@ -249,6 +257,17 @@ select is(
   --                             recorded in docs/decisions.md, 2026-08-28 entry
   --   saas_billing_notices    - the suspension notice itself must stay readable
   --   saas_billing_payments   - the Pay Now escape valve writes here
+  --   support_assignments     - RLS on with no client policy and no client grant (Super Admin reads
+  --                             through functions only), so a restrictive policy would be a no-op;
+  --                             Super Admin must manage assignments of a suspended gym (0135)
+  --   staff_notices - 23.9: RLS on, no client grant; read only through the caller-keyed
+  --                             functions get_staff_notices / count_unread_staff_notices, so the Owner of a
+  --                             suspended gym can still read the notice that explains a payment change
+  --   support_action_identity, audit_disclosure_requests - same shape as support_assignments (0142):
+  --                             RLS on, no client policy, no client grant; read only through Super Admin
+  --                             functions, and the Owner function runs under the tenant gate of audit_log
+  --   support_staff_review - 0144: same shape (RLS on, no client grant); read and cleared only through the Owner functions
+  --                             get_support_review_queue and clear_support_review, written by private.support_revoke_access
   --
   -- exercise_library is the one that needs re-reading rather than re-deriving:
   -- its gym_id is NULLABLE and all 15 seeded rows are platform defaults
@@ -257,7 +276,7 @@ select is(
   -- ever needs to close its coach INSERT, add a SEPARATE, narrower
   -- RESTRICTIVE ... FOR INSERT policy under a DIFFERENT name -- reusing
   -- `tenant_active_gate` would silently change assertion 1's count above.
-  'exercise_library, gym_data_escalations, gym_payment_credentials, saas_billing_notices, saas_billing_payments',
+  'audit_disclosure_requests, exercise_library, gym_data_escalations, gym_payment_credentials, saas_billing_notices, saas_billing_payments, staff_notices, support_action_identity, support_assignments, support_staff_review',
   'the set of gym_id-bearing tables WITHOUT tenant_active_gate is unchanged -- a new one is invisible to the guardrail above, so it must be justified here (Story 11.8 code review)'
 );
 

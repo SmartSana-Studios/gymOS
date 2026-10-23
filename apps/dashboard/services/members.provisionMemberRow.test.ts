@@ -98,6 +98,9 @@ const identity = {
   dob: null,
   photoUrl: null,
   emergencyContact: null,
+  birthYear: null,
+  profession: null,
+  neighborhood: null,
   joinDate: "2026-01-15",
 };
 
@@ -124,6 +127,24 @@ describe("provisionMemberRow (Story 18.5)", () => {
     expect(summary()).toContain("session:members:insert");
     expect(summary()).not.toContain("session:subscriptions:insert");
     expect(summary()).not.toContain("admin:members:update");
+  });
+
+  it("writes the three profile fields to the members insert (Story 26.1)", async () => {
+    const { provisionMemberRow } = await import("./members");
+
+    await provisionMemberRow({ ...identity, birthYear: 1984, profession: "Soudeur", neighborhood: "Ngui" });
+
+    const insert = ops.find((o) => o.client === "session" && o.table === "members" && o.op === "insert");
+    expect(insert?.payload).toMatchObject({ birth_year: 1984, profession: "Soudeur", neighborhood: "Ngui" });
+  });
+
+  it("writes null for the three profile fields when none are given (Story 26.1)", async () => {
+    const { provisionMemberRow } = await import("./members");
+
+    await provisionMemberRow(identity);
+
+    const insert = ops.find((o) => o.client === "session" && o.table === "members" && o.op === "insert");
+    expect(insert?.payload).toMatchObject({ birth_year: null, profession: null, neighborhood: null });
   });
 
   it("with a plan and no importExempt behaves as before: member then subscription, nothing settled", async () => {

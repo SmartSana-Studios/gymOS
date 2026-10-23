@@ -7,6 +7,7 @@ import { waiveRegistrationFeeSchema } from "@gymos/types";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { MemberListRow } from "@/services/members";
+import { SupportCodeField, goToLoginExpired, isSupportCodeWellFormed } from "@/components/support-code-field";
 import { waiveRegistrationFeeAction } from "@/app/(dashboard)/payments/actions";
 
 /**
@@ -17,16 +18,20 @@ import { waiveRegistrationFeeAction } from "@/app/(dashboard)/payments/actions";
  */
 export function WaiveRegistrationFeeDialog({
   member,
+  isSupport = false,
   onClose,
   onDone,
 }: {
   member: MemberListRow;
+  /** Story 23-6c: a GymOS Support session types a fresh authenticator code; staff roles see no change. */
+  isSupport?: boolean;
   onClose: () => void;
   onDone: () => void;
 }) {
   const { t } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [reason, setReason] = useState("");
+  const [authCode, setAuthCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -45,15 +50,26 @@ export function WaiveRegistrationFeeDialog({
       return;
     }
 
+    if (isSupport && !isSupportCodeWellFormed(authCode)) {
+      setError(t("supportStepUp.codeRequired"));
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const { error: actionError } = await waiveRegistrationFeeAction(parsed.data);
+      const { error: actionError } = await waiveRegistrationFeeAction(isSupport ? { ...parsed.data, authCode } : parsed.data);
       if (actionError) {
+        setAuthCode("");
+        if (actionError.code === "account_locked") {
+          goToLoginExpired();
+          return;
+        }
         setError(actionError.message || t("members.feeWaive.errors.waiveFailed"));
         return;
       }
       onDone();
     } catch {
+      setAuthCode("");
       setError(t("members.feeWaive.errors.waiveFailed"));
     } finally {
       setSubmitting(false);
@@ -94,6 +110,8 @@ export function WaiveRegistrationFeeDialog({
           />
           <p className="text-xs text-muted-foreground">{t("members.feeWaive.reasonHint")}</p>
         </div>
+
+        {isSupport && <SupportCodeField id="feeWaiveAuthCode" value={authCode} onChange={setAuthCode} disabled={submitting} />}
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 

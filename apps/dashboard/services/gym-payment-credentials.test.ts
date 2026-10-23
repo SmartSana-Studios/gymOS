@@ -140,3 +140,33 @@ describe("disconnectGymPaymentCredentials", () => {
     expect(result.error).toEqual({ code: "unknown", message: "mapped error" });
   });
 });
+
+describe("connectGymPaymentCredentialsAsSupport (23.9)", () => {
+  beforeEach(() => {
+    rpcResult = { data: null, error: null };
+    rpcMock.mockClear();
+  });
+
+  it("calls the support function with the credentials and no gym id", async () => {
+    const { connectGymPaymentCredentialsAsSupport } = await import("./gym-payment-credentials");
+
+    const result = await connectGymPaymentCredentialsAsSupport("taramoney", { apiKey: "k", businessId: "b", webhookSecret: "w" });
+
+    expect(result).toEqual({ error: null });
+    expect(rpcMock).toHaveBeenCalledWith("support_connect_gym_payment_credentials", {
+      p_provider_key: "taramoney",
+      p_api_key: "k",
+      p_business_id: "b",
+      p_webhook_secret: "w",
+    });
+  });
+
+  it("maps a database error", async () => {
+    rpcResult = { data: null, error: { message: "step_up_required" } };
+    const { connectGymPaymentCredentialsAsSupport } = await import("./gym-payment-credentials");
+
+    const result = await connectGymPaymentCredentialsAsSupport("taramoney", { apiKey: "k", businessId: "b", webhookSecret: "w" });
+
+    expect(result.error).toEqual({ code: "unknown", message: "mapped error" });
+  });
+});

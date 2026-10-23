@@ -99,6 +99,7 @@ const INITIAL_SETTINGS = {
 
 async function renderForm(
   initialPaymentConnection: { businessIdMasked: string; connectedAt: string; needsAttention: boolean } | null,
+  role: string | null = null,
 ) {
   const { SettingsForm } = await import("./SettingsForm");
   return render(
@@ -108,6 +109,7 @@ async function renderForm(
       initialBillingInfo={null}
       selectableTiers={[]}
       staffCount={0}
+      role={role}
     />,
   );
 }
@@ -231,5 +233,57 @@ describe("SettingsForm payments section", () => {
     await waitFor(() => {
       expect(dialog).not.toHaveAttribute("open");
     });
+  });
+
+  // Story 23.9: a live GymOS Support session connects through the same form, with a fresh authenticator code.
+  it("support: the form asks for an authenticator code and the Disconnect button is not offered", async () => {
+    await renderForm({ businessIdMasked: "•••• 1234", connectedAt: "2026-08-17T00:00:00.000Z", needsAttention: false }, "support");
+
+    expect(screen.getByRole("button", { name: "Reconnect" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Disconnect" })).not.toBeInTheDocument();
+  });
+
+  it("support: submitting without a 6-digit code is refused before any Server Action call", async () => {
+    const user = userEvent.setup();
+    await renderForm(null, "support");
+
+    await user.click(screen.getByRole("button", { name: "Connect" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("API Key *"), "key-1");
+    await user.type(within(dialog).getByLabelText("Business ID *"), "9999");
+    await user.type(within(dialog).getByLabelText("Webhook Secret *"), "secret-1");
+    await user.click(within(dialog).getByRole("button", { name: "Connect" }));
+
+    expect(connectPaymentProvider).not.toHaveBeenCalled();
+    expect(within(dialog).getByText("settings.payments.supportCodeRequiredError")).toBeVisible();
+  });
+
+  it("support: the code travels with the credentials to the Server Action", async () => {
+    const user = userEvent.setup();
+    connectPaymentProvider.mockResolvedValue({
+      data: { status: { businessIdMasked: "•••• 9999", connectedAt: "2026-10-21T00:00:00.000Z", needsAttention: false } },
+      error: null,
+    });
+    await renderForm(null, "support");
+
+    await user.click(screen.getByRole("button", { name: "Connect" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("API Key *"), "key-1");
+    await user.type(within(dialog).getByLabelText("Business ID *"), "9999");
+    await user.type(within(dialog).getByLabelText("Webhook Secret *"), "secret-1");
+    await user.type(within(dialog).getByLabelText("settings.payments.supportCodeLabel"), "123456");
+    await user.click(within(dialog).getByRole("button", { name: "Connect" }));
+
+    await waitFor(() => {
+      expect(connectPaymentProvider).toHaveBeenCalledWith({ apiKey: "key-1", businessId: "9999", webhookSecret: "secret-1", authCode: "123456" });
+    });
+  });
+
+  it("owner: no code field is shown", async () => {
+    const user = userEvent.setup();
+    await renderForm(null, "owner");
+
+    await user.click(screen.getByRole("button", { name: "Connect" }));
+    expect(within(screen.getByRole("dialog")).queryByLabelText("settings.payments.supportCodeLabel")).not.toBeInTheDocument();
   });
 });
