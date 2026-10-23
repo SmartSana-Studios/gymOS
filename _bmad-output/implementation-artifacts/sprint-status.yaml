@@ -485,7 +485,7 @@ development_status:
 
   epic-26: in-progress
   26-1-member-profile-fields-birth-year-profession-neighborhood: done
-  26-2-members-only-csv-import-no-plan-awaiting-the-fee: review
+  26-2-members-only-csv-import-no-plan-awaiting-the-fee: done
   epic-26-retrospective: optional
 
 action_items:
@@ -1771,3 +1771,4 @@ last_updated: 10-23-2026 15:07
 # last_updated: 2026-10-23 (build: story 26-2 intent renegotiated by the owner mid-build: ONE CSV template where only member_name and phone are required (plan, dates, status, birth year, profession, neighborhood optional) instead of two templates detected by header; a row with a plan stays settled in a fee gym, a row without a plan is left awaiting; the first two-template build was set aside (git stash and scratchpad patch), spec rewritten and re-approved, status stays in-progress, baseline 451a753 kept)
 # last_updated: 2026-10-23 (build: story 26-2 one CSV template implemented on feat/26-2-members-only-csv-import: only member_name and phone required, plan optional per row, fee-0 acknowledgement enforced by the server, no-plan audit without name or phone, tests added; static and unit ci-local stages PASS on a dirty tree, full ci-local not yet run; status stays in-progress)
 # last_updated: 2026-10-23 (build: story 26-2 ONE CSV template (only member_name and phone required; a row with a plan stays settled in a fee gym, a row without a plan is left awaiting; fee-0 gym needs a server-enforced acknowledgement) in-progress -> review on feat/26-2-members-only-csv-import: the first two-template build was set aside after the owner changed the intent, the single-template build reviewed by 3 independent layers, ~26 findings triaged (13 patched with mutation proofs, 2 deferrals in deferred-work.md, the rest rejected with evidence); static PASS, unit PASS (dashboard 1578 tests); full ci-local on a pristine DB NOT yet run; not merged to epic/26; not pushed)
+# last_updated: 2026-10-23 (owner reset the local DB again; full ci-local GREEN on 73ae161 on a pristine DB (deno, static, pgtap 169/169, unit dashboard 1578 tests, e2e); story 26-2 merged into epic/26 as dca8136 (tree identical to the tested tree), local branch deleted, story review -> done; the superseded two-template stash dropped (patch kept in the scratchpad); epic/26 NOT pushed, master and production untouched; epic-26 stays in-progress until its merge, like epic-23)
