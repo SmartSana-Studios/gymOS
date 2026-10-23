@@ -73,7 +73,13 @@ async function AdminLayoutData({
 
   return (
     <div className="min-h-screen flex flex-col">
-      <nav className="sticky top-0 z-30 w-full border-b bg-background flex items-center gap-6 px-5 h-14">
+      {/*
+        Page container: the bar's background and border stay full width, but its content and <main> share one centred, width-capped
+        column with side padding that grows with the screen (px-4 -> px-6 -> px-8). On an extra-wide screen the free space becomes
+        equal margins on both sides instead of every table and card stretching edge to edge.
+      */}
+      <nav className="sticky top-0 z-30 w-full border-b bg-background">
+      <div className="mx-auto flex h-14 w-full max-w-screen-2xl items-center gap-6 px-4 sm:px-6 lg:px-8">
         <Link href="/gyms" className="font-semibold">
           {t("nav.brand")}
         </Link>
@@ -109,8 +115,9 @@ async function AdminLayoutData({
         </div>
 
         <MobileNavMenu navLinks={navLinks} />
+      </div>
       </nav>
-      <main className="flex-1 p-5">{children}</main>
+      <main className="mx-auto w-full max-w-screen-2xl flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</main>
     </div>
   );
 }
