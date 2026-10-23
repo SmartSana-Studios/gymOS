@@ -1588,3 +1588,9 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 - source_spec: `_bmad-output/implementation-artifacts/spec-23-6b-dashboard-support-request-path.md`
   summary: DECIDED, accepted: the picker window (G6) and the invite rate limit (G2). Reasons are in docs/decisions.md; the firewall rule for G2 is a setting to add if the plan allows.
   evidence: docs/decisions.md 2026-10-23; docs/runbooks/deploy-epic-23.md.
+
+## Split at build of 26.1 (2026-10-23)
+
+- source_spec: none
+  summary: Story 26.2, the members-only CSV import (no plan, members left awaiting the registration fee, fee 0 allowed with a warning), is deferred to follow 26.1.
+  evidence: Split from the Epic 26 request: 26.2 reads and writes the three profile fields that 26.1 adds, so it builds on 26.1's migration and forms; its acceptance criteria are in epics.md (Epic 26) and in the spec the build creates for it after 26.1 is done.
