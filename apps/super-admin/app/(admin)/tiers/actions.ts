@@ -7,9 +7,7 @@ import {
   getTier,
   gymCountForTier,
   insertTier,
-  listTiersWithGymCounts,
   logTierChange,
-  tierCapOrderingError,
   tierNameExists,
   updateTier,
 } from "@/services/tiers";
@@ -40,18 +38,6 @@ export async function createTier(
       data: null,
       error: { code: "tier_name_taken", message: t("errors.tierNameTaken") },
     };
-  }
-
-  const { data: existingTiers, error: listError } = await listTiersWithGymCounts();
-  if (listError) {
-    return { data: null, error: listError };
-  }
-  const orderingError = tierCapOrderingError(existingTiers ?? [], {
-    monthlyPrice: tier.monthlyPrice,
-    memberCap: tier.memberCap ?? null,
-  });
-  if (orderingError) {
-    return { data: null, error: { code: "tier_cap_order_invalid", message: t(orderingError) } };
   }
 
   const { data, error } = await insertTier({
@@ -109,19 +95,6 @@ export async function editTier(
       data: null,
       error: { code: "tier_name_taken", message: t("errors.tierNameTaken") },
     };
-  }
-
-  const { data: existingTiers, error: listError } = await listTiersWithGymCounts();
-  if (listError) {
-    return { data: null, error: listError };
-  }
-  const orderingError = tierCapOrderingError(existingTiers ?? [], {
-    id: tierId,
-    monthlyPrice: tier.monthlyPrice,
-    memberCap: tier.memberCap ?? null,
-  });
-  if (orderingError) {
-    return { data: null, error: { code: "tier_cap_order_invalid", message: t(orderingError) } };
   }
 
   const { error } = await updateTier(tierId, {

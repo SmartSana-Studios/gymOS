@@ -243,8 +243,8 @@
     "monthlyAnnual": "Monthly: XAF {{monthly}} · Annual: XAF {{annual}}",
     "edit": "Edit",
     "delete": "Delete",
-    "rangeNoCap": "> {{cap}} members (no cap)",
-    "rangeWithCap": "{{min}}–{{max}} members",
+    "rangeNoCap": "Unlimited members",
+    "rangeWithCap": "Up to {{max}} members",
     "deleteConfirmTitle": "Delete {{name}}",
     "deleteConfirmBody": "This cannot be undone.",
     "deleting": "Deleting…",
@@ -272,9 +272,7 @@
       "tierInUse": "Cannot delete {{name}} — {{count}} gyms are on this tier. Reassign them before deleting.",
       "auditLogFailedCreate": "The tier was created, but the audit log entry failed to write. Please contact support.",
       "auditLogFailedEdit": "The tier was updated, but the audit log entry failed to write. Please contact support.",
-      "auditLogFailedDelete": "The tier was deleted, but the audit log entry failed to write. Please contact support.",
-      "capOrderingViolatesPrev": "Member cap must be at least as high as every cheaper tier's cap (or unlimited).",
-      "capOrderingViolatesNext": "Member cap must not exceed a more expensive tier's cap (unless that tier is unlimited too)."
+      "auditLogFailedDelete": "The tier was deleted, but the audit log entry failed to write. Please contact support."
     }
   },
   "paymentProviders": {

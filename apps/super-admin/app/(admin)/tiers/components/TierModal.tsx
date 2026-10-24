@@ -147,8 +147,6 @@ export function TierModal({
         }
         if (error.code === "tier_name_taken") {
           setFieldErrors({ name: error.message });
-        } else if (error.code === "tier_cap_order_invalid") {
-          setFieldErrors({ memberCap: error.message });
         } else {
           setFormError(error.message);
         }

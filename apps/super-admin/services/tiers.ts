@@ -190,57 +190,6 @@ export async function deleteTier(tierId: string): Promise<{ error: AppError | nu
   return { error: null };
 }
 
-/**
- * TiersPageClient's derived min/max range display (rangeLabel) assumes
- * member_cap increases monotonically alongside monthly_price across tiers.
- * Nothing in the schema enforces that, so createTier/editTier validate a
- * candidate (price, cap) pair against its neighbors -- once sorted by
- * price, a cheaper tier must not have a higher cap than this one, and a
- * pricier tier must not have a lower one (null = unlimited, always
- * permitted at the top end).
- *
- * Returns a locale key, not localized text (Review finding: this is a pure
- * sync function called directly from tiers/actions.ts's request-handling
- * code, which already resolves `t` -- keeps this function itself free of
- * any i18n dependency rather than threading `t` through it).
- */
-export function tierCapOrderingError(
-  existingTiers: { id: string; monthlyPrice: number; memberCap: number | null }[],
-  candidate: { id?: string; monthlyPrice: number; memberCap: number | null },
-): string | null {
-  const others = existingTiers.filter((t) => t.id !== candidate.id);
-  const sorted = [...others, candidate].sort((a, b) => a.monthlyPrice - b.monthlyPrice);
-  const index = sorted.indexOf(candidate);
-  const prev = sorted[index - 1];
-  const next = sorted[index + 1];
-
-  // A tie on monthlyPrice doesn't establish a "cheaper"/"pricier" relationship
-  // -- Array.sort's stability plus the candidate always being concatenated
-  // last would otherwise arbitrarily treat a same-priced neighbor as
-  // strictly cheaper (or pricier), rejecting valid equal-price configurations.
-  if (prev && prev.monthlyPrice !== candidate.monthlyPrice) {
-    const violatesPrev =
-      prev.memberCap === null
-        ? candidate.memberCap !== null
-        : candidate.memberCap !== null && candidate.memberCap < prev.memberCap;
-    if (violatesPrev) {
-      return "tiers.errors.capOrderingViolatesPrev";
-    }
-  }
-
-  if (next && next.monthlyPrice !== candidate.monthlyPrice) {
-    const violatesNext =
-      candidate.memberCap === null
-        ? next.memberCap !== null
-        : next.memberCap !== null && candidate.memberCap > next.memberCap;
-    if (violatesNext) {
-      return "tiers.errors.capOrderingViolatesNext";
-    }
-  }
-
-  return null;
-}
-
 /** Tiers are platform-wide, not gym-owned (architecture.md Entity
  * Relationships) -- p_gym_id is always null for tier audit records. Returns
  * the RPC's own error (instead of only console.error-ing it) so the caller
