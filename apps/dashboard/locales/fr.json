@@ -1063,6 +1063,15 @@
     }
   },
   "attendance": {
+    "summary": {
+      "checkedIn": "Actuellement présents",
+      "today": "Pointages aujourd'hui",
+      "alerts": "Alertes d'accueil ouvertes"
+    },
+    "tabs": {
+      "checkedIn": "Actuellement présents ({{count}})",
+      "log": "Journal quotidien"
+    },
     "title": "Présences",
     "checkedInHeading": "Actuellement présents ({{count}} membres)",
     "todayCount": "Aujourd'hui : {{count}} pointages",
@@ -1092,6 +1101,10 @@
     "dateTo": "Au"
   },
   "payments": {
+    "tabs": {
+      "payments": "Paiements",
+      "refunds": "Remboursements"
+    },
     "title": "Paiements",
     "recordPaymentButton": "+ Enregistrer un paiement",
     "recordRefundButton": "+ Enregistrer un remboursement",
@@ -1311,6 +1324,10 @@
     }
   },
   "audit": {
+    "tabs": {
+      "log": "Données du journal",
+      "questions": "Questions sur ce journal"
+    },
     "title": "Journal d'audit",
     "table": {
       "timestamp": "Horodatage",

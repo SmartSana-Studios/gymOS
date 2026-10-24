@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, CheckCircle2, Flag, MoreVertical } from "lucide-react";
 
@@ -9,6 +9,7 @@ import { TablePagination } from "@/components/TablePagination";
 import { useClientPagination } from "@/hooks/use-table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -29,6 +30,13 @@ import { VerifyPaymentConfirmDialog } from "./VerifyPaymentConfirmDialog";
 import { FlagPaymentDialog } from "./FlagPaymentDialog";
 import { PaymentsLedger, type PaymentsLedgerData } from "./PaymentsLedger";
 import { RefundHistory, type RefundHistoryData } from "./RefundHistory";
+
+export const PAYMENTS_TABS = ["payments", "refunds"] as const;
+type PaymentsTab = (typeof PAYMENTS_TABS)[number];
+
+function parseTab(value: string | null | undefined): PaymentsTab {
+  return (PAYMENTS_TABS as readonly string[]).includes(value ?? "") ? (value as PaymentsTab) : "payments";
+}
 
 /**
  * AD-09's Verification Queue section; the All Payments ledger (Story 19.9c)
@@ -71,7 +79,18 @@ export function PaymentsPageClient({
 }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<PaymentsTab>(parseTab(searchParams?.get("tab")));
   const [isRefreshing, startRefreshTransition] = useTransition();
+
+  function selectTab(value: string) {
+    const next = parseTab(value);
+    setTab(next);
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.set("tab", next);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   const [recordModalOpen, setRecordModalOpen] = useState(false);
   const [refundModalOpen, setRefundModalOpen] = useState(false);
@@ -147,6 +166,15 @@ export function PaymentsPageClient({
         </div>
       </div>
 
+      <Tabs value={tab} onValueChange={selectTab}>
+        <TabsList>
+          {PAYMENTS_TABS.map((key) => (
+            <TabsTrigger key={key} value={key}>
+              {t(`payments.tabs.${key}`)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <TabsContent value="payments" className="space-y-4">
       {pendingPayments.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-md border border-dashed py-16 text-center">
           <p className="text-sm text-muted-foreground">{t("payments.emptyQueue")}</p>
@@ -300,8 +328,11 @@ export function PaymentsPageClient({
           memberId={ledgerMemberId}
         />
       )}
-
-      {(refunds || refundsError) && <RefundHistory refunds={refunds ?? null} hasError={refundsError} />}
+        </TabsContent>
+        <TabsContent value="refunds">
+  {(refunds || refundsError) && <RefundHistory refunds={refunds ?? null} hasError={refundsError} />}
+        </TabsContent>
+      </Tabs>
 
       {recordModalOpen && (
         <RecordPaymentModal

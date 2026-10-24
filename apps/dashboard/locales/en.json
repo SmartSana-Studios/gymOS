@@ -1063,6 +1063,15 @@
     }
   },
   "attendance": {
+    "summary": {
+      "checkedIn": "Currently checked in",
+      "today": "Check-ins today",
+      "alerts": "Open front-desk alerts"
+    },
+    "tabs": {
+      "checkedIn": "Currently checked in ({{count}})",
+      "log": "Daily log"
+    },
     "title": "Attendance",
     "checkedInHeading": "Currently Checked In ({{count}} members)",
     "todayCount": "Today: {{count}} check-ins",
@@ -1092,6 +1101,10 @@
     "dateTo": "To"
   },
   "payments": {
+    "tabs": {
+      "payments": "Payments",
+      "refunds": "Refunds"
+    },
     "title": "Payments",
     "recordPaymentButton": "+ Record Payment",
     "recordRefundButton": "+ Record Refund",
@@ -1311,6 +1324,10 @@
     }
   },
   "audit": {
+    "tabs": {
+      "log": "Log data",
+      "questions": "Questions about this log"
+    },
     "title": "Audit Log",
     "table": {
       "timestamp": "Timestamp",

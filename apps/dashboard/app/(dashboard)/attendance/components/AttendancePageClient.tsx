@@ -8,6 +8,7 @@ import { LogOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TablePagination } from "@/components/TablePagination";
 import { useUrlPagination } from "@/hooks/use-table-pagination";
 import type { AttendanceLogRow, CurrentlyCheckedInRow } from "@/services/attendance";
@@ -15,6 +16,13 @@ import type { FrontDeskAlertRow } from "@/services/frontDeskAlerts";
 import { FrontDeskAlertPanel } from "@/components/shared/FrontDeskAlertPanel";
 import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../attendanceLabels";
 import { CheckOutMemberConfirmDialog } from "./CheckOutMemberConfirmDialog";
+
+export const ATTENDANCE_TABS = ["checkedIn", "log"] as const;
+type AttendanceTab = (typeof ATTENDANCE_TABS)[number];
+
+function parseTab(value: string | null | undefined): AttendanceTab {
+  return (ATTENDANCE_TABS as readonly string[]).includes(value ?? "") ? (value as AttendanceTab) : "checkedIn";
+}
 
 export function AttendancePageClient({
   currentlyCheckedIn,
@@ -61,6 +69,7 @@ export function AttendancePageClient({
   const searchParams = useSearchParams();
   const checkedInPagination = useUrlPagination({ pageParam: "checkedInPage", sizeParam: "checkedInSize" });
   const logPagination = useUrlPagination();
+  const [tab, setTab] = useState<AttendanceTab>(parseTab(searchParams?.get("tab")));
   const [isRefreshing, startRefreshTransition] = useTransition();
 
   const [searchInput, setSearchInput] = useState(memberSearch);
@@ -120,6 +129,14 @@ export function AttendancePageClient({
     router.push(`${pathname}?${params.toString()}`);
   }
 
+  function selectTab(value: string) {
+    const next = parseTab(value);
+    setTab(next);
+    const params = new URLSearchParams(searchParamsRef.current.toString());
+    params.set("tab", next);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
   // Review Finding: a fixed setTimeout doesn't reflect whether
   // router.refresh()'s real server round trip actually completed.
   // useTransition's isPending stays true until the refreshed Server
@@ -169,17 +186,30 @@ export function AttendancePageClient({
         role={role}
       />
 
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl font-semibold">{t("attendance.title")}</h1>
+      <h1 className="text-2xl font-semibold">{t("attendance.title")}</h1>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-md border p-4">
+          <p className="text-sm text-muted-foreground">{t("attendance.summary.checkedIn")}</p>
+          <p className="text-2xl font-semibold">{checkedInTotal.toLocaleString(i18n.language)}</p>
         </div>
+        <div className="rounded-md border p-4">
+          <p className="text-sm text-muted-foreground">{t("attendance.summary.today")}</p>
+          <p className="text-2xl font-semibold">{todayCount.toLocaleString(i18n.language)}</p>
+        </div>
+        <div className="rounded-md border p-4">
+          <p className="text-sm text-muted-foreground">{t("attendance.summary.alerts")}</p>
+          <p className="text-2xl font-semibold">{initialAlerts.length.toLocaleString(i18n.language)}</p>
+        </div>
+      </div>
+
+      <Tabs value={tab} onValueChange={selectTab}>
+        <TabsList>
+          <TabsTrigger value="checkedIn">{t("attendance.tabs.checkedIn", { count: checkedInTotal })}</TabsTrigger>
+          <TabsTrigger value="log">{t("attendance.tabs.log")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="checkedIn" className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="text-lg font-medium">
-            {t("attendance.checkedInHeading", { count: checkedInTotal })}
-          </h2>
-          <span className="text-sm text-muted-foreground">
-            {t("attendance.todayCount", { count: todayCount })}
-          </span>
           <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isRefreshing}>
             {t("attendance.refresh")}
           </Button>
@@ -253,9 +283,8 @@ export function AttendancePageClient({
           total={checkedInTotal}
           {...checkedInPagination}
         />
-      </div>
-
-      <div className="space-y-4">
+        </TabsContent>
+        <TabsContent value="log" className="space-y-4">
         <h2 className="text-lg font-medium">{t("attendance.dailyLogHeading")}</h2>
 
         <div className="flex flex-wrap items-end gap-2">
@@ -326,7 +355,8 @@ export function AttendancePageClient({
         )}
 
         <TablePagination page={page} pageSize={pageSize} total={logTotal} {...logPagination} />
-      </div>
+        </TabsContent>
+      </Tabs>
 
       {checkingOutMember && (
         <CheckOutMemberConfirmDialog
