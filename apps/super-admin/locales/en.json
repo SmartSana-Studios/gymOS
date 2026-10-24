@@ -128,6 +128,7 @@
     "auditTrail": {
       "title": "Audit trail",
       "empty": "No audit activity recorded for this gym yet.",
+      "tierChange": "{{label}}: {{from}} (XAF {{fromPrice}}/month) → {{to}} (XAF {{toPrice}}/month)",
       "revokedTarget": "{{label}} — {{holder}}",
       "realActor": "Real person: {{name}} ({{email}})",
       "action": {

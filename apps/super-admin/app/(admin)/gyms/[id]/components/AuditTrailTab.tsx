@@ -58,6 +58,19 @@ function describeEntry(
     label = t("gyms.auditTrail.revokedTarget", { label, holder });
   }
 
+  if (entry.actionType === "gym_tier_changed") {
+    const m = entry.metadata;
+    if (typeof m.previous_tier_name === "string" && typeof m.new_tier_name === "string") {
+      label = t("gyms.auditTrail.tierChange", {
+        label,
+        from: m.previous_tier_name,
+        fromPrice: Number(m.previous_tier_monthly_price ?? 0).toLocaleString(),
+        to: m.new_tier_name,
+        toPrice: Number(m.new_tier_monthly_price ?? 0).toLocaleString(),
+      });
+    }
+  }
+
   const reason = typeof entry.metadata.reason === "string" ? entry.metadata.reason : null;
   return reason ? `${label} — "${reason}"` : label;
 }

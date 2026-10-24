@@ -792,7 +792,8 @@ export async function updateGymTier(
   gymId: string,
   tierId: string,
 ): Promise<
-  { data: { previousTierId: string }; error: null } | { data: null; error: AppError }
+  | { data: { previousTierId: string; tiers: TierSnapshot[] }; error: null }
+  | { data: null; error: AppError }
 > {
   const supabase = await createClient();
 
@@ -821,7 +822,45 @@ export async function updateGymTier(
     return { data: null, error: await gymNotFoundError() };
   }
 
-  return { data: { previousTierId: before.tier_id }, error: null };
+  // Best effort: the audit entry should say what the tiers were NAMED and
+  // PRICED at the time, since tiers can later be edited or deleted. A failed
+  // read only costs the extra detail, never the tier change itself.
+  const { data: tierRows } = await supabase
+    .from("tiers")
+    .select("id, name, member_cap, monthly_price, annual_price")
+    .in("id", [before.tier_id, tierId]);
+  const tiers: TierSnapshot[] = (tierRows ?? []).map((tier) => ({
+    id: tier.id,
+    name: tier.name,
+    memberCap: tier.member_cap,
+    monthlyPrice: tier.monthly_price,
+    annualPrice: tier.annual_price,
+  }));
+
+  return { data: { previousTierId: before.tier_id, tiers }, error: null };
+}
+
+/** A tier as it stood when a gym was moved to or from it. */
+export type TierSnapshot = {
+  id: string;
+  name: string;
+  memberCap: number | null;
+  monthlyPrice: number;
+  annualPrice: number;
+};
+
+/** Flat audit metadata for one side of a tier change (empty if unreadable). */
+export function tierAuditFields(
+  prefix: "previous_tier" | "new_tier",
+  tier: TierSnapshot | undefined,
+): Record<string, unknown> {
+  if (!tier) return {};
+  return {
+    [`${prefix}_name`]: tier.name,
+    [`${prefix}_member_cap`]: tier.memberCap,
+    [`${prefix}_monthly_price`]: tier.monthlyPrice,
+    [`${prefix}_annual_price`]: tier.annualPrice,
+  };
 }
 
 /** SA-03 "Change" category (Story 21.1). Goes through set_gym_category()

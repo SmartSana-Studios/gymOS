@@ -30,6 +30,7 @@ import {
   setGymCategory,
   updateGymCapOverride,
   updateGymStatus,
+  tierAuditFields,
   updateGymTier,
 } from "@/services/gyms";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
@@ -680,6 +681,14 @@ export async function changeGymTier(
   const { error: auditError } = await logGymLifecycleEvent("gym_tier_changed", gymId, {
     new_tier_id: parsed.data.tierId,
     previous_tier_id: result.previousTierId,
+    ...tierAuditFields(
+      "previous_tier",
+      result.tiers.find((tier) => tier.id === result.previousTierId),
+    ),
+    ...tierAuditFields(
+      "new_tier",
+      result.tiers.find((tier) => tier.id === parsed.data.tierId),
+    ),
   });
   if (auditError) {
     return {
