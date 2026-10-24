@@ -243,8 +243,8 @@
     "monthlyAnnual": "Mensuel : XAF {{monthly}} · Annuel : XAF {{annual}}",
     "edit": "Modifier",
     "delete": "Supprimer",
-    "rangeNoCap": "> {{cap}} membres (sans plafond)",
-    "rangeWithCap": "{{min}}–{{max}} membres",
+    "rangeNoCap": "Membres illimités",
+    "rangeWithCap": "Jusqu'à {{max}} membres",
     "deleteConfirmTitle": "Supprimer {{name}}",
     "deleteConfirmBody": "Cette action est irréversible.",
     "deleting": "Suppression…",
@@ -272,9 +272,7 @@
       "tierInUse": "Impossible de supprimer {{name}} — {{count}} salles utilisent ce palier. Réaffectez-les avant de supprimer.",
       "auditLogFailedCreate": "Le palier a été créé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "auditLogFailedEdit": "Le palier a été modifié, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
-      "auditLogFailedDelete": "Le palier a été supprimé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
-      "capOrderingViolatesPrev": "Le plafond de membres doit être au moins aussi élevé que celui de chaque palier moins cher (ou illimité).",
-      "capOrderingViolatesNext": "Le plafond de membres ne doit pas dépasser celui d'un palier plus cher (sauf si ce palier est également illimité)."
+      "auditLogFailedDelete": "Le palier a été supprimé, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
     }
   },
   "paymentProviders": {

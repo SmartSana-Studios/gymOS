@@ -10,17 +10,12 @@ import type { TierRow } from "@/services/tiers";
 import { TierModal } from "./TierModal";
 import { deleteTier } from "../actions";
 
-/** Display-only range derived from tier ordering (ascending monthly_price,
- * matching listTiersWithGymCounts' own order) -- "min" is never a stored
- * field (story 1-6 Dev Notes -> Open Question 1). */
+/** Each tier states its own member limit; limits are independent of price
+ * (a cheaper tier may allow more members than a dearer one). */
 function rangeLabel(tiers: TierRow[], index: number, t: TFunction): string {
-  const tier = tiers[index];
-  const previousCap = index > 0 ? tiers[index - 1].memberCap : 0;
-  const min = (previousCap ?? 0) + 1;
-  if (tier.memberCap === null) {
-    return t("tiers.rangeNoCap", { cap: previousCap ?? 0 });
-  }
-  return t("tiers.rangeWithCap", { min, max: tier.memberCap });
+  const cap = tiers[index].memberCap;
+  if (cap === null) return t("tiers.rangeNoCap");
+  return t("tiers.rangeWithCap", { max: cap });
 }
 
 export function TiersPageClient({ initialTiers }: { initialTiers: TierRow[] }) {
