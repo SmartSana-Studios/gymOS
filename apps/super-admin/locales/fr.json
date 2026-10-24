@@ -128,6 +128,7 @@
     "auditTrail": {
       "title": "Journal d'audit",
       "empty": "Aucune activité d'audit enregistrée pour cette salle pour le moment.",
+      "tierChange": "{{label}} : {{from}} (XAF {{fromPrice}}/mois) → {{to}} (XAF {{toPrice}}/mois)",
       "revokedTarget": "{{label}} — {{holder}}",
       "realActor": "Personne réelle : {{name}} ({{email}})",
       "action": {
