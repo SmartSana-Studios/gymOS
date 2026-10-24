@@ -105,6 +105,12 @@
       "reason": "Motif *"
     },
     "detail": {
+      "tabs": {
+        "audit": "Journal d'audit",
+        "support": "Support GymOS",
+        "data": "Membres et paiements",
+        "dataLocked": "Les membres et les paiements ne sont visibles qu'après l'accès aux données de ce club."
+      },
       "backToGyms": "Salles",
       "gymName": "Nom de la salle :",
       "owner": "Propriétaire :",
