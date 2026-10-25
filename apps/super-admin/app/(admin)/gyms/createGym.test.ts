@@ -15,7 +15,7 @@
  * (this codebase's established precedent for exactly this admin-client +
  * compensating-cleanup pattern) rather than inventing a new one.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let findUserByEmailResult: { id: string; last_sign_in_at: string | null } | null;
 let profileResult: { data: { is_super_admin: boolean; display_name: string | null } | null; error: unknown };
@@ -30,6 +30,7 @@ const createUserMock = vi.fn(async () => createUserResult);
 const deleteGymMock = vi.fn<(id: string) => Promise<void>>(async () => {});
 const deleteUserMock = vi.fn(async () => ({ error: null }));
 const sendTempPasswordMessageMock = vi.fn(async () => ({ success: true as const }));
+const sendEvolutionMock = vi.fn(async (..._args: unknown[]): Promise<{ success: boolean; error?: string }> => ({ success: false, error: "not configured" }));
 const logGymCreatedMock = vi.fn<(id: string, meta: Record<string, unknown>) => Promise<void>>(async () => {});
 const setGymCategoryMock = vi.fn<(gymId: string, category: string) => Promise<{ error: unknown }>>(
   async () => ({ error: null }),
@@ -108,6 +109,9 @@ vi.mock("@/services/gyms", () => ({
   updateGymTier: async () => ({ error: null }),
 }));
 
+vi.mock("@/lib/messaging/EvolutionApiMessageProvider", () => ({
+  sendEvolutionApiMessage: (...args: unknown[]) => sendEvolutionMock(...args),
+}));
 vi.mock("@/lib/messaging/sendTempPasswordMessage", () => ({
   sendTempPasswordMessage: () => sendTempPasswordMessageMock(),
 }));
@@ -273,6 +277,62 @@ describe("createGym — owner resolution", () => {
     expect(error?.code).toBe("owner_phone_belongs_to_other_account");
     expect(createUserMock).not.toHaveBeenCalled();
     expect(deleteGymMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("createGym — owner welcome message and sign-in link", () => {
+  const originalUrl = process.env.DASHBOARD_APP_URL;
+  beforeEach(() => {
+    process.env.DASHBOARD_APP_URL = "https://owner.example.test";
+  });
+  afterEach(() => {
+    if (originalUrl === undefined) delete process.env.DASHBOARD_APP_URL;
+    else process.env.DASHBOARD_APP_URL = originalUrl;
+  });
+
+  it("sends the welcome message with the sign-in link over the free-text channel and skips the fixed template", async () => {
+    sendEvolutionMock.mockResolvedValueOnce({ success: true });
+    const { data } = await createGym(VALID);
+    expect(sendEvolutionMock).toHaveBeenCalledTimes(1);
+    const [phone, text] = sendEvolutionMock.mock.calls[0] as [string, string];
+    expect(phone).toBe("+237600000001");
+    expect(text).toContain("https://owner.example.test/auth/login");
+    expect(text).toContain("TempPass123");
+    expect(sendTempPasswordMessageMock).not.toHaveBeenCalled();
+    expect(data).toMatchObject({ smsSent: true, linkSent: true, loginUrl: "https://owner.example.test/auth/login" });
+    expect(data?.welcomeMessage).toBe(text);
+  });
+
+  it("falls back to the fixed template (password only, no link) when the free-text channel fails", async () => {
+    sendEvolutionMock.mockResolvedValueOnce({ success: false, error: "instance down" });
+    const { data } = await createGym(VALID);
+    expect(sendTempPasswordMessageMock).toHaveBeenCalledTimes(1);
+    expect(data).toMatchObject({ smsSent: true, linkSent: false, loginUrl: "https://owner.example.test/auth/login" });
+    expect(data?.welcomeMessage).toBeTruthy();
+  });
+
+  it("falls back to the template when the free-text channel throws", async () => {
+    sendEvolutionMock.mockRejectedValueOnce(new Error("network"));
+    const { data } = await createGym(VALID);
+    expect(sendTempPasswordMessageMock).toHaveBeenCalledTimes(1);
+    expect(data).toMatchObject({ smsSent: true, linkSent: false });
+  });
+
+  it("without DASHBOARD_APP_URL there is no link to send: the free-text channel is not used and the template carries the password", async () => {
+    delete process.env.DASHBOARD_APP_URL;
+    const { data } = await createGym(VALID);
+    expect(sendEvolutionMock).not.toHaveBeenCalled();
+    expect(sendTempPasswordMessageMock).toHaveBeenCalledTimes(1);
+    expect(data).toMatchObject({ smsSent: true, linkSent: false, loginUrl: null, welcomeMessage: null });
+  });
+
+  it("a linked owner gets no message at all, on either channel, and no welcome text", async () => {
+    findUserByEmailResult = { id: "existing-user", last_sign_in_at: "2026-01-01T00:00:00Z" };
+    const { data } = await createGym({ ...VALID, confirmLinkExistingOwner: true });
+    expect(data?.ownerOutcome).toBe("linked");
+    expect(sendEvolutionMock).not.toHaveBeenCalled();
+    expect(sendTempPasswordMessageMock).not.toHaveBeenCalled();
+    expect(data).toMatchObject({ welcomeMessage: null, linkSent: false });
   });
 });
 

@@ -64,8 +64,13 @@
       "deactivate": "Désactiver",
       "reinstate": "Réactiver"
     },
+    "ownerWelcome": {
+      "message": "Bienvenue sur GymOS, {{ownerName}} ! Votre salle {{gymName}} est prête. Connectez-vous sur {{url}} avec votre numéro {{phone}} et ce mot de passe temporaire : {{password}}. Il vous sera demandé de choisir un nouveau mot de passe juste après."
+    },
     "toast": {
-      "createdSms": "Salle créée. Mot de passe temporaire envoyé à {{phone}}.",
+      "createdSms": "Salle créée. Message de bienvenue avec le lien de connexion et le mot de passe temporaire envoyé à {{phone}}.",
+      "createdSmsNoLink": "Salle créée. Mot de passe temporaire envoyé à {{phone}}, mais ce message ne peut pas contenir de lien. Envoyez au propriétaire l'adresse de connexion : {{url}}",
+      "copyMessage": "Copier le message de bienvenue",
       "createdNoSms": "Salle créée. Échec de l'envoi automatique du mot de passe temporaire à {{phone}} — communiquez-le ci-dessous.",
       "copyPassword": "Copier le mot de passe temporaire",
       "passwordCopied": "Copié !",

@@ -695,7 +695,7 @@
     },
     "invite": {
       "title": "Inviter {{name}}",
-      "message": "{{name}}, vous avez été ajouté(e) à {{gymName}} sur GymOS. Téléchargez l'application et saisissez votre numéro de téléphone pour commencer.",
+      "message": "{{name}}, vous avez été ajouté(e) à {{gymName}} sur GymOS. Téléchargez l'application et saisissez votre numéro de téléphone pour commencer.\n\niPhone : {{appStoreUrl}}\nAndroid : {{playStoreUrl}}",
       "copyMessage": "Copier le message",
       "copied": "Copié !",
       "shareWhatsapp": "Partager via WhatsApp",

@@ -1,5 +1,7 @@
 "use server";
 
+import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/appStoreLinks";
+
 import {
   assignCoachSchema,
   assignInitialPlanSchema,
@@ -452,7 +454,7 @@ export async function sendMemberInvite(
     return { data: null, error: shellError ?? { code: "not_found", message: t("common.somethingWentWrong") } };
   }
 
-  const message = t("members.invite.message", { name: member.name, gymName: shell.gymName });
+  const message = t("members.invite.message", { name: member.name, gymName: shell.gymName, appStoreUrl: APP_STORE_URL, playStoreUrl: PLAY_STORE_URL });
   const result = await sendEvolutionApiMessage(member.phone, message);
 
   return { data: { sent: result.success }, error: null };

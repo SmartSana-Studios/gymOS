@@ -42,7 +42,7 @@ export function GymsPageClient({
   tiers: TierOption[];
 }) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [toast, setToast] = useState<{ message: string; tempPassword?: string } | null>(null);
+  const [toast, setToast] = useState<{ message: string; tempPassword?: string; copyText?: string } | null>(null);
   const [passwordCopied, setPasswordCopied] = useState(false);
   const [searchInput, setSearchInput] = useState(search);
   const [lifecycleGym, setLifecycleGym] = useState<{
@@ -92,10 +92,10 @@ export function GymsPageClient({
   // `smsSent` -- a reported WhatsApp send success doesn't guarantee the
   // owner actually saw the message, so this remains the manual fallback
   // either way.
-  function showToast(message: string, tempPassword?: string) {
+  function showToast(message: string, tempPassword?: string, copyText?: string) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setPasswordCopied(false);
-    setToast({ message, tempPassword });
+    setToast({ message, tempPassword, copyText });
     if (!tempPassword) {
       toastTimerRef.current = setTimeout(() => setToast(null), 4000);
     }
@@ -113,6 +113,9 @@ export function GymsPageClient({
     tempPassword: string | null,
     ownerOutcome: "created" | "linked",
     ownerNeverSignedIn: boolean,
+    loginUrl: string | null,
+    welcomeMessage: string | null,
+    linkSent: boolean,
   ) {
     setModalOpen(false);
     // Tested as `!== "created"`, not `=== "linked"`: an unrecognised value
@@ -126,19 +129,21 @@ export function GymsPageClient({
           : t("gyms.toast.createdLinked"),
       );
     } else {
-      showToast(
-        smsSent
+      // A link only travels on the free-text channel. When the fixed template delivered the password, the screen says
+      // so and shows the address to pass on; the copy button always copies the full welcome message when there is one.
+      const message = !smsSent
+        ? t("gyms.toast.createdNoSms", { phone: ownerPhone })
+        : linkSent || !loginUrl
           ? t("gyms.toast.createdSms", { phone: ownerPhone })
-          : t("gyms.toast.createdNoSms", { phone: ownerPhone }),
-        tempPassword ?? undefined,
-      );
+          : t("gyms.toast.createdSmsNoLink", { phone: ownerPhone, url: loginUrl });
+      showToast(message, tempPassword ?? undefined, welcomeMessage ?? undefined);
     }
     router.refresh();
   }
 
-  async function copyTempPassword(password: string) {
+  async function copyTempPassword(text: string) {
     try {
-      await navigator.clipboard.writeText(password);
+      await navigator.clipboard.writeText(text);
       setPasswordCopied(true);
     } catch {
       // Clipboard API can be denied (permissions, insecure context) -- the
@@ -381,9 +386,9 @@ export function GymsPageClient({
                   type="button"
                   size="sm"
                   variant="secondary"
-                  onClick={() => copyTempPassword(toast.tempPassword!)}
+                  onClick={() => copyTempPassword(toast.copyText ?? toast.tempPassword!)}
                 >
-                  {passwordCopied ? t("gyms.toast.passwordCopied") : t("gyms.toast.copyPassword")}
+                  {passwordCopied ? t("gyms.toast.passwordCopied") : toast.copyText ? t("gyms.toast.copyMessage") : t("gyms.toast.copyPassword")}
                 </Button>
                 <Button
                   type="button"
