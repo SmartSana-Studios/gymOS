@@ -147,6 +147,11 @@ export function GymDetailPageClient({
   >(null);
   const [changingTier, setChangingTier] = useState(false);
   const [escalating, setEscalating] = useState(false);
+  // The Members and payments tab exists only while this admin holds a live "Access gym data" grant (page.tsx loads the
+  // two tables only then); without it the tab is not offered and a ?tab=data link falls back to the first tab.
+  const dataUnlocked = members !== null || payments !== null;
+  const visibleTabs = GYM_DETAIL_TABS.filter((key) => key !== "data" || dataUnlocked);
+  const activeTab = visibleTabs.includes(tab) ? tab : "audit";
   const effectiveCap = gym.memberCapOverride ?? gym.tierMemberCap;
   const usagePercent = effectiveCap ? (gym.memberCount / effectiveCap) * 100 : 0;
 
@@ -300,10 +305,10 @@ export function GymDetailPageClient({
         onRevoked={() => router.refresh()}
       />
 
-      <Tabs value={tab} onValueChange={selectTab}>
+      <Tabs value={activeTab} onValueChange={selectTab}>
         <div className="overflow-x-auto">
           <TabsList>
-            {GYM_DETAIL_TABS.map((key) => (
+            {visibleTabs.map((key) => (
               <TabsTrigger key={key} value={key}>
                 {t(`gyms.detail.tabs.${key}`)}
               </TabsTrigger>
@@ -316,13 +321,12 @@ export function GymDetailPageClient({
         <TabsContent value="support">
           <GymSupportPanel gymId={gym.id} assignments={supportAssignments} accounts={supportAccounts} />
         </TabsContent>
-        <TabsContent value="data" className="space-y-4">
-          {members === null && payments === null && (
-            <p className="rounded-md border p-6 text-sm text-muted-foreground">{t("gyms.detail.tabs.dataLocked")}</p>
-          )}
-          <GymMembersTable members={members} />
-          <GymPaymentsTable payments={payments} />
-        </TabsContent>
+        {dataUnlocked && (
+          <TabsContent value="data" className="space-y-4">
+            <GymMembersTable members={members} />
+            <GymPaymentsTable payments={payments} />
+          </TabsContent>
+        )}
       </Tabs>
 
       {escalating && (
@@ -331,6 +335,7 @@ export function GymDetailPageClient({
           onClose={() => setEscalating(false)}
           onDone={() => {
             setEscalating(false);
+            selectTab("data");
             router.refresh();
           }}
         />

@@ -108,8 +108,7 @@
       "tabs": {
         "audit": "Audit trail",
         "support": "GymOS support",
-        "data": "Members and payments",
-        "dataLocked": "Members and payments are only visible after you access this gym's data."
+        "data": "Members and payments"
       },
       "backToGyms": "Gyms",
       "gymName": "Gym Name:",

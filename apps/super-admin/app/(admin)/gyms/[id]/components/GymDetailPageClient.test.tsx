@@ -57,10 +57,16 @@ describe("GymDetailPageClient tabs", () => {
     expect(screen.queryByText("AUDIT-PANEL")).toBeNull();
   });
 
-  it("says the data is locked until the gym's data is accessed", () => {
+  it("offers no Members and payments tab until access is granted, and a ?tab=data link falls back to the first tab", () => {
     search = "tab=data";
     renderPage();
-    expect(screen.getByText(/only visible after you access/i)).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Members and payments" })).toBeNull();
+    expect(screen.getByText("AUDIT-PANEL")).toBeInTheDocument();
+  });
+
+  it("adds the Members and payments tab once access is granted", () => {
+    renderPage({ members: {}, payments: {} });
+    expect(screen.getByRole("tab", { name: "Members and payments" })).toBeInTheDocument();
   });
 
   it("writes the selected tab to the URL and keeps the other parameters", async () => {
