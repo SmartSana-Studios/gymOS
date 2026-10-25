@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TablePagination } from "@/components/TablePagination";
 import { useUrlPagination } from "@/hooks/use-table-pagination";
 import type { AuditLogRow, AuditActorOption } from "@/services/auditLog";
@@ -53,6 +54,13 @@ function formatTimestamp(iso: string, locale: string): string {
   return new Date(iso).toLocaleString(locale);
 }
 
+export const AUDIT_TABS = ["log", "questions"] as const;
+type AuditTab = (typeof AUDIT_TABS)[number];
+
+function parseTab(value: string | null | undefined): AuditTab {
+  return (AUDIT_TABS as readonly string[]).includes(value ?? "") ? (value as AuditTab) : "log";
+}
+
 export function AuditLogPageClient({
   initialRows,
   total,
@@ -82,6 +90,15 @@ export function AuditLogPageClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const pagination = useUrlPagination();
+  const [tab, setTab] = useState<AuditTab>(parseTab(searchParams?.get("tab")));
+
+  function selectTab(value: string) {
+    const next = parseTab(value);
+    setTab(next);
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.set("tab", next);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   const [toast, setToast] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -150,6 +167,12 @@ export function AuditLogPageClient({
         )}
       </div>
 
+      <Tabs value={tab} onValueChange={selectTab}>
+        <TabsList>
+          <TabsTrigger value="log">{t("audit.tabs.log")}</TabsTrigger>
+          <TabsTrigger value="questions">{t("audit.tabs.questions")}</TabsTrigger>
+        </TabsList>
+        <TabsContent value="log" className="space-y-4">
       <div className="flex flex-wrap items-end gap-2">
         <div className="flex flex-col gap-1">
           <label htmlFor="auditFrom" className="text-sm text-muted-foreground">
@@ -199,8 +222,6 @@ export function AuditLogPageClient({
         </div>
       </div>
 
-      <DisclosureRequestsPanel requests={disclosureRequests} />
-
       <TablePagination compact page={page} pageSize={pageSize} total={total} {...pagination} />
 
       {initialRows.length === 0 ? (
@@ -243,6 +264,11 @@ export function AuditLogPageClient({
       )}
 
       <TablePagination page={page} pageSize={pageSize} total={total} {...pagination} />
+        </TabsContent>
+        <TabsContent value="questions">
+          <DisclosureRequestsPanel requests={disclosureRequests} />
+        </TabsContent>
+      </Tabs>
 
       {askAbout && (
         <DisclosureRequestDialog
