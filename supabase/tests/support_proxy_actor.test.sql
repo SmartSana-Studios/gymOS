@@ -38,7 +38,7 @@ insert into auth.users (id, email, email_confirmed_at) values
 insert into members (id, gym_id, user_id, role, name, email, phone) values
   ('00000000-0000-0000-0000-000000237201', '00000000-0000-0000-0000-000000237001', '00000000-0000-0000-0000-000000237102', 'owner', 'Owner 237', null, '+237600237001'),
   ('00000000-0000-0000-0000-000000237202', '00000000-0000-0000-0000-000000237002', '00000000-0000-0000-0000-000000237103', 'owner', 'Owner B 237', null, '+237600237002'),
-  ('00000000-0000-0000-0000-000000237203', '00000000-0000-0000-0000-000000237001', '00000000-0000-0000-0000-000000237104', 'manager', 'Manager 237', null, '+237600237003'),
+  ('00000000-0000-0000-0000-000000237203', '00000000-0000-0000-0000-000000237001', '00000000-0000-0000-0000-000000237104', 'manager', 'MANAGER 237', null, '+237600237003'),
   ('00000000-0000-0000-0000-000000237204', '00000000-0000-0000-0000-000000237001', '00000000-0000-0000-0000-000000237105', 'member', 'Member A 237', null, null),
   ('00000000-0000-0000-0000-000000237205', '00000000-0000-0000-0000-000000237002', '00000000-0000-0000-0000-000000237106', 'member', 'Member B 237', null, null);
 insert into plans (id, gym_id, name, plan_type, price, billing_interval, duration_days) values
@@ -68,7 +68,7 @@ select private.support_set_membership('00000000-0000-0000-0000-000000237402', tr
 select is((select count(*)::int from users where support_proxy_gym_id in ('00000000-0000-0000-0000-000000237001', '00000000-0000-0000-0000-000000237002')), 2,
           'new gym: one proxy users row per gym');
 select is((select count(*)::int from users u where u.is_support_proxy and u.support_proxy_gym_id = '00000000-0000-0000-0000-000000237001'
-            and u.display_name = 'GymOS Support' and u.phone is null), 1, 'the proxy is named GymOS Support with no phone');
+            and u.display_name = 'GYMOS SUPPORT' and u.phone is null), 1, 'the proxy is named GymOS Support with no phone');
 select is((select count(*)::int from auth.users a join users u on u.id = a.id
             where u.is_support_proxy and a.banned_until > now() + interval '10 years' and a.email is null and a.phone is null and a.encrypted_password is null), (select count(*)::int from gyms),
           'every proxy is backed by a banned auth.users row with no email, phone or password');
@@ -145,7 +145,7 @@ reset role;
 select is((select actor_id || ':' || actor_display_name from audit_log where action_type = 'proxy_probe'),
           pg_temp.proxy_of('00000000-0000-0000-0000-000000237001') || ':GymOS Support', 'support audit row: proxy id and the name GymOS Support');
 select is((select actor_id from audit_log where action_type = 'proxy_probe_manager'), '00000000-0000-0000-0000-000000237104'::uuid, 'non-support audit row: the real actor, as before');
-select is((select actor_display_name from audit_log where action_type = 'proxy_probe_manager'), 'Manager 237', 'non-support audit row: the member name, as before');
+select is((select actor_display_name from audit_log where action_type = 'proxy_probe_manager'), 'MANAGER 237', 'non-support audit row: the member name, as before');
 
 -- direct payment insert: a client-supplied real actor id is ignored
 set local role authenticated;

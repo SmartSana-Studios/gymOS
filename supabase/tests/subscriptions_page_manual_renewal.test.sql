@@ -33,7 +33,7 @@ insert into auth.users (id) values
 insert into members (id, gym_id, user_id, role, name, join_date) values
   ('00000000-0000-0000-0000-000000009341', '00000000-0000-0000-0000-000000009311', '00000000-0000-0000-0000-000000009321', 'owner', 'Subscriptions Page Gym A Owner', (now() at time zone 'Africa/Douala')::date),
   ('00000000-0000-0000-0000-000000009342', '00000000-0000-0000-0000-000000009312', '00000000-0000-0000-0000-000000009322', 'owner', 'Subscriptions Page Gym B Owner', (now() at time zone 'Africa/Douala')::date),
-  ('00000000-0000-0000-0000-000000009351', '00000000-0000-0000-0000-000000009311', '00000000-0000-0000-0000-000000009331', 'member', 'Multi Sub Member', '2020-01-01'),
+  ('00000000-0000-0000-0000-000000009351', '00000000-0000-0000-0000-000000009311', '00000000-0000-0000-0000-000000009331', 'member', 'MULTI SUB MEMBER', '2020-01-01'),
   ('00000000-0000-0000-0000-000000009352', '00000000-0000-0000-0000-000000009311', '00000000-0000-0000-0000-000000009332', 'member', 'Grace Period Member', (now() at time zone 'Africa/Douala')::date),
   ('00000000-0000-0000-0000-000000009353', '00000000-0000-0000-0000-000000009311', '00000000-0000-0000-0000-000000009333', 'member', 'Expired Member', (now() at time zone 'Africa/Douala')::date),
   ('00000000-0000-0000-0000-000000009354', '00000000-0000-0000-0000-000000009311', '00000000-0000-0000-0000-000000009334', 'member', 'Active Member', (now() at time zone 'Africa/Douala')::date),
@@ -43,7 +43,7 @@ insert into members (id, gym_id, user_id, role, name, join_date) values
   ('00000000-0000-0000-0000-000000009358', '00000000-0000-0000-0000-000000009311', '00000000-0000-0000-0000-000000009338', 'member', 'Deeply Expired Member', (now() at time zone 'Africa/Douala')::date);
 
 insert into plans (id, gym_id, name, plan_type, price, currency, billing_interval, duration_days) values
-  ('00000000-0000-0000-0000-000000009361', '00000000-0000-0000-0000-000000009311', 'Sub Test Monthly', 'monthly', 15000, 'XAF', 'monthly', 30),
+  ('00000000-0000-0000-0000-000000009361', '00000000-0000-0000-0000-000000009311', 'SUB TEST MONTHLY', 'monthly', 15000, 'XAF', 'monthly', 30),
   ('00000000-0000-0000-0000-000000009362', '00000000-0000-0000-0000-000000009311', 'Sub Test Pay Per Session', 'pay_per_session', 5000, 'XAF', 'monthly', null);
 
 -- Multi Sub Member: two historical subscription rows -- proves
@@ -95,13 +95,13 @@ select is(
 
 select is(
   (select member_name from subscriptions_current where member_id = '00000000-0000-0000-0000-000000009351'),
-  'Multi Sub Member',
+  'MULTI SUB MEMBER',
   'subscriptions_current.member_name resolves correctly via the members join'
 );
 
 select is(
   (select plan_name from subscriptions_current where member_id = '00000000-0000-0000-0000-000000009351'),
-  'Sub Test Monthly',
+  'SUB TEST MONTHLY',
   'subscriptions_current.plan_name resolves correctly via the plans join'
 );
 

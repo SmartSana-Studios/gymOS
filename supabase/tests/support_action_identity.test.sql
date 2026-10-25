@@ -191,7 +191,7 @@ insert into adm values ('support', 0, pg_temp.err($$select * from get_support_ac
 insert into adm values ('support_table', 0, pg_temp.err($$select count(*) from support_action_identity$$));
 reset role;
 select is((select n from adm where what = 'admin_rows'), (select count(*) from pay_ids), 'Super Admin at AAL2 reads the identity rows');
-select is((select extra from adm where what = 'admin_rows'), 'Zed Realperson|zed.realperson@gymosapps.com', 'Super Admin sees the real name and email');
+select is((select extra from adm where what = 'admin_rows'), 'ZED REALPERSON|zed.realperson@gymosapps.com', 'Super Admin sees the real name and email');
 select is((select extra from adm where what = 'admin_aal1'), 'P0001:permission denied', 'Super Admin below AAL2 is refused');
 select is((select extra from adm where what = 'owner'), 'P0001:permission denied', 'Owner is refused');
 select is((select extra from adm where what = 'manager'), 'P0001:permission denied', 'Manager is refused');
@@ -331,7 +331,7 @@ select cmp_ok((select answer_due_at from audit_disclosure_requests where questio
 -- Super Admin inbox and answer
 set local role authenticated;
 select pg_temp.as_admin();
-insert into res select 'inbox', count(*)::text || ':' || coalesce(bool_or(gym_name = 'Identity Gym A')::text, '') from get_disclosure_inbox();
+insert into res select 'inbox', count(*)::text || ':' || coalesce(bool_or(gym_name = 'IDENTITY GYM A')::text, '') from get_disclosure_inbox();
 insert into res select 'answer_bad', ok::text || ':' || code from answer_audit_disclosure_request((select id from req_ids limit 1), 'x');
 insert into res select 'answer', ok::text || ':' || code from answer_audit_disclosure_request((select id from req_ids where question = 'Who made this change?'), 'A GymOS support person, recorded and reviewed.');
 insert into res select 'answer_again', ok::text || ':' || code from answer_audit_disclosure_request((select id from req_ids where question = 'Who made this change?'), 'Second answer');

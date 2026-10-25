@@ -25,7 +25,7 @@ update users set display_name = 'Caller Admin', is_super_admin = true
   where id = '00000000-0000-0000-0000-000000005001';
 update users set display_name = null, is_super_admin = false
   where id = '00000000-0000-0000-0000-000000005002';
-update users set display_name = 'Existing Name', is_super_admin = false
+update users set display_name = 'EXISTING NAME', is_super_admin = false
   where id = '00000000-0000-0000-0000-000000005003';
 update users set display_name = 'Already Admin', is_super_admin = true
   where id = '00000000-0000-0000-0000-000000005004';
@@ -73,7 +73,7 @@ reset role;
 
 select results_eq(
   $$select is_super_admin, display_name from users where id = '00000000-0000-0000-0000-000000005002'$$,
-  $$values (true, 'Fallback Name'::text)$$,
+  $$values (true, 'FALLBACK NAME'::text)$$,
   'is_super_admin is flipped to true and display_name is set from the fallback'
 );
 
@@ -95,7 +95,7 @@ reset role;
 
 select is(
   (select display_name from users where id = '00000000-0000-0000-0000-000000005003'),
-  'Existing Name',
+  'EXISTING NAME',
   'an existing display_name is never overwritten by the fallback'
 );
 

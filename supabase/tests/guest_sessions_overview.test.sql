@@ -140,13 +140,13 @@ select is((select count(*)::int from list_guest_sessions_paid('month') where pay
 select is((select count(*)::int from list_guest_sessions_paid('today') where payment_id = '00000000-0000-0000-0000-0000000370b1'), 0, 'paid: the before-midnight payment is not in today');
 select is((select count(*)::int from list_guest_sessions_paid('month') where payment_id = '00000000-0000-0000-0000-0000000370b2'), 0, 'paid: a voided session payment is not listed');
 select is(
-  (select group_sessions from list_guest_sessions_paid('month') where recorder_name = 'Ov Owner' limit 1),
+  (select group_sessions from list_guest_sessions_paid('month') where recorder_name = 'OV OWNER' limit 1),
   3::bigint, 'paid: owner group has 3 sessions');
 select is(
-  (select group_total from list_guest_sessions_paid('month') where recorder_name = 'Ov Owner' limit 1),
+  (select group_total from list_guest_sessions_paid('month') where recorder_name = 'OV OWNER' limit 1),
   12000::bigint, 'paid: owner group totals 12000');
 select is(
-  (select group_total from list_guest_sessions_paid('month') where recorder_name = 'Ov Manager' limit 1),
+  (select group_total from list_guest_sessions_paid('month') where recorder_name = 'OV MANAGER' limit 1),
   6000::bigint, 'paid: manager group totals 6000');
 select is(
   (select recorder_kind from list_guest_sessions_paid('month') where payment_id = '00000000-0000-0000-0000-000000037065'),
@@ -186,7 +186,7 @@ select is(
   true, 'attempts: offline row shows the scan time');
 select is(
   (select class_name from list_session_attempts('month') where attempt_id = '00000000-0000-0000-0000-000000037093'),
-  'Ov Spin', 'attempts: class name resolved');
+  'OV SPIN', 'attempts: class name resolved');
 
 -- Free list is empty and consistent with the card -------------------------------
 select is((select array_agg(status order by status) from list_free_guest_sessions('month')), array['available','lapsed','used','voided'], 'free: one row per status, outside-month row excluded');

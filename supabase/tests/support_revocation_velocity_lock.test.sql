@@ -209,9 +209,9 @@ select is((select count(*)::int from members where user_id = '00000000-0000-0000
 set local role authenticated;
 select pg_temp.as_owner_a();
 select is((select count(*)::int from get_support_review_queue()), 2, 'the Owner review queue lists both support-created staff');
-select is((select string_agg(name, ',' order by name) from get_support_review_queue()), 'Coach One,Receptionist Two', 'with their names (staff, not the support person)');
+select is((select string_agg(name, ',' order by name) from get_support_review_queue()), 'COACH ONE,RECEPTIONIST TWO', 'with their names (staff, not the support person)');
 select is((select string_agg(distinct role::text, ',') from get_support_review_queue()), 'coach,receptionist', 'and their roles');
-select is((select ok::text || ':' || code from clear_support_review((select member_id from get_support_review_queue() where name = 'Coach One'))), 'true:cleared', 'the Owner can mark one as reviewed');
+select is((select ok::text || ':' || code from clear_support_review((select member_id from get_support_review_queue() where name = 'COACH ONE'))), 'true:cleared', 'the Owner can mark one as reviewed');
 select is((select count(*)::int from get_support_review_queue()), 1, 'the queue shrinks');
 select is((select ok::text || ':' || code from clear_support_review((select user_id from members where user_id = '00000000-0000-0000-0000-00000024010c' limit 1))), 'false:not_found', 'clearing something that is not in the queue (or twice) is not_found');
 select pg_temp.as_member_a();
@@ -347,7 +347,7 @@ select is(private.support_live('00000000-0000-0000-0000-000000240107', '00000000
 select pg_temp.no_claims();
 set local role authenticated;
 select pg_temp.as_admin();
-select is((select count(*)::int from get_support_locks() where user_id = '00000000-0000-0000-0000-000000240107' and locked_reason = 'velocity_gym' and gym_names like '%Rev Gym C%'), 1, 'Super Admin lists the lock with its reason and gyms');
+select is((select count(*)::int from get_support_locks() where user_id = '00000000-0000-0000-0000-000000240107' and locked_reason = 'velocity_gym' and gym_names like '%REV GYM C%'), 1, 'Super Admin lists the lock with its reason and gyms');
 select pg_temp.as_owner_a();
 select is(pg_temp.err('select * from get_support_locks()'), 'P0001:permission denied', 'an Owner cannot list locks');
 select is(pg_temp.err($$select * from unlock_support_account('00000000-0000-0000-0000-000000240107', 'let me in please')$$), 'P0001:permission denied', 'an Owner cannot unlock');

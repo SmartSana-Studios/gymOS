@@ -75,7 +75,7 @@ select is(
 -- ============================================================================
 update users
 set preferred_language = 'en', is_super_admin = true, phone = '+237699999999',
-    display_name = 'Attempted Rename', created_at = now() + interval '1 year'
+    display_name = 'ATTEMPTED RENAME', created_at = now() + interval '1 year'
 where id = '00000000-0000-0000-0000-000000005021';
 
 select is(
@@ -92,7 +92,7 @@ select is(
 
 select is(
   (select display_name from users where id = '00000000-0000-0000-0000-000000005021'),
-  'Attempted Rename',
+  'ATTEMPTED RENAME',
   'Story 2.6: a self-update changing display_name now actually persists -- no longer pinned back'
 );
 
@@ -154,7 +154,7 @@ select is(
 -- above).
 update users
 set must_change_password = true, is_super_admin = true, phone = '+237699999998',
-    display_name = 'Attempted Rename 2'
+    display_name = 'ATTEMPTED RENAME 2'
 where id = '00000000-0000-0000-0000-000000005021';
 
 select is(
@@ -171,7 +171,7 @@ select is(
 
 select is(
   (select display_name from users where id = '00000000-0000-0000-0000-000000005021'),
-  'Attempted Rename 2',
+  'ATTEMPTED RENAME 2',
   'Story 2.6: display_name still persists (not pinned) even alongside a must_change_password change'
 );
 

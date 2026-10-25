@@ -179,6 +179,7 @@ export function EditStaffModal({
           <Label htmlFor="editStaffName">{t("staff.modal.name")}</Label>
           <Input
             id="editStaffName"
+            className="uppercase"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />

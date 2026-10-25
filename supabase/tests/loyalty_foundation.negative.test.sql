@@ -143,10 +143,10 @@ select is(
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000039121","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000039111","app_role":"owner"}', true);
-update gyms set loyalty_enabled = false, loyalty_guest_threshold = 9, name = 'LYN Gym A Renamed'
+update gyms set loyalty_enabled = false, loyalty_guest_threshold = 9, name = 'LYN GYM A RENAMED'
 where id = '00000000-0000-0000-0000-000000039111';
 reset role;
-select is((select name from gyms where id = '00000000-0000-0000-0000-000000039111'), 'LYN Gym A Renamed',
+select is((select name from gyms where id = '00000000-0000-0000-0000-000000039111'), 'LYN GYM A RENAMED',
   'positive control: the owner''s direct gym UPDATE landed (name changed)');
 select is(
   (select row(loyalty_enabled, loyalty_guest_threshold)::text from gyms where id = '00000000-0000-0000-0000-000000039111'),
@@ -158,9 +158,9 @@ set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000039129","role":"authenticated","app_role":"super_admin"}', true);
 update gyms set loyalty_enabled = true, loyalty_guest_threshold = 3, loyalty_renewal_threshold = 4, loyalty_reward_days = 5,
-  name = 'LYN Gym B Renamed' where id = '00000000-0000-0000-0000-000000039112';
+  name = 'LYN GYM B RENAMED' where id = '00000000-0000-0000-0000-000000039112';
 reset role;
-select is((select name from gyms where id = '00000000-0000-0000-0000-000000039112'), 'LYN Gym B Renamed',
+select is((select name from gyms where id = '00000000-0000-0000-0000-000000039112'), 'LYN GYM B RENAMED',
   'positive control: the super admin direct gym UPDATE landed (name changed)');
 select is(
   (select row(loyalty_enabled, loyalty_guest_threshold, loyalty_renewal_threshold, loyalty_reward_days)::text
@@ -170,9 +170,9 @@ select is(
 
 set local role service_role;
 update gyms set loyalty_enabled = true, loyalty_guest_threshold = 3, loyalty_renewal_threshold = 4, loyalty_reward_days = 5,
-  name = 'LYN Gym B Service' where id = '00000000-0000-0000-0000-000000039112';
+  name = 'LYN GYM B SERVICE' where id = '00000000-0000-0000-0000-000000039112';
 reset role;
-select is((select name from gyms where id = '00000000-0000-0000-0000-000000039112'), 'LYN Gym B Service',
+select is((select name from gyms where id = '00000000-0000-0000-0000-000000039112'), 'LYN GYM B SERVICE',
   'positive control: the service_role direct gym UPDATE landed (name changed)');
 select is(
   (select row(loyalty_enabled, loyalty_guest_threshold, loyalty_renewal_threshold, loyalty_reward_days)::text

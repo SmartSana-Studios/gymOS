@@ -198,7 +198,7 @@ select ok(
 
 select ok(
   (select convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Payment confirmed'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your payment of 15000 XAF to Bastos Gym was confirmed.'
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your payment of 15000 XAF to BASTOS GYM was confirmed.'
    from net.http_request_queue q
    join private.payment_notification_deliveries d on d.push_request_id = q.id
    join private.payment_notification_dispatches x on x.id = d.dispatch_id
@@ -220,7 +220,7 @@ select ok(
 -- Story 6.7: the same dispatch also writes a member-facing history row.
 select ok(
   (select type = 'N-04' and title = 'Payment confirmed'
-      and body = 'Your payment of 15000 XAF to Bastos Gym was confirmed.' and read_at is null
+      and body = 'Your payment of 15000 XAF to BASTOS GYM was confirmed.' and read_at is null
    from public.notifications where member_id = '00000000-0000-0000-0000-000000006410'),
   'N-04 dispatch also writes a matching, unread public.notifications row'
 );
@@ -279,7 +279,7 @@ select is(
 
 select ok(
   (select convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Paiement confirmé'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Votre paiement de 20000 XAF à Bastos Gym a été confirmé.'
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Votre paiement de 20000 XAF à BASTOS GYM a été confirmé.'
    from net.http_request_queue q
    join private.payment_notification_deliveries d on d.push_request_id = q.id
    join private.payment_notification_dispatches x on x.id = d.dispatch_id
@@ -304,7 +304,7 @@ select is(
 
 select ok(
   (select convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Payment confirmed'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your payment of 15000 XAF to Bastos Gym was confirmed.'
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your payment of 15000 XAF to BASTOS GYM was confirmed.'
    from net.http_request_queue q
    join private.payment_notification_deliveries d on d.push_request_id = q.id
    join private.payment_notification_dispatches x on x.id = d.dispatch_id
@@ -396,7 +396,7 @@ select is(
 
 select ok(
   (select convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Payment failed'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your payment to Bastos Gym could not be completed. Please try again or contact the front desk.'
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your payment to BASTOS GYM could not be completed. Please try again or contact the front desk.'
       and convert_from(q.body, 'UTF8')::jsonb #>> '{data,notificationCode}' = 'N-05'
    from net.http_request_queue q
    join private.payment_notification_deliveries d on d.push_request_id = q.id
@@ -408,7 +408,7 @@ select ok(
 -- Story 6.7: the same N-05 dispatch also writes a matching history row.
 select ok(
   (select type = 'N-05' and title = 'Payment failed'
-      and body = 'Your payment to Bastos Gym could not be completed. Please try again or contact the front desk.'
+      and body = 'Your payment to BASTOS GYM could not be completed. Please try again or contact the front desk.'
    from public.notifications where member_id = '00000000-0000-0000-0000-000000006416'),
   'N-05 dispatch also writes a matching public.notifications row'
 );
@@ -459,7 +459,7 @@ select is(
 
 select ok(
   (select convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Échec du paiement'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Votre paiement à Bastos Gym n''a pas pu être effectué. Veuillez réessayer ou contacter la réception.'
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Votre paiement à BASTOS GYM n''a pas pu être effectué. Veuillez réessayer ou contacter la réception.'
       and convert_from(q.body, 'UTF8')::jsonb #>> '{data,notificationCode}' = 'N-05'
    from net.http_request_queue q
    join private.payment_notification_deliveries d on d.push_request_id = q.id

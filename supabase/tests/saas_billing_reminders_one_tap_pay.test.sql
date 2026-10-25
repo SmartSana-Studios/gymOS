@@ -38,7 +38,7 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000009610'); -- Gym 4 owner (deactivated-gym rejection)
 
 insert into members (id, gym_id, user_id, role, name, email) values
-  ('00000000-0000-0000-0000-000000009701', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009601', 'owner', 'Reminders Gym 1 Owner', null),
+  ('00000000-0000-0000-0000-000000009701', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009601', 'owner', 'REMINDERS GYM 1 OWNER', null),
   ('00000000-0000-0000-0000-000000009702', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009602', 'owner', 'Reminders Gym 1 Second Owner', null),
   ('00000000-0000-0000-0000-000000009703', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009603', 'manager', 'Reminders Gym 1 Manager', null),
   ('00000000-0000-0000-0000-000000009704', '00000000-0000-0000-0000-000000009511', '00000000-0000-0000-0000-000000009604', 'receptionist', 'Reminders Gym 1 Receptionist', null),
@@ -304,7 +304,7 @@ select is(
 
 select is(
   (select name from members where id = '00000000-0000-0000-0000-000000009701'),
-  'Reminders Gym 1 Owner',
+  'REMINDERS GYM 1 OWNER',
   'no other column on the owner''s own row was touched'
 );
 

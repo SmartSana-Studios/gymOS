@@ -17,7 +17,7 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000004004'), -- non-Super-Admin authenticated user
   ('00000000-0000-0000-0000-000000004005'); -- Super Admin, 2 matching audit_log rows (code review follow-up)
 
-update users set display_name = 'Caller Admin', is_super_admin = true
+update users set display_name = 'CALLER ADMIN', is_super_admin = true
   where id = '00000000-0000-0000-0000-000000004001';
 update users set display_name = 'Provisioned Admin', is_super_admin = true
   where id = '00000000-0000-0000-0000-000000004002';
@@ -55,7 +55,7 @@ values (
 insert into audit_log (actor_id, actor_display_name, action_type, target_entity_id, target_entity_type, created_at)
 values (
   '00000000-0000-0000-0000-000000004001',
-  'Caller Admin',
+  'CALLER ADMIN',
   'super_admin_promoted',
   '00000000-0000-0000-0000-000000004005',
   'users',
@@ -112,7 +112,7 @@ select is(
 
 select is(
   (select display_name from list_super_admins() where id = '00000000-0000-0000-0000-000000004001'),
-  'Caller Admin',
+  'CALLER ADMIN',
   'the caller''s own row is returned with the expected display_name, confirming real row-level content, not a miscount'
 );
 

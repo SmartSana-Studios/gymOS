@@ -92,7 +92,7 @@ insert into coach_assignments (id, gym_id, member_id, coach_id, started_at, ende
 -- are already suspended, so after 0091 the RPC would (correctly) refuse. The
 -- setup role bypasses RLS, so these land regardless of the new policy.
 insert into workout_plans (id, gym_id, member_id, coach_id, name) values
-  ('00000000-0000-0000-0000-000000020251', '00000000-0000-0000-0000-000000020211', '00000000-0000-0000-0000-000000020232', '00000000-0000-0000-0000-000000020231', 'Member A Strength Plan'),
+  ('00000000-0000-0000-0000-000000020251', '00000000-0000-0000-0000-000000020211', '00000000-0000-0000-0000-000000020232', '00000000-0000-0000-0000-000000020231', 'MEMBER A STRENGTH PLAN'),
   ('00000000-0000-0000-0000-000000020252', '00000000-0000-0000-0000-000000020211', '00000000-0000-0000-0000-000000020236', '00000000-0000-0000-0000-000000020231', 'Member B Handoff Plan'),
   ('00000000-0000-0000-0000-000000020253', '00000000-0000-0000-0000-000000020212', '00000000-0000-0000-0000-000000020234', '00000000-0000-0000-0000-000000020233', 'Deactivated Gym Plan');
 
@@ -370,7 +370,7 @@ select is(
 );
 select is(
   (select name from workout_plans where id = '00000000-0000-0000-0000-000000020251'),
-  'Member A Strength Plan',
+  'MEMBER A STRENGTH PLAN',
   'refused update_workout_plan() wrote nothing -- the plan name is untouched'
 );
 select is(
@@ -483,7 +483,7 @@ select set_config(
 select lives_ok(
   $$select update_workout_plan(
       '00000000-0000-0000-0000-000000020251',
-      'Renamed after reinstatement',
+      'RENAMED AFTER REINSTATEMENT',
       jsonb_build_array(jsonb_build_object('exercise_id', (select id from exercise_library where gym_id is null and name = 'Squat'), 'sets', 5, 'reps', 5, 'note', null))
     )$$,
   'reversal: update_workout_plan() refused in Section E now succeeds for the same coach session'
@@ -516,7 +516,7 @@ reset role;
 
 select is(
   (select name from workout_plans where id = '00000000-0000-0000-0000-000000020251'),
-  'Renamed after reinstatement',
+  'RENAMED AFTER REINSTATEMENT',
   'reversal: update_workout_plan()''s write actually LANDED -- lives_ok alone would not have caught a silently swallowed write'
 );
 select is(

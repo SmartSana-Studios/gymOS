@@ -35,7 +35,7 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000009029'); -- Gym A: deactivated member (deactivated-member guard, both RPCs)
 
 insert into members (id, gym_id, user_id, role, name, deactivated_at) values
-  ('00000000-0000-0000-0000-000000009041', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009021', 'coach', 'Story 12.4 Coach A', null),
+  ('00000000-0000-0000-0000-000000009041', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009021', 'coach', 'STORY 12.4 COACH A', null),
   ('00000000-0000-0000-0000-000000009042', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009022', 'member', 'Classes Surfaces Gym A Member 1', null),
   ('00000000-0000-0000-0000-000000009043', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009023', 'member', 'Classes Surfaces Gym A Member 2', null),
   ('00000000-0000-0000-0000-000000009044', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009024', 'receptionist', 'Classes Surfaces Gym A Receptionist', null),
@@ -135,7 +135,7 @@ select is(
 -- of member_read_gym_staff_members's coach-role exclusion actually works.
 select is(
   (select coach_name from list_bookable_class_sessions() where class_session_id = '00000000-0000-0000-0000-0000000090a2'),
-  'Story 12.4 Coach A',
+  'STORY 12.4 COACH A',
   'coach_name is resolved for the caller even though member_read_gym_staff_members would otherwise exclude a coach-role row'
 );
 

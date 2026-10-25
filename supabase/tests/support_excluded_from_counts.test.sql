@@ -85,7 +85,7 @@ select throws_ok($$select create_staff_member('00000000-0000-0000-0000-000000232
                  'P0001', 'create_staff_member: target not found or not eligible', 'supervisor: create_staff_member refuses to replace a support membership');
 reset role;
 select is((select role::text || '|' || name || '|' || (deactivated_at is null)::text from members where id = current_setting('gymos_test.sup')::uuid),
-          'support|GymOS Support|true', 'the support row is unchanged after every refused call');
+          'support|GYMOS SUPPORT|true', 'the support row is unchanged after every refused call');
 
 -- ---- notifications: no alert read, no dispatch ------------------------------------------------------------------
 insert into front_desk_alerts (gym_id, member_id, status) values

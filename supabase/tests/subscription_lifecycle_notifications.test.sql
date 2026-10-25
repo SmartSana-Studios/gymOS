@@ -159,7 +159,7 @@ select is(
 -- using the exact same idempotency boundary.
 select ok(
   (select type = 'N-01' and title = 'Membership expiring — 7 days'
-      and body = 'Your Bonamoussadi Gym membership expires in 7 days.' and read_at is null
+      and body = 'Your BONAMOUSSADI GYM membership expires in 7 days.' and read_at is null
    from public.notifications where member_id = '00000000-0000-0000-0000-000000006220'),
   'N-01 dispatch also writes a matching, unread public.notifications row'
 );
@@ -182,7 +182,7 @@ select ok(
 select ok(
   (select bool_and(
       convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Membership expiring — 7 days'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your Bonamoussadi Gym membership expires in 7 days.'
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your BONAMOUSSADI GYM membership expires in 7 days.'
     )
    from net.http_request_queue q
    join private.notification_deliveries d on d.push_request_id = q.id
@@ -232,7 +232,7 @@ select lives_ok(
 
 select ok(
   (select convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Abonnement bientôt expiré — 1 jour'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Votre abonnement à Bonamoussadi Gym expire demain.'
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Votre abonnement à BONAMOUSSADI GYM expire demain.'
    from net.http_request_queue q
    join private.notification_deliveries d on d.push_request_id = q.id
    join private.notification_dispatches x on x.id = d.dispatch_id
@@ -242,7 +242,7 @@ select ok(
 
 select ok(
   (select type = 'N-02' and title = 'Abonnement bientôt expiré — 1 jour'
-      and body = 'Votre abonnement à Bonamoussadi Gym expire demain.'
+      and body = 'Votre abonnement à BONAMOUSSADI GYM expire demain.'
    from public.notifications where member_id = '00000000-0000-0000-0000-000000006221'),
   'French N-02 copy is also exact in the notifications history row'
 );
@@ -254,7 +254,7 @@ select lives_ok(
 
 select ok(
   (select convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Membership expired'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your Akwa Gym membership has expired. Renew to restore access.'
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your AKWA GYM membership has expired. Renew to restore access.'
    from net.http_request_queue q
    join private.notification_deliveries d on d.push_request_id = q.id
    join private.notification_dispatches x on x.id = d.dispatch_id
@@ -293,7 +293,7 @@ select lives_ok(
 
 select ok(
   (select bool_and(
-      convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your Akwa Gym membership expires in 7 days.'
+      convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your AKWA GYM membership expires in 7 days.'
       and convert_from(q.body, 'UTF8')::jsonb #>> '{data,gymId}' = '00000000-0000-0000-0000-000000006203'
     )
    from net.http_request_queue q
@@ -481,7 +481,7 @@ select lives_ok(
 
 select ok(
   (select convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Abonnement bientôt expiré — 7 jours'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Votre abonnement à Bonamoussadi Gym expire dans 7 jours.'
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Votre abonnement à BONAMOUSSADI GYM expire dans 7 jours.'
    from net.http_request_queue q
    join private.notification_deliveries d on d.push_request_id = q.id
    join private.notification_dispatches x on x.id = d.dispatch_id
@@ -496,7 +496,7 @@ select lives_ok(
 
 select ok(
   (select bool_and(convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Membership expiring — 1 day'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your Bonamoussadi Gym membership expires tomorrow.')
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your BONAMOUSSADI GYM membership expires tomorrow.')
    from net.http_request_queue q
    join private.notification_deliveries d on d.push_request_id = q.id
    join private.notification_dispatches x on x.id = d.dispatch_id
@@ -511,7 +511,7 @@ select lives_ok(
 
 select ok(
   (select convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Abonnement expiré'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Votre abonnement à Bonamoussadi Gym a expiré. Renouvelez-le pour rétablir votre accès.'
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Votre abonnement à BONAMOUSSADI GYM a expiré. Renouvelez-le pour rétablir votre accès.'
    from net.http_request_queue q
    join private.notification_deliveries d on d.push_request_id = q.id
    join private.notification_dispatches x on x.id = d.dispatch_id

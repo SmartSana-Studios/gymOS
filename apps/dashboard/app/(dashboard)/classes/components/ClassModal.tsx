@@ -295,6 +295,7 @@ export function ClassModal({
           <Label htmlFor="className">{t("classes.modal.name")}</Label>
           <Input
             id="className"
+            className="uppercase"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />

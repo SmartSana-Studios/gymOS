@@ -73,13 +73,13 @@ select set_config(
 
 select lives_ok(
   $$insert into members (id, gym_id, user_id, role, name, phone, join_date)
-    values ('00000000-0000-0000-0000-000000007051', '00000000-0000-0000-0000-000000007011', '00000000-0000-0000-0000-000000007027', 'member', 'New Member', '+237600000001', current_date)$$,
+    values ('00000000-0000-0000-0000-000000007051', '00000000-0000-0000-0000-000000007011', '00000000-0000-0000-0000-000000007027', 'member', 'NEW MEMBER', '+237600000001', current_date)$$,
   'an owner-claim session can INSERT a member into its own gym'
 );
 
 select is(
   (select name from members where id = '00000000-0000-0000-0000-000000007051'),
-  'New Member',
+  'NEW MEMBER',
   'the new member row is visible to the inserting session'
 );
 
@@ -91,13 +91,13 @@ select set_config(
 );
 
 select lives_ok(
-  $$update members set name = 'New Member Edited' where id = '00000000-0000-0000-0000-000000007051'$$,
+  $$update members set name = 'NEW MEMBER EDITED' where id = '00000000-0000-0000-0000-000000007051'$$,
   'a manager-claim session can UPDATE a member in its own gym'
 );
 
 select is(
   (select name from members where id = '00000000-0000-0000-0000-000000007051'),
-  'New Member Edited',
+  'NEW MEMBER EDITED',
   'the name UPDATE is reflected'
 );
 
@@ -348,7 +348,7 @@ select is(
 reset role;
 select is(
   (select name from members where id = '00000000-0000-0000-0000-000000007051'),
-  'New Member Edited',
+  'NEW MEMBER EDITED',
   'gym A''s member row is unchanged after every denied cross-tenant/cross-role write attempt (verified as the connecting role, bypassing RLS visibility)'
 );
 

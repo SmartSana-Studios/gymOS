@@ -203,6 +203,7 @@ export function CreateGymModal({
           <Label htmlFor="gymName">{t("gyms.create.gymName")}</Label>
           <Input
             id="gymName"
+            className="uppercase"
             value={form.gymName}
             onChange={(e) => setForm({ ...form, gymName: e.target.value })}
           />
@@ -215,6 +216,7 @@ export function CreateGymModal({
           <Label htmlFor="ownerName">{t("gyms.create.ownerName")}</Label>
           <Input
             id="ownerName"
+            className="uppercase"
             value={form.ownerName}
             onChange={(e) => setForm({ ...form, ownerName: e.target.value })}
           />

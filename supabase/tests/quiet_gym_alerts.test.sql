@@ -382,7 +382,7 @@ select ok(
 
 select ok(
   (select convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Your gym is quiet right now'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'It''s a great time to train at Low Band Gym — occupancy is low.'
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'It''s a great time to train at LOW BAND GYM — occupancy is low.'
    from net.http_request_queue q
    join private.quiet_gym_alert_deliveries d on d.push_request_id = q.id
    join private.quiet_gym_alert_dispatches x on x.id = d.dispatch_id
@@ -404,7 +404,7 @@ select ok(
 -- Story 6.7: the same dispatch also writes a member-facing history row.
 select ok(
   (select type = 'N-06' and title = 'Your gym is quiet right now'
-      and body = 'It''s a great time to train at Low Band Gym — occupancy is low.' and read_at is null
+      and body = 'It''s a great time to train at LOW BAND GYM — occupancy is low.' and read_at is null
    from public.notifications where member_id = '00000000-0000-0000-0000-000000009731'),
   'N-06 dispatch also writes a matching, unread public.notifications row'
 );

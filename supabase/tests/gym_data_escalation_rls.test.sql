@@ -37,7 +37,7 @@ insert into auth.users (id) values
 
 insert into members (id, gym_id, user_id, role, name) values
   ('00000000-0000-0000-0000-000000003031', '00000000-0000-0000-0000-000000003011', '00000000-0000-0000-0000-000000003023', 'owner', 'Gym A Owner'),
-  ('00000000-0000-0000-0000-000000003032', '00000000-0000-0000-0000-000000003011', '00000000-0000-0000-0000-000000003024', 'coach', 'Gym A Coach'),
+  ('00000000-0000-0000-0000-000000003032', '00000000-0000-0000-0000-000000003011', '00000000-0000-0000-0000-000000003024', 'coach', 'GYM A COACH'),
   ('00000000-0000-0000-0000-000000003033', '00000000-0000-0000-0000-000000003012', '00000000-0000-0000-0000-000000003025', 'coach', 'Gym B Coach');
 
 insert into payments (id, gym_id, member_id, amount, method, status) values
@@ -118,7 +118,7 @@ select is(
 
 select is(
   (select name from members where gym_id = '00000000-0000-0000-0000-000000003011' and role = 'coach'),
-  'Gym A Coach',
+  'GYM A COACH',
   'the visible non-owner row is the expected coach, confirming real row-level access, not a miscount'
 );
 

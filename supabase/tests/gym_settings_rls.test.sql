@@ -66,13 +66,13 @@ select set_config(
 );
 
 update gyms
-set name = 'Settings Gym A Renamed', primary_color = '#123456', timezone = 'UTC',
+set name = 'SETTINGS GYM A RENAMED', primary_color = '#123456', timezone = 'UTC',
     grace_period_days = 7, capacity = 42, alert_auto_dismiss_minutes = 45
 where id = '00000000-0000-0000-0000-000000005011';
 
 select is(
   (select name from gyms where id = '00000000-0000-0000-0000-000000005011'),
-  'Settings Gym A Renamed',
+  'SETTINGS GYM A RENAMED',
   'an owner-claim session can update its own gym''s settings columns'
 );
 
@@ -116,7 +116,7 @@ select is(
 
 select is(
   (select name from gyms where id = '00000000-0000-0000-0000-000000005011'),
-  'Settings Gym A Renamed',
+  'SETTINGS GYM A RENAMED',
   'the gym row is unchanged after the denied manager UPDATE attempt'
 );
 
@@ -181,7 +181,7 @@ select is(
 reset role;
 select is(
   (select name from gyms where id = '00000000-0000-0000-0000-000000005011'),
-  'Settings Gym A Renamed',
+  'SETTINGS GYM A RENAMED',
   'gym A''s row is unchanged after the denied cross-tenant UPDATE attempt (verified as the connecting role, bypassing RLS visibility)'
 );
 

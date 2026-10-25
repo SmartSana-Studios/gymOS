@@ -32,7 +32,7 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000008022'); -- Member A2 (a different member, same gym -- cross-member denial)
 
 insert into members (id, gym_id, user_id, role, name) values
-  ('00000000-0000-0000-0000-000000008031', '00000000-0000-0000-0000-000000008011', '00000000-0000-0000-0000-000000008021', 'member', 'Member A'),
+  ('00000000-0000-0000-0000-000000008031', '00000000-0000-0000-0000-000000008011', '00000000-0000-0000-0000-000000008021', 'member', 'MEMBER A'),
   ('00000000-0000-0000-0000-000000008032', '00000000-0000-0000-0000-000000008011', '00000000-0000-0000-0000-000000008022', 'member', 'Member A2');
 
 insert into plans (id, gym_id, name, plan_type, price, billing_interval, duration_days) values
@@ -107,7 +107,7 @@ select is(
 
 select is(
   (select name from members where id = '00000000-0000-0000-0000-000000008031'),
-  'Member A',
+  'MEMBER A',
   'a self-update attempting to also change name is silently pinned back to its prior value'
 );
 
@@ -168,7 +168,7 @@ reset role;
 select is(
   (select goal from members where id = '00000000-0000-0000-0000-000000008031'),
   'build_muscle',
-  'Member A''s goal is unchanged after the denied cross-member update attempt (verified as the connecting role, bypassing RLS visibility)'
+  'MEMBER A''s goal is unchanged after the denied cross-member update attempt (verified as the connecting role, bypassing RLS visibility)'
 );
 
 select * from finish();
