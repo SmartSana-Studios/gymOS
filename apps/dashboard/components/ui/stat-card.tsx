@@ -34,7 +34,7 @@ export function StatCard({ label, value, href, tone = "default", detail }: StatC
   return (
     <Link
       href={href}
-      className="block rounded-md border p-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      className="block rounded-md border bg-card p-4 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
     >
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className={cn("text-2xl font-semibold", tone === "alert" && "text-destructive")}>{value}</p>

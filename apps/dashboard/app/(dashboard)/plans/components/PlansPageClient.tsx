@@ -138,7 +138,7 @@ export function PlansPageClient({ initialPlans }: { initialPlans: PlanRow[] }) {
           <Button onClick={openCreate}>{t("plans.addPlanButton")}</Button>
         </div>
       ) : (
-        <div className="divide-y rounded-md border">
+        <div className="divide-y rounded-md border bg-card">
           {initialPlans.map((plan) => (
             <div key={plan.id} className="flex items-center justify-between p-4">
               <div>

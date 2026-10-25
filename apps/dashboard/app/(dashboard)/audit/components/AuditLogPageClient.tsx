@@ -229,7 +229,7 @@ export function AuditLogPageClient({
           <p className="text-sm text-muted-foreground">{t("audit.emptyNoRecords")}</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border">
+        <div className="overflow-x-auto rounded-md border bg-card">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">
               <tr>

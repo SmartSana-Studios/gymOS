@@ -132,7 +132,7 @@ export function CoachPortalPageClient({
       ) : (
         <>
         <TablePagination compact {...pg} />
-        <div className="overflow-x-auto rounded-md border">
+        <div className="overflow-x-auto rounded-md border bg-card">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">
               <tr>

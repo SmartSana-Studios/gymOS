@@ -137,7 +137,7 @@ export function CoachMemberDetailPageClient({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-3 rounded-md border p-4">
+      <div className="space-y-3 rounded-md border p-4 bg-card">
         <div className="flex items-center gap-3">
           <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold">
             {member.memberName.slice(0, 1).toUpperCase()}

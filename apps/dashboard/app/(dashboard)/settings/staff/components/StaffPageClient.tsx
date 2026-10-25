@@ -204,7 +204,7 @@ export function StaffPageClient({
       ) : (
         <>
         <TablePagination compact {...pg} />
-        <div className="overflow-x-auto rounded-md border">
+        <div className="overflow-x-auto rounded-md border bg-card">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 text-left text-muted-foreground">
               <tr>

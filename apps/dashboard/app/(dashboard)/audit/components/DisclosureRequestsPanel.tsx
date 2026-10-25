@@ -10,7 +10,7 @@ export function DisclosureRequestsPanel({ requests }: { requests: DisclosureRequ
   if (requests.length === 0) return null;
   const when = (iso: string) => new Date(iso).toLocaleDateString(i18n.language);
   return (
-    <section aria-label={t("audit.disclosure.title")} className="space-y-2 rounded-md border p-4">
+    <section aria-label={t("audit.disclosure.title")} className="space-y-2 rounded-md border p-4 bg-card">
       <h2 className="text-base font-semibold">{t("audit.disclosure.title")}</h2>
       <ul className="space-y-3">
         {requests.map((request) => (

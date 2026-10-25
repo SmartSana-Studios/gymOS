@@ -23,7 +23,7 @@ export function PagedTable<T>({
   return (
     <div className="space-y-1">
       <TablePagination compact {...pager} />
-      <div className="overflow-x-auto rounded-md border">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <table className="w-full text-sm" aria-label={label}>
           <thead>
             <tr className="border-b text-left text-muted-foreground">

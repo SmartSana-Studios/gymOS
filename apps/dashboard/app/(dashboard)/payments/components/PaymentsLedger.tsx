@@ -187,7 +187,7 @@ export function PaymentsLedger({
       ) : (
         <>
           <TablePagination compact page={ledger.page} pageSize={ledger.pageSize} total={ledger.total} {...pagination} />
-          <div className="overflow-x-auto rounded-md border">
+          <div className="overflow-x-auto rounded-md border bg-card">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/50 text-left">
                 <tr>

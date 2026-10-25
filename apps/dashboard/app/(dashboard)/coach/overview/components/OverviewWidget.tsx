@@ -20,7 +20,7 @@ export function OverviewWidget({
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-3 rounded-md border p-4">
+    <section className="space-y-3 rounded-md border p-4 bg-card">
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-1">
           <h2 className="text-sm font-medium">{title}</h2>

@@ -187,7 +187,7 @@ export function GuestSessionsPageClient(props: Props) {
   } else if (props.tab === "paid") {
     const groupKey = (r: PaidGuestSessionRow) => r.recorderId ?? `~${r.recorderKind}`;
     body = (
-      <div className="overflow-x-auto rounded-md border">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/50 text-left">
             <tr>
@@ -235,7 +235,7 @@ export function GuestSessionsPageClient(props: Props) {
     );
   } else if (props.tab === "blocked") {
     body = (
-      <div className="overflow-x-auto rounded-md border">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/50 text-left">
             <tr>
@@ -267,7 +267,7 @@ export function GuestSessionsPageClient(props: Props) {
     );
   } else {
     body = (
-      <div className="overflow-x-auto rounded-md border">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/50 text-left">
             <tr>
