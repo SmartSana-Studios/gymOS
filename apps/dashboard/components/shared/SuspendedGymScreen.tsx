@@ -121,11 +121,14 @@ export function OwnerSuspendedScreen({
   gymId,
   availableGyms,
   selectableTiers,
+  isFreeBilling = false,
 }: {
   gymName: string;
   gymId: string;
   availableGyms: { gymId: string; gymName: string; role: MemberRole }[];
   selectableTiers: SelectableTier[];
+  /** 0 XAF plan: show the "contact GymOS" line instead of Pay Now. */
+  isFreeBilling?: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -137,7 +140,11 @@ export function OwnerSuspendedScreen({
           <AlertTriangle className="size-10 text-amber-500" aria-hidden="true" />
           <h1 className="text-base font-semibold">{gymName}</h1>
           <p className="text-sm text-muted-foreground">{t("saasBilling.ownerSuspendedMessage")}</p>
-          <PayNowButton selectableTiers={selectableTiers} onPaymentConfirmed={() => router.refresh()} />
+          {isFreeBilling ? (
+            <p className="text-sm text-muted-foreground">{t("saasBilling.ownerFreePlanMessage")}</p>
+          ) : (
+            <PayNowButton selectableTiers={selectableTiers} onPaymentConfirmed={() => router.refresh()} />
+          )}
           <SwitchGymList currentGymId={gymId} availableGyms={availableGyms} />
           <SignOutLink />
         </CardContent>

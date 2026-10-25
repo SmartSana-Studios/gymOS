@@ -78,13 +78,15 @@ export interface GymBillingInfo {
   anchorDate: string;
   notificationEmail: string | null;
   ownerPhone: string | null;
+  /** The plan costs nothing for the billing interval: no Pay Now, GymOS extends the date. */
+  isFree: boolean;
 }
 
 interface GymBillingRow {
   saas_billing_status: SaasBillingStatus;
   saas_billing_interval: SaasBillingInterval;
   saas_billing_anchor_date: string;
-  tiers: { name: string } | null;
+  tiers: { name: string; monthly_price: number; annual_price: number } | null;
 }
 
 /**
@@ -108,7 +110,7 @@ export async function getGymBillingInfo(): Promise<{ data: GymBillingInfo | null
   // plans lookup uses.
   const { data: gymRow, error: gymError } = await supabase
     .from("gyms")
-    .select("saas_billing_status, saas_billing_interval, saas_billing_anchor_date, tiers(name)")
+    .select("saas_billing_status, saas_billing_interval, saas_billing_anchor_date, tiers(name, monthly_price, annual_price)")
     .eq("id", gymId)
     .maybeSingle();
 
@@ -143,6 +145,7 @@ export async function getGymBillingInfo(): Promise<{ data: GymBillingInfo | null
       anchorDate: row.saas_billing_anchor_date,
       notificationEmail: ownerRow?.email ?? null,
       ownerPhone: ownerRow?.phone ?? null,
+      isFree: row.tiers ? (row.saas_billing_interval === "annual" ? row.tiers.annual_price : row.tiers.monthly_price) === 0 : false,
     },
     error: null,
   };

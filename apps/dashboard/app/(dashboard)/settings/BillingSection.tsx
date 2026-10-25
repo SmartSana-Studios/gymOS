@@ -119,7 +119,13 @@ export function BillingSection({
             </span>
           </div>
 
-          {billingInfo.billingStatus !== "active" && (
+          {billingInfo.billingStatus !== "active" && billingInfo.isFree && (
+            <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+              {t("settings.billing.freePlanRenewal")}
+            </p>
+          )}
+
+          {billingInfo.billingStatus !== "active" && !billingInfo.isFree && (
             <PayNowButton
               initialOwnerPhone={billingInfo.ownerPhone}
               selectableTiers={selectableTiers}

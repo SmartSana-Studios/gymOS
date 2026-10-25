@@ -227,6 +227,7 @@
       "replaceWarning": "Connecter un nouveau compte remplace l'actuel pour les nouveaux paiements. Les paiements déjà commencés se terminent sous le compte avec lequel ils ont démarré."
     },
     "billing": {
+      "freePlanRenewal": "Votre offre est une offre de test gratuite : il n'y a rien à payer. GymOS la renouvelle pour vous : contactez-nous pour prolonger votre date ou passer à une offre payante.",
       "intervalMonthly": "Mensuel",
       "intervalAnnual": "Annuel",
       "nextBillingDate": "Prochaine date de facturation : {{date}}",
@@ -1424,6 +1425,7 @@
     }
   },
   "saasBilling": {
+    "ownerFreePlanMessage": "Il s'agit d'une offre de test gratuite : il n'y a rien à payer. Contactez GymOS pour la renouveler ou passer à une offre payante.",
     "reminderMessage": "Le paiement de votre abonnement GymOS est dû le {{date}}. Payez maintenant : {{url}}",
     "reminderMessageNoLink": "Le paiement de votre abonnement GymOS est dû le {{date}}. Connectez-vous à GymOS pour payer maintenant.",
     "ownerSuspendedMessage": "Le paiement de votre abonnement GymOS est en retard. Payez maintenant pour rétablir l'accès pour toute votre équipe.",

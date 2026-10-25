@@ -103,6 +103,7 @@ describe("getDashboardShellContext -- suspension short-circuit (Story 11.4)", ()
       role: "owner",
       isBillingSuspension: true,
       mustChangePassword: false,
+      isFreeBilling: false,
       gymId: GYM_ID,
       availableGyms: [],
     });
@@ -121,6 +122,7 @@ describe("getDashboardShellContext -- suspension short-circuit (Story 11.4)", ()
       role: "owner",
       isBillingSuspension: false,
       mustChangePassword: false,
+      isFreeBilling: false,
       gymId: GYM_ID,
       availableGyms: [],
     });
@@ -139,6 +141,7 @@ describe("getDashboardShellContext -- suspension short-circuit (Story 11.4)", ()
       role: "manager",
       isBillingSuspension: true,
       mustChangePassword: false,
+      isFreeBilling: false,
       gymId: GYM_ID,
       availableGyms: [],
     });
@@ -156,6 +159,7 @@ describe("getDashboardShellContext -- suspension short-circuit (Story 11.4)", ()
       role: "owner",
       isBillingSuspension: true,
       mustChangePassword: true,
+      isFreeBilling: false,
       gymId: GYM_ID,
       availableGyms: [],
     });

@@ -227,6 +227,7 @@
       "replaceWarning": "Connecting a new account replaces the current one for new payments. Payments already started finish under the account they began with."
     },
     "billing": {
+      "freePlanRenewal": "Your plan is a free test plan, so there is nothing to pay. GymOS renews it for you: contact us to extend your date or to switch to a paid plan.",
       "intervalMonthly": "Monthly",
       "intervalAnnual": "Annual",
       "nextBillingDate": "Next billing date: {{date}}",
@@ -1424,6 +1425,7 @@
     }
   },
   "saasBilling": {
+    "ownerFreePlanMessage": "This is a free test plan, so there is nothing to pay. Contact GymOS to renew it or to switch to a paid plan.",
     "reminderMessage": "Your GymOS subscription payment is due {{date}}. Pay now: {{url}}",
     "reminderMessageNoLink": "Your GymOS subscription payment is due {{date}}. Log in to GymOS to pay now.",
     "ownerSuspendedMessage": "Your GymOS subscription payment is overdue. Pay now to restore access for your whole team.",
