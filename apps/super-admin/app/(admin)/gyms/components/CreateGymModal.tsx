@@ -53,6 +53,9 @@ export function CreateGymModal({
     tempPassword: string | null,
     ownerOutcome: "created" | "linked",
     ownerNeverSignedIn: boolean,
+    loginUrl: string | null,
+    welcomeMessage: string | null,
+    linkSent: boolean,
   ) => void;
   tiers: TierOption[];
 }) {
@@ -150,6 +153,9 @@ export function CreateGymModal({
           data.tempPassword,
           data.ownerOutcome,
           data.ownerNeverSignedIn,
+          data.loginUrl,
+          data.welcomeMessage,
+          data.linkSent,
         );
         setForm(initialForm);
         setFieldErrors({});

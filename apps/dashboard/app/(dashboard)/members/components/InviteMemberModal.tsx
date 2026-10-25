@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/appStoreLinks";
 import { Button } from "@/components/ui/button";
 import type { MemberListRow } from "@/services/members";
 
@@ -29,7 +30,7 @@ export function InviteMemberModal({
     dialogRef.current?.showModal();
   }, []);
 
-  const message = t("members.invite.message", { name: member.name, gymName });
+  const message = t("members.invite.message", { name: member.name, gymName, appStoreUrl: APP_STORE_URL, playStoreUrl: PLAY_STORE_URL });
   // member.phone is already E.164-normalized ("+2376...") -- wa.me takes the
   // number without the leading "+". Without this, "Share via WhatsApp"
   // opened a generic compose screen instead of a chat targeted at the

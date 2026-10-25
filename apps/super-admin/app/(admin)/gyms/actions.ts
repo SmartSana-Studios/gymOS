@@ -15,6 +15,7 @@ import {
 } from "@gymos/types";
 import { authorizeOrRedirect } from "@/lib/authz-action";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendEvolutionApiMessage } from "@/lib/messaging/EvolutionApiMessageProvider";
 import {
   sendTempPasswordMessage,
   type TempPasswordMessageResult,
@@ -90,6 +91,12 @@ export interface CreateGymResult {
    * password" to an admin whose owner has no usable credential.
    */
   ownerNeverSignedIn: boolean;
+  /** The owner's sign-in address (DASHBOARD_APP_URL + /auth/login); null if that setting is missing. */
+  loginUrl: string | null;
+  /** Copy-ready welcome text with the address, phone and temporary password; null on the linked path. */
+  welcomeMessage: string | null;
+  /** True when the message that reached the owner carried the address (free-text WhatsApp, not the fixed template). */
+  linkSent: boolean;
 }
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -468,14 +475,47 @@ export async function createGym(
   };
   // Gated on the password itself, not on ownerOutcome: a password exists iff
   // we created the account, and this way the compiler enforces it.
+  // The owner's sign-in address, and a copy-ready welcome message that carries it. A link can only travel on the
+  // free-text WhatsApp channel (Evolution); the Twilio fallback is a fixed template (password only), so when it is
+  // the one that delivers, the link is left out of the message and the screen tells the admin to pass it on.
+  let loginUrl: string | null = null;
+  try {
+    loginUrl = `${getDashboardAppUrl()}/auth/login`;
+  } catch {
+    loginUrl = null;
+  }
+  const welcomeMessage =
+    temporaryPassword !== null && loginUrl
+      ? t("gyms.ownerWelcome.message", {
+          ownerName: gym.ownerName,
+          gymName: gym.gymName,
+          url: loginUrl,
+          phone: gym.ownerPhone,
+          password: temporaryPassword,
+        })
+      : null;
+  let linkSent = false;
   if (temporaryPassword !== null) {
-    try {
-      sendResult = await sendTempPasswordMessage(gym.ownerPhone, temporaryPassword);
-    } catch (err) {
-      sendResult = {
-        success: false,
-        error: err instanceof Error ? err.message : "temp-password send threw unexpectedly",
-      };
+    if (welcomeMessage) {
+      try {
+        const viaEvolution = await sendEvolutionApiMessage(gym.ownerPhone, welcomeMessage);
+        if (viaEvolution.success) {
+          sendResult = { success: true, channel: "evolution" };
+          linkSent = true;
+        }
+      } catch {
+        // fall through to the Twilio template below
+      }
+    }
+    if (!sendResult.success) {
+      try {
+        sendResult = await sendTempPasswordMessage(gym.ownerPhone, temporaryPassword);
+      } catch (err) {
+        sendResult = {
+          success: false,
+          error: err instanceof Error ? err.message : "temp-password send threw unexpectedly",
+        };
+      }
     }
   }
   const smsSent = sendResult.success;
@@ -521,6 +561,9 @@ export async function createGym(
       tempPassword: temporaryPassword,
       ownerOutcome,
       ownerNeverSignedIn,
+      loginUrl,
+      welcomeMessage,
+      linkSent,
     },
     error: null,
   };

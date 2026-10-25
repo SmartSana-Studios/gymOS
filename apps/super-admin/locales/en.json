@@ -64,8 +64,13 @@
       "deactivate": "Deactivate",
       "reinstate": "Reinstate"
     },
+    "ownerWelcome": {
+      "message": "Welcome to GymOS, {{ownerName}}! Your gym {{gymName}} is ready. Sign in at {{url}} with your phone number {{phone}} and this temporary password: {{password}}. You will be asked to choose a new password right after."
+    },
     "toast": {
-      "createdSms": "Gym created. Temp password sent to {{phone}}.",
+      "createdSms": "Gym created. Welcome message with the sign-in link and temp password sent to {{phone}}.",
+      "createdSmsNoLink": "Gym created. Temp password sent to {{phone}}, but that message cannot carry a link. Send the owner the sign-in address: {{url}}",
+      "copyMessage": "Copy welcome message",
       "createdNoSms": "Gym created. Could not send the temp password to {{phone}} automatically — share it below.",
       "copyPassword": "Copy temp password",
       "passwordCopied": "Copied!",
