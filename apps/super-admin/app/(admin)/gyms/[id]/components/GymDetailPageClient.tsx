@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Building2, CalendarDays, Layers, Pencil, Phone, ShieldCheck, Tag, User, Users } from "lucide-react";
+import { ArrowLeft, Building2, CalendarDays, Layers, Pencil, Phone, Send, ShieldCheck, Tag, User, Users } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -24,6 +24,7 @@ import { CapOverrideEditor } from "./CapOverrideEditor";
 import { GymCategoryEditor } from "./GymCategoryEditor";
 import { GymNameEditor } from "./GymNameEditor";
 import { OwnerContactDialog } from "./OwnerContactDialog";
+import { ResendInvitationDialog } from "./ResendInvitationDialog";
 import { EscalateAccessDialog } from "./EscalateAccessDialog";
 import { ActiveAccessList } from "./ActiveAccessList";
 import { AuditTrailTab } from "./AuditTrailTab";
@@ -150,6 +151,7 @@ export function GymDetailPageClient({
   const [changingTier, setChangingTier] = useState(false);
   const [escalating, setEscalating] = useState(false);
   const [editingOwner, setEditingOwner] = useState(false);
+  const [resendingInvitation, setResendingInvitation] = useState(false);
   // The Members and payments tab exists only while this admin holds a live "Access gym data" grant (page.tsx loads the
   // two tables only then); without it the tab is not offered and a ?tab=members link falls back to the first tab.
   const dataUnlocked = members !== null || payments !== null;
@@ -197,6 +199,16 @@ export function GymDetailPageClient({
                 onClick={() => setEditingOwner(true)}
               >
                 <Pencil className="size-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6 text-muted-foreground"
+                aria-label={t("gyms.detail.resendInvitation.button")}
+                title={t("gyms.detail.resendInvitation.button")}
+                onClick={() => setResendingInvitation(true)}
+              >
+                <Send className="size-3.5" />
               </Button>
             </p>
           </div>
@@ -344,6 +356,14 @@ export function GymDetailPageClient({
           </>
         )}
       </Tabs>
+
+      {resendingInvitation && (
+        <ResendInvitationDialog
+          gym={gym}
+          onClose={() => setResendingInvitation(false)}
+          onDone={() => router.refresh()}
+        />
+      )}
 
       {editingOwner && (
         <OwnerContactDialog

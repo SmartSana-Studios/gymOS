@@ -939,6 +939,7 @@ export async function logGymLifecycleEvent(
     | "gym_cap_overridden"
     | "gym_renamed"
     | "gym_owner_contact_changed"
+    | "gym_owner_invitation_resent"
     | "saas_payment_marked_received"
     | "saas_billing_credit_applied"
     | "saas_billing_retry_triggered",
