@@ -12,6 +12,7 @@ const ACTION_LABEL_KEY: Record<string, string> = {
   gym_reinstated: "gyms.auditTrail.action.gym_reinstated",
   gym_tier_changed: "gyms.auditTrail.action.gym_tier_changed",
   gym_category_changed: "gyms.auditTrail.action.gym_category_changed",
+  gym_renamed: "gyms.auditTrail.action.gym_renamed",
   gym_cap_overridden: "gyms.auditTrail.action.gym_cap_overridden",
   gym_data_escalation: "gyms.auditTrail.action.gym_data_escalation",
   gym_data_escalation_revoked: "gyms.auditTrail.action.gym_data_escalation_revoked",
@@ -72,6 +73,13 @@ function describeEntry(
           toPrice: Number(m.new_tier_monthly_price ?? 0).toLocaleString(),
         }),
       );
+    }
+  }
+
+  if (entry.actionType === "gym_renamed") {
+    const m = entry.metadata;
+    if (typeof m.previous_name === "string" && typeof m.new_name === "string") {
+      parts.push(`${m.previous_name} → ${m.new_name}`);
     }
   }
 

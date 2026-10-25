@@ -111,6 +111,13 @@
         "members": "Members",
         "payments": "Payments register"
       },
+      "rename": {
+        "button": "Rename gym",
+        "label": "Gym name",
+        "save": "Save",
+        "cancel": "Cancel",
+        "saved": "Gym renamed"
+      },
       "backToGyms": "Gyms",
       "gymName": "Gym Name:",
       "owner": "Owner:",
@@ -150,6 +157,7 @@
         "gym_reinstated": "Gym reinstated",
         "gym_tier_changed": "Tier changed",
         "gym_category_changed": "Category changed",
+        "gym_renamed": "Gym renamed",
         "gym_cap_overridden": "Cap override changed",
         "gym_data_escalation": "Accessed gym data",
         "gym_data_escalation_revoked": "Revoked a Super Admin's gym data access",
@@ -245,7 +253,9 @@
       "alreadyOnTier": "This gym is already on that tier.",
       "auditLogFailedTier": "The tier change was saved, but the audit log entry failed to write. Please contact support.",
       "alreadySameCap": "The cap override is already set to that value.",
-      "auditLogFailedCap": "The cap override was saved, but the audit log entry failed to write. Please contact support."
+      "auditLogFailedCap": "The cap override was saved, but the audit log entry failed to write. Please contact support.",
+      "alreadySameName": "The gym already has that name.",
+      "auditLogFailedRename": "The name was changed, but the audit log entry failed to write. Please contact support."
     }
   },
   "tiers": {

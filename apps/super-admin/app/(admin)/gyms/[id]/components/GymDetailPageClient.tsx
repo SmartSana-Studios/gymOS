@@ -22,6 +22,7 @@ import { deactivateGym, reinstateGym, suspendGym } from "../../actions";
 import { ChangeTierDialog } from "./ChangeTierDialog";
 import { CapOverrideEditor } from "./CapOverrideEditor";
 import { GymCategoryEditor } from "./GymCategoryEditor";
+import { GymNameEditor } from "./GymNameEditor";
 import { EscalateAccessDialog } from "./EscalateAccessDialog";
 import { ActiveAccessList } from "./ActiveAccessList";
 import { AuditTrailTab } from "./AuditTrailTab";
@@ -174,7 +175,7 @@ export function GymDetailPageClient({
             <Building2 className="size-7" />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-2xl font-semibold">{gym.name}</h1>
+            <GymNameEditor gym={gym} onSaved={() => router.refresh()} />
             <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1">
                 <User className="size-3.5" />

@@ -111,6 +111,13 @@
         "members": "Membres",
         "payments": "Registre des paiements"
       },
+      "rename": {
+        "button": "Renommer la salle",
+        "label": "Nom de la salle",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "saved": "Salle renommée"
+      },
       "backToGyms": "Salles",
       "gymName": "Nom de la salle :",
       "owner": "Propriétaire :",
@@ -150,6 +157,7 @@
         "gym_reinstated": "Salle réactivée",
         "gym_tier_changed": "Palier modifié",
         "gym_category_changed": "Catégorie modifiée",
+        "gym_renamed": "Salle renomm\u00e9e",
         "gym_cap_overridden": "Plafond forcé modifié",
         "gym_data_escalation": "Données de la salle consultées",
         "gym_data_escalation_revoked": "Accès aux données révoqué pour un super administrateur",
@@ -245,7 +253,9 @@
       "alreadyOnTier": "Cette salle est déjà sur ce palier.",
       "auditLogFailedTier": "Le changement de palier a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "alreadySameCap": "Le plafond forcé est déjà réglé à cette valeur.",
-      "auditLogFailedCap": "Le plafond forcé a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support."
+      "auditLogFailedCap": "Le plafond forcé a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
+      "alreadySameName": "La salle porte déjà ce nom.",
+      "auditLogFailedRename": "Le nom a été modifié, mais l'écriture dans le journal d'audit a échoué. Contactez le support."
     }
   },
   "tiers": {
