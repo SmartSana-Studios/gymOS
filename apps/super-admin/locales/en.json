@@ -65,7 +65,7 @@
       "reinstate": "Reinstate"
     },
     "ownerWelcome": {
-      "message": "Welcome to GymOS, {{ownerName}}! Your gym {{gymName}} is ready. Sign in at {{url}} with your phone number {{phone}} and this temporary password: {{password}}. You will be asked to choose a new password right after."
+      "message": "Welcome to GymOS, {{ownerName}}!\n\nYour gym {{gymName}} is ready.\n\nSign in here: {{url}}\nPhone: {{phone}}\nTemporary password: {{password}}\n\nYou will be asked to choose a new password right after."
     },
     "toast": {
       "createdSms": "Gym created. Welcome message with the sign-in link and temp password sent to {{phone}}.",
