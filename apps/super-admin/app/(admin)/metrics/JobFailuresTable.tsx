@@ -21,7 +21,7 @@ export function JobFailuresTable({ failures, locale }: { failures: JobFailure[];
         onPageChange={pagination.onPageChange}
         onPageSizeChange={pagination.onPageSizeChange}
       />
-      <div className="overflow-x-auto rounded-md border">
+      <div className="overflow-x-auto rounded-md border bg-card">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-muted-foreground">

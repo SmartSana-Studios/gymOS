@@ -104,7 +104,7 @@ export function TiersPageClient({ initialTiers }: { initialTiers: TierRow[] }) {
           <Button onClick={openCreate}>{t("tiers.addTierButton")}</Button>
         </div>
       ) : (
-        <div className="divide-y rounded-md border">
+        <div className="divide-y rounded-md border bg-card">
           {initialTiers.map((tier, index) => (
             <div key={tier.id} className="flex items-center justify-between p-4">
               <div>

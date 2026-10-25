@@ -38,15 +38,15 @@ async function MetricsData() {
       <h1 className="text-2xl font-semibold">{t("metrics.title")}</h1>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-md border p-4">
+        <div className="rounded-md border p-4 bg-card">
           <p className="text-sm text-muted-foreground">{t("metrics.totalGyms")}</p>
           <p className="text-2xl font-semibold">{metrics.totalGyms.toLocaleString()}</p>
         </div>
-        <div className="rounded-md border p-4">
+        <div className="rounded-md border p-4 bg-card">
           <p className="text-sm text-muted-foreground">{t("metrics.totalMembers")}</p>
           <p className="text-2xl font-semibold">{metrics.totalMembers.toLocaleString()}</p>
         </div>
-        <div className="rounded-md border p-4">
+        <div className="rounded-md border p-4 bg-card">
           <p className="text-sm text-muted-foreground">{t("metrics.totalPayments")}</p>
           <p className="text-2xl font-semibold">
             XAF {metrics.totalPaymentsProcessed.toLocaleString()}

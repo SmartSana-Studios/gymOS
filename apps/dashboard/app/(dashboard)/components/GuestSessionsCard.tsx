@@ -144,7 +144,7 @@ export function GuestSessionsCard({
   }
 
   return (
-    <section className="rounded-md border p-4" aria-labelledby="guestSessionsCardTitle">
+    <section className="rounded-md border p-4 bg-card" aria-labelledby="guestSessionsCardTitle">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="guestSessionsCardTitle" className="text-lg font-semibold">
           {t("overview.cards.guestSessionsCard.title")}

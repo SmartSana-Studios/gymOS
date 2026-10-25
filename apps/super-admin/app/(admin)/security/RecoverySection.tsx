@@ -95,7 +95,7 @@ export function RecoverySection({ status }: { status: RecoveryStatus }) {
     });
 
   return (
-    <section className="space-y-3 border rounded p-4" aria-label={t("security.recovery.title")}>
+    <section className="space-y-3 rounded border bg-card p-4" aria-label={t("security.recovery.title")}>
       <h2 className="text-base font-semibold">{t("security.recovery.title")}</h2>
       <p className="text-sm text-muted-foreground">{t("security.recovery.description")}</p>
       {status.hasEmail ? (

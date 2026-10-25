@@ -49,7 +49,7 @@ export function ActiveAccessList({
   }
 
   return (
-    <div className="space-y-3 rounded-md border p-6">
+    <div className="space-y-3 rounded-md border p-6 bg-card">
       <h2 className="text-sm font-semibold text-muted-foreground">
         {t("gyms.dataAccess.title")}
       </h2>

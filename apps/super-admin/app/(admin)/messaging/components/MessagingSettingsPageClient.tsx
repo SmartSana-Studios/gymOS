@@ -62,7 +62,7 @@ export function MessagingSettingsPageClient({
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">{t("messaging.title")}</h1>
 
-      <form onSubmit={handleSubmit} className="max-w-md space-y-4 rounded-md border p-4">
+      <form onSubmit={handleSubmit} className="max-w-md space-y-4 rounded-md border p-4 bg-card">
         <div className="space-y-2">
           <Label htmlFor="instanceId">{t("messaging.instanceIdLabel")}</Label>
           <Input

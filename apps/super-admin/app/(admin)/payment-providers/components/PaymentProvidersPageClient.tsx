@@ -49,7 +49,7 @@ export function PaymentProvidersPageClient({
 
       {error && <div className="text-sm text-red-600">{error}</div>}
 
-      <div className="divide-y rounded-md border">
+      <div className="divide-y rounded-md border bg-card">
         <div className="grid grid-cols-[1fr_1fr_auto] gap-4 px-4 py-2 text-xs font-medium text-muted-foreground">
           <span>{t("paymentProviders.table.provider")}</span>
           <span>{t("paymentProviders.table.status")}</span>

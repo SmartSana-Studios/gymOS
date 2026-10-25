@@ -125,7 +125,7 @@ export function CoachClassesPageClient({ classes }: { classes: CoachClassView[] 
         const isOpen = openClassIds.has(cls.classId);
         const sessionsId = `class-${cls.classId}-sessions`;
         return (
-          <section key={cls.classId} id={`class-${cls.classId}`} className="rounded-md border">
+          <section key={cls.classId} id={`class-${cls.classId}`} className="rounded-md border bg-card">
             <h2 className="text-sm font-medium">
               <button
                 type="button"

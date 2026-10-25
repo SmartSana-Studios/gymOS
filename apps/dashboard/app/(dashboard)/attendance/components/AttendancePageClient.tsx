@@ -189,15 +189,15 @@ export function AttendancePageClient({
       <h1 className="text-2xl font-semibold">{t("attendance.title")}</h1>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-md border p-4">
+        <div className="rounded-md border p-4 bg-card">
           <p className="text-sm text-muted-foreground">{t("attendance.summary.checkedIn")}</p>
           <p className="text-2xl font-semibold">{checkedInTotal.toLocaleString(i18n.language)}</p>
         </div>
-        <div className="rounded-md border p-4">
+        <div className="rounded-md border p-4 bg-card">
           <p className="text-sm text-muted-foreground">{t("attendance.summary.today")}</p>
           <p className="text-2xl font-semibold">{todayCount.toLocaleString(i18n.language)}</p>
         </div>
-        <div className="rounded-md border p-4">
+        <div className="rounded-md border p-4 bg-card">
           <p className="text-sm text-muted-foreground">{t("attendance.summary.alerts")}</p>
           <p className="text-2xl font-semibold">{initialAlerts.length.toLocaleString(i18n.language)}</p>
         </div>
@@ -227,7 +227,7 @@ export function AttendancePageClient({
             <p className="text-sm text-muted-foreground">{t("attendance.emptyCheckedIn")}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-md border">
+          <div className="overflow-x-auto rounded-md border bg-card">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/50 text-left">
                 <tr>
@@ -330,7 +330,7 @@ export function AttendancePageClient({
             <p className="text-sm text-muted-foreground">{t("attendance.emptyLog")}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-md border">
+          <div className="overflow-x-auto rounded-md border bg-card">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/50 text-left">
                 <tr>

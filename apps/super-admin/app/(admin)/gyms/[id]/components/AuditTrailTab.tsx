@@ -115,7 +115,7 @@ export function AuditTrailTab({
   const holderNames = resolveHolderNames(entries);
   const pg = useClientPagination(entries, 10);
   return (
-    <div className="space-y-3 rounded-md border p-6">
+    <div className="space-y-3 rounded-md border p-6 bg-card">
       <h2 className="text-sm font-semibold text-muted-foreground">{t("gyms.auditTrail.title")}</h2>
 
       {entries.length === 0 ? (
@@ -123,7 +123,7 @@ export function AuditTrailTab({
       ) : (
         <>
           <TablePagination compact {...pg} />
-          <div className="overflow-x-auto rounded-md border">
+          <div className="overflow-x-auto rounded-md border bg-card">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/50 text-left">
                 <tr>

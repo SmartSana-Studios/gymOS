@@ -182,7 +182,7 @@ export function PaymentsPageClient({
       ) : (
         <>
         <TablePagination compact {...pendingPg} />
-        <div className="overflow-x-auto rounded-md border">
+        <div className="overflow-x-auto rounded-md border bg-card">
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/50 text-left">
               <tr>
@@ -272,7 +272,7 @@ export function PaymentsPageClient({
         <div className="space-y-2">
           <h2 className="text-lg font-semibold">{t("payments.discrepancies.title")}</h2>
           <TablePagination compact {...discrepancyPg} />
-          <div className="overflow-x-auto rounded-md border">
+          <div className="overflow-x-auto rounded-md border bg-card">
             <table className="w-full text-sm">
               <thead className="border-b bg-muted/50 text-left">
                 <tr>
