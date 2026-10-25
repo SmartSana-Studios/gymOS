@@ -111,6 +111,32 @@
         "members": "Membres",
         "payments": "Registre des paiements"
       },
+      "ownerContact": {
+        "button": "Modifier le contact du propriétaire",
+        "title": "Modifier le contact du propriétaire de {{gymName}}",
+        "body": "Modifie l'e-mail et/ou le téléphone de connexion du propriétaire. Laissez un champ vide pour le conserver. Cela s'applique à toutes les salles de ce compte propriétaire.",
+        "emailLabel": "Nouvel e-mail",
+        "phoneLabel": "Nouveau téléphone",
+        "reasonLabel": "Motif *",
+        "save": "Enregistrer",
+        "saving": "Enregistrement…",
+        "cancel": "Annuler",
+        "saved": "Contact du propriétaire mis à jour.",
+        "codes": {
+          "reason_invalid": "Indiquez un motif de 3 à 500 caractères.",
+          "not_found": "Cette salle n'a pas de compte propriétaire actif.",
+          "nothing_to_change": "L'e-mail et le téléphone ont déjà ces valeurs.",
+          "email_invalid": "Saisissez une adresse e-mail valide.",
+          "phone_invalid": "Saisissez un numéro valide avec son indicatif pays.",
+          "email_taken": "Cet e-mail appartient à un autre compte.",
+          "phone_taken": "Ce numéro appartient à un autre compte.",
+          "refused": "La modification a été refusée."
+        },
+        "errors": {
+          "applyFailed": "Le compte de connexion n'a pas pu être mis à jour : rien n'a été modifié. Réessayez.",
+          "revertFailed": "Le compte de connexion n'a pas pu être mis à jour et l'enregistrement n'a pas pu être rétabli. Vérifiez le journal d'audit et contactez le support."
+        }
+      },
       "rename": {
         "button": "Renommer la salle",
         "label": "Nom de la salle",
@@ -148,6 +174,8 @@
         "details": "Détails",
         "by": "Par"
       },
+      "phone": "Téléphone",
+      "email": "E-mail",
       "revokedTarget": "{{label}} — {{holder}}",
       "realActor": "Personne réelle : {{name}} ({{email}})",
       "action": {
@@ -157,6 +185,7 @@
         "gym_reinstated": "Salle réactivée",
         "gym_tier_changed": "Palier modifié",
         "gym_category_changed": "Catégorie modifiée",
+        "gym_owner_contact_changed": "Contact du propriétaire modifié",
         "gym_renamed": "Salle renomm\u00e9e",
         "gym_cap_overridden": "Plafond forcé modifié",
         "gym_data_escalation": "Données de la salle consultées",

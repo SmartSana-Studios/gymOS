@@ -111,6 +111,32 @@
         "members": "Members",
         "payments": "Payments register"
       },
+      "ownerContact": {
+        "button": "Edit owner contact",
+        "title": "Edit owner contact for {{gymName}}",
+        "body": "Changes the owner's sign-in email and/or phone. Leave a field empty to keep it. This applies to every gym this owner account belongs to.",
+        "emailLabel": "New email",
+        "phoneLabel": "New phone",
+        "reasonLabel": "Reason *",
+        "save": "Save changes",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "saved": "Owner contact updated.",
+        "codes": {
+          "reason_invalid": "Add a reason of 3 to 500 characters.",
+          "not_found": "This gym has no active owner account.",
+          "nothing_to_change": "The email and phone are already set to these values.",
+          "email_invalid": "Enter a valid email address.",
+          "phone_invalid": "Enter a valid phone number with its country code.",
+          "email_taken": "This email belongs to another account.",
+          "phone_taken": "This phone number belongs to another account.",
+          "refused": "The change was refused."
+        },
+        "errors": {
+          "applyFailed": "The sign-in account could not be updated, so nothing was changed. Try again.",
+          "revertFailed": "The sign-in account could not be updated and the record could not be restored. Check the audit trail and contact support."
+        }
+      },
       "rename": {
         "button": "Rename gym",
         "label": "Gym name",
@@ -148,6 +174,8 @@
         "details": "Details",
         "by": "By"
       },
+      "phone": "Phone",
+      "email": "Email",
       "revokedTarget": "{{label}} — {{holder}}",
       "realActor": "Real person: {{name}} ({{email}})",
       "action": {
@@ -157,6 +185,7 @@
         "gym_reinstated": "Gym reinstated",
         "gym_tier_changed": "Tier changed",
         "gym_category_changed": "Category changed",
+        "gym_owner_contact_changed": "Owner contact changed",
         "gym_renamed": "Gym renamed",
         "gym_cap_overridden": "Cap override changed",
         "gym_data_escalation": "Accessed gym data",
