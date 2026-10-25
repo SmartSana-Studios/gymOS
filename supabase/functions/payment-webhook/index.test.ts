@@ -1110,3 +1110,125 @@ Deno.test("payment-webhook taramoney initiate route: the credential row recorded
     globalThis.fetch = original;
   }
 });
+
+// Epic 18 retro item 21: the SaaS billing (platform) branch has the same duplicate-delivery check and
+// provider status confirmation as the gym branch.
+function stubFetchPlatformWithStatus(
+  saasPaymentRow: { id: string; status: string },
+  taraStatus: { status: string; message?: string } | "unreachable",
+) {
+  const calls: string[] = [];
+  let completeVerifiedCalled = false;
+  let completeFlaggedCalled = false;
+  let statusBody: Record<string, unknown> | undefined;
+  const original = globalThis.fetch;
+  globalThis.fetch = ((url: string | URL | Request, init?: RequestInit) => {
+    const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    calls.push(href);
+    const json = (body: unknown, status = 200) =>
+      Promise.resolve(new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
+    if (href.includes("/rest/v1/rpc/get_gym_payment_credentials_by_business_id")) return json([]);
+    if (href.includes("/rest/v1/saas_billing_payments?")) return json(saasPaymentRow);
+    if (href.includes("/rest/v1/payment_webhook_events")) return Promise.resolve(new Response(null, { status: 201 }));
+    if (href.includes("/rest/v1/rpc/complete_verified_saas_billing_payment")) {
+      completeVerifiedCalled = true;
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }
+    if (href.includes("/rest/v1/rpc/complete_flagged_saas_billing_payment")) {
+      completeFlaggedCalled = true;
+      return Promise.resolve(new Response(null, { status: 200 }));
+    }
+    if (href.includes("/api/tara/transactions/status")) {
+      statusBody = init?.body ? JSON.parse(init.body as string) : undefined;
+      if (taraStatus === "unreachable") return Promise.reject(new Error("network down"));
+      return json(taraStatus);
+    }
+    throw new Error(`stubFetch: unexpected access ${href}`);
+  }) as typeof fetch;
+  return {
+    calls,
+    completeVerifiedCalled: () => completeVerifiedCalled,
+    completeFlaggedCalled: () => completeFlaggedCalled,
+    statusBody: () => statusBody,
+    statusCalled: () => calls.some((c) => c.includes("/api/tara/transactions/status")),
+    restore: () => (globalThis.fetch = original),
+  };
+}
+
+const platformDelivery = (status: string) =>
+  receiveRequest({ "tara-webhook-secret": PLATFORM_SECRET }, {
+    businessId: PLATFORM_BUSINESS_ID,
+    paymentId: "pay-platform-dup",
+    status,
+    amount: "5000",
+  });
+
+Deno.test("payment-webhook taramoney receive route: platform path -- a SUCCESS delivery for an already verified saas billing payment is acknowledged with no provider call and no completion", async () => {
+  await withPlatformEnv(async () => {
+    const stub = stubFetchPlatformWithStatus({ id: "saas-1", status: "verified" }, { status: "SUCCESS" });
+    try {
+      const res = await handler.fetch(platformDelivery("SUCCESS"));
+      assertEquals(res.status, 200);
+      assertEquals(stub.completeVerifiedCalled(), false);
+      assertEquals(stub.statusCalled(), false);
+    } finally {
+      stub.restore();
+    }
+  });
+});
+
+Deno.test("payment-webhook taramoney receive route: platform path -- a FAILURE delivery for an already flagged saas billing payment is acknowledged without flagging again", async () => {
+  await withPlatformEnv(async () => {
+    const stub = stubFetchPlatformWithStatus({ id: "saas-2", status: "flagged" }, { status: "FAILURE" });
+    try {
+      const res = await handler.fetch(platformDelivery("FAILURE"));
+      assertEquals(res.status, 200);
+      assertEquals(stub.completeFlaggedCalled(), false);
+    } finally {
+      stub.restore();
+    }
+  });
+});
+
+Deno.test("payment-webhook taramoney receive route: platform path -- a flagged saas billing payment can still be verified by a later SUCCESS delivery", async () => {
+  await withPlatformEnv(async () => {
+    const stub = stubFetchPlatformWithStatus({ id: "saas-3", status: "flagged" }, { status: "SUCCESS" });
+    try {
+      const res = await handler.fetch(platformDelivery("SUCCESS"));
+      assertEquals(res.status, 200);
+      assertEquals(stub.completeVerifiedCalled(), true);
+    } finally {
+      stub.restore();
+    }
+  });
+});
+
+Deno.test("payment-webhook taramoney receive route: platform path -- a SUCCESS delivery whose provider status check answers FAILURE is NOT completed", async () => {
+  await withPlatformEnv(async () => {
+    const stub = stubFetchPlatformWithStatus({ id: "saas-4", status: "processing" }, { status: "FAILURE", message: "declined" });
+    try {
+      const res = await handler.fetch(platformDelivery("SUCCESS"));
+      assertEquals(res.status, 200);
+      assertEquals(stub.completeVerifiedCalled(), false, "an explicit provider decline must block completion");
+      assertEquals(stub.statusBody()?.productId, "saas-4", "the status check asks about our own saas billing payment id");
+      assertEquals(stub.statusBody()?.businessId, PLATFORM_BUSINESS_ID, "with the platform credentials");
+    } finally {
+      stub.restore();
+    }
+  });
+});
+
+Deno.test("payment-webhook taramoney receive route: platform path -- a provider status check that confirms, or cannot be reached, still completes the payment", async () => {
+  for (const taraStatus of [{ status: "SUCCESS" }, "unreachable"] as const) {
+    await withPlatformEnv(async () => {
+      const stub = stubFetchPlatformWithStatus({ id: "saas-5", status: "processing" }, taraStatus);
+      try {
+        const res = await handler.fetch(platformDelivery("SUCCESS"));
+        assertEquals(res.status, 200);
+        assertEquals(stub.completeVerifiedCalled(), true, `status check ${JSON.stringify(taraStatus)} must not strand a paid, verified payment`);
+      } finally {
+        stub.restore();
+      }
+    });
+  }
+});

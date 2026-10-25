@@ -713,7 +713,7 @@ export default {
     // (Task 3's own scope note).
     let { data: saasPaymentRow, error: saasLookupError } = await supabase
       .from("saas_billing_payments")
-      .select("id")
+      .select("id, status")
       .eq("provider_transaction_ref", event.providerTransactionRef)
       .maybeSingle();
 
@@ -763,7 +763,7 @@ export default {
     if (!saasPaymentRow && isUuidShaped) {
       const { data: linkRow, error: linkLookupError } = await supabase
         .from("saas_billing_payments")
-        .select("id")
+        .select("id, status")
         .eq("id", event.providerTransactionRef)
         .is("provider_transaction_ref", null)
         .maybeSingle();
@@ -812,6 +812,22 @@ export default {
       );
     }
 
+    // Same duplicate-delivery rule as the gym branch above (Epic 18 retro item 21): Tara re-sends on request, so the
+    // same delivery can arrive twice. The row is already in the state this delivery would put it in -> acknowledge and
+    // do nothing. A flagged row may still legitimately go flagged -> verified later, so a verified delivery is only a
+    // duplicate once the row IS verified. (The completion RPCs are idempotent anyway; this keeps the intent explicit
+    // and skips the provider status call and the extra RPCs.)
+    if (
+      saasPaymentRow &&
+      ((event.status === "verified" && saasPaymentRow.status === "verified") ||
+        (event.status !== "verified" && (saasPaymentRow.status === "flagged" || saasPaymentRow.status === "verified")))
+    ) {
+      console.error(
+        `payment-webhook: ${providerKey} duplicate delivery for ${event.providerTransactionRef} (saas billing payment ${saasPaymentRow.id} already ${saasPaymentRow.status}) -- acknowledged, nothing to do`,
+      );
+      return jsonResponse(200);
+    }
+
     if (event.status !== "verified") {
       console.error(
         `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} reported status "${event.status}"`,
@@ -842,6 +858,28 @@ export default {
         `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} matched no saas_billing_payments row -- nothing to do`,
       );
       return jsonResponse(200);
+    }
+
+    // Same defence in depth as the gym branch (Epic 18 retro item 21): ask the provider itself, with the platform
+    // credentials, whether this transaction succeeded. Only an explicit decline blocks completion; "unconfirmed"
+    // (provider error, PENDING, network) proceeds so a flaky status endpoint can never strand a genuinely paid,
+    // signature-verified payment. `productId` is the reference we sent at initiation (the saas_billing_payments id).
+    if (provider.confirmPaymentStatus) {
+      const confirmation = await provider.confirmPaymentStatus({
+        productId: saasPaymentRow.id,
+        routingContext: { type: "platform" },
+      });
+      if (confirmation.state === "declined") {
+        console.error(
+          `payment-webhook: ${providerKey} webhook for ${event.providerTransactionRef} said success but the provider status check for saas billing payment ${saasPaymentRow.id} answered failure (${confirmation.detail ?? ""}) -- NOT completing, left for review`,
+        );
+        return jsonResponse(200);
+      }
+      if (confirmation.state === "unconfirmed") {
+        console.error(
+          `payment-webhook: ${providerKey} provider status check for saas billing payment ${saasPaymentRow.id} was inconclusive (${confirmation.detail ?? ""}) -- completing on the verified webhook alone`,
+        );
+      }
     }
 
     const feeAmount = event.feeAmount ?? null;
