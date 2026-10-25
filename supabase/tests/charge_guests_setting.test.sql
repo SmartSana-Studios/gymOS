@@ -161,13 +161,13 @@ set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000032023","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000032011","app_role":"manager"}', true);
 
-update plans set plan_type = 'monthly', price = 1, duration_days = 30, name = 'GC Unused Renamed'
+update plans set plan_type = 'monthly', price = 1, duration_days = 30, name = 'GC UNUSED RENAMED'
 where id = '00000000-0000-0000-0000-000000032044';
 reset role;
 
 select is(
   (select name from plans where id = '00000000-0000-0000-0000-000000032044'),
-  'GC Unused Renamed',
+  'GC UNUSED RENAMED',
   'positive control: the direct UPDATE landed (name changed)'
 );
 select is(
@@ -279,7 +279,7 @@ select lives_ok(
   'supervisor can change plan pricing'
 );
 select lives_ok(
-  $$ select update_plan_pricing('00000000-0000-0000-0000-000000032043', 'monthly', 15200, 30, 'monthly', null, 'GC Monthly Renamed') $$,
+  $$ select update_plan_pricing('00000000-0000-0000-0000-000000032043', 'monthly', 15200, 30, 'monthly', null, 'GC MONTHLY RENAMED') $$,
   'p_name renames the plan in the same call'
 );
 reset role;
@@ -291,7 +291,7 @@ select is(
 );
 select is(
   (select name from plans where id = '00000000-0000-0000-0000-000000032043'),
-  'GC Monthly Renamed',
+  'GC MONTHLY RENAMED',
   'the rename landed'
 );
 

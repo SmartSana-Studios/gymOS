@@ -127,7 +127,7 @@ reset role;
 
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-00236b000101', null, 'aal2', null, '00000000-0000-0000-0000-0000236ba001');
-select is((select array_agg(gym_name order by gym_name) from public.list_own_support_gyms()), array['RP Gym A', 'RP Gym B']::text[],
+select is((select array_agg(gym_name order by gym_name) from public.list_own_support_gyms()), array['RP GYM A', 'RP GYM B']::text[],
           'B6 the picker lists the active assignments only (not the suspended one)');
 select pg_temp.claims('00000000-0000-0000-0000-00236b000101', null, 'aal1', null, '00000000-0000-0000-0000-0000236ba002');
 select is((select count(*)::int from public.list_own_support_gyms()), 0, 'B7 the picker list is empty at aal1');
@@ -139,7 +139,7 @@ update gyms set allow_gymos_support = false where id = '00000000-0000-0000-0000-
 select set_config('gymos.allow_support_setter', 'off', true);
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-00236b000101', null, 'aal2', null, '00000000-0000-0000-0000-0000236ba001');
-select is((select array_agg(gym_name order by gym_name) from public.list_own_support_gyms()), array['RP Gym A']::text[], 'B9 a gym whose switch is off drops out of the picker');
+select is((select array_agg(gym_name order by gym_name) from public.list_own_support_gyms()), array['RP GYM A']::text[], 'B9 a gym whose switch is off drops out of the picker');
 reset role;
 select set_config('gymos.allow_support_setter', 'on', true);
 update gyms set allow_gymos_support = true where id = '00000000-0000-0000-0000-00236b000002';
@@ -205,13 +205,13 @@ select is((select a.allowed || ':' || a.reason from public.authorize_action('000
 -- ============================================================================================================
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-00236b000101', 'support', 'aal2', '00000000-0000-0000-0000-00236b000001', '00000000-0000-0000-0000-0000236ba001');
-select is((select array_agg(name order by name) from gyms where name like 'RP Gym%'), array['RP Gym A']::text[], 'D1 a live support session reads exactly its one gym');
+select is((select array_agg(name order by name) from gyms where name like 'RP GYM%'), array['RP GYM A']::text[], 'D1 a live support session reads exactly its one gym');
 select pg_temp.claims('00000000-0000-0000-0000-00236b000101', 'support', 'aal1', '00000000-0000-0000-0000-00236b000001', '00000000-0000-0000-0000-0000236ba002');
-select is((select count(*)::int from gyms where name like 'RP Gym%'), 0, 'D2 the same claims at aal1 (a stale membership row) read no gym');
+select is((select count(*)::int from gyms where name like 'RP GYM%'), 0, 'D2 the same claims at aal1 (a stale membership row) read no gym');
 select pg_temp.claims('00000000-0000-0000-0000-00236b000101', 'support', 'aal2', '00000000-0000-0000-0000-00236b000001', '00000000-0000-0000-0000-0000236baaaa');
-select is((select count(*)::int from gyms where name like 'RP Gym%'), 0, 'D3 an unknown session reads no gym');
+select is((select count(*)::int from gyms where name like 'RP GYM%'), 0, 'D3 an unknown session reads no gym');
 select pg_temp.claims('00000000-0000-0000-0000-00236b000102', 'owner', 'aal1', '00000000-0000-0000-0000-00236b000001');
-select is((select array_agg(name order by name) from gyms where name like 'RP Gym%'), array['RP Gym A']::text[], 'D4 an Owner still reads their gym through the memberships policy');
+select is((select array_agg(name order by name) from gyms where name like 'RP GYM%'), array['RP GYM A']::text[], 'D4 an Owner still reads their gym through the memberships policy');
 reset role;
 select is((select count(*)::int from private.support_capabilities where kind = 'policy' and object_name = 'gyms.support_read_own_gym'), 1, 'D5 the new policy is on the allow-list');
 

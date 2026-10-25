@@ -29,9 +29,9 @@ insert into auth.users (id) values
 insert into members (id, gym_id, user_id, role, name) values
   ('00000000-0000-0000-0000-000000009841', '00000000-0000-0000-0000-000000009811', '00000000-0000-0000-0000-000000009821', 'member', 'Payment History Member A'),
   ('00000000-0000-0000-0000-000000009842', '00000000-0000-0000-0000-000000009811', '00000000-0000-0000-0000-000000009822', 'member', 'Payment History Member B'),
-  ('00000000-0000-0000-0000-000000009843', '00000000-0000-0000-0000-000000009811', '00000000-0000-0000-0000-000000009823', 'owner', 'Payment History Owner'),
-  ('00000000-0000-0000-0000-000000009844', '00000000-0000-0000-0000-000000009811', '00000000-0000-0000-0000-000000009824', 'manager', 'Payment History Manager'),
-  ('00000000-0000-0000-0000-000000009845', '00000000-0000-0000-0000-000000009811', '00000000-0000-0000-0000-000000009825', 'receptionist', 'Payment History Receptionist'),
+  ('00000000-0000-0000-0000-000000009843', '00000000-0000-0000-0000-000000009811', '00000000-0000-0000-0000-000000009823', 'owner', 'PAYMENT HISTORY OWNER'),
+  ('00000000-0000-0000-0000-000000009844', '00000000-0000-0000-0000-000000009811', '00000000-0000-0000-0000-000000009824', 'manager', 'PAYMENT HISTORY MANAGER'),
+  ('00000000-0000-0000-0000-000000009845', '00000000-0000-0000-0000-000000009811', '00000000-0000-0000-0000-000000009825', 'receptionist', 'PAYMENT HISTORY RECEPTIONIST'),
   ('00000000-0000-0000-0000-000000009846', '00000000-0000-0000-0000-000000009811', '00000000-0000-0000-0000-000000009826', 'coach', 'Payment History Coach'),
   ('00000000-0000-0000-0000-000000009847', '00000000-0000-0000-0000-000000009812', '00000000-0000-0000-0000-000000009827', 'member', 'Payment History Gym B Member');
 
@@ -110,19 +110,19 @@ select is(
 -- ============================================================================
 select is(
   (select name from members where user_id = '00000000-0000-0000-0000-000000009823'),
-  'Payment History Owner',
+  'PAYMENT HISTORY OWNER',
   'member A can resolve the owner''s name via member_read_gym_staff_members'
 );
 
 select is(
   (select name from members where user_id = '00000000-0000-0000-0000-000000009824'),
-  'Payment History Manager',
+  'PAYMENT HISTORY MANAGER',
   'member A can resolve the manager''s name via member_read_gym_staff_members'
 );
 
 select is(
   (select name from members where user_id = '00000000-0000-0000-0000-000000009825'),
-  'Payment History Receptionist',
+  'PAYMENT HISTORY RECEPTIONIST',
   'member A can resolve the receptionist''s name via member_read_gym_staff_members'
 );
 

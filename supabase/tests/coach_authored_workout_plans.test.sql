@@ -151,7 +151,7 @@ select set_config(
 select lives_ok(
   $$select update_workout_plan(
     current_setting('workout_plans_test.plan_id')::uuid,
-    'Member 1''s Strength Plan (Updated)',
+    'MEMBER 1''S STRENGTH PLAN (UPDATED)',
     jsonb_build_array(
       jsonb_build_object('exercise_id', '00000000-0000-0000-0000-000000017141', 'sets', 4, 'reps', 6, 'note', null),
       jsonb_build_object('exercise_id', (select id from exercise_library where gym_id is null and name = 'Squat'), 'sets', 3, 'reps', 10, 'note', 'focus on depth')
@@ -162,7 +162,7 @@ select lives_ok(
 
 select is(
   (select name from workout_plans where id = current_setting('workout_plans_test.plan_id')::uuid),
-  'Member 1''s Strength Plan (Updated)',
+  'MEMBER 1''S STRENGTH PLAN (UPDATED)',
   'update_workout_plan() updates the plan name'
 );
 

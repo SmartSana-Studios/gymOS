@@ -50,7 +50,7 @@ select set_config(
 
 select results_eq(
   $$select user_id, phone, name from staff_account_for_reset('00000000-0000-0000-0000-000000018073')$$,
-  $$values ('00000000-0000-0000-0000-000000018023'::uuid, '+237600000023'::text, 'Resend Gym A Manager'::text)$$,
+  $$values ('00000000-0000-0000-0000-000000018023'::uuid, '+237600000023'::text, 'RESEND GYM A MANAGER'::text)$$,
   'an owner-claim session can reset a Manager''s password and gets back the target user_id/phone/name'
 );
 
@@ -60,7 +60,7 @@ select is(
   (select count(*)::int from audit_log
    where action_type = 'staff_password_reset'
      and target_entity_id = '00000000-0000-0000-0000-000000018073'
-     and metadata->>'target_name' = 'Resend Gym A Manager'),
+     and metadata->>'target_name' = 'RESEND GYM A MANAGER'),
   1,
   'an audit_log row was written with action_type = staff_password_reset'
 );

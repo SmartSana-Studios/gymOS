@@ -289,7 +289,7 @@ set local role authenticated;
 select pg_temp.as_admin();
 insert into res select 'admin_reader', count(*)::text || '|' || coalesce(max(real_name), '') from get_support_action_identity('gym_payment_credentials', (select array_agg(id) from cred_ids));
 reset role;
-select is((select v from res where what = 'admin_reader'), '3|Real Support Person', 'the Super Admin reader returns the real person behind each support-connected credential row');
+select is((select v from res where what = 'admin_reader'), '3|REAL SUPPORT PERSON', 'the Super Admin reader returns the real person behind each support-connected credential row');
 select is((select count(*)::int from private.support_capabilities where capability = 'payment_connection'), 3, 'payment_connection is in the allow-list (connect, status and the session probe)');
 set local role authenticated;
 select pg_temp.live_support();

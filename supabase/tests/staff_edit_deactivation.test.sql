@@ -120,7 +120,7 @@ select set_config(
 );
 
 select lives_ok(
-  $$select update_staff_role('00000000-0000-0000-0000-000000019181', 'UT1 Renamed', 'supervisor')$$,
+  $$select update_staff_role('00000000-0000-0000-0000-000000019181', 'UT1 RENAMED', 'supervisor')$$,
   'an owner-claim session can change a Manager''s role to Supervisor'
 );
 
@@ -155,7 +155,7 @@ select is(
 
 select is(
   (select name from members where id = '00000000-0000-0000-0000-000000019181'),
-  'UT1 Renamed',
+  'UT1 RENAMED',
   'UT1''s name was updated alongside its role'
 );
 
@@ -165,8 +165,8 @@ select is(
      and target_entity_id = '00000000-0000-0000-0000-000000019181'
      and metadata->>'previous_role' = 'manager'
      and metadata->>'new_role' = 'supervisor'
-     and metadata->>'previous_name' = 'UT1 Owner To Supervisor'
-     and metadata->>'new_name' = 'UT1 Renamed'),
+     and metadata->>'previous_name' = 'UT1 OWNER TO SUPERVISOR'
+     and metadata->>'new_name' = 'UT1 RENAMED'),
   1,
   'an audit_log row was written with action_type=staff_role_updated and both previous/new role+name in metadata'
 );
@@ -285,7 +285,7 @@ select throws_like(
 );
 
 select lives_ok(
-  $$select update_staff_role('00000000-0000-0000-0000-000000019071', 'Edit Gym A Owner Renamed', 'owner')$$,
+  $$select update_staff_role('00000000-0000-0000-0000-000000019071', 'EDIT GYM A OWNER RENAMED', 'owner')$$,
   'an owner-claim session can submit a name-only self-edit (p_role echoing their own current role back unchanged)'
 );
 
@@ -293,7 +293,7 @@ reset role;
 
 select is(
   (select name from members where id = '00000000-0000-0000-0000-000000019071'),
-  'Edit Gym A Owner Renamed',
+  'EDIT GYM A OWNER RENAMED',
   'the Owner''s own name-only self-edit actually updated the row'
 );
 
@@ -398,7 +398,7 @@ select is(
   (select count(*)::int from audit_log
    where action_type = 'staff_deactivated'
      and target_entity_id = '00000000-0000-0000-0000-000000019281'
-     and metadata->>'target_name' = 'DT1 Owner Deactivates Manager'
+     and metadata->>'target_name' = 'DT1 OWNER DEACTIVATES MANAGER'
      and metadata->>'target_role' = 'manager'
      and metadata->>'reason' = 'No longer with the gym'),
   1,

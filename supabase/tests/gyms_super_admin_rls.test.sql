@@ -20,7 +20,7 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-0000000000e4'); -- a would-be non-owner for the reject test
 
 insert into members (id, gym_id, user_id, role, name) values
-  ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000e2', 'owner', 'Gym A Owner');
+  ('00000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-0000000000d1', '00000000-0000-0000-0000-0000000000e2', 'owner', 'GYM A OWNER');
 
 -- ============================================================================
 -- private.is_super_admin(): never raises, true only for app_role=super_admin.
@@ -132,8 +132,8 @@ select is(
 );
 
 select is(
-  (select array_agg(name order by name) from members where name in ('Gym A Owner', 'New Owner')),
-  array['Gym A Owner', 'New Owner'],
+  (select array_agg(name order by name) from members where name in ('GYM A OWNER', 'NEW OWNER')),
+  array['GYM A OWNER', 'NEW OWNER'],
   -- The role=owner SELECT scope is not "rows this session inserted" -- it is
   -- every owner row across every gym: the pre-seeded Gym A owner (seeded as
   -- postgres, before any RLS applied) AND the one just inserted above. Seeing
@@ -222,7 +222,7 @@ select is(
 );
 
 select is(
-  (select name from members limit 1), 'Gym A Owner',
+  (select name from members limit 1), 'GYM A OWNER',
   'the one visible row is their own row, not the New Owner row seeded under a different user_id'
 );
 

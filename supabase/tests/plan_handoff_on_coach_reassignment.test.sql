@@ -25,7 +25,7 @@ insert into auth.users (id) values
 insert into members (id, gym_id, user_id, role, name, join_date) values
   ('00000000-0000-0000-0000-000000019071', '00000000-0000-0000-0000-000000019011', '00000000-0000-0000-0000-000000019021', 'owner', 'Plan Handoff Gym A Owner', current_date),
   ('00000000-0000-0000-0000-000000019072', '00000000-0000-0000-0000-000000019011', '00000000-0000-0000-0000-000000019022', 'manager', 'Plan Handoff Gym A Manager', current_date),
-  ('00000000-0000-0000-0000-000000019074', '00000000-0000-0000-0000-000000019011', '00000000-0000-0000-0000-000000019024', 'coach', 'Plan Handoff Gym A Coach 1', current_date),
+  ('00000000-0000-0000-0000-000000019074', '00000000-0000-0000-0000-000000019011', '00000000-0000-0000-0000-000000019024', 'coach', 'PLAN HANDOFF GYM A COACH 1', current_date),
   ('00000000-0000-0000-0000-000000019075', '00000000-0000-0000-0000-000000019011', '00000000-0000-0000-0000-000000019025', 'coach', 'Plan Handoff Gym A Coach 2', current_date),
   ('00000000-0000-0000-0000-000000019077', '00000000-0000-0000-0000-000000019011', '00000000-0000-0000-0000-000000019027', 'member', 'Plan Handoff Gym A Member 1', current_date);
 
@@ -148,7 +148,7 @@ select is(
 
 select is(
   (select author_name from get_workout_plan_viewer_context(current_setting('plan_handoff_test.plan_id')::uuid)),
-  'Plan Handoff Gym A Coach 1',
+  'PLAN HANDOFF GYM A COACH 1',
   'get_workout_plan_viewer_context() resolves the previous (authoring) coach''s name for the reassigned coach'
 );
 

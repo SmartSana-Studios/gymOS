@@ -192,6 +192,7 @@ export function TierModal({
           <Label htmlFor="tierName">{t("tiers.modal.tierName")}</Label>
           <Input
             id="tierName"
+            className="uppercase"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />

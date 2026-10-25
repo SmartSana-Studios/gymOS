@@ -193,13 +193,13 @@ select is(
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000210121","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000210111","app_role":"owner"}', true);
-update gyms set name = 'Category Gym A Renamed', category = 'other'
+update gyms set name = 'CATEGORY GYM A RENAMED', category = 'other'
 where id = '00000000-0000-0000-0000-000000210111';
 reset role;
 
 select is(
   (select name from gyms where id = '00000000-0000-0000-0000-000000210111'),
-  'Category Gym A Renamed',
+  'CATEGORY GYM A RENAMED',
   'positive control: the owner direct UPDATE landed (name changed)'
 );
 select is(

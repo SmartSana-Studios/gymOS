@@ -257,7 +257,8 @@ export function WorkoutPlanModal({
 
         <div className="space-y-2">
           <Label htmlFor="workoutPlanName">{t("coachPortal.detail.workoutPlanTab.nameLabel")}</Label>
-          <Input id="workoutPlanName" value={name} onChange={(e) => setName(e.target.value)} disabled={submitting} />
+          <Input id="workoutPlanName"
+            className="uppercase" value={name} onChange={(e) => setName(e.target.value)} disabled={submitting} />
           {nameError && <p className="text-sm text-red-600">{nameError}</p>}
         </div>
 

@@ -53,8 +53,10 @@ const e164Phone = z
 // AD-01/SA-01 login forms), which has no email-less path. See story 1-5's Dev
 // Notes → Open Question 2.
 export const createGymSchema = z.object({
-  gymName: z.string().trim().min(1, "Gym name is required"),
-  ownerName: z.string().trim().min(1, "Owner name is required"),
+  // Names are saved and shown in capitals (0159); upper-casing here makes the welcome message and the audit entry
+  // carry the same text the database will store.
+  gymName: z.string().trim().min(1, "Gym name is required").transform((v) => v.toUpperCase()),
+  ownerName: z.string().trim().min(1, "Owner name is required").transform((v) => v.toUpperCase()),
   ownerPhone: e164Phone,
   ownerEmail: z.email("Enter a valid email address"),
   tierId: z.uuid("Select a subscription tier"),

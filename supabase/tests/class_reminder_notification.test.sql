@@ -327,7 +327,7 @@ select ok(
 
 select ok(
   (select convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Class reminder'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your class "Reminder Test Class" starts in 60 minutes.'
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Your class "REMINDER TEST CLASS" starts in 60 minutes.'
    from net.http_request_queue q
    join private.class_reminder_deliveries d on d.push_request_id = q.id
    join private.class_reminder_dispatches x on x.id = d.dispatch_id
@@ -340,7 +340,7 @@ select ok(
 -- unconditionally" requirement).
 select ok(
   (select type = 'N-07' and title = 'Class reminder'
-      and body = 'Your class "Reminder Test Class" starts in 60 minutes.' and read_at is null
+      and body = 'Your class "REMINDER TEST CLASS" starts in 60 minutes.' and read_at is null
    from public.notifications where member_id = '00000000-0000-0000-0000-000000009951'),
   'N-07 dispatch also writes a matching, unread public.notifications row'
 );
@@ -363,7 +363,7 @@ select ok(
 
 select ok(
   (select convert_from(q.body, 'UTF8')::jsonb ->> 'title' = 'Rappel de cours'
-      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Votre cours « Reminder Test Class » commence dans 60 minutes.'
+      and convert_from(q.body, 'UTF8')::jsonb ->> 'body' = 'Votre cours « REMINDER TEST CLASS » commence dans 60 minutes.'
    from net.http_request_queue q
    join private.class_reminder_deliveries d on d.push_request_id = q.id
    join private.class_reminder_dispatches x on x.id = d.dispatch_id

@@ -136,9 +136,9 @@ select is(
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000032121","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000032111","app_role":"owner"}', true);
-update gyms set charge_guests_per_session = false, name = 'GC Neg Gym A Renamed' where id = '00000000-0000-0000-0000-000000032111';
+update gyms set charge_guests_per_session = false, name = 'GC NEG GYM A RENAMED' where id = '00000000-0000-0000-0000-000000032111';
 reset role;
-select is((select name from gyms where id = '00000000-0000-0000-0000-000000032111'), 'GC Neg Gym A Renamed',
+select is((select name from gyms where id = '00000000-0000-0000-0000-000000032111'), 'GC NEG GYM A RENAMED',
   'positive control: the owner''s direct gym UPDATE landed (name changed)');
 select is((select charge_guests_per_session from gyms where id = '00000000-0000-0000-0000-000000032111'), true,
   'owner direct UPDATE of the flag is pinned to its old value');
@@ -146,17 +146,17 @@ select is((select charge_guests_per_session from gyms where id = '00000000-0000-
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000032129","role":"authenticated","app_role":"super_admin"}', true);
-update gyms set charge_guests_per_session = true, name = 'GC Neg Gym B Renamed' where id = '00000000-0000-0000-0000-000000032112';
+update gyms set charge_guests_per_session = true, name = 'GC NEG GYM B RENAMED' where id = '00000000-0000-0000-0000-000000032112';
 reset role;
-select is((select name from gyms where id = '00000000-0000-0000-0000-000000032112'), 'GC Neg Gym B Renamed',
+select is((select name from gyms where id = '00000000-0000-0000-0000-000000032112'), 'GC NEG GYM B RENAMED',
   'positive control: the super admin direct gym UPDATE landed (name changed)');
 select is((select charge_guests_per_session from gyms where id = '00000000-0000-0000-0000-000000032112'), false,
   'a super admin direct UPDATE of the flag is pinned');
 
 set local role service_role;
-update gyms set charge_guests_per_session = true, name = 'GC Neg Gym B Service' where id = '00000000-0000-0000-0000-000000032112';
+update gyms set charge_guests_per_session = true, name = 'GC NEG GYM B SERVICE' where id = '00000000-0000-0000-0000-000000032112';
 reset role;
-select is((select name from gyms where id = '00000000-0000-0000-0000-000000032112'), 'GC Neg Gym B Service',
+select is((select name from gyms where id = '00000000-0000-0000-0000-000000032112'), 'GC NEG GYM B SERVICE',
   'positive control: the service_role direct gym UPDATE landed (name changed)');
 select is((select charge_guests_per_session from gyms where id = '00000000-0000-0000-0000-000000032112'), false,
   'a service_role direct UPDATE of the flag is pinned');

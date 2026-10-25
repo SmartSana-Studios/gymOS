@@ -303,6 +303,7 @@ export function PlanModal({
           <Label htmlFor="planName">{t("plans.modal.name")}</Label>
           <Input
             id="planName"
+            className="uppercase"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
           />

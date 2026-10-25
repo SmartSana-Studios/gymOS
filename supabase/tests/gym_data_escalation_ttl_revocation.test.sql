@@ -314,7 +314,7 @@ select is(
    where gym_id = '00000000-0000-0000-0000-000000085011'
      and action_type = 'gym_data_escalation_revoked'
      and actor_id = '00000000-0000-0000-0000-000000085026'
-     and actor_display_name = 'Super Admin B'
+     and actor_display_name = 'SUPER ADMIN B'
      and target_entity_id = '00000000-0000-0000-0000-000000085021'
      and target_entity_type = 'users'
      and metadata ->> 'reason' = 'B revokes X1 mid-window'

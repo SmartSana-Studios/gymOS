@@ -101,13 +101,13 @@ select lives_ok(
 -- Manager session can UPDATE and DELETE their own gym's plans.
 -- ============================================================================
 select lives_ok(
-  $$update plans set price = 13000, name = 'Manager-Renamed Plan' where id = '00000000-0000-0000-0000-000000006043'$$,
+  $$update plans set price = 13000, name = 'MANAGER-RENAMED PLAN' where id = '00000000-0000-0000-0000-000000006043'$$,
   'a manager-claim session can UPDATE its own gym''s plan'
 );
 
 select is(
   (select name from plans where id = '00000000-0000-0000-0000-000000006043'),
-  'Manager-Renamed Plan',
+  'MANAGER-RENAMED PLAN',
   'the name UPDATE is reflected'
 );
 

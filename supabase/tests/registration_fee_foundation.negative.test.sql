@@ -137,11 +137,11 @@ set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000031121","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000031111","app_role":"owner"}', true);
 
-update gyms set registration_fee = 99999, name = 'Neg Gym A Renamed' where id = '00000000-0000-0000-0000-000000031111';
+update gyms set registration_fee = 99999, name = 'NEG GYM A RENAMED' where id = '00000000-0000-0000-0000-000000031111';
 
 select is(
   (select name from gyms where id = '00000000-0000-0000-0000-000000031111'),
-  'Neg Gym A Renamed',
+  'NEG GYM A RENAMED',
   'positive control: the owner''s direct gym UPDATE did land (name changed)'
 );
 select is(
@@ -153,12 +153,12 @@ select is(
 -- Super admin is pinned too: set_registration_fee is the only write path.
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000031129","role":"authenticated","app_role":"super_admin"}', true);
-update gyms set registration_fee = 88888, name = 'Neg Gym B Renamed' where id = '00000000-0000-0000-0000-000000031112';
+update gyms set registration_fee = 88888, name = 'NEG GYM B RENAMED' where id = '00000000-0000-0000-0000-000000031112';
 reset role;
 
 select is(
   (select name from gyms where id = '00000000-0000-0000-0000-000000031112'),
-  'Neg Gym B Renamed',
+  'NEG GYM B RENAMED',
   'positive control: the super admin direct gym UPDATE did land (name changed)'
 );
 
@@ -173,12 +173,12 @@ set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000031123","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000031111","app_role":"manager"}', true);
 
-update members set registration_fee_settled_at = now(), name = 'Neg Awaiting Renamed'
+update members set registration_fee_settled_at = now(), name = 'NEG AWAITING RENAMED'
 where id = '00000000-0000-0000-0000-000000031136';
 
 select is(
   (select name from members where id = '00000000-0000-0000-0000-000000031136'),
-  'Neg Awaiting Renamed',
+  'NEG AWAITING RENAMED',
   'positive control: the manager''s direct members UPDATE did land (name changed)'
 );
 select is(

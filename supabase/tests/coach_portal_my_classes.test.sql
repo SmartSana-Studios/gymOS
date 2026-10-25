@@ -234,9 +234,9 @@ select is((select count(*)::int from members
 select results_eq(
   $$ select class_name, class_session_id, booked_count, gym_timezone from list_my_classes() $$,
   $$ values
-       ('Archived Workshop'::text, null::uuid, 0::bigint, 'Africa/Douala'::text),
-       ('HIIT Circuit'::text, '00000000-0000-0000-0174-0000000003a1'::uuid, 1::bigint, 'Africa/Douala'::text),
-       ('HIIT Circuit'::text, '00000000-0000-0000-0174-0000000003a3'::uuid, 3::bigint, 'Africa/Douala'::text) $$,
+       ('ARCHIVED WORKSHOP'::text, null::uuid, 0::bigint, 'Africa/Douala'::text),
+       ('HIIT CIRCUIT'::text, '00000000-0000-0000-0174-0000000003a1'::uuid, 1::bigint, 'Africa/Douala'::text),
+       ('HIIT CIRCUIT'::text, '00000000-0000-0000-0174-0000000003a3'::uuid, 3::bigint, 'Africa/Douala'::text) $$,
   'coach A1 gets both classes, in name order: the past-only one-off class as one null-session row, and HIIT''s sessions from local midnight with every booking counted (deactivated and unassigned members included)'
 );
 
@@ -248,21 +248,21 @@ select ok(
 select results_eq(
   $$ select distinct class_name, capacity, schedule_type, recurrence_days, recurrence_time from list_my_classes() order by class_name $$,
   $$ values
-       ('Archived Workshop'::text, 10, 'one_off'::text, null::smallint[], null::time),
-       ('HIIT Circuit'::text, 15, 'recurring'::text, '{1,3,5}'::smallint[], '18:00'::time) $$,
+       ('ARCHIVED WORKSHOP'::text, 10, 'one_off'::text, null::smallint[], null::time),
+       ('HIIT CIRCUIT'::text, 15, 'recurring'::text, '{1,3,5}'::smallint[], '18:00'::time) $$,
   'each class carries its capacity and schedule'
 );
 
 select results_eq(
   $$ select member_id, member_name, attended_at is not null from list_my_class_session_roster('00000000-0000-0000-0174-0000000003a1') $$,
-  $$ values ('00000000-0000-0000-0174-0000000001a6'::uuid, 'Alice Member'::text, true) $$,
+  $$ values ('00000000-0000-0000-0174-0000000001a6'::uuid, 'ALICE MEMBER'::text, true) $$,
   'coach A1 reads today''s roster: Alice, attended'
 );
 select is_empty($$ select * from list_my_class_session_roster('00000000-0000-0000-0174-0000000003a2') $$,
   'the roster is bounded to sessions from 00:00 today: yesterday''s session of their own class (booked, per the receptionist control) returns nothing, so a class''s new coach cannot read its history');
 select results_eq(
   $$ select member_name from list_my_class_session_roster('00000000-0000-0000-0174-0000000003a3') $$,
-  $$ values ('Alice Member'::text), ('Bob Member'::text), ('Carol Deactivated'::text) $$,
+  $$ values ('ALICE MEMBER'::text), ('BOB MEMBER'::text), ('CAROL DEACTIVATED'::text) $$,
   'coach A1 reads a future session''s full roster in name order, the deactivated booked member included'
 );
 select is_empty($$ select * from list_my_class_session_roster('00000000-0000-0000-0174-0000000003a5') $$,
@@ -282,7 +282,7 @@ set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0174-0000000000a2","role":"authenticated","gym_id":"00000000-0000-0000-0174-00000000a000","app_role":"coach"}', true);
 
-select results_eq($$ select class_name from list_my_classes() $$, $$ values ('Other Coach Class'::text) $$,
+select results_eq($$ select class_name from list_my_classes() $$, $$ values ('OTHER COACH CLASS'::text) $$,
   'coach A2 sees only the class they teach');
 select is((select count(*)::int from list_my_class_session_roster('00000000-0000-0000-0174-0000000003a5')), 1,
   'positive control: coach A2 reads their own session''s roster');

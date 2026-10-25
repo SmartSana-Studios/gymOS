@@ -67,16 +67,16 @@ select is(private.capability_roles('platform.support_manage'), array['super_admi
 -- ---- refusals: flag off, aal1, non-admin ------------------------------------------------------------------------
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000234101', 'super_admin', 'aal2');
-select throws_ok($$select create_support_account('00000000-0000-0000-0000-000000234111', 'Sup One', 'sup.one@gymosapps.com')$$,
+select throws_ok($$select create_support_account('00000000-0000-0000-0000-000000234111', 'SUP ONE', 'sup.one@gymosapps.com')$$,
                  'P0001', 'permission denied', 'flag off: creation refused even at aal2');
 reset role;
 update private.platform_flags set enabled = true where flag = 'super_admin_aal2';
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000234101', 'super_admin', 'aal1');
-select throws_ok($$select create_support_account('00000000-0000-0000-0000-000000234111', 'Sup One', 'sup.one@gymosapps.com')$$,
+select throws_ok($$select create_support_account('00000000-0000-0000-0000-000000234111', 'SUP ONE', 'sup.one@gymosapps.com')$$,
                  'P0001', 'permission denied', 'aal1: creation refused');
 select pg_temp.claims('00000000-0000-0000-0000-000000234102', 'owner', 'aal2');
-select throws_ok($$select create_support_account('00000000-0000-0000-0000-000000234111', 'Sup One', 'sup.one@gymosapps.com')$$,
+select throws_ok($$select create_support_account('00000000-0000-0000-0000-000000234111', 'SUP ONE', 'sup.one@gymosapps.com')$$,
                  'P0001', 'permission denied', 'non-admin: creation refused');
 select throws_ok($$select issue_support_invite('00000000-0000-0000-0000-000000234111', '00000000-0000-0000-0000-0000000234a1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '00000000-0000-0000-0000-000000234101')$$,
                  '42501', null, 'non-admin session: no EXECUTE on invite issuance');
@@ -93,20 +93,20 @@ select is(pg_temp.err($$select create_support_account('00000000-0000-0000-0000-0
           'support_account_refused', 'an unconfirmed email is refused');
 select is(pg_temp.err($$select create_support_account('00000000-0000-0000-0000-000000234111', '  ', 'sup.one@gymosapps.com')$$),
           'support_account_refused', 'a blank name is refused');
-select is(pg_temp.err($$select create_support_account('00000000-0000-0000-0000-000000234111', 'Sup One', 'sup.one@gymosapps.com')$$),
+select is(pg_temp.err($$select create_support_account('00000000-0000-0000-0000-000000234111', 'SUP ONE', 'sup.one@gymosapps.com')$$),
           'ok', 'Super Admin at aal2 with the flag on creates an account');
 reset role;
 select is((select (activated_at is null)::text from private.support_accounts where user_id = '00000000-0000-0000-0000-000000234111'),
           'true', 'the account starts inactive');
 select is((select count(*)::int from support_assignments where support_user_id = '00000000-0000-0000-0000-000000234111')
           + (select count(*)::int from members where user_id = '00000000-0000-0000-0000-000000234111'), 0, 'no assignment and no membership');
-select is((select display_name from users where id = '00000000-0000-0000-0000-000000234111'), 'Sup One', 'display name stored');
+select is((select display_name from users where id = '00000000-0000-0000-0000-000000234111'), 'SUP ONE', 'display name stored');
 select is((select count(*)::int from audit_log where action_type = 'support_account_created'
             and target_entity_id = '00000000-0000-0000-0000-000000234111' and actor_id = '00000000-0000-0000-0000-000000234101'), 1,
           'one audit row, actor is the real Super Admin');
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000234101', 'super_admin', 'aal2');
-select is(pg_temp.err($$select create_support_account('00000000-0000-0000-0000-000000234111', 'Sup One', 'sup.one@gymosapps.com')$$),
+select is(pg_temp.err($$select create_support_account('00000000-0000-0000-0000-000000234111', 'SUP ONE', 'sup.one@gymosapps.com')$$),
           'support_account_refused', 'creating the same account twice is refused');
 select is((select assignable::text || '|' || activated::text || '|' || invite_state from get_support_accounts() where user_id = '00000000-0000-0000-0000-000000234111'),
           'true|false|none', 'state read: assignable, not activated, no invite');

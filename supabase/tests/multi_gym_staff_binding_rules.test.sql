@@ -26,7 +26,7 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000020104'); -- existing Gym A supervisor (target-ceiling fixture)
 
 insert into members (id, gym_id, user_id, role, name, phone, deactivated_at) values
-  ('00000000-0000-0000-0000-000000020071', '00000000-0000-0000-0000-000000020011', '00000000-0000-0000-0000-000000020021', 'owner', 'Multi-Gym Binding Gym A Owner', '+237600020021', null),
+  ('00000000-0000-0000-0000-000000020071', '00000000-0000-0000-0000-000000020011', '00000000-0000-0000-0000-000000020021', 'owner', 'MULTI-GYM BINDING GYM A OWNER', '+237600020021', null),
   ('00000000-0000-0000-0000-000000020072', '00000000-0000-0000-0000-000000020011', '00000000-0000-0000-0000-000000020022', 'supervisor', 'Multi-Gym Binding Gym A Supervisor', '+237600020022', null),
   ('00000000-0000-0000-0000-000000020077', '00000000-0000-0000-0000-000000020012', '00000000-0000-0000-0000-000000020023', 'owner', 'Multi-Gym Binding Gym B Owner', '+237600020023', null),
   ('00000000-0000-0000-0000-000000020073', '00000000-0000-0000-0000-000000020011', '00000000-0000-0000-0000-000000020101', 'coach', 'Multi-Gym Person (Gym A Coach)', '+237600020101', null),
@@ -273,7 +273,7 @@ reset role;
 
 select is(
   (select name from members where id = '00000000-0000-0000-0000-000000020071'),
-  'Multi-Gym Binding Gym A Owner',
+  'MULTI-GYM BINDING GYM A OWNER',
   'update_staff_role() target-role ceiling: the Owner''s row is unchanged after the rejected attempt'
 );
 
@@ -301,7 +301,7 @@ select lives_ok(
 );
 
 select lives_ok(
-  $$select update_staff_role('00000000-0000-0000-0000-000000020071', 'Renamed Owner', 'owner')$$,
+  $$select update_staff_role('00000000-0000-0000-0000-000000020071', 'RENAMED OWNER', 'owner')$$,
   'regression: an owner-claim session can still perform a name-only self-edit (target-role ceiling correctly skips the self-edit case)'
 );
 
@@ -315,7 +315,7 @@ select is(
 
 select is(
   (select name from members where id = '00000000-0000-0000-0000-000000020071'),
-  'Renamed Owner',
+  'RENAMED OWNER',
   'regression: the Owner''s own name-only self-edit still succeeds'
 );
 

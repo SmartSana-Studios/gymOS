@@ -44,7 +44,7 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000017111');
 
 insert into members (id, gym_id, user_id, role, name, deactivated_at) values
-  ('00000000-0000-0000-0000-000000017071', '00000000-0000-0000-0000-000000017011', '00000000-0000-0000-0000-000000017021', 'owner', 'Staff Creation Gym A Owner', null),
+  ('00000000-0000-0000-0000-000000017071', '00000000-0000-0000-0000-000000017011', '00000000-0000-0000-0000-000000017021', 'owner', 'STAFF CREATION GYM A OWNER', null),
   ('00000000-0000-0000-0000-000000017072', '00000000-0000-0000-0000-000000017011', '00000000-0000-0000-0000-000000017022', 'supervisor', 'Staff Creation Gym A Supervisor', null),
   ('00000000-0000-0000-0000-000000017073', '00000000-0000-0000-0000-000000017011', '00000000-0000-0000-0000-000000017023', 'manager', 'Staff Creation Gym A Manager', null),
   ('00000000-0000-0000-0000-000000017074', '00000000-0000-0000-0000-000000017011', '00000000-0000-0000-0000-000000017024', 'receptionist', 'Staff Creation Gym A Receptionist', null),
@@ -147,7 +147,7 @@ select is(
   (select actor_display_name from audit_log
    where action_type = 'staff_created'
      and target_entity_id = (select id::text from members where user_id = '00000000-0000-0000-0000-000000017101')),
-  'Staff Creation Gym A Owner',
+  'STAFF CREATION GYM A OWNER',
   'the staff_created audit row logs the acting Owner''s real name (members.name fallback), not ''Unknown User'''
 );
 

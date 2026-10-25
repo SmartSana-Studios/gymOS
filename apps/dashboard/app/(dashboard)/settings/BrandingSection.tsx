@@ -58,6 +58,7 @@ export function BrandingSection({
               <Label htmlFor="gymName">{t("settings.fields.gymName")}</Label>
               <Input
                 id="gymName"
+            className="uppercase"
                 value={form.gymName}
                 onChange={(e) => setForm({ ...form, gymName: e.target.value })}
               />

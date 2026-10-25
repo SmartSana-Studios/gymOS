@@ -939,6 +939,7 @@ export function MemberModal({
               <Label htmlFor="memberName">{t("members.modal.name")}</Label>
               <Input
                 id="memberName"
+            className="uppercase"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
@@ -992,6 +993,7 @@ export function MemberModal({
               <Label htmlFor="memberEmergencyContact">{t("members.modal.emergencyContact")}</Label>
               <Input
                 id="memberEmergencyContact"
+                className="uppercase"
                 value={form.emergencyContact}
                 onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })}
               />
@@ -1012,6 +1014,7 @@ export function MemberModal({
               <Label htmlFor="memberProfession">{t("members.modal.profession")}</Label>
               <Input
                 id="memberProfession"
+            className="uppercase"
                 value={form.profession}
                 onChange={(e) => setForm({ ...form, profession: e.target.value })}
               />
@@ -1022,6 +1025,7 @@ export function MemberModal({
               <Label htmlFor="memberNeighborhood">{t("members.modal.neighborhood")}</Label>
               <Input
                 id="memberNeighborhood"
+            className="uppercase"
                 value={form.neighborhood}
                 onChange={(e) => setForm({ ...form, neighborhood: e.target.value })}
               />

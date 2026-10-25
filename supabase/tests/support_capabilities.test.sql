@@ -278,7 +278,7 @@ select alike(pg_temp.err($$insert into plans (gym_id, name, plan_type, price, bi
 select is(pg_temp.rows($$update plans set name = 'Cap Monthly 2' where id = '00000000-0000-0000-0000-000000236501'$$), '1', 'allow-list: edit a plan');
 select is(pg_temp.err($$select update_plan_pricing('00000000-0000-0000-0000-000000236501', 'monthly', 12000, 30, 'monthly', null, null)$$), 'ok', 'allow-list: change a plan price (RPC)');
 select is((select price from plans where id = '00000000-0000-0000-0000-000000236501'), 12000, 'the price changed');
-select is(pg_temp.rows($$delete from plans where name = 'Support Plan'$$), '1', 'allow-list: delete a plan');
+select is(pg_temp.rows($$delete from plans where name = 'SUPPORT PLAN'$$), '1', 'allow-list: delete a plan');
 -- registration fee, guest charging, loyalty, category
 select is(pg_temp.err($$select set_registration_fee(5000)$$), 'ok', 'allow-list: registration fee');
 select is((select registration_fee from gyms where id = '00000000-0000-0000-0000-000000236001'), 5000, 'the registration fee changed');

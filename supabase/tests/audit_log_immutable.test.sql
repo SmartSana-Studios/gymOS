@@ -26,7 +26,7 @@ insert into gyms (id, name, tier_id, capacity)
 values ('00000000-0000-0000-0000-0000000000e1', 'Audit Gym', '00000000-0000-0000-0000-000000000004', 30);
 
 insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000e2');
-update public.users set display_name = 'Real Display Name' where id = '00000000-0000-0000-0000-0000000000e2';
+update public.users set display_name = 'REAL DISPLAY NAME' where id = '00000000-0000-0000-0000-0000000000e2';
 -- 22.3: the gym_id claim must resolve to a live membership.
 insert into members (id, gym_id, user_id, role, name)
 values ('00000000-0000-0000-0000-0000000000f2', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e2', 'owner', 'Audit Owner');
@@ -109,7 +109,7 @@ select is(
 
 select is(
   (select actor_display_name from audit_log where action_type = 'member_deactivated'),
-  'Real Display Name',
+  'REAL DISPLAY NAME',
   'authenticated-session record''s actor_display_name is looked up from public.users, not caller-supplied'
 );
 
@@ -184,7 +184,7 @@ insert into auth.users (id) values ('00000000-0000-0000-0000-0000000000e6');
 -- Deliberately no display_name set, same as e4 -- but this user DOES have an
 -- active members row in gym e1, unlike e4.
 insert into members (id, gym_id, user_id, role, name)
-values ('00000000-0000-0000-0000-0000000000e7', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e6', 'manager', 'Fallback Members Name');
+values ('00000000-0000-0000-0000-0000000000e7', '00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e6', 'manager', 'FALLBACK MEMBERS NAME');
 
 set local role authenticated;
 select set_config(
@@ -203,7 +203,7 @@ reset role;
 
 select is(
   (select actor_display_name from audit_log where action_type = 'member_edited'),
-  'Fallback Members Name',
+  'FALLBACK MEMBERS NAME',
   'actor_display_name falls back to the caller''s own members.name when users.display_name is NULL, instead of ''Unknown User'' -- the real-name logging fix'
 );
 

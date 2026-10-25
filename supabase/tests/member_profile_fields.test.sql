@@ -75,7 +75,7 @@ select lives_ok(
 );
 select is(
   (select birth_year::text || '/' || profession || '/' || neighborhood from members where id = '00000000-0000-0000-0000-000000015423'),
-  '1984/Welder/Ngui',
+  '1984/WELDER/NGUI',
   'the staff write is stored'
 );
 
@@ -96,7 +96,7 @@ select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000015411","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000015401","app_role":"owner"}', true);
 select is(
   (select birth_year::text || '/' || profession || '/' || neighborhood from members where id = '00000000-0000-0000-0000-000000015423'),
-  '1984/Welder/Ngui',
+  '1984/WELDER/NGUI',
   'the member self-update left the three fields unchanged'
 );
 
