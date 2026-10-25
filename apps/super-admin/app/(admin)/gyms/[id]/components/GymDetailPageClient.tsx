@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Building2, CalendarDays, Layers, Phone, ShieldCheck, Tag, User, Users } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
@@ -36,6 +37,39 @@ const STATUS_LABEL_KEY: Record<string, string> = {
   suspended: "gyms.create.statusSuspended",
   deactivated: "gyms.create.statusDeactivated",
 };
+
+const STATUS_BADGE_CLASS: Record<string, string> = {
+  active: "border-green-200 bg-green-100 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200",
+  suspended: "border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200",
+  deactivated: "border-red-200 bg-red-100 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200",
+};
+const DANGER_BUTTON =
+  "border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950 dark:hover:text-red-200";
+const SUCCESS_BUTTON =
+  "border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950 dark:hover:text-green-200";
+
+/** One labelled tile of the gym summary: a small icon, the label, then whatever the field needs (value, editor, actions). */
+function InfoCard({
+  icon: Icon,
+  label,
+  className = "",
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`rounded-lg border bg-background p-4 ${className}`}>
+      <p className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <Icon className="size-4" />
+        {label.replace(/:\s*$/, "")}
+      </p>
+      {children}
+    </div>
+  );
+}
 
 /** The detail page keeps the gym card and any live access on top; the rest are tabs (selected tab in the URL as `?tab=`).
  * The two tables stay together in one tab, each with its own paging params. */
@@ -113,6 +147,8 @@ export function GymDetailPageClient({
   >(null);
   const [changingTier, setChangingTier] = useState(false);
   const [escalating, setEscalating] = useState(false);
+  const effectiveCap = gym.memberCapOverride ?? gym.tierMemberCap;
+  const usagePercent = effectiveCap ? (gym.memberCount / effectiveCap) * 100 : 0;
 
   return (
     <div className="space-y-4">
@@ -127,82 +163,103 @@ export function GymDetailPageClient({
         {gym.name}
       </div>
 
-      <div className="space-y-4 rounded-md border p-6">
-        <div className="grid grid-cols-[140px_1fr] gap-y-3 text-sm">
-          <span className="text-muted-foreground">{t("gyms.detail.gymName")}</span>
-          <span>{gym.name}</span>
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
+        <div className="flex flex-wrap items-center gap-4 border-b bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-6">
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow">
+            <Building2 className="size-7" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-2xl font-semibold">{gym.name}</h1>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <User className="size-3.5" />
+                {gym.ownerName ?? "—"}
+              </span>
+              {gym.ownerPhone && (
+                <span className="inline-flex items-center gap-1">
+                  <Phone className="size-3.5" />
+                  {gym.ownerPhone}
+                </span>
+              )}
+            </p>
+          </div>
+          <Badge className={`px-3 py-1 text-sm ${STATUS_BADGE_CLASS[gym.status] ?? ""}`}>
+            {STATUS_LABEL_KEY[gym.status] ? t(STATUS_LABEL_KEY[gym.status]) : gym.status}
+          </Badge>
+        </div>
 
-          <span className="text-muted-foreground">{t("gyms.detail.owner")}</span>
-          <span>
-            {gym.ownerName ?? "—"}
-            {gym.ownerPhone ? ` (${gym.ownerPhone})` : ""}
-          </span>
+        <div className="grid gap-3 p-6 sm:grid-cols-2 lg:grid-cols-3">
+          <InfoCard icon={Tag} label={t("gyms.detail.category")}>
+            <GymCategoryEditor gym={gym} onSaved={() => router.refresh()} />
+          </InfoCard>
 
-          <span className="text-muted-foreground">{t("gyms.detail.category")}</span>
-          <GymCategoryEditor gym={gym} onSaved={() => router.refresh()} />
+          <InfoCard icon={CalendarDays} label={t("gyms.detail.created")}>
+            <span className="text-base font-medium">
+              {new Date(gym.createdAt).toLocaleDateString(i18n.language, { day: "numeric", month: "long", year: "numeric" })}
+            </span>
+          </InfoCard>
 
-          <span className="text-muted-foreground">{t("gyms.detail.created")}</span>
-          <span>{new Date(gym.createdAt).toLocaleDateString()}</span>
+          <InfoCard icon={Layers} label={t("gyms.detail.tier")}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-base font-semibold">{gym.tierName}</span>
+              <Button variant="outline" size="sm" onClick={() => setChangingTier(true)}>
+                {t("gyms.detail.change")}
+              </Button>
+            </div>
+          </InfoCard>
 
-          <span className="text-muted-foreground">{t("gyms.detail.tier")}</span>
-          <span className="flex items-center gap-2">
-            {gym.tierName}
-            <Button variant="outline" size="sm" onClick={() => setChangingTier(true)}>
-              {t("gyms.detail.change")}
-            </Button>
-          </span>
+          <InfoCard icon={Users} label={t("gyms.detail.memberCount")}>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-base font-semibold">
+                  {gym.memberCapOverride !== null
+                    ? t("gyms.detail.memberCountOverride", { count: gym.memberCount, cap: gym.memberCapOverride })
+                    : gym.tierMemberCap !== null
+                      ? t("gyms.detail.memberCountWithCap", { count: gym.memberCount, cap: gym.tierMemberCap })
+                      : t("gyms.detail.memberCountNoCap", { count: gym.memberCount })}
+                </span>
+                <CapOverrideEditor gym={gym} onSaved={() => router.refresh()} />
+              </div>
+              {effectiveCap !== null && effectiveCap > 0 && (
+                <div className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                  <div
+                    className={`h-full rounded-full ${usagePercent >= 100 ? "bg-red-500" : usagePercent >= 80 ? "bg-amber-500" : "bg-green-500"}`}
+                    style={{ width: `${Math.min(usagePercent, 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          </InfoCard>
 
-          <span className="text-muted-foreground">{t("gyms.detail.memberCount")}</span>
-          <span className="flex items-center gap-2">
-            {gym.memberCapOverride !== null
-              ? t("gyms.detail.memberCountOverride", { count: gym.memberCount, cap: gym.memberCapOverride })
-              : gym.tierMemberCap !== null
-                ? t("gyms.detail.memberCountWithCap", { count: gym.memberCount, cap: gym.tierMemberCap })
-                : t("gyms.detail.memberCountNoCap", { count: gym.memberCount })}
-            <CapOverrideEditor gym={gym} onSaved={() => router.refresh()} />
-          </span>
-
-          <span className="text-muted-foreground">{t("gyms.detail.status")}</span>
-          <span className="flex items-center gap-2">
-            <span>{STATUS_LABEL_KEY[gym.status] ? t(STATUS_LABEL_KEY[gym.status]) : gym.status}</span>
-            {gym.status === "active" && (
-              <>
-                <Button variant="outline" size="sm" onClick={() => setLifecycleAction("suspend")}>
-                  {t("gyms.actions.suspend")}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLifecycleAction("deactivate")}
-                >
-                  {t("gyms.actions.deactivate")}
-                </Button>
-              </>
-            )}
-            {gym.status === "suspended" && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLifecycleAction("reinstate")}
-                >
+          <InfoCard icon={ShieldCheck} label={t("gyms.detail.status")} className="sm:col-span-2 lg:col-span-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {gym.status === "active" && (
+                <>
+                  <Button variant="outline" size="sm" className={DANGER_BUTTON} onClick={() => setLifecycleAction("suspend")}>
+                    {t("gyms.actions.suspend")}
+                  </Button>
+                  <Button variant="outline" size="sm" className={DANGER_BUTTON} onClick={() => setLifecycleAction("deactivate")}>
+                    {t("gyms.actions.deactivate")}
+                  </Button>
+                </>
+              )}
+              {gym.status === "suspended" && (
+                <>
+                  <Button variant="outline" size="sm" className={SUCCESS_BUTTON} onClick={() => setLifecycleAction("reinstate")}>
+                    {t("gyms.actions.reinstate")}
+                  </Button>
+                  <Button variant="outline" size="sm" className={DANGER_BUTTON} onClick={() => setLifecycleAction("deactivate")}>
+                    {t("gyms.actions.deactivate")}
+                  </Button>
+                </>
+              )}
+              {gym.status === "deactivated" && (
+                <Button variant="outline" size="sm" className={SUCCESS_BUTTON} onClick={() => setLifecycleAction("reinstate")}>
                   {t("gyms.actions.reinstate")}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLifecycleAction("deactivate")}
-                >
-                  {t("gyms.actions.deactivate")}
-                </Button>
-              </>
-            )}
-            {gym.status === "deactivated" && (
-              <Button variant="outline" size="sm" onClick={() => setLifecycleAction("reinstate")}>
-                {t("gyms.actions.reinstate")}
-              </Button>
-            )}
-          </span>
+              )}
+            </div>
+          </InfoCard>
         </div>
 
         {/* Story 1.15 review: `expiresAt` is a server render, so a tab left
@@ -211,7 +268,7 @@ export function GymDetailPageClient({
             indicator back to the escalate button once the clock passes it.
             The database remains the authority either way -- this only stops
             the UI contradicting it. */}
-        <div className="flex flex-wrap items-center gap-3 border-t pt-4">
+        <div className="flex flex-wrap items-center gap-3 border-t bg-muted/30 px-6 py-4">
           {expiresAt !== null && !hasLapsed(expiresAt, now) ? (
             <>
               <span className="text-sm text-muted-foreground">
