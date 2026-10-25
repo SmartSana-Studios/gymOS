@@ -72,8 +72,8 @@ function InfoCard({
 }
 
 /** The detail page keeps the gym card and any live access on top; the rest are tabs (selected tab in the URL as `?tab=`).
- * The two tables stay together in one tab, each with its own paging params. */
-export const GYM_DETAIL_TABS = ["audit", "support", "data"] as const;
+ * Members and payments are separate tabs, each with its own paging params, offered only while data access is granted. */
+export const GYM_DETAIL_TABS = ["audit", "support", "members", "payments"] as const;
 type GymDetailTab = (typeof GYM_DETAIL_TABS)[number];
 
 function parseTab(value: string | null | undefined): GymDetailTab {
@@ -148,9 +148,9 @@ export function GymDetailPageClient({
   const [changingTier, setChangingTier] = useState(false);
   const [escalating, setEscalating] = useState(false);
   // The Members and payments tab exists only while this admin holds a live "Access gym data" grant (page.tsx loads the
-  // two tables only then); without it the tab is not offered and a ?tab=data link falls back to the first tab.
+  // two tables only then); without it the tab is not offered and a ?tab=members link falls back to the first tab.
   const dataUnlocked = members !== null || payments !== null;
-  const visibleTabs = GYM_DETAIL_TABS.filter((key) => key !== "data" || dataUnlocked);
+  const visibleTabs = GYM_DETAIL_TABS.filter((key) => (key !== "members" && key !== "payments") || dataUnlocked);
   const activeTab = visibleTabs.includes(tab) ? tab : "audit";
   const effectiveCap = gym.memberCapOverride ?? gym.tierMemberCap;
   const usagePercent = effectiveCap ? (gym.memberCount / effectiveCap) * 100 : 0;
@@ -322,10 +322,14 @@ export function GymDetailPageClient({
           <GymSupportPanel gymId={gym.id} assignments={supportAssignments} accounts={supportAccounts} />
         </TabsContent>
         {dataUnlocked && (
-          <TabsContent value="data" className="space-y-4">
-            <GymMembersTable members={members} />
-            <GymPaymentsTable payments={payments} />
-          </TabsContent>
+          <>
+            <TabsContent value="members">
+              <GymMembersTable members={members} />
+            </TabsContent>
+            <TabsContent value="payments">
+              <GymPaymentsTable payments={payments} />
+            </TabsContent>
+          </>
         )}
       </Tabs>
 
@@ -335,7 +339,7 @@ export function GymDetailPageClient({
           onClose={() => setEscalating(false)}
           onDone={() => {
             setEscalating(false);
-            selectTab("data");
+            selectTab("members");
             router.refresh();
           }}
         />

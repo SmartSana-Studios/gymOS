@@ -108,7 +108,8 @@
       "tabs": {
         "audit": "Audit trail",
         "support": "GymOS support",
-        "data": "Members and payments"
+        "members": "Members",
+        "payments": "Payments register"
       },
       "backToGyms": "Gyms",
       "gymName": "Gym Name:",

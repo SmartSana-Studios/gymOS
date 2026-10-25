@@ -108,7 +108,8 @@
       "tabs": {
         "audit": "Journal d'audit",
         "support": "Support GymOS",
-        "data": "Membres et paiements"
+        "members": "Membres",
+        "payments": "Registre des paiements"
       },
       "backToGyms": "Salles",
       "gymName": "Nom de la salle :",
