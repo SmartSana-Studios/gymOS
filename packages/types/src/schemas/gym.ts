@@ -154,6 +154,22 @@ export const escalateGymAccessSchema = z.object({
     .max(REASON_MAX_LENGTH, "Reason is too long"),
 });
 
+// SA-03 "Edit owner contact": the owner account's sign-in email and/or phone. A blank field means "keep it"; at least
+// one must be given. The reason is audited, like every other Super Admin write on a gym.
+export const changeOwnerContactSchema = z
+  .object({
+    email: z.union([z.literal(""), z.email("Enter a valid email address")]).optional(),
+    phone: z.union([z.literal(""), e164Phone]).optional(),
+    reason: z
+      .string()
+      .trim()
+      .min(REASON_MIN_LENGTH, "Add a reason for this change")
+      .max(REASON_MAX_LENGTH, "Reason is too long"),
+  })
+  .refine((v) => Boolean(v.email) || Boolean(v.phone), { message: "Enter a new email or a new phone", path: ["email"] });
+
+export type ChangeOwnerContactInput = z.infer<typeof changeOwnerContactSchema>;
+
 export type EscalateGymAccessInput = z.infer<typeof escalateGymAccessSchema>;
 
 // Story 1.15: revoking another Super Admin's active escalation grant also

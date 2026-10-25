@@ -51,6 +51,7 @@ describe("a denied gate stops every gated Server Action before any work", () => 
   add("revokeGymAccess", gyms, "revokeGymAccess", [GYM, ACTOR, { reason: "x" }]);
   add("changeGymCategory", gyms, "changeGymCategory", [GYM, { category: "gym" }]);
   add("renameGym", gyms, "renameGym", [GYM, { name: "New Name" }]);
+  add("changeOwnerContact", gyms, "changeOwnerContact", [GYM, { email: "x@y.test", reason: "owner asked" }]);
   add("markPaymentReceived", billing, "markPaymentReceived", [GYM]);
   add("applyCredit", billing, "applyCredit", [GYM, { days: 3, reason: "x" }]);
   add("createTier", tiers, "createTier", [{}]);

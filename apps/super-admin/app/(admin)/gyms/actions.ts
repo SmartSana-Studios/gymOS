@@ -2,6 +2,7 @@
 
 import {
   changeGymTierSchema,
+  changeOwnerContactSchema,
   createGymSchema,
   escalateGymAccessSchema,
   gymIdSchema,
@@ -31,6 +32,7 @@ import {
   setGymCategory,
   updateGymCapOverride,
   updateGymName,
+  rpcChangeOwnerContact,
   gymNameTakenByOther,
   updateGymStatus,
   tierAuditFields,
@@ -749,6 +751,82 @@ export async function renameGym(
     return { error: { code: "audit_log_failed", message: t("gyms.errors.auditLogFailedRename") } };
   }
 
+  return { error: null };
+}
+
+/**
+ * SA-03 "Edit owner contact". Record-first, like change_support_contact: change_owner_contact() updates the public rows
+ * and writes the audit entry in one transaction, then the same values are applied to the sign-in account through the
+ * Admin API. If that fails the function is called again with the previous values, so record and account agree again.
+ */
+export async function changeOwnerContact(
+  gymId: string,
+  input: unknown,
+): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
+  }
+
+  const parsed = changeOwnerContactSchema.safeParse(input);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return {
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+    };
+  }
+  const email = parsed.data.email ? parsed.data.email.trim().toLowerCase() : null;
+  const phone = parsed.data.phone || null;
+
+  const { data: row, error } = await rpcChangeOwnerContact({
+    gymId,
+    email,
+    phone,
+    reason: parsed.data.reason,
+  });
+  if (error) return { error };
+  if (!row) return { error: { code: "owner_contact_refused", message: t("gyms.detail.ownerContact.codes.refused") } };
+  if (!row.ok) {
+    return {
+      error: {
+        code: row.code,
+        message: t(`gyms.detail.ownerContact.codes.${row.code}`, { defaultValue: t("gyms.detail.ownerContact.codes.refused") }),
+      },
+    };
+  }
+
+  let applied = false;
+  try {
+    const { error: updateError } = await createAdminClient().auth.admin.updateUserById(row.owner_user_id as string, {
+      ...(email ? { email, email_confirm: true } : {}),
+      ...(phone ? { phone, phone_confirm: true } : {}),
+    });
+    applied = !updateError;
+  } catch {
+    applied = false;
+  }
+  if (!applied) {
+    let reverted = false;
+    try {
+      const { data: back, error: backError } = await rpcChangeOwnerContact({
+        gymId,
+        email: email ? row.previous_email : null,
+        phone: phone && row.previous_phone ? `+${row.previous_phone}` : null,
+        reason: "automatic revert: the sign-in account could not be updated",
+      });
+      reverted = !backError && back?.ok === true;
+    } catch {
+      reverted = false;
+    }
+    return {
+      error: reverted
+        ? { code: "owner_contact_apply_failed", message: t("gyms.detail.ownerContact.errors.applyFailed") }
+        : { code: "owner_contact_revert_failed", message: t("gyms.detail.ownerContact.errors.revertFailed") },
+    };
+  }
   return { error: null };
 }
 

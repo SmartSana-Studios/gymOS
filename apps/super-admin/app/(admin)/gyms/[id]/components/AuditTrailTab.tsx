@@ -13,6 +13,7 @@ const ACTION_LABEL_KEY: Record<string, string> = {
   gym_tier_changed: "gyms.auditTrail.action.gym_tier_changed",
   gym_category_changed: "gyms.auditTrail.action.gym_category_changed",
   gym_renamed: "gyms.auditTrail.action.gym_renamed",
+  gym_owner_contact_changed: "gyms.auditTrail.action.gym_owner_contact_changed",
   gym_cap_overridden: "gyms.auditTrail.action.gym_cap_overridden",
   gym_data_escalation: "gyms.auditTrail.action.gym_data_escalation",
   gym_data_escalation_revoked: "gyms.auditTrail.action.gym_data_escalation_revoked",
@@ -81,6 +82,12 @@ function describeEntry(
     if (typeof m.previous_name === "string" && typeof m.new_name === "string") {
       parts.push(`${m.previous_name} → ${m.new_name}`);
     }
+  }
+
+  if (entry.actionType === "gym_owner_contact_changed") {
+    const m = entry.metadata;
+    if (typeof m.new_phone === "string") parts.push(`${t("gyms.auditTrail.phone")}: ${m.previous_phone ?? "—"} → ${m.new_phone}`);
+    if (typeof m.new_email === "string") parts.push(`${t("gyms.auditTrail.email")}: ${m.previous_email ?? "—"} → ${m.new_email}`);
   }
 
   const reason = typeof entry.metadata.reason === "string" ? entry.metadata.reason : null;

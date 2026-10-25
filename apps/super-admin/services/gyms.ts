@@ -938,6 +938,7 @@ export async function logGymLifecycleEvent(
     | "gym_tier_changed"
     | "gym_cap_overridden"
     | "gym_renamed"
+    | "gym_owner_contact_changed"
     | "saas_payment_marked_received"
     | "saas_billing_credit_applied"
     | "saas_billing_retry_triggered",
@@ -1045,6 +1046,35 @@ export async function updateGymName(
     return { data: null, error: await gymNotFoundError() };
   }
   return { data: { previousName: before.name }, error: null };
+}
+
+export type OwnerContactResult = {
+  ok: boolean;
+  code: string;
+  owner_user_id: string | null;
+  previous_email: string | null;
+  previous_phone: string | null;
+};
+
+/** SA-03 "Edit owner contact": change_owner_contact() records the new values on the public rows and writes the audit
+ * entry; a null email/phone means "keep it". The sign-in account itself is updated by the caller (Admin API). */
+export async function rpcChangeOwnerContact(args: {
+  gymId: string;
+  email: string | null;
+  phone: string | null;
+  reason: string;
+}): Promise<{ data: OwnerContactResult | null; error: AppError | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("change_owner_contact", {
+    p_gym_id: args.gymId,
+    p_email: args.email as string,
+    p_phone: args.phone as string,
+    p_reason: args.reason,
+  });
+  if (error) {
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: ((data ?? [])[0] as OwnerContactResult | undefined) ?? null, error: null };
 }
 
 export async function insertGym(input: {
