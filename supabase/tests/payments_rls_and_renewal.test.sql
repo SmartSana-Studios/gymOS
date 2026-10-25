@@ -47,8 +47,8 @@ insert into plans (id, gym_id, name, plan_type, price, billing_interval, duratio
 -- recent subscription" plan lookup has a real row to resolve plan_id from
 -- -- mirrors renew_subscription()'s own fixture convention.
 insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date, created_at) values
-  ('00000000-0000-0000-0000-000000009071', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009051', '00000000-0000-0000-0000-000000009061', 'expired', current_date - 40, current_date - 10, now() - interval '1 day'),
-  ('00000000-0000-0000-0000-000000009072', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009052', '00000000-0000-0000-0000-000000009061', 'expired', current_date - 40, current_date - 10, now() - interval '1 day');
+  ('00000000-0000-0000-0000-000000009071', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009051', '00000000-0000-0000-0000-000000009061', 'expired', (now() at time zone 'Africa/Douala')::date - 40, (now() at time zone 'Africa/Douala')::date - 10, now() - interval '1 day'),
+  ('00000000-0000-0000-0000-000000009072', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009052', '00000000-0000-0000-0000-000000009061', 'expired', (now() at time zone 'Africa/Douala')::date - 40, (now() at time zone 'Africa/Douala')::date - 10, now() - interval '1 day');
 
 -- ============================================================================
 -- RLS: owner/manager/receptionist can INSERT payments scoped to their own
@@ -243,7 +243,7 @@ select is(
 
 select is(
   (select expiry_date from subscriptions where member_id = '00000000-0000-0000-0000-000000009051' order by created_at desc limit 1),
-  current_date + 30,
+  (now() at time zone 'Africa/Douala')::date + 30,
   'the new subscription''s expiry_date is today + the plan''s duration_days (30)'
 );
 

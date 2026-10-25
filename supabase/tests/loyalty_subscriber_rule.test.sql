@@ -22,7 +22,7 @@ $f$;
 create function pg_temp.sub(p_member uuid, p_plan uuid, p_expiry date, p_status text default 'active')
 returns uuid language sql security definer as $f$
   insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expiry_date, created_at)
-  select m.gym_id, m.id, p_plan, p_status::subscription_status, current_date - 60, p_expiry, now() - interval '60 days'
+  select m.gym_id, m.id, p_plan, p_status::subscription_status, (now() at time zone 'Africa/Douala')::date - 60, p_expiry, now() - interval '60 days'
   from members m where m.id = p_member
   returning id
 $f$;
@@ -96,7 +96,7 @@ select ('00000000-0000-0000-0000-0000000500' || lpad(to_hex(n + 16), 2, '0'))::u
             else '00000000-0000-0000-0000-000000050011'::uuid end,
        ('00000000-0000-0000-0000-0000000500' || lpad(to_hex(n), 2, '0'))::uuid,
        case when n = 32 then 'receptionist'::member_role else 'member'::member_role end,
-       'SR ' || n, current_date
+       'SR ' || n, (now() at time zone 'Africa/Douala')::date
 from generate_series(32, 51) n;
 
 -- Map (member id = 0x30 + offset from 0x20):
@@ -332,7 +332,7 @@ select is(pg_temp.stamps('00000000-0000-0000-0000-000000050034'), 2, 'M4: judged
 insert into auth.users (id) values ('00000000-0000-0000-0000-00000005005a');
 insert into members (id, gym_id, user_id, role, name, join_date) values
   ('00000000-0000-0000-0000-000000050059', '00000000-0000-0000-0000-000000050011',
-   '00000000-0000-0000-0000-00000005005a', 'member', 'SR extended', current_date);
+   '00000000-0000-0000-0000-00000005005a', 'member', 'SR extended', (now() at time zone 'Africa/Douala')::date);
 select pg_temp.sub('00000000-0000-0000-0000-000000050059', '00000000-0000-0000-0000-000000050061', pg_temp.today());
 insert into loyalty_progress (gym_id, member_id, subscriber_stamps, subscriber_last_event_at) values
   ('00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050059', 2, now() - interval '20 days');
@@ -410,7 +410,7 @@ update gyms set loyalty_enabled = false where id = '00000000-0000-0000-0000-0000
 -- Staff for gym B.
 insert into auth.users (id) values ('00000000-0000-0000-0000-000000050055'), ('00000000-0000-0000-0000-000000050056');
 insert into members (id, gym_id, user_id, role, name, join_date) values
-  ('00000000-0000-0000-0000-000000050045', '00000000-0000-0000-0000-000000050012', '00000000-0000-0000-0000-000000050055', 'receptionist', 'SR Rec B', current_date);
+  ('00000000-0000-0000-0000-000000050045', '00000000-0000-0000-0000-000000050012', '00000000-0000-0000-0000-000000050055', 'receptionist', 'SR Rec B', (now() at time zone 'Africa/Douala')::date);
 set local role authenticated;
 select set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000000050055","role":"authenticated","gym_id":"00000000-0000-0000-0000-000000050012","app_role":"receptionist"}', true);
@@ -573,7 +573,7 @@ select is(pg_temp.stamps('00000000-0000-0000-0000-000000050043'), 1, 'M19: webho
 -- missing, the hook would find a renewal that is on time and stamp.
 insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date, created_at) values
   ('00000000-0000-0000-0000-0000000500d7', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-00000005003e',
-   '00000000-0000-0000-0000-000000050061', 'active', current_date, current_date + 30, now());
+   '00000000-0000-0000-0000-000000050061', 'active', (now() at time zone 'Africa/Douala')::date, (now() at time zone 'Africa/Douala')::date + 30, now());
 insert into payments (id, gym_id, member_id, subscription_id, amount, currency, method, status, purpose) values
   ('00000000-0000-0000-0000-0000000500c1', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-00000005003e',
    '00000000-0000-0000-0000-0000000500d7', 2000, 'XAF', 'cash', 'verified', 'session'),
@@ -606,7 +606,7 @@ select is(pg_temp.stamps('00000000-0000-0000-0000-00000005003e'), 1, 'M14 contro
 -- ============================================================================
 insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date, created_at) values
   ('00000000-0000-0000-0000-0000000500d1', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-00000005003f',
-   '00000000-0000-0000-0000-000000050061', 'active', current_date, current_date + 30, now());
+   '00000000-0000-0000-0000-000000050061', 'active', (now() at time zone 'Africa/Douala')::date, (now() at time zone 'Africa/Douala')::date + 30, now());
 insert into payments (id, gym_id, member_id, subscription_id, amount, currency, method, status, purpose) values
   ('00000000-0000-0000-0000-0000000500d2', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-00000005003f',
    '00000000-0000-0000-0000-0000000500d1', 15000, 'XAF', 'cash', 'verified', 'subscription');
@@ -618,7 +618,7 @@ select is(pg_temp.stamps('00000000-0000-0000-0000-00000005003f'), -1, 'M15: a pl
 -- the null-expiry guard is unreachable for a same-plan renewal (0018).
 insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date, created_at) values
   ('00000000-0000-0000-0000-0000000500d3', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050042',
-   '00000000-0000-0000-0000-000000050061', 'active', current_date, current_date + 30, now());
+   '00000000-0000-0000-0000-000000050061', 'active', (now() at time zone 'Africa/Douala')::date, (now() at time zone 'Africa/Douala')::date + 30, now());
 insert into payments (id, gym_id, member_id, subscription_id, amount, currency, method, status, purpose) values
   ('00000000-0000-0000-0000-0000000500d4', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050042',
    '00000000-0000-0000-0000-0000000500d3', 15000, 'XAF', 'cash', 'verified', 'subscription');
@@ -627,10 +627,10 @@ select is(pg_temp.stamps('00000000-0000-0000-0000-000000050042'), -1, 'M18: a pa
 
 -- M20: first-ever subscription (no previous period).
 insert into members (id, gym_id, user_id, role, name, join_date) values
-  ('00000000-0000-0000-0000-000000050046', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050056', 'member', 'SR first', current_date);
+  ('00000000-0000-0000-0000-000000050046', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050056', 'member', 'SR first', (now() at time zone 'Africa/Douala')::date);
 insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date) values
   ('00000000-0000-0000-0000-0000000500d5', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050046',
-   '00000000-0000-0000-0000-000000050061', 'active', current_date, current_date + 30);
+   '00000000-0000-0000-0000-000000050061', 'active', (now() at time zone 'Africa/Douala')::date, (now() at time zone 'Africa/Douala')::date + 30);
 insert into payments (id, gym_id, member_id, subscription_id, amount, currency, method, status, purpose) values
   ('00000000-0000-0000-0000-0000000500d6', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050046',
    '00000000-0000-0000-0000-0000000500d5', 15000, 'XAF', 'cash', 'verified', 'subscription');
@@ -675,8 +675,8 @@ insert into plans (id, gym_id, name, plan_type, price, currency, billing_interva
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-000000050057'), ('00000000-0000-0000-0000-000000050058');
 insert into members (id, gym_id, user_id, role, name, join_date) values
-  ('00000000-0000-0000-0000-000000050047', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050057', 'member', 'SR long 120', current_date),
-  ('00000000-0000-0000-0000-000000050048', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050058', 'member', 'SR long 400', current_date);
+  ('00000000-0000-0000-0000-000000050047', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050057', 'member', 'SR long 120', (now() at time zone 'Africa/Douala')::date),
+  ('00000000-0000-0000-0000-000000050048', '00000000-0000-0000-0000-000000050011', '00000000-0000-0000-0000-000000050058', 'member', 'SR long 400', (now() at time zone 'Africa/Douala')::date);
 select pg_temp.sub('00000000-0000-0000-0000-000000050047', '00000000-0000-0000-0000-000000050065', pg_temp.today());
 select pg_temp.sub('00000000-0000-0000-0000-000000050048', '00000000-0000-0000-0000-000000050065', pg_temp.today());
 insert into loyalty_progress (gym_id, member_id, subscriber_stamps, subscriber_last_event_at) values
@@ -689,7 +689,7 @@ declare
   v_pay uuid;
 begin
   insert into subscriptions (gym_id, member_id, plan_id, status, start_date, expiry_date, created_at)
-  select m.gym_id, m.id, p_plan, 'active', current_date, current_date + 30,
+  select m.gym_id, m.id, p_plan, 'active', (now() at time zone 'Africa/Douala')::date, (now() at time zone 'Africa/Douala')::date + 30,
          (select max(o.created_at) from subscriptions o where o.member_id = p_member) + interval '1 minute'
   from members m where m.id = p_member returning id into v_sub;
   insert into payments (gym_id, member_id, subscription_id, amount, currency, method, status, purpose)
@@ -725,7 +725,7 @@ insert into members (id, gym_id, user_id, role, name, join_date)
 select ('00000000-0000-0000-0000-0000000500' || lpad(to_hex(n - 32), 2, '0'))::uuid, -- 0x50 .. 0x55
        case when n < 115 then '00000000-0000-0000-0000-000000050013'::uuid else '00000000-0000-0000-0000-000000050014'::uuid end,
        ('00000000-0000-0000-0000-0000000500' || lpad(to_hex(n), 2, '0'))::uuid,
-       'member', 'SR tz ' || n, current_date
+       'member', 'SR tz ' || n, (now() at time zone 'Africa/Douala')::date
 from generate_series(112, 117) n;
 
 -- Kiritimati: local today earns (0x50), local today - 2 is late (0x51), local + 1 is early (0x52).

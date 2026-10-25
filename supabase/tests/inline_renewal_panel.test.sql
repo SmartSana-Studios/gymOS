@@ -55,11 +55,11 @@ insert into plans (id, gym_id, name, plan_type, price, currency, billing_interva
 -- created_at desc limit 1` pattern resolve ambiguously within this test
 -- only (each real renewal is its own transaction in production).
 insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date, created_at) values
-  ('00000000-0000-0000-0000-000000009071', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009051', '00000000-0000-0000-0000-000000009061', 'grace_period', current_date - 40, current_date - 10, now() - interval '1 day');
+  ('00000000-0000-0000-0000-000000009071', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009051', '00000000-0000-0000-0000-000000009061', 'grace_period', (now() at time zone 'Africa/Douala')::date - 40, (now() at time zone 'Africa/Douala')::date - 10, now() - interval '1 day');
 
 -- Deactivated Member: existing expired subscription on the same plan.
 insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date, created_at) values
-  ('00000000-0000-0000-0000-000000009072', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009052', '00000000-0000-0000-0000-000000009061', 'expired', current_date - 40, current_date - 10, now() - interval '1 day');
+  ('00000000-0000-0000-0000-000000009072', '00000000-0000-0000-0000-000000009011', '00000000-0000-0000-0000-000000009052', '00000000-0000-0000-0000-000000009061', 'expired', (now() at time zone 'Africa/Douala')::date - 40, (now() at time zone 'Africa/Douala')::date - 10, now() - interval '1 day');
 
 -- No Subscription Member: deliberately zero subscription rows -- exercises
 -- confirm_renewal()'s own defensive "no existing subscription" guard.
@@ -97,13 +97,13 @@ select is(
 
 select is(
   (select start_date from subscriptions where member_id = '00000000-0000-0000-0000-000000009051' order by created_at desc limit 1),
-  current_date,
+  (now() at time zone 'Africa/Douala')::date,
   'the new row''s start_date is today'
 );
 
 select is(
   (select expiry_date from subscriptions where member_id = '00000000-0000-0000-0000-000000009051' order by created_at desc limit 1),
-  current_date + 30,
+  (now() at time zone 'Africa/Douala')::date + 30,
   'the new row''s expiry_date is today + the plan''s duration_days (30)'
 );
 
@@ -204,7 +204,7 @@ select is(
 
 select is(
   (select metadata->>'new_expiry_date' from audit_log where action_type = 'renewal_confirmed' and target_entity_id = '00000000-0000-0000-0000-000000009051'),
-  (current_date + 30)::text,
+  ((now() at time zone 'Africa/Douala')::date + 30)::text,
   'audit_log metadata.new_expiry_date matches the new subscription''s expiry_date'
 );
 
