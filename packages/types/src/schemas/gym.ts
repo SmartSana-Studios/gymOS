@@ -228,6 +228,10 @@ export const gymSettingsSchema = z.object({
   capacity: z.number().int().positive("Enter the gym's member capacity").max(2147483647, "Value is too large"),
   alertAutoDismissMinutes: z.number().int().min(1, "Auto-dismiss must be between 1 and 120 minutes").max(120, "Auto-dismiss must be between 1 and 120 minutes"),
   checkinTimeoutHours: z.number().int().min(1, "Check-in timeout must be between 1 and 24 hours").max(24, "Check-in timeout must be between 1 and 24 hours"),
+  // Opening hours ("HH:MM", gym-local). null = not set (quiet-gym alerts then use 06:00-22:00). An overnight window
+  // (opening later than closing) is allowed, so no ordering rule.
+  openingTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter a valid time").nullable(),
+  closingTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter a valid time").nullable(),
 });
 
 export type GymSettingsInput = z.infer<typeof gymSettingsSchema>;
