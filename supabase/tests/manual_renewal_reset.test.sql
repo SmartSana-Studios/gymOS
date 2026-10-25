@@ -61,15 +61,15 @@ insert into plans (id, gym_id, name, plan_type, price, billing_interval, duratio
 -- test. In real usage each renewal is its own transaction, so this is a
 -- test-only concern, not a production one.
 insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date, created_at) values
-  ('00000000-0000-0000-0000-000000008071', '00000000-0000-0000-0000-000000008011', '00000000-0000-0000-0000-000000008051', '00000000-0000-0000-0000-000000008061', 'grace_period', current_date - 40, current_date - 10, now() - interval '1 day');
+  ('00000000-0000-0000-0000-000000008071', '00000000-0000-0000-0000-000000008011', '00000000-0000-0000-0000-000000008051', '00000000-0000-0000-0000-000000008061', 'grace_period', (now() at time zone 'Africa/Douala')::date - 40, (now() at time zone 'Africa/Douala')::date - 10, now() - interval '1 day');
 
 -- Pay Per Session Member: existing expired pay-per-session subscription (no expiry_date).
 insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date, created_at) values
-  ('00000000-0000-0000-0000-000000008072', '00000000-0000-0000-0000-000000008011', '00000000-0000-0000-0000-000000008052', '00000000-0000-0000-0000-000000008062', 'expired', current_date - 5, null, now() - interval '1 day');
+  ('00000000-0000-0000-0000-000000008072', '00000000-0000-0000-0000-000000008011', '00000000-0000-0000-0000-000000008052', '00000000-0000-0000-0000-000000008062', 'expired', (now() at time zone 'Africa/Douala')::date - 5, null, now() - interval '1 day');
 
 -- Deactivated Member: existing expired subscription on the monthly plan.
 insert into subscriptions (id, gym_id, member_id, plan_id, status, start_date, expiry_date, created_at) values
-  ('00000000-0000-0000-0000-000000008073', '00000000-0000-0000-0000-000000008011', '00000000-0000-0000-0000-000000008053', '00000000-0000-0000-0000-000000008061', 'expired', current_date - 40, current_date - 10, now() - interval '1 day');
+  ('00000000-0000-0000-0000-000000008073', '00000000-0000-0000-0000-000000008011', '00000000-0000-0000-0000-000000008053', '00000000-0000-0000-0000-000000008061', 'expired', (now() at time zone 'Africa/Douala')::date - 40, (now() at time zone 'Africa/Douala')::date - 10, now() - interval '1 day');
 
 -- No Subscription Member: deliberately zero subscription rows -- bypasses
 -- the app's own always-creates-one-subscription invariant on purpose, to
@@ -107,13 +107,13 @@ select is(
 
 select is(
   (select start_date from subscriptions where member_id = '00000000-0000-0000-0000-000000008051' order by created_at desc limit 1),
-  current_date,
+  (now() at time zone 'Africa/Douala')::date,
   'the new row''s start_date is today'
 );
 
 select is(
   (select expiry_date from subscriptions where member_id = '00000000-0000-0000-0000-000000008051' order by created_at desc limit 1),
-  current_date + 30,
+  (now() at time zone 'Africa/Douala')::date + 30,
   'the new row''s expiry_date is today + the plan''s duration_days (30)'
 );
 
