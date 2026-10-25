@@ -168,6 +168,17 @@ export const changeOwnerContactSchema = z
   })
   .refine((v) => Boolean(v.email) || Boolean(v.phone), { message: "Enter a new email or a new phone", path: ["email"] });
 
+// SA-03 "Resend invitation": a new temporary password for the owner account, with the reason audited.
+export const resendOwnerInvitationSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(REASON_MIN_LENGTH, "Add a reason for this change")
+    .max(REASON_MAX_LENGTH, "Reason is too long"),
+});
+
+export type ResendOwnerInvitationInput = z.infer<typeof resendOwnerInvitationSchema>;
+
 export type ChangeOwnerContactInput = z.infer<typeof changeOwnerContactSchema>;
 
 export type EscalateGymAccessInput = z.infer<typeof escalateGymAccessSchema>;

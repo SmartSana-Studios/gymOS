@@ -116,6 +116,26 @@
         "members": "Members",
         "payments": "Payments register"
       },
+      "resendInvitation": {
+        "button": "Resend invitation",
+        "title": "Resend the invitation for {{gymName}}",
+        "body": "Gives {{owner}} ({{phone}}) a NEW temporary password and sends the welcome message again. The current password stops working immediately and the owner must choose a new one at the next sign-in. This applies to every gym this owner account belongs to.",
+        "reasonLabel": "Reason *",
+        "send": "Set new password and send",
+        "sending": "Sending…",
+        "cancel": "Cancel",
+        "close": "Close",
+        "doneTitle": "New password set",
+        "newPassword": "New temporary password",
+        "sentWithLink": "Welcome message with the sign-in link and the new password sent by WhatsApp.",
+        "sentNoLink": "New password sent by WhatsApp, but that message cannot carry a link. Send the owner the sign-in address: {{url}}",
+        "notSent": "The message could not be sent. Copy the welcome message below and send it to the owner yourself.",
+        "errors": {
+          "noOwner": "This gym has no active owner account with a phone number.",
+          "deactivated": "This gym is deactivated.",
+          "updateFailed": "The password could not be changed, so nothing was changed. Try again."
+        }
+      },
       "ownerContact": {
         "button": "Edit owner contact",
         "title": "Edit owner contact for {{gymName}}",
@@ -190,6 +210,7 @@
         "gym_reinstated": "Gym reinstated",
         "gym_tier_changed": "Tier changed",
         "gym_category_changed": "Category changed",
+        "gym_owner_invitation_resent": "Owner invitation resent",
         "gym_owner_contact_changed": "Owner contact changed",
         "gym_renamed": "Gym renamed",
         "gym_cap_overridden": "Cap override changed",

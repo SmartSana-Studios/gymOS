@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { gymCategoryLabel } from "@gymos/types";
-import { PauseCircle, Ban, RotateCcw } from "lucide-react";
+import { PauseCircle, Ban, RotateCcw, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import type { GymListRow, TierOption } from "@/services/gyms";
 import { CreateGymModal } from "./CreateGymModal";
 import { GymLifecycleDialog } from "./GymLifecycleDialog";
+import { RowActions, type RowAction } from "../../support/components/RowActions";
+import { ResendInvitationDialog } from "../[id]/components/ResendInvitationDialog";
 import { deactivateGym, reinstateGym, suspendGym } from "../actions";
 
 const STATUS_OPTIONS = ["", "active", "suspended", "deactivated"] as const;
@@ -45,6 +47,7 @@ export function GymsPageClient({
   const [toast, setToast] = useState<{ message: string; tempPassword?: string; copyText?: string } | null>(null);
   const [passwordCopied, setPasswordCopied] = useState(false);
   const [searchInput, setSearchInput] = useState(search);
+  const [resendGym, setResendGym] = useState<GymListRow | null>(null);
   const [lifecycleGym, setLifecycleGym] = useState<{
     gym: GymListRow;
     action: "suspend" | "deactivate" | "reinstate";
@@ -151,6 +154,23 @@ export function GymsPageClient({
       // this is silent rather than surfacing a second error on top of a
       // success.
     }
+  }
+
+  // One Actions menu per row (same pattern as the rest of the platform): the lifecycle actions valid for the gym's
+  // status, plus "Resend invitation" for a gym that is not deactivated.
+  function rowActionsFor(gym: GymListRow): RowAction[] {
+    const actions: RowAction[] = [];
+    if (gym.status === "active") {
+      actions.push({ key: "suspend", label: t("gyms.actions.suspend"), icon: <PauseCircle size={14} />, onSelect: () => setLifecycleGym({ gym, action: "suspend" }) });
+    }
+    if (gym.status === "suspended" || gym.status === "deactivated") {
+      actions.push({ key: "reinstate", label: t("gyms.actions.reinstate"), icon: <RotateCcw size={14} />, onSelect: () => setLifecycleGym({ gym, action: "reinstate" }) });
+    }
+    if (gym.status === "active" || gym.status === "suspended") {
+      actions.push({ key: "deactivate", label: t("gyms.actions.deactivate"), icon: <Ban size={14} />, destructive: true, onSelect: () => setLifecycleGym({ gym, action: "deactivate" }) });
+      actions.push({ key: "resend", label: t("gyms.detail.resendInvitation.button"), icon: <Send size={14} />, onSelect: () => setResendGym(gym) });
+    }
+    return actions;
   }
 
   const pagination = useUrlPagination();
@@ -267,62 +287,8 @@ export function GymsPageClient({
                     })()}
                   </td>
                   <td className="p-3">
-                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      {gym.status === "active" && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-800 dark:border-orange-800 dark:text-orange-300 dark:hover:bg-orange-950 dark:hover:text-orange-200"
-                            onClick={() => setLifecycleGym({ gym, action: "suspend" })}
-                          >
-                            <PauseCircle size={14} />
-                            {t("gyms.actions.suspend")}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950 dark:hover:text-red-200"
-                            onClick={() => setLifecycleGym({ gym, action: "deactivate" })}
-                          >
-                            <Ban size={14} />
-                            {t("gyms.actions.deactivate")}
-                          </Button>
-                        </>
-                      )}
-                      {gym.status === "suspended" && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950 dark:hover:text-green-200"
-                            onClick={() => setLifecycleGym({ gym, action: "reinstate" })}
-                          >
-                            <RotateCcw size={14} />
-                            {t("gyms.actions.reinstate")}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950 dark:hover:text-red-200"
-                            onClick={() => setLifecycleGym({ gym, action: "deactivate" })}
-                          >
-                            <Ban size={14} />
-                            {t("gyms.actions.deactivate")}
-                          </Button>
-                        </>
-                      )}
-                      {gym.status === "deactivated" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-green-200 text-green-700 hover:bg-green-50 hover:text-green-800 dark:border-green-800 dark:text-green-300 dark:hover:bg-green-950 dark:hover:text-green-200"
-                          onClick={() => setLifecycleGym({ gym, action: "reinstate" })}
-                        >
-                          <RotateCcw size={14} />
-                          {t("gyms.actions.reinstate")}
-                        </Button>
-                      )}
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <RowActions name={gym.name} actions={rowActionsFor(gym)} />
                     </div>
                   </td>
                 </tr>
@@ -346,6 +312,14 @@ export function GymsPageClient({
         onCreated={handleCreated}
         tiers={tiers}
       />
+
+      {resendGym && (
+        <ResendInvitationDialog
+          gym={resendGym}
+          onClose={() => setResendGym(null)}
+          onDone={() => router.refresh()}
+        />
+      )}
 
       {lifecycleGym && (
         <GymLifecycleDialog

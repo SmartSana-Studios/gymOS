@@ -3,6 +3,7 @@
 import {
   changeGymTierSchema,
   changeOwnerContactSchema,
+  resendOwnerInvitationSchema,
   createGymSchema,
   escalateGymAccessSchema,
   gymIdSchema,
@@ -15,11 +16,8 @@ import {
 } from "@gymos/types";
 import { authorizeOrRedirect } from "@/lib/authz-action";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendEvolutionApiMessage } from "@/lib/messaging/EvolutionApiMessageProvider";
-import {
-  sendTempPasswordMessage,
-  type TempPasswordMessageResult,
-} from "@/lib/messaging/sendTempPasswordMessage";
+import { deliverOwnerWelcome } from "@/lib/messaging/ownerWelcome";
+import type { TempPasswordMessageResult } from "@/lib/messaging/sendTempPasswordMessage";
 import {
   deleteGym,
   gymNameExists,
@@ -496,27 +494,13 @@ export async function createGym(
       : null;
   let linkSent = false;
   if (temporaryPassword !== null) {
-    if (welcomeMessage) {
-      try {
-        const viaEvolution = await sendEvolutionApiMessage(gym.ownerPhone, welcomeMessage);
-        if (viaEvolution.success) {
-          sendResult = { success: true, channel: "evolution" };
-          linkSent = true;
-        }
-      } catch {
-        // fall through to the Twilio template below
-      }
-    }
-    if (!sendResult.success) {
-      try {
-        sendResult = await sendTempPasswordMessage(gym.ownerPhone, temporaryPassword);
-      } catch (err) {
-        sendResult = {
-          success: false,
-          error: err instanceof Error ? err.message : "temp-password send threw unexpectedly",
-        };
-      }
-    }
+    const delivered = await deliverOwnerWelcome({
+      phone: gym.ownerPhone,
+      tempPassword: temporaryPassword,
+      welcomeMessage,
+    });
+    sendResult = delivered.result;
+    linkSent = delivered.linkSent;
   }
   const smsSent = sendResult.success;
   if (ownerOutcome === "created" && !sendResult.success) {
@@ -795,6 +779,110 @@ export async function renameGym(
   }
 
   return { error: null };
+}
+
+/**
+ * SA-03 "Resend invitation": gives the gym's owner account a NEW temporary password (the old one stops working at
+ * once), makes the next sign-in go through the forced password change, and sends the welcome message again with the
+ * sign-in address. Reason mandatory and audited (never the password). The new password and the full message are
+ * returned so the admin can pass them on when WhatsApp did not deliver; the message carries the link only when it
+ * went over the free-text channel. Applies to every gym this owner account belongs to.
+ */
+export async function resendOwnerInvitation(
+  gymId: string,
+  input: unknown,
+): Promise<{
+  data: {
+    tempPassword: string;
+    welcomeMessage: string | null;
+    loginUrl: string | null;
+    smsSent: boolean;
+    linkSent: boolean;
+  } | null;
+  error: AppError | null;
+}> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { data: null, error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
+  }
+  const parsed = resendOwnerInvitationSchema.safeParse(input);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return {
+      data: null,
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data: owner, error: ownerError } = await admin
+    .from("members")
+    .select("user_id, name, phone, gyms!inner(name, status)")
+    .eq("gym_id", gymId)
+    .eq("role", "owner")
+    .is("deactivated_at", null)
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
+  if (ownerError) return { data: null, error: await mapAndLog(ownerError) };
+  const gymRow = owner?.gyms as unknown as { name: string; status: string } | null | undefined;
+  if (!owner || !owner.phone || !gymRow) {
+    return { data: null, error: { code: "owner_not_found", message: t("gyms.detail.resendInvitation.errors.noOwner") } };
+  }
+  if (gymRow.status === "deactivated") {
+    return { data: null, error: { code: "gym_deactivated", message: t("gyms.detail.resendInvitation.errors.deactivated") } };
+  }
+
+  const newPassword = generateTempPassword();
+  const { error: updateError } = await admin.auth.admin.updateUserById(owner.user_id, { password: newPassword });
+  if (updateError) {
+    return { data: null, error: { code: "password_update_failed", message: t("gyms.detail.resendInvitation.errors.updateFailed") } };
+  }
+  // The new password is already in force; a failure to re-arm the forced change must not hide it from the admin.
+  const { error: flagError } = await admin.from("users").update({ must_change_password: true }).eq("id", owner.user_id);
+  if (flagError) {
+    console.error("[resendOwnerInvitation] failed to flip must_change_password", flagError);
+  }
+
+  let loginUrl: string | null = null;
+  try {
+    loginUrl = `${getDashboardAppUrl()}/auth/login`;
+  } catch {
+    loginUrl = null;
+  }
+  const welcomeMessage = loginUrl
+    ? t("gyms.ownerWelcome.message", {
+        ownerName: owner.name,
+        gymName: gymRow.name,
+        url: loginUrl,
+        phone: owner.phone,
+        password: newPassword,
+      })
+    : null;
+  const delivered = await deliverOwnerWelcome({ phone: owner.phone, tempPassword: newPassword, welcomeMessage });
+
+  const { error: auditError } = await logGymLifecycleEvent("gym_owner_invitation_resent", gymId, {
+    reason: parsed.data.reason,
+    delivered: delivered.result.success,
+    link_sent: delivered.linkSent,
+  });
+  if (auditError) {
+    console.error("[resendOwnerInvitation] audit log write failed", auditError);
+  }
+
+  return {
+    data: {
+      tempPassword: newPassword,
+      welcomeMessage,
+      loginUrl,
+      smsSent: delivered.result.success,
+      linkSent: delivered.linkSent,
+    },
+    error: null,
+  };
 }
 
 /**

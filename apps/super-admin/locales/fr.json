@@ -116,6 +116,26 @@
         "members": "Membres",
         "payments": "Registre des paiements"
       },
+      "resendInvitation": {
+        "button": "Renvoyer l'invitation",
+        "title": "Renvoyer l'invitation pour {{gymName}}",
+        "body": "Donne à {{owner}} ({{phone}}) un NOUVEAU mot de passe temporaire et renvoie le message de bienvenue. Le mot de passe actuel cesse de fonctionner immédiatement et le propriétaire devra en choisir un nouveau à la prochaine connexion. Cela s'applique à toutes les salles de ce compte propriétaire.",
+        "reasonLabel": "Motif *",
+        "send": "Définir un nouveau mot de passe et envoyer",
+        "sending": "Envoi…",
+        "cancel": "Annuler",
+        "close": "Fermer",
+        "doneTitle": "Nouveau mot de passe défini",
+        "newPassword": "Nouveau mot de passe temporaire",
+        "sentWithLink": "Message de bienvenue avec le lien de connexion et le nouveau mot de passe envoyé par WhatsApp.",
+        "sentNoLink": "Nouveau mot de passe envoyé par WhatsApp, mais ce message ne peut pas contenir de lien. Envoyez au propriétaire l'adresse de connexion : {{url}}",
+        "notSent": "Le message n'a pas pu être envoyé. Copiez le message de bienvenue ci-dessous et envoyez-le vous-même au propriétaire.",
+        "errors": {
+          "noOwner": "Cette salle n'a pas de compte propriétaire actif avec un numéro de téléphone.",
+          "deactivated": "Cette salle est désactivée.",
+          "updateFailed": "Le mot de passe n'a pas pu être modifié : rien n'a été changé. Réessayez."
+        }
+      },
       "ownerContact": {
         "button": "Modifier le contact du propriétaire",
         "title": "Modifier le contact du propriétaire de {{gymName}}",
@@ -190,6 +210,7 @@
         "gym_reinstated": "Salle réactivée",
         "gym_tier_changed": "Palier modifié",
         "gym_category_changed": "Catégorie modifiée",
+        "gym_owner_invitation_resent": "Invitation du propriétaire renvoyée",
         "gym_owner_contact_changed": "Contact du propriétaire modifié",
         "gym_renamed": "Salle renomm\u00e9e",
         "gym_cap_overridden": "Plafond forcé modifié",
