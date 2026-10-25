@@ -28,7 +28,7 @@
 -- from "no visible row", not because the UPDATE differs from expected.
 
 begin;
-select plan(15);
+select plan(16);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap)
 values ('00000000-0000-0000-0000-000000005001', 'Settings Test Tier', 5000, 50000, 30);
@@ -80,6 +80,16 @@ select is(
   (select primary_color from gyms where id = '00000000-0000-0000-0000-000000005011'),
   '#123456',
   'the primary_color update is reflected'
+);
+
+-- 0158: the owner sets the opening hours (Settings, Attendance) through the same update.
+update gyms set opening_time = '06:00', closing_time = '22:00'
+where id = '00000000-0000-0000-0000-000000005011';
+
+select is(
+  (select opening_time::text || '-' || closing_time::text from gyms where id = '00000000-0000-0000-0000-000000005011'),
+  '06:00:00-22:00:00',
+  'an owner-claim session can set its gym''s opening and closing time'
 );
 
 -- ============================================================================

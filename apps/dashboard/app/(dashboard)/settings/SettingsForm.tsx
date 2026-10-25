@@ -73,6 +73,8 @@ export function SettingsForm({
     capacity: initial.capacity === null ? "" : String(initial.capacity),
     alertAutoDismissMinutes: String(initial.alertAutoDismissMinutes),
     checkinTimeoutHours: String(initial.checkinTimeoutHours),
+    openingTime: initial.openingTime ?? "",
+    closingTime: initial.closingTime ?? "",
   });
 
   // Story 19.9a: the charge-guests control, the loyalty program and the
@@ -126,6 +128,8 @@ export function SettingsForm({
       capacity: Number(form.capacity),
       alertAutoDismissMinutes: Number(form.alertAutoDismissMinutes),
       checkinTimeoutHours: Number(form.checkinTimeoutHours),
+      openingTime: form.openingTime === "" ? null : form.openingTime,
+      closingTime: form.closingTime === "" ? null : form.closingTime,
     };
 
     const parsed = gymSettingsSchema.safeParse(candidate);

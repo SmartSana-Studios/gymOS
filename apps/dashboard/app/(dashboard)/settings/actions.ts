@@ -93,6 +93,8 @@ export async function saveGymSettings(
     capacity: parsed.data.capacity,
     alert_auto_dismiss_minutes: parsed.data.alertAutoDismissMinutes,
     checkin_timeout_hours: parsed.data.checkinTimeoutHours,
+    opening_time: parsed.data.openingTime,
+    closing_time: parsed.data.closingTime,
   });
 
   return {

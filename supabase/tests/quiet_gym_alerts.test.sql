@@ -122,6 +122,12 @@ insert into gyms (id, name, tier_id, status, capacity, timezone) values
   ('00000000-0000-0000-0000-000000009705', 'Deactivated Gym',   '00000000-0000-0000-0000-000000009700', 'deactivated', 10, 'Africa/Douala'),
   ('00000000-0000-0000-0000-000000009708', 'Null Capacity Gym', '00000000-0000-0000-0000-000000009700', 'active',    null, 'Africa/Douala');
 
+-- 0158: a gym without opening hours is judged on the default 06:00-22:00 window, so the Low Band Gym (which must fire
+-- whatever time the suite runs at) gets explicit all-day hours; the default window itself is covered in
+-- quiet_gym_alert_default_hours.test.sql.
+update gyms set opening_time = '00:00:00', closing_time = '23:59:59.999999'
+where id = '00000000-0000-0000-0000-000000009701';
+
 -- Opening-hours fixtures (AC #5). "Outside": a fixed 10-minute window on the
 -- opposite half of the clock from the current UTC hour, guaranteed to never
 -- contain "now" and never cross midnight (no wraparound ambiguity). "Inside":

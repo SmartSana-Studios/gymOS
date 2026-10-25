@@ -46,6 +46,40 @@ export function AttendanceSection({
                 <p className="text-sm text-red-600">{fieldErrors.checkinTimeoutHours}</p>
               )}
             </div>
+
+            <div className="mt-6 max-w-md space-y-2">
+              <p className="text-sm font-medium">{t("settings.fields.openingHours")}</p>
+              <p className="text-xs text-muted-foreground">{t("settings.fields.openingHoursHint")}</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="openingTime" className="text-xs text-muted-foreground">
+                    {t("settings.fields.openingTime")}
+                  </Label>
+                  <Input
+                    id="openingTime"
+                    type="time"
+                    value={form.openingTime}
+                    onChange={(e) => setForm({ ...form, openingTime: e.target.value })}
+                    className="w-32"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="closingTime" className="text-xs text-muted-foreground">
+                    {t("settings.fields.closingTime")}
+                  </Label>
+                  <Input
+                    id="closingTime"
+                    type="time"
+                    value={form.closingTime}
+                    onChange={(e) => setForm({ ...form, closingTime: e.target.value })}
+                    className="w-32"
+                  />
+                </div>
+              </div>
+              {(fieldErrors.openingTime || fieldErrors.closingTime) && (
+                <p className="text-sm text-red-600">{fieldErrors.openingTime ?? fieldErrors.closingTime}</p>
+              )}
+            </div>
           </CardContent>
         </Card>
   );

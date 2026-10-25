@@ -59,6 +59,8 @@ const INITIAL_SETTINGS = {
   capacity: 100,
   alertAutoDismissMinutes: 30,
   checkinTimeoutHours: 12,
+  openingTime: null,
+  closingTime: null,
   gymToken: "token-1",
   registrationFee: 2500,
   chargeGuestsPerSession: false,

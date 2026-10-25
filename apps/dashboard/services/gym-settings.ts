@@ -30,6 +30,9 @@ export interface GymSettingsRow {
   capacity: number | null;
   alertAutoDismissMinutes: number;
   checkinTimeoutHours: number;
+  /** "HH:MM" gym-local, or null when not set (0158: quiet-gym alerts then default to 06:00-22:00). */
+  openingTime: string | null;
+  closingTime: string | null;
   gymToken: string;
   registrationFee: number;
   /** Story 19.8: whether the gym charges Pay-per-session guests per session (0107). */
@@ -89,7 +92,7 @@ export async function getGymSettings(): Promise<{
   const { data, error } = await supabase
     .from("gyms")
     .select(
-      "name, logo_url, primary_color, timezone, default_language, country, grace_period_days, capacity, alert_auto_dismiss_minutes, checkin_timeout_hours, gym_token, registration_fee, charge_guests_per_session, loyalty_enabled, loyalty_guest_threshold, loyalty_renewal_threshold, loyalty_reward_days, category",
+      "name, logo_url, primary_color, timezone, default_language, country, grace_period_days, capacity, alert_auto_dismiss_minutes, checkin_timeout_hours, opening_time, closing_time, gym_token, registration_fee, charge_guests_per_session, loyalty_enabled, loyalty_guest_threshold, loyalty_renewal_threshold, loyalty_reward_days, category",
     )
     .eq("id", gymId)
     .maybeSingle();
@@ -114,6 +117,8 @@ export async function getGymSettings(): Promise<{
       capacity: data.capacity,
       alertAutoDismissMinutes: data.alert_auto_dismiss_minutes,
       checkinTimeoutHours: data.checkin_timeout_hours,
+      openingTime: data.opening_time ? data.opening_time.slice(0, 5) : null,
+      closingTime: data.closing_time ? data.closing_time.slice(0, 5) : null,
       gymToken: data.gym_token,
       registrationFee: data.registration_fee,
       chargeGuestsPerSession: data.charge_guests_per_session,
@@ -197,6 +202,8 @@ export async function updateGymSettings(
       capacity: input.capacity,
       alert_auto_dismiss_minutes: input.alertAutoDismissMinutes,
       checkin_timeout_hours: input.checkinTimeoutHours,
+      opening_time: input.openingTime,
+      closing_time: input.closingTime,
     })
     .eq("id", gymId)
     .select("id")

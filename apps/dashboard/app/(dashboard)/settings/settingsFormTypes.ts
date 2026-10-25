@@ -18,6 +18,8 @@ export interface FieldErrors {
   capacity?: string;
   alertAutoDismissMinutes?: string;
   checkinTimeoutHours?: string;
+  openingTime?: string;
+  closingTime?: string;
 }
 
 export interface SettingsFormState {
@@ -30,4 +32,7 @@ export interface SettingsFormState {
   capacity: string;
   alertAutoDismissMinutes: string;
   checkinTimeoutHours: string;
+  /** "HH:MM" or "" (not set). */
+  openingTime: string;
+  closingTime: string;
 }
