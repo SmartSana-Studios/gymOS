@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type {
   ActiveEscalation,
   AuditTrailEntry,
@@ -35,6 +36,15 @@ const STATUS_LABEL_KEY: Record<string, string> = {
   suspended: "gyms.create.statusSuspended",
   deactivated: "gyms.create.statusDeactivated",
 };
+
+/** The detail page keeps the gym card and any live access on top; the rest are tabs (selected tab in the URL as `?tab=`).
+ * The two tables stay together in one tab, each with its own paging params. */
+export const GYM_DETAIL_TABS = ["audit", "support", "data"] as const;
+type GymDetailTab = (typeof GYM_DETAIL_TABS)[number];
+
+function parseTab(value: string | null | undefined): GymDetailTab {
+  return (GYM_DETAIL_TABS as readonly string[]).includes(value ?? "") ? (value as GymDetailTab) : "audit";
+}
 
 /** SA-03 Gym Detail (Story 1.7 adds the "Access gym data" escalation and
  * the Audit trail tab from SA-03's mockup, FR-072; Story 1.15 adds the
@@ -85,8 +95,19 @@ export function GymDetailPageClient({
   supportAccounts: SupportAccountRow[];
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { t, i18n } = useTranslation();
   const now = useNow();
+  const [tab, setTab] = useState<GymDetailTab>(parseTab(searchParams?.get("tab")));
+
+  function selectTab(value: string) {
+    const next = parseTab(value);
+    setTab(next);
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.set("tab", next);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
   const [lifecycleAction, setLifecycleAction] = useState<
     "suspend" | "deactivate" | "reinstate" | null
   >(null);
@@ -222,13 +243,30 @@ export function GymDetailPageClient({
         onRevoked={() => router.refresh()}
       />
 
-      <AuditTrailTab entries={auditTrail} realActors={realActors} />
-
-      <GymSupportPanel gymId={gym.id} assignments={supportAssignments} accounts={supportAccounts} />
-
-      <GymMembersTable members={members} />
-
-      <GymPaymentsTable payments={payments} />
+      <Tabs value={tab} onValueChange={selectTab}>
+        <div className="overflow-x-auto">
+          <TabsList>
+            {GYM_DETAIL_TABS.map((key) => (
+              <TabsTrigger key={key} value={key}>
+                {t(`gyms.detail.tabs.${key}`)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+        <TabsContent value="audit">
+          <AuditTrailTab entries={auditTrail} realActors={realActors} />
+        </TabsContent>
+        <TabsContent value="support">
+          <GymSupportPanel gymId={gym.id} assignments={supportAssignments} accounts={supportAccounts} />
+        </TabsContent>
+        <TabsContent value="data" className="space-y-4">
+          {members === null && payments === null && (
+            <p className="rounded-md border p-6 text-sm text-muted-foreground">{t("gyms.detail.tabs.dataLocked")}</p>
+          )}
+          <GymMembersTable members={members} />
+          <GymPaymentsTable payments={payments} />
+        </TabsContent>
+      </Tabs>
 
       {escalating && (
         <EscalateAccessDialog
