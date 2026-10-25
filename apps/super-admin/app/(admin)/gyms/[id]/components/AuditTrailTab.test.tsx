@@ -65,3 +65,24 @@ describe("AuditTrailTab real person (Story 23.8)", () => {
     expect(screen.queryByText(/Real person/)).toBeNull();
   });
 });
+
+describe("AuditTrailTab table", () => {
+  it("shows the entries as a table with Date, Action, Details and By columns, the tier change spelled out", () => {
+    const i18n = createInstance();
+    i18n.use(initReactI18next).init({ lng: "en", resources: RESOURCES, interpolation: { escapeValue: false }, react: { useSuspense: false } });
+    const tierEntry = {
+      ...ENTRY,
+      id: "00000000-0000-4000-8000-0000000000a2",
+      actionType: "gym_tier_changed",
+      metadata: { previous_tier_name: "Starter", previous_tier_monthly_price: 5000, new_tier_name: "Unlimited", new_tier_monthly_price: 15000 },
+    } as unknown as AuditTrailEntry;
+    render(
+      <I18nextProvider i18n={i18n}>
+        <AuditTrailTab entries={[tierEntry, ENTRY]} />
+      </I18nextProvider>,
+    );
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Date", "Action", "Details", "By"]);
+    expect(screen.getAllByRole("row")).toHaveLength(3);
+    expect(screen.getByText(/Starter \(XAF 5,000\/month\) → Unlimited \(XAF 15,000\/month\)/)).toBeTruthy();
+  });
+});

@@ -7,6 +7,7 @@ import {
   gymIdSchema,
   gymStatusChangeSchema,
   overrideGymCapSchema,
+  renameGymSchema,
   revokeGymAccessSchema,
   setGymCategorySchema,
   type AppError,
@@ -29,6 +30,8 @@ import {
   revokeGymDataAccess,
   setGymCategory,
   updateGymCapOverride,
+  updateGymName,
+  gymNameTakenByOther,
   updateGymStatus,
   tierAuditFields,
   updateGymTier,
@@ -697,6 +700,53 @@ export async function changeGymTier(
         message: t("gyms.errors.auditLogFailedTier"),
       },
     };
+  }
+
+  return { error: null };
+}
+
+/** SA-03 rename. The new name must be unique (case-insensitive) among gyms. */
+export async function renameGym(
+  gymId: string,
+  input: unknown,
+): Promise<{ error: AppError | null }> {
+  // Story 22 retro item 53: every Super Admin Server Action is gated (aal2, session limits, live role); an ended session redirects to login.
+  const authz = await authorizeOrRedirect("platform.admin_access");
+  if (!authz.ok) return { error: authz.error };
+  const { t } = await getServerTranslation(await getRequestLocale());
+  if (!gymIdSchema.safeParse(gymId).success) {
+    return { error: { code: "validation_error", message: t("gyms.errors.invalidGymId") } };
+  }
+
+  const parsed = renameGymSchema.safeParse(input);
+  if (!parsed.success) {
+    const firstIssue = parsed.error.issues[0];
+    return {
+      error: { code: "validation_error", message: firstIssue?.message ?? t("common.invalidInput") },
+    };
+  }
+
+  if (await gymNameTakenByOther(parsed.data.name, gymId)) {
+    return { error: { code: "gym_name_taken", message: t("errors.gymNameTaken") } };
+  }
+
+  const { data: result, error } = await updateGymName(gymId, parsed.data.name);
+  if (error) {
+    return {
+      error: error.code === "gym_name_taken" ? { code: "gym_name_taken", message: t("errors.gymNameTaken") } : error,
+    };
+  }
+
+  if (result.previousName === parsed.data.name) {
+    return { error: { code: "no_op", message: t("gyms.errors.alreadySameName") } };
+  }
+
+  const { error: auditError } = await logGymLifecycleEvent("gym_renamed", gymId, {
+    previous_name: result.previousName,
+    new_name: parsed.data.name,
+  });
+  if (auditError) {
+    return { error: { code: "audit_log_failed", message: t("gyms.errors.auditLogFailedRename") } };
   }
 
   return { error: null };

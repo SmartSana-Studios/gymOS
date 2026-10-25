@@ -49,18 +49,26 @@ describe("GymDetailPageClient tabs", () => {
     expect(screen.getByText("ACCESS-LIST")).toBeInTheDocument();
   });
 
-  it("opens on the tab named in the URL and keeps both tables together there", () => {
-    search = "tab=data&mpage=2";
+  it("opens on the tab named in the URL, with members and payments as separate tabs", () => {
+    search = "tab=members&mpage=2";
     renderPage({ members: {}, payments: {} });
     expect(screen.getByText("MEMBERS-TABLE")).toBeInTheDocument();
-    expect(screen.getByText("PAYMENTS-TABLE")).toBeInTheDocument();
+    expect(screen.queryByText("PAYMENTS-TABLE")).toBeNull();
     expect(screen.queryByText("AUDIT-PANEL")).toBeNull();
   });
 
-  it("says the data is locked until the gym's data is accessed", () => {
-    search = "tab=data";
+  it("offers no Members or Payments register tab until access is granted, and a ?tab=data link falls back to the first tab", () => {
+    search = "tab=members";
     renderPage();
-    expect(screen.getByText(/only visible after you access/i)).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Members" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Payments register" })).toBeNull();
+    expect(screen.getByText("AUDIT-PANEL")).toBeInTheDocument();
+  });
+
+  it("adds the Members and Payments register tabs once access is granted", () => {
+    renderPage({ members: {}, payments: {} });
+    expect(screen.getByRole("tab", { name: "Members" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Payments register" })).toBeInTheDocument();
   });
 
   it("writes the selected tab to the URL and keeps the other parameters", async () => {

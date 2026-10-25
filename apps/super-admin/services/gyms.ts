@@ -937,6 +937,7 @@ export async function logGymLifecycleEvent(
     | "gym_reinstated"
     | "gym_tier_changed"
     | "gym_cap_overridden"
+    | "gym_renamed"
     | "saas_payment_marked_received"
     | "saas_billing_credit_applied"
     | "saas_billing_retry_triggered",
@@ -991,6 +992,59 @@ export async function gymNameExists(name: string): Promise<boolean> {
     .ilike("name", escaped)
     .maybeSingle();
   return data !== null;
+}
+
+/** True when another gym (not `excludeGymId`) already uses this name, case-insensitively. Fast-fail only: the real
+ * guarantee is the unique index idx_gyms_name_unique. */
+export async function gymNameTakenByOther(name: string, excludeGymId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const escaped = name.replace(/[\\%_]/g, (char) => `\\${char}`);
+  const { data } = await supabase
+    .from("gyms")
+    .select("id")
+    .ilike("name", escaped)
+    .neq("id", excludeGymId)
+    .limit(1);
+  return (data ?? []).length > 0;
+}
+
+/** SA-03 rename. Before-read for the audit entry's previous name; a unique-index violation (a concurrent rename to the
+ * same name) comes back as `gym_name_taken`. */
+export async function updateGymName(
+  gymId: string,
+  name: string,
+): Promise<
+  { data: { previousName: string }; error: null } | { data: null; error: AppError }
+> {
+  const supabase = await createClient();
+  const { data: before, error: beforeError } = await supabase
+    .from("gyms")
+    .select("name")
+    .eq("id", gymId)
+    .maybeSingle();
+  if (beforeError) {
+    return { data: null, error: await mapAndLog(beforeError) };
+  }
+  if (!before) {
+    return { data: null, error: await gymNotFoundError() };
+  }
+
+  const { data: updated, error } = await supabase
+    .from("gyms")
+    .update({ name })
+    .eq("id", gymId)
+    .select("id")
+    .maybeSingle();
+  if (error) {
+    if (error.code === "23505") {
+      return { data: null, error: { code: "gym_name_taken", message: "gym_name_taken" } };
+    }
+    return { data: null, error: await mapAndLog(error) };
+  }
+  if (!updated) {
+    return { data: null, error: await gymNotFoundError() };
+  }
+  return { data: { previousName: before.name }, error: null };
 }
 
 export async function insertGym(input: {

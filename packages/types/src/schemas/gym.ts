@@ -129,6 +129,12 @@ export const overrideGymCapSchema = z.object({
 
 export type OverrideGymCapInput = z.infer<typeof overrideGymCapSchema>;
 
+export const renameGymSchema = z.object({
+  name: z.string().trim().min(2, "Gym name is required").max(120, "Gym name is too long"),
+});
+
+export type RenameGymInput = z.infer<typeof renameGymSchema>;
+
 // Validates the `gymId` positional argument on the lifecycle/tier/cap
 // Server Actions below -- the payload schemas above only cover the request
 // body, not the id itself.

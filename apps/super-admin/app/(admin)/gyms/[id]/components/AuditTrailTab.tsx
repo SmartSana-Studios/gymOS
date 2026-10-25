@@ -1,5 +1,7 @@
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import { TablePagination } from "@/components/TablePagination";
+import { useClientPagination } from "@/hooks/use-table-pagination";
 import type { AuditTrailEntry } from "@/services/gyms";
 import type { RealActor } from "../../../support/actions";
 
@@ -10,6 +12,7 @@ const ACTION_LABEL_KEY: Record<string, string> = {
   gym_reinstated: "gyms.auditTrail.action.gym_reinstated",
   gym_tier_changed: "gyms.auditTrail.action.gym_tier_changed",
   gym_category_changed: "gyms.auditTrail.action.gym_category_changed",
+  gym_renamed: "gyms.auditTrail.action.gym_renamed",
   gym_cap_overridden: "gyms.auditTrail.action.gym_cap_overridden",
   gym_data_escalation: "gyms.auditTrail.action.gym_data_escalation",
   gym_data_escalation_revoked: "gyms.auditTrail.action.gym_data_escalation_revoked",
@@ -48,31 +51,41 @@ function describeEntry(
   entry: AuditTrailEntry,
   t: TFunction,
   holderNames: Map<string, string>,
-): string {
+): { label: string; details: string } {
   const labelKey = ACTION_LABEL_KEY[entry.actionType];
-  let label = labelKey ? t(labelKey) : entry.actionType;
+  const label = labelKey ? t(labelKey) : entry.actionType;
+  const parts: string[] = [];
 
   if (entry.actionType === "gym_data_escalation_revoked" && entry.targetEntityId) {
     const holder =
       holderNames.get(entry.targetEntityId) ?? `${entry.targetEntityId.slice(0, 8)}…`;
-    label = t("gyms.auditTrail.revokedTarget", { label, holder });
+    parts.push(holder);
   }
 
   if (entry.actionType === "gym_tier_changed") {
     const m = entry.metadata;
     if (typeof m.previous_tier_name === "string" && typeof m.new_tier_name === "string") {
-      label = t("gyms.auditTrail.tierChange", {
-        label,
-        from: m.previous_tier_name,
-        fromPrice: Number(m.previous_tier_monthly_price ?? 0).toLocaleString(),
-        to: m.new_tier_name,
-        toPrice: Number(m.new_tier_monthly_price ?? 0).toLocaleString(),
-      });
+      parts.push(
+        t("gyms.auditTrail.tierChange", {
+          from: m.previous_tier_name,
+          fromPrice: Number(m.previous_tier_monthly_price ?? 0).toLocaleString(),
+          to: m.new_tier_name,
+          toPrice: Number(m.new_tier_monthly_price ?? 0).toLocaleString(),
+        }),
+      );
+    }
+  }
+
+  if (entry.actionType === "gym_renamed") {
+    const m = entry.metadata;
+    if (typeof m.previous_name === "string" && typeof m.new_name === "string") {
+      parts.push(`${m.previous_name} → ${m.new_name}`);
     }
   }
 
   const reason = typeof entry.metadata.reason === "string" ? entry.metadata.reason : null;
-  return reason ? `${label} — "${reason}"` : label;
+  if (reason) parts.push(`"${reason}"`);
+  return { label, details: parts.join(" — ") };
 }
 
 /**
@@ -93,6 +106,7 @@ export function AuditTrailTab({
 }) {
   const { t, i18n } = useTranslation();
   const holderNames = resolveHolderNames(entries);
+  const pg = useClientPagination(entries, 10);
   return (
     <div className="space-y-3 rounded-md border p-6">
       <h2 className="text-sm font-semibold text-muted-foreground">{t("gyms.auditTrail.title")}</h2>
@@ -100,27 +114,46 @@ export function AuditTrailTab({
       {entries.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("gyms.auditTrail.empty")}</p>
       ) : (
-        <ul className="space-y-2 text-sm">
-          {entries.map((entry) => (
-            <li
-              key={entry.id}
-              className="flex flex-col gap-0.5 border-b pb-2 last:border-b-0 last:pb-0"
-            >
-              <span>{describeEntry(entry, t, holderNames)}</span>
-              <span className="text-xs text-muted-foreground">
-                {entry.actorDisplayName} · {new Date(entry.createdAt).toLocaleString(i18n.language)}
-              </span>
-              {realActors[entry.id] && (
-                <span className="text-xs font-medium">
-                  {t("gyms.auditTrail.realActor", {
-                    name: realActors[entry.id].name ?? realActors[entry.id].realUserId.slice(0, 8),
-                    email: realActors[entry.id].email ?? "—",
-                  })}
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
+        <>
+          <TablePagination compact {...pg} />
+          <div className="overflow-x-auto rounded-md border">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-muted/50 text-left">
+                <tr>
+                  <th scope="col" className="p-3 font-medium">{t("gyms.auditTrail.columns.date")}</th>
+                  <th scope="col" className="p-3 font-medium">{t("gyms.auditTrail.columns.action")}</th>
+                  <th scope="col" className="p-3 font-medium">{t("gyms.auditTrail.columns.details")}</th>
+                  <th scope="col" className="p-3 font-medium">{t("gyms.auditTrail.columns.by")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pg.pageItems.map((entry) => {
+                  const { label, details } = describeEntry(entry, t, holderNames);
+                  const real = realActors[entry.id];
+                  return (
+                    <tr key={entry.id} className="border-b last:border-0 align-top">
+                      <td className="whitespace-nowrap p-3">{new Date(entry.createdAt).toLocaleString(i18n.language)}</td>
+                      <td className="p-3">{label}</td>
+                      <td className="p-3">{details || "—"}</td>
+                      <td className="p-3">
+                        {entry.actorDisplayName}
+                        {real && (
+                          <span className="block text-xs font-medium">
+                            {t("gyms.auditTrail.realActor", {
+                              name: real.name ?? real.realUserId.slice(0, 8),
+                              email: real.email ?? "—",
+                            })}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <TablePagination {...pg} />
+        </>
       )}
     </div>
   );
