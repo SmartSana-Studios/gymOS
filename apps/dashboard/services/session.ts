@@ -84,6 +84,16 @@ export interface DashboardShellContext {
  * screen and the neutral "temporarily unavailable" screen every other case
  * gets.
  */
+/** A gym whose tier price for its billing interval is 0 pays nothing: its billing date is extended by GymOS (a credit). */
+export function isFreeBillingPlan(gym: {
+  saas_billing_interval: string;
+  tiers: { monthly_price: number; annual_price: number } | { monthly_price: number; annual_price: number }[] | null;
+}): boolean {
+  const tier = Array.isArray(gym.tiers) ? gym.tiers[0] : gym.tiers;
+  if (!tier) return false;
+  return (gym.saas_billing_interval === "annual" ? tier.annual_price : tier.monthly_price) === 0;
+}
+
 export interface DashboardSuspendedContext {
   gymName: string;
   role: MemberRole;
@@ -119,6 +129,11 @@ export interface DashboardSuspendedContext {
    */
   gymId: string;
   availableGyms: { gymId: string; gymName: string; role: MemberRole }[];
+  /**
+   * True when the gym's current plan costs nothing for its billing interval (Free/Test and any other 0 XAF tier). The
+   * suspended screen then points the Owner to GymOS instead of offering a Pay Now that would try a 0 XAF payment.
+   */
+  isFreeBilling: boolean;
 }
 
 
@@ -188,7 +203,11 @@ export const getDashboardShellContext = cache(async (): Promise<{
   // `!shell` -> redirect("/auth/login") branch in (dashboard)/layout.tsx --
   // is what keeps a suspended gym's Owner out of a login-redirect loop and
   // on the Pay-Now recovery screen instead.
-  const gymStatusResult = await supabase.from("gyms").select("name, status").eq("id", gymId).single();
+  const gymStatusResult = await supabase
+    .from("gyms")
+    .select("name, status, saas_billing_interval, tiers(monthly_price, annual_price)")
+    .eq("id", gymId)
+    .single();
 
   if (gymStatusResult.error) {
     return { data: null, error: await mapAndLog(gymStatusResult.error), suspended: null };
@@ -226,6 +245,7 @@ export const getDashboardShellContext = cache(async (): Promise<{
         role,
         isBillingSuspension: gymStatusResult.data.status === "suspended",
         mustChangePassword: userStatusResult.data.must_change_password,
+        isFreeBilling: isFreeBillingPlan(gymStatusResult.data),
         gymId,
         availableGyms: (membershipsResult.data ?? []).map(
           (m: { gym_id: string; gym_name: string; role: string }) => ({

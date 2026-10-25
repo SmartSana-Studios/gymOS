@@ -92,6 +92,7 @@ async function DashboardLayoutData({
           gymId={suspended.gymId}
           availableGyms={suspended.availableGyms}
           selectableTiers={selectableTiers ?? []}
+          isFreeBilling={suspended.isFreeBilling}
         />
       );
     }

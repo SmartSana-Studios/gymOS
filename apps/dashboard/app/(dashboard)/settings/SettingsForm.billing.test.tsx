@@ -35,6 +35,7 @@ vi.mock("@/lib/realtime/paymentStatus", () => ({
 const TRANSLATIONS: Record<string, string> = {
   "settings.sections.billing": "Billing",
   "settings.billing.intervalMonthly": "Monthly",
+  "settings.billing.freePlanRenewal": "This is a free test plan, so there is nothing to pay. Contact GymOS to renew it.",
   "settings.billing.intervalAnnual": "Annual",
   "settings.billing.status.active": "Active",
   "settings.billing.status.past_due": "Past due",
@@ -102,6 +103,7 @@ async function renderForm(
     anchorDate: string;
     notificationEmail: string | null;
     ownerPhone?: string | null;
+    isFree?: boolean;
   } | null,
 ) {
   const { SettingsForm } = await import("./SettingsForm");
@@ -110,7 +112,9 @@ async function renderForm(
       initial={INITIAL_SETTINGS}
       initialPaymentConnection={null}
       initialBillingInfo={
-        initialBillingInfo ? { ...initialBillingInfo, ownerPhone: initialBillingInfo.ownerPhone ?? null } : null
+        initialBillingInfo
+          ? { ...initialBillingInfo, ownerPhone: initialBillingInfo.ownerPhone ?? null, isFree: initialBillingInfo.isFree ?? false }
+          : null
       }
       selectableTiers={[]}
       staffCount={0}
@@ -158,6 +162,20 @@ describe("SettingsForm billing section", () => {
 
     expect(screen.getByText("Past due")).toBeVisible();
     expect(screen.getByRole("button", { name: "Pay Now" })).toBeVisible();
+  });
+
+  it("a free (0 XAF) plan that is past due shows the contact-GymOS message instead of Pay Now", async () => {
+    await renderForm({
+      tierName: "Free/Test",
+      interval: "monthly",
+      billingStatus: "past_due",
+      anchorDate: "2026-08-27",
+      notificationEmail: null,
+      isFree: true,
+    });
+
+    expect(screen.getByText(/free test plan, so there is nothing to pay/i)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Pay Now" })).toBeNull();
   });
 
   it("Pay Now: opens a dialog pre-filled with the owner's own on-file phone, editable, calls the action with the (possibly edited) number, and shows the pending state on success", async () => {
