@@ -65,7 +65,7 @@
       "reinstate": "Réactiver"
     },
     "ownerWelcome": {
-      "message": "Bienvenue sur GymOS, {{ownerName}} ! Votre salle {{gymName}} est prête. Connectez-vous sur {{url}} avec votre numéro {{phone}} et ce mot de passe temporaire : {{password}}. Il vous sera demandé de choisir un nouveau mot de passe juste après."
+      "message": "Bienvenue sur GymOS, {{ownerName}} !\n\nVotre salle {{gymName}} est prête.\n\nConnectez-vous ici : {{url}}\nTéléphone : {{phone}}\nMot de passe temporaire : {{password}}\n\nIl vous sera demandé de choisir un nouveau mot de passe juste après."
     },
     "toast": {
       "createdSms": "Salle créée. Message de bienvenue avec le lien de connexion et le mot de passe temporaire envoyé à {{phone}}.",
