@@ -1,5 +1,6 @@
 "use client";
 
+import { Watermark } from "@/components/Watermark";
 import { Sidebar } from "@/components/shared/Sidebar";
 import { TopBar } from "@/components/shared/TopBar";
 import type { MemberRole } from "@/services/session";
@@ -49,6 +50,7 @@ export function DashboardChrome({
           title={title}
         />
         <main className="flex-1 p-6">{children}</main>
+        <Watermark />
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import { NoticeBell } from "@/components/NoticeBell";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { LogoutButton } from "@/components/logout-button";
 import { MobileNavMenu } from "@/components/MobileNavMenu";
+import { Watermark } from "@/components/Watermark";
 
 // Single source of truth for both the >=768px inline nav and the <768px
 // hamburger panel (MobileNavMenu) below, so the two can never drift apart.
@@ -118,6 +119,7 @@ async function AdminLayoutData({
       </div>
       </nav>
       <main className="mx-auto w-full max-w-screen-2xl flex-1 px-4 py-5 sm:px-6 lg:px-8">{children}</main>
+      <Watermark />
     </div>
   );
 }

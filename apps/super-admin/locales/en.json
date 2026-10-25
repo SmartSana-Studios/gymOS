@@ -105,6 +105,12 @@
       "reason": "Reason *"
     },
     "detail": {
+      "tabs": {
+        "audit": "Audit trail",
+        "support": "GymOS support",
+        "data": "Members and payments",
+        "dataLocked": "Members and payments are only visible after you access this gym's data."
+      },
       "backToGyms": "Gyms",
       "gymName": "Gym Name:",
       "owner": "Owner:",

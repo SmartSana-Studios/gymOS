@@ -5,10 +5,11 @@ import { render, screen } from "@testing-library/react";
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }),
 }));
+let search = "";
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn(), replace: vi.fn() }),
   usePathname: () => "/audit",
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(search),
 }));
 vi.mock("@/hooks/use-table-pagination", () => ({ useUrlPagination: () => ({}) }));
 vi.mock("@/components/TablePagination", () => ({ TablePagination: () => null }));
@@ -60,6 +61,7 @@ describe("AuditLogPageClient disclosure request", () => {
   });
 
   it("lists the Owner's open request with its due date and an answered one with its answer", () => {
+    search = "tab=questions";
     renderAs("owner", [
       { id: "r1", auditLogId: "aaaaaaaa-1", question: "Who made this?", requestedAt: "2026-10-21T10:00:00Z", answerDueAt: "2026-10-26T10:00:00Z", answeredAt: null, answer: null },
       { id: "r2", auditLogId: "bbbbbbbb-2", question: "And this?", requestedAt: "2026-10-18T10:00:00Z", answerDueAt: "2026-10-23T10:00:00Z", answeredAt: "2026-10-19T10:00:00Z", answer: "Reviewed by GymOS." },
