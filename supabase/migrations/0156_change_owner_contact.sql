@@ -63,7 +63,7 @@ begin
   end if;
 
   -- Serialise concurrent changes of the same account.
-  perform 1 from public.users u where u.id = v_owner for update;
+  perform 1 from public.users u where u.id = v_owner and not u.is_support_proxy for update;
 
   select au.email::text, au.phone::text into v_prev_email, v_prev_phone from auth.users au where au.id = v_owner;
 
@@ -90,7 +90,7 @@ begin
   end if;
   if v_phone_changes and (
        exists (select 1 from auth.users au where au.phone = v_phone and au.id <> v_owner)
-    or exists (select 1 from public.users u where u.phone = v_phone and u.id <> v_owner)
+    or exists (select 1 from public.users u where u.phone = v_phone and u.id <> v_owner and not u.is_support_proxy)
   ) then
     return query select false, 'phone_taken'::text, v_owner, v_prev_email, v_prev_phone;
     return;

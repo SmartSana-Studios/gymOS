@@ -105,6 +105,7 @@ values
   ('public', 'complete_verified_saas_billing_payment', 'Un-suspends the gym -- gating it would make suspension irreversible'),
   ('public', 'record_out_of_band_saas_billing_payment', 'Super Admin records an offline payment; un-suspends'),
   ('public', 'apply_saas_billing_credit',              'Super Admin credit; un-suspends'),
+  ('public', 'change_owner_contact',                  'Super Admin repairs an owner''s sign-in phone or email; often needed precisely because a gym is suspended and the owner cannot get in'),
 
   -- Super Admin support access is needed BECAUSE a gym is suspended.
   ('public', 'escalate_gym_data_access', 'Super Admin support access into a suspended gym is the whole point of the escalation path'),
