@@ -5,7 +5,7 @@
 -- (`set local role authenticated` + `set_config('request.jwt.claims', ...)`).
 
 begin;
-select plan(28);
+select plan(30);
 
 insert into tiers (id, name, monthly_price, annual_price, member_cap) values
   ('00000000-0000-0000-0000-0000000a5001', 'Billing View Test Tier A (monthly)', 8000, 80000, 40),
@@ -226,8 +226,13 @@ reset role;
 
 select is(
   (select new_anchor_date from credit_1),
-  (current_date - 3 + interval '30 days')::date,
-  'apply_saas_billing_credit: the anchor advances by exactly p_days from the gym''s own prior anchor'
+  (current_date + interval '30 days')::date,
+  'apply_saas_billing_credit: an overdue gym (anchor 3 days ago) gets p_days counted from TODAY, not from the past anchor (0155)'
+);
+select is(
+  (select previous_anchor_date from credit_1),
+  (current_date - 3)::date,
+  'apply_saas_billing_credit: the previous anchor is reported unchanged'
 );
 select is(
   (select saas_billing_status::text from gyms where id = '00000000-0000-0000-0000-0000000a5014'),
@@ -238,6 +243,21 @@ select is(
   (select status::text from gyms where id = '00000000-0000-0000-0000-0000000a5014'),
   'active',
   'apply_saas_billing_credit: the gym''s status resets from suspended to active'
+);
+
+-- (g2) A gym whose billing date is still in the future keeps the old behaviour: the days are added to that date.
+set local role authenticated;
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-0000000a5601","role":"authenticated","app_role":"super_admin"}',
+  true
+);
+create temp table credit_2 as select * from apply_saas_billing_credit('00000000-0000-0000-0000-0000000a5014'::uuid, 10);
+reset role;
+select is(
+  (select new_anchor_date from credit_2),
+  (current_date + interval '40 days')::date,
+  'apply_saas_billing_credit: a future anchor gets the days added to it (30 + 10 days from today)'
 );
 
 -- (h) p_days <= 0 is rejected by the RPC's own validation.
