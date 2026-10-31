@@ -19,8 +19,28 @@ import { TARAMONEY_PROVIDER_KEY } from "@/lib/featureFlags";
  * gym" and every write silently no-ops at the RLS layer.
  */
 export default async function SettingsPage() {
-  const { data: settings, error } = await getGymSettings();
-  const { t } = await getServerTranslation(await getRequestLocale());
+  // The queries below are independent of each other, so they run together rather than one after
+  // another -- sequential awaits made Settings visibly slower to open than every other menu.
+  // Each keeps its own "don't fail the whole page" treatment further down.
+  const [
+    { data: settings, error },
+    { t },
+    { data: paymentConnection },
+    { data: staff },
+    { data: billingInfo },
+    { data: selectableTiers },
+    { data: shell },
+    { data: plans },
+  ] = await Promise.all([
+    getGymSettings(),
+    getRequestLocale().then(getServerTranslation),
+    getGymPaymentConnectionStatus(TARAMONEY_PROVIDER_KEY),
+    listStaff(),
+    getGymBillingInfo(),
+    listSelectableTiers(),
+    getDashboardShellContext(),
+    listPlans(),
+  ]);
 
   if (error || !settings) {
     return (
@@ -30,35 +50,6 @@ export default async function SettingsPage() {
     );
   }
 
-  // Not owner-gated at the RPC level (any gym-scoped session can read it),
-  // and a failure here shouldn't block the rest of Settings from rendering
-  // -- treat an error the same as "not connected" rather than failing the
-  // whole page.
-  const { data: paymentConnection } = await getGymPaymentConnectionStatus(TARAMONEY_PROVIDER_KEY);
-
-  // Story 9.1 (AD-13): a live staff count for the new Staff section's
-  // summary row. Same "don't fail the whole page" treatment as the payment
-  // connection lookup above -- an error here just shows a 0 count rather
-  // than blocking Settings.
-  const { data: staff } = await listStaff();
-
-  // Story 11.3: same "don't fail the whole page" treatment as the payment
-  // connection lookup above -- an error here just hides the Billing
-  // section (SettingsForm's own null-check) rather than blocking Settings.
-  const { data: billingInfo } = await getGymBillingInfo();
-
-  // Story 11.7 (Task 4): the Pay-Now tier selector's own data -- same
-  // "don't fail the whole page" treatment, defaulting to an empty list
-  // (PayNowButton's own selector degrades to "keep current tier" only).
-  const { data: selectableTiers } = await listSelectableTiers();
-
-  // Story 19.9a: only an Owner/Supervisor sees the charge-guests control. A
-  // failed shell lookup just hides it (the RPC is the real boundary).
-  const { data: shell } = await getDashboardShellContext();
-
-  // Story 20.5: the plan durations behind the loyalty discount readout. A
-  // failure only hides the subscriber readout, never the page.
-  const { data: plans } = await listPlans();
   const loyaltyPlans = (plans ?? [])
     .filter((plan) => plan.planType !== "pay_per_session" && plan.durationDays !== null)
     .map((plan) => ({ name: plan.name, durationDays: plan.durationDays as number }));
