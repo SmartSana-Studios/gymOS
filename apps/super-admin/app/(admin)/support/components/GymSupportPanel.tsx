@@ -8,6 +8,7 @@ import type { SupportAccountRow, SupportAssignmentRow } from "../actions";
 import { AssignSupportModal } from "./AssignSupportModal";
 import type { SupportMessage } from "./constants";
 import { SupportAssignmentsPanel } from "./SupportAssignmentsPanel";
+import { SupportToast } from "./SupportToast";
 
 /** Story 23.5: the gym detail page's view of who is assigned. Super Admin only; the Owner never sees an individual. */
 export function GymSupportPanel({
@@ -29,11 +30,7 @@ export function GymSupportPanel({
           {t("support.top.assign")}
         </Button>
       </div>
-      {message && (
-        <p role="status" className={message.kind === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
-          {message.text}
-        </p>
-      )}
+      <SupportToast message={message} onDismiss={() => setMessage(null)} />
       <SupportAssignmentsPanel assignments={assignments} fixedGymId={gymId} onMessage={setMessage} />
       {assigning && <AssignSupportModal accounts={accounts} fixedGymId={gymId} onClose={() => setAssigning(false)} onMessage={setMessage} />}
     </div>

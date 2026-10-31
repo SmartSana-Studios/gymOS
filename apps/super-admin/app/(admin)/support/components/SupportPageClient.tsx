@@ -22,6 +22,7 @@ import { SupportAccountsPanel } from "./SupportAccountsPanel";
 import { SupportAssignmentsPanel } from "./SupportAssignmentsPanel";
 import { SupportLifecyclePanel } from "./SupportLifecyclePanel";
 import { SupportLocksPanel } from "./SupportLocksPanel";
+import { SupportToast } from "./SupportToast";
 
 export const SUPPORT_TABS = ["accounts", "assignments", "locks", "lifecycle", "disclosure"] as const;
 type SupportTab = (typeof SUPPORT_TABS)[number];
@@ -71,6 +72,7 @@ export function SupportPageClient({
   const [message, setMessage] = useState<SupportMessage | null>(null);
   const [modal, setModal] = useState<"create" | "assign" | null>(null);
   const [pending, startTransition] = useTransition();
+
   const badges: Partial<Record<SupportTab, number>> = {
     locks: locks.length,
     disclosure: disclosures.filter((r) => r.overdue).length,
@@ -111,11 +113,7 @@ export function SupportPageClient({
         </div>
       </div>
 
-      {message && (
-        <p role="status" className={message.kind === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>
-          {message.text}
-        </p>
-      )}
+      <SupportToast message={message} onDismiss={() => setMessage(null)} />
 
       <Tabs value={tab} onValueChange={selectTab}>
         <div className="overflow-x-auto">
