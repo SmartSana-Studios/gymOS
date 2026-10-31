@@ -64,7 +64,7 @@ const PLAN_ROW = {
 describe("template columns", () => {
   it("download header is the nine columns and only name and phone are required", () => {
     expect(CSV_TEMPLATE_COLUMNS.join(",")).toBe(
-      "member_name,phone,plan_type,join_date,subscription_status,expiry_date,birth_year,profession,neighborhood",
+      "member_name,phone,plan_type,join_date,subscription_status,expiry_date,date_of_birth,birth_year,profession,neighborhood",
     );
     expect([...CSV_REQUIRED_COLUMNS]).toEqual(["member_name", "phone"]);
   });
@@ -191,6 +191,22 @@ describe("validateCsvImport (one template)", () => {
     expect(r.rows[1]).toMatchObject({ planId: null, subscriptionStatus: null, birthYear: 1990, profession: "Baker" });
     expect(r.rows[1].joinDate).toBe(new Date().toISOString().slice(0, 10));
     expect(r.feeFreeWithoutPlan).toBe(false);
+  });
+
+  it("date_of_birth is kept and its year becomes the birth year; a blank cell stays optional", async () => {
+    const r = await validateCsvImport([
+      raw(2, { ...NO_PLAN, date_of_birth: "1990-05-17" }),
+      raw(3, { ...NO_PLAN, phone: "+237670000009", date_of_birth: "", birth_year: "1985" }),
+    ]);
+    expect(r.valid).toBe(true);
+    if (!r.valid) return;
+    expect(r.rows[0]).toMatchObject({ dob: "1990-05-17", birthYear: 1990 });
+    expect(r.rows[1]).toMatchObject({ dob: null, birthYear: 1985 });
+  });
+
+  it("a malformed or future date_of_birth is refused on its own column", async () => {
+    const r = await validateCsvImport([raw(2, { ...NO_PLAN, date_of_birth: "17/05/1990" })]);
+    expect(r.valid).toBe(false);
   });
 
   it("fee 0 gym with a no-plan row flags it; with only plan rows it does not", async () => {

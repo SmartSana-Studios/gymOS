@@ -66,6 +66,7 @@ export interface ValidatedCsvRow {
   joinDate: string;
   subscriptionStatus: MemberSubscriptionStatus | null;
   expiryDate: string | null;
+  dob: string | null;
   birthYear: number | null;
   profession: string | null;
   neighborhood: string | null;
@@ -179,6 +180,7 @@ const SCHEMA_FIELD_TO_COLUMN: Record<string, string> = {
   joinDate: "join_date",
   subscriptionStatus: "subscription_status",
   expiryDate: "expiry_date",
+  dob: "date_of_birth",
   birthYear: "birth_year",
   profession: "profession",
   neighborhood: "neighborhood",
@@ -194,6 +196,7 @@ function toCsvMemberRowCandidate(raw: Record<string, string>, country: CountryCo
     joinDate: raw.join_date ?? "",
     subscriptionStatus: raw.subscription_status ?? "",
     expiryDate: raw.expiry_date ?? "",
+    dob: raw.date_of_birth ?? "",
     birthYear: raw.birth_year ?? "",
     profession: raw.profession ?? "",
     neighborhood: raw.neighborhood ?? "",
@@ -330,7 +333,9 @@ export async function validateCsvImport(
       joinDate: data.joinDate ?? new Date().toISOString().slice(0, 10),
       subscriptionStatus: plan ? (data.subscriptionStatus ?? null) : null,
       expiryDate: data.expiryDate ?? null,
-      birthYear: data.birthYear ?? null,
+      dob: data.dob ?? null,
+      // A full date wins: its year is the birth year, so the two never disagree.
+      birthYear: data.dob ? Number(data.dob.slice(0, 4)) : (data.birthYear ?? null),
       profession: data.profession ?? null,
       neighborhood: data.neighborhood ?? null,
     };
@@ -451,7 +456,7 @@ export async function confirmCsvImport(
       name: row.name,
       phone: row.phone,
       email: null,
-      dob: null,
+      dob: row.dob,
       photoUrl: null,
       emergencyContact: null,
       birthYear: row.birthYear,

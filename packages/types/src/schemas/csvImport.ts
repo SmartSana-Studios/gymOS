@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { birthYearSchema, profileTextSchema, subscriptionStatusSchema } from "./member";
+import { birthYearSchema, dobSchema, profileTextSchema, subscriptionStatusSchema } from "./member";
 
 // Story 2.4: CSV Member Import (FR-008, FR-009).
 //
@@ -14,6 +14,7 @@ export const CSV_TEMPLATE_COLUMNS = [
   "join_date",
   "subscription_status",
   "expiry_date",
+  "date_of_birth",
   "birth_year",
   "profession",
   "neighborhood",
@@ -79,6 +80,8 @@ export const csvMemberRowSchema = z
     ),
     // Story 26.2: optional profile facts, same schemas as Story 26.1. A CSV
     // cell is text, so a birth year is converted to a number first.
+    // A full date of birth (YYYY-MM-DD) for birthday messages; when present its year is the birth year.
+    dob: z.preprocess(blankToUndefined, dobSchema),
     birthYear: z.preprocess((val) => {
       const blank = blankToUndefined(val);
       if (typeof blank !== "string") return blank;

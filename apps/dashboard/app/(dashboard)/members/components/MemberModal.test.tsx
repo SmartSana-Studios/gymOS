@@ -145,15 +145,15 @@ describe("MemberModal profile fields (Story 26.1)", () => {
     await user.click(await screen.findByRole("button", { name: "members.addMemberButton" }));
   }
 
-  it("sends the three values, trimmed, as a number and strings", async () => {
+  it("sends the date of birth and its year as the birth year, with trimmed strings", async () => {
     const user = userEvent.setup();
     await advanceFeeGym(user, async () => {
-      await user.type(document.getElementById("memberBirthYear") as HTMLInputElement, "1984");
+      fireEvent.change(document.getElementById("memberDob") as HTMLInputElement, { target: { value: "1984-03-09" } });
       await user.type(document.getElementById("memberProfession") as HTMLInputElement, " Soudeur ");
       await user.type(document.getElementById("memberNeighborhood") as HTMLInputElement, "Ngui");
     });
     await waitFor(() => expect(createMember).toHaveBeenCalledTimes(1));
-    expect(createMember.mock.calls[0][0]).toMatchObject({ birthYear: 1984, profession: "Soudeur", neighborhood: "Ngui" });
+    expect(createMember.mock.calls[0][0]).toMatchObject({ dob: "1984-03-09", birthYear: 1984, profession: "Soudeur", neighborhood: "Ngui" });
   });
 
   it("sends null for all three when left blank", async () => {
@@ -163,18 +163,18 @@ describe("MemberModal profile fields (Story 26.1)", () => {
     expect(createMember.mock.calls[0][0]).toMatchObject({ birthYear: null, profession: null, neighborhood: null });
   });
 
-  it.each(["1850", "84", "abc", "9999"])("refuses birth year %s inline and writes nothing", async (value) => {
+  it.each(["1850-01-01", "2020-01-01"])("refuses date of birth %s inline and writes nothing", async (value) => {
     const user = userEvent.setup();
     await renderModal(5000);
     await user.type(document.getElementById("memberName") as HTMLInputElement, "Alice Mballa");
     const phone = document.getElementById("memberPhone") as HTMLInputElement;
     await user.clear(phone);
     await user.type(phone, "+237680811041");
-    await user.type(document.getElementById("memberBirthYear") as HTMLInputElement, value);
+    fireEvent.change(document.getElementById("memberDob") as HTMLInputElement, { target: { value } });
     await user.click(screen.getByRole("button", { name: "common.next" }));
     await user.click(await screen.findByRole("button", { name: "members.addMemberButton" }));
 
-    expect(await screen.findByText("members.modal.errors.birthYearInvalid")).toBeInTheDocument();
+    expect(await screen.findByText("members.modal.errors.dobInvalid")).toBeInTheDocument();
     expect(createMember).not.toHaveBeenCalled();
   });
 
@@ -263,5 +263,13 @@ describe("MemberModal profile fields (Story 26.1)", () => {
       expect(screen.queryByText("members.modal.view.approxAge")).toBeNull();
       expect(screen.queryByText("members.modal.profession")).toBeNull();
     });
+  });
+});
+
+describe("date of birth is the one age field", () => {
+  it("the form has a date-of-birth input and no separate birth-year input", async () => {
+    await renderModal(undefined);
+    expect(document.getElementById("memberDob")).not.toBeNull();
+    expect(document.getElementById("memberBirthYear")).toBeNull();
   });
 });

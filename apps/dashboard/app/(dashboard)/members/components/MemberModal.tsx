@@ -127,10 +127,11 @@ const emptyForm = {
   coachId: "",
 };
 
-// Story 26.1: blank saves as null. A birth year that is not exactly four digits
-// becomes NaN so the schema refuses it and the error shows inline on the field.
-function profileFieldsFromForm(form: { birthYear: string; profession: string; neighborhood: string }) {
-  const year = form.birthYear.trim();
+// Story 26.1: blank saves as null. The date of birth is the one age field: its year is the stored birth year,
+// so the approximate-age display and the CSV import keep working. A member who only has a birth year (no date)
+// keeps it, because the form carries it untouched.
+function profileFieldsFromForm(form: { dob: string; birthYear: string; profession: string; neighborhood: string }) {
+  const year = form.dob ? form.dob.slice(0, 4) : form.birthYear.trim();
   return {
     birthYear: year === "" ? null : /^\d{4}$/.test(year) ? Number(year) : Number.NaN,
     profession: form.profession.trim() === "" ? null : form.profession,
@@ -855,12 +856,12 @@ export function MemberModal({
               <DetailField label={t("members.modal.view.phone")} value={editingMember.phone ?? "—"} />
               <DetailField label={t("members.modal.email")} value={editingMember.email ?? "—"} />
               <DetailField
-                label={t("members.modal.dob")}
-                value={editingMember.dob ? formatLocalDate(editingMember.dob, i18n.language) : "—"}
-              />
-              <DetailField
                 label={t("members.modal.emergencyContact")}
                 value={editingMember.emergencyContact ?? "—"}
+              />
+              <DetailField
+                label={t("members.modal.dob")}
+                value={editingMember.dob ? formatLocalDate(editingMember.dob, i18n.language) : "—"}
               />
               {editingMember.birthYear != null && (
                 <DetailField
@@ -997,17 +998,6 @@ export function MemberModal({
                 value={form.emergencyContact}
                 onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })}
               />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="memberBirthYear">{t("members.modal.birthYear")}</Label>
-              <Input
-                id="memberBirthYear"
-                inputMode="numeric"
-                value={form.birthYear}
-                onChange={(e) => setForm({ ...form, birthYear: e.target.value })}
-              />
-              {fieldErrors.birthYear && <p className="text-sm text-red-600">{fieldErrors.birthYear}</p>}
             </div>
 
             <div className="space-y-2">

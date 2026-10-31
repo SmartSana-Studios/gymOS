@@ -53,7 +53,7 @@ export const subscriptionStatusSchema = z.enum([
 // Reused by both createMemberSchema and editMemberSchema below -- local
 // reuse within this one file, not the cross-file sharing this project's
 // per-schema-file convention avoids.
-const dobSchema = z
+export const dobSchema = z
   .iso
   .date("Enter a valid date")
   .optional()
