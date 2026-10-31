@@ -285,19 +285,19 @@ async function OverviewData({ shell }: { shell: DashboardShellContext | null }) 
 function OverviewSkeleton({ showGymHealth }: { showGymHealth: boolean }) {
   return (
     <div className="flex flex-col gap-6">
-      <div className="h-8 w-40 animate-pulse rounded bg-muted" />
+      <div className="h-8 w-40 animate-pulse rounded bg-primary/10" />
       <div className="grid gap-4 sm:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-[86px] w-full animate-pulse rounded-md bg-muted" />
+          <div key={i} className="h-[86px] w-full animate-pulse rounded-md bg-primary/10" />
         ))}
       </div>
       {showGymHealth && <GymHealthRowSkeleton />}
       {Array.from({ length: 2 }).map((_, table) => (
         <div key={table} className="space-y-3">
-          <div className="h-7 w-48 animate-pulse rounded bg-muted" />
+          <div className="h-7 w-48 animate-pulse rounded bg-primary/10" />
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, row) => (
-              <div key={row} className="h-12 w-full animate-pulse rounded bg-muted" />
+              <div key={row} className="h-12 w-full animate-pulse rounded bg-primary/10" />
             ))}
           </div>
         </div>
@@ -314,8 +314,8 @@ function OverviewSkeleton({ showGymHealth }: { showGymHealth: boolean }) {
 function OverviewGateSkeleton() {
   return (
     <div className="flex flex-col gap-6">
-      <div className="h-8 w-40 animate-pulse rounded bg-muted" />
-      <div className="h-64 w-full animate-pulse rounded-md bg-muted" />
+      <div className="h-8 w-40 animate-pulse rounded bg-primary/10" />
+      <div className="h-64 w-full animate-pulse rounded-md bg-primary/10" />
     </div>
   );
 }

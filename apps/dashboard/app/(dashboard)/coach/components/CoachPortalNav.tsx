@@ -66,7 +66,7 @@ export function CoachPortalNavFallback() {
   return (
     <div className="flex gap-6 border-b pb-3" aria-hidden="true">
       {SUB_NAV_ITEMS.map((item) => (
-        <div key={item.href} className="h-5 w-20 animate-pulse rounded bg-muted" />
+        <div key={item.href} className="h-5 w-20 animate-pulse rounded bg-primary/10" />
       ))}
     </div>
   );

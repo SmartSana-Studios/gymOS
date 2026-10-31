@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { resizeImageForUpload } from "@/lib/resizeImage";
 import { uploadLogo } from "./actions";
 
 export function useLogoUpload(initialLogoUrl: string | null) {
@@ -40,7 +41,7 @@ export function useLogoUpload(initialLogoUrl: string | null) {
 
     try {
       const formData = new FormData();
-      formData.set("file", file);
+      formData.set("file", await resizeImageForUpload(file));
       const { data, error } = await uploadLogo(formData);
       if (error) {
         setLogoError(error.message);

@@ -1,4 +1,4 @@
-import posthog from "posthog-js";
+import type { PostHog } from "posthog-js";
 import * as Sentry from "@sentry/nextjs";
 import { resolveAnalyticsEnvironment } from "./lib/analytics-environment";
 
@@ -8,29 +8,48 @@ import { resolveAnalyticsEnvironment } from "./lib/analytics-environment";
 
 const apiKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 
-if (apiKey) {
-  try {
-    posthog.init(apiKey, {
-      api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-      // App Router client-side navigations don't re-trigger PostHog's default
-      // pageview capture (a known gotcha, not optional) -- captured manually
-      // below via onRouterTransitionStart instead.
-      capture_pageview: false,
-      // Review finding (AC #2): the default click/form-interaction
-      // autocapture can pick up DOM text content (e.g. a member/staff name
-      // rendered inside a clicked row or button), bypassing the closed
-      // payload interfaces this story otherwise enforces. Disabled entirely
-      // rather than scoped down -- user call.
-      autocapture: false,
+// posthog-js is the largest script in the bundle (~200 KB), so it is fetched after the page has loaded and the
+// browser is idle, never on the critical path of a slow connection. Pageviews that happen before it arrives wait
+// on the same promise instead of being dropped.
+let posthogReady: Promise<PostHog | null> | null = null;
+
+function loadPosthog(): Promise<PostHog | null> {
+  posthogReady ??= import("posthog-js")
+    .then(({ default: posthog }) => {
+      posthog.init(apiKey as string, {
+        api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+        // App Router client-side navigations don't re-trigger PostHog's default
+        // pageview capture (a known gotcha, not optional) -- captured manually
+        // below via onRouterTransitionStart instead.
+        capture_pageview: false,
+        // Review finding (AC #2): the default click/form-interaction
+        // autocapture can pick up DOM text content (e.g. a member/staff name
+        // rendered inside a clicked row or button), bypassing the closed
+        // payload interfaces this story otherwise enforces. Disabled entirely
+        // rather than scoped down -- user call.
+        autocapture: false,
+      });
+      // Attached to every subsequent client-side event -- see next.config.ts
+      // for why this reads NEXT_PUBLIC_ANALYTICS_ENV rather than VERCEL_ENV
+      // directly.
+      posthog.register({ environment: process.env.NEXT_PUBLIC_ANALYTICS_ENV ?? "dev" });
+      return posthog;
+    })
+    .catch((err) => {
+      // Matches lib/analytics.ts's own non-blocking discipline: an analytics
+      // failure must never break client hydration.
+      console.error("[analytics] failed to initialize posthog-js", err);
+      return null;
     });
-    // Attached to every subsequent client-side event -- see next.config.ts
-    // for why this reads NEXT_PUBLIC_ANALYTICS_ENV rather than VERCEL_ENV
-    // directly.
-    posthog.register({ environment: process.env.NEXT_PUBLIC_ANALYTICS_ENV ?? "dev" });
-  } catch (err) {
-    // Matches lib/analytics.ts's own non-blocking discipline: an analytics
-    // failure must never break client hydration.
-    console.error("[analytics] failed to initialize posthog-js", err);
+  return posthogReady;
+}
+
+if (apiKey && typeof window !== "undefined") {
+  const start = () => void loadPosthog();
+  if (document.readyState === "complete") {
+    setTimeout(start, 2000);
+  } else {
+    window.addEventListener("load", () => setTimeout(start, 2000), { once: true });
   }
 }
 
@@ -59,11 +78,13 @@ export function onRouterTransitionStart(
   navigationType: "push" | "replace" | "traverse",
 ) {
   if (apiKey) {
-    try {
-      posthog.capture("$pageview", { $current_url: url });
-    } catch (err) {
-      console.error("[analytics] failed to capture $pageview", err);
-    }
+    void loadPosthog().then((posthog) => {
+      try {
+        posthog?.capture("$pageview", { $current_url: url });
+      } catch (err) {
+        console.error("[analytics] failed to capture $pageview", err);
+      }
+    });
   }
   if (sentryDsn) {
     Sentry.captureRouterTransitionStart(url, navigationType);

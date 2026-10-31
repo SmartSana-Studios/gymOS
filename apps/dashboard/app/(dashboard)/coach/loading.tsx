@@ -9,7 +9,7 @@ export default function CoachPortalLoading() {
   return (
     <div className="space-y-2">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="h-12 w-full animate-pulse rounded bg-muted" />
+        <div key={i} className="h-12 w-full animate-pulse rounded bg-primary/10" />
       ))}
     </div>
   );

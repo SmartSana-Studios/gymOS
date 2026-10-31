@@ -17,6 +17,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             src="/gymos-logo-full-white.webp"
             alt="GymOS"
             fill
+            priority
             className="object-contain"
           />
         </div>

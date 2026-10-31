@@ -4,10 +4,10 @@
 export default function SubscriptionsLoading() {
   return (
     <div className="space-y-4">
-      <div className="h-8 w-40 animate-pulse rounded bg-muted" />
+      <div className="h-8 w-40 animate-pulse rounded bg-primary/10" />
       <div className="space-y-2">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="h-12 w-full animate-pulse rounded bg-muted" />
+          <div key={i} className="h-12 w-full animate-pulse rounded bg-primary/10" />
         ))}
       </div>
     </div>

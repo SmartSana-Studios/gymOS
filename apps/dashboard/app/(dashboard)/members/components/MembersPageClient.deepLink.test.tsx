@@ -3,7 +3,7 @@
  * View), and closing it drops the param so a refresh does not reopen it.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 
 const memberModalProps = vi.fn();
 const replace = vi.fn();
@@ -78,8 +78,11 @@ beforeEach(() => {
 describe("MembersPageClient deep link (Story 19.10)", () => {
   it("opens the modal read-only for the deep-linked member on load", async () => {
     await renderPage(member);
-    expect(memberModalProps).toHaveBeenCalledWith(
-      expect.objectContaining({ open: true, readOnly: true, editingMember: member }),
+    // The modal is lazy-loaded, so its first render arrives a tick after the page's.
+    await waitFor(() =>
+      expect(memberModalProps).toHaveBeenCalledWith(
+        expect.objectContaining({ open: true, readOnly: true, editingMember: member }),
+      ),
     );
   });
 
@@ -90,6 +93,7 @@ describe("MembersPageClient deep link (Story 19.10)", () => {
 
   it("drops memberId from the URL on close, keeping the other params", async () => {
     await renderPage(member);
+    await waitFor(() => expect(memberModalProps).toHaveBeenCalled());
     const props = memberModalProps.mock.calls[0][0] as { onClose: () => void };
     props.onClose();
     expect(replace).toHaveBeenCalledWith("/members?status=active");

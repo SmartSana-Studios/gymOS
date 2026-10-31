@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import QRCode from "qrcode";
 import { QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,7 +29,11 @@ export function useQrCode({
   }, [regenerateOpen]);
 
   useEffect(() => {
-    QRCode.toDataURL(gymToken).then(setQrDataUrl).catch(() => setQrDataUrl(null));
+    // The QR encoder is only needed here, so it is fetched when this section mounts, not with the page bundle.
+    import("qrcode")
+      .then(({ default: QRCode }) => QRCode.toDataURL(gymToken))
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(null));
   }, [gymToken]);
 
   async function handleRegenerateConfirm() {

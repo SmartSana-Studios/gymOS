@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { I18nClientProvider } from "@/lib/i18n/client-provider";
 import { QueryProvider } from "@/lib/query-provider";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { UpdateNotice } from "@/components/UpdateNotice";
 import "./globals.css";
 
@@ -79,6 +80,7 @@ async function LocaleShell({ children }: { children: React.ReactNode }) {
         disableTransitionOnChange
       >
         <QueryProvider>{children}</QueryProvider>
+        <OfflineBanner />
         <UpdateNotice />
       </ThemeProvider>
     </I18nClientProvider>

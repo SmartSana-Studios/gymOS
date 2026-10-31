@@ -17,5 +17,5 @@ export async function GuestSessionsCardSection() {
 
 // One full-width block, so the card does not jump when it streams in.
 export function GuestSessionsCardSkeleton() {
-  return <div className="h-[150px] w-full animate-pulse rounded-md bg-muted" />;
+  return <div className="h-[150px] w-full animate-pulse rounded-md bg-primary/10" />;
 }

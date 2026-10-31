@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -24,12 +25,14 @@ import {
   PAYMENT_STATUS_BADGE_CONFIG,
   PAYMENT_DISCREPANCY_TYPE_LABEL_KEY,
 } from "../paymentLabels";
-import { RecordPaymentModal } from "./RecordPaymentModal";
 import { RecordRefundModal } from "./RecordRefundModal";
 import { VerifyPaymentConfirmDialog } from "./VerifyPaymentConfirmDialog";
 import { FlagPaymentDialog } from "./FlagPaymentDialog";
 import { PaymentsLedger, type PaymentsLedgerData } from "./PaymentsLedger";
 import { RefundHistory, type RefundHistoryData } from "./RefundHistory";
+import { ModalLoading } from "@/components/ModalLoading";
+
+const RecordPaymentModal = dynamic(() => import("./RecordPaymentModal").then((m) => m.RecordPaymentModal), { loading: () => <ModalLoading /> });
 
 export const PAYMENTS_TABS = ["payments", "refunds"] as const;
 type PaymentsTab = (typeof PAYMENTS_TABS)[number];

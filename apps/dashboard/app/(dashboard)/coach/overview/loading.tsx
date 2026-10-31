@@ -6,7 +6,7 @@ export default function CoachOverviewLoading() {
   return (
     <div className="grid gap-4 md:grid-cols-2" aria-busy="true">
       {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="h-40 w-full animate-pulse rounded-md bg-muted" />
+        <div key={i} className="h-40 w-full animate-pulse rounded-md bg-primary/10" />
       ))}
     </div>
   );

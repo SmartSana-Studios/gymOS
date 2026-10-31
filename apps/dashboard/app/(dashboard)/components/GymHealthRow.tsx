@@ -104,7 +104,7 @@ export function GymHealthRowSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="h-[86px] w-full animate-pulse rounded-md bg-muted" />
+        <div key={i} className="h-[86px] w-full animate-pulse rounded-md bg-primary/10" />
       ))}
     </div>
   );

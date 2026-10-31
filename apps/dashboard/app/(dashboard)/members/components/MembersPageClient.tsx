@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -33,14 +34,16 @@ import type { CoachRow } from "@/services/coaches";
 import type { MemberRole } from "@/services/session";
 import { exportMembersCsv, sendMemberInvite } from "../actions";
 import { isAwaitingRegistrationFee, resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../memberLabels";
-import { MemberModal } from "./MemberModal";
 import { DeactivateMemberDialog } from "./DeactivateMemberDialog";
-import { CsvImportModal } from "./CsvImportModal";
-import { InviteMemberModal } from "./InviteMemberModal";
 import { CollectRegistrationFeeDialog } from "./CollectRegistrationFeeDialog";
 import { WaiveRegistrationFeeDialog } from "./WaiveRegistrationFeeDialog";
 import { VoidRegistrationFeeDialog } from "./VoidRegistrationFeeDialog";
 import { AssignInitialPlanDialog } from "./AssignInitialPlanDialog";
+import { ModalLoading } from "@/components/ModalLoading";
+
+const InviteMemberModal = dynamic(() => import("./InviteMemberModal").then((m) => m.InviteMemberModal), { loading: () => <ModalLoading /> });
+const CsvImportModal = dynamic(() => import("./CsvImportModal").then((m) => m.CsvImportModal), { loading: () => <ModalLoading /> });
+const MemberModal = dynamic(() => import("./MemberModal").then((m) => m.MemberModal), { loading: () => <ModalLoading /> });
 
 const STATUS_OPTIONS = [
   "",
@@ -303,7 +306,6 @@ export function MembersPageClient({
       setSendingInviteId((current) => (current === member.id ? null : current));
     }
   }
-
 
   function expiryLabel(member: MemberListRow): string {
     if (!member.expiryDate) return "—";

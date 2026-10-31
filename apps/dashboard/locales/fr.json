@@ -1445,6 +1445,13 @@
     "searchCountry": "Rechercher un pays...",
     "noCountryFound": "Aucun pays trouvé"
   },
+  "network": {
+    "loading": "Chargement…",
+    "offline": "Vous êtes hors ligne. Les modifications ne peuvent pas être enregistrées tant que la connexion n'est pas rétablie.",
+    "backOnline": "Vous êtes de nouveau en ligne.",
+    "reload": "Recharger les données",
+    "dismiss": "Fermer"
+  },
   "pagination": {
     "rowsPerPage": "Lignes par page",
     "showing": "{{from}}–{{to}} sur {{total}}",

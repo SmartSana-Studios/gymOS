@@ -6,7 +6,7 @@ export default function CoachClassesLoading() {
   return (
     <div className="space-y-3" aria-busy="true">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="h-14 w-full animate-pulse rounded-md bg-muted" />
+        <div key={i} className="h-14 w-full animate-pulse rounded-md bg-primary/10" />
       ))}
     </div>
   );

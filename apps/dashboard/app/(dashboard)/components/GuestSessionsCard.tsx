@@ -178,7 +178,7 @@ export function GuestSessionsCard({
 
       <div className="mt-4" aria-busy={loading}>
         {loading ? (
-          <div className="h-[86px] w-full animate-pulse rounded-md bg-muted" data-testid="guest-sessions-card-loading" />
+          <div className="h-[86px] w-full animate-pulse rounded-md bg-primary/10" data-testid="guest-sessions-card-loading" />
         ) : failed || !summary ? (
           <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
             <span>{t("overview.cards.guestSessionsCard.loadError")}</span>

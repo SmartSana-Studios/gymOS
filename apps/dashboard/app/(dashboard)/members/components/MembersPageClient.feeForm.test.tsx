@@ -4,7 +4,7 @@
  * two-step form without the plan field; fee 0 keeps the plan field.
  */
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 vi.mock("../actions", () => ({
@@ -76,6 +76,8 @@ async function openStepTwo(registrationFee: number) {
     />,
   );
   await user.click(screen.getByRole("button", { name: "members.addMember" }));
+  // The modal is lazy-loaded, so its fields arrive a tick after the click.
+  await waitFor(() => expect(document.getElementById("memberName")).not.toBeNull());
   await user.type(document.getElementById("memberName") as HTMLInputElement, "Bob Ngono");
   await user.click(screen.getByRole("button", { name: "common.next" }));
 }

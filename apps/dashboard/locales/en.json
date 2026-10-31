@@ -1445,6 +1445,13 @@
     "searchCountry": "Search country...",
     "noCountryFound": "No country found"
   },
+  "network": {
+    "loading": "Loading…",
+    "offline": "You are offline. Changes cannot be saved until the connection returns.",
+    "backOnline": "You are back online.",
+    "reload": "Reload data",
+    "dismiss": "Dismiss"
+  },
   "pagination": {
     "rowsPerPage": "Rows per page",
     "showing": "{{from}}–{{to}} of {{total}}",
