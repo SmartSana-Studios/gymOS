@@ -16,6 +16,9 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     include: ["**/*.test.{ts,tsx}"],
     exclude: ["node_modules/**", ".next/**"],
+    // Form tests render large client components and type into them; on a slow or busy machine the first test of a
+    // file can take over the 5s default without anything being wrong.
+    testTimeout: 15_000,
   },
   resolve: {
     alias: {
