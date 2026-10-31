@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { loginSchema, toPasswordCredentials } from "@gymos/types";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
@@ -52,7 +53,11 @@ export function LoginForm({
   // provisioned with a phone and NO email, so an email-only field left every
   // non-Owner role unable to sign in at all. See loginSchema's own note for the
   // empirical confirmation that phone sign-in works against those accounts.
-  const [identifier, setIdentifier] = useState("");
+  // Owner-facing choice: sign in with an email OR a phone (country picker). Only the chosen
+  // field is shown; both feed the same `identifier` that loginSchema / toPasswordCredentials route.
+  const [method, setMethod] = useState<"email" | "phone">("phone");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -66,6 +71,12 @@ export function LoginForm({
     setPasswordError(null);
     setFormError(null);
 
+    // PhoneInput emits a valid E.164 string or null, so null means an incomplete/invalid number.
+    const identifier = method === "email" ? email.trim() : (phone ?? "");
+    if (method === "phone" && !phone) {
+      setFormError(t("auth.errors.invalidPhone"));
+      return;
+    }
     const parsed = loginSchema.safeParse({ identifier, password });
     if (!parsed.success) {
       setFormError(parsed.error.issues[0]?.message ?? t("common.invalidInput"));
@@ -128,21 +139,59 @@ export function LoginForm({
           )}
           <form onSubmit={handleLogin}>
             <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="identifier">{t("auth.identifierLabel")}</Label>
-                <Input
-                  id="identifier"
-                  // Deliberately `text`, not `email`: the browser's native
-                  // email validation would reject a phone number before the
-                  // form ever ran, which is the whole bug being fixed here.
-                  type="text"
-                  inputMode="email"
-                  autoComplete="username"
-                  placeholder={t("auth.identifierPlaceholder")}
-                  required
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                />
+              <div className="grid gap-4">
+                <div
+                  role="tablist"
+                  aria-label={t("auth.methodLabel")}
+                  className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1"
+                >
+                  {(["phone", "email"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      role="tab"
+                      aria-selected={method === m}
+                      onClick={() => {
+                        setMethod(m);
+                        setFormError(null);
+                        setPasswordError(null);
+                      }}
+                      className={cn(
+                        "rounded-sm px-3 py-1.5 text-sm font-medium transition-colors",
+                        method === m
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {m === "email" ? t("auth.methodEmail") : t("auth.methodPhone")}
+                    </button>
+                  ))}
+                </div>
+                {method === "email" ? (
+                  <div className="grid gap-2">
+                    <Label htmlFor="login-email">{t("auth.emailLabel")}</Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="username"
+                      placeholder={t("auth.emailPlaceholder")}
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    <Label htmlFor="login-phone">{t("auth.phoneLabel")}</Label>
+                    <PhoneInput
+                      id="login-phone"
+                      value={phone}
+                      onChange={setPhone}
+                      placeholder={t("auth.phonePlaceholder")}
+                    />
+                  </div>
+                )}
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">

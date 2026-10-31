@@ -47,8 +47,11 @@ vi.mock("next/navigation", () => ({
 const TRANSLATIONS: Record<string, string> = {
   "auth.resetPasswordTitle": "Reset Your Password",
   "auth.resetIdentifierDescription": "Enter your email address or phone number",
-  "auth.identifierLabel": "Email address or phone number *",
-  "auth.identifierPlaceholder": "you@example.com or +237…",
+  "auth.methodEmail": "Email",
+  "auth.methodPhone": "Phone",
+  "auth.emailLabel": "Email address *",
+  "auth.phoneLabel": "Phone number *",
+  "auth.errors.invalidPhone": "Enter a valid phone number for the selected country.",
   "auth.resetSendCode": "Send code",
   "auth.resetSendingCode": "Sending…",
   "auth.otpTitle": "Enter your code",
@@ -88,7 +91,13 @@ afterEach(cleanup);
 async function submitIdentifier(value: string, props: { resendCooldownSeconds?: number } = {}) {
   const user = userEvent.setup();
   render(<ForgotPasswordForm {...props} />);
-  await user.type(screen.getByLabelText(TRANSLATIONS["auth.identifierLabel"]!), value);
+  if (value.includes("@")) {
+    await user.click(screen.getByRole("tab", { name: "Email" }));
+    await user.type(screen.getByLabelText(TRANSLATIONS["auth.emailLabel"]!), value);
+  } else {
+    // Phone is the default tab; the picker defaults to Cameroon (+237).
+    await user.type(document.getElementById("reset-phone") as HTMLInputElement, value);
+  }
   await user.click(screen.getByRole("button", { name: "Send code" }));
   return user;
 }
@@ -130,8 +139,8 @@ describe("ForgotPasswordForm -- staff phone reset", () => {
     });
   });
 
-  it("normalizes a number typed with spaces, and one typed without the leading plus", async () => {
-    await submitIdentifier("237 670 000 005");
+  it("accepts a national number typed with spaces under the selected country", async () => {
+    await submitIdentifier("670 000 005");
 
     await waitFor(() => expect(rpc).toHaveBeenCalled());
     expect(rpc).toHaveBeenCalledWith("phone_has_staff_membership", { p_phone: "+237670000005" });
@@ -243,5 +252,18 @@ describe("ForgotPasswordForm -- Owner email reset is unchanged", () => {
     expect(rpc).not.toHaveBeenCalled();
     expect(signInWithOtp).not.toHaveBeenCalled();
     expect(await screen.findByText("Check Your Email")).toBeTruthy();
+  });
+});
+
+describe("ForgotPasswordForm -- method choice", () => {
+  it("defaults to phone and blocks a send until the number is valid", async () => {
+    vi.clearAllMocks();
+    const user = userEvent.setup();
+    render(<ForgotPasswordForm />);
+    expect(document.getElementById("reset-phone")).toBeTruthy();
+    expect(screen.queryByLabelText(TRANSLATIONS["auth.emailLabel"]!)).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+    expect(await screen.findByText(TRANSLATIONS["auth.errors.invalidPhone"]!)).toBeTruthy();
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

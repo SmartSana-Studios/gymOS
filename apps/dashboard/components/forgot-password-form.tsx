@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { isPhoneIdentifier, toE164Phone } from "@gymos/types";
+import { PhoneInput } from "@/components/ui/phone-input";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -51,7 +51,10 @@ export function ForgotPasswordForm({
   const { t } = useTranslation();
   const router = useRouter();
   const [step, setStep] = useState<Step>("identify");
-  const [identifier, setIdentifier] = useState("");
+  // Phone is the default method; PhoneInput emits valid E.164 or null.
+  const [method, setMethod] = useState<"email" | "phone">("phone");
+  const [email, setEmail] = useState("");
+  const [phoneInput, setPhoneInput] = useState<string | null>(null);
   // The canonical "+"-prefixed form, resolved once when the code is sent, so
   // verify/resend cannot drift from what was actually sent to.
   const [phone, setPhone] = useState("");
@@ -103,8 +106,12 @@ export function ForgotPasswordForm({
     setIsLoading(true);
 
     try {
-      if (isPhoneIdentifier(identifier)) {
-        const targetPhone = toE164Phone(identifier);
+      if (method === "phone") {
+        if (!phoneInput) {
+          setError(t("auth.errors.invalidPhone"));
+          return;
+        }
+        const targetPhone = phoneInput;
         if (await sendCode(targetPhone)) {
           setPhone(targetPhone);
           setCountdown(resendCooldownSeconds);
@@ -114,7 +121,7 @@ export function ForgotPasswordForm({
       }
 
       const supabase = createClient();
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(identifier.trim(), {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/auth/update-password`,
       });
       if (resetError) throw resetError;
@@ -267,20 +274,58 @@ export function ForgotPasswordForm({
         <CardContent>
           <form onSubmit={handleIdentify}>
             <div className="flex flex-col gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="identifier">{t("auth.identifierLabel")}</Label>
-                <Input
-                  id="identifier"
-                  // `text`, not `email`: staff reset by phone, and native email
-                  // validation would reject a number before submit.
-                  type="text"
-                  inputMode="email"
-                  autoComplete="username"
-                  placeholder={t("auth.identifierPlaceholder")}
-                  required
-                  value={identifier}
-                  onChange={(event) => setIdentifier(event.target.value)}
-                />
+              <div className="grid gap-4">
+                <div
+                  role="tablist"
+                  aria-label={t("auth.methodLabel")}
+                  className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1"
+                >
+                  {(["phone", "email"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      role="tab"
+                      aria-selected={method === m}
+                      onClick={() => {
+                        setMethod(m);
+                        setError(null);
+                      }}
+                      className={cn(
+                        "rounded-sm px-3 py-1.5 text-sm font-medium transition-colors",
+                        method === m
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {m === "email" ? t("auth.methodEmail") : t("auth.methodPhone")}
+                    </button>
+                  ))}
+                </div>
+                {method === "email" ? (
+                  <div className="grid gap-2">
+                    <Label htmlFor="reset-email">{t("auth.emailLabel")}</Label>
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="username"
+                      placeholder={t("auth.emailPlaceholder")}
+                      required
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    <Label htmlFor="reset-phone">{t("auth.phoneLabel")}</Label>
+                    <PhoneInput
+                      id="reset-phone"
+                      value={phoneInput}
+                      onChange={setPhoneInput}
+                      placeholder={t("auth.phonePlaceholder")}
+                    />
+                  </div>
+                )}
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>

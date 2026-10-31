@@ -23,13 +23,14 @@ vi.mock("@/lib/supabase/client", () => ({
   }),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
-vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (k: string) => k, i18n: { language: "en" } }) }));
 
 import { LoginForm } from "./login-form";
 
 async function signIn(props: Parameters<typeof LoginForm>[0] = {}) {
   render(<LoginForm {...props} />);
-  await userEvent.type(screen.getByLabelText("auth.identifierLabel"), "qa@example.com");
+  await userEvent.click(screen.getByRole("tab", { name: "auth.methodEmail" }));
+  await userEvent.type(screen.getByLabelText("auth.emailLabel"), "qa@example.com");
   await userEvent.type(document.getElementById("password") as HTMLInputElement, "secret-pass-1");
   await userEvent.click(screen.getByRole("button", { name: "auth.signIn" }));
 }
@@ -83,5 +84,33 @@ describe("LoginForm second factor routing", () => {
     unmount();
     render(<LoginForm />);
     expect(screen.queryByText("auth.sessionExpired")).toBeNull();
+  });
+});
+
+describe("LoginForm method choice", () => {
+  it("defaults to the phone picker, and swaps to the email field on the Email tab", async () => {
+    render(<LoginForm />);
+    expect(document.getElementById("login-phone")).toBeTruthy();
+    expect(screen.queryByLabelText("auth.emailLabel")).toBeNull();
+    await userEvent.click(screen.getByRole("tab", { name: "auth.methodEmail" }));
+    expect(screen.getByLabelText("auth.emailLabel")).toBeTruthy();
+    expect(document.getElementById("login-phone")).toBeNull();
+  });
+
+  it("blocks submit on the Phone tab until a valid number is entered", async () => {
+    render(<LoginForm />);
+    await userEvent.type(document.getElementById("password") as HTMLInputElement, "secret-pass-1");
+    await userEvent.click(screen.getByRole("button", { name: "auth.signIn" }));
+    await screen.findByText("auth.errors.invalidPhone");
+    expect(signInWithPassword).not.toHaveBeenCalled();
+  });
+
+  it("signs in with an E.164 phone from the picker", async () => {
+    render(<LoginForm />);
+    await userEvent.type(document.getElementById("login-phone") as HTMLInputElement, "699000777");
+    await userEvent.type(document.getElementById("password") as HTMLInputElement, "secret-pass-1");
+    await userEvent.click(screen.getByRole("button", { name: "auth.signIn" }));
+    await waitFor(() => expect(signInWithPassword).toHaveBeenCalled());
+    expect(JSON.stringify(signInWithPassword.mock.calls[0])).toContain("+237699000777");
   });
 });
