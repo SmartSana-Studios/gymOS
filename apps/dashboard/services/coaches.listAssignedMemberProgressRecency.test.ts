@@ -74,7 +74,7 @@ describe("listAssignedMemberProgressRecency", () => {
 
     expect(calls).toEqual([
       ["from", "members"],
-      ["select", "id, name, gyms(timezone), progress_entries(logged_at)"],
+      ["select", "id, name, gyms!members_gym_id_fkey(timezone), progress_entries(logged_at)"],
       ["eq", "gym_id", "gym-1"],
       ["eq", "role", "member"],
       ["is", "deactivated_at", null],

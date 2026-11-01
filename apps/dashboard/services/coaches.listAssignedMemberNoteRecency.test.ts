@@ -77,7 +77,7 @@ describe("listAssignedMemberNoteRecency", () => {
 
     expect(calls).toEqual([
       ["from", "members"],
-      ["select", "id, name, gyms(timezone), session_notes!session_notes_member_id_fkey(created_at)"],
+      ["select", "id, name, gyms!members_gym_id_fkey(timezone), session_notes!session_notes_member_id_fkey(created_at)"],
       ["eq", "gym_id", "gym-1"],
       ["eq", "role", "member"],
       ["is", "deactivated_at", null],
