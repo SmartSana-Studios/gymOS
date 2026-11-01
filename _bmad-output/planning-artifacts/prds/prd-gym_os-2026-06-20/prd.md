@@ -1152,7 +1152,7 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | Country-by-country gym directory and SEO / AI-SEO | **Moved into V1.7** (FR-209–FR-214) |
 | GymOS support staff (Super Admin-assigned, one collapsed "GymOS Support" row for the Owner, full configuration and transactions incl. Tara Money, TOTP second factor; amends FR-072) | **Moved into V1.7, ships first** (FR-175–FR-195) |
 | Large or generated template library beyond the launch pair, and its generation pipeline; per-gym custom domains; page analytics; booking or payment on the public page | After V1.7 |
-| Gym-entered content in more than one language per field | Later (OQ-28) |
+| Gym-entered content in more than one language per field | **Moved into V1.7 (OQ-28, 2026-11-01)**: optional EN and FR fields for about, services and public plan labels |
 | Dual control (a second approver) for support assignment and second-factor reset | Later, when the platform team has a second Super Admin (FR-191) |
 | Content moderation tooling beyond report, takedown and appeal (FR-204) | Later |
 | Category-specific behavior, wording, or plan types (FR-172) | Not in V1.7 (category stays descriptive; decided 2026-10-15); later, with studio feedback |
@@ -1213,7 +1213,7 @@ The following are explicitly deferred. Nothing below may be added to scope witho
 | OQ-25 | **Resolved (2026-10-11)** — class attendance by a Pay-per-session guest requires and consumes a paid session under the same rule as check-in (option a); booking stays free; the same session covers floor and class that day (FR-174). | — | — |
 | OQ-26 | **Resolved (2026-10-11)** — V1.7 support staff may do everything gym staff can, transactions included; support is on by default and a gym may opt out; support accounts require a second login factor (Section 12 E). **Method resolved (2026-10-15): TOTP authenticator app via Supabase MFA, enforced at AAL2 in the database.** | — | — |
 | OQ-27 | **Resolved (2026-10-15)** — TOTP enrollment is enabled on the production Supabase project (product owner); an enrollment check is part of the Step 1 gate (FR-189). | — | — |
-| OQ-28 | **Landing page content language** — whether a gym enters content in one language or both, and how the page chooses (FR-208). | Product owner | Before landing-page stories |
+| OQ-28 | **Resolved (2026-11-01)** — product owner: a gym may enter content in both languages, each optional (about, services and public plan labels in EN and FR). The page shows the visitor's language when it exists and falls back to the other; alternates are declared only where both exist (FR-208, docs/decisions.md, Story 24.0). | — | — |
 | OQ-29 | **Directory thin-page threshold** — default 3 published gyms per listing (FR-212); confirm or change. | Product owner | Before directory stories |
 | OQ-30 | **Resolved (2026-10-20)** — confirmed by the product owner (docs/decisions.md, Story 23.0): default as written: switching "Allow GymOS Support" off suspends assignments, switching on re-activates those that were active, and assignments made while off stay pending (FR-177, FR-183). | — | — |
 | OQ-31 | **Resolved by owner risk acceptance (2026-10-20), not reviewed by counsel (docs/decisions.md, Story 23.0)** — liability terms for support actions (FR-187), publishing a gym's phone and address (FR-197), and support access to member data under the applicable data-protection law. | — | — |
@@ -1335,7 +1335,7 @@ Section 12 started as the V1.7 backlog recorded on 2026-10-11. V1.7 planning ran
 | FR-189 | Support session 8 h max, 15 min idle, step-up within 5 min | Step 1 stories |
 | FR-204 | Reports answered within 5 business days | Step 2 stories |
 | FR-207 | 60 s at origin, 5 min CDN purge, 15 min sitemap | Step 2 stories |
-| FR-208, FR-211 | Page chrome EN/FR, content as entered | OQ-28 |
+| FR-208, FR-211 | Page chrome EN/FR; gym content in one or both languages, each optional (OQ-28 resolved 2026-11-01) | Resolved |
 | FR-212 | Listing indexed from 3 published gyms | OQ-29 |
 | NFR-025 | p75 LCP 3 s on mid-range Android, 4G | Step 2, after a measured baseline |
 | Section 3.2 | Adoption and discoverability targets; set-up effort baseline | Release planning |

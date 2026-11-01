@@ -3,6 +3,23 @@
 Dated entries recording spike/decision outcomes that can't be changed later without cost (region, provider selections, etc.). One entry per decision — newest first.
 
 
+
+---
+
+## 2026-11-01 — Story 24.0: Epic 24 (landing pages) pre-flight checklist
+
+Owner answers given 2026-11-01 in the 24.0 session. No application code, migration or config changed. Spec: `_bmad-output/implementation-artifacts/spec-24-0-pre-flight-checklist-product-owner.md`.
+
+**Decided**
+- **OQ-28 answered.** A gym may enter page content in both languages, each optional: about, services and public plan labels have an English and a French field. The page shows the visitor's language when that content exists, else the other; language alternates are declared only where both exist (FR-208). Consequence: 24.5 stores both, the published projection and its snapshot test (24.8, FR-206) include both, the editor (24.9) shows both, the template (24.10) selects.
+- **Assumption values confirmed unchanged.** Page gone at origin within 60 s, CDN purge within 5 min, sitemap regenerated within 15 min (FR-207); reports answered within 5 business days (FR-204).
+- **Access available:** A2 Hosting DNS zone, Vercel `apps/landing` project, a staging Supabase project, and a throwaway test label on the real zone. Not yet exercised; 24.1 and 24.2 prove it.
+- **UX timing.** The `bmad-ux` pass runs after 24.8 and before 24.9. 24.9 and 24.10 depend on it.
+
+**Not part of this entry:** OQ-29 (directory thin-page threshold) belongs to Epic 25. NFR-025 (3 s LCP target) stays an assumption until the 24.12 baseline.
+
+**Not blocked.** 24.1 can start.
+
 ---
 
 ## 2026-10-25 — Product decisions and production changes of the day (owner session)
