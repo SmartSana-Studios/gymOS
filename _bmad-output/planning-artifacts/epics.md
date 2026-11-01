@@ -3358,6 +3358,7 @@ So that old access does not linger and a real person can get back in without a b
 
 | # | Story | Migration | Depends on |
 |---|---|---|---|
+| 24.0 | Pre-Flight Checklist (Product Owner) | none | Epic 23 |
 | 24.1 | Spike — Pooler Role, DNS Precedence, `__Host-` Cookies, AutoSSL | none | Epic 23 |
 | 24.2 | Wildcard Delegation & Reserved-Label CI Check | none (DNS + CI) | 24.1 |
 | 24.3 | Staff Session Cookies — `__Host-` Prefix, Host-Only | none | 24.1 |
@@ -3372,6 +3373,34 @@ So that old access does not linger and a real person can get back in without a b
 | 24.12 | Landing-Page Gate — Isolation, Headers & Speed Baseline | none | 24.10, 24.11 |
 
 *Step 2 starts only after Epic 23 is done (PRD §10.2). Nothing is public until a gym publishes: existing gyms have no page, no name and no public plan until their Owner acts (FR-197). No V1.7 UX spec exists; screens are anchored in FR/AD wording and a `bmad-ux` pass is expected before 24.9 and the launch template's visual design in 24.10. FR-211 structured data and the directory belong to Epic 25.*
+
+---
+
+### Story 24.0: Pre-Flight Checklist (Product Owner)
+
+As the product owner,
+I want the owner-side decisions and access for Epic 24 recorded before any code ships,
+So that the build does not stall on an open question or an unavailable system.
+
+*Docs only. Output is one dated `docs/decisions.md` entry, PRD OQ-28 resolved, and `sprint-status.yaml` synced. Answers recorded 2026-11-01.*
+
+**Acceptance Criteria:**
+
+**Given** OQ-28 (content language)
+**When** the owner answers
+**Then** it is recorded in `docs/decisions.md` and the PRD, and the stories it changes (24.5, 24.8, 24.9, 24.10) carry the consequence
+
+**Given** the Step 2 assumption values (FR-204, FR-207)
+**When** the owner reviews them
+**Then** they are confirmed or changed in the same entry
+
+**Given** the infrastructure the spike and DNS stories need (A2 Hosting DNS zone, Vercel `apps/landing`, a staging Supabase project, a throwaway test label)
+**When** the owner confirms access
+**Then** the entry records what is available, and any missing item blocks only the story that needs it
+
+**Given** the PRD's UX expectation for the editor and the launch template
+**When** the owner decides when it happens
+**Then** the entry records the timing and 24.9 and 24.10 name it as a prerequisite
 
 ---
 
@@ -3509,7 +3538,7 @@ As a gym Owner,
 I want to enter what my public page should say and choose which plans it shows,
 So that a visitor sees my gym accurately and I never expose a plan I want kept private.
 
-*Delivers FR-197 (data), FR-200. Migration at merge time. Setter RPCs follow AD-32; support is admitted through the AD-35 registry (FR-179).*
+*Delivers FR-197 (data), FR-200. Migration at merge time. Setter RPCs follow AD-32; support is admitted through the AD-35 registry (FR-179). **OQ-28 (2026-11-01): about, services and public plan labels are stored as optional English and French fields; the setter and Zod schema validate both, and either may be empty.***
 
 **Acceptance Criteria:**
 
@@ -3609,7 +3638,7 @@ As a gym Owner,
 I want to publish my page only when it is complete and take it down instantly when I choose,
 So that the public never sees a half-finished or retracted page.
 
-*Delivers FR-199, FR-200 (retraction), FR-206, FR-207 (origin), AD-46. Migration at merge time (`gym_pages`, `public_site` views, triggers).*
+*Delivers FR-199, FR-200 (retraction), FR-206, FR-207 (origin), AD-46. Migration at merge time (`gym_pages`, `public_site` views, triggers). **OQ-28: the published projection and snapshot carry the optional EN and FR content fields; the FR-206 field list and its snapshot test include both.***
 
 **Acceptance Criteria:**
 
@@ -3645,7 +3674,7 @@ As a gym Owner,
 I want a place in my dashboard to fill in, preview and publish my page,
 So that putting my gym on the web takes minutes and I always know what becomes public.
 
-*Delivers FR-197 (screen), FR-198, FR-199 (reasons), FR-201 (selection). EN/FR. No V1.7 UX exists; follow the existing Settings patterns until the UX pass.*
+*Delivers FR-197 (screen), FR-198, FR-199 (reasons), FR-201 (selection). EN/FR. No V1.7 UX exists; follow the existing Settings patterns until the UX pass. **Prerequisite (24.0, 2026-11-01): the `bmad-ux` pass runs after 24.8 and before this story. The editor offers an EN and an FR field for about, services and plan labels, each optional (OQ-28).***
 
 **Acceptance Criteria:**
 
@@ -3677,7 +3706,7 @@ As a visitor,
 I want to open a gym's page and see what it offers, how to call it and where it is,
 So that I can decide to visit without an account.
 
-*Delivers FR-196, FR-201, FR-205 (text-only), FR-206, FR-207 (behavior), FR-208; NFR-025, NFR-026. AD-43, AD-44, AD-48. Visual design awaits the UX pass; the contract and one template ship here.*
+*Delivers FR-196, FR-201, FR-205 (text-only), FR-206, FR-207 (behavior), FR-208; NFR-025, NFR-026. AD-43, AD-44, AD-48. Visual design awaits the UX pass (after 24.8, before 24.9, per 24.0); the contract and one template ship here. **OQ-28: show the visitor's language when that content exists, else the other; declare language alternates only where both exist.***
 
 **Acceptance Criteria:**
 
