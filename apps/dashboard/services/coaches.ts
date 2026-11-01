@@ -503,7 +503,7 @@ export async function listAssignedMemberNoteRecency(): Promise<{
 
   const { data, error } = await supabase
     .from("members")
-    .select("id, name, gyms(timezone), session_notes!session_notes_member_id_fkey(created_at)")
+    .select("id, name, gyms!members_gym_id_fkey(timezone), session_notes!session_notes_member_id_fkey(created_at)")
     .eq("gym_id", gymId)
     .eq("role", "member")
     .is("deactivated_at", null)
@@ -723,7 +723,7 @@ export async function listAssignedMemberProgressRecency(): Promise<{
 
   const { data, error } = await supabase
     .from("members")
-    .select("id, name, gyms(timezone), progress_entries(logged_at)")
+    .select("id, name, gyms!members_gym_id_fkey(timezone), progress_entries(logged_at)")
     .eq("gym_id", gymId)
     .eq("role", "member")
     .is("deactivated_at", null)

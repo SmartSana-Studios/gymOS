@@ -820,7 +820,7 @@ export async function resendOwnerInvitation(
   const admin = createAdminClient();
   const { data: owner, error: ownerError } = await admin
     .from("members")
-    .select("user_id, name, phone, gyms!inner(name, status)")
+    .select("user_id, name, phone, gyms!members_gym_id_fkey!inner(name, status)")
     .eq("gym_id", gymId)
     .eq("role", "owner")
     .is("deactivated_at", null)
