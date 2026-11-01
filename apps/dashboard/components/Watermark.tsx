@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import Image from "next/image";
 
 /**
@@ -11,18 +11,14 @@ import Image from "next/image";
  * It is decoration, so it must never compete with the page's real content on a slow connection: it is not shown on
  * small screens, and elsewhere it mounts only once the page has finished loading.
  */
-export function Watermark() {
-  const [ready, setReady] = useState(false);
+function subscribeLoaded(onChange: () => void) {
+  window.addEventListener("load", onChange, { once: true });
+  return () => window.removeEventListener("load", onChange);
+}
 
-  useEffect(() => {
-    if (document.readyState === "complete") {
-      setReady(true);
-      return;
-    }
-    const onLoad = () => setReady(true);
-    window.addEventListener("load", onLoad, { once: true });
-    return () => window.removeEventListener("load", onLoad);
-  }, []);
+export function Watermark() {
+  // Ready once the page has finished loading; the server render never shows it.
+  const ready = useSyncExternalStore(subscribeLoaded, () => document.readyState === "complete", () => false);
 
   if (!ready) return null;
   return (

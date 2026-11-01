@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -10,22 +10,25 @@ import { Button } from "@/components/ui/button";
  * Tells the user when the browser has lost its connection, and on reconnect offers to reload the page's data.
  * Nothing is retried silently: a form submitted while offline fails and the user decides when to resend.
  */
+function subscribeOnline(onChange: () => void) {
+  window.addEventListener("offline", onChange);
+  window.addEventListener("online", onChange);
+  return () => {
+    window.removeEventListener("offline", onChange);
+    window.removeEventListener("online", onChange);
+  };
+}
+
 export function OfflineBanner() {
   const { t } = useTranslation();
   const router = useRouter();
-  const [online, setOnline] = useState(true);
+  // The browser's connection state is an external store; the server render assumes online.
+  const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
   const [justReconnected, setJustReconnected] = useState(false);
 
   useEffect(() => {
-    setOnline(navigator.onLine);
-    const goOffline = () => {
-      setOnline(false);
-      setJustReconnected(false);
-    };
-    const goOnline = () => {
-      setOnline(true);
-      setJustReconnected(true);
-    };
+    const goOffline = () => setJustReconnected(false);
+    const goOnline = () => setJustReconnected(true);
     window.addEventListener("offline", goOffline);
     window.addEventListener("online", goOnline);
     return () => {
