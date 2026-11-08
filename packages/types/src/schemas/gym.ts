@@ -466,3 +466,47 @@ export const gymPageNameSchema = z.object({
   redirects: z.array(z.object({ name: z.string(), expires_at: z.string() })),
 });
 export type GymPageName = z.infer<typeof gymPageNameSchema>;
+
+// Story 24.8 (FR-199, FR-206, AD-46): the publish gate, snapshot and unpublish. Mirrors publish_gym_page() and unpublish_gym_page() (0164).
+// The Owner screen is 24.9. The database re-evaluates the gate on every publish and on every change that could break it.
+
+/** Codes returned in `missing` by publish_gym_page() and recorded (comma-joined) in gym_pages.unpublished_reason. Copy: `pagePublish.gate.<code>`. */
+export const PAGE_PUBLISH_GATE_CODES = [
+  "no_name",
+  "no_category",
+  "no_logo",
+  "no_banner",
+  "about_short",
+  "no_country",
+  "no_city",
+  "no_contact",
+  "no_hours",
+  "no_public_plan",
+  "map_incomplete",
+  "bad_text",
+  "too_large",
+] as const;
+export type PagePublishGateCode = (typeof PAGE_PUBLISH_GATE_CODES)[number];
+
+/** Why a page went offline besides a failed gate. Copy: `pagePublish.unpublishReason.<code>`. */
+export const PAGE_UNPUBLISH_REASONS = ["owner", "name_released"] as const;
+export type PageUnpublishReason = (typeof PAGE_UNPUBLISH_REASONS)[number];
+
+/** Typed refusals of publish_gym_page(). Copy: `pagePublish.errors.<code>`. `not_admitted` and `gym_not_active` come from `permission denied` and `... is not active`. */
+export const PAGE_PUBLISH_ERROR_CODES = ["taken_down", "template_required", "invalid_template", "not_admitted", "gym_not_active"] as const;
+export type PagePublishErrorCode = (typeof PAGE_PUBLISH_ERROR_CODES)[number];
+
+/** A template is a name (24.10 owns the registry): the database checks only this shape. */
+export const PAGE_TEMPLATE_PATTERN = /^[a-z][a-z0-9-]{1,30}$/;
+export const pageTemplateSchema = z.string().regex(PAGE_TEMPLATE_PATTERN, "Use a template name of 2 to 31 lowercase letters, digits or hyphens");
+
+/** publish_gym_page() takes no content: only the gym and, on a first publish, a template. Null keeps the stored template. */
+export const publishGymPageSchema = z.strictObject({ gymId: z.uuid(), template: pageTemplateSchema.nullish() });
+export type PublishGymPageInput = z.infer<typeof publishGymPageSchema>;
+
+/** publish_gym_page() result. A failed gate is not an error: `missing` says what to fix and nothing was written. */
+export const publishGymPageResultSchema = z.object({
+  published: z.boolean(),
+  missing: z.array(z.enum(PAGE_PUBLISH_GATE_CODES)),
+});
+export type PublishGymPageResult = z.infer<typeof publishGymPageResultSchema>;

@@ -6,7 +6,7 @@
 -- either means editing the pinned list below in the same change (24.7/24.8 extend the view on purpose).
 
 begin;
-select plan(49);
+select plan(55);
 
 -- The migration owner is not allowed to SET ROLE to the reader by default; grant it inside this rolled-back transaction so the
 -- denial assertions below prove a missing privilege, not a missing SET ROLE right.
@@ -249,20 +249,20 @@ select is((select count(*)::int from pg_temp.reader_violations()), 0, 'after rem
 select is(
   (select array_agg(column_name::text order by ordinal_position) from information_schema.columns
    where table_schema = 'public_site' and table_name = 'pages'),
-  array['page_name_id', 'template', 'schema_version', 'content', 'published_at', 'updated_at'],
-  'public_site.pages columns are pinned (gym_id is deliberately absent); edit this list with any view change'
+  array['page_name_id', 'template', 'schema_version', 'content', 'published_at', 'updated_at', 'name'],
+  'public_site.pages columns are pinned (gym_id is deliberately absent; 24.8 added name, the page name); edit this list with any view change'
 );
 select is(
   (select array_agg(column_name::text order by ordinal_position) from information_schema.columns
    where table_schema = 'public_site' and table_name = 'page_media'),
-  array['derivative_key', 'kind', 'sort_order'],
-  'public_site.page_media columns are pinned (gym_id and the original key are deliberately absent); edit this list with any view change'
+  array['derivative_key', 'kind', 'sort_order', 'page_name_id'],
+  'public_site.page_media columns are pinned (gym_id and the original key are deliberately absent; 24.8 added page_name_id); edit this list with any view change'
 );
 select is(
   (select array(select (regexp_matches(substring(pg_get_constraintdef(oid) from 'ARRAY\[(.*)\]'), '''([a-z_]+)''', 'g'))[1] order by 1)
    from pg_constraint where conname = 'gym_pages_content_keys'),
   array['about_en', 'about_fr', 'address', 'banner', 'category', 'city', 'color', 'contact', 'country', 'gallery', 'hours',
-        'logo', 'map', 'plans', 'services_en', 'services_fr'],
+        'logo', 'map', 'name', 'plans', 'services_en', 'services_fr'],
   'allowed top-level content keys are pinned; edit this list with any CHECK change'
 );
 select throws_ok(
@@ -305,6 +305,21 @@ select is(pg_temp.as_reader('select page_name_id from public_site.pages'), '0000
   'the visible row is the published one');
 select is(pg_temp.as_reader('select content->>''city'' from public_site.pages'), 'Douala', 'content is readable through the view');
 select is(pg_temp.as_reader('select gym_id from public_site.pages'), 'ERR:42703', 'gym_id is not a view column');
+select is(pg_temp.as_reader('select name from public_site.pages'), 'psr-visible', '24.8: the page name is a view column');
+-- 24.8: the one visibility predicate also requires the page name to be active and not taken down, and the name to be the page's own gym's
+update public.page_names set state = 'released' where id = '00000000-0000-0000-0000-0000000a4a01';
+select is(pg_temp.as_reader('select count(*) from public_site.pages'), '0', 'a page whose name is not active is hidden');
+update public.page_names set state = 'active' where id = '00000000-0000-0000-0000-0000000a4a01';
+update public.page_names set taken_down_at = now() where id = '00000000-0000-0000-0000-0000000a4a01';
+select is(pg_temp.as_reader('select count(*) from public_site.pages'), '0', 'a page whose name is taken down is hidden');
+update public.page_names set taken_down_at = null where id = '00000000-0000-0000-0000-0000000a4a01';
+select is(pg_temp.as_reader('select count(*) from public_site.pages'), '1', 'control: with the name active again the page is visible');
+-- the media view is built from the snapshot of the visible page, keyed by page_name_id
+update public.gym_pages set content = '{"logo":"11111111-1111-1111-1111-111111111111.webp","banner":"22222222-2222-2222-2222-222222222222.webp","gallery":["33333333-3333-3333-3333-333333333333.webp","44444444-4444-4444-4444-444444444444.webp"]}'
+ where gym_id = '00000000-0000-0000-0000-00000000a401';
+select is(pg_temp.as_reader('select string_agg(kind || ''/'' || sort_order || ''/'' || left(derivative_key, 2), '','' order by kind, sort_order) from public_site.page_media'), 'banner/0/22,gallery/1/33,gallery/2/44,logo/0/11',
+  'page_media lists the snapshot''s logo, banner and gallery keys in gallery order');
+select is(pg_temp.as_reader('select count(distinct page_name_id) from public_site.page_media'), '1', 'all of it keyed by the one page_name_id');
 
 -- ---------------------------------------------------------------------------
 -- Denied reads, writes, role changes and functions (as the reader)

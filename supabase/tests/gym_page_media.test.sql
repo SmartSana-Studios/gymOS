@@ -169,9 +169,12 @@ select alike((select pg_temp.err($$insert into gym_page_media (gym_id, kind, ori
 
 -- ---- public view ------------------------------------------------------------------------------------------------------
 select is((select array_agg(column_name::text order by ordinal_position) from information_schema.columns where table_schema = 'public_site' and table_name = 'page_media'),
-          array['derivative_key', 'kind', 'sort_order'], 'public_site.page_media columns are pinned (no gym_id)');
+          array['derivative_key', 'kind', 'sort_order', 'page_name_id'], 'public_site.page_media columns are pinned (24.8 added page_name_id; no gym_id)');
 select is((select count(*)::int from public_site.page_media), 0, 'media of a gym with no published page is not exposed');
-insert into public.gym_pages (gym_id, template, published_at) values ('00000000-0000-0000-0000-000000240611', 'classic', now());
+-- 24.8: the view is a projection of the page snapshot, so the page needs an active name and a snapshot
+insert into public.page_names (id, gym_id, name, state, origin) values ('00000000-0000-0000-0000-0000002406a1', '00000000-0000-0000-0000-000000240611', 'media-gym-a', 'active', 'claim');
+insert into public.gym_pages (gym_id, page_name_id, template, content, published_at)
+  values ('00000000-0000-0000-0000-000000240611', '00000000-0000-0000-0000-0000002406a1', 'classic', private.gym_page_snapshot('00000000-0000-0000-0000-000000240611'), now());
 select is((select count(*)::int from public_site.page_media), 14, 'once the page is published only live media is exposed (12 gallery + banner + logo)');
 select is((select count(*)::int from public_site.page_media where derivative_key like '%000000000031.webp'), 0, 'the replaced banner is absent');
 set local role authenticated;
@@ -185,9 +188,11 @@ select is((select count(*)::int from public_site.page_media), 0, 'a taken-down p
 update public.gym_pages set taken_down_at = null where gym_id = '00000000-0000-0000-0000-000000240611';
 select is((select count(*)::int from public_site.page_media), 14, 'clearing the takedown exposes the media again');
 -- suspended gym (seeded suspended at insert): published page and live media, still not exposed
-insert into public.gym_pages (gym_id, template, published_at) values ('00000000-0000-0000-0000-000000240613', 'classic', now());
 insert into public.gym_page_media (gym_id, kind, original_key, derivative_key, attested_at, attestation_version) values
   ('00000000-0000-0000-0000-000000240613', 'gallery', '00000000-0000-0000-0000-000000240613/aaaaaaaa-aaaa-aaaa-aaaa-0000000000d1', 'dddddddd-dddd-dddd-dddd-000000000001.webp', now(), 'v1');
+insert into public.page_names (id, gym_id, name, state, origin) values ('00000000-0000-0000-0000-0000002406a3', '00000000-0000-0000-0000-000000240613', 'media-gym-s', 'active', 'claim');
+insert into public.gym_pages (gym_id, page_name_id, template, content, published_at)
+  values ('00000000-0000-0000-0000-000000240613', '00000000-0000-0000-0000-0000002406a3', 'classic', private.gym_page_snapshot('00000000-0000-0000-0000-000000240613'), now());
 select is((select count(*)::int from public.gym_page_media where derivative_key = 'dddddddd-dddd-dddd-dddd-000000000001.webp' and deleted_at is null), 1,
           'control: the suspended gym has a live media row and a published page');
 select is((select count(*)::int from public_site.page_media where derivative_key = 'dddddddd-dddd-dddd-dddd-000000000001.webp'), 0, 'a suspended gym''s media is not exposed');
@@ -195,7 +200,10 @@ set local role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-000000240621', 'owner', '00000000-0000-0000-0000-000000240611');
 select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('%000000000034.webp'))), 'ok', 'owner deletes the live logo');
 reset role;
-select is((select count(*)::int from public_site.page_media where derivative_key like '%000000000034.webp'), 0, 'a deleted image leaves the view at once');
+-- the refresh trigger is deferred to commit; fire it as a Super Admin (pending events of two gyms fire together, and an audit row for a gym needs its own caller or a Super Admin)
+select pg_temp.claims('00000000-0000-0000-0000-000000240628', 'super_admin');
+set constraints all immediate;
+select is((select count(*)::int from public_site.page_media where derivative_key like '%000000000034.webp'), 0, 'a deleted image leaves the view as soon as the refresh runs (this fixture page is not publishable, so the gate also takes it offline)');
 select is((select count(*)::int from audit_log where action_type = 'gym_page_media_deleted' and gym_id = '00000000-0000-0000-0000-000000240611'), 2, 'each delete is audited');
 update public.gym_pages set unpublished_at = now() where gym_id = '00000000-0000-0000-0000-000000240611';
 select is((select count(*)::int from public_site.page_media), 0, 'unpublishing the page hides all its media');
