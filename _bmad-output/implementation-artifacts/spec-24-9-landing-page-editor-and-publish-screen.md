@@ -2,7 +2,7 @@
 title: '24-9 landing-page editor and publish screen'
 type: 'feature'
 created: '2026-11-08'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'b4464e2bc48a0d590e6f87c6ee1a823857b4109f'
 route: 'dispatch'
 review_loop_iteration: 0
