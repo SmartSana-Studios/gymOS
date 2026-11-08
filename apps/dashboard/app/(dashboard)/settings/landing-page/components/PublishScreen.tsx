@@ -256,7 +256,7 @@ export function PublishScreen({ initial }: { initial: LandingPageData }) {
         </div>
       )}
 
-      {live && !success && host && (
+      {status.state === "published" && !success && host && (
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <Button asChild size="sm" variant="outline">
             <a href={`https://${host}`} target="_blank" rel="noopener noreferrer">

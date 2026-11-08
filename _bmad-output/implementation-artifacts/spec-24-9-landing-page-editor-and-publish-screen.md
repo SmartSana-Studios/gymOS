@@ -128,6 +128,49 @@ Pass 1 (layers: blind-hunter, edge-case-hunter, verification-gap; diff `b4464e2`
 | Serial status RPC on every Settings render; two-read status without a shared snapshot; regex in `$verify$` | low | rejected | not met in everyday use; the fix adds complexity |
 | `epic-24-context.md` recompile dropped the 24.2 host-neutral line and FR ids | low | rejected | the compile rules say to describe by purpose and keep it short; the 24.2 spec holds that criterion |
 
+### Review Findings (pass 2, 2026-11-08)
+
+Layers: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor; diff `b4464e2..HEAD` (8161 lines, run unchunked at the owner's choice). 0 decision-needed, 6 patch, 3 defer, 27 rejected.
+
+- [x] [Review][Patch] "Back to Settings" link drops unsaved edits without asking (medium): pass 1 guarded only the Review & publish link and `beforeunload`; `beforeunload` does not fire for Next client-side navigation [apps/dashboard/app/(dashboard)/settings/landing-page/components/LandingPageEditor.tsx:249]
+- [x] [Review][Patch] Phone error shows an example with spaces ("+237 6 XX XX XX XX") that the validator rejects (`E164_RE` takes no spaces); change the EN and FR example to an unspaced E.164 number (medium) [apps/dashboard/locales/en.json:687]
+- [x] [Review][Patch] `pageEditor.errors.tooLong` says "2,000 characters" for address (300) and city (100); pass the field's limit as `{{max}}` (low) [apps/dashboard/lib/pageEditorForm.ts:117]
+- [x] [Review][Patch] Publish screen treats `offline_suspended` as live: shows [View page] and "This page is live" for a page that returns not-found; show both only for `published` (low) [apps/dashboard/app/(dashboard)/settings/landing-page/components/PublishScreen.tsx:46]
+- [x] [Review][Patch] Editor wiring of the warn-before-offline dialog is tested only for the last public plan; add an `it.each` on a published page for About under 100 in every language, empty city, no phone or WhatsApp, and no open day, each expecting its `gateItem.*` line and no save before confirm (medium, verification-gap) [apps/dashboard/app/(dashboard)/settings/landing-page/components/LandingPageEditor.test.tsx:201]
+- [x] [Review][Patch] Record two small drifts: hours validation (overnight windows allowed, only open = close refused, as shipped in 24.5) against EXPERIENCE.md "closing must be after opening", under "Differences from EXPERIENCE.md" in `docs/decisions.md`; and correct the `gymPageStatusContract.test.ts` comment that overstates its protection (the pinned list covers only the paths the test gyms exercise) (low) [docs/decisions.md]
+- [x] [Review][Defer] Third language is not a one-place change: `GYM_COLUMNS`, `toContent`, `CLEANED_CONTENT_KEYS`, the strict snapshot schema, `private.gym_page_gate_missing`, the `bad_text` concatenation and the refresh triggers (0164) still name the EN/FR pair, and the number 100 is repeated in 0165 and 0164 — deferred: the owner kept the gate and snapshot key list untouched on purpose (spec Never list); becomes an acceptance criterion of whichever story adds a third language, with a pgTAP check that iterates `gym_page_languages()` against the gate, `bad_text` and the triggers
+- [x] [Review][Defer] `epic-24-context.md` still says gallery "up to 10" and "optional Describe this image" (line 60) and lists the 24.9 open items as open (line 47) — deferred: the fix edits an agent-context file; refresh it when the context is next recompiled, before 24.10 starts
+- [x] [Review][Defer] Editor reads `gyms` page columns and `plans` with plain table selects; an assigned-support caller may get no row from RLS and see `load_failed` (medium if true, unverified) — deferred: the owner's support-role browser pass settles it; if it fails, read both through the status function or a new read RPC
+
+#### Rejected (pass 2)
+
+| Finding | Why |
+|---|---|
+| The "2 business days" name-review SLA is invented (blind, auditor) | false: EXPERIENCE.md lines 407 and 2687 carry "We'll tell you within 2 business days" and its FR twin |
+| Counter counts CRLF before cleaning (edge) | false in a browser: a textarea's `.value` is always LF-normalised, so raw CR never reaches the counter |
+| Publish attestation is client-only (edge) | already rejected in pass 1 (the spec asks for one gating checkbox) |
+| Publish success hidden when `host` is null; `failedMissing` outlives a refresh (edge) | already rejected in pass 1 (low, not met in everyday use) |
+| Save sends every plan's switch from the load-time form; focus refresh does not merge plans added elsewhere (edge) | already rejected in pass 1 (last-write-wins, rare) |
+| Thrown Server Action on save shows "Try refreshing the page" (blind, edge) | low: needs a network drop mid-save; a distinct unknown-outcome path adds a branch and a message |
+| `removeLanguage` can run while a save is in flight (edge) | low: both are sub-second and the second call re-saves the cleared fields |
+| `refresh` issued by name/images sections during a save can land stale (edge) | low: the sequence number already discards older reads; a rare overlap |
+| `focusFirstError` focuses a non-focusable hours card; `toSaveInput` coordinate parse without validation (edge) | low: hours cards still scroll into view; `validateForm` always runs first |
+| Held name leaves Claim enabled (edge) | low: the server decides and returns a typed error |
+| `predictedBreaks` copies five gate rules against the file header (blind) | the spec requires the warning; the comment is the only inaccuracy and adds no harm |
+| Unrelated `gymosSupport` reformatting in `en.json` (blind) | low cosmetic |
+| Accessibility: dropdown tabpanel label, "Closed" checkbox name, template card border, copy-link failure, skeleton `aria-busy` (blind) | low: the dropdown mode needs 5 languages (there are 2), one template exists, the rest are cosmetic |
+| Plan `label_en/label_fr` public but not shown (blind) | low: the editor has no label fields and 24.5 defaults them to the plan name; pass 1 rejected the same point |
+| Sanitiser misses U+2028/2029, zero-width and bidi characters (blind) | low: the gate class is 24.8's; widening it is a gate change |
+| Plurals, takenDown copy without a next step, unknown plan type shown as Monthly (blind, auditor) | low: 24.11 owns the taken-down path; the type list is closed by a CHECK |
+| `limit_reached` copy says "Remove an image" for the daily cap (auditor) | low: the sentence names both limits and ends "or try again tomorrow" |
+| Upload cap consumed by logo re-use and banner replacement; `PAGE_MEDIA_UPLOADS_PER_DAY` unused (blind, verification-gap) | owner decision 2 counts every row; the constant is cosmetic |
+| `epic-24-context.md` dropped FR ids and the 24.2 line (blind, auditor) | already rejected in pass 1 |
+| `EXPERIENCE.md` edit is three lines; Code Map files not touched (auditor) | harmless; both tests still pass |
+| Route guards on the two pages have no test (verification-gap) | low: courtesy redirect only; the service and the database refuse the role |
+| `v_state` exact-match on `name_released` (auditor) | low: combined reasons are unreachable today |
+| Spec status `done` against sprint-status `review`; empty Implementation Notes (blind) | fix edits the spec under review |
+| Rollback script has no automated test (verification-gap) | low: a manual rolled-back run is recorded and the script carries its own `$verify$` |
+
 ## Design Notes
 
 The snapshot is the single source for the publish list, so "exactly what becomes public" cannot drift from what is published. The status function returns facts, not copy; the client maps codes to labels, which keeps a new gate code a one-place change.

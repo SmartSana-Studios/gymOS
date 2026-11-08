@@ -683,8 +683,8 @@
     },
     "errors": {
       "angle": "{{field}} can't contain < or >.",
-      "tooLong": "{{field}}: use 2,000 characters or fewer.",
-      "phone": "Enter a valid phone number (e.g. +237 6 XX XX XX XX)",
+      "tooLong": "{{field}}: use {{max}} characters or fewer.",
+      "phone": "Enter a valid phone number with the country code and no spaces (e.g. +237600000000)",
       "latlngPair": "Enter both latitude and longitude, or clear both.",
       "latlngRange": "Latitude must be between -90 and 90, and longitude between -180 and 180.",
       "latlngNumber": "Latitude and longitude must be numbers.",

@@ -1,6 +1,8 @@
 /**
  * Story 24.9: the strict Zod status schema against the SQL contract. The pgTAP test pins every key path of get_gym_page_status();
- * the migration holds the state `case`. This test reads both files, so a fact added on one side only fails here.
+ * the migration holds the state `case`. This test reads both files, so a fact added on one side only fails here. The pinned list covers
+ * only the paths the pgTAP test gyms exercise (not, for example, every snapshot hours day), so the strict snapshot schema is also
+ * guarded by the 24.8 key-path test and the `publishRows` test.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";

@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from "@/components/ui/label";
 import { languageTabStatus } from "@/lib/landingPage";
 import { PAGE_SECTION_IDS } from "@/lib/landingPage";
-import { aboutCharacters, type EditorErrors, type EditorFormState, type FieldError } from "@/lib/pageEditorForm";
+import { aboutCharacters, LIMITS, type EditorErrors, type EditorFormState, type FieldError } from "@/lib/pageEditorForm";
 import { SectionHeader } from "../../SectionHeader";
 import { languageName, type T } from "./pageCopy";
 
@@ -25,7 +25,7 @@ export function fieldErrorText(t: T, e: FieldError): string {
     case "angle":
       return t("pageEditor.errors.angle", { field: label });
     case "tooLong":
-      return t("pageEditor.errors.tooLong", { field: label });
+      return t("pageEditor.errors.tooLong", { field: label, max: e.field ? LIMITS[e.field] : "" });
     default:
       return t(`pageEditor.errors.${e.code}`);
   }

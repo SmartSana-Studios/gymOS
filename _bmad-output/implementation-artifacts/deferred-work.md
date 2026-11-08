@@ -1827,3 +1827,15 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
   summary: Close before 24.11 ships (acceptance criterion): the 24.11 media purge must not lower the 30-uploads-per-24-hours count in `register_page_media`; either keep a tombstone row or count from an append-only source (the `gym_page_media_registered` audit rows).
   evidence: review pass 1 (edge-case hunter); 0165 counts `gym_page_media` rows created in the last 24 hours, deleted rows included, so a hard delete of recent rows resets the cap. Unreachable until 24.11 hard-deletes rows.
+
+## Deferred from: code review of spec-24-9-landing-page-editor-and-publish-screen, pass 2 (2026-11-08)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
+  summary: Close before a third content language is added (acceptance criterion of that story): `GYM_COLUMNS`, `toContent`, `CLEANED_CONTENT_KEYS`, the strict snapshot schema (`about_xx`, `services_xx`, `label_xx`), `private.gym_page_gate_missing` (about_short), the `bad_text` concatenation and the refresh trigger column lists (0164) still name the EN/FR pair; the 100-character threshold is a literal in 0164 and 0165. Add a pgTAP check that iterates `private.gym_page_languages()` against the gate, `bad_text` and the triggers.
+  evidence: review pass 2 (blind, auditor, verification-gap); the owner kept the gate and the snapshot key list untouched on purpose, so the "third language" matrix row holds for tabs, completeness and publish rows only.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
+  summary: Refresh `epic-24-context.md` before 24.10 starts: line 60 still says gallery "up to 10" and an optional "Describe this image" (shipped: 12, no alt text); line 47 lists the 24.9 open items as open.
+  evidence: review pass 2 (blind); the fix edits an agent-context file.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
+  summary: Unverified (medium if true): `getLandingPageData` reads `gyms` page columns and `plans` with plain table selects after the admission RPC; an assigned-support caller may get no row from RLS and see `load_failed`. Settled by the owner's browser pass as assigned support; if it fails, read both through the status function or a new read RPC.
+  evidence: review pass 2 (blind); no pgTAP or vitest case covers a support read of those tables.

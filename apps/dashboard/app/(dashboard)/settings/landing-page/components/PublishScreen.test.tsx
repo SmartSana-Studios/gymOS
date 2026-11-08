@@ -162,3 +162,13 @@ describe("a live page", () => {
     await waitFor(() => expect(unpublishPageAction).toHaveBeenCalledTimes(1));
   });
 });
+
+describe("view link", () => {
+  it("is shown for a published page and not for a suspended one (that page returns not-found)", () => {
+    const { unmount } = render(<PublishScreen initial={readyData({ state: "published" })} />);
+    expect(screen.getByText("pageEditor.publish.viewPage")).toBeTruthy();
+    unmount();
+    render(<PublishScreen initial={readyData({ state: "offline_suspended" })} />);
+    expect(screen.queryByText("pageEditor.publish.viewPage")).toBeNull();
+  });
+});

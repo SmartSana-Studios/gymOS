@@ -246,7 +246,12 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <Button asChild variant="outline" size="sm">
-            <Link href="/settings">
+            <Link
+              href="/settings"
+              onClick={(e) => {
+                if (dirty && !window.confirm(t("pageEditor.unsavedConfirm"))) e.preventDefault();
+              }}
+            >
               <ArrowLeft />
               {t("pageEditor.backToSettings")}
             </Link>

@@ -103,7 +103,7 @@ export function parseCoordinate(value: string): number | null {
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const E164_RE = /^\+[1-9]\d{7,14}$/;
-const LIMITS = { about: 2000, services: 2000, address: 300, city: 100 } as const;
+export const LIMITS = { about: 2000, services: 2000, address: 300, city: 100 } as const;
 
 function codePoints(s: string): number {
   return Array.from(s).length;

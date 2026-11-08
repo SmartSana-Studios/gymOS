@@ -215,11 +215,56 @@ describe("saving", () => {
     await waitFor(() => expect(saveLandingPageAction).toHaveBeenCalledTimes(1));
   });
 
+  describe("a live page warns before a save that breaks one gate item", () => {
+    const liveData = () => {
+      const base = makeData();
+      return makeData({
+        status: { state: "published", missing: [] },
+        content: { ...base.content, about: { en: "x".repeat(150), fr: "" }, city: "Douala", contactPhone: "+237600111222", hours: { mon: { open: "06:00", close: "22:00" } } },
+        plans: [{ ...base.plans[0], isPublic: true }],
+      });
+    };
+    const cases: [string, string, () => void][] = [
+      ["about_short", "About under 100 characters", () => fireEvent.change(document.getElementById("about-en") as HTMLTextAreaElement, { target: { value: "x".repeat(99) } })],
+      ["no_city", "empty city", () => fireEvent.change(document.getElementById("pageCity") as HTMLInputElement, { target: { value: "  " } })],
+      ["no_contact", "no phone and no WhatsApp", () => fireEvent.change(document.getElementById("pagePhone") as HTMLInputElement, { target: { value: "" } })],
+      ["no_hours", "no open day", () => fireEvent.click(screen.getAllByLabelText("pageEditor.hours.closed")[0])],
+    ];
+
+    it.each(cases)("%s: %s", async (code, _label, edit) => {
+      render(<LandingPageEditor initial={liveData()} />);
+      edit();
+      fireEvent.click(screen.getByText("pageEditor.save"));
+      const dialog = await screen.findByRole("dialog");
+      const lines = within(dialog).getAllByText(/pageEditor\.gateItem\./);
+      expect(lines).toHaveLength(1);
+      expect(lines[0].textContent).toContain(`pageEditor.gateItem.${code}`);
+      expect(saveLandingPageAction).not.toHaveBeenCalled();
+      fireEvent.click(within(dialog).getByText("pageEditor.warn.confirm"));
+      await waitFor(() => expect(saveLandingPageAction).toHaveBeenCalledTimes(1));
+    });
+
+    it("an unchanged live page saves with no warning", async () => {
+      render(<LandingPageEditor initial={liveData()} />);
+      fireEvent.click(screen.getByText("pageEditor.save"));
+      await waitFor(() => expect(saveLandingPageAction).toHaveBeenCalled());
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+  });
+
   it("a page that is not live saves with no warning", async () => {
     render(<LandingPageEditor initial={makeData()} />);
     fireEvent.click(screen.getByText("pageEditor.save"));
     await waitFor(() => expect(saveLandingPageAction).toHaveBeenCalled());
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("a too-long field names its own limit (address 300, not the About limit)", async () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    fireEvent.change(document.getElementById("pageAddress") as HTMLInputElement, { target: { value: "a".repeat(301) } });
+    fireEvent.click(screen.getByText("pageEditor.save"));
+    expect(await screen.findByText("pageEditor.errors.tooLong|pageEditor.fields.address,300")).toBeTruthy();
+    expect(saveLandingPageAction).not.toHaveBeenCalled();
   });
 
   it("shows the typed server error, not a raw message", async () => {
@@ -395,6 +440,26 @@ describe("unsaved changes guard", () => {
     const click2 = new MouseEvent("click", { bubbles: true, cancelable: true });
     screen.getByText("pageEditor.header.reviewAndPublish").dispatchEvent(click2);
     expect(click2.defaultPrevented).toBe(false);
+    confirm.mockRestore();
+  });
+
+  it("Back to Settings asks first when the form is dirty, and not when it is clean", () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+    render(<LandingPageEditor initial={readyData()} />);
+    const back = screen.getByText("pageEditor.backToSettings");
+    const clean = new MouseEvent("click", { bubbles: true, cancelable: true });
+    back.dispatchEvent(clean);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(clean.defaultPrevented).toBe(false);
+    fireEvent.change(document.getElementById("pageCity") as HTMLInputElement, { target: { value: "Douala" } });
+    const stay = new MouseEvent("click", { bubbles: true, cancelable: true });
+    back.dispatchEvent(stay);
+    expect(confirm).toHaveBeenCalledWith("pageEditor.unsavedConfirm");
+    expect(stay.defaultPrevented).toBe(true);
+    confirm.mockReturnValue(true);
+    const leave = new MouseEvent("click", { bubbles: true, cancelable: true });
+    back.dispatchEvent(leave);
+    expect(leave.defaultPrevented).toBe(false);
     confirm.mockRestore();
   });
 
