@@ -16,7 +16,10 @@ export const LANDING_DIR = "apps/landing";
 
 const DEP_MAPS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies", "overrides", "resolutions"];
 const BANNED_PACKAGE = /^@supabase\/|supabase-js|^supabase$|^(postgrest|gotrue|realtime|storage)-js$/i;
-const BANNED_VALUE = /supabase\.(co|com)|eyJ[\w-]+\.[\w-]+/i;
+const BANNED_JWT = /eyJ[\w-]+\.[\w-]+/i;
+const BANNED_VALUE = new RegExp(`supabase\\.(co|com)|${BANNED_JWT.source}`, "i");
+/** The reader's own connection settings may name the Supabase pooler host (a database host, not a PostgREST/Auth URL); a JWT is still banned. */
+const ALLOWED_HOST_NAME = /^PUBLIC_SITE_READER_/;
 /** Override keys may carry a selector such as `parent>@supabase/ssr`; test the last segment too. */
 const bannedKey = (name) =>
   name.split(">").some((seg) => BANNED_PACKAGE.test(seg) || BANNED_PACKAGE.test(seg.replace(/(?<=.)@[^@/]*$/, "")));
@@ -27,7 +30,7 @@ function bannedPackages(map, found = []) {
   if (!map || typeof map !== "object") return found;
   for (const [name, value] of Object.entries(map)) {
     if (bannedKey(name)) found.push(name);
-    if (typeof value === "string" && BANNED_PACKAGE.test(value)) found.push(`${name} -> ${value}`);
+    if (typeof value === "string" && BANNED_PACKAGE.test(value.replace(/^(npm:|github:|git\+https?:\/\/github\.com\/)/i, ""))) found.push(`${name} -> ${value}`);
     else bannedPackages(value, found);
   }
   return found;
@@ -59,7 +62,7 @@ export function scanEnvFile(file, text) {
     const name = (eq === -1 ? body : body.slice(0, eq)).trim();
     const value = eq === -1 ? "" : body.slice(eq + 1);
     if (BANNED_ENV.test(name)) out.push(`${file}: banned environment variable name "${name}"`);
-    else if (BANNED_VALUE.test(value)) out.push(`${file}: banned value (Supabase URL or JWT) under "${name}": ${value.match(BANNED_VALUE)[0]}`);
+    else if (ALLOWED_HOST_NAME.test(name) ? BANNED_JWT.test(value) : BANNED_VALUE.test(value)) out.push(`${file}: banned value (Supabase URL or JWT) under "${name}": ${value.match(BANNED_VALUE)[0]}`);
   }
   return out;
 }
@@ -75,7 +78,10 @@ export function scanVercelJson(file, text) {
   const out = [];
   for (const [where, obj] of [["env", json.env], ["build.env", json.build?.env]]) {
     if (!obj || typeof obj !== "object") continue;
-    for (const name of Object.keys(obj)) if (BANNED_ENV.test(name)) out.push(`${file}: banned environment variable name "${name}" in ${where}`);
+    for (const [name, value] of Object.entries(obj)) {
+      if (BANNED_ENV.test(name)) out.push(`${file}: banned environment variable name "${name}" in ${where}`);
+      else if (typeof value === "string" && (ALLOWED_HOST_NAME.test(name) ? BANNED_JWT : BANNED_VALUE).test(value)) out.push(`${file}: banned value (Supabase URL or JWT) under "${name}" in ${where}`);
+    }
   }
   return out;
 }

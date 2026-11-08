@@ -464,7 +464,7 @@ development_status:
   24-1-spike-pooler-role-dns-precedence-host-cookies-autossl: in-progress
   24-2-wildcard-delegation-and-reserved-label-ci-check: in-progress
   24-3-staff-session-cookies-host-prefix-host-only: done
-  24-4-public-site-schema-and-hardened-reader-role: review
+  24-4-public-site-schema-and-hardened-reader-role: done
   24-5-page-content-fields-and-public-plans: backlog
   24-6-page-media-private-originals-re-encoded-derivatives: backlog
   24-7-page-names-claim-hold-rename-redirect: backlog
@@ -1799,3 +1799,4 @@ last_updated: 10-23-2026 15:07
 # last_updated: 2026-11-08 (build: 24-4 spec approved, status backlog -> in-progress -- public_site schema and hardened reader role; gym_pages skeleton created here as the view base, writers deferred to 24.8)
 # last_updated: 2026-11-08 (build: 24-4 implemented, in-progress -> review. Migration 0160 (schema public_site, role public_site_reader with CONNECTION LIMIT 20, statement_timeout 3s, read-only default, no password; public.gym_pages skeleton; view public_site.pages without gym_id; USAGE on public revoked from PUBLIC), pgTAP privilege enumeration test (36 assertions, shown failing on stray table, function and schema grants), scripts/check-landing-no-supabase.mjs with fixture tests wired into ci-local.sh and ci.yml, decisions.md entry with production checklist. Open risk: pg_net schema `net` is PUBLIC-readable and a migration cannot revoke it; reader can reach net._http_response. Check on production before release.)
 # last_updated: 2026-11-08 (build: 24-4 reviewed (3 layers), 7 patches applied, 3 deferrals logged (net._http_response PUBLIC read confirmed pre-existing, prod checks, low gaps); ci-local GREEN on all 5 stages after patches; status stays review pending merge to epic/24)
+# last_updated: 2026-11-08 (code-review: 24-4 review -> done. Four layers (Blind, Edge Case, Verification Gap, Acceptance Auditor): 3 decisions (all resolved by delegation: accept net exposure with a hard production-password gate in decisions.md checklist; allow-list PUBLIC_SITE_READER_* host values in the landing check, JWT still banned; net privilege test now compares the reader to a no-grant probe role instead of pinned counts), 2 patches applied (exact 55000 write-denial asserts; landing check catches npm:/github: aliases and vercel.json values), 2 deferred (platform-role USAGE probe on prod, content CHECK depth), 11 rejected. Node tests 10/10, pgTAP public_site_reader_privileges 44/44. Changes uncommitted on epic/24; ci-local not rerun.)

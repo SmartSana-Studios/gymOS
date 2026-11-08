@@ -99,3 +99,28 @@ Decision recorded: `gym_pages` is created here as an empty, writer-less table be
 - `scripts/pgtap-run.sh supabase/tests/public_site_reader_privileges.test.sql` -- expected: all ok
 - `node scripts/check-migration-guardrails.mjs` -- expected: pass
 - `scripts/ci-local.sh` -- expected: GREEN with per-stage lines read, not only the summary
+
+### Review Findings
+
+Code review 2026-11-08 (Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor; all four layers completed).
+
+- [x] [Review][Decision] (resolved: accept, hard-gate the production password step in decisions.md checklist) Reader keeps USAGE on schema `net` and can read `net._http_response` (medium) — spec Boundaries say "no USAGE on any schema except public_site"; the test pins the exception, and nothing gates ops setting the role password before the production revoke/accept decision. Options: (a) accept and make the pre-release checklist a hard gate (e.g. the password-set runbook step refuses until `net` ACL is recorded); (b) require the revoke as `supabase_admin` before 24-10 and add a probe that fails if the reader can still read `net._http_response`. [supabase/tests/public_site_reader_privileges.test.sql:158]
+- [x] [Review][Decision] (resolved: allow-list PUBLIC_SITE_READER_* for host values, JWT still banned) Landing check rejects a legitimate pooler host (medium) — `BANNED_VALUE` matches `supabase.(co|com)` in any `.env*` value, so `*.pooler.supabase.com` in the reader's connection string fails CI at 24-10. Options: (a) allow-list `PUBLIC_SITE_READER_*` names for host values only (keep JWT check); (b) keep strict and require the connection string to be injected outside `.env*` files. [scripts/check-landing-no-supabase.mjs:20,61-62]
+- [x] [Review][Decision] (resolved: compare against a no-grant probe role) `net` privilege pin `'14,10,3'` is tied to the local pg_net version (medium) — a Supabase image or pg_net change in hosted CI fails the test with no change to the reader, and a real new PUBLIC grant could net out unseen. Options: (a) compare against the PUBLIC ACL instead of counts; (b) pin object names; (c) keep counts, accept churn. [supabase/tests/public_site_reader_privileges.test.sql:181-191]
+- [x] [Review][Patch] View write-denial assertions accept `55000` and are vacuous (low) — the join view is non-updatable, so insert/update/delete fail with 55000 whatever privileges exist; the triage log marks this patched but the code still has it. The `has_table_privilege` count is the real proof; drop or relabel the three assertions. [supabase/tests/public_site_reader_privileges.test.sql:291-294]
+- [x] [Review][Patch] Landing check value matching is weak (low) — `BANNED_PACKAGE` is applied to dependency values with a `^@supabase/` anchor, so `"x": "npm:@supabase/ssr@1"` passes; `vercel.json` env values get no `BANNED_VALUE` check although `.env` files do. [scripts/check-landing-no-supabase.mjs:38,72-77]
+- [x] [Review][Defer] `REVOKE USAGE ON SCHEMA public FROM PUBLIC` effect on other platform roles (`authenticator`, `supabase_storage_admin`, `supabase_realtime_admin`, `pgbouncer`, `dashboard_user`) — deferred: unverifiable locally (hosted roles absent); already on the pre-release checklist item 4. Settle with a production role-by-role USAGE probe; unverified medium if true.
+- [x] [Review][Defer] `gym_pages.content` CHECK limits top-level keys only; no nested type/size limits — deferred: belongs to 24-7/24-8, already in deferred-work.md.
+
+#### Rejected
+
+- Default privileges only `for role postgres` (Blind, Edge, Auditor) — low; migrations run as postgres, fix adds more branches, triage log already rejected it.
+- Landing check: source-level import scan, multi-line env values, JSON `null` package.json, ENOTDIR on a file path, `env.local`/`.envrc` names, nested env dirs, pnpm.packageExtensions fields, broad JWT regex — low; the gate is a manifest check by design, these need deliberate evasion or misuse, and fixes add parsing complexity.
+- Future `published_at` / null `page_name_id` exposed by the view — low; no scheduling feature exists and 24-8 owns the publish writes.
+- No uniqueness/value checks on `template`, `schema_version`, `page_name_id` — low; 24-7 adds `page_names`.
+- `service_role` has no privilege on `gym_pages` — false; the table is deliberately writer-less, 24-8 grants its writer.
+- `on delete cascade` and no `updated_at` trigger — low; 24-8 owns the writers and triggers.
+- `net_explicit` branch has no stray-grant proof — low; `postgres` cannot grant in `net`, so a test needs scratch-schema parameterisation for little value.
+- `SET ROLE` checked via `pg_has_role` over six roles — low; harness limit explained in the test.
+- Hard-coded database name `postgres`, `WITH SET TRUE` needing PG16 — low; the test runs green on the supported stack.
+- Spec frontmatter `status: done` vs sprint-status `review`, empty Implementation Notes, undocumented timeouts, stale `0160` references, self-reported ci-local — rejected; fix edits the spec under review or is process, not code.

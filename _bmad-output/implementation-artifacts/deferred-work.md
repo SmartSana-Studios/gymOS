@@ -1639,3 +1639,8 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-4-public-site-schema-and-hardened-reader-role.md`
   summary: Landing no-Supabase check does not scan lockfile, workspace dependencies, `next.config` env or `turbo.json`; `gym_pages.content` has no value-type or size limits, `page_name_id` no uniqueness.
   evidence: Low-severity gaps beyond the spec's manifest scope; content and name constraints belong to 24.7/24.8.
+
+## Deferred from: code review of spec-24-4 (2026-11-08)
+
+- `REVOKE USAGE ON SCHEMA public FROM PUBLIC` effect on platform roles `authenticator`, `supabase_storage_admin`, `supabase_realtime_admin`, `pgbouncer`, `dashboard_user` is unverified (medium if true). Settle with a production role-by-role USAGE probe before release (pre-release checklist item 4).
+- `gym_pages.content` CHECK limits top-level keys only; nested type and size limits belong to 24-7/24-8.

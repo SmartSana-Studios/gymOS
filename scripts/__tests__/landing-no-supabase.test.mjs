@@ -88,3 +88,11 @@ test("the CLI still runs when started through a symlink", () => {
   symlinkSync(script, link);
   assert.equal(spawnSync(process.execPath, [link, ok], { encoding: "utf8" }).status, 1);
 });
+
+test("review 24-4: dependency aliases, vercel.json values and the reader host allow-list", () => {
+  assert.equal(scanPackageJson("p", JSON.stringify({ dependencies: { db: "npm:@supabase/ssr@1" } })).length, 1);
+  assert.equal(scanVercelJson("v", JSON.stringify({ env: { FOO: "https://x.supabase.co" } })).length, 1);
+  assert.deepEqual(scanEnvFile(".env", "PUBLIC_SITE_READER_URL=postgres://r@aws-0.pooler.supabase.com:6543/postgres"), []);
+  assert.equal(scanEnvFile(".env", "PUBLIC_SITE_READER_URL=eyJabc.def").length, 1);
+  assert.equal(scanEnvFile(".env", "OTHER_URL=postgres://r@aws-0.pooler.supabase.com:6543/postgres").length, 1);
+});

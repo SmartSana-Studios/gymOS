@@ -179,16 +179,21 @@ select is(
   0, 'PUBLIC, anon, authenticated, service_role hold no privilege on public_site.pages or public.gym_pages'
 );
 -- Pre-existing and outside migration control: pg_net objects are owned by supabase_admin and PUBLIC-readable (also to anon and
--- authenticated). Pinned to the local set; PRODUCTION MUST BE CHECKED (decisions.md 24.4 checklist).
+-- authenticated). Version-independent: the reader must hold on schema net exactly what a role with no grants of its own holds
+-- (i.e. only what PUBLIC gives). PRODUCTION MUST BE CHECKED (decisions.md 24.4 checklist).
+create role public_site_net_probe nologin;
+create function pg_temp.net_privs(p_role name) returns text language sql as $f$
+  select concat_ws(',',
+    (select count(*) from pg_class c, unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) p
+     where c.relnamespace = 'net'::regnamespace and c.relkind in ('r','v','m','f','p') and has_table_privilege(p_role, c.oid, p)),
+    (select count(*) from pg_proc where pronamespace = 'net'::regnamespace and has_function_privilege(p_role, oid, 'EXECUTE')),
+    (select count(*) from pg_class c, unnest(array['USAGE','SELECT','UPDATE']) p
+     where c.relnamespace = 'net'::regnamespace and c.relkind = 'S' and has_sequence_privilege(p_role, c.oid, p)))
+$f$;
 select is(
-  (select concat_ws(',',
-     (select count(*) from pg_class c, unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) p
-      where c.relnamespace = 'net'::regnamespace and c.relkind in ('r','v','m','f','p') and has_table_privilege('public_site_reader', c.oid, p)),
-     (select count(*) from pg_proc where pronamespace = 'net'::regnamespace and has_function_privilege('public_site_reader', oid, 'EXECUTE')),
-     (select count(*) from pg_class c, unnest(array['USAGE','SELECT','UPDATE']) p
-      where c.relnamespace = 'net'::regnamespace and c.relkind = 'S' and has_sequence_privilege('public_site_reader', c.oid, p)))),
-  '14,10,3',
-  'reader effective privileges on schema net (relation privileges, functions, sequence privileges) are pinned to the current local set'
+  pg_temp.net_privs('public_site_reader'),
+  pg_temp.net_privs('public_site_net_probe'),
+  'reader holds on schema net only what a role with no grants holds (PUBLIC-inherited), independent of the pg_net version'
 );
 select is(
   (select count(*)::int from pg_default_acl where defaclnamespace = 'public_site'::regnamespace
@@ -288,10 +293,10 @@ select is(pg_temp.as_reader('select count(*) from public.members'), 'ERR:42501',
 select is(pg_temp.as_reader('select count(*) from public.gyms'), 'ERR:42501', 'select on gyms is refused');
 select is(pg_temp.as_reader('select count(*) from public.gym_pages'), 'ERR:42501', 'select on gym_pages is refused');
 select is(pg_temp.as_reader('select count(*) from public.audit_log'), 'ERR:42501', 'select on audit_log is refused');
-select ok(pg_temp.as_reader('insert into public_site.pages (template) values (''x'')') in ('ERR:42501', 'ERR:55000'), 'insert into the view is refused');
+select ok(pg_temp.as_reader('insert into public_site.pages (template) values (''x'')') = 'ERR:55000', 'insert into the view is refused (non-updatable join view; privilege denial is proved by the count above)');
 select ok(pg_temp.as_reader('insert into public.gym_pages (gym_id, template) values (gen_random_uuid(), ''x'')') = 'ERR:42501', 'insert into gym_pages is refused');
-select ok(pg_temp.as_reader('update public_site.pages set template = ''x''') in ('ERR:42501', 'ERR:55000'), 'update through the view is refused');
-select ok(pg_temp.as_reader('delete from public_site.pages') in ('ERR:42501', 'ERR:55000'), 'delete through the view is refused');
+select ok(pg_temp.as_reader('update public_site.pages set template = ''x''') = 'ERR:55000', 'update through the view is refused (non-updatable join view)');
+select ok(pg_temp.as_reader('delete from public_site.pages') = 'ERR:55000', 'delete through the view is refused (non-updatable join view)');
 -- SET ROLE is checked against the session user, which in this harness is postgres, so it cannot be exercised here; ask the catalog.
 select is(
   (select count(*)::int from unnest(array['postgres', 'anon', 'authenticated', 'service_role', 'supabase_admin', 'authenticator']) r
