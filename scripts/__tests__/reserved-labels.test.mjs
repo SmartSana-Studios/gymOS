@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -119,4 +119,19 @@ test("the list contains FR-202, the zone labels and smtp/imap/pop/test", () => {
   const need = "owner portal www api app admin support mail staging dev gymos gym-os auth cdn status docs help login signin account billing pay payment tara taramoney smtp imap pop test".split(" ");
   for (const l of need) assert.ok(labels.includes(l), l);
   assert.ok(prefixes.includes("gymos"));
+});
+
+// Story 24.7 (AD-45): the database seeds `page_name_words` (kind zone) from the same list. The migration that creates the table is
+// the one whose seed must cover every label and prefix; a label added to the JSON without a migration (or a later seeding
+// migration) fails here, and so does a seed that disagrees with the JSON.
+test("the page_names migration seeds every label and prefix of the reserved list as zone words", () => {
+  const dir = join(REPO, "supabase/migrations");
+  const file = readdirSync(dir).find((f) => /^\d{4}_page_names\.sql$/.test(f));
+  assert.ok(file, "a migration named NNNN_page_names.sql exists");
+  const sql = readFileSync(join(dir, file), "utf8");
+  const { labels, prefixes } = JSON.parse(readFileSync(join(REPO, LIST_PATH), "utf8"));
+  for (const l of labels) assert.ok(sql.includes(`('zone', '${l}', false)`), `zone label ${l} is seeded`);
+  for (const p of prefixes) assert.ok(sql.includes(`('zone', '${p}', true)`), `zone prefix ${p} is seeded`);
+  const seeded = [...sql.matchAll(/\('zone', '([a-z0-9-]+)', (false|true)\)/g)];
+  assert.equal(seeded.length, labels.length + prefixes.length, "the seed holds no zone word that is not in the JSON");
 });

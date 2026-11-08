@@ -1678,3 +1678,27 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 ## Deferred from: code review of spec-24-6-page-media-private-originals-re-encoded-derivatives (2026-11-08, pass 3)
 
 - **No test that the page media error copy exists in both locales** (`apps/dashboard/locales/en.json`, `fr.json`, `pageMedia.errors.*`). All nine keys are present today, but nothing fails if one is dropped or a code is added without copy; `page-media.test.ts` mocks `t` as identity. Add a key-parity test in 24.9, where the editor renders these messages.
+
+## Deferred from: build of spec-24-7-page-names-claim-hold-rename-redirect (2026-11-08)
+
+- **Word-list screen for Super Admin is not built.** `add_page_name_word`, `remove_page_name_word` and `list_page_name_words` exist, audited and tested, but there is no UI; until one exists a Super Admin changes words through the API or SQL. Zone words cannot be removed by the function (migration only). Build with the Owner/Super Admin name work in 24.9 or 24.11.
+- **`gym_pages.content` nested value limits move to 24.8.** The 24-4 item "content has no value-type or size limits" is not closed here; 24.7 closed only `page_name_id` uniqueness (foreign key and unique index). 24.8 builds the snapshot and owns the content shape.
+- **Redirect lookup and the name-active predicate are not wired.** `public_site.pages` does not yet join `page_names` (24.8) and nothing serves a redirect (24.10); until then a `redirect` row has no reader.
+- **A gym going back to its own redirected name loses that redirect if the hold is then rejected.** The redirect is released at claim time so the held row can take the unique name. Rare; revisit if rejections of returning names are common.
+- **Near-match scan reads every non-released name and folds it per claim.** Fine at hundreds of gyms; add a functional index on the folded name or a stored fold column if claims slow down.
+- **A suspended gym with a published page keeps its name past 12 months** (literal spec: the sweep releases only with no published page). Confirm with 24.8, which decides whether suspension unpublishes the page.
+
+## Deferred from: code review of spec-24-7-page-names-claim-hold-rename-redirect (2026-11-08)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-7-page-names-claim-hold-rename-redirect.md`
+  summary: The `page_names_sweep` partial-failure path (a row that raises, `job_runs.status = 'failure'`, other rows still processed) has no test.
+  evidence: Verification-gap review: nothing asserts `failure`; a handler that swallowed the error or always logged success would pass every sweep assertion. Needs a fixture that makes the update or `log_audit_event` raise (medium if true, unverified).
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-7-page-names-claim-hold-rename-redirect.md`
+  summary: Close before 24.9: `PAGE_NAME_ERROR_CODES` lists `not_admitted` and `gym_not_active`, but `claim_page_name` raises `permission denied` and `claim_page_name: gym <uuid> is not active`, so no message carries those codes.
+  evidence: The Owner screen (24.9) must map the two messages in its service (as 24.6 does for `permission denied`) or the database must raise typed suffixes; add one mapper test per code against the real message. The gym UUID in the message is the 0161 pattern.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-7-page-names-claim-hold-rename-redirect.md`
+  summary: The `page_name_*` audit action types (claimed, renamed, held, withdrawn, approved, rejected, released) have no labels in the dashboard audit map.
+  evidence: `apps/dashboard/app/(dashboard)/audit/auditLabels.ts` falls back to the raw string; 24.5 and 24.6 types are unlabeled too. Do one Epic 24 labels pass with an `auditLabels.epic24` test.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-7-page-names-claim-hold-rename-redirect.md`
+  summary: Brand words are matched as substrings and refuse (not hold) a name, so `orange-boxing` or `insecure-gym` cannot be claimed and Super Admin cannot override.
+  evidence: FR-202 says "names containing a credential or brand word cannot be claimed" and the build follows it literally. A product call: match whole hyphen parts, or hold short brand words (`mtn`, `tara`, `momo`, `orange`) for review. Decide before the first real gym claims a name.

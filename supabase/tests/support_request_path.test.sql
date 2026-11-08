@@ -228,7 +228,7 @@ create temp table cgs as
    where p.pronamespace in ('public'::regnamespace, 'private'::regnamespace) and p.proname <> 'current_gym_status'
      and p.prosrc like '%current_gym_status()%';
 select is((select array_agg(distinct name order by name) from cgs),
-          array['add_session_note', 'assign_coach', 'book_class_session', 'cancel_class_booking', 'check_in', 'check_out', 'check_out_member', 'confirm_renewal',
+          array['add_session_note', 'assign_coach', 'book_class_session', 'cancel_class_booking', 'check_in', 'check_out', 'check_out_member', 'claim_page_name', 'confirm_renewal',
                 'create_class', 'create_staff_member', 'create_workout_plan', 'deactivate_staff_member', 'delete_page_media', 'edit_session_note', 'effective_loyalty',
                 'file_audit_disclosure_request', 'initiate_member_payment', 'initiate_registration_fee_payment', 'initiate_session_payment', 'list_my_class_session_roster',
                 'list_my_classes', 'mark_class_attendance', 'materialize_class_sessions', 'record_registration_fee', 'record_session_payment', 'register_page_media', 'renew_subscription',

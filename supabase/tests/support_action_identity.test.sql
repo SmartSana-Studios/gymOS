@@ -419,6 +419,8 @@ insert into actor_callers_covered (fn, covered_by) values
   ('log_audit_event(text,uuid,text,text,jsonb,text)',  'audit_log trigger'),
   ('confirm_renewal(uuid,text,text,boolean)',          'payments trigger'),
   ('register_page_media(uuid,text,text,text,boolean,text,boolean)', 'audit_log trigger (the audit row names the media id)'),
+  ('decide_held_page_name(uuid,boolean,text)',        'Super Admin only (24.7): a support caller is refused before any write, so decided_by is a real Super Admin'),
+  ('add_page_name_word(text,text,boolean)',           'Super Admin only (24.7): created_by is a real Super Admin'),
   ('initiate_registration_fee_payment(uuid)',          'payments trigger'),
   ('initiate_session_payment()',                       'payments trigger'),
   ('record_registration_fee(uuid,text,text)',          'payments trigger'),

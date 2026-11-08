@@ -6,7 +6,7 @@
 -- either means editing the pinned list below in the same change (24.7/24.8 extend the view on purpose).
 
 begin;
-select plan(47);
+select plan(49);
 
 -- The migration owner is not allowed to SET ROLE to the reader by default; grant it inside this rolled-back transaction so the
 -- denial assertions below prove a missing privilege, not a missing SET ROLE right.
@@ -118,6 +118,15 @@ insert into gyms (id, name, tier_id, capacity, status) values
   ('00000000-0000-0000-0000-00000000a405', 'Page Gym Suspended',   '00000000-0000-0000-0000-000000000a04', 30, 'suspended'),
   ('00000000-0000-0000-0000-00000000a406', 'Page Gym Deactivated', '00000000-0000-0000-0000-000000000a04', 30, 'deactivated');
 
+-- 24.7: gym_pages.page_name_id has a foreign key to page_names, so each page gets a real name row first
+insert into public.page_names (id, gym_id, name, state, origin) values
+  ('00000000-0000-0000-0000-0000000a4a01', '00000000-0000-0000-0000-00000000a401', 'psr-visible', 'active', 'claim'),
+  ('00000000-0000-0000-0000-0000000a4a02', '00000000-0000-0000-0000-00000000a402', 'psr-unpublished', 'active', 'claim'),
+  ('00000000-0000-0000-0000-0000000a4a03', '00000000-0000-0000-0000-00000000a403', 'psr-unpub-at', 'active', 'claim'),
+  ('00000000-0000-0000-0000-0000000a4a04', '00000000-0000-0000-0000-00000000a404', 'psr-taken-down', 'active', 'claim'),
+  ('00000000-0000-0000-0000-0000000a4a05', '00000000-0000-0000-0000-00000000a405', 'psr-suspended', 'active', 'claim'),
+  ('00000000-0000-0000-0000-0000000a4a06', '00000000-0000-0000-0000-00000000a406', 'psr-deactivated', 'active', 'claim');
+
 insert into public.gym_pages (gym_id, page_name_id, template, published_at, unpublished_at, taken_down_at, content) values
   ('00000000-0000-0000-0000-00000000a401', '00000000-0000-0000-0000-0000000a4a01', 'classic', now(), null, null, '{"city":"Douala"}'),
   ('00000000-0000-0000-0000-00000000a402', '00000000-0000-0000-0000-0000000a4a02', 'classic', null,  null, null, '{}'),
@@ -178,7 +187,7 @@ select is(
   0, 'anon, authenticated, service_role hold nothing on schema public_site'
 );
 select is(
-  (select count(*)::int from unnest(array['public', 'anon', 'authenticated', 'service_role']) g, unnest(array['public_site.pages', 'public_site.page_media', 'public.gym_pages', 'public.gym_page_media']) t,
+  (select count(*)::int from unnest(array['public', 'anon', 'authenticated', 'service_role']) g, unnest(array['public_site.pages', 'public_site.page_media', 'public.gym_pages', 'public.gym_page_media', 'public.page_names', 'public.page_name_words']) t,
           unnest(array['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) p
    where has_table_privilege(g, t, p)),
   0, 'PUBLIC, anon, authenticated, service_role hold no privilege on the public_site views or the tables behind them'
@@ -303,6 +312,8 @@ select is(pg_temp.as_reader('select gym_id from public_site.pages'), 'ERR:42703'
 select is(pg_temp.as_reader('select count(*) from public.members'), 'ERR:42501', 'select on members is refused');
 select is(pg_temp.as_reader('select count(*) from public.gyms'), 'ERR:42501', 'select on gyms is refused');
 select is(pg_temp.as_reader('select count(*) from public.gym_pages'), 'ERR:42501', 'select on gym_pages is refused');
+select is(pg_temp.as_reader('select count(*) from public.page_names'), 'ERR:42501', 'select on page_names is refused (24.7)');
+select is(pg_temp.as_reader('select count(*) from public.page_name_words'), 'ERR:42501', 'select on page_name_words is refused (24.7)');
 select is(pg_temp.as_reader('select count(*) from public.audit_log'), 'ERR:42501', 'select on audit_log is refused');
 select ok(pg_temp.as_reader('insert into public_site.pages (template) values (''x'')') = 'ERR:55000', 'insert into the view is refused (non-updatable join view; privilege denial is proved by the count above)');
 select ok(pg_temp.as_reader('insert into public.gym_pages (gym_id, template) values (gen_random_uuid(), ''x'')') = 'ERR:42501', 'insert into gym_pages is refused');

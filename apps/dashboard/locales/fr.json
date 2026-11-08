@@ -341,6 +341,21 @@
       "uploadFailed": "L'image n'a pas pu être enregistrée. Veuillez réessayer."
     }
   },
+  "pageNames": {
+    "status": {
+      "held": "Nom en cours d'examen",
+      "active": "Nom actif",
+      "reserved": "Nom réservé"
+    },
+    "errors": {
+      "invalid_name": "Utilisez 3 à 30 lettres minuscules, chiffres ou tirets. Pas de tiret au début ou à la fin, pas de double tiret, et pas uniquement des chiffres.",
+      "reserved_name": "Ce nom n'est pas disponible. Choisissez-en un autre.",
+      "name_taken": "Ce nom est déjà pris. Choisissez-en un autre.",
+      "rename_limit": "Vous pouvez changer le nom de votre page deux fois sur 12 mois, et vous avez utilisé les deux changements.",
+      "not_admitted": "Seul le propriétaire peut choisir le nom de la page.",
+      "gym_not_active": "Le nom de la page ne peut pas être modifié tant que la salle est suspendue."
+    }
+  },
   "staff": {
     "gymosSupport": {"name":"Support GymOS","role":"Support GymOS"},
     "supportTag": "Créé par Support GymOS",

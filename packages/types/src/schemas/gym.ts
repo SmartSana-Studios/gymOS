@@ -405,3 +405,64 @@ export type ApplyCreditInput = z.infer<typeof applyCreditSchema>;
 // set_gym_category() minus the gym id (taken from the route / session).
 export const setGymCategorySchema = z.object({ category: gymCategorySchema });
 export type SetGymCategoryInput = z.infer<typeof setGymCategorySchema>;
+
+// Story 24.7 (FR-202/203, AD-45): page names. Mirrors claim_page_name() and decide_held_page_name() (0163). The Owner screen is 24.9;
+// the held-names screen for Super Admin is apps/super-admin/app/(admin)/page-names. The database re-validates every rule.
+export const PAGE_NAME_MIN_LENGTH = 3;
+export const PAGE_NAME_MAX_LENGTH = 30;
+
+/** FR-202 grammar: 3-30 of a-z0-9-, no leading/trailing hyphen, no `--` (so no `xn--`), not digits only. */
+export function isValidPageName(name: string): boolean {
+  return /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(name) && !name.includes("--") && !/^[0-9]+$/.test(name);
+}
+
+/** Trimmed and lowercased as claim_page_name() does, then checked against the grammar. */
+export const pageNameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .refine(isValidPageName, "Use 3 to 30 lowercase letters, digits or hyphens, with no leading, trailing or double hyphen, and not digits only");
+
+export const claimPageNameSchema = z.strictObject({ gymId: z.uuid(), name: pageNameSchema });
+export type ClaimPageNameInput = z.infer<typeof claimPageNameSchema>;
+
+/** Typed refusals of the claim. Copy lives in apps/dashboard/locales under `pageNames.errors.<code>`. */
+export const PAGE_NAME_ERROR_CODES = ["invalid_name", "reserved_name", "name_taken", "rename_limit", "not_admitted", "gym_not_active"] as const;
+export type PageNameErrorCode = (typeof PAGE_NAME_ERROR_CODES)[number];
+
+/** Typed refusals of a Super Admin decision. Copy lives in apps/super-admin/locales under `pageNames.errors.<code>`. */
+export const PAGE_NAME_DECISION_ERROR_CODES = ["reason_required", "not_held", "reserved_name", "name_taken"] as const;
+export type PageNameDecisionErrorCode = (typeof PAGE_NAME_DECISION_ERROR_CODES)[number];
+
+export const PAGE_NAME_DECISION_REASON_MIN = 3;
+export const PAGE_NAME_DECISION_REASON_MAX = 500;
+
+export const decideHeldPageNameSchema = z.strictObject({
+  id: z.uuid(),
+  approve: z.boolean(),
+  reason: z.string().trim().min(PAGE_NAME_DECISION_REASON_MIN).max(PAGE_NAME_DECISION_REASON_MAX),
+});
+export type DecideHeldPageNameInput = z.infer<typeof decideHeldPageNameSchema>;
+
+export const PAGE_NAME_STATES = ["held", "active", "reserved", "redirect", "released"] as const;
+export type PageNameState = (typeof PAGE_NAME_STATES)[number];
+
+/** claim_page_name() result. A held name is not an error: the Owner sees "under review". */
+export const claimPageNameResultSchema = z.object({
+  id: z.uuid(),
+  name: z.string(),
+  state: z.enum(["held", "active"]),
+  origin: z.enum(["claim", "rename", "forced_rename"]),
+  previous_name: z.string().nullable(),
+});
+export type ClaimPageNameResult = z.infer<typeof claimPageNameResultSchema>;
+
+/** get_gym_page_name() result. Carries no held_reason and no other gym's name. */
+export const gymPageNameSchema = z.object({
+  name: z.string().nullable(),
+  state: z.enum(["none", "active", "reserved", "held"]),
+  pending_name: z.string().nullable(),
+  completed_renames: z.number().int(),
+  redirects: z.array(z.object({ name: z.string(), expires_at: z.string() })),
+});
+export type GymPageName = z.infer<typeof gymPageNameSchema>;

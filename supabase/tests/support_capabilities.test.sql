@@ -90,7 +90,7 @@ select private.support_set_membership('00000000-0000-0000-0000-000000236401', tr
 -- ============================================================================================================
 -- A. catalog
 -- ============================================================================================================
-select is((select count(*)::int from private.support_capabilities), 38, 'the allow-list holds 38 objects (21 policies, 17 RPCs): a change is deliberate');
+select is((select count(*)::int from private.support_capabilities), 39, 'the allow-list holds 39 objects (21 policies, 18 RPCs): a change is deliberate');
 select is(has_table_privilege('authenticated', 'private.support_capabilities', 'select') or has_table_privilege('anon', 'private.support_capabilities', 'select'),
           false, 'support_capabilities is not readable by clients');
 select is((select count(*)::int from private.support_capabilities c
@@ -183,6 +183,7 @@ insert into cls (kind, name, support) values
   ('function', 'set_guest_charging', 'includes'),
   ('function', 'set_gym_category', 'includes'),
   ('function', 'delete_page_media', 'includes'),
+  ('function', 'get_gym_page_name', 'includes'),
   ('function', 'register_page_media', 'includes'),
   ('function', 'set_gym_page_content', 'includes'),
   ('function', 'set_loyalty_program', 'includes'),

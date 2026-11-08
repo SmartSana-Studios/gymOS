@@ -125,7 +125,7 @@ insert into cat_fn (name, includes_support) values
   ('public.guest_charging_impact', false), ('public.initiate_registration_fee_payment', false), ('public.list_guest_sessions_paid', false),
   ('public.mark_class_attendance', false), ('public.materialize_class_sessions', false), ('public.record_registration_fee', false),
   ('public.record_session_payment', false), ('public.renew_subscription', false), ('public.set_guest_charging', false),
-  ('public.delete_page_media', false), ('public.register_page_media', false), ('public.set_gym_category', false), ('public.set_gym_page_content', false), ('public.set_loyalty_program', false), ('public.set_registration_fee', false),
+  ('public.delete_page_media', false), ('public.get_gym_page_name', false), ('public.register_page_media', false), ('public.set_gym_category', false), ('public.set_gym_page_content', false), ('public.set_loyalty_program', false), ('public.set_registration_fee', false),
   ('public.staff_account_for_reset', false), ('public.update_class', false), ('public.update_plan_pricing', false),
   ('public.update_staff_role', false), ('public.void_registration_fee_payment', false), ('public.waive_registration_fee', false),
   -- identity separation, not a staff count: a support phone must not double as a member account
