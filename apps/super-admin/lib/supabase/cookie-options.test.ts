@@ -177,6 +177,7 @@ describe("auth cookie options (story 24-3)", () => {
         {},
       ),
     ).not.toThrow();
+    expect(() => assertPrefixedCookieCanStick({ protocol: "http:", hostname: "owner.localhost" }, {})).not.toThrow();
     expect(() =>
       assertPrefixedCookieCanStick(
         { protocol: "https:", hostname: "192.168.1.5" },

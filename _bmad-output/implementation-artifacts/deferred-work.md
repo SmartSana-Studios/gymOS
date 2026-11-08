@@ -1623,3 +1623,9 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 - source_spec: `_bmad-output/implementation-artifacts/spec-26-2-members-only-csv-import.md`
   summary: The import preview does not show birth year, profession or neighborhood, so a shifted column among those three is not visible before confirming.
   evidence: Review finding (blind hunter). The preview shows name, phone, plan, status, join date and expiry for the first 5 rows. Mitigated for the case that matters (a mis-mapped plan column) by the new "N rows have no plan" line.
+
+## Deferred from: code review of spec-24-3-staff-session-cookies-host-prefix-host-only (2026-11-08)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-3-staff-session-cookies-host-prefix-host-only.md`
+  summary: The Playwright baseline run against a deliberately unprefixed cookie (last acceptance criterion) is not evidenced by the 24-3 diff.
+  evidence: Review finding (acceptance auditor, blind hunter), maybe-false, would be medium if true. The only negative case in the diff is a vitest test; no e2e files changed. Settle by finding the negative Playwright run in the 24-3 ci-local log, or running it once and recording it.

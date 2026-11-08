@@ -31,6 +31,14 @@ describe("cookieOptions reach every Supabase client (story 24-3)", () => {
     expect(optionsOf(ssr.server)).toMatchObject({ name: "__Host-sb-auth", secure: true });
   });
 
+  it("proxy.ts refuses a prefixed cookie over HTTP on a LAN host in dev, but not on localhost", async () => {
+    vi.stubEnv("APP_ENV", "development");
+    vi.stubEnv("AUTH_COOKIE_UNPREFIXED", "");
+    const { updateSession } = await import("./proxy");
+    await expect(updateSession(new NextRequest("http://192.168.1.5:3000/members"))).rejects.toThrow(/AUTH_COOKIE_UNPREFIXED/);
+    await expect(updateSession(new NextRequest("http://localhost:3000/auth/login"))).resolves.toBeDefined();
+  });
+
   it("client.ts", async () => {
     const { createClient } = await import("./client");
     createClient();

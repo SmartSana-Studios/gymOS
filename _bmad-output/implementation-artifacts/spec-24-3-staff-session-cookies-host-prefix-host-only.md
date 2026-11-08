@@ -90,6 +90,28 @@ context:
 | Env var docs, rollback note | low | reject | Docs only; the dev check error names the variable. |
 | AGENTS.md change, `scripts/demo-gym/` in tree | false | reject | Pre-existing, left by the owner's decision; not in the diff. |
 
+### Review Findings
+
+Code review 2026-11-08 of commit 0884b15 (layers: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor; none failed).
+
+- [x] [Review][Patch] Proxy dev-time HTTP guard is not pinned by any test — add a case to `cookie-callsites.test.ts` in each app: `updateSession` on `http://192.168.1.5:3000/members` with `APP_ENV=development` and the gate unset rejects with `AUTH_COOKIE_UNPREFIXED`, and `http://localhost` does not [apps/dashboard/lib/supabase/proxy.ts:57, apps/super-admin/lib/supabase/proxy.ts] (verification-gap; deleting the `assertPrefixedCookieCanStick` call keeps every test green)
+- [x] [Review][Patch] `assertPrefixedCookieCanStick` rejects `*.localhost` hosts (`owner.localhost`), which Chromium treats as secure, so the dev check would 500 every request once Epic 24 dev uses subdomains — treat `hostname.endsWith(".localhost")` as local, in both byte-identical copies, plus a test [apps/*/lib/supabase/cookie-options.ts] (edge-case-hunter + blind-hunter; low, direct one-line correction; no `*.localhost` use in the repo yet)
+- [x] [Review][Defer] The last acceptance criterion (run the Playwright baseline once against a deliberately unprefixed cookie to show the e2e check can fail) is not evidenced by the diff — deferred: maybe-false, would be medium if true; settle by checking the 24-3 ci-local/Playwright run log for the negative run, or running it once [acceptance-auditor + blind-hunter]
+
+#### Rejected
+
+- Browser client cannot see `APP_ENV`, so its production guard is dead (acceptance-auditor, edge-case-hunter, blind-hunter, verification-gap): low. `register()` throws at server start, so a production deploy with the gate never serves; already in the triage log above.
+- `server.ts` calls `authCookieOptions()` with no `secure`, so gate-on over HTTPS is non-Secure (acceptance-auditor, edge-case-hunter): low. Dev-only gate, plain HTTP is its purpose; the fix adds parameters.
+- Legacy redirect replaces the inner response and drops its cookies and headers, and drops `next` (acceptance-auditor, edge-case-hunter, blind-hunter): low. It only runs when no current session cookie exists, so the inner response carries no refreshed cookies; `next` loss is the matrix row.
+- Exempt-path tests miss `/api/cron/`, support-invite and reset-cancel (acceptance-auditor, blind-hunter): low. The inner gate decides exemption and those paths are covered by the existing proxy tests.
+- `request.cookies.delete` and the `getAll` result are not asserted (verification-gap, disposition defer): low. Cookies are still cleared on the response; no user-visible effect.
+- Legacy matcher omits `-code-verifier` and `.N` variants (edge-case-hunter): false for `.N` (the regex has `(\.\d+)?`); low for the verifier, already rejected above.
+- Dev guard uses `nextUrl.protocol`, not `x-forwarded-proto` (edge-case-hunter): low. A speculative HTTPS-tunnel case with no shown path to it; the fix adds a branch.
+- Wrapper duplicated in both `proxy.ts` files and `app-env.ts` is outside the parity test (blind-hunter): low. Already rejected above; byte-identical today.
+- Spec says `status: done` while sprint-status says `review`; empty Implementation Notes and Change Log (acceptance-auditor, blind-hunter): the fix edits the spec metadata; status is set by this review's step 6.
+- pgtap failure recorded only in a sprint-status comment; release checklist lacks rollback steps and the notice mechanics; `AUTH_COOKIE_UNPREFIXED` undocumented in `.env.example`; forced re-login not weighed against a session migration (blind-hunter): low. Docs and process points, or a spec decision already made; fix is to edit the spec or docs.
+- Nothing checks other readers of `sb-<ref>-auth-token` (e2e `storageState`, `scripts/epic19-qa`) (blind-hunter): false. The verification-gap layer searched `apps/` and `packages/` and found no other readers; the e2e baseline question is the deferred item above.
+
 ## Verification
 
 **Commands:**

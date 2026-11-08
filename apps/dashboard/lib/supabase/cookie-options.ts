@@ -68,7 +68,8 @@ export function assertPrefixedCookieCanStick(
   env: Env = process.env,
 ): void {
   if (gateOn(env) || appEnvironment(env) !== "development") return;
-  if (url.protocol === "http:" && !LOCAL_HOSTS.has(url.hostname)) {
+  const local = LOCAL_HOSTS.has(url.hostname) || url.hostname.endsWith(".localhost"); // Chromium treats *.localhost as secure
+  if (url.protocol === "http:" && !local) {
     throw new Error(
       `The staff session cookie is "${PREFIXED_COOKIE_NAME}", which browsers only accept over HTTPS or on localhost; ` +
         `${url.protocol}//${url.hostname} would sign in and then lose the session. Use http://localhost, HTTPS, ` +
