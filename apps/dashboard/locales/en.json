@@ -341,6 +341,21 @@
       "uploadFailed": "The image could not be saved. Please try again."
     }
   },
+  "pageNames": {
+    "status": {
+      "held": "Name under review",
+      "active": "Name active",
+      "reserved": "Name reserved"
+    },
+    "errors": {
+      "invalid_name": "Use 3 to 30 lowercase letters, digits or hyphens. No hyphen at the start or end, no double hyphen, and not only digits.",
+      "reserved_name": "This name is not available. Choose another one.",
+      "name_taken": "This name is already taken. Choose another one.",
+      "rename_limit": "You can change your page name twice in any 12 months, and you have used both changes.",
+      "not_admitted": "Only the Owner can choose the page name.",
+      "gym_not_active": "The page name cannot be changed while the gym is suspended."
+    }
+  },
   "staff": {
     "gymosSupport": {"name":"GymOS Support","role":"GymOS Support"},
     "supportTag": "Created by GymOS Support",

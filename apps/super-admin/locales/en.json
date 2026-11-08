@@ -22,6 +22,7 @@
     "billing": "Billing",
     "admins": "Admins",
     "support": "GymOS support",
+    "pageNames": "Page names",
     "security": "Security",
     "switchToLightTheme": "Switch to light theme",
     "switchToDarkTheme": "Switch to dark theme",
@@ -311,6 +312,38 @@
       "auditLogFailedCap": "The cap override was saved, but the audit log entry failed to write. Please contact support.",
       "alreadySameName": "The gym already has that name.",
       "auditLogFailedRename": "The name was changed, but the audit log entry failed to write. Please contact support."
+    }
+  },
+  "pageNames": {
+    "title": "Page names under review",
+    "hint": "Names held for approval before a gym's page can use them. A decision is due within 2 business days. The Owner is told the outcome and your reason.",
+    "empty": "No page names are waiting for a decision.",
+    "columns": { "name": "Name", "gym": "Gym", "kind": "Request", "reason": "Why held", "due": "Due", "actions": "Actions" },
+    "kind": { "claim": "First name", "rename": "Rename from {{current}}" },
+    "reasons": {
+      "generic_word": "Contains the generic word \"{{word}}\"",
+      "place_word": "Contains the place name \"{{word}}\"",
+      "near_match_name": "Close to the existing name \"{{word}}\"",
+      "near_match_reserved": "Close to the reserved name \"{{word}}\"",
+      "near_match_brand": "Close to the brand word \"{{word}}\""
+    },
+    "overdue": "Overdue",
+    "approve": "Approve",
+    "reject": "Reject",
+    "approveTitle": "Approve \"{{name}}\"",
+    "rejectTitle": "Reject \"{{name}}\"",
+    "reasonNote": "The Owner receives this reason in a notice and by e-mail. Do not name any individual or another gym.",
+    "reason": "Reason (3 to 500 characters)",
+    "cancel": "Cancel",
+    "working": "Saving...",
+    "approved": "\"{{name}}\" was approved.",
+    "rejected": "\"{{name}}\" was rejected.",
+    "errors": {
+      "generic": "Something went wrong. Please try again.",
+      "reason_required": "Give a reason of 3 to 500 characters.",
+      "not_held": "This name is no longer waiting for a decision.",
+      "reserved_name": "This name is now reserved and cannot be approved. Reject it instead.",
+      "name_taken": "Another gym holds this name now. Reject it instead."
     }
   },
   "tiers": {

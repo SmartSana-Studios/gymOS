@@ -74,6 +74,9 @@ describe("a denied gate stops every gated Server Action before any work", () => 
   add("removeSupportAccount", support, "removeSupportAccount", [{ userId: ACTOR, reason: "valid reason" }]);
   add("listSupportLocks", support, "listSupportLocks", []);
   add("unlockSupportAccount", support, "unlockSupportAccount", [{ userId: ACTOR, reason: "valid reason" }]);
+  const pageNames = () => import("./page-names/actions");
+  add("listHeldPageNames", pageNames, "listHeldPageNames", []);
+  add("decideHeldPageName", pageNames, "decideHeldPageName", [{ id: ACTOR, approve: true, reason: "valid reason" }]);
 
   it.each(cases)("%s returns permission_denied and touches nothing when authorization is unavailable", async (_name, run) => {
     denial = "authorization_unavailable";

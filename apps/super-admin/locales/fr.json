@@ -22,6 +22,7 @@
     "billing": "Facturation",
     "admins": "Administrateurs",
     "support": "Support GymOS",
+    "pageNames": "Noms de page",
     "security": "Sécurité",
     "switchToLightTheme": "Passer au thème clair",
     "switchToDarkTheme": "Passer au thème sombre",
@@ -311,6 +312,38 @@
       "auditLogFailedCap": "Le plafond forcé a été enregistré, mais l'entrée du journal d'audit n'a pas pu être écrite. Veuillez contacter le support.",
       "alreadySameName": "La salle porte déjà ce nom.",
       "auditLogFailedRename": "Le nom a été modifié, mais l'écriture dans le journal d'audit a échoué. Contactez le support."
+    }
+  },
+  "pageNames": {
+    "title": "Noms de page à examiner",
+    "hint": "Noms retenus pour approbation avant qu'une page de salle puisse les utiliser. Une décision est attendue sous 2 jours ouvrables. Le propriétaire est informé du résultat et de votre motif.",
+    "empty": "Aucun nom de page n'attend de décision.",
+    "columns": { "name": "Nom", "gym": "Salle", "kind": "Demande", "reason": "Motif de la retenue", "due": "Échéance", "actions": "Actions" },
+    "kind": { "claim": "Premier nom", "rename": "Changement depuis {{current}}" },
+    "reasons": {
+      "generic_word": "Contient le mot générique « {{word}} »",
+      "place_word": "Contient le nom de lieu « {{word}} »",
+      "near_match_name": "Proche du nom existant « {{word}} »",
+      "near_match_reserved": "Proche du nom réservé « {{word}} »",
+      "near_match_brand": "Proche du mot de marque « {{word}} »"
+    },
+    "overdue": "En retard",
+    "approve": "Approuver",
+    "reject": "Rejeter",
+    "approveTitle": "Approuver « {{name}} »",
+    "rejectTitle": "Rejeter « {{name}} »",
+    "reasonNote": "Le propriétaire reçoit ce motif dans une notification et par e-mail. Ne nommez aucune personne ni une autre salle.",
+    "reason": "Motif (3 à 500 caractères)",
+    "cancel": "Annuler",
+    "working": "Enregistrement...",
+    "approved": "« {{name}} » a été approuvé.",
+    "rejected": "« {{name}} » a été rejeté.",
+    "errors": {
+      "generic": "Une erreur s'est produite. Veuillez réessayer.",
+      "reason_required": "Indiquez un motif de 3 à 500 caractères.",
+      "not_held": "Ce nom n'attend plus de décision.",
+      "reserved_name": "Ce nom est désormais réservé et ne peut pas être approuvé. Rejetez-le.",
+      "name_taken": "Une autre salle détient maintenant ce nom. Rejetez-le."
     }
   },
   "tiers": {

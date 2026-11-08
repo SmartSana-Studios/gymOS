@@ -1194,6 +1194,88 @@ export type Database = {
         }
         Relationships: []
       }
+      page_name_words: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          is_prefix: boolean
+          kind: string
+          word: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          is_prefix?: boolean
+          kind: string
+          word: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          is_prefix?: boolean
+          kind?: string
+          word?: string
+        }
+        Relationships: []
+      }
+      page_names: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          gym_id: string
+          held_at: string | null
+          held_reason: string | null
+          id: string
+          name: string
+          origin: string
+          reminded_at: string | null
+          reserved_until: string | null
+          state: string
+          taken_down_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          gym_id: string
+          held_at?: string | null
+          held_reason?: string | null
+          id?: string
+          name: string
+          origin: string
+          reminded_at?: string | null
+          reserved_until?: string | null
+          state: string
+          taken_down_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          gym_id?: string
+          held_at?: string | null
+          held_reason?: string | null
+          id?: string
+          name?: string
+          origin?: string
+          reminded_at?: string | null
+          reserved_until?: string | null
+          state?: string
+          taken_down_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "page_names_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_discrepancies: {
         Row: {
           details: Json
@@ -2331,6 +2413,10 @@ export type Database = {
         Returns: { ok: boolean; reason: string }[]
       }
       active_payment_provider: { Args: never; Returns: string }
+      add_page_name_word: {
+        Args: { p_kind: string; p_prefix?: boolean; p_word: string }
+        Returns: undefined
+      }
       add_session_note: {
         Args: { p_member_id: string; p_note_text: string }
         Returns: string
@@ -2439,6 +2525,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      claim_page_name: {
+        Args: { p_gym_id: string; p_name: string }
+        Returns: Json
       }
       complete_flagged_payment: {
         Args: { p_payment_id: string }
@@ -2568,6 +2658,10 @@ export type Database = {
         Args: { p_reason: string; p_user_id: string }
         Returns: { assignment_id: string | null; code: string; ok: boolean }[]
       }
+      decide_held_page_name: {
+        Args: { p_approve: boolean; p_id: string; p_reason: string }
+        Returns: Json
+      }
       delete_page_media: { Args: { p_media_id: string }; Returns: undefined }
       disconnect_gym_payment_credentials: {
         Args: { p_provider_key: string }
@@ -2619,6 +2713,7 @@ export type Database = {
           requested_at: string
         }[]
       }
+      get_gym_page_name: { Args: { p_gym_id: string }; Returns: Json }
       get_gym_support_proxy_id: {
         Args: never
         Returns: string
@@ -2915,6 +3010,21 @@ export type Database = {
           total_count: number
         }[]
       }
+      list_held_page_names: {
+        Args: never
+        Returns: {
+          current_name: string | null
+          due_at: string
+          gym_id: string
+          gym_name: string
+          held_at: string
+          held_reason: string
+          id: string
+          name: string
+          origin: string
+          overdue: boolean
+        }[]
+      }
       list_my_class_bookings: {
         Args: never
         Returns: {
@@ -2959,6 +3069,15 @@ export type Database = {
       list_own_support_gyms: {
         Args: never
         Returns: { gym_id: string; gym_name: string }[]
+      }
+      list_page_name_words: {
+        Args: never
+        Returns: {
+          created_at: string
+          is_prefix: boolean
+          kind: string
+          word: string
+        }[]
       }
       list_session_attempts: {
         Args: { p_limit?: number; p_offset?: number; p_period: string }
@@ -3163,6 +3282,10 @@ export type Database = {
         Returns: { email: string; ok: boolean; step: string; user_id: string }[]
       }
       support_invite_mark_password_set: { Args: { p_token: string }; Returns: boolean }
+      remove_page_name_word: {
+        Args: { p_kind: string; p_prefix?: boolean; p_word: string }
+        Returns: undefined
+      }
       remove_support_account: {
         Args: { p_reason: string; p_user_id: string }
         Returns: { assignment_id: string | null; code: string; ok: boolean }[]

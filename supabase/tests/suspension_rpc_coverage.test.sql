@@ -257,6 +257,9 @@ select is(
   --                             read only by the public_site.page_media view (same gym-active predicate)
   --   gym_pages               - 24.4: RLS on, no client policy, no client grant; read only by the public_site.pages view,
   --                             whose predicate (gym status active) is the suspension gate for the public site
+  --   page_names              - 24.7: RLS on, no client policy, no client grant; written only by claim_page_name() (Owner or Super Admin,
+  --                             active gym required for the Owner) and the Super Admin/lifecycle functions, which must keep working for a
+  --                             suspended gym (the idle clock and the sweep run on suspension by design)
   --   gym_payment_credentials - RLS enabled but ZERO permissive policies, so a
   --                             restrictive policy would be a structural no-op;
   --                             recorded in docs/decisions.md, 2026-08-28 entry
@@ -281,7 +284,7 @@ select is(
   -- ever needs to close its coach INSERT, add a SEPARATE, narrower
   -- RESTRICTIVE ... FOR INSERT policy under a DIFFERENT name -- reusing
   -- `tenant_active_gate` would silently change assertion 1's count above.
-  'audit_disclosure_requests, exercise_library, gym_data_escalations, gym_page_media, gym_pages, gym_payment_credentials, saas_billing_notices, saas_billing_payments, staff_notices, support_action_identity, support_assignments, support_staff_review',
+  'audit_disclosure_requests, exercise_library, gym_data_escalations, gym_page_media, gym_pages, gym_payment_credentials, page_names, saas_billing_notices, saas_billing_payments, staff_notices, support_action_identity, support_assignments, support_staff_review',
   'the set of gym_id-bearing tables WITHOUT tenant_active_gate is unchanged -- a new one is invisible to the guardrail above, so it must be justified here (Story 11.8 code review)'
 );
 
