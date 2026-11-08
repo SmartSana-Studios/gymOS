@@ -1745,7 +1745,7 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 - **Takedown writer (24.11) obligations.** It must set `taken_down_at` on `gym_pages` (the predicate and publish already honour it), be added to the writer allowlist in `gym_page_publish.test.sql`, and, when it sets `page_names.taken_down_at`, the existing page-name trigger already judges the page (it unpublishes with `no_name`). Decide whether a taken-down name should unpublish or only hide.
 - **Template names are not validated against a registry.** `publish_gym_page` checks only the name shape; 24.10 owns the registry and should refuse an unknown template at render time and in the publish screen.
 - **`gym_pages.schema_version` is never bumped.** The snapshot shape is version 1; the first change to the key list must bump it and the 24.10 reader must branch on it.
-- **Concurrency is argued, not tested.** The gym row lock in publish and refresh is exercised in one session only; a two-session publish-versus-edit race test (like `session-refund-race.sh`) was not written. `refresh_gym_page` returns early WITHOUT a lock when no live page exists, so an edit that commits while a concurrent publish is still running (and read the pre-edit rows) is not re-judged by that edit's trigger: the page can go live on a gate evaluated just before the edit committed, until the next change refreshes it. Narrow; the lock-first form would close it at the cost of a gym row lock on every plan or media change.
+- **Concurrency is argued, not tested.** The gym row lock in publish and refresh is exercised in one session only; a two-session publish-versus-edit race test (like `session-refund-race.sh`) was not written. **Closed in review pass 2 (2026-11-08):** `refresh_gym_page` took an unlocked early exit when no live page existed, so an edit that committed while a concurrent publish was still running was not re-judged; it now takes the gym row lock first again, as specced, at the cost of a gym row lock on every watched plan, media and gym change. The lock-first form is still not proven by a two-session test.
 
 ## Deferred from: code review of spec-24-8-publish-gate-snapshot-and-unpublish (2026-11-08)
 
@@ -1773,3 +1773,18 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 - source_spec: `_bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md`
   summary: Close before 24.10 ships: the built snapshot carries any non-empty `about_xx`/`services_xx` text even when that language is not complete (About under 100 characters), so either the snapshot builder omits an incomplete language or the template and the publish list apply the same completeness rule.
   evidence: UX update 3 (2026-11-08): a language is offered only when every required language-bound field is filled; 0164 `gym_page_snapshot` copies whatever is stored and the gate only needs one language at 100 characters. Decide the owner of the rule (SQL or renderer) and test a half-filled French About on a live page.
+
+## Deferred from: code review of spec-24-8-publish-gate-snapshot-and-unpublish, pass 2 (2026-11-08)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md`
+  summary: Close before 24.11 ships (acceptance criterion): `private.refresh_gym_page` must skip the gate-failure reason write and the Owner notice for a page whose `taken_down_at` is set, so a takedown is never rewritten as "fix and publish again" (publish refuses `taken_down`).
+  evidence: review pass 2 (edge-case hunter); `refresh_gym_page` (0164) never reads `taken_down_at`; unreachable today because no takedown writer exists.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md`
+  summary: Close before 24.11 ships (acceptance criterion): `page_names_sweep` must not release the name of an active gym whose page is taken down while the `gym_pages` row stays published; either unpublish with `name_released` too or exclude taken-down pages from the sweep.
+  evidence: review pass 2 (edge-case hunter); the sweep unpublishes only when `g.status <> 'active'`, and `page_name_has_published_page` treats a taken-down page as not published, so such a name can reach `reserved_until` and be released. Unreachable until `taken_down_at` is written.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md`
+  summary: Close before 24.11 ships (acceptance criterion): the rollback of 0164 (`delete from public.gym_pages`) also deletes `taken_down_at`; once takedowns exist, the rollback must preserve takedown rows or abort when any exist.
+  evidence: review pass 2 (blind hunter); `publish_gym_page` refuses `taken_down` only while the row exists, so a rollback and re-apply would let a taken-down gym publish again.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md`
+  summary: When stories 24.9 and 24.10 are created, copy every "Close before 24.9" and "Close before 24.10" line in this file into their acceptance criteria in epics.md (CRLF normalisation, renderer escaping with a hostile-text case, timezone key, gate-checklist read function, shared Zod/SQL fixture, language completeness rule).
+  evidence: review pass 2 (blind hunter); Epic 22 retro 67: a deferral that names a later story is an acceptance criterion of that story. Today they live only here.
