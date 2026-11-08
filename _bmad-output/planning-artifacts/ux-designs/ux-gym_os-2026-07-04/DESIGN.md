@@ -2,11 +2,13 @@
 name: GymOS
 status: final
 created: 2026-07-04
-updated: 2026-10-15
+updated: 2026-11-08
 sources:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
   - _bmad-output/planning-artifacts/epics.md
   - _bmad-output/planning-artifacts/architecture/architecture-gym_os-2026-08-11/ARCHITECTURE-SPINE.md
+  - _bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md
+  - _bmad-output/implementation-artifacts/deferred-work.md
 colors:
   primary: '#1B2A41'
   accent: '#E0971F'
@@ -156,9 +158,33 @@ Visual specs only — behavior lives in `EXPERIENCE.md`'s Member App Component L
 | Backgrounds | Template choice: platform `{colors.background}` (light) or the member-app dark palette (`#0A0F17`, surface `#141F30`); the page declares one |
 | Type | Barlow 700 and 800 from the self-hosted allowlist for headings and prices, system sans-serif for body; hierarchy by weight, uppercase and tracking only for headings, as in Typography above |
 | Shape | `rounded.card` 16 for cards, `rounded.pill` for actions, `rounded.chip` 8 for chips; no hero radius |
-| Spacing | The `spacing` scale only; 16 px page gutter; one column at every width up to 640, optional two columns above |
+| Spacing | The `spacing` scale only; 16 px page gutter. Gym pages are for mobile, tablet and desktop *(product owner, 2026-11-08, supersedes "one column at every width up to 640, optional two columns above")*. Three breakpoints, `[ASSUMPTION — exact numbers]`: **mobile** under 641 px, one column; **tablet** 641 to 1023 px, content column up to 800 px; **desktop** 1024 px and up, content column up to 1120 px. Placement per breakpoint is in EXPERIENCE.md PS-01 "Layout by breakpoint"; the DOM and reading order never change |
+| Banner *(2026-11-08)* | `[ASSUMPTION]` Edge to edge under 641 px (no radius, as in the first mock); from 641 px rounded (`rounded.card` 16) inside the content column, with the same gutter. Height is reserved so nothing jumps |
+| Header card *(2026-11-08)* | `[ASSUMPTION]` The header card (logo, name, category chip, language link) overlaps the lower edge of the banner at every width; under 641 px it spans the column, from 641 px it stays inside the content column, and at 1024 px and up it sits beside the contact card on the same overlap line. The overlap never covers text of the banner (the banner is decorative) |
+| Contact card, desktop *(2026-11-08)* | `[ASSUMPTION]` From 1024 px a contact card sits beside the header card, overlapping the banner the same way. It holds Call, WhatsApp and Directions as tiles in a row, and the phone number as visible text (a `tel:` link may not open a call on a desktop). Under 1024 px the actions are tiles in the content column under the header card (stacked full width under 641 px, in a row from 641 px). Tiles stay at least 44 px tall at every width |
 | Motion | None required; no animation that depends on script. Respect `prefers-reduced-motion` for any CSS transition |
 | Imagery | Banner and gallery images come from the opaque media origin; every image has a text alternative from the gym's description or is marked decorative |
+| Language link *(2026-11-08)* | When the page has two complete languages (each supported content language whose required fields are filled), one plain text link to the other language sits in the header or the footer, in the **target** language's own name ("Français" on the English page, "English" on the French page) with `hreflang` and `lang` of its target. **With more than two complete languages the link becomes a menu** of the same plain links, each entry in its own language's name, the current language marked and not a link; it needs no script (a native disclosure or an inline list). **No flags**, ever: a flag stands for a country, not a language. Styled as a text link (or a text menu), never a pill or button (it is navigation, not a contact action), each entry at least 44 px tall, in the body text colour with an underline, so it does not compete with Call, WhatsApp and Directions. With only one complete language, no link, no menu and no placeholder. Tokens are unchanged |
+| `lang` attribute *(2026-11-08)* | `<html lang>` is the language shown. Any block of gym-entered content that is shown in another language (a fallback because the chosen language was empty) carries its own `lang` for that block. Chrome strings (section headings, labels, buttons) follow the language shown. Typography does not change by language |
+
+**Classic template (first real template)** `[ASSUMPTION — name]` *(product owner, 2026-11-08; no HTML mock exists, this table is the design)*. Light, modern card design. Shapes, spacing and the language link follow the rows above. Placement per breakpoint is EXPERIENCE.md PS-01 "Layout by breakpoint".
+
+| Element | Specification |
+|---|---|
+| Surface | Page background `#F3F4F0`; cards white; hairline `#E6E4DD`; soft shadow `0 1px 2px rgba(27,42,65,.06)` plus `0 10px 28px rgba(27,42,65,.07)` |
+| Shapes | Card 16, chip 8, pill actions, media (banner on tablet and desktop, gallery images) 12 |
+| Type | Gym name Barlow 800, 28/36 on desktop (smaller on mobile `[ASSUMPTION]`); section headings 22/24; plan name 19, weight 700; price 24/28, weight 800, tabular numerals; body system sans 16/1.55; measure up to 62 characters |
+| Header card | Over the banner. Logo in a circle, 72 px (96 px on desktop), ringed in the gym color. Gym name, category chip, location text; language pill at the right |
+| Action tiles | Three tiles. Call filled with the gym color (text in the on-gym color, below); WhatsApp and Directions white. Icon above label, minimum height 84, drawn icons with a 1.75 px stroke, no emoji. The number is printed as text beside or under the tiles |
+| About | Card; paragraphs as entered |
+| Services | Chips |
+| Plans | One card per plan: name, price with its currency code, translated detail chips (type, interval, duration) |
+| Hours | Card, one row per day, closed days read "Closed"; no "today" marker (no open-now) |
+| Location | Card with a drawn map tile and pin (no map image, no third-party tiles), address text, and an outline pill "Open the map" / « Ouvrir la carte » (omitted with no map position) |
+| Gallery | Rounded images; on mobile the first image is wide (full column), the rest in a grid |
+| Repeat action | Call as a full-width pill; centred and 280 wide on tablet and desktop |
+| Gym color use | Only the Call tile fill, the logo ring, the map pin and focus accents. Nothing else, so contrast never depends on it |
+| Contrast rule `[ASSUMPTION]` | The server-side renderer (no script) computes the text color on a gym-color fill: white or ink, whichever reaches 4.5:1 on the gym color, else the platform accent pairing; it supplies the result to the template as an on-gym color (`--on-gym`) |
 
 **Seed templates** (not alternatives; the first two of the library):
 

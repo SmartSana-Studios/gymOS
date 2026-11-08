@@ -1755,3 +1755,21 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md`
   summary: Close before 24.10 ships: the snapshot carries no timezone, so a template cannot label opening hours or show an "open now" state; decide whether 24.10 needs a `timezone` content key.
   evidence: The hours are bare `HH:MM` strings. Adding a key means changing the `gym_pages_content_keys` CHECK, the pinned key-path test and `public_site_reader_privileges.test.sql` together; not required by FR-196 to FR-207.
+
+## Deferred from: UX update 3 (2026-11-08, bmad-ux; owner: languages and currencies are open sets)
+
+- source_spec: `_bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md`
+  summary: Close before 24.9 ships: build the landing-page editor sections, the language link and the completeness check from one supported-content-languages list (today English and French), not from hard-coded EN/FR pairs, and show the completeness rule in the publish screen.
+  evidence: Owner decided 2026-11-08 that EN and FR are the current languages, not a fixed pair, and that a language is offered only when every required language-bound field is filled (today About, 100 characters or more). The UX spines now state this; a hard-coded pair in 24.9 would make a third language a rewrite.
+- source_spec: `_bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md`
+  summary: Before a third content language ships: the content model is `about_en/fr`, `services_en/fr`, `public_label_en/fr` columns and fixed snapshot keys (and the `gym_pages_content_keys` CHECK), so a new language needs a language-keyed model, a `gym_pages.schema_version` bump and a reader that branches on it (24.10 already owns that branch).
+  evidence: 0161 columns and the 0164 snapshot builder name the two languages; the 24.10 template contract should read languages from the snapshot's language list, not assume two. Currency is already per plan (`plans.currency`); the page shows it as stored with no conversion, so a new currency needs only formatting and fixtures.
+- source_spec: `_bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md`
+  summary: Future feature, not in Epic 24: automatic currency from the gym's country (the country sets the default currency for new plans, e.g. Cameroon to XAF), instead of choosing the currency by hand.
+  evidence: Owner request 2026-11-08. Plan currency is already per plan and the page never converts, so this is a default-setting feature at plan creation plus a country-to-currency table; it needs its own story and a decision on gyms that already have plans in another currency.
+- source_spec: `_bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md`
+  summary: Close before 24.10 ships: the template must render a plan as the plan name exactly as entered plus translated details derived from `plan_type`, `billing_interval` and `duration_days` (per session, monthly, coach included, classes only; per month, per year), from the template's own language dictionary.
+  evidence: Owner decision 2026-11-08: names are not translated, details are. The built snapshot carries `type`, `interval` and `duration_days`, so no schema change; its `label_en/fr` keys (name fallback) stay unused.
+- source_spec: `_bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md`
+  summary: Close before 24.10 ships: the built snapshot carries any non-empty `about_xx`/`services_xx` text even when that language is not complete (About under 100 characters), so either the snapshot builder omits an incomplete language or the template and the publish list apply the same completeness rule.
+  evidence: UX update 3 (2026-11-08): a language is offered only when every required language-bound field is filled; 0164 `gym_page_snapshot` copies whatever is stored and the gate only needs one language at 100 characters. Decide the owner of the rule (SQL or renderer) and test a half-filled French About on a live page.
