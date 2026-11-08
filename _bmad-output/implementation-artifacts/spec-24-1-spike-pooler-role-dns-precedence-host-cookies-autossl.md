@@ -2,7 +2,7 @@
 title: '24-1 Spike: pooler role, DNS precedence, __Host- cookies, AutoSSL'
 type: 'chore'
 created: '2026-11-01'
-status: 'in-progress'
+status: 'in-review'
 baseline_commit: '9b89903d1cd831c3f49ad94f08a5468c155819e8'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -67,6 +67,25 @@ context:
 ## Spec Change Log
 
 ## Review Triage Log
+
+Review 2026-11-08, three layers (Blind Hunter, Edge Case Hunter, Verification Gap) on the docs diff. All routed patch or rejected; no loopback.
+
+| Finding | Verdict | Route | Evidence |
+|---|---|---|---|
+| "limit minus one" vs "11 ran at limit 10" | medium | patch | 11 of 20 completed because later clients started after earlier ones released; at most 9 held at once. Entry reworded. |
+| Sizing ignores several serverless instances; production plan unverified | medium | patch | Limit is per role across instances; entry and AD-42 now say sum of pools plus one and require a production-pooler re-check in 24.4. |
+| AD-44 "confirmed" is Chromium-only | medium | patch | Spine and entry now say Chromium only, Firefox/Safari a 24.3 gate. |
+| AD-43 "no exception" omits probe was `*.test` and HTTPS precedence deferred to 24.12 | medium | patch | Spine qualified. |
+| "Remove and re-add" stated as rule; "Vercel DNS must be enabled first" stated as fact | medium | patch | One observation, original zone state unknown; both softened. |
+| Vercel "DNS Change Recommended" text not captured | low | patch | 24.2 reads and records it before the real wildcard. |
+| Renewal check needs a dated owner; rollback trigger missing from spine | medium | patch | 24.2 completion notes must record the first-renewal date; rollback phrase added. |
+| Vercel DNS zone left enabled: who decided, how to tell | low | patch | Entry now says the agent recommended it and the owner did not ask for deletion. |
+| Label `test` vs suggested `spike-24-1`; first-person wording; "direct role" ambiguous with IPv6 host | low | patch | Entry wording fixed. |
+| Pending NS removal has no owner or date | low | rejected | Tracked by this spec's own open cleanup task and sprint-status; story cannot close without it. |
+| AC "no throwaway remains" unmet while NS exists; spec in-review vs sprint-status in-progress | low | rejected | Expected mid-story state; story is held at in-review until A2 removes the records. |
+| AutoSSL result is neither stated outcome | false | rejected | Entry states "no conflict observed, renewal not verified" explicitly; claiming "still issues" would overstate. |
+| Empty Spec Change Log / Implementation Notes | low | rejected | Fix would edit this build's spec. |
+| `apps/dashboard/AGENTS.md` and `scripts/demo-gym/` in the tree | false | rejected | Unrelated to this story and excluded from the diff and the commit. |
 
 ## Verification
 
