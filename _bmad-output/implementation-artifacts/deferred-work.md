@@ -1629,3 +1629,13 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-3-staff-session-cookies-host-prefix-host-only.md`
   summary: The Playwright baseline run against a deliberately unprefixed cookie (last acceptance criterion) is not evidenced by the 24-3 diff.
   evidence: Review finding (acceptance auditor, blind hunter), maybe-false, would be medium if true. The only negative case in the diff is a vitest test; no e2e files changed. Settle by finding the negative Playwright run in the 24-3 ci-local log, or running it once and recording it.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-4-public-site-schema-and-hardened-reader-role.md`
+  summary: `net._http_response` (pg_net) is readable by PUBLIC, so by `anon`, `authenticated` and `public_site_reader`; webhook response bodies may be exposed.
+  evidence: Confirmed locally on 2026-11-08 (`has_table_privilege` true, ACL `=arwdDxtm/supabase_admin`). Pre-existing, owned by supabase_admin; verify on production and mitigate there (revoke as supabase_admin or accept) before the landing role goes live (24.10).
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-4-public-site-schema-and-hardened-reader-role.md`
+  summary: Prove `default_transaction_read_only` and `statement_timeout` on a real login as `public_site_reader`, and confirm `REVOKE USAGE ON SCHEMA public FROM PUBLIC` breaks no platform role on production.
+  evidence: Unverified locally (SET ROLE does not apply role settings; hosted platform roles absent). Settle with the production pooler probe on the pre-release checklist.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-4-public-site-schema-and-hardened-reader-role.md`
+  summary: Landing no-Supabase check does not scan lockfile, workspace dependencies, `next.config` env or `turbo.json`; `gym_pages.content` has no value-type or size limits, `page_name_id` no uniqueness.
+  evidence: Low-severity gaps beyond the spec's manifest scope; content and name constraints belong to 24.7/24.8.

@@ -12,6 +12,7 @@
     "check:credentials-id": "node scripts/check-credentials-id.mjs",
     "check:reserved-labels": "node scripts/check-reserved-labels.mjs",
     "check:host-neutral-env": "node scripts/check-host-neutral-env.mjs",
+    "check:landing-no-supabase": "node scripts/check-landing-no-supabase.mjs",
     "test:guardrails": "node --test scripts/__tests__/*.test.mjs",
     "check:claims": "node scripts/claim-inventory.mjs"
   },

@@ -253,6 +253,8 @@ select is(
   --                             exercise names harms nothing (0079)
   --   gym_data_escalations    - Super Admin support access is needed BECAUSE
   --                             the gym is suspended
+  --   gym_pages               - 24.4: RLS on, no client policy, no client grant; read only by the public_site.pages view,
+  --                             whose predicate (gym status active) is the suspension gate for the public site
   --   gym_payment_credentials - RLS enabled but ZERO permissive policies, so a
   --                             restrictive policy would be a structural no-op;
   --                             recorded in docs/decisions.md, 2026-08-28 entry
@@ -277,7 +279,7 @@ select is(
   -- ever needs to close its coach INSERT, add a SEPARATE, narrower
   -- RESTRICTIVE ... FOR INSERT policy under a DIFFERENT name -- reusing
   -- `tenant_active_gate` would silently change assertion 1's count above.
-  'audit_disclosure_requests, exercise_library, gym_data_escalations, gym_payment_credentials, saas_billing_notices, saas_billing_payments, staff_notices, support_action_identity, support_assignments, support_staff_review',
+  'audit_disclosure_requests, exercise_library, gym_data_escalations, gym_pages, gym_payment_credentials, saas_billing_notices, saas_billing_payments, staff_notices, support_action_identity, support_assignments, support_staff_review',
   'the set of gym_id-bearing tables WITHOUT tenant_active_gate is unchanged -- a new one is invisible to the guardrail above, so it must be justified here (Story 11.8 code review)'
 );
 

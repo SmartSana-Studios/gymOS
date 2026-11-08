@@ -464,7 +464,7 @@ development_status:
   24-1-spike-pooler-role-dns-precedence-host-cookies-autossl: in-progress
   24-2-wildcard-delegation-and-reserved-label-ci-check: in-progress
   24-3-staff-session-cookies-host-prefix-host-only: done
-  24-4-public-site-schema-and-hardened-reader-role: backlog
+  24-4-public-site-schema-and-hardened-reader-role: review
   24-5-page-content-fields-and-public-plans: backlog
   24-6-page-media-private-originals-re-encoded-derivatives: backlog
   24-7-page-names-claim-hold-rename-redirect: backlog
@@ -1796,3 +1796,6 @@ last_updated: 10-23-2026 15:07
 # last_updated: 2026-11-08 (build: 24-3 started, spec approved and set in-progress, implementation dispatched to a subagent. Branch epic/24)
 # last_updated: 2026-11-08 (build: 24-3 implemented and reviewed, in-progress -> review. __Host-sb-auth cookieOptions shared per app, legacy cookies cleared with one expired=1 redirect, dev gate AUTH_COOKIE_UNPREFIXED refused in production. Review: 2 patches (call-site and startup-refusal tests), 14 findings rejected. ci-local green after a local db reset (first run: stale dev data failed e2e preflight and pgtap fixture, plus a gitignored playwright-report tripped lint; pgtap stage also failed once in the full run with every file passing, passed on rerun, cause unknown). Open for owner: Firefox and Safari real-HTTPS check, staff save-first notice before release.)
 # last_updated: 2026-11-08 (review: 24-3 code review (4 layers) -> done. 2 patches applied in both apps: proxy dev HTTP guard test (shown failing with the guard removed) and *.localhost treated as local in assertPrefixedCookieCanStick; 1 deferred (negative Playwright run for the unprefixed cookie not evidenced, in deferred-work.md); 11 rejected. vitest lib/supabase green in both apps; ci-local not re-run. Open for owner: Firefox and Safari real-HTTPS check, staff notice before release.)
+# last_updated: 2026-11-08 (build: 24-4 spec approved, status backlog -> in-progress -- public_site schema and hardened reader role; gym_pages skeleton created here as the view base, writers deferred to 24.8)
+# last_updated: 2026-11-08 (build: 24-4 implemented, in-progress -> review. Migration 0160 (schema public_site, role public_site_reader with CONNECTION LIMIT 20, statement_timeout 3s, read-only default, no password; public.gym_pages skeleton; view public_site.pages without gym_id; USAGE on public revoked from PUBLIC), pgTAP privilege enumeration test (36 assertions, shown failing on stray table, function and schema grants), scripts/check-landing-no-supabase.mjs with fixture tests wired into ci-local.sh and ci.yml, decisions.md entry with production checklist. Open risk: pg_net schema `net` is PUBLIC-readable and a migration cannot revoke it; reader can reach net._http_response. Check on production before release.)
+# last_updated: 2026-11-08 (build: 24-4 reviewed (3 layers), 7 patches applied, 3 deferrals logged (net._http_response PUBLIC read confirmed pre-existing, prod checks, low gaps); ci-local GREEN on all 5 stages after patches; status stays review pending merge to epic/24)

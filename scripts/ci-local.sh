@@ -74,6 +74,8 @@ stage_static() {
   # Story 24.2: no gym name can collide with a zone label; VERCEL_ENV / VERCEL_GIT_COMMIT_SHA are read in one module per app
   pnpm run check:reserved-labels || return 1
   pnpm run check:host-neutral-env || return 1
+  # Story 24.4: apps/landing holds no Supabase library or key (AD-42)
+  pnpm run check:landing-no-supabase || return 1
   pnpm run test:guardrails || return 1
   # The deploy scripts refuse to apply a migration without a green db-backup run (against a fake gh; never touches GitHub).
   bash "$ROOT/scripts/require-db-backup.test.sh" || return 1
