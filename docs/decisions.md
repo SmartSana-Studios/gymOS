@@ -6,6 +6,17 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-11-08 — Story 24.3: staff session cookies are `__Host-` prefixed and host-only
+
+AD-44, NFR-026 (cookie half). Both apps (dashboard, super-admin) share one options module, `lib/supabase/cookie-options.ts` (byte-identical, a parity test fails on drift), used by `server.ts`, `proxy.ts` and the browser `client.ts`.
+
+- **Options:** `name: '__Host-sb-auth'`, `secure: true` (explicit: the helper omits it and browsers reject the cookie), `path: '/'`, `sameSite: 'lax'`, no `domain`. Chunks are `__Host-sb-auth.N`. Not HttpOnly (the browser client reads it). Sessions on `owner.`, `portal.` and `www.` are isolated by design; there is no cross-host handoff.
+- **Cutover:** a request with old `sb-<ref>-auth-token*` cookies and no `__Host-` session has the old cookies cleared and goes once to `/auth/login?expired=1` (existing `auth.sessionExpired` copy). On public paths (auth pages, cron, version, privacy, support links) the cookies are cleared with no redirect. Old and new together: old cleared, request continues. Everyone signs in once after release.
+- **Local dev over HTTP:** `AUTH_COOKIE_UNPREFIXED=1` gives the name `sb-auth`, `secure` follows the protocol. In a production environment (`appEnvironment()`, not `NODE_ENV`) `register()` throws and the options builder throws. Without the gate, a prefixed cookie over plain HTTP on a non-localhost host in development throws an explicit error (otherwise login "succeeds" and nobody is signed in).
+- **Release checklist:** (1) send the save-your-work notice to staff before release (23.0 pattern), because every open session is signed out once; (2) Firefox and Safari on real HTTPS (sign in, refresh, new tab, sign out on `owner.` and `portal.`) before cutover; a failure reopens the AD-44 separate-domain fallback.
+
+---
+
 ## 2026-11-08 — Story 24.1 spike: pooler login role, DNS precedence, wildcard certificate and AutoSSL, `__Host-` cookies
 
 Probed 2026-11-01 to 2026-11-08. The owner chose the throwaway label `test` over the suggested `spike-24-1`; nothing resolved at `test.gymosapps.com` beforehand (a real gym could want that name, so it must be on the 24.2 reserved list if FR-202's list lacks it). No application code, migration, `vercel.json` or production database was changed. Spec: `_bmad-output/implementation-artifacts/spec-24-1-spike-pooler-role-dns-precedence-host-cookies-autossl.md`. The pooler probe ran on a throwaway free Supabase project (owner-created, since deleted); DNS probes used the throwaway label `test` under the real zone, with the probe wildcard on `*.test` so the live zone's names were never wildcarded. No password, token or connection string is recorded here.

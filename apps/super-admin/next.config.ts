@@ -34,6 +34,8 @@ const nextConfig: NextConfig = {
   // The commit this build came from; UpdateNotice compares it with /api/version.
   env: {
     NEXT_PUBLIC_BUILD_ID: buildId(),
+    // Story 24-3: local-HTTP dev gate for the unprefixed session cookie, readable by the browser client (lib/supabase/cookie-options.ts).
+    NEXT_PUBLIC_AUTH_COOKIE_UNPREFIXED: process.env.AUTH_COOKIE_UNPREFIXED ?? "",
   },
 };
 
