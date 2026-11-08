@@ -2766,6 +2766,7 @@ export type Database = {
         }[]
       }
       get_gym_page_name: { Args: { p_gym_id: string }; Returns: Json }
+      get_gym_page_status: { Args: { p_gym_id: string }; Returns: Json }
       get_gym_support_proxy_id: {
         Args: never
         Returns: string
