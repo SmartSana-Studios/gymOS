@@ -2,7 +2,7 @@
 title: '24-1 Spike: pooler role, DNS precedence, __Host- cookies, AutoSSL'
 type: 'chore'
 created: '2026-11-01'
-status: 'in-review'
+status: 'done'
 baseline_commit: '9b89903d1cd831c3f49ad94f08a5468c155819e8'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -52,8 +52,8 @@ context:
 **Execution:**
 - [x] `docs/decisions.md` -- add the dated 24.1 entry with four numbered results and "Changes to later stories" -- the story's only deliverable
 - [x] `ARCHITECTURE-SPINE.md` -- resolve AD-42/43/44 assumption tags to the recorded results -- AC requires it
-- [ ] `_bmad-output/implementation-artifacts/sprint-status.yaml` -- 24-1 status follows the workflow
-- [ ] Remove every throwaway artifact (role, label, delegation, test project if created) and say so in the entry
+- [x] `_bmad-output/implementation-artifacts/sprint-status.yaml` -- 24-1 status follows the workflow
+- [x] Remove every throwaway artifact (role, label, delegation, test project if created) and say so in the entry
 
 **Acceptance Criteria:**
 - Given a throwaway login role with `SELECT` on one view, when connected through the pooler as `role.project_ref`, then the entry states transaction-mode behavior, connection-limit behavior, password rotation and one of "use direct role" / "use pre-minted JWT fallback".
