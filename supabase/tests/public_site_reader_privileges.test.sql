@@ -6,7 +6,7 @@
 -- either means editing the pinned list below in the same change (24.7/24.8 extend the view on purpose).
 
 begin;
-select plan(44);
+select plan(47);
 
 -- The migration owner is not allowed to SET ROLE to the reader by default; grant it inside this rolled-back transaction so the
 -- denial assertions below prove a missing privilege, not a missing SET ROLE right.
@@ -159,9 +159,14 @@ select is(
   'reader has USAGE on public_site and on no other schema except platform-owned net (public, private, auth, extensions excluded); see decisions.md 24.4'
 );
 select is((select reloptions from pg_class where oid = 'public_site.pages'::regclass), array['security_barrier=true'], 'public_site.pages is a security_barrier view');
+select is((select reloptions from pg_class where oid = 'public_site.page_media'::regclass), array['security_barrier=true'], 'public_site.page_media is a security_barrier view');
 select is(
   (select count(*)::int from pg_class c where c.relnamespace = 'public_site'::regnamespace and c.relkind <> 'v'), 0,
   'public_site holds views only'
+);
+select is(
+  (select array_agg(relname::text order by relname) from pg_class c where c.relnamespace = 'public_site'::regnamespace),
+  array['page_media', 'pages'], 'public_site holds exactly the views pages and page_media (24.6 added page_media); edit this list with any view change'
 );
 select is(
   (select count(*)::int from pg_proc where pronamespace = 'public_site'::regnamespace), 0,
@@ -173,10 +178,10 @@ select is(
   0, 'anon, authenticated, service_role hold nothing on schema public_site'
 );
 select is(
-  (select count(*)::int from unnest(array['public', 'anon', 'authenticated', 'service_role']) g, unnest(array['public_site.pages', 'public.gym_pages']) t,
+  (select count(*)::int from unnest(array['public', 'anon', 'authenticated', 'service_role']) g, unnest(array['public_site.pages', 'public_site.page_media', 'public.gym_pages', 'public.gym_page_media']) t,
           unnest(array['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) p
    where has_table_privilege(g, t, p)),
-  0, 'PUBLIC, anon, authenticated, service_role hold no privilege on public_site.pages or public.gym_pages'
+  0, 'PUBLIC, anon, authenticated, service_role hold no privilege on the public_site views or the tables behind them'
 );
 -- Pre-existing and outside migration control: pg_net objects are owned by supabase_admin and PUBLIC-readable (also to anon and
 -- authenticated). Version-independent: the reader must hold on schema net exactly what a role with no grants of its own holds
@@ -237,6 +242,12 @@ select is(
    where table_schema = 'public_site' and table_name = 'pages'),
   array['page_name_id', 'template', 'schema_version', 'content', 'published_at', 'updated_at'],
   'public_site.pages columns are pinned (gym_id is deliberately absent); edit this list with any view change'
+);
+select is(
+  (select array_agg(column_name::text order by ordinal_position) from information_schema.columns
+   where table_schema = 'public_site' and table_name = 'page_media'),
+  array['derivative_key', 'kind', 'sort_order'],
+  'public_site.page_media columns are pinned (gym_id and the original key are deliberately absent); edit this list with any view change'
 );
 select is(
   (select array(select (regexp_matches(substring(pg_get_constraintdef(oid) from 'ARRAY\[(.*)\]'), '''([a-z_]+)''', 'g'))[1] order by 1)

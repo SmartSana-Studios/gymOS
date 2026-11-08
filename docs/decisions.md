@@ -5,6 +5,25 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-11-08 — Story 24.6: page media, private originals and re-encoded derivatives
+
+FR-205, AD-47. Migration `0162_gym_page_media.sql` (provisional number; next free at merge); tests `supabase/tests/gym_page_media.test.sql`, `gym_page_media.negative.test.sql`, `apps/dashboard/services/page-media.test.ts`; rollback `scripts/rollback-0162-gym-page-media.sql`. No publish gate, snapshot, purge job, editor UI or page name.
+
+- **Buckets:** `gym-page-media-src` (private) and `gym-page-media` (public reads). No `storage.objects` policy names either bucket, so anon and authenticated have no access through RLS; the only writer is the dashboard server function using the service-role client. The migration's `$verify$` block and a pgTAP test fail if a policy ever names them. Derivative keys are `{random uuid}.webp` and a DB CHECK refuses any key containing the gym id; original keys are `{gym_id}/{uuid}`.
+- **Table `gym_page_media`:** RLS on, no policy, every client privilege revoked. Unique partial index: one live banner and one live logo per gym. `deleted_at` is the only delete; the new `public_site.page_media` view (derivative_key, kind, sort_order; no gym_id; published, not taken down, gym active) drops a deleted row at once. Object removal is 24.11.
+- **RPCs:** `register_page_media(gym, kind, original_key, derivative_key, attested, attestation_version, dry_run)` and `delete_page_media(id)`, same admission as `set_gym_page_content` (Owner, Supervisor, live-assigned support, super admin; a suspended gym is refused except for super admin), capability rows `('gym_page','rpc',...)`, audit actions `gym_page_media_registered/_deleted`. Typed errors travel as exception text (`attestation_required`, `limit_reached`; `permission denied` and `is not active` map to `not_admitted`).
+- **Dry run, not a third RPC:** the spec wants a caller refused before any storage write but the row registered after upload. `p_dry_run` runs admission, attestation, kind, key shape and limits and writes nothing; the server function calls it first, then decodes the file, then uploads, then registers for real (removing both objects if that fails). Limits are counted under a row lock on the gym.
+- **Pipeline (sharp):** type judged by decoded content only (JPEG, PNG, WebP); 5 MiB, 4096 px longest side, decoder pixel limit; `rotate()` applies orientation; resize to 1600 px (512 for the logo), no enlargement; WebP quality 82 with no `withMetadata()`. A hand-built fixture carrying GPS EXIF, orientation, XMP, IPTC and a comment proves none survive; adding `withMetadata()` makes that test fail. The derivative is uploaded with `Cache-Control: max-age=300`.
+- **Logo preparation:** reads the object from `gym-logos` (the path must sit in the gym's own folder) and re-encodes it into the new bucket as kind logo. `gym-logos` and `gyms.logo_url` are untouched. A GIF logo is refused as `unsupported_type`; no logo gives `no_logo`.
+- **Attestation:** the uploader must pass `true`; the row stores `attested_at` and the text version (`PAGE_MEDIA_ATTESTATION_VERSION` in packages/types). Copy in `pageMedia.attestation` EN/FR.
+- **Actor:** `uploaded_by` uses `private.actor_id()` (the proxy for a live support caller); the real person is recorded by the audit_log identity trigger on the audit row, which names the media id. `support_action_identity.test` lists `register_page_media` as covered that way; extending the `support_action_identity.subject_table` CHECK was out of scope.
+- **Tests changed because new objects are in the catalog:** `support_capabilities` (38 objects, 17 RPCs), `support_excluded_from_counts`, `support_request_path` E1, `support_role_live_gate` and `suspension_rpc_coverage` (gym_page_media joins the no-client-grant tables), `support_action_identity`, `public_site_reader_privileges` (page_media columns, security_barrier, views list, no table privileges).
+- **Rollback caveat:** Storage forbids SQL deletes on `storage.buckets` and `storage.objects`, so the rollback script leaves both buckets; empty and delete them through the Storage API.
+- **Dependencies:** `sharp` is now a direct dashboard dependency (`^0.35.5`, same version as the root override). The lockfile was edited by hand (importer entry, `@img/colour` no longer optional) because a regenerate also bumped unrelated `latest` packages; `pnpm install --frozen-lockfile --lockfile-only` accepts it. Vercel bundling of sharp's native binary is unverified until the first deploy.
+- **Not done here:** no UI (24.9), no snapshot or publish reading these rows (24.8), no purge (24.11). Production needs the service-role key already set for the dashboard; the migration creates the buckets.
+
+---
+
 ## 2026-11-08 — Story 24.5: page content fields and public plans
 
 FR-197, FR-200, OQ-28. Migration `0161_gym_page_content.sql` (next free number at merge); tests `supabase/tests/gym_page_content.test.sql` and `apps/dashboard/lib/gymPageContentSchema.test.ts`; rollback `scripts/rollback-0161-gym-page-content.sql`. Storage only: no publish gate, snapshot, media, page name or UI.

@@ -323,6 +323,48 @@ export const setGymPageContentSchema = z.strictObject({
 
 export type SetGymPageContentInput = z.infer<typeof setGymPageContentSchema>;
 
+// Story 24.6 (FR-205, AD-47): page media. Mirrors register_page_media() (0162) and the dashboard server function in
+// apps/dashboard/services/page-media.ts. Content is judged by decoded bytes there, never by these client-sent fields.
+export const PAGE_MEDIA_KINDS = ["logo", "banner", "gallery"] as const;
+export const pageMediaKindSchema = z.enum(PAGE_MEDIA_KINDS);
+export type PageMediaKind = z.infer<typeof pageMediaKindSchema>;
+
+/** Typed refusals of the page media upload. Copy lives in apps/dashboard/locales under `pageMedia.errors.<code>`. */
+export const PAGE_MEDIA_ERROR_CODES = [
+  "unsupported_type",
+  "too_large",
+  "too_many_pixels",
+  "limit_reached",
+  "attestation_required",
+  "not_admitted",
+] as const;
+export type PageMediaErrorCode = (typeof PAGE_MEDIA_ERROR_CODES)[number];
+
+export const PAGE_MEDIA_MAX_BYTES = 5 * 1024 * 1024;
+export const PAGE_MEDIA_MAX_INPUT_PIXELS_SIDE = 4096;
+export const PAGE_MEDIA_MAX_GALLERY = 12;
+/** Longest side of the derivative: 1600 px for banner and gallery, 512 px for the logo. */
+export const PAGE_MEDIA_DERIVATIVE_SIDE: Record<PageMediaKind, number> = { logo: 512, banner: 1600, gallery: 1600 };
+/** Version of the attestation text the uploader agreed to; stored with every row. */
+export const PAGE_MEDIA_ATTESTATION_VERSION = "2026-11-v1";
+
+export const uploadPageMediaFieldsSchema = z.strictObject({
+  gymId: z.uuid(),
+  kind: pageMediaKindSchema,
+  attested: z.literal(true),
+});
+export type UploadPageMediaFields = z.infer<typeof uploadPageMediaFieldsSchema>;
+
+export const pageMediaRowSchema = z.object({
+  id: z.uuid(),
+  gym_id: z.uuid(),
+  kind: pageMediaKindSchema,
+  derivative_key: z.string(),
+  sort_order: z.number().int(),
+  deleted_at: z.string().nullable(),
+});
+export type PageMediaRow = z.infer<typeof pageMediaRowSchema>;
+
 // Story 18.1: one-time registration fee, whole XAF, 0 = off. Validated
 // separately from gymSettingsSchema on purpose -- the fee is saved through its
 // own set_registration_fee() RPC (owner/supervisor, audited), never through the

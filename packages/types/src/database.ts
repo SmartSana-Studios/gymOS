@@ -595,6 +595,55 @@ export type Database = {
           },
         ]
       }
+      gym_page_media: {
+        Row: {
+          attestation_version: string
+          attested_at: string
+          created_at: string
+          deleted_at: string | null
+          derivative_key: string
+          gym_id: string
+          id: string
+          kind: string
+          original_key: string
+          sort_order: number
+          uploaded_by: string | null
+        }
+        Insert: {
+          attestation_version: string
+          attested_at: string
+          created_at?: string
+          deleted_at?: string | null
+          derivative_key: string
+          gym_id: string
+          id?: string
+          kind: string
+          original_key: string
+          sort_order?: number
+          uploaded_by?: string | null
+        }
+        Update: {
+          attestation_version?: string
+          attested_at?: string
+          created_at?: string
+          deleted_at?: string | null
+          derivative_key?: string
+          gym_id?: string
+          id?: string
+          kind?: string
+          original_key?: string
+          sort_order?: number
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gym_page_media_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gym_payment_credentials: {
         Row: {
           business_id_masked: string
@@ -2519,6 +2568,7 @@ export type Database = {
         Args: { p_reason: string; p_user_id: string }
         Returns: { assignment_id: string | null; code: string; ok: boolean }[]
       }
+      delete_page_media: { Args: { p_media_id: string }; Returns: undefined }
       disconnect_gym_payment_credentials: {
         Args: { p_provider_key: string }
         Returns: undefined
@@ -3016,6 +3066,18 @@ export type Database = {
       }
       record_registration_fee: {
         Args: { p_member_id: string; p_method: string; p_reason: string }
+        Returns: string
+      }
+      register_page_media: {
+        Args: {
+          p_attested: boolean
+          p_attestation_version: string
+          p_derivative_key: string
+          p_dry_run?: boolean
+          p_gym_id: string
+          p_kind: string
+          p_original_key: string
+        }
         Returns: string
       }
       record_session_payment: {

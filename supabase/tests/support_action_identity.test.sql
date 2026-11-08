@@ -418,6 +418,7 @@ create temp table actor_callers_covered (fn text primary key, covered_by text no
 insert into actor_callers_covered (fn, covered_by) values
   ('log_audit_event(text,uuid,text,text,jsonb,text)',  'audit_log trigger'),
   ('confirm_renewal(uuid,text,text,boolean)',          'payments trigger'),
+  ('register_page_media(uuid,text,text,text,boolean,text,boolean)', 'audit_log trigger (the audit row names the media id)'),
   ('initiate_registration_fee_payment(uuid)',          'payments trigger'),
   ('initiate_session_payment()',                       'payments trigger'),
   ('record_registration_fee(uuid,text,text)',          'payments trigger'),

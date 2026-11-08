@@ -328,6 +328,19 @@
       "saveFailed": "Impossible de modifier le support GymOS. Réessayez."
     }
   },
+  "pageMedia": {
+    "attestation": "J'ai le droit de publier cette image et je comprends qu'elle sera affichée sur ma page publique.",
+    "errors": {
+      "unsupported_type": "Ce fichier n'est pas une image prise en charge. Utilisez une photo JPEG, PNG ou WebP.",
+      "too_large": "Cette image est trop volumineuse. La taille maximale est de 5 Mio (environ 5,2 Mo).",
+      "too_many_pixels": "Cette image a trop de pixels. Le plus grand côté doit faire 4096 pixels ou moins.",
+      "limit_reached": "Vous avez atteint la limite de 12 images dans la galerie. Supprimez-en une pour en ajouter une autre.",
+      "attestation_required": "Confirmez que vous pouvez publier cette image avant de l'envoyer.",
+      "not_admitted": "Vous n'êtes pas autorisé à modifier les images de la page de cette salle.",
+      "noLogo": "Cette salle n'a pas de logo à préparer. Envoyez d'abord un logo.",
+      "uploadFailed": "L'image n'a pas pu être enregistrée. Veuillez réessayer."
+    }
+  },
   "staff": {
     "gymosSupport": {"name":"Support GymOS","role":"Support GymOS"},
     "supportTag": "Créé par Support GymOS",
