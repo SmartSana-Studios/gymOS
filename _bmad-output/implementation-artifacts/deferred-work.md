@@ -1639,17 +1639,19 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-4-public-site-schema-and-hardened-reader-role.md`
   summary: Landing no-Supabase check does not scan lockfile, workspace dependencies, `next.config` env or `turbo.json`; `gym_pages.content` has no value-type or size limits, `page_name_id` no uniqueness.
   evidence: Low-severity gaps beyond the spec's manifest scope; content and name constraints belong to 24.7/24.8.
+  closed: [Partly closed in 24.8, see "Closed by build of spec-24-8" at the end.]
 
 ## Deferred from: code review of spec-24-4 (2026-11-08)
 
 - `REVOKE USAGE ON SCHEMA public FROM PUBLIC` effect on platform roles `authenticator`, `supabase_storage_admin`, `supabase_realtime_admin`, `pgbouncer`, `dashboard_user` is unverified (medium if true). Settle with a production role-by-role USAGE probe before release (pre-release checklist item 4).
-- `gym_pages.content` CHECK limits top-level keys only; nested type and size limits belong to 24-7/24-8.
+- `gym_pages.content` CHECK limits top-level keys only; nested type and size limits belong to 24-7/24-8. [Closed in 24.8, see "Closed by build of spec-24-8" at the end.]
 
 ## Deferred from: code review of spec-24-5 (2026-11-08)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-5-page-content-fields-and-public-plans.md`
   summary: Close before 24.8 ships: the publish gate must also require lat and lng together, and decide what `open == close` and an empty `{}` hours object mean; the snapshot renderer must escape all gym text (the `<` `>` check is a blocklist only, control characters and entity-encoded markup are stored as typed).
   evidence: Setter and CHECKs accept a lat without a lng, `open == close` and `{}` hours; page completeness is FR-199 (24.8).
+  closed: [Partly closed in 24.8, see "Closed by build of spec-24-8" at the end.]
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-5-page-content-fields-and-public-plans.md`
   summary: Close before 24.9 ships: add one shared valid/invalid fixture that both the Zod schema (vitest) and `set_gym_page_content` (pgTAP) must agree on, covering emoji length (UTF-16 vs code points) and the lat/lng rounding edge (SQL rounds to 6 places before the range check, Zod rejects 90.0000004).
   evidence: The two layers are tested only against themselves; whitespace trimming already diverged once and was patched.
@@ -1659,13 +1661,13 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 
 ## Deferred from: code review of spec-24-5-page-content-fields-and-public-plans (2026-11-08)
 
-- **Lat/lng can be stored independently** (`supabase/migrations/0161_gym_page_content.sql:95`). A half-set coordinate can reach the 24.8 gate. Fix: require the pair in the 24.8 publish gate / 24.9 form, or add CHECK `(page_lat is null) = (page_lng is null)`.
-- **`pin_plan_public` silently makes directly inserted plans private** for every writer including `service_role`. Audit seeds, imports, plan-duplicate and `scripts/demo-gym/` for inserts that expect `is_public = true` before 24.8.
+- **Lat/lng can be stored independently** (`supabase/migrations/0161_gym_page_content.sql:95`). A half-set coordinate can reach the 24.8 gate. Fix: require the pair in the 24.8 publish gate / 24.9 form, or add CHECK `(page_lat is null) = (page_lng is null)`. [Closed in 24.8, see "Closed by build of spec-24-8" at the end.]
+- **`pin_plan_public` silently makes directly inserted plans private** for every writer including `service_role`. Audit seeds, imports, plan-duplicate and `scripts/demo-gym/` for inserts that expect `is_public = true` before 24.8. [Closed in 24.8, see "Closed by build of spec-24-8" at the end.]
 - **`gyms` INSERT is not pinned** (`pin_gym_page_content` is BEFORE UPDATE only). A super admin insert can write page fields with no setter or audit row. Owner confirmed keep deferred at the 24-5 review (2026-11-08).
 
 ## Deferred from: code review of spec-24-6-page-media-private-originals-re-encoded-derivatives (2026-11-08)
 
-- **`public_site.page_media` has no per-page join key** (`supabase/migrations/0162_gym_page_media.sql`, view). It exposes only `derivative_key`, `kind`, `sort_order`, so a reader sees every published gym's media in one list. Close before 24.8: tie media to the page snapshot (24.8 owns this; use a non-leaking key such as `page_name_id`, not `gym_id`) and update `public_site_reader_privileges.test.sql` deliberately.
+- **`public_site.page_media` has no per-page join key** (`supabase/migrations/0162_gym_page_media.sql`, view). It exposes only `derivative_key`, `kind`, `sort_order`, so a reader sees every published gym's media in one list. Close before 24.8: tie media to the page snapshot (24.8 owns this; use a non-leaking key such as `page_name_id`, not `gym_id`) and update `public_site_reader_privileges.test.sql` deliberately. [Closed in 24.8, see "Closed by build of spec-24-8" at the end.]
 - **Deleted and replaced derivatives stay fetchable by URL, originals keep their metadata, until the 24.11 purge.** Known and accepted in the spec; 24.11 must land before any public launch of landing pages. Close before the landing-page feature flag is on.
 - **Registering after a lost RPC response removes live objects** (`apps/dashboard/services/page-media.ts` `storeAndRegister`). If `register_page_media` commits but the response is lost, the catch deletes the objects the row points at. Fix: on an ambiguous failure look up the derivative key before removing. Rare; not seen.
 - **Concurrent uploads, real Storage and Vercel sharp bundling are unverified.** Storage uploads and `Cache-Control: max-age=300` were checked against mocks only; sharp's native binary on Vercel is first exercised at the first deploy. Verify on the first preview deploy that uploads 24.9 sends work end to end.
@@ -1682,11 +1684,11 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 ## Deferred from: build of spec-24-7-page-names-claim-hold-rename-redirect (2026-11-08)
 
 - **Word-list screen for Super Admin is not built.** `add_page_name_word`, `remove_page_name_word` and `list_page_name_words` exist, audited and tested, but there is no UI; until one exists a Super Admin changes words through the API or SQL. Zone words cannot be removed by the function (migration only). Build with the Owner/Super Admin name work in 24.9 or 24.11.
-- **`gym_pages.content` nested value limits move to 24.8.** The 24-4 item "content has no value-type or size limits" is not closed here; 24.7 closed only `page_name_id` uniqueness (foreign key and unique index). 24.8 builds the snapshot and owns the content shape.
-- **Redirect lookup and the name-active predicate are not wired.** `public_site.pages` does not yet join `page_names` (24.8) and nothing serves a redirect (24.10); until then a `redirect` row has no reader.
+- **`gym_pages.content` nested value limits move to 24.8.** The 24-4 item "content has no value-type or size limits" is not closed here; 24.7 closed only `page_name_id` uniqueness (foreign key and unique index). 24.8 builds the snapshot and owns the content shape. [Closed in 24.8, see "Closed by build of spec-24-8" at the end.]
+- **Redirect lookup and the name-active predicate are not wired.** `public_site.pages` does not yet join `page_names` (24.8) and nothing serves a redirect (24.10); until then a `redirect` row has no reader. [Partly closed in 24.8, see "Closed by build of spec-24-8" at the end.]
 - **A gym going back to its own redirected name loses that redirect if the hold is then rejected.** The redirect is released at claim time so the held row can take the unique name. Rare; revisit if rejections of returning names are common.
 - **Near-match scan reads every non-released name and folds it per claim.** Fine at hundreds of gyms; add a functional index on the folded name or a stored fold column if claims slow down.
-- **A suspended gym with a published page keeps its name past 12 months** (literal spec: the sweep releases only with no published page). Confirm with 24.8, which decides whether suspension unpublishes the page.
+- **A suspended gym with a published page keeps its name past 12 months** (literal spec: the sweep releases only with no published page). Confirm with 24.8, which decides whether suspension unpublishes the page. [Closed in 24.8, see "Closed by build of spec-24-8" at the end.]
 
 ## Deferred from: code review of spec-24-7-page-names-claim-hold-rename-redirect (2026-11-08)
 
@@ -1708,9 +1710,48 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-7-page-names-claim-hold-rename-redirect.md`
   summary: Close before 24.8 publishes: `gym_pages.page_name_id` has a plain foreign key only, so a page could reference another gym's name or a held/redirect/released row.
   evidence: Nothing writes the column yet. 24.8's publish/snapshot writer must require the gym's own `active` name (or add a composite FK `(gym_id, page_name_id)`); put it in the 24.8 acceptance criteria.
+  closed: [Closed in 24.8, see "Closed by build of spec-24-8" at the end.]
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-7-page-names-claim-hold-rename-redirect.md`
   summary: Close before 24.9 / 24.11: the Owner is not told when a Super Admin claim replaces their name (old links die at once) or when the sweep releases an idle name after 12 months; no pre-release warning.
   evidence: Only `decide_held_page_name` writes a notice. Not in the 24.7 spec. Add notice copy (EN/FR) and an optional 11-month warning to the 24.9 or 24.11 acceptance criteria.
+  closed: [Partly closed in 24.8, see "Closed by build of spec-24-8" at the end.]
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-7-page-names-claim-hold-rename-redirect.md`
   summary: Brand-word check runs on the unfolded name, so `s3cure-l0gin` (folds to `securelogin`) is not refused or held; extends the brand-word substring item above.
   evidence: `private.page_name_has_brand_word` uses `position(word in name)` on the raw name; near-match only compares the whole folded name to a brand word. Decide with the substring product call before the first real gym claims a name.
+
+## Closed by build of spec-24-8 (2026-11-08)
+
+Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says what closed an earlier item and where the evidence is.
+
+- **24-4 / 24-7: `gym_pages.content` value limits.** CHECK `gym_pages_content_keys` now also requires `plans` and `gallery` to be arrays, `hours` an object and the whole value at most 64 KiB; `name` joins the allowed keys. Evidence: `gym_page_publish.negative.test.sql` (the table's own walls). A snapshot over the cap is a gate code (`too_large`, limit 65000 bytes) so a trigger never raises the CHECK.
+- **24-5: publish gate requires lat and lng together; `open == close` and `{}` hours.** The gate reports `map_incomplete` for a half coordinate and `no_hours` unless one day is non-null. `open == close` and `{}` were already refused by the 24-5 CHECK (patched there). The CHECK `(page_lat is null) = (page_lng is null)` was not added: the setter may still store a half pair while the Owner is typing, and the gate (publish and refresh) is the wall. The renderer-escaping half of that item moves to 24.10 (below).
+- **24-5: `pin_plan_public` insert audit (read-only, nothing changed).** Plans are inserted by `apps/dashboard/services/plans.ts` (`insertPlan`, no `is_public`), `apps/dashboard/scripts/dev-seed.mjs`, `apps/dashboard/e2e/fixtures/seed.ts`, `scripts/epic18-qa`, `epic19-qa`, `epic20-qa`, `epic23-qa` seeds, `scripts/session-refund-race.sh` and the untracked `scripts/demo-gym/seed.mjs`. None sets `is_public` or a public label, and no plan-duplication code exists, so nothing expects a plan to arrive public. Consequence to know: a seeded demo gym has no public plan until `set_gym_page_content` marks one, so its page fails the gate with `no_public_plan`.
+- **24-6: `public_site.page_media` per-page join key.** The view is now a projection of the snapshot (`logo`, `banner`, `gallery` keys) with `page_name_id` as the join key to `public_site.pages`; `gym_id` is not a column. Evidence: `public_site_reader_privileges.test.sql`, `gym_page_publish.test.sql`.
+- **24-7: name-active predicate.** One private view `private.gym_page_visible` (published, not unpublished, not taken down, name active and not taken down, gym active) feeds both public views. The redirect lookup is still 24.10.
+- **24-7: `gym_pages.page_name_id` ownership.** Composite foreign key `(gym_id, page_name_id)` to `page_names`, backed by a unique index on `page_names (gym_id, id)`; the single-column key was replaced. Publish and refresh write the gym's own `active` name.
+- **24-7: a suspended gym with a published page keeps its name past 12 months.** Owner decision 2026-11-08 (option B): suspension keeps the snapshot (the predicate hides it); once the active name passes `reserved_until` for a gym that is not active, the sweep unpublishes the page (reason `name_released`), tells the Owners and releases the name and its redirects. Tests: suspended gym at 11 and 13 months and reactivation after release.
+- **24-7: Owner notice when the sweep releases a name.** Done for the new case (a non-active gym with a live page). Still open: the sweep releases the name of an ACTIVE gym whose page is not published, a Super Admin forced rename replaces a name, and there is no 11-month warning.
+
+## Deferred from: build of spec-24-8-publish-gate-snapshot-and-unpublish (2026-11-08)
+
+- **Renderer escaping moves to 24.10.** The snapshot is plain text from tenant columns; the database blocks `<` and `>` and (via the gate) control characters, but entity-encoded markup and other lookalikes are stored as typed. The 24.10 templates must escape every string they print and print none as HTML; add a conformance case with hostile snapshot text.
+- **Gate-checklist read function for 24.9.** `private.gym_page_gate_missing` is private and only reachable through `publish_gym_page`, which writes when the gate holds. The "what becomes public" screen and a live checklist need a read-only function (Owner, Supervisor, live support, Super Admin) that returns the missing codes and the would-be snapshot without writing. The shared Zod/SQL fixture from the 24-5 item also stays with 24.9.
+- **Normalise CR and LF in the editor (24.9).** The gate rejects any control character except newline and tab, so a carriage return (CRLF from a pasted Windows text) fails the gate with `bad_text`. The editor must store LF only.
+- **`<` and `>` in a gym or plan name block publishing (`bad_text`).** Gym names and plan names have no CHECK against them (the 24-5 CHECKs cover page fields only). 24.9 should say which field is at fault; consider a CHECK on `plans.name` and `gyms.name`.
+- **Deferred triggers and DDL.** The refresh triggers are deferred constraint triggers, so `ALTER TABLE` on `gyms`, `plans`, `gym_page_media` or `page_names` in a transaction that already changed a watched column fails ("pending trigger events"). Tests call `set constraints all immediate` first. A migration that updates those columns and then alters the table in one transaction must do the same.
+- **Lock order on plan edits.** A bare plan update takes the plan row and then, at commit, the gym row (`refresh_gym_page` locks the gym first); `set_gym_page_content` takes the gym row and then plan rows. Two such transactions can deadlock (PostgreSQL aborts one). Rare; not observed.
+- **Auto-unpublish is attributed to whoever made the change.** The audit row for a gate-driven unpublish uses `log_audit_event`'s actor (the Owner whose edit broke the gate) with metadata reason `gate`; only a change with no session (the sweep, service role) shows a `system:` label. A reader of the audit log can mistake it for a manual unpublish; the Epic 24 labels pass (24-7 item) should show the reason.
+- **`gym_page_published` / `gym_page_unpublished` have no labels in `auditLabels.ts`.** Same Epic 24 labels pass as the `page_name_*` types.
+- **Takedown writer (24.11) obligations.** It must set `taken_down_at` on `gym_pages` (the predicate and publish already honour it), be added to the writer allowlist in `gym_page_publish.test.sql`, and, when it sets `page_names.taken_down_at`, the existing page-name trigger already judges the page (it unpublishes with `no_name`). Decide whether a taken-down name should unpublish or only hide.
+- **Template names are not validated against a registry.** `publish_gym_page` checks only the name shape; 24.10 owns the registry and should refuse an unknown template at render time and in the publish screen.
+- **`gym_pages.schema_version` is never bumped.** The snapshot shape is version 1; the first change to the key list must bump it and the 24.10 reader must branch on it.
+- **Concurrency is argued, not tested.** The gym row lock in publish and refresh is exercised in one session only; a two-session publish-versus-edit race test (like `session-refund-race.sh`) was not written. `refresh_gym_page` returns early WITHOUT a lock when no live page exists, so an edit that commits while a concurrent publish is still running (and read the pre-edit rows) is not re-judged by that edit's trigger: the page can go live on a gate evaluated just before the edit committed, until the next change refreshes it. Narrow; the lock-first form would close it at the cost of a gym row lock on every plan or media change.
+
+## Deferred from: code review of spec-24-8-publish-gate-snapshot-and-unpublish (2026-11-08)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md`
+  summary: Close before 24.9 ships: the 24.9 editor must normalise CRLF to LF before saving about, services and address text, because the 24.8 gate rejects a carriage return (`bad_text`) while the 24.5 setter stores it as typed.
+  evidence: The frozen rule is "control characters other than newline and tab"; a browser textarea posted as a form can carry CRLF, so every multi-line About would fail the gate with a misleading "control characters" message. Add a test that a CRLF input saves and publishes.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md`
+  summary: Close before 24.10 ships: the snapshot carries no timezone, so a template cannot label opening hours or show an "open now" state; decide whether 24.10 needs a `timezone` content key.
+  evidence: The hours are bare `HH:MM` strings. Adding a key means changing the `gym_pages_content_keys` CHECK, the pinned key-path test and `public_site_reader_privileges.test.sql` together; not required by FR-196 to FR-207.

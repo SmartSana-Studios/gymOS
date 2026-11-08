@@ -356,6 +356,34 @@
       "gym_not_active": "The page name cannot be changed while the gym is suspended."
     }
   },
+  "pagePublish": {
+    "gate": {
+      "no_name": "Choose a page name.",
+      "no_category": "Choose a category for your gym.",
+      "no_logo": "Add a logo.",
+      "no_banner": "Add a banner image.",
+      "about_short": "Write an About text of at least 100 characters, in English or in French.",
+      "no_country": "Set the country.",
+      "no_city": "Add the city.",
+      "no_contact": "Add a public phone or WhatsApp number.",
+      "no_hours": "Add opening hours for at least one day.",
+      "no_public_plan": "Make at least one plan public.",
+      "map_incomplete": "Set both the latitude and the longitude, or clear both.",
+      "bad_text": "Remove special control characters and the characters < and > from your page text.",
+      "too_large": "Your page has too much content. Make fewer plans public or shorten your texts."
+    },
+    "unpublishReason": {
+      "owner": "You took the page offline.",
+      "name_released": "The page name was released after 12 months without an active gym."
+    },
+    "errors": {
+      "taken_down": "This page was taken down by GymOS and cannot be published.",
+      "template_required": "Choose a template before publishing for the first time.",
+      "invalid_template": "This template is not valid. Choose another one.",
+      "not_admitted": "You are not allowed to publish this gym's page.",
+      "gym_not_active": "The page cannot be published while the gym is suspended."
+    }
+  },
   "staff": {
     "gymosSupport": {"name":"GymOS Support","role":"GymOS Support"},
     "supportTag": "Created by GymOS Support",

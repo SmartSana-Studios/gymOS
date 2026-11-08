@@ -255,8 +255,10 @@ select is(
   --                             the gym is suspended
   --   gym_page_media          - 24.6: RLS on, no client policy, no client grant; written only by register_page_media()/delete_page_media(),
   --                             read only by the public_site.page_media view (same gym-active predicate)
-  --   gym_pages               - 24.4: RLS on, no client policy, no client grant; read only by the public_site.pages view,
-  --                             whose predicate (gym status active) is the suspension gate for the public site
+  --   gym_pages               - 24.4: RLS on, no client policy, no client grant; read only by the private.gym_page_visible view (24.8)
+  --                             behind public_site.pages and page_media, whose predicate (gym status active) is the suspension gate for the public
+  --                             site. Written only by publish_gym_page (status-guarded for a non-Super-Admin), unpublish_gym_page (deliberately NOT
+  --                             guarded: an Owner of a suspended gym can always take the page down), the refresh triggers and the page-name sweep
   --   page_names              - 24.7: RLS on, no client policy, no client grant; written only by claim_page_name() (Owner or Super Admin,
   --                             active gym required for the Owner) and the Super Admin/lifecycle functions, which must keep working for a
   --                             suspended gym (the idle clock and the sweep run on suspension by design)

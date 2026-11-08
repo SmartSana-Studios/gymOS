@@ -285,6 +285,8 @@ select is((select page_city || '|' || page_lat::text from gyms where id = '00000
 select is((select is_public from plans where id = '00000000-0000-0000-0000-000000240542'), false, 'the pin reverted a service_role direct plan write');
 
 -- the pin is what blocks it: with the triggers off the same writes land
+-- (24.8: the page refresh triggers are deferred; ALTER TABLE refuses while events are pending, so fire them now. No page exists here, so they do nothing.)
+set constraints all immediate;
 alter table gyms disable trigger pin_gym_page_content;
 alter table plans disable trigger pin_plan_public_update;
 set local role authenticated;
@@ -300,12 +302,14 @@ select throws_ok($$update gyms set page_about_en = '<b>' where id = '00000000-00
 select throws_ok($$update gyms set page_hours = '{"xyz":1}'::jsonb where id = '00000000-0000-0000-0000-000000240511'$$, '23514', null, 'CHECK: a bad hours object');
 select throws_ok($$update plans set public_label_en = '<b>' where id = '00000000-0000-0000-0000-000000240541'$$, '23514', null, 'CHECK: markup in a plan label');
 -- the insert pin is what forces a new plan private
+set constraints all immediate;
 alter table plans disable trigger pin_plan_public_insert;
 set local role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-000000240521', 'owner', '00000000-0000-0000-0000-000000240511');
 select is(pg_temp.err($$insert into plans (gym_id, name, plan_type, price, billing_interval, duration_days, is_public) values ('00000000-0000-0000-0000-000000240511', 'PG Direct Two', 'monthly', 1, 'monthly', 30, true)$$), 'ok', 'insert pin off: a direct insert with is_public = true runs');
 reset role;
 select is((select is_public from plans where name = 'PG DIRECT TWO'), true, 'with the insert pin removed the plan lands public (the insert pin is what blocked it)');
+set constraints all immediate;
 alter table plans enable trigger pin_plan_public_insert;
 alter table gyms enable trigger pin_gym_page_content;
 alter table plans enable trigger pin_plan_public_update;

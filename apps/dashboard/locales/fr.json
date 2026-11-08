@@ -356,6 +356,34 @@
       "gym_not_active": "Le nom de la page ne peut pas être modifié tant que la salle est suspendue."
     }
   },
+  "pagePublish": {
+    "gate": {
+      "no_name": "Choisissez un nom de page.",
+      "no_category": "Choisissez une catégorie pour votre salle.",
+      "no_logo": "Ajoutez un logo.",
+      "no_banner": "Ajoutez une image de bannière.",
+      "about_short": "Rédigez un texte de présentation d'au moins 100 caractères, en français ou en anglais.",
+      "no_country": "Indiquez le pays.",
+      "no_city": "Ajoutez la ville.",
+      "no_contact": "Ajoutez un numéro public de téléphone ou de WhatsApp.",
+      "no_hours": "Ajoutez des horaires pour au moins un jour.",
+      "no_public_plan": "Rendez au moins un abonnement public.",
+      "map_incomplete": "Renseignez la latitude et la longitude, ou videz les deux.",
+      "bad_text": "Retirez les caractères de contrôle spéciaux et les caractères < et > du texte de votre page.",
+      "too_large": "Votre page a trop de contenu. Rendez moins d'abonnements publics ou raccourcissez vos textes."
+    },
+    "unpublishReason": {
+      "owner": "Vous avez mis la page hors ligne.",
+      "name_released": "Le nom de la page a été libéré après 12 mois sans salle active."
+    },
+    "errors": {
+      "taken_down": "Cette page a été retirée par GymOS et ne peut pas être publiée.",
+      "template_required": "Choisissez un modèle avant de publier pour la première fois.",
+      "invalid_template": "Ce modèle n'est pas valide. Choisissez-en un autre.",
+      "not_admitted": "Vous n'êtes pas autorisé à publier la page de cette salle.",
+      "gym_not_active": "La page ne peut pas être publiée tant que la salle est suspendue."
+    }
+  },
   "staff": {
     "gymosSupport": {"name":"Support GymOS","role":"Support GymOS"},
     "supportTag": "Créé par Support GymOS",

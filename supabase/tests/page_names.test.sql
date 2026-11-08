@@ -503,8 +503,8 @@ select is((select array_agg(proname::text order by proname) from pg_proc
           'the functions that write page_names are exactly the five allowlisted (24.8 and 24.11 add theirs here deliberately)');
 select is((select array_agg(proname::text order by proname) from pg_proc
             where pronamespace = 'public'::regnamespace and prokind = 'f' and (prosrc ~* '\mpage_names\M' or prosrc ~* '\mpage_name_words\M')),
-          array['add_page_name_word', 'claim_page_name', 'decide_held_page_name', 'get_gym_page_name', 'list_held_page_names', 'list_page_name_words', 'remove_page_name_word']::text[],
-          'the client-callable functions that touch the page name tables are exactly the seven');
+          array['add_page_name_word', 'claim_page_name', 'decide_held_page_name', 'get_gym_page_name', 'list_held_page_names', 'list_page_name_words', 'publish_gym_page', 'remove_page_name_word']::text[],
+          'the client-callable functions that touch the page name tables are exactly the seven plus publish_gym_page (24.8 reads the active name; it writes none)');
 select is((select count(*)::int from pg_proc where proname = 'claim_page_name' and prosrc ~* 'is_super_admin_live' and prosrc ~* 'p_gym_id\s+is\s+distinct\s+from\s+private\.gym_id\(\)'
             and prosrc ~* 'current_member_role\(\)\s+is\s+distinct\s+from\s+''owner''' and prosrc ~* 'current_gym_status\(\)\s+is\s+distinct\s+from\s+''active''' and prosrc !~* 'support_rpc|supervisor'), 1,
           'claim_page_name admits exactly the gym''s Owner (current gym) and a live Super Admin, requires an active gym, and names no other role');
@@ -517,7 +517,7 @@ select is((select count(*)::int from pg_proc where pronamespace = 'private'::reg
             and prosecdef), 5, 'the private writers and triggers are security definer');
 
 -- ---- gym_pages.page_name_id: foreign key and uniqueness ----------------------------------------------------------------------------------------
-select is(pg_temp.err($$insert into gym_pages (gym_id, template, page_name_id) values ('$$ || pg_temp.g('I') || $$', 'x', gen_random_uuid())$$), '23503:insert or update on table "gym_pages" violates foreign key constraint "gym_pages_page_name_id_fkey"', 'gym_pages refuses a page_name_id that is not a page name');
+select is(pg_temp.err($$insert into gym_pages (gym_id, template, page_name_id) values ('$$ || pg_temp.g('I') || $$', 'x', gen_random_uuid())$$), '23503:insert or update on table "gym_pages" violates foreign key constraint "gym_pages_gym_page_name_fkey"', 'gym_pages refuses a page_name_id that is not a page name (24.8: the composite (gym_id, page_name_id) key)');
 select is(pg_temp.err($$insert into gym_pages (gym_id, template, page_name_id) values ('$$ || pg_temp.g('I') || $$', 'x', (select id from page_names where name = 'down-box'))$$), 'ok', 'control: a real page name is accepted');
 select is(substr(pg_temp.err($$insert into gym_pages (gym_id, template, page_name_id) values ('$$ || pg_temp.g('J') || $$', 'x', (select id from page_names where name = 'down-box'))$$), 1, 5), '23505', 'the same page name cannot back two pages');
 

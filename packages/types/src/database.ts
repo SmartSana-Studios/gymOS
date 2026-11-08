@@ -644,6 +644,58 @@ export type Database = {
           },
         ]
       }
+      gym_pages: {
+        Row: {
+          content: Json
+          gym_id: string
+          page_name_id: string | null
+          published_at: string | null
+          schema_version: number
+          taken_down_at: string | null
+          template: string
+          unpublished_at: string | null
+          unpublished_reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          content?: Json
+          gym_id: string
+          page_name_id?: string | null
+          published_at?: string | null
+          schema_version?: number
+          taken_down_at?: string | null
+          template: string
+          unpublished_at?: string | null
+          unpublished_reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content?: Json
+          gym_id?: string
+          page_name_id?: string | null
+          published_at?: string | null
+          schema_version?: number
+          taken_down_at?: string | null
+          template?: string
+          unpublished_at?: string | null
+          unpublished_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gym_pages_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gym_pages_gym_page_name_fkey"
+            columns: ["gym_id", "page_name_id"]
+            referencedRelation: "page_names"
+            referencedColumns: ["gym_id", "id"]
+          },
+        ]
+      }
       gym_payment_credentials: {
         Row: {
           business_id_masked: string
@@ -3166,6 +3218,10 @@ export type Database = {
           display_name_set: boolean
         }[]
       }
+      publish_gym_page: {
+        Args: { p_gym_id: string; p_template?: string }
+        Returns: Json
+      }
       record_otp_resend: {
         Args: { p_phone: string }
         Returns: {
@@ -3300,6 +3356,7 @@ export type Database = {
         Args: { p_plan_id: string }
         Returns: undefined
       }
+      unpublish_gym_page: { Args: { p_gym_id: string }; Returns: boolean }
       update_class: {
         Args: {
           p_capacity: number
