@@ -1644,3 +1644,15 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 
 - `REVOKE USAGE ON SCHEMA public FROM PUBLIC` effect on platform roles `authenticator`, `supabase_storage_admin`, `supabase_realtime_admin`, `pgbouncer`, `dashboard_user` is unverified (medium if true). Settle with a production role-by-role USAGE probe before release (pre-release checklist item 4).
 - `gym_pages.content` CHECK limits top-level keys only; nested type and size limits belong to 24-7/24-8.
+
+## Deferred from: code review of spec-24-5 (2026-11-08)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-5-page-content-fields-and-public-plans.md`
+  summary: Close before 24.8 ships: the publish gate must also require lat and lng together, and decide what `open == close` and an empty `{}` hours object mean; the snapshot renderer must escape all gym text (the `<` `>` check is a blocklist only, control characters and entity-encoded markup are stored as typed).
+  evidence: Setter and CHECKs accept a lat without a lng, `open == close` and `{}` hours; page completeness is FR-199 (24.8).
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-5-page-content-fields-and-public-plans.md`
+  summary: Close before 24.9 ships: add one shared valid/invalid fixture that both the Zod schema (vitest) and `set_gym_page_content` (pgTAP) must agree on, covering emoji length (UTF-16 vs code points) and the lat/lng rounding edge (SQL rounds to 6 places before the range check, Zod rejects 90.0000004).
+  evidence: The two layers are tested only against themselves; whitespace trimming already diverged once and was patched.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-5-page-content-fields-and-public-plans.md`
+  summary: `gyms` INSERT is not pinned, so a super admin insert can write page fields without the setter or an audit row; also `gym_page_content.test.sql` checks the setter's admitted roles by regexp over `prosrc` rather than looping over the role enum, and `scripts/rollback-0161-gym-page-content.sql` is not run by any test.
+  evidence: `super_admin_insert_gyms` is the only gyms insert path, so no Owner can reach it; the rollback was applied, rolled back and re-applied by hand once.

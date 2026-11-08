@@ -683,6 +683,17 @@ export type Database = {
           member_cap_override: number | null
           name: string
           opening_time: string | null
+          page_about_en: string | null
+          page_about_fr: string | null
+          page_address: string | null
+          page_city: string | null
+          page_contact_phone: string | null
+          page_contact_whatsapp: string | null
+          page_hours: Json | null
+          page_lat: number | null
+          page_lng: number | null
+          page_services_en: string | null
+          page_services_fr: string | null
           primary_color: string | null
           registration_fee: number
           saas_billing_anchor_date: string
@@ -716,6 +727,17 @@ export type Database = {
           member_cap_override?: number | null
           name: string
           opening_time?: string | null
+          page_about_en?: string | null
+          page_about_fr?: string | null
+          page_address?: string | null
+          page_city?: string | null
+          page_contact_phone?: string | null
+          page_contact_whatsapp?: string | null
+          page_hours?: Json | null
+          page_lat?: number | null
+          page_lng?: number | null
+          page_services_en?: string | null
+          page_services_fr?: string | null
           primary_color?: string | null
           registration_fee?: number
           saas_billing_anchor_date?: string
@@ -749,6 +771,17 @@ export type Database = {
           member_cap_override?: number | null
           name?: string
           opening_time?: string | null
+          page_about_en?: string | null
+          page_about_fr?: string | null
+          page_address?: string | null
+          page_city?: string | null
+          page_contact_phone?: string | null
+          page_contact_whatsapp?: string | null
+          page_hours?: Json | null
+          page_lat?: number | null
+          page_lng?: number | null
+          page_services_en?: string | null
+          page_services_fr?: string | null
           primary_color?: string | null
           registration_fee?: number
           saas_billing_anchor_date?: string
@@ -1376,9 +1409,12 @@ export type Database = {
           duration_days: number | null
           gym_id: string
           id: string
+          is_public: boolean
           name: string
           plan_type: Database["public"]["Enums"]["plan_type"]
           price: number
+          public_label_en: string | null
+          public_label_fr: string | null
         }
         Insert: {
           annual_discount_percent?: number | null
@@ -1388,9 +1424,12 @@ export type Database = {
           duration_days?: number | null
           gym_id: string
           id?: string
+          is_public?: boolean
           name: string
           plan_type: Database["public"]["Enums"]["plan_type"]
           price: number
+          public_label_en?: string | null
+          public_label_fr?: string | null
         }
         Update: {
           annual_discount_percent?: number | null
@@ -1400,9 +1439,12 @@ export type Database = {
           duration_days?: number | null
           gym_id?: string
           id?: string
+          is_public?: boolean
           name?: string
           plan_type?: Database["public"]["Enums"]["plan_type"]
           price?: number
+          public_label_en?: string | null
+          public_label_fr?: string | null
         }
         Relationships: [
           {
@@ -3024,6 +3066,10 @@ export type Database = {
       set_guest_charging: { Args: { p_enabled: boolean }; Returns: undefined }
       set_gym_category: {
         Args: { p_category: string; p_gym_id: string }
+        Returns: undefined
+      }
+      set_gym_page_content: {
+        Args: { p_content: Json; p_gym_id: string; p_plans?: Json }
         Returns: undefined
       }
       set_loyalty_program: {

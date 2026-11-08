@@ -39,7 +39,7 @@ export function gymCategoryLabel(code: string, locale: string): string {
 }
 
 // E.164: leading '+', country code, up to 15 digits total, no spaces/punctuation.
-const e164Phone = z
+export const e164Phone = z
   .string()
   .regex(/^\+[1-9]\d{7,14}$/, "Enter a valid phone number");
 
@@ -248,6 +248,76 @@ export const gymSettingsSchema = z.object({
 });
 
 export type GymSettingsInput = z.infer<typeof gymSettingsSchema>;
+
+// Story 24.5 (FR-197, FR-200): public page content and per-plan visibility. Mirrors set_gym_page_content() (0161), which
+// validates the same rules again. Both are patches: a key left out is not touched, null clears it. Text is trimmed and an
+// empty string becomes null; '<' and '>' are rejected so no markup is stored. Unknown keys are rejected (strict).
+const pageText = (max: number) =>
+  z
+    .string()
+    .transform((v) => v.trim())
+    .pipe(z.string().max(max, "Too long").regex(/^[^<>]*$/, "Remove < and >"))
+    .transform((v) => (v === "" ? null : v))
+    .nullable();
+
+const pageTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter a valid time");
+
+const pageDayHours = z.strictObject({ open: pageTime, close: pageTime }).nullable();
+
+export const PAGE_HOURS_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+
+export const gymPageHoursSchema = z.strictObject({
+  mon: pageDayHours.optional(),
+  tue: pageDayHours.optional(),
+  wed: pageDayHours.optional(),
+  thu: pageDayHours.optional(),
+  fri: pageDayHours.optional(),
+  sat: pageDayHours.optional(),
+  sun: pageDayHours.optional(),
+});
+
+// Public contact numbers are separate from the Owner's login phone; an empty string clears the field.
+const pagePhone = z
+  .string()
+  .transform((v) => v.trim())
+  .pipe(z.union([z.literal(""), e164Phone]))
+  .transform((v) => (v === "" ? null : v))
+  .nullable();
+
+export const gymPageContentSchema = z.strictObject({
+  about_en: pageText(2000).optional(),
+  about_fr: pageText(2000).optional(),
+  services_en: pageText(2000).optional(),
+  services_fr: pageText(2000).optional(),
+  address: pageText(300).optional(),
+  city: pageText(100).optional(),
+  lat: z.number().min(-90, "Latitude must be between -90 and 90").max(90, "Latitude must be between -90 and 90").nullable().optional(),
+  lng: z.number().min(-180, "Longitude must be between -180 and 180").max(180, "Longitude must be between -180 and 180").nullable().optional(),
+  hours: gymPageHoursSchema.nullable().optional(),
+  contact_phone: pagePhone.optional(),
+  contact_whatsapp: pagePhone.optional(),
+});
+
+export type GymPageContentInput = z.infer<typeof gymPageContentSchema>;
+
+export const publicPlanSchema = z.strictObject({
+  plan_id: z.uuid(),
+  is_public: z.boolean().optional(),
+  public_label_en: pageText(80).optional(),
+  public_label_fr: pageText(80).optional(),
+});
+
+export type PublicPlanInput = z.infer<typeof publicPlanSchema>;
+
+export const setGymPageContentSchema = z.strictObject({
+  content: gymPageContentSchema,
+  plans: z
+    .array(publicPlanSchema)
+    .refine((plans) => new Set(plans.map((p) => p.plan_id)).size === plans.length, "A plan appears twice")
+    .optional(),
+});
+
+export type SetGymPageContentInput = z.infer<typeof setGymPageContentSchema>;
 
 // Story 18.1: one-time registration fee, whole XAF, 0 = off. Validated
 // separately from gymSettingsSchema on purpose -- the fee is saved through its
