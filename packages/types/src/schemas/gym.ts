@@ -340,7 +340,7 @@ export const PAGE_MEDIA_ERROR_CODES = [
 ] as const;
 export type PageMediaErrorCode = (typeof PAGE_MEDIA_ERROR_CODES)[number];
 
-export const PAGE_MEDIA_MAX_BYTES = 5 * 1024 * 1024;
+export const PAGE_MEDIA_MAX_BYTES = 4 * 1024 * 1024;
 export const PAGE_MEDIA_MAX_INPUT_PIXELS_SIDE = 4096;
 export const PAGE_MEDIA_MAX_GALLERY = 12;
 /** Longest side of the derivative: 1600 px for banner and gallery, 512 px for the logo. */

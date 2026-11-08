@@ -332,7 +332,7 @@
     "attestation": "I have the right to publish this image, and I understand it will be shown on my public page.",
     "errors": {
       "unsupported_type": "This file is not a supported image. Use a JPEG, PNG or WebP photo.",
-      "too_large": "This image is too large. The maximum size is 5 MiB (about 5.2 MB).",
+      "too_large": "This image is too large. The maximum size is 4 MiB (about 4.2 MB).",
       "too_many_pixels": "This image has too many pixels. The longest side must be 4096 pixels or less.",
       "limit_reached": "You have reached the limit of 12 gallery images. Remove one to add another.",
       "attestation_required": "Confirm that you may publish this image before uploading it.",

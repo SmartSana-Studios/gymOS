@@ -1,7 +1,7 @@
 -- Story 24.6: gym page media (migration 0162), positive paths and structure. Denials: gym_page_media.negative.test.sql.
 -- Fixture ids: 00000000-0000-0000-0000-0000002406xx.
 begin;
-select plan(62);
+select plan(69);
 
 create or replace function pg_temp.claims(uid text, app_role text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -199,6 +199,22 @@ select is((select count(*)::int from public_site.page_media where derivative_key
 select is((select count(*)::int from audit_log where action_type = 'gym_page_media_deleted' and gym_id = '00000000-0000-0000-0000-000000240611'), 2, 'each delete is audited');
 update public.gym_pages set unpublished_at = now() where gym_id = '00000000-0000-0000-0000-000000240611';
 select is((select count(*)::int from public_site.page_media), 0, 'unpublishing the page hides all its media');
+
+-- ---- delete: every admitted role is exercised (review patch; the prosrc regex above only pins the list) ------------------
+set local role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-000000240622', 'supervisor', '00000000-0000-0000-0000-000000240611');
+select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('%000000000003.webp'))), 'ok', 'supervisor deletes');
+select pg_temp.claims('00000000-0000-0000-0000-000000240629', 'support', '00000000-0000-0000-0000-000000240611', '00000000-0000-0000-0000-0000000240a1');
+select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('%000000000004.webp'))), 'ok', 'live-assigned support deletes');
+select pg_temp.claims('00000000-0000-0000-0000-000000240628', 'super_admin');
+select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('%000000000010.webp'))), 'ok', 'super admin deletes another gym''s live media');
+select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('dddddddd-dddd-dddd-dddd-000000000001.webp'))), 'ok', 'super admin deletes media of a suspended gym');
+select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, gen_random_uuid())), 'P0001:delete_page_media: not found', 'super admin gets not found for an unknown id');
+select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('%000000000003.webp'))), 'P0001:delete_page_media: not found', 'super admin deleting an already deleted row gets not found');
+reset role;
+select is((select count(*)::int from gym_page_media where deleted_at is not null and derivative_key in
+            ('bbbbbbbb-bbbb-bbbb-bbbb-000000000003.webp', 'bbbbbbbb-bbbb-bbbb-bbbb-000000000004.webp', 'bbbbbbbb-bbbb-bbbb-bbbb-000000000010.webp', 'dddddddd-dddd-dddd-dddd-000000000001.webp')),
+          4, 'each admitted role''s delete set deleted_at');
 
 select * from finish();
 rollback;

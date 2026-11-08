@@ -63,7 +63,7 @@ insert into private.support_session_state (session_id, user_id, started_at, last
 values ('00000000-0000-0000-0000-0000000240a1', '00000000-0000-0000-0000-000000240629', now(), now());
 select private.support_set_membership('00000000-0000-0000-0000-000000240651', true);
 
-create or replace function pg_temp.mid(pat text) returns uuid language sql security definer as $f$ select id from public.gym_page_media where derivative_key like pat $f$;
+create or replace function pg_temp.mid(pat text) returns uuid language sql security definer as $f$ select id from public.gym_page_media where derivative_key = pat $f$;
 create or replace function pg_temp.reg(gym text, kind text, n int, attested text default 'true', dry text default 'false') returns text language sql as $f$
   select format($q$select register_page_media('%s', '%s', '%s/aaaaaaaa-aaaa-aaaa-aaaa-%s', 'bbbbbbbb-bbbb-bbbb-bbbb-%s.webp', %s, 'v1', %s)$q$,
                 gym, kind, gym, lpad(n::text, 12, '0'), lpad(n::text, 12, '0'), attested, dry) $f$;
@@ -147,18 +147,18 @@ reset role;
 -- ---- delete ---------------------------------------------------------------------------------------------------------------
 set local role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-000000240626', 'owner', '00000000-0000-0000-0000-000000240612');
-select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('%000000000001.webp'))), 'P0001:permission denied', 'another gym''s Owner cannot delete');
+select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('bbbbbbbb-bbbb-bbbb-bbbb-000000000001.webp'))), 'P0001:permission denied', 'another gym''s Owner cannot delete');
 select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, gen_random_uuid())), 'P0001:permission denied', 'an unknown id gives the same answer as another gym''s row');
 select is(pg_temp.err($$select delete_page_media(null)$$), 'P0001:permission denied', 'a null id is refused');
 select pg_temp.as_user('00000000-0000-0000-0000-000000240623', 'manager', '00000000-0000-0000-0000-000000240611');
-select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('%000000000001.webp'))), 'P0001:permission denied', 'a manager cannot delete');
+select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('bbbbbbbb-bbbb-bbbb-bbbb-000000000001.webp'))), 'P0001:permission denied', 'a manager cannot delete');
 select pg_temp.claims('00000000-0000-0000-0000-000000240629', 'support', '00000000-0000-0000-0000-000000240612', '00000000-0000-0000-0000-0000000240a1');
-select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('%000000000001.webp'))), 'P0001:permission denied', 'unassigned support cannot delete');
+select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('bbbbbbbb-bbbb-bbbb-bbbb-000000000001.webp'))), 'P0001:permission denied', 'unassigned support cannot delete');
 reset role;
 select is((select count(*)::int from gym_page_media where deleted_at is not null), 0, 'denied deletes changed nothing');
 set local role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-000000240621', 'owner', '00000000-0000-0000-0000-000000240611');
-select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('%000000000001.webp'))), 'ok', 'control: the gym''s own Owner deletes');
+select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid('bbbbbbbb-bbbb-bbbb-bbbb-000000000001.webp'))), 'ok', 'control: the gym''s own Owner deletes');
 reset role;
 
 -- ---- the checks can fail --------------------------------------------------------------------------------------------------

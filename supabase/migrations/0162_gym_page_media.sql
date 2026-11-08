@@ -35,8 +35,8 @@ set local lock_timeout = '5s';
 -- The public bucket serves reads through the Storage HTTP API without RLS (as gym-logos does), by derivative key only.
 -- ----------------------------------------------------------------------------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values
-  ('gym-page-media-src', 'gym-page-media-src', false, 5242880, array['image/jpeg', 'image/png', 'image/webp']),
-  ('gym-page-media',     'gym-page-media',     true,  5242880, array['image/webp'])
+  ('gym-page-media-src', 'gym-page-media-src', false, 4194304, array['image/jpeg', 'image/png', 'image/webp']),
+  ('gym-page-media',     'gym-page-media',     true,  4194304, array['image/webp'])
 on conflict (id) do nothing;
 
 -- ----------------------------------------------------------------------------

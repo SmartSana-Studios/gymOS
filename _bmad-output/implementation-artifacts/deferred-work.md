@@ -1669,3 +1669,12 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 - **Deleted and replaced derivatives stay fetchable by URL, originals keep their metadata, until the 24.11 purge.** Known and accepted in the spec; 24.11 must land before any public launch of landing pages. Close before the landing-page feature flag is on.
 - **Registering after a lost RPC response removes live objects** (`apps/dashboard/services/page-media.ts` `storeAndRegister`). If `register_page_media` commits but the response is lost, the catch deletes the objects the row points at. Fix: on an ambiguous failure look up the derivative key before removing. Rare; not seen.
 - **Concurrent uploads, real Storage and Vercel sharp bundling are unverified.** Storage uploads and `Cache-Control: max-age=300` were checked against mocks only; sharp's native binary on Vercel is first exercised at the first deploy. Verify on the first preview deploy that uploads 24.9 sends work end to end.
+
+## Deferred from: code review of spec-24-6-page-media-private-originals-re-encoded-derivatives (2026-11-08, pass 2)
+
+- **Gym deletion orphans page media objects** (`supabase/migrations/0162_gym_page_media.sql`, `gym_id ... on delete cascade`). Deleting a gym drops the rows but leaves every original (EXIF/GPS intact) and derivative in both buckets, with no key left to find them. A failed rollback removal in `removeObjects` is also only `console.error`, with no durable record. Close before 24.11 ships: the purge must cover gym deletion and include an orphan sweep.
+- **No bound on deleted rows or upload rate per gym.** Upload/delete cycles of logo, banner or gallery grow `gym_page_media` and the buckets until the 24.11 purge exists; each upload costs a sharp decode and encode. Decide a rate limit or per-gym storage ceiling with the 24.9 editor.
+
+## Deferred from: code review of spec-24-6-page-media-private-originals-re-encoded-derivatives (2026-11-08, pass 3)
+
+- **No test that the page media error copy exists in both locales** (`apps/dashboard/locales/en.json`, `fr.json`, `pageMedia.errors.*`). All nine keys are present today, but nothing fails if one is dropped or a code is added without copy; `page-media.test.ts` mocks `t` as identity. Add a key-parity test in 24.9, where the editor renders these messages.

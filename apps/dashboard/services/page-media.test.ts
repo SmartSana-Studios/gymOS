@@ -21,7 +21,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 vi.mock("@/lib/i18n/get-request-locale", () => ({ getRequestLocale: vi.fn(async () => "en") }));
 vi.mock("@/lib/i18n/get-server-translation", () => ({ getServerTranslation: vi.fn(async () => ({ t: (key: string) => key })) }));
 
-import { deletePageMedia, gymLogoObjectPath, preparePageLogo, processPageImage, uploadPageMedia } from "./page-media";
+import { deletePageMedia, gymLogoObjectPath, pageMediaCodeFromDbError, preparePageLogo, processPageImage, uploadPageMedia } from "./page-media";
 
 function file(buf: Buffer, name = "x.jpg", type = "image/jpeg") {
   return new File([new Uint8Array(buf)], name, { type });
@@ -107,14 +107,20 @@ describe("content, not label", () => {
 });
 
 describe("bounds", () => {
-  it("over 5 MiB is too_large and nothing is stored", async () => {
-    const r = await uploadPageMedia({ gymId: GYM, kind: "gallery", attested: true, file: file(Buffer.alloc(5 * 1024 * 1024 + 1, 1)) });
+  it("over 4 MiB is too_large and nothing is stored", async () => {
+    const r = await uploadPageMedia({ gymId: GYM, kind: "gallery", attested: true, file: file(Buffer.alloc(4 * 1024 * 1024 + 1, 1)) });
     expect(r.error?.code).toBe("too_large");
     expect(uploads()).toHaveLength(0);
   });
-  it("5 MiB + 1 is too_large, while exactly 5 MiB passes the size check and fails only on content", async () => {
-    await expect(processPageImage(Buffer.alloc(5 * 1024 * 1024 + 1), "gallery")).rejects.toMatchObject({ code: "too_large" });
-    await expect(processPageImage(Buffer.alloc(5 * 1024 * 1024), "gallery")).rejects.toMatchObject({ code: "unsupported_type" });
+  it("4 MiB + 1 is too_large, while exactly 4 MiB passes the size check and fails only on content", async () => {
+    await expect(processPageImage(Buffer.alloc(4 * 1024 * 1024 + 1), "gallery")).rejects.toMatchObject({ code: "too_large" });
+    await expect(processPageImage(Buffer.alloc(4 * 1024 * 1024), "gallery")).rejects.toMatchObject({ code: "unsupported_type" });
+  });
+  it("a canvas past the decoder pixel limit (not just a long side) is too_many_pixels", async () => {
+    // 5000x5000 is under 4 MiB as a flat PNG and trips sharp's limitInputPixels, whose message processPageImage matches on.
+    const big = await png(5000, 5000);
+    expect(big.length).toBeLessThan(4 * 1024 * 1024);
+    await expect(processPageImage(big, "gallery")).rejects.toMatchObject({ code: "too_many_pixels" });
   });
   it("over 4096 px on the longest side is too_many_pixels", async () => {
     const r = await uploadPageMedia({ gymId: GYM, kind: "gallery", attested: true, file: file(await png(4097, 8), "w.png", "image/png") });
@@ -206,7 +212,18 @@ describe("register fails after upload", () => {
     const r = await uploadPageMedia((await okInput()) as never);
     expect(r.error?.code).toBe("upload_failed");
     expect(remove).toHaveBeenCalledWith("gym-page-media-src", expect.any(Array));
+    expect(remove).toHaveBeenCalledWith("gym-page-media", [expect.stringMatching(/\.webp$/)]);
     expect(rpc.mock.calls.every(([, a]) => a.p_dry_run === true)).toBe(true);
+  });
+  it("a derivative upload that rejects (throws) still removes both objects", async () => {
+    upload.mockImplementation(async (bucket: string) => {
+      if (bucket === "gym-page-media") throw new Error("socket hang up");
+      return { error: null };
+    });
+    const r = await uploadPageMedia((await okInput()) as never);
+    expect(r.error?.code).toBe("upload_failed");
+    expect(remove).toHaveBeenCalledWith("gym-page-media-src", expect.any(Array));
+    expect(remove).toHaveBeenCalledWith("gym-page-media", [expect.stringMatching(/\.webp$/)]);
   });
 });
 
@@ -221,6 +238,10 @@ describe("logo preparation", () => {
     expect(gymLogoObjectPath(`${base}${GYM}/logo.png#frag`, GYM)).toBe(`${GYM}/logo.png`);
     expect(gymLogoObjectPath(`${base}${GYM}/logo.png?t=1#frag`, GYM)).toBe(`${GYM}/logo.png`);
     expect(gymLogoObjectPath(`${base}${GYM}/%E0%A4%A.png`, GYM)).toBeNull();
+    // Path traversal out of this gym's folder is refused, plain and percent-encoded: this is the only guard on a service-role download.
+    expect(gymLogoObjectPath(`${base}${GYM}/../22222222-2222-4222-8222-222222222222/logo.png`, GYM)).toBeNull();
+    expect(gymLogoObjectPath(`${base}${GYM}/%2e%2e/22222222-2222-4222-8222-222222222222/logo.png`, GYM)).toBeNull();
+    expect(gymLogoObjectPath(`${base}${GYM}%2F..%2F22222222-2222-4222-8222-222222222222%2Flogo.png`, GYM)).toBeNull();
   });
   it("re-encodes the stored logo into the new bucket as kind logo, never a raw copy", async () => {
     const logo = await jpegWithMetadata(800, 800, 1);
@@ -253,6 +274,22 @@ describe("logo preparation", () => {
   });
   it("requires the attestation", async () => {
     expect((await preparePageLogo(GYM, false)).error?.code).toBe("attestation_required");
+  });
+});
+
+describe("database error mapping", () => {
+  it("maps the bare RPC refusal to not_admitted", () => {
+    expect(pageMediaCodeFromDbError({ message: "permission denied" })).toBe("not_admitted");
+  });
+  it("does not hide a Postgres privilege fault as not_admitted", () => {
+    expect(pageMediaCodeFromDbError({ message: "permission denied for function register_page_media" })).toBeNull();
+  });
+  it("a privilege fault is logged and reported as upload_failed", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    rpc.mockResolvedValue({ data: null, error: { message: "permission denied for table gym_page_media" } });
+    expect((await deletePageMedia("22222222-2222-4222-8222-222222222222")).error?.code).toBe("upload_failed");
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
   });
 });
 

@@ -56,7 +56,7 @@ function iptcBlock(): Buffer {
   const ds = (n: number, text: string) => Buffer.concat([Buffer.from([0x1c, 0x02, n]), u16(text.length, false), Buffer.from(text)]);
   const data = Buffer.concat([ds(5, SECRET_TEXT), ds(80, "Photographer Name")]);
   const padded = data.length % 2 ? Buffer.concat([data, Buffer.from([0])]) : data;
-  const res = Buffer.concat([Buffer.from("8BIM"), u16(0x0404, false), Buffer.from([0, 0]), Buffer.from([0, 0, 0, 0]).fill(0), padded]);
+  const res = Buffer.concat([Buffer.from("8BIM"), u16(0x0404, false), Buffer.from([0, 0]), Buffer.alloc(4) /* size, written below */, padded]);
   res.writeUInt32BE(data.length, 4 + 2 + 2);
   return Buffer.concat([Buffer.from("Photoshop 3.0\0"), res]);
 }
@@ -68,7 +68,7 @@ export async function jpegWithMetadata(width: number, height: number, orientatio
     .toBuffer();
   const soi = base.subarray(0, 2);
   const rest = base.subarray(2);
-  // drop any APP0 that sharp wrote so the order is predictable; keep everything else
+  // The metadata segments go between SOI and sharp's own segments (its JFIF APP0 is kept, not dropped); nothing is removed.
   const segments = Buffer.concat([
     app(0xe1, Buffer.concat([Buffer.from("Exif\0\0"), exifWithGps(orientation)])),
     app(0xe1, Buffer.from(`${XMP_MARK}\0<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:Description dc:creator="${SECRET_TEXT}"/></x:xmpmeta>`)),

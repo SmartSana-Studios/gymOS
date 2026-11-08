@@ -85,7 +85,9 @@ export function pageMediaCodeFromDbError(error: { message?: string } | null | un
   const message = error?.message ?? "";
   if (message.includes("attestation_required")) return "attestation_required";
   if (message.includes("limit_reached")) return "limit_reached";
-  if (message === "permission denied" || message.includes("permission denied") || message.includes("is not active")) return "not_admitted";
+  // Exact match: the RPCs raise bare `permission denied`. A Postgres privilege fault reads `permission denied for ...`; that is a
+  // configuration bug, so it falls through to upload_failed and is logged instead of telling the user they are not allowed.
+  if (message === "permission denied" || message.includes("is not active")) return "not_admitted";
   return null;
 }
 
@@ -156,18 +158,18 @@ async function storeAndRegister(
     console.error("[page-media] original upload failed", up1.error);
     throw new PageMediaError("upload_failed");
   }
-  const up2 = await admin.storage.from(DERIVATIVE_BUCKET).upload(derivativeKey, processed.derivative, {
-    contentType: "image/webp",
-    cacheControl: DERIVATIVE_CACHE_SECONDS,
-    upsert: false,
-  });
-  if (up2.error) {
-    console.error("[page-media] derivative upload failed", up2.error);
-    await removeObjects(admin, originalKey, derivativeKey);
-    throw new PageMediaError("upload_failed");
-  }
-
+  // From here on the original (GPS EXIF intact) exists: any failure, including an upload that rejects instead of returning
+  // `{ error }`, must take both objects out again.
   try {
+    const up2 = await admin.storage.from(DERIVATIVE_BUCKET).upload(derivativeKey, processed.derivative, {
+      contentType: "image/webp",
+      cacheControl: DERIVATIVE_CACHE_SECONDS,
+      upsert: false,
+    });
+    if (up2.error) {
+      console.error("[page-media] derivative upload failed", up2.error);
+      throw new PageMediaError("upload_failed");
+    }
     const id = await callRegister(supabase, { gymId, kind, originalKey, derivativeKey, dryRun: false }, true);
     if (!id) throw new PageMediaError("upload_failed");
     return { id, derivativeKey };

@@ -8,8 +8,9 @@ const nextConfig: NextConfig = {
   // context inside explicit <Suspense> boundaries (Suspense-wrap fix
   // applied), so Cache Components no longer hard-fails a real `next build`.
   cacheComponents: true,
-  // Story 24.6: page media uploads go through a Server Action and may be up to 5 MiB; the 1 MB default would reject them.
-  experimental: { serverActions: { bodySizeLimit: "6mb" } },
+  // Story 24.6: page media uploads go through a Server Action and may be up to 4 MiB (Vercel caps a request body near 4.5 MB, so
+  // the limit stays below it); the 1 MB default would reject them.
+  experimental: { serverActions: { bodySizeLimit: "5mb" } },
   // Next 16 blocks cross-origin requests to dev-only endpoints, treating any
   // host other than the one the dev server initialized with (`localhost`) as
   // cross-origin. Browsing dev over `127.0.0.1` therefore got the HMR
