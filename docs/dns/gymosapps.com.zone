@@ -1,0 +1,45 @@
+; gymosapps.com zone export (A2 Hosting cPanel Zone Editor), story 24.2.
+; Source: owner's cPanel paste of 2026-11-01 (before the 24.1 probe), checked record by record against live DNS with dig on 2026-11-08.
+; cPanel does not show the SOA record or the apex NS records (ns1-ns4.a2hosting.com), so they are absent here by design.
+; Nameservers stay at A2 Hosting. The wildcard CNAME and the _acme-challenge NS delegation are NOT in this export: they are added in
+; the 24.2 ops half (docs/runbooks/wildcard-dns-rollback.md). scripts/check-reserved-labels.mjs fails if a label directly under the
+; apex is grammar-valid but missing from packages/types/src/constants/reservedLabels.json. Update this file when the live zone changes.
+; The _cpanel-dcv-test-record value is a cPanel-managed token and may rotate; refresh it from the live zone when it does.
+$ORIGIN gymosapps.com.
+$TTL 14400
+
+@                       IN A     216.198.79.1
+@                       IN MX    0 mail.gymosapps.com.
+@                       IN TXT   "v=spf1 +a +mx +ip4:75.98.175.121 include:spf.a2hosting.com ~all"
+
+mail                    IN A     75.98.175.121
+autoconfig              IN A     75.98.175.121
+autodiscover            IN A     75.98.175.121
+cpanel                  IN A     75.98.175.121
+cpcalendars             IN A     75.98.175.121
+cpcontacts              IN A     75.98.175.121
+webdisk                 IN A     75.98.175.121
+webmail                 IN A     75.98.175.121
+whm                     IN A     75.98.175.121
+
+www                     IN CNAME c3c08c1040a370e7.vercel-dns-017.com.
+portal                  IN CNAME d2af84cab7f80911.vercel-dns-017.com.
+owner                   IN CNAME 74275acc11dff690.vercel-dns-017.com.
+ftp                     IN CNAME gymosapps.com.
+rsend                   IN CNAME rsend-euw1.forge.rmta.net.
+send                    IN CNAME send.forge.rmta.net.
+
+_caldav._tcp            IN SRV   0 0 2079 gymosapps.com.
+_caldav._tcp            IN TXT   "path=/"
+_caldavs._tcp           IN SRV   0 0 2080 gymosapps.com.
+_caldavs._tcp           IN TXT   "path=/"
+_carddav._tcp           IN SRV   0 0 2079 gymosapps.com.
+_carddav._tcp           IN TXT   "path=/"
+_carddavs._tcp          IN SRV   0 0 2080 gymosapps.com.
+_carddavs._tcp          IN TXT   "path=/"
+_autodiscover._tcp      IN SRV   0 0 443 cpanelemaildiscovery.cpanel.net.
+
+_dmarc                  IN TXT   "v=DMARC1; p=none;"
+_cpanel-dcv-test-record IN TXT   "_cpanel-dcv-test-record=fU5qh480WgbaKeqENq1ZD6_RAuYEEHKRQzb_Du0fBtJNwtlMpk_HSYIYKdc6q87V"
+default._domainkey      IN TXT   "v=DKIM1; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxnM4LGA2dbe/pQft0482h6H0luU8mLUXMYyhATo8eyE3XsWTVzHhKOT8KQlgvPR2FUrLvzMU6NvJ1JeRPHt46HXHQeoqPZYNwV9vC2eUm7pem4knof4uTSrtKkavflyaPdHZfOHU6f6a/jS/VtwTOCzEdEzwbLLeMoXDvmoJGw5ruaBUAt7wi4Af8ye2J4/Iu" "sViMisDarNcBDNJV4ece/1q3bP+lOPWWx+3DBmR7F6B5f6bs3YEAgYT+dIbCEw/vazl4zeuOd8aE+Tj9r4jt+tRMiDfNm87irQWaU4N3iYa7xKeGxLKs5TNSW92g4NLIp/cmkn1t/YJKxhaiRUsEwIDAQAB;"
+resend._domainkey       IN TXT   "p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC0UzJ+/o3u0kIEj6KglXU4MvVIhcKduUhNVNUUH+1tPgsMDkpHFZjQb1N614v/kuLUgKAHvOtnE5SuXf1utdWfkmpNWqAg5mwZkELldjoqoLeCbAKPlxKMpxiwRnDG8PMNOLZsRReuT3+D8ybJQY3czEgkP05yhlmcZ0MQbkCdOwIDAQAB"

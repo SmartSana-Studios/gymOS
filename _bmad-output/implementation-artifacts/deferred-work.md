@@ -1,5 +1,13 @@
 # Deferred Work
 
+## Deferred from: build of spec-24-2-wildcard-delegation-and-reserved-label-ci-check (2026-11-08)
+
+- **Super-admin client-side Sentry `environment` probably always resolves to `dev`.** Unlike the dashboard, `apps/super-admin/next.config.ts` does not inline `NEXT_PUBLIC_ANALYTICS_ENV`, so browser-side code that resolves the environment sees no `APP_ENV`/`VERCEL_ENV` (neither is `NEXT_PUBLIC_`-prefixed). Not changed in 24.2 (the pass only moved the reads behind `lib/app-env.ts`, behavior identical). Fix is to add the same `NEXT_PUBLIC_ANALYTICS_ENV: resolveAnalyticsEnvironment()` line to super-admin's `next.config.ts` and have the client config read it.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-2-wildcard-delegation-and-reserved-label-ci-check.md`
+  summary: The reserved-label gate checks the committed zone export, so a record added in cPanel without updating `docs/dns/gymosapps.com.zone` bypasses it.
+  evidence: CI is offline by design and compares the repo file, not live DNS. Settle it with an optional scheduled or manual `dig` comparison of every export record against the live zone (the rollback runbook only has the manual version). Unverified severity: medium (a new zone label such as `shop` would let a gym claim a name that resolves to something else).
+
 ## Deferred from: code review of spec-18-1-registration-fee-setting-member-state-first-subscription-gate (2026-10-07)
 
 - **A fee above 0 blocks Add Member and CSV import until 18.2-18.5 land, and awaiting members have no release path.** `enforce_registration_fee_settled` rejects the first subscription of every awaiting member, so `provisionMemberRow` (`insertMember` then `insertSubscription`, then `deleteMemberForCleanup`) and the CSV import fail for any gym that saves a fee, with an unmapped `registration_fee_not_settled` error. Lowering the fee to 0 does not settle members already created. No test runs `provisionMemberRow`/`createMember`/import against a fee > 0 gym. Marked medium, unverified end to end. Settled by 18.5 (two-step creation, import exemption, `registration_fee_due` mapping) and 18.2 (settle/waive); 18.5's tests must cover `provisionMemberRow` and the import with fee > 0. Epic 18 is held from master until all stories are tested, so no live gym can set a fee in the meantime.

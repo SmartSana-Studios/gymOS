@@ -44,7 +44,11 @@ A gym can publish one optional public page at `{name}.gymosapps.com`, built from
 - AD-43: tenant identity comes from the Host header alone. Nameservers stay at A2 Hosting; `NS _acme-challenge` is delegated to Vercel and `CNAME *` points at the `apps/landing` project. Explicit records for `owner.`, `portal.`, `www.`, the apex and mail stay unchanged.
 - AD-44: staff auth cookies are host-only with the `__Host-` prefix; gym pages are static HTML with no client JavaScript and a strict content security policy.
 - AD-45/46/48: page names are rows with one grammar and one reserved source; `gym_pages` holds the snapshot; templates follow one contract.
-- 24.1 is a spike on four unverified assumptions (pooler role, DNS precedence, `__Host-` cookies, AutoSSL); fallbacks are already decided in AD-42 to AD-44 and trigger only if the spike says so.
+- The 24.1 spike (probes finished 2026-11-08; story closes when A2 removes the two throwaway NS records) confirmed all four assumptions; no fallback is triggered. Results below amend AD-42/43/44.
+- Pooler (AD-42): the custom `public_site_reader` login role works through the pooler (user `role.project_ref`, both ports). Role settings (`statement_timeout`, `default_transaction_read_only`) set via `ALTER ROLE` apply through the pooler. Keep session state (`SET`, prepared statements) out of app queries. `CONNECTION LIMIT` is per role across all instances and effectively limit minus one: size it as app pool max plus one, keep the pool small, retry on `53300` (a burst over the limit drops connections). Pass host, user and password to `apps/landing` as separate variables (URL-reserved characters in the password break URL parsing). Re-verify against the production pooler with the real role (probe ran on a free project). Password rotation takes effect at once.
+- DNS (AD-43): explicit records and other-project hosts win over the wildcard, no exception. The wildcard certificate covers one label level only. A2 cPanel cannot create `NS` records; each delegation is an A2 support ticket (1-2 days). Wildcard issuance can stall with no challenge record: remove and re-add the wildcard domain in Vercel. Vercel DNS must be enabled for the zone. AutoSSL showed no conflict, but renewal at the real name is unverified (A2 cert expires 2026-12-31).
+- Cookies (AD-44): `__Host-` prefix works with the SSR helpers in Chromium (no `domain`, `secure`, path `/`, Lax). Over plain HTTP on a non-localhost host the browser silently rejects them (login "succeeds", nobody signed in). Firefox and Safari unverified.
+- Reserved labels from the live zone: `autoconfig`, `autodiscover`, `cpanel`, `cpcalendars`, `cpcontacts`, `ftp`, `mail`, `owner`, `portal`, `rsend`, `send`, `webdisk`, `webmail`, `whm`, `www`, plus `smtp`, `imap`, `pop` (not in the zone, so a wildcard would resolve them) and `test`. Underscore labels already fail the name grammar.
 - Migrations take the next free number at merge time. Last applied in production: 0159.
 - 24.2 also moves `VERCEL_ENV` and `VERCEL_GIT_COMMIT_SHA` reads behind one host-neutral module per app.
 
@@ -56,6 +60,11 @@ A gym can publish one optional public page at `{name}.gymosapps.com`, built from
 
 ## Cross-Story Dependencies
 
-- 24.1 gates 24.2, 24.3, 24.4. 24.4 then 24.5, then 24.6 and 24.7 (24.7 also needs 24.2), then 24.8, then the UX pass, then 24.9 and 24.10 (24.10 also needs 24.3), then 24.11, then 24.12.
+- 24.1 (probes finished, closure pending A2) gates 24.2, 24.3, 24.4; its results add work to those stories and to 24.12:
+  - 24.2: ask A2 for the `_acme-challenge` `NS` records (ticket), check Vercel DNS enabled, run AutoSSL right after delegation with rollback ready (remove `NS`), dated check that the A2 cert renews (from about 2026-12-01), record the date to check the first wildcard renewal (about 60 days after issuance), read and record Vercel's "DNS Change Recommended" advisory, seed the reserved list above.
+  - 24.3: `server.ts`, `proxy.ts` and browser `client.ts` of both apps share one `cookieOptions`; add a dev-time check failing on prefixed cookies over plain HTTP on non-localhost hosts; test Firefox and Safari on real HTTPS before cutover (failure reopens the AD-44 fallback).
+  - 24.4: size the role limit, retry on `53300`, separate connection variables, re-run limit checks on the production pooler.
+  - 24.12: repeat the precedence check over HTTPS on the real wildcard.
+  - Pending: A2 removal of the spike `NS` records for `_acme-challenge.test`. 24.4 then 24.5, then 24.6 and 24.7 (24.7 also needs 24.2), then 24.8, then the UX pass, then 24.9 and 24.10 (24.10 also needs 24.3), then 24.11, then 24.12.
 - Epic 25 (directory) starts after this epic's Step 2 gate; FR-211 structured data belongs to Epic 25.
 - Support (Epic 23) is admitted to page content edits through the AD-35 registry; its edits to public contact or about text appear in the Owner's daily digest (FR-181).

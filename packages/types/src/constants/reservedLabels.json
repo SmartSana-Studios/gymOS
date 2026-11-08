@@ -1,0 +1,8 @@
+{
+  "labels": [
+    "account", "admin", "api", "app", "auth", "autoconfig", "autodiscover", "billing", "cdn", "cpanel", "cpcalendars", "cpcontacts",
+    "dev", "docs", "ftp", "gym-os", "gymos", "help", "imap", "login", "mail", "owner", "pay", "payment", "pop", "portal", "rsend",
+    "send", "signin", "smtp", "staging", "status", "support", "tara", "taramoney", "test", "webdisk", "webmail", "whm", "www"
+  ],
+  "prefixes": ["gymos"]
+}

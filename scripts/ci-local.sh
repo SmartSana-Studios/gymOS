@@ -71,6 +71,9 @@ stage_static() {
   pnpm run check:migrations || return 1
   # Story 23.9: payment initiators and credential lookups verify under payments.credentials_id
   pnpm run check:credentials-id || return 1
+  # Story 24.2: no gym name can collide with a zone label; VERCEL_ENV / VERCEL_GIT_COMMIT_SHA are read in one module per app
+  pnpm run check:reserved-labels || return 1
+  pnpm run check:host-neutral-env || return 1
   pnpm run test:guardrails || return 1
   # The deploy scripts refuse to apply a migration without a green db-backup run (against a fake gh; never touches GitHub).
   bash "$ROOT/scripts/require-db-backup.test.sh" || return 1

@@ -42,6 +42,9 @@ jobs:
       - name: i18n locale key-parity check
         run: pnpm run check:i18n
 
+      - name: Reserved gym-page labels and host-neutral env reads (Story 24.2)
+        run: pnpm run check:reserved-labels && pnpm run check:host-neutral-env
+
       - name: Migration guardrails (AD-3 app_role lint, function privilege revokes)
         run: pnpm run check:migrations && pnpm run check:credentials-id && pnpm run test:guardrails
 

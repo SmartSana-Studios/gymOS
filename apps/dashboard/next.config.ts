@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 import { resolveAnalyticsEnvironment } from "./lib/analytics-environment";
+import { buildId } from "./lib/app-env";
 
 const nextConfig: NextConfig = {
   // app/layout.tsx and app/(dashboard)/layout.tsx both read locale/auth
@@ -24,7 +25,7 @@ const nextConfig: NextConfig = {
   // server-side ones.
   env: {
     // The commit this build came from; UpdateNotice compares it with /api/version.
-    NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev",
+    NEXT_PUBLIC_BUILD_ID: buildId(),
     NEXT_PUBLIC_ANALYTICS_ENV: resolveAnalyticsEnvironment(),
   },
 };

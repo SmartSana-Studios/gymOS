@@ -48,3 +48,12 @@ describe("resolveAnalyticsEnvironment", () => {
     expect(resolveAnalyticsEnvironment()).toBe("dev");
   });
 });
+
+describe("resolveAnalyticsEnvironment with APP_ENV (24.2)", () => {
+  it("APP_ENV wins over VERCEL_ENV; an empty env is dev", async () => {
+    const { resolveAnalyticsEnvironment } = await import("./analytics-environment");
+
+    expect(resolveAnalyticsEnvironment({ APP_ENV: "production", VERCEL_ENV: "preview" })).toBe("prod");
+    expect(resolveAnalyticsEnvironment({})).toBe("dev");
+  });
+});
