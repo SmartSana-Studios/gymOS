@@ -140,6 +140,9 @@ begin
   if jsonb_typeof(p_hours) <> 'object' then
     return false;
   end if;
+  if p_hours = '{}'::jsonb then
+    return false;
+  end if;
   for v_key, v_val in select * from jsonb_each(p_hours) loop
     if v_key not in ('mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun') then
       return false;
@@ -153,7 +156,8 @@ begin
        or jsonb_typeof(v_val -> 'open') <> 'string'
        or jsonb_typeof(v_val -> 'close') <> 'string'
        or (v_val ->> 'open') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
-       or (v_val ->> 'close') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' then
+       or (v_val ->> 'close') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+       or (v_val ->> 'open') = (v_val ->> 'close') then
       return false;
     end if;
   end loop;
@@ -253,7 +257,7 @@ begin
   if jsonb_typeof(p_obj -> p_key) <> 'string' then
     raise exception 'set_gym_page_content: invalid_%', p_key;
   end if;
-  v := regexp_replace(p_obj ->> p_key, '^\s+|\s+$', '', 'g');
+  v := regexp_replace(p_obj ->> p_key, '^[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+|[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+$', '', 'g');
   if v = '' then
     return null;
   end if;
@@ -281,7 +285,7 @@ begin
   if jsonb_typeof(p_obj -> p_key) <> 'string' then
     raise exception 'set_gym_page_content: invalid_%', p_key;
   end if;
-  v := regexp_replace(p_obj ->> p_key, '^\s+|\s+$', '', 'g');
+  v := regexp_replace(p_obj ->> p_key, '^[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+|[\t\n\v\f\r \u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff]+$', '', 'g');
   if v = '' then
     return null;
   end if;

@@ -102,3 +102,30 @@ Beyond the spec, all needed to make the story work: `pin_plan_public_insert` (an
 - `scripts/pgtap-run.sh supabase/tests/gym_page_content.test.sql supabase/tests/support_capabilities.test.sql` -- expected: all ok
 - `pnpm --filter dashboard test` -- expected: pass
 - `scripts/ci-local.sh` -- expected: GREEN, stage lines read
+
+### Review Findings
+
+Code review 2026-11-08 (second pass, committed diff aee96da..f796d7a). Layers: Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor.
+
+- [x] [Review][Patch] Hours: reject `{}` and `open = close`; keep overnight as wrap-past-midnight (decided a); update SQL `gym_page_hours_valid`, Zod, pgTAP and vitest [supabase/migrations/0161_gym_page_content.sql:140-160]
+- [x] [Review][Defer] `gyms` INSERT is not pinned; super admin insert can write page fields with no setter or audit row [supabase/migrations/0161_gym_page_content.sql] — deferred: owner confirmed keep deferred (already in deferred-work.md and decisions.md)
+- [x] [Review][Patch] SQL trim uses regex `\s`; Zod `trim()` also strips NBSP, U+FEFF, U+2028/2029 and Unicode spaces, so the same value can store differently; add a Unicode-whitespace pgTAP case or align the class (and soften the "matches Zod" claim in decisions.md if kept ASCII) [supabase/migrations/0161_gym_page_content.sql:256,284]
+- [x] [Review][Patch] No test shows a live-assigned support caller is refused on a suspended gym (only Owner is covered) [supabase/tests/gym_page_content.test.sql:~1282]
+- [x] [Review][Defer] Lat and lng accepted independently, so a half-set coordinate can be stored [supabase/migrations/0161_gym_page_content.sql:95] — deferred: 24.8 publish gate / 24.9 form must require the pair, or add CHECK `(page_lat is null) = (page_lng is null)` then
+- [x] [Review][Defer] `pin_plan_public` silently forces `is_public = false` on direct plan INSERT for every writer, so seeds/imports/plan-duplicate/`scripts/demo-gym/` that insert a public plan end up private [supabase/migrations/0161_gym_page_content.sql:~212] — deferred: audit plan-inserting callers before 24.8 (documented in decisions.md, no caller audit yet)
+
+**Process, not a finding:** no `ci-local.sh` GREEN stamp exists for the final tree (the prior pass ran on a dirty tree) and `check-migration-guardrails.mjs` is not named in any recorded run. Run `scripts/ci-local.sh` and read the per-stage lines before merging to epic/24.
+
+#### Rejected
+
+- decided: AC2 consumers test stays a `prosrc` regex (owner choice); enum loop when a role is next added.
+- `false`: plan lookup lacks an archived/inactive state check — `plans` has no active/archived column.
+- `false`: lock-order deadlock (gym then plans) — concurrent setters serialize on the gym row lock, and plan updates do not take the gym lock.
+- `false`: JSON null for `p_plans` rejected while Zod is non-nullable — both reject it, consistent.
+- `false`: audit row size unbounded — no `log_audit_event` size limit exists; payload is bounded by the field limits.
+- `low`: bypass GUC spans the whole update block — it is transaction-local and only set inside the setter; no named trigger exploits it.
+- `low`: `database.ts` Update types expose pinned columns — hand-spliced from generated types; a comment adds drift.
+- `low`: Zod `z.uuid()` stricter than the SQL uuid regex — real ids are v4, no reachable harm.
+- `low`: rollback `$verify$` does not assert constraint/trigger/capability removal — rollback test already deferred.
+- `maybe-false`/`low`: super admin and service_role pin tests don't show the UPDATE ran — would be low if true.
+- Spec-edit only (rejected): spec frontmatter `done` vs sprint `review`, stale Code Map counts (146, 72 vs `plan(105)`), setter signature deviation (disclosed in Implementation Notes), Zod/SQL edge cases already in deferred-work.md ("close before 24.9"), FR-205 renderer escaping (24.8, documented), AC1 against pre-existing rows (rollback applied by hand once, no new evidence).

@@ -1,7 +1,7 @@
 -- Story 24.5: gym page content fields and public plans (migration 0161).
 -- Fixture ids: 00000000-0000-0000-0000-0000002405xx.
 begin;
-select plan(105);
+select plan(111);
 
 create or replace function pg_temp.claims(uid text, app_role text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -178,6 +178,15 @@ select pg_temp.as_user('00000000-0000-0000-0000-000000240527', 'owner', '0000000
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240513', '{"city":"Nope"}'::jsonb)$$), 'P0001:set_gym_page_content: gym % is not active', 'a suspended gym''s owner is refused');
 reset role;
 select is((select page_city from gyms where id = '00000000-0000-0000-0000-000000240513'), 'Buea', 'the suspended gym still reads the super admin value');
+-- support assigned to the suspended gym is refused too
+insert into public.support_assignments (id, support_user_id, gym_id, state, activated_at) values
+  ('00000000-0000-0000-0000-000000240552', '00000000-0000-0000-0000-000000240529', '00000000-0000-0000-0000-000000240513', 'active', now());
+select private.support_set_membership('00000000-0000-0000-0000-000000240552', true);
+set local role authenticated;
+select pg_temp.claims('00000000-0000-0000-0000-000000240529', 'support', '00000000-0000-0000-0000-000000240513', '00000000-0000-0000-0000-0000000240a1');
+select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240513', '{"city":"Nope"}'::jsonb)$$), 'P0001:permission denied', 'assigned live support is refused on a suspended gym');
+reset role;
+select is((select page_city from gyms where id = '00000000-0000-0000-0000-000000240513'), 'Buea', 'the suspended gym is untouched by support');
 
 -- ---- invalid input writes nothing --------------------------------------------------------------------------------
 -- ---- whitespace, limits, explicit clearing, label-only plan change ------------------------------------------------
@@ -230,6 +239,8 @@ select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', jsonb_build_object('about_en', repeat('a', 2001)))$$), 'P0001:set_gym_page_content: invalid_about_en', 'over-long text rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"hours":{"mon":{"open":"25:00","close":"22:00"}}}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_hours', 'bad time rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"hours":{"xyz":null}}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_hours', 'bad day key rejected');
+select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"hours":{}}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_hours', 'empty hours object rejected');
+select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"hours":{"mon":{"open":"06:00","close":"06:00"}}}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_hours', 'open equal to close rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Fine"}'::jsonb, '[{"plan_id":"00000000-0000-0000-0000-000000240543","is_public":true}]'::jsonb)$$), 'P0001:set_gym_page_content: plan_not_in_gym', 'another gym''s plan id rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Fine"}'::jsonb, '[{"plan_id":"00000000-0000-0000-0000-000000240541","is_public":"yes"}]'::jsonb)$$), 'P0001:set_gym_page_content: invalid_is_public', 'non-boolean flag rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Fine"}'::jsonb, '[{"plan_id":"00000000-0000-0000-0000-000000240541","is_public":true,"public_label_en":"<b>"}]'::jsonb)$$), 'P0001:set_gym_page_content: invalid_public_label_en', 'markup in a plan label rejected');
@@ -298,6 +309,13 @@ select is((select is_public from plans where name = 'PG DIRECT TWO'), true, 'wit
 alter table plans enable trigger pin_plan_public_insert;
 alter table gyms enable trigger pin_gym_page_content;
 alter table plans enable trigger pin_plan_public_update;
+
+-- ---- Unicode whitespace trims like Zod trim() ----------------------------------------------------------------------
+set local role authenticated;
+select pg_temp.claims('00000000-0000-0000-0000-000000240528', 'super_admin');
+select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240512', jsonb_build_object('city', chr(160) || 'Kribi' || chr(12288)))$$), 'ok', 'NBSP and ideographic-space wrapped text accepted');
+reset role;
+select is((select page_city from gyms where id = '00000000-0000-0000-0000-000000240512'), 'Kribi', 'SQL trims the same Unicode whitespace as Zod');
 
 select * from finish();
 rollback;

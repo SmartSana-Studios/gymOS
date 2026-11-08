@@ -31,6 +31,8 @@ describe("gymPageContentSchema", () => {
     expect(r.about_en).toBe("hi");
     expect(r.about_fr).toBeNull();
     expect(r.contact_phone).toBeNull();
+
+    expect(gymPageContentSchema.parse({ city: "\u00a0Kribi\u3000" }).city).toBe("Kribi");
   });
 
   it("rejects markup characters anywhere in text", () => {
@@ -71,6 +73,8 @@ describe("gymPageContentSchema", () => {
     // an overnight window is allowed, as for gyms.opening_time
     expect(gymPageContentSchema.safeParse({ hours: { fri: { open: "20:00", close: "02:00" } } }).success).toBe(true);
     expect(gymPageContentSchema.safeParse({ hours: null }).success).toBe(true);
+    expect(gymPageContentSchema.safeParse({ hours: {} }).success).toBe(false);
+    expect(gymPageContentSchema.safeParse({ hours: { mon: { open: "06:00", close: "06:00" } } }).success).toBe(false);
   });
 
   it("rejects unknown keys, including the login phone", () => {

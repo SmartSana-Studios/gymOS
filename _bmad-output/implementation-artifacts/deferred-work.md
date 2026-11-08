@@ -1656,3 +1656,9 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-5-page-content-fields-and-public-plans.md`
   summary: `gyms` INSERT is not pinned, so a super admin insert can write page fields without the setter or an audit row; also `gym_page_content.test.sql` checks the setter's admitted roles by regexp over `prosrc` rather than looping over the role enum, and `scripts/rollback-0161-gym-page-content.sql` is not run by any test.
   evidence: `super_admin_insert_gyms` is the only gyms insert path, so no Owner can reach it; the rollback was applied, rolled back and re-applied by hand once.
+
+## Deferred from: code review of spec-24-5-page-content-fields-and-public-plans (2026-11-08)
+
+- **Lat/lng can be stored independently** (`supabase/migrations/0161_gym_page_content.sql:95`). A half-set coordinate can reach the 24.8 gate. Fix: require the pair in the 24.8 publish gate / 24.9 form, or add CHECK `(page_lat is null) = (page_lng is null)`.
+- **`pin_plan_public` silently makes directly inserted plans private** for every writer including `service_role`. Audit seeds, imports, plan-duplicate and `scripts/demo-gym/` for inserts that expect `is_public = true` before 24.8.
+- **`gyms` INSERT is not pinned** (`pin_gym_page_content` is BEFORE UPDATE only). A super admin insert can write page fields with no setter or audit row. Owner confirmed keep deferred at the 24-5 review (2026-11-08).

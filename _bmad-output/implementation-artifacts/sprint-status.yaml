@@ -465,7 +465,7 @@ development_status:
   24-2-wildcard-delegation-and-reserved-label-ci-check: in-progress
   24-3-staff-session-cookies-host-prefix-host-only: done
   24-4-public-site-schema-and-hardened-reader-role: done
-  24-5-page-content-fields-and-public-plans: review
+  24-5-page-content-fields-and-public-plans: done
   24-6-page-media-private-originals-re-encoded-derivatives: backlog
   24-7-page-names-claim-hold-rename-redirect: backlog
   24-8-publish-gate-snapshot-and-unpublish: backlog
@@ -1803,3 +1803,4 @@ last_updated: 10-23-2026 15:07
 # last_updated: 2026-11-08 (build: 24-5 started, spec approved and implementation dispatched; migration 0161 provisional, code half only, nothing applied to production)
 # last_updated: 2026-11-08 (build: 24-5 implemented, in-progress -> review. Migration 0161 (page content columns on gyms, plans.is_public and labels, pin triggers incl. plan insert pin, set_gym_page_content RPC, capability row, support audit action), rollback script, pgTAP gym_page_content (72), support_capabilities/support_excluded_from_counts/support_request_path updated, Zod gymPageContentSchema + 12 vitest tests, database.ts spliced, decisions.md entry. Nothing applied to production.)
 # last_updated: 2026-11-08 (build: 24-5 review pass, status stays review. Three layers (Blind, Edge, Verification Gap) gave 21 findings: 6 patched (SQL trim now strips all whitespace like Zod; pgTAP for table CHECKs, per-field length limits, pins as super admin and service_role, the plan insert pin shown failing, untested setter branches; decisions.md renderer-must-escape note), 5 deferred to deferred-work.md (publish-gate completeness and renderer escaping before 24.8, shared Zod/SQL fixture before 24.9, unpinned super-admin gyms insert), 9 rejected or false with evidence in the spec triage log. Full ci-local via bash: static, deno, pgtap 174/174, unit (turbo cached), e2e all PASS; no merge stamp because the tree was dirty. Migration 0161 provisional; nothing applied to production, nothing pushed.)
+# last_updated: 2026-11-08 (code review 24-5, second pass over aee96da..f796d7a, four layers: 3 decisions (hours: reject {} and open=close; gyms INSERT pin stays deferred; AC2 regex stays), 3 patches applied (hours rule in SQL/Zod/tests; SQL trim class matches Zod trim() with NBSP/U+3000 pgTAP+vitest case; support refused on suspended gym pgTAP), 2 deferred (lat/lng pairing, plan-insert pin callers) plus gyms INSERT pin, 12 rejected. gym_page_content pgTAP 111/111, support_capabilities 146, vitest 12/12; 0161 reapplied locally via rollback + migration. Full ci-local NOT yet re-run on this tree; run it before merging to epic/24. Nothing applied to production.)

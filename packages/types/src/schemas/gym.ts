@@ -262,7 +262,10 @@ const pageText = (max: number) =>
 
 const pageTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter a valid time");
 
-const pageDayHours = z.strictObject({ open: pageTime, close: pageTime }).nullable();
+const pageDayHours = z
+  .strictObject({ open: pageTime, close: pageTime })
+  .refine((d) => d.open !== d.close, "Opening and closing time must differ")
+  .nullable();
 
 export const PAGE_HOURS_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 
@@ -274,7 +277,8 @@ export const gymPageHoursSchema = z.strictObject({
   fri: pageDayHours.optional(),
   sat: pageDayHours.optional(),
   sun: pageDayHours.optional(),
-});
+})
+  .refine((h) => Object.keys(h).length > 0, "Add at least one day, or clear the hours with null");
 
 // Public contact numbers are separate from the Owner's login phone; an empty string clears the field.
 const pagePhone = z
