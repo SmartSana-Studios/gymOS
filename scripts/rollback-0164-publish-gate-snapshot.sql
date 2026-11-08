@@ -33,6 +33,12 @@ drop view if exists private.gym_page_visible;
 -- Snapshots do not survive the old content CHECK (it has no `name` key and none of the type limits).
 delete from public.gym_pages;
 
+-- Every page is gone, so every gym is idle again: start the 12-month clock for the active names that a live page kept at null
+-- (set_page_name_idle never extends a clock that is already running).
+select private.set_page_name_idle(g.id, true)
+  from public.gyms g
+ where exists (select 1 from public.page_names pn where pn.gym_id = g.id and pn.state = 'active' and pn.taken_down_at is null);
+
 alter table public.gym_pages drop constraint if exists gym_pages_gym_page_name_fkey;
 alter table public.gym_pages drop constraint if exists gym_pages_unpublished_reason_shape;
 alter table public.gym_pages drop constraint if exists gym_pages_content_keys;

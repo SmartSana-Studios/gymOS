@@ -5,7 +5,7 @@
 -- The refresh triggers are DEFERRED constraint triggers (they judge a transaction's final state, at commit). This whole file is one
 -- transaction, so `pg_temp.settle()` stands for "commit": it fires the pending triggers now.
 begin;
-select plan(243);
+select plan(258);
 
 create or replace function pg_temp.claims(uid text, app_role text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -688,6 +688,52 @@ select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
 update gyms set country = 'GA' where id = pg_temp.g('P')::uuid;
 select pg_temp.settle();
 select is((select content ->> 'country' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'GA', 'the country changed in the snapshot');
+
+-- (e) ONE watched column at a time on the live page (review pass 2). Each edit below changes exactly one column and settles alone, so a
+-- column dropped from a refresh trigger's UPDATE OF list or WHEN clause cannot be covered by a sibling column changed in the same statement.
+update gyms set name = 'Solo Name' where id = pg_temp.g('P')::uuid;
+select pg_temp.settle();
+select is((select content ->> 'name' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'SOLO NAME', 'single column: the gym name alone refreshes the snapshot');
+update gyms set primary_color = '#010203' where id = pg_temp.g('P')::uuid;
+select pg_temp.settle();
+select is((select content ->> 'color' from gym_pages where gym_id = pg_temp.g('P')::uuid), '#010203', 'single column: the brand color alone refreshes the snapshot');
+set local role authenticated;
+select pg_temp.as_user(pg_temp.u('ownerP'), 'owner', pg_temp.g('P'));
+select is(pg_temp.err($$select set_gym_category('$$ || pg_temp.g('P') || $$', 'pilates_studio')$$), 'ok', 'owner changes only the category');
+reset role;
+select pg_temp.settle();
+select is((select content ->> 'category' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'pilates_studio', 'single column: the category alone refreshes the snapshot');
+set local role authenticated;
+select pg_temp.as_user(pg_temp.u('ownerP'), 'owner', pg_temp.g('P'));
+select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('P') || $$', '{"city":"Solo City"}')$$), 'ok', 'owner changes only the city');
+reset role;
+select pg_temp.settle();
+select is((select content ->> 'city' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'Solo City', 'single column: the city alone refreshes the snapshot');
+set local role authenticated;
+select pg_temp.as_user(pg_temp.u('ownerP'), 'owner', pg_temp.g('P'));
+select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('P') || $$', '{"services_fr":"Cardio solo"}')$$), 'ok', 'owner changes only the French services');
+reset role;
+select pg_temp.settle();
+select is((select content ->> 'services_fr' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'Cardio solo', 'single column: the French services alone refresh the snapshot');
+set local role authenticated;
+select pg_temp.as_user(pg_temp.u('ownerP'), 'owner', pg_temp.g('P'));
+select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('P') || $$', '{}', jsonb_build_array(jsonb_build_object('plan_id', '$$ || pg_temp.pl('P1') || $$', 'public_label_en', 'Solo label')))$$), 'ok', 'owner changes only the English plan label');
+reset role;
+select pg_temp.settle();
+select is((select content #>> '{plans,0,label_en}' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'Solo label', 'single column: the English plan label alone refreshes the snapshot');
+update plans set price = 13000 where id = pg_temp.pl('P1')::uuid;
+select pg_temp.settle();
+select is((select content #> '{plans,0,price}' = '13000'::jsonb from gym_pages where gym_id = pg_temp.g('P')::uuid), true, 'single column: the plan price alone refreshes the snapshot');
+update plans set plan_type = 'monthly' where id = pg_temp.pl('P1')::uuid;
+select pg_temp.settle();
+select is((select content #>> '{plans,0,type}' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'monthly', 'single column: the plan type alone refreshes the snapshot');
+update plans set duration_days = 90 where id = pg_temp.pl('P1')::uuid;
+select pg_temp.settle();
+select is((select content #> '{plans,0,duration_days}' = '90'::jsonb from gym_pages where gym_id = pg_temp.g('P')::uuid), true, 'single column: the plan duration alone refreshes the snapshot');
+update plans set billing_interval = 'monthly', annual_discount_percent = null where id = pg_temp.pl('P1')::uuid; -- the CHECK ties the discount to the interval; the discount is not a watched column, so the interval is still the only term that can fire
+select pg_temp.settle();
+select is((select content #>> '{plans,0,interval}' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'monthly', 'single column: the plan billing interval alone refreshes the snapshot');
+select is(pg_temp.visible('P'), 1, 'and the page is still live after the ten single-column edits');
 
 -- (c) clearing both contact numbers unpublishes with no_contact
 set local role authenticated;

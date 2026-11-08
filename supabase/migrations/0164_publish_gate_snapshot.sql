@@ -402,11 +402,9 @@ declare
   v_snapshot jsonb;
   v_name_id uuid;
 begin
-  -- cheap unlocked exit: most changes (plans, media, names of gyms with no live page) need no lock at all; the locked re-check below decides
-  if not exists (select 1 from gym_pages gp where gp.gym_id = p_gym_id and gp.published_at is not null and gp.unpublished_at is null) then
-    return;
-  end if;
-
+  -- Lock first, with no unlocked early exit: an edit whose trigger runs while a publish is still in flight must wait for that
+  -- publish, then see the page it made live and re-judge it (READ COMMITTED re-reads after the wait). Review pass 2 restored this
+  -- after pass 1 added an unlocked "no live page" exit, which let a page go live on a gate read just before such an edit committed.
   perform 1 from gyms g where g.id = p_gym_id for no key update;
   if not found then
     return;
