@@ -3,11 +3,12 @@ import { Suspense } from "react";
 import { LoadError } from "@/components/load-error";
 
 import { listHeldPageNames } from "./actions";
+import PageNamesLoading from "./loading";
 import { HeldNamesClient } from "./components/HeldNamesClient";
 
 export default function PageNamesPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageNamesLoading />}>
       <PageNamesData />
     </Suspense>
   );

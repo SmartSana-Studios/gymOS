@@ -283,7 +283,7 @@ begin
   select w.kind || '_word:' || w.word into v_hit
     from public.page_name_words w
    where w.kind in ('generic', 'place') and not w.is_prefix
-     and (w.word = any (string_to_array(p_name, '-')) or w.word = p_name)
+     and position('-' || w.word || '-' in '-' || p_name || '-') > 0
    order by w.kind, w.word
    limit 1;
   if v_hit is not null then
@@ -897,7 +897,8 @@ begin
     raise exception 'permission denied';
   end if;
   v_word := lower(btrim(coalesce(p_word, '')));
-  if p_kind is null or p_kind not in ('reserved', 'brand', 'generic', 'place', 'zone')
+  -- zone words are the DNS zone and the reserved-label JSON: they enter by migration, like they leave (never by this function)
+  if p_kind is null or p_kind not in ('reserved', 'brand', 'generic', 'place')
      or v_word !~ '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$' or char_length(v_word) > 30
      or p_prefix is null or (p_prefix and p_kind not in ('reserved', 'zone')) then
     raise exception 'add_page_name_word: invalid_word';
@@ -997,6 +998,7 @@ declare
   v_expired integer := 0;
   v_reminded integer := 0;
   v_failed integer := 0;
+  v_rows integer;
   v_error text;
 begin
   for r in
@@ -1008,15 +1010,24 @@ begin
      order by pn.reserved_until, pn.id
   loop
     begin
-      update page_names set state = 'released' where id = r.id and state = 'active';
-      -- the gym's redirects would point at nothing: release them with the name they pointed at
-      update page_names set state = 'released', reserved_until = coalesce(reserved_until, now())
-       where gym_id = r.gym_id and state = 'redirect' and taken_down_at is null;
-      perform log_audit_event(
-        p_action_type => 'page_name_released', p_gym_id => r.gym_id, p_target_entity_id => r.id::text,
-        p_target_entity_type => 'page_name', p_system_actor_label => 'system:page_names_sweep',
-        p_metadata => jsonb_build_object('name', r.name, 'from_state', 'active'));
-      v_released := v_released + 1;
+      -- same lock order as claim_page_name() (gym row first), then re-check inside the lock: a claim, a rename or a publish
+      -- that committed after the select above must not lose its name to this loop
+      perform 1 from gyms g where g.id = r.gym_id for update;
+      update page_names set state = 'released'
+       where id = r.id and state = 'active' and taken_down_at is null
+         and reserved_until is not null and reserved_until < now()
+         and not private.page_name_has_published_page(r.gym_id);
+      get diagnostics v_rows = row_count;
+      if v_rows > 0 then
+        -- the gym's redirects would point at nothing: release them with the name they pointed at
+        update page_names set state = 'released', reserved_until = coalesce(reserved_until, now())
+         where gym_id = r.gym_id and state = 'redirect' and taken_down_at is null;
+        perform log_audit_event(
+          p_action_type => 'page_name_released', p_gym_id => r.gym_id, p_target_entity_id => r.id::text,
+          p_target_entity_type => 'page_name', p_system_actor_label => 'system:page_names_sweep',
+          p_metadata => jsonb_build_object('name', r.name, 'from_state', 'active'));
+        v_released := v_released + 1;
+      end if;
     exception when others then
       v_failed := v_failed + 1;
       v_error := left(sqlerrm, 200);

@@ -332,7 +332,7 @@
     "reject": "Rejeter",
     "approveTitle": "Approuver « {{name}} »",
     "rejectTitle": "Rejeter « {{name}} »",
-    "reasonNote": "Le propriétaire reçoit ce motif dans une notification et par e-mail. Ne nommez aucune personne.",
+    "reasonNote": "Le propriétaire reçoit ce motif dans une notification et par e-mail. Ne nommez aucune personne ni une autre salle.",
     "reason": "Motif (3 à 500 caractères)",
     "cancel": "Annuler",
     "working": "Enregistrement...",

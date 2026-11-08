@@ -23,6 +23,11 @@ describe("page name grammar", () => {
     expect(pageNameSchema.safeParse("  A ").success).toBe(false);
   });
 
+  it("trims Unicode whitespace (NBSP, ideographic space, BOM) like the database", () => {
+    expect(pageNameSchema.parse(" iron-yard　")).toBe("iron-yard");
+    expect(pageNameSchema.parse("﻿iron-yard ")).toBe("iron-yard");
+  });
+
   it("claimPageNameSchema needs a gym id and a valid name and nothing else", () => {
     const gymId = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
     expect(claimPageNameSchema.safeParse({ gymId, name: "iron-yard" }).success).toBe(true);

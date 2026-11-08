@@ -1702,3 +1702,15 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-7-page-names-claim-hold-rename-redirect.md`
   summary: Brand words are matched as substrings and refuse (not hold) a name, so `orange-boxing` or `insecure-gym` cannot be claimed and Super Admin cannot override.
   evidence: FR-202 says "names containing a credential or brand word cannot be claimed" and the build follows it literally. A product call: match whole hyphen parts, or hold short brand words (`mtn`, `tara`, `momo`, `orange`) for review. Decide before the first real gym claims a name.
+
+## Deferred from: code review of spec-24-7-page-names-claim-hold-rename-redirect, pass 2 (2026-11-08)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-7-page-names-claim-hold-rename-redirect.md`
+  summary: Close before 24.8 publishes: `gym_pages.page_name_id` has a plain foreign key only, so a page could reference another gym's name or a held/redirect/released row.
+  evidence: Nothing writes the column yet. 24.8's publish/snapshot writer must require the gym's own `active` name (or add a composite FK `(gym_id, page_name_id)`); put it in the 24.8 acceptance criteria.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-7-page-names-claim-hold-rename-redirect.md`
+  summary: Close before 24.9 / 24.11: the Owner is not told when a Super Admin claim replaces their name (old links die at once) or when the sweep releases an idle name after 12 months; no pre-release warning.
+  evidence: Only `decide_held_page_name` writes a notice. Not in the 24.7 spec. Add notice copy (EN/FR) and an optional 11-month warning to the 24.9 or 24.11 acceptance criteria.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-7-page-names-claim-hold-rename-redirect.md`
+  summary: Brand-word check runs on the unfolded name, so `s3cure-l0gin` (folds to `securelogin`) is not refused or held; extends the brand-word substring item above.
+  evidence: `private.page_name_has_brand_word` uses `position(word in name)` on the raw name; near-match only compares the whole folded name to a brand word. Decide with the substring product call before the first real gym claims a name.

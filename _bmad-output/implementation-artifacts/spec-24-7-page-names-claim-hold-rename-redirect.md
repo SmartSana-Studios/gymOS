@@ -89,6 +89,8 @@ context:
 
 ## Spec Change Log
 
+2026-11-08 (code review pass 2, owner ratified): three deviations from the frozen text accepted as built. (1) The sweep releases a gym's unexpired redirect rows together with its released active name (they would point at nothing). (2) A Super Admin claim on behalf of a gym releases the replaced active name at once instead of making it a redirect. (3) A folded name starting with a folded reserved or zone prefix (gym0s-fit) is held. All three are in docs/decisions.md and pinned by tests.
+
 ## Review Triage Log
 
 Pass 1 (layers: blind-hunter, edge-case-hunter, verification-gap).
@@ -130,3 +132,44 @@ Pass 1 (layers: blind-hunter, edge-case-hunter, verification-gap).
 **Commands:**
 - `bash scripts/ci-local.sh` -- expected: every stage PASS
 - `node scripts/check-migration-guardrails.mjs` and `node scripts/check-reserved-labels.mjs` -- expected: pass
+
+### Review Findings
+
+Pass 2 (2026-11-08; layers: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor; committed tree 95124a7).
+
+- [x] [Review][Decision] Ratify three documented deviations from the frozen spec text — (1) the sweep releases a gym's unexpired `redirect` rows together with its released active name (frozen: "releases `redirect` rows past `reserved_until`"; code and decisions.md: they would point at nothing); (2) a Super Admin claim releases the replaced active name at once instead of leaving it a redirect (frozen: only "releases the gym's redirect rows at once"; `p_forced` is also set for a first claim, where it is a no-op); (3) a folded name that starts with a folded reserved/zone prefix (`gym0s-fit`) is held (frozen hold rule has no prefix clause). All three are in decisions.md and pinned by tests; the frozen block is human-owned. [0163_page_names.sql:504-507, :1011-1014, :304-308] (acceptance-auditor)
+- [x] [Review][Patch] Sweep takes no gym row lock and does not re-check or count rows — it selects idle names, then `update ... where id and state='active'` without re-checking `reserved_until` or `page_name_has_published_page`, then releases the gym's redirects and audits regardless of the row count. A claim/rename/publish committing between select and update gets its fresh name released or a release audited that did not happen; and the sweep updates active-then-redirects while claim updates redirect-then-active (inverse order, deadlock swallowed by `exception when others`). Fix: `perform 1 from gyms where id = r.gym_id for update`, re-check state, `reserved_until < now()` and no published page inside the lock, `get diagnostics` row_count and skip redirects/audit/count when 0. [0163_page_names.sql:1002-1024] (blind-hunter+edge-case-hunter)
+- [x] [Review][Patch] Unicode whitespace trims of the claim name and decision reason are untested — only ASCII spaces and `''`/`'ok'` are used, so replacing either regex with `btrim()` keeps every test green and a whitespace-only reason of 5+ characters would reach the Owner. Add to `page_names.test.sql`: claim with `chr(160) || 'iron-yard' || chr(12288)` stored trimmed; whitespace-only reason refused `reason_required`; padded reason stored trimmed; plus an NBSP case in `pageNameSchema.test.ts`. [page_names.test.sql:138, :251-253; pageNameSchema.test.ts:22] (verification-gap)
+- [x] [Review][Patch] `list_held_page_names()` `overdue = true` and oldest-first order are never asserted at the database level — only a fresh hold with `overdue` false is. Assert `gym-late` overdue and sorted before `gym-fresh` next to the sweep fixtures. [0163_page_names.sql:736, :741; page_names.test.sql:250] (verification-gap)
+- [x] [Review][Patch] A hyphenated generic/place word only holds an exact-equal name — `w.word = any(string_to_array(p_name,'-')) or w.word = p_name` cannot match `personal-training` inside `personal-training-club`. Use `position('-' || w.word || '-' in '-' || p_name || '-') > 0` (identical for single-word entries). [0163_page_names.sql:286] (edge-case-hunter)
+- [x] [Review][Patch] `add_page_name_word` accepts kind `zone`, which `remove_page_name_word` can then never remove (zone words leave by migration with the JSON list). Refuse `zone` in add with `invalid_word`. [0163_page_names.sql:900-904] (edge-case-hunter)
+- [x] [Review][Patch] `/page-names` wraps its data in `<Suspense fallback={null}>`, so `loading.tsx` is dead and the page is blank while loading; billing and admins pass their Loading component as the fallback. [page-names/page.tsx:10] (blind-hunter)
+- [x] [Review][Patch] The reason note only says "Do not name any individual", but the queue shows `near_match_name:<other gym's name>` beside the box and the reason goes verbatim to the Owner's notice, e-mail and audit metadata. Extend `pageNames.reasonNote` EN and FR to "or another gym". [apps/super-admin/locales/en.json:335, fr.json:335] (blind-hunter)
+- [x] [Review][Patch] AC3 evidence is not on the committed tree — sprint-status records ci-local PASS on a dirty tree before the pass-1 patches were committed, and the two known-bad proofs (hold rule removed, window count removed fail the new tests) are not recorded. After the patches above: run `bash scripts/ci-local.sh` on the committed tree, read the per-stage lines, run both mutations once (stage edits first), and record the results here. RESULT (2026-11-08, dirty tree, no merge stamp): ci-local static PASS, deno PASS, pgtap PASS (page_names 200, negative 50), e2e PASS; unit FAILED once on two phone-input.test.tsx cases (5s and 3s timeouts, a file this change does not touch), passed alone and passed on a second `ci-local.sh --only unit` run, so a load flake; check-migration-guardrails OK. Mutations against the local DB: hold rule removed -> 10 page_names tests fail (x-fitness, place part, ...); window count removed -> 2 fail (window boundary, third rename). Real migration restored and re-run green. (acceptance-auditor)
+- [x] [Review][Defer] `PAGE_NAME_ERROR_CODES` lists `not_admitted` and `gym_not_active` that the database never raises (it raises `permission denied` and `gym <uuid> is not active`); `invalid_decision` has no copy; the dashboard `pageNames.errors` has no `generic` key — deferred: already in deferred-work.md as close-before-24.9; move it into 24.9 acceptance criteria (Epic 22 retro 67). (blind-hunter+acceptance-auditor)
+- [x] [Review][Defer] Brand-word check is substring-only and runs on the unfolded name, so `s3cure-l0gin` folds to `securelogin`, is not within one edit of `login`, and goes active — deferred: extends the existing brand-word product call in deferred-work.md; decide with it before the first real gym claims a name. (blind-hunter)
+- [x] [Review][Defer] Sweep partial-failure path and `job_runs` `failure` status untested — deferred: already in deferred-work.md; needs a fixture that makes one iteration raise. (verification-gap)
+- [x] [Review][Defer] `gym_pages.page_name_id` only has a plain FK, so a page can reference another gym's name or a held/redirect/released row; nothing writes the column yet — deferred: add to 24.8 acceptance criteria (the publish/snapshot writer must require the gym's own `active` name, or add a composite FK), Epic 22 retro 66 (gate reaches its consumers). (edge-case-hunter)
+- [x] [Review][Defer] Owner is not told when a Super Admin claim replaces their name (old links die at once) or when the sweep releases an idle name after 12 months, and there is no pre-release warning — deferred: not in the 24.7 spec; add to 24.9 (Owner screen) / 24.11 acceptance criteria. (blind-hunter)
+
+**Rejected (20):**
+- Stale `gym_pages.page_name_id` after a name is released — false for now: a re-claim creates a new row with a new id; resolution through the column belongs to 24.8.
+- FK add can abort the migration on existing `page_name_id` values — false: no migration or function before 0163 writes the column (grep 0160-0162).
+- Seed test pinned to the one `NNNN_page_names.sql` — low: the comment says so; fix is a union over seeding migrations.
+- No notice at first hold, no nav badge — low: reminder after 2 business days is the specified behavior (pass 1 rejected the same).
+- Hydration mismatch of `toLocaleString(i18n.language)` — false: same call in ActiveAccessList and others (pass 1 rejected).
+- Held-names table accessibility (identical button names, `aria-invalid` on empty) — low, cosmetic (pass 1 rejected).
+- Concurrency paths and stale Super Admin untested — low: pgTAP is single-session; the stale/revoked path is covered by `is_super_admin_live()` tests elsewhere.
+- Word-list UI missing / not recorded — false: recorded in deferred-work.md.
+- New `packages/types` exports unused — low, no caller that diverges.
+- Claim scans all names under a global lock — low: already in deferred-work.md.
+- Generic/place hold bypassed by `f1tness`/`y0ga` substitution — low: spec hold rule is on the literal part; fold applies to near-match.
+- No active Owner when a hold is decided — low (pass 1 rejected): a hold needs an Owner caller.
+- `not_held` does not refresh the queue — low: needs two Super Admins deciding the same name.
+- Astral characters counted differently in Zod and SQL — low: an emoji reason is unlikely and the database error is shown.
+- Super Admin skips `rename_limit` and gym-active check — false: the spec says so ("does not count toward the limit").
+- Audit labels missing — duplicate: already in deferred-work.md.
+- `name_taken` in `decide_held_page_name` unreachable — low: defence in depth.
+- `remove_page_name_word` out of order in `database.ts` — low, cosmetic.
+- Consumer-enumeration test is a source regex — low: behavioural denials are in the negative file.
+- Overdue reminders use `is_super_admin` without the live check — low: same loop shape as 0143.

@@ -332,7 +332,7 @@
     "reject": "Reject",
     "approveTitle": "Approve \"{{name}}\"",
     "rejectTitle": "Reject \"{{name}}\"",
-    "reasonNote": "The Owner receives this reason in a notice and by e-mail. Do not name any individual.",
+    "reasonNote": "The Owner receives this reason in a notice and by e-mail. Do not name any individual or another gym.",
     "reason": "Reason (3 to 500 characters)",
     "cancel": "Cancel",
     "working": "Saving...",

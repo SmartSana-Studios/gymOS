@@ -1,7 +1,7 @@
 -- Story 24.7: page names (migration 0163), positive paths, lifecycle and structure. Denials: page_names.negative.test.sql.
 -- Fixture ids: 00000000-0000-0000-0000-0000002407xx (gyms 11-21, users 31-41).
 begin;
-select plan(188);
+select plan(200);
 
 create or replace function pg_temp.claims(uid text, app_role text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -250,12 +250,14 @@ set local role authenticated;
 select is((select count(*)::int from list_held_page_names() where gym_id = pg_temp.g('E')::uuid and name = 'sport-box' and current_name = 'gymnast' and due_at > held_at and not overdue), 1, 'the queue shows the held rename with its due date and current name');
 select is(pg_temp.val(pg_temp.dec(pg_temp.pid('E', 'held'), 'true', '')), 'P0001:decide_held_page_name: reason_required', 'approve without a reason is refused');
 select is(pg_temp.val(pg_temp.dec(pg_temp.pid('E', 'held'), 'true', 'ok')), 'P0001:decide_held_page_name: reason_required', 'a 2-character reason is refused');
+select is(pg_temp.val(pg_temp.dec(pg_temp.pid('E', 'held'), 'true', repeat(' ', 5))), 'P0001:decide_held_page_name: reason_required', 'a reason of ASCII spaces only is refused');
+select is(pg_temp.val(pg_temp.dec(pg_temp.pid('E', 'held'), 'true', chr(160) || chr(12288) || chr(65279) || chr(160) || chr(12288))), 'P0001:decide_held_page_name: reason_required', 'a reason of Unicode whitespace only (NBSP, ideographic space, BOM) is refused');
 select is(pg_temp.val(pg_temp.dec(pg_temp.pid('E', 'held'), 'true', repeat('x', 501))), 'P0001:decide_held_page_name: reason_required', 'a 501-character reason is refused');
-select is(pg_temp.val(pg_temp.dec(pg_temp.pid('E', 'held'), 'true', 'Verified as the gym''s own trading name')), 'active', 'approve with a reason activates');
+select is(pg_temp.val(pg_temp.dec(pg_temp.pid('E', 'held'), 'true', chr(160) || 'Verified as the gym''s own trading name' || chr(12288))), 'active', 'approve with a reason activates (a Unicode-padded reason is stored trimmed, checked below)');
 reset role;
 select is((select string_agg(name || ':' || state, ',' order by name) from page_names where gym_id = pg_temp.g('E')::uuid and state <> 'released'), 'gymnast:redirect,sport-box:active', 'approved: new active, old a redirect');
 select ok((select reserved_until between now() + interval '12 months' - interval '1 minute' and now() + interval '12 months' + interval '1 minute' from page_names where gym_id = pg_temp.g('E')::uuid and state = 'redirect'), 'the redirect lasts 12 months from approval');
-select ok((select decided_at is not null and decided_by = pg_temp.u('admin')::uuid and decision_reason like 'Verified%' from page_names where gym_id = pg_temp.g('E')::uuid and state = 'active'), 'the decision is recorded on the row');
+select ok((select decided_at is not null and decided_by = pg_temp.u('admin')::uuid and decision_reason like 'Verified%' and decision_reason like '%name' from page_names where gym_id = pg_temp.g('E')::uuid and state = 'active'), 'the decision is recorded on the row');
 select is(private.page_name_completed_renames(pg_temp.g('E')::uuid), 1, 'an approved rename counts');
 select is((select count(*)::int from audit_log where action_type = 'page_name_approved' and gym_id = pg_temp.g('E')::uuid and metadata ->> 'reason' like 'Verified%'), 1, 'approval writes an audit row with the reason');
 select is((select count(*)::int from staff_notices where user_id = pg_temp.u('ownerE')::uuid and notice_type = 'page_name_decision' and body_en like '%sport-box%was approved%Verified%' and body_fr like '%sport-box%approuvé%Verified%'), 1,
@@ -394,6 +396,14 @@ select private.page_names_sweep();
 select is((select count(*)::int from staff_notices where notice_type = 'page_name_overdue') - :notices_before, :admins, 'sweep: a second run sends no second reminder');
 select is((select count(*)::int from staff_notices where notice_type = 'page_name_overdue' and gym_id = pg_temp.g('L')::uuid and user_id = pg_temp.u('admin')::uuid and body_en like '%gym-late%' and body_fr like '%gym-late%'), 1, 'the reminder names the held name, EN and FR');
 
+-- the queue flags the overdue hold and lists the oldest first (gym-late is 5 days old, gym-fresh is new)
+set local role authenticated;
+select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
+select is((select overdue from list_held_page_names() where name = 'gym-late'), true, 'queue: a hold past its 2 business days is overdue');
+select is((select overdue from list_held_page_names() where name = 'gym-fresh'), false, 'queue: a new hold is not overdue');
+select is((select array_agg(name) from list_held_page_names() where name in ('gym-late', 'gym-fresh')), array['gym-late', 'gym-fresh']::text[], 'queue: oldest first');
+reset role;
+
 -- a gym claiming its own taken-down (reserved) name is refused; a Super Admin on behalf skips the hold even for the name already pending
 set local role authenticated;
 select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
@@ -403,6 +413,13 @@ reset role;
 select is((select state from page_names where gym_id = pg_temp.g('J')::uuid and name = 'held-forever'), 'reserved', 'the reserved row is untouched');
 select is((select string_agg(state || ':' || origin, ',' order by state) from page_names where gym_id = pg_temp.g('M')::uuid and name = 'gym-fresh'), 'active:claim,released:claim', 'the pending row was withdrawn and the name promoted');
 select is((select count(*)::int from audit_log where action_type = 'page_name_withdrawn' and gym_id = pg_temp.g('M')::uuid), 1, 'with a withdrawn audit row');
+
+-- Unicode whitespace around a name is trimmed (NBSP, ideographic space), as the page content setter does; gym G has no active name here
+set local role authenticated;
+select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
+select is(pg_temp.val(pg_temp.cl('G', chr(160) || 'uni-code' || chr(12288))), 'active', 'a name padded with NBSP and an ideographic space is claimed');
+reset role;
+select is((select name from page_names where gym_id = pg_temp.g('G')::uuid and state = 'active'), 'uni-code', 'and stored trimmed');
 
 -- ---- reserved trigger: whichever path writes an active row -------------------------------------------------------------------
 select is(pg_temp.err($$insert into page_names (gym_id, name, state, origin) values ('$$ || pg_temp.g('M') || $$', 'api', 'active', 'claim')$$), '23514:page_names: reserved_name', 'trigger: a direct insert of an active reserved name is refused');
@@ -437,8 +454,18 @@ select is(pg_temp.err($$select remove_page_name_word('generic', 'sauna')$$), 'ok
 select is(pg_temp.err($$select remove_page_name_word('brand', 'zzbrand')$$), 'ok', 'so can a brand word');
 select pg_temp.as_user(pg_temp.u('ownerB'), 'owner', pg_temp.g('B'));
 select is(pg_temp.val(pg_temp.cl('B', 'my-zzbrand')), 'active', 'and the name is allowed again');
+-- a hyphenated generic word matches as whole hyphen-separated parts; a zone word cannot be added here (it could never be removed)
+select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
+select is(pg_temp.err($$select add_page_name_word('generic', 'personal-training')$$), 'ok', 'add a hyphenated generic word');
+select is(pg_temp.val($$select add_page_name_word('zone', 'zzzone')$$), 'P0001:add_page_name_word: invalid_word', 'a zone word cannot be added by the function');
 reset role;
-select is((select count(*)::int from audit_log where action_type in ('page_name_word_added', 'page_name_word_removed') and actor_id = pg_temp.u('admin')::uuid), 7, 'word changes are audited (4 adds, 3 removes; the repeated add is not)');
+select is(private.page_name_hold_reason('personal-training-box', pg_temp.g('A')::uuid), 'generic_word:personal-training', 'a name containing the hyphenated word as whole parts is held');
+select is(private.page_name_hold_reason('personal-trainer-box', pg_temp.g('A')::uuid), null::text, 'a name that only shares a prefix with it is not');
+set local role authenticated;
+select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
+select is(pg_temp.err($$select remove_page_name_word('generic', 'personal-training')$$), 'ok', 'and the hyphenated word can be removed');
+reset role;
+select is((select count(*)::int from audit_log where action_type in ('page_name_word_added', 'page_name_word_removed') and actor_id = pg_temp.u('admin')::uuid), 9, 'word changes are audited (5 adds, 4 removes; the repeated add is not)');
 
 -- ---- hold reasons: prefix hardening, reserved near match, brand near match (gym B) --------------------------------------------------------------
 set local role authenticated;
