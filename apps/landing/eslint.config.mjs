@@ -15,6 +15,16 @@ const eslintConfig = [
   ...nextCoreWebVitals,
   ...nextTypescript,
   {
+    // Story 24.10 (AD-48): gym text is a React text node, never markup (the same rule as packages/page-templates).
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        { selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']", message: "dangerouslySetInnerHTML is forbidden (AD-48)." },
+        { selector: "Property[key.name='dangerouslySetInnerHTML']", message: "dangerouslySetInnerHTML is forbidden (AD-48)." },
+      ],
+    },
+  },
+  {
     ...i18next.configs["flat/recommended"],
     rules: {
       "i18next/no-literal-string": [

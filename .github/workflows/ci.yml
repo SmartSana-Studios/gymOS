@@ -37,7 +37,7 @@ jobs:
         # code yet (Epic 2+) and its own `expo lint` toolchain has an
         # unrelated, pre-existing dependency resolution gap, unrelated to
         # and out of scope for this story's i18n gate.
-        run: npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin
+        run: npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin --filter=@gymos/landing --filter=@gymos/page-templates
 
       - name: i18n locale key-parity check
         run: pnpm run check:i18n
@@ -70,7 +70,16 @@ jobs:
         # (Story 2.10 QA automation), mobile (Story 19.11, pure modules
         # and services under vitest) and super-admin (Story 22 retro item 7:
         # the Server Action gate scan and the authz tests must actually run).
-        run: npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile --filter=@gymos/super-admin
+        run: |
+          npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile --filter=@gymos/super-admin
+          npx turbo run test --filter=@gymos/types --filter=@gymos/page-templates --filter=@gymos/landing
+
+      - name: Page template conformance, layout stage (Chromium, Story 24.10)
+        # Renders every registered gym page template at 360, 768, 1280 and 1366 px and fails on any layout, contrast, tap-target or CSP
+        # violation. A missing browser is a failure, not a skip.
+        run: |
+          (cd packages/page-templates && npx playwright install --with-deps chromium)
+          npx turbo run test:layout --filter=@gymos/page-templates
 
   rls-tests:
     runs-on: ubuntu-latest
@@ -118,6 +127,14 @@ jobs:
 
       - name: Support assignment vs Owner switch race (two real sessions)
         run: DB_CONTAINER=supabase_db_gym_os bash scripts/support-assignments-race.test.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 22.18 or later imports the reader SQL module (TypeScript) without a build step.
+          node-version: 22
+
+      - name: Landing reader SQL against the migrated schema (as public_site_reader)
+        run: DB_CONTAINER=supabase_db_gym_os bash scripts/public-site-reader-sql.test.sh
 
       - name: Claim-read inventory (report mode, new claim-only entries fail)
         run: DB_CONTAINER=supabase_db_gym_os node scripts/claim-inventory.mjs

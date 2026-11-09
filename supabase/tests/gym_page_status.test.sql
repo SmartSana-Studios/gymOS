@@ -475,7 +475,7 @@ select is((select array_agg(x order by x) from (select distinct unnest(pg_temp.k
              'about_min_chars', 'bad_text_fields', 'bad_text_fields[]', 'bad_text_fields[].field', 'bad_text_fields[].lang', 'bad_text_fields[].plan_name', 'languages', 'languages[]', 'languages[].characters', 'languages[].code', 'languages[].complete', 'languages[].needed',
              'media', 'media[]', 'media[].derivative_key', 'media[].id', 'media[].kind', 'media[].sort_order', 'missing', 'missing[]',
              'published_at', 'snapshot', 'snapshot.address', 'snapshot.banner', 'snapshot.category', 'snapshot.city', 'snapshot.color', 'snapshot.contact', 'snapshot.contact.phone',
-             'snapshot.country', 'snapshot.gallery', 'snapshot.gallery[]', 'snapshot.hours', 'snapshot.hours.mon', 'snapshot.hours.mon.close', 'snapshot.hours.mon.open', 'snapshot.hours.sun',
+             'snapshot.country', 'snapshot.default_language', 'snapshot.gallery', 'snapshot.gallery[]', 'snapshot.hours', 'snapshot.hours.mon', 'snapshot.hours.mon.close', 'snapshot.hours.mon.open', 'snapshot.hours.sun',
              'snapshot.logo', 'snapshot.map', 'snapshot.map.lat', 'snapshot.map.lng', 'snapshot.name', 'snapshot.plans', 'snapshot.plans[]', 'snapshot.plans[].currency',
              'snapshot.plans[].duration_days', 'snapshot.plans[].interval', 'snapshot.plans[].label_en', 'snapshot.plans[].label_fr', 'snapshot.plans[].name',
              'snapshot.plans[].price', 'snapshot.plans[].type', 'snapshot.about_fr', 'snapshot.services_fr', 'state', 'template', 'unpublished_reasons',

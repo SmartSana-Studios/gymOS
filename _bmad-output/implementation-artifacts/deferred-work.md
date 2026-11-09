@@ -1839,3 +1839,68 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
   summary: Unverified (medium if true): `getLandingPageData` reads `gyms` page columns and `plans` with plain table selects after the admission RPC; an assigned-support caller may get no row from RLS and see `load_failed`. Settled by the owner's browser pass as assigned support; if it fails, read both through the status function or a new read RPC.
   evidence: review pass 2 (blind); no pgTAP or vitest case covers a support read of those tables.
+
+## Closed by build of spec-24-10 (2026-11-09)
+
+- Template names are validated against a registry: `@gymos/page-templates` registers Classic only, an unregistered `template` renders the uniform not-found, and a cross-package test fails when `PAGE_TEMPLATES` in the dashboard names a template the registry does not have. (The publish screen still checks only the name shape server-side; it offers only registered names.)
+- `gym_pages.schema_version`: the reader accepts exactly version 1 and fails closed otherwise. The version stays 1 in 0166 (nothing is in production); the first key change after release must ship version 2 plus a migration of stored snapshots.
+- Renderer escaping with hostile text: every gym string is a React text node, `dangerouslySetInnerHTML` is a lint error in both packages, and the conformance suite renders entity-encoded and literal hostile markup in every language and asserts that no element is created.
+- Timezone key: decided NO. Hours are bare text, there is no "open now" and no `timezone` content key (decisions.md, 24.10).
+- Plans render as the name exactly as entered plus details from the template dictionary (type, interval, duration); pay-per-session shows no interval chip (its interval is always "monthly" by CHECK and would read as "billed monthly").
+- The redirect lookup is wired: `public_site.page_redirects` (0166) feeds a one-hop 301 that exists only while the current page is visible.
+- The language rule is built from `PAGE_CONTENT_LANGUAGES`: complete languages from the snapshot, Accept-Language then `default_language` then list order, `/{code}`, hreflang only for two or more complete languages, block fallback with its own `lang`.
+- `net._http_response` on production remains an owner release gate (below), no longer a landing-code item.
+
+## Deferred from: build of spec-24-10-public-page-route-and-launch-template (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: Seed templates A (dark) and B (light) are not built (owner decision 2026-11-09: Classic only). Library growth: each is one added module under `packages/page-templates/src/templates`, one registry entry, its chrome dictionaries and a pass of the conformance suite (the suite and the known-bad fixtures are generic).
+  evidence: mocks stay in `_bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/mockups/template-seed-{a-dark,b-light}.html`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: Release gate (owner): before release set `PUBLIC_SITE_ROOT_DOMAIN`, `PUBLIC_SITE_MEDIA_ORIGIN` (the storage origin) and `PUBLIC_SITE_READER_{HOST,PORT,DATABASE,USER,PASSWORD}` in the landing Vercel project, size `public_site_reader` CONNECTION LIMIT as instances plus one, and verify and revoke `net._http_response` access for the reader on production.
+  evidence: no production change in 24.10; the code answers the uniform not-found when the media origin is unset and gym hosting is off when the root domain is unset in production.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: Preview deploy checks (owner, not a CI gate): the CDN honours `Vary: Accept-Language` on `/` (Next adds its own `Vary: rsc, next-router-state-tree, ...` to the same response); a real HTTPS request on a wildcard host works; the `Cache-Control` of the page is kept as written. If `Vary` is not honoured the fallback is in the spec's Design Notes.
+  evidence: observed locally against `next start`: our `Vary: Accept-Language` and Next's `Vary` are two header lines on the same response.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: The reader's TLS is encrypted but the pooler's certificate is not verified (`rejectUnauthorized: false`, the Supabase CA is not in Node's store). Pin the CA (a variable or a bundled file) before the first real gym is published.
+  evidence: `apps/landing/lib/gym-site/db.ts`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: Not built here (24.11): `/robots.txt`, `/sitemap.xml` and `/report` answer the uniform not-found; the "Report this page" link in the footer already points at `/report` and the epic releases together. No takedown writer, purge or sitemap in this story.
+  evidence: spec Boundaries, "Never".
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: Not built (Epic 25): JSON-LD (`HealthClub`), canonical links, directory. The pipeline has no JSON-LD block and emits no canonical.
+  evidence: AD-51.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: The editor shows no thumbnail preview of the template, and there is still no alt-text field for gallery images (the page prints "Photo N of M").
+  evidence: spec Boundaries, "Never".
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: Layout decisions that differ from the UX text and need the owner's eye on a real phone: the three contact tiles sit in ONE row at every width (DESIGN.md says stacked full width under 641 px; stacked tiles pushed the contact actions out of the first screen at 360 x 640 for a 60-character gym name); the language link is a plain underlined text link (the Classic table says "pill", the general rule says never a pill); the mobile banner is 2:1.
+  evidence: `packages/page-templates/src/templates/classic/styles.ts`; the conformance layout stage proves the first-screen rule at 360 x 640, 768 x 1024 and 1366 x 768.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: Fonts: Barlow 700 and 800 are Latin subsets (Basic Latin, Latin-1, a few punctuation and currency glyphs) converted from `@expo-google-fonts/barlow` with fonttools; a gym name with characters outside that subset falls back to the system font for those glyphs. Regenerate with `pyftsubset` from the same TTFs to widen the subset.
+  evidence: `apps/landing/public/fonts/` (OFL.txt beside them).
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: The landing app has no `.env.example`; the `PUBLIC_SITE_*` names are in `turbo.json` and documented in `apps/landing/README.md`. A page whose gym name is longer than about 60 characters may push the contact tiles below the first screen on a 360 x 640 phone (the suite proves 60).
+  evidence: conformance fixture `long-name-and-about`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: `private.gym_page_snapshot` writes `default_language` as the first language when the gym's own value is not in the language list; the Settings schema already allows only en and fr, so this only matters for a hand-edited row.
+  evidence: 0166.
+
+## Deferred from: code review of spec-24-10-public-page-route-and-launch-template, pass 1 (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: Unverified (medium if true): the reader pool is one connection per instance with a 2 s checkout timeout, so two overlapping requests on one instance may make the second fail and answer a cached not-found.
+  evidence: review pass 1 (blind, edge-case); the spec fixes `max 1`. A preview deploy under concurrent load settles it (24.12 speed baseline); if it fails, size the pool and the role's CONNECTION LIMIT together.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: Unverified (medium if true): every unknown but grammar-valid label costs two serial reads (page, then redirect) and random labels bypass the per-host 30 s cache, so a label scan competes with real traffic for the pooled connection.
+  evidence: review pass 1 (blind); consider one combined query or a platform firewall rule in 24.12.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: Owner decision for the frozen spec: a transient database, render or config error answers the same cached 404 (`s-maxage=30`) as a missing page, so a live gym can look unpublished for up to 30 s per edge during a blip.
+  evidence: review pass 1 (blind, edge-case); the frozen spec orders this response. A `503` with `no-store` for operational errors would need the frozen block changed.
+
+## Deferred from: code review of spec-24-10-public-page-route-and-launch-template, pass 2 (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: No `next build` of `@gymos/landing` runs in `ci.yml` or `ci-local.sh`. The `renderPageAsync` lazy `react-dom/server` import and `transpilePackages` are proven only by a manual build; importing the static `renderPage` in the handler, or dropping `transpilePackages`, keeps every test green and first fails on the Vercel build.
+  evidence: review pass 2 (verification-gap); loud failure at deploy, not silent. Settle with a landing build stage when 24.12 adds the landing gate.

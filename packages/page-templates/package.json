@@ -1,0 +1,32 @@
+{
+  "name": "@gymos/page-templates",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Public gym page templates (Story 24.10, AD-48): pure modules over PageContentV1, a registry, the render pipeline and the conformance suite.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:layout": "vitest run --config vitest.layout.config.mts"
+  },
+  "dependencies": {
+    "@gymos/types": "workspace:*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@playwright/test": "1.62.1",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.10",
+    "jsdom": "^30.0.1",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
+  }
+}

@@ -10,7 +10,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repoRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 export const ZONE_PATH = "docs/dns/gymosapps.com.zone";
@@ -18,10 +18,27 @@ export const LIST_PATH = "packages/types/src/constants/reservedLabels.json";
 const DEFAULT_APEX = "gymosapps.com";
 const RR_TYPES = new Set(["A", "AAAA", "CAA", "CNAME", "DNAME", "MX", "NS", "PTR", "SOA", "SRV", "TXT"]);
 
-/** AD-45 name grammar: 3 to 30 chars, a-z0-9-, no leading/trailing hyphen, no `--` (so no `xn--`), not digits only. */
-export function isValidName(label) {
-  return /^[a-z0-9-]{3,30}$/.test(label) && !/^-|-$|--/.test(label) && !/^[0-9]+$/.test(label);
+// AD-45 name grammar: ONE definition, packages/types/src/constants/pageNameGrammar.ts (Story 24.10; before that this file held a copy).
+// It is a TypeScript file with no imports, loaded by Node's own type stripping (Node 22.18 or later; CI uses the latest 22). The two
+// warnings Node prints for a typeless package ("Reparsing as ES module", type stripping) are muted around that one load.
+{
+  const [major, minor] = process.versions.node.split(".").map(Number);
+  if (major < 22 || (major === 22 && minor < 18)) {
+    console.error(`check-reserved-labels needs Node 22.18 or later (it loads a TypeScript file through Node's type stripping); this is Node ${process.versions.node}.`);
+    process.exit(1);
+  }
 }
+export const GRAMMAR_PATH = "packages/types/src/constants/pageNameGrammar.ts";
+const emitWarning = process.emitWarning;
+process.emitWarning = (warning, ...rest) => (/Reparsing as ES module|Type Stripping/i.test(String(warning)) ? undefined : emitWarning.call(process, warning, ...rest));
+let grammar;
+try {
+  grammar = await import(pathToFileURL(join(repoRoot, GRAMMAR_PATH)).href);
+} finally {
+  process.emitWarning = emitWarning;
+}
+/** AD-45 name grammar: 3 to 30 chars, a-z0-9-, no leading/trailing hyphen, no `--` (so no `xn--`), not digits only. */
+export const isValidName = grammar.isValidPageName;
 
 /** Remove a `;` comment, ignoring semicolons inside double quotes. */
 function stripComment(line) {

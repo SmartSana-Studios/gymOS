@@ -45,13 +45,23 @@
         "MAIL_SMTP_USER",
         "MAIL_SMTP_PASS",
         "MAIL_FROM",
-        "MAIL_FROM_NAME"
+        "MAIL_FROM_NAME",
+        "PUBLIC_SITE_ROOT_DOMAIN",
+        "PUBLIC_SITE_MEDIA_ORIGIN",
+        "PUBLIC_SITE_READER_HOST",
+        "PUBLIC_SITE_READER_PORT",
+        "PUBLIC_SITE_READER_DATABASE",
+        "PUBLIC_SITE_READER_USER",
+        "PUBLIC_SITE_READER_PASSWORD"
       ]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]
     },
     "test": {},
+    "test:layout": {
+      "cache": false
+    },
     "test:e2e": {
       "cache": false,
       "env": [

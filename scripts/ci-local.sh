@@ -4,13 +4,14 @@
 #
 #   scripts/ci-local.sh              # everything CI runs
 #   scripts/ci-local.sh --fast       # static + pgTAP + vitest, skip the E2E (inner loop)
-#   scripts/ci-local.sh --only e2e   # one stage: static | deno | pgtap | unit | e2e
+#   scripts/ci-local.sh --only e2e   # one stage: static | deno | pgtap | unit | layout | e2e
 #
 # Stages and what they mirror in ci.yml:
 #   static  typecheck job: typecheck, lint (dashboard + super-admin), i18n parity, migration guardrails, require-db-backup test
 #   deno    typecheck job: deno test for supabase/functions/payment-webhook
 #   pgtap   rls-tests job: supabase/tests/*.sql
-#   unit    typecheck job: vitest for @gymos/dashboard
+#   unit    typecheck job: vitest for @gymos/dashboard, mobile, super-admin, types, page-templates (conformance, DOM) and landing
+#   layout  typecheck job: the page-template conformance layout stage in headless Chromium (Story 24.10; a missing browser fails)
 #   e2e     e2e-tests job: Playwright against the local Supabase
 #
 # Scheduling (4 cores / ~5 GB): static + pgtap run concurrently (both light),
@@ -66,7 +67,7 @@ stage_static() {
   # so only the LAST command's status counted and a failing lint was reported as PASS
   # (found 2026-10-12: GitHub typecheck failed on lint errors this gate had passed).
   pnpm run typecheck || return 1
-  npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin || return 1
+  npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin --filter=@gymos/landing --filter=@gymos/page-templates || return 1
   pnpm run check:i18n || return 1
   pnpm run check:migrations || return 1
   # Story 23.9: payment initiators and credential lookups verify under payments.credentials_id
@@ -108,12 +109,24 @@ stage_pgtap() {
   bash "$ROOT/scripts/super-admin-aal2.test.sh" || return 1
   # Assign / confirm vs the Owner switch on one gym (two real sessions; Story 23.5).
   bash "$ROOT/scripts/support-assignments-race.test.sh" || return 1
+  # The landing reader's two statements run as public_site_reader against the migrated schema (Story 24.10 review pass 2).
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/public-site-reader-sql.test.sh" || return 1
   # Claim-read inventory (Story 22.2; enforcing since 22.4): any non-exempt claim-only / null-unsafe entry fails.
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" pnpm run check:claims || return 1
 }
 
 stage_unit() {
   npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile --filter=@gymos/super-admin || return 1
+  # Story 24.10: the page-template, types and landing suites run AFTER, not beside, the three above: seven vitest runs at once starved the
+  # super-admin form tests of their 5 s timeouts (they pass alone and in the original three-package run).
+  npx turbo run test --filter=@gymos/types --filter=@gymos/page-templates --filter=@gymos/landing || return 1
+}
+
+stage_layout() {
+  # Story 24.10: every registered page template is rendered at 360, 768, 1280 and 1366 px in headless Chromium (no horizontal scroll, contact
+  # inside the first screen, 44 px targets, AA contrast, source order = visual order, CSP enforced). Idempotent browser install, as for the E2E.
+  (cd packages/page-templates && npx playwright install chromium) || return 1
+  npx turbo run test:layout --filter=@gymos/page-templates || return 1
 }
 
 psql_local() {
@@ -171,6 +184,7 @@ if want deno;   then STAGES+=(deno);   run_stage deno   stage_deno   & pids+=($!
 if want pgtap;  then STAGES+=(pgtap);  run_stage pgtap  stage_pgtap  & pids+=($!); fi
 for p in "${pids[@]:-}"; do [ -n "$p" ] && wait "$p"; done
 if want unit; then STAGES+=(unit); run_stage unit stage_unit; fi
+if want layout; then STAGES+=(layout); run_stage layout stage_layout; fi
 if want e2e;  then STAGES+=(e2e);  run_stage e2e  stage_e2e;  fi
 
 echo
