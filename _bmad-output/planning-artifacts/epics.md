@@ -3368,7 +3368,7 @@ So that old access does not linger and a real person can get back in without a b
 | 24.7 | Page Names — Claim, Hold, Rename, Redirect | next free at merge time | 24.2, 24.5 |
 | 24.8 | Publish Gate, Snapshot & Unpublish | next free at merge time | 24.5, 24.6, 24.7 |
 | 24.9 | Landing-Page Editor & Publish Screen (Dashboard) | none | 24.8 |
-| 24.10 | Public Page Route & Launch Template | none | 24.3, 24.8 |
+| 24.10 | Public Page Route & Launch Template | next free at merge time (0166: `public_site.page_redirects`, `default_language` in the snapshot) | 24.3, 24.8 |
 | 24.11 | Takedown, Reports, Sitemap & Media Purge | next free at merge time | 24.8, 24.10 |
 | 24.12 | Landing-Page Gate — Isolation, Headers & Speed Baseline | none | 24.10, 24.11 |
 
@@ -3701,6 +3701,8 @@ So that putting my gym on the web takes minutes and I always know what becomes p
 ---
 
 ### Story 24.10: Public Page Route, Template Contract & Two Seed Templates
+
+*Superseded 2026-11-09 (owner): ONE template ships, Classic (DESIGN.md "Classic template"); seeds A and B are deferred library growth (`deferred-work.md`). The migration column in the table above was "none"; the story needs one (redirect lookup, `default_language`). See `docs/decisions.md`, 24.10.*
 
 As a visitor,
 I want to open a gym's page and see what it offers, how to call it and where it is,

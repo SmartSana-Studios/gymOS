@@ -6,7 +6,7 @@
 -- either means editing the pinned list below in the same change (24.7/24.8 extend the view on purpose).
 
 begin;
-select plan(55);
+select plan(66);
 
 -- The migration owner is not allowed to SET ROLE to the reader by default; grant it inside this rolled-back transaction so the
 -- denial assertions below prove a missing privilege, not a missing SET ROLE right.
@@ -169,13 +169,14 @@ select is(
 );
 select is((select reloptions from pg_class where oid = 'public_site.pages'::regclass), array['security_barrier=true'], 'public_site.pages is a security_barrier view');
 select is((select reloptions from pg_class where oid = 'public_site.page_media'::regclass), array['security_barrier=true'], 'public_site.page_media is a security_barrier view');
+select is((select reloptions from pg_class where oid = 'public_site.page_redirects'::regclass), array['security_barrier=true'], 'public_site.page_redirects is a security_barrier view (24.10)');
 select is(
   (select count(*)::int from pg_class c where c.relnamespace = 'public_site'::regnamespace and c.relkind <> 'v'), 0,
   'public_site holds views only'
 );
 select is(
   (select array_agg(relname::text order by relname) from pg_class c where c.relnamespace = 'public_site'::regnamespace),
-  array['page_media', 'pages'], 'public_site holds exactly the views pages and page_media (24.6 added page_media); edit this list with any view change'
+  array['page_media', 'page_redirects', 'pages'], 'public_site holds exactly the views pages, page_media and page_redirects (24.6 added page_media, 24.10 page_redirects); edit this list with any view change'
 );
 select is(
   (select count(*)::int from pg_proc where pronamespace = 'public_site'::regnamespace), 0,
@@ -187,7 +188,7 @@ select is(
   0, 'anon, authenticated, service_role hold nothing on schema public_site'
 );
 select is(
-  (select count(*)::int from unnest(array['public', 'anon', 'authenticated', 'service_role']) g, unnest(array['public_site.pages', 'public_site.page_media', 'public.gym_pages', 'public.gym_page_media', 'public.page_names', 'public.page_name_words']) t,
+  (select count(*)::int from unnest(array['public', 'anon', 'authenticated', 'service_role']) g, unnest(array['public_site.pages', 'public_site.page_media', 'public_site.page_redirects', 'public.gym_pages', 'public.gym_page_media', 'public.page_names', 'public.page_name_words']) t,
           unnest(array['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) p
    where has_table_privilege(g, t, p)),
   0, 'PUBLIC, anon, authenticated, service_role hold no privilege on the public_site views or the tables behind them'
@@ -259,9 +260,15 @@ select is(
   'public_site.page_media columns are pinned (gym_id and the original key are deliberately absent; 24.8 added page_name_id); edit this list with any view change'
 );
 select is(
+  (select array_agg(column_name::text order by ordinal_position) from information_schema.columns
+   where table_schema = 'public_site' and table_name = 'page_redirects'),
+  array['old_name', 'name'],
+  'public_site.page_redirects columns are pinned (24.10: the old name and the current name; no gym id); edit this list with any view change'
+);
+select is(
   (select array(select (regexp_matches(substring(pg_get_constraintdef(oid) from 'ARRAY\[(.*)\]'), '''([a-z_]+)''', 'g'))[1] order by 1)
    from pg_constraint where conname = 'gym_pages_content_keys'),
-  array['about_en', 'about_fr', 'address', 'banner', 'category', 'city', 'color', 'contact', 'country', 'gallery', 'hours',
+  array['about_en', 'about_fr', 'address', 'banner', 'category', 'city', 'color', 'contact', 'country', 'default_language', 'gallery', 'hours',
         'logo', 'map', 'name', 'plans', 'services_en', 'services_fr'],
   'allowed top-level content keys are pinned; edit this list with any CHECK change'
 );
@@ -274,7 +281,7 @@ select throws_ok(
   '23514', null, 'content must be a JSON object'
 );
 select lives_ok(
-  $$ update public.gym_pages set content = '{"about_en":"a","about_fr":"a","services_en":"s","services_fr":"s","plans":[],"address":{},"map":{},"hours":{},"contact":{},"gallery":[],"banner":"b","logo":"l","color":"#fff","category":"gym","city":"c","country":"CM"}'
+  $$ update public.gym_pages set content = '{"about_en":"a","about_fr":"a","services_en":"s","services_fr":"s","plans":[],"address":{},"map":{},"hours":{},"contact":{},"gallery":[],"banner":"b","logo":"l","color":"#fff","category":"gym","city":"c","country":"CM","default_language":"en"}'
      where gym_id = '00000000-0000-0000-0000-00000000a402' $$,
   'every allowed key is accepted'
 );
@@ -320,6 +327,30 @@ update public.gym_pages set content = '{"logo":"11111111-1111-1111-1111-11111111
 select is(pg_temp.as_reader('select string_agg(kind || ''/'' || sort_order || ''/'' || left(derivative_key, 2), '','' order by kind, sort_order) from public_site.page_media'), 'banner/0/22,gallery/1/33,gallery/2/44,logo/0/11',
   'page_media lists the snapshot''s logo, banner and gallery keys in gallery order');
 select is(pg_temp.as_reader('select count(distinct page_name_id) from public_site.page_media'), '1', 'all of it keyed by the one page_name_id');
+
+-- ---------------------------------------------------------------------------
+-- 24.10: public_site.page_redirects (old name -> current name, only while the current page is visible)
+-- ---------------------------------------------------------------------------
+insert into public.page_names (id, gym_id, name, state, origin, reserved_until) values
+  ('00000000-0000-0000-0000-0000000a4b01', '00000000-0000-0000-0000-00000000a401', 'psr-old-name', 'redirect', 'rename', now() + interval '6 months');
+select is(pg_temp.as_reader('select old_name || ''>'' || name from public_site.page_redirects'), 'psr-old-name>psr-visible',
+  'a redirect inside its 12 months resolves to the current visible name, in one hop');
+select is(pg_temp.as_reader('select gym_id from public_site.page_redirects'), 'ERR:42703', 'gym_id is not a page_redirects column');
+update public.page_names set reserved_until = now() - interval '1 minute' where id = '00000000-0000-0000-0000-0000000a4b01';
+select is(pg_temp.as_reader('select count(*) from public_site.page_redirects'), '0', 'an expired redirect is not offered (the sweep has not run yet)');
+update public.page_names set reserved_until = now() + interval '6 months', taken_down_at = now() where id = '00000000-0000-0000-0000-0000000a4b01';
+select is(pg_temp.as_reader('select count(*) from public_site.page_redirects'), '0', 'a taken-down old name is not offered');
+update public.page_names set taken_down_at = null, state = 'released' where id = '00000000-0000-0000-0000-0000000a4b01';
+select is(pg_temp.as_reader('select count(*) from public_site.page_redirects'), '0', 'a released old name is not offered');
+update public.page_names set state = 'redirect' where id = '00000000-0000-0000-0000-0000000a4b01';
+select is(pg_temp.as_reader('select count(*) from public_site.page_redirects'), '1', 'control: back in the redirect state it resolves again');
+update public.gym_pages set unpublished_at = now() where gym_id = '00000000-0000-0000-0000-00000000a401';
+select is(pg_temp.as_reader('select count(*) from public_site.page_redirects'), '0', 'the current page is unpublished: no redirect (the public site answers the uniform not-found)');
+update public.gym_pages set unpublished_at = null where gym_id = '00000000-0000-0000-0000-00000000a401';
+update public.page_names set taken_down_at = now() where id = '00000000-0000-0000-0000-0000000a4a01';
+select is(pg_temp.as_reader('select count(*) from public_site.page_redirects'), '0', 'the current name is taken down: no redirect');
+update public.page_names set taken_down_at = null where id = '00000000-0000-0000-0000-0000000a4a01';
+select ok(pg_temp.as_reader('insert into public_site.page_redirects (old_name) values (''x'')') = 'ERR:55000', 'insert into page_redirects is refused');
 
 -- ---------------------------------------------------------------------------
 -- Denied reads, writes, role changes and functions (as the reader)

@@ -45,6 +45,7 @@ const full = {
   media: [{ id: "3fa85f64-5717-4562-b3fc-2c963f66afa6", kind: "gallery", derivative_key: "a.webp", sort_order: 1 }],
   snapshot: {
     name: "Gym",
+    default_language: "fr",
     about_fr: "x",
     services_fr: "y",
     address: "Rue 1",

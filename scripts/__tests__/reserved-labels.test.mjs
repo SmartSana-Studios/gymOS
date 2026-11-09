@@ -5,7 +5,7 @@ import { copyFileSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, writeF
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkRepo, checkZone, isValidName, parseZone, LIST_PATH, ZONE_PATH } from "../check-reserved-labels.mjs";
+import { checkRepo, checkZone, isValidName, parseZone, GRAMMAR_PATH, LIST_PATH, ZONE_PATH } from "../check-reserved-labels.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const REPO = join(here, "..", "..");
@@ -88,8 +88,9 @@ test("a missing zone export or list fails with the path", () => {
 
 test("the real CLI exits 0 on the clean fixture and 1 on an unreserved label", () => {
   const root = mkdtempSync(join(tmpdir(), "reserved-cli-"));
-  for (const p of ["scripts", dirname(ZONE_PATH), dirname(LIST_PATH)]) mkdirSync(join(root, p), { recursive: true });
+  for (const p of ["scripts", dirname(ZONE_PATH), dirname(LIST_PATH), dirname(GRAMMAR_PATH)]) mkdirSync(join(root, p), { recursive: true });
   copyFileSync(SCRIPT, join(root, "scripts/check-reserved-labels.mjs"));
+  copyFileSync(join(REPO, GRAMMAR_PATH), join(root, GRAMMAR_PATH));
   copyFileSync(join(REPO, LIST_PATH), join(root, LIST_PATH));
   const run = () => spawnSync(process.execPath, [join(root, "scripts/check-reserved-labels.mjs")], { encoding: "utf8" });
   writeFileSync(join(root, ZONE_PATH), zone("mail IN A 1.2.3.4"));

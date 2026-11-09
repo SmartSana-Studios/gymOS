@@ -313,7 +313,7 @@ select is(pg_temp.visible('M'), 1, 'MUTATION gym-active term removed: a suspende
 update gyms set status = 'active' where id = pg_temp.g('M')::uuid;
 select pg_temp.settle();
 select is(pg_temp.key_paths(private.gym_page_snapshot(pg_temp.g('M')::uuid)),
-          (select array_agg(x order by x) from unnest(array['about_en', 'category', 'city', 'contact', 'contact.phone', 'country', 'hours', 'hours.mon', 'hours.mon.close', 'hours.mon.open', 'hours.sun',
+          (select array_agg(x order by x) from unnest(array['about_en', 'category', 'city', 'contact', 'contact.phone', 'country', 'default_language', 'hours', 'hours.mon', 'hours.mon.close', 'hours.mon.open', 'hours.sun',
                                                               'banner', 'logo', 'name', 'plans', 'plans[]', 'plans[].currency', 'plans[].duration_days', 'plans[].interval', 'plans[].label_en',
                                                               'plans[].label_fr', 'plans[].name', 'plans[].price', 'plans[].type']) x),
           'control: gym M''s snapshot has exactly the expected key paths');

@@ -123,3 +123,17 @@ those is true of GymOS yet, so:
 Icons are generated from `brand/` at the repo root — see `brand/README.md`.
 The landing page uses the **white** mark, matching super-admin; the dashboard
 uses the blue one.
+
+## Gym pages (`{name}.gymosapps.com`, Story 24.10)
+
+This app also serves the public pages of gyms. `proxy.ts` reads the first `Host` label under `PUBLIC_SITE_ROOT_DOMAIN`, answers the uniform not-found for names that can never be pages, and rewrites the rest to `app/gym-site/route.ts`, which reads one row from `public_site` as the read-only `public_site_reader` role, parses it with `PageContentV1` and renders a template from `@gymos/page-templates` as static HTML (no client JavaScript, no cookie, the AD-44 headers). The apex, `www.` and any host that is not under the root domain keep the marketing site.
+
+Server environment (none of it is a Supabase key; `scripts/check-landing-no-supabase.mjs` guards that):
+
+| Variable | Meaning |
+|---|---|
+| `PUBLIC_SITE_ROOT_DOMAIN` | `gymosapps.com`; `localhost` or `localhost:3002` in development (the default outside production). Unset in production turns gym hosting off. |
+| `PUBLIC_SITE_MEDIA_ORIGIN` | the storage origin that serves page images (`img-src` of the CSP); unset makes every page the not-found |
+| `PUBLIC_SITE_READER_HOST`, `_PORT`, `_DATABASE`, `_USER`, `_PASSWORD` | the pooler connection as `public_site_reader` (user is `public_site_reader.<project_ref>`) |
+
+Local try-out: `alter role public_site_reader password '...'` on the local database, set the variables (host `127.0.0.1`, port `54322`), run `next start`, then `curl -H "Host: some-name.gymosapps.com" http://127.0.0.1:3002/` with the root domain set to `gymosapps.com`.

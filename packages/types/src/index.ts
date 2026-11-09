@@ -30,3 +30,5 @@ export * from "./constants/taraMoneySupportedCountries";
 export * from "./constants/reservedLabels";
 
 export * from "./pagination";
+export * from "./pageHost";
+export * from "./schemas/pageContent";

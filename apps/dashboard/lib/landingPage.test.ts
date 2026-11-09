@@ -138,7 +138,7 @@ function status(over: Partial<GymPageStatus> = {}): GymPageStatus {
     about_min_chars: 100,
     languages: PAGE_CONTENT_LANGUAGES.map((code) => ({ code, complete: false, characters: 0, needed: 100 })),
     media: [],
-    snapshot: { name: "Gym" },
+    snapshot: { name: "Gym", default_language: "en" },
     ...over,
   });
 }

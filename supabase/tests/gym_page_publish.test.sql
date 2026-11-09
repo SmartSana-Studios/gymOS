@@ -5,7 +5,7 @@
 -- The refresh triggers are DEFERRED constraint triggers (they judge a transaction's final state, at commit). This whole file is one
 -- transaction, so `pg_temp.settle()` stands for "commit": it fires the pending triggers now.
 begin;
-select plan(260);
+select plan(263);
 
 create or replace function pg_temp.claims(uid text, app_role text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -308,7 +308,7 @@ select is(pg_temp.as_reader('select count(distinct page_name_id) from public_sit
 select is(pg_temp.key_paths((select content from gym_pages where gym_id = pg_temp.g('A')::uuid)),
           (select array_agg(x order by x) from unnest(array[
              'about_en', 'about_fr', 'address', 'banner', 'category', 'city', 'color', 'contact', 'contact.phone', 'contact.whatsapp', 'country',
-             'gallery', 'gallery[]', 'hours', 'hours.mon', 'hours.mon.close', 'hours.mon.open', 'hours.sun', 'logo', 'map', 'map.lat', 'map.lng', 'name',
+             'default_language', 'gallery', 'gallery[]', 'hours', 'hours.mon', 'hours.mon.close', 'hours.mon.open', 'hours.sun', 'logo', 'map', 'map.lat', 'map.lng', 'name',
              'plans', 'plans[]', 'plans[].currency', 'plans[].duration_days', 'plans[].interval', 'plans[].label_en', 'plans[].label_fr', 'plans[].name',
              'plans[].price', 'plans[].type', 'services_en', 'services_fr']) x),
           'SNAPSHOT KEY PATHS (pinned): an added key, or a removed one, fails here; edit this list only with the content CHECK and the privileges test');
@@ -327,6 +327,7 @@ select is((select content #>> '{plans,1,label_en}' || '|' || (content #>> '{plan
 select is((select content #>> '{plans,0,duration_days}' from gym_pages where gym_id = pg_temp.g('A')::uuid), null, 'a null duration is omitted (pay per session)');
 select is((select content ->> 'color' from gym_pages where gym_id = pg_temp.g('A')::uuid), '#1A2B3C', 'a valid color is carried');
 select is((select content ->> 'name' from gym_pages where gym_id = pg_temp.g('A')::uuid), 'PUBLISH GYM A', 'the gym display name is carried');
+select is((select content ->> 'default_language' from gym_pages where gym_id = pg_temp.g('A')::uuid), 'en', '24.10: the gym default language is carried');
 select is((select content -> 'hours' -> 'sun' from gym_pages where gym_id = pg_temp.g('A')::uuid), 'null'::jsonb, 'a closed day survives in hours (the one place a null is kept)');
 select is((select content -> 'gallery' from gym_pages where gym_id = pg_temp.g('A')::uuid), jsonb_build_array(pg_temp.dk(3), pg_temp.dk(4), pg_temp.dk(5)), 'gallery keys are in sort order');
 select ok((select content ->> 'logo' = pg_temp.dk(1) and content ->> 'banner' = pg_temp.dk(2) from gym_pages where gym_id = pg_temp.g('A')::uuid), 'logo and banner are derivative keys');
@@ -697,6 +698,12 @@ select is((select content ->> 'name' from gym_pages where gym_id = pg_temp.g('P'
 update gyms set primary_color = '#010203' where id = pg_temp.g('P')::uuid;
 select pg_temp.settle();
 select is((select content ->> 'color' from gym_pages where gym_id = pg_temp.g('P')::uuid), '#010203', 'single column: the brand color alone refreshes the snapshot');
+update gyms set default_language = 'fr' where id = pg_temp.g('P')::uuid;
+select pg_temp.settle();
+select is((select content ->> 'default_language' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'fr', '24.10, single column: the default language alone refreshes the snapshot');
+update gyms set default_language = 'es' where id = pg_temp.g('P')::uuid;
+select pg_temp.settle();
+select is((select content ->> 'default_language' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'en', '24.10: a default language outside private.gym_page_languages() is written as the first language');
 set local role authenticated;
 select pg_temp.as_user(pg_temp.u('ownerP'), 'owner', pg_temp.g('P'));
 select is(pg_temp.err($$select set_gym_category('$$ || pg_temp.g('P') || $$', 'pilates_studio')$$), 'ok', 'owner changes only the category');
@@ -818,7 +825,7 @@ select is((select count(*)::int from pg_proc where proname = 'unpublish_gym_page
           'unpublish_gym_page admits the same roles and has no gym-status check (always allowed)');
 select is((select array_agg(distinct c.relname::text order by c.relname::text) from pg_depend d join pg_rewrite r on r.oid = d.objid join pg_class c on c.oid = r.ev_class
             where d.refobjid = 'private.gym_page_visible'::regclass and c.relnamespace = 'public_site'::regnamespace and c.relkind = 'v' and c.oid <> d.refobjid),
-          array['page_media', 'pages'], 'both public_site views are built on the one visibility predicate');
+          array['page_media', 'page_redirects', 'pages'], 'the public_site views (pages, page_media and, from 24.10, page_redirects) are all built on the one visibility predicate');
 select is((select count(*)::int from pg_class c join pg_depend d on d.refobjid = 'public.gym_pages'::regclass and d.deptype = 'n' join pg_rewrite r on r.oid = d.objid and r.ev_class = c.oid
             where c.relnamespace = 'public_site'::regnamespace), 0, 'neither public_site view reads gym_pages directly');
 

@@ -45,7 +45,7 @@ const m161 = readFileSync(join(migrations, "0161_gym_page_content.sql"), "utf8")
 const status = {
   state: "ready", template: null, published_at: null, unpublished_reasons: [], missing: [], bad_text_fields: [], about_min_chars: 100,
   languages: [{ code: "en", complete: true, characters: 120, needed: 0 }, { code: "fr", complete: false, characters: 0, needed: 100 }],
-  media: [], snapshot: { name: "Gym" },
+  media: [], snapshot: { name: "Gym", default_language: "en" },
 };
 const nameState = { name: "grace-fit", state: "active", pending_name: null, completed_renames: 0, redirects: [] };
 

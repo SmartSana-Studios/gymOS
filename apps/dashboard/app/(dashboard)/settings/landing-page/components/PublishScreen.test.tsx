@@ -27,6 +27,7 @@ import { makeData } from "../testData";
 
 const snapshot = {
   name: "Grace Fit",
+  default_language: "en",
   category: "pilates_studio",
   about_en: "x".repeat(120),
   services_en: "Reformer",
@@ -80,7 +81,7 @@ describe("what becomes public", () => {
   });
 
   it("a row with no value in the snapshot reads Not included", () => {
-    render(<PublishScreen initial={readyData({ snapshot: { name: "Grace Fit" } })} />);
+    render(<PublishScreen initial={readyData({ snapshot: { name: "Grace Fit", default_language: "en" } })} />);
     expect(screen.getByTestId("publish-row-hours").textContent).toContain("pageEditor.publish.notIncluded");
     expect(screen.getByTestId("publish-row-gallery").textContent).toContain("pageEditor.publish.notIncluded");
   });

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidPageName } from "../constants/pageNameGrammar";
 
 // Matches the `gym_status` Postgres enum (0001_extensions_and_enums.sql) exactly.
 export const gymStatusSchema = z.enum(["active", "suspended", "deactivated"]);
@@ -418,10 +419,8 @@ export type SetGymCategoryInput = z.infer<typeof setGymCategorySchema>;
 export const PAGE_NAME_MIN_LENGTH = 3;
 export const PAGE_NAME_MAX_LENGTH = 30;
 
-/** FR-202 grammar: 3-30 of a-z0-9-, no leading/trailing hyphen, no `--` (so no `xn--`), not digits only. */
-export function isValidPageName(name: string): boolean {
-  return /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/.test(name) && !name.includes("--") && !/^[0-9]+$/.test(name);
-}
+// FR-202 grammar: one definition in constants/pageNameGrammar.ts (24.10), re-exported here for the callers that always imported it from this module.
+export { isValidPageName };
 
 /** Trimmed and lowercased as claim_page_name() does, then checked against the grammar. */
 export const pageNameSchema = z
@@ -571,6 +570,8 @@ export type PageBadTextFieldEntry = z.infer<typeof pageBadTextFieldSchema>;
 /** The would-be snapshot (private.gym_page_snapshot): the one list of what becomes public. Strict, so a new key cannot arrive unnoticed. */
 export const pageSnapshotSchema = z.strictObject({
   name: z.string(),
+  /** The gym's own default content language (24.10, migration 0166); always one of PAGE_CONTENT_LANGUAGES, the builder maps anything else to the first. */
+  default_language: pageContentLanguageSchema,
   about_en: z.string().optional(),
   about_fr: z.string().optional(),
   services_en: z.string().optional(),

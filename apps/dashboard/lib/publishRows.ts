@@ -20,7 +20,7 @@ export type PublishRowId =
 
 export interface PublishRow {
   id: PublishRowId;
-  /** Snapshot keys this row shows. `languages` shows none (it is computed from the status). */
+  /** Snapshot keys this row accounts for. `languages` lists `default_language` (the fallback language) only so that every snapshot key has a row (the test below); it is not shown as its own line. The languages offered are computed from the status. */
   keys: (keyof PageSnapshot)[];
   /** For the per-language rows. */
   lang?: PageContentLanguage;
@@ -31,7 +31,7 @@ export function publishRows(languages: readonly PageContentLanguage[] = PAGE_CON
     { id: "name", keys: ["name"] },
     { id: "category", keys: ["category"] },
     { id: "images", keys: ["logo", "banner"] },
-    { id: "languages", keys: [] },
+    { id: "languages", keys: ["default_language"] },
     ...languages.flatMap((lang): PublishRow[] => [
       { id: `about_${lang}`, keys: [`about_${lang}` as keyof PageSnapshot], lang },
       { id: `services_${lang}`, keys: [`services_${lang}` as keyof PageSnapshot], lang },
