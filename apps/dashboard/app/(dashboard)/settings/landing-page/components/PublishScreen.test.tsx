@@ -5,11 +5,13 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 const publishPageAction = vi.fn();
 const loadLandingPageAction = vi.fn();
 const unpublishPageAction = vi.fn();
+const submitPageAppealAction = vi.fn();
 
 vi.mock("../actions", () => ({
   publishPageAction: (...a: unknown[]) => publishPageAction(...a),
   loadLandingPageAction: (...a: unknown[]) => loadLandingPageAction(...a),
   unpublishPageAction: (...a: unknown[]) => unpublishPageAction(...a),
+  submitPageAppealAction: (...a: unknown[]) => submitPageAppealAction(...a),
   saveLandingPageAction: vi.fn(),
   claimPageNameAction: vi.fn(),
 }));
@@ -55,6 +57,23 @@ const readyData = (over: Record<string, unknown> = {}) =>
 beforeEach(() => {
   vi.clearAllMocks();
   loadLandingPageAction.mockResolvedValue({ data: null, error: null });
+});
+
+describe("the taken-down banner on the publish screen (24.11)", () => {
+  it("the status reload runs after an appeal is sent, and the appeal-sent line replaces the Appeal button (the banner is wired to the screen's refresh)", async () => {
+    const takenDown = { state: "taken_down", missing: [], taken_down_reason: "privacy", appeal: { state: "none", submitted_at: null, decided_at: null, decision_reason: null } };
+    const afterAppeal = { ...takenDown, appeal: { state: "open", submitted_at: "2026-11-09T10:00:00Z", decided_at: null, decision_reason: null } };
+    submitPageAppealAction.mockResolvedValue({ data: { state: "open" }, error: null });
+    loadLandingPageAction.mockResolvedValue({ data: readyData(afterAppeal), error: null });
+    render(<PublishScreen initial={readyData(takenDown)} />);
+    fireEvent.click(screen.getByTestId("appeal-button"));
+    fireEvent.change(await screen.findByLabelText("pageAppeal.label"), { target: { value: "The mark is ours" } });
+    fireEvent.click(screen.getByText("pageAppeal.send"));
+    await waitFor(() => expect(submitPageAppealAction).toHaveBeenCalledWith("The mark is ours"));
+    await waitFor(() => expect(loadLandingPageAction).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId("appeal-sent")).toBeTruthy());
+    expect(screen.queryByTestId("appeal-button")).toBeNull();
+  });
 });
 
 describe("what becomes public", () => {

@@ -294,7 +294,7 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
 
       {status.state === "not_started" && <p className="text-sm text-muted-foreground">{t("pageEditor.notStarted")}</p>}
       {live && <p className="text-sm text-muted-foreground" data-testid="live-info">{t("pageEditor.liveInfo")}</p>}
-      <StatusBanner status={status} role={role} />
+      <StatusBanner status={status} role={role} onChanged={refresh} />
       {showTooLarge && (
         <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-50">
           {t("pageEditor.banner.tooLarge")}

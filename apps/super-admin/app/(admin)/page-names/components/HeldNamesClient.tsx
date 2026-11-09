@@ -67,7 +67,7 @@ export function HeldNamesClient({ rows }: { rows: HeldPageNameRow[] }) {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">{t("pageNames.title")}</h1>
+        <h2 className="text-lg font-semibold">{t("pageNames.title")}</h2>
         <p className="text-sm text-muted-foreground">{t("pageNames.hint")}</p>
       </div>
       {done && (

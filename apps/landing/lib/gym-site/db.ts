@@ -1,7 +1,8 @@
 import "server-only";
 import { Pool } from "pg";
 import { readReaderConfig } from "./env";
-import { PAGE_SQL, REDIRECT_SQL } from "./readerSql";
+import { PAGE_REPORT_RESULTS, type PageReportResult } from "@gymos/types";
+import { BEGIN_RW_SQL, COMMIT_SQL, PAGE_SQL, REDIRECT_SQL, SUBMIT_REPORT_SQL } from "./readerSql";
 
 // Story 24.10 (AD-42): the ONLY database access of the public site. Server-only, driver `pg`, connected as `public_site_reader` through the
 // pooler, selecting from `public_site.*` views and nothing else. Pool of ONE connection per instance (the role's CONNECTION LIMIT is sized as
@@ -16,6 +17,22 @@ export interface PageRow {
 
 export interface Queryable {
   query(text: string, values: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+  /** Story 24.11: one checked-out connection, for the report's `begin read write; select ...; commit`. */
+  connect?(): Promise<TxClient>;
+}
+
+export interface TxClient {
+  query(text: string, values?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+  /** `release(true)` destroys the connection instead of returning it to the pool (used after a failed transaction). */
+  release(destroy?: boolean): void;
+}
+
+export interface ReportSubmission {
+  name: string;
+  reason: string;
+  details: string;
+  /** HMAC-SHA256(PUBLIC_SITE_REPORT_KEY, client ip) as 64 hex characters. Never the address itself. */
+  sourceHash: string;
 }
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "host.docker.internal"]);
@@ -67,7 +84,47 @@ export function createReader(getPool: () => Queryable = defaultPool, retryDelayM
       }
     }
   }
+  async function submit(r: ReportSubmission): Promise<PageReportResult> {
+    for (let attempt = 0; ; attempt++) {
+      const p = getPool();
+      if (!p.connect) throw Object.assign(new Error("reader_cannot_transact"), { code: "reader_cannot_transact" });
+      let client: TxClient;
+      try {
+        client = await p.connect();
+      } catch (e) {
+        if (attempt === 0 && isRetryable(e)) {
+          await sleep(retryDelayMs);
+          continue;
+        }
+        throw e;
+      }
+      let broken = false;
+      try {
+        // The role is default_transaction_read_only; the one write is a short read-write transaction on THIS connection (no session state
+        // survives it: a transaction-mode pooler keeps the connection for the three statements).
+        await client.query(BEGIN_RW_SQL);
+        const { rows } = await client.query(SUBMIT_REPORT_SQL, [r.name, r.reason, r.details, r.sourceHash]);
+        // judged BEFORE the commit: a result the database does not define rolls back, so the visitor's retry cannot store a second report
+        const result = rows[0]?.result;
+        if (typeof result !== "string" || !(PAGE_REPORT_RESULTS as readonly string[]).includes(result)) throw Object.assign(new Error("report_result_unexpected"), { code: "report_result_unexpected" });
+        await client.query(COMMIT_SQL);
+        return result as PageReportResult;
+      } catch (e) {
+        broken = true;
+        try {
+          await client.query("rollback");
+        } catch {
+          // the connection is destroyed below
+        }
+        throw e;
+      } finally {
+        client.release(broken);
+      }
+    }
+  }
+
   return {
+    submitReport: submit,
     /** The visible page of a name, or null. The view holds the one visibility predicate. */
     async readPage(name: string): Promise<PageRow | null> {
       const { rows } = await run(PAGE_SQL, [name]);

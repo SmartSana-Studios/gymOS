@@ -1,4 +1,4 @@
-import type { Chrome } from "./contract";
+import type { Chrome, ReportChrome } from "./contract";
 import { GYM_CATEGORY_LABELS, type PageContentLanguage } from "@gymos/types";
 
 // Story 24.10: chrome dictionaries, one per content language. EN plan terms and "monthly"/"annual" are the product owner's; every FR
@@ -56,3 +56,43 @@ const fr: Chrome = {
 };
 
 export const CHROME: Record<PageContentLanguage, Chrome> = { en, fr };
+
+// Story 24.11 (PS-03): the public report form. EN and FR copy is the product owner's (EXPERIENCE.md PS-03) except the hint, the failure line and
+// the anonymity note, which are drafted. The rate-limit line deliberately does not name the page.
+const reportEn: ReportChrome = {
+  title: "Report this page",
+  reasonLegend: "Why are you reporting it?",
+  detailsLabel: "Tell us more",
+  detailsHint: "Up to 1,000 characters.",
+  anonymousNote: "We don't ask for your name or contact details.",
+  submit: "Send report",
+  errorSummary: "Please fix the following:",
+  chooseReason: "Choose a reason.",
+  tellUsMore: "Tell us a little more.",
+  detailsTooLong: "Use 1,000 characters or fewer.",
+  failed: "We couldn't send your report. Try again in a moment.",
+  rateLimited: "Too many reports from this connection. Try again later.",
+  thanks: "Thank you. We'll review this page.",
+  backToPage: "Back to the page",
+  honeypotLabel: "Leave this field empty",
+};
+
+const reportFr: ReportChrome = {
+  title: "Signaler cette page",
+  reasonLegend: "Pourquoi la signalez-vous ?",
+  detailsLabel: "Dites-nous-en plus",
+  detailsHint: "1 000 caractères au maximum.",
+  anonymousNote: "Nous ne demandons ni votre nom ni vos coordonnées.",
+  submit: "Envoyer le signalement",
+  errorSummary: "Veuillez corriger les points suivants :",
+  chooseReason: "Choisissez un motif.",
+  tellUsMore: "Dites-nous-en un peu plus.",
+  detailsTooLong: "Utilisez 1 000 caractères ou moins.",
+  failed: "Nous n'avons pas pu envoyer votre signalement. Réessayez dans un instant.",
+  rateLimited: "Trop de signalements depuis cette connexion. Réessayez plus tard.",
+  thanks: "Merci. Nous allons examiner cette page.",
+  backToPage: "Retour à la page",
+  honeypotLabel: "Laissez ce champ vide",
+};
+
+export const REPORT_CHROME: Record<PageContentLanguage, ReportChrome> = { en: reportEn, fr: reportFr };

@@ -8,7 +8,10 @@ import {
   pageNameSchema,
   publishGymPageResultSchema,
   setGymPageContentSchema,
+  submitPageAppealSchema,
+  PAGE_APPEAL_ERROR_CODES,
   type AppError,
+  type PageAppealErrorCode,
   type ClaimPageNameResult,
   type GymPageName,
   type GymPageStatus,
@@ -22,6 +25,7 @@ import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { isOfferedTemplate } from "@/lib/pageTemplates";
+import { rebuildPurgedMedia, type RebuiltMedia } from "@/services/page-media";
 
 // Story 24.9 (FR-197..FR-201). The dashboard's service for the landing-page editor and publish screens. Every call goes through the
 // database functions of 24.5 to 24.9 as the signed-in user: the database admits the caller (Owner, Supervisor, live-assigned support)
@@ -80,12 +84,12 @@ function isNotActive(message: string, fn: string): boolean {
   return new RegExp(`^${fn}: gym \\S+ is not active$`).test(message);
 }
 
-/** claim_page_name (0163): invalid_name, reserved_name, name_taken, rename_limit, `permission denied`, `gym <id> is not active`. */
+/** claim_page_name (0163, 0167): invalid_name, reserved_name, name_taken, rename_limit, page_taken_down (24.11), `permission denied`, `gym <id> is not active`. */
 export function pageNameCodeFromDbError(error: { message?: string } | null | undefined): PageNameErrorCode | null {
   const message = error?.message ?? "";
   if (message === NOT_ADMITTED_MESSAGE) return "not_admitted";
   if (isNotActive(message, "claim_page_name")) return "gym_not_active";
-  for (const code of ["invalid_name", "reserved_name", "name_taken", "rename_limit"] as const) {
+  for (const code of ["invalid_name", "reserved_name", "name_taken", "rename_limit", "page_taken_down"] as const) {
     if (message === `claim_page_name: ${code}`) return code;
   }
   return null;
@@ -111,7 +115,17 @@ export function pageContentCodeFromDbError(error: { message?: string } | null | 
   return null;
 }
 
-async function typedError(scope: "pageEditor" | "pageNames" | "pagePublish", code: string): Promise<AppError> {
+/** submit_page_appeal (0167): reason_required, not_taken_down, appeal_open, appeal_decided, `permission denied` (not the Owner). */
+export function pageAppealCodeFromDbError(error: { message?: string } | null | undefined): PageAppealErrorCode | null {
+  const message = error?.message ?? "";
+  if (message === NOT_ADMITTED_MESSAGE) return "not_admitted";
+  for (const code of PAGE_APPEAL_ERROR_CODES) {
+    if (code !== "not_admitted" && message === `submit_page_appeal: ${code}`) return code;
+  }
+  return null;
+}
+
+async function typedError(scope: "pageEditor" | "pageNames" | "pagePublish" | "pageAppeal", code: string): Promise<AppError> {
   const { t } = await getServerTranslation(await getRequestLocale());
   return { code, message: t(`${scope}.errors.${code}`) };
 }
@@ -333,8 +347,40 @@ export async function publishLandingPage(template: unknown): ServiceResult<Publi
   const caller = await callerContext(supabase);
   if ("error" in caller) return { data: null, error: caller.error };
 
-  const { data, error } = await supabase.rpc("publish_gym_page", { p_gym_id: caller.gymId, p_template: (template as string | null | undefined) ?? undefined });
+  // Story 24.11: images removed while the page was offline are rebuilt from their retained originals before the gate runs again. The status read is
+  // the admission and decides whether there is anything to rebuild (not when the page is taken down or cannot pass the gate: then the database
+  // answers). An unreadable status fails closed: nothing is published.
+  const status = await supabase.rpc("get_gym_page_status", { p_gym_id: caller.gymId });
+  const readable = status.error ? null : gymPageStatusSchema.safeParse(status.data);
+  if (!readable?.success) {
+    // nothing is published, and the cause is named truthfully: a refusal the database words as a publish refusal keeps its code (not admitted, gym not
+    // active); anything else is a failed read, not a failed image rebuild
+    if (status.error) {
+      console.error("[landing-page] get_gym_page_status failed before publishing", status.error);
+      const code = pagePublishCodeFromDbError(status.error);
+      if (code) return { data: null, error: await typedError("pagePublish", code) };
+    } else {
+      console.error("[landing-page] get_gym_page_status returned an unexpected shape", readable?.error?.issues);
+    }
+    return { data: null, error: await typedError("pageEditor", "load_failed") };
+  }
+  let rebuilt: RebuiltMedia | null = null;
+  if (readable.data.state !== "taken_down" && readable.data.missing.length === 0) {
+    const r = await rebuildPurgedMedia(caller.gymId);
+    if (!r.ok) return { data: null, error: await typedError("pagePublish", "rederive_failed") };
+    rebuilt = r;
+  }
+
+  let published: { data: unknown; error: { message?: string } | null };
+  try {
+    published = await supabase.rpc("publish_gym_page", { p_gym_id: caller.gymId, p_template: (template as string | null | undefined) ?? undefined });
+  } catch (e) {
+    await rebuilt?.discard();
+    throw e;
+  }
+  const { data, error } = published;
   if (error) {
+    await rebuilt?.discard();
     const code = pagePublishCodeFromDbError(error);
     if (code) return { data: null, error: await typedError("pagePublish", code) };
     console.error("[landing-page] publish_gym_page failed", error);
@@ -342,10 +388,35 @@ export async function publishLandingPage(template: unknown): ServiceResult<Publi
   }
   const result = publishGymPageResultSchema.safeParse(data);
   if (!result.success) {
+    await rebuilt?.discard();
     console.error("[landing-page] publish_gym_page returned an unexpected shape", result.error.issues);
     return { data: null, error: await typedError("pageEditor", "load_failed") };
   }
+  if (!result.data.published) await rebuilt?.discard();
+  else if (rebuilt && !(await rebuilt.commit())) console.error("[landing-page] the page is published but its purge marks could not be cleared");
   return { data: result.data, error: null };
+}
+
+/**
+ * Owner only (the database refuses everyone else): appeals the takedown of the gym's page. One appeal per takedown; none after an upheld
+ * decision. The reason is 1 to 500 characters, trimmed here and judged again by the database.
+ */
+export async function submitLandingPageAppeal(reason: unknown): ServiceResult<{ state: "open" }> {
+  const parsed = submitPageAppealSchema.safeParse({ reason });
+  if (!parsed.success) return { data: null, error: await typedError("pageAppeal", "reason_required") };
+  const supabase = await createClient();
+  const caller = await callerContext(supabase);
+  if ("error" in caller) return { data: null, error: caller.error };
+  if (caller.role !== "owner") return { data: null, error: await typedError("pageAppeal", "not_admitted") };
+
+  const { error } = await supabase.rpc("submit_page_appeal", { p_reason: parsed.data.reason });
+  if (error) {
+    const code = pageAppealCodeFromDbError(error);
+    if (code) return { data: null, error: await typedError("pageAppeal", code) };
+    console.error("[landing-page] submit_page_appeal failed", error);
+    return { data: null, error: await mapAndLog(error) };
+  }
+  return { data: { state: "open" }, error: null };
 }
 
 /** Always allowed for an admitted role. Resolves to whether a live page went offline. */

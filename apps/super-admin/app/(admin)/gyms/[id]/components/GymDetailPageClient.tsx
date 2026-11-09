@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Building2, CalendarDays, Layers, Pencil, Phone, Send, ShieldCheck, Tag, User, Users } from "lucide-react";
+import { ArrowLeft, Building2, CalendarDays, FileText, Layers, Pencil, Phone, Send, ShieldCheck, Tag, User, Users } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 
@@ -30,6 +30,8 @@ import { ActiveAccessList } from "./ActiveAccessList";
 import { AuditTrailTab } from "./AuditTrailTab";
 import type { RealActor } from "../../../support/actions";
 import { GymMembersTable } from "./GymMembersTable";
+import { GymPageBlock } from "./GymPageBlock";
+import type { GymPagePanelData } from "../../../pages/actions";
 import { GymPaymentsTable } from "./GymPaymentsTable";
 import { hasLapsed, useNow } from "./use-now";
 import { GymSupportPanel } from "../../../support/components/GymSupportPanel";
@@ -98,6 +100,7 @@ export function GymDetailPageClient({
   payments,
   supportAssignments,
   supportAccounts,
+  pagePanel,
 }: {
   gym: GymDetail;
   tiers: TierOption[];
@@ -130,6 +133,8 @@ export function GymDetailPageClient({
   /** Story 23.5: Super Admin only; the individual's name is shown here and nowhere an Owner can reach. */
   supportAssignments: SupportAssignmentRow[];
   supportAccounts: SupportAccountRow[];
+  /** Story 24.11 (SA-03 Page block): the page state, takedown reason and appeal; null when it could not be loaded, absent in older callers. */
+  pagePanel?: GymPagePanelData | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -259,6 +264,12 @@ export function GymDetailPageClient({
               )}
             </div>
           </InfoCard>
+
+          {pagePanel !== undefined && (
+            <InfoCard icon={FileText} label={t("pages.gym.title")}>
+              <GymPageBlock gymId={gym.id} data={pagePanel} />
+            </InfoCard>
+          )}
 
           <InfoCard icon={ShieldCheck} label={t("gyms.detail.status")} className="sm:col-span-2 lg:col-span-2">
             <div className="flex flex-wrap items-center gap-2">

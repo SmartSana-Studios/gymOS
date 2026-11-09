@@ -10,7 +10,7 @@ import { decideGymRequest } from "./request";
 
 const ROOT = "gymosapps.com";
 const MEDIA = "https://media.example.com";
-const config = { rootDomain: ROOT, mediaOrigin: MEDIA };
+const config = { rootDomain: ROOT, mediaOrigin: MEDIA, reportKey: "test-report-key-0123456789" };
 const row = (over: Record<string, unknown> = {}) => ({ template: "classic", schema_version: 1, content: baseContent(), ...over });
 
 function deps(over: Partial<GymSiteDeps> = {}): GymSiteDeps & { logs: [string, unknown][] } {
@@ -19,6 +19,7 @@ function deps(over: Partial<GymSiteDeps> = {}): GymSiteDeps & { logs: [string, u
     config,
     readPage: async () => null,
     readRedirect: async () => null,
+    submitReport: async () => "ok",
     log: (e, f) => logs.push([e, f]),
     ...over,
     logs,
@@ -37,7 +38,10 @@ describe("the proxy: every outcome for a host and a path", () => {
     ["unknown root", "fit.example.org", "/", "marketing"],
     ["gym page", "fit.gymosapps.com", "/", "page"],
     ["gym page, language code", "fit.gymosapps.com", "/fr", "page"],
-    ["gym page, any other path (judged by the handler)", "fit.gymosapps.com", "/robots.txt", "page"],
+    ["gym host, robots.txt (judged by the handler, 24.11)", "fit.gymosapps.com", "/robots.txt", "page"],
+    ["gym host, sitemap.xml (judged by the handler, 24.11)", "fit.gymosapps.com", "/sitemap.xml", "page"],
+    ["gym host, report (judged by the handler, 24.11)", "fit.gymosapps.com", "/report", "page"],
+    ["gym page, any other path (judged by the handler)", "fit.gymosapps.com", "/other", "page"],
     ["font on a gym host", "fit.gymosapps.com", "/fonts/barlow-800.woff2", "asset"],
     ["grammar", "ab.gymosapps.com", "/", "not-found"],
     ["xn--", "xn--abc.gymosapps.com", "/", "not-found"],
@@ -107,9 +111,18 @@ describe("the uniform not-found", () => {
       "reserved": () => ask(deps(), "mail", "/"),
       "unknown (no row, no redirect)": () => ask(deps(), "fit", "/"),
       "other path": () => ask(deps(), "fit", "/other"),
-      "robots": () => ask(deps({ readPage: async () => row() }), "fit", "/robots.txt"),
-      "sitemap": () => ask(deps({ readPage: async () => row() }), "fit", "/sitemap.xml"),
-      "report": () => ask(deps({ readPage: async () => row() }), "fit", "/report"),
+      "robots, no row": () => ask(deps(), "fit", "/robots.txt"),
+      "sitemap, no row": () => ask(deps(), "fit", "/sitemap.xml"),
+      "report form, no row": () => ask(deps(), "fit", "/report"),
+      "report post, no row": () => handleGymSite({ method: "POST", tenantName: "fit", tenantPath: "/report", acceptLanguage: null, readForm: async () => ({ kind: "ok", params: new URLSearchParams({ reason: "privacy", details: "x" }) }) }, deps()),
+      "post to the page": () => handleGymSite({ method: "POST", tenantName: "fit", tenantPath: "/", acceptLanguage: null }, deps({ readPage: async () => row() })),
+      "robots, unknown template": () => ask(deps({ readPage: async () => row({ template: "nope" }) }), "fit", "/robots.txt"),
+      "sitemap, bad content": () => ask(deps({ readPage: async () => row({ content: { ...hostile, extra: 1 } }) }), "fit", "/sitemap.xml"),
+      "report, bad content": () => ask(deps({ readPage: async () => row({ content: { ...hostile, name: 5 } }) }), "fit", "/report"),
+      "sitemap, database error": () => ask(deps({ readPage: async () => { throw new Error("x"); } }), "fit", "/sitemap.xml"),
+      "sitemap, other case": () => ask(deps({ readPage: async () => row() }), "fit", "/Sitemap.xml"),
+      "report, trailing slash": () => ask(deps({ readPage: async () => row() }), "fit", "/report/"),
+      "sitemap, no complete language": () => ask(deps({ readPage: async () => row({ content: (() => { const c = baseContent(); delete c.about_en; delete c.about_fr; return c; })() }) }), "fit", "/sitemap.xml"),
       "unknown code": () => ask(deps({ readPage: async () => row() }), "fit", "/de"),
       "extra key": () => ask(deps({ readPage: async () => row({ content: { ...hostile, extra: 1 } }) }), "fit", "/"),
       "wrong type": () => ask(deps({ readPage: async () => row({ content: { ...hostile, name: 5 } }) }), "fit", "/"),
@@ -118,7 +131,7 @@ describe("the uniform not-found", () => {
       "database error": () => ask(deps({ readPage: async () => { throw Object.assign(new Error("boom"), { code: "53300" }); } }), "fit", "/"),
       "redirect lookup error": () => ask(deps({ readRedirect: async () => { throw new Error("x"); } }), "fit", "/"),
       "no complete language": () => ask(deps({ readPage: async () => row({ content: (() => { const c = baseContent(); delete c.about_en; delete c.about_fr; return c; })() }) }), "fit", "/"),
-      "missing media origin": () => ask(deps({ config: { rootDomain: ROOT, mediaOrigin: undefined }, readPage: async () => row() }), "fit", "/"),
+      "missing media origin": () => ask(deps({ config: { rootDomain: ROOT, mediaOrigin: undefined, reportKey: undefined }, readPage: async () => row() }), "fit", "/"),
     };
     const expected = await snapshot(notFoundResponse(ROOT));
     for (const [cause, run] of Object.entries(causes)) expect(await snapshot(await run()), cause).toEqual(expected);
@@ -324,7 +337,22 @@ describe("configuration", () => {
   it("the root domain defaults to localhost in development and is off in production when unset", () => {
     expect(readConfig({}).rootDomain).toBe("localhost");
     expect(readConfig({ NODE_ENV: "production" }).rootDomain).toBeUndefined();
-    expect(readConfig({ PUBLIC_SITE_ROOT_DOMAIN: " GymOSApps.com ", PUBLIC_SITE_MEDIA_ORIGIN: "https://x.example.com/path" })).toEqual({ rootDomain: "gymosapps.com", mediaOrigin: "https://x.example.com" });
+    expect(readConfig({ PUBLIC_SITE_ROOT_DOMAIN: " GymOSApps.com ", PUBLIC_SITE_MEDIA_ORIGIN: "https://x.example.com/path" })).toEqual({ rootDomain: "gymosapps.com", mediaOrigin: "https://x.example.com", reportKey: undefined });
     expect(readConfig({ PUBLIC_SITE_MEDIA_ORIGIN: "javascript:alert(1)" }).mediaOrigin).toBeUndefined();
+  });
+  it("the report key needs 16 characters after trimming; a shorter one is refused and logged once as too short", () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      expect(readConfig({ PUBLIC_SITE_REPORT_KEY: "short" }).reportKey).toBeUndefined();
+      expect(err).toHaveBeenCalledTimes(1);
+      expect(String(err.mock.calls[0]![0])).toContain('"reason":"too_short"');
+      expect(readConfig({ PUBLIC_SITE_REPORT_KEY: "a".repeat(15) }).reportKey).toBeUndefined();
+      expect(readConfig({ PUBLIC_SITE_REPORT_KEY: "a".repeat(16) }).reportKey).toBe("a".repeat(16));
+      expect(readConfig({ PUBLIC_SITE_REPORT_KEY: `  ${"b".repeat(16)}  ` }).reportKey).toBe("b".repeat(16));
+      expect(readConfig({ PUBLIC_SITE_REPORT_KEY: `  ${"b".repeat(14)}  ` }).reportKey).toBeUndefined();
+      expect(readConfig({}).reportKey).toBeUndefined();
+    } finally {
+      err.mockRestore();
+    }
   });
 });

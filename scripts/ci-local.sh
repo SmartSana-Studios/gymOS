@@ -8,7 +8,7 @@
 #
 # Stages and what they mirror in ci.yml:
 #   static  typecheck job: typecheck, lint (dashboard + super-admin), i18n parity, migration guardrails, require-db-backup test
-#   deno    typecheck job: deno test for supabase/functions/payment-webhook
+#   deno    typecheck job: deno test for supabase/functions/payment-webhook and supabase/functions/page-media-purge
 #   pgtap   rls-tests job: supabase/tests/*.sql
 #   unit    typecheck job: vitest for @gymos/dashboard, mobile, super-admin, types, page-templates (conformance, DOM) and landing
 #   layout  typecheck job: the page-template conformance layout stage in headless Chromium (Story 24.10; a missing browser fails)
@@ -96,6 +96,8 @@ stage_deno() {
     return 1
   fi
   (cd "$ROOT/supabase/functions/payment-webhook" && "$deno_bin" test --allow-all .) || return 1
+  # Story 24.11: the page-media purge (list, delete, mark after a confirmed delete, orphan sweep, one job_runs row; the bearer secret fails closed)
+  (cd "$ROOT/supabase/functions/page-media-purge" && "$deno_bin" test --allow-all .) || return 1
 }
 
 stage_pgtap() {
@@ -116,7 +118,9 @@ stage_pgtap() {
 }
 
 stage_unit() {
-  npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile --filter=@gymos/super-admin || return 1
+  # --concurrency=1 (Story 24.11 review): dashboard, mobile and super-admin together on 4 cores starved the super-admin form tests of their 5 s
+  # timeouts in four runs in a row (a different 1 to 6 tests each time, all green one package at a time). The three run one after the other.
+  npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile --filter=@gymos/super-admin --concurrency=1 || return 1
   # Story 24.10: the page-template, types and landing suites run AFTER, not beside, the three above: seven vitest runs at once starved the
   # super-admin form tests of their 5 s timeouts (they pass alone and in the original three-package run).
   npx turbo run test --filter=@gymos/types --filter=@gymos/page-templates --filter=@gymos/landing || return 1

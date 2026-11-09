@@ -5,6 +5,7 @@ import {
   getLandingPageData,
   publishLandingPage,
   saveLandingPageContent,
+  submitLandingPageAppeal,
   unpublishLandingPage,
 } from "@/services/landing-page";
 
@@ -26,6 +27,11 @@ export async function claimPageNameAction(name: string) {
 
 export async function publishPageAction(template: string | null) {
   return publishLandingPage(template);
+}
+
+/** Owner only. The service re-checks the role and the database is the judge. */
+export async function submitPageAppealAction(reason: string) {
+  return submitLandingPageAppeal(reason);
 }
 
 export async function unpublishPageAction() {

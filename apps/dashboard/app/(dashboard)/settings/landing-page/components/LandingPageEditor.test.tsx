@@ -8,11 +8,13 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 const saveLandingPageAction = vi.fn();
 const loadLandingPageAction = vi.fn();
 const claimPageNameAction = vi.fn();
+const submitPageAppealAction = vi.fn();
 
 vi.mock("../actions", () => ({
   saveLandingPageAction: (...a: unknown[]) => saveLandingPageAction(...a),
   loadLandingPageAction: (...a: unknown[]) => loadLandingPageAction(...a),
   claimPageNameAction: (...a: unknown[]) => claimPageNameAction(...a),
+  submitPageAppealAction: (...a: unknown[]) => submitPageAppealAction(...a),
   publishPageAction: vi.fn(),
   unpublishPageAction: vi.fn(),
 }));
@@ -85,12 +87,38 @@ describe("header controls by state", () => {
     expect(screen.getByTestId("live-info")).toBeTruthy();
   });
 
-  it("taken down: the banner shows, with no Publish and no Appeal control", () => {
-    render(<LandingPageEditor initial={makeData({ status: { state: "taken_down", missing: [] } })} />);
-    expect(screen.getByTestId("banner-taken-down")).toBeTruthy();
+  // 24.11 changed this on purpose (it asserted "no Appeal control" while the takedown had no writer): the Owner now has [Appeal]; nobody else does.
+  const takenDown = { state: "taken_down", missing: [], taken_down_reason: "privacy", appeal: { state: "none", submitted_at: null, decided_at: null, decision_reason: null } };
+
+  it("taken down: the banner shows with the reason, no Publish, and an Appeal button for the Owner", () => {
+    render(<LandingPageEditor initial={makeData({ status: takenDown })} />);
+    expect(screen.getByTestId("banner-taken-down").textContent).toContain("pageEditor.banner.takenDownReason|pageEditor.takedownReason.privacy");
     expect(screen.queryByText("pageEditor.header.reviewAndPublish")).toBeNull();
     expect(screen.queryByTestId("review-disabled")).toBeNull();
-    expect(screen.queryByText(/appeal/i)).toBeNull();
+    expect(screen.getByTestId("appeal-button")).toBeTruthy();
+  });
+
+  it("the status reload runs after an appeal is sent, and the appeal-sent line replaces the Appeal button (the banner is wired to the screen's refresh)", async () => {
+    const takenDown = { state: "taken_down", missing: [], taken_down_reason: "privacy", appeal: { state: "none", submitted_at: null, decided_at: null, decision_reason: null } };
+    const afterAppeal = { ...takenDown, appeal: { state: "open", submitted_at: "2026-11-09T10:00:00Z", decided_at: null, decision_reason: null } };
+    submitPageAppealAction.mockResolvedValue({ data: { state: "open" }, error: null });
+    loadLandingPageAction.mockResolvedValue({ data: makeData({ status: afterAppeal }), error: null });
+    render(<LandingPageEditor initial={makeData({ status: takenDown })} />);
+    fireEvent.click(screen.getByTestId("appeal-button"));
+    fireEvent.change(await screen.findByLabelText("pageAppeal.label"), { target: { value: "The mark is ours" } });
+    fireEvent.click(screen.getByText("pageAppeal.send"));
+    await waitFor(() => expect(submitPageAppealAction).toHaveBeenCalledWith("The mark is ours"));
+    await waitFor(() => expect(loadLandingPageAction).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByTestId("appeal-sent")).toBeTruthy());
+    expect(screen.queryByTestId("appeal-button")).toBeNull();
+  });
+
+  it("taken down: a Supervisor sees no Appeal button (it is not in the DOM)", () => {
+    render(<LandingPageEditor initial={makeData({ role: "supervisor", status: takenDown })} />);
+    expect(screen.getByTestId("banner-taken-down")).toBeTruthy();
+    expect(screen.queryByTestId("appeal-button")).toBeNull();
+    expect(screen.queryByText("pageEditor.banner.appeal")).toBeNull();
+    expect(screen.getByTestId("appeal-owner-only")).toBeTruthy();
   });
 
   it("offline by the gate: one banner line per code still failing, in checklist order, with the way out", () => {

@@ -26,7 +26,8 @@ import {
 //   2. decode with sharp and judge the CONTENT (magic bytes), never the client's mime type or file name.
 //   3. write both objects with the service-role client (the only writer either bucket has).
 //   4. register_page_media(for real). If it fails, both objects are removed again.
-// Deleting is the RPC only (deleted_at); removing objects is the 24.11 purge.
+// Deleting is the RPC only (deleted_at); removing objects is the 24.11 purge (the page-media-purge edge function). The purge removes the derivative
+// of an offline page; rebuildPurgedMedia below rebuilds it from the retained original before a republish.
 
 export const SRC_BUCKET = "gym-page-media-src";
 export const DERIVATIVE_BUCKET = "gym-page-media";
@@ -284,5 +285,103 @@ export async function deletePageMedia(mediaId: string): Promise<{ error: AppErro
     return { error: null };
   } catch (e) {
     return { error: await toAppError(e) };
+  }
+}
+
+
+/** What `rebuildPurgedMedia` hands back: the rebuilt rows, and the two ways to finish (commit after the publish, discard when it did not happen). */
+export interface RebuiltMedia {
+  ok: true;
+  /** Ids of the rows whose derivative was written back in this attempt. */
+  ids: string[];
+  /** Call after `publish_gym_page` has SUCCEEDED: clears the purge marks. Resolves false when that failed (logged; see the note on the function). */
+  commit(): Promise<boolean>;
+  /** Call when the publish did not happen: removes the derivatives written in this attempt (best effort), leaving the rows marked purged. */
+  discard(): Promise<void>;
+}
+
+/**
+ * Story 24.11 (AD-47): a page that went offline had its derivative images removed from the public bucket (the originals stay, private). Before
+ * the gate runs again, every live image of the gym whose derivative was purged is re-encoded from its original and written back at the SAME key
+ * (the snapshot and the row keep pointing at it). The purge marks are NOT cleared here: `commit()` clears them only after `publish_gym_page`
+ * has succeeded, so a purge tick can never list a rebuilt image of a page that is not live yet. On any failure here the derivatives written in
+ * this attempt are removed again (best effort) and `ok: false` comes back, so the caller does not publish. If `commit()` fails after a successful
+ * publish the page is live with stale marks: harmless while it is live, but a later unpublish would not purge those images until the next
+ * republish clears the marks; it is logged. The caller has already admitted the user (the page status read) and checked there is something to
+ * publish; the service-role calls below are unreachable from the browser.
+ */
+export async function rebuildPurgedMedia(gymId: string): Promise<RebuiltMedia | { ok: false }> {
+  if (!UUID_RE.test(gymId)) return { ok: false };
+  const uploaded: string[] = [];
+  const admin = (() => {
+    try {
+      return createAdminClient();
+    } catch {
+      return null;
+    }
+  })();
+  if (!admin) return { ok: false };
+  async function removeUploaded() {
+    if (uploaded.length === 0) return;
+    try {
+      const { error } = await admin!.storage.from(DERIVATIVE_BUCKET).remove(uploaded.splice(0));
+      if (error) console.error("[page-media] removing the derivatives of a failed re-derive failed", error);
+    } catch (e) {
+      console.error("[page-media] removing the derivatives of a failed re-derive failed", e instanceof Error ? e.name : "unknown");
+    }
+  }
+  try {
+    const listed = await admin.rpc("page_media_rederive_list", { p_gym_id: gymId });
+    if (listed.error) {
+      console.error("[page-media] page_media_rederive_list failed", listed.error);
+      return { ok: false };
+    }
+    const rows = listed.data ?? [];
+    const ids: string[] = [];
+    for (const row of rows) {
+      const kind = pageMediaKindSchema.safeParse(row.kind);
+      if (!kind.success) throw new PageMediaError("unsupported_type");
+      const { data: blob, error: downloadError } = await admin.storage.from(SRC_BUCKET).download(row.original_key);
+      if (downloadError || !blob) {
+        console.error("[page-media] the retained original could not be read; the image is not rebuilt");
+        throw new PageMediaError("upload_failed");
+      }
+      const processed = await processPageImage(Buffer.from(await blob.arrayBuffer()), kind.data);
+      const up = await admin.storage.from(DERIVATIVE_BUCKET).upload(row.derivative_key, processed.derivative, {
+        contentType: "image/webp",
+        cacheControl: DERIVATIVE_CACHE_SECONDS,
+        upsert: true,
+      });
+      if (up.error) {
+        console.error("[page-media] the derivative could not be written back", up.error);
+        throw new PageMediaError("upload_failed");
+      }
+      uploaded.push(row.derivative_key);
+      ids.push(row.id);
+    }
+    return {
+      ok: true,
+      ids,
+      async commit() {
+        if (ids.length === 0) return true;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const done = await admin.rpc("page_media_rederive_done", { p_gym_id: gymId, p_ids: ids });
+            if (!done.error) return true;
+            console.error("[page-media] page_media_rederive_done failed", done.error);
+          } catch (e) {
+            console.error("[page-media] page_media_rederive_done failed", e instanceof Error ? e.name : "unknown");
+          }
+        }
+        return false;
+      },
+      async discard() {
+        await removeUploaded();
+      },
+    };
+  } catch (e) {
+    console.error("[page-media] re-deriving purged images failed", e instanceof Error ? e.name : "unknown");
+    await removeUploaded();
+    return { ok: false };
   }
 }
