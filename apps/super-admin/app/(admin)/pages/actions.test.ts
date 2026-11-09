@@ -101,6 +101,17 @@ describe("takeDownPage", () => {
     expect(rpc).toHaveBeenNthCalledWith(3, "close_page_report", { p_id: R2, p_outcome: "taken_down" });
     expect(res).toEqual({ data: { takedownId: "td-1", reportsClosed: 2 }, error: null });
   });
+  it("a report that cannot be closed after the takedown is not counted, and does not undo or hide the takedown", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    rpc
+      .mockResolvedValueOnce({ data: { taken_down: true, takedown_id: "td-1" }, error: null })
+      .mockResolvedValueOnce({ data: {}, error: null })
+      .mockResolvedValueOnce({ data: null, error: { message: "close_page_report: not_open" } });
+    const { takeDownPage } = await import("./actions");
+    const res = await takeDownPage({ gymId: GYM, reason: "impersonation", reportIds: [R1, R2] });
+    expect(res).toEqual({ data: { takedownId: "td-1", reportsClosed: 1 }, error: null });
+    log.mockRestore();
+  });
   it("sends no note when none was typed, and gives each typed refusal its own copy", async () => {
     const { takeDownPage } = await import("./actions");
     rpc.mockResolvedValueOnce({ data: { takedown_id: "x" }, error: null });

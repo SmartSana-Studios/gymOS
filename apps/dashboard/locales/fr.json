@@ -536,6 +536,7 @@
       "suspended": "Votre page est masquée tant que votre salle est suspendue. Elle reviendra quand votre salle sera de nouveau active.",
       "takenDown": "GymOS a retiré votre page. Le nom de votre page reste réservé pour vous.",
       "takenDownReason": "GymOS a retiré votre page : {{reason}}. Le nom de votre page reste réservé pour vous. Vous pouvez faire appel.",
+      "takenDownReasonNoAppeal": "GymOS a retiré votre page : {{reason}}. Le nom de votre page reste réservé pour vous.",
       "appeal": "Faire appel",
       "appealSent": "Appel envoyé le {{date}}. GymOS décidera et vous répondra.",
       "appealUpheld": "GymOS a examiné votre appel et maintient le retrait. Motif : {{reason}}",

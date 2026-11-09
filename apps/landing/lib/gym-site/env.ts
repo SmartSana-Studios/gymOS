@@ -23,9 +23,15 @@ export function normalizeOrigin(value: string | undefined): string | undefined {
 }
 
 /** At least 16 characters: a shorter key is treated as unset (the report form is then off, never weakly keyed). */
+export const REPORT_KEY_MIN_LENGTH = 16;
+
+/** The report-hash key, or undefined (reports then answer the uniform not-found). A key shorter than the minimum is refused, and says so once at load. */
 function readReportKey(env: Record<string, string | undefined>): string | undefined {
   const key = env.PUBLIC_SITE_REPORT_KEY?.trim();
-  return key && key.length >= 16 ? key : undefined;
+  if (key && key.length < REPORT_KEY_MIN_LENGTH) {
+    console.error(JSON.stringify({ event: "gym_site_config_invalid", variable: "PUBLIC_SITE_REPORT_KEY", reason: "too_short", minLength: REPORT_KEY_MIN_LENGTH }));
+  }
+  return key && key.length >= REPORT_KEY_MIN_LENGTH ? key : undefined;
 }
 
 export function readConfig(env: Record<string, string | undefined> = process.env): GymSiteConfig {

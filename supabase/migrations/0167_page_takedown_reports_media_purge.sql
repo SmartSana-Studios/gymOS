@@ -15,9 +15,12 @@
 --   submit_page_appeal / list_page_appeals / decide_page_appeal   Owner appeals once per takedown; Super Admin decides (lift runs the lift).
 --   page_media_purge_* , page_media_rederive_*  service_role only: the candidates/mark/orphan/record calls of the `page-media-purge` edge
 --                                               function and the re-derive calls of the dashboard publish path.
---   claim_page_name (replaced)                  0163's, plus: an Owner cannot rename while the page is taken down (`page_taken_down`, so a flagged
---                                               name can never be turned into a redirect and released, AD-45); a Super Admin claim that replaces an
---                                               existing name tells the Owner (EN/FR).
+--   claim_page_name (replaced)                  0163's, plus: nobody (Owner or Super Admin) can claim or rename while the page is taken down
+--                                               (`page_taken_down`, so a flagged name can never be turned into a redirect or released, AD-45,
+--                                               EXPERIENCE.md SA-17); a Super Admin claim that replaces an existing name tells the Owner (EN/FR).
+--   page_names_sweep (replaced)                 0164's, plus the page-row takedown predicate, the release of a flagged redirect once the takedown
+--                                               is lifted and its 12 months are over, and a NEW Owner notice `page_name_released` when the sweep
+--                                               frees an idle active name of a gym whose page is not live.
 --   private.page_media_purge_tick()             pg_cron job `page_media_purge` (every 5 minutes): pg_net call to the edge function with a
 --                                               bearer secret kept in Vault. Nothing is deleted in SQL; objects go through the Storage API.
 --
@@ -462,9 +465,10 @@ begin
     raise exception 'claim_page_name: gym % is not active', p_gym_id;
   end if;
 
-  -- Story 24.11 (AD-45): while the page is taken down the Owner cannot rename. A rename would turn the flagged active name into a redirect,
-  -- and the sweep would release it once the takedown is lifted: a taken-down name is never released.
-  if not v_is_super_admin and private.gym_page_taken_down(p_gym_id) then
+  -- Story 24.11 (AD-45, EXPERIENCE.md SA-17): while the page is taken down nobody renames. An Owner rename would turn the flagged active name
+  -- into a redirect that the sweep releases after a lift; a Super Admin forced claim would release it at once. A taken-down name is never
+  -- released, so both are refused (lift the takedown first).
+  if private.gym_page_taken_down(p_gym_id) then
     raise exception 'claim_page_name: page_taken_down';
   end if;
 
@@ -690,6 +694,9 @@ begin
   end if;
   perform 1 from gyms g where g.id = v_report.gym_id for update;
   select * into v_report from private.page_reports r where r.id = p_id for update;
+  if not found then
+    raise exception 'close_page_report: not_found';
+  end if;
   if v_report.status <> 'open' then
     raise exception 'close_page_report: not_open';
   end if;
@@ -830,6 +837,9 @@ begin
   end if;
   perform 1 from gyms g where g.id = v_appeal.gym_id for update;
   select * into v_appeal from private.page_appeals a where a.id = p_id for update;
+  if not found then
+    raise exception 'decide_page_appeal: not_found';
+  end if;
   if v_appeal.decision is not null then
     raise exception 'decide_page_appeal: not_open';
   end if;

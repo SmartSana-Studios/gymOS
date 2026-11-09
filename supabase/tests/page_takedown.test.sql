@@ -5,7 +5,7 @@
 -- Every consumer of the takedown predicate is pinned by an effect check AND shown able to fail by breaking that consumer inside the
 -- transaction (section D); the original definitions are restored from pg_get_functiondef before the next section.
 begin;
-select plan(287);
+select plan(294);
 
 create or replace function pg_temp.claims(uid text, app_role text, gym text default null) returns void language plpgsql as $f$
 begin
@@ -281,6 +281,7 @@ select is(pg_temp.asauth($$select publish_gym_page('$$ || pg_temp.g('T') || $$',
 select is(pg_temp.stat('T') ->> 'state', 'taken_down', 'the status is taken_down');
 select is(pg_temp.stat('T') ->> 'taken_down_reason', 'impersonation', 'the status carries the reason code');
 select is(pg_temp.stat('T') -> 'appeal' ->> 'state', 'none', 'and the appeal state (none yet)');
+select is((select array_agg(k order by k) from jsonb_object_keys(pg_temp.stat('T') -> 'appeal') k), array['decided_at','decision_reason','state','submitted_at'], 'the appeal object has exactly the four keys the strict schema requires (none)');
 select is((pg_temp.stat('T'))::text like '%Pretends%' or (pg_temp.stat('T'))::text like '%bank%', false, 'the status carries no note');
 select is(pg_temp.notices('T', 'page_taken_down'), 1, 'the Owner got one takedown notice');
 select is((select count(*)::int from staff_notices where gym_id = pg_temp.g('T')::uuid and notice_type = 'page_taken_down' and user_id = pg_temp.u('ownerT')::uuid
@@ -338,6 +339,8 @@ select is(pg_temp.report('tkd-t-old', 'privacy', 'x', pg_temp.hash(20)), 'not_fo
 -- ---- D. every consumer of the takedown predicate, and proof that each check can fail -----------------------------------------------
 -- Gym K: only the PAGE row is taken down (the name rows are not flagged), so each consumer is tested on the page predicate alone.
 update gym_pages set taken_down_at = now(), taken_down_reason = 'privacy' where gym_id = pg_temp.g('K')::uuid;
+-- an unflagged old-name redirect of K: public_site.page_redirects must still hide it, on the page predicate alone
+insert into page_names (gym_id, name, state, origin, reserved_until) values (pg_temp.g('K')::uuid, 'tkd-k-old', 'redirect', 'rename', now() + interval '6 months');
 create or replace function pg_temp.consumer(c text) returns text language plpgsql as $f$
 declare v text;
 begin
@@ -351,6 +354,11 @@ begin
   elsif c = 'reader_media' then
     set local role public_site_reader;
     execute format('select count(*)::text from public_site.page_media m where m.page_name_id = %L', pg_temp.pn_id('tkd-k')) into v;
+    reset role;
+    return v;
+  elsif c = 'reader_redirects' then
+    set local role public_site_reader;
+    select count(*)::text into v from public_site.page_redirects where old_name = 'tkd-k-old';
     reset role;
     return v;
   elsif c = 'publish' then
@@ -395,12 +403,13 @@ begin
     update page_names set state = 'redirect', reserved_until = now() - interval '1 day', taken_down_at = now() where name = 'tkd-t-old';
     return v;
   elsif c = 'claim_sa' then
-    -- a Super Admin claims a new name for a gym whose page row is taken down: allowed, and the page stays hidden; rolled back whatever it does
+    -- a Super Admin forces a new name onto a gym whose page row is taken down: refused (the flagged name is never released, AD-45, SA-17);
+    -- rolled back whatever it does, and it reports what became of the old name
     begin
       perform pg_temp.claims(pg_temp.u('admin'), 'super_admin');
       perform public.claim_page_name(pg_temp.g('K')::uuid, 'tkd-k-sa');
       raise exception 'CLAIMED:%|%', (select taken_down_at is not null from public.gym_pages where gym_id = pg_temp.g('K')::uuid),
-        (select count(*) from private.gym_page_visible where name in ('tkd-k', 'tkd-k-sa'));
+        (select state from public.page_names where gym_id = pg_temp.g('K')::uuid and name = 'tkd-k');
     exception when others then
       v := sqlerrm;
     end;
@@ -424,6 +433,7 @@ select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
 select is(pg_temp.consumer('visible'), '0', 'consumer private.gym_page_visible: a page row taken down is hidden');
 select is(pg_temp.consumer('reader_pages'), '0', 'consumer public_site.pages: hidden');
 select is(pg_temp.consumer('reader_media'), '0', 'consumer public_site.page_media: none of its images');
+select is(pg_temp.consumer('reader_redirects'), '0', 'consumer public_site.page_redirects: an unflagged old name does not redirect to a hidden page');
 select is(pg_temp.consumer('publish'), 'publish_gym_page: taken_down', 'consumer publish_gym_page: raises taken_down');
 select is(pg_temp.consumer('refresh'), 'null|0', 'consumer refresh_gym_page: no gate-reason write and no Owner notice');
 select is(pg_temp.consumer('sweep'), 'active', 'consumer page_names_sweep: the name is not released');
@@ -439,6 +449,7 @@ where gp.published_at is not null and gp.unpublished_at is null and pn.state = '
 select is(pg_temp.consumer('visible'), '1', 'KNOWN-BAD: a visibility predicate without the page-row term shows the taken-down page');
 select is(pg_temp.consumer('reader_pages'), '1', 'KNOWN-BAD: and public_site.pages, built on it, serves the taken-down page');
 select is(pg_temp.consumer('reader_media'), '2', 'KNOWN-BAD: and public_site.page_media lists its images');
+select is(pg_temp.consumer('reader_redirects'), '1', 'KNOWN-BAD: and public_site.page_redirects forwards the old name to the taken-down page');
 create or replace view private.gym_page_visible with (security_barrier = true) as
 select gp.page_name_id, gp.template, gp.schema_version, gp.content, gp.published_at, gp.updated_at, pn.name
 from public.gym_pages gp join public.page_names pn on pn.id = gp.page_name_id and pn.gym_id = gp.gym_id join public.gyms g on g.id = gp.gym_id
@@ -464,15 +475,13 @@ select pg_temp.mutate('public.get_gym_page_status(uuid)'::regprocedure, 'when v_
 select isnt(pg_temp.consumer('status'), 'taken_down', 'KNOWN-BAD: a status function that ignores the takedown reports a different state');
 select pg_temp.restore('public.get_gym_page_status(uuid)'::regprocedure);
 select is(pg_temp.consumer('status'), 'taken_down', 'control: status restored');
-select pg_temp.mutate('public.claim_page_name(uuid,text)'::regprocedure, 'if not v_is_super_admin and private\.gym_page_taken_down\(p_gym_id\) then\s+raise exception ''claim_page_name: page_taken_down'';\s+end if;', '');
+select pg_temp.mutate('public.claim_page_name(uuid,text)'::regprocedure, 'if private\.gym_page_taken_down\(p_gym_id\) then\s+raise exception ''claim_page_name: page_taken_down'';\s+end if;', '');
 select is(pg_temp.consumer('claim'), 'CLAIMED', 'KNOWN-BAD: a claim without the refusal lets an Owner rename a taken-down page');
+select is(pg_temp.consumer('claim_sa'), 'CLAIMED:t|released', 'KNOWN-BAD: and a Super Admin forced claim releases the flagged old name');
 select pg_temp.restore('public.claim_page_name(uuid,text)'::regprocedure);
 select is(pg_temp.consumer('claim'), 'claim_page_name: page_taken_down', 'control: claim_page_name restored');
-select is(pg_temp.consumer('claim_sa'), 'CLAIMED:t|0', 'a Super Admin claim on a taken-down gym succeeds and the page stays taken down and hidden');
-select pg_temp.mutate('public.claim_page_name(uuid,text)'::regprocedure, 'if not v_is_super_admin and private\.gym_page_taken_down\(p_gym_id\) then', 'if private.gym_page_taken_down(p_gym_id) then');
-select is(pg_temp.consumer('claim_sa'), 'claim_page_name: page_taken_down', 'KNOWN-BAD: a refusal that does not exempt the Super Admin blocks the Super Admin claim');
-select pg_temp.restore('public.claim_page_name(uuid,text)'::regprocedure);
-select is(pg_temp.consumer('claim_sa'), 'CLAIMED:t|0', 'control: restored');
+select is(pg_temp.consumer('claim_sa'), 'claim_page_name: page_taken_down', 'consumer claim_page_name: a Super Admin forced claim is refused too (the taken-down name is never released)');
+select is((select state from page_names where gym_id = pg_temp.g('K')::uuid and name = 'tkd-k'), 'active', 'and the old name of the taken-down gym is still its active name');
 select pg_temp.mutate('private.page_names_sweep()'::regprocedure, 'and \(pn\.taken_down_at is null or not private\.gym_page_taken_down\(pn\.gym_id\)\)', '');
 select is(pg_temp.consumer('redirect_sweep'), 'released', 'KNOWN-BAD: a sweep loop 2 without its predicate releases the expired flagged redirect of a taken-down gym');
 select pg_temp.restore('private.page_names_sweep()'::regprocedure);
@@ -526,6 +535,7 @@ select is(pg_temp.asauth($$select submit_page_appeal('$$ || repeat('x', 500) || 
 select is(pg_temp.asauth($$select submit_page_appeal('Again')$$), 'P0001:submit_page_appeal: appeal_open', 'a second appeal while one is open is refused');
 select is(pg_temp.stat('T') -> 'appeal' ->> 'state', 'open', 'the status says the appeal is open');
 select is((pg_temp.stat('T') -> 'appeal' ->> 'submitted_at') is not null, true, 'with its date');
+select is((select array_agg(k order by k) from jsonb_object_keys(pg_temp.stat('T') -> 'appeal') k), array['decided_at','decision_reason','state','submitted_at'], 'the appeal object has exactly the four keys (open)');
 select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
 select is((select count(*)::int from list_page_appeals() where gym_id = pg_temp.g('T')::uuid and decision is null and takedown_reason = 'impersonation' and takedown_note like 'Pretends%'), 1, 'Super Admin sees the appeal with the takedown reason and note');
 create temp table ap_t as select id from private.page_appeals where gym_id = pg_temp.g('T')::uuid;
@@ -541,6 +551,7 @@ select is((select count(*)::int from staff_notices where gym_id = pg_temp.g('T')
 select pg_temp.claims(pg_temp.u('ownerT'), 'owner', pg_temp.g('T'));
 select is(pg_temp.stat('T') -> 'appeal' ->> 'state', 'uphold', 'the status shows the upheld decision');
 select is(pg_temp.stat('T') -> 'appeal' ->> 'decision_reason', 'The page copies a bank''s name and logo', 'with the decision reason');
+select is((select array_agg(k order by k) from jsonb_object_keys(pg_temp.stat('T') -> 'appeal') k), array['decided_at','decision_reason','state','submitted_at'], 'the appeal object has exactly the four keys (decided)');
 select is(pg_temp.asauth($$select submit_page_appeal('A second try')$$), 'P0001:submit_page_appeal: appeal_decided', 'no second appeal after an upheld decision');
 select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
 select is(pg_temp.asauth($$select decide_page_appeal((select id from ap_t), 'lift', 'changed my mind')$$), 'P0001:decide_page_appeal: not_open', 'a decided appeal cannot be decided again');
@@ -555,6 +566,14 @@ select is(pg_temp.visible('tkd-t'), 0, 'so it is still not public');
 select is((select taken_down_at is null from page_names where gym_id = pg_temp.g('T')::uuid and name = 'tkd-t'), true, 'the active name is unflagged');
 select is((select taken_down_at is not null from page_names where name = 'tkd-t-old'), true, 'the old-name redirect stays dropped');
 select is(pg_temp.asrole('public_site_reader', $$select count(*) from public_site.page_redirects where old_name = 'tkd-t-old'$$), '0', 'and does not redirect');
+-- the flagged redirect is still there (the sweep has not run): it must not keep the status at taken_down
+update page_names set state = 'redirect', reserved_until = now() - interval '1 day', taken_down_at = now() where name = 'tkd-t-old';
+select pg_temp.claims(pg_temp.u('ownerT'), 'owner', pg_temp.g('T'));
+select is(pg_temp.stat('T') ->> 'state', 'ready', 'the status after a lift is not taken_down although a flagged old-name redirect remains');
+select pg_temp.mutate('public.get_gym_page_status(uuid)'::regprocedure, 'pn\.state in \(''active'', ''held'', ''reserved''\)', 'pn.state <> ''released''');
+select is(pg_temp.stat('T') ->> 'state', 'taken_down', 'KNOWN-BAD: a status that counts a flagged redirect keeps the Owner on taken_down after the lift');
+select pg_temp.restore('public.get_gym_page_status(uuid)'::regprocedure);
+select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
 select private.page_names_sweep();
 select is((select state from page_names where name = 'tkd-t-old'), 'released', 'after the lift the sweep releases the expired flagged redirect (its 12 months are over)');
 select is((select state from page_names where gym_id = pg_temp.g('T')::uuid and name = 'tkd-t'), 'active', 'and not the active name');

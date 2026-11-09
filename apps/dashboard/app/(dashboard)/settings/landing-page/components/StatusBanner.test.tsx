@@ -42,6 +42,8 @@ describe("the taken-down banner", () => {
       expect(screen.queryByTestId("appeal-button")).toBeNull();
       expect(screen.queryByRole("button")).toBeNull();
       expect(screen.getByTestId("appeal-owner-only")).toBeTruthy();
+      // "You can appeal." is not said to someone who cannot
+      expect(screen.getByTestId("banner-taken-down").textContent).toContain("pageEditor.banner.takenDownReasonNoAppeal|");
       unmount();
     }
   });
@@ -57,6 +59,7 @@ describe("the taken-down banner", () => {
     expect(screen.getByTestId("appeal-sent").textContent).toContain("pageEditor.banner.appealSent|");
     expect(screen.getByTestId("appeal-sent").textContent).toMatch(/2026/);
     expect(screen.queryByTestId("appeal-button")).toBeNull();
+    expect(screen.getByTestId("banner-taken-down").textContent).toContain("pageEditor.banner.takenDownReasonNoAppeal|");
   });
 
   it("an upheld appeal shows the decision reason and offers no second appeal, to anyone", () => {
@@ -64,6 +67,7 @@ describe("the taken-down banner", () => {
       const { unmount } = render(<StatusBanner status={taken({ state: "uphold", submitted_at: "2026-11-09T10:00:00Z", decided_at: "2026-11-10T10:00:00Z", decision_reason: "It copies a registered mark" })} role={role} />);
       expect(screen.getByTestId("appeal-upheld").textContent).toContain("It copies a registered mark");
       expect(screen.queryByTestId("appeal-button")).toBeNull();
+      expect(screen.getByTestId("banner-taken-down").textContent).not.toContain("pageEditor.banner.takenDownReason|");
       unmount();
     }
   });
@@ -97,6 +101,23 @@ describe("the taken-down banner", () => {
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     expect(screen.getByLabelText("pageAppeal.label")).toBeTruthy();
   });
+
+  it.each([
+    ["appeal_open", true],
+    ["appeal_decided", true],
+    ["not_taken_down", true],
+    ["reason_required", false],
+  ])("a refused appeal (%s) %s the banner refresh", async (code, refreshes) => {
+    const onChanged = vi.fn();
+    submitPageAppealAction.mockResolvedValue({ data: null, error: { code, message: `msg-${code}` } });
+    render(<StatusBanner status={taken(none)} role="owner" onChanged={onChanged} />);
+    fireEvent.click(screen.getByTestId("appeal-button"));
+    fireEvent.change(await screen.findByLabelText("pageAppeal.label"), { target: { value: "Again" } });
+    fireEvent.click(screen.getByText("pageAppeal.send"));
+    await waitFor(() => expect(screen.getByText(`msg-${code}`)).toBeTruthy());
+    // the state changed under the Owner for the first three: the banner re-reads it; a plain validation refusal does not
+    await waitFor(() => expect(onChanged.mock.calls.length > 0).toBe(refreshes));
+  });
 });
 
 describe("the words", () => {
@@ -113,6 +134,9 @@ describe("the words", () => {
     const f = (fr as { pageEditor: { banner: Record<string, string> } }).pageEditor.banner;
     expect(f.takenDownReason).toBe("GymOS a retiré votre page : {{reason}}. Le nom de votre page reste réservé pour vous. Vous pouvez faire appel.");
     expect(f.appealSent).toBe("Appel envoyé le {{date}}. GymOS décidera et vous répondra.");
+    // the same sentence without the appeal clause, for the states where the Owner cannot appeal
+    expect(e.takenDownReasonNoAppeal).toBe(e.takenDownReason.replace(" You can appeal.", ""));
+    expect(f.takenDownReasonNoAppeal).toBe(f.takenDownReason.replace(" Vous pouvez faire appel.", ""));
   });
   it("every pageAppeal error code the service can return has copy in both locales", async () => {
     const { PAGE_APPEAL_ERROR_CODES } = await import("@gymos/types");

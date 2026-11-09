@@ -104,9 +104,10 @@ export function createReader(getPool: () => Queryable = defaultPool, retryDelayM
         // survives it: a transaction-mode pooler keeps the connection for the three statements).
         await client.query(BEGIN_RW_SQL);
         const { rows } = await client.query(SUBMIT_REPORT_SQL, [r.name, r.reason, r.details, r.sourceHash]);
-        await client.query(COMMIT_SQL);
+        // judged BEFORE the commit: a result the database does not define rolls back, so the visitor's retry cannot store a second report
         const result = rows[0]?.result;
         if (typeof result !== "string" || !(PAGE_REPORT_RESULTS as readonly string[]).includes(result)) throw Object.assign(new Error("report_result_unexpected"), { code: "report_result_unexpected" });
+        await client.query(COMMIT_SQL);
         return result as PageReportResult;
       } catch (e) {
         broken = true;

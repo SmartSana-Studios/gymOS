@@ -353,8 +353,16 @@ export async function publishLandingPage(template: unknown): ServiceResult<Publi
   const status = await supabase.rpc("get_gym_page_status", { p_gym_id: caller.gymId });
   const readable = status.error ? null : gymPageStatusSchema.safeParse(status.data);
   if (!readable?.success) {
-    if (status.error) console.error("[landing-page] get_gym_page_status failed before publishing", status.error);
-    return { data: null, error: await typedError("pagePublish", "rederive_failed") };
+    // nothing is published, and the cause is named truthfully: a refusal the database words as a publish refusal keeps its code (not admitted, gym not
+    // active); anything else is a failed read, not a failed image rebuild
+    if (status.error) {
+      console.error("[landing-page] get_gym_page_status failed before publishing", status.error);
+      const code = pagePublishCodeFromDbError(status.error);
+      if (code) return { data: null, error: await typedError("pagePublish", code) };
+    } else {
+      console.error("[landing-page] get_gym_page_status returned an unexpected shape", readable?.error?.issues);
+    }
+    return { data: null, error: await typedError("pageEditor", "load_failed") };
   }
   let rebuilt: RebuiltMedia | null = null;
   if (readable.data.state !== "taken_down" && readable.data.missing.length === 0) {

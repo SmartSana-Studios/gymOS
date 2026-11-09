@@ -37,9 +37,12 @@ export function StatusBanner({ status, role, onChanged }: { status: GymPageStatu
     const sentOn = appeal?.submitted_at
       ? new Date(appeal.submitted_at).toLocaleDateString(i18n?.language ?? "en", { day: "numeric", month: "long", year: "numeric" })
       : "";
+    // "You can appeal." only where the Appeal button is: not after an appeal was sent or upheld, and not for a role that cannot appeal
+    const canAppeal = appeal?.state === "none" && role === "owner";
+    const reasonKey = canAppeal ? "pageEditor.banner.takenDownReason" : "pageEditor.banner.takenDownReasonNoAppeal";
     return (
       <div role="alert" data-testid="banner-taken-down" className="space-y-2 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900 dark:border-red-700 dark:bg-red-950/30 dark:text-red-100">
-        <p>{known ? t("pageEditor.banner.takenDownReason", { reason: t(`pageEditor.takedownReason.${code}`) }) : t("pageEditor.banner.takenDown")}</p>
+        <p>{known ? t(reasonKey, { reason: t(`pageEditor.takedownReason.${code}`) }) : t("pageEditor.banner.takenDown")}</p>
         {appeal?.state === "open" && <p data-testid="appeal-sent">{t("pageEditor.banner.appealSent", { date: sentOn })}</p>}
         {appeal?.state === "uphold" && <p data-testid="appeal-upheld">{t("pageEditor.banner.appealUpheld", { reason: appeal.decision_reason ?? "" })}</p>}
         {appeal?.state === "none" && role !== "owner" && <p data-testid="appeal-owner-only">{t("pageEditor.banner.appealOwnerOnly")}</p>}

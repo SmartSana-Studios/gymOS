@@ -150,6 +150,9 @@ describe("parsing the posted form", () => {
   it("a filled hidden field is a bot, whatever else is wrong", () => {
     expect(parseReportForm(params({ [REPORT_HONEYPOT_FIELD]: "http://spam.example", reason: "privacy", details: "x" }))).toEqual({ kind: "honeypot" });
     expect(parseReportForm(params({ [REPORT_HONEYPOT_FIELD]: "x" }))).toEqual({ kind: "honeypot" });
+    // a blank first value followed by a filled one is still the honeypot
+    const repeated = new URLSearchParams(`${REPORT_HONEYPOT_FIELD}=&${REPORT_HONEYPOT_FIELD}=spam&reason=privacy&details=x`);
+    expect(parseReportForm(repeated)).toEqual({ kind: "honeypot" });
     expect(parseReportForm(params({ [REPORT_HONEYPOT_FIELD]: "   ", reason: "privacy", details: "x" })).kind).toBe("ok");
   });
 });

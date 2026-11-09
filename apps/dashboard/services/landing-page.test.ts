@@ -418,13 +418,19 @@ describe("Story 24.11: republishing after the images were purged", () => {
     expect(rebuildPurgedMedia).not.toHaveBeenCalled();
   });
 
-  it("an unreadable status (an error, or a shape that does not parse) fails closed with rederive_failed and publishes nothing", async () => {
+  it("an unreadable status fails closed and publishes nothing, naming the real cause (not an image rebuild)", async () => {
     const order: string[] = [];
-    rpc.mockImplementation(async (fn: string) => (order.push(fn), fn === "get_gym_page_status" ? { data: null, error: { message: "permission denied" } } : { data: { published: true, missing: [] }, error: null }));
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    expect((await publishLandingPage("classic")).error?.code).toBe("rederive_failed");
-    rpc.mockImplementation(async (fn: string) => (order.push(fn), fn === "get_gym_page_status" ? { data: { state: "ready" }, error: null } : { data: { published: true, missing: [] }, error: null }));
-    expect((await publishLandingPage("classic")).error?.code).toBe("rederive_failed");
+    const withStatus = (status: { data: unknown; error: { message: string } | null }) =>
+      rpc.mockImplementation(async (fn: string) => (order.push(fn), fn === "get_gym_page_status" ? status : { data: { published: true, missing: [] }, error: null }));
+    // the database refuses the caller: that refusal keeps its own code
+    withStatus({ data: null, error: { message: "permission denied" } });
+    expect((await publishLandingPage("classic")).error?.code).toBe("not_admitted");
+    // a failed read and a shape the client does not know are a failed load, never "images could not be restored"
+    withStatus({ data: null, error: { message: "connection reset" } });
+    expect((await publishLandingPage("classic")).error?.code).toBe("load_failed");
+    withStatus({ data: { state: "ready" }, error: null });
+    expect((await publishLandingPage("classic")).error?.code).toBe("load_failed");
     log.mockRestore();
     expect(order).not.toContain("publish_gym_page");
     expect(rebuildPurgedMedia).not.toHaveBeenCalled();

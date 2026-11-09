@@ -71,7 +71,8 @@ export type ReportParse =
 
 /** Parses the url-encoded form. Details are cleaned like page text (CRLF to LF, control characters out), trimmed, and need 1 to 1000 characters. */
 export function parseReportForm(params: URLSearchParams): ReportParse {
-  if ((params.get(REPORT_HONEYPOT_FIELD) ?? "").trim() !== "") return { kind: "honeypot" };
+  // every value of the field counts: a bot that sends a blank first value and a filled later one is still a bot
+  if (params.getAll(REPORT_HONEYPOT_FIELD).some((v) => v.trim() !== "")) return { kind: "honeypot" };
   const rawReason = params.get("reason") ?? "";
   const details = cleanPageText(params.get("details") ?? "").trim();
   const reason = pageTakedownReasonSchema.safeParse(rawReason);

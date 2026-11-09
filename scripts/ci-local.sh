@@ -96,7 +96,7 @@ stage_deno() {
     return 1
   fi
   (cd "$ROOT/supabase/functions/payment-webhook" && "$deno_bin" test --allow-all .) || return 1
-  # Story 24.11: the page-media purge (claim, delete, release, orphan sweep, one job_runs row; the bearer secret fails closed)
+  # Story 24.11: the page-media purge (list, delete, mark after a confirmed delete, orphan sweep, one job_runs row; the bearer secret fails closed)
   (cd "$ROOT/supabase/functions/page-media-purge" && "$deno_bin" test --allow-all .) || return 1
 }
 

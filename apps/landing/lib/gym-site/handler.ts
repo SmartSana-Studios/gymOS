@@ -161,6 +161,11 @@ async function handleExtra(
     deps.log("gym_site_config_missing", { variable: "PUBLIC_SITE_REPORT_KEY" });
     return notFound();
   }
+  // the page itself answers the uniform not-found without a media origin; a sitemap or a report form for it would advertise a page nobody can see
+  if (!deps.config.mediaOrigin) {
+    deps.log("gym_site_config_missing", { variable: "PUBLIC_SITE_MEDIA_ORIGIN" });
+    return notFound();
+  }
   const page = await visiblePage(name, deps);
   if (!page) return notFound();
 

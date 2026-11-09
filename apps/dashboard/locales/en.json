@@ -536,6 +536,7 @@
       "suspended": "Your page is hidden while your gym is suspended. It comes back when your gym is active again.",
       "takenDown": "GymOS took your page down. Your page name stays reserved for you.",
       "takenDownReason": "GymOS took your page down: {{reason}}. Your page name stays reserved for you. You can appeal.",
+      "takenDownReasonNoAppeal": "GymOS took your page down: {{reason}}. Your page name stays reserved for you.",
       "appeal": "Appeal",
       "appealSent": "Appeal sent on {{date}}. GymOS will decide and tell you.",
       "appealUpheld": "GymOS reviewed your appeal and kept the takedown. Reason: {{reason}}",

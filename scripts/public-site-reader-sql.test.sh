@@ -97,6 +97,7 @@ cleanup() {
   psqlpg -v ON_ERROR_STOP=0 <<SQL >/dev/null
 delete from gyms where id = '$RG';
 delete from tiers where id = '$RT';
+revoke public_site_reader from postgres;
 SQL
 }
 trap cleanup EXIT
@@ -169,5 +170,5 @@ SQL
 if printf '%s\n' "$ro" | grep -q 'cannot execute INSERT in a read-only transaction' || printf '%s\n' "$ro" | grep -qi 'read-only transaction'; then echo "ok   report_bare_call_refused"; else echo "FAIL report_bare_call_refused: [$ro]"; fail=1; fi
 denied=$(printf '%s\n' "$ro" | grep -c 'permission denied')
 if [ "$denied" = 3 ]; then echo "ok   report_other_calls_denied"; else echo "FAIL report_other_calls_denied: expected 3 permission errors, got $denied: [$ro]"; fail=1; fi
-[ "$fail" = 0 ] && echo "public-site reader SQL: 5/5 page cases and 6 report cases ok"
+[ "$fail" = 0 ] && echo "public-site reader SQL: 5/5 page cases and 7 report cases ok"
 exit "$fail"

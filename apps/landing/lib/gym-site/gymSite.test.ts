@@ -340,4 +340,19 @@ describe("configuration", () => {
     expect(readConfig({ PUBLIC_SITE_ROOT_DOMAIN: " GymOSApps.com ", PUBLIC_SITE_MEDIA_ORIGIN: "https://x.example.com/path" })).toEqual({ rootDomain: "gymosapps.com", mediaOrigin: "https://x.example.com", reportKey: undefined });
     expect(readConfig({ PUBLIC_SITE_MEDIA_ORIGIN: "javascript:alert(1)" }).mediaOrigin).toBeUndefined();
   });
+  it("the report key needs 16 characters after trimming; a shorter one is refused and logged once as too short", () => {
+    const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      expect(readConfig({ PUBLIC_SITE_REPORT_KEY: "short" }).reportKey).toBeUndefined();
+      expect(err).toHaveBeenCalledTimes(1);
+      expect(String(err.mock.calls[0]![0])).toContain('"reason":"too_short"');
+      expect(readConfig({ PUBLIC_SITE_REPORT_KEY: "a".repeat(15) }).reportKey).toBeUndefined();
+      expect(readConfig({ PUBLIC_SITE_REPORT_KEY: "a".repeat(16) }).reportKey).toBe("a".repeat(16));
+      expect(readConfig({ PUBLIC_SITE_REPORT_KEY: `  ${"b".repeat(16)}  ` }).reportKey).toBe("b".repeat(16));
+      expect(readConfig({ PUBLIC_SITE_REPORT_KEY: `  ${"b".repeat(14)}  ` }).reportKey).toBeUndefined();
+      expect(readConfig({}).reportKey).toBeUndefined();
+    } finally {
+      err.mockRestore();
+    }
+  });
 });

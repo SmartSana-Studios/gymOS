@@ -1956,6 +1956,7 @@ Migration `0167_page_takedown_reports_media_purge.sql` (provisional number). Eac
 ## Deferred from: review of spec-24-11-takedown-reports-sitemap-and-media-purge (2026-11-09)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  closed: [Closed by code review of 24-11 (2026-11-09, chunk a): confirmed against EXPERIENCE.md SA-17 and refused for the Super Admin too; known-bad run in `page_takedown.test.sql` section D.]
   summary: Unverified (medium if true): a Super Admin forced `claim_page_name` on a taken-down gym lets `page_name_promote(forced)` release the flagged old name, against "a taken-down name is never released" (AD-45); the new name is unflagged. The owner's rename rule (refuse) covers the Owner path only.
   evidence: `claim_page_name` in 0167 refuses only `not v_is_super_admin and gym_page_taken_down`; settles when the owner says whether a Super Admin forced rename may free a taken-down name (then refuse it too, or keep the flagged row reserved).
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
@@ -1970,3 +1971,24 @@ Migration `0167_page_takedown_reports_media_purge.sql` (provisional number). Eac
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
   summary: Residual purge windows kept by owner decision: the delete-to-mark gap of one run (a republish inside it leaves a missing image until re-upload), two failed `page_media_rederive_done` calls after a successful publish (stale marks delay a later purge), and an ambiguous publish error followed by `discard()`.
   evidence: review pass 2 edge findings, rejected as low; recorded in docs/decisions.md 24.11. Settle by making `page_media_derivative_due` compare `purged_at` with the page's `published_at` if any ever shows in production.
+
+## Deferred from: code review of spec-24-11-takedown-reports-sitemap-and-media-purge (2026-11-09, chunk a: SQL core)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: The `page_media_purge_tick` does nothing and records nothing when a Vault secret is missing and never reads the `net.http_post` response; an edge function that is down or answers 401/5xx leaves no `job_runs` row and no alert, so the purge can stop unnoticed. Add a heartbeat check (no `page_media_purge` `job_runs` row for N minutes) or a failure row from the tick.
+  evidence: `supabase/migrations/0167_page_takedown_reports_media_purge.sql:1441-1463`; deferred because it is a new monitoring feature; the owner's function deploy and real purge run (Owner checks) will show it.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: The `page_name_replaced` Owner notice has no "Reason: …" line (AD-28 `[ASSUMPTION]`); `claim_page_name` has no reason parameter. Add it together with the Super Admin "Force rename" action.
+  evidence: `0167:554-563`; Force rename is already re-deferred (no screen).
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: `rollback-0164` and `rollback-0167` (and their guards) are verified only by a manual rolled-back rehearsal; no script applies them.
+  evidence: `scripts/rollback-rehearsal*.sh` cover other epics only; same as every earlier epic's rollbacks.
+
+## Deferred from: code review of spec-24-11-takedown-reports-sitemap-and-media-purge (2026-11-09, chunk c: Super Admin and dashboard)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: The Super Admin report and appeal rows lack the detail EXPERIENCE.md SA-17 and SA-18 list: the page as currently published, the gym's other names, the takedown's actor and the page as it was when taken down. The Reports expand shows each report's reason, time and text; the Appeals row shows reason, note, appeal text and decision.
+  evidence: `ReportsPanel.tsx`, `AppealsPanel.tsx`; `PageReportRow` and `AppealDbRow` carry neither field. Not in the frozen spec's Boundaries.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: No count dot on the Pages sidebar item (EXPERIENCE.md: reports older than 3 business days plus held names older than 1 business day). The tabs show counts; the sidebar link does not.
+  evidence: `apps/super-admin/app/(admin)/layout.tsx` only points the link at `/pages`. Joins the already-deferred Super Admin notice of new and overdue reports and appeals.

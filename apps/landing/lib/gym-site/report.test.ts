@@ -92,6 +92,16 @@ describe("/report (GET)", () => {
   });
 });
 
+describe("without a media origin", () => {
+  it("/report, /sitemap.xml and /robots.txt answer the uniform not-found like the page does, with one config line each", async () => {
+    for (const path of ["/report", "/sitemap.xml", "/robots.txt"]) {
+      const d = deps({ config: { rootDomain: ROOT, mediaOrigin: undefined, reportKey: KEY } });
+      expect(await snap(await get(d, path))).toEqual(await snap(notFoundResponse(ROOT)));
+      expect(d.logs).toEqual([["gym_site_config_missing", { variable: "PUBLIC_SITE_MEDIA_ORIGIN" }]]);
+    }
+  });
+});
+
 describe("/report (POST)", () => {
   it("a valid report is stored with a keyed hash of the address, and answered with the confirmation page in the same response", async () => {
     const d = deps();
@@ -240,5 +250,7 @@ describe("the reader's report transaction", () => {
   it("refuses a result the database does not define", async () => {
     const f = fakePool({ result: "surprise" });
     await expect(createReader(() => f.pool, 0).submitReport(report)).rejects.toMatchObject({ code: "report_result_unexpected" });
+    // nothing was committed
+    expect(f.log).toEqual([BEGIN_RW_SQL, SUBMIT_REPORT_SQL, "rollback"]);
   });
 });

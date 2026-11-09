@@ -112,7 +112,12 @@ describe("get_gym_page_status contract", () => {
     expect(gymPageStatusSchema.safeParse({ ...taken, appeal: { ...taken.appeal, note: "x" } }).success).toBe(false);
     // the SQL builds exactly the appeal keys the schema knows, and never selects the note into the answer
     for (const key of ["state", "submitted_at", "decided_at", "decision_reason"]) expect(migration167).toContain(`'${key}'`);
-    const fn = migration167.slice(migration167.indexOf("create or replace function public.get_gym_page_status"), migration167.indexOf("-- Media purge: the calls"));
+    const from = migration167.indexOf("create or replace function public.get_gym_page_status");
+    const to = migration167.indexOf("-- Media purge: the calls");
+    // both markers must exist, or the slice is empty or wrong and the "note is never selected" check below passes for nothing
+    expect(from).toBeGreaterThan(-1);
+    expect(to).toBeGreaterThan(from);
+    const fn = migration167.slice(from, to);
     expect(fn).not.toMatch(/taken_down_note|\.note\b/);
   });
 });
