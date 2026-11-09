@@ -128,6 +128,14 @@ jobs:
       - name: Support assignment vs Owner switch race (two real sessions)
         run: DB_CONTAINER=supabase_db_gym_os bash scripts/support-assignments-race.test.sh
 
+      - uses: actions/setup-node@v4
+        with:
+          # Node 22.18 or later imports the reader SQL module (TypeScript) without a build step.
+          node-version: 22
+
+      - name: Landing reader SQL against the migrated schema (as public_site_reader)
+        run: DB_CONTAINER=supabase_db_gym_os bash scripts/public-site-reader-sql.test.sh
+
       - name: Claim-read inventory (report mode, new claim-only entries fail)
         run: DB_CONTAINER=supabase_db_gym_os node scripts/claim-inventory.mjs
 

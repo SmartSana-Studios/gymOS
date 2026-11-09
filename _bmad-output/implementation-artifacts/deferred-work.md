@@ -1898,3 +1898,9 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
   summary: Owner decision for the frozen spec: a transient database, render or config error answers the same cached 404 (`s-maxage=30`) as a missing page, so a live gym can look unpublished for up to 30 s per edge during a blip.
   evidence: review pass 1 (blind, edge-case); the frozen spec orders this response. A `503` with `no-store` for operational errors would need the frozen block changed.
+
+## Deferred from: code review of spec-24-10-public-page-route-and-launch-template, pass 2 (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
+  summary: No `next build` of `@gymos/landing` runs in `ci.yml` or `ci-local.sh`. The `renderPageAsync` lazy `react-dom/server` import and `transpilePackages` are proven only by a manual build; importing the static `renderPage` in the handler, or dropping `transpilePackages`, keeps every test green and first fails on the Vercel build.
+  evidence: review pass 2 (verification-gap); loud failure at deploy, not silent. Settle with a landing build stage when 24.12 adds the landing gate.

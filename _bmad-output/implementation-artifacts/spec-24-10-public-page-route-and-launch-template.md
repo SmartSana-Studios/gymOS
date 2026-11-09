@@ -95,6 +95,8 @@ context:
 
 ## Spec Change Log
 
+- 2026-11-09, review pass 2 (owner decision 1a): the Language bullet's "`Vary: Accept-Language` on `/`" is implemented as "on `/` only when two or more languages are complete" (one complete language cannot make the response differ), and an incomplete `/{code}` that falls back also carries `Vary` when two languages are complete. The frozen block is not edited; the narrowing is recorded in `docs/decisions.md` (24.10, supersessions).
+
 ## Review Triage Log
 
 Pass 1 (layers: blind-hunter, edge-case-hunter, verification-gap; diff `b64f292` plus the uncommitted build, spec and lockfile excluded).
@@ -128,6 +130,42 @@ Pass 1 (layers: blind-hunter, edge-case-hunter, verification-gap; diff `b64f292`
 | Migration's one-off refresh could unpublish live production pages (blind) | false | rejected | production is at 0159: no `gym_pages` table, so the loop runs over zero rows; the deploy script already requires a fresh backup |
 | PUBLIC_SITE_MEDIA_ORIGIN accepts `http:` in production (edge) | low | rejected | owner-set value; the CSP is built from it verbatim and tests use http locally |
 | Conformance rule throws when a template renders Call with no phone; layout context not closed on throw; hours `{}` renders seven Closed rows (edge) | low | rejected | the gate guarantees a contact and non-empty hours (the 24.5 CHECK refuses `{}`); a throw in the suite fails it |
+
+### Review Findings
+
+Pass 2 (2026-11-09): blind, edge-case, verification-gap and acceptance layers over the committed branch diff against `epic/24` (2ea61c7, 87 files, one unchunked pass).
+
+- [x] [Review][Patch] (decided 1a: accept the narrowing, record it in docs/decisions.md and the spec Spec Change Log) `Vary: Accept-Language` is sent on `/` only when two or more languages are complete — the frozen Language bullet says "`Vary: Accept-Language` on `/`" without that condition. Pass 1 changed it as a "direct correction" without renegotiating the frozen block. With one complete language the response cannot differ, so no visitor is harmed; the cost is a deviation from frozen text, and the `header-policy` conformance rule reads `decision.vary` from the implementation, so it cannot catch it. `decisions.md` records "with `Vary: Accept-Language`" and not the narrowing. The same function also adds `Vary` on an incomplete `/{code}` when two languages are complete (the spec limits it to `/`, but that fallback does depend on Accept-Language). Options: accept the narrowing and record it in `docs/decisions.md` plus a spec change-log line; or restore the always-on `/` Vary. [`packages/page-templates/src/language.ts` decideLanguage, `renderCore.ts`] (acceptance-auditor, medium)
+- [x] [Review][Patch] (decided 2a: node test in the pgtap stage running both statements as public_site_reader) The two SQL statements `apps/landing/lib/gym-site/db.ts` sends (`public_site.pages where name = $1`, `public_site.page_redirects where old_name = $1`) are never run against the migrated schema by any automated test; landing tests mock `pg` and only regex the text. Changing `where name` to a wrong column keeps every stage green and answers a cached 404 for every gym page in production. The only run is the manual `next start` recorded in sprint-status. Needs a place to run: a node test inside the pgtap stage, a new `ci-local.sh` stage that starts from the local DB, or pgTAP blocks fed from exported constants. [`apps/landing/lib/gym-site/db.ts:71-80`, `gymSite.test.ts`, `reader.test.ts`] (verification-gap, medium if the text drifts)
+- [x] [Review][Patch] The `page_redirects` same-gym join (`a.gym_id = r.gym_id`) is pinned by no test: fixtures publish one gym only, so deleting the join keeps every assertion green and a second published gym could receive another gym's old name (`limit 1` picks arbitrarily). Add two-gym pgTAP cases (A has a redirect row, B is visible: A's old name resolves only to A's current name, and not to B when A's page is hidden), plan +2. [`supabase/tests/public_site_reader_privileges.test.sql:332-353`, `supabase/migrations/0166_public_page_route.sql:148`] (verification-gap, medium)
+- [x] [Review][Patch] `docs/decisions.md` (24.10 "Host routing") still says the proxy matcher is "everything except `_next/static` and `_next/image`"; `proxy.ts` uses `["/:path*"]` and `wiring.test.ts` asserts those two paths ARE matched. Correct the sentence. [`docs/decisions.md:16`] (acceptance-auditor + verification-gap, low)
+- [x] [Review][Patch] Language fixtures (a) to (d) run the Chromium layout stage at 360x640 only and with five of the rules (no `text-overlap`, `visual-order`); the spec bullet requires no horizontal scroll or clipped text at 360, 768 and 1280 and the first-screen rule at all three sizes. Run them through the same viewports and rule set as the standard fixtures (watch CI time). [`packages/page-templates/src/conformance/registered.layout.test.ts:42-51`] (acceptance-auditor, low)
+- [x] [Review][Defer] No `next build` of `@gymos/landing` in `ci.yml` or `ci-local.sh`: the `renderPageAsync` lazy import and `transpilePackages` are only proven by a manual build; breaking them fails first on the Vercel build (loud, not silent) [`packages/page-templates/src/renderPageAsync.ts`, `apps/landing/next.config.ts`] — deferred: pipeline-cost decision; fails loudly at deploy; settle with a CI build stage when 24.12 adds the landing gate
+
+#### Rejected (pass 2)
+
+- Spec status and task boxes stale, migration number wording, `review_loop_iteration` (blind + acceptance) — the fix edits the spec under review.
+- `RenderFn` takes a third `env` argument (acceptance) — already disclosed in Implementation Notes and `decisions.md`; the fix is a spec edit.
+- Interval chip skipped for pay-per-session, contact tiles in one row, language link not a pill (acceptance) — disclosed in `deferred-work.md` as layout decisions for the owner's phone pass.
+- Known-bad fixtures are post-processed Classic output; `database.ts` splice absent; not-found byte test compares against its own function (acceptance) — approach disclosed, nothing to splice (`public_site` is not in `database.ts`), and the test still proves every path routes to the one function.
+- `readConfig()` logs the invalid root domain on every request now that the matcher is `/:path*` (blind + edge, low) — misconfiguration only, and the repeated line is the visible signal that gym hosting is off; memoising adds state for a case that is fixed once at deploy.
+- Proxy overhead on every marketing request (blind) — the spec orders every path to pass the header cleanup; no cost measured or shown.
+- 301 drops the `/fr` path (blind) — spec: the redirect goes to `https://{current}.{root}/` (same as pass 1).
+- Operational errors served as cached 404s; two serial reads per unknown label; pool of one (blind + edge) — already in `deferred-work.md` from pass 1.
+- TLS verification off (blind) — already in `deferred-work.md` ("before the first real gym is published").
+- 0166 one-off refresh could unpublish live pages; stored snapshots may lack `default_language` (blind + edge) — false: the loop and the `$verify$` check cover every row with `published_at` set and `unpublished_at` null, including suspended and taken-down pages; an unpublished row cannot become visible without a publish, which takes a fresh snapshot.
+- DB test gaps for rename chains and mixed-case old names (blind) — a chain resolves through the single `active` name by construction; `old_name` is `lower(name)`.
+- Logo `alt={c.name}` beside the `<h1>`, fixed image dimensions (blind, low) — the logo is the gym mark and the h1 is page text; not shown to harm anyone.
+- `/report`, `robots.txt`, `sitemap.xml` dead until 24.11 (blind) — spec Boundaries; the epic releases together (same as pass 1).
+- `parseAcceptLanguage` does not clamp `q` to 1; `schemeFor` twice; name-length constants twice; per-call `RegExp`; not-found copy outside `CHROME`; `Object.assign(err, {})` in a test (blind, low) — cosmetic or negligible; the test asserts the exact log line, which excludes the secret text (`schemeFor` and the constants were also rejected in pass 1).
+- Unit suites run in two sequential turbo calls; font responses lack the AD-44 headers; no `.env.example`; engines bump applies to every app (blind, low) — documented trade-offs; HSTS and nosniff come from the page responses of the same host; `.env.example` is already in `deferred-work.md`.
+- Connection dropped by the pooler is not retried (`Connection terminated unexpectedly`); `query_timeout` not retried (edge, low) — the idle drop is unproven (the idle timeout is 10 s and pg removes errored idle clients), and the frozen spec names the retry cases.
+- Media origin accepted as `http:` in production; loose root-domain regex (edge, low) — owner-set values, the failure is loud (mixed content, or gym hosting off with a log line).
+- Map without address, empty hours rendering seven Closed rows (edge) — false: the publish gate requires country and city and at least one non-null day (`no_hours`), so a published snapshot cannot lack them.
+- Incomplete-language `/{code}` has no canonical (edge) — spec orders the fallback without hreflang; canonical links belong to Epic 25 (AD-51).
+- Node 23.0 to 23.5 pass the major check but lack type stripping; `dangerouslySetInnerHTML` lint bypass through a quoted key (edge, low) — odd-numbered non-LTS Node, and a deliberate evasion; both fixes add guards for cases nobody meets.
+- Non-GET methods get Next's 405; trailing-slash 308 before the proxy; 301 and fonts carry a smaller header set (edge claims) — answered identically for every label whether the gym exists or not, so no information leaks; the header set of the 301 is the spec's.
+- Migration refresh also touches taken-down or suspended rows (edge claim) — same refutation as the refresh item above.
 
 ## Design Notes
 

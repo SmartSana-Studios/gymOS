@@ -34,7 +34,7 @@ for (const templateId of REGISTERED_TEMPLATES) describe(`conformance (Chromium):
     const violations = [];
     for (const kase of allCases().filter((c) => !fixtures().some((f) => f.id === c.fixture.id))) {
       const out = subject.render(kase);
-      violations.push(...(await runLayoutRules(browser, out, kase, [{ width: 360, height: 640, rules: ["no-overflow", "contact-first-screen", "tap-target", "contrast", "csp-browser"] }])).map((v) => ({ ...v, fixture: kase.fixture.id, request: kase.request.id })));
+      violations.push(...(await runLayoutRules(browser, out, kase)).map((v) => ({ ...v, fixture: kase.fixture.id, request: kase.request.id })));
     }
     expect(violations.slice(0, 12), `${violations.length} violations`).toEqual([]);
   });

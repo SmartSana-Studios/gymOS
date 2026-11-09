@@ -1,6 +1,7 @@
 import "server-only";
 import { Pool } from "pg";
 import { readReaderConfig } from "./env";
+import { PAGE_SQL, REDIRECT_SQL } from "./readerSql";
 
 // Story 24.10 (AD-42): the ONLY database access of the public site. Server-only, driver `pg`, connected as `public_site_reader` through the
 // pooler, selecting from `public_site.*` views and nothing else. Pool of ONE connection per instance (the role's CONNECTION LIMIT is sized as
@@ -69,13 +70,13 @@ export function createReader(getPool: () => Queryable = defaultPool, retryDelayM
   return {
     /** The visible page of a name, or null. The view holds the one visibility predicate. */
     async readPage(name: string): Promise<PageRow | null> {
-      const { rows } = await run("select template, schema_version, content from public_site.pages where name = $1 limit 1", [name]);
+      const { rows } = await run(PAGE_SQL, [name]);
       const r = rows[0];
       return r ? { template: r.template, schema_version: r.schema_version, content: r.content } : null;
     },
     /** The CURRENT name of an old name inside its 12 months, only while the current page is visible. */
     async readRedirect(oldName: string): Promise<string | null> {
-      const { rows } = await run("select name from public_site.page_redirects where old_name = $1 limit 1", [oldName]);
+      const { rows } = await run(REDIRECT_SQL, [oldName]);
       const n = rows[0]?.name;
       return typeof n === "string" ? n : null;
     },

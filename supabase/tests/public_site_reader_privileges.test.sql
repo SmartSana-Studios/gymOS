@@ -6,7 +6,7 @@
 -- either means editing the pinned list below in the same change (24.7/24.8 extend the view on purpose).
 
 begin;
-select plan(66);
+select plan(68);
 
 -- The migration owner is not allowed to SET ROLE to the reader by default; grant it inside this rolled-back transaction so the
 -- denial assertions below prove a missing privilege, not a missing SET ROLE right.
@@ -351,6 +351,19 @@ update public.page_names set taken_down_at = now() where id = '00000000-0000-000
 select is(pg_temp.as_reader('select count(*) from public_site.page_redirects'), '0', 'the current name is taken down: no redirect');
 update public.page_names set taken_down_at = null where id = '00000000-0000-0000-0000-0000000a4a01';
 select ok(pg_temp.as_reader('insert into public_site.page_redirects (old_name) values (''x'')') = 'ERR:55000', 'insert into page_redirects is refused');
+
+-- Two gyms: an old name resolves only to the current name of ITS OWN gym (the a.gym_id = r.gym_id join). With one visible gym every
+-- assertion above passes without that join; here gym a402 has an old name of its own and both pages are visible at the same time.
+insert into public.page_names (id, gym_id, name, state, origin, reserved_until) values
+  ('00000000-0000-0000-0000-0000000a4b02', '00000000-0000-0000-0000-00000000a402', 'psr-old-two', 'redirect', 'rename', now() + interval '6 months');
+select is(pg_temp.as_reader('select count(*) from public_site.page_redirects where old_name = ''psr-old-two'''), '0',
+  'an old name of a gym whose page is hidden resolves to nothing, not to the other gym''s visible page');
+update public.gym_pages set published_at = now() where gym_id = '00000000-0000-0000-0000-00000000a402';
+select is(pg_temp.as_reader('select string_agg(old_name || ''>'' || name, '','' order by old_name) from public_site.page_redirects'),
+  'psr-old-name>psr-visible,psr-old-two>psr-unpublished',
+  'with two visible gyms each old name resolves to its own gym''s current name only (no cross-gym match)');
+update public.gym_pages set published_at = null where gym_id = '00000000-0000-0000-0000-00000000a402';
+delete from public.page_names where id = '00000000-0000-0000-0000-0000000a4b02';
 
 -- ---------------------------------------------------------------------------
 -- Denied reads, writes, role changes and functions (as the reader)
