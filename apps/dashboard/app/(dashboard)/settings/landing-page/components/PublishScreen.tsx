@@ -202,7 +202,7 @@ export function PublishScreen({ initial }: { initial: LandingPageData }) {
         <StatusBadge state={status.state} />
       </div>
 
-      <StatusBanner status={status} role={role} />
+      <StatusBanner status={status} role={role} onChanged={refresh} />
 
       {host ? (
         <p className="text-sm" data-testid="public-address">

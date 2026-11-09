@@ -472,13 +472,13 @@ select pg_temp.as_user(pg_temp.u('ownerA'), 'owner', pg_temp.g('A'));
 select is((select array_agg(x order by x) from (select distinct unnest(pg_temp.key_paths(pg_temp.stat('A'))) x
                                                   union select distinct unnest(pg_temp.key_paths((select s from x_dirty)))) y),
           (select array_agg(x order by x) from unnest(array[
-             'about_min_chars', 'bad_text_fields', 'bad_text_fields[]', 'bad_text_fields[].field', 'bad_text_fields[].lang', 'bad_text_fields[].plan_name', 'languages', 'languages[]', 'languages[].characters', 'languages[].code', 'languages[].complete', 'languages[].needed',
+             'about_min_chars', 'appeal', 'bad_text_fields', 'bad_text_fields[]', 'bad_text_fields[].field', 'bad_text_fields[].lang', 'bad_text_fields[].plan_name', 'languages', 'languages[]', 'languages[].characters', 'languages[].code', 'languages[].complete', 'languages[].needed',
              'media', 'media[]', 'media[].derivative_key', 'media[].id', 'media[].kind', 'media[].sort_order', 'missing', 'missing[]',
              'published_at', 'snapshot', 'snapshot.address', 'snapshot.banner', 'snapshot.category', 'snapshot.city', 'snapshot.color', 'snapshot.contact', 'snapshot.contact.phone',
              'snapshot.country', 'snapshot.default_language', 'snapshot.gallery', 'snapshot.gallery[]', 'snapshot.hours', 'snapshot.hours.mon', 'snapshot.hours.mon.close', 'snapshot.hours.mon.open', 'snapshot.hours.sun',
              'snapshot.logo', 'snapshot.map', 'snapshot.map.lat', 'snapshot.map.lng', 'snapshot.name', 'snapshot.plans', 'snapshot.plans[]', 'snapshot.plans[].currency',
              'snapshot.plans[].duration_days', 'snapshot.plans[].interval', 'snapshot.plans[].label_en', 'snapshot.plans[].label_fr', 'snapshot.plans[].name',
-             'snapshot.plans[].price', 'snapshot.plans[].type', 'snapshot.about_fr', 'snapshot.services_fr', 'state', 'template', 'unpublished_reasons',
+             'snapshot.plans[].price', 'snapshot.plans[].type', 'snapshot.about_fr', 'snapshot.services_fr', 'state', 'taken_down_reason', 'template', 'unpublished_reasons',
              'unpublished_reasons[]']) x),
           'STATUS KEY PATHS (pinned): an added fact, or a removed one, fails here; the TypeScript schema (gymPageStatusSchema) is strict and must change with it');
 select is((select count(*)::int from (select pg_temp.stat('A')::text t union all select s::text from x_dirty union all select pg_temp.stat('L')::text) s

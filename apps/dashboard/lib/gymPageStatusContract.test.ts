@@ -13,6 +13,7 @@ import { PAGE_STATUS_STATES, gymPageStatusSchema } from "@gymos/types";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const sqlTest = readFileSync(join(root, "supabase", "tests", "gym_page_status.test.sql"), "utf8");
 const migration = readFileSync(join(root, "supabase", "migrations", "0165_gym_page_status.sql"), "utf8");
+const migration167 = readFileSync(join(root, "supabase", "migrations", "0167_page_takedown_reports_media_purge.sql"), "utf8");
 
 function pinnedPaths(): string[] {
   const m = sqlTest.match(/unnest\(array\[\s*('about_min_chars'[\s\S]*?)\]\) x\),\s*'STATUS KEY PATHS/);
@@ -61,6 +62,8 @@ const full = {
     hours: { mon: { open: "06:00", close: "22:00" }, sun: null },
     plans: [{ name: "Monthly", label_en: "Monthly", label_fr: "Monthly", type: "monthly", price: 1, currency: "XAF", interval: "monthly", duration_days: 30 }],
   },
+  taken_down_reason: null,
+  appeal: null,
 };
 
 describe("get_gym_page_status contract", () => {
@@ -86,11 +89,30 @@ describe("get_gym_page_status contract", () => {
     expect(gymPageStatusSchema.safeParse({ ...full, extra_fact: 1 }).success).toBe(false);
   });
 
-  it("PAGE_STATUS_STATES equals the states of the SQL `case`", () => {
-    const start = migration.indexOf("v_state := case");
-    const end = migration.indexOf("end;", start);
-    expect(start).toBeGreaterThan(-1);
-    const states = [...migration.slice(start, end).matchAll(/(?:then|else) '([a-z_]+)'/g)].map((m) => m[1]);
-    expect([...new Set(states)].sort()).toEqual([...PAGE_STATUS_STATES].sort());
+  it("PAGE_STATUS_STATES equals the states of the SQL `case` (0165, and 0167 which replaced the function)", () => {
+    for (const sql of [migration, migration167]) {
+      const start = sql.indexOf("v_state := case");
+      const end = sql.indexOf("end;", start);
+      expect(start).toBeGreaterThan(-1);
+      const states = [...sql.slice(start, end).matchAll(/(?:then|else) '([a-z_]+)'/g)].map((m) => m[1]);
+      expect([...new Set(states)].sort()).toEqual([...PAGE_STATUS_STATES].sort());
+    }
+  });
+
+  it("24.11: a taken-down status carries the reason code and the appeal block, and nothing about the internal note", () => {
+    const taken = {
+      ...full,
+      state: "taken_down",
+      taken_down_reason: "privacy",
+      appeal: { state: "uphold", submitted_at: "2026-11-09T10:00:00Z", decided_at: "2026-11-10T10:00:00Z", decision_reason: "Still a copy" },
+    };
+    expect(gymPageStatusSchema.safeParse(taken).success).toBe(true);
+    expect(gymPageStatusSchema.safeParse({ ...taken, taken_down_reason: "spam" }).success).toBe(false);
+    expect(gymPageStatusSchema.safeParse({ ...taken, taken_down_note: "x" }).success).toBe(false);
+    expect(gymPageStatusSchema.safeParse({ ...taken, appeal: { ...taken.appeal, note: "x" } }).success).toBe(false);
+    // the SQL builds exactly the appeal keys the schema knows, and never selects the note into the answer
+    for (const key of ["state", "submitted_at", "decided_at", "decision_reason"]) expect(migration167).toContain(`'${key}'`);
+    const fn = migration167.slice(migration167.indexOf("create or replace function public.get_gym_page_status"), migration167.indexOf("-- Media purge: the calls"));
+    expect(fn).not.toMatch(/taken_down_note|\.note\b/);
   });
 });

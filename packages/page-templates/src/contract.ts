@@ -85,6 +85,28 @@ export interface Chrome {
   photo: (n: number, total: number) => string;
 }
 
+/** The strings of the public report form (PS-03, 24.11). Page-level, not template-level: every template links to the same /report. The reason labels come from @gymos/types. */
+export interface ReportChrome {
+  title: string;
+  /** The page being reported is named by its address, shown under the title. */
+  reasonLegend: string;
+  detailsLabel: string;
+  detailsHint: string;
+  anonymousNote: string;
+  submit: string;
+  errorSummary: string;
+  chooseReason: string;
+  tellUsMore: string;
+  detailsTooLong: string;
+  /** A failure that is not the visitor's mistake (a database error): the form returns with this line. */
+  failed: string;
+  rateLimited: string;
+  thanks: string;
+  backToPage: string;
+  /** The label of the hidden bot-catcher field. */
+  honeypotLabel: string;
+}
+
 export interface TemplateEntry {
   id: string;
   render: RenderFn;

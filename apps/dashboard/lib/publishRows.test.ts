@@ -36,7 +36,7 @@ describe("the strict snapshot schema", () => {
   it("the status schema refuses a gym id, an uploader or a plan id anywhere", () => {
     const base = {
       state: "ready", template: null, published_at: null, unpublished_reasons: [], missing: [], bad_text_fields: [], about_min_chars: 100,
-      languages: [], media: [], snapshot: { name: "G", default_language: "en" },
+      languages: [], media: [], snapshot: { name: "G", default_language: "en" }, taken_down_reason: null, appeal: null,
     };
     expect(gymPageStatusSchema.safeParse(base).success).toBe(true);
     expect(gymPageStatusSchema.safeParse({ ...base, gym_id: "x" }).success).toBe(false);

@@ -606,6 +606,8 @@ export type Database = {
           id: string
           kind: string
           original_key: string
+          original_purged_at: string | null
+          purged_at: string | null
           sort_order: number
           uploaded_by: string | null
         }
@@ -632,6 +634,8 @@ export type Database = {
           id?: string
           kind?: string
           original_key?: string
+          original_purged_at?: string | null
+          purged_at?: string | null
           sort_order?: number
           uploaded_by?: string | null
         }
@@ -652,6 +656,8 @@ export type Database = {
           published_at: string | null
           schema_version: number
           taken_down_at: string | null
+          taken_down_note: string | null
+          taken_down_reason: string | null
           template: string
           unpublished_at: string | null
           unpublished_reason: string | null
@@ -664,6 +670,8 @@ export type Database = {
           published_at?: string | null
           schema_version?: number
           taken_down_at?: string | null
+          taken_down_note?: string | null
+          taken_down_reason?: string | null
           template: string
           unpublished_at?: string | null
           unpublished_reason?: string | null
@@ -676,6 +684,8 @@ export type Database = {
           published_at?: string | null
           schema_version?: number
           taken_down_at?: string | null
+          taken_down_note?: string | null
+          taken_down_reason?: string | null
           template?: string
           unpublished_at?: string | null
           unpublished_reason?: string | null
@@ -3078,6 +3088,63 @@ export type Database = {
           overdue: boolean
         }[]
       }
+      close_page_report: { Args: { p_id: string; p_note?: string; p_outcome: string }; Returns: Json }
+      decide_page_appeal: { Args: { p_decision: string; p_id: string; p_reason: string }; Returns: Json }
+      lift_gym_page_takedown: { Args: { p_gym_id: string; p_reason: string }; Returns: Json }
+      list_page_appeals: {
+        Args: never
+        Returns: {
+          appeal_reason: string
+          appealed_at: string
+          decided_at: string | null
+          decision: string | null
+          decision_reason: string | null
+          gym_id: string
+          gym_name: string
+          id: string
+          page_name: string | null
+          taken_down_at: string
+          takedown_lifted: boolean
+          takedown_note: string | null
+          takedown_reason: string
+        }[]
+      }
+      list_page_reports: {
+        Args: never
+        Returns: {
+          created_at: string
+          details: string
+          due_at: string
+          gym_id: string
+          gym_name: string
+          id: string
+          overdue: boolean
+          page_name: string
+          page_taken_down: boolean
+          reason: string
+          status: string
+        }[]
+      }
+      page_media_purge_candidates: {
+        Args: { p_limit?: number }
+        Returns: {
+          derivative_key: string
+          id: string
+          original_key: string
+          purge_derivative: boolean
+          purge_original: boolean
+        }[]
+      }
+      page_media_purge_orphans: { Args: { p_limit?: number }; Returns: { bucket_id: string; name: string }[] }
+      page_media_purge_mark: { Args: { p_derivative: boolean; p_id: string; p_original: boolean }; Returns: boolean }
+      page_media_rederive_done: { Args: { p_gym_id: string; p_ids: string[] }; Returns: number }
+      page_media_rederive_list: {
+        Args: { p_gym_id: string }
+        Returns: { derivative_key: string; id: string; kind: string; original_key: string }[]
+      }
+      record_page_media_purge_run: { Args: { p_ok: boolean; p_started_at: string; p_summary: string }; Returns: undefined }
+      submit_page_appeal: { Args: { p_reason: string }; Returns: Json }
+      take_down_gym_page: { Args: { p_gym_id: string; p_note?: string; p_reason: string }; Returns: Json }
       list_my_class_bookings: {
         Args: never
         Returns: {

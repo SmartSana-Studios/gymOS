@@ -24,6 +24,10 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/i18n/get-request-locale", () => ({ getRequestLocale: vi.fn(async () => "en") }));
 vi.mock("@/lib/i18n/get-server-translation", () => ({ getServerTranslation: vi.fn(async () => ({ t: (key: string) => key })) }));
 vi.mock("@/services/session", () => ({ mapAndLog: vi.fn(async () => ({ code: "unknown", message: "mapped" })) }));
+const commit = vi.fn(async () => true);
+const discard = vi.fn(async () => undefined);
+const rebuildPurgedMedia = vi.fn(async (_gymId: string): Promise<{ ok: true; ids: string[]; commit: typeof commit; discard: typeof discard } | { ok: false }> => ({ ok: true, ids: [], commit, discard }));
+vi.mock("@/services/page-media", () => ({ rebuildPurgedMedia: (g: string) => rebuildPurgedMedia(g) }));
 
 import {
   claimLandingPageName,
@@ -33,7 +37,9 @@ import {
   pageNameCodeFromDbError,
   pagePublishCodeFromDbError,
   publishLandingPage,
+  pageAppealCodeFromDbError,
   saveLandingPageContent,
+  submitLandingPageAppeal,
   unpublishLandingPage,
 } from "./landing-page";
 
@@ -41,11 +47,12 @@ const migrations = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..
 const m163 = readFileSync(join(migrations, "0163_page_names.sql"), "utf8");
 const m164 = readFileSync(join(migrations, "0164_publish_gate_snapshot.sql"), "utf8");
 const m161 = readFileSync(join(migrations, "0161_gym_page_content.sql"), "utf8");
+const m167claim = readFileSync(join(migrations, "0167_page_takedown_reports_media_purge.sql"), "utf8");
 
 const status = {
   state: "ready", template: null, published_at: null, unpublished_reasons: [], missing: [], bad_text_fields: [], about_min_chars: 100,
   languages: [{ code: "en", complete: true, characters: 120, needed: 0 }, { code: "fr", complete: false, characters: 0, needed: 100 }],
-  media: [], snapshot: { name: "Gym", default_language: "en" },
+  media: [], snapshot: { name: "Gym", default_language: "en" }, taken_down_reason: null, appeal: null,
 };
 const nameState = { name: "grace-fit", state: "active", pending_name: null, completed_renames: 0, redirects: [] };
 
@@ -85,9 +92,14 @@ describe("typed error mappers: one test per code against the real message", () =
     expect(pageNameCodeFromDbError({ message: "publish_gym_page: gym x is not active" })).toBeNull();
   });
 
+  it("claim_page_name: page_taken_down (24.11, an Owner cannot rename while the page is taken down)", () => {
+    expect(m167claim).toContain("raise exception 'claim_page_name: page_taken_down'");
+    expect(pageNameCodeFromDbError({ message: "claim_page_name: page_taken_down" })).toBe("page_taken_down");
+  });
+
   it("every name error code of the schema is reachable from some message", () => {
     const reachable = new Set<string>();
-    for (const m of ["permission denied", `claim_page_name: gym ${GYM} is not active`, "claim_page_name: invalid_name", "claim_page_name: reserved_name", "claim_page_name: name_taken", "claim_page_name: rename_limit"]) {
+    for (const m of ["permission denied", `claim_page_name: gym ${GYM} is not active`, "claim_page_name: invalid_name", "claim_page_name: reserved_name", "claim_page_name: name_taken", "claim_page_name: rename_limit", "claim_page_name: page_taken_down"]) {
       const c = pageNameCodeFromDbError({ message: m });
       if (c) reachable.add(c);
     }
@@ -115,6 +127,8 @@ describe("typed error mappers: one test per code against the real message", () =
     const reachable = new Set(
       ["permission denied", `publish_gym_page: gym ${GYM} is not active`, "publish_gym_page: taken_down", "publish_gym_page: template_required", "publish_gym_page: invalid_template"].map((m) => pagePublishCodeFromDbError({ message: m })),
     );
+    // rederive_failed is raised by the service itself (a purged image could not be rebuilt), not by a database message
+    reachable.add("rederive_failed");
     expect([...reachable].sort()).toEqual([...PAGE_PUBLISH_ERROR_CODES].sort());
   });
 
@@ -294,14 +308,18 @@ describe("claimLandingPageName", () => {
 });
 
 describe("publishLandingPage and unpublishLandingPage", () => {
+  // 24.11: publishing reads the page status first (the admission), so the mock answers each function by name
+  const publishAnswers = (answer: { data: unknown; error: unknown }) =>
+    rpc.mockImplementation(async (fn: string) => (fn === "get_gym_page_status" ? { data: status, error: null } : answer));
+
   it("publishes with the offered template and trusts the server result", async () => {
-    rpc.mockResolvedValue({ data: { published: true, missing: [] }, error: null });
+    publishAnswers({ data: { published: true, missing: [] }, error: null });
     expect((await publishLandingPage("classic")).data).toEqual({ published: true, missing: [] });
     expect(rpc).toHaveBeenCalledWith("publish_gym_page", { p_gym_id: GYM, p_template: "classic" });
   });
 
   it("a failed gate is a result: published false with the missing codes", async () => {
-    rpc.mockResolvedValue({ data: { published: false, missing: ["no_banner", "about_short"] }, error: null });
+    publishAnswers({ data: { published: false, missing: ["no_banner", "about_short"] }, error: null });
     const { data, error } = await publishLandingPage("classic");
     expect(error).toBeNull();
     expect(data).toEqual({ published: false, missing: ["no_banner", "about_short"] });
@@ -314,7 +332,7 @@ describe("publishLandingPage and unpublishLandingPage", () => {
   });
 
   it("taken_down is the typed refusal", async () => {
-    rpc.mockResolvedValue({ data: null, error: { message: "publish_gym_page: taken_down" } });
+    publishAnswers({ data: null, error: { message: "publish_gym_page: taken_down" } });
     const { error } = await publishLandingPage("classic");
     expect(error).toEqual({ code: "taken_down", message: "pagePublish.errors.taken_down" });
   });
@@ -327,5 +345,137 @@ describe("publishLandingPage and unpublishLandingPage", () => {
     expect((await unpublishLandingPage()).data).toEqual({ wasLive: false });
     rpc.mockResolvedValue({ data: null, error: { message: "permission denied" } });
     expect((await unpublishLandingPage()).error?.code).toBe("not_admitted");
+  });
+});
+
+describe("Story 24.11: republishing after the images were purged", () => {
+  const m167 = readFileSync(join(migrations, "0167_page_takedown_reports_media_purge.sql"), "utf8");
+  const takenDownStatus = { ...status, state: "taken_down", taken_down_reason: "privacy", appeal: { state: "none", submitted_at: null, decided_at: null, decision_reason: null } };
+  function script(published: unknown, statusOver: Record<string, unknown> = {}, order: string[] = []) {
+    rpc.mockImplementation(async (fn: string) => {
+      order.push(fn);
+      if (fn === "get_gym_page_status") return { data: { ...status, ...statusOver }, error: null };
+      if (fn === "publish_gym_page") return typeof published === "object" && published && "error" in (published as object) ? published : { data: published, error: null };
+      return { data: null, error: null };
+    });
+    return order;
+  }
+  const rebuilt = (ids: string[] = ["m1"]) => ({ ok: true as const, ids, commit, discard });
+
+  it("rebuilds the purged images BEFORE it asks the database to publish, and clears the purge marks only AFTER it succeeded", async () => {
+    const order = script({ published: true, missing: [] });
+    rebuildPurgedMedia.mockImplementationOnce(async () => (order.push("rebuild"), rebuilt()));
+    commit.mockImplementationOnce(async () => (order.push("commit"), true));
+    expect((await publishLandingPage("classic")).data).toEqual({ published: true, missing: [] });
+    expect(order).toEqual(["get_gym_page_status", "rebuild", "publish_gym_page", "commit"]);
+    expect(rebuildPurgedMedia).toHaveBeenCalledWith(GYM);
+    expect(discard).not.toHaveBeenCalled();
+  });
+
+  it("a failed rebuild blocks the publish with its own typed error and never calls publish_gym_page", async () => {
+    const order = script({ published: true, missing: [] });
+    rebuildPurgedMedia.mockResolvedValueOnce({ ok: false });
+    const { data, error } = await publishLandingPage("classic");
+    expect(data).toBeNull();
+    expect(error).toEqual({ code: "rederive_failed", message: "pagePublish.errors.rederive_failed" });
+    expect(order).not.toContain("publish_gym_page");
+  });
+
+  it("when the publish does not happen (a refusal, a gate failure, an unexpected answer, a throw) the images written in this attempt are removed and nothing is committed", async () => {
+    rebuildPurgedMedia.mockResolvedValue(rebuilt());
+    script({ error: { message: "publish_gym_page: taken_down" } });
+    expect((await publishLandingPage("classic")).error?.code).toBe("taken_down");
+    script({ published: false, missing: ["no_banner"] });
+    expect((await publishLandingPage("classic")).data).toEqual({ published: false, missing: ["no_banner"] });
+    script({ nonsense: true });
+    expect((await publishLandingPage("classic")).error?.code).toBe("load_failed");
+    rpc.mockImplementation(async (fn: string) => {
+      if (fn === "get_gym_page_status") return { data: status, error: null };
+      throw new Error("network");
+    });
+    await expect(publishLandingPage("classic")).rejects.toThrow("network");
+    expect(discard).toHaveBeenCalledTimes(4);
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it("a publish that succeeded but whose marks could not be cleared still reports the publish (logged)", async () => {
+    script({ published: true, missing: [] });
+    rebuildPurgedMedia.mockResolvedValueOnce(rebuilt());
+    commit.mockResolvedValueOnce(false);
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect((await publishLandingPage("classic")).data).toEqual({ published: true, missing: [] });
+    expect(log).toHaveBeenCalledWith("[landing-page] the page is published but its purge marks could not be cleared");
+    log.mockRestore();
+  });
+
+  it("does not rebuild anything for a page that cannot pass the gate, or one that is taken down: the database answers", async () => {
+    script({ published: false, missing: ["no_banner"] }, { missing: ["no_banner"] });
+    expect((await publishLandingPage("classic")).data).toEqual({ published: false, missing: ["no_banner"] });
+    rpc.mockImplementation(async (fn: string) =>
+      fn === "get_gym_page_status" ? { data: takenDownStatus, error: null } : { data: null, error: { message: "publish_gym_page: taken_down" } },
+    );
+    expect((await publishLandingPage("classic")).error?.code).toBe("taken_down");
+    expect(rebuildPurgedMedia).not.toHaveBeenCalled();
+  });
+
+  it("an unreadable status (an error, or a shape that does not parse) fails closed with rederive_failed and publishes nothing", async () => {
+    const order: string[] = [];
+    rpc.mockImplementation(async (fn: string) => (order.push(fn), fn === "get_gym_page_status" ? { data: null, error: { message: "permission denied" } } : { data: { published: true, missing: [] }, error: null }));
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect((await publishLandingPage("classic")).error?.code).toBe("rederive_failed");
+    rpc.mockImplementation(async (fn: string) => (order.push(fn), fn === "get_gym_page_status" ? { data: { state: "ready" }, error: null } : { data: { published: true, missing: [] }, error: null }));
+    expect((await publishLandingPage("classic")).error?.code).toBe("rederive_failed");
+    log.mockRestore();
+    expect(order).not.toContain("publish_gym_page");
+    expect(rebuildPurgedMedia).not.toHaveBeenCalled();
+  });
+
+  it("the page-media RPCs the rebuild uses exist and are service-role only", () => {
+    for (const fn of ["page_media_rederive_list(uuid)", "page_media_rederive_done(uuid, uuid[])"]) {
+      expect(m167).toContain(`revoke execute on function public.${fn} from public, anon, authenticated;`);
+      expect(m167).toContain(`grant execute on function public.${fn} to service_role;`);
+    }
+  });
+});
+
+describe("Story 24.11: the Owner's appeal", () => {
+  const m167 = readFileSync(join(migrations, "0167_page_takedown_reports_media_purge.sql"), "utf8");
+
+  it.each([
+    ["reason_required", "submit_page_appeal: reason_required"],
+    ["not_taken_down", "submit_page_appeal: not_taken_down"],
+    ["appeal_open", "submit_page_appeal: appeal_open"],
+    ["appeal_decided", "submit_page_appeal: appeal_decided"],
+  ] as const)("%s is the real message of the migration and maps to its code", (code, message) => {
+    expect(m167).toContain(`raise exception '${message}'`);
+    expect(pageAppealCodeFromDbError({ message })).toBe(code);
+  });
+
+  it("permission denied is exactly not_admitted; a privilege fault is not", () => {
+    expect(pageAppealCodeFromDbError({ message: "permission denied" })).toBe("not_admitted");
+    expect(pageAppealCodeFromDbError({ message: "permission denied for table x" })).toBeNull();
+    expect(pageAppealCodeFromDbError({ message: "submit_page_appeal: other" })).toBeNull();
+    expect(pageAppealCodeFromDbError(null)).toBeNull();
+  });
+
+  it("sends the trimmed reason to submit_page_appeal for an Owner", async () => {
+    rpc.mockResolvedValue({ data: { id: "x", state: "open" }, error: null });
+    expect((await submitLandingPageAppeal("  We own the mark  ")).data).toEqual({ state: "open" });
+    expect(rpc).toHaveBeenCalledWith("submit_page_appeal", { p_reason: "We own the mark" });
+  });
+
+  it("refuses an empty or over-long reason before the database, and a non-Owner before the database too", async () => {
+    expect((await submitLandingPageAppeal("   ")).error?.code).toBe("reason_required");
+    expect((await submitLandingPageAppeal("x".repeat(501))).error?.code).toBe("reason_required");
+    getClaims.mockResolvedValue({ data: { claims: { gym_id: GYM, app_role: "supervisor" } }, error: null });
+    expect((await submitLandingPageAppeal("A reason")).error?.code).toBe("not_admitted");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("types the database refusals and maps anything else through the shared mapper", async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: "submit_page_appeal: appeal_decided" } });
+    expect((await submitLandingPageAppeal("A reason")).error).toEqual({ code: "appeal_decided", message: "pageAppeal.errors.appeal_decided" });
+    rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
+    expect((await submitLandingPageAppeal("A reason")).error?.message).toBe("mapped");
   });
 });

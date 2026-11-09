@@ -8,7 +8,7 @@
 #
 # Stages and what they mirror in ci.yml:
 #   static  typecheck job: typecheck, lint (dashboard + super-admin), i18n parity, migration guardrails, require-db-backup test
-#   deno    typecheck job: deno test for supabase/functions/payment-webhook
+#   deno    typecheck job: deno test for supabase/functions/payment-webhook and supabase/functions/page-media-purge
 #   pgtap   rls-tests job: supabase/tests/*.sql
 #   unit    typecheck job: vitest for @gymos/dashboard, mobile, super-admin, types, page-templates (conformance, DOM) and landing
 #   layout  typecheck job: the page-template conformance layout stage in headless Chromium (Story 24.10; a missing browser fails)
@@ -96,6 +96,8 @@ stage_deno() {
     return 1
   fi
   (cd "$ROOT/supabase/functions/payment-webhook" && "$deno_bin" test --allow-all .) || return 1
+  # Story 24.11: the page-media purge (claim, delete, release, orphan sweep, one job_runs row; the bearer secret fails closed)
+  (cd "$ROOT/supabase/functions/page-media-purge" && "$deno_bin" test --allow-all .) || return 1
 }
 
 stage_pgtap() {

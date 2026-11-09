@@ -9,6 +9,17 @@
 -- Fail fast rather than queue gyms, plans and gym_pages writes behind a long transaction.
 set local lock_timeout = '5s';
 
+-- Story 24.11: `delete from public.gym_pages` below would also delete every takedown (the page row IS the takedown). Once a page is taken down
+-- the rollback must not silently put it back online; lift the takedowns (or roll back 0167 and decide what to do with the records) first.
+-- Only the page row is judged: a lifted takedown leaves its old-name redirect rows flagged on purpose, so a flagged page_names row is not a takedown.
+do $takedown_guard$
+begin
+  if exists (select 1 from public.gym_pages where taken_down_at is not null) then
+    raise exception 'rollback-0164: refused, a page is taken down (this rollback deletes gym_pages and would lift the takedown)';
+  end if;
+end
+$takedown_guard$;
+
 -- Pending deferred triggers on the tables altered below would block ALTER TABLE; there are none in a fresh session.
 drop trigger if exists gym_page_refresh on public.gyms;
 drop trigger if exists gym_page_refresh_update on public.plans;

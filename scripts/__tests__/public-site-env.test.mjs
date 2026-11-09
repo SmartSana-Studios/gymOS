@@ -17,6 +17,7 @@ const NAMES = [
   "PUBLIC_SITE_READER_DATABASE",
   "PUBLIC_SITE_READER_USER",
   "PUBLIC_SITE_READER_PASSWORD",
+  "PUBLIC_SITE_REPORT_KEY",
 ];
 
 test("turbo.json declares every PUBLIC_SITE_* name for the build", () => {

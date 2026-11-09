@@ -77,6 +77,15 @@ describe("a denied gate stops every gated Server Action before any work", () => 
   const pageNames = () => import("./page-names/actions");
   add("listHeldPageNames", pageNames, "listHeldPageNames", []);
   add("decideHeldPageName", pageNames, "decideHeldPageName", [{ id: ACTOR, approve: true, reason: "valid reason" }]);
+  const pages = () => import("./pages/actions");
+  add("listPageReports", pages, "listPageReports", []);
+  add("listPageAppeals", pages, "listPageAppeals", []);
+  add("getGymPagePanel", pages, "getGymPagePanel", [GYM]);
+  add("takeDownPage", pages, "takeDownPage", [{ gymId: GYM, reason: "privacy" }]);
+  add("liftPageTakedown", pages, "liftPageTakedown", [{ gymId: GYM, reason: "valid reason" }]);
+  add("dismissPageReports", pages, "dismissPageReports", [{ reportIds: [ACTOR], note: "valid note" }]);
+  add("closePageReportsTakenDown", pages, "closePageReportsTakenDown", [{ reportIds: [ACTOR] }]);
+  add("decidePageAppeal", pages, "decidePageAppeal", [{ id: ACTOR, gymId: GYM, decision: "uphold", reason: "valid reason" }]);
 
   it.each(cases)("%s returns permission_denied and touches nothing when authorization is unavailable", async (_name, run) => {
     denial = "authorization_unavailable";

@@ -1,21 +1,6 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
-import { LoadError } from "@/components/load-error";
-
-import { listHeldPageNames } from "./actions";
-import PageNamesLoading from "./loading";
-import { HeldNamesClient } from "./components/HeldNamesClient";
-
-export default function PageNamesPage() {
-  return (
-    <Suspense fallback={<PageNamesLoading />}>
-      <PageNamesData />
-    </Suspense>
-  );
-}
-
-async function PageNamesData() {
-  const held = await listHeldPageNames();
-  if (held.error || !held.data) return <LoadError />;
-  return <HeldNamesClient rows={held.data} />;
+// Story 24.11: held names became the first tab of Pages (EXPERIENCE.md SA-16, `/pages?tab=names`). The old address keeps working.
+export default function PageNamesPage(): never {
+  redirect("/pages?tab=names");
 }

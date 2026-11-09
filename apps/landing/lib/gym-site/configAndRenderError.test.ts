@@ -20,9 +20,10 @@ describe("a render error", () => {
     const r = await handleGymSite(
       { tenantName: "fit", tenantPath: "/", acceptLanguage: null },
       {
-        config: { rootDomain: "gymosapps.com", mediaOrigin: "https://media.example.com" },
+        config: { rootDomain: "gymosapps.com", mediaOrigin: "https://media.example.com", reportKey: undefined },
         readPage: async () => ({ template: "classic", schema_version: 1, content: baseContent() }),
         readRedirect: async () => null,
+        submitReport: async () => "ok",
         log: (e, f) => logs.push([e, f]),
       },
     );

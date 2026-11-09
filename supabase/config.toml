@@ -323,6 +323,13 @@ verify_jwt = false
 enabled = true
 verify_jwt = false
 
+# verify_jwt = false: this function is called every five minutes by the pg_cron job `page_media_purge` through pg_net, authenticated by a
+# bearer secret of its own (PAGE_MEDIA_PURGE_SECRET, kept in Vault for the job), not a Supabase JWT. It fails closed (503) when the secret is not set.
+# Story 24.11 (FR-205, AD-47): it deletes page-media Storage objects through the Storage API.
+[functions.page-media-purge]
+enabled = true
+verify_jwt = false
+
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]
 # Story 2.1: enabled purely to satisfy the CLI's "a provider must be enabled to keep phone login on" check.

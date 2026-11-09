@@ -16,6 +16,8 @@ export function makeStatus(over: Record<string, unknown> = {}): GymPageStatus {
     ],
     media: [],
     snapshot: { name: "Grace Fit", default_language: "en" },
+    taken_down_reason: null,
+    appeal: null,
     ...over,
   });
 }

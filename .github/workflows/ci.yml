@@ -65,6 +65,10 @@ jobs:
         working-directory: supabase/functions/payment-webhook
         run: deno test --allow-all .
 
+      - name: Edge function tests (page-media-purge, Story 24.11)
+        working-directory: supabase/functions/page-media-purge
+        run: deno test --allow-all .
+
       - name: Unit/component tests
         # Scoped to the apps with a wired-up test runner: dashboard
         # (Story 2.10 QA automation), mobile (Story 19.11, pure modules

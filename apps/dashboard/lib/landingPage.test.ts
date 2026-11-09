@@ -139,6 +139,8 @@ function status(over: Partial<GymPageStatus> = {}): GymPageStatus {
     languages: PAGE_CONTENT_LANGUAGES.map((code) => ({ code, complete: false, characters: 0, needed: 100 })),
     media: [],
     snapshot: { name: "Gym", default_language: "en" },
+    taken_down_reason: null,
+    appeal: null,
     ...over,
   });
 }

@@ -1,7 +1,7 @@
 // @gymos/page-templates: the public surface. Templates themselves live under ./templates and export `render` only; this index exports the
 // registry, the contract types and the render pipeline the landing app calls.
 export * from "./contract";
-export { CHROME } from "./chrome";
+export { CHROME, REPORT_CHROME } from "./chrome";
 export { REGISTERED_TEMPLATES, assertRegistrable, getTemplate } from "./registry";
 export { renderPageWith, schemeFor, DEFAULT_MEDIA_PATH, type MarkupRenderer, type RenderPageInput, type RenderPageResult } from "./renderCore";
 export { renderPageAsync } from "./renderPageAsync";
@@ -17,3 +17,16 @@ export {
   styleHash,
 } from "./headers";
 export { formatPrice } from "./format";
+export {
+  REPORT_HONEYPOT_FIELD,
+  REPORT_MAX_BODY_BYTES,
+  chooseReportLanguage,
+  parseReportForm,
+  renderReportPage,
+  type ReportFieldError,
+  type ReportPageInput,
+  type ReportPageParts,
+  type ReportParse,
+  type ReportView,
+} from "./reportPage";
+export { SEO_CACHE_CONTROL, classifyExtraPath, pageOrigin, renderRobots, renderSitemap, type GymPath, type SeoParts } from "./seo";

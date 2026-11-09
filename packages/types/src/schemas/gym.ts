@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isValidPageName } from "../constants/pageNameGrammar";
+import { pageAppealStatusSchema, pageTakedownReasonSchema } from "./pageModeration";
 
 // Matches the `gym_status` Postgres enum (0001_extensions_and_enums.sql) exactly.
 export const gymStatusSchema = z.enum(["active", "suspended", "deactivated"]);
@@ -433,7 +434,7 @@ export const claimPageNameSchema = z.strictObject({ gymId: z.uuid(), name: pageN
 export type ClaimPageNameInput = z.infer<typeof claimPageNameSchema>;
 
 /** Typed refusals of the claim. Copy lives in apps/dashboard/locales under `pageNames.errors.<code>`. */
-export const PAGE_NAME_ERROR_CODES = ["invalid_name", "reserved_name", "name_taken", "rename_limit", "not_admitted", "gym_not_active"] as const;
+export const PAGE_NAME_ERROR_CODES = ["invalid_name", "reserved_name", "name_taken", "rename_limit", "not_admitted", "gym_not_active", "page_taken_down"] as const;
 export type PageNameErrorCode = (typeof PAGE_NAME_ERROR_CODES)[number];
 
 /** Typed refusals of a Super Admin decision. Copy lives in apps/super-admin/locales under `pageNames.errors.<code>`. */
@@ -499,7 +500,7 @@ export const PAGE_UNPUBLISH_REASONS = ["owner", "name_released"] as const;
 export type PageUnpublishReason = (typeof PAGE_UNPUBLISH_REASONS)[number];
 
 /** Typed refusals of publish_gym_page(). Copy: `pagePublish.errors.<code>`. `not_admitted` and `gym_not_active` come from `permission denied` and `... is not active`. */
-export const PAGE_PUBLISH_ERROR_CODES = ["taken_down", "template_required", "invalid_template", "not_admitted", "gym_not_active"] as const;
+export const PAGE_PUBLISH_ERROR_CODES = ["taken_down", "template_required", "invalid_template", "not_admitted", "gym_not_active", "rederive_failed"] as const;
 export type PagePublishErrorCode = (typeof PAGE_PUBLISH_ERROR_CODES)[number];
 
 /** A template is a name (24.10 owns the registry): the database checks only this shape. */
@@ -633,6 +634,10 @@ export const gymPageStatusSchema = z.strictObject({
   languages: z.array(pageLanguageStatusSchema),
   media: z.array(pageMediaStatusRowSchema),
   snapshot: pageSnapshotSchema,
+  /** 24.11: the takedown reason code (never the internal note) while the page is taken down, else null. */
+  taken_down_reason: pageTakedownReasonSchema.nullable(),
+  /** 24.11: the appeal state while the page is taken down, else null. */
+  appeal: pageAppealStatusSchema.nullable(),
 });
 export type GymPageStatus = z.infer<typeof gymPageStatusSchema>;
 

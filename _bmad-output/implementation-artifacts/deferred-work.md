@@ -1668,14 +1668,14 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 ## Deferred from: code review of spec-24-6-page-media-private-originals-re-encoded-derivatives (2026-11-08)
 
 - **`public_site.page_media` has no per-page join key** (`supabase/migrations/0162_gym_page_media.sql`, view). It exposes only `derivative_key`, `kind`, `sort_order`, so a reader sees every published gym's media in one list. Close before 24.8: tie media to the page snapshot (24.8 owns this; use a non-leaking key such as `page_name_id`, not `gym_id`) and update `public_site_reader_privileges.test.sql` deliberately. [Closed in 24.8, see "Closed by build of spec-24-8" at the end.]
-- **Deleted and replaced derivatives stay fetchable by URL, originals keep their metadata, until the 24.11 purge.** Known and accepted in the spec; 24.11 must land before any public launch of landing pages. Close before the landing-page feature flag is on.
+- **Deleted and replaced derivatives stay fetchable by URL, originals keep their metadata, until the 24.11 purge.** Known and accepted in the spec; 24.11 must land before any public launch of landing pages. Close before the landing-page feature flag is on. [Closed in 24.11, see "Closed by build of spec-24-11" at the end.]
 - **Registering after a lost RPC response removes live objects** (`apps/dashboard/services/page-media.ts` `storeAndRegister`). If `register_page_media` commits but the response is lost, the catch deletes the objects the row points at. Fix: on an ambiguous failure look up the derivative key before removing. Rare; not seen.
 - **Concurrent uploads, real Storage and Vercel sharp bundling are unverified.** Storage uploads and `Cache-Control: max-age=300` were checked against mocks only; sharp's native binary on Vercel is first exercised at the first deploy. Verify on the first preview deploy that uploads 24.9 sends work end to end.
 
 ## Deferred from: code review of spec-24-6-page-media-private-originals-re-encoded-derivatives (2026-11-08, pass 2)
 
-- **Gym deletion orphans page media objects** (`supabase/migrations/0162_gym_page_media.sql`, `gym_id ... on delete cascade`). Deleting a gym drops the rows but leaves every original (EXIF/GPS intact) and derivative in both buckets, with no key left to find them. A failed rollback removal in `removeObjects` is also only `console.error`, with no durable record. Close before 24.11 ships: the purge must cover gym deletion and include an orphan sweep.
-- **No bound on deleted rows or upload rate per gym.** Upload/delete cycles of logo, banner or gallery grow `gym_page_media` and the buckets until the 24.11 purge exists; each upload costs a sharp decode and encode. Decide a rate limit or per-gym storage ceiling with the 24.9 editor.
+- **Gym deletion orphans page media objects** (`supabase/migrations/0162_gym_page_media.sql`, `gym_id ... on delete cascade`). Deleting a gym drops the rows but leaves every original (EXIF/GPS intact) and derivative in both buckets, with no key left to find them. A failed rollback removal in `removeObjects` is also only `console.error`, with no durable record. Close before 24.11 ships: the purge must cover gym deletion and include an orphan sweep. [Closed in 24.11, see "Closed by build of spec-24-11" at the end.]
+- **No bound on deleted rows or upload rate per gym.** Upload/delete cycles of logo, banner or gallery grow `gym_page_media` and the buckets until the 24.11 purge exists; each upload costs a sharp decode and encode. Decide a rate limit or per-gym storage ceiling with the 24.9 editor. [Rate limit closed in 24.9 (30 uploads per gym per 24 hours); tombstone rows re-deferred in 24.11, see "Closed by build of spec-24-11" at the end.]
 
 ## Deferred from: code review of spec-24-6-page-media-private-originals-re-encoded-derivatives (2026-11-08, pass 3)
 
@@ -1683,7 +1683,7 @@ Migrations 0150-0153, the dashboard proxy and labels, `docs/decisions.md` (2026-
 
 ## Deferred from: build of spec-24-7-page-names-claim-hold-rename-redirect (2026-11-08)
 
-- **Word-list screen for Super Admin is not built.** `add_page_name_word`, `remove_page_name_word` and `list_page_name_words` exist, audited and tested, but there is no UI; until one exists a Super Admin changes words through the API or SQL. Zone words cannot be removed by the function (migration only). Build with the Owner/Super Admin name work in 24.9 or 24.11.
+- **Word-list screen for Super Admin is not built.** `add_page_name_word`, `remove_page_name_word` and `list_page_name_words` exist, audited and tested, but there is no UI; until one exists a Super Admin changes words through the API or SQL. Zone words cannot be removed by the function (migration only). Build with the Owner/Super Admin name work in 24.9 or 24.11. [Re-deferred in 24.11: the frozen 24.11 spec does not include SA-22; see "Deferred from: build of spec-24-11" at the end.]
 - **`gym_pages.content` nested value limits move to 24.8.** The 24-4 item "content has no value-type or size limits" is not closed here; 24.7 closed only `page_name_id` uniqueness (foreign key and unique index). 24.8 builds the snapshot and owns the content shape. [Closed in 24.8, see "Closed by build of spec-24-8" at the end.]
 - **Redirect lookup and the name-active predicate are not wired.** `public_site.pages` does not yet join `page_names` (24.8) and nothing serves a redirect (24.10); until then a `redirect` row has no reader. [Partly closed in 24.8, see "Closed by build of spec-24-8" at the end.]
 - **A gym going back to its own redirected name loses that redirect if the hold is then rejected.** The redirect is released at claim time so the held row can take the unique name. Rare; revisit if rejections of returning names are common.
@@ -1742,7 +1742,7 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 - **Lock order on plan edits.** A bare plan update takes the plan row and then, at commit, the gym row (`refresh_gym_page` locks the gym first); `set_gym_page_content` takes the gym row and then plan rows. Two such transactions can deadlock (PostgreSQL aborts one). Rare; not observed.
 - **Auto-unpublish is attributed to whoever made the change.** The audit row for a gate-driven unpublish uses `log_audit_event`'s actor (the Owner whose edit broke the gate) with metadata reason `gate`; only a change with no session (the sweep, service role) shows a `system:` label. A reader of the audit log can mistake it for a manual unpublish; the Epic 24 labels pass (24-7 item) should show the reason.
 - **`gym_page_published` / `gym_page_unpublished` have no labels in `auditLabels.ts`.** Same Epic 24 labels pass as the `page_name_*` types.
-- **Takedown writer (24.11) obligations.** It must set `taken_down_at` on `gym_pages` (the predicate and publish already honour it), be added to the writer allowlist in `gym_page_publish.test.sql`, and, when it sets `page_names.taken_down_at`, the existing page-name trigger already judges the page (it unpublishes with `no_name`). Decide whether a taken-down name should unpublish or only hide.
+- **Takedown writer (24.11) obligations.** It must set `taken_down_at` on `gym_pages` (the predicate and publish already honour it), be added to the writer allowlist in `gym_page_publish.test.sql`, and, when it sets `page_names.taken_down_at`, the existing page-name trigger already judges the page (it unpublishes with `no_name`). Decide whether a taken-down name should unpublish or only hide. [Closed in 24.11, see "Closed by build of spec-24-11" at the end.]
 - **Template names are not validated against a registry.** `publish_gym_page` checks only the name shape; 24.10 owns the registry and should refuse an unknown template at render time and in the publish screen.
 - **`gym_pages.schema_version` is never bumped.** The snapshot shape is version 1; the first change to the key list must bump it and the 24.10 reader must branch on it.
 - **Concurrency is argued, not tested.** The gym row lock in publish and refresh is exercised in one session only; a two-session publish-versus-edit race test (like `session-refund-race.sh`) was not written. **Closed in review pass 2 (2026-11-08):** `refresh_gym_page` took an unlocked early exit when no live page existed, so an edit that committed while a concurrent publish was still running was not re-judged; it now takes the gym row lock first again, as specced, at the cost of a gym row lock on every watched plan, media and gym change. The lock-first form is still not proven by a two-session test.
@@ -1779,12 +1779,15 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md`
   summary: Close before 24.11 ships (acceptance criterion): `private.refresh_gym_page` must skip the gate-failure reason write and the Owner notice for a page whose `taken_down_at` is set, so a takedown is never rewritten as "fix and publish again" (publish refuses `taken_down`).
   evidence: review pass 2 (edge-case hunter); `refresh_gym_page` (0164) never reads `taken_down_at`; unreachable today because no takedown writer exists.
+  closed: [Closed in 24.11, see "Closed by build of spec-24-11" at the end.]
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md`
   summary: Close before 24.11 ships (acceptance criterion): `page_names_sweep` must not release the name of an active gym whose page is taken down while the `gym_pages` row stays published; either unpublish with `name_released` too or exclude taken-down pages from the sweep.
   evidence: review pass 2 (edge-case hunter); the sweep unpublishes only when `g.status <> 'active'`, and `page_name_has_published_page` treats a taken-down page as not published, so such a name can reach `reserved_until` and be released. Unreachable until `taken_down_at` is written.
+  closed: [Closed in 24.11, see "Closed by build of spec-24-11" at the end.]
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md`
   summary: Close before 24.11 ships (acceptance criterion): the rollback of 0164 (`delete from public.gym_pages`) also deletes `taken_down_at`; once takedowns exist, the rollback must preserve takedown rows or abort when any exist.
   evidence: review pass 2 (blind hunter); `publish_gym_page` refuses `taken_down` only while the row exists, so a rollback and re-apply would let a taken-down gym publish again.
+  closed: [Closed in 24.11, see "Closed by build of spec-24-11" at the end.]
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md`
   summary: When stories 24.9 and 24.10 are created, copy every "Close before 24.9" and "Close before 24.10" line in this file into their acceptance criteria in epics.md (CRLF normalisation, renderer escaping with a hostile-text case, timezone key, gate-checklist read function, shared Zod/SQL fixture, language completeness rule).
   evidence: review pass 2 (blind hunter); Epic 22 retro 67: a deferral that names a later story is an acceptance criterion of that story. Today they live only here.
@@ -1806,12 +1809,14 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
   summary: Close before 24.11 ships (acceptance criterion): the Owner is told when a Super Admin claim or forced rename replaces the page name (old links die at once, SA-17) and when the sweep releases an idle name after 12 months. Notice copy EN and FR is in `EXPERIENCE.md` AD-28 ("Owner notices for names"); the optional 11-month warning needs a change in the sweep. Moved here from 24.9 (owner, 2026-11-08); the sweep already writes the `name_released` unpublish notice (0164), but not a page-name notice.
   evidence: Only `decide_held_page_name` and `notify_page_unpublished` write notices today.
+  closed: [Closed in 24.11, see "Closed by build of spec-24-11" at the end; only the optional 11-month warning is re-deferred, see "Deferred from: build of spec-24-11".]
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
   summary: Dropped: "Describe this image" (alt text) for gallery images. The media table and the snapshot have no field for it, and adding one changes the pinned key list. If wanted, it needs a column, a snapshot key, the content CHECK, the privileges test and the 24.10 renderer together.
   evidence: EXPERIENCE.md AD-27 Images line; owner not asked again.
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
   summary: Close before 24.11 ships (acceptance criterion): the taken-down banner has no reason label and no Appeal button because `gym_pages` has no takedown reason column and no writer; 24.11 adds the reason code, the label copy (EXPERIENCE.md AD-27 table) and the Appeal modal (Owner only, 500 characters). Until then `taken_down` shows the generic banner and no publish control.
   evidence: `get_gym_page_status` reports `taken_down` from `gym_pages.taken_down_at` or any `page_names.taken_down_at`; nothing else.
+  closed: [Closed in 24.11, see "Closed by build of spec-24-11" at the end.]
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
   summary: A live page's stored snapshot still holds an incomplete language's text until its next refresh or republish (the 0165 builder omits it only when it runs). Nothing is published in production yet. Before the first production deploy, check `select count(*) from gym_pages where published_at is not null` is 0, or re-run `private.refresh_gym_page` for each live page.
   evidence: 0165 changes the builder only.
@@ -1827,6 +1832,7 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
   summary: Close before 24.11 ships (acceptance criterion): the 24.11 media purge must not lower the 30-uploads-per-24-hours count in `register_page_media`; either keep a tombstone row or count from an append-only source (the `gym_page_media_registered` audit rows).
   evidence: review pass 1 (edge-case hunter); 0165 counts `gym_page_media` rows created in the last 24 hours, deleted rows included, so a hard delete of recent rows resets the cap. Unreachable until 24.11 hard-deletes rows.
+  closed: [Closed in 24.11, see "Closed by build of spec-24-11" at the end.]
 
 ## Deferred from: code review of spec-24-9-landing-page-editor-and-publish-screen, pass 2 (2026-11-08)
 
@@ -1868,6 +1874,7 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
   summary: Not built here (24.11): `/robots.txt`, `/sitemap.xml` and `/report` answer the uniform not-found; the "Report this page" link in the footer already points at `/report` and the epic releases together. No takedown writer, purge or sitemap in this story.
   evidence: spec Boundaries, "Never".
+  closed: [Closed in 24.11, see "Closed by build of spec-24-11" at the end.]
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
   summary: Not built (Epic 25): JSON-LD (`HealthClub`), canonical links, directory. The pipeline has no JSON-LD block and emits no canonical.
   evidence: AD-51.
@@ -1904,3 +1911,62 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
   summary: No `next build` of `@gymos/landing` runs in `ci.yml` or `ci-local.sh`. The `renderPageAsync` lazy `react-dom/server` import and `transpilePackages` are proven only by a manual build; importing the static `renderPage` in the handler, or dropping `transpilePackages`, keeps every test green and first fails on the Vercel build.
   evidence: review pass 2 (verification-gap); loud failure at deploy, not silent. Settle with a landing build stage when 24.12 adds the landing gate.
+
+## Closed by build of spec-24-11 (2026-11-09)
+
+Migration `0167_page_takedown_reports_media_purge.sql` (provisional number). Each line says what closed an earlier item and where the evidence is.
+
+- **24-6: deleted and replaced derivatives stay fetchable, originals keep their metadata.** The `page-media-purge` edge function (pg_cron every 5 minutes) deletes the derivative of a deleted image or of an offline page's image and the original of a deleted image through the Storage API. Evidence: `page_takedown.test.sql` section G, `supabase/functions/page-media-purge/purge.test.ts`. Needs the owner's deploy (edge function, Vault secrets) to run for real.
+- **24-6: gym deletion orphans page media objects; a failed removal leaves no durable record.** The orphan sweep (objects with no row, older than an hour) removes both objects of a deleted gym, a bounded page per run; every run writes one `job_runs` row, and a row is marked purged only after a confirmed delete, so a failed or killed run is simply listed again on the next tick. Evidence: `page_takedown.test.sql` (gym deletion case), `purge.test.ts`.
+- **24-6: no bound on deleted rows.** The upload rate was bounded in 24.9 (30 per gym per 24 hours). The purge never deletes a row (they are the tombstones that keep that count), so rows still accumulate by at most 30 per gym per day. Re-deferred: prune tombstones older than 24 hours with objects purged, only if the table grows (nothing reads them but the count and the status read of live rows).
+- **24-8: takedown writer obligations.** `take_down_gym_page` sets the page flag, the reason and the name flags; the writer allowlists in `gym_page_publish.test.sql` and `page_names.test.sql` gain it and `lift_gym_page_takedown` deliberately. Decision: a takedown HIDES and does not unpublish (docs/decisions.md 24.11).
+- **24-8 review pass 2: refresh skips a taken-down page.** `refresh_gym_page` returns before the gate for a page whose `taken_down_at` is set (no reason write, no "fix it" notice). Evidence: `page_takedown.test.sql` section D (with a known-bad run).
+- **24-8 review pass 2: the sweep and the idle clock never release or age the name of a taken-down page.** Both read `private.gym_page_taken_down`. Evidence: section D (with known-bad runs, including the shared helper).
+- **24-8 review pass 2: rollback of 0164 deleted takedowns.** `rollback-0164` aborts when any `gym_pages` row is taken down (only the page row is judged: a lift leaves old-name redirect rows flagged). Evidence: run by hand against a row with `taken_down_at` set (the guard raises before the delete).
+- **24-9: taken-down banner without reason or Appeal.** The banner shows the reason label and the Owner's Appeal modal (500 characters); the sent, upheld and non-Owner states are tested (`StatusBanner.test.tsx`, `LandingPageEditor.test.tsx`, whose old no-Appeal assertion was changed on purpose).
+- **24-9 review: the purge must not lower the 30-uploads count.** Rows are never deleted; `page_takedown.test.sql` asserts no function deletes a Storage object or a media row and that the 24-hour count of a purged gym is unchanged.
+- **24-9 / 24-7: Owner notices for names.** (a) A Super Admin claim that replaces the page name tells the Owner (`page_name_replaced`, EN and FR); (b) the sweep tells the Owner when it releases an idle active name and the page was not live (`page_name_released`; no second notice when `notify_page_unpublished` already told them). Evidence: `page_takedown.test.sql` section H. The 11-month warning is re-deferred (owner).
+- **24-11 review: a rename during a takedown.** `claim_page_name` refuses an Owner with `page_taken_down` while the page is taken down; known-bad run in section D.
+- **24-10: `/robots.txt`, `/sitemap.xml` and `/report`.** Built in apps/landing and packages/page-templates; every hidden-page case is the byte-identical uniform not-found (`report.test.ts`, `gymSite.test.ts`, `wiring.test.ts`).
+
+## Deferred from: build of spec-24-11-takedown-reports-sitemap-and-media-purge (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: Re-deferred (owner decision 2026-11-09): the optional 11-month warning before the sweep releases an idle name (EXPERIENCE.md AD-28). It needs a second pass in the sweep and a "warned" mark per name.
+  evidence: AD-28 marks it "recommended; not built".
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: Re-deferred (not in the frozen spec): the Super Admin word-list screen (SA-22) and the "Force rename" action of SA-17. Both have database functions; neither has a screen.
+  evidence: spec Boundaries list `/pages` tabs Held names, Reports, Appeals only.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: After an unpublish or a takedown the editor's thumbnails of the page's images 404 within 5 minutes (the derivatives are purged) until the page is republished, which rebuilds them. The editor could show a placeholder instead of a broken image.
+  evidence: `ImagesSection.tsx` renders the public derivative URL.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: Not built: a count dot on Pages with the 3-business-day and 1-business-day clocks (the tabs show counts), a notice to Super Admins when a report or an appeal arrives (an overdue report is only visible on the Reports tab), a retention rule for report text (a visitor's message can contain personal data; `private.page_reports` is kept until the gym is deleted) and the audit-label pass for the new action types (`gym_page_taken_down`, `gym_page_takedown_lifted`, `gym_page_appeal_submitted`, `gym_page_appeal_decided`, `page_report_closed`).
+  evidence: spec Boundaries; `auditLabels.ts` has none of them.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: Owner checks, not CI gates: the report form on a phone; `/sitemap.xml` and `/robots.txt` over real HTTPS; the edge function deploy with its Vault secrets and a real purge run clearing an unpublished page's image; `x-real-ip` / `x-forwarded-for` carrying the visitor's address on Vercel (the rate limit shares one bucket if neither is set); the report page at 360 px (the Chromium layout stage covers templates, not this page).
+  evidence: spec Verification, Manual checks.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: The Super Admin `page-names` action returns the message key `common.invalidInput` for a malformed request, but no such key exists in the Super Admin locales (a pre-existing slip from 24.7; the new `pages` actions use their own key). Add the key or switch that action to `pageNames.errors.generic`.
+  evidence: `apps/super-admin/app/(admin)/page-names/actions.ts`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: Flagged redirect rows of a lifted takedown stay in the `redirect` state (flagged, not served) until their 12 months end, so the old names stay reserved to the gym for that time. Intended (FR-203: redirects drop and stay dropped), noted so nobody is surprised by a "taken" old name.
+  evidence: `lift_gym_page_takedown` clears only the active, held and reserved rows.
+
+## Deferred from: review of spec-24-11-takedown-reports-sitemap-and-media-purge (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: Unverified (medium if true): a Super Admin forced `claim_page_name` on a taken-down gym lets `page_name_promote(forced)` release the flagged old name, against "a taken-down name is never released" (AD-45); the new name is unflagged. The owner's rename rule (refuse) covers the Owner path only.
+  evidence: `claim_page_name` in 0167 refuses only `not v_is_super_admin and gym_page_taken_down`; settles when the owner says whether a Super Admin forced rename may free a taken-down name (then refuse it too, or keep the flagged row reserved).
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: Unverified (medium if true): `private.page_media_purge_tick` returns silently when a Vault secret is missing, never reads the `net.http_post` result, and nothing detects "no successful `page_media_purge` run in N minutes"; a wrong secret or an undeployed function leaves no trace.
+  evidence: review pass 1 and 2 (blind + edge); settles at the first preview deploy (a deployed function writes one `job_runs` row per tick). Add a staleness check or a skip row in the 24.12 gate.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: Unverified (medium if true): candidates and orphans are listed oldest first with no back-off, so about 100 rows (or 50 orphans) whose Storage delete keeps failing would pin the head and starve later purges; the orphan listing also scans `storage.objects` with `NOT EXISTS` every 5 minutes.
+  evidence: review pass 1 and 2; needs a key Storage persistently rejects, and a query plan on a production-size bucket. Add an attempts/last_failed_at order or skip-this-run set if it ever shows.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: Thumbnails of an offline page (unpublished or taken down) 404 in the Owner's editor within about 5 minutes of going offline, and new uploads on an offline page are purged until republish; the status media rows carry no purged flag.
+  evidence: review pass 1 and 2; the frozen purge rule; `ImagesSection.tsx` renders every media row. Show a placeholder when the page is offline, or decide a different rule for images the Owner is still editing.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
+  summary: Residual purge windows kept by owner decision: the delete-to-mark gap of one run (a republish inside it leaves a missing image until re-upload), two failed `page_media_rederive_done` calls after a successful publish (stale marks delay a later purge), and an ambiguous publish error followed by `discard()`.
+  evidence: review pass 2 edge findings, rejected as low; recorded in docs/decisions.md 24.11. Settle by making `page_media_derivative_due` compare `purged_at` with the page's `published_at` if any ever shows in production.

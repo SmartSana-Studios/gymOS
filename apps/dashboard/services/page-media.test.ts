@@ -305,3 +305,105 @@ describe("delete", () => {
     expect((await deletePageMedia("22222222-2222-4222-8222-222222222222")).error?.code).toBe("not_admitted");
   });
 });
+
+describe("Story 24.11: rebuildPurgedMedia (republish after the purge)", () => {
+  const ROW_A = { id: "aaaaaaaa-0000-4000-8000-000000000001", kind: "logo", original_key: `${GYM}/cccccccc-cccc-4ccc-8ccc-000000000001`, derivative_key: "dddddddd-dddd-4ddd-8ddd-000000000001.webp" };
+  const ROW_B = { id: "aaaaaaaa-0000-4000-8000-000000000002", kind: "gallery", original_key: `${GYM}/cccccccc-cccc-4ccc-8ccc-000000000002`, derivative_key: "dddddddd-dddd-4ddd-8ddd-000000000002.webp" };
+
+  async function withAdmin(listed: unknown, over: { done?: unknown } = {}) {
+    const adminRpc = vi.fn(async (fn: string) => {
+      if (fn === "page_media_rederive_list") return listed;
+      if (fn === "page_media_rederive_done") return over.done ?? { data: 1, error: null };
+      return { data: null, error: null };
+    });
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    vi.mocked(createAdminClient).mockReturnValue({
+      rpc: adminRpc,
+      storage: { from: (bucket: string) => ({ upload: (...a: unknown[]) => upload(bucket, ...a), remove: (...a: unknown[]) => remove(bucket, ...a), download: (...a: unknown[]) => download(bucket, ...a) }) },
+      from: () => ({ select: () => ({ eq: () => ({ maybeSingle }) }) }),
+    } as never);
+    return adminRpc;
+  }
+  const doneCalls = (rpcFn: ReturnType<typeof vi.fn>) => rpcFn.mock.calls.filter((c) => c[0] === "page_media_rederive_done");
+
+  it("does nothing when no live image was purged", async () => {
+    const adminRpc = await withAdmin({ data: [], error: null });
+    const { rebuildPurgedMedia } = await import("./page-media");
+    const r = await rebuildPurgedMedia(GYM);
+    expect(r).toMatchObject({ ok: true, ids: [] });
+    expect(download).not.toHaveBeenCalled();
+    expect(doneCalls(adminRpc)).toHaveLength(0);
+  });
+
+  it("rebuilds each derivative from its retained original at the SAME key, stripped of metadata, and clears NO purge mark until commit()", async () => {
+    const original = await jpegWithMetadata(200, 100, 6);
+    download.mockResolvedValue({ data: new Blob([new Uint8Array(original)]), error: null });
+    const adminRpc = await withAdmin({ data: [ROW_A, ROW_B], error: null }, { done: { data: 2, error: null } });
+    const { rebuildPurgedMedia } = await import("./page-media");
+    const r = await rebuildPurgedMedia(GYM);
+    if (!r.ok) throw new Error("not ok");
+    expect(r.ids).toEqual([ROW_A.id, ROW_B.id]);
+    expect(download).toHaveBeenCalledWith("gym-page-media-src", ROW_A.original_key);
+    expect(upload).toHaveBeenCalledTimes(2);
+    const [bucket, key, bytes, options] = upload.mock.calls[0]!;
+    expect(bucket).toBe("gym-page-media");
+    expect(key).toBe(ROW_A.derivative_key);
+    expect(options).toMatchObject({ contentType: "image/webp", upsert: true });
+    const meta = await sharp(bytes as Buffer).metadata();
+    expect(meta.format).toBe("webp");
+    expect(meta.exif).toBeUndefined();
+    expect((bytes as Buffer).includes(Buffer.from(SECRET_TEXT))).toBe(false);
+    // the marks are still set: a purge tick cannot list these images while the page is not live
+    expect(doneCalls(adminRpc)).toHaveLength(0);
+    expect(await r.commit()).toBe(true);
+    expect(doneCalls(adminRpc)).toEqual([["page_media_rederive_done", { p_gym_id: GYM, p_ids: [ROW_A.id, ROW_B.id] }]]);
+  });
+
+  it("discard() removes the derivatives written in this attempt and clears nothing", async () => {
+    const original = await jpegWithMetadata(100, 100, 1);
+    download.mockResolvedValue({ data: new Blob([new Uint8Array(original)]), error: null });
+    const adminRpc = await withAdmin({ data: [ROW_A, ROW_B], error: null });
+    const { rebuildPurgedMedia } = await import("./page-media");
+    const r = await rebuildPurgedMedia(GYM);
+    if (!r.ok) throw new Error("not ok");
+    await r.discard();
+    expect(remove).toHaveBeenCalledWith("gym-page-media", [ROW_A.derivative_key, ROW_B.derivative_key]);
+    expect(doneCalls(adminRpc)).toHaveLength(0);
+  });
+
+  it("a failure half way removes what this attempt already wrote and answers not ok, clearing nothing", async () => {
+    const original = await jpegWithMetadata(100, 100, 1);
+    download.mockResolvedValueOnce({ data: new Blob([new Uint8Array(original)]), error: null }).mockResolvedValueOnce({ data: null, error: { message: "gone" } });
+    const adminRpc = await withAdmin({ data: [ROW_A, ROW_B], error: null });
+    const { rebuildPurgedMedia } = await import("./page-media");
+    expect(await rebuildPurgedMedia(GYM)).toEqual({ ok: false });
+    expect(remove).toHaveBeenCalledWith("gym-page-media", [ROW_A.derivative_key]);
+    expect(doneCalls(adminRpc)).toHaveLength(0);
+  });
+
+  it("an original that cannot be read, a failed write, a failed list and a bad gym id all answer not ok", async () => {
+    download.mockResolvedValue({ data: null, error: { message: "not found" } });
+    await withAdmin({ data: [ROW_A], error: null });
+    const { rebuildPurgedMedia } = await import("./page-media");
+    expect(await rebuildPurgedMedia(GYM)).toEqual({ ok: false });
+    expect(upload).not.toHaveBeenCalled();
+    const original = await jpegWithMetadata(100, 100, 1);
+    download.mockResolvedValue({ data: new Blob([new Uint8Array(original)]), error: null });
+    upload.mockResolvedValueOnce({ data: null, error: { message: "disk" } });
+    expect(await rebuildPurgedMedia(GYM)).toEqual({ ok: false });
+    await withAdmin({ data: null, error: { message: "boom" } });
+    expect(await rebuildPurgedMedia(GYM)).toEqual({ ok: false });
+    expect(await rebuildPurgedMedia("not-a-uuid")).toEqual({ ok: false });
+  });
+
+  it("commit() retries once and reports a failure instead of throwing", async () => {
+    const original = await jpegWithMetadata(100, 100, 1);
+    download.mockResolvedValue({ data: new Blob([new Uint8Array(original)]), error: null });
+    const adminRpc = await withAdmin({ data: [ROW_A], error: null }, { done: { data: null, error: { message: "boom" } } });
+    const { rebuildPurgedMedia } = await import("./page-media");
+    const r = await rebuildPurgedMedia(GYM);
+    if (!r.ok) throw new Error("not ok");
+    expect(await r.commit()).toBe(false);
+    expect(doneCalls(adminRpc)).toHaveLength(2);
+  });
+});

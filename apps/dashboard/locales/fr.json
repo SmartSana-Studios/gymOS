@@ -355,7 +355,8 @@
       "name_taken": "Ce nom est déjà pris. Choisissez-en un autre.",
       "rename_limit": "Vous pouvez changer le nom de votre page deux fois sur 12 mois, et vous avez utilisé les deux changements.",
       "not_admitted": "Seul le propriétaire peut choisir le nom de la page.",
-      "gym_not_active": "Le nom de la page ne peut pas être modifié tant que la salle est suspendue."
+      "gym_not_active": "Le nom de la page ne peut pas être modifié tant que la salle est suspendue.",
+      "page_taken_down": "Le nom de la page ne peut pas être modifié tant que GymOS a retiré votre page."
     }
   },
   "pagePublish": {
@@ -383,10 +384,34 @@
       "template_required": "Choisissez un modèle avant de publier pour la première fois.",
       "invalid_template": "Ce modèle n'est pas valide. Choisissez-en un autre.",
       "not_admitted": "Vous n'êtes pas autorisé à publier la page de cette salle.",
-      "gym_not_active": "La page ne peut pas être publiée tant que la salle est suspendue."
+      "gym_not_active": "La page ne peut pas être publiée tant que la salle est suspendue.",
+      "rederive_failed": "Certaines de vos images n'ont pas pu être restaurées. Rien n'a été publié. Réessayez, ou téléversez à nouveau les images."
+    }
+  },
+  "pageAppeal": {
+    "title": "Faire appel du retrait",
+    "description": "GymOS lira votre message, décidera et vous répondra. Vous ne pouvez faire appel qu'une fois par retrait.",
+    "label": "Dites-nous pourquoi cette page devrait être rétablie.",
+    "count": "{{count}} caractères sur {{max}}",
+    "send": "Envoyer l'appel",
+    "errors": {
+      "generic": "Nous n'avons pas pu envoyer votre appel. Réessayez.",
+      "reason_required": "Écrivez un motif de 1 à 500 caractères.",
+      "not_taken_down": "Cette page n'est plus retirée.",
+      "appeal_open": "Vous avez déjà envoyé un appel. GymOS décidera et vous répondra.",
+      "appeal_decided": "GymOS a déjà tranché votre appel. Il n'y a pas de second appel.",
+      "not_admitted": "Seul le propriétaire peut faire appel."
     }
   },
   "pageEditor": {
+    "takedownReason": {
+      "impersonation": "Usurpation d'identité",
+      "illegal_content": "Contenu illicite",
+      "trademark": "Marque déposée",
+      "misleading_content": "Contenu trompeur",
+      "privacy": "Vie privée",
+      "other": "Autre"
+    },
     "title": "Page publique",
     "backToSettings": "Paramètres",
     "statusUnknown": "Statut indisponible",
@@ -510,6 +535,11 @@
       "fixElsewhere": "Corriger {{field}}",
       "suspended": "Votre page est masquée tant que votre salle est suspendue. Elle reviendra quand votre salle sera de nouveau active.",
       "takenDown": "GymOS a retiré votre page. Le nom de votre page reste réservé pour vous.",
+      "takenDownReason": "GymOS a retiré votre page : {{reason}}. Le nom de votre page reste réservé pour vous. Vous pouvez faire appel.",
+      "appeal": "Faire appel",
+      "appealSent": "Appel envoyé le {{date}}. GymOS décidera et vous répondra.",
+      "appealUpheld": "GymOS a examiné votre appel et maintient le retrait. Motif : {{reason}}",
+      "appealOwnerOnly": "Seul le propriétaire peut faire appel.",
       "tooLarge": "Cette page contient trop de contenu pour être publiée. Raccourcissez le texte « À propos » ou « Services »."
     },
     "sections": {

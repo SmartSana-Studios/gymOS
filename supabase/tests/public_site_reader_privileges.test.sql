@@ -6,7 +6,7 @@
 -- either means editing the pinned list below in the same change (24.7/24.8 extend the view on purpose).
 
 begin;
-select plan(68);
+select plan(71);
 
 -- The migration owner is not allowed to SET ROLE to the reader by default; grant it inside this rolled-back transaction so the
 -- denial assertions below prove a missing privilege, not a missing SET ROLE right.
@@ -78,6 +78,8 @@ create function pg_temp.reader_violations() returns table(kind text, detail text
   select 'function', s.nspname || '.' || pr.proname
   from pg_proc pr join user_schemas s on s.oid = pr.pronamespace, r
   where has_function_privilege(r.role, pr.oid, 'EXECUTE') and s.nspname <> 'net'
+    -- 24.11: the ONE function the reader may execute (changed deliberately; pinned by name and signature below)
+    and not (s.nspname = 'public_site' and pr.oid = 'public_site.submit_page_report(text,text,text,text)'::regprocedure)
     and (s.oid in (select oid from reachable) or exists (select 1 from aclexplode(pr.proacl) x where x.grantee = r.role::regrole))
   union all
   -- database: CONNECT is the point of a login role; TEMPORARY comes from PUBLIC and is inert under default_transaction_read_only
@@ -179,8 +181,9 @@ select is(
   array['page_media', 'page_redirects', 'pages'], 'public_site holds exactly the views pages, page_media and page_redirects (24.6 added page_media, 24.10 page_redirects); edit this list with any view change'
 );
 select is(
-  (select count(*)::int from pg_proc where pronamespace = 'public_site'::regnamespace), 0,
-  'public_site holds no functions'
+  (select array_agg(p.oid::regprocedure::text order by p.oid::regprocedure::text) from pg_proc p where p.pronamespace = 'public_site'::regnamespace),
+  array['public_site.submit_page_report(text,text,text,text)'],
+  'public_site holds exactly one function, submit_page_report (24.11, changed deliberately); the reader executes it and nothing else'
 );
 select is(
   (select count(*)::int from pg_roles r, unnest(array['USAGE', 'CREATE']) p
@@ -385,6 +388,10 @@ select is(
   0, 'the reader may SET ROLE to no platform role'
 );
 select ok(pg_temp.as_reader('select private.gym_id()') = 'ERR:42501', 'calling a private function is refused');
+select is(pg_temp.as_reader($q$select public_site.submit_page_report('psr-visible', 'privacy', 'A report', '$q$ || repeat('ab', 32) || $q$')$q$), 'ok',
+  '24.11: the reader executes submit_page_report (the only function it may call) and a report on the visible page is stored');
+select is(pg_temp.as_reader('select count(*) from private.page_reports'), 'ERR:42501', '24.11: the reader cannot read the reports table (no USAGE on private, no grant)');
+select is(pg_temp.as_reader($q$select public.take_down_gym_page('00000000-0000-0000-0000-00000000a401', 'privacy', null)$q$), 'ERR:42501', '24.11: the reader cannot call the takedown function');
 select ok(pg_temp.as_reader('select auth.uid()') = 'ERR:42501', 'calling an auth function is refused');
 
 select * from finish();
