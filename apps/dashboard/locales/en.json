@@ -102,7 +102,7 @@
   },
   "settings": {
     "title": "Settings",
-    "saveHint": "Save applies changes across every section below, except Registration fee, Charge guests per session, Loyalty program and Category, which save on their own.",
+    "saveHint": "Save applies changes across every section below, except Registration fee, Charge guests per session, Loyalty program, Category, Allow GymOS Support and Landing page, which save on their own.",
     "guestCharging": {
       "label": "Charge guests per session",
       "hint": "When on, Pay-per-session members need a paid session to check in. Saves on its own.",
@@ -137,7 +137,8 @@
       "qrCode": "QR Code",
       "payments": "Payment Account",
       "billing": "Billing",
-      "staff": "Staff"
+      "staff": "Staff",
+      "landingPage": "Landing page"
     },
     "sectionDescriptions": {
       "branding": "Logo, gym name & brand color",
@@ -148,7 +149,8 @@
       "qrCode": "Check-in code for your gym",
       "payments": "Connect your Tara Money account for mobile-money payments",
       "billing": "Your GymOS subscription",
-      "staff": "Manage staff accounts and roles"
+      "staff": "Manage staff accounts and roles",
+      "landingPage": "Your gym's public web page"
     },
     "staffSummary_one": "{{count}} staff member",
     "staffSummary_other": "{{count}} staff members",
@@ -334,7 +336,7 @@
       "unsupported_type": "This file is not a supported image. Use a JPEG, PNG or WebP photo.",
       "too_large": "This image is too large. The maximum size is 4 MiB (about 4.2 MB).",
       "too_many_pixels": "This image has too many pixels. The longest side must be 4096 pixels or less.",
-      "limit_reached": "You have reached the limit of 12 gallery images. Remove one to add another.",
+      "limit_reached": "You have reached an upload limit: 12 gallery images, or 30 uploads in 24 hours. Remove an image or try again tomorrow.",
       "attestation_required": "Confirm that you may publish this image before uploading it.",
       "not_admitted": "You are not allowed to change this gym's page images.",
       "noLogo": "This gym has no logo to prepare. Upload a logo first.",
@@ -384,8 +386,323 @@
       "gym_not_active": "The page cannot be published while the gym is suspended."
     }
   },
+  "pageEditor": {
+    "title": "Landing page",
+    "backToSettings": "Settings",
+    "statusUnknown": "Status unavailable",
+    "notStarted": "Put your gym on the web. Fill in your page - nothing is public until you publish.",
+    "liveInfo": "This page is live. Saved changes can take up to 2 minutes to appear.",
+    "save": "Save changes",
+    "savedToast": "Page saved.",
+    "fieldPlan": "Plan \"{{name}}\", name",
+    "fieldWithLanguage": "{{field}} ({{language}})",
+    "fieldsFallback": "a text field",
+    "settingsRow": {
+      "open": "Open"
+    },
+    "firstVisit": {
+      "title": "Landing page",
+      "body": "Put your gym on the web. Fill in your page - nothing is public until you publish.",
+      "setUp": "Set up my page",
+      "notNow": "Not now"
+    },
+    "status": {
+      "not_started": "Not started",
+      "in_progress": "In progress",
+      "ready": "Ready",
+      "published": "Published",
+      "offline_gate": "Offline - requirements not met",
+      "offline_suspended": "Offline - gym suspended",
+      "offline_name_released": "Offline - page name released",
+      "taken_down": "Taken down"
+    },
+    "header": {
+      "reviewAndPublish": "Review & publish",
+      "viewPublic": "See what is public",
+      "unpublish": "Unpublish",
+      "claimName": "Claim a name"
+    },
+    "languages": {
+      "en": "English",
+      "fr": "French"
+    },
+    "days": {
+      "mon": "Monday",
+      "tue": "Tuesday",
+      "wed": "Wednesday",
+      "thu": "Thursday",
+      "fri": "Friday",
+      "sat": "Saturday",
+      "sun": "Sunday"
+    },
+    "fields": {
+      "gym_name": "Gym name",
+      "about": "About",
+      "services": "Services",
+      "address": "Address",
+      "city": "City",
+      "plan_name": "Plan name"
+    },
+    "checklist": {
+      "title": "Checklist - {{ready}} of {{total}} ready",
+      "summary": "Your page can go live when all {{total}} items are ready.",
+      "optional": "Optional: gallery, services, map position.",
+      "goTo": "Go to field",
+      "ready": "Ready",
+      "notReady": "Not ready",
+      "nameUnderReview": "Name under review",
+      "items": {
+        "name": "Page name",
+        "category": "Category",
+        "logo": "Logo",
+        "banner": "Banner image",
+        "about": "About text, in at least one language",
+        "location": "Country and city",
+        "contact": "Public contact",
+        "hours": "Opening hours",
+        "plan": "At least one public plan"
+      }
+    },
+    "languagesOffered": {
+      "label": "Languages offered:",
+      "none": "none yet",
+      "needs": "{{language}} needs {{count}} more characters in About"
+    },
+    "gate": {
+      "no_name": "its page name is no longer active.",
+      "no_category": "it no longer has a category.",
+      "no_logo": "it no longer has a logo.",
+      "no_banner": "it no longer has a banner image.",
+      "about_short": "the About text needs at least 100 characters in one language.",
+      "no_country": "it no longer has a country.",
+      "no_city": "it no longer has a city.",
+      "no_contact": "it no longer has a public contact.",
+      "no_hours": "it no longer has opening hours.",
+      "no_public_plan": "it no longer has a public plan.",
+      "map_incomplete": "the map position has a latitude or a longitude but not both.",
+      "bad_text": "{{field}} contains characters that aren't allowed.",
+      "too_large": "it has too much content.",
+      "name_released": "its page name was released after 12 months without activity."
+    },
+    "gateItem": {
+      "no_name": "Page name: choose a name",
+      "no_category": "Category: choose one in Settings",
+      "no_logo": "Logo: add one",
+      "no_banner": "Banner image: add one",
+      "about_short": "About: write at least 100 characters in one language",
+      "no_country": "Country: set it in Settings",
+      "no_city": "City: add it",
+      "no_contact": "Public contact: add a phone or WhatsApp number",
+      "no_hours": "Opening hours: set at least one day",
+      "no_public_plan": "Plans: show at least one plan on your page",
+      "map_incomplete": "Map position: enter both latitude and longitude, or clear both",
+      "bad_text": "{{field}}: remove < and >",
+      "too_large": "This page has too much content. Shorten the About or Services text"
+    },
+    "banner": {
+      "offlineOne": "Your page is offline: {{reason}}",
+      "offlineMany": "Your page is offline. To publish it again:",
+      "fixAndPublish": "Fix it and publish again.",
+      "claimAndPublish": "Claim a name and publish again.",
+      "askOwnerToClaim": "Ask the Owner to claim a name.",
+      "goToSection": "Go to the section",
+      "goToField": "Go to {{field}}",
+      "fixElsewhere": "Fix {{field}}",
+      "suspended": "Your page is hidden while your gym is suspended. It comes back when your gym is active again.",
+      "takenDown": "GymOS took your page down. Your page name stays reserved for you.",
+      "tooLarge": "This page has too much content to publish. Shorten the About or Services text."
+    },
+    "sections": {
+      "name": "Page name",
+      "nameDescription": "The address of your page",
+      "text": "Page text",
+      "textDescription": "About and Services, one tab per language",
+      "images": "Images",
+      "imagesDescription": "Logo, banner and gallery (up to {{max}})",
+      "location": "Location",
+      "locationDescription": "Category, country, city, address and map position",
+      "hours": "Opening hours",
+      "hoursDescription": "One range per day, in your gym's time zone",
+      "contact": "Public contact",
+      "contactDescription": "Phone and WhatsApp shown on your page",
+      "plans": "Plans on your page",
+      "plansDescription": "Choose which plans visitors see",
+      "template": "Template",
+      "templateDescription": "How your page looks"
+    },
+    "name": {
+      "notClaimed": "Not claimed",
+      "underReview": "Name under review: {{name}}. We'll tell you within 2 business days.",
+      "ownerOnly": "Only the Owner can change the page name.",
+      "reservedWhileOffline": "Your name stays reserved for you while your page is offline, for up to 12 months.",
+      "claim": "Claim a name",
+      "change": "Change name",
+      "claimTitle": "Claim your page name",
+      "changeTitle": "Change your page name",
+      "hint": "3 to 30 characters: letters, numbers and hyphens.",
+      "label": "Page name",
+      "placeholder": "your-gym",
+      "address": "Your page will be at {{address}}",
+      "claimButton": "Claim name",
+      "rename": "Rename page",
+      "renameInfo": "Your old address will forward to the new one for 12 months. You can rename 2 times in any 12 months - {{count}} left.",
+      "renamesUsed": "You've used both renames for the last 12 months.",
+      "saveFailed": "Couldn't save the name. Try again.",
+      "toastClaimed": "Page name claimed.",
+      "toastHeld": "Name sent for review.",
+      "rules": {
+        "length": "Use 3 to 30 characters.",
+        "chars": "Use only letters, numbers and hyphens.",
+        "edge": "Don't start or end with a hyphen.",
+        "double": "Don't use two hyphens in a row.",
+        "digits": "Add at least one letter."
+      }
+    },
+    "text": {
+      "helper": "Fill in one language or more. Visitors see the language their browser prefers among the languages you complete, with a link to the others.",
+      "tabsLabel": "Languages",
+      "languageSelect": "Language",
+      "tabName": "{{language}}, {{status}}, {{index}} of {{count}}",
+      "complete": "Complete",
+      "empty": "Empty",
+      "needsMore": "needs {{count}} more characters",
+      "needsAttention": "Needs attention",
+      "addOne": "Add {{language}}",
+      "addMany": "Add language",
+      "added": "{{language}} added",
+      "counter": "{{count}} / {{max}}",
+      "progress": "{{count}} of {{min}} needed to offer this language",
+      "servicesHelper": "One service per line.",
+      "remove": "Remove {{language}} text",
+      "removeTitle": "Remove {{language}} text?",
+      "removeBody": "This clears the About and Services you wrote in {{language}}. It cannot be undone.",
+      "removeOffline": "Your page will go offline because it would have no complete language.",
+      "removeAndUnpublish": "Remove and unpublish",
+      "removed": "{{language}} text removed."
+    },
+    "images": {
+      "attest": "I have the right to publish this image.",
+      "helper": "JPEG, WebP or PNG, up to 4 MiB. Photos are re-saved without location data.",
+      "logo": "Logo",
+      "logoMissing": "No logo on your page yet. Your logo comes from Branding in Settings.",
+      "logoUse": "Use my gym logo",
+      "logoRefresh": "Update from my gym logo",
+      "goToBranding": "Change it in Settings",
+      "banner": "Banner",
+      "bannerMissing": "No banner yet.",
+      "bannerAdd": "Add banner",
+      "bannerReplace": "Replace banner",
+      "bannerChoose": "Choose a banner image",
+      "gallery": "Gallery ({{count}} of {{max}})",
+      "galleryAdd": "Add gallery image",
+      "galleryChoose": "Choose a gallery image",
+      "galleryFull": "You can add up to {{max}} images. Remove one to add another.",
+      "galleryItem": "Gallery image {{n}}",
+      "remove": "Remove image {{n}}",
+      "uploaded": "Image saved.",
+      "removed": "Image removed."
+    },
+    "location": {
+      "category": "Category",
+      "country": "Country",
+      "changeInSettings": "Change in Settings",
+      "map": "Map position (optional)",
+      "lat": "Latitude",
+      "lng": "Longitude",
+      "mapHelper": "Optional. Adds a Directions link to your page."
+    },
+    "hours": {
+      "closed": "Closed",
+      "open": "{{day}}: opens at",
+      "close": "{{day}}: closes at",
+      "copyMonday": "Copy Monday to all days"
+    },
+    "contact": {
+      "helper": "Shown to everyone who visits your page. It can differ from the phone you sign in with, which is never shown.",
+      "phone": "Phone",
+      "whatsapp": "WhatsApp"
+    },
+    "plans": {
+      "helper": "Private plans never appear on your page or anywhere public.",
+      "empty": "You haven't added any plans yet. Add a plan to show it on your page.",
+      "add": "Add a plan",
+      "show": "Show on my page",
+      "perSession": "session"
+    },
+    "templates": {
+      "classic": "Classic",
+      "more": "More templates are coming.",
+      "selected": "Classic template selected"
+    },
+    "warn": {
+      "title": "Your page will go offline",
+      "body": "Saving these changes would leave your page without something it needs. It will be unpublished until you fix it:",
+      "confirm": "Save and unpublish"
+    },
+    "unpublish": {
+      "title": "Unpublish your page?",
+      "body": "Visitors will see \"This page isn't available\". Your page name stays reserved for you, and you can publish again at any time.",
+      "confirm": "Unpublish page",
+      "toast": "Page unpublished."
+    },
+    "publish": {
+      "title": "Publish",
+      "back": "Landing page",
+      "backButton": "Back",
+      "address": "Your page will be public at {{address}}",
+      "noName": "Choose a page name before publishing.",
+      "intro": "Anyone on the internet will be able to see:",
+      "notIncluded": "Not included",
+      "notOffered": "{{language}}: not offered, About {{count}} of {{min}}",
+      "mapYes": "map position: yes",
+      "mapNo": "map position: no",
+      "galleryCount": "{{count}} images",
+      "neverShown": "Never shown: member names or counts, staff names, your sign-in phone, payments, private plans.",
+      "editText": "Edit page text",
+      "attest": "I confirm I have the right to publish every image above.",
+      "button": "Publish page",
+      "publishing": "Publishing…",
+      "notReady": "Your page isn't ready:",
+      "success": "Your page is live at {{host}}.",
+      "twoMinutes": "It can take up to 2 minutes to appear.",
+      "copyLink": "Copy link",
+      "copied": "Link copied",
+      "viewPage": "View page",
+      "rows": {
+        "name": "Gym name",
+        "category": "Category",
+        "images": "Logo, banner",
+        "languages": "Languages offered",
+        "plans": "Plans on your page",
+        "address": "Address",
+        "hours": "Opening hours",
+        "contact": "Public contact",
+        "gallery": "Gallery",
+        "color": "Colour"
+      }
+    },
+    "errors": {
+      "angle": "{{field}} can't contain < or >.",
+      "tooLong": "{{field}}: use {{max}} characters or fewer.",
+      "phone": "Enter a valid phone number with the country code and no spaces (e.g. +237600000000)",
+      "latlngPair": "Enter both latitude and longitude, or clear both.",
+      "latlngRange": "Latitude must be between -90 and 90, and longitude between -180 and 180.",
+      "latlngNumber": "Latitude and longitude must be numbers.",
+      "hoursEqual": "Closing time must differ from opening time.",
+      "hoursTime": "Enter a valid time.",
+      "invalid_content": "Some of the page content isn't valid. Check the fields and try again.",
+      "not_admitted": "You are not allowed to change this gym's page.",
+      "gym_not_active": "The page cannot be changed while the gym is suspended.",
+      "load_failed": "Something went wrong on our end. Try refreshing the page."
+    },
+    "savedReloadFailed": "Page saved. Reloading it failed - the screen may be out of date; it will refresh.",
+    "unsavedConfirm": "You have unsaved changes on this page. Leave without saving them?"
+  },
   "staff": {
-    "gymosSupport": {"name":"GymOS Support","role":"GymOS Support"},
+    "gymosSupport": {
+      "name": "GymOS Support",
+      "role": "GymOS Support"
+    },
     "supportTag": "Created by GymOS Support",
     "supportReview": {
       "title": "Staff created by GymOS Support",
@@ -1309,9 +1626,20 @@
       "empty": "No refunds recorded yet.",
       "loadError": "Could not load refunds.",
       "truncated": "Showing the latest {{shown}} of {{total}} refunds.",
-      "table": { "date": "Date", "member": "Member", "payment": "Payment", "refunded": "Refunded", "reason": "Reason", "by": "Recorded by", "session": "Session" },
+      "table": {
+        "date": "Date",
+        "member": "Member",
+        "payment": "Payment",
+        "refunded": "Refunded",
+        "reason": "Reason",
+        "by": "Recorded by",
+        "session": "Session"
+      },
       "partial": "of {{amount}}",
-      "session": { "unused": "Session cancelled", "used": "Session already used" }
+      "session": {
+        "unused": "Session cancelled",
+        "used": "Session already used"
+      }
     },
     "ledger": {
       "title": "All Payments",
@@ -1322,7 +1650,12 @@
       "voided": "Voided",
       "refunded": "Refunded",
       "actorTara": "Tara Money (in app)",
-      "table": { "purpose": "Purpose", "date": "Date", "actor": "Recorded by", "note": "Note" }
+      "table": {
+        "purpose": "Purpose",
+        "date": "Date",
+        "actor": "Recorded by",
+        "note": "Note"
+      }
     },
     "export": {
       "button": "Export CSV",
@@ -1534,7 +1867,7 @@
     },
     "empty": {
       "paid": "No paid sessions {{period}}.",
-        "paidRefundedAfterUse": "No refunded-after-use sessions in this period.",
+      "paidRefundedAfterUse": "No refunded-after-use sessions in this period.",
       "blocked": "No blocked attempts {{period}}.",
       "free": "No free sessions given {{period}}."
     },

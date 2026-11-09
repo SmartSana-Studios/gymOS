@@ -102,7 +102,7 @@
   },
   "settings": {
     "title": "Paramètres",
-    "saveHint": "Enregistrer applique les changements de toutes les sections ci-dessous, sauf Frais d'inscription, Facturer les invités par séance, Programme de fidélité et Catégorie, qui s'enregistrent séparément.",
+    "saveHint": "Enregistrer applique les changements de toutes les sections ci-dessous, sauf Frais d'inscription, Facturer les invités par séance, Programme de fidélité, Catégorie, Autoriser le support GymOS et Page publique, qui s'enregistrent séparément.",
     "guestCharging": {
       "label": "Facturer les invités par séance",
       "hint": "Lorsque cette option est active, les membres au forfait Paiement par séance ont besoin d'une séance payée pour s'enregistrer. S'enregistre séparément.",
@@ -137,7 +137,8 @@
       "qrCode": "Code QR",
       "payments": "Compte de paiement",
       "billing": "Facturation",
-      "staff": "Personnel"
+      "staff": "Personnel",
+      "landingPage": "Page publique"
     },
     "sectionDescriptions": {
       "branding": "Logo, nom de la salle et couleur de marque",
@@ -148,7 +149,8 @@
       "qrCode": "Code de présence de votre salle",
       "payments": "Connectez votre compte Tara Money pour les paiements mobile money",
       "billing": "Votre abonnement GymOS",
-      "staff": "Gérez les comptes et les rôles du personnel"
+      "staff": "Gérez les comptes et les rôles du personnel",
+      "landingPage": "La page web publique de votre salle"
     },
     "staffSummary_one": "{{count}} membre du personnel",
     "staffSummary_other": "{{count}} membres du personnel",
@@ -334,7 +336,7 @@
       "unsupported_type": "Ce fichier n'est pas une image prise en charge. Utilisez une photo JPEG, PNG ou WebP.",
       "too_large": "Cette image est trop volumineuse. La taille maximale est de 4 Mio (environ 4,2 Mo).",
       "too_many_pixels": "Cette image a trop de pixels. Le plus grand côté doit faire 4096 pixels ou moins.",
-      "limit_reached": "Vous avez atteint la limite de 12 images dans la galerie. Supprimez-en une pour en ajouter une autre.",
+      "limit_reached": "Vous avez atteint une limite d'envoi : 12 images dans la galerie, ou 30 envois en 24 heures. Supprimez une image ou réessayez demain.",
       "attestation_required": "Confirmez que vous pouvez publier cette image avant de l'envoyer.",
       "not_admitted": "Vous n'êtes pas autorisé à modifier les images de la page de cette salle.",
       "noLogo": "Cette salle n'a pas de logo à préparer. Envoyez d'abord un logo.",
@@ -384,8 +386,323 @@
       "gym_not_active": "La page ne peut pas être publiée tant que la salle est suspendue."
     }
   },
+  "pageEditor": {
+    "title": "Page publique",
+    "backToSettings": "Paramètres",
+    "statusUnknown": "Statut indisponible",
+    "notStarted": "Mettez votre salle en ligne. Remplissez votre page - rien n'est public tant que vous ne publiez pas.",
+    "liveInfo": "Cette page est en ligne. Les modifications enregistrées peuvent mettre jusqu'à 2 minutes à apparaître.",
+    "save": "Enregistrer les modifications",
+    "savedToast": "Page enregistrée.",
+    "fieldPlan": "Formule « {{name}} », nom",
+    "fieldWithLanguage": "{{field}} ({{language}})",
+    "fieldsFallback": "un champ de texte",
+    "settingsRow": {
+      "open": "Ouvrir"
+    },
+    "firstVisit": {
+      "title": "Page publique",
+      "body": "Mettez votre salle en ligne. Remplissez votre page - rien n'est public tant que vous ne publiez pas.",
+      "setUp": "Créer ma page",
+      "notNow": "Plus tard"
+    },
+    "status": {
+      "not_started": "Non commencée",
+      "in_progress": "En cours",
+      "ready": "Prête",
+      "published": "Publiée",
+      "offline_gate": "Hors ligne - conditions non remplies",
+      "offline_suspended": "Hors ligne - salle suspendue",
+      "offline_name_released": "Hors ligne - nom de page libéré",
+      "taken_down": "Retirée"
+    },
+    "header": {
+      "reviewAndPublish": "Vérifier et publier",
+      "viewPublic": "Voir ce qui est public",
+      "unpublish": "Dépublier",
+      "claimName": "Choisir un nom"
+    },
+    "languages": {
+      "en": "anglais",
+      "fr": "français"
+    },
+    "days": {
+      "mon": "Lundi",
+      "tue": "Mardi",
+      "wed": "Mercredi",
+      "thu": "Jeudi",
+      "fri": "Vendredi",
+      "sat": "Samedi",
+      "sun": "Dimanche"
+    },
+    "fields": {
+      "gym_name": "Nom de la salle",
+      "about": "À propos",
+      "services": "Services",
+      "address": "Adresse",
+      "city": "Ville",
+      "plan_name": "Nom de la formule"
+    },
+    "checklist": {
+      "title": "Liste de contrôle - {{ready}} sur {{total}} prêts",
+      "summary": "Votre page peut être publiée quand les {{total}} éléments sont prêts.",
+      "optional": "Facultatif : galerie, services, position sur la carte.",
+      "goTo": "Aller au champ",
+      "ready": "Prêt",
+      "notReady": "Pas prêt",
+      "nameUnderReview": "Nom en cours d'examen",
+      "items": {
+        "name": "Nom de la page",
+        "category": "Catégorie",
+        "logo": "Logo",
+        "banner": "Image de bannière",
+        "about": "Texte « À propos », dans au moins une langue",
+        "location": "Pays et ville",
+        "contact": "Contact public",
+        "hours": "Horaires d'ouverture",
+        "plan": "Au moins une formule publique"
+      }
+    },
+    "languagesOffered": {
+      "label": "Langues proposées :",
+      "none": "aucune pour le moment",
+      "needs": "{{language}} : il manque {{count}} caractères dans « À propos »"
+    },
+    "gate": {
+      "no_name": "son nom de page n'est plus actif.",
+      "no_category": "elle n'a plus de catégorie.",
+      "no_logo": "elle n'a plus de logo.",
+      "no_banner": "elle n'a plus d'image de bannière.",
+      "about_short": "le texte « À propos » doit faire au moins 100 caractères dans une langue.",
+      "no_country": "elle n'a plus de pays.",
+      "no_city": "elle n'a plus de ville.",
+      "no_contact": "elle n'a plus de contact public.",
+      "no_hours": "elle n'a plus d'horaires d'ouverture.",
+      "no_public_plan": "elle n'a plus de formule publique.",
+      "map_incomplete": "la position sur la carte a une latitude ou une longitude, mais pas les deux.",
+      "bad_text": "{{field}} contient des caractères non autorisés.",
+      "too_large": "elle contient trop de contenu.",
+      "name_released": "son nom de page a été libéré après 12 mois d'inactivité."
+    },
+    "gateItem": {
+      "no_name": "Nom de la page : choisissez un nom",
+      "no_category": "Catégorie : choisissez-en une dans les Paramètres",
+      "no_logo": "Logo : ajoutez-en un",
+      "no_banner": "Image de bannière : ajoutez-en une",
+      "about_short": "À propos : écrivez au moins 100 caractères dans une langue",
+      "no_country": "Pays : indiquez-le dans les Paramètres",
+      "no_city": "Ville : ajoutez-la",
+      "no_contact": "Contact public : ajoutez un numéro de téléphone ou de WhatsApp",
+      "no_hours": "Horaires : renseignez au moins un jour",
+      "no_public_plan": "Formules : affichez au moins une formule sur votre page",
+      "map_incomplete": "Position sur la carte : saisissez la latitude et la longitude, ou effacez les deux",
+      "bad_text": "{{field}} : retirez < et >",
+      "too_large": "Cette page contient trop de contenu. Raccourcissez le texte « À propos » ou « Services »"
+    },
+    "banner": {
+      "offlineOne": "Votre page est hors ligne : {{reason}}",
+      "offlineMany": "Votre page est hors ligne. Pour la republier :",
+      "fixAndPublish": "Corrigez-le puis republiez.",
+      "claimAndPublish": "Choisissez un nom et republiez.",
+      "askOwnerToClaim": "Demandez au propriétaire de choisir un nom.",
+      "goToSection": "Aller à la section",
+      "goToField": "Aller à {{field}}",
+      "fixElsewhere": "Corriger {{field}}",
+      "suspended": "Votre page est masquée tant que votre salle est suspendue. Elle reviendra quand votre salle sera de nouveau active.",
+      "takenDown": "GymOS a retiré votre page. Le nom de votre page reste réservé pour vous.",
+      "tooLarge": "Cette page contient trop de contenu pour être publiée. Raccourcissez le texte « À propos » ou « Services »."
+    },
+    "sections": {
+      "name": "Nom de la page",
+      "nameDescription": "L'adresse de votre page",
+      "text": "Texte de la page",
+      "textDescription": "« À propos » et Services, un onglet par langue",
+      "images": "Images",
+      "imagesDescription": "Logo, bannière et galerie (jusqu'à {{max}})",
+      "location": "Emplacement",
+      "locationDescription": "Catégorie, pays, ville, adresse et position sur la carte",
+      "hours": "Horaires d'ouverture",
+      "hoursDescription": "Une plage par jour, dans le fuseau horaire de votre salle",
+      "contact": "Contact public",
+      "contactDescription": "Téléphone et WhatsApp affichés sur votre page",
+      "plans": "Formules sur votre page",
+      "plansDescription": "Choisissez les formules que les visiteurs voient",
+      "template": "Modèle",
+      "templateDescription": "L'apparence de votre page"
+    },
+    "name": {
+      "notClaimed": "Non réservé",
+      "underReview": "Nom en cours d'examen : {{name}}. Nous vous répondrons sous 2 jours ouvrés.",
+      "ownerOnly": "Seul le propriétaire peut modifier le nom de la page.",
+      "reservedWhileOffline": "Votre nom reste réservé pour vous tant que votre page est hors ligne, jusqu'à 12 mois.",
+      "claim": "Choisir un nom",
+      "change": "Modifier le nom",
+      "claimTitle": "Réservez le nom de votre page",
+      "changeTitle": "Modifier le nom de votre page",
+      "hint": "3 à 30 caractères : lettres, chiffres et tirets.",
+      "label": "Nom de la page",
+      "placeholder": "votre-salle",
+      "address": "Votre page sera à l'adresse {{address}}",
+      "claimButton": "Réserver le nom",
+      "rename": "Renommer la page",
+      "renameInfo": "Votre ancienne adresse redirigera vers la nouvelle pendant 12 mois. Vous pouvez renommer 2 fois sur 12 mois glissants - il en reste {{count}}.",
+      "renamesUsed": "Vous avez utilisé vos 2 renommages sur les 12 derniers mois.",
+      "saveFailed": "Impossible d'enregistrer le nom. Réessayez.",
+      "toastClaimed": "Nom de page réservé.",
+      "toastHeld": "Nom envoyé à examen.",
+      "rules": {
+        "length": "Utilisez de 3 à 30 caractères.",
+        "chars": "Utilisez uniquement des lettres, des chiffres et des tirets.",
+        "edge": "Ne commencez pas et ne terminez pas par un tiret.",
+        "double": "N'utilisez pas deux tirets consécutifs.",
+        "digits": "Ajoutez au moins une lettre."
+      }
+    },
+    "text": {
+      "helper": "Remplissez une langue ou plusieurs. Les visiteurs voient la langue préférée de leur navigateur parmi les langues que vous complétez, avec un lien vers les autres.",
+      "tabsLabel": "Langues",
+      "languageSelect": "Langue",
+      "tabName": "{{language}}, {{status}}, {{index}} sur {{count}}",
+      "complete": "Complète",
+      "empty": "Vide",
+      "needsMore": "il manque {{count}} caractères",
+      "needsAttention": "À corriger",
+      "addOne": "Ajouter : {{language}}",
+      "addMany": "Ajouter une langue",
+      "added": "{{language}} ajouté",
+      "counter": "{{count}} / {{max}}",
+      "progress": "{{count}} sur {{min}} pour proposer cette langue",
+      "servicesHelper": "Un service par ligne.",
+      "remove": "Supprimer le texte ({{language}})",
+      "removeTitle": "Supprimer le texte ({{language}}) ?",
+      "removeBody": "Cela efface les textes « À propos » et « Services » que vous avez écrits ({{language}}). Cette action est irréversible.",
+      "removeOffline": "Votre page sera hors ligne car elle n'aurait aucune langue complète.",
+      "removeAndUnpublish": "Supprimer et dépublier",
+      "removed": "Texte supprimé ({{language}})."
+    },
+    "images": {
+      "attest": "J'ai le droit de publier cette image.",
+      "helper": "JPEG, WebP ou PNG, jusqu'à 4 Mio. Les photos sont réenregistrées sans données de localisation.",
+      "logo": "Logo",
+      "logoMissing": "Pas encore de logo sur votre page. Votre logo vient de la section Image de marque des Paramètres.",
+      "logoUse": "Utiliser le logo de ma salle",
+      "logoRefresh": "Mettre à jour depuis le logo de ma salle",
+      "goToBranding": "Modifier dans les Paramètres",
+      "banner": "Bannière",
+      "bannerMissing": "Pas encore de bannière.",
+      "bannerAdd": "Ajouter une bannière",
+      "bannerReplace": "Remplacer la bannière",
+      "bannerChoose": "Choisir une image de bannière",
+      "gallery": "Galerie ({{count}} sur {{max}})",
+      "galleryAdd": "Ajouter une image à la galerie",
+      "galleryChoose": "Choisir une image de galerie",
+      "galleryFull": "Vous pouvez ajouter jusqu'à {{max}} images. Supprimez-en une pour en ajouter une autre.",
+      "galleryItem": "Image de galerie {{n}}",
+      "remove": "Supprimer l'image {{n}}",
+      "uploaded": "Image enregistrée.",
+      "removed": "Image supprimée."
+    },
+    "location": {
+      "category": "Catégorie",
+      "country": "Pays",
+      "changeInSettings": "Modifier dans les Paramètres",
+      "map": "Position sur la carte (facultatif)",
+      "lat": "Latitude",
+      "lng": "Longitude",
+      "mapHelper": "Facultatif. Ajoute un lien Itinéraire sur votre page."
+    },
+    "hours": {
+      "closed": "Fermé",
+      "open": "{{day}} : ouverture à",
+      "close": "{{day}} : fermeture à",
+      "copyMonday": "Copier le lundi sur tous les jours"
+    },
+    "contact": {
+      "helper": "Visible par toute personne qui visite votre page. Il peut différer du téléphone avec lequel vous vous connectez, qui n'est jamais affiché.",
+      "phone": "Téléphone",
+      "whatsapp": "WhatsApp"
+    },
+    "plans": {
+      "helper": "Les formules privées n'apparaissent jamais sur votre page ni ailleurs en public.",
+      "empty": "Vous n'avez pas encore de formule. Ajoutez-en une pour l'afficher sur votre page.",
+      "add": "Ajouter une formule",
+      "show": "Afficher sur ma page",
+      "perSession": "séance"
+    },
+    "templates": {
+      "classic": "Classique",
+      "more": "D'autres modèles arrivent.",
+      "selected": "Modèle Classique sélectionné"
+    },
+    "warn": {
+      "title": "Votre page sera hors ligne",
+      "body": "Enregistrer ces modifications laisserait votre page sans un élément nécessaire. Elle sera dépubliée jusqu'à ce que vous le corrigiez :",
+      "confirm": "Enregistrer et dépublier"
+    },
+    "unpublish": {
+      "title": "Dépublier votre page ?",
+      "body": "Les visiteurs verront « Cette page n'est pas disponible ». Le nom de votre page reste réservé pour vous, et vous pouvez la republier à tout moment.",
+      "confirm": "Dépublier la page",
+      "toast": "Page dépubliée."
+    },
+    "publish": {
+      "title": "Publier",
+      "back": "Page publique",
+      "backButton": "Retour",
+      "address": "Votre page sera publique à l'adresse {{address}}",
+      "noName": "Choisissez un nom de page avant de publier.",
+      "intro": "Toute personne sur Internet pourra voir :",
+      "notIncluded": "Non inclus",
+      "notOffered": "{{language}} : non proposé, « À propos » {{count}} sur {{min}}",
+      "mapYes": "position sur la carte : oui",
+      "mapNo": "position sur la carte : non",
+      "galleryCount": "{{count}} images",
+      "neverShown": "Jamais affiché : noms ou nombre de membres, noms du personnel, votre téléphone de connexion, paiements, formules privées.",
+      "editText": "Modifier le texte de la page",
+      "attest": "Je confirme avoir le droit de publier toutes les images ci-dessus.",
+      "button": "Publier la page",
+      "publishing": "Publication…",
+      "notReady": "Votre page n'est pas prête :",
+      "success": "Votre page est en ligne sur {{host}}.",
+      "twoMinutes": "Elle peut mettre jusqu'à 2 minutes à apparaître.",
+      "copyLink": "Copier le lien",
+      "copied": "Lien copié",
+      "viewPage": "Voir la page",
+      "rows": {
+        "name": "Nom de la salle",
+        "category": "Catégorie",
+        "images": "Logo, bannière",
+        "languages": "Langues proposées",
+        "plans": "Formules sur votre page",
+        "address": "Adresse",
+        "hours": "Horaires d'ouverture",
+        "contact": "Contact public",
+        "gallery": "Galerie",
+        "color": "Couleur"
+      }
+    },
+    "errors": {
+      "angle": "{{field}} ne peut pas contenir < ou >.",
+      "tooLong": "{{field}} : utilisez {{max}} caractères ou moins.",
+      "phone": "Saisissez un numéro valide avec l'indicatif du pays et sans espaces (ex. +237600000000)",
+      "latlngPair": "Saisissez la latitude et la longitude, ou effacez les deux.",
+      "latlngRange": "La latitude doit être entre -90 et 90, et la longitude entre -180 et 180.",
+      "latlngNumber": "La latitude et la longitude doivent être des nombres.",
+      "hoursEqual": "L'heure de fermeture doit être différente de l'heure d'ouverture.",
+      "hoursTime": "Saisissez une heure valide.",
+      "invalid_content": "Une partie du contenu de la page n'est pas valide. Vérifiez les champs et réessayez.",
+      "not_admitted": "Vous n'êtes pas autorisé à modifier la page de cette salle.",
+      "gym_not_active": "La page ne peut pas être modifiée tant que la salle est suspendue.",
+      "load_failed": "Une erreur est survenue de notre côté. Essayez d'actualiser la page."
+    },
+    "savedReloadFailed": "Page enregistrée. Le rechargement a échoué - l'écran peut être obsolète ; il va se rafraîchir.",
+    "unsavedConfirm": "Vous avez des modifications non enregistrées sur cette page. Quitter sans les enregistrer ?"
+  },
   "staff": {
-    "gymosSupport": {"name":"Support GymOS","role":"Support GymOS"},
+    "gymosSupport": {
+      "name": "Support GymOS",
+      "role": "Support GymOS"
+    },
     "supportTag": "Créé par Support GymOS",
     "supportReview": {
       "title": "Personnel créé par Support GymOS",
@@ -1309,9 +1626,20 @@
       "empty": "Aucun remboursement enregistré pour le moment.",
       "loadError": "Impossible de charger les remboursements.",
       "truncated": "Affichage des {{shown}} derniers remboursements sur {{total}}.",
-      "table": { "date": "Date", "member": "Membre", "payment": "Paiement", "refunded": "Remboursé", "reason": "Motif", "by": "Enregistré par", "session": "Séance" },
+      "table": {
+        "date": "Date",
+        "member": "Membre",
+        "payment": "Paiement",
+        "refunded": "Remboursé",
+        "reason": "Motif",
+        "by": "Enregistré par",
+        "session": "Séance"
+      },
       "partial": "sur {{amount}}",
-      "session": { "unused": "Séance annulée", "used": "Séance déjà utilisée" }
+      "session": {
+        "unused": "Séance annulée",
+        "used": "Séance déjà utilisée"
+      }
     },
     "ledger": {
       "title": "Tous les paiements",
@@ -1322,7 +1650,12 @@
       "voided": "Annulé",
       "refunded": "Remboursé",
       "actorTara": "Tara Money (dans l'app)",
-      "table": { "purpose": "Objet", "date": "Date", "actor": "Enregistré par", "note": "Note" }
+      "table": {
+        "purpose": "Objet",
+        "date": "Date",
+        "actor": "Enregistré par",
+        "note": "Note"
+      }
     },
     "export": {
       "button": "Exporter en CSV",
@@ -1534,7 +1867,7 @@
     },
     "empty": {
       "paid": "Aucune séance payée {{period}}.",
-        "paidRefundedAfterUse": "Aucune séance remboursée après utilisation sur cette période.",
+      "paidRefundedAfterUse": "Aucune séance remboursée après utilisation sur cette période.",
       "blocked": "Aucune tentative bloquée {{period}}.",
       "free": "Aucune séance gratuite offerte {{period}}."
     },

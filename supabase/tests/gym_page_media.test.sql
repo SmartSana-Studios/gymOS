@@ -1,7 +1,7 @@
 -- Story 24.6: gym page media (migration 0162), positive paths and structure. Denials: gym_page_media.negative.test.sql.
 -- Fixture ids: 00000000-0000-0000-0000-0000002406xx.
 begin;
-select plan(69);
+select plan(75);
 
 create or replace function pg_temp.claims(uid text, app_role text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -223,6 +223,29 @@ reset role;
 select is((select count(*)::int from gym_page_media where deleted_at is not null and derivative_key in
             ('bbbbbbbb-bbbb-bbbb-bbbb-000000000003.webp', 'bbbbbbbb-bbbb-bbbb-bbbb-000000000004.webp', 'bbbbbbbb-bbbb-bbbb-bbbb-000000000010.webp', 'dddddddd-dddd-dddd-dddd-000000000001.webp')),
           4, 'each admitted role''s delete set deleted_at');
+
+-- ---- 24.9 (migration 0165): at most 30 uploads per gym per rolling 24 hours, every kind, deleted rows counted ------------------------------
+-- Gym B holds one row (super admin, above). 28 more rows, all already deleted, bring it to 29 inside the window.
+insert into public.gym_page_media (gym_id, kind, original_key, derivative_key, attested_at, attestation_version, deleted_at)
+select '00000000-0000-0000-0000-000000240612', 'gallery',
+       '00000000-0000-0000-0000-000000240612/ffffffff-ffff-ffff-ffff-' || lpad(n::text, 12, '0'),
+       'eeeeeeee-eeee-eeee-eeee-' || lpad(n::text, 12, '0') || '.webp', now(), 'v1', now()
+  from generate_series(1, 28) n;
+select is((select count(*)::int from gym_page_media where gym_id = '00000000-0000-0000-0000-000000240612'), 29, 'control: gym B holds 29 rows (28 of them deleted) inside the window');
+set local role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-000000240626', 'owner', '00000000-0000-0000-0000-000000240612');
+select is(pg_temp.err(pg_temp.reg('00000000-0000-0000-0000-000000240612', 'gallery', 60)), 'ok', 'the 30th upload in 24 hours is accepted');
+select is(pg_temp.err(pg_temp.reg('00000000-0000-0000-0000-000000240612', 'gallery', 61)), 'P0001:register_page_media: limit_reached', 'the 31st is refused with limit_reached (deleted rows counted)');
+select is(pg_temp.err(pg_temp.reg('00000000-0000-0000-0000-000000240612', 'banner', 62, 'true', 'true')), 'P0001:register_page_media: limit_reached', 'a dry run reports it too, whatever the kind');
+select pg_temp.as_user('00000000-0000-0000-0000-000000240621', 'owner', '00000000-0000-0000-0000-000000240611');
+select is(pg_temp.err(pg_temp.reg('00000000-0000-0000-0000-000000240611', 'logo', 64)), 'ok', 'the cap is per gym: gym B being at its cap does not stop gym A');
+reset role;
+update public.gym_page_media set created_at = now() - interval '25 hours' where derivative_key in
+  (select derivative_key from public.gym_page_media where derivative_key like 'eeeeeeee-%' order by derivative_key limit 5);
+set local role authenticated;
+select pg_temp.as_user('00000000-0000-0000-0000-000000240626', 'owner', '00000000-0000-0000-0000-000000240612');
+select is(pg_temp.err(pg_temp.reg('00000000-0000-0000-0000-000000240612', 'banner', 63)), 'ok', 'rows older than 24 hours no longer count');
+reset role;
 
 select * from finish();
 rollback;

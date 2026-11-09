@@ -5,7 +5,7 @@
 -- The refresh triggers are DEFERRED constraint triggers (they judge a transaction's final state, at commit). This whole file is one
 -- transaction, so `pg_temp.settle()` stands for "commit": it fires the pending triggers now.
 begin;
-select plan(258);
+select plan(260);
 
 create or replace function pg_temp.claims(uid text, app_role text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -709,6 +709,14 @@ select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('P') || $$'
 reset role;
 select pg_temp.settle();
 select is((select content ->> 'city' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'Solo City', 'single column: the city alone refreshes the snapshot');
+-- 24.9 (owner decision 2026-11-08): the snapshot leaves out the text of a language whose About is under 100 characters, so P gets a
+-- complete French About first (and that single column refreshes the snapshot on its own); the French services step below then shows up.
+set local role authenticated;
+select pg_temp.as_user(pg_temp.u('ownerP'), 'owner', pg_temp.g('P'));
+select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('P') || $$', jsonb_build_object('about_fr', repeat('é', 100)))$$), 'ok', 'owner gives gym P a complete French About');
+reset role;
+select pg_temp.settle();
+select is((select char_length(content ->> 'about_fr') from gym_pages where gym_id = pg_temp.g('P')::uuid), 100, 'single column: the French About alone refreshes the snapshot (it is complete, so it is published)');
 set local role authenticated;
 select pg_temp.as_user(pg_temp.u('ownerP'), 'owner', pg_temp.g('P'));
 select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('P') || $$', '{"services_fr":"Cardio solo"}')$$), 'ok', 'owner changes only the French services');
@@ -793,8 +801,8 @@ select is((select array_agg(proname::text order by proname) from pg_proc
           'the functions that write gym_pages are exactly the four allowlisted (24.11 adds its takedown writer here deliberately)');
 select is((select array_agg(proname::text order by proname) from pg_proc
             where pronamespace in ('public'::regnamespace, 'private'::regnamespace) and prokind = 'f' and prosrc ~* '\mgym_pages\M'),
-          array['page_name_has_published_page', 'page_names_sweep', 'publish_gym_page', 'refresh_gym_page', 'unpublish_gym_page']::text[],
-          'the functions that mention gym_pages at all are those four and the name-published predicate (a new reader is listed deliberately)');
+          array['get_gym_page_status', 'page_name_has_published_page', 'page_names_sweep', 'publish_gym_page', 'refresh_gym_page', 'unpublish_gym_page']::text[],
+          'the functions that mention gym_pages at all are those four, the name-published predicate and the 24.9 status read (a new reader is listed deliberately)');
 select is((select count(*)::int from pg_proc where proname in ('publish_gym_page', 'unpublish_gym_page', 'refresh_gym_page', 'page_names_sweep') and prosecdef and proconfig = array['search_path=public']), 4,
           'every gym_pages writer is security definer with a pinned search_path');
 select is((select array_agg(distinct m[1] order by m[1]) from pg_proc, regexp_matches(prosrc, 'array_append\(v_missing, ''([a-z_]+)''\)', 'g') m where proname = 'gym_page_gate_missing'),

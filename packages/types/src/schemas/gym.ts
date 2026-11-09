@@ -252,11 +252,18 @@ export type GymSettingsInput = z.infer<typeof gymSettingsSchema>;
 // Story 24.5 (FR-197, FR-200): public page content and per-plan visibility. Mirrors set_gym_page_content() (0161), which
 // validates the same rules again. Both are patches: a key left out is not touched, null clears it. Text is trimmed and an
 // empty string becomes null; '<' and '>' are rejected so no markup is stored. Unknown keys are rejected (strict).
+// Length is counted in code points (Array.from), as the database's char_length does: `.max()` would count UTF-16 units and refuse
+// 1,001 emoji the database accepts (24.9: pinned by the shared fixture, pageContentCases.json).
 const pageText = (max: number) =>
   z
     .string()
     .transform((v) => v.trim())
-    .pipe(z.string().max(max, "Too long").regex(/^[^<>]*$/, "Remove < and >"))
+    .pipe(
+      z
+        .string()
+        .refine((v) => Array.from(v).length <= max, "Too long")
+        .regex(/^[^<>]*$/, "Remove < and >"),
+    )
     .transform((v) => (v === "" ? null : v))
     .nullable();
 
@@ -510,3 +517,128 @@ export const publishGymPageResultSchema = z.object({
   missing: z.array(z.enum(PAGE_PUBLISH_GATE_CODES)),
 });
 export type PublishGymPageResult = z.infer<typeof publishGymPageResultSchema>;
+
+// Story 24.9 (FR-197, FR-199, FR-201, OQ-28): the landing-page editor and publish screen. Mirrors get_gym_page_status() (0165).
+
+/**
+ * The content languages of a gym page: ONE list. The editor tabs, the "Languages offered" line, the publish rows and the status
+ * function (private.gym_page_languages()) are built from it, so a third language is a one-place change plus its columns. The
+ * shared fixture (pageContentCases.json) pins this list and the SQL list to each other.
+ */
+export const PAGE_CONTENT_LANGUAGES = ["en", "fr"] as const;
+export type PageContentLanguage = (typeof PAGE_CONTENT_LANGUAGES)[number];
+export const pageContentLanguageSchema = z.enum(PAGE_CONTENT_LANGUAGES);
+
+/** The gym may keep at most this many uploads in any rolling 24 hours, all kinds, deleted ones counted (register_page_media, 0165). */
+export const PAGE_MEDIA_UPLOADS_PER_DAY = 30;
+
+/**
+ * Text cleaning before a save: CRLF and a lone CR become LF, and control characters other than line feed and tab are removed.
+ * The database still refuses what is left (`bad_text`); this step only keeps pasted Windows text from failing the publish gate.
+ */
+export function cleanPageText(value: string): string {
+  return value
+    .replace(/\r\n?/g, "\n")
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, "");
+}
+
+/** Derived page states, in the order get_gym_page_status() considers them. Copy: `pageEditor.status.<state>`. */
+export const PAGE_STATUS_STATES = [
+  "not_started",
+  "in_progress",
+  "ready",
+  "published",
+  "offline_gate",
+  "offline_suspended",
+  "offline_name_released",
+  "taken_down",
+] as const;
+export type PageStatusState = (typeof PAGE_STATUS_STATES)[number];
+
+/** Text fields that can make the gate answer `bad_text`. Copy: `pageEditor.fields.<field>`. */
+export const PAGE_BAD_TEXT_FIELDS = ["gym_name", "about", "services", "address", "city", "plan_name"] as const;
+export type PageBadTextField = (typeof PAGE_BAD_TEXT_FIELDS)[number];
+
+export const pageBadTextFieldSchema = z.strictObject({
+  field: z.enum(PAGE_BAD_TEXT_FIELDS),
+  lang: pageContentLanguageSchema.optional(),
+  /** The plan, named by the text the Owner entered. Never an id. */
+  plan_name: z.string().optional(),
+});
+export type PageBadTextFieldEntry = z.infer<typeof pageBadTextFieldSchema>;
+
+/** The would-be snapshot (private.gym_page_snapshot): the one list of what becomes public. Strict, so a new key cannot arrive unnoticed. */
+export const pageSnapshotSchema = z.strictObject({
+  name: z.string(),
+  about_en: z.string().optional(),
+  about_fr: z.string().optional(),
+  services_en: z.string().optional(),
+  services_fr: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().optional(),
+  category: z.string().optional(),
+  map: z.strictObject({ lat: z.number(), lng: z.number() }).optional(),
+  contact: z.strictObject({ phone: z.string().optional(), whatsapp: z.string().optional() }).optional(),
+  color: z.string().optional(),
+  logo: z.string().optional(),
+  banner: z.string().optional(),
+  gallery: z.array(z.string()).optional(),
+  hours: gymPageHoursSchema.optional(),
+  plans: z
+    .array(
+      z.strictObject({
+        name: z.string(),
+        label_en: z.string(),
+        label_fr: z.string(),
+        type: z.string(),
+        price: z.number(),
+        currency: z.string(),
+        interval: z.string(),
+        duration_days: z.number().nullable().optional(),
+      }),
+    )
+    .optional(),
+});
+export type PageSnapshot = z.infer<typeof pageSnapshotSchema>;
+
+export const pageLanguageStatusSchema = z.strictObject({
+  code: pageContentLanguageSchema,
+  complete: z.boolean(),
+  characters: z.number().int(),
+  needed: z.number().int(),
+});
+export type PageLanguageStatus = z.infer<typeof pageLanguageStatusSchema>;
+
+export const pageMediaStatusRowSchema = z.strictObject({
+  id: z.uuid(),
+  kind: pageMediaKindSchema,
+  derivative_key: z.string(),
+  sort_order: z.number().int(),
+});
+export type PageMediaStatusRow = z.infer<typeof pageMediaStatusRowSchema>;
+
+/** get_gym_page_status() result. Facts only: the client maps codes to words. Carries no gym id, plan id, uploader or token. */
+export const gymPageStatusSchema = z.strictObject({
+  state: z.enum(PAGE_STATUS_STATES),
+  template: z.string().nullable(),
+  published_at: z.string().nullable(),
+  /** Gate codes, `owner` or `name_released`, parsed from gym_pages.unpublished_reason. */
+  unpublished_reasons: z.array(z.string()),
+  missing: z.array(z.enum(PAGE_PUBLISH_GATE_CODES)),
+  bad_text_fields: z.array(pageBadTextFieldSchema),
+  about_min_chars: z.number().int(),
+  languages: z.array(pageLanguageStatusSchema),
+  media: z.array(pageMediaStatusRowSchema),
+  snapshot: pageSnapshotSchema,
+});
+export type GymPageStatus = z.infer<typeof gymPageStatusSchema>;
+
+/** Plan visibility from the editor: one switch per plan, no label fields. */
+export const setPlanVisibilitySchema = z.strictObject({ plan_id: z.uuid(), is_public: z.boolean() });
+export type SetPlanVisibilityInput = z.infer<typeof setPlanVisibilitySchema>;
+
+/** Typed refusals of the content save. Copy: `pageEditor.errors.<code>`. `invalid_content` covers every `set_gym_page_content: invalid_*` the database raises. */
+export const PAGE_CONTENT_ERROR_CODES = ["invalid_content", "not_admitted", "gym_not_active"] as const;
+export type PageContentErrorCode = (typeof PAGE_CONTENT_ERROR_CODES)[number];

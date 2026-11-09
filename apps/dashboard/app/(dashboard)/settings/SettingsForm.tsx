@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { gymSettingsSchema } from "@gymos/types";
+import { gymSettingsSchema, type PageStatusState } from "@gymos/types";
 
 import { Button } from "@/components/ui/button";
 import type { GymSettingsRow } from "@/services/gym-settings";
@@ -22,6 +22,7 @@ import { MembershipSection } from "./MembershipSection";
 import { PaymentDialogs, PaymentsCard, usePayments } from "./PaymentsSection";
 import { QrCodeCard, QrRegenerateDialog, useQrCode } from "./QrCodeSection";
 import { StaffSection } from "./StaffSection";
+import { LandingPageSection, canSeeLandingPageRow } from "./LandingPageSection";
 import { GymosSupportSection } from "./GymosSupportSection";
 import type { GymosSupportStatus } from "@/services/gym-settings";
 import type { FieldErrors } from "./settingsFormTypes";
@@ -37,6 +38,8 @@ export function SettingsForm({
   loyaltyEnabled,
   loyaltyPlans = [],
   gymosSupportStatus = null,
+  landingPageState = null,
+  landingPageUserKey = "",
 }: {
   initial: GymSettingsRow;
   initialPaymentConnection: GymPaymentConnectionStatus | null;
@@ -52,6 +55,10 @@ export function SettingsForm({
   loyaltyPlans?: LoyaltyPlanDuration[];
   /** Story 23.3: the Owner-only GymOS Support readout; null for any other role (the section is not rendered). */
   gymosSupportStatus?: GymosSupportStatus | null;
+  /** Story 24.9: the landing page's derived state for the Settings row; null when it could not be read. */
+  landingPageState?: PageStatusState | null;
+  /** Story 24.9: who the first-visit prompt's dismissal belongs to (per user, in browser storage). */
+  landingPageUserKey?: string;
 }) {
   const { t, i18n } = useTranslation();
   const countryOptions = useMemo(() => listPhoneCountries(i18n.language), [i18n.language]);
@@ -209,6 +216,8 @@ export function SettingsForm({
             />
 
             <StaffSection staffCount={staffCount} />
+
+            {canSeeLandingPageRow(role) && <LandingPageSection state={landingPageState} userKey={landingPageUserKey || (role ?? "user")} />}
 
             {role === "owner" && gymosSupportStatus && (
               <GymosSupportSection initial={gymosSupportStatus} onSaved={showToast} />

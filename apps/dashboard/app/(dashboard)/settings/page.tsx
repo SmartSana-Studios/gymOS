@@ -8,6 +8,7 @@ import { getDashboardShellContext } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { TARAMONEY_PROVIDER_KEY } from "@/lib/featureFlags";
+import { getLandingPageState } from "@/services/landing-page";
 
 /**
  * Route-level role guard beyond `(dashboard)/layout.tsx`'s gym-scoped-staff
@@ -57,6 +58,10 @@ export default async function SettingsPage() {
   // Story 23.3: the Owner-only GymOS Support readout; a failure just hides the section.
   const gymosSupportStatus = shell?.role === "owner" ? (await getGymosSupportStatus()).data : null;
 
+  // Story 24.9: the Landing page row (Owner, Supervisor, assigned support only). A failed read just shows no badge.
+  const showLandingPage = shell?.role === "owner" || shell?.role === "supervisor" || shell?.role === "support";
+  const landingPageState = showLandingPage ? await getLandingPageState() : null;
+
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">{t("settings.title")}</h1>
@@ -69,6 +74,8 @@ export default async function SettingsPage() {
         role={shell?.role ?? null}
         loyaltyPlans={loyaltyPlans}
         gymosSupportStatus={gymosSupportStatus}
+        landingPageState={landingPageState}
+        landingPageUserKey={`${shell?.gymId ?? "gym"}:${shell?.memberId ?? shell?.role ?? "user"}`}
       />
     </div>
   );

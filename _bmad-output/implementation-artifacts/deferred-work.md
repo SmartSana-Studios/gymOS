@@ -1788,3 +1788,54 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md`
   summary: When stories 24.9 and 24.10 are created, copy every "Close before 24.9" and "Close before 24.10" line in this file into their acceptance criteria in epics.md (CRLF normalisation, renderer escaping with a hostile-text case, timezone key, gate-checklist read function, shared Zod/SQL fixture, language completeness rule).
   evidence: review pass 2 (blind hunter); Epic 22 retro 67: a deferral that names a later story is an acceptance criterion of that story. Today they live only here.
+
+## Closed by build of spec-24-9 (2026-11-08)
+
+- The shared Zod/SQL fixture (emoji length, lat/lng rounding) exists and runs on both sides: `packages/types/src/fixtures/pageContentCases.json`; Zod now counts code points. The `90.0000004` difference is deliberate and written in the fixture.
+- The gate-checklist read function exists: `get_gym_page_status` (0165) returns the missing codes, the bad-text fields and the would-be snapshot.
+- CRLF is normalised to LF (and control characters removed) in the editor before the save; the field shows the cleaned text.
+- `permission denied` and `claim_page_name: gym ... is not active` are mapped to typed name errors in `services/landing-page.ts`, with one test per code against the real message.
+- `pageMedia.errors.*` and `pageEditor.*` have a key-parity test in both locales (`lib/landingPage.test.ts`).
+- A `<` or `>` in a gym or plan name now names the field (banner, publish list, `bad_text_fields`); the CHECK on `gyms.name` and `plans.name` is still not added.
+- An upload rate bound is decided and built: 30 uploads per gym per rolling 24 hours (0165).
+- The editor, the language tabs, the completeness line and the publish rows are built from one content-language list (`PAGE_CONTENT_LANGUAGES`, `private.gym_page_languages()`); the snapshot omits an incomplete language's text (owner decision 1).
+- The 24.8 line "the built snapshot carries any non-empty about_xx/services_xx text even when that language is not complete" is closed by the same 0165 change.
+
+## Deferred from: build of spec-24-9-landing-page-editor-and-publish-screen (2026-11-08)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
+  summary: Close before 24.11 ships (acceptance criterion): the Owner is told when a Super Admin claim or forced rename replaces the page name (old links die at once, SA-17) and when the sweep releases an idle name after 12 months. Notice copy EN and FR is in `EXPERIENCE.md` AD-28 ("Owner notices for names"); the optional 11-month warning needs a change in the sweep. Moved here from 24.9 (owner, 2026-11-08); the sweep already writes the `name_released` unpublish notice (0164), but not a page-name notice.
+  evidence: Only `decide_held_page_name` and `notify_page_unpublished` write notices today.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
+  summary: Dropped: "Describe this image" (alt text) for gallery images. The media table and the snapshot have no field for it, and adding one changes the pinned key list. If wanted, it needs a column, a snapshot key, the content CHECK, the privileges test and the 24.10 renderer together.
+  evidence: EXPERIENCE.md AD-27 Images line; owner not asked again.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
+  summary: Close before 24.11 ships (acceptance criterion): the taken-down banner has no reason label and no Appeal button because `gym_pages` has no takedown reason column and no writer; 24.11 adds the reason code, the label copy (EXPERIENCE.md AD-27 table) and the Appeal modal (Owner only, 500 characters). Until then `taken_down` shows the generic banner and no publish control.
+  evidence: `get_gym_page_status` reports `taken_down` from `gym_pages.taken_down_at` or any `page_names.taken_down_at`; nothing else.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
+  summary: A live page's stored snapshot still holds an incomplete language's text until its next refresh or republish (the 0165 builder omits it only when it runs). Nothing is published in production yet. Before the first production deploy, check `select count(*) from gym_pages where published_at is not null` is 0, or re-run `private.refresh_gym_page` for each live page.
+  evidence: 0165 changes the builder only.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
+  summary: Not covered by an automated test: the browser flows (fill, upload, claim, publish, unpublish, auto-unpublish banner, EN and FR, as Owner, Supervisor and assigned support), real image upload on a preview deploy (sharp on Vercel, the 5 MB Server Action limit), and the Playwright E2E stage (not run in this build). `scripts/support-assignments-race.test.sh` failed once in the full `ci-local` run (timing assertions on lock waits) and passed on two re-runs; unrelated to this change.
+  evidence: owner QA item in the spec ("Manual checks (owner)").
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
+  summary: The status banner for `offline_gate` lists only the recorded reasons that still hold; the audit log labels for `gym_page_published` / `gym_page_unpublished` / `gym_page_content_changed` (`auditLabels.ts`) are still missing. Same Epic 24 labels pass as the `page_name_*` types.
+  evidence: carried from the 24.8 list; no audit UI change in 24.9.
+
+## Deferred from: code review of spec-24-9-landing-page-editor-and-publish-screen (2026-11-08)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
+  summary: Close before 24.11 ships (acceptance criterion): the 24.11 media purge must not lower the 30-uploads-per-24-hours count in `register_page_media`; either keep a tombstone row or count from an append-only source (the `gym_page_media_registered` audit rows).
+  evidence: review pass 1 (edge-case hunter); 0165 counts `gym_page_media` rows created in the last 24 hours, deleted rows included, so a hard delete of recent rows resets the cap. Unreachable until 24.11 hard-deletes rows.
+
+## Deferred from: code review of spec-24-9-landing-page-editor-and-publish-screen, pass 2 (2026-11-08)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
+  summary: Close before a third content language is added (acceptance criterion of that story): `GYM_COLUMNS`, `toContent`, `CLEANED_CONTENT_KEYS`, the strict snapshot schema (`about_xx`, `services_xx`, `label_xx`), `private.gym_page_gate_missing` (about_short), the `bad_text` concatenation and the refresh trigger column lists (0164) still name the EN/FR pair; the 100-character threshold is a literal in 0164 and 0165. Add a pgTAP check that iterates `private.gym_page_languages()` against the gate, `bad_text` and the triggers.
+  evidence: review pass 2 (blind, auditor, verification-gap); the owner kept the gate and the snapshot key list untouched on purpose, so the "third language" matrix row holds for tabs, completeness and publish rows only.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
+  summary: Refresh `epic-24-context.md` before 24.10 starts: line 60 still says gallery "up to 10" and an optional "Describe this image" (shipped: 12, no alt text); line 47 lists the 24.9 open items as open.
+  evidence: review pass 2 (blind); the fix edits an agent-context file.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-9-landing-page-editor-and-publish-screen.md`
+  summary: Unverified (medium if true): `getLandingPageData` reads `gyms` page columns and `plans` with plain table selects after the admission RPC; an assigned-support caller may get no row from RLS and see `load_failed`. Settled by the owner's browser pass as assigned support; if it fails, read both through the status function or a new read RPC.
+  evidence: review pass 2 (blind); no pgTAP or vitest case covers a support read of those tables.
