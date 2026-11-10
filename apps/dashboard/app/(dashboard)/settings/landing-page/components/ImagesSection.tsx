@@ -141,6 +141,12 @@ export function ImagesSection({
 
           <div className="space-y-2" data-testid="images-gallery">
             <h3 className="text-sm font-medium">{t("pageEditor.images.gallery", { count: gallery.length, max: PAGE_MEDIA_MAX_GALLERY })}</h3>
+            {/* The add button comes first, the images under it (owner, 2026-11-10). Disabled until the attestation box above is ticked. */}
+            <input ref={galleryRef} type="file" accept={ACCEPT} className="sr-only" id="pageGalleryFile" aria-label={t("pageEditor.images.galleryChoose")} onChange={() => upload("gallery", galleryRef.current)} />
+            {galleryFull && <p className="text-sm text-muted-foreground">{t("pageEditor.images.galleryFull", { max: PAGE_MEDIA_MAX_GALLERY })}</p>}
+            <Button type="button" variant="outline" size="sm" disabled={!attested || busy !== null || galleryFull} onClick={() => galleryRef.current?.click()}>
+              {t("pageEditor.images.galleryAdd")}
+            </Button>
             {gallery.length > 0 && (
               <ul className="flex flex-wrap gap-3">
                 {gallery.map((g, i) => (
@@ -151,20 +157,16 @@ export function ImagesSection({
                       variant="ghost"
                       size="sm"
                       disabled={busy !== null}
+                      aria-label={t("pageEditor.images.remove", { n: i + 1 })}
                       onClick={() => void run(`delete-${g.id}`, () => deletePageMediaAction(g.id), t("pageEditor.images.removed"))}
                     >
-                      <Trash2 />
-                      {t("pageEditor.images.remove", { n: i + 1 })}
+                      <Trash2 aria-hidden="true" />
+                      {t("pageEditor.images.removeShort")}
                     </Button>
                   </li>
                 ))}
               </ul>
             )}
-            <input ref={galleryRef} type="file" accept={ACCEPT} className="sr-only" id="pageGalleryFile" aria-label={t("pageEditor.images.galleryChoose")} onChange={() => upload("gallery", galleryRef.current)} />
-            {galleryFull && <p className="text-sm text-muted-foreground">{t("pageEditor.images.galleryFull", { max: PAGE_MEDIA_MAX_GALLERY })}</p>}
-            <Button type="button" variant="outline" size="sm" disabled={!attested || busy !== null || galleryFull} onClick={() => galleryRef.current?.click()}>
-              {t("pageEditor.images.galleryAdd")}
-            </Button>
           </div>
         </div>
       </CardContent>

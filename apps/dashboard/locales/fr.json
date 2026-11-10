@@ -638,6 +638,7 @@
       "galleryFull": "Vous pouvez ajouter jusqu'à {{max}} images. Supprimez-en une pour en ajouter une autre.",
       "galleryItem": "Image de galerie {{n}}",
       "remove": "Supprimer l'image {{n}}",
+      "removeShort": "Supprimer",
       "uploaded": "Image enregistrée.",
       "removed": "Image supprimée."
     },
