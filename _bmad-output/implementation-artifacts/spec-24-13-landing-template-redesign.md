@@ -2,7 +2,7 @@
 title: '24-13 Landing templates: Classic redesign, Volt (second, dark) template, template modal'
 type: 'feature'
 created: '2026-11-10'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 baseline_commit: '52081e0'
 context:
