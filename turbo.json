@@ -45,20 +45,39 @@
         "MAIL_SMTP_USER",
         "MAIL_SMTP_PASS",
         "MAIL_FROM",
-        "MAIL_FROM_NAME"
+        "MAIL_FROM_NAME",
+        "PUBLIC_SITE_ROOT_DOMAIN",
+        "PUBLIC_SITE_MEDIA_ORIGIN",
+        "PUBLIC_SITE_READER_HOST",
+        "PUBLIC_SITE_READER_PORT",
+        "PUBLIC_SITE_READER_DATABASE",
+        "PUBLIC_SITE_READER_USER",
+        "PUBLIC_SITE_READER_PASSWORD",
+        "PUBLIC_SITE_REPORT_KEY"
       ]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]
     },
     "test": {},
+    "test:layout": {
+      "cache": false
+    },
     "test:e2e": {
       "cache": false,
       "env": [
         "NEXT_PUBLIC_SUPABASE_URL",
         "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
         "SUPABASE_SERVICE_ROLE_KEY",
-        "DASHBOARD_APP_URL"
+        "DASHBOARD_APP_URL",
+        "PUBLIC_SITE_MEDIA_ORIGIN",
+        "PUBLIC_SITE_REPORT_KEY",
+        "PUBLIC_SITE_READER_HOST",
+        "PUBLIC_SITE_READER_PORT",
+        "PUBLIC_SITE_READER_DATABASE",
+        "PUBLIC_SITE_READER_USER",
+        "PUBLIC_SITE_READER_PASSWORD",
+        "E2E_LANDING_PORT"
       ]
     },
     "lint": {

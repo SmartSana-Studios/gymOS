@@ -595,6 +595,117 @@ export type Database = {
           },
         ]
       }
+      gym_page_media: {
+        Row: {
+          attestation_version: string
+          attested_at: string
+          created_at: string
+          deleted_at: string | null
+          derivative_key: string
+          gym_id: string
+          id: string
+          kind: string
+          original_key: string
+          original_purged_at: string | null
+          purged_at: string | null
+          sort_order: number
+          uploaded_by: string | null
+        }
+        Insert: {
+          attestation_version: string
+          attested_at: string
+          created_at?: string
+          deleted_at?: string | null
+          derivative_key: string
+          gym_id: string
+          id?: string
+          kind: string
+          original_key: string
+          sort_order?: number
+          uploaded_by?: string | null
+        }
+        Update: {
+          attestation_version?: string
+          attested_at?: string
+          created_at?: string
+          deleted_at?: string | null
+          derivative_key?: string
+          gym_id?: string
+          id?: string
+          kind?: string
+          original_key?: string
+          original_purged_at?: string | null
+          purged_at?: string | null
+          sort_order?: number
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gym_page_media_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gym_pages: {
+        Row: {
+          content: Json
+          gym_id: string
+          page_name_id: string | null
+          published_at: string | null
+          schema_version: number
+          taken_down_at: string | null
+          taken_down_note: string | null
+          taken_down_reason: string | null
+          template: string
+          unpublished_at: string | null
+          unpublished_reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          content?: Json
+          gym_id: string
+          page_name_id?: string | null
+          published_at?: string | null
+          schema_version?: number
+          taken_down_at?: string | null
+          taken_down_note?: string | null
+          taken_down_reason?: string | null
+          template: string
+          unpublished_at?: string | null
+          unpublished_reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content?: Json
+          gym_id?: string
+          page_name_id?: string | null
+          published_at?: string | null
+          schema_version?: number
+          taken_down_at?: string | null
+          taken_down_note?: string | null
+          taken_down_reason?: string | null
+          template?: string
+          unpublished_at?: string | null
+          unpublished_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gym_pages_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gym_pages_gym_page_name_fkey"
+            columns: ["gym_id", "page_name_id"]
+            referencedRelation: "page_names"
+            referencedColumns: ["gym_id", "id"]
+          },
+        ]
+      }
       gym_payment_credentials: {
         Row: {
           business_id_masked: string
@@ -683,6 +794,17 @@ export type Database = {
           member_cap_override: number | null
           name: string
           opening_time: string | null
+          page_about_en: string | null
+          page_about_fr: string | null
+          page_address: string | null
+          page_city: string | null
+          page_contact_phone: string | null
+          page_contact_whatsapp: string | null
+          page_hours: Json | null
+          page_lat: number | null
+          page_lng: number | null
+          page_services_en: string | null
+          page_services_fr: string | null
           primary_color: string | null
           registration_fee: number
           saas_billing_anchor_date: string
@@ -716,6 +838,17 @@ export type Database = {
           member_cap_override?: number | null
           name: string
           opening_time?: string | null
+          page_about_en?: string | null
+          page_about_fr?: string | null
+          page_address?: string | null
+          page_city?: string | null
+          page_contact_phone?: string | null
+          page_contact_whatsapp?: string | null
+          page_hours?: Json | null
+          page_lat?: number | null
+          page_lng?: number | null
+          page_services_en?: string | null
+          page_services_fr?: string | null
           primary_color?: string | null
           registration_fee?: number
           saas_billing_anchor_date?: string
@@ -749,6 +882,17 @@ export type Database = {
           member_cap_override?: number | null
           name?: string
           opening_time?: string | null
+          page_about_en?: string | null
+          page_about_fr?: string | null
+          page_address?: string | null
+          page_city?: string | null
+          page_contact_phone?: string | null
+          page_contact_whatsapp?: string | null
+          page_hours?: Json | null
+          page_lat?: number | null
+          page_lng?: number | null
+          page_services_en?: string | null
+          page_services_fr?: string | null
           primary_color?: string | null
           registration_fee?: number
           saas_billing_anchor_date?: string
@@ -1112,6 +1256,88 @@ export type Database = {
         }
         Relationships: []
       }
+      page_name_words: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          is_prefix: boolean
+          kind: string
+          word: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          is_prefix?: boolean
+          kind: string
+          word: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          is_prefix?: boolean
+          kind?: string
+          word?: string
+        }
+        Relationships: []
+      }
+      page_names: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          gym_id: string
+          held_at: string | null
+          held_reason: string | null
+          id: string
+          name: string
+          origin: string
+          reminded_at: string | null
+          reserved_until: string | null
+          state: string
+          taken_down_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          gym_id: string
+          held_at?: string | null
+          held_reason?: string | null
+          id?: string
+          name: string
+          origin: string
+          reminded_at?: string | null
+          reserved_until?: string | null
+          state: string
+          taken_down_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          gym_id?: string
+          held_at?: string | null
+          held_reason?: string | null
+          id?: string
+          name?: string
+          origin?: string
+          reminded_at?: string | null
+          reserved_until?: string | null
+          state?: string
+          taken_down_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "page_names_gym_id_fkey"
+            columns: ["gym_id"]
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_discrepancies: {
         Row: {
           details: Json
@@ -1376,9 +1602,12 @@ export type Database = {
           duration_days: number | null
           gym_id: string
           id: string
+          is_public: boolean
           name: string
           plan_type: Database["public"]["Enums"]["plan_type"]
           price: number
+          public_label_en: string | null
+          public_label_fr: string | null
         }
         Insert: {
           annual_discount_percent?: number | null
@@ -1388,9 +1617,12 @@ export type Database = {
           duration_days?: number | null
           gym_id: string
           id?: string
+          is_public?: boolean
           name: string
           plan_type: Database["public"]["Enums"]["plan_type"]
           price: number
+          public_label_en?: string | null
+          public_label_fr?: string | null
         }
         Update: {
           annual_discount_percent?: number | null
@@ -1400,9 +1632,12 @@ export type Database = {
           duration_days?: number | null
           gym_id?: string
           id?: string
+          is_public?: boolean
           name?: string
           plan_type?: Database["public"]["Enums"]["plan_type"]
           price?: number
+          public_label_en?: string | null
+          public_label_fr?: string | null
         }
         Relationships: [
           {
@@ -2240,6 +2475,10 @@ export type Database = {
         Returns: { ok: boolean; reason: string }[]
       }
       active_payment_provider: { Args: never; Returns: string }
+      add_page_name_word: {
+        Args: { p_kind: string; p_prefix?: boolean; p_word: string }
+        Returns: undefined
+      }
       add_session_note: {
         Args: { p_member_id: string; p_note_text: string }
         Returns: string
@@ -2348,6 +2587,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      claim_page_name: {
+        Args: { p_gym_id: string; p_name: string }
+        Returns: Json
       }
       complete_flagged_payment: {
         Args: { p_payment_id: string }
@@ -2477,6 +2720,11 @@ export type Database = {
         Args: { p_reason: string; p_user_id: string }
         Returns: { assignment_id: string | null; code: string; ok: boolean }[]
       }
+      decide_held_page_name: {
+        Args: { p_approve: boolean; p_id: string; p_reason: string }
+        Returns: Json
+      }
+      delete_page_media: { Args: { p_media_id: string }; Returns: undefined }
       disconnect_gym_payment_credentials: {
         Args: { p_provider_key: string }
         Returns: undefined
@@ -2527,6 +2775,8 @@ export type Database = {
           requested_at: string
         }[]
       }
+      get_gym_page_name: { Args: { p_gym_id: string }; Returns: Json }
+      get_gym_page_status: { Args: { p_gym_id: string }; Returns: Json }
       get_gym_support_proxy_id: {
         Args: never
         Returns: string
@@ -2823,6 +3073,78 @@ export type Database = {
           total_count: number
         }[]
       }
+      list_held_page_names: {
+        Args: never
+        Returns: {
+          current_name: string | null
+          due_at: string
+          gym_id: string
+          gym_name: string
+          held_at: string
+          held_reason: string
+          id: string
+          name: string
+          origin: string
+          overdue: boolean
+        }[]
+      }
+      close_page_report: { Args: { p_id: string; p_note?: string; p_outcome: string }; Returns: Json }
+      decide_page_appeal: { Args: { p_decision: string; p_id: string; p_reason: string }; Returns: Json }
+      lift_gym_page_takedown: { Args: { p_gym_id: string; p_reason: string }; Returns: Json }
+      list_page_appeals: {
+        Args: never
+        Returns: {
+          appeal_reason: string
+          appealed_at: string
+          decided_at: string | null
+          decision: string | null
+          decision_reason: string | null
+          gym_id: string
+          gym_name: string
+          id: string
+          page_name: string | null
+          taken_down_at: string
+          takedown_lifted: boolean
+          takedown_note: string | null
+          takedown_reason: string
+        }[]
+      }
+      list_page_reports: {
+        Args: never
+        Returns: {
+          created_at: string
+          details: string
+          due_at: string
+          gym_id: string
+          gym_name: string
+          id: string
+          overdue: boolean
+          page_name: string
+          page_taken_down: boolean
+          reason: string
+          status: string
+        }[]
+      }
+      page_media_purge_candidates: {
+        Args: { p_limit?: number }
+        Returns: {
+          derivative_key: string
+          id: string
+          original_key: string
+          purge_derivative: boolean
+          purge_original: boolean
+        }[]
+      }
+      page_media_purge_orphans: { Args: { p_limit?: number }; Returns: { bucket_id: string; name: string }[] }
+      page_media_purge_mark: { Args: { p_derivative: boolean; p_id: string; p_original: boolean }; Returns: boolean }
+      page_media_rederive_done: { Args: { p_gym_id: string; p_ids: string[] }; Returns: number }
+      page_media_rederive_list: {
+        Args: { p_gym_id: string }
+        Returns: { derivative_key: string; id: string; kind: string; original_key: string }[]
+      }
+      record_page_media_purge_run: { Args: { p_ok: boolean; p_started_at: string; p_summary: string }; Returns: undefined }
+      submit_page_appeal: { Args: { p_reason: string }; Returns: Json }
+      take_down_gym_page: { Args: { p_gym_id: string; p_note?: string; p_reason: string }; Returns: Json }
       list_my_class_bookings: {
         Args: never
         Returns: {
@@ -2867,6 +3189,15 @@ export type Database = {
       list_own_support_gyms: {
         Args: never
         Returns: { gym_id: string; gym_name: string }[]
+      }
+      list_page_name_words: {
+        Args: never
+        Returns: {
+          created_at: string
+          is_prefix: boolean
+          kind: string
+          word: string
+        }[]
       }
       list_session_attempts: {
         Args: { p_limit?: number; p_offset?: number; p_period: string }
@@ -2955,6 +3286,10 @@ export type Database = {
           display_name_set: boolean
         }[]
       }
+      publish_gym_page: {
+        Args: { p_gym_id: string; p_template?: string }
+        Returns: Json
+      }
       record_otp_resend: {
         Args: { p_phone: string }
         Returns: {
@@ -2974,6 +3309,18 @@ export type Database = {
       }
       record_registration_fee: {
         Args: { p_member_id: string; p_method: string; p_reason: string }
+        Returns: string
+      }
+      register_page_media: {
+        Args: {
+          p_attested: boolean
+          p_attestation_version: string
+          p_derivative_key: string
+          p_dry_run?: boolean
+          p_gym_id: string
+          p_kind: string
+          p_original_key: string
+        }
         Returns: string
       }
       record_session_payment: {
@@ -3026,6 +3373,10 @@ export type Database = {
         Args: { p_category: string; p_gym_id: string }
         Returns: undefined
       }
+      set_gym_page_content: {
+        Args: { p_content: Json; p_gym_id: string; p_plans?: Json }
+        Returns: undefined
+      }
       set_loyalty_program: {
         Args: { p_enabled: boolean; p_k: number; p_n: number; p_r: number }
         Returns: undefined
@@ -3055,6 +3406,10 @@ export type Database = {
         Returns: { email: string; ok: boolean; step: string; user_id: string }[]
       }
       support_invite_mark_password_set: { Args: { p_token: string }; Returns: boolean }
+      remove_page_name_word: {
+        Args: { p_kind: string; p_prefix?: boolean; p_word: string }
+        Returns: undefined
+      }
       remove_support_account: {
         Args: { p_reason: string; p_user_id: string }
         Returns: { assignment_id: string | null; code: string; ok: boolean }[]
@@ -3069,6 +3424,7 @@ export type Database = {
         Args: { p_plan_id: string }
         Returns: undefined
       }
+      unpublish_gym_page: { Args: { p_gym_id: string }; Returns: boolean }
       update_class: {
         Args: {
           p_capacity: number

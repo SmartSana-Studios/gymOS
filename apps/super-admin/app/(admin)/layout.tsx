@@ -26,6 +26,7 @@ const NAV_LINKS = [
   { href: "/billing", labelKey: "nav.billing" },
   { href: "/admins", labelKey: "nav.admins" },
   { href: "/support", labelKey: "nav.support" },
+  { href: "/pages", labelKey: "nav.pages" },
   { href: "/security", labelKey: "nav.security" },
 ] as const;
 

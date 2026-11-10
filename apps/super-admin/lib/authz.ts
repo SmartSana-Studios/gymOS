@@ -151,5 +151,7 @@ export type StepUpAction =
   | "create_super_admin"
   | "change_recovery_email"
   | "remove_recovery_email"
-  | "start_support_factor_reset";
+  | "start_support_factor_reset"
+  | "take_down_gym_page"
+  | "lift_gym_page_takedown";
 export const STEP_UP_REQUIRED_CODE = "step_up_required";

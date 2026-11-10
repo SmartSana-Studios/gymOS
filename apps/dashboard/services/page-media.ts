@@ -1,0 +1,387 @@
+import sharp, { type Metadata } from "sharp";
+import { randomUUID } from "node:crypto";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getRequestLocale } from "@/lib/i18n/get-request-locale";
+import { getServerTranslation } from "@/lib/i18n/get-server-translation";
+import {
+  PAGE_MEDIA_ATTESTATION_VERSION,
+  PAGE_MEDIA_DERIVATIVE_SIDE,
+  PAGE_MEDIA_MAX_BYTES,
+  PAGE_MEDIA_MAX_INPUT_PIXELS_SIDE,
+  pageMediaKindSchema,
+  type AppError,
+  type PageMediaErrorCode,
+  type PageMediaKind,
+} from "@gymos/types";
+
+// Story 24.6 (FR-205, AD-47). Images for a gym's future public page.
+//
+//   original   -> private bucket gym-page-media-src, key {gym_id}/{uuid}, bytes exactly as uploaded
+//   derivative -> public bucket gym-page-media,      key {random uuid}.webp, re-encoded, no gym_id anywhere in the key
+//
+// Order matters and is the point of this file:
+//   1. register_page_media(dry run) -- the database admits the caller (Owner, Supervisor, live-assigned support, super admin),
+//      checks the attestation and the limits. Nothing is read from the file and nothing is stored before this passes.
+//   2. decode with sharp and judge the CONTENT (magic bytes), never the client's mime type or file name.
+//   3. write both objects with the service-role client (the only writer either bucket has).
+//   4. register_page_media(for real). If it fails, both objects are removed again.
+// Deleting is the RPC only (deleted_at); removing objects is the 24.11 purge (the page-media-purge edge function). The purge removes the derivative
+// of an offline page; rebuildPurgedMedia below rebuilds it from the retained original before a republish.
+
+export const SRC_BUCKET = "gym-page-media-src";
+export const DERIVATIVE_BUCKET = "gym-page-media";
+const DERIVATIVE_CACHE_SECONDS = "300"; // storage-js turns this into `Cache-Control: max-age=300`
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ACCEPTED_FORMATS = new Set(["jpeg", "png", "webp"]);
+const SOURCE_CONTENT_TYPE: Record<string, string> = { jpeg: "image/jpeg", png: "image/png", webp: "image/webp" };
+
+export class PageMediaError extends Error {
+  constructor(public readonly code: PageMediaErrorCode | "no_logo" | "upload_failed") {
+    super(code);
+  }
+}
+
+export interface ProcessedImage {
+  /** Re-encoded WebP: orientation applied, every metadata block (EXIF, XMP, IPTC, ICC, comments) dropped. */
+  derivative: Buffer;
+  /** Detected from the decoded bytes. */
+  format: "jpeg" | "png" | "webp";
+}
+
+/** Validate by decoded content and re-encode. Pure: no network, no database. Throws PageMediaError. */
+export async function processPageImage(input: Buffer, kind: PageMediaKind): Promise<ProcessedImage> {
+  if (input.length === 0) throw new PageMediaError("unsupported_type");
+  if (input.length > PAGE_MEDIA_MAX_BYTES) throw new PageMediaError("too_large");
+
+  let meta: Metadata;
+  try {
+    // limitInputPixels guards the decoder against a small file that declares a huge canvas.
+    meta = await sharp(input, { limitInputPixels: PAGE_MEDIA_MAX_INPUT_PIXELS_SIDE * PAGE_MEDIA_MAX_INPUT_PIXELS_SIDE, failOn: "error" }).metadata();
+  } catch (e) {
+    if (e instanceof Error && /pixel limit/i.test(e.message)) throw new PageMediaError("too_many_pixels");
+    throw new PageMediaError("unsupported_type");
+  }
+  if (!meta.format || !ACCEPTED_FORMATS.has(meta.format)) throw new PageMediaError("unsupported_type");
+  const width = meta.width ?? 0;
+  const height = meta.height ?? 0;
+  if (width === 0 || height === 0) throw new PageMediaError("unsupported_type");
+  if (Math.max(width, height) > PAGE_MEDIA_MAX_INPUT_PIXELS_SIDE) throw new PageMediaError("too_many_pixels");
+
+  const side = PAGE_MEDIA_DERIVATIVE_SIDE[kind];
+  try {
+    const derivative = await sharp(input, { limitInputPixels: PAGE_MEDIA_MAX_INPUT_PIXELS_SIDE * PAGE_MEDIA_MAX_INPUT_PIXELS_SIDE, failOn: "error" })
+      .rotate() // applies the EXIF orientation, then drops the tag
+      .resize({ width: side, height: side, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 82 }) // no withMetadata(): sharp writes none of the input's metadata
+      .toBuffer();
+    return { derivative, format: meta.format as ProcessedImage["format"] };
+  } catch {
+    throw new PageMediaError("unsupported_type");
+  }
+}
+
+/** Map a database error from register_page_media / delete_page_media to a typed code, or null when it is not one of ours. */
+export function pageMediaCodeFromDbError(error: { message?: string } | null | undefined): PageMediaErrorCode | null {
+  const message = error?.message ?? "";
+  if (message.includes("attestation_required")) return "attestation_required";
+  if (message.includes("limit_reached")) return "limit_reached";
+  // Exact match: the RPCs raise bare `permission denied`. A Postgres privilege fault reads `permission denied for ...`; that is a
+  // configuration bug, so it falls through to upload_failed and is logged instead of telling the user they are not allowed.
+  if (message === "permission denied" || message.includes("is not active")) return "not_admitted";
+  return null;
+}
+
+async function toAppError(e: unknown): Promise<AppError> {
+  const { t } = await getServerTranslation(await getRequestLocale());
+  if (e instanceof PageMediaError) {
+    const key = e.code === "upload_failed" ? "uploadFailed" : e.code === "no_logo" ? "noLogo" : e.code;
+    return { code: e.code, message: t(`pageMedia.errors.${key}`) };
+  }
+  console.error("[page-media] unexpected failure", e);
+  return { code: "upload_failed", message: t("pageMedia.errors.uploadFailed") };
+}
+
+type UserClient = Awaited<ReturnType<typeof createClient>>;
+
+async function callRegister(
+  supabase: UserClient,
+  args: { gymId: string; kind: PageMediaKind; originalKey: string; derivativeKey: string; dryRun: boolean },
+  attested: boolean,
+): Promise<string | null> {
+  const { data, error } = await supabase.rpc("register_page_media", {
+    p_gym_id: args.gymId,
+    p_kind: args.kind,
+    p_original_key: args.originalKey,
+    p_derivative_key: args.derivativeKey,
+    p_attested: attested,
+    p_attestation_version: PAGE_MEDIA_ATTESTATION_VERSION,
+    p_dry_run: args.dryRun,
+  });
+  if (error) {
+    const code = pageMediaCodeFromDbError(error);
+    if (code) throw new PageMediaError(code);
+    console.error("[page-media] register_page_media failed", error);
+    throw new PageMediaError("upload_failed");
+  }
+  return (data as string | null) ?? null;
+}
+
+async function removeObjects(admin: ReturnType<typeof createAdminClient>, originalKey: string, derivativeKey: string) {
+  // Independent attempts: a throw while removing the original must not leave the public derivative behind.
+  const results = await Promise.allSettled([
+    admin.storage.from(DERIVATIVE_BUCKET).remove([derivativeKey]),
+    admin.storage.from(SRC_BUCKET).remove([originalKey]),
+  ]);
+  const failures = results.map((r) => (r.status === "rejected" ? r.reason : r.value.error)).filter(Boolean);
+  if (failures.length > 0) {
+    console.error(`[page-media] rollback removal failed; orphan objects may remain: ${originalKey} / ${derivativeKey}`, ...failures);
+  }
+}
+
+/** Steps 3 and 4: store both objects, register the row, undo the objects when registering fails. */
+async function storeAndRegister(
+  supabase: UserClient,
+  gymId: string,
+  kind: PageMediaKind,
+  original: Buffer,
+  processed: ProcessedImage,
+): Promise<{ id: string; derivativeKey: string }> {
+  const admin = createAdminClient();
+  const originalKey = `${gymId}/${randomUUID()}`;
+  const derivativeKey = `${randomUUID()}.webp`;
+
+  const up1 = await admin.storage.from(SRC_BUCKET).upload(originalKey, original, {
+    contentType: SOURCE_CONTENT_TYPE[processed.format],
+    upsert: false,
+  });
+  if (up1.error) {
+    console.error("[page-media] original upload failed", up1.error);
+    throw new PageMediaError("upload_failed");
+  }
+  // From here on the original (GPS EXIF intact) exists: any failure, including an upload that rejects instead of returning
+  // `{ error }`, must take both objects out again.
+  try {
+    const up2 = await admin.storage.from(DERIVATIVE_BUCKET).upload(derivativeKey, processed.derivative, {
+      contentType: "image/webp",
+      cacheControl: DERIVATIVE_CACHE_SECONDS,
+      upsert: false,
+    });
+    if (up2.error) {
+      console.error("[page-media] derivative upload failed", up2.error);
+      throw new PageMediaError("upload_failed");
+    }
+    const id = await callRegister(supabase, { gymId, kind, originalKey, derivativeKey, dryRun: false }, true);
+    if (!id) throw new PageMediaError("upload_failed");
+    return { id, derivativeKey };
+  } catch (e) {
+    await removeObjects(admin, originalKey, derivativeKey);
+    throw e;
+  }
+}
+
+/** Admission and limits, with no storage write and no file read. */
+async function admit(supabase: UserClient, gymId: string, kind: PageMediaKind, attested: boolean) {
+  // The keys are placeholders: a dry run validates their shape but stores nothing.
+  await callRegister(
+    supabase,
+    { gymId, kind, originalKey: `${gymId}/${randomUUID()}`, derivativeKey: `${randomUUID()}.webp`, dryRun: true },
+    attested,
+  );
+}
+
+export interface UploadPageMediaInput {
+  gymId: string;
+  kind: unknown;
+  attested: unknown;
+  file: File | Blob | null;
+}
+
+export async function uploadPageMedia(
+  input: UploadPageMediaInput,
+): Promise<{ data: { id: string; derivativeKey: string } | null; error: AppError | null }> {
+  try {
+    if (!UUID_RE.test(input.gymId)) throw new PageMediaError("not_admitted");
+    const kind = pageMediaKindSchema.safeParse(input.kind);
+    if (!kind.success) throw new PageMediaError("unsupported_type");
+    // Absent or false is refused: only a real boolean true passes.
+    const attested = input.attested === true;
+    if (!attested) throw new PageMediaError("attestation_required");
+    if (!input.file) throw new PageMediaError("unsupported_type");
+    // Cheap checks on the declared size before anything else; the real byte length is checked again after reading.
+    if (input.file.size > PAGE_MEDIA_MAX_BYTES) throw new PageMediaError("too_large");
+
+    const supabase = await createClient();
+    await admit(supabase, input.gymId, kind.data, attested);
+
+    const original = Buffer.from(await input.file.arrayBuffer());
+    const processed = await processPageImage(original, kind.data);
+    return { data: await storeAndRegister(supabase, input.gymId, kind.data, original, processed), error: null };
+  } catch (e) {
+    return { data: null, error: await toAppError(e) };
+  }
+}
+
+/** Pull the object path out of a public gym-logos URL, or null when it is not one of ours. */
+export function gymLogoObjectPath(logoUrl: string | null | undefined, gymId: string): string | null {
+  if (!logoUrl) return null;
+  const marker = "/storage/v1/object/public/gym-logos/";
+  const at = logoUrl.indexOf(marker);
+  if (at === -1) return null;
+  let path: string;
+  try {
+    path = decodeURIComponent(logoUrl.slice(at + marker.length).split(/[?#]/)[0]);
+  } catch {
+    return null; // malformed percent-encoding
+  }
+  // The object must sit in this gym's own folder.
+  return path.startsWith(`${gymId}/`) && !path.includes("..") ? path : null;
+}
+
+/** Re-encode the gym's existing logo (gym-logos) into the page media bucket as kind `logo`. Never links or copies it raw. */
+export async function preparePageLogo(
+  gymId: string,
+  attested: unknown,
+): Promise<{ data: { id: string; derivativeKey: string } | null; error: AppError | null }> {
+  try {
+    if (!UUID_RE.test(gymId)) throw new PageMediaError("not_admitted");
+    if (attested !== true) throw new PageMediaError("attestation_required");
+    const supabase = await createClient();
+    await admit(supabase, gymId, "logo", true);
+
+    // Admitted. The service-role client reads the logo URL and the object (support callers cannot read gyms directly).
+    const admin = createAdminClient();
+    const { data: gym, error: gymError } = await admin.from("gyms").select("logo_url").eq("id", gymId).maybeSingle();
+    if (gymError) {
+      console.error("[page-media] reading logo_url failed", gymError);
+      throw new PageMediaError("upload_failed");
+    }
+    const path = gymLogoObjectPath(gym?.logo_url, gymId);
+    if (!path) throw new PageMediaError("no_logo");
+
+    const { data: blob, error: downloadError } = await admin.storage.from("gym-logos").download(path);
+    if (downloadError || !blob) throw new PageMediaError("no_logo");
+
+    const original = Buffer.from(await blob.arrayBuffer());
+    const processed = await processPageImage(original, "logo");
+    return { data: await storeAndRegister(supabase, gymId, "logo", original, processed), error: null };
+  } catch (e) {
+    return { data: null, error: await toAppError(e) };
+  }
+}
+
+/** Marks the row deleted (the RPC sets deleted_at; the view stops exposing it at once). Object removal is 24.11. */
+export async function deletePageMedia(mediaId: string): Promise<{ error: AppError | null }> {
+  try {
+    if (!UUID_RE.test(mediaId)) throw new PageMediaError("not_admitted");
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("delete_page_media", { p_media_id: mediaId });
+    if (error) {
+      const code = pageMediaCodeFromDbError(error);
+      if (code) throw new PageMediaError(code);
+      console.error("[page-media] delete_page_media failed", error);
+      throw new PageMediaError("upload_failed");
+    }
+    return { error: null };
+  } catch (e) {
+    return { error: await toAppError(e) };
+  }
+}
+
+
+/** What `rebuildPurgedMedia` hands back: the rebuilt rows, and the two ways to finish (commit after the publish, discard when it did not happen). */
+export interface RebuiltMedia {
+  ok: true;
+  /** Ids of the rows whose derivative was written back in this attempt. */
+  ids: string[];
+  /** Call after `publish_gym_page` has SUCCEEDED: clears the purge marks. Resolves false when that failed (logged; see the note on the function). */
+  commit(): Promise<boolean>;
+  /** Call when the publish did not happen: removes the derivatives written in this attempt (best effort), leaving the rows marked purged. */
+  discard(): Promise<void>;
+}
+
+/**
+ * Story 24.11 (AD-47): a page that went offline had its derivative images removed from the public bucket (the originals stay, private). Before
+ * the gate runs again, every live image of the gym whose derivative was purged is re-encoded from its original and written back at the SAME key
+ * (the snapshot and the row keep pointing at it). The purge marks are NOT cleared here: `commit()` clears them only after `publish_gym_page`
+ * has succeeded, so a purge tick can never list a rebuilt image of a page that is not live yet. On any failure here the derivatives written in
+ * this attempt are removed again (best effort) and `ok: false` comes back, so the caller does not publish. If `commit()` fails after a successful
+ * publish the page is live with stale marks: harmless while it is live, but a later unpublish would not purge those images until the next
+ * republish clears the marks; it is logged. The caller has already admitted the user (the page status read) and checked there is something to
+ * publish; the service-role calls below are unreachable from the browser.
+ */
+export async function rebuildPurgedMedia(gymId: string): Promise<RebuiltMedia | { ok: false }> {
+  if (!UUID_RE.test(gymId)) return { ok: false };
+  const uploaded: string[] = [];
+  const admin = (() => {
+    try {
+      return createAdminClient();
+    } catch {
+      return null;
+    }
+  })();
+  if (!admin) return { ok: false };
+  async function removeUploaded() {
+    if (uploaded.length === 0) return;
+    try {
+      const { error } = await admin!.storage.from(DERIVATIVE_BUCKET).remove(uploaded.splice(0));
+      if (error) console.error("[page-media] removing the derivatives of a failed re-derive failed", error);
+    } catch (e) {
+      console.error("[page-media] removing the derivatives of a failed re-derive failed", e instanceof Error ? e.name : "unknown");
+    }
+  }
+  try {
+    const listed = await admin.rpc("page_media_rederive_list", { p_gym_id: gymId });
+    if (listed.error) {
+      console.error("[page-media] page_media_rederive_list failed", listed.error);
+      return { ok: false };
+    }
+    const rows = listed.data ?? [];
+    const ids: string[] = [];
+    for (const row of rows) {
+      const kind = pageMediaKindSchema.safeParse(row.kind);
+      if (!kind.success) throw new PageMediaError("unsupported_type");
+      const { data: blob, error: downloadError } = await admin.storage.from(SRC_BUCKET).download(row.original_key);
+      if (downloadError || !blob) {
+        console.error("[page-media] the retained original could not be read; the image is not rebuilt");
+        throw new PageMediaError("upload_failed");
+      }
+      const processed = await processPageImage(Buffer.from(await blob.arrayBuffer()), kind.data);
+      const up = await admin.storage.from(DERIVATIVE_BUCKET).upload(row.derivative_key, processed.derivative, {
+        contentType: "image/webp",
+        cacheControl: DERIVATIVE_CACHE_SECONDS,
+        upsert: true,
+      });
+      if (up.error) {
+        console.error("[page-media] the derivative could not be written back", up.error);
+        throw new PageMediaError("upload_failed");
+      }
+      uploaded.push(row.derivative_key);
+      ids.push(row.id);
+    }
+    return {
+      ok: true,
+      ids,
+      async commit() {
+        if (ids.length === 0) return true;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const done = await admin.rpc("page_media_rederive_done", { p_gym_id: gymId, p_ids: ids });
+            if (!done.error) return true;
+            console.error("[page-media] page_media_rederive_done failed", done.error);
+          } catch (e) {
+            console.error("[page-media] page_media_rederive_done failed", e instanceof Error ? e.name : "unknown");
+          }
+        }
+        return false;
+      },
+      async discard() {
+        await removeUploaded();
+      },
+    };
+  } catch (e) {
+    console.error("[page-media] re-deriving purged images failed", e instanceof Error ? e.name : "unknown");
+    await removeUploaded();
+    return { ok: false };
+  }
+}

@@ -1,8 +1,38 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { hasEnvVars } from "../utils";
+import {
+  assertPrefixedCookieCanStick,
+  authCookieOptions,
+  hasCurrentSessionCookie,
+  legacyCookieNames,
+} from "./cookie-options";
 
+/** Story 24-3: the proxy entry. Old-format session cookies (`sb-<ref>-auth-token*`) are cleared. A request that carries only those
+ * (no `__Host-` session) is unauthenticated, so the inner gate decides: where it would send the user to sign-in, they go once to
+ * `/auth/login?expired=1` ("session expired" copy); on a public path (auth pages, cron, version, ...) the cookies are only cleared. */
 export async function updateSession(request: NextRequest) {
+  const names = request.cookies.getAll().map((c) => c.name);
+  const legacy = legacyCookieNames(names);
+  if (legacy.length === 0) return updateSessionInner(request);
+
+  const current = hasCurrentSessionCookie(names, authCookieOptions({ secure: request.nextUrl.protocol === "https:" }).name);
+  legacy.forEach((name) => request.cookies.delete(name));
+  let res = await updateSessionInner(request);
+  if (!current && res.status === 307) {
+    const to = new URL(res.headers.get("location") ?? "/", request.url);
+    if (to.pathname === "/auth/login") {
+      to.search = "";
+      to.searchParams.set("expired", "1");
+      res = NextResponse.redirect(to);
+    }
+  }
+  legacy.forEach((name) => res.cookies.set(name, "", { maxAge: 0, path: "/" }));
+  return res;
+}
+
+async function updateSessionInner(request: NextRequest) {
+  assertPrefixedCookieCanStick(request.nextUrl);
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -19,6 +49,7 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
+      cookieOptions: authCookieOptions({ secure: request.nextUrl.protocol === "https:" }),
       cookies: {
         getAll() {
           return request.cookies.getAll();

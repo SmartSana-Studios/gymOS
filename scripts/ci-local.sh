@@ -4,14 +4,15 @@
 #
 #   scripts/ci-local.sh              # everything CI runs
 #   scripts/ci-local.sh --fast       # static + pgTAP + vitest, skip the E2E (inner loop)
-#   scripts/ci-local.sh --only e2e   # one stage: static | deno | pgtap | unit | e2e
+#   scripts/ci-local.sh --only e2e   # one stage: static | deno | pgtap | unit | layout | e2e
 #
 # Stages and what they mirror in ci.yml:
 #   static  typecheck job: typecheck, lint (dashboard + super-admin), i18n parity, migration guardrails, require-db-backup test
-#   deno    typecheck job: deno test for supabase/functions/payment-webhook
+#   deno    typecheck job: deno test for supabase/functions/payment-webhook and supabase/functions/page-media-purge
 #   pgtap   rls-tests job: supabase/tests/*.sql
-#   unit    typecheck job: vitest for @gymos/dashboard
-#   e2e     e2e-tests job: Playwright against the local Supabase
+#   unit    typecheck job: vitest for @gymos/dashboard, mobile, super-admin, types, page-templates (conformance, DOM) and landing
+#   layout  typecheck job: the page-template conformance layout stage in headless Chromium (Story 24.10; a missing browser fails)
+#   e2e     e2e-tests job: Playwright against the local Supabase (dashboard AND landing servers; Story 24.12 adds the landing-page spec)
 #
 # Scheduling (4 cores / ~5 GB): static + pgtap run concurrently (both light),
 # then vitest alone (it already fans out across every core; overlapping it with
@@ -66,11 +67,16 @@ stage_static() {
   # so only the LAST command's status counted and a failing lint was reported as PASS
   # (found 2026-10-12: GitHub typecheck failed on lint errors this gate had passed).
   pnpm run typecheck || return 1
-  npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin || return 1
+  npx turbo run lint --filter=@gymos/dashboard --filter=@gymos/super-admin --filter=@gymos/landing --filter=@gymos/page-templates || return 1
   pnpm run check:i18n || return 1
   pnpm run check:migrations || return 1
   # Story 23.9: payment initiators and credential lookups verify under payments.credentials_id
   pnpm run check:credentials-id || return 1
+  # Story 24.2: no gym name can collide with a zone label; VERCEL_ENV / VERCEL_GIT_COMMIT_SHA are read in one module per app
+  pnpm run check:reserved-labels || return 1
+  pnpm run check:host-neutral-env || return 1
+  # Story 24.4: apps/landing holds no Supabase library or key (AD-42)
+  pnpm run check:landing-no-supabase || return 1
   pnpm run test:guardrails || return 1
   # The deploy scripts refuse to apply a migration without a green db-backup run (against a fake gh; never touches GitHub).
   bash "$ROOT/scripts/require-db-backup.test.sh" || return 1
@@ -90,9 +96,19 @@ stage_deno() {
     return 1
   fi
   (cd "$ROOT/supabase/functions/payment-webhook" && "$deno_bin" test --allow-all .) || return 1
+  # Story 24.11: the page-media purge (list, delete, mark after a confirmed delete, orphan sweep, one job_runs row; the bearer secret fails closed)
+  (cd "$ROOT/supabase/functions/page-media-purge" && "$deno_bin" test --allow-all .) || return 1
+}
+
+# Story 24.12: the landing-page E2E spec removes its gyms, but audit_log is append-only for service_role and gym_id is set null when the gym goes, so
+# its `gym_page_*` and `page_name_*` rows stay behind. gym_page_publish.negative.test.sql asserts that NO such audit row exists database-wide, so the
+# previous run's leftovers would fail it. Only orphaned page rows (no gym) are removed, as the DB owner; pgTAP's own fixtures roll back.
+clean_orphaned_page_audit_rows() {
+  psql_local -c "delete from audit_log where gym_id is null and (action_type like 'gym\_page\_%' or action_type like 'page\_name\_%')" >/dev/null || return 1
 }
 
 stage_pgtap() {
+  clean_orphaned_page_audit_rows || return 1
   # explicit `|| return 1` (see stage_static): `set -e` is ignored when run_stage calls this in an `if`
   PGTAP_JOBS="${PGTAP_JOBS:-1}" bash "$ROOT/scripts/pgtap-run.sh" || return 1
   # Refund-vs-consume and loyalty-ledger race (two real sessions; pgTAP runs one). Epic 19 R-1, Epic 20 R-1.
@@ -103,12 +119,28 @@ stage_pgtap() {
   bash "$ROOT/scripts/super-admin-aal2.test.sh" || return 1
   # Assign / confirm vs the Owner switch on one gym (two real sessions; Story 23.5).
   bash "$ROOT/scripts/support-assignments-race.test.sh" || return 1
+  # The landing reader's two statements run as public_site_reader against the migrated schema (Story 24.10 review pass 2).
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/public-site-reader-sql.test.sh" || return 1
+  # The media purge staleness check (the staging detector for a dead job) against the migrated schema (Story 24.12 review).
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/landing-gate/purge-staleness.test.sh" || return 1
   # Claim-read inventory (Story 22.2; enforcing since 22.4): any non-exempt claim-only / null-unsafe entry fails.
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" pnpm run check:claims || return 1
 }
 
 stage_unit() {
-  npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile --filter=@gymos/super-admin || return 1
+  # --concurrency=1 (Story 24.11 review): dashboard, mobile and super-admin together on 4 cores starved the super-admin form tests of their 5 s
+  # timeouts in four runs in a row (a different 1 to 6 tests each time, all green one package at a time). The three run one after the other.
+  npx turbo run test --filter=@gymos/dashboard --filter=@gymos/mobile --filter=@gymos/super-admin --concurrency=1 || return 1
+  # Story 24.10: the page-template, types and landing suites run AFTER, not beside, the three above: seven vitest runs at once starved the
+  # super-admin form tests of their 5 s timeouts (they pass alone and in the original three-package run).
+  npx turbo run test --filter=@gymos/types --filter=@gymos/page-templates --filter=@gymos/landing || return 1
+}
+
+stage_layout() {
+  # Story 24.10: every registered page template is rendered at 360, 768, 1280 and 1366 px in headless Chromium (no horizontal scroll, contact
+  # inside the first screen, 44 px targets, AA contrast, source order = visual order, CSP enforced). Idempotent browser install, as for the E2E.
+  (cd packages/page-templates && npx playwright install chromium) || return 1
+  npx turbo run test:layout --filter=@gymos/page-templates || return 1
 }
 
 psql_local() {
@@ -134,6 +166,10 @@ e2e_preflight() {
   fi
 }
 
+run_e2e_suite() {
+  CI=1 npx turbo run test:e2e --filter=@gymos/dashboard || return 1
+}
+
 stage_e2e() {
   e2e_preflight || return 1
   eval "$("$SUPABASE" status -o env 2>/dev/null)" || return 1
@@ -142,10 +178,21 @@ stage_e2e() {
   export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY
   export SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
   export DASHBOARD_APP_URL=http://127.0.0.1:3100
+  # Story 24.12: the landing-page spec starts apps/landing as a second Playwright webServer, which reads the database as the REAL public_site_reader
+  # role. The role has no password in a migration, so set a throwaway one on this local database (role-level change, no table touched), and give the
+  # landing server its PUBLIC_SITE_* variables. Fails here, in a second, if the role is missing (migrations 0160 and later not applied: psql names the role).
+  export PUBLIC_SITE_READER_PASSWORD=e2e-reader-local-only
+  psql_local -c "alter role public_site_reader password '$PUBLIC_SITE_READER_PASSWORD'" >/dev/null || return 1
+  export PUBLIC_SITE_ROOT_DOMAIN=localhost PUBLIC_SITE_READER_HOST=127.0.0.1 PUBLIC_SITE_READER_PORT=54322 PUBLIC_SITE_READER_DATABASE=postgres PUBLIC_SITE_READER_USER=public_site_reader
+  export PUBLIC_SITE_MEDIA_ORIGIN=$API_URL
   # Idempotent (no-op once cached); CI does the same before the suite.
   (cd apps/dashboard && npx playwright install chromium) || return 1
   # CI=1 matches the Actions environment: retries: 1, no server reuse, html report.
-  CI=1 npx turbo run test:e2e --filter=@gymos/dashboard || return 1
+  # The suite's own result is kept, the orphaned page audit rows are removed WHETHER OR NOT it passed (a failing run leaves them too, and the next
+  # pgTAP stage would then fail on an unrelated message), and the suite's result is returned last.
+  if run_e2e_suite; then e2e_rc=0; else e2e_rc=1; fi
+  clean_orphaned_page_audit_rows || return 1
+  return $e2e_rc
 }
 
 echo "ci-local: $(git rev-parse --short HEAD) on $(git rev-parse --abbrev-ref HEAD)"
@@ -166,6 +213,7 @@ if want deno;   then STAGES+=(deno);   run_stage deno   stage_deno   & pids+=($!
 if want pgtap;  then STAGES+=(pgtap);  run_stage pgtap  stage_pgtap  & pids+=($!); fi
 for p in "${pids[@]:-}"; do [ -n "$p" ] && wait "$p"; done
 if want unit; then STAGES+=(unit); run_stage unit stage_unit; fi
+if want layout; then STAGES+=(layout); run_stage layout stage_layout; fi
 if want e2e;  then STAGES+=(e2e);  run_stage e2e  stage_e2e;  fi
 
 echo

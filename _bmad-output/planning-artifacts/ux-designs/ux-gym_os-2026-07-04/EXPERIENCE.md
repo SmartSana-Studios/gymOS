@@ -2,11 +2,13 @@
 name: GymOS
 status: final
 created: 2026-07-04
-updated: 2026-10-15
+updated: 2026-11-08
 sources:
   - _bmad-output/planning-artifacts/prds/prd-gym_os-2026-06-20/prd.md
   - _bmad-output/planning-artifacts/epics.md
   - _bmad-output/planning-artifacts/architecture/architecture-gym_os-2026-08-11/ARCHITECTURE-SPINE.md
+  - _bmad-output/implementation-artifacts/spec-24-8-publish-gate-snapshot-and-unpublish.md
+  - _bmad-output/implementation-artifacts/deferred-work.md
 design_spine: DESIGN.md
 ---
 
@@ -40,7 +42,7 @@ design_spine: DESIGN.md
 - **GymOS support person** *(FR-175, FR-189)*: a platform account that works inside assigned gyms in the Admin Dashboard (as a role "support", Supervisor-scope plus additions, FR-178/FR-179). It signs in with **phone + password, then a six-digit authenticator code** (second factor, AAL2), never email + password. Every gym user is shown it only as the single name "GymOS Support" (FR-186). Support sessions end after 8 hours or 15 minutes idle `[ASSUMPTION]`.
 - **Super Admin** additionally signs in with the second factor once the platform flag is on (FR-191). The existing "separate credential flow" line still holds; the second step is added after it.
 - **Public surfaces** *(PS-nn, FR-196, FR-210)*: gym pages at `{name}.gymosapps.com` and the directory at `www.gymosapps.com/{locale}/gyms/`. They have no login, no cookie, no script, and no account. They are specified as behavior only in "Screen Reference — Public Surfaces"; visual design stays in `DESIGN.md`.
-- `[CONFLICT]` with the Localization line above: the "user preference → device locale → EN fallback" order does not apply to a gym page. A gym page's chrome language is the gym's saved `default_language`, fixed per page, with no device or `Accept-Language` negotiation (Architecture Decision AD-50, FR-208). The directory takes its language from the explicit `/{en|fr}/` part of its URL. The chain still applies to every authenticated surface. Epic 24 Story 24.10 says "per the visitor's negotiated language"; that wording conflicts with Architecture Decision AD-50 and this spine follows AD-50 (see PS-01).
+- `[CONFLICT]` with the Localization line above: the "user preference → device locale → EN fallback" order does not apply to a gym page. A gym page shows the visitor's best language from `Accept-Language` among the page's complete languages (each supported content language, today English and French; see "Supported content languages" in the shared rules of the public surfaces), with a plain link, or a menu when there are more than two, to the others at `/en`, `/fr` and so on; with only one complete language it shows that one. There is no cookie and no script, and no saved user preference (a visitor has no account). Decided by the product owner on 2026-11-08 (visitor language, option "Separate /fr path"; resolves OQ-28, prd.md:1216); this supersedes the earlier "fixed per page, no negotiation" reading of Architecture Decision AD-50 and agrees with Epic 24 Story 24.10's "per the visitor's negotiated language" (see PS-01). The directory takes its language from the explicit `/{en|fr}/` part of its URL. The chain still applies to every authenticated surface.
 
 ---
 
@@ -134,6 +136,7 @@ design_spine: DESIGN.md
 | SA-19 | Cities | `/cities` *(V1.7, FR-209, Story 25.1)* |
 | SA-20 | Security — Second Factor | `/security` *(V1.7, FR-191, Story 22.5)* |
 | SA-21 | Step-Up Prompt | Modal, any SA/AD action that needs a fresh code *(V1.7, FR-189, Story 22.7)* |
+| SA-22 | Word Lists | `/pages/words` *(V1.7, FR-202, Story 24.7)* `[ASSUMPTION — route; reached from the "Word lists" link on SA-16]` |
 
 ### Public Surfaces *(V1.7, behavior only)*
 
@@ -239,6 +242,7 @@ Super Admin Dashboard
     │    └── Disclosures → SA-15
     ├── Pages     → SA-16 (tabs: Held names / Reports / Appeals)     [V1.7]
     │    ├── Held names → SA-16
+    │    ├── Word lists → SA-22 (link on SA-16)
     │    ├── Reports (+ takedown dialog) → SA-17
     │    └── Appeals → SA-18
     ├── Cities    → SA-19                                            [V1.7]
@@ -403,6 +407,8 @@ Microcopy guide. Brand voice and visual identity live in `DESIGN.md`.
 | Page name held *(V1.7, FR-202)* | "Name under review. We'll tell you within 2 business days." | "Name rejected." / "Suspicious name." (a held name is not an accusation) |
 | Page name taken *(V1.7, FR-202)* | "That name isn't available. Try another." | "That name is reserved." (a reserved or brand-word refusal must not reveal which rule fired, so look-alike probing learns nothing) |
 | Page unpublished by a check *(V1.7, FR-199)* | "Your page is offline: it no longer has a public plan. Make a plan public and publish again." | "Page validation failed." |
+| Page name replaced *(V1.7, 24-7)* | "GymOS changed your page name to grace-fit-douala. Your old address forwards to the new one for 12 months." | "Your page name was rejected." (a replacement is not a verdict on the Owner) |
+| Page name released *(V1.7, 24-8)* | "Your page name grace-fit was released because your gym has been inactive for 12 months. Claim a name to publish again." | "Your page was deleted." (the content and the page are kept; only the name went) |
 | Page taken down *(V1.7, FR-204)* | "GymOS took your page down: [reason]. Your page name stays reserved for you. You can appeal." | "Your page violated our policy." |
 | Page not found, public *(V1.7, FR-207)* | "This page isn't available." | Any of "taken down", "unpublished", "suspended", "not found yet" — one response for every cause, so a visitor cannot tell which |
 | Support switch — Owner notice before release *(V1.7, FR-183)* | "New: GymOS Support. You can let GymOS help set up your gym. It stays off until you turn it on in Settings." | "We've enabled support on your account." |
@@ -2555,37 +2561,68 @@ Absent controls are removed from the DOM, not disabled (Role-based rendering). T
 │ ✓ Category         Pilates Studio                                     │
 │ ✓ Logo                                                                │
 │ ✗ Banner image                                         [Add banner →] │
-│ ✗ About text        68 of 100 characters minimum       [Go to About →]│
+│ ✗ About text (in one language)    68 of 100 chars [Go to Page text →]│
 │ ✓ Country and city  Cameroon · Douala                                 │
 │ ✓ Public contact                                                      │
 │ ✗ Opening hours                                        [Set hours →]  │
 │ ✗ At least one public plan                             [Choose →]     │
 │ Optional: gallery · services · map position                          │
 └──────────────────────────────────────────────────────────────────────┘
+Languages offered: English · Français needs 32 more characters in About
+                                                          [Go to Page text →]
 
 ── Page name ────────────────  grace-fit.gymosapps.com     [Change name]
-── About ────────────────────  [textarea, 100–1 000 chars] 
-── Services and activities ──  [tag input, up to 12]
-── Images ───────────────────  Logo · Banner · Gallery (up to 10)
+── Page text ────────────────  Language tabs: only the default language and languages with saved text
+                               ( English ✓ Complete )  ( Français · needs 32 more characters )  [+ Add language]
+                                 ↑ opens on the default language (here English);
+                                   [+ Add language] reads "Add French" / "Add English" with two supported
+                                   languages, a menu of the languages not yet on the page from three;
+                                   it disappears when every supported language is on the page
+                               About (Français)      [textarea, up to 2 000 chars]  68 / 2 000
+                                                     68 of 100 needed to offer this language
+                               Services (Français)   [multi-line, one per line]      0 / 2 000
+                               [Remove French text]   ← not offered on the default language's tab
+── Images ───────────────────  Logo · Banner · Gallery (up to 12)
 ── Location ─────────────────  Country ▾  City ▾  Address  Map position (optional)
 ── Opening hours ────────────  Mon–Sun: open ▾ close ▾ / Closed
 ── Public contact ───────────  Phone [   ]  WhatsApp [   ]
 ── Plans on your page ───────  per-plan [ Show on my page ] switch
+                               (name, type, interval, duration and price with its own currency are
+                               shown read-only; the only control is the switch, no label fields)
 ── Template ─────────────────  [Classic ✓]
                                                           [Save changes]
 ```
-- **Checklist** *(FR-199)*: nine required items, three optional lines. Each missing item names itself and links to its field with an anchor. The summary sentence is "Your page can go live when all 9 items are ready." / « Votre page peut être publiée quand les 9 éléments sont prêts. » Items are re-evaluated as fields change; the server is the authority at publish (the client check only mirrors it). The checklist is `aria-live="polite"` (Accessibility Floor).
+- **Checklist** *(FR-199)*: nine required items, three optional lines. Each missing item names itself and links to its field with an anchor. The summary sentence is "Your page can go live when all 9 items are ready." / « Votre page peut être publiée quand les 9 éléments sont prêts. » The About item reads "About text, in at least one language" / « Texte « À propos », dans au moins une langue » and is ready when at least one supported content language is complete under the **Language completeness rule** (PS shared rules: today About of 100 characters after trimming), so it counts the longest About across the supported languages. Under the checklist, one info line **"Languages offered:"** / « Langues proposées : » lists the complete languages and, for each incomplete language that has any content, what it lacks, read from the same rule: "Français needs 32 more characters in About" / « Français : il manque 32 caractères dans « À propos » » `[ASSUMPTION]`. The line is information, not a tenth item, and does not block publishing. `[ASSUMPTION]` The About item's [Go to Page text →] link and the line's own link ([Go to Page text →]) both open the **Page text** section on the relevant tab: the default language's tab, or the first incomplete tab when the default language is complete (see "Page text, one section with language tabs" below). The checklist is `aria-live="polite"` (Accessibility Floor).
+- **Where the checklist comes from** `[ASSUMPTION]`: the editor does not re-implement the gate. The checklist and the AD-29 publish list are rendered from one read-only server function that returns the missing gate codes and the snapshot that would be published; the client only maps each code to a label and an anchor. Items are refreshed after each save and when the page regains focus, not on every keystroke, except the About character counter, which is local. The server is still the authority at publish. The function itself is deferred to Story 24.9 (deferred-work.md); until it exists, this section is the behavior it must deliver.
 - **Name item** shows three states: "Not claimed" (Owner: [Claim a name]), "Under review" (not ready; publishing is blocked until Super Admin decides, FR-202), "grace-fit" (ready).
-- **Fields and limits** `[ASSUMPTION — lengths and counts are not set in the sources; confirm in Story 24.5]`: About 100–1 000 characters; Services up to 12 entries of 40 characters; Address one text field; Map position two numeric fields, latitude and longitude, with the helper "Optional. Adds a Directions link to your page."; Opening hours one range per day, in the gym timezone (AD-13), with [Copy Monday to all days]; Gallery up to 10 images.
-- **Text only** *(FR-205)*: all fields take plain text. Markup characters are rejected inline: "Use plain text only — no links or formatting." / « Utilisez du texte brut uniquement — pas de liens ni de mise en forme. »
+- **Fields and limits** *(built in 24.5–24.8)*: About and Services are free text of 1–2 000 characters **per supported content language**; Address one text field; Map position two numeric fields, latitude and longitude, with the helper "Optional. Adds a Directions link to your page."; Opening hours one range per day, in the gym timezone (AD-13), with [Copy Monday to all days]; Gallery up to 12 images.
+- **Page text, one section with language tabs** `[ASSUMPTION — product owner, 2026-11-08, replaces one About and one Services field per language]`: About and Services live in **one** section titled "Page text" / « Texte de la page ». It holds a **language tab list** and, under it, the **About** and **Services** fields of the selected language only. The tab list does not show every supported language:
+  - **Which tabs are shown.** A tab is shown when its language is the gym's `default_language` **or** already has saved text in About or Services. This is derived from the stored text; no new storage `[ASSUMPTION]`. A fresh editor therefore opens with **one tab**, the default language, selected. A language added with [+ Add language] but never given any text has no saved text, so after a reload its tab is gone (during the visit it stays).
+  - **[+ Add language].** A control after the last tab lists **only the supported content languages not yet shown** (PS shared rules, **Supported content languages**) and adds a tab for the one chosen, selected, with its fields empty. With today's two languages it is a single button named for the missing language: "Add French" / « Ajouter le français » on a page that shows English only, "Add English" / « Ajouter l'anglais » on one that shows French only (language names in the dashboard language). From three supported languages it is a menu of the languages not yet shown (button "Add language" / « Ajouter une langue »). When every supported language is shown the control is removed from the DOM.
+  - **Status on every tab.** Each tab label is the language's own name plus its completeness status, read from the **Language completeness rule**: **Complete** / « Complète » (offered to visitors); "needs 32 more characters" / « il manque 32 caractères » (some text, not enough); **Empty** / « Vide » (no text in About or Services). Status is an icon plus words, never colour alone. The tab list is segmented tabs; from five tabs shown it becomes a dropdown with the same status in each option.
+  - **Default tab.** The page opens on the default language's tab. The default language's tab is never removed, and may stay Empty as long as another language is Complete (the gate needs at least one complete language, so a page written only in French is publishable).
+  - **One form, one Save.** All tabs belong to the same form and the same [Save changes]. Text typed on one tab survives switching to another tab and back, and everything typed on every tab is saved together. A tab that has unsaved text is not marked; Save is the only commit.
+  - **Counters stay per field.** "About (Français)" / « À propos (français) » shows its own counter ("68 / 2 000") and its progress against the completeness threshold ("68 of 100 needed to offer this language") / « 68 sur 100 pour proposer cette langue »; "Services (Français)" / « Services (français) » shows its own counter. The label is the field name plus the language's editor label (Supported content languages), so errors and screen readers always name the language.
+  - **Errors on another tab.** A refused value in a tab that is not selected adds "Needs attention" / « À corriger » to that tab's status; on a refused Save, the first tab with an error is selected and focus moves to the field, and the error names the field ("About (English) can't contain < or >.").
+  - **Helper under the section:** "Fill in one language or more. Visitors see the language their browser prefers among the languages you complete, with a link to the others." / « Remplissez une langue ou plusieurs. Les visiteurs voient la langue préférée de leur navigateur parmi les langues que vous complétez, avec un lien vers les autres. » A language that is not complete is not offered (no link, no alternate); the page never shows a machine translation.
+  - **Removing a language.** Each tab except the default language's has [Remove French text] / « Supprimer le texte en français » (the language name in the button), placed under that tab's fields. It opens a confirmation dialog: title "Remove French text?" / « Supprimer le texte en français ? », body "This clears the About and Services you wrote in French. It cannot be undone." / « Cela efface les textes « À propos » et « Services » que vous avez écrits en français. Cette action est irréversible. », buttons [Cancel] / [Annuler] and [Remove French text] / [Supprimer le texte en français] (destructive style). Confirming clears that language's two fields in the saved page at once, with its own save (other tabs' unsaved text stays in the form), removes the tab, shows the toast "French text removed." / « Texte en français supprimé. », and puts [+ Add language] back. If the removal would leave the page with no complete language while it is live, the dialog adds the warning pattern used for public plans: "Your page will go offline because it would have no complete language." / « Votre page sera hors ligne car elle n'aurait aucune langue complète. » and the confirm button reads [Remove and unpublish]. `[ASSUMPTION — immediate save and the live-page warning; the owner only specified the confirmation]`
+  - **Services** (inside each tab) `[ASSUMPTION]`: replaces the old 12 × 40 tag input. One multi-line field, 1–2 000 characters. Helper: "One service per line." / « Un service par ligne. » The public page shows one item per line; blank lines are dropped and each line is trimmed. Optional, so it can be empty; Services never decide whether a language is offered. Text typed in a language that is not complete is kept but not shown publicly until that language is complete.
+  - **Links into the section.** The checklist About item and the "Languages offered" line link to this section and select a tab: the **default language's tab**; when the default language is complete, the **first incomplete tab** (a shown language that has text but is not complete); when every shown tab is complete, the default language's tab. A link never adds a tab.
+  - **Language-neutral sections stay outside.** Page name, Images, Location, Opening hours, Public contact, Plans on your page and Template are outside the tab list, appear once, and carry no language tabs and no wording about translation.
+  - **Keyboard and screen readers.** The tab list is a `role="tablist"` with one `role="tab"` per shown language and a `role="tabpanel"` for the fields, labelled by the selected tab. One tab stop on the tab list (roving tabindex); Left and Right arrow keys move to the previous and next tab and select it (Home and End go to the first and last), and Tab moves on into the panel's fields. The accessible name of a tab is the language and its status, so the selected tab is announced like "Français, tab, selected, needs 32 more characters, 2 of 2". [+ Add language] is a real button after the tabs (a menu button with `aria-haspopup="menu"` from three languages), reached with Tab, not part of the arrow-key sequence; choosing a language moves focus to the new tab's About field and announces "French added" / « Français ajouté » politely. [Remove French text] is a real button; its dialog is modal with focus on [Cancel], Escape cancels, and on close focus returns to [Remove French text] if cancelled, or, if the language was removed, to the default language's tab (the removed tab no longer exists) with the toast announced politely. The dropdown form (five tabs or more) is a native `<select>` whose options carry the status, with Up and Down arrows.
+- **Cleaning text before save** `[ASSUMPTION]`: every text field of this page has Windows line breaks (CRLF) turned into plain line breaks (LF) and control characters other than line break and tab removed, in the browser before the save is sent, and the field shows the cleaned text. The server refuses what is left (`bad_text`) rather than trusting this step. Pasted text with hidden characters therefore never fails silently.
+- **Text only** *(FR-205)*: all fields take plain text. The characters `<` and `>` are rejected inline: "Use plain text only — no links or formatting." / « Utilisez du texte brut uniquement — pas de liens ni de mise en forme. »
+- **Errors name the field** `[ASSUMPTION]`: a refused value says which field it is in and where to fix it. Gym name and plan names are edited elsewhere, so their errors carry a link. Examples (EN / FR): "Gym name can't contain < or >. [Fix in Settings →]" / « Le nom de la salle ne peut pas contenir < ou >. [Corriger dans les Paramètres →] » · "About (English) can't contain < or >." / « À propos (anglais) ne peut pas contenir < ou >. » The same sentence pattern covers Services, Address and City.
+- **Map position, half filled** `[ASSUMPTION]`: if only one of latitude and longitude has a value, both fields show "Enter both latitude and longitude, or clear both." / « Saisissez la latitude et la longitude, ou effacez les deux. » Save is refused until both or neither are filled. A published page with a half-filled position (set elsewhere, e.g. by support) goes offline with `map_incomplete` (reason table below).
+- **Too much content** `[ASSUMPTION]`: if the whole page would be over the size the server accepts (64 KiB of published data), Save and Publish are refused with a banner at the top: "This page has too much content to publish. Shorten the About or Services text." / « Cette page contient trop de contenu pour être publiée. Raccourcissez le texte « À propos » ou « Services ». » With 2 000-character fields this is not expected in practice; the copy exists so the failure is never a blank error.
 - **Public contact** *(FR-197)*: phone and WhatsApp fields in E.164 (same inline rule as AD-17). Helper: "Shown to everyone who visits your page. It can differ from the phone you sign in with, which is never shown." / « Visible par toute personne qui visite votre page. Il peut différer du téléphone avec lequel vous vous connectez, qui n'est jamais affiché. » There is no "copy login phone" shortcut. At least one of the two is required.
 - **Category** shows the AD-13 value read-only with [Change in Settings →] (it is saved there, FR-171). `[CONFLICT]` with AD-13 Category helper "It doesn't change how GymOS works" and the V1.6 line "never appears in the member app… descriptive only": from V1.7 the category label is also shown publicly on the page and is a directory filter (FR-213). The AD-13 helper gains: "It's also shown on your public page if you publish one." / « Elle est aussi affichée sur votre page publique si vous en publiez une. » Behavior is still unchanged (FR-213).
-- **Plans on your page** *(FR-200)*: every plan of the gym is listed with name, price and duration and a switch "Show on my page" / « Afficher sur ma page ». Default off for every plan. Helper: "Private plans never appear on your page or anywhere public." / « Les formules privées n'apparaissent jamais sur votre page ni ailleurs en public. » Pay-per-session plans list as "XAF 2,000 / session". Turning off the last public plan on a published page shows before saving: "Your page will go offline because it would have no public plan. Save anyway?" / « Votre page sera hors ligne car elle n'aurait plus de formule publique. Enregistrer quand même ? » [Cancel] [Save and unpublish].
+- **Plans on your page** *(FR-200)*: every plan of the gym is listed with name, price and duration and a switch "Show on my page" / « Afficher sur ma page ». Default off for every plan. Helper: "Private plans never appear on your page or anywhere public." / « Les formules privées n'apparaissent jamais sur votre page ni ailleurs en public. » **Each plan carries its own currency**, and every price in this list shows its amount with that currency's code as stored, grouped by the editor's language and never converted (for example "15,000 XAF / 30 days" and a plan in another currency such as "300 EUR / 365 days" side by side); pay-per-session plans list as "2,000 XAF / session". **Plan names are never translated**: the name is shown exactly as entered on every language version of the page, while the plan's type, billing interval and duration are translated by the template from its dictionary (PS-01 Plans row). **No public label fields** `[ASSUMPTION — product owner, 2026-11-08, replaces the per-language plan label inputs]`: the editor shows only the "Show on my page" switch for each plan. The `public_label_en` / `public_label_fr` columns built in 24.5 stay in the database, unused and never shown; the editor has no field for them, the publish list no rows, and no copy mentions them. Turning off the last public plan on a published page shows before saving: "Your page will go offline because it would have no public plan. Save anyway?" / « Votre page sera hors ligne car elle n'aurait plus de formule publique. Enregistrer quand même ? » [Cancel] [Save and unpublish].
 - **Images** *(FR-205)*: a shared upload control for logo, banner and gallery. JPEG, WebP or PNG, up to 5 MB each `[ASSUMPTION]`. Before the upload is enabled, an **attestation checkbox** must be ticked: "I have the right to publish this image." / « J'ai le droit de publier cette image. » Helper: "Photos are re-saved without location data." / « Les photos sont réenregistrées sans données de localisation. » Rejected files: "Use a JPEG, WebP or PNG under 5 MB." / « Utilisez une image JPEG, WebP ou PNG de moins de 5 Mo. » Each gallery image has an optional "Describe this image" field (read by screen readers on the public page) `[NOTE FOR UX]` make it required for gallery images? The logo's text alternative is the gym name. Deleting an image removes it from the page at once; its public copy is purged within 15 minutes.
 - **The logo** is the gym's existing logo from AD-13 Branding; a missing logo links to Branding. It is re-saved for the page at publish.
-- **Template picker** *(FR-201)*: V1.7 ships one launch template, so the picker is one selected card named "Classic" `[ASSUMPTION — name]` with "More templates are coming." Swapping later never asks for content again. `[NOTE FOR UX]` the sources name no live preview. The public site reads only the published snapshot, so a preview of unpublished content needs a dashboard-rendered preview built from the same template module (Architecture Decision AD-48). Decide whether a preview is wanted for the launch template; none is specified here.
+- **Template picker** *(FR-201; changed 2026-11-10, story 24.13 follow-up)*: two templates are offered, Classic (light) and Volt (dark). The editor's Template card shows the current template (thumbnail, name, one-line description) and a **[Change template]** button that opens a **modal**: one radio card per template (drawn thumbnail, name, description, a "Current" tag), [Cancel] and [Use this template]. Swapping never asks for content again. A page that is **not live** remembers the choice and the publish screen publishes with it (it shows "Template: Volt" with a Change link); a **live** page is **republished at once** with the new template (the modal says so), and if the page no longer passes the gate nothing changes and the modal says the page is not ready. Only an Owner or Supervisor sees the button, and not on a taken-down page. `[NOTE FOR UX]` the sources name no live preview; the thumbnails are drawn wireframes, not renders of the gym's own content (a dashboard-rendered preview from the same template module, AD-48, is still open). The choice of a page that is not live lives in the editor session only; keeping it across a reload needs a draft template column and a migration.
 - **Save model:** [Save changes] writes the content through the page-content setter and saves on its own (not part of [Save Settings]). Toast "Page saved." / « Page enregistrée. »
-- **A published page has no separate draft** `[ASSUMPTION — follows Architecture Decision AD-46: every source change re-snapshots]`. When the page is live, a persistent info line sits under the title: "This page is live. Saved changes appear on it within about 2 minutes." / « Cette page est en ligne. Les modifications enregistrées y apparaissent en moins de 2 minutes environ. » If a save would break the gate, the same warning pattern as the public-plan example shows first.
+- **A published page has no separate draft** `[ASSUMPTION — follows Architecture Decision AD-46: every source change re-snapshots]`. When the page is live, a persistent info line sits under the title: "This page is live. Saved changes can take up to 2 minutes to appear." / « Cette page est en ligne. Les modifications enregistrées peuvent mettre jusqu'à 2 minutes à apparaître. » `[ASSUMPTION — wording]` The page's stored copy is updated in the same save (built in 24.8); the up-to-2-minutes delay is only the public cache, so a visitor may see the previous version for that long. If a save would break the gate, the same warning pattern as the public-plan example shows first, naming the item that would fail (reason table below).
 
 **Status values** (badge + label + icon; Accessibility Floor):
 
@@ -2596,21 +2633,29 @@ Absent controls are removed from the DOM, not disabled (Role-based rendering). T
 | Ready | All 9 items ready, not published | `info` | [Review & publish →] |
 | Published | Live | `success` | [Unpublish] |
 | Offline — gate failed | Unpublished automatically; reason shown | `warning` | Fix and [Review & publish →] |
-| Offline — gym suspended | Gym is suspended (FR-207) | `neutral` | None; returns when the gym is active |
+| Offline — gym suspended | Gym is suspended (FR-207); the page is hidden but its saved copy is kept `[ASSUMPTION]` | `neutral` | [Unpublish]. Info line: "Your page is hidden while your gym is suspended. It comes back when your gym is active again." / « Votre page est masquée tant que votre salle est suspendue. Elle reviendra quand votre salle sera de nouveau active. » An Owner who unpublishes here keeps it unpublished on reactivation. If the name was released (next row) the info line is replaced by that row's |
+| Offline — name released | The gym was not active for 12 months and its page name was released (reason `name_released`) `[ASSUMPTION]` | `warning` | [Claim a name] (Owner) then [Review & publish →]. Info line: "Your page name was released after 12 months without activity. Claim a name to publish again." / « Le nom de votre page a été libéré après 12 mois d'inactivité. Choisissez un nom pour publier à nouveau. » A Supervisor or support person sees the line and "Ask the Owner to claim a name." / « Demandez au propriétaire de choisir un nom. » |
 | Taken down | GymOS took it down (FR-204); republishing blocked | `danger` | [Appeal] (Owner) |
 
-- **Auto-unpublish reason** *(FR-199)* shown as a banner at the top of the editor and on AD-29, plus the existing Owner notification:
+- **Auto-unpublish reason** *(FR-199, built in 24.8)* shown as a banner at the top of the editor and on AD-29, plus the existing Owner notification (a bilingual notice and an email to every active Owner). A live page that stops meeting the gate unpublishes itself and records the failing **gate codes**; the banner is built from them. One row per code, so every code the server can return has copy `[ASSUMPTION — copy for all 13 codes and the release reason]`:
 
-| Failed item | EN | FR |
+| Code | EN | FR |
 |---|---|---|
-| Logo removed | "Your page is offline: it no longer has a logo." | « Votre page est hors ligne : elle n'a plus de logo. » |
-| Banner removed | "Your page is offline: it no longer has a banner image." | « Votre page est hors ligne : elle n'a plus d'image de bannière. » |
-| About too short | "Your page is offline: the About text is under 100 characters." | « Votre page est hors ligne : le texte « À propos » fait moins de 100 caractères. » |
-| Place removed | "Your page is offline: it no longer has a country and city." | « Votre page est hors ligne : elle n'a plus de pays ni de ville. » |
-| Contact removed | "Your page is offline: it no longer has a public contact." | « Votre page est hors ligne : elle n'a plus de contact public. » |
-| Hours removed | "Your page is offline: it no longer has opening hours." | « Votre page est hors ligne : elle n'a plus d'horaires d'ouverture. » |
-| No public plan | "Your page is offline: it no longer has a public plan." | « Votre page est hors ligne : elle n'a plus de formule publique. » |
-| Name no longer valid | "Your page is offline: its page name is no longer active." | « Votre page est hors ligne : son nom de page n'est plus actif. » |
+| `no_name` | "Your page is offline: its page name is no longer active." | « Votre page est hors ligne : son nom de page n'est plus actif. » |
+| `no_category` | "Your page is offline: it no longer has a category." | « Votre page est hors ligne : elle n'a plus de catégorie. » |
+| `no_logo` | "Your page is offline: it no longer has a logo." | « Votre page est hors ligne : elle n'a plus de logo. » |
+| `no_banner` | "Your page is offline: it no longer has a banner image." | « Votre page est hors ligne : elle n'a plus d'image de bannière. » |
+| `about_short` | "Your page is offline: the About text needs at least 100 characters in one language." | « Votre page est hors ligne : le texte « À propos » doit faire au moins 100 caractères dans une langue. » |
+| `no_country` | "Your page is offline: it no longer has a country." | « Votre page est hors ligne : elle n'a plus de pays. » |
+| `no_city` | "Your page is offline: it no longer has a city." | « Votre page est hors ligne : elle n'a plus de ville. » |
+| `no_contact` | "Your page is offline: it no longer has a public contact." | « Votre page est hors ligne : elle n'a plus de contact public. » |
+| `no_hours` | "Your page is offline: it no longer has opening hours." | « Votre page est hors ligne : elle n'a plus d'horaires d'ouverture. » |
+| `no_public_plan` | "Your page is offline: it no longer has a public plan." | « Votre page est hors ligne : elle n'a plus de formule publique. » |
+| `map_incomplete` | "Your page is offline: the map position has a latitude or a longitude but not both." | « Votre page est hors ligne : la position sur la carte a une latitude ou une longitude, mais pas les deux. » |
+| `bad_text` | "Your page is offline: [field] contains characters that aren't allowed." | « Votre page est hors ligne : [champ] contient des caractères non autorisés. » |
+| `too_large` | "Your page is offline: it has too much content." | « Votre page est hors ligne : elle contient trop de contenu. » |
+| `name_released` *(not a gate code)* | "Your page is offline: its page name was released after 12 months without activity." | « Votre page est hors ligne : son nom de page a été libéré après 12 mois d'inactivité. » |
+- **Reading the table.** Every banner ends with its way out, from the row's code: "Fix it and publish again." / « Corrigez-le puis republiez. » — except `name_released`: "Claim a name and publish again." / « Choisissez un nom et republiez. » `[field]` names the field at fault (gym name, plan name, About or Services in a named supported content language, address, city), in the wording of the field error above. When **several codes** fail at once, the banner says "Your page is offline. To publish it again:" / « Votre page est hors ligne. Pour la republier : » followed by one bullet per code, each the text after the colon in its row, with the same anchor link as the AD-27 checklist. A code never shows twice. Order follows the checklist, with `bad_text`, `map_incomplete` and `too_large` last.
 - **Taken down banner** *(FR-204)*: "GymOS took your page down: [reason code label]. Your page name stays reserved for you. You can appeal." / « GymOS a retiré votre page : [motif]. Le nom de votre page reste réservé pour vous. Vous pouvez faire appel. » Reason labels: Impersonation / Usurpation d'identité; Illegal content / Contenu illicite; Trademark / Marque déposée; Misleading content / Contenu trompeur; Privacy / Vie privée; Other / Autre.
 - **Appeal** `[ASSUMPTION — form shape]`: [Appeal] opens a modal with a required textarea (500 characters) "Tell us why this page should be restored." / « Dites-nous pourquoi cette page devrait être rétablie. » and [Cancel] [Send appeal]. After sending, the banner reads "Appeal sent on [date]. GymOS will decide and tell you." / « Appel envoyé le [date]. GymOS décidera et vous répondra. » The decision (SA-18) updates the banner.
 - **First visit after release** *(FR-197)*: for an existing gym, the Owner's first Settings visit shows a prompt "Put your gym on the web. Fill in your page — nothing is public until you publish." / « Mettez votre salle en ligne. Remplissez votre page — rien n'est public tant que vous ne publiez pas. » with [Set up my page] and [Not now]. Nothing is published either way. `[ASSUMPTION — dismissal is remembered per user]`
@@ -2648,6 +2693,14 @@ Your page will be at  https://grace-fit.gymosapps.com
 - **Name reserved while unpublished** *(FR-203)*: an info line under the name when the page is not published: "Your name stays reserved for you while your page is offline, for up to 12 months." / « Votre nom reste réservé pour vous tant que votre page est hors ligne, jusqu'à 12 mois. »
 - **Non-Owner:** the modal is not reachable; the name row is plain text.
 - **Error:** "Couldn't save the name. Try again." / « Impossible d'enregistrer le nom. Réessayez. » inline.
+- **Typed errors** *(Story 24.7 deferral, to close before 24.9)* `[ASSUMPTION — copy]`. Both stay inline in the modal, which stays open, and neither appears as the generic error above:
+  - `not_admitted` (the caller's role may not claim or rename; normally unreachable because the control is absent for non-Owners, so it appears only after a role change in another tab): "Only the Owner can change the page name." / « Seul le propriétaire peut modifier le nom de la page. » (the same sentence as the non-Owner line in AD-27).
+  - `gym_not_active` (the gym is suspended or deactivated): "Your gym isn't active, so the page name can't be changed right now." / « Votre salle n'est pas active : le nom de la page ne peut pas être modifié pour le moment. » The button stays enabled so the message can be re-read after reactivation; no countdown or cause beyond this.
+- **Owner notices for names** `[ASSUMPTION]` (Owner only, same banner and notification path as the "Name decision" row in Owner Support Notices; today the Owner is told only about a held-name decision, not about these three):
+  - *Name replaced by GymOS* (a Super Admin claim or a forced rename, SA-17, that replaces the gym's name): "GymOS changed your page name to grace-fit-douala. Your old address forwards to the new one for 12 months." / « GymOS a changé le nom de votre page en grace-fit-douala. Votre ancienne adresse redirige vers la nouvelle pendant 12 mois. » The reason Super Admin entered is shown below as "Reason: …" / « Motif : … » `[ASSUMPTION — reason shown to the Owner]`. A forced rename does not count against the two renames (SA-17). Action [Open] → AD-27.
+  - *Name released after 12 idle months* (the sweep, for a gym that is not active; the page also goes offline with reason `name_released`): "Your page name grace-fit was released because your gym has been inactive for 12 months. Claim a name to publish again." / « Le nom de votre page grace-fit a été libéré car votre salle est inactive depuis 12 mois. Choisissez un nom pour publier à nouveau. » Action [Claim a name] → AD-27, shown once the gym is active again.
+  - *Optional warning at 11 months* `[ASSUMPTION — recommended; not built]`: "Your gym has been inactive for 11 months. In one month your page name grace-fit will be released." / « Votre salle est inactive depuis 11 mois. Dans un mois, le nom de votre page grace-fit sera libéré. » Action [Open] → AD-27. The server does not send this today; it needs a change in the name sweep, so it is listed as a candidate for Epic 24 follow-up, not a V1.7 requirement.
+- `[NOTE FOR UX]` **Open product call, not decided here:** the brand-word rule matches as a substring, so a name such as `orange-boxing` is refused as "not available" because it contains a brand word, and Super Admin cannot override it (a held name can be approved; a refused one cannot). The Owner sees only "That name isn't available. Try another." with no reason, by design. Whether a brand-word substring should be **held for review** (like a generic word) instead of refused is a product decision, because it decides whether gyms with legitimate names containing a brand word can ever be claimed.
 
 ---
 
@@ -2666,10 +2719,17 @@ Anyone on the internet will be able to see:
 │ Gym name              Grace Fit                                     │
 │ Category              Pilates Studio                                │
 │ Logo, banner          [thumbnails]                                  │
-│ About                 "Small-group pilates in Bonanjo…"            │
-│ Services              Reformer · Mat · Barre                        │
-│ Plans on your page    Monthly — 25,000 XAF — 30 days                │
-│                       Drop-in — 2,000 XAF — per session             │
+│ Languages offered     English (Français: not offered, About 68 of 100)│
+│ About (English)       "Small-group pilates in Bonanjo…"            │
+│ About (Français)      Not included                                  │
+│ Services (English)    Reformer · Mat · Barre                        │
+│ Services (Français)   Not included                                  │
+│   (one About and one Services row per supported content language)   │
+│ Plans on your page    Monthly — monthly — 25,000 XAF — 30 days      │
+│                       Drop-in — per session — 2,000 XAF             │
+│                       Annual — monthly, billed annually —           │
+│                         300 EUR — 365 days   (own currency)         │
+│   (names exactly as entered; type, interval, duration translated)   │
 │ Address               Rue … , Douala, Cameroon  (map position: yes) │
 │ Opening hours         Mon–Fri 06:00–20:00 · Sat 08:00–14:00         │
 │ Public contact        +237 6•• ••• 321 (phone) · WhatsApp           │
@@ -2682,13 +2742,14 @@ payments, private plans.
 ☐ I confirm I have the right to publish every image above.   ← one box
                                       [Back]  [Publish page]
 ```
-- **The list is generated from the same field list the server publishes** (FR-206), so it can never show more or less than becomes public. Rows with no value (optional gallery, services, map position) read "Not included" / « Non inclus ».
+- **The list is generated from the same field list the server publishes** (FR-206), so it can never show more or less than becomes public. Rows with no value (optional gallery, map position, and Services or About **in a language that is empty or not complete**) read "Not included" / « Non inclus ». `[ASSUMPTION]` The first row, **Languages offered**, lists the complete languages under the **Language completeness rule** (PS shared rules) and, for each incomplete language, what it lacks ("Français: not offered, About 68 of 100" / « Français : non proposé, « À propos » 68 sur 100 »). About and Services are shown as one row per supported content language (today English and Français), so the Owner sees exactly which languages visitors will get. `[ASSUMPTION]` These rows show what becomes public, so they stay one per language even though the editor shows one language at a time; the "Languages offered" row carries [Edit page text →], which opens the AD-27 **Page text** section on the default language's tab, or on the first incomplete tab when the default language is complete. An incomplete language gets no language link, no `hreflang`, and its `/xx` address serves a complete language (PS-01), and any Services typed in it are not included. Each plan shows its name exactly as entered, its type, interval and duration in the shown language's dictionary terms, and its price with its own currency code.
+- **Data source** `[ASSUMPTION]`: this list, the AD-27 checklist and the gate-failure text all render from one read-only server function that returns the missing gate codes and the snapshot that would be published; the client does not mirror server rules. Deferred to Story 24.9 (see AD-27, "Where the checklist comes from").
 - **Phone number is shown in full on this screen** because it becomes public; on any screen that is not about the public contact it stays masked.
 - **Attestation** *(FR-205)*: one checkbox covering all images listed; [Publish page] is disabled until ticked. The uploader's per-image attestation (AD-27) is recorded at upload; this one is the publisher's confirmation `[ASSUMPTION]`.
 - **Button** is labelled by action: [Publish page] / [Publier la page] (Accessibility Floor). Focus moves to the success region on completion.
 - **Success:** "Your page is live at grace-fit.gymosapps.com. It can take up to 2 minutes to appear." / « Votre page est en ligne sur grace-fit.gymosapps.com. Elle peut mettre jusqu'à 2 minutes à apparaître. » [Copy link] [View page]. `[NOTE FOR UX]` a QR/poster download for the page address is the natural next step for gyms but no source mentions it; not specified.
-- **Gate failure at publish** (server re-validates, FR-199): the screen lists what is missing, with the same anchor links as the AD-27 checklist, and does not publish. "Your page isn't ready: [list]." / « Votre page n'est pas prête : [liste]. »
-- **Unpublish** (also from AD-27 when live): confirmation modal, "Unpublish your page?" / « Dépublier votre page ? » Body "Visitors will see "This page isn't available". Your page name stays reserved for you, and you can publish again at any time." / « Les visiteurs verront « Cette page n'est pas disponible ». Le nom de votre page reste réservé pour vous, et vous pouvez la republier à tout moment. » Buttons [Cancel] and [Unpublish page] / [Dépublier la page]. Unpublishing is always allowed (FR-199), including for a gate-failed or suspended page.
+- **Gate failure at publish** (server re-validates, FR-199; `publish` returns `{published: false, missing[]}` and writes nothing): the screen lists what is missing, with the same anchor links as the AD-27 checklist, and does not publish. "Your page isn't ready: [list]." / « Votre page n'est pas prête : [liste]. » Each list item **names the field at fault** `[ASSUMPTION]`, from the same code-to-label map as the reason table in AD-27, for example "About: write at least 100 characters in one language" / « À propos : écrivez au moins 100 caractères dans une langue », "Plan “Monthly”, name: remove < or >" / « Formule « Mensuel », nom : retirez < ou > », "Gym name: remove < or >. [Fix in Settings →]" / « Nom de la salle : retirez < ou >. [Corriger dans les Paramètres →] », "Map position: enter both latitude and longitude, or clear both" / « Position sur la carte : saisissez la latitude et la longitude, ou effacez les deux », "This page has too much content. Shorten the About or Services text" / « Cette page contient trop de contenu. Raccourcissez le texte « À propos » ou « Services ». » A taken-down page returns the typed `taken_down` refusal instead (takedown banner below).
+- **Unpublish** (also from AD-27 when live): confirmation modal, "Unpublish your page?" / « Dépublier votre page ? » Body "Visitors will see "This page isn't available". Your page name stays reserved for you, and you can publish again at any time." / « Les visiteurs verront « Cette page n'est pas disponible ». Le nom de votre page reste réservé pour vous, et vous pouvez la republier à tout moment. » Buttons [Cancel] and [Unpublish page] / [Dépublier la page]. Unpublishing is always allowed (FR-199), including for a gate-failed or suspended page; a suspended gym's page that is unpublished stays unpublished when the gym is reactivated `[ASSUMPTION]`.
 - **When a page is taken down**, this screen shows the takedown banner and no [Publish page] (FR-204).
 - **Auto-unpublish reason** is shown at the top of this screen exactly as on AD-27.
 
@@ -2719,6 +2780,7 @@ payments, private plans.
 | Page unpublished by check | "Landing page unpublished automatically" | « Page publique dépubliée automatiquement » |
 | Page name claimed / renamed | "Page name claimed" / "Page name changed" | « Nom de page réservé » / « Nom de page modifié » |
 | Page name held / decided | "Page name sent for review" / "Page name review decided" | « Nom de page envoyé à examen » / « Examen du nom de page terminé » |
+| Page name replaced by GymOS / released *(24-7, 24-8)* `[ASSUMPTION]` | "Page name changed by GymOS" / "Page name released" | « Nom de page modifié par GymOS » / « Nom de page libéré » |
 | Page taken down / restored | "Landing page taken down" / "Landing page restored" | « Page publique retirée » / « Page publique rétablie » |
 | Plan made public / private | "Plan shown on page" / "Plan hidden from page" | « Formule affichée sur la page » / « Formule masquée de la page » |
 | Page image attested | "Page image uploaded" | « Image de page ajoutée » |
@@ -3089,8 +3151,37 @@ Pages
 - **Held because:** one of near-match of an existing page (shows that page's name), near-match of a reserved or brand word, folded-match, or generic or place word.
 - **Review panel:** the name, the gym (name, category, city, other names), the matched word or page, and [Approve] / [Reject]. [Reject] requires a reason sent to the Owner. Both decisions are audited and notify the Owner.
 - **SLA:** 2 business days `[ASSUMPTION]`. Rows older than 2 days show a `warning` "Overdue" tag and a reminder is sent (Story 24.7).
-- **Word lists** sub-page: kinds Reserved, Brand, Generic, Place, Zone (read-only: comes from the DNS zone export, Architecture Decision AD-43). Add/remove with confirmation; every change audited. A word added to Reserved asks "Existing active names matching this word will be flagged for review." `[ASSUMPTION]`.
+- **Word lists** (SA-22, below): the "Word lists →" link opens it. Kinds Reserved, Brand, Generic, Place, Zone (read-only: comes from the DNS zone export, Architecture Decision AD-43). Add/remove with confirmation; every change audited. A word added to Reserved asks "Existing active names matching this word will be flagged for review." `[ASSUMPTION]`.
 - **Empty:** "No names waiting for review." / « Aucun nom en attente d'examen. »
+
+---
+
+### SA-22 · Word Lists *(V1.7, FR-202, Story 24.7; screen added 2026-11-08)* `[ASSUMPTION — whole screen; the database functions exist (24.7), the screen was deferred]`
+
+**Purpose:** Maintain the five lists the page-name check reads, so Super Admin can react to a squatting or look-alike pattern without a migration. Reached from the "Word lists →" link on SA-16 (a sub-page of Pages, with a "← Held names" back link). Super Admin only; nothing here is visible to gyms.
+
+**Layout:**
+```
+← Held names  /  Word lists
+
+[Reserved 84] [Brand 31] [Generic 120] [Place 56] [Zone 9, locked]        Search [        ]
+
+Reserved words — refused outright. Gyms see "That name isn't available."
+[ Add a word ]
+┌───────────────────────────────────────────────────────────────────────┐
+│ Word          Added by    Added on      Note                  Actions   │
+│ admin         seed        —                                   [Remove]  │
+│ billing       Chidi       12 Oct 2026   look-alike of support [Remove]  │
+└───────────────────────────────────────────────────────────────────────┘
+```
+- **One tab per kind**, with its count. What each kind does, in a one-line description under the tab: *Reserved* — the name is refused outright; *Brand* — a name containing the word is refused outright (the substring rule; see the open product call in AD-28); *Generic* — a name containing the word is held for review ("Generic word" in SA-16); *Place* — a name containing the word is held for review ("Place word"); *Zone* — the names already used by the platform's own addresses.
+- **Zone words are read-only**: the tab shows the list with a lock icon and no [Add a word] and no [Remove] (absent from the DOM, not disabled). An info line: "These come from GymOS's own address zone and change only with a platform update." / « Ces mots viennent de la zone d'adresses de GymOS et ne changent qu'avec une mise à jour de la plateforme. » The database also refuses to add or remove one.
+- **Add a word:** a single field, lowercase as typed, same letters-numbers-hyphens grammar as a page name; an optional note (Super Admin only, 200 characters). Duplicates are refused inline: "That word is already on this list." / « Ce mot figure déjà dans cette liste. » The same word on two different lists is allowed. Confirmation before saving: "Add “billing” to Reserved?" / « Ajouter « billing » à Réservés ? » [Cancel] [Add word]. Adding to **Reserved** or **Brand** shows the extra line "Existing active names matching this word will be flagged for review." / « Les noms actifs correspondant à ce mot seront signalés pour examen. » (as stated on SA-16).
+- **Remove a word:** [Remove] opens a confirmation, "Remove “billing” from Reserved? Gyms will be able to claim names containing it." / « Retirer « billing » des Réservés ? Les salles pourront choisir des noms qui le contiennent. » [Cancel] [Remove word]. Removing never changes a name a gym already holds.
+- **Audited:** every add and remove writes an audit row (who, list, word, time, note) shown in the same audit surface as the other Super Admin actions; the list shows "Added by" and "Added on" for words added here, and "seed" for the initial list.
+- **Step-up:** adding to or removing from Reserved and Brand needs the SA-21 step-up code `[ASSUMPTION]`; Generic and Place do not.
+- **Empty / error:** an empty list reads "No words on this list." / « Aucun mot dans cette liste. » A failed save keeps the dialog open with "Couldn't save the change. Try again." / « Impossible d'enregistrer la modification. Réessayez. »
+- **Responsive:** like the other Super Admin tables: Word and Actions always visible; "Added by" and "Note" hide first.
 
 ---
 
@@ -3121,7 +3212,7 @@ stays reserved to this gym.
 ```
   Reason labels EN / FR: Impersonation / Usurpation d'identité · Illegal content / Contenu illicite · Trademark / Marque déposée · Misleading content / Contenu trompeur · Privacy / Vie privée · Other / Autre. Reason code is required; **Other requires the note** `[ASSUMPTION]`. Confirm label [Take down page] / [Retirer la page]. Done at AAL2 with step-up `[ASSUMPTION]` (SA-21).
 - **After takedown:** status "Taken down" with [Lift takedown] (reason required) and the appeal status if any. The old-name redirects drop immediately (FR-203); an info line says so.
-- **Force rename** *(FR-203, FR-204)*: Super Admin enters a new name under the same grammar as AD-28; required reason; "This doesn't count against the gym's two renames." / « Ceci ne compte pas dans les 2 renommages de la salle. » Redirects from the old name are dropped immediately; the old name is **not** released if the page was taken down.
+- **Force rename** *(FR-203, FR-204)*: Super Admin enters a new name under the same grammar as AD-28; required reason; "This doesn't count against the gym's two renames." / « Ceci ne compte pas dans les 2 renommages de la salle. » The dialog also states that the Owner is notified of the new name and the reason `[ASSUMPTION]` (copy in AD-28, Owner notices for names). Redirects from the old name are dropped immediately; the old name is **not** released if the page was taken down.
 - **SLA:** 5 business days to answer a report `[ASSUMPTION]`; older rows show `warning` "Overdue".
 - **Where else:** SA-03's Page block shows the same state and the two actions for that gym.
 - **Empty:** "No reports to review." / « Aucun signalement à examiner. »
@@ -3209,7 +3300,7 @@ This code works for this action only, for 5 minutes.
 
 **SA-03 · Gym Detail** gains two blocks under the Status row, neither with a new sidebar item:
 - **Support:** "Allow GymOS Support: On / Off" (read-only: Super Admin cannot change it, FR-183) and the gym's assignments table (person, state, since) with [Assign support person] → SA-11. This is the only place a gym's assignments and names appear together.
-- **Page:** page name and its state (Not claimed / Held / Active / Redirect / Reserved), published state, last takedown, and [Take down…] / [Force rename…] → SA-17 dialogs.
+- **Page:** page name and its state (Not claimed / Held / Active / Redirect / Reserved), published state, last takedown, and [Take down…] / [Force rename…] → SA-17 dialogs. A forced rename (or a Super Admin claim) that replaces the name **notifies the Owner** `[ASSUMPTION]`: the dialog says so before it is confirmed, "The Owner will be told the new name and your reason." / « Le propriétaire sera informé du nouveau nom et de votre motif. » (AD-28, Owner notices for names).
 - Both blocks follow the existing "Access gym data requires reason" model: the real identity is shown to Super Admin only.
 
 **SA-02 · Gym List** `[NOTE FOR UX]` the V1.6 line promised "no category filter in V1.6 … V1.7's directory is where filtering matters". The directory filter is on the **public** surface (PS-06), so SA-02 still has no category filter; confirm whether Super Admin also wants one.
@@ -3224,10 +3315,36 @@ This code works for this action only, for 5 minutes.
 
 **Shared rules for PS-01…PS-06**
 - No login, no account, no sign-in link, no member counts, no staff names, no cookie, no analytics beacon (FR-196, AD-44).
-- **Language.** *Gym pages* (PS-01, PS-03): chrome in the gym's saved `default_language`, one language per page, no switcher and no negotiation (FR-208, Architecture Decision AD-50). *Directory* (PS-04…PS-06): chrome language is the `/{en|fr}/` part of the URL; a plain link "Français" / "English" goes to the same listing in the other language. The bare `/gyms/` path `[NOTE FOR UX]` is not specified in AD-50; assumed to redirect to `/en/gyms/` or `/fr/gyms/` by `Accept-Language` once, then stay explicit `[ASSUMPTION]`. Gym-entered content (name, about, services, plan names, address) is shown **as entered**, never translated. Category labels, days, units and fixed phrases come from the chrome dictionary.
-- **Number and time format** follow the chrome language: "25,000 XAF" EN / "25 000 XAF" FR (Foundation); times in 24-hour form in both languages `[ASSUMPTION]`.
+- **Language.** *Gym pages* (PS-01, PS-03) *(product owner, 2026-11-08; resolves OQ-28, supersedes "no switcher and no negotiation")*: the languages are an **open set** (*product owner, 2026-11-08*): English and French are the current values of the **Supported content languages** list below, not a fixed pair. The default address shows the visitor's **best language from `Accept-Language`** among the page's **complete** languages, and carries a **plain link to each other complete language** (a menu when there are more than two) at `/{code}`, today `/en` or `/fr`. No cookie, no script, no remembered choice: the link is a normal navigation. A language counts as complete only under the **Language completeness rule** below. `hreflang` alternates are declared only for complete languages, and only when there are at least two. Content blocks carry `lang` of the language they are shown in; chrome strings (headings, labels, buttons, "per session", "Closed") follow the language shown. See PS-01 "Language". *Directory* (PS-04…PS-06): chrome language is the `/{en|fr}/` part of the URL; a plain link "Français" / "English" goes to the same listing in the other language. The bare `/gyms/` path `[NOTE FOR UX]` is not specified in AD-50; assumed to redirect to `/en/gyms/` or `/fr/gyms/` by `Accept-Language` once, then stay explicit `[ASSUMPTION]`. Gym-entered content (name, plan names, about, services, address) is shown **as entered**, never machine-translated; the gym supplies each supported language's version of About and Services itself (AD-27), and plan names are never translated. Category labels, days, units and fixed phrases come from the chrome dictionary.
+- **Currency, number and time format** *(product owner, 2026-11-08: currencies are an open set)*: each plan carries its own currency. A public page shows the price **as stored, followed by its currency code**, with the digit grouping and separators of the language shown ("15 000 XAF" in French, "15,000 XAF" in English; the French grouping space is non-breaking so an amount never splits across lines `[ASSUMPTION]`). A price is **never converted** and there is **no currency switcher**; a page may list plans in different currencies, each in its own. Times are in 24-hour form in every language `[ASSUMPTION]`. `[NOTE FOR UX]` the Foundation "Monetary display" line and the plan screens (AD-23) still say XAF only; how an Owner picks a plan's currency is not specified here.
 - **Plain links only.** Links to other hosts carry `rel="noopener noreferrer"`. A visitor's Back button always returns to where they were.
-- **No "open now".** Hours are static text. A "Open now" indicator needs the visitor's clock (script) or a per-minute cache bypass, and neither is allowed (AD-44, `s-maxage=60`). `[ASSUMPTION]`
+- **Mobile, tablet and desktop** *(product owner, 2026-11-08)*. Gym pages (PS-01, PS-02, PS-03) are for all three. Same DOM and reading order at every width, placement by CSS only, no script; breakpoints `[ASSUMPTION]` under 641 px, 641 to 1023 px and 1024 px and up; per-breakpoint placement of the PS-01 sections in PS-01 "Layout by breakpoint". Tap targets stay at least 44 px at every width. On desktop the phone number is visible text, because `tel:` may not open a call, and WhatsApp opens WhatsApp Web. The directory (PS-04…PS-06) keeps its own layout.
+- **No "open now".** Hours are static text. A "Open now" indicator needs the visitor's clock (script) or a per-minute cache bypass, and neither is allowed (AD-44, `s-maxage=60`); the stored snapshot also has no timezone, so the page could not tell what time it is at the gym. `[ASSUMPTION]` No template may show an open-now chip, status dot or "closes at" line.
+
+**Language rule for public surfaces** *(product owner, 2026-11-08; the "Language." bullet above, PS-01 "Language", AD-27, AD-29 and the template contract all read from this block)*
+
+**Supported content languages** `[ASSUMPTION — list name and columns]`: one ordered list. The editor sections, the language link or menu, the `hreflang` alternates, the `/{code}` addresses, the completeness rule, the chrome dictionaries and the template language fixtures are all generated from it; nothing else names a language. Today:
+
+| Code | Written in its own language (link and menu label, `lang` of its target) | Editor label (EN dashboard / FR dashboard) |
+|---|---|---|
+| `en` | English | (English) / (anglais) |
+| `fr` | Français | (Français) / (français) |
+
+**Language completeness rule.** A language version of a gym page exists only when **every required language-bound field is filled in that language**. Written once, here:
+
+| Field (per language) | Required to offer a language? | Threshold | Today's value |
+|---|---|---|---|
+| About | Yes | Minimum characters after trimming, the same threshold as the publish gate | 100 |
+| Services | No | None | Optional |
+
+- A future required language-bound field is added as a row; no other rule changes. The language-neutral fields (name, category, contact, hours, address, plan names, images) are not part of it, and neither are plan details (type, interval, duration), which the template translates from its dictionary. There are no per-language plan labels `[ASSUMPTION — removed 2026-11-08; see AD-27 "Plans on your page"]`.
+- A **complete** language is offered: it gets an editor "offered" mark, a language link or menu entry, an `hreflang` alternate (when at least two languages are complete) and a working `/{code}` address. An **incomplete** language gets none of these.
+- The publish gate needs **at least one** complete language (`about_short` when there is none).
+- `/{code}` for an incomplete language (a supported code) serves a complete language, chosen by the fallback order below, **without** `hreflang` `[ASSUMPTION]`. A code outside the list is PS-02.
+- **Fallback order** for the language shown at the default address and at `/{code}` of an incomplete language: the visitor's `Accept-Language` (best match among complete languages), then the gym's `default_language` if it is complete, then the first complete language in the list's order.
+- **Block fallback** `[ASSUMPTION — narrows the earlier per-block fallback]`: only Services can be empty in a complete language; an empty Services block shows the Services of the next complete language that has them, in the fallback order, with that block's own `lang`. About is never empty in a complete language. Plan names are never translated and plan details come from the template dictionary, so a plan row has no language fallback.
+
+**Adding a language or currency later.** `[ASSUMPTION]` Adding a **language** changes: (1) the Supported content languages list (a row); (2) a chrome dictionary for every template in the registry (headings, labels, buttons, "Closed", days, the Plan dictionary, the PS-02 copy), without which a language cannot be listed; (3) the editor's Page text choices (the language appears in [+ Add language] by itself from the list) but need their editor labels in both dashboard languages; (4) the copy keys that name a language (counters, helpers, the "Languages offered" line, field errors); (5) the Owner notices and Voice and Tone rows that mention a language; (6) the conformance fixtures, which gain the new language in every language case; and (7) **engineering, before it ships:** the content storage, which today is `*_en` / `*_fr` columns and snapshot keys. A third language needs a language-keyed content model (a map from language code to text) and a `schema_version` bump first. Adding a **currency** changes the plan's currency choice where plans are edited (AD-23) and adds the currency to the editor and template fixtures; the public page prints the stored code and needs no template change. **Future feature, not in this epic:** automatic currency from the gym's country: the country sets the default currency for **new** plans (for example Cameroon, CM, gives XAF); the currency stays per plan and the page never converts.
 
 ---
 
@@ -3235,20 +3352,20 @@ This code works for this action only, for 5 minutes.
 
 **Purpose:** a visitor decides whether to visit and can contact the gym in one tap.
 
-**Content order** (top to bottom, one column; `[ASSUMPTION — order chosen for a mid-range Android phone on 4G: contact first, long text later]`):
+**Content order** (the reading order and the DOM order at every width; top to bottom on mobile, placed by CSS on tablet and desktop, see "Layout by breakpoint" below; `[ASSUMPTION — order chosen for a mid-range Android phone on 4G: contact first, long text later]`):
 
 | # | Section | Behavior | When missing |
 |---|---|---|---|
-| 1 | **Header** — logo, gym name, category label | Name as entered; category label in the chrome language | Always present (gate) |
+| 1 | **Header** — logo, gym name, category label, language link | Name as entered; category label in the chrome language. The **language link** sits here or in the footer (row 10), see "Language" below | Always present (gate); the language link or menu only when at least two languages are complete (Language completeness rule) |
 | 2 | **Banner image** | Decorative; empty text alternative | Always present (gate) |
 | 3 | **Contact actions** — Call, WhatsApp, Directions | See "Contact actions" below | Only the actions with data render; at least one always exists (gate) |
-| 4 | **About** | Plain text, paragraphs preserved, never links or markup | Always present (gate, ≥ 100 characters) |
-| 5 | **Services and activities** | A simple list | Section omitted entirely |
-| 6 | **Plans** — public plans and session plans: name, price, duration | One row per public plan; session plans read "per session" / « par séance » | Always present (gate: ≥ 1 public plan) |
+| 4 | **About** | Plain text, line breaks preserved as paragraphs, in the language shown (always filled, because only complete languages are shown), never links or markup | Always present (gate, ≥ 100 characters in at least one language) |
+| 5 | **Services and activities** | A simple list, **one item per line** the gym entered, in the language shown (block fallback to another complete language if empty, see the Language rule) | Section omitted entirely |
+| 6 | **Plans** — public plans and session plans: name, type, interval, duration, price | One row per public plan: the **plan name exactly as entered** (never translated, identical on every language version), then the **details translated by the template from its dictionary** (Plan dictionary below): type, billing interval and duration in days, then the price as stored with the plan's own currency code, formatted by the language shown (Currency rule above). A detail the plan does not have (for example a duration) is omitted, never shown empty. There are no per-language plan labels `[ASSUMPTION — product owner, 2026-11-08]` | Always present (gate: ≥ 1 public plan) |
 | 7 | **Opening hours** — one row per day | Days in the chrome language; a closed day reads "Closed" / « Fermé » | Omitted if absent (see below) |
 | 8 | **Location** — address text | Address always as text; map link only with a map position | Always present (gate: country and city; address text `[ASSUMPTION]`) |
 | 9 | **Gallery** | Plain image list with each image's description as its text alternative; no lightbox, no carousel | Section omitted entirely |
-| 10 | **Footer** — "Report this page", "GymOS" link to `www.` | Report → PS-03 | Always present |
+| 10 | **Footer** — "Report this page", "GymOS" link to `www.`, language link (if not in the header) | Report → PS-03 | Always present |
 
 - **Prices** show exactly the public plans the gym marked public (FR-200), at the stored price; no "from", no discount computation, no loyalty details, no guest-session counts (private).
 - **No hours** — can't normally occur (the gate requires hours, FR-199), so a live page always has them. If a snapshot ever lacked them the section is **omitted, not shown empty**; the page stays up, and a page that lost them has already unpublished itself.
@@ -3256,6 +3373,29 @@ This code works for this action only, for 5 minutes.
 - **No gallery / no services:** the section and its heading are omitted, never "No photos yet".
 - **No WhatsApp** or **no phone:** only the other action renders. With both, order is Call, WhatsApp, Directions.
 - **Redirect after rename:** an old name 301s to the current name in one hop for 12 months (FR-203); the visitor sees the current page and the address bar shows the new name. No intermediate page.
+
+**Layout by breakpoint** *(product owner, 2026-11-08, placement rewritten for the 24.13 redesign on 2026-11-10: gym pages are for mobile, tablet and desktop; supersedes "one column at every width up to 640, optional two columns above"; the breakpoint numbers are `[ASSUMPTION]`)*. The ten sections keep the **same DOM and the same reading order** at every width; only their placement changes, **in CSS, with no script**. Visual rules (banner radius, header card overlap, contact card) are in DESIGN.md "Public Page Templates".
+
+| Breakpoint | Placement of the ten sections |
+|---|---|
+| **Mobile**, under 641 px | One column, edge to edge. The hero holds the header, the banner behind it and the contact buttons (two rows: Call and WhatsApp, then Directions), then About, the Services panel, Plans, the Visit band (Hours above Location), Gallery, the repeat band, Footer. Plans one per row |
+| **Tablet**, 641 to 1023 px | Content up to 1120 px with 32 px gutters; the hero is 560 px and its buttons sit in one row. About and Services still stacked. Plans two or more across (cards capped at 360 px). **Hours and Location side by side** in the dark Visit band. Gallery three across. Repeat band and Footer full width |
+| **Desktop**, 1024 px and up | Content up to 1120 px, centred; hero 640 px. **About beside the Services panel** (Services omitted: About takes the full width). Plans up to three across (cards capped at 360 px). **Hours beside Location**. Gallery on a 12-column grid: one to four images fill the row, and from five the first is large. The **repeat band at the foot** |
+
+- A section that is omitted (Services, Gallery) leaves no empty cell; its neighbour takes the width.
+- **Desktop contact:** the phone number is shown as text next to Call, because a `tel:` link may not open a call on a desktop (the number must be copyable at every width, as in "Contact actions"). **WhatsApp opens WhatsApp Web** there (the same `wa.me` link).
+- **Tap targets stay at least 44 px** at every width; widening the page never shrinks a tile or link.
+- **Contact actions are inside the first screen** at 360 x 640, 768 x 1024 and 1366 x 768 (Template contract, "Contact first").
+- Placement may not change focus order: source order equals visual order, so a two-column row reads left cell then right cell, and the row order is still the content order.
+
+**Language** *(product owner, 2026-11-08; FR-208, OQ-28 resolved)*
+- **Which language is shown at the default address:** the **fallback order** of the shared Language rule: the visitor's best `Accept-Language` match among the page's **complete** languages, then the gym's `default_language` if it is complete, then the first complete language in the Supported content languages list. With one complete language, that one, for everybody.
+- **"Exists in a language"** is defined once, by the **Language completeness rule** (shared rules above): every required language-bound field is filled in that language (today About, at least 100 characters after trimming). Services do not decide whether a language is offered.
+- **Fallback, per block:** a complete language has its About, so only an empty Services block can fall back, to the next complete language that has Services, with that block's own `lang` (block fallback, shared rules). Plan rows never mix languages: the plan name is as entered and the details come from the template dictionary.
+- **Language link or menu:** with exactly two complete languages, one plain link to the other ("Français" on the English page, "English" on the French page, always written in its own language) to `/{code}` of the same host. With more than two, a **menu** of plain links to the complete languages (the current one marked `aria-current="true"`, not a link) `[ASSUMPTION]`, still script-free (a native disclosure or an inline list; markup is the template's). Present only when at least two languages are complete; with one there is no link and no placeholder. Each entry is an `<a>` with `hreflang` and `lang` of its target; no cookie remembers the choice, so the visitor who follows it lands on an explicit `/{code}` address that is the same for everyone (shareable, cacheable). Visual treatment is in `DESIGN.md` "Public Page Templates".
+- **Explicit addresses:** `/{code}` of a complete language shows that language, with `<html lang>` that language. `/{code}` of a supported but **incomplete** language serves a complete language chosen by the fallback order, **without** `hreflang` `[ASSUMPTION]` (so a shared `/fr` link keeps working if the gym later removes or never finishes its French, and never dies as PS-02). A code outside the list is PS-02.
+- **Chrome and content together:** headings, labels, buttons ("Call"/« Appeler », "Closed"/« Fermé », plan details), days and number format follow the language shown; the gym's name, plan names, address and city are shown as entered in every language.
+- **Metadata:** `<link rel="alternate" hreflang>` entries for each complete language and `x-default` (the default address) are declared **only when at least two languages are complete**, and never for an incomplete one. The JSON-LD data block (FR-211, built in Epic 25) gets `inLanguage` of the language shown and the alternate addresses on the same condition; a one-language page declares none. `[ASSUMPTION]`
 
 **Contact actions** *(FR-196)*
 | Action | Behavior | Label EN / FR |
@@ -3270,13 +3410,15 @@ This code works for this action only, for 5 minutes.
 | State | Behavior |
 |---|---|
 | Published, visible | PS-01 as above, `200` |
-| Unpublished, taken down, gym suspended, unknown or reserved name, name released | **PS-02, identical response** (FR-207). No hint of cause. See PS-02 |
+| Published, one complete language | That language for everybody; no language link or menu, no `hreflang` |
+| Published, two or more complete languages | Default address in the language chosen by the fallback order; link or menu and `hreflang` alternates for the complete languages; `/{code}` shows that language |
+| `/{code}` of a supported language that is not complete | A complete language chosen by the fallback order, `200`, no `hreflang` `[ASSUMPTION]` (Language completeness rule) |
+| `/{code}` outside the Supported content languages | PS-02 |
+| Unpublished, taken down, gym suspended, unknown or reserved name, name released (also when the gym is not active for 12 months) | **PS-02, identical response** (FR-207). No hint of cause. See PS-02 |
 | Gym reactivated after suspension | The page returns only if still published and no takedown is in force (FR-207). No visitor-facing message at any point |
 | Renamed gym, old address | 301 to the new name (above) |
-| Page edited | Changes appear within about 2 minutes (AD-46 TTL); a visitor may see the previous version for that long |
+| Page edited | Changes can take up to 2 minutes to appear (AD-46 public cache); the stored copy itself is updated in the same save, so a visitor may see the previous version for that long |
 | Snapshot fails the content check | PS-02 and the failure is logged (AD-48) |
-
-`[NOTE FOR UX]` the sources keep chrome language fixed to the gym's `default_language` but gym content may be in the other language (OQ-28). The page declares one `lang` for the whole document; screen readers may mispronounce content in the other language. Whether to allow a per-section `lang` is not in the sources.
 
 ---
 
@@ -3287,16 +3429,33 @@ PS-01 is specified as a **contract**, not as one design. Any template, including
 | Rule | Requirement | Checked by |
 |---|---|---|
 | Section order | The ten sections above in that order; a template may restyle but not reorder, merge or drop one that has data | Conformance render + DOM order assertion |
-| Contact first | Call, WhatsApp and Directions are visible without scrolling on a 360 × 640 viewport, each a tap target of at least 44 px | Layout assertion |
+| Contact first | Call, WhatsApp and Directions are visible without scrolling on a 360 × 640, a 768 × 1024 and a 1366 × 768 viewport `[ASSUMPTION — tablet and desktop sizes]`, each a tap target of at least 44 px at every width | Layout assertion at the three sizes |
+| Breakpoints | The template implements the three layouts of PS-01 "Layout by breakpoint" in CSS only, with the same DOM and reading order at every width; every fixture is rendered at 360, 768 and 1280 px wide `[ASSUMPTION — widths]` with no horizontal scroll and no overlapped or clipped text (the hero text over the banner included). On desktop the phone number is visible text | Fixture render at 360, 768 and 1280 + DOM order assertion + overlap and overflow assertion |
 | Omit, never empty | A missing optional section and its heading are omitted; no placeholder text | Fixture gyms (no banner, no gallery, no services, no map position, no hours) |
-| Content stress | One plan and eight plans; a 60-character name; a 4,000-character about; hostile markup shown as inert text; EN and FR chrome | Fixture gyms |
-| Color | The gym's `primary_color` is the only variable color; every text and control pair meets WCAG 2.1 AA (4.5:1 body, 3:1 large and UI) with that color on the template's background | Contrast check per fixture color |
+| Content stress | One plan and eight plans; a 60-character plan name and gym name; a 2,000-character about (the maximum the editor accepts) in each supported content language; hostile markup shown as inert text; chrome in each supported language | Fixture gyms |
+| Language | At the default address the template shows the language chosen by the fallback order (visitor `Accept-Language`, then the gym `default_language`, then the first complete language) among the **complete** languages; sets `<html lang>` and any Services fallback block's `lang` to the language actually shown; renders chrome strings and plan details from its dictionary in that language (a template carries a dictionary for **every** supported content language, or it is not registered); and shows the language link (a menu when more than two) and `hreflang` alternates **only for complete languages and only when at least two are complete**. Gym content and plan names are shown as entered. No cookie and no script are involved | Fixture render at default and at each `/{code}`, with `Accept-Language` set to each supported language (cases below) |
+| Language fixtures | Every template is rendered, for each supported content language X (today English and French), for: **(a) a gym complete only in X**: X everywhere, no language link, no `hreflang`, even for a visitor whose `Accept-Language` prefers another language; **(b) a gym complete in every supported language**: language follows `Accept-Language`, link (a menu when more than two) and alternates present for each; **(c) a gym where X is incomplete** (About under the threshold, other language complete): no link, no `hreflang` for X, and `/{code of X}` serves the complete language without `hreflang`; **(d) hostile text in each supported language**: `<script>`-style text written with entities (the gate refuses a literal `<` or `>`), very long unbroken strings and look-alike characters in gym name, plan name, About, Services, address and city appear as inert text and never as elements; **(e) eight plans with 60-character names**: no overflow or clipped price at 320 px width and 400% zoom, the name wraps and the price stays visible; **(f) currency**: plans in a non-XAF currency (for example EUR) and a 3+ digit price (for example 15000), mixed on one page with an XAF plan: each price is shown as stored with its own code, grouped by the shown language ("15 000 XAF" in French, "15,000 XAF" in English), never converted, no currency switcher; **(g) plan name across languages**: a plan name written in one language (for example « Mensuel ») is shown unchanged under both language versions while its type, interval and duration change with the language | Fixture gyms |
+| Color | The gym's `primary_color` is the only variable color; every text and control pair meets WCAG 2.1 AA (4.5:1 body, 3:1 large and UI) with that color on the template's background. A **dark** template reads the server's `accent` (the gym color when it reaches 4.5:1 on the lightest dark surface, else the platform accent) for any text or mark in the gym color, and the fill and on-gym color for buttons | Contrast check per fixture color |
+| On-gym color `[ASSUMPTION]` | Any text or icon placed on a gym-color fill uses the on-gym color computed by the server-side renderer, not by the browser: white or ink, whichever reaches 4.5:1 on the gym color, else the platform accent pairing. The template reads it as a supplied value (`--on-gym`) and never computes it; no script | Contrast check per fixture color, including very light and very dark gym colors |
 | No script | No executable script element, no hydration payload, no inline event handler; the JSON-LD data block is allowed | Header and DOM assertion |
 | Budget | One inline style block (hashed in the CSP), no external stylesheet, images only from the media origin, fonts only from the allowlist | Header and size assertion |
 | Fonts | Declared per template from the self-hosted allowlist (Barlow 700 and 800 first), under `font-src 'self'`; a system fallback is always declared | Header assertion |
-| Language | Chrome strings come from the template dictionary in the gym's `default_language`; gym content is shown as entered | Fixture render in EN and FR |
 | Swap | A swap changes only the `template` value; no gym content is re-entered or lost | Contract test |
-| Selection | The editor lists only templates that passed the suite, with a thumbnail rendered from the gym's own content `[ASSUMPTION — thumbnail from real content, not a stock image]` | Registry |
+| Selection | The editor offers only templates that passed the suite, in a modal of radio cards (see the "Template picker" rule); each card has a thumbnail `[ASSUMPTION — drawn wireframes for now; a thumbnail from the gym's own content is a later step]` | Registry |
+
+**Plan dictionary** *(product owner, 2026-11-08)*. The plan **name** is never translated; the plan's structured **details** are translated by the template from its chrome dictionary, one entry per value and per supported content language. Written once here, for the current languages; a new language adds a column (see "Adding a language or currency later"):
+
+| Value | EN | FR |
+|---|---|---|
+| `plan_type` = `pay_per_session` | per session | par séance |
+| `plan_type` = `monthly` | monthly | mensuel |
+| `plan_type` = `coach_inclusive` | coach included | coach inclus |
+| `plan_type` = `class_only` | classes only | cours uniquement |
+| `billing_interval` = `monthly` | billed monthly | facturé mensuellement |
+| `billing_interval` = `annual` | billed annually | facturé annuellement |
+| `duration_days` = N | N days (1 day) | N jours (1 jour) |
+
+`[ASSUMPTION — wording: the product owner gave the four EN plan-type terms and "monthly" / "annual"; every FR string, the "billed" phrasing of the intervals and the duration form are drafted]`. A plan with no duration (pay-per-session) shows none. A template that lacks any of these entries for a supported language fails the Language row.
 
 `[NOTE FOR UX]` Generated templates enter the registry only after the suite passes; there is no manual override. The generation pipeline itself is outside V1.7 (PRD section 8).
 
@@ -3304,14 +3463,15 @@ PS-01 is specified as a **contract**, not as one design. Any template, including
 
 **Purpose:** one response for every name that does not resolve to a visible page, so a visitor, a scraper or a squatter can't tell *why*.
 
-- **Copy**, one block, both languages at once because no gym is known to choose between:
+- **Copy**, one block, every supported content language at once (today both) because no gym is known to choose between:
 
   "This page isn't available." / « Cette page n'est pas disponible. »
   [Browse gyms on GymOS] / [Parcourir les salles sur GymOS] → `www.gymosapps.com/{locale}/gyms/` (`en` and `fr` links, one each).
-- **Identical for**: unpublished, taken down, suspended gym, unknown name, reserved name, grammar-invalid name, and any path on a gym host that is not `/`, `/robots.txt`, `/sitemap.xml` or the report form (Architecture Decision AD-50). Same status code, same markup, no cause, no gym name.
+- **Identical for**: unpublished, taken down, suspended gym, unknown name, reserved name, grammar-invalid name, and any path on a gym host that is not `/`, `/{code}` of a supported content language, `/robots.txt`, `/sitemap.xml` or the report form (Architecture Decision AD-50; the `/{code}` entry follows the 2026-11-08 language decision; the earlier list omitted `/en` and `/fr`). Same status code, same markup, no cause, no gym name.
 - Never mentions "taken down", "suspended", "reserved", "under review" or "no longer". Never reveals whether the name is claimed.
 - A short cache lifetime applies (30 s, AD-46) so reappearance is quick; this is invisible to the visitor.
 - The same response serves directory paths that do not resolve (unknown country or city code).
+- **Layouts** `[ASSUMPTION]`: PS-02 uses the same three layouts as PS-01 (mobile, tablet, desktop; PS-01 "Layout by breakpoint"): one centred message block, no horizontal scroll at 360, 768 or 1280 px, links at least 44 px tall.
 
 ---
 
@@ -3561,12 +3721,15 @@ One rule for every component that renders an actor, creator, recorder or approve
 | Page unpublished by a check | When it happens | AD-27 banner + notification path | [Fix and publish] → AD-27 |
 | Page taken down | When it happens | AD-27 banner + notification path | [Appeal] → AD-27 |
 | Name decision | When Super Admin decides | AD-27 banner + notification path | [Open] → AD-27 |
+| Name replaced by GymOS `[ASSUMPTION]` | When a Super Admin claim or forced rename changes the name (SA-17) | AD-27 banner + notification path | [Open] → AD-27 |
+| Name released `[ASSUMPTION]` | When the sweep releases the name of a gym that was not active for 12 months; the page is also offline (`name_released`) | AD-27 banner + notification path; shown once the gym is active | [Claim a name] → AD-27 |
+| Name release warning, optional `[ASSUMPTION — not built]` | At 11 months of inactivity | Notification path | [Open] → AD-27 |
 
-Copy for each is in Voice and Tone and in AD-24, AD-25, AD-27. One banner shows at a time; newest first; each is dismissible and dismissal is per user, not per gym `[ASSUMPTION]`. Only the **Owner** receives these. The daily summary lists only categories that occurred and names no person: "GymOS Support helped today: 2 refunds, 1 fee waiver, 3 staff added or changed, 1 change to your page's contact or about text." / « GymOS Support est intervenu aujourd'hui : 2 remboursements, 1 dispense de frais, 3 membres du personnel ajoutés ou modifiés, 1 modification du contact ou du texte « À propos » de votre page. »
+Copy for each is in Voice and Tone and in AD-24, AD-25, AD-27, AD-28 (the three name rows). One banner shows at a time; newest first; each is dismissible and dismissal is per user, not per gym `[ASSUMPTION]`. Only the **Owner** receives these. The daily summary lists only categories that occurred and names no person: "GymOS Support helped today: 2 refunds, 1 fee waiver, 3 staff added or changed, 1 change to your page's contact or about text." / « GymOS Support est intervenu aujourd'hui : 2 remboursements, 1 dispense de frais, 3 membres du personnel ajoutés ou modifiés, 1 modification du contact ou du texte « À propos » de votre page. »
 
 ### Gate Checklist *(V1.7, FR-199, AD-27 and AD-29)*
 
-A list of named conditions, each `done` or `missing`, with a link to its field. Not colour alone: a check or cross icon plus the words "Ready" / "Missing" (« Prêt » / « Manquant »). A summary sentence says how many of the total are ready. It is rendered the same way on the editor and on the publish screen, from one list. A condition that is not required (gallery, services, map position) is shown under "Optional" and never counts toward the total.
+A list of named conditions, each `done` or `missing`, with a link to its field. Not colour alone: a check or cross icon plus the words "Ready" / "Missing" (« Prêt » / « Manquant »). A summary sentence says how many of the total are ready. It is rendered the same way on the editor and on the publish screen, from one list. The list and the missing codes come from one read-only server function (AD-27, "Where the checklist comes from"); the client does not mirror the 13 gate rules. A condition that is not required (gallery, services, map position) is shown under "Optional" and never counts toward the total.
 
 ---
 
@@ -3742,18 +3905,20 @@ A list of named conditions, each `done` or `missing`, with a link to its field. 
 
 **Waive registration fee — "Session guest" preset** *(V1.6)*: the preset text satisfies the shipped 10–200 character reason rule, so no new error is needed.
 
-**AD-27 Landing Page — Editor** *(V1.7; lengths `[ASSUMPTION]`)*
+**AD-27 Landing Page — Editor** *(V1.7; limits as built in 24.5–24.8; 2026-11-08 additions `[ASSUMPTION]`)*
 | Field | Rule | Error (EN / FR) |
 |---|---|---|
-| About | Required to publish; 100–1 000 characters; plain text | "Write at least 100 characters." / « Écrivez au moins 100 caractères. » |
-| Any text field | Markup characters refused | "Use plain text only — no links or formatting." / « Utilisez du texte brut uniquement — pas de liens ni de mise en forme. » |
+| About, per language, on the Page text tabs (today English, Français) | Each 0–2 000 characters; a language is offered when it reaches the Language completeness rule threshold (today 100 characters after trimming), and to publish **at least one** language must; plain text | "Write at least 100 characters in one language." / « Écrivez au moins 100 caractères dans une langue. » · over the limit: "Use 2,000 characters or fewer." / « Utilisez 2 000 caractères ou moins. » |
+| Services, per language, on the Page text tabs | Optional; each 0–2 000 characters; one service per line | over the limit: "Use 2,000 characters or fewer." / « Utilisez 2 000 caractères ou moins. » |
+| Any text field | `<` and `>` refused; CRLF turned into LF and control characters other than line break and tab removed before save; the error names the field (gym name, About, Services, address, city, plan name) | "Use plain text only — no links or formatting." / « Utilisez du texte brut uniquement — pas de liens ni de mise en forme. » · named: "[Field] can't contain < or >." / « [Champ] ne peut pas contenir < ou >. » |
+| Whole page | Published data over 64 KiB refused | "This page has too much content to publish. Shorten the About or Services text." / « Cette page contient trop de contenu pour être publiée. Raccourcissez le texte « À propos » ou « Services ». » |
 | Public phone / WhatsApp | E.164 (same rule as AD-17); at least one required to publish | "Enter a valid phone number (e.g. +237 6 XX XX XX XX)" / « Saisissez un numéro valide (ex. +237 6 XX XX XX XX) » |
-| Map position | Both or neither; latitude −90…90, longitude −180…180 | "Enter both latitude and longitude." / « Saisissez la latitude et la longitude. » |
+| Map position | Both or neither; latitude −90…90, longitude −180…180 | "Enter both latitude and longitude, or clear both." / « Saisissez la latitude et la longitude, ou effacez les deux. » |
 | Opening hours | Close after open; one range per day | "Closing time must be after opening time." / « L'heure de fermeture doit être après l'heure d'ouverture. » |
 | Image | JPEG, WebP, PNG; ≤ 5 MB; attestation ticked | "Use a JPEG, WebP or PNG under 5 MB." / « Utilisez une image JPEG, WebP ou PNG de moins de 5 Mo. » · "Confirm you have the right to publish this image." / « Confirmez que vous avez le droit de publier cette image. » |
-| Gallery | ≤ 10 images | "You can add up to 10 images." / « Vous pouvez ajouter jusqu'à 10 images. » |
+| Gallery | ≤ 12 images | "You can add up to 12 images." / « Vous pouvez ajouter jusqu'à 12 images. » |
 
-**AD-28 Page Name** *(V1.7, FR-202)*: lowercase; 3–30 characters; `a-z`, `0-9`, `-`; no leading or trailing hyphen; no `--`; no `xn--` prefix; not digits only. Unique case-insensitively. Messages are the AD-28 list. Reserved and brand-word refusals use the single "not available" message.
+**AD-28 Page Name** *(V1.7, FR-202)*: lowercase; 3–30 characters; `a-z`, `0-9`, `-`; no leading or trailing hyphen; no `--`; no `xn--` prefix; not digits only. Unique case-insensitively. Messages are the AD-28 list. Reserved and brand-word refusals use the single "not available" message. Typed errors `not_admitted` and `gym_not_active` have their own inline copy (AD-28): "Only the Owner can change the page name." / « Seul le propriétaire peut modifier le nom de la page. » · "Your gym isn't active, so the page name can't be changed right now." / « Votre salle n'est pas active : le nom de la page ne peut pas être modifié pour le moment. »
 
 **SA-10 Create Support Account** *(V1.7)*
 | Field | Rule | Error (EN / FR) |
@@ -4033,13 +4198,15 @@ V1.7 adds three small state machines (support access, page publication, second-f
 | No page | PS-02 | AD-27 "Not started"; no name |
 | Name held | PS-02 | "Name under review"; publish blocked |
 | Draft | PS-02 | Checklist with what's missing |
-| Published | PS-01 | "Published"; edits go live within ~2 min |
+| Published | PS-01 | "Published"; edits are saved at once and can take up to 2 min to appear |
 | Auto-unpublished | PS-02 | Offline banner with reason; republish when fixed |
 | Owner-unpublished | PS-02 | "Not published"; name stays reserved up to 12 months |
-| Gym suspended | PS-02 | "Offline — gym suspended"; returns when active |
+| Gym suspended | PS-02 | "Offline — gym suspended"; snapshot kept; returns when active; [Unpublish] allowed |
+| Name released *(24-8; after 12 idle months of a gym that is not active)* | PS-02 | "Offline — name released"; reason `name_released`; on reactivation the Owner claims a name and publishes again; publish is refused until a name is active |
 | Taken down | PS-02 | Takedown banner with reason; republish blocked; name reserved for good |
 - **One public result.** Every non-published state returns the same PS-02, so cause is never inferable from outside.
-- **Reappearance** takes up to about 2 minutes (origin and CDN, AD-46), and directory and sitemap entries up to 15 minutes. The Owner is told "about 2 minutes", not an exact time.
+- **Reappearance** can take up to 2 minutes (origin and CDN, AD-46), and directory and sitemap entries up to 15 minutes. The Owner is told "can take up to 2 minutes", not an exact time. The stored copy is re-snapshotted in the same transaction as the edit; the delay is only the public cache.
+- **Auto-unpublish** records the failing gate codes (13 in all, AD-27 reason table) and notifies every active Owner. A page that is already unpublished is never touched by a refresh.
 - **Rename:** the old name forwards (301) for 12 months; the page itself never goes offline during a rename.
 
 **Second-factor session *(FR-189, FR-191, FR-192)*:**
@@ -4185,6 +4352,7 @@ V1.7 adds three small state machines (support access, page publication, second-f
 | Plan type lock *(V1.6, AD-23)* | The read-only field uses `aria-readonly="true"` with the reason linked through `aria-describedby`, not conveyed by the lock icon alone |
 | Support switch *(V1.7, AD-24)* | A real `<button role="switch">` with `aria-checked`; its label is "Allow GymOS Support"; the state headline is linked with `aria-describedby`. The turn-on and turn-off dialogs focus-trap, return focus to the switch, and the confirm button is labelled by action ("Turn off" / "Turn on") |
 | Fixed support row *(V1.7, AD-16)* | Rendered as a normal table row with the lock icon `aria-hidden` and the explanation in the row's `aria-describedby`; there is no focusable control in it, so keyboard users are not led to a dead end |
+| Page text language tabs *(V1.7, AD-27)* | `role="tablist"` with a `tab` per shown language and a `tabpanel` for its fields; arrow keys move between tabs (Home and End to the ends); a tab's accessible name is the language plus its completeness status; [+ Add language] is a button (menu button from three languages) outside the arrow sequence and moves focus to the new tab's About field; the remove dialog is modal, opens on [Cancel] and returns focus to its trigger, or to the default tab if the language was removed |
 | Gate checklist *(V1.7, AD-27/AD-29)* | A list; each item reads "Banner image, missing" / "Banner image, ready". The summary uses `aria-live="polite"`, updated after typing pauses (300 ms). Fix links are real links to the field and move focus to it |
 | Page name field *(V1.7, AD-28)* | The rule messages are associated by `aria-describedby`; the `.gymosapps.com` suffix is part of the accessible label ("Page name, followed by .gymosapps.com") |
 | Image attestation *(V1.7, AD-27)* | A labelled checkbox; the upload control is `aria-disabled` with the reason linked until it is ticked |
@@ -4202,14 +4370,14 @@ Public pages are plain HTML with no script (Architecture Decision AD-44), so acc
 |---|---|
 | Landmarks | One `<header>`, one `<main>`, one `<footer>`; `<nav>` only for breadcrumbs and category links, each with a distinct `aria-label` ("Breadcrumb" / « Fil d'Ariane », "Categories" / « Catégories »). A skip link "Skip to content" / « Aller au contenu » is the first focusable element |
 | Headings | Exactly one `<h1>` (gym name, or the listing title); sections are `<h2>` in the PS-01 content order; no skipped levels. Omitted sections leave no empty heading |
-| Language | `<html lang>` is the gym's `default_language` (gym page) or the URL locale (directory). Gym-entered content is not re-tagged `[NOTE FOR UX: see PS-01]`; the language link on the directory has `hreflang` and `lang` of its target |
+| Language | `<html lang>` is the language shown (gym page: the negotiated or explicit `/{code}` language; directory: the URL locale). Each block of gym-entered content shown in another language because the chosen one was empty (only Services can be) carries its own `lang` (PS-01 "Language"). The language link or menu, on the gym page and the directory, is written in each target's own language and every entry has `hreflang` and `lang` of its target; in a menu the current language is marked `aria-current="true"` |
 | Focus order | Source order equals visual order, so focus runs: skip link, header, contact actions, About…, footer. No positive `tabindex`, no focus trap, no hidden focusable content. Visible focus ring always (same rule as the dashboard) |
 | Tap targets | Call, WhatsApp, Directions, listing links, category links and pagination links are ≥ 44×44 CSS px with ≥ 8 px between neighbours; links in running text have a line height giving ≥ 24 px target |
 | Link text | Every link names its destination in text: "Call Grace Fit" / « Appeler Grace Fit » as accessible name where the visible text is "Call"; no "click here"; the phone number is visible text |
 | Images | Logo: the gym name as text alternative. Banner: empty alternative (decorative; the name is already in the header). Gallery: the gym's description if given, else empty. No information is carried by an image alone |
 | Colour independence | The gym colour is decorative; no state (current category, closed day) is conveyed by colour alone. The current category link has text and `aria-current="true"` |
 | Contrast | The gym's `primary_color` is applied as a single custom property. Text on it must still meet 4.5:1 (3:1 for large text). The page **falls back to the platform `primary`/`accent` pairing** for any element where the gym colour would fail. Token values and the check live in `DESIGN.md` `[NOTE FOR UX: DESIGN.md has no public-page section yet]` |
-| Zoom and reflow | Single column; usable at 400% zoom and 320 CSS px width with no horizontal scroll; text resizes without clipping |
+| Zoom and reflow | Single column under 641 px; the tablet and desktop layouts (PS-01 "Layout by breakpoint") reflow back to one column at 320 CSS px and at 400% zoom; usable with no horizontal scroll; text resizes without clipping `[ASSUMPTION — wording after the mobile, tablet and desktop decision, 2026-11-08]` |
 | Forms (PS-03) | Native controls only: `<fieldset>`/`<legend>` for the reason group, `<label for>`, `required`, an error summary at the top of the returned page with `role="alert"` and in-page links to each field, each error tied by `aria-describedby` |
 | Motion | None. No auto-playing media, no carousel, no animation to disable |
 | Print | Not specified for V1.7 `[ASSUMPTION]` |
@@ -4274,11 +4442,14 @@ Same breakpoints as Admin Dashboard. Desktop primary; tablet supported; mobile s
 
 Layout is `DESIGN.md`'s; this is the behavior at each width.
 
+Gym pages are for mobile, tablet and desktop *(product owner, 2026-11-08; supersedes the earlier "one reading column at every width")*. The ten sections keep one DOM and one reading order; placement changes in CSS only, with no script. Breakpoints are `[ASSUMPTION]`. Full per-section placement is in PS-01 "Layout by breakpoint".
+
 | Viewport | Behavior |
 |---|---|
-| ≥ 1024 px | One reading column with a maximum measure of about 70 characters for About; the contact actions stay in the top region, never in a floating bar (no script, no sticky behavior assumed) |
-| 600–1023 px | Same single column, contact actions in a row |
-| 320–599 px (primary: mid-range Android on 4G, NFR-025) | One column. Contact actions stack as full-width buttons, Call first. Images are sized to the viewport so a banner never forces horizontal scroll; the gallery is a single column of images |
+| ≥ 1024 px (desktop) | Content up to 1120 px, hero 640 px. About beside the Services panel; plans up to three across; Hours beside Location in the dark Visit band; gallery filling the row (first image large from five images); the repeat band at the foot. The phone number is shown as text (`tel:` may not open a call) and WhatsApp opens WhatsApp Web. The contact actions stay in the top region, never in a floating bar (no script, no sticky behavior assumed). About keeps a measure of about 70 characters inside its cell |
+| 641–1023 px (tablet) | Content up to 1120 px; contact buttons in one row; plans two or more across; Hours and Location side by side; gallery three across |
+| 320–640 px (mobile; primary: mid-range Android on 4G, NFR-025) | One column, edge to edge. Contact buttons are in the hero, Call first. Images are sized to the viewport so a banner never forces horizontal scroll; the gallery is a wide first image and two columns |
+| All widths | Tap targets at least 44 px. Contact actions are inside the first screen at 360 x 640, 768 x 1024 and 1366 x 768 |
 | Slow connection | The page must be complete and usable before images arrive: text and contact actions are in the first response; images have reserved dimensions so nothing jumps |
 | Script blocked / old browser | Identical, because nothing depends on script |
 | Dark mode | `[NOTE FOR UX]` not specified for public pages; the member app is dark and the dashboard light. Decide in `DESIGN.md` whether public pages respond to `prefers-color-scheme`. Until then, light only `[ASSUMPTION]` |
@@ -4499,13 +4670,13 @@ Layout is `DESIGN.md`'s; this is the behavior at each width.
 
 **Protagonist:** Aminata, new to Douala, searching on her phone. Supporting cast: Grace (Owner), her Supervisor. `[ASSUMPTION — narrative drafted, per PRD UJ-13]`
 
-1. **Search.** Aminata searches "pilates studio Douala" and opens a result: **PS-01** at `grace-fit.gymosapps.com`. The page is in the gym's language, loads on 4G without script, and shows a banner, the studio's name and category, and Call and WhatsApp at the top.
+1. **Search.** Aminata searches "pilates studio Douala" and opens a result: **PS-01** at `grace-fit.gymosapps.com`. Grace completed her About in English and French, so the page opens in the language Aminata's browser prefers and offers a plain link to the other; it loads on 4G without script, and shows a banner, the studio's name and category, and Call and WhatsApp at the top.
 2. **PS-01, reading.** She sees two public plans with prices and the opening hours. There is no login, no member count, no staff name.
 3. **Tap WhatsApp.** A chat opens with the gym's public number. **That is Aminata's whole journey.**
-4. **Grace's side, earlier — AD-27.** The checklist listed what was missing: logo, banner, about text of at least 100 characters, hours, a public contact, one plan marked "Show on my page". Grace marked only Monthly public; her other plans stay private.
+4. **Grace's side, earlier — AD-27.** The checklist listed what was missing: logo, banner, about text of at least 100 characters (under "Page text" she wrote English first, then tapped [Add French] and wrote French in its own tab; both tabs saved with one [Save changes]), hours, a public contact, one plan marked "Show on my page". Grace marked only Monthly public; her other plans stay private.
 5. **AD-28.** Grace claims `grace-fit`. The name passes; nothing holds it.
 6. **AD-29.** The publish screen lists exactly what becomes public, including the public contact number (a number she chose, not her login phone). She ticks the image attestation and taps [Publish page]. "It can take up to 2 minutes to appear."
-7. **Later, AD-27 (Supervisor).** Her Supervisor changes the opening hours. The page keeps passing its checks, so it stays live; the change appears within about 2 minutes. The Supervisor sees the page name as plain text and has no [Change name].
+7. **Later, AD-27 (Supervisor).** Her Supervisor changes the opening hours. The page keeps passing its checks, so it stays live; the change can take up to 2 minutes to appear. The Supervisor sees the page name as plain text and has no [Change name].
 8. **Hypothetical, AD-27.** If Grace made her last public plan private, the editor would warn "Your page will go offline because it would have no public plan. Save anyway?" On Save the page unpublishes itself and the banner says why: "Your page is offline: it no longer has a public plan." A visitor on that link would see PS-02, the same "This page isn't available." as for any unknown name.
 
 **Climax beat:** Aminata taps WhatsApp and is talking to a person in one tap, at a number Grace chose to make public and saw on the publish screen before it went live.

@@ -1,12 +1,16 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 import { resolveAnalyticsEnvironment } from "./lib/analytics-environment";
+import { buildId } from "./lib/app-env";
 
 const nextConfig: NextConfig = {
   // app/layout.tsx and app/(dashboard)/layout.tsx both read locale/auth
   // context inside explicit <Suspense> boundaries (Suspense-wrap fix
   // applied), so Cache Components no longer hard-fails a real `next build`.
   cacheComponents: true,
+  // Story 24.6: page media uploads go through a Server Action and may be up to 4 MiB (Vercel caps a request body near 4.5 MB, so
+  // the limit stays below it); the 1 MB default would reject them.
+  experimental: { serverActions: { bodySizeLimit: "5mb" } },
   // Next 16 blocks cross-origin requests to dev-only endpoints, treating any
   // host other than the one the dev server initialized with (`localhost`) as
   // cross-origin. Browsing dev over `127.0.0.1` therefore got the HMR
@@ -24,7 +28,9 @@ const nextConfig: NextConfig = {
   // server-side ones.
   env: {
     // The commit this build came from; UpdateNotice compares it with /api/version.
-    NEXT_PUBLIC_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev",
+    NEXT_PUBLIC_BUILD_ID: buildId(),
+    // Story 24-3: local-HTTP dev gate for the unprefixed session cookie, readable by the browser client (lib/supabase/cookie-options.ts).
+    NEXT_PUBLIC_AUTH_COOKIE_UNPREFIXED: process.env.AUTH_COOKIE_UNPREFIXED ?? "",
     NEXT_PUBLIC_ANALYTICS_ENV: resolveAnalyticsEnvironment(),
   },
 };

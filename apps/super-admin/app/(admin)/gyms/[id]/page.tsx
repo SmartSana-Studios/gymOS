@@ -14,6 +14,7 @@ import {
   type AuditTrailEntry,
 } from "@/services/gyms";
 import { listRealActors, listSupportAccounts, listSupportAssignments } from "../../support/actions";
+import { getGymPagePanel } from "../../pages/actions";
 import { GymDetailPageClient } from "./components/GymDetailPageClient";
 import GymDetailLoading from "./loading";
 
@@ -70,6 +71,7 @@ async function GymDetailData({
     { data: supportAccounts, error: supportAccountsError },
     { data: activeEscalations, error: activeEscalationsError },
     { data: claimsData },
+    { data: pagePanel },
   ] = await Promise.all([
     getGymDetail(id),
     listTiers(),
@@ -89,6 +91,8 @@ async function GymDetailData({
     // trip to the Auth server) -- matches this app's established convention
     // ((admin)/layout.tsx) for reading the current actor's identity.
     supabase.auth.getClaims(),
+    // Story 24.11: the Page block. A failure only hides the block's data ("could not be loaded"); it never blocks the gym page.
+    getGymPagePanel(id),
   ]);
 
   if (
@@ -196,6 +200,7 @@ async function GymDetailData({
       payments={paymentsPage}
       supportAssignments={supportAssignments ?? []}
       supportAccounts={supportAccounts ?? []}
+      pagePanel={pagePanel}
     />
   );
 }

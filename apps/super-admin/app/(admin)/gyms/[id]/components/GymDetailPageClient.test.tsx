@@ -21,6 +21,7 @@ vi.mock("./ActiveAccessList", () => ({ ActiveAccessList: () => <div>ACCESS-LIST<
 vi.mock("./AuditTrailTab", () => ({ AuditTrailTab: () => <div>AUDIT-PANEL</div> }));
 vi.mock("../../../support/components/GymSupportPanel", () => ({ GymSupportPanel: () => <div>SUPPORT-PANEL</div> }));
 vi.mock("./GymMembersTable", () => ({ GymMembersTable: ({ members }: { members: unknown }) => (members ? <div>MEMBERS-TABLE</div> : null) }));
+vi.mock("./GymPageBlock", () => ({ GymPageBlock: ({ gymId, data }: { gymId: string; data: { state: string } | null }) => <div data-testid="page-block">{`PAGE-BLOCK ${gymId} ${data ? data.state : "unloaded"}`}</div> }));
 vi.mock("./GymPaymentsTable", () => ({ GymPaymentsTable: ({ payments }: { payments: unknown }) => (payments ? <div>PAYMENTS-TABLE</div> : null) }));
 
 import { GymDetailPageClient } from "./GymDetailPageClient";
@@ -39,6 +40,21 @@ function renderPage(over: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   search = "";
+});
+
+describe("GymDetailPageClient Page block (SA-03)", () => {
+  it("mounts the Page block with the gym id and the loaded panel", () => {
+    renderPage({ pagePanel: { state: "taken_down", reason: "privacy", appeal: null, pageName: "gym-a" } });
+    expect(screen.getByTestId("page-block").textContent).toBe("PAGE-BLOCK g1 taken_down");
+  });
+  it("mounts it with no data when the panel could not be loaded, and not at all when none was asked for", () => {
+    renderPage({ pagePanel: null });
+    expect(screen.getByTestId("page-block").textContent).toBe("PAGE-BLOCK g1 unloaded");
+  });
+  it("shows no Page block for a caller that passes no panel", () => {
+    renderPage();
+    expect(screen.queryByTestId("page-block")).toBeNull();
+  });
 });
 
 describe("GymDetailPageClient tabs", () => {

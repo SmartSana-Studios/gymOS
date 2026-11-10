@@ -1,0 +1,27 @@
+{
+  "_comment": "Story 24.10. ONE snapshot document with every key private.gym_page_snapshot() can write (0166). packages/types/src/pageContent.test.ts parses it with PageContentV1 and compares its key paths with the list pinned in supabase/tests/gym_page_publish.test.sql ('SNAPSHOT KEY PATHS (pinned)'); the pgTAP list is the database's side of the same contract.",
+  "template": "classic",
+  "schema_version": 1,
+  "content": {
+    "name": "GRACE FIT",
+    "default_language": "en",
+    "about_en": "Grace Fit is a neighbourhood gym in Douala with free weights, cardio machines and group classes six days a week.",
+    "about_fr": "Grace Fit est une salle de sport de quartier a Douala avec des poids libres, du cardio et des cours collectifs.",
+    "services_en": "Free weights\nCardio",
+    "services_fr": "Poids libres\nCardio",
+    "address": "Rue de la Joie 12, Bonanjo",
+    "city": "Douala",
+    "country": "CM",
+    "category": "gym",
+    "map": { "lat": 4.0511, "lng": 9.7679 },
+    "contact": { "phone": "+237600555000", "whatsapp": "+237670111222" },
+    "color": "#1A2B3C",
+    "logo": "00000001-aaaa-4bbb-8ccc-000000000001.webp",
+    "banner": "00000002-aaaa-4bbb-8ccc-000000000002.webp",
+    "gallery": ["00000003-aaaa-4bbb-8ccc-000000000003.webp"],
+    "hours": { "mon": { "open": "06:00", "close": "22:00" }, "sun": null },
+    "plans": [
+      { "name": "Monthly", "label_en": "Monthly", "label_fr": "Monthly", "type": "monthly", "price": 15000, "currency": "XAF", "interval": "monthly", "duration_days": 30 }
+    ]
+  }
+}

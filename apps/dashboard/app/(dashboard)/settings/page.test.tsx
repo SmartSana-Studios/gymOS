@@ -34,6 +34,8 @@ const getDashboardShellContext = vi.fn();
 vi.mock("@/services/session", () => ({
   getDashboardShellContext: (...a: unknown[]) => getDashboardShellContext(...a),
 }));
+const getLandingPageState = vi.fn();
+vi.mock("@/services/landing-page", () => ({ getLandingPageState: (...a: unknown[]) => getLandingPageState(...a) }));
 vi.mock("@/lib/featureFlags", () => ({ TARAMONEY_PROVIDER_KEY: "taramoney" }));
 vi.mock("./SettingsForm", () => ({
   SettingsForm: function SettingsForm() {
@@ -77,6 +79,38 @@ describe("SettingsPage role prop", () => {
   ])("passes role=null when the shell lookup %s", async (_label, result) => {
     getDashboardShellContext.mockResolvedValue(result);
     expect((await renderedForm()).props.role).toBeNull();
+  });
+});
+
+describe("SettingsPage landing page row (24.9)", () => {
+  beforeEach(() => {
+    getGymSettings.mockReset().mockResolvedValue({ data: { chargeGuestsPerSession: false }, error: null });
+    getGymosSupportStatus.mockReset().mockResolvedValue({ data: null, error: null });
+    listPlans.mockReset().mockResolvedValue({ data: [], error: null });
+    getLandingPageState.mockReset().mockResolvedValue("in_progress");
+    getDashboardShellContext.mockReset();
+  });
+
+  it.each(["owner", "supervisor", "support"])("%s gets the page state from the service", async (role) => {
+    getDashboardShellContext.mockResolvedValue({ data: { role, gymId: "g1", memberId: "m1" }, error: null, suspended: null });
+    const props = (await renderedForm()).props;
+    expect(getLandingPageState).toHaveBeenCalledTimes(1);
+    expect(props.landingPageState).toBe("in_progress");
+    expect(props.landingPageUserKey).toBe("g1:m1");
+  });
+
+  it.each(["manager", "receptionist", "coach"])("%s: the service is not called and the state is null", async (role) => {
+    getDashboardShellContext.mockResolvedValue({ data: { role, gymId: "g1", memberId: "m1" }, error: null, suspended: null });
+    expect((await renderedForm()).props.landingPageState).toBeNull();
+    expect(getLandingPageState).not.toHaveBeenCalled();
+  });
+
+  it("an unreadable state is passed as null, not an error", async () => {
+    getLandingPageState.mockResolvedValue(null);
+    getDashboardShellContext.mockResolvedValue({ data: { role: "owner", gymId: "g1", memberId: null }, error: null, suspended: null });
+    const props = (await renderedForm()).props;
+    expect(props.landingPageState).toBeNull();
+    expect(props.landingPageUserKey).toBe("g1:owner");
   });
 });
 

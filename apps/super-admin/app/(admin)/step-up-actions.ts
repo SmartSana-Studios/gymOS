@@ -32,7 +32,15 @@ export async function issueStepUp(input: {
   if (
     !/^\d{6}$/.test(code) ||
     !input.subjectId ||
-    !["remove_super_admin_factor", "create_super_admin", "change_recovery_email", "remove_recovery_email", "start_support_factor_reset"].includes(input.action)
+    ![
+      "remove_super_admin_factor",
+      "create_super_admin",
+      "change_recovery_email",
+      "remove_recovery_email",
+      "start_support_factor_reset",
+      "take_down_gym_page",
+      "lift_gym_page_takedown",
+    ].includes(input.action)
   ) {
     return fail("invalid_code", "stepUp.invalidCode");
   }
