@@ -153,10 +153,10 @@ export function badCase(flaw: BadFlaw, all: Fixture[] = [...fixtures(), ...langu
 /** Layout flaws (judged in Chromium by layout.ts). `csp-browser` is the stale hash: the browser must refuse the inline style. */
 export const BAD_LAYOUT_FLAWS: BadFlaw[] = [
   { id: "footer-wider-than-the-screen", rule: "no-overflow", css: ".ft{width:900px}" },
-  { id: "text-over-text", rule: "text-overlap", css: ".loc{margin-top:-24px}" },
-  { id: "contact-below-the-fold", rule: "contact-first-screen", css: ".bn{margin-bottom:900px}" },
+  { id: "text-over-text", rule: "text-overlap", css: ".id h1{margin-top:-30px}" },
+  { id: "contact-below-the-fold", rule: "contact-first-screen", css: ".hero{min-height:1400px}" },
   { id: "tiny-footer-links", rule: "tap-target", css: ".ft a{display:inline;min-height:0;line-height:1}" },
-  { id: "pale-secondary-text", rule: "contrast", css: ".loc{color:#B5BAAE}" },
-  { id: "header-moved-after-the-footer", rule: "visual-order", css: ".hd{grid-row:50}" },
+  { id: "pale-secondary-text", rule: "contrast", css: ".ab p{color:#B5BAAE}" },
+  { id: "header-moved-below-the-contact-actions", rule: "visual-order", css: ".hero{flex-direction:column-reverse}" },
   { id: "inline-style-not-covered-by-the-hash", rule: "csp-browser", staleHash: true, css: ".zz{color:#000}" },
 ];

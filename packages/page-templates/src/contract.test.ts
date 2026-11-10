@@ -221,8 +221,8 @@ describe("language rule (cases written by hand, not derived from the implementat
     const c = baseContent();
     delete c.services_fr;
     const r = ok(render(c, "/fr"));
-    expect(r.body).toContain('<ul class="chips" lang="en">');
-    expect(ok(render(c, "/en")).body).not.toContain('<ul class="chips" lang=');
+    expect(r.body).toContain('<ul class="checks" lang="en">');
+    expect(ok(render(c, "/en")).body).not.toContain('<ul class="checks" lang=');
   });
 });
 

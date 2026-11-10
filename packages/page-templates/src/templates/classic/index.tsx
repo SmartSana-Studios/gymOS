@@ -1,4 +1,4 @@
-// Classic: the first real template (DESIGN.md "Classic template"; no HTML mock). Light card design. A pure module: it exports `render` and
+// Classic: the first real template (DESIGN.md "Classic template"). Story 24.13 redesign: bold hero, light bands, dark visit band. A pure module: it exports `render` and
 // nothing else, imports nothing but React, @gymos/types and its own siblings, and renders every string from the gym as a React text node.
 import type { ReactNode } from "react";
 import { PAGE_CONTENT_LANGUAGES, PAGE_HOURS_DAYS, type PageContentLanguage, type PageContentSnapshotV1, type PageContentV1 } from "@gymos/types";
@@ -63,7 +63,7 @@ function ContactActions({ content, chrome }: { content: PageContentSnapshotV1; c
   const map = content.map;
   if (!phone && !whatsapp && !map) return null;
   return (
-    <section className="i ct" {...section("contact")}>
+    <section className="ct w" {...section("contact")}>
       <div className="tiles">
         {phone ? (
           <a className="tile call" href={telHref(phone)} data-action="call">
@@ -148,119 +148,139 @@ function render(page: PageContentV1, locale: PageContentLanguage, env: RenderEnv
         <style>{classicCss(env.colors)}</style>
       </head>
       <body>
-        <div className={c.banner ? "page" : "page nb"}>
-          <header className="i hd card" {...section("header")}>
-            {c.logo ? (
-              <div className="logo">
-                <img src={media(c.logo)} alt={c.name} width="96" height="96" decoding="async" />
+        <div className="page">
+          <div className={c.banner ? "hero" : "hero nb"}>
+            <header className="hd w" {...section("header")}>
+              <div className="top">
+                {c.logo ? (
+                  <div className="logo">
+                    <img src={media(c.logo)} alt={c.name} width="96" height="96" decoding="async" />
+                  </div>
+                ) : (
+                  <span />
+                )}
+                {env.languageLinks ? <LanguageNav env={env} locale={locale} names={names} label={chrome.languageLabel} /> : null}
+              </div>
+              <div className="id">
+                {category || subtitleLocation ? <p className="eyebrow">{[category, subtitleLocation].filter(Boolean).join(" \u00B7 ")}</p> : null}
+                <h1>{c.name}</h1>
+              </div>
+            </header>
+            {c.banner ? (
+              <div className="bn" {...section("banner")}>
+                <img src={media(c.banner)} alt="" width="1600" height="900" fetchPriority="high" decoding="async" />
               </div>
             ) : null}
-            <div className="id">
-              <h1>{c.name}</h1>
-              {category ? <span className="chip">{category}</span> : null}
-              {subtitleLocation ? <p className="loc">{subtitleLocation}</p> : null}
-            </div>
-            {env.languageLinks ? <LanguageNav env={env} locale={locale} names={names} label={chrome.languageLabel} /> : null}
-          </header>
-          {c.banner ? (
-            <div className="i bn" {...section("banner")}>
-              <img src={media(c.banner)} alt="" width="1600" height="900" fetchPriority="high" decoding="async" />
-            </div>
-          ) : null}
-          <main>
             <ContactActions content={c} chrome={chrome} />
+          </div>
+          <main>
             {aboutParagraphs.length > 0 ? (
-              <section className={serviceItems.length > 0 ? "i sec ab card" : "i sec ab card wide"} {...section("about")} aria-labelledby="h-about">
-                <h2 id="h-about">{chrome.about}</h2>
-                {aboutParagraphs.map((p, i) => (
-                  <p key={i}>{p}</p>
-                ))}
-              </section>
-            ) : null}
-            {serviceItems.length > 0 ? (
-              <section className="i sec sv card" {...section("services")} aria-labelledby="h-services">
-                <h2 id="h-services">{chrome.services}</h2>
-                <ul className="chips" lang={servicesLang !== locale ? servicesLang : undefined}>
-                  {serviceItems.map((s, i) => (
-                    <li key={i}>{s}</li>
+              <div className="w duo">
+                <section className={serviceItems.length > 0 ? "sec ab" : "sec ab wide"} {...section("about")} aria-labelledby="h-about">
+                  <h2 id="h-about">{chrome.about}</h2>
+                  {aboutParagraphs.map((p, i) => (
+                    <p key={i}>{p}</p>
                   ))}
-                </ul>
-              </section>
+                </section>
+                {serviceItems.length > 0 ? (
+                  <section className="sec sv" {...section("services")} aria-labelledby="h-services">
+                    <h2 id="h-services">{chrome.services}</h2>
+                    <ul className="checks" lang={servicesLang !== locale ? servicesLang : undefined}>
+                      {serviceItems.map((s, i) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+              </div>
             ) : null}
             {plans.length > 0 ? (
-              <section className="i sec plans" {...section("plans")} aria-labelledby="h-plans">
-                <h2 id="h-plans">{chrome.plans}</h2>
-                <ul>
-                  {plans.map((p, i) => (
-                    <li key={i} className="plan card">
-                      <h3>{p.name}</h3>
-                      <p className="price">{formatPrice(p.price, p.currency, locale)}</p>
-                      <ul className="chips">
-                        <li>{chrome.planType[p.type]}</li>
-                        {p.type !== "pay_per_session" ? <li>{chrome.planInterval[p.interval]}</li> : null}
-                        {p.duration_days ? <li>{chrome.duration(p.duration_days)}</li> : null}
-                      </ul>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
-            {hasHours ? (
-              <section className="i sec hr card" {...section("hours")} aria-labelledby="h-hours">
-                <h2 id="h-hours">{chrome.hours}</h2>
-                <ul className="rows">
-                  {PAGE_HOURS_DAYS.map((d) => {
-                    const day = hours[d];
-                    return (
-                      <li key={d}>
-                        <span>{chrome.days[d]}</span>
-                        <span>{day ? `${day.open} \u2013 ${day.close}` : chrome.closed}</span>
+              <div className="plans-s">
+                <section className="sec w" {...section("plans")} aria-labelledby="h-plans">
+                  <h2 id="h-plans">{chrome.plans}</h2>
+                  <ul>
+                    {plans.map((p, i) => (
+                      <li key={i} className="plan">
+                        <h3>{p.name}</h3>
+                        <p className="price">{formatPrice(p.price, p.currency, locale)}</p>
+                        <ul className="checks">
+                          <li>{chrome.planType[p.type]}</li>
+                          {p.type !== "pay_per_session" ? <li>{chrome.planInterval[p.interval]}</li> : null}
+                          {p.duration_days ? <li>{chrome.duration(p.duration_days)}</li> : null}
+                        </ul>
                       </li>
-                    );
-                  })}
-                </ul>
-              </section>
+                    ))}
+                  </ul>
+                </section>
+              </div>
             ) : null}
-            {location ? (
-              <section className={hasHours ? "i sec lc card" : "i sec lc card wide"} {...section("location")} aria-labelledby="h-location">
-                <h2 id="h-location">{chrome.location}</h2>
-                {c.map ? <MapTile /> : null}
-                <address>{location}</address>
-                {c.map ? (
-                  <a className="pill" href={mapHref(c.map.lat, c.map.lng)} rel="noopener noreferrer">
-                    {chrome.openMap}
-                  </a>
-                ) : null}
-              </section>
+            {hasHours || location ? (
+              <div className="visit">
+                <div className={hasHours && location ? "w grid" : "w grid one"}>
+                  {hasHours ? (
+                    <section className="sec hr" {...section("hours")} aria-labelledby="h-hours">
+                      <h2 id="h-hours">{chrome.hours}</h2>
+                      <ul className="rows">
+                        {PAGE_HOURS_DAYS.map((d) => {
+                          const day = hours[d];
+                          return (
+                            <li key={d}>
+                              <span>{chrome.days[d]}</span>
+                              <span>{day ? `${day.open} \u2013 ${day.close}` : chrome.closed}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  ) : null}
+                  {location ? (
+                    <section className="sec lc" {...section("location")} aria-labelledby="h-location">
+                      <h2 id="h-location">{chrome.location}</h2>
+                      {c.map ? <MapTile /> : null}
+                      <address>{location}</address>
+                      {c.map ? (
+                        <a className="pill" href={mapHref(c.map.lat, c.map.lng)} rel="noopener noreferrer">
+                          {chrome.openMap}
+                        </a>
+                      ) : null}
+                    </section>
+                  ) : null}
+                </div>
+              </div>
             ) : null}
             {gallery.length > 0 ? (
-              <section className="i sec gl" {...section("gallery")} aria-labelledby="h-gallery">
-                <h2 id="h-gallery">{chrome.gallery}</h2>
-                <ul>
-                  {gallery.map((key, i) => (
-                    <li key={key + i}>
-                      <img src={media(key)} alt={chrome.photo(i + 1, gallery.length)} width="1600" height="1200" loading="lazy" decoding="async" />
-                    </li>
-                  ))}
-                </ul>
+              <section className="sec gl" {...section("gallery")} aria-labelledby="h-gallery">
+                <div className="w">
+                  <h2 id="h-gallery">{chrome.gallery}</h2>
+                  <ul>
+                    {gallery.map((key, i) => (
+                      <li key={key + i}>
+                        <img src={media(key)} alt={chrome.photo(i + 1, gallery.length)} width="1600" height="1200" loading="lazy" decoding="async" />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </section>
             ) : null}
             {primaryAction ? (
-              <div className="i rp" data-role="repeat-action">
+              <div className="rp" data-role="repeat-action">
+                <p>{c.name}</p>
                 <a href={primaryAction.href} {...(primaryAction.external ? { rel: "noopener noreferrer" } : {})}>
                   {primaryAction.label}
                 </a>
               </div>
             ) : null}
           </main>
-          <footer className="i ft" {...section("footer")}>
-            <a href="/report">{chrome.reportPage}</a>
-            <p>
-              {chrome.madeWith}{" "}
-              <a href={`${env.wwwOrigin}/${locale}`} rel="noopener noreferrer">
-                GymOS
-              </a>
-            </p>
+          <footer className="ft" {...section("footer")}>
+            <div className="w">
+              <a href="/report">{chrome.reportPage}</a>
+              <p>
+                {chrome.madeWith}{" "}
+                <a href={`${env.wwwOrigin}/${locale}`} rel="noopener noreferrer">
+                  GymOS
+                </a>
+              </p>
+            </div>
           </footer>
         </div>
       </body>

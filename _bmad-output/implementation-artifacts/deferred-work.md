@@ -1,5 +1,13 @@
 # Deferred Work
 
+## Deferred from: build of spec-24-13-landing-template-redesign (2026-11-10)
+
+- **A second, dark template.** The owner wants good templates in the plural and both reference kits are dark. A dark template needs a dark-aware color pairing: `colors.ts` judges `ui` against white and the light page color, and the on-gym rule assumes a light page. Needs the registry entry, the dashboard `lib/pageTemplates.ts` list, a chrome reuse and its own conformance run; no migration (the `template` value is pattern-checked, not an enum). Do after the owner has judged the redesigned Classic.
+- **The LCP and load numbers in the 24.12 gate table are for the old template.** The new hero image is still the LCP element (`fetchpriority=high`); re-run `scripts/landing-gate/run-local.sh lcp` and update the decisions.md gate table before the gate is signed.
+- **Services lines that start with a dash show it twice.** A gym that types "- Item" gets a check mark and the dash. The template must show lines as entered (conformance), so the editor should strip or warn; not changed here.
+- **Hero legibility on a very light photo** is by the gradient only (about 72% to 93% dark). Checked with a busy dashboard screenshot and gradient stand-ins, not with real pale gym photos. Owner to look at real photos.
+- **Template thumbnails in the editor** (EXPERIENCE.md "Selection") do not exist yet; only matters once there are two templates.
+
 ## Deferred from: closing story 24-2 as code-done (2026-11-10)
 
 Owner-held ops items. The product owner chose to close 24-2 on its code half, so none of these block epic 24. Runbook: `docs/runbooks/wildcard-dns-rollback.md`. Live state on 2026-11-10: wildcard certificate serves at `www.` (LE YR2, issued 2026-11-08, expires 2027-02-06); `NS _acme-challenge -> ns1/ns2.vercel-dns.com` present at A2; no `CNAME *` yet.

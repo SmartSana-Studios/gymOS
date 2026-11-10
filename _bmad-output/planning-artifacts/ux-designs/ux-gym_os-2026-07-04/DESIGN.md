@@ -167,23 +167,22 @@ Visual specs only — behavior lives in `EXPERIENCE.md`'s Member App Component L
 | Language link *(2026-11-08)* | When the page has two complete languages (each supported content language whose required fields are filled), one plain text link to the other language sits in the header or the footer, in the **target** language's own name ("Français" on the English page, "English" on the French page) with `hreflang` and `lang` of its target. **With more than two complete languages the link becomes a menu** of the same plain links, each entry in its own language's name, the current language marked and not a link; it needs no script (a native disclosure or an inline list). **No flags**, ever: a flag stands for a country, not a language. Styled as a text link (or a text menu), never a pill or button (it is navigation, not a contact action), each entry at least 44 px tall, in the body text colour with an underline, so it does not compete with Call, WhatsApp and Directions. With only one complete language, no link, no menu and no placeholder. Tokens are unchanged |
 | `lang` attribute *(2026-11-08)* | `<html lang>` is the language shown. Any block of gym-entered content that is shown in another language (a fallback because the chosen language was empty) carries its own `lang` for that block. Chrome strings (section headings, labels, buttons) follow the language shown. Typography does not change by language |
 
-**Classic template (first real template)** `[ASSUMPTION — name]` *(product owner, 2026-11-08; no HTML mock exists, this table is the design)*. Light, modern card design. Shapes, spacing and the language link follow the rows above. Placement per breakpoint is EXPERIENCE.md PS-01 "Layout by breakpoint".
+**Classic template (first real template)** `[ASSUMPTION — name]` *(product owner, 2026-11-08; redesigned 2026-11-10 in story 24.13 after the owner judged the first card design "horrible" in the browser pass, with two fitness template kits as references; still no HTML mock, this table is the design)*. Bold and photographic: a full-bleed hero, light content bands under a heavy uppercase heading, one dark band for the visit. Placement per breakpoint is EXPERIENCE.md PS-01 "Layout by breakpoint". The DOM, the ten sections and their order are unchanged.
 
 | Element | Specification |
 |---|---|
-| Surface | Page background `#F3F4F0`; cards white; hairline `#E6E4DD`; soft shadow `0 1px 2px rgba(27,42,65,.06)` plus `0 10px 28px rgba(27,42,65,.07)` |
-| Shapes | Card 16, chip 8, pill actions, media (banner on tablet and desktop, gallery images) 12 |
-| Type | Gym name Barlow 800, 28/36 on desktop (smaller on mobile `[ASSUMPTION]`); section headings 22/24; plan name 19, weight 700; price 24/28, weight 800, tabular numerals; body system sans 16/1.55; measure up to 62 characters |
-| Header card | Over the banner. Logo in a circle, 72 px (96 px on desktop), ringed in the gym color. Gym name, category chip, location text; language pill at the right |
-| Action tiles | Three tiles. Call filled with the gym color (text in the on-gym color, below); WhatsApp and Directions white. Icon above label, minimum height 84, drawn icons with a 1.75 px stroke, no emoji. The number is printed as text beside or under the tiles |
-| About | Card; paragraphs as entered |
-| Services | Chips |
-| Plans | One card per plan: name, price with its currency code, translated detail chips (type, interval, duration) |
-| Hours | Card, one row per day, closed days read "Closed"; no "today" marker (no open-now) |
-| Location | Card with a drawn map tile and pin (no map image, no third-party tiles), address text, and an outline pill "Open the map" / « Ouvrir la carte » (omitted with no map position) |
-| Gallery | Rounded images; on mobile the first image is wide (full column), the rest in a grid |
-| Repeat action | Call as a full-width pill; centred and 280 wide on tablet and desktop |
-| Gym color use | Only the Call tile fill, the logo ring, the map pin and focus accents. Nothing else, so contrast never depends on it |
+| Surface | Page `#F5F5F1`; Plans band white with a hairline `#E3E1DA`; hero, Visit band and footer ink `#121B2B`; Services panel `#1B2A41`. No shadows. Sharp corners: 6 px on buttons, plan cards, media and the map tile |
+| Hero | Full width, 560 px tall (640 on desktop; on a short phone, the screen height minus 24 px). The banner fills it under a dark gradient (about 72% at the top, 62% mid, 93% at the foot) so white text reads on any photo; with no banner the hero is a plain ink field with an 8 px bar in the gym fill at the bottom right. Inside: logo (56 px circle, ringed in the gym fill) and the language link in a top row; at the foot the eyebrow, the gym name and the contact actions |
+| Type | Headings Barlow 800 uppercase: gym name `clamp(36px, 11vw, 76px)`, line 0.98, at most 16 characters wide; section headings `clamp(28px, 6vw, 40px)`. Eyebrow (category · city) Barlow 700 14 px, uppercase, letter-spaced. Plan name Barlow 700 18 px uppercase, price Barlow 800 up to 44 px with tabular numerals. Body system sans 16/1.6 (17 for About), measure up to 62 characters |
+| Heading mark | A 48 px by 4 px bar in the gym fill above every section heading; a 36 px bar before the eyebrow |
+| Contact actions | In the hero, under the name. Three buttons, 52 px tall, icon left of an uppercase Barlow label, white 2 px outline; Call filled with the gym fill (text in the on-gym color), WhatsApp and Directions transparent on a dark scrim. Numbers as white text under the buttons |
+| About and Services | About on the page color, large text. Services in a dark panel beside it, one line per item with a filled round check in the gym fill |
+| Plans | White band, one card per plan with a 5 px top edge in the gym fill: name, large price with its currency code, details as a checked list (type, interval, duration) |
+| Visit band | One dark band holding Hours and Location side by side. Hours: one row per day, uppercase day on the left, times right, hairlines; closed days read "Closed". Location: the drawn map tile (pin in the gym fill), address, and an outlined "Open the map" button (omitted with no map position) |
+| Gallery | Sharp images; on mobile the first is wide and the rest in two columns; on desktop four columns and, with three or more images, the first spans two columns and two rows |
+| Repeat action | A full-width band in the gym fill: the gym name, then Call as a dark button (centred, at least 280 px wide) |
+| Footer | Ink band; "Report this page" and the GymOS link in white |
+| Gym color use | Fill only: the accent bars, the Call button, the check marks, the logo ring, the map pin, the hero bar and the repeat band. Text on the fill uses the on-gym color; no text is ever the gym color itself, so contrast never depends on it. The Call button also carries a white outline so a near-black gym color stays visible on the dark hero |
 | Contrast rule `[ASSUMPTION]` | The server-side renderer (no script) computes the text color on a gym-color fill: white or ink, whichever reaches 4.5:1 on the gym color, else the platform accent pairing; it supplies the result to the template as an on-gym color (`--on-gym`) |
 
 **Seed templates** (not alternatives; the first two of the library):
