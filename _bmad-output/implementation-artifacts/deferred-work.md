@@ -1,5 +1,16 @@
 # Deferred Work
 
+## Deferred from: closing story 24-2 as code-done (2026-11-10)
+
+Owner-held ops items. The product owner chose to close 24-2 on its code half, so none of these block epic 24. Runbook: `docs/runbooks/wildcard-dns-rollback.md`. Live state on 2026-11-10: wildcard certificate serves at `www.` (LE YR2, issued 2026-11-08, expires 2027-02-06); `NS _acme-challenge -> ns1/ns2.vercel-dns.com` present at A2; no `CNAME *` yet.
+
+- **AutoSSL has not been tested against the `_acme-challenge` delegation for names that point at A2.** The owner's cPanel has no SSL/TLS Status page, and A2's first reply (2026-11-08) was boilerplate about HTTP validation. Ask A2 for a per-domain AutoSSL result for `mail.`, `cpanel.` and `webmail.`, to show whether DNS validation still works there. Evidence so far: `mail.gymosapps.com` still serves the A2 certificate (LE YR1, expires 2026-12-31), and `_cpanel-dcv-test-record` already rotated, so AutoSSL is writing to the zone. Severity: medium (a failed renewal breaks mail TLS from 2026-12-31).
+- **Test mail in and out after the delegation** has not been done.
+- **`CNAME *` is held.** 24.10 (public route and launch template) has shipped, so the original reason to hold is gone, but the wildcard goes live for every label (reserved labels are gated by the proxy and CI, not by DNS). Owner decides when. The code side is ready.
+- **Record Vercel's "DNS Change Recommended" advisory text** in `docs/decisions.md` once the owner sees it (not yet seen).
+- **Dated checks:** re-check all certificates from about 2026-12-01 (apex, `owner.`, `portal.` and `mail.` expire 2026-12-31); first wildcard renewal about 2027-01-07 (60 days after issue), which also proves renewal through the delegation (the 24.1 spike could not).
+- **Zone export drift is expected, not a bug:** `_cpanel-dcv-test-record` TXT value changes with each AutoSSL run, so `docs/dns/gymosapps.com.zone` is a point-in-time copy (refines the existing zone-export-vs-live-DNS entry below).
+
 ## Deferred from: build of spec-24-2-wildcard-delegation-and-reserved-label-ci-check (2026-11-08)
 
 - **Super-admin client-side Sentry `environment` probably always resolves to `dev`.** Unlike the dashboard, `apps/super-admin/next.config.ts` does not inline `NEXT_PUBLIC_ANALYTICS_ENV`, so browser-side code that resolves the environment sees no `APP_ENV`/`VERCEL_ENV` (neither is `NEXT_PUBLIC_`-prefixed). Not changed in 24.2 (the pass only moved the reads behind `lib/app-env.ts`, behavior identical). Fix is to add the same `NEXT_PUBLIC_ANALYTICS_ENV: resolveAnalyticsEnvironment()` line to super-admin's `next.config.ts` and have the client config read it.
