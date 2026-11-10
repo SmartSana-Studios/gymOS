@@ -177,13 +177,30 @@ Visual specs only — behavior lives in `EXPERIENCE.md`'s Member App Component L
 | Heading mark | A 48 px by 4 px bar in the gym fill above every section heading; a 36 px bar before the eyebrow |
 | Contact actions | In the hero, under the name. Three buttons, 52 px tall, icon left of an uppercase Barlow label, white 2 px outline; Call filled with the gym fill (text in the on-gym color), WhatsApp and Directions transparent on a dark scrim. Numbers as white text under the buttons |
 | About and Services | About on the page color, large text. Services in a dark panel beside it, one line per item with a filled round check in the gym fill |
-| Plans | White band, one card per plan with a 5 px top edge in the gym fill: name, large price with its currency code, details as a checked list (type, interval, duration) |
+| Plans | White band, one card per plan (capped at 360 px wide, so a single plan never stretches) with a 5 px top edge in the gym fill: name, large price with its currency code, details as a checked list (type, interval, duration) |
 | Visit band | One dark band holding Hours and Location side by side. Hours: one row per day, uppercase day on the left, times right, hairlines; closed days read "Closed". Location: the drawn map tile (pin in the gym fill), address, and an outlined "Open the map" button (omitted with no map position) |
-| Gallery | Sharp images; on mobile the first is wide and the rest in two columns; on desktop four columns and, with three or more images, the first spans two columns and two rows |
+| Gallery | Sharp images; on mobile the first is wide and the rest in two columns; on tablet three across; on desktop a 12-column grid where 1 to 4 images fill the row and, from 5 images, the first spans two columns and two rows |
 | Repeat action | A full-width band in the gym fill: the gym name, then Call as a dark button (centred, at least 280 px wide) |
 | Footer | Ink band; "Report this page" and the GymOS link in white |
 | Gym color use | Fill only: the accent bars, the Call button, the check marks, the logo ring, the map pin, the hero bar and the repeat band. Text on the fill uses the on-gym color; no text is ever the gym color itself, so contrast never depends on it. The Call button also carries a white outline so a near-black gym color stays visible on the dark hero |
 | Contrast rule `[ASSUMPTION]` | The server-side renderer (no script) computes the text color on a gym-color fill: white or ink, whichever reaches 4.5:1 on the gym color, else the platform accent pairing; it supplies the result to the template as an on-gym color (`--on-gym`) |
+
+**Volt template (second template)** `[ASSUMPTION — name]` *(2026-11-10, story 24.13 follow-up; the owner asked for a template in the style of a dark fitness template kit with a yellow accent and hard edges; no HTML mock, this table is the design)*. Dark and hard-edged. Same DOM, ten sections and contract as every template; placement per breakpoint follows EXPERIENCE.md PS-01 "Layout by breakpoint" (hero, About beside Services, Plans, Visit band, Gallery, repeat band, footer).
+
+| Element | Specification |
+|---|---|
+| Surface | Page `#07080D`; panels and cards `#10131B`; footer `#000000`; hairlines `rgba(255,255,255,.2)`; body text white, secondary text `#C3C8D4`. **No rounded corners anywhere** (buttons, cards, images, map) and no shadows |
+| Accent | Two server-supplied colors only: the **fill** (the gym color, or the platform accent when no white or ink reaches 4.5:1 on it) paints the top strip and the main buttons, with the on-gym color as text; the **accent** (the gym color when it reaches 4.5:1 on `#10131B`, else the platform accent) paints heading bars, numbers, prices, dash marks, the logo frame and the map pin. A dark or very dark gym color therefore never vanishes into the page |
+| Top strip | Full-width band in the fill, 48 px: category · city on the left (uppercase Barlow 700, 13 px, letter-spaced), the language link on the right (text link, underlined) |
+| Hero | 620 px (600 tablet, 680 desktop; on a short phone the screen height minus 24 px). The banner fills it under a dark gradient (top-to-bottom on mobile; left-to-right on desktop, 97% at the left to 35% at the right); with no banner, a faint accent wedge at the right. Left-aligned: logo (72 px square, 2 px accent frame), gym name in Barlow 800 as entered (not uppercased), up to 76 px, line 1.02, then the contact buttons and the numbers |
+| Contact actions | Rectangular, 52 px tall, 2 px white outline; Call filled with the fill (on-gym text), WhatsApp and Directions transparent |
+| Headings | Barlow 800, up to 44 px, title case as in the chrome strings, with a 5 px accent bar on the left |
+| About and Services | About in secondary text, 17 px. Services as a grid of bordered tiles (150 px minimum), each numbered 01, 02, 03 in the accent (a CSS counter, hidden from screen readers) |
+| Plans | A panel band; one bordered card per plan on the page color, capped at 360 px wide so one plan never stretches: name in secondary uppercase, price in the accent (Barlow 800 up to 48 px), details as a list with a short accent dash |
+| Visit band | Hours and Location as two bordered panels side by side. Hours: uppercase day, times right, hairlines. Location: a drawn dark map tile with an accent pin, address, an accent-outlined "Open the map" button |
+| Gallery | Sharp images with 4 px gaps, on a 12-column grid: 1 to 4 images fill the row; from 5 images the first is large (two columns, two rows) |
+| Repeat action | A panel band with a short accent bar on top: the gym name and the Call button (fill, white outline) |
+| Contrast | Every text and control pair meets WCAG 2.1 AA on its own surface; checked in a real browser for every fixture and gym color by the conformance suite |
 
 **Seed templates** (not alternatives; the first two of the library):
 

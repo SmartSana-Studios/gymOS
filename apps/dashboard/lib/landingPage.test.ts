@@ -231,10 +231,11 @@ describe("predicted breaks on a live page", () => {
 });
 
 describe("templates and address", () => {
-  it("one launch template, from one constant module", () => {
-    expect(PAGE_TEMPLATES).toEqual(["classic"]);
+  it("the offered templates, from one constant module", () => {
+    expect(PAGE_TEMPLATES).toEqual(["classic", "volt"]);
     expect(DEFAULT_PAGE_TEMPLATE).toBe("classic");
     expect(isOfferedTemplate("classic")).toBe(true);
+    expect(isOfferedTemplate("volt")).toBe(true);
     expect(isOfferedTemplate("bold")).toBe(false);
     expect(isOfferedTemplate(null)).toBe(false);
   });

@@ -1,108 +1,13 @@
 // Classic: the first real template (DESIGN.md "Classic template"). Story 24.13 redesign: bold hero, light bands, dark visit band. A pure module: it exports `render` and
 // nothing else, imports nothing but React, @gymos/types and its own siblings, and renders every string from the gym as a React text node.
 import type { ReactNode } from "react";
-import { PAGE_CONTENT_LANGUAGES, PAGE_HOURS_DAYS, type PageContentLanguage, type PageContentSnapshotV1, type PageContentV1 } from "@gymos/types";
+import { PAGE_CONTENT_LANGUAGES, PAGE_HOURS_DAYS, type PageContentLanguage, type PageContentV1 } from "@gymos/types";
 import { CHROME } from "../../chrome";
-import type { Chrome, RenderEnv, SectionId } from "../../contract";
-import { countryName, directionsHref, excerpt, formatPrice, lines, mapHref, paragraphs, telHref, whatsappHref } from "../../format";
-import { DirectionsIcon, MapTile, PhoneIcon, WhatsAppIcon } from "./icons";
+import type { RenderEnv } from "../../contract";
+import { countryName, excerpt, formatPrice, lines, mapHref, paragraphs, telHref, whatsappHref } from "../../format";
+import { MapTile } from "../shared/icons";
+import { ContactActions, LanguageNav, section, text } from "../shared/parts";
 import { classicCss } from "./styles";
-
-const section = (id: SectionId) => ({ "data-section": id });
-
-type TextKey = "about" | "services";
-
-/** The gym's text in one language, or undefined. The key is built from the language so a new language needs no change here. */
-function text(content: PageContentSnapshotV1, key: TextKey, lang: PageContentLanguage): string | undefined {
-  const v = (content as Record<string, unknown>)[`${key}_${lang}`];
-  return typeof v === "string" && v.trim() !== "" ? v : undefined;
-}
-
-function LanguageNav({ env, locale, names, label }: { env: RenderEnv; locale: PageContentLanguage; names: Record<string, string>; label: string }) {
-  const codes = PAGE_CONTENT_LANGUAGES.filter((l) => env.languageOrder.includes(l));
-  if (codes.length < 2) return null;
-  const nameOf = (c: string) => names[c] ?? c;
-  if (codes.length === 2) {
-    const other = codes.find((c) => c !== locale) ?? codes[0]!;
-    return (
-      <nav className="lang" aria-label={label}>
-        <a href={`/${other}`} hrefLang={other} lang={other}>
-          {nameOf(other)}
-        </a>
-      </nav>
-    );
-  }
-  // More than two complete languages: a native disclosure (no script) listing plain links; the current language is marked, not a link.
-  return (
-    <nav className="lang" aria-label={label}>
-      <details>
-        <summary lang={locale}>{nameOf(locale)}</summary>
-        <ul>
-          {codes.map((c) => (
-            <li key={c}>
-              {c === locale ? (
-                <span aria-current="true" lang={c}>
-                  {nameOf(c)}
-                </span>
-              ) : (
-                <a href={`/${c}`} hrefLang={c} lang={c}>
-                  {nameOf(c)}
-                </a>
-              )}
-            </li>
-          ))}
-        </ul>
-      </details>
-    </nav>
-  );
-}
-
-function ContactActions({ content, chrome }: { content: PageContentSnapshotV1; chrome: Chrome }) {
-  const phone = content.contact?.phone;
-  const whatsapp = content.contact?.whatsapp;
-  const map = content.map;
-  if (!phone && !whatsapp && !map) return null;
-  return (
-    <section className="ct w" {...section("contact")}>
-      <div className="tiles">
-        {phone ? (
-          <a className="tile call" href={telHref(phone)} data-action="call">
-            <PhoneIcon />
-            <span>{chrome.call}</span>
-          </a>
-        ) : null}
-        {whatsapp ? (
-          <a className="tile" href={whatsappHref(whatsapp)} data-action="whatsapp" rel="noopener noreferrer">
-            <WhatsAppIcon />
-            <span>{chrome.whatsapp}</span>
-          </a>
-        ) : null}
-        {map ? (
-          <a className="tile" href={directionsHref(map.lat, map.lng)} data-action="directions" rel="noopener noreferrer">
-            <DirectionsIcon />
-            <span>{chrome.directions}</span>
-          </a>
-        ) : null}
-      </div>
-      {phone || whatsapp ? (
-        <div className="nums">
-          {phone ? (
-            <p>
-              <span>{chrome.phone}</span>
-              {phone}
-            </p>
-          ) : null}
-          {whatsapp && whatsapp !== phone ? (
-            <p>
-              <span>{chrome.whatsapp}</span>
-              {whatsapp}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-    </section>
-  );
-}
 
 function render(page: PageContentV1, locale: PageContentLanguage, env: RenderEnv): ReactNode {
   const c = page.content;

@@ -1,5 +1,5 @@
 ---
-title: '24-13 Classic template redesign (bold hero, light bands, dark visit band)'
+title: '24-13 Landing templates: Classic redesign, Volt (second, dark) template, template modal'
 type: 'feature'
 created: '2026-11-10'
 status: 'in-review'
@@ -19,7 +19,7 @@ context:
 
 **Always:** one style block of at most 20 KB; no script, no `srcset`; Barlow 700 and 800 only; gym color is a fill only (never a text color on its own); text on the fill uses `--on-gym`; every fixture passes the DOM and Chromium conformance suites; `data-section` order, `data-action`, `data-role=repeat-action` directly above the footer.
 
-**Never:** no change to `colors.ts`, `contract.ts`, the chrome dictionaries, the migrations, or the proxy; no second template in this story (it needs a dark-aware color pairing).
+**Never:** no migration, no proxy change, no change to the chrome dictionaries or the ten-section contract. (Scope grew on the owner's request on 2026-11-10: `GymColors.accent` was added to `contract.ts` and `colors.ts` for the dark template.)
 
 ## Acceptance
 
@@ -35,6 +35,13 @@ context:
 - Test edits: `contract.test.ts` class string `chips` -> `checks` (intent kept); four known-bad layout flaws in `conformance/bad.ts` retargeted, one renamed (see docs/decisions.md 2026-11-10).
 
 - 2026-11-10 (owner follow-up): Services bullet markers stripped on save (`cleanServicesText`), dashboard form and service tests 115, types 21, typecheck: pass.
+
+## Scope added 2026-11-10 (owner requests)
+
+- **Volt**, a second registered template (dark, hard-edged, accent strip, numbered Services tiles), with shared markup in `templates/shared/` and the server-computed `accent` color; it passes the same DOM and layout conformance as Classic.
+- **Template modal** in the owner dashboard: radio cards with drawn thumbnails; a live page republishes at once, any other page carries the choice to the publish screen (`?template=`).
+- Gallery and plan-card layout fixes in both templates.
+- Verification: page-templates 125 + 49, landing 102, dashboard 186 (landing-page and list tests); modal viewed in a browser at 1280 and 390 px.
 
 ## Deferred
 

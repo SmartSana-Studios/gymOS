@@ -662,8 +662,21 @@
     },
     "templates": {
       "classic": "Classic",
-      "more": "More templates are coming.",
-      "selected": "Classic template selected"
+      "volt": "Volt",
+      "classicDescription": "Light page with a bold photo header. Clean and easy to read.",
+      "voltDescription": "Dark page with sharp edges, numbered services and one bright accent. Bold and modern.",
+      "selected": "{{name}} template selected",
+      "change": "Change template",
+      "chooseTitle": "Choose a template",
+      "chooseBody": "Your content stays exactly the same. Only the look of your page changes.",
+      "use": "Use this template",
+      "current": "Current",
+      "liveNote": "Your page is live. Switching republishes it now with the new template.",
+      "pendingNote": "{{name}} will be used when you publish.",
+      "applying": "Switching...",
+      "applied": "Template changed to {{name}}.",
+      "notReady": "Your page is not ready to republish. Fix the items in the checklist first.",
+      "failed": "The template could not be changed. Try again."
     },
     "warn": {
       "title": "Your page will go offline",
@@ -681,6 +694,8 @@
       "back": "Landing page",
       "backButton": "Back",
       "address": "Your page will be public at {{address}}",
+      "template": "Template: {{name}}",
+      "changeTemplate": "Change",
       "noName": "Choose a page name before publishing.",
       "intro": "Anyone on the internet will be able to see:",
       "notIncluded": "Not included",

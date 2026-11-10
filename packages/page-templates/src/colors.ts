@@ -9,6 +9,8 @@ export const WHITE = "#FFFFFF";
 export const PLATFORM_ACCENT = "#E0971F";
 /** The Classic page background, which a non-text gym-coloured element may sit on. */
 export const CLASSIC_PAGE_BACKGROUND = "#F3F4F0";
+/** The lightest surface of a dark template (its panels and cards); the page behind is darker, so a colour that reaches 4.5:1 here reaches it everywhere. */
+export const DARK_SURFACE = "#10131B";
 
 export function parseHex(hex: string): [number, number, number] | null {
   const m = /^#([0-9a-fA-F]{6})$/.exec(hex);
@@ -38,9 +40,10 @@ export function computeGymColors(primary: string | undefined): GymColors {
   const gym = primary && parseHex(primary) ? primary.toUpperCase() : PLATFORM_ACCENT;
   const onWhite = contrast(gym, WHITE);
   const onInk = contrast(gym, INK);
+  const accent = contrast(gym, DARK_SURFACE) >= 4.5 ? gym : PLATFORM_ACCENT;
   const ui = contrast(gym, WHITE) >= 3 && contrast(gym, CLASSIC_PAGE_BACKGROUND) >= 3 ? gym : INK;
   if (onWhite >= 4.5 || onInk >= 4.5) {
-    return { gym, ui, fill: gym, on: onWhite >= onInk ? WHITE : INK };
+    return { gym, ui, accent, fill: gym, on: onWhite >= onInk ? WHITE : INK };
   }
-  return { gym, ui, fill: PLATFORM_ACCENT, on: INK };
+  return { gym, ui, accent, fill: PLATFORM_ACCENT, on: INK };
 }

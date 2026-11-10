@@ -116,6 +116,31 @@ describe("publishing", () => {
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);
   });
 
+  it("names the template and links back to the picker", () => {
+    render(<PublishScreen initial={readyData()} />);
+    expect(screen.getByTestId("publish-template").textContent).toContain("pageEditor.publish.template|pageEditor.templates.classic");
+    expect(within(screen.getByTestId("publish-template")).getByText("pageEditor.publish.changeTemplate").getAttribute("href")).toBe("/settings/landing-page#page-template");
+  });
+
+  it("publishes with the template picked in the editor's modal, not the stored one", async () => {
+    publishPageAction.mockResolvedValue({ data: { published: true, missing: [] }, error: null });
+    render(<PublishScreen initial={readyData({ template: "classic" })} initialTemplate="volt" />);
+    expect(screen.getByTestId("publish-template").textContent).toContain("pageEditor.templates.volt");
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByText("pageEditor.publish.button"));
+    await screen.findByTestId("publish-success");
+    expect(publishPageAction).toHaveBeenCalledWith("volt");
+  });
+
+  it("without a pick it publishes with the stored template, else the default", async () => {
+    publishPageAction.mockResolvedValue({ data: { published: true, missing: [] }, error: null });
+    render(<PublishScreen initial={readyData({ template: "volt" })} />);
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(screen.getByText("pageEditor.publish.button"));
+    await screen.findByTestId("publish-success");
+    expect(publishPageAction).toHaveBeenCalledWith("volt");
+  });
+
   it("success: the address, Copy link, View page and the 2-minute note, with focus on the success region", async () => {
     publishPageAction.mockResolvedValue({ data: { published: true, missing: [] }, error: null });
     render(<PublishScreen initial={readyData()} />);
