@@ -350,6 +350,21 @@ describe("layout and the custom website notice", () => {
     expect(columns.contains(screen.getByTestId("images-gallery"))).toBe(true);
     expect(left.contains(screen.getByTestId("images-gallery"))).toBe(false);
   });
+
+  it("Images: both halves start at the top of the section, with the rights box on the left and the gallery as the right half itself", () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    const columns = screen.getByTestId("images-columns");
+    const left = within(columns).getByTestId("images-left");
+    // the attestation box and the help text open the left half (nothing above the grid but an error, when there is one)
+    expect(left.firstElementChild?.querySelector("#pageImageAttest")).not.toBeNull();
+    expect(within(left).queryByTestId("images-error")).toBeNull();
+    // the gallery is the second child of the grid, level with the left half, not nested below anything
+    expect(columns.children).toHaveLength(2);
+    expect(columns.children[1]).toBe(screen.getByTestId("images-gallery"));
+    // the card's content starts with the grid, so the gallery sits at the very top of the section
+    const content = screen.getByTestId("section-images").querySelector("[data-slot=card-content]") ?? columns.parentElement!;
+    expect(content.firstElementChild).toBe(columns);
+  });
 });
 
 describe("template", () => {

@@ -88,13 +88,6 @@ export function ImagesSection({
     <Card id={PAGE_SECTION_IDS.images} data-testid="section-images">
       <SectionHeader icon={ImageIcon} accent="amber" title={t("pageEditor.sections.images")} description={t("pageEditor.sections.imagesDescription", { max: PAGE_MEDIA_MAX_GALLERY })} />
       <CardContent className="space-y-5">
-        <div className="flex items-start gap-2">
-          <Checkbox id="pageImageAttest" checked={attested} onCheckedChange={(v) => setAttested(v === true)} />
-          <Label htmlFor="pageImageAttest" className="text-sm leading-snug">
-            {t("pageEditor.images.attest")}
-          </Label>
-        </div>
-        <p className="text-xs text-muted-foreground">{t("pageEditor.images.helper")}</p>
         {error && (
           <p role="alert" className="text-sm text-red-600" data-testid="images-error">
             {error.message}{" "}
@@ -106,9 +99,16 @@ export function ImagesSection({
           </p>
         )}
 
-        {/* Two halves from 1280 px: logo and banner on the left, the gallery on the right. */}
+        {/* Two halves from 1280 px, both starting at the top of the section: the box, the logo and the banner on the left, the gallery on the right. */}
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2" data-testid="images-columns">
           <div className="space-y-5" data-testid="images-left">
+            <div className="flex items-start gap-2">
+              <Checkbox id="pageImageAttest" checked={attested} onCheckedChange={(v) => setAttested(v === true)} />
+              <Label htmlFor="pageImageAttest" className="text-sm leading-snug">
+                {t("pageEditor.images.attest")}
+              </Label>
+            </div>
+            <p className="text-xs text-muted-foreground">{t("pageEditor.images.helper")}</p>
             <div className="space-y-2" data-testid="images-logo">
               <h3 className="text-sm font-medium">{t("pageEditor.images.logo")}</h3>
               {logo ? thumb(logo, t("pageEditor.images.logo")) : <p className="text-sm text-muted-foreground">{t("pageEditor.images.logoMissing")}</p>}
