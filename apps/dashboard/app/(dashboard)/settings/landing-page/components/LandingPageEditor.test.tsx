@@ -9,13 +9,14 @@ const saveLandingPageAction = vi.fn();
 const loadLandingPageAction = vi.fn();
 const claimPageNameAction = vi.fn();
 const submitPageAppealAction = vi.fn();
+const publishPageAction = vi.fn();
 
 vi.mock("../actions", () => ({
   saveLandingPageAction: (...a: unknown[]) => saveLandingPageAction(...a),
   loadLandingPageAction: (...a: unknown[]) => loadLandingPageAction(...a),
   claimPageNameAction: (...a: unknown[]) => claimPageNameAction(...a),
   submitPageAppealAction: (...a: unknown[]) => submitPageAppealAction(...a),
-  publishPageAction: vi.fn(),
+  publishPageAction: (...a: unknown[]) => publishPageAction(...a),
   unpublishPageAction: vi.fn(),
 }));
 vi.mock("../../page-media-actions", () => ({
@@ -314,14 +315,112 @@ describe("plans", () => {
 });
 
 describe("template", () => {
-  it("one launch card, Classic, shown as a static selected card (no radio role, no tab stop)", () => {
+  it("shows the current template as a static selected card with a Change button (no radios outside the modal)", () => {
     render(<LandingPageEditor initial={makeData()} />);
     const card = screen.getByTestId("template-classic");
     expect(card.getAttribute("data-selected")).toBe("true");
     expect(card.getAttribute("role")).toBeNull();
-    expect(card.getAttribute("tabindex")).toBeNull();
     expect(screen.queryAllByRole("radio")).toHaveLength(0);
-    expect(screen.getByText("pageEditor.templates.more")).toBeTruthy();
+    expect(screen.getByTestId("template-change")).toBeTruthy();
+    expect(screen.queryByTestId("template-dialog")).toBeNull();
+  });
+
+  it("the Change button opens a modal with one radio per offered template, the current one checked and marked", () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    fireEvent.click(screen.getByTestId("template-change"));
+    const dialog = screen.getByTestId("template-dialog");
+    const radios = within(dialog).getAllByRole("radio") as HTMLInputElement[];
+    expect(radios.map((r) => r.value)).toEqual(["classic", "volt"]);
+    expect(radios.map((r) => r.checked)).toEqual([true, false]);
+    expect(within(screen.getByTestId("template-option-classic")).getByText("pageEditor.templates.current")).toBeTruthy();
+    expect(within(dialog).getByText("pageEditor.templates.voltDescription")).toBeTruthy();
+  });
+
+  it("a page that is not live: Use this template remembers the choice, shows it as pending, and the publish link carries it", () => {
+    render(<LandingPageEditor initial={makeData({ status: { state: "ready", missing: [] } })} />);
+    expect(screen.getByText("pageEditor.header.reviewAndPublish").closest("a")?.getAttribute("href")).toBe("/settings/landing-page/publish");
+    fireEvent.click(screen.getByTestId("template-change"));
+    fireEvent.click(within(screen.getByTestId("template-option-volt")).getByRole("radio"));
+    fireEvent.click(screen.getByText("pageEditor.templates.use"));
+    return waitFor(() => {
+      expect(screen.queryByTestId("template-dialog")).toBeNull();
+      expect(screen.getByTestId("template-volt").getAttribute("data-selected")).toBe("true");
+      expect(screen.getByTestId("template-pending").textContent).toContain("pageEditor.templates.pendingNote|pageEditor.templates.volt");
+      expect(screen.getByText("pageEditor.header.reviewAndPublish").closest("a")?.getAttribute("href")).toBe("/settings/landing-page/publish?template=volt");
+      expect(publishPageAction).not.toHaveBeenCalled();
+    });
+  });
+
+  it("choosing the stored template again clears the pending choice and the query string", async () => {
+    render(<LandingPageEditor initial={makeData({ status: { state: "ready", missing: [] } })} />);
+    for (const id of ["volt", "classic"]) {
+      fireEvent.click(screen.getByTestId("template-change"));
+      fireEvent.click(within(screen.getByTestId(`template-option-${id}`)).getByRole("radio"));
+      fireEvent.click(screen.getByText("pageEditor.templates.use"));
+      await waitFor(() => expect(screen.queryByTestId("template-dialog")).toBeNull());
+    }
+    expect(screen.queryByTestId("template-pending")).toBeNull();
+    expect(screen.getByText("pageEditor.header.reviewAndPublish").closest("a")?.getAttribute("href")).toBe("/settings/landing-page/publish");
+  });
+
+  it("a live page: Use this template republishes at once with the new template, then reloads and says so", async () => {
+    publishPageAction.mockResolvedValue({ data: { published: true, missing: [] }, error: null });
+    loadLandingPageAction.mockResolvedValue({ data: makeData({ status: { state: "published", missing: [], template: "volt" } }), error: null });
+    render(<LandingPageEditor initial={makeData({ status: { state: "published", missing: [], template: "classic" } })} />);
+    fireEvent.click(screen.getByTestId("template-change"));
+    fireEvent.click(within(screen.getByTestId("template-option-volt")).getByRole("radio"));
+    expect(screen.getByTestId("template-live-note")).toBeTruthy();
+    fireEvent.click(screen.getByText("pageEditor.templates.use"));
+    await waitFor(() => expect(publishPageAction).toHaveBeenCalledWith("volt"));
+    await waitFor(() => expect(screen.getByTestId("template-volt").getAttribute("data-selected")).toBe("true"));
+    expect(screen.queryByTestId("template-pending")).toBeNull();
+    expect(await screen.findByText("pageEditor.templates.applied|pageEditor.templates.volt")).toBeTruthy();
+  });
+
+  it("a live page whose gate fails: nothing changes, the modal stays open and says the page is not ready", async () => {
+    publishPageAction.mockResolvedValue({ data: { published: false, missing: ["no_banner"] }, error: null });
+    render(<LandingPageEditor initial={makeData({ status: { state: "published", missing: [], template: "classic" } })} />);
+    fireEvent.click(screen.getByTestId("template-change"));
+    fireEvent.click(within(screen.getByTestId("template-option-volt")).getByRole("radio"));
+    fireEvent.click(screen.getByText("pageEditor.templates.use"));
+    expect((await screen.findByTestId("template-error")).textContent).toBe("pageEditor.templates.notReady");
+    expect(screen.getByTestId("template-dialog")).toBeTruthy();
+    expect(screen.getByTestId("template-classic").getAttribute("data-selected")).toBe("true");
+  });
+
+  it("a typed server error is shown in the modal", async () => {
+    publishPageAction.mockResolvedValue({ data: null, error: { code: "invalid_template", message: "pagePublish.errors.invalid_template" } });
+    render(<LandingPageEditor initial={makeData({ status: { state: "published", missing: [], template: "classic" } })} />);
+    fireEvent.click(screen.getByTestId("template-change"));
+    fireEvent.click(within(screen.getByTestId("template-option-volt")).getByRole("radio"));
+    fireEvent.click(screen.getByText("pageEditor.templates.use"));
+    expect((await screen.findByTestId("template-error")).textContent).toBe("pagePublish.errors.invalid_template");
+  });
+
+  it("Cancel closes the modal without changing anything", () => {
+    render(<LandingPageEditor initial={makeData({ status: { state: "published", missing: [], template: "classic" } })} />);
+    fireEvent.click(screen.getByTestId("template-change"));
+    fireEvent.click(within(screen.getByTestId("template-option-volt")).getByRole("radio"));
+    fireEvent.click(screen.getByText("common.cancel"));
+    expect(screen.queryByTestId("template-dialog")).toBeNull();
+    expect(publishPageAction).not.toHaveBeenCalled();
+    expect(screen.getByTestId("template-classic").getAttribute("data-selected")).toBe("true");
+  });
+
+  it("a taken-down page and a Support user get the card without a Change button", () => {
+    const { unmount } = render(<LandingPageEditor initial={makeData({ status: { state: "taken_down", missing: [] } })} />);
+    expect(screen.queryByTestId("template-change")).toBeNull();
+    unmount();
+    render(<LandingPageEditor initial={makeData({ role: "support" })} />);
+    expect(screen.queryByTestId("template-change")).toBeNull();
+    expect(screen.getByTestId("template-classic")).toBeTruthy();
+  });
+
+  it("a stored Volt page shows Volt as the current template", () => {
+    render(<LandingPageEditor initial={makeData({ status: { state: "published", missing: [], template: "volt" } })} />);
+    expect(screen.getByTestId("template-volt").getAttribute("data-selected")).toBe("true");
+    fireEvent.click(screen.getByTestId("template-change"));
+    expect((within(screen.getByTestId("template-dialog")).getAllByRole("radio") as HTMLInputElement[]).map((r) => r.checked)).toEqual([false, true]);
   });
 });
 

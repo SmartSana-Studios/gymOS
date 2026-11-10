@@ -10,6 +10,8 @@ export interface GymColors {
   gym: string;
   /** The gym colour where it marks a non-text element (logo ring, map pin, focus): the gym colour when it reaches 3:1 on white and on the Classic page background, else ink. */
   ui: string;
+  /** The gym colour where it paints TEXT or a mark on a dark template's surface (EXPERIENCE.md "Template contract", Color): the gym colour when it reaches 4.5:1 on the lightest dark surface (`DARK_SURFACE`), else the platform accent. Light templates ignore it. */
+  accent: string;
   /** The fill of the main action: the gym colour when white or ink reaches 4.5:1 on it, else the platform accent. */
   fill: string;
   /** `--on-gym`: the text colour on `fill` (white or ink, whichever reaches 4.5:1; ink on the accent). */

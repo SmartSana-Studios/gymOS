@@ -662,8 +662,21 @@
     },
     "templates": {
       "classic": "Classique",
-      "more": "D'autres modèles arrivent.",
-      "selected": "Modèle Classique sélectionné"
+      "volt": "Volt",
+      "classicDescription": "Page claire avec un grand en-tête photo. Nette et facile à lire.",
+      "voltDescription": "Page sombre aux angles vifs, services numérotés et une couleur d'accent éclatante. Audacieuse et moderne.",
+      "selected": "Modèle {{name}} sélectionné",
+      "change": "Changer de modèle",
+      "chooseTitle": "Choisir un modèle",
+      "chooseBody": "Votre contenu reste exactement le même. Seul l'aspect de votre page change.",
+      "use": "Utiliser ce modèle",
+      "current": "Actuel",
+      "liveNote": "Votre page est en ligne. Le changement la republie tout de suite avec le nouveau modèle.",
+      "pendingNote": "Le modèle {{name}} sera utilisé à la publication.",
+      "applying": "Changement...",
+      "applied": "Modèle changé : {{name}}.",
+      "notReady": "Votre page n'est pas prête à être republiée. Corrigez d'abord les points de la liste.",
+      "failed": "Le modèle n'a pas pu être changé. Réessayez."
     },
     "warn": {
       "title": "Votre page sera hors ligne",
@@ -681,6 +694,8 @@
       "back": "Page publique",
       "backButton": "Retour",
       "address": "Votre page sera publique à l'adresse {{address}}",
+      "template": "Modèle : {{name}}",
+      "changeTemplate": "Changer",
       "noName": "Choisissez un nom de page avant de publier.",
       "intro": "Toute personne sur Internet pourra voir :",
       "notIncluded": "Non inclus",

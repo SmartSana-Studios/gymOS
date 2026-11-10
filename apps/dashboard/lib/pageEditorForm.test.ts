@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PAGE_CONTENT_LANGUAGES, cleanPageText } from "@gymos/types";
+import { PAGE_CONTENT_LANGUAGES, cleanPageText, cleanServicesText } from "@gymos/types";
 import {
   aboutCharacters,
   cleanForm,
@@ -180,6 +180,39 @@ describe("coordinates", () => {
 
   it.each([["1e1", "9"], ["4", "0x10"], ["+4", "9"]])("the form refuses lat %j / lng %j", (lat, lng) => {
     expect(validateForm(form({ lat, lng })).latlng?.code).toBe("latlngNumber");
+  });
+});
+
+describe("Services bullet markers", () => {
+  it.each([
+    ["- Free weights", "Free weights"],
+    ["  -   Cardio", "Cardio"],
+    ["\u2013 Yoga", "Yoga"],
+    ["\u2014 Boxing", "Boxing"],
+    ["\u2022 Sauna", "Sauna"],
+    ["* Showers", "Showers"],
+    ["\u00b7 Lockers", "Lockers"],
+    ["-\tCrossfit", "Crossfit"],
+  ])("drops the marker of %j", (line, want) => {
+    expect(cleanServicesText(line)).toBe(want);
+  });
+
+  it("drops one marker per line, keeps the other lines and a lone marker becomes an empty line", () => {
+    expect(cleanServicesText("- one\n- two\r\n\u2022 three\n-\nfour")).toBe("one\ntwo\nthree\n\nfour");
+    expect(cleanServicesText("- - nested")).toBe("- nested");
+  });
+
+  it.each(["Free weights", "-5 kg plates", "24/7 access", "1. Cardio", "A - B", "Wi-Fi", "--flag", "\u2013 "])("leaves %j alone (no marker followed by a space)", (line) => {
+    expect(cleanServicesText(line)).toBe(line === "\u2013 " ? "" : line);
+  });
+
+  it("the editor field and the save input carry the cleaned Services, About keeps its dashes", () => {
+    const f = cleanForm(form({ about: { en: "- about stays", fr: "" }, services: { en: "- one\n- two", fr: "\u2022 un" } }));
+    expect(f.services.en).toBe("one\ntwo");
+    expect(f.services.fr).toBe("un");
+    expect(f.about.en).toBe("- about stays");
+    const input = toSaveInput(f) as { content: Record<string, unknown> };
+    expect(input.content.services_en).toBe("one\ntwo");
   });
 });
 

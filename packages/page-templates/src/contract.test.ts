@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { PAGE_CONTENT_LANGUAGES, type PageContentLanguage } from "@gymos/types";
 import { CHROME } from "./chrome";
-import { CLASSIC_PAGE_BACKGROUND, INK, PLATFORM_ACCENT, WHITE, computeGymColors, contrast } from "./colors";
+import { CLASSIC_PAGE_BACKGROUND, DARK_SURFACE, INK, PLATFORM_ACCENT, WHITE, computeGymColors, contrast } from "./colors";
 import { FONT_ALLOWLIST, type TemplateEntry } from "./contract";
 import { HOSTILE, baseContent, fixtures, page } from "./conformance/fixtures";
 import { TEST_CONFIG, inputFor, type Case } from "./conformance/subject";
@@ -27,8 +27,8 @@ const htmlLang = (html: string) => /<html lang="([^"]+)"/.exec(html)?.[1];
 const hreflangs = (html: string) => [...html.matchAll(/<link rel="alternate" hrefLang="([^"]+)"/g)].map((m) => m[1]);
 
 describe("registry", () => {
-  it("offers Classic and nothing else at launch", () => {
-    expect(REGISTERED_TEMPLATES).toEqual(["classic"]);
+  it("registers Classic and Volt", () => {
+    expect(REGISTERED_TEMPLATES).toEqual(["classic", "volt"]);
     expect(getTemplate("nope")).toBeUndefined();
   });
 
@@ -123,6 +123,16 @@ describe("the on-gym colour is computed by the server (AA)", () => {
   });
   it("no colour in the snapshot gives the platform accent", () => {
     expect(computeGymColors(undefined)).toMatchObject({ gym: PLATFORM_ACCENT, fill: PLATFORM_ACCENT, on: INK });
+  });
+  it("the accent for a dark template reaches 4.5:1 on the lightest dark surface, falling back to the platform accent", () => {
+    for (const hex of ["#1A6B3C", "#FFF200", "#050505", "#808080", "#E0971F", "#FFFFFF", "#000000", "#1B2A41", "#0000FF", "#FF0000"]) {
+      const g = computeGymColors(hex);
+      expect(contrast(g.accent, DARK_SURFACE), hex).toBeGreaterThanOrEqual(4.5);
+      expect([g.gym, PLATFORM_ACCENT], hex).toContain(g.accent);
+    }
+    expect(computeGymColors("#FFF200").accent).toBe("#FFF200"); // a pale gym colour is kept: it reads on black
+    expect(computeGymColors("#050505").accent).toBe(PLATFORM_ACCENT); // a near-black one would vanish: the platform accent instead
+    expect(computeGymColors(undefined).accent).toBe(PLATFORM_ACCENT);
   });
   it("an exhaustive sweep of a coarse RGB grid always reaches 4.5:1 on the fill", () => {
     for (let r = 0; r < 256; r += 51) for (let g = 0; g < 256; g += 51) for (let b = 0; b < 256; b += 51) {
@@ -221,8 +231,8 @@ describe("language rule (cases written by hand, not derived from the implementat
     const c = baseContent();
     delete c.services_fr;
     const r = ok(render(c, "/fr"));
-    expect(r.body).toContain('<ul class="chips" lang="en">');
-    expect(ok(render(c, "/en")).body).not.toContain('<ul class="chips" lang=');
+    expect(r.body).toContain('<ul class="checks" lang="en">');
+    expect(ok(render(c, "/en")).body).not.toContain('<ul class="checks" lang=');
   });
 });
 

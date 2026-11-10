@@ -1,14 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { LayoutTemplate, Tag } from "lucide-react";
 import type { LandingPagePlan } from "@/services/landing-page";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PAGE_SECTION_IDS } from "@/lib/landingPage";
-import { PAGE_TEMPLATES, type PageTemplateId } from "@/lib/pageTemplates";
+import type { PageTemplateId } from "@/lib/pageTemplates";
 import { SectionHeader } from "../../SectionHeader";
 import { formatPrice } from "./pageCopy";
+import { TemplatePickerDialog } from "./TemplatePickerDialog";
+import { TemplateThumb } from "./TemplateThumb";
 
 const TYPE_KEY: Record<string, string> = {
   pay_per_session: "plans.types.payPerSession",
@@ -84,23 +88,54 @@ export function PlansSection({
   );
 }
 
-/** The launch ships one template card; the choice never asks for content again. */
-export function TemplateSection({ selected }: { selected: PageTemplateId }) {
+/**
+ * The current template, with its thumbnail and a [Change template] button that opens the picker modal. The choice never asks for content
+ * again. `pending` is a choice that is not saved yet (a page that is not live): it is used at the next publish.
+ */
+export function TemplateSection({
+  selected,
+  canChange,
+  live,
+  pending,
+  onUse,
+}: {
+  selected: PageTemplateId;
+  canChange: boolean;
+  live: boolean;
+  pending: boolean;
+  onUse: (id: PageTemplateId) => Promise<string | null>;
+}) {
   const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const name = t(`pageEditor.templates.${selected}`);
   return (
     <Card id={PAGE_SECTION_IDS.template} data-testid="section-template">
       <SectionHeader icon={LayoutTemplate} accent="blue" title={t("pageEditor.sections.template")} description={t("pageEditor.sections.templateDescription")} />
-      <CardContent className="space-y-2">
-        <div className="flex flex-wrap gap-3">
-          {PAGE_TEMPLATES.map((id) => (
-            <div key={id} data-testid={`template-${id}`} data-selected={id === selected} className="rounded-md border-2 border-primary p-3 text-sm">
-              <span className="font-medium">{t(`pageEditor.templates.${id}`)}</span>
-              <span className="sr-only"> ({t("pageEditor.templates.selected")})</span>
-            </div>
-          ))}
+      <CardContent className="space-y-3">
+        <div data-testid={`template-${selected}`} data-selected="true" className="flex flex-wrap items-start gap-4 rounded-md border-2 border-primary p-3 text-sm">
+          <div className="w-40 shrink-0">
+            <TemplateThumb id={selected} />
+          </div>
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="font-medium">
+              {name}
+              <span className="sr-only"> ({t("pageEditor.templates.selected", { name })})</span>
+            </p>
+            <p className="text-muted-foreground">{t(`pageEditor.templates.${selected}Description`)}</p>
+            {pending && (
+              <p className="text-amber-700 dark:text-amber-400" data-testid="template-pending">
+                {t("pageEditor.templates.pendingNote", { name })}
+              </p>
+            )}
+          </div>
+          {canChange && (
+            <Button type="button" variant="outline" onClick={() => setOpen(true)} data-testid="template-change">
+              {t("pageEditor.templates.change")}
+            </Button>
+          )}
         </div>
-        <p className="text-sm text-muted-foreground">{t("pageEditor.templates.more")}</p>
       </CardContent>
+      {canChange && <TemplatePickerDialog key={open ? "open" : "closed"} open={open} onOpenChange={setOpen} selected={selected} live={live} onUse={onUse} />}
     </Card>
   );
 }

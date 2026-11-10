@@ -9,7 +9,7 @@ import type { LandingPageData } from "@/services/landing-page";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LANDING_PAGE_PUBLISH_PATH, PAGE_SECTION_IDS, initialShownLanguages, pickTextTab, predictedBreaks, type LanguageProgress } from "@/lib/landingPage";
-import { DEFAULT_PAGE_TEMPLATE, isOfferedTemplate } from "@/lib/pageTemplates";
+import { DEFAULT_PAGE_TEMPLATE, isOfferedTemplate, type PageTemplateId } from "@/lib/pageTemplates";
 import {
   aboutCharacters,
   cleanForm,
@@ -22,7 +22,7 @@ import {
   type EditorErrors,
   type EditorFormState,
 } from "@/lib/pageEditorForm";
-import { loadLandingPageAction, saveLandingPageAction } from "../actions";
+import { loadLandingPageAction, publishPageAction, saveLandingPageAction } from "../actions";
 import { Checklist, LanguagesOffered } from "./Checklist";
 import { ContactSection, HoursSection, LocationSection } from "./ContentSections";
 import { ImagesSection } from "./ImagesSection";
@@ -54,6 +54,8 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
   const [toast, setToast] = useState<string | null>(null);
   const [warn, setWarn] = useState<PagePublishGateCode[] | null>(null);
   const [unpublishOpen, setUnpublishOpen] = useState(false);
+  // A template picked for a page that is not live yet: carried to the publish screen, which publishes with it.
+  const [chosenTemplate, setChosenTemplate] = useState<PageTemplateId | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const textFocusRef = useRef<HTMLTextAreaElement | null>(null);
   const savingRef = useRef(false);
@@ -149,8 +151,26 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
   const live = status.state === "published";
   const takenDown = status.state === "taken_down";
   const canReview = status.missing.length === 0 && !takenDown;
-  const template = isOfferedTemplate(status.template) ? status.template : DEFAULT_PAGE_TEMPLATE;
+  const storedTemplate = isOfferedTemplate(status.template) ? status.template : DEFAULT_PAGE_TEMPLATE;
+  const template = chosenTemplate ?? storedTemplate;
+  const publishHref = chosenTemplate && chosenTemplate !== storedTemplate ? `${LANDING_PAGE_PUBLISH_PATH}?template=${chosenTemplate}` : LANDING_PAGE_PUBLISH_PATH;
+  const canChangeTemplate = !takenDown && (role === "owner" || role === "supervisor");
   const showTooLarge = status.missing.includes("too_large") && status.state !== "offline_gate";
+
+  /** A live page is republished now with the new template; any other page remembers the choice for the publish screen. Returns an error message or null. */
+  async function useTemplate(id: PageTemplateId): Promise<string | null> {
+    if (!live) {
+      setChosenTemplate(id === storedTemplate ? null : id);
+      return null;
+    }
+    const { data: result, error } = await publishPageAction(id);
+    if (error) return error.message;
+    if (result && !result.published) return t("pageEditor.templates.notReady");
+    setChosenTemplate(null);
+    await refresh();
+    showToast(t("pageEditor.templates.applied", { name: t(`pageEditor.templates.${id}`) }));
+    return null;
+  }
 
   function focusFirstError(errs: EditorErrors) {
     const lang = firstErrorLanguage(errs);
@@ -275,7 +295,7 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
               canReview ? (
                 <Button asChild>
                   <Link
-                    href={LANDING_PAGE_PUBLISH_PATH}
+                    href={publishHref}
                     onClick={(e) => {
                       if (dirty && !window.confirm(t("pageEditor.unsavedConfirm"))) e.preventDefault();
                     }}
@@ -326,7 +346,7 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
         <HoursSection form={form} setForm={setForm} errors={errors} />
         <ContactSection form={form} setForm={setForm} errors={errors} />
         <PlansSection plans={data.plans} values={form.plans} canAddPlan={true} onChange={(id, v) => setForm((f) => ({ ...f, plans: { ...f.plans, [id]: v } }))} />
-        <TemplateSection selected={template} />
+        <TemplateSection selected={template} canChange={canChangeTemplate} live={live} pending={chosenTemplate !== null && chosenTemplate !== storedTemplate} onUse={useTemplate} />
       </div>
 
       <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-md border bg-background/95 px-4 py-3 backdrop-blur">

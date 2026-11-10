@@ -2,6 +2,7 @@ import {
   PAGE_CONTENT_LANGUAGES,
   PAGE_HOURS_DAYS,
   cleanPageText,
+  cleanServicesText,
   setGymPageContentSchema,
   type PageContentLanguage,
 } from "@gymos/types";
@@ -66,13 +67,13 @@ export function initialForm(stored: StoredPageFields, plans: readonly { id: stri
   };
 }
 
-/** Line breaks and control characters cleaned in every free-text field; the field then shows the cleaned text. */
+/** Line breaks and control characters cleaned in every free-text field, and bullet markers dropped from Services lines; the field then shows the cleaned text. */
 export function cleanForm(form: EditorFormState): EditorFormState {
   const about = {} as Record<PageContentLanguage, string>;
   const services = {} as Record<PageContentLanguage, string>;
   for (const l of PAGE_CONTENT_LANGUAGES) {
     about[l] = cleanPageText(form.about[l] ?? "");
-    services[l] = cleanPageText(form.services[l] ?? "");
+    services[l] = cleanServicesText(form.services[l] ?? "");
   }
   return { ...form, about, services, address: cleanPageText(form.address), city: cleanPageText(form.city) };
 }

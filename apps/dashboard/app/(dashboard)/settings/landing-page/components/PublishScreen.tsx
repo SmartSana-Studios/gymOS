@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { LANDING_PAGE_PATH, badTextTarget, gateCodeAnchor, pagePublicHost, sortGateCodes } from "@/lib/landingPage";
-import { DEFAULT_PAGE_TEMPLATE, isOfferedTemplate } from "@/lib/pageTemplates";
+import { LANDING_PAGE_PATH, PAGE_SECTION_IDS, badTextTarget, gateCodeAnchor, pagePublicHost, sortGateCodes } from "@/lib/landingPage";
+import { DEFAULT_PAGE_TEMPLATE, isOfferedTemplate, type PageTemplateId } from "@/lib/pageTemplates";
 import { openDays, publishRows, type PublishRow } from "@/lib/publishRows";
 import { loadLandingPageAction, publishPageAction } from "../actions";
 import { StatusBadge } from "./StatusBadge";
@@ -27,7 +27,7 @@ const TYPE_KEY: Record<string, string> = {
 };
 
 /** What becomes public, the attestation, [Publish page] and [Unpublish]. The server result is trusted: the list is the snapshot. */
-export function PublishScreen({ initial }: { initial: LandingPageData }) {
+export function PublishScreen({ initial, initialTemplate }: { initial: LandingPageData; initialTemplate?: PageTemplateId }) {
   const { t, i18n } = useTranslation();
   const [data, setData] = useState(initial);
   const [attested, setAttested] = useState(false);
@@ -44,6 +44,8 @@ export function PublishScreen({ initial }: { initial: LandingPageData }) {
   const host = pageName.state === "active" && pageName.name ? pagePublicHost(pageName.name) : null;
   const takenDown = status.state === "taken_down";
   const live = status.state === "published" || status.state === "offline_suspended";
+  // The template to publish with: the one picked in the editor's modal, else the stored one, else the default.
+  const template: PageTemplateId = initialTemplate && isOfferedTemplate(initialTemplate) ? initialTemplate : isOfferedTemplate(status.template) ? status.template : DEFAULT_PAGE_TEMPLATE;
   const known = sortGateCodes(status.missing) as PagePublishGateCode[];
   const notReady = failedMissing ?? (known.length > 0 ? known : null);
 
@@ -62,7 +64,6 @@ export function PublishScreen({ initial }: { initial: LandingPageData }) {
     setError(null);
     setFailedMissing(null);
     try {
-      const template = isOfferedTemplate(status.template) ? status.template : DEFAULT_PAGE_TEMPLATE;
       const { data: result, error: err } = await publishPageAction(template);
       if (err) {
         setError(err.message);
@@ -267,6 +268,12 @@ export function PublishScreen({ initial }: { initial: LandingPageData }) {
         </div>
       )}
 
+      <p className="text-sm" data-testid="publish-template">
+        {t("pageEditor.publish.template", { name: t(`pageEditor.templates.${template}`) })}{" "}
+        <Link href={`${LANDING_PAGE_PATH}#${PAGE_SECTION_IDS.template}`} className="underline">
+          {t("pageEditor.publish.changeTemplate")}
+        </Link>
+      </p>
       <p className="text-sm font-medium">{t("pageEditor.publish.intro")}</p>
       <Card>
         <CardContent className="p-0">

@@ -7,6 +7,8 @@ import { CHROME } from "./chrome";
 import { FONT_ALLOWLIST, type TemplateEntry } from "./contract";
 import { render as renderClassic } from "./templates/classic";
 import { CLASSIC_FONTS } from "./templates/classic/styles";
+import { render as renderVolt } from "./templates/volt";
+import { VOLT_FONTS } from "./templates/volt/styles";
 
 /** Throws when an entry breaks a registration rule. Exported so the conformance suite can show each rule failing. */
 export function assertRegistrable(entry: TemplateEntry): void {
@@ -19,7 +21,10 @@ export function assertRegistrable(entry: TemplateEntry): void {
   }
 }
 
-const ENTRIES: readonly TemplateEntry[] = [{ id: "classic", render: renderClassic, chrome: CHROME, fonts: CLASSIC_FONTS }];
+const ENTRIES: readonly TemplateEntry[] = [
+  { id: "classic", render: renderClassic, chrome: CHROME, fonts: CLASSIC_FONTS },
+  { id: "volt", render: renderVolt, chrome: CHROME, fonts: VOLT_FONTS },
+];
 ENTRIES.forEach(assertRegistrable);
 
 /** Every registered template id. */

@@ -1,5 +1,13 @@
 # Deferred Work
 
+## Deferred from: build of spec-24-13-landing-template-redesign (2026-11-10)
+
+- ~~A second, dark template.~~ **Done 2026-11-10 (owner asked):** Volt, with the dark-aware `accent` color; see docs/decisions.md 24.13. Remaining for it: an LCP and load run, and a look at real pale and busy gym photos behind the gradient.
+- **The LCP and load numbers in the 24.12 gate table are for the old template.** The new hero image is still the LCP element (`fetchpriority=high`); re-run `scripts/landing-gate/run-local.sh lcp` and update the decisions.md gate table before the gate is signed.
+- ~~Services lines that start with a dash show it twice.~~ **Closed 2026-11-10 (owner asked to manage it):** `cleanServicesText` in `@gymos/types` drops one leading bullet marker per Services line on save (editor field and server), never in the template (conformance requires lines as entered). Rows saved before the change keep their dashes until the gym saves and republishes; no data migration (no page is public yet).
+- **Hero legibility on a very light photo** is by the gradient only (about 72% to 93% dark). Checked with a busy dashboard screenshot and gradient stand-ins, not with real pale gym photos. Owner to look at real photos.
+- **Template thumbnails in the editor** (EXPERIENCE.md "Selection") do not exist yet; only matters once there are two templates.
+
 ## Deferred from: closing story 24-2 as code-done (2026-11-10)
 
 Owner-held ops items. The product owner chose to close 24-2 on its code half, so none of these block epic 24. Runbook: `docs/runbooks/wildcard-dns-rollback.md`. Live state on 2026-11-10: wildcard certificate serves at `www.` (LE YR2, issued 2026-11-08, expires 2027-02-06); `NS _acme-challenge -> ns1/ns2.vercel-dns.com` present at A2; no `CNAME *` yet.
@@ -2028,3 +2036,7 @@ Lab, local results only (one machine runs the server, the database, the load and
 - The OVER-3 s LCP (p75 3520 ms, lab, local) may be an artifact of `scripts/landing-gate/lib/media-stub.mjs`, which serves one 1600x900 image (~147 KB) for every key except the logo, including the three gallery images; real derivative sizes were not checked. Medium, unverified. Settled by the owner's staging LCP run, and by sizing the stub's gallery images like the real derivatives.
 - "Pool of one holds" (peak 1 of 20 role connections) is true by construction for one local landing instance. It does not exercise many Vercel instances against `CONNECTION LIMIT 20`, the 2 s checkout timeout under overlap, or the transient-error cached 404, and only p95 is reported. Medium, unverified. Settled by the staging load run; the decisions.md closing text should name what the local run cannot show.
 - No real-HTTP check sends spoofed `x-tenant-name` / `x-tenant-path` headers to the apex or to `/gym-site`; only `gymSite.test.ts` and `wiring.test.ts` cover it. Medium, unverified. Settled by adding the request to `scripts/landing-gate/check-http.mjs` and running it against a real `next start`.
+
+- **A draft template choice that survives a reload.** For a page that is not live the choice lives in the editor session and the `?template=` handoff. A real draft needs a `gyms.page_template` column (or a content key), `set_gym_page_content` and the draft-change trigger to carry it, `publish_gym_page` to read it, the shared fixture and pgTAP updates, and a migration to production. Not done: too large to add to epic 24 at the merge.
+- **Thumbnails from the gym's own content.** The picker draws wireframes. A real preview needs the dashboard to render the template module over the unpublished content (AD-48), with the page's CSP and media origin handled in an iframe.
+- **Per-template speed numbers.** The 24.12 LCP/load table covers the old Classic only. Run `scripts/landing-gate/run-local.sh lcp` against Classic and Volt before the gate is signed.
