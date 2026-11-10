@@ -543,6 +543,19 @@ export function cleanPageText(value: string): string {
     .replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, "");
 }
 
+/**
+ * Services text, cleaned for a save: `cleanPageText`, then one leading bullet marker (`-`, an en or em dash, `•`, `*`, `·`, `▪`, `◦`)
+ * is removed from each line when whitespace or the end of the line follows it. The public page draws its own check mark for every line and a
+ * template must show the lines as entered, so the marker is dropped here, once, where the text is saved. `-5 kg` and `24/7 access` are
+ * untouched (no whitespace after the marker, or no marker); numbered lists are left alone.
+ */
+export function cleanServicesText(value: string): string {
+  return cleanPageText(value)
+    .split("\n")
+    .map((line) => line.replace(/^[ \t]*[-\u2013\u2014\u2022*\u00b7\u25aa\u25e6](?:[ \t]+|$)/, ""))
+    .join("\n");
+}
+
 /** Derived page states, in the order get_gym_page_status() considers them. Copy: `pageEditor.status.<state>`. */
 export const PAGE_STATUS_STATES = [
   "not_started",

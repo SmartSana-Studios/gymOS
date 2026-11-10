@@ -34,6 +34,8 @@ context:
 - 2026-11-10: page-templates 119 DOM tests and 29 Chromium layout tests, landing 102 tests, typecheck, eslint: pass. Viewed at 390 and 1280 px with and without a banner, three gym colors, long name. Owner viewed the local page before the redesign only; the owner's re-check of the new design is still to come.
 - Test edits: `contract.test.ts` class string `chips` -> `checks` (intent kept); four known-bad layout flaws in `conformance/bad.ts` retargeted, one renamed (see docs/decisions.md 2026-11-10).
 
+- 2026-11-10 (owner follow-up): Services bullet markers stripped on save (`cleanServicesText`), dashboard form and service tests 115, types 21, typecheck: pass.
+
 ## Deferred
 
 See deferred-work.md "Deferred from: build of spec-24-13".

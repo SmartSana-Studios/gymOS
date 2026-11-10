@@ -201,6 +201,15 @@ describe("saveLandingPageContent", () => {
     expect(rpc).toHaveBeenCalledWith("set_gym_page_content", { p_gym_id: GYM, p_content: valid.content, p_plans: valid.plans });
   });
 
+  it("drops a leading bullet marker from every Services line (both languages) and leaves About alone", async () => {
+    await saveLandingPageContent({ content: { about_en: "- about stays", services_en: "- Free weights\n\u2022 Sauna\n24/7 access", services_fr: "* Poids libres" } });
+    expect(rpc).toHaveBeenCalledWith("set_gym_page_content", {
+      p_gym_id: GYM,
+      p_content: { about_en: "- about stays", services_en: "Free weights\nSauna\n24/7 access", services_fr: "Poids libres" },
+      p_plans: null,
+    });
+  });
+
   it("refuses markup before calling the database", async () => {
     const { error } = await saveLandingPageContent({ content: { about_en: "<b>x</b>" } });
     expect(error?.code).toBe("invalid_content");

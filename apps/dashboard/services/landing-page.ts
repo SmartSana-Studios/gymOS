@@ -3,6 +3,7 @@ import {
   PAGE_CONTENT_LANGUAGES,
   claimPageNameResultSchema,
   cleanPageText,
+  cleanServicesText,
   gymPageNameSchema,
   gymPageStatusSchema,
   pageNameSchema,
@@ -273,7 +274,7 @@ export function cleanSaveInput(input: unknown): unknown {
   if (!body.content || typeof body.content !== "object") return input;
   const content = { ...(body.content as Record<string, unknown>) };
   for (const key of CLEANED_CONTENT_KEYS) {
-    if (typeof content[key] === "string") content[key] = cleanPageText(content[key]);
+    if (typeof content[key] === "string") content[key] = key.startsWith("services_") ? cleanServicesText(content[key]) : cleanPageText(content[key]);
   }
   return { ...body, content };
 }

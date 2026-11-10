@@ -4,7 +4,7 @@
 
 - **A second, dark template.** The owner wants good templates in the plural and both reference kits are dark. A dark template needs a dark-aware color pairing: `colors.ts` judges `ui` against white and the light page color, and the on-gym rule assumes a light page. Needs the registry entry, the dashboard `lib/pageTemplates.ts` list, a chrome reuse and its own conformance run; no migration (the `template` value is pattern-checked, not an enum). Do after the owner has judged the redesigned Classic.
 - **The LCP and load numbers in the 24.12 gate table are for the old template.** The new hero image is still the LCP element (`fetchpriority=high`); re-run `scripts/landing-gate/run-local.sh lcp` and update the decisions.md gate table before the gate is signed.
-- **Services lines that start with a dash show it twice.** A gym that types "- Item" gets a check mark and the dash. The template must show lines as entered (conformance), so the editor should strip or warn; not changed here.
+- ~~Services lines that start with a dash show it twice.~~ **Closed 2026-11-10 (owner asked to manage it):** `cleanServicesText` in `@gymos/types` drops one leading bullet marker per Services line on save (editor field and server), never in the template (conformance requires lines as entered). Rows saved before the change keep their dashes until the gym saves and republishes; no data migration (no page is public yet).
 - **Hero legibility on a very light photo** is by the gradient only (about 72% to 93% dark). Checked with a busy dashboard screenshot and gradient stand-ins, not with real pale gym photos. Owner to look at real photos.
 - **Template thumbnails in the editor** (EXPERIENCE.md "Selection") do not exist yet; only matters once there are two templates.
 
