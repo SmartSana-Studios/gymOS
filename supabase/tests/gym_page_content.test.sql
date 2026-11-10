@@ -192,13 +192,13 @@ select is((select page_city from gyms where id = '00000000-0000-0000-0000-000000
 -- ---- whitespace, limits, explicit clearing, label-only plan change ------------------------------------------------
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000240528', 'super_admin');
-select pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240512', jsonb_build_object('about_en', E'  x\n', 'contact_phone', E' +237600111222\n'))$$);
+select 1 where pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240512', jsonb_build_object('about_en', E'  x\n', 'contact_phone', E' +237600111222\n'))$$) is null;
 reset role;
 select is((select page_about_en from gyms where id = '00000000-0000-0000-0000-000000240512'), 'x', 'all surrounding whitespace is trimmed ("  x\n" stored as "x")');
 select is((select page_contact_phone from gyms where id = '00000000-0000-0000-0000-000000240512'), '+237600111222', 'a phone with surrounding whitespace is trimmed and accepted');
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000240528', 'super_admin');
-select pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240512', jsonb_build_object('about_en', E'\n'))$$);
+select 1 where pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240512', jsonb_build_object('about_en', E'\n'))$$) is null;
 reset role;
 select is((select page_about_en from gyms where id = '00000000-0000-0000-0000-000000240512'), null, 'a whitespace-only string clears to null');
 set local role authenticated;
@@ -272,14 +272,14 @@ select is((select is_public::text || coalesce(public_label_en, '-') from plans w
 -- the pins also bind a super admin and service_role
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000240528', 'super_admin');
-select pg_temp.err($$update gyms set page_city = 'SA direct', page_lat = 7 where id = '00000000-0000-0000-0000-000000240511'$$);
-select pg_temp.err($$update plans set is_public = true where id = '00000000-0000-0000-0000-000000240542'$$);
+select 1 where pg_temp.err($$update gyms set page_city = 'SA direct', page_lat = 7 where id = '00000000-0000-0000-0000-000000240511'$$) is null;
+select 1 where pg_temp.err($$update plans set is_public = true where id = '00000000-0000-0000-0000-000000240542'$$) is null;
 reset role;
 select is((select page_city || '|' || page_lat::text from gyms where id = '00000000-0000-0000-0000-000000240511'), 'Limbe|4.051100', 'the pin reverted a super admin direct gym write');
 select is((select is_public from plans where id = '00000000-0000-0000-0000-000000240542'), false, 'the pin reverted a super admin direct plan write');
 set local role service_role;
-select pg_temp.err($$update gyms set page_city = 'SR direct', page_lat = 8 where id = '00000000-0000-0000-0000-000000240511'$$);
-select pg_temp.err($$update plans set is_public = true where id = '00000000-0000-0000-0000-000000240542'$$);
+select 1 where pg_temp.err($$update gyms set page_city = 'SR direct', page_lat = 8 where id = '00000000-0000-0000-0000-000000240511'$$) is null;
+select 1 where pg_temp.err($$update plans set is_public = true where id = '00000000-0000-0000-0000-000000240542'$$) is null;
 reset role;
 select is((select page_city || '|' || page_lat::text from gyms where id = '00000000-0000-0000-0000-000000240511'), 'Limbe|4.051100', 'the pin reverted a service_role direct gym write');
 select is((select is_public from plans where id = '00000000-0000-0000-0000-000000240542'), false, 'the pin reverted a service_role direct plan write');

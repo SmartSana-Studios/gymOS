@@ -140,7 +140,7 @@ select is((select array_agg(sort_order order by sort_order) from gym_page_media 
 -- ---- gallery limit: 12 live, then a freed slot ---------------------------------------------------------------------------
 set local role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-000000240621', 'owner', '00000000-0000-0000-0000-000000240611');
-select pg_temp.err(pg_temp.reg('00000000-0000-0000-0000-000000240611', 'gallery', n)) from generate_series(10, 18) n;
+select 1 from generate_series(10, 18) n where pg_temp.err(pg_temp.reg('00000000-0000-0000-0000-000000240611', 'gallery', n)) is null;
 reset role;
 select is((select count(*)::int from gym_page_media where gym_id = '00000000-0000-0000-0000-000000240611' and kind = 'gallery' and deleted_at is null), 12, 'twelve live gallery images');
 set local role authenticated;

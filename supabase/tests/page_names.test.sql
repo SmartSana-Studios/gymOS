@@ -430,7 +430,7 @@ select is(pg_temp.err($$update page_names set state = 'active' where gym_id = '$
 select is(pg_temp.err($$insert into page_names (gym_id, name, state, origin) values ('$$ || pg_temp.g('M') || $$', 'mail', 'redirect', 'claim')$$), 'ok', 'control: the same name in a non-active state is stored (the trigger guards active rows)');
 select is(pg_temp.err($$insert into page_names (gym_id, name, state, origin) values ('$$ || pg_temp.g('B') || $$', 'fresh-box', 'active', 'claim')$$), 'ok', 'control: a clean active name is stored');
 select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
-select pg_temp.err($$select add_page_name_word('reserved', 'fresh-box')$$);
+select 1 where pg_temp.err($$select add_page_name_word('reserved', 'fresh-box')$$) is null;
 select is(pg_temp.err($$update page_names set reserved_until = now() where name = 'fresh-box'$$), 'ok', 'control: a word reserved later does not block an unrelated update of an existing active name');
 
 -- ---- words ---------------------------------------------------------------------------------------------------------------------

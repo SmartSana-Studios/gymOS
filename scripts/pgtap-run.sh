@@ -4,7 +4,8 @@
 # pg_prove container, which was observed dying silently (no output, exit 0).
 #
 # A file FAILS if psql reports an ERROR, any line starts with "not ok", the
-# "1..N" plan is missing, or the number of ok/not ok lines differs from N.
+# "1..N" plan is missing, the number of ok/not ok lines differs from N, or an UNNUMBERED "ok"/"not ok" line appears (pg_prove, which
+# CI runs, would count it as a test and lose the numbering).
 # Exit status is non-zero if any file fails.
 #
 #   scripts/pgtap-run.sh [files...]     (default: every supabase/tests/*.test.sql)
@@ -117,7 +118,7 @@ RUNNER
 # Judge one file from its result files. Prints the verdict lines; returns 0 ok, 1 assertion/ERROR failure,
 # 3 "incomplete output" (no 'not ok', no ERROR, but the plan or some ok lines are missing).
 judge() {
-  local i=$1 f=${FILES[$1]} out psqlrc eof plan oks nots errs
+  local i=$1 f=${FILES[$1]} out psqlrc eof plan oks nots bare errs
   if [ -f "$T/res/$i.out" ]; then
     out=$(sed "s#psql:/tmp/$RUN/$i\.sql#psql:$f#" "$T/res/$i.out")
     psqlrc=$(cat "$T/res/$i.rc" 2>/dev/null)
@@ -128,13 +129,19 @@ judge() {
   plan=$(printf '%s\n' "$out" | sed -n 's/^1\.\.\([0-9]\+\).*/\1/p' | head -1)
   oks=$(printf '%s\n' "$out" | grep -c '^ok ')
   nots=$(printf '%s\n' "$out" | grep -c '^not ok ')
+  # An unnumbered "ok" / "not ok" line (a standalone `select pg_temp.err(...)` prints the text 'ok') is not counted above, but pg_prove, which
+  # CI runs (`supabase test db`), reads it as a test result: its numbering then goes out of step and the file FAILS there only (epic 24 end, PR 122:
+  # four files, 20 lines). Count it as a failure here so this runner agrees with CI.
+  bare=$(printf '%s\n' "$out" | grep -cE '^(not )?ok[[:space:]]*$')
+  nots=$((nots + bare))
   errs=$(printf '%s\n' "$out" | grep -c 'ERROR:')
   if [ -n "$plan" ] && [ "$nots" = 0 ] && [ "$errs" = 0 ] && [ "$((oks + nots))" = "$plan" ]; then
     echo "ok   $f ($oks)"
     return 0
   fi
   echo "FAIL $f (plan=${plan:-none} ok=$oks not_ok=$nots errors=$errs)"
-  printf '%s\n' "$out" | grep -E '^not ok |^# |ERROR:' | head -12 | sed 's/^/     /'
+  printf '%s\n' "$out" | grep -E '^not ok |^# |ERROR:|^ok[[:space:]]*$' | head -12 | sed 's/^/     /'
+  [ "$bare" -gt 0 ] && echo "     $bare unnumbered 'ok' line(s): a standalone statement prints 'ok' and pg_prove counts it as a test; write it as: select 1 where pg_temp.err(...) is null;"
   if [ "$nots" = 0 ] && [ "$errs" = 0 ]; then
     # Say WHY in the normal log: psql's exit status, how much came back, whether the end-of-file sentinel arrived, the first
     # lines, and the batch error if the machinery itself failed. A connection failure ("psql: error: ... FATAL ...") never

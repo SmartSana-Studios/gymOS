@@ -97,11 +97,11 @@ select private.support_set_membership('00000000-0000-0000-0000-000000241881', tr
 -- gym A is ready to publish (a Super Admin completes it; nothing is published yet)
 select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
 set local role authenticated;
-select pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('A') || $$', jsonb_build_object('about_en', repeat('This gym is complete. ', 6), 'city', 'Douala', 'contact_phone', '+237600555000',
-  'hours', '{"mon":{"open":"06:00","close":"22:00"}}'::jsonb), '[{"plan_id":"00000000-0000-0000-0000-000000241871","is_public":true}]'::jsonb)$$);
-select pg_temp.err($$select claim_page_name('$$ || pg_temp.g('A') || $$', 'denial-a')$$);
-select pg_temp.err($$select register_page_media('$$ || pg_temp.g('A') || $$', 'logo', '$$ || pg_temp.g('A') || $$/aaaaaaaa-aaaa-aaaa-aaaa-000000000001', '$$ || pg_temp.dk(1) || $$', true, 'v1')$$);
-select pg_temp.err($$select register_page_media('$$ || pg_temp.g('A') || $$', 'banner', '$$ || pg_temp.g('A') || $$/aaaaaaaa-aaaa-aaaa-aaaa-000000000002', '$$ || pg_temp.dk(2) || $$', true, 'v1')$$);
+select 1 where pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('A') || $$', jsonb_build_object('about_en', repeat('This gym is complete. ', 6), 'city', 'Douala', 'contact_phone', '+237600555000',
+  'hours', '{"mon":{"open":"06:00","close":"22:00"}}'::jsonb), '[{"plan_id":"00000000-0000-0000-0000-000000241871","is_public":true}]'::jsonb)$$) is null;
+select 1 where pg_temp.err($$select claim_page_name('$$ || pg_temp.g('A') || $$', 'denial-a')$$) is null;
+select 1 where pg_temp.err($$select register_page_media('$$ || pg_temp.g('A') || $$', 'logo', '$$ || pg_temp.g('A') || $$/aaaaaaaa-aaaa-aaaa-aaaa-000000000001', '$$ || pg_temp.dk(1) || $$', true, 'v1')$$) is null;
+select 1 where pg_temp.err($$select register_page_media('$$ || pg_temp.g('A') || $$', 'banner', '$$ || pg_temp.g('A') || $$/aaaaaaaa-aaaa-aaaa-aaaa-000000000002', '$$ || pg_temp.dk(2) || $$', true, 'v1')$$) is null;
 reset role;
 select is(pg_temp.missing('A'), '', 'control: gym A meets the gate');
 
