@@ -157,10 +157,28 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
   const canChangeTemplate = !takenDown && (role === "owner" || role === "supervisor");
   const showTooLarge = status.missing.includes("too_large") && status.state !== "offline_gate";
 
-  /** A live page is republished now with the new template; any other page remembers the choice for the publish screen. Returns an error message or null. */
+  /**
+   * A live page is republished now with the new template; any other page remembers the choice for the publish screen. Returns an error message or null.
+   * The state on screen can be OLD (publish from the publish screen, then the browser's Back button restores this editor as it was: "ready", not
+   * "published"), and trusting it made a switch on a live page only remember the choice and never republish. So the server is asked first, and the
+   * answer decides; what is on screen is only the fallback when that read fails.
+   */
   async function useTemplate(id: PageTemplateId): Promise<string | null> {
-    if (!live) {
-      setChosenTemplate(id === storedTemplate ? null : id);
+    let isLive = live;
+    let stored = storedTemplate;
+    try {
+      const seq = ++issuedRef.current;
+      const { data: fresh } = await loadLandingPageAction();
+      if (fresh) {
+        applyData(seq, fresh);
+        isLive = fresh.status.state === "published";
+        stored = isOfferedTemplate(fresh.status.template) ? fresh.status.template : DEFAULT_PAGE_TEMPLATE;
+      }
+    } catch {
+      /* keep what is on screen */
+    }
+    if (!isLive) {
+      setChosenTemplate(id === stored ? null : id);
       return null;
     }
     const { data: result, error } = await publishPageAction(id);

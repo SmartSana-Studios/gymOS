@@ -377,6 +377,33 @@ describe("template", () => {
     expect(await screen.findByText("pageEditor.templates.applied|pageEditor.templates.volt")).toBeTruthy();
   });
 
+  it("a STALE editor (it shows 'ready') while the server says the page is live: the switch republishes, it does not just remember the choice", async () => {
+    // the Back button after publishing restores this editor as it was before the publish
+    loadLandingPageAction.mockResolvedValue({ data: makeData({ status: { state: "published", missing: [], template: "volt" } }), error: null });
+    publishPageAction.mockResolvedValue({ data: { published: true, missing: [] }, error: null });
+    render(<LandingPageEditor initial={makeData({ status: { state: "ready", missing: [] } })} />);
+    fireEvent.click(screen.getByTestId("template-change"));
+    fireEvent.click(within(screen.getByTestId("template-option-volt")).getByRole("radio"));
+    fireEvent.click(screen.getByText("pageEditor.templates.use"));
+    await waitFor(() => expect(screen.queryByTestId("template-dialog")).toBeNull()); // picked Volt while the screen thought "not live"
+    loadLandingPageAction.mockClear();
+    fireEvent.click(screen.getByTestId("template-change"));
+    fireEvent.click(within(screen.getByTestId("template-option-classic")).getByRole("radio"));
+    fireEvent.click(screen.getByText("pageEditor.templates.use"));
+    await waitFor(() => expect(publishPageAction).toHaveBeenCalledWith("classic"));
+    expect(loadLandingPageAction).toHaveBeenCalled(); // the server was asked before deciding
+  });
+
+  it("when the server read fails the screen's own state decides (not live: remember the choice, no publish)", async () => {
+    loadLandingPageAction.mockRejectedValue(new Error("offline"));
+    render(<LandingPageEditor initial={makeData({ status: { state: "ready", missing: [] } })} />);
+    fireEvent.click(screen.getByTestId("template-change"));
+    fireEvent.click(within(screen.getByTestId("template-option-volt")).getByRole("radio"));
+    fireEvent.click(screen.getByText("pageEditor.templates.use"));
+    await waitFor(() => expect(screen.getByTestId("template-pending")).toBeTruthy());
+    expect(publishPageAction).not.toHaveBeenCalled();
+  });
+
   it("a live page whose gate fails: nothing changes, the modal stays open and says the page is not ready", async () => {
     publishPageAction.mockResolvedValue({ data: { published: false, missing: ["no_banner"] }, error: null });
     render(<LandingPageEditor initial={makeData({ status: { state: "published", missing: [], template: "classic" } })} />);
