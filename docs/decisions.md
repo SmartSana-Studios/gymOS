@@ -318,7 +318,7 @@ Probed 2026-11-01 to 2026-11-08. The owner chose the throwaway label `test` over
 
 ### Cleanup
 
-Removed: the spike Supabase project and its role, the local credentials file, the `CNAME *.test` record, the `*.test.gymosapps.com` project domain. Left in place: the Vercel DNS zone for `gymosapps.com` (the agent recommended keeping it and the owner did not ask for deletion; original state unknown; live nameservers and records are unaffected, needed again by 24.2). **Pending:** removal of the two `NS` records for `_acme-challenge.test` by A2 (ticket reply sent 2026-11-08); this line is updated when A2 confirms and `dig` shows the zone matches the pre-spike snapshot.
+Removed: the spike Supabase project and its role, the local credentials file, the `CNAME *.test` record, the `*.test.gymosapps.com` project domain. Left in place: the Vercel DNS zone for `gymosapps.com` (the agent recommended keeping it and the owner did not ask for deletion; original state unknown; live nameservers and records are unaffected, needed again by 24.2). **Closed 2026-11-08:** A2 removed the two `NS` records for `_acme-challenge.test`; `dig +norec NS _acme-challenge.test.gymosapps.com @ns1.a2hosting.com` is empty, apex NS is still ns1-4.a2hosting.com, apex A/MX/SPF match the pre-spike snapshot, and there is no `*.test` CNAME. No throwaway remains.
 
 ---
 
