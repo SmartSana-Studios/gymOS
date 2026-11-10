@@ -1,5 +1,10 @@
 # Deferred Work
 
+## Deferred from: epic 24 end, full ci-local on epic/24 (2026-11-10)
+
+- **Run `pgtap` and `e2e` one after the other in `scripts/ci-local.sh`.** They run in parallel today and share one local database and one CPU; `support-assignments-race.test.sh` (lock-wait timing assertions) failed in the full run and passed alone, the same pgtap-fails-in-the-full-run pattern seen on 24-12, 24-13 and here (24-11 already serialised the three unit suites for the same reason). A fix costs the e2e wall-clock (about 3 minutes) and removes a recurring false failure. Not changed here.
+- **Production release gate for Epic 24 is entirely open** (nothing applied; decisions.md 24.10, 24.11 and 24.12 list it): fresh R2 backup, migrations 0160 to 0167 in order with `scripts/deploy-migration.sh` (dashboard code reads `default_language`, `taken_down_reason` and `appeal` through a strict schema, so the migrations belong BEFORE the app code), the `page-media-purge` function with `PAGE_MEDIA_PURGE_SECRET` and the two Vault secrets, `PUBLIC_SITE_REPORT_KEY` and the `PUBLIC_SITE_*` reader variables on the landing project, the `public_site_reader` password and connection limit, the `net._http_response` check, then `CNAME *` last.
+
 ## Deferred from: build of spec-24-13-landing-template-redesign (2026-11-10)
 
 - ~~A second, dark template.~~ **Done 2026-11-10 (owner asked):** Volt, with the dark-aware `accent` color; see docs/decisions.md 24.13. Remaining for it: an LCP and load run, and a look at real pale and busy gym photos behind the gradient.
