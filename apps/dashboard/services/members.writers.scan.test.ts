@@ -27,6 +27,7 @@ const EXEMPT: (Writer & { reason: string })[] = [
   { file: "apps/dashboard/services/members.changes.ts", kind: "update", count: 2, reason: "deactivate and reactivate touch deactivated_at only" },
   { file: "apps/super-admin/services/gyms.ts", kind: "insert", count: 1, reason: "creates a gym's owner row at gym creation; staff row, profile fields stay null" },
   { file: "apps/dashboard/e2e/fixtures/seed.ts", kind: "insert", count: 2, reason: "e2e fixtures with synthetic rows" },
+  { file: "apps/dashboard/e2e/helpers/landingGate.ts", kind: "insert", count: 1, reason: "e2e landing-page gate: one throwaway Owner row per page gym (Story 24.12), removed again by the spec" },
   { file: "apps/mobile/src/app/onboarding/plan.tsx", kind: "update", count: 1, reason: "member onboarding goal/experience; the mobile app neither shows nor collects the fields" },
   { file: "apps/mobile/src/app/onboarding/body-profile.tsx", kind: "update", count: 1, reason: "member body profile; the mobile app neither shows nor collects the fields" },
 ];

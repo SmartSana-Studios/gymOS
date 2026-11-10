@@ -31,6 +31,8 @@ try {
 
 const PORT = 3100;
 const baseURL = `http://127.0.0.1:${PORT}`;
+// Story 24.12: the landing app (public gym pages) is a second server. E2E_LANDING_PORT overrides the port when 3200 is taken on the machine; the spec reads the same variable.
+const LANDING_PORT = Number(process.env.E2E_LANDING_PORT ?? 3200);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -59,12 +61,38 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
   ],
-  webServer: {
-    command: `pnpm build && pnpm exec next start --port ${PORT}`,
-    url: baseURL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 300_000,
-    stdout: "pipe",
-    stderr: "pipe",
-  },
+  webServer: [
+    {
+      command: `pnpm build && pnpm exec next start --port ${PORT}`,
+      url: baseURL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 300_000,
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+    // Story 24.12: the public gym pages. A second Next app (apps/landing) built and started here, which also closes the "no landing build in CI"
+    // deferral. Root domain `localhost`: the specs address a page by its Host header (`name.localhost`), no DNS. The reader is the real
+    // `public_site_reader` role on the local database (its password is set by ci-local.sh / ci.yml before this runs). `url` is the Host-less root,
+    // which the apex of `localhost` serves as the marketing site, so readiness does not depend on any page.
+    {
+      command: `pnpm --dir ../landing build && pnpm --dir ../landing exec next start --port ${LANDING_PORT}`,
+      url: `http://127.0.0.1:${LANDING_PORT}/`,
+      // never reuse: a landing server already on this port (e.g. one left by scripts/landing-gate/run-local.sh serve) has another reader password and
+      // older code, and the spec would pass or fail against it. A busy port fails the run loudly instead.
+      reuseExistingServer: false,
+      timeout: 300_000,
+      stdout: "pipe",
+      stderr: "pipe",
+      env: {
+        PUBLIC_SITE_ROOT_DOMAIN: "localhost",
+        PUBLIC_SITE_MEDIA_ORIGIN: process.env.PUBLIC_SITE_MEDIA_ORIGIN ?? "http://127.0.0.1:54321",
+        PUBLIC_SITE_REPORT_KEY: process.env.PUBLIC_SITE_REPORT_KEY ?? "e2e-report-key-0123456789",
+        PUBLIC_SITE_READER_HOST: process.env.PUBLIC_SITE_READER_HOST ?? "127.0.0.1",
+        PUBLIC_SITE_READER_PORT: process.env.PUBLIC_SITE_READER_PORT ?? "54322",
+        PUBLIC_SITE_READER_DATABASE: process.env.PUBLIC_SITE_READER_DATABASE ?? "postgres",
+        PUBLIC_SITE_READER_USER: process.env.PUBLIC_SITE_READER_USER ?? "public_site_reader",
+        PUBLIC_SITE_READER_PASSWORD: process.env.PUBLIC_SITE_READER_PASSWORD ?? "",
+      },
+    },
+  ],
 });

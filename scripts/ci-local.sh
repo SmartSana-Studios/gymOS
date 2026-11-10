@@ -12,7 +12,7 @@
 #   pgtap   rls-tests job: supabase/tests/*.sql
 #   unit    typecheck job: vitest for @gymos/dashboard, mobile, super-admin, types, page-templates (conformance, DOM) and landing
 #   layout  typecheck job: the page-template conformance layout stage in headless Chromium (Story 24.10; a missing browser fails)
-#   e2e     e2e-tests job: Playwright against the local Supabase
+#   e2e     e2e-tests job: Playwright against the local Supabase (dashboard AND landing servers; Story 24.12 adds the landing-page spec)
 #
 # Scheduling (4 cores / ~5 GB): static + pgtap run concurrently (both light),
 # then vitest alone (it already fans out across every core; overlapping it with
@@ -100,7 +100,15 @@ stage_deno() {
   (cd "$ROOT/supabase/functions/page-media-purge" && "$deno_bin" test --allow-all .) || return 1
 }
 
+# Story 24.12: the landing-page E2E spec removes its gyms, but audit_log is append-only for service_role and gym_id is set null when the gym goes, so
+# its `gym_page_*` and `page_name_*` rows stay behind. gym_page_publish.negative.test.sql asserts that NO such audit row exists database-wide, so the
+# previous run's leftovers would fail it. Only orphaned page rows (no gym) are removed, as the DB owner; pgTAP's own fixtures roll back.
+clean_orphaned_page_audit_rows() {
+  psql_local -c "delete from audit_log where gym_id is null and (action_type like 'gym\_page\_%' or action_type like 'page\_name\_%')" >/dev/null || return 1
+}
+
 stage_pgtap() {
+  clean_orphaned_page_audit_rows || return 1
   # explicit `|| return 1` (see stage_static): `set -e` is ignored when run_stage calls this in an `if`
   PGTAP_JOBS="${PGTAP_JOBS:-1}" bash "$ROOT/scripts/pgtap-run.sh" || return 1
   # Refund-vs-consume and loyalty-ledger race (two real sessions; pgTAP runs one). Epic 19 R-1, Epic 20 R-1.
@@ -113,6 +121,8 @@ stage_pgtap() {
   bash "$ROOT/scripts/support-assignments-race.test.sh" || return 1
   # The landing reader's two statements run as public_site_reader against the migrated schema (Story 24.10 review pass 2).
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/public-site-reader-sql.test.sh" || return 1
+  # The media purge staleness check (the staging detector for a dead job) against the migrated schema (Story 24.12 review).
+  DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" bash "$ROOT/scripts/landing-gate/purge-staleness.test.sh" || return 1
   # Claim-read inventory (Story 22.2; enforcing since 22.4): any non-exempt claim-only / null-unsafe entry fails.
   DB_CONTAINER="${DB_CONTAINER:-supabase_db_gym_os}" pnpm run check:claims || return 1
 }
@@ -156,6 +166,10 @@ e2e_preflight() {
   fi
 }
 
+run_e2e_suite() {
+  CI=1 npx turbo run test:e2e --filter=@gymos/dashboard || return 1
+}
+
 stage_e2e() {
   e2e_preflight || return 1
   eval "$("$SUPABASE" status -o env 2>/dev/null)" || return 1
@@ -164,10 +178,21 @@ stage_e2e() {
   export NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY
   export SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
   export DASHBOARD_APP_URL=http://127.0.0.1:3100
+  # Story 24.12: the landing-page spec starts apps/landing as a second Playwright webServer, which reads the database as the REAL public_site_reader
+  # role. The role has no password in a migration, so set a throwaway one on this local database (role-level change, no table touched), and give the
+  # landing server its PUBLIC_SITE_* variables. Fails here, in a second, if the role is missing (migrations 0160 and later not applied: psql names the role).
+  export PUBLIC_SITE_READER_PASSWORD=e2e-reader-local-only
+  psql_local -c "alter role public_site_reader password '$PUBLIC_SITE_READER_PASSWORD'" >/dev/null || return 1
+  export PUBLIC_SITE_ROOT_DOMAIN=localhost PUBLIC_SITE_READER_HOST=127.0.0.1 PUBLIC_SITE_READER_PORT=54322 PUBLIC_SITE_READER_DATABASE=postgres PUBLIC_SITE_READER_USER=public_site_reader
+  export PUBLIC_SITE_MEDIA_ORIGIN=$API_URL
   # Idempotent (no-op once cached); CI does the same before the suite.
   (cd apps/dashboard && npx playwright install chromium) || return 1
   # CI=1 matches the Actions environment: retries: 1, no server reuse, html report.
-  CI=1 npx turbo run test:e2e --filter=@gymos/dashboard || return 1
+  # The suite's own result is kept, the orphaned page audit rows are removed WHETHER OR NOT it passed (a failing run leaves them too, and the next
+  # pgTAP stage would then fail on an unrelated message), and the suite's result is returned last.
+  if run_e2e_suite; then e2e_rc=0; else e2e_rc=1; fi
+  clean_orphaned_page_audit_rows || return 1
+  return $e2e_rc
 }
 
 echo "ci-local: $(git rev-parse --short HEAD) on $(git rev-parse --abbrev-ref HEAD)"

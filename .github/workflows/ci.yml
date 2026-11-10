@@ -140,6 +140,9 @@ jobs:
       - name: Landing reader SQL against the migrated schema (as public_site_reader)
         run: DB_CONTAINER=supabase_db_gym_os bash scripts/public-site-reader-sql.test.sh
 
+      - name: Media purge staleness check against the migrated schema
+        run: DB_CONTAINER=supabase_db_gym_os bash scripts/landing-gate/purge-staleness.test.sh
+
       - name: Claim-read inventory (report mode, new claim-only entries fail)
         run: DB_CONTAINER=supabase_db_gym_os node scripts/claim-inventory.mjs
 
@@ -209,6 +212,25 @@ jobs:
             echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
             echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$PUBLISHABLE_KEY"
             echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+
+      - name: Give the landing server its reader role (Story 24.12)
+        # The landing-page E2E spec starts apps/landing as a second Playwright webServer. It reads the database as the real public_site_reader
+        # role, which has no password in a migration: set a throwaway one on this CI-only database and export the PUBLIC_SITE_* variables.
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          PW="$(openssl rand -hex 16)"
+          echo "::add-mask::$PW"
+          docker exec -e PGPASSWORD=postgres supabase_db_gym_os psql -U postgres -h 127.0.0.1 -v ON_ERROR_STOP=1 -c "alter role public_site_reader password '$PW'"
+          {
+            echo "PUBLIC_SITE_ROOT_DOMAIN=localhost"
+            echo "PUBLIC_SITE_MEDIA_ORIGIN=$API_URL"
+            echo "PUBLIC_SITE_READER_HOST=127.0.0.1"
+            echo "PUBLIC_SITE_READER_PORT=54322"
+            echo "PUBLIC_SITE_READER_DATABASE=postgres"
+            echo "PUBLIC_SITE_READER_USER=public_site_reader"
+            echo "PUBLIC_SITE_READER_PASSWORD=$PW"
           } >> "$GITHUB_ENV"
 
       - name: Install dependencies
