@@ -1,0 +1,86 @@
+{
+  "name": "GATE FIT",
+  "default_language": "en",
+  "about_en": "Gate Fit is a neighbourhood gym in Douala with free weights, cardio machines and group classes six days a week. Coaches are on the floor every evening.\nNew members get a free first session.",
+  "about_fr": "Gate Fit est une salle de sport de quartier à Douala avec des poids libres, des machines de cardio et des cours collectifs six jours par semaine. Des coachs sont présents chaque soir.\nLa première séance est offerte aux nouveaux membres.",
+  "services_en": "Free weights\nCardio\nGroup classes\nPersonal coaching",
+  "services_fr": "Poids libres\nCardio\nCours collectifs\nCoaching personnel",
+  "address": "Rue de la Joie 12, Bonanjo",
+  "city": "Douala",
+  "country": "CM",
+  "category": "gym",
+  "map": {
+    "lat": 4.0511,
+    "lng": 9.7679
+  },
+  "contact": {
+    "phone": "+237600555000",
+    "whatsapp": "+237670111222"
+  },
+  "color": "#1A6B3C",
+  "logo": "00000001-aaaa-4bbb-8ccc-000000000001.webp",
+  "banner": "00000002-aaaa-4bbb-8ccc-000000000002.webp",
+  "gallery": [
+    "00000003-aaaa-4bbb-8ccc-000000000003.webp",
+    "00000004-aaaa-4bbb-8ccc-000000000004.webp",
+    "00000005-aaaa-4bbb-8ccc-000000000005.webp"
+  ],
+  "hours": {
+    "mon": {
+      "open": "06:00",
+      "close": "22:00"
+    },
+    "tue": {
+      "open": "06:00",
+      "close": "22:00"
+    },
+    "wed": {
+      "open": "06:00",
+      "close": "22:00"
+    },
+    "thu": {
+      "open": "06:00",
+      "close": "22:00"
+    },
+    "fri": {
+      "open": "06:00",
+      "close": "22:00"
+    },
+    "sat": {
+      "open": "08:00",
+      "close": "14:00"
+    },
+    "sun": null
+  },
+  "plans": [
+    {
+      "name": "Per session",
+      "label_en": "Per session",
+      "label_fr": "Per session",
+      "type": "pay_per_session",
+      "price": 2000,
+      "currency": "XAF",
+      "interval": "monthly"
+    },
+    {
+      "name": "Mensuel",
+      "label_en": "Mensuel",
+      "label_fr": "Mensuel",
+      "type": "monthly",
+      "price": 15000,
+      "currency": "XAF",
+      "interval": "monthly",
+      "duration_days": 30
+    },
+    {
+      "name": "Annual pass",
+      "label_en": "Annual pass",
+      "label_fr": "Annual pass",
+      "type": "coach_inclusive",
+      "price": 150000,
+      "currency": "XAF",
+      "interval": "annual",
+      "duration_days": 365
+    }
+  ]
+}

@@ -81,12 +81,21 @@ describe("the proxy: every outcome for a host and a path", () => {
     const direct = proxy(req("www.gymosapps.com", "/gym-site", spoof));
     expect(direct.headers.get("x-middleware-request-x-tenant-name")).toBeNull();
   });
-  it("a bad label answers the uniform not-found itself (no rewrite)", async () => {
+  it("a bad label is rewritten to the same route as a page, with NO tenant header (Story 24.12: one path for every hidden cause)", async () => {
     vi.stubEnv("PUBLIC_SITE_ROOT_DOMAIN", ROOT);
-    const res = proxy(req("mail.gymosapps.com"));
-    expect(res.status).toBe(404);
-    expect(res.headers.get("x-middleware-rewrite")).toBeNull();
-    expect(await snapshot(res)).toEqual(await snapshot(notFoundResponse(ROOT)));
+    for (const host of ["mail.gymosapps.com", "ab.gymosapps.com", "a.fit.gymosapps.com"]) {
+      const res = proxy(req(host, "/", { "x-tenant-name": "fit", "x-tenant-path": "/" }));
+      expect(res.headers.get("x-middleware-rewrite"), host).toBe(`https://${host}/gym-site`);
+      expect(res.headers.get("x-middleware-request-x-tenant-name"), host).toBeNull();
+      expect(res.headers.get("x-middleware-request-x-tenant-path"), host).toBeNull();
+    }
+    // with no tenant the handler answers the uniform not-found without reading the database
+    const readPage = vi.fn(async () => null);
+    const readRedirect = vi.fn(async () => null);
+    const answer = await ask(deps({ readPage, readRedirect }), null, null);
+    expect(await snapshot(answer)).toEqual(await snapshot(notFoundResponse(ROOT)));
+    expect(readPage).not.toHaveBeenCalled();
+    expect(readRedirect).not.toHaveBeenCalled();
   });
   it("the apex still redirects `/` to a locale and marketing paths pass through", () => {
     vi.stubEnv("PUBLIC_SITE_ROOT_DOMAIN", ROOT);

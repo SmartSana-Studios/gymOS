@@ -111,6 +111,16 @@ describe("Story 24.11: the sitemap, robots and report routes, through the proxy"
     expect(await snap(await viaProxy("hidden.gymosapps.com", "/report", FORM, { method: "POST", body: body({ reason: "privacy", details: "x" }) }))).toEqual(expected);
     expect(submitReport).not.toHaveBeenCalled();
   });
+  it("a reserved or malformed label (too short, double hyphen, a second label level, a trailing dot) composes proxy + handler into the same uniform not-found with no database read", async () => {
+    const expected = await snap(notFoundResponse("gymosapps.com"));
+    for (const host of ["mail.gymosapps.com", "ab.gymosapps.com", "a--b.gymosapps.com", "a.fit.gymosapps.com", "ab.gymosapps.com.", "a.fit.gymosapps.com."]) {
+      for (const path of ["/", "/sitemap.xml", "/report"]) expect(await snap(await viaProxy(host, path)), `${host} ${path}`).toEqual(expected);
+    }
+    expect(await snap(await viaProxy("ab.gymosapps.com", "/report", FORM, { method: "POST", body: body({ reason: "privacy", details: "x" }) }))).toEqual(expected);
+    expect(readPage).not.toHaveBeenCalled();
+    expect(readRedirect).not.toHaveBeenCalled();
+    expect(submitReport).not.toHaveBeenCalled();
+  });
   it("the report form is served, and a POST is answered in the same response (no redirect), stored with a keyed hash and no cookie", async () => {
     const form = await viaProxy("fit.gymosapps.com", "/report");
     expect(form.status).toBe(200);

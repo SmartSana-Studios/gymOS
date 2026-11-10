@@ -125,3 +125,15 @@ describe("classifyHost", () => {
     expect(classifyHost(".gymosapps.com", root)).toEqual({ kind: "not-found", reason: "grammar" });
   });
 });
+
+describe("the landing-gate kit's page fixture (Story 24.12)", () => {
+  it("is a valid strict PageContentV1 snapshot, as the reader would return it", () => {
+    // scripts/landing-gate/fixtures/full-page.json is inserted as gym_pages.content by scripts/landing-gate/seed.mjs. The kit's node tests cannot import the
+    // schema (it is TypeScript with extensionless imports), so the schema check lives here, where it is imported the way the app imports it.
+    const content = JSON.parse(readFileSync(join(root, "scripts", "landing-gate", "fixtures", "full-page.json"), "utf8"));
+    const parsed = parsePageContentV1({ template: "classic", schema_version: 1, content } as never);
+    expect(parsed.ok, JSON.stringify(parsed)).toBe(true);
+    // strict: an unknown key makes the same fixture fail, so the check cannot pass by ignoring keys
+    expect(parsePageContentV1({ template: "classic", schema_version: 1, content: { ...content, zz_unknown_key: 1 } } as never).ok).toBe(false);
+  });
+});

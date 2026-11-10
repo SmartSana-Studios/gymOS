@@ -1897,20 +1897,8 @@ Migration `0164_publish_gate_snapshot.sql` (provisional number). Each line says 
 ## Deferred from: code review of spec-24-10-public-page-route-and-launch-template, pass 1 (2026-11-09)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
-  summary: Unverified (medium if true): the reader pool is one connection per instance with a 2 s checkout timeout, so two overlapping requests on one instance may make the second fail and answer a cached not-found.
-  evidence: review pass 1 (blind, edge-case); the spec fixes `max 1`. A preview deploy under concurrent load settles it (24.12 speed baseline); if it fails, size the pool and the role's CONNECTION LIMIT together.
-- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
-  summary: Unverified (medium if true): every unknown but grammar-valid label costs two serial reads (page, then redirect) and random labels bypass the per-host 30 s cache, so a label scan competes with real traffic for the pooled connection.
-  evidence: review pass 1 (blind); consider one combined query or a platform firewall rule in 24.12.
-- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
   summary: Owner decision for the frozen spec: a transient database, render or config error answers the same cached 404 (`s-maxage=30`) as a missing page, so a live gym can look unpublished for up to 30 s per edge during a blip.
   evidence: review pass 1 (blind, edge-case); the frozen spec orders this response. A `503` with `no-store` for operational errors would need the frozen block changed.
-
-## Deferred from: code review of spec-24-10-public-page-route-and-launch-template, pass 2 (2026-11-09)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-24-10-public-page-route-and-launch-template.md`
-  summary: No `next build` of `@gymos/landing` runs in `ci.yml` or `ci-local.sh`. The `renderPageAsync` lazy `react-dom/server` import and `transpilePackages` are proven only by a manual build; importing the static `renderPage` in the handler, or dropping `transpilePackages`, keeps every test green and first fails on the Vercel build.
-  evidence: review pass 2 (verification-gap); loud failure at deploy, not silent. Settle with a landing build stage when 24.12 adds the landing gate.
 
 ## Closed by build of spec-24-11 (2026-11-09)
 
@@ -1960,9 +1948,6 @@ Migration `0167_page_takedown_reports_media_purge.sql` (provisional number). Eac
   summary: Unverified (medium if true): a Super Admin forced `claim_page_name` on a taken-down gym lets `page_name_promote(forced)` release the flagged old name, against "a taken-down name is never released" (AD-45); the new name is unflagged. The owner's rename rule (refuse) covers the Owner path only.
   evidence: `claim_page_name` in 0167 refuses only `not v_is_super_admin and gym_page_taken_down`; settles when the owner says whether a Super Admin forced rename may free a taken-down name (then refuse it too, or keep the flagged row reserved).
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
-  summary: Unverified (medium if true): `private.page_media_purge_tick` returns silently when a Vault secret is missing, never reads the `net.http_post` result, and nothing detects "no successful `page_media_purge` run in N minutes"; a wrong secret or an undeployed function leaves no trace.
-  evidence: review pass 1 and 2 (blind + edge); settles at the first preview deploy (a deployed function writes one `job_runs` row per tick). Add a staleness check or a skip row in the 24.12 gate.
-- source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
   summary: Unverified (medium if true): candidates and orphans are listed oldest first with no back-off, so about 100 rows (or 50 orphans) whose Storage delete keeps failing would pin the head and starve later purges; the orphan listing also scans `storage.objects` with `NOT EXISTS` every 5 minutes.
   evidence: review pass 1 and 2; needs a key Storage persistently rejects, and a query plan on a production-size bucket. Add an attempts/last_failed_at order or skip-this-run set if it ever shows.
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
@@ -1992,3 +1977,43 @@ Migration `0167_page_takedown_reports_media_purge.sql` (provisional number). Eac
 - source_spec: `_bmad-output/implementation-artifacts/spec-24-11-takedown-reports-sitemap-and-media-purge.md`
   summary: No count dot on the Pages sidebar item (EXPERIENCE.md: reports older than 3 business days plus held names older than 1 business day). The tabs show counts; the sidebar link does not.
   evidence: `apps/super-admin/app/(admin)/layout.tsx` only points the link at `/pages`. Joins the already-deferred Super Admin notice of new and overdue reports and appeals.
+
+## Closed by build of spec-24-12 (2026-11-09)
+
+Lab, local results only (one machine runs the server, the database, the load and the probes). Each line says what closed an earlier item and where the evidence is; `docs/decisions.md` 24.12 holds the numbers.
+
+- **24-10 review pass 1: the reader pool is one connection per instance.** Settled by `scripts/landing-gate/load.mjs`: 8179 requests at 2, 8, 24 and 64 concurrent clients against one landing instance: 0 errors, 0 real pages answered with the cached not-found, peak role connections 1 of a limit of 20 (read from `pg_roles`). Pool max 1 holds; throughput is about 150 requests per second per instance and latency queues behind the one connection (p95 612 ms at 64 clients, local). No pool or `CONNECTION LIMIT` change. This is local lab evidence only; the same run against the real pooler stays OPEN (last item of this section).
+- **24-10 review pass 1: two serial reads per unknown label.** Measured in the same run: unknown label median 133 ms and p95 524 ms against 67 ms and 289 ms for a real page; the scan did not move the core probes (Overview load median +14%, check-in -23%, both far inside the budgets). Accepted for launch; a combined query or a platform rule stays an option if staging shows otherwise. The unverified part that remains is the real pooler under the same scan (staging checklist).
+- **24-10 review pass 2: no `next build` of `@gymos/landing` in CI.** The E2E stage (`ci-local.sh`, `ci.yml` e2e job) now builds and starts `apps/landing` as the second Playwright webServer, so a build that breaks on the lazy `react-dom/server` import or on `transpilePackages` fails the stage. Evidence: `apps/dashboard/playwright.config.ts`, `landing-page-gate.spec.ts` (a wrong reader password fails it; shown).
+- **24-11: no check that the media purge job runs.** `scripts/landing-gate/purge-staleness.sql` fails when no successful `page_media_purge` `job_runs` row finished in the last 15 minutes (shown failing on the local database, which has none; shown passing with a fixture row, rolled back). It is a staging checklist step, because the job only exists once the edge function and the Vault secrets are deployed; no deployed-stack evidence exists yet (last item of this section).
+
+## Deferred from: build of spec-24-12-landing-page-gate-isolation-headers-speed-baseline (2026-11-09)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-12-landing-page-gate-isolation-headers-speed-baseline.md`
+  summary: Supabase's default privileges give `anon` (and `authenticated`) TRUNCATE, REFERENCES and TRIGGER on every `public` table, and migrations never revoked them. PostgREST cannot issue them, so it is not an API exposure, but the spec's "zero table privileges for anon" cannot be asserted as written. `public_site_anon_isolation.test.sql` pins the residue (any OTHER privilege fails the test) and asserts nothing at all on `public_site` and `private`.
+  evidence: the same query on the hosted project is the owner's staging/production step (decisions.md 24.12 checklist). A migration revoking the three from `anon` on all `public` tables, with a default-privilege change, would close it; not done here (a migration, and it touches every table).
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-12-landing-page-gate-isolation-headers-speed-baseline.md`
+  summary: The local lab LCP of the Classic launch page is about 3.5 s p75 (3520 ms), over the 3 s [ASSUMPTION] target. The banner finishes at about 3.4 s because the first three gallery images (loading="lazy", but inside Chromium's lazy-load distance at 360x640) download at the same time and share the 1.6 Mbps link.
+  evidence: resource timings in decisions.md 24.12. Candidates, none built (template and conformance changes are not this story): a smaller gallery derivative, a lower fetch priority for the gallery, fewer gallery images in the first screenful. Staging must confirm before the target is judged.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-12-landing-page-gate-isolation-headers-speed-baseline.md`
+  summary: OPEN: the label scan and the pool behaviour on the REAL pooler, and the purge-job staleness on the deployed stack, have not been run. The "Closed by build of spec-24-12" entries above are local lab evidence only (one machine, no pooler, no deployed edge function) and are not that evidence.
+  evidence: the OPEN rows 8 (load on the real pooler) and 9 (purge job staleness) of the checklist in `docs/decisions.md` 24.12; closes when the owner runs `load.mjs` and `purge-staleness.sql` on staging and signs.
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-12-landing-page-gate-isolation-headers-speed-baseline.md`
+  summary: `scripts/landing-gate` probes the Overview page load and the check-in RPC only; there is no probe of the other core paths (payments, class booking) while a scan runs, and the load check has never run against the real pooler or Vercel.
+  evidence: scope of the story's Boundaries; the staging run is the owner's.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-12-landing-page-gate-isolation-headers-speed-baseline.md`
+  summary: Real-HTTP header checks for /sitemap.xml, /robots.txt and /report (content type, cache rules, AD-44 set) are not in the landing gate kit.
+  evidence: check-http and the E2E spec exercise only `/`; the 24.11 handler unit tests pin these headers on the Response object, not on what `next start` emits. Review of 24-12 (low).
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-12-landing-page-gate-isolation-headers-speed-baseline.md`
+  summary: The hosted-database anon enumeration may list platform schemas beyond the exclusion list (pgsodium, pgmq, _supabase ...); derive the list per environment when staging step 7 runs.
+  evidence: public_site_anon_isolation.test.sql skips a fixed local list; the hosted run is an OPEN checklist row in decisions.md. Review of 24-12 (low).
+- source_spec: `_bmad-output/implementation-artifacts/spec-24-12-landing-page-gate-isolation-headers-speed-baseline.md`
+  summary: gym_page_publish.negative.test.sql asserts that no page audit rows exist database-wide, so any E2E run on a shared local database breaks the next `supabase test db`; scope that assertion to its own rows.
+  evidence: ci-local.sh works around it by deleting orphaned rows around the pgtap stage. Pre-existing test, found in review of 24-12 (low).
+
+## Deferred from: code review of spec-24-12-landing-page-gate-isolation-headers-speed-baseline (2026-11-09)
+
+- The OVER-3 s LCP (p75 3520 ms, lab, local) may be an artifact of `scripts/landing-gate/lib/media-stub.mjs`, which serves one 1600x900 image (~147 KB) for every key except the logo, including the three gallery images; real derivative sizes were not checked. Medium, unverified. Settled by the owner's staging LCP run, and by sizing the stub's gallery images like the real derivatives.
+- "Pool of one holds" (peak 1 of 20 role connections) is true by construction for one local landing instance. It does not exercise many Vercel instances against `CONNECTION LIMIT 20`, the 2 s checkout timeout under overlap, or the transient-error cached 404, and only p95 is reported. Medium, unverified. Settled by the staging load run; the decisions.md closing text should name what the local run cannot show.
+- No real-HTTP check sends spoofed `x-tenant-name` / `x-tenant-path` headers to the apex or to `/gym-site`; only `gymSite.test.ts` and `wiring.test.ts` cover it. Medium, unverified. Settled by adding the request to `scripts/landing-gate/check-http.mjs` and running it against a real `next start`.
