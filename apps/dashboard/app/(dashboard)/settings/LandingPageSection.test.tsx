@@ -17,6 +17,17 @@ describe("who sees the row", () => {
   );
 });
 
+describe("the custom website line", () => {
+  it("the card tells owners where to ask for a fully custom website, as links (email always)", () => {
+    render(<LandingPageSection state="ready" userKey="u1" />);
+    const card = screen.getByTestId("landing-page-row");
+    const line = card.querySelector("[data-testid=custom-website-inline]");
+    expect(line).not.toBeNull();
+    expect(line?.textContent).toContain("pageEditor.customSite.body");
+    expect(line?.querySelector("a[href^='mailto:']")).not.toBeNull();
+  });
+});
+
 describe("the row", () => {
   it("shows the status badge (icon plus words) and an Open link, with no inputs", () => {
     render(<LandingPageSection state="in_progress" userKey="u1" />);

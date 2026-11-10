@@ -106,60 +106,66 @@ export function ImagesSection({
           </p>
         )}
 
-        <div className="space-y-2" data-testid="images-logo">
-          <h3 className="text-sm font-medium">{t("pageEditor.images.logo")}</h3>
-          {logo ? thumb(logo, t("pageEditor.images.logo")) : <p className="text-sm text-muted-foreground">{t("pageEditor.images.logoMissing")}</p>}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!attested || busy !== null}
-              onClick={() => void run("logo", () => preparePageLogoAction(gymId, attested), t("pageEditor.images.uploaded"))}
-            >
-              {logo ? t("pageEditor.images.logoRefresh") : t("pageEditor.images.logoUse")}
-            </Button>
-            <Link href="/settings" className="text-sm underline">
-              {t("pageEditor.images.goToBranding")}
-            </Link>
+        {/* Two halves from 1280 px: logo and banner on the left, the gallery on the right. */}
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2" data-testid="images-columns">
+          <div className="space-y-5" data-testid="images-left">
+            <div className="space-y-2" data-testid="images-logo">
+              <h3 className="text-sm font-medium">{t("pageEditor.images.logo")}</h3>
+              {logo ? thumb(logo, t("pageEditor.images.logo")) : <p className="text-sm text-muted-foreground">{t("pageEditor.images.logoMissing")}</p>}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!attested || busy !== null}
+                  onClick={() => void run("logo", () => preparePageLogoAction(gymId, attested), t("pageEditor.images.uploaded"))}
+                >
+                  {logo ? t("pageEditor.images.logoRefresh") : t("pageEditor.images.logoUse")}
+                </Button>
+                <Link href="/settings" className="text-sm underline">
+                  {t("pageEditor.images.goToBranding")}
+                </Link>
+              </div>
+            </div>
+
+            <div className="space-y-2" data-testid="images-banner">
+              <h3 className="text-sm font-medium">{t("pageEditor.images.banner")}</h3>
+              {banner ? thumb(banner, t("pageEditor.images.banner")) : <p className="text-sm text-muted-foreground">{t("pageEditor.images.bannerMissing")}</p>}
+              <input ref={bannerRef} type="file" accept={ACCEPT} className="sr-only" id="pageBannerFile" aria-label={t("pageEditor.images.bannerChoose")} onChange={() => upload("banner", bannerRef.current)} />
+              <Button type="button" variant="outline" size="sm" disabled={!attested || busy !== null} onClick={() => bannerRef.current?.click()}>
+                {banner ? t("pageEditor.images.bannerReplace") : t("pageEditor.images.bannerAdd")}
+              </Button>
+            </div>
+
           </div>
-        </div>
 
-        <div className="space-y-2" data-testid="images-banner">
-          <h3 className="text-sm font-medium">{t("pageEditor.images.banner")}</h3>
-          {banner ? thumb(banner, t("pageEditor.images.banner")) : <p className="text-sm text-muted-foreground">{t("pageEditor.images.bannerMissing")}</p>}
-          <input ref={bannerRef} type="file" accept={ACCEPT} className="sr-only" id="pageBannerFile" aria-label={t("pageEditor.images.bannerChoose")} onChange={() => upload("banner", bannerRef.current)} />
-          <Button type="button" variant="outline" size="sm" disabled={!attested || busy !== null} onClick={() => bannerRef.current?.click()}>
-            {banner ? t("pageEditor.images.bannerReplace") : t("pageEditor.images.bannerAdd")}
-          </Button>
-        </div>
-
-        <div className="space-y-2" data-testid="images-gallery">
-          <h3 className="text-sm font-medium">{t("pageEditor.images.gallery", { count: gallery.length, max: PAGE_MEDIA_MAX_GALLERY })}</h3>
-          {gallery.length > 0 && (
-            <ul className="flex flex-wrap gap-3">
-              {gallery.map((g, i) => (
-                <li key={g.id} className="space-y-1">
-                  {thumb(g, t("pageEditor.images.galleryItem", { n: i + 1 }))}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    disabled={busy !== null}
-                    onClick={() => void run(`delete-${g.id}`, () => deletePageMediaAction(g.id), t("pageEditor.images.removed"))}
-                  >
-                    <Trash2 />
-                    {t("pageEditor.images.remove", { n: i + 1 })}
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <input ref={galleryRef} type="file" accept={ACCEPT} className="sr-only" id="pageGalleryFile" aria-label={t("pageEditor.images.galleryChoose")} onChange={() => upload("gallery", galleryRef.current)} />
-          {galleryFull && <p className="text-sm text-muted-foreground">{t("pageEditor.images.galleryFull", { max: PAGE_MEDIA_MAX_GALLERY })}</p>}
-          <Button type="button" variant="outline" size="sm" disabled={!attested || busy !== null || galleryFull} onClick={() => galleryRef.current?.click()}>
-            {t("pageEditor.images.galleryAdd")}
-          </Button>
+          <div className="space-y-2" data-testid="images-gallery">
+            <h3 className="text-sm font-medium">{t("pageEditor.images.gallery", { count: gallery.length, max: PAGE_MEDIA_MAX_GALLERY })}</h3>
+            {gallery.length > 0 && (
+              <ul className="flex flex-wrap gap-3">
+                {gallery.map((g, i) => (
+                  <li key={g.id} className="space-y-1">
+                    {thumb(g, t("pageEditor.images.galleryItem", { n: i + 1 }))}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy !== null}
+                      onClick={() => void run(`delete-${g.id}`, () => deletePageMediaAction(g.id), t("pageEditor.images.removed"))}
+                    >
+                      <Trash2 />
+                      {t("pageEditor.images.remove", { n: i + 1 })}
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <input ref={galleryRef} type="file" accept={ACCEPT} className="sr-only" id="pageGalleryFile" aria-label={t("pageEditor.images.galleryChoose")} onChange={() => upload("gallery", galleryRef.current)} />
+            {galleryFull && <p className="text-sm text-muted-foreground">{t("pageEditor.images.galleryFull", { max: PAGE_MEDIA_MAX_GALLERY })}</p>}
+            <Button type="button" variant="outline" size="sm" disabled={!attested || busy !== null || galleryFull} onClick={() => galleryRef.current?.click()}>
+              {t("pageEditor.images.galleryAdd")}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

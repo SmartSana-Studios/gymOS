@@ -314,6 +314,44 @@ describe("plans", () => {
   });
 });
 
+describe("layout and the custom website notice", () => {
+  it("the custom website banner sits under the page title, before the status text and the sections", () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    const title = screen.getByRole("heading", { level: 1 });
+    const banner = screen.getByTestId("custom-website-notice");
+    const firstSection = document.getElementById("page-name")!; // the first editor section
+    expect(title.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(banner.compareDocumentPosition(firstSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("Location and Opening hours share one two-column row, and so do Public contact and Plans", () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    const row1 = screen.getByTestId("row-location-hours");
+    expect(within(row1).getByTestId("section-location")).toBeTruthy();
+    expect(within(row1).getByTestId("section-hours")).toBeTruthy();
+    expect(row1.className).toContain("xl:grid-cols-2");
+    const row2 = screen.getByTestId("row-contact-plans");
+    expect(within(row2).getByTestId("section-contact")).toBeTruthy();
+    expect(within(row2).getByTestId("section-plans")).toBeTruthy();
+    expect(row2.className).toContain("xl:grid-cols-2");
+    // the order of the sections on the page did not change
+    const order = ["section-location", "section-hours", "section-contact", "section-plans"].map((id) => screen.getByTestId(id));
+    for (let i = 1; i < order.length; i++) expect(order[i - 1]!.compareDocumentPosition(order[i]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("Images: logo and banner in the left half, the Gallery in the right half", () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    const columns = screen.getByTestId("images-columns");
+    expect(columns.className).toContain("xl:grid-cols-2");
+    const left = within(columns).getByTestId("images-left");
+    expect(within(left).getByTestId("images-logo")).toBeTruthy();
+    expect(within(left).getByTestId("images-banner")).toBeTruthy();
+    expect(within(left).queryByTestId("images-gallery")).toBeNull();
+    expect(columns.contains(screen.getByTestId("images-gallery"))).toBe(true);
+    expect(left.contains(screen.getByTestId("images-gallery"))).toBe(false);
+  });
+});
+
 describe("template", () => {
   it("shows the current template as a static selected card with a Change button (no radios outside the modal)", () => {
     render(<LandingPageEditor initial={makeData()} />);

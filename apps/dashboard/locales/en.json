@@ -14,6 +14,7 @@
     "attendance": "Attendance",
     "classes": "Classes",
     "auditLog": "Audit Log",
+    "myWebsite": "My Website",
     "settings": "Settings",
     "staff": "Staff",
     "coachPortal": "Coach Portal"
@@ -404,6 +405,13 @@
     }
   },
   "pageEditor": {
+    "customSite": {
+      "title": "Need a fully custom website?",
+      "body": "For a website designed just for your gym, contact us by email or on WhatsApp.",
+      "whatsapp": "WhatsApp",
+      "subject": "Custom website for my gym",
+      "message": "Hello, I would like a custom website for my gym."
+    },
     "takedownReason": {
       "impersonation": "Impersonation",
       "illegal_content": "Illegal content",

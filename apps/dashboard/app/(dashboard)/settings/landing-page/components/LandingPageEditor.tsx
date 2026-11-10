@@ -31,6 +31,7 @@ import { PageTextSection } from "./PageTextSection";
 import { PlansSection, TemplateSection } from "./PlansTemplateSections";
 import { StatusBadge } from "./StatusBadge";
 import { StatusBanner } from "./StatusBanner";
+import { CustomWebsiteNotice } from "./CustomWebsiteNotice";
 import { UnpublishDialog } from "./UnpublishDialog";
 import { itemLine } from "./pageCopy";
 
@@ -330,6 +331,8 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
         </div>
       </div>
 
+      <CustomWebsiteNotice variant="banner" />
+
       {status.state === "not_started" && <p className="text-sm text-muted-foreground">{t("pageEditor.notStarted")}</p>}
       {live && <p className="text-sm text-muted-foreground" data-testid="live-info">{t("pageEditor.liveInfo")}</p>}
       <StatusBanner status={status} role={role} onChanged={refresh} />
@@ -360,10 +363,15 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
           textFocusRef={textFocusRef}
         />
         <ImagesSection gymId={data.gymId} media={status.media} onChanged={refresh} onToast={showToast} />
-        <LocationSection form={form} setForm={setForm} errors={errors} country={data.content.country} category={data.content.category} />
-        <HoursSection form={form} setForm={setForm} errors={errors} />
-        <ContactSection form={form} setForm={setForm} errors={errors} />
-        <PlansSection plans={data.plans} values={form.plans} canAddPlan={true} onChange={(id, v) => setForm((f) => ({ ...f, plans: { ...f.plans, [id]: v } }))} />
+        {/* Two by two from 1280 px (narrower, the fields inside would be cramped): Location | Hours, then Contact | Plans. The cards keep their own anchors. */}
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2" data-testid="row-location-hours">
+          <LocationSection form={form} setForm={setForm} errors={errors} country={data.content.country} category={data.content.category} />
+          <HoursSection form={form} setForm={setForm} errors={errors} />
+        </div>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2" data-testid="row-contact-plans">
+          <ContactSection form={form} setForm={setForm} errors={errors} />
+          <PlansSection plans={data.plans} values={form.plans} canAddPlan={true} onChange={(id, v) => setForm((f) => ({ ...f, plans: { ...f.plans, [id]: v } }))} />
+        </div>
         <TemplateSection selected={template} canChange={canChangeTemplate} live={live} pending={chosenTemplate !== null && chosenTemplate !== storedTemplate} onUse={useTemplate} />
       </div>
 

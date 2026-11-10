@@ -9,6 +9,7 @@ import {
   ClipboardList,
   CreditCard,
   Dumbbell,
+  Globe,
   LayoutDashboard,
   ScrollText,
   Settings,
@@ -35,6 +36,8 @@ const NAV_ITEMS: {
   href: string;
   icon: typeof LayoutDashboard;
   roles: MemberRole[];
+  /** A call-to-action row: it carries its own background color so it stands out from the plain items. */
+  highlight?: boolean;
 }[] = [
   { labelKey: "nav.overview", href: "/", icon: LayoutDashboard, roles: ["receptionist", "manager", "supervisor", "owner"] },
   { labelKey: "nav.members", href: "/members", icon: Users, roles: ["receptionist", "manager", "supervisor", "owner", "support"] },
@@ -49,6 +52,9 @@ const NAV_ITEMS: {
   // "Manager-plus" definition, alongside migration 0093's RLS/RPC widening.
   { labelKey: "nav.classes", href: "/classes", icon: CalendarDays, roles: ["receptionist", "manager", "owner", "supervisor"] },
   { labelKey: "nav.auditLog", href: "/audit", icon: ScrollText, roles: ["manager", "supervisor", "owner"] },
+  // The gym's public website: same people as the Landing page row of Settings (Owner, Supervisor, assigned support). Highlighted, placed above
+  // Settings. /settings/landing-page is longer than /settings, so resolveActiveHref lights this row (and not Settings) on the editor and publish screens.
+  { labelKey: "nav.myWebsite", href: "/settings/landing-page", icon: Globe, roles: ["owner", "supervisor", "support"], highlight: true },
   { labelKey: "nav.settings", href: "/settings", icon: Settings, roles: ["owner", "supervisor", "support"] },
   { labelKey: "nav.coachPortal", href: "/coach", icon: Dumbbell, roles: ["coach"] },
 ];
@@ -141,8 +147,11 @@ function SidebarContent({
               title={label}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground",
+                item.highlight && "bg-accent/25 font-medium text-sidebar-foreground hover:bg-accent/35",
                 isActive &&
-                  "border-l-[3px] border-accent bg-sidebar-foreground/10 pl-[9px] font-bold text-sidebar-foreground",
+                  (item.highlight
+                    ? "border-l-[3px] border-accent bg-accent/40 pl-[9px] font-bold text-sidebar-foreground"
+                    : "border-l-[3px] border-accent bg-sidebar-foreground/10 pl-[9px] font-bold text-sidebar-foreground"),
               )}
             >
               <Icon size={18} className="shrink-0" />
