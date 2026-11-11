@@ -35,6 +35,7 @@ describe("every action is behind the gate", () => {
     const results = await Promise.all([
       a.listPageReports(),
       a.listPageAppeals(),
+      a.listActivePages(),
       a.getGymPagePanel(GYM),
       a.takeDownPage({ gymId: GYM, reason: "privacy" }),
       a.liftPageTakedown({ gymId: GYM, reason: "a reason" }),
@@ -67,6 +68,29 @@ describe("the lists", () => {
     const { listPageAppeals } = await import("./actions");
     const res = await listPageAppeals();
     expect(res.data?.[0]).toMatchObject({ id: AP, gymId: GYM, takedownReason: "other", takedownNote: "n", appealReason: "We own it", decision: null, takedownLifted: false });
+  });
+  it("maps the published pages and reads an unknown status as paused, never live", async () => {
+    rpc.mockResolvedValue({
+      data: [
+        { gym_id: GYM, gym_name: "Iron Gym", page_name: "iron-gym", template: "classic", published_at: "2026-11-05T10:00:00Z", status: "live" },
+        { gym_id: R1, gym_name: "Other Gym", page_name: null, template: "volt", published_at: "2026-11-04T10:00:00Z", status: "taken_down" },
+        { gym_id: R2, gym_name: "Third Gym", page_name: "third", template: "classic", published_at: "2026-11-03T10:00:00Z", status: "surprise" },
+      ],
+      error: null,
+    });
+    const { listActivePages } = await import("./actions");
+    const res = await listActivePages();
+    expect(rpc).toHaveBeenCalledWith("list_published_pages");
+    expect(res.data).toEqual([
+      { gymId: GYM, gymName: "Iron Gym", pageName: "iron-gym", template: "classic", publishedAt: "2026-11-05T10:00:00Z", status: "live" },
+      { gymId: R1, gymName: "Other Gym", pageName: null, template: "volt", publishedAt: "2026-11-04T10:00:00Z", status: "taken_down" },
+      { gymId: R2, gymName: "Third Gym", pageName: "third", template: "classic", publishedAt: "2026-11-03T10:00:00Z", status: "paused" },
+    ]);
+  });
+  it("a failed published-pages read is mapped, not thrown", async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: "permission denied" } });
+    const { listActivePages } = await import("./actions");
+    expect((await listActivePages()).error?.message).toBe("mapped");
   });
   it("a database error is mapped, not thrown", async () => {
     rpc.mockResolvedValue({ data: null, error: { message: "boom" } });

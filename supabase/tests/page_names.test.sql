@@ -503,7 +503,7 @@ select is((select array_agg(proname::text order by proname) from pg_proc
           'the functions that write page_names are exactly the seven allowlisted (24.11 added the takedown and lift writers here deliberately)');
 select is((select array_agg(proname::text order by proname) from pg_proc
             where pronamespace = 'public'::regnamespace and prokind = 'f' and (prosrc ~* '\mpage_names\M' or prosrc ~* '\mpage_name_words\M')),
-          array['add_page_name_word', 'claim_page_name', 'decide_held_page_name', 'get_gym_page_name', 'get_gym_page_status', 'lift_gym_page_takedown', 'list_held_page_names', 'list_page_name_words', 'publish_gym_page', 'remove_page_name_word', 'take_down_gym_page']::text[],
+          array['add_page_name_word', 'claim_page_name', 'decide_held_page_name', 'get_gym_page_name', 'get_gym_page_status', 'lift_gym_page_takedown', 'list_held_page_names', 'list_page_name_words', 'list_published_pages', 'publish_gym_page', 'remove_page_name_word', 'take_down_gym_page']::text[],
           'the client-callable functions that touch the page name tables are exactly the seven plus publish_gym_page and get_gym_page_status (24.8 and 24.9 read the active name; they write none) and the 24.11 takedown and lift writers');
 select is((select count(*)::int from pg_proc where proname = 'claim_page_name' and prosrc ~* 'is_super_admin_live' and prosrc ~* 'p_gym_id\s+is\s+distinct\s+from\s+private\.gym_id\(\)'
             and prosrc ~* 'current_member_role\(\)\s+is\s+distinct\s+from\s+''owner''' and prosrc ~* 'current_gym_status\(\)\s+is\s+distinct\s+from\s+''active''' and prosrc !~* 'support_rpc|supervisor'), 1,

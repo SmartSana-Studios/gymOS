@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 
 import en from "../../../../locales/en.json";
 import fr from "../../../../locales/fr.json";
-import { renderWithI18n } from "../../support/components/support-test-utils";
+import { menuItems, pickRowAction, renderWithI18n } from "../../support/components/support-test-utils";
 import { HeldNamesClient, heldReasonParts } from "./HeldNamesClient";
 
 const ROW = {
@@ -42,6 +42,13 @@ describe("HeldNamesClient", () => {
     expect(screen.getByText("Overdue")).toBeTruthy();
   });
 
+  it("has one Actions menu per row holding Approve and Reject", async () => {
+    const user = userEvent.setup();
+    renderWithI18n(<HeldNamesClient rows={[ROW]} />);
+    expect(screen.queryByRole("button", { name: "Approve" })).toBeNull();
+    expect(await menuItems(user, "x-fitness")).toEqual(["Approve", "Reject"]);
+  });
+
   it("shows the French copy", () => {
     renderWithI18n(<HeldNamesClient rows={[ROW]} />, "fr");
     expect(screen.getByText("En retard")).toBeTruthy();
@@ -52,7 +59,7 @@ describe("HeldNamesClient", () => {
     const user = userEvent.setup();
     decideHeldPageName.mockResolvedValue({ data: { state: "active" }, error: null });
     renderWithI18n(<HeldNamesClient rows={[ROW]} />);
-    await user.click(screen.getByRole("button", { name: "Approve" }));
+    await pickRowAction(user, "x-fitness", "Approve");
     const dialog = await screen.findByRole("dialog");
     const submit = Array.from(dialog.querySelectorAll("button")).find((b) => b.textContent === "Approve") as HTMLButtonElement;
     expect(submit.disabled).toBe(true);
@@ -69,7 +76,7 @@ describe("HeldNamesClient", () => {
     const user = userEvent.setup();
     decideHeldPageName.mockResolvedValue({ data: null, error: { code: "not_held", message: "This name is no longer waiting for a decision." } });
     renderWithI18n(<HeldNamesClient rows={[ROW]} />);
-    await user.click(screen.getByRole("button", { name: "Reject" }));
+    await pickRowAction(user, "x-fitness", "Reject");
     await user.type(await screen.findByLabelText(/Reason/), "Too generic");
     const dialog = await screen.findByRole("dialog");
     await user.click(Array.from(dialog.querySelectorAll("button")).find((b) => b.textContent === "Reject") as HTMLButtonElement);
@@ -88,7 +95,7 @@ describe("HeldNamesClient", () => {
     const user = userEvent.setup();
     decideHeldPageName.mockRejectedValue(new Error("network"));
     renderWithI18n(<HeldNamesClient rows={[ROW]} />);
-    await user.click(screen.getByRole("button", { name: "Approve" }));
+    await pickRowAction(user, "x-fitness", "Approve");
     await user.type(await screen.findByLabelText(/Reason/), "Verified as the gym's own name");
     const dialog = await screen.findByRole("dialog");
     await user.click(Array.from(dialog.querySelectorAll("button")).find((b) => b.textContent === "Approve") as HTMLButtonElement);

@@ -63,6 +63,18 @@ interface AppealDbRow {
   appeal_reason: string; appealed_at: string; decision: string | null; decision_reason: string | null; decided_at: string | null; takedown_lifted: boolean;
 }
 
+export type ActivePageStatus = "live" | "taken_down" | "paused";
+
+export interface ActivePageRow {
+  gymId: string;
+  gymName: string;
+  /** The page name (the subdomain label); null only if the name row is gone. */
+  pageName: string | null;
+  template: string;
+  publishedAt: string;
+  status: ActivePageStatus;
+}
+
 export interface GymPagePanelData {
   state: PageStatusState;
   reason: string | null;
@@ -113,6 +125,29 @@ export async function listPageReports(): Result<PageReportRow[]> {
       dueAt: r.due_at,
       overdue: r.overdue,
       pageTakenDown: r.page_taken_down,
+    })),
+    error: null,
+  };
+}
+
+/** The published pages (live, taken down or paused), newest first, capped at 1000 by the database. An unknown status is read as paused, never as live. */
+export async function listActivePages(): Result<ActivePageRow[]> {
+  const authz = await authorizeOrRedirect("platform.admin_access");
+  if (!authz.ok) return { data: null, error: authz.error };
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("list_published_pages");
+  if (error) return { data: null, error: await mapAndLog(error) };
+  const pages = (data ?? []) as {
+    gym_id: string; gym_name: string; page_name: string | null; template: string; published_at: string; status: string;
+  }[];
+  return {
+    data: pages.map((p) => ({
+      gymId: p.gym_id,
+      gymName: p.gym_name,
+      pageName: p.page_name,
+      template: p.template,
+      publishedAt: p.published_at,
+      status: p.status === "live" || p.status === "taken_down" ? p.status : "paused",
     })),
     error: null,
   };

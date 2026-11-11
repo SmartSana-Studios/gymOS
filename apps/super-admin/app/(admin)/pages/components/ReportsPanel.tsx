@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { PAGE_TAKEDOWN_REASON_LABELS, type PageTakedownReason } from "@gymos/types";
 
+import { Ban, CheckCircle, Eye, EyeOff, XCircle } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 
+import { RowActions, type RowAction } from "../../support/components/RowActions";
 import { SupportActionModal } from "../../support/components/SupportActionModal";
 import { closePageReportsTakenDown, dismissPageReports, type PageReportRow } from "../actions";
 import { TakedownDialog } from "./TakedownDialog";
@@ -170,6 +173,17 @@ function ReportRows({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const actions: RowAction[] = [
+    expanded
+      ? { key: "toggle", label: t("pages.reports.hide"), icon: <EyeOff size={14} />, onSelect: onToggle }
+      : { key: "toggle", label: t("pages.reports.show"), icon: <Eye size={14} />, onSelect: onToggle },
+  ];
+  if (g.pageTakenDown) {
+    actions.push({ key: "close", label: t("pages.reports.closeTakenDown"), icon: <CheckCircle size={14} />, onSelect: onClose });
+  } else {
+    actions.push({ key: "dismiss", label: t("pages.reports.dismiss"), icon: <XCircle size={14} />, onSelect: onDismiss });
+    actions.push({ key: "takedown", label: t("pages.reports.takeDown"), icon: <Ban size={14} />, destructive: true, onSelect: onTakeDown });
+  }
   return (
     <>
       <tr className="border-b last:border-b-0 align-top">
@@ -187,25 +201,7 @@ function ReportRows({
         </td>
         <td className="py-2 pr-4">{g.pageTakenDown ? t("pages.reports.status.takenDown") : t("pages.reports.status.open")}</td>
         <td className="py-2 pr-3">
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" aria-expanded={expanded} onClick={onToggle}>
-              {expanded ? t("pages.reports.hide") : t("pages.reports.show")}
-            </Button>
-            {g.pageTakenDown ? (
-              <Button size="sm" onClick={onClose}>
-                {t("pages.reports.closeTakenDown")}
-              </Button>
-            ) : (
-              <>
-                <Button size="sm" variant="outline" onClick={onDismiss}>
-                  {t("pages.reports.dismiss")}
-                </Button>
-                <Button size="sm" variant="destructive" onClick={onTakeDown}>
-                  {t("pages.reports.takeDown")}
-                </Button>
-              </>
-            )}
-          </div>
+          <RowActions name={g.pageName} actions={actions} />
         </td>
       </tr>
       {expanded && (

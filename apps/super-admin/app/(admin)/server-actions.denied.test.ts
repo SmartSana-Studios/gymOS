@@ -80,6 +80,7 @@ describe("a denied gate stops every gated Server Action before any work", () => 
   const pages = () => import("./pages/actions");
   add("listPageReports", pages, "listPageReports", []);
   add("listPageAppeals", pages, "listPageAppeals", []);
+  add("listActivePages", pages, "listActivePages", []);
   add("getGymPagePanel", pages, "getGymPagePanel", [GYM]);
   add("takeDownPage", pages, "takeDownPage", [{ gymId: GYM, reason: "privacy" }]);
   add("liftPageTakedown", pages, "liftPageTakedown", [{ gymId: GYM, reason: "valid reason" }]);

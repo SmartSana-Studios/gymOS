@@ -349,8 +349,20 @@
   },
   "pages": {
     "title": "Pages",
-    "hint": "Held page names, visitor reports and appeals for gym landing pages.",
-    "tabs": { "names": "Held names", "reports": "Reports", "appeals": "Appeals" },
+    "hint": "Held page names, visitor reports, appeals and the published pages of gyms.",
+    "tabs": { "names": "Held names", "reports": "Reports", "appeals": "Appeals", "active": "Active" },
+    "active": {
+      "hint": "Every published page and its address. A page is Live when visitors can open it, Taken down after a takedown, Paused while it is published but not served (its gym is suspended or deactivated, or its name is no longer the active one).",
+      "empty": "No page is published yet.",
+      "noMatch": "No page matches your search.",
+      "loadFailed": "The list of published pages could not be loaded. The other tabs are not affected.",
+      "search": "Search by page, gym or address",
+      "columns": { "domain": "Address", "gym": "Gym", "template": "Template", "published": "Published", "status": "Status", "actions": "Actions" },
+      "status": { "live": "Live", "taken_down": "Taken down", "paused": "Paused" },
+      "templates": { "classic": "Classic", "volt": "Volt" },
+      "noName": "(no name)",
+      "actions": { "open": "Open page", "viewGym": "View gym", "takeDown": "Take down…", "lift": "Lift takedown" }
+    },
     "reports": {
       "empty": "No reports to review.",
       "hint": "Visitor reports on public pages, soonest due first. A report is due within 5 business days. No reporter identity is collected.",

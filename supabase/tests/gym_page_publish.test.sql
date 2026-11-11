@@ -808,9 +808,9 @@ select is((select array_agg(proname::text order by proname) from pg_proc
           'the functions that write gym_pages are exactly the six allowlisted (24.11 added the takedown and lift writers here deliberately)');
 select is((select array_agg(proname::text order by proname) from pg_proc
             where pronamespace in ('public'::regnamespace, 'private'::regnamespace) and prokind = 'f' and prosrc ~* '\mgym_pages\M'),
-          array['get_gym_page_status', 'gym_page_taken_down', 'lift_gym_page_takedown', 'page_media_derivative_due', 'page_name_has_published_page', 'page_names_sweep', 'publish_gym_page',
+          array['get_gym_page_status', 'gym_page_taken_down', 'lift_gym_page_takedown', 'list_published_pages', 'page_media_derivative_due', 'page_name_has_published_page', 'page_names_sweep', 'publish_gym_page',
                 'refresh_gym_page', 'take_down_gym_page', 'unpublish_gym_page']::text[],
-          'the functions that mention gym_pages at all are the six writers, the name-published and taken-down predicates, the 24.9 status read and the 24.11 purge rule (a new reader is listed deliberately)');
+          'the functions that mention gym_pages at all are the six writers, the name-published and taken-down predicates, the 24.9 status read, the 24.11 purge rule and the 0168 Super Admin list (a new reader is listed deliberately)');
 select is((select count(*)::int from pg_proc where proname in ('publish_gym_page', 'unpublish_gym_page', 'refresh_gym_page', 'page_names_sweep', 'take_down_gym_page', 'lift_gym_page_takedown') and prosecdef and proconfig = array['search_path=public']), 6,
           'every gym_pages writer is security definer with a pinned search_path');
 select is((select array_agg(distinct m[1] order by m[1]) from pg_proc, regexp_matches(prosrc, 'array_append\(v_missing, ''([a-z_]+)''\)', 'g') m where proname = 'gym_page_gate_missing'),
