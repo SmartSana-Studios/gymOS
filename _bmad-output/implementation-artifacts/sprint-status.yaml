@@ -1467,14 +1467,14 @@ action_items:
       s (x-vercel-cache MISS then HIT, age to ~60); drop the 'edge caching story'
       suggestion"
     owner: "dev loop"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
   - id: "epic-24-retro-item-102-pin-the-pooler-ca-in-apps-landing-lib-gy"
     epic: 24
     action: "Pin the pooler CA in apps/landing/lib/gym-site/db.ts instead of rejectUnauthorized:false
       (deferral said before the first real gym is published; it is)"
     owner: "dev loop"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
   - id: "epic-24-retro-item-103-decide-the-brand-word-rule-substring-ref"
     epic: 24
@@ -1502,14 +1502,14 @@ action_items:
     action: "Add a repo-wide guard for Server Components importing runtime values
       from use-client files and show it fail on the PR 123 shape"
     owner: "dev loop"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
   - id: "epic-24-retro-item-107-add-real-pg_prove-to-ci-local-sh-and-run"
     epic: 24
     action: "Add real pg_prove to ci-local.sh and run pgtap and e2e one after the
       other; run ci-local.selftest.sh afterwards"
     owner: "dev loop"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
   - id: "epic-24-retro-item-108-epic-24-housekeeping-tick-spec-24-10-box"
     epic: 24
@@ -1517,13 +1517,13 @@ action_items:
       and epics.md (24-13, Volt, 0168, FR-207/208/201, NFR-024 AC), mark closed deferrals
       in deferred-work.md"
     owner: "dev loop"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
   - id: "epic-24-retro-item-109-share-a-case-list-between-the-ts-and-sql"
     epic: 24
     action: "Share a case list between the TS and SQL page-name grammar tests"
     owner: "dev loop"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
   - id: "epic-24-retro-item-110-owner-review-of-the-french-public-chrome"
     epic: 24
@@ -1562,7 +1562,7 @@ action_items:
     owner: "smartsana"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
-last_updated: 11-11-2026 07:10
+last_updated: 11-11-2026 08:10
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
@@ -1979,3 +1979,4 @@ last_updated: 11-11-2026 07:10
 # last_updated: 2026-11-11 (ad-hoc, non-story: owner asked to move the landing function region to Europe for faster pages. Branch chore/landing-function-region-dublin from master: apps/landing/vercel.json gets "regions": ["dub1"] (Dublin, next to the eu-west-1 database; function was in iad1, TTFB 0.43-0.5 s warm). Decision entry in docs/decisions.md (single region trade-off, how to verify with x-vercel-id, how to undo; dashboard and Super Admin not changed). vercel-ignore and landing-no-supabase tests pass (15/15). Not pushed yet: the owner approves the push and the merge, merging deploys the landing site (marketing and gym pages).)
 # last_updated: 2026-11-11 (ad-hoc, non-story: PR #126 (landing function region dub1) CI green and squash-merged to master as b7a0367 at 05:17Z on the owner's instruction; branch deleted. The Dublin deploy went live at about 05:19Z (x-vercel-id cpt1::dub1). Measured from the operator machine, the same way as before: warm first byte 0.47-0.56 s (0.28 s server wait after TLS), cold first requests 0.7-0.8 s; NO measurable gain versus the earlier 0.43-0.5 s, because the Cape Town edge leg dominates and the page is not cached at the edge. Gym page content, www (200 via /en) and the generic 404 (1174 B) unchanged. Recorded in docs/decisions.md with the caveat that a European visitor's gain was not measured; edge caching with revalidation would be a separate story. Kept dub1. Still open: revoke the Supabase access token, scheduled rotation of the reader password and purge secret, AutoSSL and test-mail items (owner), certificates re-check from 2026-12-01, optional same region change for dashboard and Super Admin.)
 # last_updated: 2026-11-11 (ad-hoc, non-story: bmad-retrospective for Epic 24 (gym landing pages), interactive. Document epic-24-retro-2026-11-11.md; machine verdict accepted-with-open-items, criteria declared; retro key -> done, 14 action items appended, no earlier item's status changed, epic-24 itself left in-progress for the owner. Main findings: decisions.md:13 wrongly says the landing page is not edge-cached (re-probed: x-vercel-cache MISS/HIT, 60 s TTL); pooler CA still unpinned with a real gym live; LCP never measured on the shipped templates; client-value-import guard covers one page; epic CI first met pgTAP at epic end and failed on a runner/pg_prove mismatch. Behavior check was read-only GETs on production. No code, migration or doc other than the retro document changed.)
+# last_updated: 2026-11-11 (ad-hoc, non-story: Epic 24 retro closure merged. PR #127 (0a8f92d) green on GitHub Actions and merged: pooler CA pinned in apps/landing, scripts/check-client-boundary-imports.mjs, scripts/pgprove-run.sh in the ci-local pgtap stage with pgtap running alone, shared page-name grammar cases, constant parity tests. Landing deployed; pilot page re-probed across the cache TTL: two origin MISSes and five HITs, all 200 and the same 13,941 bytes, so the verified-TLS reader works in production. Action items 101, 102, 106-109 set done; 103-105, 110-114 stay open (owner: brand-word rule, Firefox/Safari cookie check, LCP run, French review, dated certificate ops, marketing-push checks, epic-24 done). Earlier-epic item transitions proposed in the retro are NOT written, awaiting owner confirmation.)
