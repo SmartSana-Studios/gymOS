@@ -6,6 +6,12 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-11-11 — Landing function region moved to Europe (`dub1`), at the owner's request
+
+The G6 sign-off measured about 0.43-0.5 s to first byte (0.9-1.1 s cold) for a gym page, with the Vercel function in `iad1` (Washington, the default) and the database in `eu-west-1` (Ireland): every page read crossed the Atlantic. `apps/landing/vercel.json` now sets `"regions": ["dub1"]` (Dublin, the Vercel region in the same area as `eu-west-1`; Europe is also the nearer side for Cameroon visitors than the US). It applies to the `gym-os` project only; the dashboard and Super Admin still run in `iad1` and read the same database, so the same hop exists there (not changed: not asked). A single region is a trade-off: no automatic failover to another region if `dub1` has an incident. How to check after the deploy: the `x-vercel-id` header of a page request names the function region (it should read `...::dub1::...`), and time to first byte should drop. To undo: remove the `regions` line (the project falls back to its dashboard setting, `iad1`).
+
+---
+
 ## 2026-11-11 — Epic 24 release gate G6 (staging gate): signed off by the owner without a staging environment, verified on production with the SmartSana pilot page
 
 No staging environment exists for GymOS. The owner chose to run the 24.12 gate items on production, with the pilot gym SMARTSANA FITNESS (page `smartsana-fitness.gymosapps.com`) as the only published page, after `CNAME *` was added. What was verified, and what was not, so nobody reads this as more than it is.
