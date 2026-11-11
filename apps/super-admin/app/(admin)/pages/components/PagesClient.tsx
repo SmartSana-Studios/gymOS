@@ -11,9 +11,7 @@ import { HeldNamesClient } from "../../page-names/components/HeldNamesClient";
 import type { PageAppealRow, PageReportRow } from "../actions";
 import { AppealsPanel } from "./AppealsPanel";
 import { ReportsPanel } from "./ReportsPanel";
-
-export const PAGES_TABS = ["names", "reports", "appeals"] as const;
-export type PagesTab = (typeof PAGES_TABS)[number];
+import { PAGES_TABS, parsePagesTab, type PagesTab } from "../tabs";
 
 /** Pages (SA-16 to SA-18): three tabs, each with a count of what is waiting. The selected tab is in the URL as `?tab=`. */
 export function PagesClient({
@@ -34,7 +32,7 @@ export function PagesClient({
   const [tab, setTab] = useState<PagesTab>(initialTab);
 
   function select(value: string) {
-    const next = (PAGES_TABS as readonly string[]).includes(value) ? (value as PagesTab) : "names";
+    const next = parsePagesTab(value);
     setTab(next);
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.set("tab", next);
