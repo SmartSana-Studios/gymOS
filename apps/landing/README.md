@@ -67,31 +67,35 @@ permission to publish their name and gym, and flip the env var.
 
 ## Design
 
-Modelled on `gym.smartsana.com` — its dark navy surface ramp, Sora/Inter
-pairing, scroll reveals, counters and the hero's scanning-terminal
-composition are all carried over. The one deliberate departure is colour:
-the reference's green/cyan accent is replaced everywhere by the GymOS orange
-(`#E0971F`), so the site matches the dashboard and the member app rather
-than the site it was modelled on.
+Rebranded 2026-11-11 (feat/landing-rebrand): the earlier all-dark look,
+which was modelled on `gym.smartsana.com`, is gone. The site is now a clean,
+confident "category standard" landing built to the craft level of Glofox,
+Mindbody, Wodify, Paystack and Flutterwave, composed with page-scale colour:
+navy hero and features field, orange stats and member-app bands, light
+sections between, and plain edge-to-edge photographs. Product truth is in `PRODUCT.md`, the visual system is in
+`DESIGN.md` (with `.impeccable/design.json`), and the direction contract is in
+`.impeccable/surfaces/`.
+
+What is fixed: the GymOS orange `#E0971F`, the logo, every sentence in
+`lib/copy.ts` (both languages) and the section order.
 
 Palette tokens live in `tailwind.config.ts`, not in CSS variables — this app
-has no theme toggle, so the indirection would buy nothing.
+has no theme toggle. Two traps worth knowing:
+
+- `#E0971F` is only 2.44:1 on white. It is a **fill** (with navy text on it).
+  Orange that must be read as text is `accent-ink` (`#9A5200`) and, for large
+  headline fragments only, `accent-display` (`#BA6500`).
+- A card gets a hairline **or** a soft shadow, never both.
 
 ### Motion
 
-`components/Motion.tsx` holds the only client-side JavaScript on the page:
-an IntersectionObserver that adds `is-visible` to `.reveal` elements, and the
-stat counters. Three things it deliberately does:
-
-- **Honours `prefers-reduced-motion`.** Looping ornaments (the scanline, the
-  floating chips, the live pulse) carry `motion-safe-only`, and the reveal
-  classes resolve to fully visible. A visitor who has asked their OS to stop
-  motion gets a complete, readable page, not a faster animation.
-- **Reveals everything when `IntersectionObserver` is missing.** An
-  unsupported browser must get a readable page, not a blank one.
-- **Renders the final figure server-side.** Counters start at their real
-  value, so a crawler, a JS-disabled visitor, or anyone who scrolls past
-  before hydration sees the number rather than a stuck zero.
+There is no scroll-reveal and no counter any more, and the page ships no
+client JavaScript of its own beyond the mobile menu in `SiteHeader.tsx`
+(open/close and Escape). The only motion is the hero scanner: the scan line sweeps the code
+continuously, the "Live" dot breathes, and the two sample check-ins settle in
+once on load. All of it is CSS behind `motion-safe:`, so a visitor who has
+asked their OS to stop motion gets the still, finished state, and nothing is
+hidden by default.
 
 ### Imagery
 
@@ -121,8 +125,8 @@ those is true of GymOS yet, so:
 ## Brand assets
 
 Icons are generated from `brand/` at the repo root — see `brand/README.md`.
-The landing page uses the **white** mark, matching super-admin; the dashboard
-uses the blue one.
+The header uses the **blue** mark (a navy tile) on the light ground; the white
+mark appears on the navy bands (footer, phone frame). Super-admin uses the white one.
 
 ## Gym pages (`{name}.gymosapps.com`, Story 24.10)
 

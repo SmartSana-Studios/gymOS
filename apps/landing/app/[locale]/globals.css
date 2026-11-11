@@ -3,20 +3,25 @@
 @tailwind components;
 
 @layer base {
-  /* Dark-only by design, matching the reference. Declared explicitly so a
-     visitor whose OS is set to light does not get browser-painted scrollbars
-     and form controls fighting the page's near-black ground. */
+  /* Light by design: the owner reading this is on a phone, in daylight. */
   :root {
-    color-scheme: dark;
+    color-scheme: light;
+    scrollbar-color: #b7c2d3 #f6f8fb;
   }
 
   html {
-    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
   }
 
   /* Anchor targets would otherwise land under the sticky header. */
   section[id] {
-    scroll-margin-top: 5.5rem;
+    scroll-margin-top: 5rem;
   }
 
   body {
@@ -26,38 +31,32 @@
   h1,
   h2,
   h3 {
-    @apply font-display;
-  }
-}
-
-@layer components {
-  /* Scroll-reveal, driven by the IntersectionObserver in components/Motion.tsx.
-     The no-preference guard below is not decoration: a fade-up on every
-     section is exactly the kind of motion that triggers vestibular symptoms,
-     and a visitor who has asked their OS to stop it must get a page that is
-     fully readable with no animation at all -- which means visible by
-     default, not merely animating faster. */
-  .reveal {
-    @apply translate-y-7 opacity-0 transition-[opacity,transform] duration-700 ease-smooth;
+    @apply font-display text-ink;
+    text-wrap: balance;
   }
 
-  .reveal.is-visible {
-    @apply translate-y-0 opacity-100;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal,
-  .reveal.is-visible {
-    opacity: 1 !important;
-    transform: none !important;
-    transition: none !important;
+  p {
+    text-wrap: pretty;
   }
 
-  /* Same reasoning for the hero's looping ornaments: the scanline, the
-     floating stat chips and the live-pulse all run forever, which is the
-     most common reduced-motion complaint of the lot. */
-  .motion-safe-only {
-    animation: none !important;
+  /* Browser surfaces carry the brand too: selection, focus, links. */
+  ::selection {
+    background: #f6d9a0;
+    color: #0f1b2d;
+  }
+
+  :focus-visible {
+    outline: 2px solid #1b2a41;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* On navy bands the ring flips to white so it never disappears. */
+  .on-navy :focus-visible {
+    outline-color: #ffffff;
+  }
+
+  a {
+    text-underline-offset: 4px;
   }
 }

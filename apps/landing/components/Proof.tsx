@@ -13,37 +13,28 @@ import type { Copy } from "@/lib/copy";
  */
 export function Proof({ copy }: { copy: Copy }) {
   return (
-    <section className="relative border-y border-line bg-surface/40">
-      <Container className="py-20 sm:py-24">
-        <div className="reveal">
-          <SectionHeading
-            eyebrow={copy.proof.eyebrow}
-            title={copy.proof.title}
-            accent={copy.proof.titleAccent}
-            subtitle={copy.proof.subtitle}
-          />
-        </div>
+    <section>
+      <Container className="py-20 sm:py-28">
+        <SectionHeading
+          eyebrow={copy.proof.eyebrow}
+          title={copy.proof.title}
+          accent={copy.proof.titleAccent}
+          subtitle={copy.proof.subtitle}
+        />
 
-        <div className="mt-16 grid gap-6 md:grid-cols-3">
+        <div className="mt-16 grid md:grid-cols-3 md:divide-x md:divide-line">
           {copy.proof.items.map((item, index) => (
             <article
               key={item.title}
-              className="reveal relative rounded-[1.5rem] border border-line bg-card/60 p-7"
-              style={{ transitionDelay: `${index * 110}ms` }}
+              className={`py-8 md:px-8 md:py-2 ${index === 0 ? "md:pl-0" : ""} ${
+                index > 0 ? "border-t border-line md:border-t-0" : ""
+              }`}
             >
-              {/* A decorative open-quote, as an expression rather than JSX
-                  text so `i18next/no-literal-string` stays able to flag real
-                  untranslated copy. Each proof item's own title already
-                  carries its locale's quotation marks -- "..." in English,
-                  « » in French -- so this mark is purely ornamental and is
-                  hidden from assistive technology. */}
-              <span aria-hidden className="font-display text-5xl leading-none text-accent/25">
-                {"“"}
-              </span>
-              <h3 className="mt-2 text-base font-bold leading-snug tracking-tight text-accent">
-                {item.title}
-              </h3>
-              <p className="mt-4 text-sm leading-relaxed text-muted">{item.body}</p>
+              {/* Each item's own title already carries its locale's quotation
+                  marks (straight in English, guillemets in French), so no
+                  decorative quote glyph is added here. */}
+              <h3 className="text-2xl font-extrabold leading-[1.15] tracking-[-0.02em]">{item.title}</h3>
+              <p className="mt-4 text-lg leading-relaxed text-body">{item.body}</p>
             </article>
           ))}
         </div>

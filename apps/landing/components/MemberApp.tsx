@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Container, Eyebrow } from "./primitives";
+import { QrMock } from "./QrMock";
 import type { Copy } from "@/lib/copy";
 import { APP_STORE_URL, PLAY_STORE_URL } from "@/lib/config";
 
@@ -23,9 +24,9 @@ function StoreLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-3 rounded-2xl border border-line bg-card/70 px-5 py-3.5 text-sm font-semibold text-body transition-all duration-300 ease-smooth hover:-translate-y-0.5 hover:border-accent/40 hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="inline-flex min-h-12 items-center gap-3 rounded-xl bg-ink px-5 py-3 text-[0.9375rem] font-semibold text-on-navy transition-colors duration-200 ease-smooth hover:bg-navy"
     >
-      <span className="text-accent">{glyph}</span>
+      <span className="text-on-navy">{glyph}</span>
       {label}
     </a>
   );
@@ -33,39 +34,42 @@ function StoreLink({
 
 export function MemberApp({ copy }: { copy: Copy }) {
   return (
-    <section id="app" className="relative">
-      <Container className="grid items-center gap-14 py-20 sm:py-24 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
-        {/* A phone-shaped frame rather than another copy of the logo mark:
-            the point of this band is "your members get an app", and a device
-            silhouette says that faster. Drawn in CSS rather than shipped as
-            a screenshot so it cannot go stale when the app's UI changes. */}
-        <div className="reveal relative mx-auto w-full max-w-[15rem]">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-[-12%] rounded-full bg-accent/15 blur-3xl"
-          />
-          <div className="relative aspect-[9/19] rounded-[2.5rem] border border-line bg-card/80 p-2.5 shadow-card backdrop-blur-xl">
-            <div className="flex h-full w-full flex-col items-center justify-center gap-6 rounded-[2rem] bg-gradient-to-b from-card2 to-bg2">
+    <section id="app" className="bg-accent">
+      <Container className="grid items-center gap-12 py-20 sm:py-28 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">
+        {/* A phone-shaped frame: the point of this band is "your members get
+            an app", and a device silhouette says that faster than another
+            copy of the logo. Drawn in CSS rather than shipped as a
+            screenshot so it cannot go stale when the app's UI changes. */}
+        <div className="relative mx-auto w-full max-w-[15rem]">
+          <div className="relative aspect-[9/19] rounded-[2.5rem] bg-navy-deep p-2.5 shadow-panel">
+            {/* The member's QR pass: the one screen an owner's members open
+                at the door. Same illustrative code as the hero (not a real
+                encodable one), so the frame shows the app doing its job
+                instead of an empty rectangle. */}
+            <div className="flex h-full w-full flex-col items-center justify-center gap-7 rounded-[2rem] bg-navy px-5">
               <Image
                 src="/gymos-icon-white.webp"
                 alt="GymOS"
                 width={160}
                 height={160}
-                className="h-auto w-24 rounded-2xl"
+                className="h-auto w-12 rounded-xl"
               />
-              <span aria-hidden className="h-1 w-10 rounded-full bg-white/15" />
+              <div className="w-full rounded-2xl bg-surface p-4">
+                <QrMock title={copy.hero.qrAlt} />
+              </div>
+              <span aria-hidden className="h-1 w-10 rounded-full bg-on-navy-muted/40" />
             </div>
           </div>
         </div>
 
-        <div className="reveal">
-          <Eyebrow>{copy.app.eyebrow}</Eyebrow>
-          <h2 className="mt-5 text-balance text-3xl font-bold leading-[1.15] tracking-tight sm:text-4xl">
+        <div>
+          <Eyebrow onAccent>{copy.app.eyebrow}</Eyebrow>
+          <h2 className="mt-3 text-[2rem] font-extrabold leading-[1.06] tracking-[-0.028em] text-navy-deep sm:text-5xl">
             {copy.app.title}
           </h2>
-          <p className="mt-5 text-pretty leading-relaxed text-muted">{copy.app.body}</p>
+          <p className="mt-5 max-w-[34rem] text-lg leading-relaxed text-navy-deep">{copy.app.body}</p>
 
-          <div className="mt-9 flex flex-wrap gap-4">
+          <div className="mt-9 flex flex-wrap gap-3">
             <StoreLink
               href={APP_STORE_URL}
               label={copy.app.appStore}
@@ -86,7 +90,7 @@ export function MemberApp({ copy }: { copy: Copy }) {
             />
           </div>
 
-          <p className="mt-6 text-sm text-faint">{copy.app.note}</p>
+          <p className="mt-6 text-sm font-medium text-navy-deep">{copy.app.note}</p>
         </div>
       </Container>
     </section>

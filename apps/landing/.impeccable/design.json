@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-11T22:30:42+00:00",
+  "title": "Design System: GymOS Main Site",
+  "extensions": {
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "Cool Ground",
+        "canonical": "#F6F8FB",
+        "tonalRamp": [
+          "#1E252E",
+          "#324055",
+          "#425B7F",
+          "#5075AB",
+          "#7794BF",
+          "#A2B4CE",
+          "#CAD3E0",
+          "#F0F2F5"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "White Surface",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#262626",
+          "#434343",
+          "#616161",
+          "#7E7E7E",
+          "#9B9B9B",
+          "#B8B8B8",
+          "#D5D5D5",
+          "#F2F2F2"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Navy Ink",
+        "canonical": "#0F1B2D",
+        "tonalRamp": [
+          "#1C2431",
+          "#2C3F5A",
+          "#395988",
+          "#4372B9",
+          "#6C91CA",
+          "#9BB2D5",
+          "#C7D2E3",
+          "#EFF2F6"
+        ]
+      },
+      "body": {
+        "role": "neutral",
+        "displayName": "Body Slate",
+        "canonical": "#3A485C",
+        "tonalRamp": [
+          "#21252B",
+          "#39424E",
+          "#4F5D72",
+          "#637998",
+          "#8697B0",
+          "#ABB6C5",
+          "#CFD4DC",
+          "#F1F2F4"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted Slate",
+        "canonical": "#59687C",
+        "tonalRamp": [
+          "#23262A",
+          "#3C424B",
+          "#545F6D",
+          "#6A7B91",
+          "#8B99AA",
+          "#AFB7C1",
+          "#D0D4DA",
+          "#F1F2F3"
+        ]
+      },
+      "navy": {
+        "role": "secondary",
+        "displayName": "Brand Navy",
+        "canonical": "#1B2A41",
+        "tonalRamp": [
+          "#1D242F",
+          "#303F56",
+          "#405A81",
+          "#4D73AE",
+          "#7493C2",
+          "#A0B3D0",
+          "#C9D3E1",
+          "#EFF2F5"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "GymOS Orange",
+        "canonical": "#E0971F",
+        "tonalRamp": [
+          "#362A16",
+          "#664C21",
+          "#9C6F25",
+          "#D79325",
+          "#E2AC54",
+          "#E3C38C",
+          "#EBDABF",
+          "#F8F4ED"
+        ]
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Orange Ink",
+        "canonical": "#9A5200",
+        "tonalRamp": [
+          "#3C2811",
+          "#714615",
+          "#AF6612",
+          "#F38508",
+          "#F9A13D",
+          "#F1BC7E",
+          "#F2D7B9",
+          "#F9F3EB"
+        ]
+      },
+      "accent-display": {
+        "role": "primary",
+        "displayName": "Orange Display",
+        "canonical": "#BA6500",
+        "tonalRamp": [
+          "#3C2811",
+          "#714715",
+          "#AF6712",
+          "#F38808",
+          "#F9A33D",
+          "#F1BD7E",
+          "#F2D8B9",
+          "#F9F3EB"
+        ]
+      },
+      "accent-tint": {
+        "role": "neutral",
+        "displayName": "Orange Tint",
+        "canonical": "#FDF1DC",
+        "tonalRamp": [
+          "#392B13",
+          "#6C4F1A",
+          "#A6741B",
+          "#E79A15",
+          "#EEB247",
+          "#EBC685",
+          "#EFDCBC",
+          "#F9F4EC"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display-xl": {
+        "displayName": "Display XL",
+        "purpose": "The home headline only."
+      },
+      "display-xl-tablet": {
+        "displayName": "Display XL (tablet)",
+        "purpose": "Home headline from 1024px to 1279px."
+      },
+      "display-xl-mobile": {
+        "displayName": "Display XL (mobile)",
+        "purpose": "Home headline on phones."
+      },
+      "display-lg": {
+        "displayName": "Display LG",
+        "purpose": "Section headings."
+      },
+      "display-lg-mobile": {
+        "displayName": "Display LG (mobile)",
+        "purpose": "Section headings on phones."
+      },
+      "display-md": {
+        "displayName": "Display MD",
+        "purpose": "Pillar titles, early-access title."
+      },
+      "display-md-mobile": {
+        "displayName": "Display MD (mobile)",
+        "purpose": "Pillar titles on phones."
+      },
+      "numeral": {
+        "displayName": "Numeral",
+        "purpose": "The three step numerals."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Proof pull-quotes and step titles."
+      },
+      "body-lg": {
+        "displayName": "Body LG",
+        "purpose": "Intro paragraphs, 18px."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Paragraphs, 1.625 line height."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, navigation, section labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card",
+        "value": "0 1px 2px rgba(15,27,45,.06), 0 16px 32px -16px rgba(15,27,45,.22)",
+        "purpose": "Pillar cards and sample chips."
+      },
+      {
+        "name": "panel",
+        "value": "0 2px 4px rgba(15,27,45,.06), 0 32px 56px -24px rgba(15,27,45,.32)",
+        "purpose": "Hero check-in panel and phone frame."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-smooth",
+        "value": "cubic-bezier(.22, .8, .26, .99)",
+        "purpose": "Hover transitions; the hero scan line loops with a similar curve (motion-safe only)."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The contact action; the only filled orange control in a viewport.",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">Message us</a>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:12px 24px;border-radius:12px;background:#E0971F;color:#0F1B2D;font:600 15px Figtree,system-ui,sans-serif;text-decoration:none;transition:background .2s}.ds-btn-primary:hover{background:#EBA73A}.ds-btn-primary:focus-visible{outline:2px solid #1B2A41;outline-offset:3px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action beside the primary.",
+      "html": "<a class=\"ds-btn-ghost\" href=\"#\">Explore features</a>",
+      "css": ".ds-btn-ghost{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:12px 24px;border-radius:12px;border:1px solid #7F8FA6;background:#fff;color:#0F1B2D;font:600 15px Figtree,system-ui,sans-serif;text-decoration:none;transition:border-color .2s}.ds-btn-ghost:hover{border-color:#0F1B2D}.ds-btn-ghost:focus-visible{outline:2px solid #1B2A41;outline-offset:3px}"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "chip-tint",
+      "description": "Small status and sample labels.",
+      "html": "<span class=\"ds-chip\">Checked in</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;background:#FDF1DC;color:#9A5200;font:600 13px Figtree,system-ui,sans-serif}"
+    },
+    {
+      "name": "Pillar Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "White card with the soft card shadow; no border.",
+      "html": "<article class=\"ds-card\"><h3>QR code check-in</h3><p>A member opens the app and scans the code.</p></article>",
+      "css": ".ds-card{background:#fff;border-radius:16px;padding:24px;box-shadow:0 1px 2px rgba(15,27,45,.06),0 16px 32px -16px rgba(15,27,45,.22);font-family:Figtree,system-ui,sans-serif;color:#3A485C}.ds-card h3{margin:0 0 8px;font:700 20px 'Bricolage Grotesque',system-ui,sans-serif;color:#0F1B2D;letter-spacing:-.015em}.ds-card p{margin:0;line-height:1.6}"
+    },
+    {
+      "name": "Navigation Link",
+      "kind": "nav",
+      "refersTo": "button-ghost",
+      "description": "Header navigation item; 44px tall hit area.",
+      "html": "<a class=\"ds-nav\" href=\"#\">How it works</a>",
+      "css": ".ds-nav{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:8px;color:#59687C;font:500 15px Figtree,system-ui,sans-serif;text-decoration:none;transition:color .2s}.ds-nav:hover{color:#0F1B2D}.ds-nav:focus-visible{outline:2px solid #1B2A41;outline-offset:3px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Daylight Front Desk",
+    "overview": "A clean, confident gym-software landing: navy and orange colour fields at page scale, light content sections, big Bricolage type and plain edge-to-edge photographs. The category standard played straight, at the craft level of Glofox, Mindbody, Wodify, Paystack and Flutterwave.",
+    "keyCharacteristics": [
+      "Page-scale colour fields: navy hero, orange stats, navy features, orange app band, navy close",
+      "One accent: orange as a fill, bright on navy, darker values for text on light grounds",
+      "Big tight display type over calm body text",
+      "Plain edge-to-edge photographs with no scrim and no text on them",
+      "Static by default; the only motion is the hero scanner, which loops continuously"
+    ],
+    "rules": [
+      {
+        "name": "The Orange Is A Fill",
+        "body": "#E0971F is 2.44:1 on white. Use it as a fill with navy text; use #9A5200 for small orange text and #BA6500 only for large display text.",
+        "section": "colors"
+      },
+      {
+        "name": "One Elevation",
+        "body": "A card carries a hairline or a soft offset shadow, never both.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Use accent as a fill with navy text, or bright text on navy",
+      "Let colour fields own whole bands",
+      "Keep all copy in lib/copy.ts in both languages",
+      "Keep content visible by default"
+    ],
+    "donts": [
+      "Don't add gradients, glows or blur",
+      "Don't build identical icon-card grids",
+      "Don't add scroll-reveal fades or count-ups",
+      "Don't put text on a photograph",
+      "Don't invent customers, counts or testimonials"
+    ]
+  }
+}
