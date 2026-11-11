@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LANDING_PAGE_PATH } from "@/lib/landingPage";
 import { SectionHeader } from "./SectionHeader";
+import { CustomWebsiteNotice } from "./landing-page/components/CustomWebsiteNotice";
 import { StatusBadge } from "./landing-page/components/StatusBadge";
 
 /** Who sees the Settings row: Owner, Supervisor and an assigned support person. Everyone else gets nothing in the DOM. */
@@ -84,6 +85,9 @@ export function LandingPageSection({ state, userKey }: { state: PageStatusState 
               <ArrowRight />
             </Link>
           </Button>
+        </div>
+        <div className="border-t pt-3">
+          <CustomWebsiteNotice variant="inline" />
         </div>
       </CardContent>
     </Card>

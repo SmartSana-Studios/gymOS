@@ -116,6 +116,31 @@ describe("logo from Branding", () => {
 });
 
 describe("gallery", () => {
+  it("the Add gallery image button comes first and the gallery images are under it", () => {
+    renderImages(gallery(3));
+    const block = screen.getByTestId("images-gallery");
+    const add = btn("pageEditor.images.galleryAdd");
+    const list = block.querySelector("ul")!;
+    expect(list.querySelectorAll("li")).toHaveLength(3);
+    expect(add.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // and the heading is above the button
+    expect(block.querySelector("h3")!.compareDocumentPosition(add) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("each image's remove button reads just the short word, while its accessible name keeps the image number", () => {
+    renderImages(gallery(2));
+    const items = screen.getByTestId("images-gallery").querySelectorAll("li button");
+    expect(items).toHaveLength(2);
+    expect([...items].map((b) => b.textContent)).toEqual(["pageEditor.images.removeShort", "pageEditor.images.removeShort"]);
+    expect([...items].map((b) => b.getAttribute("aria-label"))).toEqual(["pageEditor.images.remove|1", "pageEditor.images.remove|2"]);
+  });
+
+  it("with no images yet the button is still there, with no empty list", () => {
+    renderImages([]);
+    expect(btn("pageEditor.images.galleryAdd")).toBeTruthy();
+    expect(screen.getByTestId("images-gallery").querySelector("ul")).toBeNull();
+  });
+
   it("add is disabled at PAGE_MEDIA_MAX_GALLERY and says why", () => {
     renderImages(gallery(PAGE_MEDIA_MAX_GALLERY));
     tick();
@@ -132,7 +157,7 @@ describe("gallery", () => {
   it("remove deletes by media id", async () => {
     const g = gallery(2);
     renderImages(g);
-    fireEvent.click(screen.getByText("pageEditor.images.remove|1"));
+    fireEvent.click(screen.getByRole("button", { name: "pageEditor.images.remove|1" }));
     await waitFor(() => expect(deletePageMediaAction).toHaveBeenCalledWith(g[0].id));
   });
 });

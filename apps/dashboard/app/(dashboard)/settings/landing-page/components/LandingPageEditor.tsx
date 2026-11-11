@@ -31,6 +31,7 @@ import { PageTextSection } from "./PageTextSection";
 import { PlansSection, TemplateSection } from "./PlansTemplateSections";
 import { StatusBadge } from "./StatusBadge";
 import { StatusBanner } from "./StatusBanner";
+import { CustomWebsiteNotice } from "./CustomWebsiteNotice";
 import { UnpublishDialog } from "./UnpublishDialog";
 import { itemLine } from "./pageCopy";
 
@@ -157,10 +158,28 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
   const canChangeTemplate = !takenDown && (role === "owner" || role === "supervisor");
   const showTooLarge = status.missing.includes("too_large") && status.state !== "offline_gate";
 
-  /** A live page is republished now with the new template; any other page remembers the choice for the publish screen. Returns an error message or null. */
+  /**
+   * A live page is republished now with the new template; any other page remembers the choice for the publish screen. Returns an error message or null.
+   * The state on screen can be OLD (publish from the publish screen, then the browser's Back button restores this editor as it was: "ready", not
+   * "published"), and trusting it made a switch on a live page only remember the choice and never republish. So the server is asked first, and the
+   * answer decides; what is on screen is only the fallback when that read fails.
+   */
   async function useTemplate(id: PageTemplateId): Promise<string | null> {
-    if (!live) {
-      setChosenTemplate(id === storedTemplate ? null : id);
+    let isLive = live;
+    let stored = storedTemplate;
+    try {
+      const seq = ++issuedRef.current;
+      const { data: fresh } = await loadLandingPageAction();
+      if (fresh) {
+        applyData(seq, fresh);
+        isLive = fresh.status.state === "published";
+        stored = isOfferedTemplate(fresh.status.template) ? fresh.status.template : DEFAULT_PAGE_TEMPLATE;
+      }
+    } catch {
+      /* keep what is on screen */
+    }
+    if (!isLive) {
+      setChosenTemplate(id === stored ? null : id);
       return null;
     }
     const { data: result, error } = await publishPageAction(id);
@@ -312,6 +331,8 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
         </div>
       </div>
 
+      <CustomWebsiteNotice variant="banner" />
+
       {status.state === "not_started" && <p className="text-sm text-muted-foreground">{t("pageEditor.notStarted")}</p>}
       {live && <p className="text-sm text-muted-foreground" data-testid="live-info">{t("pageEditor.liveInfo")}</p>}
       <StatusBanner status={status} role={role} onChanged={refresh} />
@@ -342,10 +363,15 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
           textFocusRef={textFocusRef}
         />
         <ImagesSection gymId={data.gymId} media={status.media} onChanged={refresh} onToast={showToast} />
-        <LocationSection form={form} setForm={setForm} errors={errors} country={data.content.country} category={data.content.category} />
-        <HoursSection form={form} setForm={setForm} errors={errors} />
-        <ContactSection form={form} setForm={setForm} errors={errors} />
-        <PlansSection plans={data.plans} values={form.plans} canAddPlan={true} onChange={(id, v) => setForm((f) => ({ ...f, plans: { ...f.plans, [id]: v } }))} />
+        {/* Two by two from 1280 px (narrower, the fields inside would be cramped): Location | Hours, then Contact | Plans. The cards keep their own anchors. */}
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2" data-testid="row-location-hours">
+          <LocationSection form={form} setForm={setForm} errors={errors} country={data.content.country} category={data.content.category} />
+          <HoursSection form={form} setForm={setForm} errors={errors} />
+        </div>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2" data-testid="row-contact-plans">
+          <ContactSection form={form} setForm={setForm} errors={errors} />
+          <PlansSection plans={data.plans} values={form.plans} canAddPlan={true} onChange={(id, v) => setForm((f) => ({ ...f, plans: { ...f.plans, [id]: v } }))} />
+        </div>
         <TemplateSection selected={template} canChange={canChangeTemplate} live={live} pending={chosenTemplate !== null && chosenTemplate !== storedTemplate} onUse={useTemplate} />
       </div>
 

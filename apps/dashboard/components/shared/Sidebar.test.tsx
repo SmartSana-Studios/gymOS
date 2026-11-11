@@ -114,10 +114,45 @@ describe("Sidebar", () => {
       renderSidebar("support");
 
       const hrefs = screen.getAllByRole("link").map((l) => l.getAttribute("href"));
-      expect(hrefs).toEqual(["/members", "/settings/staff", "/plans", "/subscriptions", "/payments", "/settings"]);
+      expect(hrefs).toEqual(["/members", "/settings/staff", "/plans", "/subscriptions", "/payments", "/settings/landing-page", "/settings"]);
       for (const absent of ["nav.overview", "nav.attendance", "nav.classes", "nav.auditLog", "nav.coachPortal"]) {
         expect(screen.queryByRole("link", { name: absent }), absent).toBeNull();
       }
+    });
+  });
+
+  describe("My Website (Mon Siteweb)", () => {
+    it.each(["owner", "supervisor", "support"] as const)("%s sees it, as a link to the landing page editor, placed just above Settings", (role) => {
+      pathname = "/";
+      renderSidebar(role);
+      const labels = screen.getAllByRole("link").map((l) => l.textContent);
+      const i = labels.indexOf("nav.myWebsite");
+      expect(i).toBeGreaterThan(-1);
+      expect(labels[i + 1]).toBe("nav.settings");
+      expect(screen.getByRole("link", { name: "nav.myWebsite" })).toHaveAttribute("href", "/settings/landing-page");
+    });
+
+    it.each(["manager", "receptionist", "coach"] as const)("%s does not get it (the Landing page is not theirs)", (role) => {
+      pathname = "/";
+      renderSidebar(role);
+      expect(screen.queryByRole("link", { name: "nav.myWebsite" })).toBeNull();
+    });
+
+    it("has its own background color, and the other rows do not", () => {
+      pathname = "/";
+      renderSidebar("owner");
+      expect(screen.getByRole("link", { name: "nav.myWebsite" }).className).toContain("bg-accent/25");
+      for (const other of ["nav.members", "nav.settings", "nav.plans"]) {
+        expect(screen.getByRole("link", { name: other }).className, other).not.toContain("bg-accent");
+      }
+    });
+
+    it("keeps a distinct background while it is the active page", () => {
+      pathname = "/settings/landing-page";
+      renderSidebar("owner");
+      const cls = screen.getByRole("link", { name: "nav.myWebsite" }).className;
+      expect(cls).toContain("bg-accent/40");
+      expect(cls).not.toContain("bg-sidebar-foreground/10");
     });
   });
 
@@ -129,6 +164,9 @@ describe("Sidebar", () => {
       // The one place one href prefixes another: exact match must win.
       ["/settings/staff", ["nav.staff"]],
       ["/settings", ["nav.settings"]],
+      // My Website lights on the editor and its publish screen, and Settings does not (the longer href wins).
+      ["/settings/landing-page", ["nav.myWebsite"]],
+      ["/settings/landing-page/publish", ["nav.myWebsite"]],
       ["/settings/staff/some-id", ["nav.staff"]],
       // A shared string prefix is not a child route.
       ["/membersarchive", []],

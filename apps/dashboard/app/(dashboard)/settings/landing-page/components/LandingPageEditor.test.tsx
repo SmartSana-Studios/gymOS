@@ -314,6 +314,59 @@ describe("plans", () => {
   });
 });
 
+describe("layout and the custom website notice", () => {
+  it("the custom website banner sits under the page title, before the status text and the sections", () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    const title = screen.getByRole("heading", { level: 1 });
+    const banner = screen.getByTestId("custom-website-notice");
+    const firstSection = document.getElementById("page-name")!; // the first editor section
+    expect(title.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(banner.compareDocumentPosition(firstSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("Location and Opening hours share one two-column row, and so do Public contact and Plans", () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    const row1 = screen.getByTestId("row-location-hours");
+    expect(within(row1).getByTestId("section-location")).toBeTruthy();
+    expect(within(row1).getByTestId("section-hours")).toBeTruthy();
+    expect(row1.className).toContain("xl:grid-cols-2");
+    const row2 = screen.getByTestId("row-contact-plans");
+    expect(within(row2).getByTestId("section-contact")).toBeTruthy();
+    expect(within(row2).getByTestId("section-plans")).toBeTruthy();
+    expect(row2.className).toContain("xl:grid-cols-2");
+    // the order of the sections on the page did not change
+    const order = ["section-location", "section-hours", "section-contact", "section-plans"].map((id) => screen.getByTestId(id));
+    for (let i = 1; i < order.length; i++) expect(order[i - 1]!.compareDocumentPosition(order[i]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("Images: logo and banner in the left half, the Gallery in the right half", () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    const columns = screen.getByTestId("images-columns");
+    expect(columns.className).toContain("xl:grid-cols-2");
+    const left = within(columns).getByTestId("images-left");
+    expect(within(left).getByTestId("images-logo")).toBeTruthy();
+    expect(within(left).getByTestId("images-banner")).toBeTruthy();
+    expect(within(left).queryByTestId("images-gallery")).toBeNull();
+    expect(columns.contains(screen.getByTestId("images-gallery"))).toBe(true);
+    expect(left.contains(screen.getByTestId("images-gallery"))).toBe(false);
+  });
+
+  it("Images: both halves start at the top of the section, with the rights box on the left and the gallery as the right half itself", () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    const columns = screen.getByTestId("images-columns");
+    const left = within(columns).getByTestId("images-left");
+    // the attestation box and the help text open the left half (nothing above the grid but an error, when there is one)
+    expect(left.firstElementChild?.querySelector("#pageImageAttest")).not.toBeNull();
+    expect(within(left).queryByTestId("images-error")).toBeNull();
+    // the gallery is the second child of the grid, level with the left half, not nested below anything
+    expect(columns.children).toHaveLength(2);
+    expect(columns.children[1]).toBe(screen.getByTestId("images-gallery"));
+    // the card's content starts with the grid, so the gallery sits at the very top of the section
+    const content = screen.getByTestId("section-images").querySelector("[data-slot=card-content]") ?? columns.parentElement!;
+    expect(content.firstElementChild).toBe(columns);
+  });
+});
+
 describe("template", () => {
   it("shows the current template as a static selected card with a Change button (no radios outside the modal)", () => {
     render(<LandingPageEditor initial={makeData()} />);
@@ -375,6 +428,33 @@ describe("template", () => {
     await waitFor(() => expect(screen.getByTestId("template-volt").getAttribute("data-selected")).toBe("true"));
     expect(screen.queryByTestId("template-pending")).toBeNull();
     expect(await screen.findByText("pageEditor.templates.applied|pageEditor.templates.volt")).toBeTruthy();
+  });
+
+  it("a STALE editor (it shows 'ready') while the server says the page is live: the switch republishes, it does not just remember the choice", async () => {
+    // the Back button after publishing restores this editor as it was before the publish
+    loadLandingPageAction.mockResolvedValue({ data: makeData({ status: { state: "published", missing: [], template: "volt" } }), error: null });
+    publishPageAction.mockResolvedValue({ data: { published: true, missing: [] }, error: null });
+    render(<LandingPageEditor initial={makeData({ status: { state: "ready", missing: [] } })} />);
+    fireEvent.click(screen.getByTestId("template-change"));
+    fireEvent.click(within(screen.getByTestId("template-option-volt")).getByRole("radio"));
+    fireEvent.click(screen.getByText("pageEditor.templates.use"));
+    await waitFor(() => expect(screen.queryByTestId("template-dialog")).toBeNull()); // picked Volt while the screen thought "not live"
+    loadLandingPageAction.mockClear();
+    fireEvent.click(screen.getByTestId("template-change"));
+    fireEvent.click(within(screen.getByTestId("template-option-classic")).getByRole("radio"));
+    fireEvent.click(screen.getByText("pageEditor.templates.use"));
+    await waitFor(() => expect(publishPageAction).toHaveBeenCalledWith("classic"));
+    expect(loadLandingPageAction).toHaveBeenCalled(); // the server was asked before deciding
+  });
+
+  it("when the server read fails the screen's own state decides (not live: remember the choice, no publish)", async () => {
+    loadLandingPageAction.mockRejectedValue(new Error("offline"));
+    render(<LandingPageEditor initial={makeData({ status: { state: "ready", missing: [] } })} />);
+    fireEvent.click(screen.getByTestId("template-change"));
+    fireEvent.click(within(screen.getByTestId("template-option-volt")).getByRole("radio"));
+    fireEvent.click(screen.getByText("pageEditor.templates.use"));
+    await waitFor(() => expect(screen.getByTestId("template-pending")).toBeTruthy());
+    expect(publishPageAction).not.toHaveBeenCalled();
   });
 
   it("a live page whose gate fails: nothing changes, the modal stays open and says the page is not ready", async () => {

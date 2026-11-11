@@ -14,6 +14,7 @@
     "attendance": "Présences",
     "classes": "Cours",
     "auditLog": "Journal d'audit",
+    "myWebsite": "Mon Siteweb",
     "settings": "Paramètres",
     "staff": "Personnel",
     "coachPortal": "Espace Coach"
@@ -404,6 +405,13 @@
     }
   },
   "pageEditor": {
+    "customSite": {
+      "title": "Besoin d'un site web entièrement sur mesure ?",
+      "body": "Pour un site web conçu spécialement pour votre salle, contactez-nous par e-mail ou sur WhatsApp.",
+      "whatsapp": "WhatsApp",
+      "subject": "Site web sur mesure pour ma salle",
+      "message": "Bonjour, je souhaite un site web sur mesure pour ma salle."
+    },
     "takedownReason": {
       "impersonation": "Usurpation d'identité",
       "illegal_content": "Contenu illicite",
@@ -630,6 +638,7 @@
       "galleryFull": "Vous pouvez ajouter jusqu'à {{max}} images. Supprimez-en une pour en ajouter une autre.",
       "galleryItem": "Image de galerie {{n}}",
       "remove": "Supprimer l'image {{n}}",
+      "removeShort": "Supprimer",
       "uploaded": "Image enregistrée.",
       "removed": "Image supprimée."
     },
