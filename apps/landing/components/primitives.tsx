@@ -13,50 +13,63 @@ export function Container({
   return <div className={`mx-auto w-full max-w-content px-5 sm:px-8 ${className}`}>{children}</div>;
 }
 
-/** The small accent-ruled label above each section heading, carried over
- *  from the reference's `.eyebrow`. */
-export function Eyebrow({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-2.5 text-xs font-semibold uppercase tracking-[0.16em] text-accent">
-      <span aria-hidden className="h-px w-7 bg-accent/60" />
-      {children}
-    </span>
-  );
+/** The short label that sits above a section heading. It is dictionary copy
+ *  (every section carries one in both languages), so it is rendered, but as
+ *  quiet sentence-case text in the text-safe orange rather than as a ruled,
+ *  tracked-out caps kicker. `onNavy` flips it for the dark bands. */
+export function Eyebrow({
+  children,
+  onNavy = false,
+  onAccent = false,
+}: {
+  children: ReactNode;
+  onNavy?: boolean;
+  onAccent?: boolean;
+}) {
+  const color = onAccent ? "text-navy-deep" : onNavy ? "text-accent" : "text-accent-ink";
+  return <span className={`text-sm font-semibold ${color}`}>{children}</span>;
 }
 
-/** Section heading. `accent` is the trailing fragment that takes the orange
- *  gradient, matching the reference's `.grad-text` treatment on the second
- *  half of each headline. */
+/** Section heading. `accent` is the trailing fragment of the headline; it
+ *  takes the text-safe orange as a solid colour, never a gradient. */
 export function SectionHeading({
   eyebrow,
   title,
   accent,
   subtitle,
   align = "center",
+  tone = "light",
 }: {
   eyebrow?: string;
   title: string;
   accent?: string;
   subtitle?: string;
   align?: "center" | "left";
+  /** `navy` flips the heading for the dark bands: white text, bright orange fragment. */
+  tone?: "light" | "navy";
 }) {
-  const wrapper = align === "center" ? "mx-auto max-w-2xl text-center" : "max-w-2xl";
+  const navy = tone === "navy";
+  const wrapper = align === "center" ? "mx-auto max-w-3xl text-center" : "max-w-3xl";
   return (
     <div className={wrapper}>
-      {eyebrow ? <Eyebrow>{eyebrow}</Eyebrow> : null}
-      <h2 className="mt-5 text-balance text-3xl font-bold leading-[1.15] tracking-tight sm:text-4xl lg:text-[2.75rem]">
+      {eyebrow ? <Eyebrow onNavy={navy}>{eyebrow}</Eyebrow> : null}
+      <h2
+        className={`mt-3 text-[2rem] font-extrabold leading-[1.06] tracking-[-0.028em] sm:text-5xl lg:text-[3.25rem] ${
+          navy ? "text-on-navy" : ""
+        }`}
+      >
         {title}
         {accent ? (
           <>
             {" "}
-            <span className="bg-gradient-to-br from-accent to-accent-soft bg-clip-text text-transparent">
-              {accent}
-            </span>
+            <span className={navy ? "text-accent" : "text-accent-display"}>{accent}</span>
           </>
         ) : null}
       </h2>
       {subtitle ? (
-        <p className="mt-5 text-pretty text-base leading-relaxed text-muted sm:text-lg">
+        <p
+          className={`mt-5 text-base leading-relaxed sm:text-lg ${navy ? "text-on-navy-muted" : "text-muted"}`}
+        >
           {subtitle}
         </p>
       ) : null}
@@ -65,13 +78,14 @@ export function SectionHeading({
 }
 
 const BUTTON_BASE =
-  "inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold transition-all duration-300 ease-smooth focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+  "inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-6 py-3 text-[0.9375rem] font-semibold transition-colors duration-200 ease-smooth";
 
 const BUTTON_VARIANTS = {
-  primary:
-    "bg-gradient-to-br from-accent to-accent-soft text-bg hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(224,151,31,0.4)] focus-visible:outline-accent",
-  ghost:
-    "border border-line text-body hover:-translate-y-0.5 hover:border-accent/50 hover:text-accent focus-visible:outline-accent",
+  // Navy text on the orange fill: 7.09:1.
+  primary: "bg-accent text-navy-deep hover:bg-accent-hover",
+  ghost: "border border-line-strong bg-surface text-ink hover:border-ink",
+  // Ghost button for the navy bands.
+  onNavy: "border border-on-navy-muted/50 text-on-navy hover:border-on-navy",
 } as const;
 
 export function Button({
@@ -102,7 +116,7 @@ export function Button({
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden
-          className="h-[18px] w-[18px] shrink-0 transition-transform duration-300 ease-smooth group-hover:translate-x-1"
+          className="h-[18px] w-[18px] shrink-0 transition-transform duration-200 ease-smooth group-hover:translate-x-0.5"
         >
           <path d="M5 12h14M13 6l6 6-6 6" />
         </svg>

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { COPY } from "@/lib/copy";
 import { isLocale, type LocaleRouteParams } from "@/lib/i18n";
-import { RevealOnScroll } from "@/components/Motion";
+import { contactChannel, HAS_WHATSAPP } from "@/lib/config";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Hero } from "@/components/Hero";
 import { StatsStrip } from "@/components/StatsStrip";
@@ -20,11 +20,12 @@ export default async function LandingPage({ params }: LocaleRouteParams) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   const copy = COPY[locale];
+  const contact = contactChannel(copy.cta.prefilledMessage);
+  const contactLabel = HAS_WHATSAPP ? copy.hero.primaryCta : copy.hero.primaryCtaEmail;
 
   return (
     <>
-      <RevealOnScroll />
-      <SiteHeader nav={copy.nav} locale={locale} />
+      <SiteHeader nav={copy.nav} locale={locale} contact={{ href: contact.href, label: contactLabel }} />
       <main>
         <Hero copy={copy} />
         <StatsStrip copy={copy} />

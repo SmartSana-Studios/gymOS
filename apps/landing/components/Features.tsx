@@ -18,40 +18,35 @@ const ICONS = [
 
 export function Features({ copy }: { copy: Copy }) {
   return (
-    <section className="relative border-y border-line bg-surface/40">
-      <Container className="py-20 sm:py-24">
-        <div className="reveal">
-          <SectionHeading
-            eyebrow={copy.features.eyebrow}
-            title={copy.features.title}
-            accent={copy.features.titleAccent}
-            subtitle={copy.features.subtitle}
-          />
-        </div>
+    <section className="on-navy bg-navy-deep">
+      <Container className="py-20 sm:py-28">
+        <SectionHeading
+          tone="navy"
+          eyebrow={copy.features.eyebrow}
+          title={copy.features.title}
+          accent={copy.features.titleAccent}
+          subtitle={copy.features.subtitle}
+        />
 
-        <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {/* A ruled list, not a grid of boxes: each feature is a hairline, a
+            bare line icon, a heading and a sentence or two. */}
+        <div className="mt-16 grid gap-x-12 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
           {copy.features.items.map((item, index) => (
-            <article
-              key={item.title}
-              className="reveal group rounded-2xl border border-line bg-card/50 p-7 transition-all duration-500 ease-smooth hover:-translate-y-1 hover:border-accent/35 hover:bg-card"
-              style={{ transitionDelay: `${(index % 3) * 100}ms` }}
-            >
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-accent/12 text-accent transition-colors duration-500 group-hover:bg-accent/20">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                  className="h-5 w-5"
-                >
-                  <path d={ICONS[index] ?? ICONS[0]} />
-                </svg>
-              </span>
-              <h3 className="mt-5 text-base font-bold tracking-tight">{item.title}</h3>
-              <p className="mt-2.5 text-sm leading-relaxed text-muted">{item.body}</p>
+            <article key={item.title} className="border-t border-navy-line pt-7">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+                className="h-7 w-7 text-accent"
+              >
+                <path d={ICONS[index] ?? ICONS[0]} />
+              </svg>
+              <h3 className="mt-5 text-xl font-bold tracking-[-0.01em] text-on-navy">{item.title}</h3>
+              <p className="mt-3 leading-relaxed text-on-navy-muted">{item.body}</p>
             </article>
           ))}
         </div>

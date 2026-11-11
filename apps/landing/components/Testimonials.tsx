@@ -21,28 +21,20 @@ export function Testimonials({ copy }: { copy: Copy }) {
   if (!SHOW_TESTIMONIALS || copy.testimonials.items.length === 0) return null;
 
   return (
-    <section className="relative">
-      <Container className="py-20 sm:py-24">
-        <div className="reveal">
-          <SectionHeading
-            eyebrow={copy.testimonials.eyebrow}
-            title={copy.testimonials.title}
-            subtitle={copy.testimonials.subtitle}
-          />
-        </div>
-        <div className="mt-16 grid gap-6 md:grid-cols-3">
-          {copy.testimonials.items.map((item, index) => (
-            <figure
-              key={item.name}
-              className="reveal flex h-full flex-col rounded-[1.5rem] border border-line bg-card/60 p-7"
-              style={{ transitionDelay: `${index * 110}ms` }}
-            >
-              <blockquote className="flex-1 text-sm leading-relaxed text-muted">
-                {item.quote}
-              </blockquote>
-              <figcaption className="mt-6 border-t border-line-soft pt-4">
-                <span className="block text-sm font-semibold text-body">{item.name}</span>
-                <span className="block text-sm text-faint">{item.gym}</span>
+    <section>
+      <Container className="py-20 sm:py-28">
+        <SectionHeading
+          eyebrow={copy.testimonials.eyebrow}
+          title={copy.testimonials.title}
+          subtitle={copy.testimonials.subtitle}
+        />
+        <div className="mt-14 grid gap-6 md:grid-cols-3">
+          {copy.testimonials.items.map((item) => (
+            <figure key={item.name} className="flex h-full flex-col rounded-2xl bg-surface p-7 shadow-card">
+              <blockquote className="flex-1 leading-relaxed text-body">{item.quote}</blockquote>
+              <figcaption className="mt-6 border-t border-line pt-4">
+                <span className="block font-semibold text-ink">{item.name}</span>
+                <span className="block text-sm text-muted">{item.gym}</span>
               </figcaption>
             </figure>
           ))}

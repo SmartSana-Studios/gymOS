@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Inter, Sora } from "next/font/google";
+import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import { COPY } from "@/lib/copy";
 import { isLocale, locales, type Locale, type LocaleRouteParams } from "@/lib/i18n";
 import "./globals.css";
@@ -51,16 +51,18 @@ const OG_IMAGE = {
   height: 630,
 } as const;
 
-// Same pairing as the reference site: Sora for headlines, Inter for body.
-const sora = Sora({
-  variable: "--font-sora",
+// Bricolage Grotesque for headlines and figures, Figtree for body text. Both
+// are self-hosted by next/font at build time (no request to Google from the
+// visitor's browser) and carry the French accents the page needs.
+const display = Bricolage_Grotesque({
+  variable: "--font-display",
   display: "swap",
   subsets: ["latin"],
   weight: ["600", "700", "800"],
 });
 
-const inter = Inter({
-  variable: "--font-inter",
+const body = Figtree({
+  variable: "--font-body",
   display: "swap",
   subsets: ["latin"],
 });
@@ -125,7 +127,7 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale as Locale}>
-      <body className={`${sora.variable} ${inter.variable} font-sans`}>{children}</body>
+      <body className={`${display.variable} ${body.variable} font-sans`}>{children}</body>
     </html>
   );
 }

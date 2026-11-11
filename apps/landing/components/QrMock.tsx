@@ -41,7 +41,7 @@ export function QrMock({ title }: { title: string }) {
 
   return (
     <svg viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={title} className="block h-auto w-full">
-      <g fill="#0a121f">
+      <g fill="#0f1b2d">
         {FINDER_ORIGINS.map(([fx, fy]) => (
           <g key={`${fx}-${fy}`}>
             <path
