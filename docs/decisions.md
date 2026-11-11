@@ -6,6 +6,17 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-11-11 — LCP measured on the live pilot page (Epic 24 retro item 105, part)
+
+`node scripts/landing-gate/lcp.mjs` against `https://smartsana-fitness.gymosapps.com/` (production, the SmartSana pilot page, which is on **Volt**: its stylesheet carries `#10131B`, Classic's does not), 20 runs, English only, from the operator machine, profile CPU 4x slowdown, 1.6 Mbps down, 150 ms RTT, 360x640 mobile, cold browser cache (the CDN copy is warm).
+
+- **Result: p75 1,164 ms, median 1,104 ms, min 984 ms, max 1,304 ms.** The LCP element is the banner image in every run. Under the 3,000 ms assumption by a wide margin. A first attempt aborted at run 9 on a network change on the operator machine (`ERR_NETWORK_CHANGED`) and the 20-run attempt above is a full rerun; the eight runs before the abort were 1.0 to 1.5 s.
+- **Not measured, so NFR-025 is not closed:** French (the pilot has no complete French, so the kit refused to measure a page that is not in the requested language, correctly), the redesigned **Classic** (the 3,520 ms figure in the 24.12 table is for the OLD Classic and its cause, three lazy gallery images sharing the link with the banner, was in a different layout), and a page with a gallery, which is the shape that was slow. The pilot has no gallery.
+- **What this does and does not change.** The `[NOT proven]` line for `lcp.mjs` in the G6 sign-off now has one data point on production for Volt, English, no gallery. The NFR still says "field-measured p75"; the landing CSP forbids script, so no in-page field probe exists, and the owner has not yet decided whether a lab p75 on the launch template is an acceptable reading. This is lab data, not field data.
+- **To finish the item:** run the kit locally for Classic with a gallery (`GATE_LANDING_PORT=3210 bash scripts/landing-gate/run-local.sh lcp`; port 3200 is blocked in this devcontainer), and decide the NFR wording.
+
+---
+
 ## 2026-11-11 — Epic 24 retro closure: pooler certificate pinned, client-boundary guard, real pg_prove in ci-local, shared grammar cases
 
 Closes the code findings of `epic-24-retro-2026-11-11.md` that needed no owner decision. Branch `fix/epic-24-retro-closure`; nothing applied to production by hand (the landing change deploys with the merge).
