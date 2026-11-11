@@ -56,14 +56,17 @@ export default {
         smooth: "cubic-bezier(.22, .8, .26, .99)",
       },
       keyframes: {
-        // The page's one authored moment: the scanner sweeps the code once,
-        // then the two check-ins settle in. Both only run under
-        // `motion-safe`, so reduced motion shows the finished state.
-        "scan-once": {
-          "0%": { top: "14px", opacity: "0" },
-          "12%": { opacity: "1" },
-          "88%": { opacity: "1" },
-          "100%": { top: "calc(100% - 17px)", opacity: "0" },
+        // The hero scanner: the scan line sweeps the code continuously, the
+        // "Live" dot breathes, and the two check-ins settle in once on load.
+        // All of it only runs under `motion-safe`, so reduced motion shows
+        // the finished, still state.
+        scan: {
+          "0%, 100%": { top: "14px" },
+          "50%": { top: "calc(100% - 17px)" },
+        },
+        live: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.3" },
         },
         settle: {
           "0%": { opacity: "0", transform: "translateY(10px)" },
@@ -71,7 +74,8 @@ export default {
         },
       },
       animation: {
-        "scan-once": "scan-once 1.4s cubic-bezier(.22,.8,.26,.99) 0.3s backwards",
+        scan: "scan 2.6s cubic-bezier(.22,.8,.26,.99) infinite",
+        live: "live 2s ease-in-out infinite",
         "settle-a": "settle 0.5s cubic-bezier(.22,.8,.26,.99) 1.3s backwards",
         "settle-b": "settle 0.5s cubic-bezier(.22,.8,.26,.99) 1.5s backwards",
       },

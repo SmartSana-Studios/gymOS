@@ -143,7 +143,7 @@ Key characteristics:
 - **One accent.** Orange is a fill with navy text on it; on navy it is also bright headline colour; on light grounds, as text, it takes a darker contrast-safe value.
 - **Big, tight display type** (Bricolage Grotesque 800) over calm Figtree body text.
 - **Photography is plain**: edge to edge, no scrim, never carrying text.
-- **Static by default**: one authored moment (the hero scanner sweep), no scroll reveals, no count-up.
+- **Static by default**: the only motion is the hero scanner (the scan line loops continuously, the "Live" dot breathes, the check-in rows settle in once), no scroll reveals, no count-up.
 
 ## Colors
 
@@ -191,7 +191,7 @@ Radius 16 for cards and panels, 12 for buttons and controls, 9 for the logo tile
 - **Primary button:** orange fill, navy text, 48px tall, 12px radius; hover lightens to `{colors.accent-hover}`. The contact action is the only filled orange control in a viewport (except on the orange bands, where the buttons are navy).
 - **On-navy ghost button:** transparent, light border, white text; **ghost button** on light: white fill, `{colors.line-strong}` border, ink text.
 - **Header:** navy, 68px, white logo tile and wordmark left, navigation centre (from 1280px), language, Owner login and contact right.
-- **Hero check-in panel:** decorative and `aria-hidden`; a scanner square with orange corner brackets, two sample check-ins, and (from 1280px) two sample chips. The scan line sweeps once and the rows settle in, only under `prefers-reduced-motion: no-preference`.
+- **Hero check-in panel:** decorative and `aria-hidden`; a scanner square with orange corner brackets, two sample check-ins, and (from 1280px) two sample chips. The scan line loops continuously, the "Live" dot breathes and the rows settle in once on load, all only under `prefers-reduced-motion: no-preference`.
 - **Store buttons:** navy-filled, white text and glyph, self-drawn rather than the official badges; they sit on the orange band.
 - **Phone frame:** deep-navy device with a member QR pass on screen (the same illustrative, non-encodable code as the hero).
 - **Closing band and footer:** navy, white text, orange primary button; focus rings flip to white inside `.on-navy`.

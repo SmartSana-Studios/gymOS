@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-11T22:17:32+00:00",
+  "generatedAt": "2026-11-11T22:30:42+00:00",
   "title": "Design System: GymOS Main Site",
   "extensions": {
     "colorMeta": {
@@ -221,7 +221,7 @@
       {
         "name": "ease-smooth",
         "value": "cubic-bezier(.22, .8, .26, .99)",
-        "purpose": "Hover transitions and the one authored scan moment (motion-safe only)."
+        "purpose": "Hover transitions; the hero scan line loops with a similar curve (motion-safe only)."
       }
     ],
     "breakpoints": [
@@ -293,7 +293,7 @@
       "One accent: orange as a fill, bright on navy, darker values for text on light grounds",
       "Big tight display type over calm body text",
       "Plain edge-to-edge photographs with no scrim and no text on them",
-      "Static by default with one authored scanner moment"
+      "Static by default; the only motion is the hero scanner, which loops continuously"
     ],
     "rules": [
       {

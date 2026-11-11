@@ -128,21 +128,21 @@ export function Hero({ copy }: { copy: Copy }) {
                 <p className="mt-1 text-sm text-muted">{copy.hero.demoSubtitle}</p>
               </div>
               <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-accent-tint px-3 py-1.5 text-xs font-semibold text-accent-ink">
-                <i aria-hidden className="h-1.5 w-1.5 rounded-full bg-accent" />
+                <i aria-hidden className="h-1.5 w-1.5 rounded-full bg-accent motion-safe:animate-live" />
                 {copy.hero.live}
               </span>
             </div>
 
             <div className="relative mx-auto my-8 w-[13.5rem] rounded-xl border border-line bg-surface p-5">
               {/* Four L-shaped corner brackets and the scan line, which
-                  sweeps the code once on load (motion-safe only). */}
+                  sweeps the code continuously (motion-safe only). */}
               <span aria-hidden className="pointer-events-none absolute -left-[7px] -top-[7px] h-6 w-6 rounded-tl-md border-l-[3px] border-t-[3px] border-accent" />
               <span aria-hidden className="pointer-events-none absolute -right-[7px] -top-[7px] h-6 w-6 rounded-tr-md border-r-[3px] border-t-[3px] border-accent" />
               <span aria-hidden className="pointer-events-none absolute -bottom-[7px] -left-[7px] h-6 w-6 rounded-bl-md border-b-[3px] border-l-[3px] border-accent" />
               <span aria-hidden className="pointer-events-none absolute -bottom-[7px] -right-[7px] h-6 w-6 rounded-br-md border-b-[3px] border-r-[3px] border-accent" />
               <span
                 aria-hidden
-                className="absolute inset-x-3 top-[14px] hidden h-0.5 rounded-full bg-accent motion-safe:block motion-safe:animate-scan-once"
+                className="absolute inset-x-3 top-[14px] hidden h-0.5 rounded-full bg-accent motion-safe:block motion-safe:animate-scan"
               />
               <QrMock title={copy.hero.qrAlt} />
             </div>

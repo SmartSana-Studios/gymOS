@@ -91,10 +91,11 @@ has no theme toggle. Two traps worth knowing:
 
 There is no scroll-reveal and no counter any more, and the page ships no
 client JavaScript of its own beyond the mobile menu in `SiteHeader.tsx`
-(open/close and Escape). The one authored moment is the hero scanner: the
-scan line sweeps once and the two sample check-ins settle in. Both are
-CSS animations behind `motion-safe:`, so a visitor who has asked their OS to
-stop motion gets the finished state, and nothing is hidden by default.
+(open/close and Escape). The only motion is the hero scanner: the scan line sweeps the code
+continuously, the "Live" dot breathes, and the two sample check-ins settle in
+once on load. All of it is CSS behind `motion-safe:`, so a visitor who has
+asked their OS to stop motion gets the still, finished state, and nothing is
+hidden by default.
 
 ### Imagery
 
