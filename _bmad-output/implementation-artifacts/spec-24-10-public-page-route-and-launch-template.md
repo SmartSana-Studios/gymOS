@@ -77,8 +77,8 @@ context:
 - [x] `packages/page-templates` -- contract, registry, chrome dictionaries (EN, FR, plan dictionary), template(s) per Q1, `--on-gym` computation, escaping, import-scan test, ESLint rule
 - [x] `packages/page-templates` conformance suite -- fixtures, rules, known-bad templates, Chromium layout checks
 - [x] `apps/landing` -- proxy host logic, page Route Handler, reader module, headers, not-found, redirect, fonts + licence, config; tests for every matrix row
-- [ ] CI wiring -- ci-local stages, ci.yml, turbo env, guardrail script tests; per-stage lines read, one known-bad run
-- [ ] Docs -- decisions.md, deferred-work.md, sprint-status.yaml, epic-24-context.md refresh
+- [x] CI wiring -- ci-local stages, ci.yml, turbo env, guardrail script tests; per-stage lines read, one known-bad run
+- [x] Docs -- decisions.md, deferred-work.md, sprint-status.yaml, epic-24-context.md refresh
 
 **Acceptance Criteria:**
 - Given any Host/path, then a test enumerates the proxy's outcomes (page, redirect, uniform not-found) and the not-found responses are byte-identical across causes
