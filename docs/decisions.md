@@ -6,6 +6,34 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-11-11 — Epic 24 release gate G6 (staging gate): signed off by the owner without a staging environment, verified on production with the SmartSana pilot page
+
+No staging environment exists for GymOS. The owner chose to run the 24.12 gate items on production, with the pilot gym SMARTSANA FITNESS (page `smartsana-fitness.gymosapps.com`) as the only published page, after `CNAME *` was added. What was verified, and what was not, so nobody reads this as more than it is.
+
+**Verified on production (2026-11-11), with the evidence**
+- **Isolation.** `public_site_reader` reads only the published projection and cannot read `public.gyms` (42501) or write (25006); `anon` cannot execute the Super Admin functions (42501). The pgTAP isolation files pass in CI.
+- **Headers (by hand, not `check-http.mjs`).** A published page, the not-found page and the taken-down page carry the AD-44 set that was compared: CSP (`img-src` only the Storage origin), referrer policy, HSTS, `nosniff`, `Cache-Control: public`. An unknown, a reserved (`app`), an unpublished and a taken-down name return the same 404: 1174 bytes, the same hash and the same headers.
+- **Page flows by hand.** Claim of a generic-word name held for review, approval in Super Admin, publish, public page over real DNS (200, content, two images), a public report (accepted into the queue, closed in Super Admin), takedown (the page became the generic 404; its images were purged within 5 minutes) and lift (page back, new images load), switch Classic and Volt (the page followed each switch within a minute). The live appeal was NOT run: it needs a new takedown, which purges the images again; the appeal rules are covered by 233 pgTAP checks and the E2E specs.
+- **Purge job.** `page_media_purge` ran from 01:35 UTC on; `scripts/landing-gate/purge-staleness.sql`'s condition returned PASS at 05:06 UTC (newest success 05:05:04). One run deleted the 2 purged images, none failed.
+- **Page flows in CI.** `landing-page-gate.spec.ts` and the E2E suite pass in CI and in `scripts/ci-local.sh` (20 passed).
+- **Speed, informally.** About 0.43-0.5 s to first byte (0.9-1.1 s on a cold request) from the operator machine through Cape Town to the Vercel function in `iad1`, with the database in `eu-west-1`.
+
+**Not run, accepted**
+- `check-http.mjs` in full: it needs four labels (published, old-name redirect, unpublished, taken-down) and production has one page; making the others would mean renaming or unpublishing the pilot page and leaving a 12-month redirect.
+- `lcp.mjs` (p75 LCP in lab conditions, 20 or more runs, EN and FR): not run. The page has no scripts and two small `webp` images, so this is expected to pass but is NOT proven.
+- `load.mjs` (a label scan against the reader's `CONNECTION LIMIT 20`, and the core product's budget): not run on production because it sends several thousand requests of random labels. A burst of 26 concurrent clients through the transaction pooler (2026-11-11) did not hit the limit, so the `53300` retry path was not exercised either.
+- A report from a phone: the report was sent with `curl` through the public form, not from a phone.
+
+**Residual risks the owner accepts**
+- `net._http_response` stays readable by `public_site_reader` (decision of the same day, mitigated by rotating the purge secret).
+- The landing function runs in `iad1` while the database is in `eu-west-1`; moving it to Europe is optional.
+- AutoSSL for the A2-hosted names and mail in/out after the `_acme-challenge` delegation are still untested (deferred-work.md); `owner.`, `portal.`, `mail.` and apex certificates expire 2026-12-31.
+- With more than one published page the load and LCP numbers should be taken once, with the owner's permission, before any marketing push.
+
+**Follow-ups**: revoke the Supabase access token used for the release; rotate `public_site_reader`'s password and `page_media_purge_secret` on the schedule in `docs/runbooks/secret-rotation.md`; re-check the certificates from 2026-12-01.
+
+---
+
 ## 2026-11-11 — Migration 0168: `list_published_pages()` and the Pages screen changes (owner feedback from the SmartSana smoke test)
 
 The owner asked for one "Actions" menu per row on Super Admin > Pages (like the Gyms list) and for a list of the published pages and their domains. The Pages screen now has one `RowActions` dropdown per row on Names, Reports and Appeals (every action keeps its dialog, step-up code and notice), and a fourth tab, **Active**: domain, gym, template, publish date, status, search, and an Actions menu (Open page, View gym, Take down, Lift takedown). Migration `0168_list_published_pages.sql` adds `public.list_published_pages()`: read-only, `stable security definer`, `search_path = public`, a live Super Admin or `permission denied`, execute for `authenticated` only (not `anon`, not `public_site_reader`), at most 1000 rows, newest published first. No existing object changes; rollback is `scripts/rollback-0168-list-published-pages.sql` (the rehearsal now runs 9 rollbacks and asserts the function is gone).

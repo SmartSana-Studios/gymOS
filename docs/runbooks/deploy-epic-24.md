@@ -25,7 +25,7 @@ Details of every migration: `docs/decisions.md` entries for Stories 24.4 to 24.1
 | G3 backup | `scripts/deploy-migration.sh` calls `scripts/lib/require-db-backup.py` itself (reuses a GREEN `db-backup` run from the last 30 minutes, or triggers one) and refuses without it. Restore note: the reader role is cluster-level and is NOT in a per-database dump; after restoring the R2 dump into a fresh cluster, re-run the role block of 0160 and set the password again. | script ready |
 | G4 Supabase access token | `scripts/deploy-readiness.sh 0160` must show PASS for the management API. | **PASS on 2026-11-10 14:44Z** after the owner renewed the token (it had answered HTTP 401). Revoke the token in the Supabase dashboard (Account > Access Tokens) when the release is finished |
 | G5 env and secrets | Table below. | OPEN |
-| G6 staging gate | `scripts/landing-gate/README.md` lists the staging items of the 24.12 release gate (headers over real HTTPS, speed, load, a report from a phone, a takedown and appeal, a purge run). No staging exists; run them against production on a test gym instead, with the owner's agreement. | UNSIGNED |
+| G6 staging gate | `scripts/landing-gate/README.md` lists the staging items of the 24.12 release gate (headers over real HTTPS, speed, load, a report from a phone, a takedown and appeal, a purge run). No staging exists; run them against production on a test gym instead, with the owner's agreement. | **SIGNED OFF by the owner on 2026-11-11 without staging**: verified on production with the SmartSana pilot page; `check-http.mjs`, `lcp.mjs` and `load.mjs` were NOT run and the live appeal was not run. See `docs/decisions.md`, "Epic 24 release gate G6" |
 
 ## Env and secrets
 
