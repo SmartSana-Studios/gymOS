@@ -1,6 +1,7 @@
 import "server-only";
 import { Pool } from "pg";
 import { readReaderConfig } from "./env";
+import { SUPABASE_ROOT_CA_2021 } from "./supabaseCa";
 import { PAGE_REPORT_RESULTS, type PageReportResult } from "@gymos/types";
 import { BEGIN_RW_SQL, COMMIT_SQL, PAGE_SQL, REDIRECT_SQL, SUBMIT_REPORT_SQL } from "./readerSql";
 
@@ -37,6 +38,11 @@ export interface ReportSubmission {
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "host.docker.internal"]);
 
+/** TLS settings for the reader's connection: none for a local stack, otherwise verified against the pinned Supabase root CA. */
+export function readerSsl(host: string): false | { ca: string; rejectUnauthorized: true } {
+  return LOCAL_HOSTS.has(host) ? false : { ca: SUPABASE_ROOT_CA_2021, rejectUnauthorized: true };
+}
+
 let pool: Pool | undefined;
 
 function defaultPool(): Queryable {
@@ -54,8 +60,8 @@ function defaultPool(): Queryable {
     query_timeout: 3000,
     idleTimeoutMillis: 10_000,
     allowExitOnIdle: true,
-    // The pooler requires TLS. The connection is encrypted; the server certificate is not verified yet (see deferred-work.md).
-    ssl: LOCAL_HOSTS.has(cfg.host) ? false : { rejectUnauthorized: false },
+    // The pooler requires TLS and its certificate is VERIFIED against the pinned Supabase root CA (supabaseCa.ts).
+    ssl: readerSsl(cfg.host),
   });
   // An idle client that the pooler drops must not crash the process: the next query opens a new one.
   pool.on("error", () => undefined);

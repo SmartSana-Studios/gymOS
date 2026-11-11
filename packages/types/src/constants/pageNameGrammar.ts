@@ -1,7 +1,8 @@
 // Story 24.10 (FR-202, AD-45): the ONE page name grammar, used by the Zod name schema (claim), the host parser (the landing proxy) and
 // scripts/check-reserved-labels.mjs. This file imports nothing so that a plain Node script can load it directly (Node strips the types).
-// The database holds the same rule in private.page_name_valid() (0163). There is no shared case list: the SQL side's table of invalid names
-// is in supabase/tests/page_names.test.sql, the TypeScript side's in packages/types/src/pageContent.test.ts; keep them alike by hand.
+// The database holds the same rule in private.page_name_valid() (0163). Both sides are tested against ONE case list,
+// packages/types/src/constants/pageNameCases.json (TypeScript: pageContent.test.ts; SQL: supabase/tests/page_name_grammar.test.sql), and
+// scripts/__tests__/page-name-grammar-cases.test.mjs fails if the SQL file's rows differ from the JSON.
 
 export const PAGE_NAME_MIN = 3;
 export const PAGE_NAME_MAX = 30;

@@ -32,9 +32,9 @@ describe("the reader's pool", () => {
     return made[0]!;
   }
 
-  it("a remote host: one connection, 2 s connect timeout, 3 s query timeout, TLS without verification, an error listener", async () => {
+  it("a remote host: one connection, 2 s connect timeout, 3 s query timeout, TLS verified against the pinned Supabase root CA, an error listener", async () => {
     const p = await pool("aws-0-eu-west-1.pooler.supabase.com");
-    expect(p.options).toMatchObject({ max: 1, connectionTimeoutMillis: 2000, query_timeout: 3000, ssl: { rejectUnauthorized: false }, host: "aws-0-eu-west-1.pooler.supabase.com", port: 6543, user: "public_site_reader.ref" });
+    expect(p.options).toMatchObject({ max: 1, connectionTimeoutMillis: 2000, query_timeout: 3000, ssl: { rejectUnauthorized: true, ca: expect.stringContaining("BEGIN CERTIFICATE") }, host: "aws-0-eu-west-1.pooler.supabase.com", port: 6543, user: "public_site_reader.ref" });
     expect(p.on).toHaveBeenCalledWith("error", expect.any(Function));
   });
   it("localhost: no TLS", async () => {

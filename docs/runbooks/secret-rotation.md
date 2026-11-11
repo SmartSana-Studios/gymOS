@@ -27,6 +27,7 @@ Console steps are named by what to do, not by menu path; menus move. Every rotat
 | `CRON_SECRET` | Vercel env (dashboard) | `/api/cron/saas-billing-reminders` |
 | `SENTRY_AUTH_TOKEN`, PostHog keys | Vercel env; EAS build env | source maps, analytics |
 | `EXPO_TOKEN` | `~/.expo-token` (devcontainer) | EAS builds and submits |
+| Supabase pooler root CA (a public certificate, not a secret; dated) | `apps/landing/lib/gym-site/supabaseCa.ts`, **expires 2031-04-26** | the landing reader verifies the pooler's TLS certificate against it. Replace it before that date, or when the reader starts logging certificate errors: `openssl s_client -connect <pooler host>:6543 -starttls postgres -showcerts`, compare the root's SHA-256 fingerprint with Supabase's published `prod-ca-2021.crt`, update the constant and its fingerprint test |
 | App Store Connect API key | EAS servers | `eas submit` (iOS) |
 | Google Play service account | `apps/mobile/google-play-service-account.json` (gitignored, on disk) | `eas submit` (Android) |
 | `R2_*`, `BACKUP_AGE_PUBLIC_KEY`, `SUPABASE_S3_*` | GitHub Actions secrets | `db-backup` |

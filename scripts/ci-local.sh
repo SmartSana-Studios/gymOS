@@ -77,6 +77,8 @@ stage_static() {
   pnpm run check:host-neutral-env || return 1
   # Story 24.4: apps/landing holds no Supabase library or key (AD-42)
   pnpm run check:landing-no-supabase || return 1
+  # Epic 24 retro D1 (PR #123): no Server Component imports a value from a "use client" module (React #441 in production)
+  pnpm run check:client-boundary || return 1
   pnpm run test:guardrails || return 1
   # The deploy scripts refuse to apply a migration without a green db-backup run (against a fake gh; never touches GitHub).
   bash "$ROOT/scripts/require-db-backup.test.sh" || return 1
@@ -111,6 +113,8 @@ stage_pgtap() {
   clean_orphaned_page_audit_rows || return 1
   # explicit `|| return 1` (see stage_static): `set -e` is ignored when run_stage calls this in an `if`
   PGTAP_JOBS="${PGTAP_JOBS:-1}" bash "$ROOT/scripts/pgtap-run.sh" || return 1
+  # The same files through the REAL pg_prove, the parser CI uses (Epic 24 retro, lesson 1: pgtap-run.sh passed files that CI rejected).
+  bash "$ROOT/scripts/pgprove-run.sh" || return 1
   # Refund-vs-consume and loyalty-ledger race (two real sessions; pgTAP runs one). Epic 19 R-1, Epic 20 R-1.
   bash "$ROOT/scripts/session-refund-race.sh" || return 1
   # job-runs-alert.sql against fixtures (Epic 20 R-4).
@@ -210,8 +214,10 @@ STAGES=()
 pids=()
 if want static; then STAGES+=(static); run_stage static stage_static & pids+=($!); fi
 if want deno;   then STAGES+=(deno);   run_stage deno   stage_deno   & pids+=($!); fi
-if want pgtap;  then STAGES+=(pgtap);  run_stage pgtap  stage_pgtap  & pids+=($!); fi
 for p in "${pids[@]:-}"; do [ -n "$p" ] && wait "$p"; done
+# pgtap runs ALONE (Epic 24 retro, lesson 1): it used to share the machine with the lint/typecheck/deno stages, and its lock-wait timing
+# assertions (support-assignments-race) and some files failed in full runs and passed alone (24-11, 24-12, 24-13 build notes).
+if want pgtap;  then STAGES+=(pgtap);  run_stage pgtap  stage_pgtap; fi
 if want unit; then STAGES+=(unit); run_stage unit stage_unit; fi
 if want layout; then STAGES+=(layout); run_stage layout stage_layout; fi
 if want e2e;  then STAGES+=(e2e);  run_stage e2e  stage_e2e;  fi
