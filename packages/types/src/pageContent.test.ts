@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import sharedCases from "./constants/pageNameCases.json";
 import { PAGE_CONTENT_LANGUAGES, classifyHost, completePageLanguages, isReservedLabel, isValidPageName, parsePageContentV1, pageSnapshotSchema } from "./index";
 import fixture from "./fixtures/pageSnapshotV1.json";
 
@@ -89,9 +90,13 @@ describe("page name grammar (one function)", () => {
     for (const ok of ["abc", "gym-os", "a1b", "a".repeat(30), "1a2"]) expect(isValidPageName(ok), ok).toBe(true);
     for (const bad of ["ab", "-abc", "abc-", "a--b", "xn--abc", "123", "_dmarc", "ABC", "a".repeat(31), "a.b", "", "a b", "é-é-é"]) expect(isValidPageName(bad), bad).toBe(false);
   });
-  it("the migration that defines the SQL grammar function (private.page_name_valid) exists; the cases are not shared", () => {
-    const sql = readFileSync(join(root, "supabase", "migrations", "0163_page_names.sql"), "utf8");
-    expect(sql).toMatch(/page_name_valid/);
+  // Epic 24 retro D2: the SQL function private.page_name_valid is tested against this SAME JSON (supabase/tests/page_name_grammar.test.sql),
+  // and scripts/__tests__/page-name-grammar-cases.test.mjs fails when the SQL file's rows differ from it.
+  it("agrees with the shared case list that the SQL grammar function is also tested against", () => {
+    expect(sharedCases.valid.length).toBeGreaterThan(5);
+    expect(sharedCases.invalid.length).toBeGreaterThan(10);
+    for (const ok of sharedCases.valid) expect(isValidPageName(ok), JSON.stringify(ok)).toBe(true);
+    for (const bad of sharedCases.invalid) expect(isValidPageName(bad), JSON.stringify(bad)).toBe(false);
   });
 });
 

@@ -1,0 +1,36 @@
+{
+  "_comment": "Epic 24 retro D2: the ONE case list for the page-name grammar. The TypeScript isValidPageName (packages/types/src/pageContent.test.ts) and the SQL private.page_name_valid (supabase/tests/page_name_grammar.test.sql) are both tested against exactly these names; scripts/__tests__/page-name-grammar-cases.test.mjs fails if the SQL file's list differs from this one.",
+  "valid": [
+    "abc",
+    "gym-os",
+    "a1b",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "1a2",
+    "a-b-c",
+    "0ab",
+    "ab0",
+    "xn-abc",
+    "smartsana-fitness"
+  ],
+  "invalid": [
+    "ab",
+    "-abc",
+    "abc-",
+    "a--b",
+    "xn--abc",
+    "xn--a",
+    "123",
+    "12345",
+    "_dmarc",
+    "ab_c",
+    "ABC",
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "a.b",
+    "",
+    "a b",
+    "é-é-é",
+    "-x-",
+    "abc\n",
+    "\nabc"
+  ]
+}

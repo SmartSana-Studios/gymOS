@@ -48,6 +48,9 @@ jobs:
       - name: Landing site holds no Supabase library or key (Story 24.4)
         run: pnpm run check:landing-no-supabase
 
+      - name: Server Components import no value from a "use client" module (Epic 24 retro, PR 123)
+        run: pnpm run check:client-boundary
+
       - name: Migration guardrails (AD-3 app_role lint, function privilege revokes)
         run: pnpm run check:migrations && pnpm run check:credentials-id && pnpm run test:guardrails
 
