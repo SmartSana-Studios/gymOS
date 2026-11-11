@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { PAGE_TAKEDOWN_REASON_LABELS, type PageTakedownReason } from "@gymos/types";
 
-import { Button } from "@/components/ui/button";
+import { Gavel, Undo2 } from "lucide-react";
 
+import { RowActions } from "../../support/components/RowActions";
 import { SupportActionModal } from "../../support/components/SupportActionModal";
 import { decidePageAppeal, type PageAppealRow } from "../actions";
 
@@ -69,16 +70,17 @@ export function AppealsPanel({ rows }: { rows: PageAppealRow[] }) {
                     {r.decisionReason && <p className="text-xs text-muted-foreground">{r.decisionReason}</p>}
                   </td>
                   <td className="py-2 pr-3">
-                    {r.decision === null && (
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" onClick={() => setDeciding({ row: r, decision: "lift" })}>
-                          {t("pages.appeals.lift")}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => setDeciding({ row: r, decision: "uphold" })}>
-                          {t("pages.appeals.uphold")}
-                        </Button>
-                      </div>
-                    )}
+                    <RowActions
+                      name={r.pageName ?? r.gymName}
+                      actions={
+                        r.decision === null
+                          ? [
+                              { key: "lift", label: t("pages.appeals.lift"), icon: <Undo2 size={14} />, onSelect: () => setDeciding({ row: r, decision: "lift" }) },
+                              { key: "uphold", label: t("pages.appeals.uphold"), icon: <Gavel size={14} />, onSelect: () => setDeciding({ row: r, decision: "uphold" }) },
+                            ]
+                          : []
+                      }
+                    />
                   </td>
                 </tr>
               ))}

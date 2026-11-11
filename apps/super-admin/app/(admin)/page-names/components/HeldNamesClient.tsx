@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
+import { RowActions } from "../../support/components/RowActions";
 import { decideHeldPageName, type HeldPageNameRow } from "../actions";
 
 const REASON_MIN = 3;
@@ -112,14 +114,13 @@ export function HeldNamesClient({ rows }: { rows: HeldPageNameRow[] }) {
                       )}
                     </td>
                     <td className="py-2 pr-3">
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => open(row, true)}>
-                          {t("pageNames.approve")}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => open(row, false)}>
-                          {t("pageNames.reject")}
-                        </Button>
-                      </div>
+                      <RowActions
+                        name={row.name}
+                        actions={[
+                          { key: "approve", label: t("pageNames.approve"), icon: <Check size={14} />, onSelect: () => open(row, true) },
+                          { key: "reject", label: t("pageNames.reject"), icon: <X size={14} />, destructive: true, onSelect: () => open(row, false) },
+                        ]}
+                      />
                     </td>
                   </tr>
                 );

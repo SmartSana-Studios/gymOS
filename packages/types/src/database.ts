@@ -3125,6 +3125,17 @@ export type Database = {
           status: string
         }[]
       }
+      list_published_pages: {
+        Args: never
+        Returns: {
+          gym_id: string
+          gym_name: string
+          page_name: string
+          published_at: string
+          status: string
+          template: string
+        }[]
+      }
       page_media_purge_candidates: {
         Args: { p_limit?: number }
         Returns: {

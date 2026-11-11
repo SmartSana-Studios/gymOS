@@ -8,22 +8,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import type { HeldPageNameRow } from "../../page-names/actions";
 import { HeldNamesClient } from "../../page-names/components/HeldNamesClient";
-import type { PageAppealRow, PageReportRow } from "../actions";
+import type { ActivePageRow, PageAppealRow, PageReportRow } from "../actions";
+import { ActivePagesPanel } from "./ActivePagesPanel";
 import { AppealsPanel } from "./AppealsPanel";
 import { ReportsPanel } from "./ReportsPanel";
 import { PAGES_TABS, parsePagesTab, type PagesTab } from "../tabs";
 
-/** Pages (SA-16 to SA-18): three tabs, each with a count of what is waiting. The selected tab is in the URL as `?tab=`. */
+/** Pages (SA-16 to SA-18): four tabs; the first three carry a count of what is waiting. The selected tab is in the URL as `?tab=`. */
 export function PagesClient({
   initialTab,
   held,
   reports,
   appeals,
+  active,
 }: {
   initialTab: PagesTab;
   held: HeldPageNameRow[];
   reports: PageReportRow[];
   appeals: PageAppealRow[];
+  /** null when the list could not be loaded: only the Active tab says so, the other three keep working. */
+  active: ActivePageRow[] | null;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -40,7 +44,7 @@ export function PagesClient({
   }
 
   const openAppeals = appeals.filter((a) => a.decision === null).length;
-  const counts: Record<PagesTab, number> = { names: held.length, reports: reports.length, appeals: openAppeals };
+  const counts: Record<PagesTab, number> = { names: held.length, reports: reports.length, appeals: openAppeals, active: 0 };
 
   return (
     <div className="space-y-4">
@@ -65,6 +69,9 @@ export function PagesClient({
         </TabsContent>
         <TabsContent value="appeals" className="pt-4">
           <AppealsPanel rows={appeals} />
+        </TabsContent>
+        <TabsContent value="active" className="pt-4">
+          <ActivePagesPanel rows={active} />
         </TabsContent>
       </Tabs>
     </div>

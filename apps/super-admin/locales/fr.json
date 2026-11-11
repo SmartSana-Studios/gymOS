@@ -349,8 +349,20 @@
   },
   "pages": {
     "title": "Pages",
-    "hint": "Noms de page retenus, signalements de visiteurs et appels pour les pages publiques des salles.",
-    "tabs": { "names": "Noms retenus", "reports": "Signalements", "appeals": "Appels" },
+    "hint": "Noms de page retenus, signalements de visiteurs, appels et pages publiées des salles.",
+    "tabs": { "names": "Noms retenus", "reports": "Signalements", "appeals": "Appels", "active": "Actives" },
+    "active": {
+      "hint": "Toutes les pages publiées et leur adresse. Une page est En ligne quand les visiteurs peuvent l'ouvrir, Retirée après un retrait, En pause tant qu'elle est publiée mais non servie (sa salle est suspendue ou désactivée, ou son nom n'est plus le nom actif).",
+      "empty": "Aucune page n'est publiée pour le moment.",
+      "noMatch": "Aucune page ne correspond à votre recherche.",
+      "loadFailed": "La liste des pages publiées n'a pas pu être chargée. Les autres onglets ne sont pas touchés.",
+      "search": "Rechercher par page, salle ou adresse",
+      "columns": { "domain": "Adresse", "gym": "Salle", "template": "Modèle", "published": "Publiée le", "status": "Statut", "actions": "Actions" },
+      "status": { "live": "En ligne", "taken_down": "Retirée", "paused": "En pause" },
+      "templates": { "classic": "Classique", "volt": "Volt" },
+      "noName": "(sans nom)",
+      "actions": { "open": "Ouvrir la page", "viewGym": "Voir la salle", "takeDown": "Retirer…", "lift": "Lever le retrait" }
+    },
     "reports": {
       "empty": "Aucun signalement à examiner.",
       "hint": "Signalements de visiteurs sur les pages publiques, échéance la plus proche d'abord. Un signalement est dû sous 5 jours ouvrables. Aucune identité de la personne qui signale n'est collectée.",
