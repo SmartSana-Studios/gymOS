@@ -2100,3 +2100,12 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-25-4-structured-data-serializer-and-validation.md`
   summary: AD-44 in `ARCHITECTURE-SPINE.md` (line 287) is titled and worded "gym pages are script-free static HTML"; since 25.4 a gym page and a directory page carry one inert `application/ld+json` block (executable scripts are still banned and `script-src 'none'` is unchanged).
   evidence: AD-51's "As built (Story 25.4)" bullet records the relaxation, so the architecture is not wrong, only AD-44's wording is stale. Fix is a one-line reword of AD-44 at the next architecture touch-up. Review of 25-4, 2026-11-12.
+
+## Deferred from: code review of spec-25-5-sitemaps-robots-and-plain-text-summary (2026-11-12)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-5-sitemaps-robots-and-plain-text-summary.md`
+  summary: `/llms.txt`, `/sitemap-index.xml` and `/sitemaps/{n}.xml` each read the database on every request that misses the CDN, so a varying query string (`?x=N`) or a well-formed but nonexistent chunk number can reach the one pooled connection at will, and `llms.txt` reads up to 5,001 full snapshots each time.
+  evidence: Every dynamic public route has the same exposure; `llms.txt` is the heaviest read. Needs a platform answer (a rate or query-string rule at the CDN, or a short per-instance memo) rather than a handler guard. Unverified at load. Review of 25-5, 2026-11-12.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-5-sitemaps-robots-and-plain-text-summary.md`
+  summary: A full sitemap file (50,000 entries with three alternates each, about 20 MB) and a large `llms.txt` (bounded by gym count, not bytes) exceed Vercel's 4.5 MB non-streamed function response limit.
+  evidence: Reachable only at tens of thousands of listings or a few thousand gyms with many plans. When a platform approaches it, lower `SITEMAP_CHUNK_SIZE` (the handler already takes it as a dep) and cap `llms.txt` by bytes. Review of 25-5, 2026-11-12.

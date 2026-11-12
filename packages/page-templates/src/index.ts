@@ -41,4 +41,4 @@ export {
   type ReportParse,
   type ReportView,
 } from "./reportPage";
-export { SEO_CACHE_CONTROL, classifyExtraPath, pageOrigin, renderRobots, renderSitemap, type GymPath, type SeoParts } from "./seo";
+export { SEO_CACHE_CONTROL, classifyExtraPath, pageOrigin, renderRobots, renderSitemap, seoHeaders, xmlEscape, type GymPath, type SeoParts } from "./seo";

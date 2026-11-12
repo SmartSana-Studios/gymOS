@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { CACHE_CONTROL, SECURITY_BASE, checkResponse, checkStructuredData, decodeEntities, diffResponses, expectedCsp, scriptsOf, singleStyleBlock, styleHash } from "../lib/headers.mjs";
+import { CACHE_CONTROL, CRAWLER_CSP, SECURITY_BASE, checkListedPage, checkLlms, checkResponse, checkRobots, checkSitemapIndex, checkStructuredData, checkUrlset, decodeEntities, diffResponses, expectedCsp, locsOf, scriptsOf, singleStyleBlock, styleHash } from "../lib/headers.mjs";
 
 const MEDIA = "http://127.0.0.1:3911";
 const STYLE = "body{margin:0}";
@@ -162,6 +162,105 @@ test("known bad directory page: the AD-44 headers, a rewrite header, a missing c
   assert.ok(dirProblems(dir({ body: dirHtml().replace('hreflang="x-default"', 'hreflang="en"') })).some((p) => p.includes("x-default")));
 });
 
+// ---- Story 25.5: the crawler kind and the body checks ----
+const WWW = "http://www.localhost";
+const XML_TYPE = "application/xml; charset=utf-8";
+const TEXT_TYPE = "text/plain; charset=utf-8";
+function crawlHeaders(contentType, over = {}) {
+  const h = {
+    "content-type": [contentType],
+    "cache-control": [CACHE_CONTROL.crawler],
+    "content-security-policy": [CRAWLER_CSP],
+    "x-content-type-options": [SECURITY_BASE["x-content-type-options"]],
+    "referrer-policy": [SECURITY_BASE["referrer-policy"]],
+    "strict-transport-security": [SECURITY_BASE["strict-transport-security"]],
+    date: ["now"],
+  };
+  for (const [k, v] of Object.entries(over)) {
+    if (v === null) delete h[k];
+    else h[k] = [].concat(v);
+  }
+  return h;
+}
+const ROBOTS = `User-agent: *\nAllow: /\n\nSitemap: ${WWW}/sitemap-index.xml\n`;
+const INDEX = (n = 1) => `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${Array.from({ length: n }, (_, i) => `  <sitemap><loc>${WWW}/sitemaps/${i + 1}.xml</loc></sitemap>\n`).join("")}</sitemapindex>\n`;
+const urlEntry = (path) => `  <url><loc>${WWW}${path}</loc><xhtml:link rel="alternate" hreflang="en" href="${WWW}${path.replace(/^\/fr/, "/en")}"/><xhtml:link rel="alternate" hreflang="fr" href="${WWW}${path.replace(/^\/en/, "/fr")}"/><xhtml:link rel="alternate" hreflang="x-default" href="${WWW}${path.replace(/^\/fr/, "/en")}"/></url>\n`;
+const URLSET = (paths = ["/en", "/fr", "/en/gyms", "/fr/gyms"]) => `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${paths.map(urlEntry).join("")}</urlset>\n`;
+const LLMS = (extra = "") => `# GymOS gyms\n\n> Gyms with a public page.\n> This file is a voluntary hint for crawlers, not access control.\n\n## GATE FIT\nurl: http://gate-grace.localhost/\ncategory: Gym\nlocation: Garoua, CM\n${extra}`;
+const crawl = (type, body, over) => ({ status: 200, headers: crawlHeaders(type, over), body });
+const crawlProblems = (res, type = TEXT_TYPE, ctx = {}) => checkResponse("crawler", res, { mediaOrigin: MEDIA, contentType: type, ...ctx }).problems;
+
+test("a correct crawler response passes, and Next's own rewrite header does not", () => {
+  assert.deepEqual(crawlProblems(crawl(TEXT_TYPE, ROBOTS)), []);
+  assert.deepEqual(crawlProblems(crawl(XML_TYPE, INDEX()), XML_TYPE), []);
+  assert.ok(crawlProblems(crawl(TEXT_TYPE, ROBOTS, { "x-middleware-rewrite": "/gym-site" })).some((p) => p.includes("never rewritten")));
+});
+test("known bad crawler response: every header dropped or altered fails and names it; a cookie, a wrong content type, a stray header fail", () => {
+  for (const name of ["content-type", "cache-control", "content-security-policy", "x-content-type-options", "referrer-policy", "strict-transport-security"]) {
+    assert.ok(crawlProblems(crawl(TEXT_TYPE, ROBOTS, { [name]: null })).some((p) => p.includes(`missing header ${name}`)), `dropping ${name}`);
+    assert.ok(crawlProblems(crawl(TEXT_TYPE, ROBOTS, { [name]: "x" })).some((p) => p.includes(name)), `altering ${name}`);
+  }
+  assert.ok(crawlProblems(crawl(TEXT_TYPE, ROBOTS, { "cache-control": "public, s-maxage=3600" })).some((p) => p.includes("cache-control")));
+  assert.ok(crawlProblems(crawl(TEXT_TYPE, ROBOTS, { "set-cookie": "a=b" })).some((p) => p.includes("sets a cookie")));
+  assert.ok(crawlProblems(crawl(XML_TYPE, INDEX()), TEXT_TYPE).some((p) => p.includes("content-type")));
+  assert.ok(crawlProblems(crawl(TEXT_TYPE, ROBOTS, { "x-debug": "1" })).some((p) => p.includes("unexpected header x-debug")));
+  assert.ok(crawlProblems({ ...crawl(TEXT_TYPE, ROBOTS), status: 404 }).some((p) => p.includes("status 404, expected 200")));
+});
+test("checkRobots: a correct file passes; a Disallow, no Allow, a wrong or second Sitemap fail", () => {
+  assert.deepEqual(checkRobots(ROBOTS, WWW), []);
+  assert.ok(checkRobots(`${ROBOTS}Disallow: /en/gyms\n`, WWW).some((p) => p.includes("Disallow")));
+  assert.ok(checkRobots(ROBOTS.replace("Allow: /\n", ""), WWW).some((p) => p.includes("Allow")));
+  assert.ok(checkRobots(ROBOTS.replace("sitemap-index.xml", "sitemap.xml"), WWW).some((p) => p.includes("Sitemap")));
+  assert.ok(checkRobots(`${ROBOTS}Sitemap: ${WWW}/other.xml\n`, WWW).some((p) => p.includes("exactly")));
+  assert.ok(checkRobots(ROBOTS, "https://www.example.com").some((p) => p.includes("Sitemap")), "the origin is the configured one");
+});
+test("checkSitemapIndex: a correct index passes; a missing file, a gap, a foreign origin, lastmod and a wrong root fail", () => {
+  assert.deepEqual(checkSitemapIndex(INDEX(3), WWW), []);
+  assert.ok(checkSitemapIndex("<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"></sitemapindex>", WWW).some((p) => p.includes("lists no file")));
+  assert.ok(checkSitemapIndex(INDEX(3).replace("/sitemaps/2.xml", "/sitemaps/3.xml"), WWW).some((p) => p.includes("<loc> 2")));
+  assert.ok(checkSitemapIndex(INDEX().replace("http://www.localhost", "http://evil.example"), WWW).some((p) => p.includes("<loc> 1")));
+  assert.ok(checkSitemapIndex(INDEX().replace("</sitemap>", "<lastmod>2026-01-01</lastmod></sitemap>"), WWW).some((p) => p.includes("lastmod")));
+  assert.ok(checkSitemapIndex(URLSET(), WWW).some((p) => p.includes("not a sitemapindex")));
+});
+test("checkUrlset: a correct chunk passes; a gym page, a filtered view, a foreign origin, a missing alternate, a duplicate and too many entries fail", () => {
+  assert.deepEqual(checkUrlset(URLSET(), WWW), []);
+  assert.deepEqual(checkUrlset(URLSET(["/en/gyms/cm", "/fr/gyms/cm", "/en/gyms/cm/garoua", "/fr/gyms/cm/garoua"]), WWW), []);
+  const gymPage = URLSET().replace("</urlset>", `  <url><loc>http://gate-grace.localhost/</loc></url>\n</urlset>`);
+  assert.ok(checkUrlset(gymPage, WWW).some((p) => p.includes("gate-grace.localhost") && p.includes("not on the www origin")));
+  assert.ok(checkUrlset(URLSET(["/en/gyms/cm/garoua?category=gym"]), WWW).some((p) => p.includes("not a marketing or directory page")));
+  assert.ok(checkUrlset(URLSET(["/en/gyms/cm/garoua?page=2"]), WWW).some((p) => p.includes("not a marketing or directory page")));
+  assert.ok(checkUrlset(URLSET(["/privacy"]), WWW).some((p) => p.includes("not a marketing or directory page")));
+  assert.ok(checkUrlset(URLSET().replace(/<xhtml:link rel="alternate" hreflang="x-default"[^>]*\/>/, ""), WWW).some((p) => p.includes("no x-default alternate")));
+  assert.ok(checkUrlset(URLSET(["/en", "/en"]), WWW).some((p) => p.includes("listed twice")));
+  assert.ok(checkUrlset(URLSET().replace("</url>", "<lastmod>2026-01-01</lastmod></url>"), WWW).some((p) => p.includes("lastmod")));
+  assert.ok(checkUrlset(URLSET(), WWW, { max: 3 }).some((p) => p.includes("at most 3")));
+  assert.ok(checkUrlset(INDEX(), WWW).some((p) => p.includes("not a urlset")));
+});
+test("checkListedPage: 200 without noindex passes; a 404, an X-Robots-Tag and a robots meta tag fail", () => {
+  assert.deepEqual(checkListedPage({ status: 200, headers: {}, body: "<html></html>" }), []);
+  assert.ok(checkListedPage({ status: 404, headers: {}, body: "" }).some((p) => p.includes("status 404")));
+  assert.ok(checkListedPage({ status: 200, headers: { "x-robots-tag": ["noindex"] }, body: "" }).some((p) => p.includes("X-Robots-Tag")));
+  assert.ok(checkListedPage({ status: 200, headers: {}, body: '<meta name="robots" content="noindex"/>' }).some((p) => p.includes("noindex meta")));
+  assert.ok(checkListedPage({ status: 200, headers: {}, body: '<meta content="noindex, nofollow" name="robots">' }).some((p) => p.includes("noindex meta")));
+});
+test("checkLlms: a correct file passes; a missing hint, a forged block, a non-allowlisted line, a removed gym and a missing gym fail", () => {
+  const gate = "http://gate-grace.localhost/";
+  assert.deepEqual(checkLlms(LLMS(), { absent: ["http://gate-draft.localhost/"], present: [gate] }), []);
+  assert.deepEqual(checkLlms(LLMS("hours: Mon 06:00-21:00\nplans:\n- Monthly: 15,000 XAF per month\n")), []);
+  assert.deepEqual(checkLlms("# GymOS gyms\n\n> This file is a voluntary hint, not access control.\n"), []);
+  assert.ok(checkLlms(LLMS().replace("voluntary hint", "hint")).some((p) => p.includes("voluntary hint")));
+  assert.ok(checkLlms(LLMS("phone: +237600000000\n")).some((p) => p.includes("not an allowlisted field")));
+  assert.ok(checkLlms(LLMS("about: lots of text\n")).some((p) => p.includes("not an allowlisted field")));
+  assert.ok(checkLlms(`${LLMS()}\n## FORGED\ncategory: Gym\n`).some((p) => p.includes("no url")));
+  assert.ok(checkLlms(LLMS().replace("url: http://gate-grace.localhost/", "url: https://evil.example/path")).some((p) => p.includes("not a gym's subdomain address")));
+  assert.ok(checkLlms(`${LLMS()}\n## GATE DRAFT\nurl: http://gate-draft.localhost/\n`, { absent: ["http://gate-draft.localhost/"] }).some((p) => p.includes("gate-draft")));
+  assert.ok(checkLlms("# GymOS gyms\n\n> This file is a voluntary hint, not access control.\n", { present: [gate] }).some((p) => p.includes("does not list")));
+  assert.ok(checkLlms("nothing").some((p) => p.includes("header")));
+});
+test("locsOf decodes entities", () => {
+  assert.deepEqual(locsOf("<loc>http://a/?x=1&amp;y=2</loc><loc>b</loc>"), ["http://a/?x=1&y=2", "b"]);
+});
+
 // ---- end to end: check-http.mjs against a doctored server ----
 const SCRIPT = fileURLToPath(new URL("../check-http.mjs", import.meta.url));
 
@@ -169,6 +268,11 @@ const SCRIPT = fileURLToPath(new URL("../check-http.mjs", import.meta.url));
 function directoryResponse(url) {
   const p = url.pathname;
   const nf = () => ({ status: 404, headers: pageHeaders({ "cache-control": CACHE_CONTROL.notFound, vary: "rsc, next-router-state-tree", "x-middleware-rewrite": null, "content-security-policy": expectedCsp("'none'", styleHash(STYLE)) }), body: html("-NF") });
+  if (p === "/robots.txt") return crawl(TEXT_TYPE, ROBOTS);
+  if (p === "/sitemap-index.xml") return crawl(XML_TYPE, INDEX());
+  if (p === "/sitemaps/1.xml") return crawl(XML_TYPE, URLSET());
+  if (p === "/llms.txt") return crawl(TEXT_TYPE, LLMS());
+  if (p === "/en" || p === "/fr") return { status: 200, headers: { "content-type": ["text/html; charset=utf-8"], "cache-control": ["public, max-age=0, must-revalidate"] }, body: "<html><body>marketing</body></html>" };
   if (p === "/gyms/cm") return { status: 307, headers: { location: ["http://www.localhost/fr/gyms/cm"], "cache-control": ["no-store"] }, body: "" };
   if (p === "/en/gyms" || p === "/fr/gyms") return { status: 200, headers: dirHeaders(), body: dirHtml() };
   if (p === "/en/gyms/cm") return { status: 200, headers: dirHeaders({}, { noindex: true }), body: dirHtml({ noindex: true }) };
@@ -186,7 +290,7 @@ function startServer(doctor = () => undefined) {
     const url = new URL(req.url ?? "/", "http://x");
     let r;
     if (label === "www") r = directoryResponse(url);
-    else if (label === "gate-grace") r = { status: 200, headers: pageHeaders(), body: html() };
+    else if (label === "gate-grace" && url.pathname === "/") r = { status: 200, headers: pageHeaders(), body: html() };
     else if (label === "gate-grace-old") r = { status: 301, headers: { location: ["http://gate-grace.localhost/"], "cache-control": [CACHE_CONTROL.redirect], "x-content-type-options": ["nosniff"], "strict-transport-security": [SECURITY_BASE["strict-transport-security"]], vary: ["rsc"], "x-middleware-rewrite": ["/gym-site"] }, body: "" };
     else r = { status: 404, headers: pageHeaders({ "cache-control": CACHE_CONTROL.notFound, vary: "rsc, next-router-state-tree", "content-security-policy": expectedCsp("'none'", styleHash(STYLE)) }), body: html("-NF") };
     r = structuredClone(r);
@@ -391,4 +495,60 @@ test("decodeEntities decodes in a single pass and leaves an out-of-range numeric
   assert.equal(decodeEntities("a&#x110000;b"), "a&#x110000;b");
   assert.equal(decodeEntities("a&#99999999;b"), "a&#99999999;b");
   assert.equal(decodeEntities("&#x10FFFF;").codePointAt(0), 0x10ffff);
+});
+
+// ---- Story 25.5: the crawler checks of check-http.mjs, shown failing on doctored responses ----
+const onWww = (path, fn) => (label, r, url) => {
+  if (label === "www" && url === path) fn(r);
+};
+async function expectFailure(doctor, pattern) {
+  await withServer(doctor, async (port) => {
+    const { code, out } = await runCheck(port);
+    assert.equal(code, 1, out);
+    assert.match(out, pattern);
+  });
+}
+
+test("check-http: a doctored sitemap fails the run (known bad): a gym page, a filtered view, a lastmod, a gap in the index", async () => {
+  await expectFailure(onWww("/sitemaps/1.xml", (r) => (r.body = URLSET().replace("</urlset>", `  <url><loc>http://gate-grace.localhost/</loc></url>\n</urlset>\n`))), /www \/sitemaps\/1\.xml: sitemap: http:\/\/gate-grace\.localhost\/ is not on the www origin/);
+  await expectFailure(onWww("/sitemaps/1.xml", (r) => (r.body = URLSET(["/en", "/fr", "/en/gyms/cm/garoua?category=gym"]))), /not a marketing or directory page/);
+  await expectFailure(onWww("/sitemaps/1.xml", (r) => (r.body = r.body.replace("</url>", "<lastmod>2026-01-01</lastmod></url>"))), /carries lastmod, changefreq or priority/);
+  await expectFailure(onWww("/sitemap-index.xml", (r) => (r.body = INDEX().replace("/sitemaps/1.xml", "/sitemaps/2.xml"))), /sitemap-index: <loc> 1 is/);
+});
+test("check-http: a sitemap that lists a URL which is not served, or is noindex, fails the run naming the URL", async () => {
+  await expectFailure(onWww("/sitemaps/1.xml", (r) => (r.body = URLSET(["/en", "/fr", "/en/gyms", "/en/gyms/cm/nowhere"]))), /www \/en\/gyms\/cm\/nowhere \(listed in a sitemap\): status 404, expected 200/);
+  await expectFailure(onWww("/fr/gyms", (r) => ((r.headers["x-robots-tag"] = ["noindex"]), (r.body = dirHtml({ noindex: true })))), /www \/fr\/gyms \(listed in a sitemap\): it carries X-Robots-Tag/);
+  await expectFailure(onWww("/sitemap-index.xml", (r) => (r.body = INDEX(2))), /www \/sitemaps\/2\.xml: crawler: status 404, expected 200/);
+});
+test("check-http: robots.txt with a Disallow, a wrong header, or a Set-Cookie fails the run", async () => {
+  await expectFailure(onWww("/robots.txt", (r) => (r.body += "Disallow: /en/gyms\n")), /www \/robots\.txt: robots: it carries a Disallow/);
+  await expectFailure(onWww("/robots.txt", (r) => (r.headers["cache-control"] = ["public, s-maxage=3600"])), /www \/robots\.txt: crawler: cache-control is/);
+  await expectFailure(onWww("/sitemap-index.xml", (r) => (r.headers["set-cookie"] = ["a=b"])), /www \/sitemap-index\.xml: crawler: sets a cookie/);
+});
+test("check-http: llms.txt that lists a removed gym, a non-allowlisted line or no hint fails the run", async () => {
+  await expectFailure(onWww("/llms.txt", (r) => (r.body += "\n## GATE DRAFT\nurl: http://gate-draft.localhost/\n")), /www \/llms\.txt: llms: it lists http:\/\/gate-draft\.localhost\/, a gym whose page is not served/);
+  await expectFailure(onWww("/llms.txt", (r) => (r.body += "phone: +237600000000\n")), /llms: line \d+ is not an allowlisted field/);
+  await expectFailure(onWww("/llms.txt", (r) => (r.body = r.body.replace("voluntary hint", "hint"))), /voluntary hint/);
+});
+test("check-http: a gym host that answers a main-site file or page with anything but the uniform not-found fails the run", async () => {
+  for (const path of ["/llms.txt", "/sitemap-index.xml", "/sitemaps/1.xml", "/en/gyms", "/en/gyms/cm"]) {
+    await withServer((label, r, url) => {
+      if (label === "gate-grace" && url === path) Object.assign(r, { status: 200, headers: pageHeaders(), body: html() });
+    }, async (port) => {
+      const { code, out } = await runCheck(port);
+      assert.equal(code, 1, path);
+      assert.match(out, new RegExp(`gate-grace ${path.replace(/[/.]/g, "\\$&")} \\(gym host\\): notFound: status 200, expected 404`));
+    });
+  }
+  await expectFailure((label, r, url) => {
+    if (label === "gate-nobody-here" && url === "/robots.txt") r.body = html("-DIFFERENT");
+  }, /gate-nobody-here \/robots\.txt: not the unknown label's not-found: body differs/);
+  await expectFailure((label, r, url) => {
+    if (label === "gate-grace" && url === "/llms.txt") r.headers["cache-control"] = ["public, s-maxage=31"];
+  }, /gate-grace \/llms\.txt: not the unknown label's not-found: header cache-control/);
+});
+test("check-http: a chunk that should not exist but answers 200 fails the run", async () => {
+  await expectFailure((label, r, url) => {
+    if (label === "www" && url === "/sitemaps/0.xml") Object.assign(r, crawl(XML_TYPE, URLSET()));
+  }, /www \/sitemaps\/0\.xml: notFound: status 200, expected 404/);
 });

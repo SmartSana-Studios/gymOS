@@ -53,3 +53,29 @@ export interface DirectoryReader {
 
 /** Gyms per page of a city listing (the SQL text in readerSql.ts has the same 20). */
 export const DIRECTORY_PAGE_SIZE = 20;
+
+/** Story 25.5: a city the sitemap may list: its row has `indexable` set (`directory_city`). Whether its country is listed is decided from the country rows. */
+export interface CrawlCityRow {
+  /** Upper-case alpha-2, as the views carry it. */
+  countryCode: string;
+  citySlug: string;
+}
+
+/** Story 25.5: a row of `public_site.pages` as `/llms.txt` reads it: the page name and the unparsed snapshot (the handler parses it strictly, like the page does). */
+export interface LlmsPageRow {
+  name: string;
+  template: unknown;
+  schema_version: unknown;
+  content: unknown;
+}
+
+/**
+ * Story 25.5: the reads of the crawler responses. The countries and the city totals are the directory page's own reads (the sitemap applies the same
+ * rules to the same rows); the other two are new: the cities with `indexable` set, and the visible page snapshots (hours and plans live only there).
+ */
+export interface CrawlReader extends Pick<DirectoryReader, "readCountries" | "readCityTotals"> {
+  /** Every city with `indexable` set, ordered by country code then slug. */
+  readIndexableCities(): Promise<CrawlCityRow[]>;
+  /** At most `limit` visible pages ordered by page name (byte order). */
+  readLlmsPages(limit: number): Promise<LlmsPageRow[]>;
+}

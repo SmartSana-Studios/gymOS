@@ -180,6 +180,34 @@ describe("Story 24.11: the sitemap, robots and report routes, through the proxy"
   });
 });
 
+describe("Story 25.5: the main site's crawler files and directory pages do not exist on a gym host", () => {
+  const MAIN_SITE_PATHS = ["/llms.txt", "/sitemap-index.xml", "/sitemaps/1.xml", "/en/gyms", "/en/gyms/cm", "/fr/gyms/cm/douala"];
+  it("a visible gym host answers each with the byte-identical uniform not-found", async () => {
+    const expected = await snap(notFoundResponse("gymosapps.com"));
+    for (const path of MAIN_SITE_PATHS) expect(await snap(await viaProxy("fit.gymosapps.com", path)), path).toEqual(expected);
+  });
+  it("an unknown gym host answers each of them, and /robots.txt, with the same bytes as the unknown label's own root", async () => {
+    const expected = await snap(notFoundResponse("gymosapps.com"));
+    expect(await snap(await viaProxy("hidden.gymosapps.com", "/"))).toEqual(expected);
+    for (const path of [...MAIN_SITE_PATHS, "/robots.txt"]) expect(await snap(await viaProxy("hidden.gymosapps.com", path)), path).toEqual(expected);
+  });
+  it("the 24.11 gym-host sitemap and robots are byte-identical to their literal form", async () => {
+    const s = await viaProxy("fit.gymosapps.com", "/sitemap.xml");
+    expect(await s.text()).toBe('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>https://fit.gymosapps.com/</loc></url>\n</urlset>\n');
+    expect(Object.fromEntries(s.headers.entries())).toEqual({
+      "cache-control": "public, s-maxage=300",
+      "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+      "content-type": "application/xml; charset=utf-8",
+      "referrer-policy": "strict-origin-when-cross-origin",
+      "strict-transport-security": "max-age=63072000; includeSubDomains",
+      "x-content-type-options": "nosniff",
+    });
+    const r = await viaProxy("fit.gymosapps.com", "/robots.txt");
+    expect(await r.text()).toBe("User-agent: *\nAllow: /\n\nSitemap: https://fit.gymosapps.com/sitemap.xml\n");
+    expect(r.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+  });
+});
+
 describe("the self-hosted fonts and their cache rule", () => {
   it("every allowlisted font exists under public/ and is a woff2 file", () => {
     for (const f of Object.values(FONT_ALLOWLIST)) {

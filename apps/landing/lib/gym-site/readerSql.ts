@@ -48,3 +48,14 @@ export const DIRECTORY_GYMS_SQL =
   "from public_site.directory_gym " +
   "where country_code = $1 and city_slug = $2 and ($3::text is null or category = $3::text) " +
   "order by lower(name), page_name limit 20 offset ($4::integer - 1) * 20";
+
+// Story 25.5: the two crawler reads. Same rules as above: one unnamed statement each, `$n` params, no quote characters in the text. The cities are the
+// ones the unfiltered city page serves as indexable; the pages are the AD-46 snapshot (the directory views carry neither hours nor plans), ordered by
+// byte order of the page name so the cut at the cap is deterministic.
+
+/** The cities whose row says indexable (a thin city is absent). The country rule is applied by the caller, from the country rows and the city totals. */
+export const CRAWL_CITIES_SQL = "select country_code, city_slug from public_site.directory_city where indexable order by country_code, city_slug";
+
+/** The visible pages for `/llms.txt`. `$1` is the number of rows wanted (the cap plus one, to know whether the list was cut). */
+export const CRAWL_PAGES_SQL =
+  "select name, template, schema_version, content from public_site.pages order by name collate \"C\" limit $1::integer";

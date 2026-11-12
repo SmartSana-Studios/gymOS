@@ -16,6 +16,7 @@ import { isLocale, otherLocale, type Locale } from "@/lib/i18n";
 import { DIRECTORY_COPY } from "./copy";
 import { directoryHeaders } from "./headers";
 import { DirectoryPage, type CardView, type Crumb, type DirectoryBody, type DirectoryDocument, type PageLinkView, type PillView, type RowView } from "./markup";
+import { CITY_SEGMENT_MAX, CITY_SEGMENT, COUNTRY_SEGMENT, countryIsIndexable, directoryPath } from "./indexable";
 import { DIRECTORY_PAGE_SIZE, type CountryRow, type DirectoryReader, type GymRow } from "./types";
 
 export interface DirectoryDeps {
@@ -39,8 +40,6 @@ export interface DirectoryRequest {
 /** The country whose card goes first on the top page. A plain ordering rule: nothing else on the page names or treats it differently. */
 const FIRST_COUNTRY = "cm";
 
-const COUNTRY_SEGMENT = /^[a-z]{2}$/;
-const CITY_SEGMENT = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const PAGE_PARAM = /^[1-9][0-9]{0,5}$/;
 
 const gymCategories = (code: string): code is keyof typeof GYM_CATEGORY_LABELS => Object.hasOwn(GYM_CATEGORY_LABELS, code);
@@ -86,7 +85,7 @@ export async function handleDirectory(req: DirectoryRequest, deps: DirectoryDeps
   const cc = segments[0];
   const citySlug = segments[1];
   if (cc !== undefined && !COUNTRY_SEGMENT.test(cc)) return notFound();
-  if (citySlug !== undefined && (citySlug.length > 60 || !CITY_SEGMENT.test(citySlug))) return notFound();
+  if (citySlug !== undefined && (citySlug.length > CITY_SEGMENT_MAX || !CITY_SEGMENT.test(citySlug))) return notFound();
 
   let built: Built | null;
   try {
@@ -145,8 +144,6 @@ interface Context {
   www: string;
   reader: DirectoryReader;
 }
-
-const directoryPath = (locale: Locale, ...rest: string[]): string => `/${[locale, "gyms", ...rest].join("/")}`;
 
 /** The fields every page shares, from its locale-free path (`rest`) and the query kept in its canonical. */
 function frame(ctx: Context, rest: string[], canonicalQuery: string, languageQuery: string) {
@@ -224,7 +221,7 @@ async function countryPage(ctx: Context, cc: string): Promise<Built | null> {
       title: `${copy.country.titleLead} ${name} | ${copy.siteName}`,
       description: copy.country.metaDescription(name),
       // the flag of the country view AND the rows agreeing with it: while they disagree (refresh window) the page is not offered to crawlers
-      indexable: country.indexable && s === country.publishedCount,
+      indexable: countryIsIndexable(country, s),
       crumbs: [
         { label: copy.gyms, href: directoryPath(ctx.locale) },
         { label: name, href: null },

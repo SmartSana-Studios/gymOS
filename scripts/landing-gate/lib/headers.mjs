@@ -12,7 +12,12 @@ export const CACHE_CONTROL = {
   page: "public, s-maxage=60",
   notFound: "public, s-maxage=30",
   redirect: "public, max-age=300, s-maxage=300",
+  /** Story 25.5: robots.txt, the sitemaps and llms.txt (packages/page-templates/src/seo.ts, SEO_CACHE_CONTROL). */
+  crawler: "public, s-maxage=300",
 };
+
+/** Story 25.5: the CSP of a crawler file: nothing is allowed. */
+export const CRAWLER_CSP = "default-src 'none'; frame-ancestors 'none'";
 
 /** Headers every Node response carries: transport, not policy. */
 export const TRANSPORT_HEADERS = new Set(["date", "connection", "keep-alive", "content-length", "transfer-encoding"]);
@@ -160,9 +165,9 @@ export function checkDirectoryDocument(h, body, indexable, expected) {
 
 /**
  * Judge one response against the exact header set of its kind.
- * @param {"page"|"notFound"|"redirect"|"directory"} kind  "directory" (Story 25.3) is a directory page on www: the page set, no language Vary, an X-Robots-Tag that must agree with the document, and a script-free body
+ * @param {"page"|"notFound"|"redirect"|"directory"|"crawler"} kind  "crawler" (Story 25.5) is a robots.txt, sitemap or llms.txt of www: `ctx.contentType`, `public, s-maxage=300`, the CSP that allows nothing, the base security headers, no cookie. "directory" (Story 25.3) is a directory page on www: the page set, no language Vary, an X-Robots-Tag that must agree with the document, and a script-free body
  * @param {{status:number, headers:Record<string,string[]>, body:Buffer|string}} res  headers as folded by lib/http.mjs
- * @param {{mediaOrigin:string, platform?:string, extraAllowed?:string[], varyLanguage?:boolean, location?:string, indexable?:boolean, structuredData?:"HealthClub"|"ItemList"|"none"}} ctx  `indexable` (directory only): true = no X-Robots-Tag, false = `noindex`, undefined = either, but header and meta tag must agree; `structuredData` (page, directory): the one JSON-LD block expected ("none" = no block; undefined = a gym page is a HealthClub, a directory page has at most one)
+ * @param {{contentType?:string, mediaOrigin:string, platform?:string, extraAllowed?:string[], varyLanguage?:boolean, location?:string, indexable?:boolean, structuredData?:"HealthClub"|"ItemList"|"none"}} ctx  `indexable` (directory only): true = no X-Robots-Tag, false = `noindex`, undefined = either, but header and meta tag must agree; `structuredData` (page, directory): the one JSON-LD block expected ("none" = no block; undefined = a gym page is a HealthClub, a directory page has at most one)
  * @returns {{problems:string[], nextAdded:string[], platformExtras:string[]}}
  */
 export function checkResponse(kind, res, ctx) {
@@ -177,13 +182,19 @@ export function checkResponse(kind, res, ctx) {
   };
   const body = typeof res.body === "string" ? res.body : res.body.toString("utf8");
 
-  const expectedStatus = { page: 200, directory: 200, notFound: 404, redirect: 301 }[kind];
+  const expectedStatus = { page: 200, directory: 200, crawler: 200, notFound: 404, redirect: 301 }[kind];
   if (res.status !== expectedStatus) problems.push(`${kind}: status ${res.status}, expected ${expectedStatus}`);
 
   const expected = new Set();
   const expect_ = (name, value) => { expected.add(name); want(name, value); };
 
-  if (kind === "page" || kind === "notFound" || kind === "directory") {
+  if (kind === "crawler") {
+    // Story 25.5: robots.txt, /sitemap-index.xml, /sitemaps/{n}.xml and /llms.txt of www: their own content type, a 5 minute cache, a CSP that allows nothing
+    expect_("content-type", ctx.contentType);
+    expect_("cache-control", CACHE_CONTROL.crawler);
+    for (const [k, v] of Object.entries(SECURITY_BASE)) expect_(k, v);
+    expect_("content-security-policy", CRAWLER_CSP);
+  } else if (kind === "page" || kind === "notFound" || kind === "directory") {
     expect_("content-type", "text/html; charset=utf-8");
     expect_("cache-control", kind === "notFound" ? CACHE_CONTROL.notFound : CACHE_CONTROL.page);
     for (const [k, v] of Object.entries(SECURITY_BASE)) expect_(k, v);
@@ -220,8 +231,8 @@ export function checkResponse(kind, res, ctx) {
   const allowedExtra = new Set(ctx.extraAllowed ?? []);
   for (const name of Object.keys(h)) {
     if (expected.has(name) || TRANSPORT_HEADERS.has(name) || name === "set-cookie") continue;
-    if (kind === "directory" && name in NEXT_ADDED_HEADERS) {
-      problems.push(`directory: unexpected header ${name}: ${(h[name] ?? []).join(" | ")} (a directory page is served by its own route, never rewritten)`);
+    if ((kind === "directory" || kind === "crawler") && name in NEXT_ADDED_HEADERS) {
+      problems.push(`${kind}: unexpected header ${name}: ${(h[name] ?? []).join(" | ")} (a ${kind === "directory" ? "directory page" : "crawler file"} is served by its own route, never rewritten)`);
     } else if (name in NEXT_ADDED_HEADERS) {
       if (one(name) !== NEXT_ADDED_HEADERS[name]) problems.push(`${kind}: ${name} is [${(h[name] ?? []).join(" | ")}], Next adds [${NEXT_ADDED_HEADERS[name]}]`);
       else nextAdded.push(`${name}: ${NEXT_ADDED_HEADERS[name]}`);
@@ -251,4 +262,119 @@ export function diffResponses(a, b, { platform = "none" } = {}) {
   }
   if (!Buffer.from(a.body).equals(Buffer.from(b.body))) diffs.push(`body differs (${a.body.length} vs ${b.body.length} bytes)`);
   return diffs;
+}
+
+// ---- Story 25.5: the crawler files of www, judged on the body of a real response ----
+
+/** The `<loc>` values of a sitemap document, in order, decoded. */
+export function locsOf(xml) {
+  return [...xml.matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => decodeEntities(m[1]));
+}
+
+/** robots.txt of www: allow everything, disallow nothing, name the index at the configured origin. */
+export function checkRobots(body, www) {
+  const problems = [];
+  const lines = body.split("\n").filter((l) => l !== "");
+  if (lines[0] !== "User-agent: *") problems.push("robots: the first line is not `User-agent: *`");
+  if (!lines.includes("Allow: /")) problems.push("robots: no `Allow: /`");
+  if (lines.some((l) => /^disallow\s*:/i.test(l))) problems.push("robots: it carries a Disallow (a filtered view needs crawling to read its canonical)");
+  const sitemaps = lines.filter((l) => /^sitemap\s*:/i.test(l));
+  if (sitemaps.length !== 1 || sitemaps[0] !== `Sitemap: ${www}/sitemap-index.xml`) problems.push(`robots: expected exactly \`Sitemap: ${www}/sitemap-index.xml\`, got [${sitemaps.join(" | ")}]`);
+  return problems;
+}
+
+/** /sitemap-index.xml: a sitemapindex whose `<loc>` are `{www}/sitemaps/1.xml` ... `/N.xml`, consecutive, at least one. */
+export function checkSitemapIndex(body, www) {
+  const problems = [];
+  if (!/<sitemapindex\b[^>]*xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9"/.test(body)) problems.push("sitemap-index: not a sitemapindex document");
+  if (/<lastmod|<changefreq|<priority/.test(body)) problems.push("sitemap-index: it carries lastmod, changefreq or priority");
+  const locs = locsOf(body);
+  if (locs.length === 0) problems.push("sitemap-index: it lists no file");
+  locs.forEach((l, i) => {
+    if (l !== `${www}/sitemaps/${i + 1}.xml`) problems.push(`sitemap-index: <loc> ${i + 1} is [${l}], expected [${www}/sitemaps/${i + 1}.xml]`);
+  });
+  return problems;
+}
+
+const DIRECTORY_URL_PATH = /^\/(en|fr)(\/gyms(\/[a-z]{2}(\/[a-z0-9]+(-[a-z0-9]+)*)?)?)?$/;
+
+/** A chunk: a urlset of at most 50,000 `<url>`, each on the www origin, a marketing page or a directory page (never a gym page or a filtered view), with en, fr and x-default alternates. */
+export function checkUrlset(body, www, { max = 50_000 } = {}) {
+  const problems = [];
+  if (!/<urlset\b[^>]*xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9"/.test(body)) problems.push("sitemap: not a urlset document");
+  if (/<lastmod|<changefreq|<priority/.test(body)) problems.push("sitemap: it carries lastmod, changefreq or priority");
+  const urls = [...body.matchAll(/<url>([\s\S]*?)<\/url>/g)].map((m) => m[1]);
+  if (urls.length === 0) problems.push("sitemap: it lists no <url>");
+  if (urls.length > max) problems.push(`sitemap: ${urls.length} <url>, at most ${max}`);
+  const seen = new Set();
+  for (const u of urls) {
+    const loc = locsOf(u);
+    if (loc.length !== 1) {
+      problems.push(`sitemap: a <url> has ${loc.length} <loc>`);
+      continue;
+    }
+    const l = loc[0];
+    if (!l.startsWith(`${www}/`)) problems.push(`sitemap: ${l} is not on the www origin ${www}`);
+    else if (!DIRECTORY_URL_PATH.test(l.slice(www.length))) problems.push(`sitemap: ${l} is not a marketing or directory page (a gym page, a filtered view and anything else are never listed)`);
+    if (seen.has(l)) problems.push(`sitemap: ${l} is listed twice`);
+    seen.add(l);
+    const alt = Object.fromEntries([...u.matchAll(/<xhtml:link rel="alternate" hreflang="([^"]+)" href="([^"]+)"\/>/g)].map((m) => [m[1], decodeEntities(m[2])]));
+    for (const k of ["en", "fr", "x-default"]) if (!alt[k]) problems.push(`sitemap: ${l} has no ${k} alternate`);
+    if (alt.en && alt["x-default"] && alt.en !== alt["x-default"]) problems.push(`sitemap: ${l} x-default is not the English URL`);
+    if (alt.en && alt.fr && ![alt.en, alt.fr].includes(l)) problems.push(`sitemap: ${l} is neither of its own alternates`);
+  }
+  return problems;
+}
+
+/**
+ * A URL a sitemap lists, fetched: 200 and no `noindex` (header or robots meta tag). Marketing pages (`/en`, `/fr`) have no robots header of ours; a directory page
+ * has one flag in both places. `res` is the response to the request for that URL's path.
+ */
+export function checkListedPage(res) {
+  const problems = [];
+  if (res.status !== 200) problems.push(`status ${res.status}, expected 200`);
+  const header = res.headers["x-robots-tag"];
+  if (header !== undefined) problems.push(`it carries X-Robots-Tag [${header.join(" | ")}]`);
+  const body = typeof res.body === "string" ? res.body : res.body.toString("utf8");
+  if (/<meta[^>]+name="robots"[^>]+content="[^"]*noindex/i.test(body) || /<meta[^>]+content="[^"]*noindex[^"]*"[^>]+name="robots"/i.test(body)) problems.push("it carries a robots noindex meta tag");
+  return problems;
+}
+
+/**
+ * /llms.txt: plain text with a header that says it is a voluntary hint, then one block per gym made only of allowlisted lines (`## name`, `url:`, `category:`,
+ * `location:`, `hours:`, `plans:` and `- plan` lines). Every block starts with a `## ` line followed by its `url:` on the gym's own subdomain.
+ * `absent` are URL prefixes (`scheme://label.root/`) that must not appear: the removed gyms of the fixture.
+ */
+export function checkLlms(body, { absent = [], present = [] } = {}) {
+  const problems = [];
+  if (!/^# GymOS gyms\n/.test(body)) problems.push("llms: it does not start with the `# GymOS gyms` header");
+  if (!/voluntary hint/.test(body) || !/not access control/.test(body)) problems.push("llms: the header does not call it a voluntary hint, not access control");
+  const lines = body.split("\n");
+  let inHeader = true;
+  let blocks = 0;
+  let sawUrl = true;
+  for (const [i, l] of lines.entries()) {
+    if (l === "") continue;
+    if (l.startsWith("## ")) {
+      inHeader = false;
+      if (!sawUrl) problems.push(`llms: line ${i + 1}: a block has no url: line`);
+      blocks++;
+      sawUrl = false;
+      continue;
+    }
+    if (inHeader && (l.startsWith("# ") || l.startsWith("> "))) continue;
+    if (/^The list is cut at [\d,]+ gyms; more exist\.$/.test(l)) continue;
+    if (inHeader) {
+      problems.push(`llms: line ${i + 1} is neither a header nor a block line`);
+      continue;
+    }
+    if (l.startsWith("url: ")) {
+      sawUrl = true;
+      if (!/^url: https?:\/\/[a-z0-9-]+\.[^/\s]+\/$/.test(l)) problems.push(`llms: line ${i + 1}: url is not a gym's subdomain address`);
+    } else if (!/^(category: |location: |hours: |plans:$|- )/.test(l)) problems.push(`llms: line ${i + 1} is not an allowlisted field`);
+  }
+  if (blocks > 0 && !sawUrl) problems.push("llms: the last block has no url: line");
+  for (const a of absent) if (body.includes(a)) problems.push(`llms: it lists ${a}, a gym whose page is not served`);
+  for (const p of present) if (!body.includes(p)) problems.push(`llms: it does not list ${p}`);
+  return problems;
 }

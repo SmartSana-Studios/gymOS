@@ -6,6 +6,8 @@ import { PAGE_REPORT_RESULTS, type PageReportResult } from "@gymos/types";
 import {
   BEGIN_RW_SQL,
   COMMIT_SQL,
+  CRAWL_CITIES_SQL,
+  CRAWL_PAGES_SQL,
   DIRECTORY_CATEGORIES_SQL,
   DIRECTORY_CITIES_SQL,
   DIRECTORY_CITY_SQL,
@@ -17,7 +19,7 @@ import {
   REDIRECT_SQL,
   SUBMIT_REPORT_SQL,
 } from "./readerSql";
-import type { CityRow, CountryRow, DirectoryReader, GymPage, GymRow } from "../directory/types";
+import type { CityRow, CountryRow, CrawlReader, DirectoryReader, GymPage, GymRow } from "../directory/types";
 
 // Story 24.10 (AD-42): the ONLY database access of the public site. Server-only, driver `pg`, connected as `public_site_reader` through the
 // pooler, selecting from `public_site.*` views and nothing else. Pool of ONE connection per instance (the role's CONNECTION LIMIT is sized as
@@ -194,8 +196,23 @@ export function createReader(getPool: () => Queryable = defaultPool, retryDelayM
     },
   };
 
+  /** Story 25.5: the crawler reads. The countries and the city totals are the directory's own. */
+  const crawl: CrawlReader = {
+    readCountries: directory.readCountries,
+    readCityTotals: directory.readCityTotals,
+    async readIndexableCities() {
+      const { rows } = await run(CRAWL_CITIES_SQL, []);
+      return rows.map((r) => ({ countryCode: str(r.country_code), citySlug: str(r.city_slug) }));
+    },
+    async readLlmsPages(limit) {
+      const { rows } = await run(CRAWL_PAGES_SQL, [limit]);
+      return rows.map((r) => ({ name: str(r.name), template: r.template, schema_version: r.schema_version, content: r.content }));
+    },
+  };
+
   return {
     ...directory,
+    ...crawl,
     submitReport: submit,
     /** The visible page of a name, or null. The view holds the one visibility predicate. */
     async readPage(name: string): Promise<PageRow | null> {

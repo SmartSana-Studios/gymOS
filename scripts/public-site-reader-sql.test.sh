@@ -15,6 +15,9 @@
 # Story 25.3 adds the seven directory statements (DIRECTORY_*_SQL: the three public_site directory views only) in the same rolled-back transaction: two visible gyms with a
 # city (one with a logo), one unpublished gym with the same city, and the cases the pages rely on (counts, order, filter, page past the last).
 #
+# Story 25.5 adds the two crawler statements (CRAWL_CITIES_SQL: the indexable cities of directory_city; CRAWL_PAGES_SQL: the visible snapshots of public_site.pages in byte order,
+# limited by a parameter) to the same transaction, with a second city of three visible gyms (so one city is indexable and one is thin).
+#
 # Needs the local Supabase stack and Node 22.18 or later. The first block never commits; the report block commits its own fixtures and removes them.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -34,6 +37,13 @@ for n in "${DIR_NAMES[@]}"; do
   [ -n "${DIR[$n]}" ] || { echo "FAIL $SRC does not export $n"; exit 1; }
   case "${DIR[$n]}" in *"'"*) echo "FAIL $n contains a quote; the harness binds only \$1 to \$4"; exit 1;; esac
 done
+CRAWL_NAMES=(CRAWL_CITIES_SQL CRAWL_PAGES_SQL)
+declare -A CRAWL
+for n in "${CRAWL_NAMES[@]}"; do
+  CRAWL[$n]=$(load "$n")
+  [ -n "${CRAWL[$n]}" ] || { echo "FAIL $SRC does not export $n"; exit 1; }
+  case "${CRAWL[$n]}" in *"'"*) echo "FAIL $n contains a quote; the harness binds only \$1 to \$4"; exit 1;; esac
+done
 BEGIN_RW_SQL=$(load BEGIN_RW_SQL); SUBMIT_REPORT_SQL=$(load SUBMIT_REPORT_SQL); COMMIT_SQL=$(load COMMIT_SQL)
 [ -n "$BEGIN_RW_SQL" ] && [ -n "$SUBMIT_REPORT_SQL" ] && [ -n "$COMMIT_SQL" ] || { echo "FAIL $SRC does not export BEGIN_RW_SQL, SUBMIT_REPORT_SQL and COMMIT_SQL"; exit 1; }
 case "$PAGE_SQL$REDIRECT_SQL$SUBMIT_REPORT_SQL" in *"'"*) echo "FAIL a reader statement contains a quote; the harness binds only \$1 to \$4"; exit 1;; esac
@@ -44,6 +54,9 @@ G2=00000000-0000-0000-0000-00000000a1f2
 G3=00000000-0000-0000-0000-00000000a1f3
 G4=00000000-0000-0000-0000-00000000a1f4
 G5=00000000-0000-0000-0000-00000000a1f5
+G6=00000000-0000-0000-0000-00000000a1f6
+G7=00000000-0000-0000-0000-00000000a1f7
+G8=00000000-0000-0000-0000-00000000a1f8
 LOGO=00000001-aaaa-4bbb-8ccc-0000000a1f01.webp
 
 out=$({
@@ -76,6 +89,20 @@ insert into public.gym_pages (gym_id, page_name_id, template, published_at, cont
   ('$G3', '00000000-0000-0000-0000-0000000a1fa3', 'classic', now(), '{"name":"Beta Gym","category":"gym","country":"CM"}'),
   ('$G4', '00000000-0000-0000-0000-0000000a1fa4', 'classic', now(), '{"name":"alpha Yoga","category":"yoga_studio","country":"CM","logo":"$LOGO"}'),
   ('$G5', '00000000-0000-0000-0000-0000000a1fa5', 'classic', null,  '{"name":"Draft Gym","category":"gym","country":"CM"}');
+-- Story 25.5: a second city of its own with three visible gyms (indexable), next to the thin one above
+insert into public.cities (country_code, slug, name) values ('CM', 'rsq-big', 'Rsq Big');
+insert into gyms (id, name, tier_id, capacity, status, city_id) values
+  ('$G6', 'Reader Sql Big One',   '$TIER', 30, 'active', (select id from public.cities where country_code = 'CM' and slug = 'rsq-big')),
+  ('$G7', 'Reader Sql Big Two',   '$TIER', 30, 'active', (select id from public.cities where country_code = 'CM' and slug = 'rsq-big')),
+  ('$G8', 'Reader Sql Big Three', '$TIER', 30, 'active', (select id from public.cities where country_code = 'CM' and slug = 'rsq-big'));
+insert into public.page_names (id, gym_id, name, state, origin) values
+  ('00000000-0000-0000-0000-0000000a1fa6', '$G6', 'rsq-big-1', 'active', 'claim'),
+  ('00000000-0000-0000-0000-0000000a1fa7', '$G7', 'rsq-big-2', 'active', 'claim'),
+  ('00000000-0000-0000-0000-0000000a1fa8', '$G8', 'rsq-big-3', 'active', 'claim');
+insert into public.gym_pages (gym_id, page_name_id, template, published_at, content) values
+  ('$G6', '00000000-0000-0000-0000-0000000a1fa6', 'classic', now(), '{"name":"Big One","category":"gym","country":"CM"}'),
+  ('$G7', '00000000-0000-0000-0000-0000000a1fa7', 'classic', now(), '{"name":"Big Two","category":"gym","country":"CM"}'),
+  ('$G8', '00000000-0000-0000-0000-0000000a1fa8', 'classic', now(), '{"name":"Big Three","category":"gym","country":"CM"}');
 set local role public_site_reader;
 prepare page_q as $PAGE_SQL;
 prepare redirect_q as $REDIRECT_SQL;
@@ -86,6 +113,8 @@ prepare dir_cities as ${DIR[DIRECTORY_CITIES_SQL]};
 prepare dir_city as ${DIR[DIRECTORY_CITY_SQL]};
 prepare dir_categories as ${DIR[DIRECTORY_CATEGORIES_SQL]};
 prepare dir_gyms as ${DIR[DIRECTORY_GYMS_SQL]};
+prepare crawl_cities as ${CRAWL[CRAWL_CITIES_SQL]};
+prepare crawl_pages as ${CRAWL[CRAWL_PAGES_SQL]};
 \echo CASE page_visible
 execute page_q('rsq-visible');
 \echo CASE page_unpublished
@@ -120,6 +149,12 @@ execute dir_gyms('CM', 'rsq-city', 'gym', 1);
 execute dir_gyms('CM', 'rsq-city', 'other', 1);
 \echo CASE dir_gyms_past_last
 execute dir_gyms('CM', 'rsq-city', null, 2);
+\echo CASE crawl_cities
+execute crawl_cities;
+\echo CASE crawl_pages
+execute crawl_pages(1000);
+\echo CASE crawl_pages_limited
+execute crawl_pages(2);
 \echo CASE END
 reset role;
 rollback;
@@ -153,12 +188,13 @@ check page_unknown ''
 check redirect_old 'rsq-visible'
 check redirect_unknown ''
 
-# ---- Story 25.3: the directory statements, as the role (two visible gyms in a city of their own; thin, so indexable is false) ----
-check dir_countries 'CM|Cameroon|Cameroun|2|f'
-check dir_country 'CM|Cameroon|Cameroun|2|f'
+# ---- Story 25.3: the directory statements, as the role (two visible gyms in a city of their own; thin, so indexable is false; Story 25.5 adds a city of three) ----
+check dir_countries 'CM|Cameroon|Cameroun|5|t'
+check dir_country 'CM|Cameroon|Cameroun|5|t'
 check dir_country_unknown ''
-check dir_totals 'CM|2'
-check dir_cities 'rsq-city|Rsq City|2|f'
+check dir_totals 'CM|5'
+check_sorted dir_cities 'rsq-big|Rsq Big|3|t
+rsq-city|Rsq City|2|f'
 check dir_city 'rsq-city|Rsq City|2|f'
 check dir_city_unknown ''
 check_sorted dir_categories 'gym
@@ -168,6 +204,22 @@ Rsq City|gym|Beta Gym|rsq-dir-b||2"
 check dir_gyms_filtered 'Rsq City|gym|Beta Gym|rsq-dir-b||1'
 check dir_gyms_stale_filter ''
 check dir_gyms_past_last ''
+
+# ---- Story 25.5: the crawler statements, as the role: only the city that reaches the threshold; every visible page in byte order, none unpublished; the limit holds ----
+check crawl_cities 'CM|rsq-big'
+names() { printf '%s\n' "$out" | awk -v c="CASE $1" '$0 == c {on=1; next} /^CASE /{on=0} on' | grep -v '^$' | cut -d'|' -f1; }
+got=$(names crawl_pages)
+if [ "$got" = "rsq-big-1
+rsq-big-2
+rsq-big-3
+rsq-dir-a
+rsq-dir-b
+rsq-visible" ]; then echo "ok   crawl_pages"; else echo "FAIL crawl_pages: expected the six visible rsq pages in byte order, got [$got]"; fail=1; fi
+got=$(names crawl_pages_limited)
+if [ "$got" = "rsq-big-1
+rsq-big-2" ]; then echo "ok   crawl_pages_limited"; else echo "FAIL crawl_pages_limited: expected [rsq-big-1 rsq-big-2], got [$got]"; fail=1; fi
+cols=$(printf '%s\n' "$out" | awk '$0 == "CASE crawl_pages_limited" {on=1; next} /^CASE /{on=0} on' | grep -v '^$' | head -1 | cut -d'|' -f2-3)
+if [ "$cols" = "classic|1" ]; then echo "ok   crawl_pages_columns"; else echo "FAIL crawl_pages_columns: expected [classic|1] after the name, got [$cols]"; fail=1; fi
 
 # ---- Story 24.11: the report, as the role (committed fixtures, always removed) ----
 RT=00000000-0000-0000-0000-000000000a2f
@@ -251,5 +303,5 @@ SQL
 if printf '%s\n' "$ro" | grep -q 'cannot execute INSERT in a read-only transaction' || printf '%s\n' "$ro" | grep -qi 'read-only transaction'; then echo "ok   report_bare_call_refused"; else echo "FAIL report_bare_call_refused: [$ro]"; fail=1; fi
 denied=$(printf '%s\n' "$ro" | grep -c 'permission denied')
 if [ "$denied" = 3 ]; then echo "ok   report_other_calls_denied"; else echo "FAIL report_other_calls_denied: expected 3 permission errors, got $denied: [$ro]"; fail=1; fi
-[ "$fail" = 0 ] && echo "public-site reader SQL: 5/5 page cases, 12 directory cases and 7 report cases ok"
+[ "$fail" = 0 ] && echo "public-site reader SQL: 5/5 page cases, 12 directory cases, 4 crawler cases and 7 report cases ok"
 exit "$fail"
