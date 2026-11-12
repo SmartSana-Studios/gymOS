@@ -107,3 +107,47 @@ context:
 - `pnpm check:migrations` -- expected: pass
 - `bash scripts/ci-local.sh` -- expected: GREEN, per-stage lines read (not only the final line)
 - rollback-0170 then re-apply 0170 on the local DB -- expected: both clean
+
+### Review Findings
+
+Second review (bmad-code-review, 2026-11-12), four layers (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor) over 3f015e5..999f2c3 (docs, scripts, supabase): 30 findings raised, 0 decision-needed, 1 patch, 0 defer, 29 rejected. The verification-gap layer found nothing.
+
+- [x] [Review][Patch] Wording claims every assertion is read as `public_site_reader`; only the `pg_temp.rd()` ones are [docs/decisions.md:22, supabase/tests/directory_views.test.sql:354] — information_schema, `has_table_privilege`, `pg_class` and viewdef assertions run as the migration owner. Reword both to "the content assertions are read as `public_site_reader` (`pg_temp.rd`)".
+
+#### Rejected
+
+Acceptance auditor
+- Indexable constant is a private view, not the frozen immutable function (low): fix is to edit the frozen spec text; deviation is already recorded in the migration header, Implementation Notes and decisions.md, and a function cannot work because Postgres checks EXECUTE as the calling role. Owner note: the frozen Intent and AC still say "function"; renegotiate that text or accept the deviation as is.
+- ci-local e2e stage not completed (low): process note, not a code defect; sprint-status already says to run scripts/ci-local.sh before the epic merge, and the change is SQL only.
+- Category-move test covers only Super Admin and Owner (low): the move comes from the 0169 refresh trigger, not the caller; Manager and support never call `set_gym_category`, so the spec's role list is the inaccurate part; extra roles add test branches for nothing.
+- Reader-boundary row probes `page_name_id` only on directory_gym (low): the generic column scan (test lines 489-490 and the `do $verify$` block) covers all three views.
+- Country-without-city built with `app.gym_location_bypass` (false): accepted in Implementation Notes, reaches the same state.
+- Could not verify deferred-work.md / spec status (false): the auditor's own note shows both deferral entries exist; the spec `status: done` vs sprint-status `review` is settled by this review's status sync.
+
+Blind hunter
+- Rollback "proven" vs a sprint-status deferral (false): the deferral is about extending the Epic 24 rehearsal script (0168..0160), not the 0170 proof; the lines do not contradict.
+- Rollback `do $verify$` block weaker than the migration's (low): already deferred (triage log #6); the script is a copy of the 0164/0166 text plus revokes, and added checks mean more branches.
+- `directory_country` and `directory_city` can disagree (false): the 0169 trigger `gyms_z_clear_city_on_country_change` clears a city that is not in the gym's country, publishing needs a city, and the only window is the AD-46 bound already in Design Notes and deferred #7.
+- No freshness field for 25.5 `lastmod` (false): neither epic-25-context.md nor epics.md asks for lastmod; a later column is a view change 25.5 can make.
+- No read-cost analysis (low): launch volume is tiny; a note adds nothing to run (triage log #10).
+- "No view embeds 3" test is brittle (low): triage log #4; the one-place rule is also checked in the verify block.
+- Ordering test cannot fail on ordering (false): the label already says it counts rows only and that the view promises no order.
+- Test fragility: owner `postgres`, predicate spelled in several files, no post-settle assertion in section 7 (low): contrived; the section 7 precondition is asserted and the state is deliberately the unsettled one.
+- Migration verify block omits owner, indexable references and comments (low): those are asserted in pgTAP; more branches in the migration.
+- Provisional numbering baked into names (low): known, "next free at the merge" is the usual renumber step (triage log #11).
+
+Edge case hunter
+- Inner join on `countries` drops a gym with a null or unknown snapshot country (false): `gyms.country` has CHECK `^[A-Z]{2}$`, a gym can only publish with a city in its own country and cities reference `countries`; deferred #9 in 25-1 covers the seed.
+- City country differs from snapshot country, gym counted under two countries (false): same trigger as above clears the city on a country change.
+- Null `name` or `category` in the snapshot reaches directory_gym (false): `gyms.name` and `gyms.category` are NOT NULL and the snapshot always writes both (triage log #2).
+- Consumer scan is only a viewdef substring (false): `gym_page_publish.test.sql:838-845` pins by `pg_depend` that no `public_site` view depends on `gym_pages` directly.
+- `do $verify$` viewdef check is the same loose regexp (false): same refutation; the pg_depend pin runs in the gym_page_publish test.
+- Constant check matches only `>=\s*3` (low): duplicate of the blind-hunter brittleness point.
+- Absolute counts on real country codes assume no other visible gyms (low): pgTAP runs in a rolled-back transaction on a pristine DB (triage log #5); ci-local pgtap is green.
+- Country-without-city case depends on the deferred refresh not having run (low): the test asserts the precondition and the state is the intended one.
+- Rollback has no dependency pre-check (low): the script header says to roll back 25.3+ code first; a clear Postgres dependency error already stops it.
+- Rollback verify checks only columns and reader grants (low): duplicate of the blind-hunter point.
+- `private.gym_page_visible` ACL not verified after `create or replace` (false): `create or replace` keeps the ACL and the migration repeats the revoke.
+- Claim "all assertions read as reader" (see the Patch above).
+- Claim "counts every visible gym by country" with an inner join (false): see the first edge-case refutation.
+- Claim "gate fails when a view does not read the predicate" is a substring match (false): see the pg_depend refutation.

@@ -1,7 +1,8 @@
 -- Story 25.2: directory views and listing correctness (migration 0170). Fixture ids: 00000000-0000-0000-0000-0000002502xx
 --   gyms 11-29 (11-13 Accra, 14 Kumasi, 15-17 Dakar, 18 Thies, 19 Pair-1, 20 Pair-2, 21 Lone, 22 Full-flow F), user 31, plan 41, tier 01.
 --
--- Everything is read AS public_site_reader (pg_temp.rd), so a missing grant or a wrong column fails here too. The refresh triggers are
+-- Every content assertion is read AS public_site_reader (pg_temp.rd), so a missing grant or a wrong column fails here too; the catalog
+-- assertions (information_schema, has_table_privilege, pg_class, viewdef) run as the migration owner. The refresh triggers are
 -- deferred constraint triggers: pg_temp.settle() stands for "commit" (the whole file is one transaction).
 begin;
 select plan(74);
