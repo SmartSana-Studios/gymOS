@@ -11,7 +11,7 @@ import type { Chrome } from "../contract";
 import type { Case, Rendered, Subject } from "./subject";
 import { MEDIA_BASE, PAGE_ORIGIN, TEST_CONFIG, WWW_ORIGIN } from "./subject";
 import { validateJsonLd } from "../structuredData.fixtures";
-import { pageTitle } from "../format";
+import { metaDescription, pageTitle } from "../format";
 
 export const DOM_RULE_IDS = [
   "section-order",
@@ -211,6 +211,12 @@ const rules: Record<DomRuleId, (ctx: RuleContext) => string[]> = {
     if (metas["og:type"] !== "website") v.push(`og:type is ${JSON.stringify(metas["og:type"])}, expected "website"`);
     if (metas["og:title"] !== title) v.push(`og:title is ${JSON.stringify(metas["og:title"])}, the <title> is ${JSON.stringify(title)}`);
     if (metas["og:title"] !== pageTitle(content, decision.shown)) v.push("og:title is not the shared page title");
+    // the description in the language shown: the meta description (first paragraph of About), else category and city, else the name
+    const category = content.category ? CHROME[decision.shown].categories[content.category] : undefined;
+    const wantDescription = metaDescription(content, decision.shown) ?? ([category, content.city].filter(Boolean).join(", ") || content.name);
+    if (metas["og:description"] !== wantDescription) v.push(`og:description is ${JSON.stringify(metas["og:description"])}, expected ${JSON.stringify(wantDescription)} (the description in the language shown)`);
+    const metaDesc = doc.querySelector("meta[name=\"description\"]")?.getAttribute("content");
+    if (metaDesc !== undefined && metaDesc !== null && metaDesc !== metas["og:description"]) v.push("og:description differs from the meta description");
     if (metas["og:url"] !== `${PAGE_ORIGIN}/`) v.push(`og:url is ${JSON.stringify(metas["og:url"])}, expected ${PAGE_ORIGIN}/ (never the request host)`);
     const imageKey = content.banner ?? content.logo ?? content.gallery?.[0];
     const wantImage = imageKey ? `${MEDIA_BASE}/${imageKey}` : undefined;

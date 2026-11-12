@@ -107,6 +107,36 @@ context:
 | 14 | No `og:site_name`, `og:locale`, `twitter:card`, `og:image:alt`; no `inLanguage`, `@id`, `numberOfItems`; no ItemList on top and country pages; description carries a prefix and "…" (blind) | low | rejected | Beyond the spec's listed tags and properties, decided in Design Notes; each is a later, owner-visible addition |
 | 15 | Bookkeeping: sprint-status trailing newline and blank lines, "Not committed" wording, unreferenced claims in decisions.md (blind) | low | rejected | Process wording that is true at write time; the repository's own convention for these lines |
 
+### Review Findings
+
+Second review pass, 2026-11-12, over `a93bf0f..e79f401` (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor; 4 layers, none failed). 0 decision-needed, 2 patch, 1 defer, 29 rejected.
+
+- [x] [Review][Patch] `og:description` is never checked against the language shown (medium; verification-gap, edge-case-hunter). `gymOpenGraph` takes `lang`, but the only equality check is the English full-gym test (`structuredData.test.ts:101`). The French test asserts `keywords`, `description`, `og:url`, `og:title` and not `og:description`; the `structured-data` conformance rule and `headers.mjs` only test the tag is non-empty. A change to `metaDescription(c, "en")` or to `CHROME.en` in `gymOpenGraph` keeps every test green and ships English text in `/fr` link previews. Fix: in the `structured-data` rule compare `metas["og:description"]` with the page's `<meta name="description">` content, else with the fallback (category label and city, else name) in the shown language; add a known-bad flaw in `conformance/bad.ts` that edits `og:description`; add one `og:description` assertion to the French test and one to the French-only gym case [`packages/page-templates/src/conformance/rules.ts:208-217`, `conformance/bad.ts`, `structuredData.test.ts`]
+- [x] [Review][Patch] `checkStructuredData` throws a TypeError on an ItemList whose first element is not an object (low; edge-case-hunter). For `[null, {valid ListItem}]` item 0 pushes a problem, item 1 evaluates `items[0].position` and the gate crashes instead of reporting. Fix: `items[0]?.position` [`scripts/landing-gate/lib/headers.mjs:121`]
+- [x] [Review][Defer] AD-44's title and rule still say gym pages are "script-free static HTML" although a page now carries one inert `application/ld+json` block (low; acceptance-auditor) — deferred: the fix edits the architecture spec, not this story's code; AD-51's "As built (Story 25.4)" bullet already records the relaxation. Reword AD-44 in `ARCHITECTURE-SPINE.md:287` at the next architecture touch-up.
+
+#### Rejected
+
+- Spread-built serializer escapes the `tsc` excess-property check (blind) — low, rejected: a misspelled key is caught at run time by the `ALLOWED_KEYS` allowlist in `validateJsonLd`, which every fixture goes through; a wrong value type in a spread is still caught by `tsc`; the fix restructures the builder.
+- `@ts-expect-error` pair may not be type-checked (blind) — false: `packages/page-templates/tsconfig.json` includes `src`, so `tsc --noEmit` (the `typecheck` script, in ci-local) covers `*.test.ts`.
+- Deep import of `structuredData.fixtures` from landing; fixtures and validator share one file; near-cycle (blind, acceptance-auditor) — false for the cycle (`conformance/fixtures.ts` imports nothing local); the deep import has precedent (`conformance/fixtures`, `headers`, `contract` imported by landing the same way); the file split is reorganisation with no named harm.
+- Real-HTTP gate is weaker than the in-process validator: unknown properties, `og:url` equals own origin, ItemList URL host, first position (blind, edge-case-hunter, acceptance-auditor) — low, rejected: `og:url`, positions and subdomain URLs are pinned by `structuredData.test.ts` and `directory.test.ts`; the gate's job is the built server's markup shape; position and origin checks would add guards (same call as triage 7 above).
+- Gym without address, city or country omits `address` (edge) — false: publish requires a country (`0164_publish_gate_snapshot.sql` `no_country`), see triage 5 above.
+- `head` catch also wraps `gymHeadExtras` (edge) — low, rejected, triage 6 above.
+- `checkDirectoryDocument` lost its script check (edge) — false: its only caller is `checkResponse`, which now runs `checkStructuredData` and flags any executable script for both kinds.
+- Lockfile hand-edited with an unmentioned `schema-dts-lib` (blind) — false: `npm view` shows both integrity hashes match the registry, `schema-dts@2.1.0` declares `schema-dts-lib@^1.1.0`, and both were published 2026-10-02, six weeks old.
+- Purity-scan exemption for `structuredData.ts` (blind) — low, rejected: same pattern as the other pipeline files; the harm (a future runtime import going unnoticed) is hypothetical and the fix changes the shared allowlist.
+- `og:image` and JSON-LD `image` use different orders (blind) — false: the spec mandates both orders.
+- No `og:locale` / `inLanguage` for `/fr` (blind) — low, rejected, triage 14 above.
+- ItemList items point at gym subdomains, carousel eligibility (blind) — maybe-false, rejected: Rich Results Test at zero errors is already in the 25.6 release gate (epic-25-context line 27), which is where it gets settled.
+- Escaping gaps: `<style>` raw text, `serializeJsonLd(undefined)` (blind) — low, rejected, triage 9 above; the style-block guard test was added in pass 1.
+- Spec says `done` and tasks unchecked while sprint-status says `review`; `review_loop_iteration: 0` (blind, acceptance-auditor) — rejected: the fix edits the spec under review; this pass sets the status.
+- Sprint-status newline and separator style (blind) — low, rejected, triage 15 above.
+- Validator not derived from schema.org definitions (acceptance-auditor) — low, rejected, triage 11 above.
+- Gate does not cover `/{code}` language variants (acceptance-auditor) — low, rejected: the in-process enumeration the spec asks for covers `/` and `/{code}`.
+- `epic-25-context.md` edit rides along (acceptance-auditor) — false: a context refresh logged in sprint-status, no code effect.
+- First ItemList position not compared to the offset in the gate; wrong start passes (edge) — low, rejected, triage 7 above.
+
 ## Design Notes
 
 AD-51 says per-template JSON-LD must not drift, so the pipeline owns it: `renderPageWith` and the directory handler splice strings after rendering, which also avoids `dangerouslySetInnerHTML` (React would HTML-escape a script child and break the JSON). `og:url` and `url` are `${origin}/` even on `/{code}` language variants, following AD-50 (one URL per gym page). Decisions beyond the epic text: the directory has `ItemList` on city pages only (the only page with gym rows); listing pages carry no `og:image`; opening hours are grouped by identical times.

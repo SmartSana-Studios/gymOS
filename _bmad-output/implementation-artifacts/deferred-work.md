@@ -2094,3 +2094,9 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-25-3-directory-pages-country-city-category-filter.md`
   summary: `apps/mobile/src/constants/countryNames.ts` (phone picker) still holds the ICU short forms that migration 0171 corrected in `public.countries`.
   evidence: A separate generated list, so the directory is unaffected; the two country-name sources now disagree. Review of 25-3, 2026-11-12.
+
+## Deferred from: code review of spec-25-4-structured-data-serializer-and-validation (2026-11-12)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-4-structured-data-serializer-and-validation.md`
+  summary: AD-44 in `ARCHITECTURE-SPINE.md` (line 287) is titled and worded "gym pages are script-free static HTML"; since 25.4 a gym page and a directory page carry one inert `application/ld+json` block (executable scripts are still banned and `script-src 'none'` is unchanged).
+  evidence: AD-51's "As built (Story 25.4)" bullet records the relaxation, so the architecture is not wrong, only AD-44's wording is stale. Fix is a one-line reword of AD-44 at the next architecture touch-up. Review of 25-4, 2026-11-12.

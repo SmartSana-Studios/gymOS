@@ -118,7 +118,7 @@ export function checkStructuredData(kind, body, expect) {
       if (!Array.isArray(items) || items.length === 0) problems.push(kind + ": ItemList has no items");
       else
         items.forEach((item, i) => {
-          if (item?.["@type"] !== "ListItem" || !Number.isInteger(item.position) || item.position !== items[0].position + i) problems.push(kind + ": ItemList item " + i + " is not a ListItem at the next position");
+          if (item?.["@type"] !== "ListItem" || !Number.isInteger(item.position) || item.position !== items[0]?.position + i) problems.push(kind + ": ItemList item " + i + " is not a ListItem at the next position");
           if (!absoluteUrl(item?.url)) problems.push(kind + ": ItemList item " + i + " has no absolute url");
         });
     }

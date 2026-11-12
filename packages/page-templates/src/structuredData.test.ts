@@ -174,6 +174,11 @@ describe("the HealthClub of a gym page (I/O matrix)", () => {
     expect(j.url).toBe(`${PAGE_ORIGIN}/`);
     expect(metaOf(r.body)["og:url"]).toBe(`${PAGE_ORIGIN}/`);
     expect(metaOf(r.body)["og:title"]).toBe("GRACE FIT - Salle de sport, Douala");
+    expect(metaOf(r.body)["og:description"]).toMatch(/^Grace Fit est une salle/);
+    expect(metaOf(r.body)["og:description"]).toBe(/<meta name="description" content="([^"]*)"/.exec(r.body)![1]);
+    // no About text in the language shown: the fallback is the French category label and the city
+    const c = f.page.content;
+    expect(gymOpenGraph(page({ ...c, about_en: undefined, about_fr: undefined }), "fr", ENV).description).toBe("Salle de sport, Douala");
   });
 
   it("og:url is the configured origin whatever the language path or Host", () => {

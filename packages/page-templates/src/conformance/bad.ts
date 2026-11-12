@@ -82,6 +82,7 @@ export const BAD_FLAWS: BadFlaw[] = [
   { id: "ld-json-geo-without-a-map", rule: "structured-data", fixture: "no-map", dom: (d) => editLd(d, (n) => { n["geo"] = { "@type": "GeoCoordinates", latitude: 1, longitude: 2 }; }) },
   { id: "og-title-differs-from-title", rule: "structured-data", dom: (d) => q(d, "meta[property=\"og:title\"]").setAttribute("content", "Something else") },
   { id: "og-description-missing", rule: "structured-data", dom: (d) => q(d, "meta[property=\"og:description\"]").remove() },
+  { id: "og-description-in-the-wrong-language", rule: "structured-data", request: { id: "home-fr", pathname: "/", acceptLanguage: "fr" }, dom: (d) => q(d, "meta[property=\"og:description\"]").setAttribute("content", "An English description on a French page") },
   { id: "og-url-from-the-request-host", rule: "structured-data", dom: (d) => q(d, "meta[property=\"og:url\"]").setAttribute("content", "https://other.gymosapps.com/") },
   { id: "og-image-missing", rule: "structured-data", dom: (d) => q(d, "meta[property=\"og:image\"]").remove() },
   // header-policy

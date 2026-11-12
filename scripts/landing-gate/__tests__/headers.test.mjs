@@ -341,6 +341,8 @@ test("known bad directory page: a block where none belongs, no ItemList on a cit
   assert.ok(dirProblems(dir({ body: dirHtml({ block: ld(HEALTH_CLUB) }) }), { structuredData: "ItemList" }).some((p) => p.includes("expected ItemList")));
   const skipped = { ...ITEM_LIST, itemListElement: [ITEM_LIST.itemListElement[0], { ...ITEM_LIST.itemListElement[1], position: 5 }] };
   assert.ok(dirProblems(dir({ body: dirHtml({ block: ld(skipped) }) }), { structuredData: "ItemList" }).some((p) => p.includes("next position")));
+  const nullFirst = { ...ITEM_LIST, itemListElement: [null, ITEM_LIST.itemListElement[1]] };
+  assert.ok(dirProblems(dir({ body: dirHtml({ block: ld(nullFirst) }) }), { structuredData: "ItemList" }).some((p) => p.includes("next position")), "a non-object first item is reported, not thrown");
   const relative = { ...ITEM_LIST, itemListElement: [{ ...ITEM_LIST.itemListElement[0], url: "/x" }] };
   assert.ok(dirProblems(dir({ body: dirHtml({ block: ld(relative) }) }), { structuredData: "ItemList" }).some((p) => p.includes("absolute url")));
   assert.ok(dirProblems(dir({ body: dirHtml({ tags: og("Gyms", "http://www.localhost/en/gyms/cm") }) })).some((p) => p.includes("og:url differs from the canonical")));
