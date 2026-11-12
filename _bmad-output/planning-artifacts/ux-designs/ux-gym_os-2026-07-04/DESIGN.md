@@ -211,6 +211,32 @@ Visual specs only — behavior lives in `EXPERIENCE.md`'s Member App Component L
 
 The mocks are references for the seed templates; if a mock and this spine disagree, the spine wins.
 
+## Public Directory *(V1.7, PS-04…PS-06, decided 2026-11-12)*
+
+The directory is its own set of pages on `www.gymosapps.com` (`/{locale}/gyms/…`), not a section of the home page. The home page gains one link, "Gyms" / « Salles », in the site header (from 1280 px; in the menu panel below that) and in the footer. This section supersedes the earlier dark-ground draft: the directory wears the main site's look as rebuilt in `apps/landing` on 2026-11-11 (token values, type ramp and rules in `apps/landing/DESIGN.md`; it is the source, nothing is copied here). Nothing in the directory takes a gym's `primary_color`, and nothing on it names or favours a country.
+
+| Rule | Value |
+|---|---|
+| Page shape | A navy-deep hero band continuous with the header (breadcrumb, `h1` with the place name as the accent fragment, one count sentence), then the content on the light ground. No stat numerals: the count is a sentence ("11 gyms in 4 cities"), so a small directory is never dressed up |
+| Cards (PS-04, PS-05) | White surface, 1 px `line-strong` border, no shadow, `rounded.card`; 76 px minimum height; name in Bricolage 800 22 px, count in muted 15 px, arrow glyph in the large-text orange. One column under 641 px, two to 1023 px, three from 1024 px |
+| Order | PS-04: Cameroon first, same card as every other country, no badge, no map treatment. PS-05, PS-06 as in EXPERIENCE.md |
+| Category filter (PS-06) | Wrapping pill links, 44 px tall; current one filled `colors.accent` with navy text, a check glyph and `aria-current`, so it never relies on colour alone |
+| Listing row (PS-06) | One full-width link per gym, 80 px minimum, white, 1 px `line-strong` border, `rounded.card`, 8 px gap; 48 px logo or a navy monogram tile, gym name (`h2`, Bricolage 800 20 px), category and city in muted 15 px. Column up to 52 rem |
+| Motion | None, except the map's halo pulse (below). No scroll reveals |
+| Third parties | None: no tiles, no map library, no web font beyond the main site's self-hosted pair |
+
+### Africa map (PS-04 only)
+
+One map of the continent, shown in the hero of `/{locale}/gyms/` and nowhere else: no country zoom, no per-country map, and no country gets its own geometry or highlight. PS-05 and PS-06 carry no map.
+
+- **Drawing.** A static, server-rendered inline SVG, no script, no tile server, no request to a third party (AD-44). Country shapes come from Natural Earth (public domain) at 110 m detail, projected once at build time (Natural Earth projection) and committed as a generated module with its provenance noted; about 26 KB of path data. Land is a navy a step lighter than the ground (`#17253B`), countries that have a listed gym one step lighter again (`#2B4163`), borders the ground colour. These fills are decorative and carry no meaning on their own.
+- **Points.** One orange dot (`{colors.accent}`, 2 px ring in `{colors.navy-deep}`, soft halo at 22 % opacity) per **city** with at least one published gym, so one map shows both which countries and which cities have gyms. Radius = 5 + 3.2 × √gyms in a 760-unit viewBox, larger meaning more gyms. Dot against country fill is about 4:1, above the 3:1 non-text floor. Position comes from the city's own coordinates, never from a gym's map position.
+- **Links.** Each dot links to that city's PS-06. A transparent hit circle makes the target at least 44 CSS px. The city name and count appear on hover and keyboard focus using CSS only, and never under 640 px, where the map is an overview and the cards below are the way in.
+- **Accessibility.** The SVG is `aria-hidden` and its links `tabindex="-1"`: the country cards and the city links reachable from them are the complete, keyboard and screen-reader path to everything the dots reach. A visible caption states the encoding: "Each dot is a city with gyms. Larger means more gyms." / « Chaque point est une ville qui compte des salles. Plus grand, plus de salles. »
+- **Motion.** The halos breathe (opacity only, 2.6 s) under `prefers-reduced-motion: no-preference` and are still otherwise, as the hero's Live dot is on the home page.
+- **Edge cases.** A city without coordinates is listed but has no dot. Gyms in countries outside the map's extent are in the cards and the count but have no dot, and the caption does not claim the map is complete. With no published gym anywhere the map is not drawn, only the empty message.
+- **Layout.** From 1024 px the copy is left and the map right, running 64 px down into the light band; below 1024 px the copy comes first and the map follows, centred, 560 px at most. The map never overlaps the copy.
+
 ## Do's and Don'ts
 
 | Do | Don't |

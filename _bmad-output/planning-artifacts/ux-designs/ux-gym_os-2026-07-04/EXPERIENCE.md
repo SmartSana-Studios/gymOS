@@ -3514,6 +3514,9 @@ Tell us more *                [                                  ]  max 1 000
 - **Empty (no gym published anywhere):** "No gyms are listed yet." / « Aucune salle n'est encore répertoriée. »
 - Language link to the same page in the other language (shared rules).
 - Always indexable `[ASSUMPTION — the top directory page is not subject to the thin-listing rule]`; see thin listing below.
+- **Own pages (2026-11-12).** The directory is its own set of pages; the home page carries only a "Gyms" / « Salles » link in header and footer, and no map or listing.
+- **Africa map (visual rules in DESIGN.md "Africa map").** The hero shows one map of Africa with a dot per city that has a published gym, larger for more gyms; each dot links to that city's PS-06. It is a pointer, not the way in: the country cards below carry every link, so the map is hidden from assistive technology and its links are out of the tab order. No country has its own map, and no country is highlighted or favoured on it; PS-05 and PS-06 have no map. A city without coordinates has no dot but is still listed. Gyms in countries outside the map are listed and counted, with no dot. Draft copy `[ASSUMPTION — copy to confirm]`: title "Find a gym near you" / « Trouvez une salle près de chez vous »; lede "Every gym listed here runs its own page. Pick a country, then a city." / « Chaque salle répertoriée a sa propre page. Choisissez un pays, puis une ville. »; count sentence "[n] gyms in [m] countries" / « [n] salles dans [m] pays »; map caption "Each dot is a city with gyms. Larger means more gyms." / « Chaque point est une ville qui compte des salles. Plus grand, plus de salles. »
+- **Data the map needs.** Each city's latitude and longitude (Story 25.1) read through the directory view (Story 25.2). Never a gym's own position.
 
 ---
 

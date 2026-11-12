@@ -1610,7 +1610,7 @@ A gym publishes an optional public page at `{name}.gymosapps.com` from content i
 Published gyms appear in country and city listings with validating structured data and sitemap, filterable by category.
 **FRs covered:** FR-209, FR-210, FR-211, FR-212, FR-213, FR-214
 **NFRs honored:** NFR-024, NFR-025
-**Architecture:** AD-49–AD-52 (spine pass 2026-10-15). **Depends on:** Epic 24 gate passed (PRD §10.2); a `bmad-ux` pass is expected before 25.3.
+**Architecture:** AD-49–AD-52 (spine pass 2026-10-15). **Depends on:** Epic 24 gate passed (PRD §10.2); the `bmad-ux` pass for the directory ran 2026-11-12 (`DESIGN.md` "Public Directory", `EXPERIENCE.md` PS-04…PS-06).
 
 ---
 
@@ -3838,7 +3838,7 @@ So that launching public pages cannot expose tenant data or slow the core produc
 | 25.5 | Sitemap Index, Robots & Plain-Text Summary | none | 25.3 |
 | 25.6 | Directory Gate — SEO Verification & Removal Timing | none | 25.4, 25.5 |
 
-*Step 3 starts only after Step 2's gate (24.12) is passed (PRD §10.2). The directory has no tables of its own: every listing is a view over the Epic 24 snapshot (AD-49), so unpublishing, takedown and suspension leave it without extra code. At launch, with few gyms, only individual pages are expected to be indexed (FR-212). No V1.7 UX exists; a `bmad-ux` pass is expected before 25.3.*
+*Step 3 starts only after Step 2's gate (24.12) is passed (PRD §10.2). The directory has no tables of its own: every listing is a view over the Epic 24 snapshot (AD-49), so unpublishing, takedown and suspension leave it without extra code. At launch, with few gyms, only individual pages are expected to be indexed (FR-212). The directory UX pass ran 2026-11-12 (`DESIGN.md` "Public Directory", `EXPERIENCE.md` PS-04…PS-06): the directory is its own set of pages on the rebranded main site, and the top page carries one Africa map with a dot per city that has a gym (static SVG, no script, city coordinates from 25.1).*
 
 ---
 
@@ -3854,7 +3854,11 @@ So that my gym appears in the right place in the directory however I spell it.
 
 **Given** the migration
 **When** it runs
-**Then** `countries(code, name_en, name_fr)` is seeded from ISO 3166 and `cities(id, country_code, slug, name, aliases text[])` exists with a unique `(country_code, slug)`, slugs ASCII-folded, and `gyms.city_id` is added nullable
+**Then** `countries(code, name_en, name_fr)` is seeded from ISO 3166 and `cities(id, country_code, slug, name, aliases text[], lat numeric(8,5), lng numeric(8,5))` exists with a unique `(country_code, slug)`, slugs ASCII-folded, `lat` and `lng` nullable but both set or both null and range-checked (-90..90, -180..180), and `gyms.city_id` is added nullable
+
+**Given** the Super Admin city form
+**When** a city is added or edited
+**Then** it accepts a latitude and longitude (both or neither) used only to place the city's dot on the directory map; a city without them is still listed and simply has no dot; coordinates are those of the city, never of any gym
 
 **Given** gyms that already have a city or country stored as text
 **When** the backfill runs
@@ -3890,7 +3894,7 @@ So that every gym I find can be opened and contacted.
 
 **Given** `public_site.directory_country`, `directory_city` and `directory_gym`
 **When** they are queried as `public_site_reader`
-**Then** they are built only from the AD-46 visibility predicate joined to `cities`, expose no internal identifier, and add no new privilege beyond the view list (the 24.4 grant test still passes and its snapshot is updated deliberately)
+**Then** they are built only from the AD-46 visibility predicate joined to `cities`, expose no internal identifier, and add no new privilege beyond the view list (the 24.4 grant test still passes and its snapshot is updated deliberately); `directory_city` also exposes the city's `lat` and `lng` (null when unset) and no gym position
 
 **Given** a listing with fewer than 3 published gyms `[ASSUMPTION — OQ-29]`
 **When** `indexable` is read
@@ -3923,6 +3927,13 @@ So that I can find a place to train near me.
 **Given** `/{locale}/gyms/`
 **When** it renders
 **Then** it lists each country with at least one published gym, with Cameroon as the only prominent entry point at launch and no Cameroon-only wording, address format or structured data
+
+**Given** `/{locale}/gyms/` with published gyms in cities that have coordinates
+**When** it renders
+**Then** its hero draws one Africa map as an inline SVG generated at build time from Natural Earth (public domain; provenance recorded), with one dot per city that has a published gym, radius growing with the gym count, each dot a link to that city's page; the page makes no request to a third party and runs no script (AD-44)
+**And** the map is `aria-hidden` with its links out of the tab order, because the country cards carry every link; a city without coordinates has no dot but is listed; gyms in countries outside the map are listed and counted; with no published gym anywhere no map is drawn
+**And** no country has its own map or any highlight, and the country and city pages carry no map
+**And** the home page carries no directory content beyond a "Gyms" link in header and footer (the directory is its own pages)
 
 **Given** `/{locale}/gyms/{country}/` and `/{locale}/gyms/{country}/{city}/` where `{country}` is the lowercase ISO alpha-2 code and `{city}` the city slug, the same in both locales
 **When** they render
