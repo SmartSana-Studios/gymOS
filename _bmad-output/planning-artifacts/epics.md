@@ -3854,7 +3854,7 @@ So that my gym appears in the right place in the directory however I spell it.
 
 **Given** the migration
 **When** it runs
-**Then** `countries(code, name_en, name_fr)` is seeded from ISO 3166 and `cities(id, country_code, slug, name, aliases text[], lat numeric(8,5), lng numeric(8,5))` exists with a unique `(country_code, slug)`, slugs ASCII-folded, `lat` and `lng` nullable but both set or both null and range-checked (-90..90, -180..180), and `gyms.city_id` is added nullable
+**Then** `countries(code, name_en, name_fr)` is seeded from ISO 3166 and `cities(id, country_code, slug, name, lat numeric(9,6), lng numeric(9,6))` exists with a unique `(country_code, slug)`, slugs ASCII-folded, `lat` and `lng` nullable but both set or both null and range-checked (-90..90, -180..180), a `city_aliases(id, country_code, alias_norm, alias, city_id, is_name)` table holds every spelling that reaches a city (its own name included, `is_name`) with a unique `(country_code, alias_norm)` (AD-49, as built in 0169), and `gyms.city_id` is added nullable
 
 **Given** the Super Admin city form
 **When** a city is added or edited

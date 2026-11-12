@@ -2066,5 +2066,5 @@ Lab, local results only (one machine runs the server, the database, the load and
 ## Deferred from: code review of spec-25-1-country-and-city-controlled-lists-gym-city-selection (2026-11-12)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
-  summary: Close before the 25-2 spec is written: `epic-25-context.md` (line 31) and the Story 25.1 acceptance criteria in `epics.md` (line 3857) still describe `cities.aliases text[]` and `numeric(8,5)`; the shipped schema has a `city_aliases` table and `numeric(9,6)`.
+  summary: RESOLVED 2026-11-12 (both documents corrected on epic/25). Close before the 25-2 spec is written: `epic-25-context.md` (line 31) and the Story 25.1 acceptance criteria in `epics.md` (line 3857) still describe `cities.aliases text[]` and `numeric(8,5)`; the shipped schema has a `city_aliases` table and `numeric(9,6)`.
   evidence: Migration 0169 and the spec ("AD-49 wins over the epic's text[]"). 25-2 builds the directory views from these documents, so a story written from the old text will target a column that does not exist. Fix is to edit the two documents, not the code.
