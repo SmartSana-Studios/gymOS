@@ -19,7 +19,6 @@ const stored = {
   about: { en: "", fr: "" },
   services: { en: "", fr: "" },
   address: "",
-  city: "",
   lat: "",
   lng: "",
   hours: null,
@@ -32,13 +31,12 @@ function form(over: Partial<EditorFormState> = {}): EditorFormState {
 }
 
 describe("cleaning pasted text", () => {
-  it("turns CRLF and a lone CR into LF in About, Services, address and city, and drops control characters", () => {
-    const f = cleanForm(form({ about: { en: "a\r\nb\rc", fr: "x\u0001y" }, services: { en: "one\r\ntwo", fr: "" }, address: "Rue 1\r\nBP 2", city: "Dou\u0007ala" }));
+  it("turns CRLF and a lone CR into LF in About, Services and address, and drops control characters", () => {
+    const f = cleanForm(form({ about: { en: "a\r\nb\rc", fr: "x\u0001y" }, services: { en: "one\r\ntwo", fr: "" }, address: "Rue 1\r\nBP 2" }));
     expect(f.about.en).toBe("a\nb\nc");
     expect(f.about.fr).toBe("xy");
     expect(f.services.en).toBe("one\ntwo");
     expect(f.address).toBe("Rue 1\nBP 2");
-    expect(f.city).toBe("Douala");
   });
 
   it("the save input carries LF only (matrix row: pasted Windows text)", () => {
@@ -54,11 +52,10 @@ describe("cleaning pasted text", () => {
 
 describe("inline validation", () => {
   it("names the field and the language for < and >", () => {
-    const e = validateForm(form({ about: { en: "ok", fr: "a < b" }, services: { en: "x > y", fr: "" }, address: "<", city: ">" }));
+    const e = validateForm(form({ about: { en: "ok", fr: "a < b" }, services: { en: "x > y", fr: "" }, address: "<" }));
     expect(e["about.fr"]).toEqual({ code: "angle", field: "about", lang: "fr" });
     expect(e["services.en"]).toEqual({ code: "angle", field: "services", lang: "en" });
     expect(e.address).toEqual({ code: "angle", field: "address", lang: undefined });
-    expect(e.city?.code).toBe("angle");
     expect(e["about.en"]).toBeUndefined();
   });
 

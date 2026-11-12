@@ -67,7 +67,7 @@ select private.support_set_membership('00000000-0000-0000-0000-000000240551', tr
 select is((select count(*)::int from gyms where id in ('00000000-0000-0000-0000-000000240511', '00000000-0000-0000-0000-000000240512')
             and page_about_en is null and page_about_fr is null and page_services_en is null and page_services_fr is null
             and page_address is null and page_lat is null and page_lng is null and page_hours is null
-            and page_contact_phone is null and page_contact_whatsapp is null and page_city is null), 2,
+            and page_contact_phone is null and page_contact_whatsapp is null and page_city is null and city_id is null), 2,
           'every gym page field is null by default');
 select is((select count(*)::int from plans where is_public or public_label_en is not null or public_label_fr is not null), 0,
           'every plan is private with no public label by default');
@@ -96,7 +96,7 @@ set local role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-000000240521', 'owner', '00000000-0000-0000-0000-000000240511');
 select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511',
   '{"about_en":"  We are a gym.  ","about_fr":"Nous sommes une salle.","address":"Rue 1, Douala","lat":4.0511,"lng":9.7679,
-    "hours":{"mon":{"open":"06:00","close":"22:00"},"sun":null},"contact_phone":"+237600111222","contact_whatsapp":"+237600111223","city":"Douala"}'::jsonb,
+    "hours":{"mon":{"open":"06:00","close":"22:00"},"sun":null},"contact_phone":"+237600111222","contact_whatsapp":"+237600111223"}'::jsonb,
   '[{"plan_id":"00000000-0000-0000-0000-000000240541","is_public":true,"public_label_en":"Monthly"},
     {"plan_id":"00000000-0000-0000-0000-000000240542","is_public":true}]'::jsonb)$$), 'ok', 'owner saves content and two public plans');
 reset role;
@@ -106,8 +106,8 @@ select is((select page_hours from gyms where id = '00000000-0000-0000-0000-00000
 select is((select count(*)::int from plans where gym_id = '00000000-0000-0000-0000-000000240511' and is_public), 2, 'both plans are public');
 select is((select public_label_en from plans where id = '00000000-0000-0000-0000-000000240541'), 'Monthly', 'plan label stored');
 select is((select count(*)::int from audit_log where action_type = 'gym_page_content_changed' and gym_id = '00000000-0000-0000-0000-000000240511'), 1, 'exactly one audit row');
-select is((select metadata -> 'new' ->> 'city' from audit_log where action_type = 'gym_page_content_changed' and gym_id = '00000000-0000-0000-0000-000000240511'), 'Douala', 'audit holds the new value');
-select is((select metadata -> 'old' -> 'city' from audit_log where action_type = 'gym_page_content_changed' and gym_id = '00000000-0000-0000-0000-000000240511'), 'null'::jsonb, 'audit holds the old value (null)');
+select is((select metadata -> 'new' ->> 'address' from audit_log where action_type = 'gym_page_content_changed' and gym_id = '00000000-0000-0000-0000-000000240511'), 'Rue 1, Douala', 'audit holds the new value');
+select is((select metadata -> 'old' -> 'address' from audit_log where action_type = 'gym_page_content_changed' and gym_id = '00000000-0000-0000-0000-000000240511'), 'null'::jsonb, 'audit holds the old value (null)');
 select is((select jsonb_array_length(metadata -> 'plans') from audit_log where action_type = 'gym_page_content_changed' and gym_id = '00000000-0000-0000-0000-000000240511'), 2, 'audit lists both plan changes');
 select is((select actor_id from audit_log where action_type = 'gym_page_content_changed' and gym_id = '00000000-0000-0000-0000-000000240511'), '00000000-0000-0000-0000-000000240521'::uuid, 'audit names the owner');
 select is((select phone from members where id = '00000000-0000-0000-0000-000000240531'), '+237600240001', 'the Owner login phone is untouched');
@@ -124,12 +124,12 @@ select is((select count(*)::int from audit_log where action_type = 'gym_page_con
 -- ---- partial patch changes only what is sent; changed fields only in audit ---------------------------------------
 set local role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-000000240522', 'supervisor', '00000000-0000-0000-0000-000000240511');
-select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Yaounde","address":null}'::jsonb)$$), 'ok', 'supervisor patches two fields');
+select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"services_en":"Cardio","address":null}'::jsonb)$$), 'ok', 'supervisor patches two fields');
 reset role;
-select is((select page_city || '|' || coalesce(page_address, 'NULL') || '|' || page_about_fr from gyms where id = '00000000-0000-0000-0000-000000240511'), 'Yaounde|NULL|Nous sommes une salle.', 'only sent keys changed');
+select is((select page_services_en || '|' || coalesce(page_address, 'NULL') || '|' || page_about_fr from gyms where id = '00000000-0000-0000-0000-000000240511'), 'Cardio|NULL|Nous sommes une salle.', 'only sent keys changed');
 select is((select (select array_agg(k order by k) from jsonb_object_keys(metadata -> 'new') k) from audit_log
            where action_type = 'gym_page_content_changed' and gym_id = '00000000-0000-0000-0000-000000240511' and metadata -> 'old' ->> 'address' = 'Rue 1, Douala'),
-          array['address', 'city'], 'the audit row lists only changed fields');
+          array['address', 'services_en'], 'the audit row lists only changed fields');
 select is((select count(*)::int from audit_log where action_type = 'gym_page_content_changed' and gym_id = '00000000-0000-0000-0000-000000240511'), 2, 'supervisor change added one row');
 -- making a plan private again
 set local role authenticated;
@@ -143,50 +143,50 @@ create temp table pg_before as select to_jsonb(g) as g from gyms g where id = '0
 grant select on pg_before to authenticated;
 set local role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-000000240523', 'manager', '00000000-0000-0000-0000-000000240511');
-select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Hacked"}'::jsonb)$$), 'P0001:permission denied', 'manager refused');
+select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"address":"Hacked"}'::jsonb)$$), 'P0001:permission denied', 'manager refused');
 select pg_temp.as_user('00000000-0000-0000-0000-000000240524', 'coach', '00000000-0000-0000-0000-000000240511');
-select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Hacked"}'::jsonb)$$), 'P0001:permission denied', 'coach refused');
+select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"address":"Hacked"}'::jsonb)$$), 'P0001:permission denied', 'coach refused');
 select pg_temp.as_user('00000000-0000-0000-0000-000000240525', 'member', '00000000-0000-0000-0000-000000240511');
-select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Hacked"}'::jsonb)$$), 'P0001:permission denied', 'member refused');
+select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"address":"Hacked"}'::jsonb)$$), 'P0001:permission denied', 'member refused');
 select pg_temp.as_user('00000000-0000-0000-0000-000000240526', 'owner', '00000000-0000-0000-0000-000000240512');
-select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Hacked"}'::jsonb)$$), 'P0001:permission denied', 'another gym''s owner refused');
-select is(pg_temp.err($$select set_gym_page_content(null, '{"city":"Hacked"}'::jsonb)$$), 'P0001:permission denied', 'null gym refused');
+select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"address":"Hacked"}'::jsonb)$$), 'P0001:permission denied', 'another gym''s owner refused');
+select is(pg_temp.err($$select set_gym_page_content(null, '{"address":"Hacked"}'::jsonb)$$), 'P0001:permission denied', 'null gym refused');
 reset role;
 set local role anon;
-select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Hacked"}'::jsonb)$$), '42501:permission denied for function set_gym_page_content', 'anon refused');
+select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"address":"Hacked"}'::jsonb)$$), '42501:permission denied for function set_gym_page_content', 'anon refused');
 reset role;
 select is((select to_jsonb(g) from gyms g where id = '00000000-0000-0000-0000-000000240511'), (select g from pg_before), 'refused calls changed nothing');
 
 -- ---- support -----------------------------------------------------------------------------------------------------
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000240529', 'support', '00000000-0000-0000-0000-000000240511', '00000000-0000-0000-0000-0000000240a1');
-select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Limbe"}'::jsonb)$$), 'ok', 'assigned live support is admitted');
+select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"address":"Limbe"}'::jsonb)$$), 'ok', 'assigned live support is admitted');
 select pg_temp.claims('00000000-0000-0000-0000-000000240529', 'support', '00000000-0000-0000-0000-000000240512', '00000000-0000-0000-0000-0000000240a1');
-select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240512', '{"city":"Limbe"}'::jsonb)$$), 'P0001:permission denied', 'support with no assignment to that gym is refused');
+select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240512', '{"address":"Limbe"}'::jsonb)$$), 'P0001:permission denied', 'support with no assignment to that gym is refused');
 reset role;
-select is((select page_city from gyms where id = '00000000-0000-0000-0000-000000240511'), 'Limbe', 'support change stored');
+select is((select page_address from gyms where id = '00000000-0000-0000-0000-000000240511'), 'Limbe', 'support change stored');
 select is((select count(*)::int from audit_log where action_type = 'gym_page_content_changed' and gym_id = '00000000-0000-0000-0000-000000240511'
             and actor_id = (select id from users where support_proxy_gym_id = '00000000-0000-0000-0000-000000240511')), 1, 'support change audited under the support identity');
-select is((select page_city from gyms where id = '00000000-0000-0000-0000-000000240512'), null, 'the unassigned gym is untouched');
+select is((select page_address from gyms where id = '00000000-0000-0000-0000-000000240512'), null, 'the unassigned gym is untouched');
 
 -- ---- super admin, suspended gym ----------------------------------------------------------------------------------
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000240528', 'super_admin');
-select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240512', '{"city":"Buea"}'::jsonb)$$), 'ok', 'super admin can write any gym');
-select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240513', '{"city":"Buea"}'::jsonb)$$), 'ok', 'super admin can write a suspended gym');
+select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240512', '{"address":"Buea"}'::jsonb)$$), 'ok', 'super admin can write any gym');
+select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240513', '{"address":"Buea"}'::jsonb)$$), 'ok', 'super admin can write a suspended gym');
 select pg_temp.as_user('00000000-0000-0000-0000-000000240527', 'owner', '00000000-0000-0000-0000-000000240513');
-select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240513', '{"city":"Nope"}'::jsonb)$$), 'P0001:set_gym_page_content: gym % is not active', 'a suspended gym''s owner is refused');
+select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240513', '{"address":"Nope"}'::jsonb)$$), 'P0001:set_gym_page_content: gym % is not active', 'a suspended gym''s owner is refused');
 reset role;
-select is((select page_city from gyms where id = '00000000-0000-0000-0000-000000240513'), 'Buea', 'the suspended gym still reads the super admin value');
+select is((select page_address from gyms where id = '00000000-0000-0000-0000-000000240513'), 'Buea', 'the suspended gym still reads the super admin value');
 -- support assigned to the suspended gym is refused too
 insert into public.support_assignments (id, support_user_id, gym_id, state, activated_at) values
   ('00000000-0000-0000-0000-000000240552', '00000000-0000-0000-0000-000000240529', '00000000-0000-0000-0000-000000240513', 'active', now());
 select private.support_set_membership('00000000-0000-0000-0000-000000240552', true);
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000240529', 'support', '00000000-0000-0000-0000-000000240513', '00000000-0000-0000-0000-0000000240a1');
-select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240513', '{"city":"Nope"}'::jsonb)$$), 'P0001:permission denied', 'assigned live support is refused on a suspended gym');
+select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240513', '{"address":"Nope"}'::jsonb)$$), 'P0001:permission denied', 'assigned live support is refused on a suspended gym');
 reset role;
-select is((select page_city from gyms where id = '00000000-0000-0000-0000-000000240513'), 'Buea', 'the suspended gym is untouched by support');
+select is((select page_address from gyms where id = '00000000-0000-0000-0000-000000240513'), 'Buea', 'the suspended gym is untouched by support');
 
 -- ---- invalid input writes nothing --------------------------------------------------------------------------------
 -- ---- whitespace, limits, explicit clearing, label-only plan change ------------------------------------------------
@@ -228,8 +228,8 @@ create temp table pg_before_plans as select jsonb_agg(to_jsonb(p) order by id) a
 grant select on pg_before_plans to authenticated;
 set local role authenticated;
 select pg_temp.as_user('00000000-0000-0000-0000-000000240521', 'owner', '00000000-0000-0000-0000-000000240511');
-select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Fine","about_en":"<script>alert(1)</script>"}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_about_en', 'markup rejected');
-select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"a>b"}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_city', 'a lone > rejected');
+select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"address":"Fine","about_en":"<script>alert(1)</script>"}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_about_en', 'markup rejected');
+select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"address":"a>b"}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_address', 'a lone > rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"contact_phone":"0600111222"}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_contact_phone', 'non-E.164 phone rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"contact_whatsapp":"+0600111222"}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_contact_whatsapp', 'leading-zero country code rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"lat":90.5}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_lat', 'lat out of range');
@@ -241,12 +241,12 @@ select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"hours":{"xyz":null}}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_hours', 'bad day key rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"hours":{}}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_hours', 'empty hours object rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"hours":{"mon":{"open":"06:00","close":"06:00"}}}'::jsonb)$$), 'P0001:set_gym_page_content: invalid_hours', 'open equal to close rejected');
-select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Fine"}'::jsonb, '[{"plan_id":"00000000-0000-0000-0000-000000240543","is_public":true}]'::jsonb)$$), 'P0001:set_gym_page_content: plan_not_in_gym', 'another gym''s plan id rejected');
-select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Fine"}'::jsonb, '[{"plan_id":"00000000-0000-0000-0000-000000240541","is_public":"yes"}]'::jsonb)$$), 'P0001:set_gym_page_content: invalid_is_public', 'non-boolean flag rejected');
-select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Fine"}'::jsonb, '[{"plan_id":"00000000-0000-0000-0000-000000240541","is_public":true,"public_label_en":"<b>"}]'::jsonb)$$), 'P0001:set_gym_page_content: invalid_public_label_en', 'markup in a plan label rejected');
+select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"address":"Fine"}'::jsonb, '[{"plan_id":"00000000-0000-0000-0000-000000240543","is_public":true}]'::jsonb)$$), 'P0001:set_gym_page_content: plan_not_in_gym', 'another gym''s plan id rejected');
+select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"address":"Fine"}'::jsonb, '[{"plan_id":"00000000-0000-0000-0000-000000240541","is_public":"yes"}]'::jsonb)$$), 'P0001:set_gym_page_content: invalid_is_public', 'non-boolean flag rejected');
+select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"address":"Fine"}'::jsonb, '[{"plan_id":"00000000-0000-0000-0000-000000240541","is_public":true,"public_label_en":"<b>"}]'::jsonb)$$), 'P0001:set_gym_page_content: invalid_public_label_en', 'markup in a plan label rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', jsonb_build_object('services_en', repeat('a', 2001)))$$), 'P0001:set_gym_page_content: invalid_services_en', 'over-long services rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', jsonb_build_object('address', repeat('a', 301)))$$), 'P0001:set_gym_page_content: invalid_address', 'over-long address rejected');
-select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', jsonb_build_object('city', repeat('a', 101)))$$), 'P0001:set_gym_page_content: invalid_city', 'over-long city rejected');
+select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{"city":"Douala"}'::jsonb)$$), 'P0001:set_gym_page_content: unknown_key city', 'the city key is gone: a city is chosen with set_gym_location (25.1)');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{}'::jsonb, jsonb_build_array(jsonb_build_object('plan_id', '00000000-0000-0000-0000-000000240541', 'public_label_en', repeat('a', 81))))$$), 'P0001:set_gym_page_content: invalid_public_label_en', 'over-long plan label (en) rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{}'::jsonb, jsonb_build_array(jsonb_build_object('plan_id', '00000000-0000-0000-0000-000000240541', 'public_label_fr', repeat('a', 81))))$$), 'P0001:set_gym_page_content: invalid_public_label_fr', 'over-long plan label (fr) rejected');
 select alike(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240511', '{}'::jsonb, '[{"plan_id":"00000000-0000-0000-0000-000000240541"},{"plan_id":"00000000-0000-0000-0000-000000240541"}]'::jsonb)$$), 'P0001:set_gym_page_content: duplicate_plan_id', 'a duplicate plan id is rejected');
@@ -272,16 +272,16 @@ select is((select is_public::text || coalesce(public_label_en, '-') from plans w
 -- the pins also bind a super admin and service_role
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000240528', 'super_admin');
-select 1 where pg_temp.err($$update gyms set page_city = 'SA direct', page_lat = 7 where id = '00000000-0000-0000-0000-000000240511'$$) is null;
+select 1 where pg_temp.err($$update gyms set page_address = 'SA direct', page_lat = 7 where id = '00000000-0000-0000-0000-000000240511'$$) is null;
 select 1 where pg_temp.err($$update plans set is_public = true where id = '00000000-0000-0000-0000-000000240542'$$) is null;
 reset role;
-select is((select page_city || '|' || page_lat::text from gyms where id = '00000000-0000-0000-0000-000000240511'), 'Limbe|4.051100', 'the pin reverted a super admin direct gym write');
+select is((select page_address || '|' || page_lat::text from gyms where id = '00000000-0000-0000-0000-000000240511'), 'Limbe|4.051100', 'the pin reverted a super admin direct gym write');
 select is((select is_public from plans where id = '00000000-0000-0000-0000-000000240542'), false, 'the pin reverted a super admin direct plan write');
 set local role service_role;
-select 1 where pg_temp.err($$update gyms set page_city = 'SR direct', page_lat = 8 where id = '00000000-0000-0000-0000-000000240511'$$) is null;
+select 1 where pg_temp.err($$update gyms set page_address = 'SR direct', page_lat = 8 where id = '00000000-0000-0000-0000-000000240511'$$) is null;
 select 1 where pg_temp.err($$update plans set is_public = true where id = '00000000-0000-0000-0000-000000240542'$$) is null;
 reset role;
-select is((select page_city || '|' || page_lat::text from gyms where id = '00000000-0000-0000-0000-000000240511'), 'Limbe|4.051100', 'the pin reverted a service_role direct gym write');
+select is((select page_address || '|' || page_lat::text from gyms where id = '00000000-0000-0000-0000-000000240511'), 'Limbe|4.051100', 'the pin reverted a service_role direct gym write');
 select is((select is_public from plans where id = '00000000-0000-0000-0000-000000240542'), false, 'the pin reverted a service_role direct plan write');
 
 -- the pin is what blocks it: with the triggers off the same writes land
@@ -317,9 +317,9 @@ alter table plans enable trigger pin_plan_public_update;
 -- ---- Unicode whitespace trims like Zod trim() ----------------------------------------------------------------------
 set local role authenticated;
 select pg_temp.claims('00000000-0000-0000-0000-000000240528', 'super_admin');
-select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240512', jsonb_build_object('city', chr(160) || 'Kribi' || chr(12288)))$$), 'ok', 'NBSP and ideographic-space wrapped text accepted');
+select is(pg_temp.err($$select set_gym_page_content('00000000-0000-0000-0000-000000240512', jsonb_build_object('address', chr(160) || 'Kribi' || chr(12288)))$$), 'ok', 'NBSP and ideographic-space wrapped text accepted');
 reset role;
-select is((select page_city from gyms where id = '00000000-0000-0000-0000-000000240512'), 'Kribi', 'SQL trims the same Unicode whitespace as Zod');
+select is((select page_address from gyms where id = '00000000-0000-0000-0000-000000240512'), 'Kribi', 'SQL trims the same Unicode whitespace as Zod');
 
 select * from finish();
 rollback;

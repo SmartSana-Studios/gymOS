@@ -21,6 +21,7 @@ const NAV_LINKS = [
   { href: "/gyms", labelKey: "nav.gyms" },
   { href: "/metrics", labelKey: "nav.metrics" },
   { href: "/tiers", labelKey: "nav.tiers" },
+  { href: "/cities", labelKey: "nav.cities" },
   { href: "/payment-providers", labelKey: "nav.paymentProviders" },
   { href: "/messaging", labelKey: "nav.messaging" },
   { href: "/billing", labelKey: "nav.billing" },

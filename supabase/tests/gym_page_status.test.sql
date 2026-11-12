@@ -4,7 +4,7 @@
 -- The refresh triggers are DEFERRED constraint triggers (they judge a transaction's final state, at commit). This whole file is one
 -- transaction, so `pg_temp.settle()` stands for "commit": it fires the pending triggers now.
 begin;
-select plan(129);
+select plan(133);
 
 create or replace function pg_temp.claims(uid text, app_role text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -77,9 +77,10 @@ create or replace function pg_temp.complete(gym text, nm text, plan_id text, n i
 begin
   perform set_gym_page_content(pg_temp.g(gym)::uuid,
     jsonb_build_object('about_en', repeat('This gym is complete. ', 6), 'about_fr', repeat('Cette salle est complete. ', 6), 'services_en', 'Cardio', 'services_fr', 'Cardio FR',
-                       'city', 'Douala', 'contact_phone', '+237600555000',
+                       'contact_phone', '+237600555000',
                        'hours', '{"mon":{"open":"06:00","close":"22:00"},"sun":null}'::jsonb),
     jsonb_build_array(jsonb_build_object('plan_id', plan_id, 'is_public', true)));
+  perform set_gym_location(pg_temp.g(gym)::uuid, 'CM', (select id from cities where country_code = 'CM' and slug = 'douala'));
   perform claim_page_name(pg_temp.g(gym)::uuid, nm);
   perform register_page_media(pg_temp.g(gym)::uuid, 'logo', pg_temp.g(gym) || '/aaaaaaaa-aaaa-aaaa-aaaa-' || lpad(n::text, 12, '0'), pg_temp.dk(n), true, 'v1');
   perform register_page_media(pg_temp.g(gym)::uuid, 'banner', pg_temp.g(gym) || '/aaaaaaaa-aaaa-aaaa-aaaa-' || lpad((n + 1)::text, 12, '0'), pg_temp.dk(n + 1), true, 'v1');
@@ -101,8 +102,7 @@ create temp table fxdoc as select $fx${
     { "id": "services_2001_ascii", "gen": { "key": "services_fr", "unit": "s", "times": 2001 }, "zod": false, "sql": false },
     { "id": "address_300", "gen": { "key": "address", "unit": "x", "times": 300 }, "zod": true, "sql": true },
     { "id": "address_301", "gen": { "key": "address", "unit": "x", "times": 301 }, "zod": false, "sql": false },
-    { "id": "city_100_emoji", "gen": { "key": "city", "unit": "🏙", "times": 100 }, "zod": true, "sql": true },
-    { "id": "city_101_emoji", "gen": { "key": "city", "unit": "🏙", "times": 101 }, "zod": false, "sql": false },
+    { "id": "city_key_gone", "content": { "city": "Douala" }, "zod": false, "sql": false, "note": "25.1: a city is chosen with set_gym_location(), so the key is unknown on both sides" },
     { "id": "about_lt", "content": { "about_en": "a < b" }, "zod": false, "sql": false },
     { "id": "about_gt", "content": { "about_en": "a > b" }, "zod": false, "sql": false },
     { "id": "services_markup", "content": { "services_fr": "<b>x</b>" }, "zod": false, "sql": false },
@@ -138,7 +138,8 @@ create temp table fxdoc as select $fx${
     { "id": "hours_unknown_day", "content": { "hours": { "funday": { "open": "06:00", "close": "22:00" } } }, "zod": false, "sql": false },
     { "id": "hours_extra_key", "content": { "hours": { "mon": { "open": "06:00", "close": "22:00", "note": "x" } } }, "zod": false, "sql": false }
   ]
-}$fx$::jsonb as doc;
+}
+$fx$::jsonb as doc;
 -- FIXTURE:END
 create temp table fx as select c from fxdoc, jsonb_array_elements(doc -> 'cases') c;
 
@@ -234,6 +235,10 @@ select is(pg_temp.sstate('A'), 'not_started', 'live-assigned support reads the g
 select is(pg_temp.stat('B') ->> 'error', 'P0001:permission denied', 'and not another gym');
 select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
 select is(pg_temp.sstate('A'), 'not_started', 'a live Super Admin reads any gym');
+-- 25.1: the page counts as started when the gym has chosen a city (v_started reads city_id), even with nothing else filled in
+select is(pg_temp.sstate('N'), 'not_started', 'control: a fresh gym with no city is not_started');
+select is(pg_temp.err($$select set_gym_location('$$ || pg_temp.g('N') || $$', 'CM', '$$ || (select id from cities where country_code = 'CM' and slug = 'douala') || $$')$$), 'ok', 'a Super Admin sets the city of that otherwise fresh gym');
+select is(pg_temp.sstate('N'), 'in_progress', 'a gym whose only content is a city reads in_progress');
 select is(pg_temp.stat('A') -> 'missing' is not null, true, 'control: the answer carries the missing codes');
 select is(pg_temp.err($$select get_gym_page_status('00000000-0000-0000-0000-0000002409ff')$$), 'P0001:get_gym_page_status: gym not found', 'a Super Admin asking for an unknown gym gets "gym not found"');
 select pg_temp.as_user(pg_temp.u('ownerA'), 'owner', pg_temp.g('A'));
@@ -273,10 +278,11 @@ select is((select page_services_en from gyms where id = pg_temp.g('A')::uuid), '
 -- the rest of A's checklist, through the real paths
 set local role authenticated;
 select pg_temp.as_user(pg_temp.u('ownerA'), 'owner', pg_temp.g('A'));
-select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('A') || $$', jsonb_build_object('address', 'Rue 1, Akwa', 'city', 'Douala', 'lat', 4.0511, 'lng', 9.7679,
+select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('A') || $$', jsonb_build_object('address', 'Rue 1, Akwa', 'lat', 4.0511, 'lng', 9.7679,
     'contact_phone', '+237600111222', 'hours', '{"mon":{"open":"06:00","close":"22:00"},"sun":null}'::jsonb),
   jsonb_build_array(jsonb_build_object('plan_id', '$$ || pg_temp.pl('A1') || $$', 'is_public', true), jsonb_build_object('plan_id', '$$ || pg_temp.pl('A2') || $$', 'is_public', true)))$$),
           'ok', 'owner fills in the rest and makes two plans public');
+select is(pg_temp.err($$select set_gym_location('$$ || pg_temp.g('A') || $$', 'CM', '$$ || (select id from cities where country_code = 'CM' and slug = 'douala') || $$')$$), 'ok', '25.1: owner picks the city');
 select is(pg_temp.val($$select claim_page_name('$$ || pg_temp.g('A') || $$', 'status-alpha')->>'state'$$), 'active', 'owner claims a name');
 select is(pg_temp.err(pg_temp.reg('A', 'logo', 1)), 'ok', 'owner registers the logo');
 reset role;
@@ -386,21 +392,21 @@ update page_names set taken_down_at = null where gym_id = pg_temp.g('T')::uuid a
 select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
 select is(pg_temp.stat('A') -> 'bad_text_fields', '[]'::jsonb, 'a clean gym has no bad text fields');
 select set_config('app.gym_page_content_bypass', 'true', true);
-update gyms set name = 'Status <b>Gym X', page_about_fr = 'Texte' || chr(1) || ' brut', page_services_en = 'Cardio' || chr(2), page_address = 'Rue' || chr(7) || ' 5', page_city = 'Dou' || chr(5) || 'ala'
+update gyms set name = 'Status <b>Gym X', page_about_fr = 'Texte' || chr(1) || ' brut', page_services_en = 'Cardio' || chr(2), page_address = 'Rue' || chr(7) || ' 5'
  where id = pg_temp.g('X')::uuid;
 update plans set is_public = true where id = pg_temp.pl('X1')::uuid;
 select set_config('app.gym_page_content_bypass', 'false', true);
 create temp table x_dirty as select pg_temp.stat('X') as s;
 select is((select array_agg(coalesce(e ->> 'field', '?') || coalesce(':' || (e ->> 'lang'), '') || coalesce(':' || (e ->> 'plan_name'), '') order by e ->> 'field', e ->> 'lang')
              from x_dirty, jsonb_array_elements(s -> 'bad_text_fields') e),
-          array['about:fr', 'address', 'city', 'gym_name', 'plan_name:HOSTILE <B> PLAN', 'services:en'],
-          'bad_text_fields names the gym name, About (fr), Services (en), address, city and the public plan by its entered name');
+          array['about:fr', 'address', 'gym_name', 'plan_name:HOSTILE <B> PLAN', 'services:en'],
+          'bad_text_fields names the gym name, About (fr), Services (en), address and the public plan by its entered name (25.1: a city name cannot be dirty, cities_name_shape)');
 select ok((select (s -> 'missing') ? 'bad_text' from x_dirty), 'and bad_text is in missing');
 select is((select (s -> 'bad_text_fields')::text like '%Private%' from x_dirty), false, 'a private plan with a hostile name is not judged (it is not in the snapshot)');
 select is((select (s -> 'bad_text_fields')::text like '%' || pg_temp.pl('X1') || '%' from x_dirty), false, 'a plan is never named by its id');
 select is((select count(*)::int from x_dirty, jsonb_array_elements(s -> 'bad_text_fields') e where e ->> 'field' = 'about'), 1, 'one entry per field, per language');
 select set_config('app.gym_page_content_bypass', 'true', true);
-update gyms set name = 'Status Gym X', page_about_fr = null, page_services_en = null, page_address = null, page_city = null where id = pg_temp.g('X')::uuid;
+update gyms set name = 'Status Gym X', page_about_fr = null, page_services_en = null, page_address = null where id = pg_temp.g('X')::uuid;
 update plans set name = 'Clean plan' where id = pg_temp.pl('X1')::uuid;
 select set_config('app.gym_page_content_bypass', 'false', true);
 select is(pg_temp.stat('X') -> 'bad_text_fields', '[]'::jsonb, 'cleaned: no entries');
@@ -515,7 +521,7 @@ begin
   end loop;
 end $f$;
 select pg_temp.run_fixture();
-select is((select count(*)::int from fx_result), 44, 'the fixture ran every case');
+select is((select count(*)::int from fx_result), 43, 'the fixture ran every case');
 select is((select coalesce(array_agg(id order by id), '{}') from fx_result where expected is distinct from actual), '{}'::text[], 'every fixture case behaves as pinned on the SQL side');
 select is((select count(*)::int from fx_result where expected), (select count(*)::int from fx where (c ->> 'sql')::boolean), 'control: the accepted cases are counted from the pinned expectations');
 select is((select count(*)::int from fx_result where not expected) > 10, true, 'control: the fixture has refusals to compare, not only acceptances');

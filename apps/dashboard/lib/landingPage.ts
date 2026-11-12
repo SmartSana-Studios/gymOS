@@ -185,14 +185,15 @@ export interface SaveImpact {
 
 /**
  * Would saving this form take a LIVE page offline? A client-side prediction used only to warn first (the database re-judges the
- * gate at commit, and unpublishes by itself): the plans switched on, the longest About, the city, the contact and the hours.
+ * gate at commit, and unpublishes by itself): the plans switched on, the longest About, the contact and the hours. (The city is saved by its
+ * own Location button, which only ever sets a city, so it is not predicted here. A country change in Settings DOES clear the city and
+ * unpublish the page, but that save is not made from this editor.)
  */
 export function predictedBreaks(args: {
   state: PageStatusState;
   publicPlanCount: number;
   longestAbout: number;
   minAbout: number;
-  city: string;
   hasContact: boolean;
   hasOpenDay: boolean;
 }): SaveImpact {
@@ -200,7 +201,6 @@ export function predictedBreaks(args: {
   const codes: PagePublishGateCode[] = [];
   if (args.publicPlanCount === 0) codes.push("no_public_plan");
   if (args.longestAbout < args.minAbout) codes.push("about_short");
-  if (args.city.trim() === "") codes.push("no_city");
   if (!args.hasContact) codes.push("no_contact");
   if (!args.hasOpenDay) codes.push("no_hours");
   return { codes: sortGateCodes(codes) };

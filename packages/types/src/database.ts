@@ -168,6 +168,126 @@ export type Database = {
           },
         ]
       }
+      cities: {
+        Row: {
+          country_code: string
+          created_at: string
+          id: string
+          lat: number | null
+          lng: number | null
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          country_code: string
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          country_code?: string
+          created_at?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cities_country_code_fkey"
+            columns: ["country_code"]
+            referencedRelation: "countries"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      city_aliases: {
+        Row: {
+          alias: string
+          alias_norm: string
+          city_id: string
+          country_code: string
+          id: string
+          is_name: boolean
+        }
+        Insert: {
+          alias: string
+          alias_norm: string
+          city_id: string
+          country_code: string
+          id?: string
+          is_name?: boolean
+        }
+        Update: {
+          alias?: string
+          alias_norm?: string
+          city_id?: string
+          country_code?: string
+          id?: string
+          is_name?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "city_aliases_city_id_fkey"
+            columns: ["city_id"]
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "city_aliases_country_code_fkey"
+            columns: ["country_code"]
+            referencedRelation: "countries"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      city_slug_history: {
+        Row: {
+          city_id: string
+          country_code: string
+          created_at: string
+          expires_at: string
+          id: string
+          old_slug: string
+        }
+        Insert: {
+          city_id: string
+          country_code: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          old_slug: string
+        }
+        Update: {
+          city_id?: string
+          country_code?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          old_slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "city_slug_history_city_id_fkey"
+            columns: ["city_id"]
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "city_slug_history_country_code_fkey"
+            columns: ["country_code"]
+            referencedRelation: "countries"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       class_bookings: {
         Row: {
           attended_at: string | null
@@ -357,6 +477,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      countries: {
+        Row: {
+          code: string
+          name_en: string
+          name_fr: string
+        }
+        Insert: {
+          code: string
+          name_en: string
+          name_fr: string
+        }
+        Update: {
+          code?: string
+          name_en?: string
+          name_fr?: string
+        }
+        Relationships: []
       }
       device_push_tokens: {
         Row: {
@@ -778,6 +916,7 @@ export type Database = {
           category: string
           charge_guests_per_session: boolean
           checkin_timeout_hours: number
+          city_id: string | null
           class_booking_cancellation_cutoff_minutes: number
           closing_time: string | null
           country: string
@@ -822,6 +961,7 @@ export type Database = {
           category?: string
           charge_guests_per_session?: boolean
           checkin_timeout_hours?: number
+          city_id?: string | null
           class_booking_cancellation_cutoff_minutes?: number
           closing_time?: string | null
           country?: string
@@ -866,6 +1006,7 @@ export type Database = {
           category?: string
           charge_guests_per_session?: boolean
           checkin_timeout_hours?: number
+          city_id?: string | null
           class_booking_cancellation_cutoff_minutes?: number
           closing_time?: string | null
           country?: string
@@ -904,6 +1045,12 @@ export type Database = {
           timezone?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "gyms_city_id_fkey"
+            columns: ["city_id"]
+            referencedRelation: "cities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "gyms_tier_id_fkey"
             columns: ["tier_id"]
@@ -2475,6 +2622,10 @@ export type Database = {
         Returns: { ok: boolean; reason: string }[]
       }
       active_payment_provider: { Args: never; Returns: string }
+      add_city: {
+        Args: { p_aliases?: string[]; p_country_code: string; p_lat?: number; p_lng?: number; p_name: string; p_slug?: string }
+        Returns: string
+      }
       add_page_name_word: {
         Args: { p_kind: string; p_prefix?: boolean; p_word: string }
         Returns: undefined
@@ -3125,6 +3276,15 @@ export type Database = {
           status: string
         }[]
       }
+      list_gyms_without_city: {
+        Args: never
+        Returns: {
+          country: string
+          gym_id: string
+          gym_name: string
+          page_city: string
+        }[]
+      }
       list_published_pages: {
         Args: never
         Returns: {
@@ -3384,6 +3544,10 @@ export type Database = {
         Args: { p_category: string; p_gym_id: string }
         Returns: undefined
       }
+      set_gym_location: {
+        Args: { p_city_id: string; p_country: string; p_gym_id: string }
+        Returns: undefined
+      }
       set_gym_page_content: {
         Args: { p_content: Json; p_gym_id: string; p_plans?: Json }
         Returns: undefined
@@ -3436,6 +3600,10 @@ export type Database = {
         Returns: undefined
       }
       unpublish_gym_page: { Args: { p_gym_id: string }; Returns: boolean }
+      update_city: {
+        Args: { p_aliases?: string[]; p_city_id: string; p_lat?: number; p_lng?: number; p_name: string; p_slug?: string }
+        Returns: undefined
+      }
       update_class: {
         Args: {
           p_capacity: number

@@ -232,7 +232,7 @@ select is((select array_agg(distinct name order by name) from cgs),
                 'create_class', 'create_staff_member', 'create_workout_plan', 'deactivate_staff_member', 'delete_page_media', 'edit_session_note', 'effective_loyalty',
                 'file_audit_disclosure_request', 'initiate_member_payment', 'initiate_registration_fee_payment', 'initiate_session_payment', 'list_my_class_session_roster',
                 'list_my_classes', 'mark_class_attendance', 'materialize_class_sessions', 'publish_gym_page', 'record_registration_fee', 'record_session_payment', 'register_page_media', 'renew_subscription',
-                'set_guest_charging', 'set_gym_page_content', 'set_loyalty_program', 'set_registration_fee', 'support_connect_gym_payment_credentials', 'take_ownership_of_workout_plan',
+                'set_guest_charging', 'set_gym_location', 'set_gym_page_content', 'set_loyalty_program', 'set_registration_fee', 'support_connect_gym_payment_credentials', 'take_ownership_of_workout_plan',
                 'update_class', 'update_plan_pricing', 'update_staff_role', 'update_workout_plan', 'void_registration_fee_payment', 'waive_registration_fee']::text[],
           'E1 the callers of current_gym_status() are exactly the listed functions (a new caller must be added here deliberately)');
 select is((select count(*)::int from cgs where role_at is not null and role_at > st), 0,

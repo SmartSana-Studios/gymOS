@@ -84,9 +84,10 @@ create or replace function pg_temp.complete(gym text, nm text, plan_id text, n i
 begin
   perform set_gym_page_content(pg_temp.g(gym)::uuid,
     jsonb_build_object('about_en', repeat('This gym is complete. ', 6), 'about_fr', repeat('Cette salle est complete. ', 6), 'services_en', 'Cardio', 'services_fr', 'Cardio FR',
-                       'city', 'Douala', 'contact_phone', '+237600555000',
+                       'contact_phone', '+237600555000',
                        'hours', '{"mon":{"open":"06:00","close":"22:00"},"sun":null}'::jsonb),
     jsonb_build_array(jsonb_build_object('plan_id', plan_id, 'is_public', true)));
+  perform set_gym_location(pg_temp.g(gym)::uuid, 'CM', (select id from cities where country_code = 'CM' and slug = 'douala'));
   perform claim_page_name(pg_temp.g(gym)::uuid, nm);
   perform register_page_media(pg_temp.g(gym)::uuid, 'logo', pg_temp.g(gym) || '/' || pg_temp.ok_(n), pg_temp.dk(n), true, 'v1');
   perform register_page_media(pg_temp.g(gym)::uuid, 'banner', pg_temp.g(gym) || '/' || pg_temp.ok_(n + 1), pg_temp.dk(n + 1), true, 'v1');

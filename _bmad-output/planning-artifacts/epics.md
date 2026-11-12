@@ -3947,6 +3947,10 @@ So that I can find a place to train near me.
 **When** it renders
 **Then** it still serves with `noindex` in both the meta tag and the `X-Robots-Tag` header and is excluded from the sitemap (25.5); the same boolean drives both, tested together
 
+**Given** the country names seeded by 25.1 from `Intl.DisplayNames` (short forms such as "Congo - Kinshasa", "Antigua & Barbuda", "St. Barthélemy")
+**When** they are shown as directory headings, card titles or structured-data values
+**Then** each name shown has been reviewed for a public heading in both languages, and any that reads badly is corrected by a migration before this story ships (deferred from 25.1 review)
+
 **Given** the page chrome
 **When** it renders in `en` or `fr`
 **Then** labels come from the dictionary, city and gym names are shown as entered, and responses carry `s-maxage` no greater than 300

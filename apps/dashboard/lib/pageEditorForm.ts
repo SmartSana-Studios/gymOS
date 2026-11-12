@@ -22,7 +22,6 @@ export interface EditorFormState {
   about: Record<PageContentLanguage, string>;
   services: Record<PageContentLanguage, string>;
   address: string;
-  city: string;
   lat: string;
   lng: string;
   hours: Record<HoursDay, DayForm>;
@@ -36,7 +35,6 @@ export interface StoredPageFields {
   about: Record<PageContentLanguage, string>;
   services: Record<PageContentLanguage, string>;
   address: string;
-  city: string;
   lat: string;
   lng: string;
   hours: Record<string, { open: string; close: string } | null> | null;
@@ -57,7 +55,6 @@ export function initialForm(stored: StoredPageFields, plans: readonly { id: stri
     about: { ...stored.about },
     services: { ...stored.services },
     address: stored.address,
-    city: stored.city,
     lat: stored.lat,
     lng: stored.lng,
     hours,
@@ -75,7 +72,7 @@ export function cleanForm(form: EditorFormState): EditorFormState {
     about[l] = cleanPageText(form.about[l] ?? "");
     services[l] = cleanServicesText(form.services[l] ?? "");
   }
-  return { ...form, about, services, address: cleanPageText(form.address), city: cleanPageText(form.city) };
+  return { ...form, about, services, address: cleanPageText(form.address) };
 }
 
 /** Copy Monday's hours (or its closed state) to every other day. */
@@ -89,7 +86,7 @@ export type FieldErrorCode = "angle" | "tooLong" | "phone" | "latlngPair" | "lat
 export interface FieldError {
   code: FieldErrorCode;
   /** For `angle` and `tooLong`: the field, and the language when it has one. */
-  field?: "about" | "services" | "address" | "city";
+  field?: "about" | "services" | "address";
   lang?: PageContentLanguage;
 }
 export type EditorErrors = Record<string, FieldError>;
@@ -104,13 +101,13 @@ export function parseCoordinate(value: string): number | null {
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 const E164_RE = /^\+[1-9]\d{7,14}$/;
-export const LIMITS = { about: 2000, services: 2000, address: 300, city: 100 } as const;
+export const LIMITS = { about: 2000, services: 2000, address: 300 } as const;
 
 function codePoints(s: string): number {
   return Array.from(s).length;
 }
 
-/** Inline validation: the same rules as the database, stated per field. Keys: about.en, services.fr, address, city, latlng, contact_phone, contact_whatsapp, hours.mon. */
+/** Inline validation: the same rules as the database, stated per field. Keys: about.en, services.fr, address, latlng, contact_phone, contact_whatsapp, hours.mon. */
 export function validateForm(form: EditorFormState): EditorErrors {
   const errors: EditorErrors = {};
   const text = (key: string, value: string, field: keyof typeof LIMITS, lang?: PageContentLanguage) => {
@@ -122,7 +119,6 @@ export function validateForm(form: EditorFormState): EditorErrors {
     text(`services.${l}`, form.services[l] ?? "", "services", l);
   }
   text("address", form.address, "address");
-  text("city", form.city, "city");
 
   const lat = form.lat.trim();
   const lng = form.lng.trim();
@@ -175,7 +171,6 @@ export function toSaveInput(raw: EditorFormState): unknown {
     content[`services_${l}`] = form.services[l];
   }
   content.address = form.address;
-  content.city = form.city;
   const lat = form.lat.trim();
   const lng = form.lng.trim();
   content.lat = lat === "" ? null : parseCoordinate(lat);

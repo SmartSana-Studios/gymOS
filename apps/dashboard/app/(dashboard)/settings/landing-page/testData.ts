@@ -1,6 +1,9 @@
 import { gymPageStatusSchema, type GymPageStatus } from "@gymos/types";
 import type { LandingPageData } from "@/services/landing-page";
 
+export const CITY_DOUALA = "6a8f4c52-1b0e-4d7a-9a55-0d6f3c8e1a01";
+export const CITY_YAOUNDE = "6a8f4c52-1b0e-4d7a-9a55-0d6f3c8e1a02";
+
 export function makeStatus(over: Record<string, unknown> = {}): GymPageStatus {
   return gymPageStatusSchema.parse({
     state: "in_progress",
@@ -33,15 +36,25 @@ export function makeData(over: Omit<Partial<LandingPageData>, "status"> & { stat
       about: { en: "x".repeat(60), fr: "" },
       services: { en: "", fr: "" },
       address: "",
-      city: "",
       lat: "",
       lng: "",
       hours: null,
       contactPhone: "",
       contactWhatsapp: "",
       country: "CM",
+      cityId: null,
       category: "pilates_studio",
       defaultLanguage: "en",
+    },
+    lists: {
+      countries: [
+        { code: "CM", nameEn: "Cameroon", nameFr: "Cameroun" },
+        { code: "SN", nameEn: "Senegal", nameFr: "Sénégal" },
+      ],
+      cities: [
+        { id: CITY_DOUALA, name: "Douala", slug: "douala", aliasNorms: ["douala"] },
+        { id: CITY_YAOUNDE, name: "Yaoundé", slug: "yaounde", aliasNorms: ["yaounde"] },
+      ],
     },
     plans: [
       { id: "3fa85f64-5717-4562-b3fc-2c963f66afa6", name: "Monthly", planType: "monthly", price: 10000, currency: "XAF", billingInterval: "monthly", durationDays: 30, isPublic: false },

@@ -129,13 +129,17 @@ async function fillGate(pg: PageGym): Promise<void> {
     p_content: {
       about_en: pg.aboutEn,
       about_fr: pg.aboutFr,
-      city: "Douala",
       contact_phone: "+237600555000",
       hours: { mon: { open: "06:00", close: "22:00" }, sun: null },
     },
     p_plans: [{ plan_id: pg.planId, is_public: true }],
   });
   if (error) throw new Error(`landing gate e2e: set_gym_page_content -- ${error.message}`);
+  // 25.1: the city is chosen from the list (migration 0169 seeds Douala), never typed
+  const douala = await owner.from("cities").select("id").eq("country_code", "CM").eq("slug", "douala").single();
+  if (douala.error) throw new Error(`landing gate e2e: reading the Douala row -- ${douala.error.message}`);
+  const located = await owner.rpc("set_gym_location", { p_gym_id: pg.gymId, p_country: "CM", p_city_id: douala.data.id });
+  if (located.error) throw new Error(`landing gate e2e: set_gym_location -- ${located.error.message}`);
   // media rows need no Storage objects: the gate counts registered, attested rows
   for (const [n, kind] of [[1, "logo"], [2, "banner"]] as const) {
     const key = `${pg.gymId}/aaaaaaaa-aaaa-aaaa-aaaa-${String(n).padStart(12, "0")}`;

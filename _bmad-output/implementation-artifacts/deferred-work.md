@@ -2046,3 +2046,19 @@ Lab, local results only (one machine runs the server, the database, the load and
 - **A draft template choice that survives a reload.** For a page that is not live the choice lives in the editor session and the `?template=` handoff. A real draft needs a `gyms.page_template` column (or a content key), `set_gym_page_content` and the draft-change trigger to carry it, `publish_gym_page` to read it, the shared fixture and pgTAP updates, and a migration to production. Not done: too large to add to epic 24 at the merge.
 - **Thumbnails from the gym's own content.** The picker draws wireframes. A real preview needs the dashboard to render the template module over the unpublished content (AD-48), with the page's CSP and media origin handled in an iframe.
 - **Per-template speed numbers.** [Volt on production measured 2026-11-11, p75 1,164 ms; Classic locally p75 3,488 ms; Classic on production and load still open.] The 24.12 LCP/load table covers the old Classic only. Run `scripts/landing-gate/run-local.sh lcp` against Classic and Volt before the gate is signed.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
+  summary: Before applying the 25.1 migration to production, run a rolled-back proof of its backfill and live-page re-judge on pre-0169 data and list every live page that will unpublish for want of a mapped city.
+  evidence: The backfill and `do $refresh$` loop in the migration are never executed by pgTAP (it tests a pasted copy on an empty DB). Live pages with unmapped or free-text cities unpublish at deploy; the owner should hand-map first.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
+  summary: Settings country picker offers AC, TA and XK, which are not in the seeded `countries` table, so such a gym can never get a city.
+  evidence: `libphonenumber-js` getCountries() includes them, the ISO seed from Intl.DisplayNames does not; set_gym_location answers unknown_country. Cameroon pilot unaffected.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
+  summary: An Owner changing country in Settings clears the gym's city and unpublishes its page with no warning before the save.
+  evidence: Trigger `gyms_z_clear_city_on_country_change` (by the approved intent); `predictedBreaks` no longer models `no_city`, and Settings has no live-page warning.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
+  summary: Close before story 25.3: review the seeded country names (Intl.DisplayNames short forms such as "Congo - Kinshasa", "Antigua & Barbuda", "St. Barthélemy") before they become public directory headings.
+  evidence: `countries.name_en/name_fr` come straight from ICU; no UI edits them. Added to the 25.3 acceptance criteria in epics.md.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
+  summary: The Super Admin /cities read (select with `city_aliases` and `gyms(count)` embeds) is tested only against a mock that ignores the select string.
+  evidence: apps/super-admin has no e2e; a mistyped embed would show LoadError. Covered by the owner's browser QA of /cities.

@@ -44,12 +44,16 @@ create or replace function pg_temp.key_paths(j jsonb) returns text[] language sq
       ) c
   )
   select coalesce(array_agg(distinct path order by path) filter (where path <> ''), '{}') from walk $f$;
+-- the starter city of a slug in Cameroon (migration 0169 seeds them)
+create or replace function pg_temp.city(slug text) returns uuid language sql stable as $f$
+  select id from cities where country_code = 'CM' and cities.slug = city.slug $f$;
 create or replace function pg_temp.complete(gym text, nm text, plan_id text, n int) returns text language plpgsql as $f$
 begin
   perform set_gym_page_content(pg_temp.g(gym)::uuid,
-    jsonb_build_object('about_en', repeat('This gym is complete. ', 6), 'city', 'Douala', 'contact_phone', '+237600555000',
+    jsonb_build_object('about_en', repeat('This gym is complete. ', 6), 'contact_phone', '+237600555000',
                        'hours', '{"mon":{"open":"06:00","close":"22:00"},"sun":null}'::jsonb),
     jsonb_build_array(jsonb_build_object('plan_id', plan_id, 'is_public', true)));
+  perform set_gym_location(pg_temp.g(gym)::uuid, 'CM', pg_temp.city('douala'));
   perform claim_page_name(pg_temp.g(gym)::uuid, nm);
   perform register_page_media(pg_temp.g(gym)::uuid, 'logo', pg_temp.g(gym) || '/aaaaaaaa-aaaa-aaaa-aaaa-' || lpad(n::text, 12, '0'), pg_temp.dk(n), true, 'v1');
   perform register_page_media(pg_temp.g(gym)::uuid, 'banner', pg_temp.g(gym) || '/aaaaaaaa-aaaa-aaaa-aaaa-' || lpad((n + 1)::text, 12, '0'), pg_temp.dk(n + 1), true, 'v1');
@@ -97,8 +101,9 @@ select private.support_set_membership('00000000-0000-0000-0000-000000241881', tr
 -- gym A is ready to publish (a Super Admin completes it; nothing is published yet)
 select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
 set local role authenticated;
-select 1 where pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('A') || $$', jsonb_build_object('about_en', repeat('This gym is complete. ', 6), 'city', 'Douala', 'contact_phone', '+237600555000',
+select 1 where pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('A') || $$', jsonb_build_object('about_en', repeat('This gym is complete. ', 6), 'contact_phone', '+237600555000',
   'hours', '{"mon":{"open":"06:00","close":"22:00"}}'::jsonb), '[{"plan_id":"00000000-0000-0000-0000-000000241871","is_public":true}]'::jsonb)$$) is null;
+select 1 where pg_temp.err($$select set_gym_location('$$ || pg_temp.g('A') || $$', 'CM', '$$ || pg_temp.city('douala') || $$')$$) is null;
 select 1 where pg_temp.err($$select claim_page_name('$$ || pg_temp.g('A') || $$', 'denial-a')$$) is null;
 select 1 where pg_temp.err($$select register_page_media('$$ || pg_temp.g('A') || $$', 'logo', '$$ || pg_temp.g('A') || $$/aaaaaaaa-aaaa-aaaa-aaaa-000000000001', '$$ || pg_temp.dk(1) || $$', true, 'v1')$$) is null;
 select 1 where pg_temp.err($$select register_page_media('$$ || pg_temp.g('A') || $$', 'banner', '$$ || pg_temp.g('A') || $$/aaaaaaaa-aaaa-aaaa-aaaa-000000000002', '$$ || pg_temp.dk(2) || $$', true, 'v1')$$) is null;
@@ -244,12 +249,12 @@ select pg_temp.claims(pg_temp.u('ownerA'), 'owner', pg_temp.g('A'));
 set local role authenticated;
 select pg_temp.as_user(pg_temp.u('ownerA'), 'owner', pg_temp.g('A'));
 select is(pg_temp.val(pg_temp.pub('A')), '{"missing": [], "published": true}', 'control: the Owner publishes gym A again');
-select is(pg_temp.err($$update gyms set page_city = 'Bare update', page_about_en = 'Short' where id = '$$ || pg_temp.g('A') || $$'$$), 'ok', 'an Owner''s bare update of page columns runs');
+select is(pg_temp.err($$update gyms set page_city = 'Bare update', city_id = null, page_about_en = 'Short' where id = '$$ || pg_temp.g('A') || $$'$$), 'ok', 'an Owner''s bare update of page columns runs');
 select is(pg_temp.err($$update plans set is_public = false where id = '00000000-0000-0000-0000-000000241871'$$), 'ok', 'and a bare update of is_public runs');
 reset role;
 select pg_temp.settle();
 select is(pg_temp.visible('A'), 1, 'both were reverted by the 24.5 pins, so nothing changed and the page is still published');
-select is((select content ->> 'city' from gym_pages where gym_id = pg_temp.g('A')::uuid), 'Douala', 'and the snapshot still says Douala');
+select is((select content ->> 'city' from gym_pages where gym_id = pg_temp.g('A')::uuid), 'Douala', 'and the snapshot still says Douala (25.1: the bare city_id write was pinned too)');
 
 -- ---- hostile text never reaches a snapshot -----------------------------------------------------------------------------------------------
 set local role authenticated;

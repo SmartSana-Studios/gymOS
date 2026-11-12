@@ -5,7 +5,7 @@
 -- The refresh triggers are DEFERRED constraint triggers (they judge a transaction's final state, at commit). This whole file is one
 -- transaction, so `pg_temp.settle()` stands for "commit": it fires the pending triggers now.
 begin;
-select plan(263);
+select plan(267);
 
 create or replace function pg_temp.claims(uid text, app_role text, gym text default null, sid text default null) returns void language plpgsql as $f$
 begin
@@ -81,13 +81,17 @@ begin
   insert into pg_temp.covered select unnest(private.gym_page_gate_missing(pg_temp.g(gym)::uuid));
   return pg_temp.missing(gym);
 end $f$;
+-- the starter city of a slug in Cameroon (migration 0169 seeds them)
+create or replace function pg_temp.city(slug text) returns uuid language sql stable as $f$
+  select id from cities where country_code = 'CM' and cities.slug = city.slug $f$;
 -- a gym brought to publishable in one call by a Super Admin (claims must be super admin): content, a public plan, name, logo, banner
 create or replace function pg_temp.complete(gym text, nm text, plan_id text, n int) returns text language plpgsql as $f$
 begin
   perform set_gym_page_content(pg_temp.g(gym)::uuid,
-    jsonb_build_object('about_en', repeat('This gym is complete. ', 6), 'city', 'Douala', 'contact_phone', '+237600555000',
+    jsonb_build_object('about_en', repeat('This gym is complete. ', 6), 'contact_phone', '+237600555000',
                        'hours', '{"mon":{"open":"06:00","close":"22:00"},"sun":null}'::jsonb),
     jsonb_build_array(jsonb_build_object('plan_id', plan_id, 'is_public', true)));
+  perform set_gym_location(pg_temp.g(gym)::uuid, 'CM', pg_temp.city('douala'));
   perform claim_page_name(pg_temp.g(gym)::uuid, nm);
   perform register_page_media(pg_temp.g(gym)::uuid, 'logo', pg_temp.g(gym) || '/aaaaaaaa-aaaa-aaaa-aaaa-' || lpad(n::text, 12, '0'), pg_temp.dk(n), true, 'v1');
   perform register_page_media(pg_temp.g(gym)::uuid, 'banner', pg_temp.g(gym) || '/aaaaaaaa-aaaa-aaaa-aaaa-' || lpad((n + 1)::text, 12, '0'), pg_temp.dk(n + 1), true, 'v1');
@@ -168,19 +172,19 @@ select is(has_function_privilege('authenticated', 'public.publish_gym_page(uuid,
           true, 'authenticated can execute both');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'private'::regnamespace
             and p.proname in ('gym_page_gate_missing', 'gym_page_snapshot', 'refresh_gym_page', 'notify_page_unpublished', 'gym_page_gate_phrase', 'gym_page_trimmed_length',
-                              'gym_page_refresh_from_gym', 'gym_page_refresh_from_plan', 'gym_page_refresh_from_media', 'gym_page_refresh_from_name')
+                              'gym_page_refresh_from_gym', 'gym_page_refresh_from_plan', 'gym_page_refresh_from_media', 'gym_page_refresh_from_name', 'gym_page_refresh_from_city')
             and (has_function_privilege('authenticated', p.oid, 'execute') or has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('service_role', p.oid, 'execute'))), 0,
           'no private 24.8 function is executable by a client role (refresh_gym_page has no grant to leak)');
 select is((select count(*)::int from private.support_capabilities where capability = 'gym_page' and kind = 'rpc' and object_name in ('publish_gym_page', 'unpublish_gym_page')), 2,
           'both functions have their capability row');
 select is((select count(*)::int from private.support_audit_actions where action_type in ('gym_page_published', 'gym_page_unpublished')), 2, 'both audit actions are on the support allow-list');
-select is((select count(*)::int from pg_trigger where tgname like 'gym\_page\_refresh%' and not tgisinternal and tgconstraint <> 0 and tgdeferrable and tginitdeferred), 8,
-          'eight deferred constraint triggers: gyms, plans (update, delete), media (insert, update, delete), page names (insert, update)');
+select is((select count(*)::int from pg_trigger where tgname like 'gym\_page\_refresh%' and not tgisinternal and tgconstraint <> 0 and tgdeferrable and tginitdeferred), 9,
+          'nine deferred constraint triggers: gyms, plans (update, delete), media (insert, update, delete), page names (insert, update), cities (rename; 25.1)');
 select is((select array_agg(c.relname::text || '.' || t.tgname order by c.relname, t.tgname) from pg_trigger t join pg_class c on c.oid = t.tgrelid
             where t.tgname like 'gym\_page\_refresh%' and not t.tgisinternal),
-          array['gym_page_media.gym_page_refresh_delete', 'gym_page_media.gym_page_refresh_insert', 'gym_page_media.gym_page_refresh_update', 'gyms.gym_page_refresh', 'page_names.gym_page_refresh_insert',
+          array['cities.gym_page_refresh_city', 'gym_page_media.gym_page_refresh_delete', 'gym_page_media.gym_page_refresh_insert', 'gym_page_media.gym_page_refresh_update', 'gyms.gym_page_refresh', 'page_names.gym_page_refresh_insert',
                 'page_names.gym_page_refresh_update', 'plans.gym_page_refresh_delete', 'plans.gym_page_refresh_update'],
-          'the triggers sit on exactly gyms, plans, gym_page_media and page_names');
+          'the triggers sit on exactly gyms, plans, gym_page_media, page_names and cities');
 select is((select count(*)::int from pg_constraint where conname = 'gym_pages_gym_page_name_fkey' and contype = 'f') - (select count(*)::int from pg_constraint where conname = 'gym_pages_page_name_id_fkey'), 1,
           'gym_pages has the composite (gym_id, page_name_id) foreign key and no longer the single-column one');
 select is((select count(*)::int from information_schema.columns where table_schema = 'public' and table_name = 'gym_pages' and column_name = 'unpublished_reason'), 1, 'gym_pages.unpublished_reason exists');
@@ -270,12 +274,13 @@ select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('A') || $$'
     'about_en', 'We are a modern gym in the heart of Douala with coaches, classes and open floor space for every level of fitness.',
     'about_fr', 'Nous sommes une salle moderne au coeur de Douala avec des coachs, des cours et un espace libre pour tous les niveaux de forme physique.',
     'services_en', 'Cardio, weights, yoga', 'services_fr', 'Cardio, poids, yoga',
-    'address', 'Rue 1, Akwa', 'city', 'Douala', 'lat', 4.0511, 'lng', 9.7679,
+    'address', 'Rue 1, Akwa', 'lat', 4.0511, 'lng', 9.7679,
     'contact_phone', '+237600111222', 'contact_whatsapp', '+237600111223',
     'hours', '{"mon":{"open":"06:00","close":"22:00"},"sun":null}'::jsonb),
   jsonb_build_array(
     jsonb_build_object('plan_id', '$$ || pg_temp.pl('A1') || $$', 'is_public', true, 'public_label_en', 'Monthly pass'),
     jsonb_build_object('plan_id', '$$ || pg_temp.pl('A2') || $$', 'is_public', true)))$$), 'ok', 'owner fills in the page and makes two plans public');
+select is(pg_temp.err($$select set_gym_location('$$ || pg_temp.g('A') || $$', 'CM', '$$ || pg_temp.city('douala') || $$')$$), 'ok', '25.1: owner picks the city with set_gym_location');
 select is(pg_temp.val($$select claim_page_name('$$ || pg_temp.g('A') || $$', 'pub-alpha')->>'state'$$), 'active', 'owner claims a clean name');
 select is(pg_temp.err(pg_temp.reg('A', 'logo', 1)), 'ok', 'owner registers the logo');
 select is(pg_temp.err(pg_temp.reg('A', 'banner', 2)), 'ok', 'owner registers the banner');
@@ -434,7 +439,7 @@ select ok((select reserved_until between now() + interval '12 months' - interval
 -- a further edit while offline does not bring it back and does not notify again
 set local role authenticated;
 select pg_temp.as_user(pg_temp.u('ownerA'), 'owner', pg_temp.g('A'));
-select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('A') || $$', jsonb_build_object('city', 'Yaounde'))$$), 'ok', 'owner edits the city of an offline page');
+select is(pg_temp.err($$select set_gym_location('$$ || pg_temp.g('A') || $$', 'CM', '$$ || pg_temp.city('yaounde') || $$')$$), 'ok', 'owner edits the city of an offline page');
 reset role;
 select pg_temp.settle();
 select is(pg_temp.visible('A') || '|' || (select count(*)::int from staff_notices where gym_id = pg_temp.g('A')::uuid and notice_type = 'page_unpublished'), '0|2', 'still offline; no second notice');
@@ -448,7 +453,7 @@ select pg_temp.as_user(pg_temp.u('supA'), 'supervisor', pg_temp.g('A'));
 select is(pg_temp.val(pg_temp.pub('A')), '{"missing": [], "published": true}', 'a Supervisor republishes with no template: the stored one is kept');
 reset role;
 select is(pg_temp.page('A', 'template') || '|' || pg_temp.page('A', 'unpublished_reason') || '|' || pg_temp.page('A', 'unpublished_at'), 'classic|null|null', 'template kept; reason and unpublished_at cleared');
-select is((select content ->> 'city' from gym_pages where gym_id = pg_temp.g('A')::uuid), 'Yaounde', 'a republish takes a fresh snapshot');
+select is((select content ->> 'city' from gym_pages where gym_id = pg_temp.g('A')::uuid), 'Yaoundé', 'a republish takes a fresh snapshot (the city is the list''s name)');
 select is(pg_temp.visible('A'), 1, 'and the page is visible again');
 select is((select reserved_until from page_names where gym_id = pg_temp.g('A')::uuid and state = 'active'), null, 'the idle clock is cleared');
 select is((select count(*)::int from audit_log where action_type = 'gym_page_published' and gym_id = pg_temp.g('A')::uuid), 2, 'publish and republish are both audited');
@@ -474,7 +479,7 @@ select is(pg_temp.err(pg_temp.reg('A', 'logo', 7)), 'ok', 'a Super Admin registe
 select is(pg_temp.val(pg_temp.pub('A')), '{"missing": [], "published": true}', 'and republishes');
 select pg_temp.as_user(pg_temp.u('ownerA'), 'owner', pg_temp.g('A'));
 select is(pg_temp.err(format($q$select delete_page_media(%L)$q$, pg_temp.mid(2))), 'ok', 'owner deletes the banner');
-select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('A') || $$', '{"city": null}')$$), 'ok', 'and clears the city, in the same transaction');
+select is(pg_temp.err($$select set_gym_location('$$ || pg_temp.g('A') || $$', 'CM', null)$$), 'ok', 'and clears the city, in the same transaction');
 reset role;
 select pg_temp.settle();
 select is(pg_temp.page('A', 'unpublished_reason'), 'no_banner,no_city', 'both reasons are recorded, in the gate order');
@@ -484,7 +489,7 @@ select is((select count(*)::int from staff_notices where gym_id = pg_temp.g('A')
 set local role authenticated;
 select pg_temp.as_user(pg_temp.u('ownerA'), 'owner', pg_temp.g('A'));
 select is(pg_temp.err(pg_temp.reg('A', 'banner', 8)), 'ok', 'owner adds a banner again');
-select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('A') || $$', '{"city": "Douala"}')$$), 'ok', 'and the city');
+select is(pg_temp.err($$select set_gym_location('$$ || pg_temp.g('A') || $$', 'CM', '$$ || pg_temp.city('douala') || $$')$$), 'ok', 'and the city');
 select is(pg_temp.val(pg_temp.pub('A')), '{"missing": [], "published": true}', 'republished');
 select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('A') || $$', '{"lng": null}')$$), 'ok', 'owner clears the longitude only');
 reset role;
@@ -686,9 +691,12 @@ reset role;
 select pg_temp.settle();
 select is((select (content -> 'map' ->> 'lat') || '|' || (content -> 'map' ->> 'lng') from gym_pages where gym_id = pg_temp.g('P')::uuid), '5.500000|10.500000', 'the position changed in the snapshot');
 select pg_temp.claims(pg_temp.u('admin'), 'super_admin');
-update gyms set country = 'GA' where id = pg_temp.g('P')::uuid;
+-- 25.1: a country change clears a city of the old country (the gate would fail), so P moves country AND city together, through the setter
+select ok(add_city('GA', 'Libreville') is not null and add_city('GA', 'Port-Gentil') is not null, '25.1: a Super Admin adds two Gabon cities');
+select is(pg_temp.err($$select set_gym_location('$$ || pg_temp.g('P') || $$', 'GA', '$$ || (select id from cities where country_code = 'GA' and slug = 'libreville') || $$')$$), 'ok', '25.1: a Super Admin moves P to Gabon with a Gabon city');
 select pg_temp.settle();
 select is((select content ->> 'country' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'GA', 'the country changed in the snapshot');
+select is((select content ->> 'city' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'Libreville', '25.1: and so did the city');
 
 -- (e) ONE watched column at a time on the live page (review pass 2). Each edit below changes exactly one column and settles alone, so a
 -- column dropped from a refresh trigger's UPDATE OF list or WHEN clause cannot be covered by a sibling column changed in the same statement.
@@ -712,10 +720,10 @@ select pg_temp.settle();
 select is((select content ->> 'category' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'pilates_studio', 'single column: the category alone refreshes the snapshot');
 set local role authenticated;
 select pg_temp.as_user(pg_temp.u('ownerP'), 'owner', pg_temp.g('P'));
-select is(pg_temp.err($$select set_gym_page_content('$$ || pg_temp.g('P') || $$', '{"city":"Solo City"}')$$), 'ok', 'owner changes only the city');
+select is(pg_temp.err($$select set_gym_location('$$ || pg_temp.g('P') || $$', 'GA', '$$ || (select id from cities where country_code = 'GA' and slug = 'port-gentil') || $$')$$), 'ok', 'owner changes only the city');
 reset role;
 select pg_temp.settle();
-select is((select content ->> 'city' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'Solo City', 'single column: the city alone refreshes the snapshot');
+select is((select content ->> 'city' from gym_pages where gym_id = pg_temp.g('P')::uuid), 'Port-Gentil', 'single column: the city alone refreshes the snapshot');
 -- 24.9 (owner decision 2026-11-08): the snapshot leaves out the text of a language whose About is under 100 characters, so P gets a
 -- complete French About first (and that single column refreshes the snapshot on its own); the French services step below then shows up.
 set local role authenticated;

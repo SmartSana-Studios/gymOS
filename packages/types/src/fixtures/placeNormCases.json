@@ -1,0 +1,33 @@
+{
+  "_comment": "Story 25.1. ONE fixture for the place normalizer, run by packages/types/src/placeNorm.test.ts (the TypeScript twin placeNorm / placeSlug) and supabase/tests/countries_cities.test.sql (private.place_norm / private.place_slug, migration 0169). The pgTAP file embeds this file between FIXTURE:BEGIN and FIXTURE:END markers; the vitest fails when the two differ. Each case gives the typed text and the expected normalized form and slug. U+0130 (dotted capital I) is deliberately absent: JavaScript and Postgres lower-case it differently.",
+  "cases": [
+    { "id": "plain", "input": "Douala", "norm": "douala", "slug": "douala" },
+    { "id": "accent", "input": "Yaoundé", "norm": "yaounde", "slug": "yaounde" },
+    { "id": "decomposed_accent", "input": "Yaounde\u0301", "norm": "yaounde", "slug": "yaounde" },
+    { "id": "accent_missing", "input": "Yaounde", "norm": "yaounde", "slug": "yaounde" },
+    { "id": "upper_accent", "input": "ÉBOLOWA", "norm": "ebolowa", "slug": "ebolowa" },
+    { "id": "double_accent", "input": "Ngaoundéré", "norm": "ngaoundere", "slug": "ngaoundere" },
+    { "id": "outer_space", "input": "  Douala  ", "norm": "douala", "slug": "douala" },
+    { "id": "inner_spaces", "input": "Saint   Louis", "norm": "saint louis", "slug": "saint-louis" },
+    { "id": "hyphen", "input": "Port-Gentil", "norm": "port gentil", "slug": "port-gentil" },
+    { "id": "spaced_hyphen", "input": "Saint - Louis", "norm": "saint louis", "slug": "saint-louis" },
+    { "id": "en_dash", "input": "Port–Gentil", "norm": "port gentil", "slug": "port-gentil" },
+    { "id": "apostrophe", "input": "N'Djamena", "norm": "n djamena", "slug": "n-djamena" },
+    { "id": "curly_apostrophe", "input": "N’Djamena", "norm": "n djamena", "slug": "n-djamena" },
+    { "id": "underscore", "input": "Bamenda_North", "norm": "bamenda north", "slug": "bamenda-north" },
+    { "id": "no_break_space", "input": "Mbalmayo\u00a0Centre", "norm": "mbalmayo centre", "slug": "mbalmayo-centre" },
+    { "id": "tab_and_newline", "input": "Kribi\t\nPort", "norm": "kribi port", "slug": "kribi-port" },
+    { "id": "ligature_oe", "input": "Cœur d'Alène", "norm": "coeur d alene", "slug": "coeur-d-alene" },
+    { "id": "sharp_s", "input": "Straße", "norm": "strasse", "slug": "strasse" },
+    { "id": "stroke_l", "input": "Łódź", "norm": "lodz", "slug": "lodz" },
+    { "id": "tilde", "input": "São Tomé", "norm": "sao tome", "slug": "sao-tome" },
+    { "id": "umlaut", "input": "Zürich", "norm": "zurich", "slug": "zurich" },
+    { "id": "ring", "input": "Åre", "norm": "are", "slug": "are" },
+    { "id": "cedilla", "input": "Garçon", "norm": "garcon", "slug": "garcon" },
+    { "id": "parentheses", "input": "Mbalmayo (Centre)", "norm": "mbalmayo (centre)", "slug": "mbalmayo-centre" },
+    { "id": "digits", "input": "Zone 3", "norm": "zone 3", "slug": "zone-3" },
+    { "id": "only_separators", "input": " - ' _ ", "norm": "", "slug": "" },
+    { "id": "empty", "input": "", "norm": "", "slug": "" },
+    { "id": "non_latin", "input": "東京", "norm": "東京", "slug": "" }
+  ]
+}

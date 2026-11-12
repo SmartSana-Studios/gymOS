@@ -74,6 +74,11 @@ describe("a denied gate stops every gated Server Action before any work", () => 
   add("removeSupportAccount", support, "removeSupportAccount", [{ userId: ACTOR, reason: "valid reason" }]);
   add("listSupportLocks", support, "listSupportLocks", []);
   add("unlockSupportAccount", support, "unlockSupportAccount", [{ userId: ACTOR, reason: "valid reason" }]);
+  const cities = () => import("./cities/actions");
+  add("listCitiesPage", cities, "listCitiesPage", []);
+  add("addCity", cities, "addCity", [{ country_code: "CM", name: "Mbouda", aliases: [], lat: null, lng: null }]);
+  add("updateCity", cities, "updateCity", [GYM, { country_code: "CM", name: "Mbouda", aliases: [], lat: null, lng: null }]);
+  add("mapGymToCity", cities, "mapGymToCity", [{ gymId: GYM, country: "CM", cityId: ACTOR }]);
   const pageNames = () => import("./page-names/actions");
   add("listHeldPageNames", pageNames, "listHeldPageNames", []);
   add("decideHeldPageName", pageNames, "decideHeldPageName", [{ id: ACTOR, approve: true, reason: "valid reason" }]);

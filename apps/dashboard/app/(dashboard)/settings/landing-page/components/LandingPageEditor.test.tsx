@@ -10,6 +10,8 @@ const loadLandingPageAction = vi.fn();
 const claimPageNameAction = vi.fn();
 const submitPageAppealAction = vi.fn();
 const publishPageAction = vi.fn();
+const loadCitiesAction = vi.fn();
+const saveLocationAction = vi.fn();
 
 vi.mock("../actions", () => ({
   saveLandingPageAction: (...a: unknown[]) => saveLandingPageAction(...a),
@@ -17,6 +19,8 @@ vi.mock("../actions", () => ({
   claimPageNameAction: (...a: unknown[]) => claimPageNameAction(...a),
   submitPageAppealAction: (...a: unknown[]) => submitPageAppealAction(...a),
   publishPageAction: (...a: unknown[]) => publishPageAction(...a),
+  loadCitiesAction: (...a: unknown[]) => loadCitiesAction(...a),
+  saveLocationAction: (...a: unknown[]) => saveLocationAction(...a),
   unpublishPageAction: vi.fn(),
 }));
 vi.mock("../../page-media-actions", () => ({
@@ -33,7 +37,7 @@ vi.mock("react-i18next", () => ({
 }));
 
 import { LandingPageEditor } from "./LandingPageEditor";
-import { makeData } from "../testData";
+import { CITY_DOUALA, CITY_YAOUNDE, makeData } from "../testData";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -231,7 +235,7 @@ describe("saving", () => {
     const base = makeData();
     const data = makeData({
       status: { state: "published", missing: [] },
-      content: { ...base.content, about: { en: "x".repeat(150), fr: "" }, city: "Douala", contactPhone: "+237600111222", hours: { mon: { open: "06:00", close: "22:00" } } },
+      content: { ...base.content, about: { en: "x".repeat(150), fr: "" }, cityId: CITY_DOUALA, contactPhone: "+237600111222", hours: { mon: { open: "06:00", close: "22:00" } } },
       plans: [{ ...base.plans[0], isPublic: true }],
     });
     render(<LandingPageEditor initial={data} />);
@@ -249,13 +253,12 @@ describe("saving", () => {
       const base = makeData();
       return makeData({
         status: { state: "published", missing: [] },
-        content: { ...base.content, about: { en: "x".repeat(150), fr: "" }, city: "Douala", contactPhone: "+237600111222", hours: { mon: { open: "06:00", close: "22:00" } } },
+        content: { ...base.content, about: { en: "x".repeat(150), fr: "" }, cityId: CITY_DOUALA, contactPhone: "+237600111222", hours: { mon: { open: "06:00", close: "22:00" } } },
         plans: [{ ...base.plans[0], isPublic: true }],
       });
     };
     const cases: [string, string, () => void][] = [
       ["about_short", "About under 100 characters", () => fireEvent.change(document.getElementById("about-en") as HTMLTextAreaElement, { target: { value: "x".repeat(99) } })],
-      ["no_city", "empty city", () => fireEvent.change(document.getElementById("pageCity") as HTMLInputElement, { target: { value: "  " } })],
       ["no_contact", "no phone and no WhatsApp", () => fireEvent.change(document.getElementById("pagePhone") as HTMLInputElement, { target: { value: "" } })],
       ["no_hours", "no open day", () => fireEvent.click(screen.getAllByLabelText("pageEditor.hours.closed")[0])],
     ];
@@ -513,7 +516,6 @@ describe("plan switch name and error links", () => {
   });
 
   it.each([
-    ["pageCity", "city", "<"],
     ["pageAddress", "address", ">"],
   ])("a %s error paragraph is linked to its input with aria-describedby", async (inputId, key, bad) => {
     render(<LandingPageEditor initial={makeData()} />);
@@ -606,7 +608,7 @@ describe("a stored save whose reload failed", () => {
   it("is treated as saved: no error, a distinct toast, and a refresh follows", async () => {
     saveLandingPageAction.mockResolvedValue({ data: null, error: null, reloadFailed: true });
     render(<LandingPageEditor initial={makeData()} />);
-    fireEvent.change(document.getElementById("pageCity") as HTMLInputElement, { target: { value: "Douala" } });
+    fireEvent.change(document.getElementById("pageAddress") as HTMLInputElement, { target: { value: "Rue 1" } });
     fireEvent.click(screen.getByText("pageEditor.save"));
     expect(await screen.findByText("pageEditor.savedReloadFailed")).toBeTruthy();
     expect(screen.queryByRole("alert")).toBeNull();
@@ -635,7 +637,7 @@ describe("unsaved changes guard", () => {
   it("a dirty form: beforeunload is prevented and Review & publish asks first (cancel keeps you here)", () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     render(<LandingPageEditor initial={readyData()} />);
-    fireEvent.change(document.getElementById("pageCity") as HTMLInputElement, { target: { value: "Douala" } });
+    fireEvent.change(document.getElementById("pageAddress") as HTMLInputElement, { target: { value: "Rue 1" } });
     const ev = new Event("beforeunload", { cancelable: true });
     window.dispatchEvent(ev);
     expect(ev.defaultPrevented).toBe(true);
@@ -658,7 +660,7 @@ describe("unsaved changes guard", () => {
     back.dispatchEvent(clean);
     expect(confirm).not.toHaveBeenCalled();
     expect(clean.defaultPrevented).toBe(false);
-    fireEvent.change(document.getElementById("pageCity") as HTMLInputElement, { target: { value: "Douala" } });
+    fireEvent.change(document.getElementById("pageAddress") as HTMLInputElement, { target: { value: "Rue 1" } });
     const stay = new MouseEvent("click", { bubbles: true, cancelable: true });
     back.dispatchEvent(stay);
     expect(confirm).toHaveBeenCalledWith("pageEditor.unsavedConfirm");
@@ -672,7 +674,7 @@ describe("unsaved changes guard", () => {
 
   it("after a successful save the form is clean again", async () => {
     render(<LandingPageEditor initial={readyData()} />);
-    fireEvent.change(document.getElementById("pageCity") as HTMLInputElement, { target: { value: "Douala" } });
+    fireEvent.change(document.getElementById("pageAddress") as HTMLInputElement, { target: { value: "Rue 1" } });
     fireEvent.click(screen.getByText("pageEditor.save"));
     await waitFor(() => expect(saveLandingPageAction).toHaveBeenCalled());
     await screen.findByText("pageEditor.savedToast");
@@ -715,5 +717,127 @@ describe("refresh ordering", () => {
     slow.resolve({ data: makeData({ status: { state: "in_progress" } }), error: null }); // the stale answer arrives last
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.getByTestId("page-status-badge").getAttribute("data-state")).toBe("ready");
+  });
+});
+
+describe("the Location block (25.1): country and city are chosen from the lists", () => {
+  const SENEGAL_CITY = "6a8f4c52-1b0e-4d7a-9a55-0d6f3c8e1a09";
+  const dakar = { id: SENEGAL_CITY, name: "Dakar", slug: "dakar", aliasNorms: ["dakar"] };
+  const typeCity = (value: string) => fireEvent.change(document.getElementById("pageCity") as HTMLInputElement, { target: { value } });
+  const saveButton = () => screen.getByTestId("location-save") as HTMLButtonElement;
+
+  beforeEach(() => {
+    saveLocationAction.mockImplementation(async (input: { country: string; city_id: string }) => {
+      const base = makeData();
+      return { data: makeData({ content: { ...base.content, country: input.country, cityId: input.city_id } }), error: null };
+    });
+  });
+
+  it("offers every country and only the gym's country's cities, with a Save of its own that starts disabled", () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    const options = Array.from((document.getElementById("pageCountry") as HTMLSelectElement).options).map((o) => o.value);
+    expect(options).toEqual(["CM", "SN"]);
+    fireEvent.focus(document.getElementById("pageCity") as HTMLInputElement);
+    expect(within(screen.getByRole("listbox")).getAllByRole("option").map((o) => o.textContent)).toEqual(["Douala", "Yaoundé"]);
+    expect(saveButton().disabled).toBe(true);
+  });
+
+  it("an alias resolves: 'Yaounde' reaches Yaoundé, says so, and saves the city id (never the text)", async () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    typeCity("yAoUnDe ");
+    expect(screen.getByTestId("city-resolved").textContent).toContain("Yaoundé");
+    expect(saveButton().disabled).toBe(false);
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(saveLocationAction).toHaveBeenCalledTimes(1));
+    expect(saveLocationAction).toHaveBeenCalledWith({ country: "CM", city_id: CITY_YAOUNDE });
+    expect(JSON.stringify(saveLocationAction.mock.calls[0][0])).not.toContain("yAoUnDe");
+    expect(await screen.findByText("pageEditor.location.saved")).toBeTruthy();
+    expect(saveLandingPageAction).not.toHaveBeenCalled();
+  });
+
+  it("picking an entry from the list selects it", async () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    fireEvent.focus(document.getElementById("pageCity") as HTMLInputElement);
+    fireEvent.mouseDown(within(screen.getByRole("listbox")).getByRole("option", { name: "Douala" }));
+    expect((document.getElementById("pageCity") as HTMLInputElement).value).toBe("Douala");
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(saveLocationAction).toHaveBeenCalledWith({ country: "CM", city_id: CITY_DOUALA }));
+  });
+
+  it("unknown text cannot be saved: it says to ask GymOS and the Save stays disabled", () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    typeCity("Nowhereville");
+    expect(screen.getByTestId("city-unknown").textContent).toContain("Nowhereville");
+    expect(saveButton().disabled).toBe(true);
+    fireEvent.click(saveButton());
+    expect(saveLocationAction).not.toHaveBeenCalled();
+  });
+
+  it("a half-typed name that matches an entry still needs the entry to be chosen", () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    typeCity("Dou");
+    expect(within(screen.getByRole("listbox")).getAllByRole("option").map((o) => o.textContent)).toEqual(["Douala"]);
+    expect(saveButton().disabled).toBe(true);
+  });
+
+  it("changing the country loads that country's cities, clears the city, and saves the pair", async () => {
+    loadCitiesAction.mockResolvedValue({ data: [dakar], error: null });
+    render(<LandingPageEditor initial={makeData({ content: { ...makeData().content, cityId: CITY_DOUALA } })} />);
+    fireEvent.change(document.getElementById("pageCountry") as HTMLSelectElement, { target: { value: "SN" } });
+    await waitFor(() => expect(loadCitiesAction).toHaveBeenCalledWith("SN"));
+    expect((document.getElementById("pageCity") as HTMLInputElement).value).toBe("");
+    expect(saveButton().disabled).toBe(true);
+    await waitFor(() => expect((document.getElementById("pageCity") as HTMLInputElement).disabled).toBe(false));
+    typeCity("dakar");
+    expect(saveButton().disabled).toBe(false);
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(saveLocationAction).toHaveBeenCalledWith({ country: "SN", city_id: SENEGAL_CITY }));
+  });
+
+  it("stored country A to B and back to A: B's late answer cannot replace A's cities", async () => {
+    let resolveB!: (v: unknown) => void;
+    loadCitiesAction.mockReturnValue(new Promise((r) => (resolveB = r)));
+    render(<LandingPageEditor initial={makeData()} />);
+    fireEvent.change(document.getElementById("pageCountry") as HTMLSelectElement, { target: { value: "SN" } });
+    await waitFor(() => expect(loadCitiesAction).toHaveBeenCalledWith("SN"));
+    fireEvent.change(document.getElementById("pageCountry") as HTMLSelectElement, { target: { value: "CM" } });
+    resolveB({ data: [dakar], error: null });
+    await new Promise((r) => setTimeout(r, 20));
+    expect((document.getElementById("pageCity") as HTMLInputElement).disabled).toBe(false);
+    fireEvent.focus(document.getElementById("pageCity") as HTMLInputElement);
+    expect(within(screen.getByRole("listbox")).getAllByRole("option").map((o) => o.textContent)).toEqual(["Douala", "Yaoundé"]);
+  });
+
+  it("a Supervisor changes the country and city the same way (owner decision 2026-11-12)", async () => {
+    loadCitiesAction.mockResolvedValue({ data: [dakar], error: null });
+    render(<LandingPageEditor initial={makeData({ role: "supervisor" })} />);
+    fireEvent.change(document.getElementById("pageCountry") as HTMLSelectElement, { target: { value: "SN" } });
+    await waitFor(() => expect((document.getElementById("pageCity") as HTMLInputElement).disabled).toBe(false));
+    typeCity("Dakar");
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(saveLocationAction).toHaveBeenCalledWith({ country: "SN", city_id: SENEGAL_CITY }));
+  });
+
+  it("a refused save shows the typed message and keeps the selection", async () => {
+    saveLocationAction.mockResolvedValue({ data: null, error: { code: "invalid_city", message: "pageEditor.errors.invalid_city" } });
+    render(<LandingPageEditor initial={makeData()} />);
+    typeCity("Douala");
+    fireEvent.click(saveButton());
+    expect((await screen.findByTestId("location-error")).textContent).toBe("pageEditor.errors.invalid_city");
+    expect((document.getElementById("pageCity") as HTMLInputElement).value).toBe("Douala");
+  });
+
+  it("a stored city that is not yet saved elsewhere starts selected, and its Save is disabled until something changes", () => {
+    render(<LandingPageEditor initial={makeData({ content: { ...makeData().content, cityId: CITY_DOUALA } })} />);
+    expect((document.getElementById("pageCity") as HTMLInputElement).value).toBe("Douala");
+    expect(saveButton().disabled).toBe(true);
+  });
+
+  it("the page's own Save no longer carries a city", async () => {
+    render(<LandingPageEditor initial={makeData()} />);
+    fireEvent.change(document.getElementById("pageAddress") as HTMLInputElement, { target: { value: "Rue 1" } });
+    fireEvent.click(screen.getByText("pageEditor.save"));
+    await waitFor(() => expect(saveLandingPageAction).toHaveBeenCalled());
+    expect(JSON.stringify(saveLandingPageAction.mock.calls[0][0])).not.toContain("city");
   });
 });

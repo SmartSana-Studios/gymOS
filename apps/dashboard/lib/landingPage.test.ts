@@ -219,11 +219,11 @@ describe("language tabs", () => {
 });
 
 describe("predicted breaks on a live page", () => {
-  const base = { state: "published" as const, publicPlanCount: 1, longestAbout: 120, minAbout: 100, city: "Douala", hasContact: true, hasOpenDay: true };
+  const base = { state: "published" as const, publicPlanCount: 1, longestAbout: 120, minAbout: 100, hasContact: true, hasOpenDay: true };
   it("nothing breaks when everything stays", () => expect(predictedBreaks(base).codes).toEqual([]));
   it("the last public plan off (matrix row)", () => expect(predictedBreaks({ ...base, publicPlanCount: 0 }).codes).toEqual(["no_public_plan"]));
-  it("no complete language, no contact, no hours, no city", () => {
-    expect(predictedBreaks({ ...base, longestAbout: 99, hasContact: false, hasOpenDay: false, city: " " }).codes).toEqual(["about_short", "no_city", "no_contact", "no_hours"]);
+  it("no complete language, no contact, no hours (the city is saved by its own button and is not predicted here)", () => {
+    expect(predictedBreaks({ ...base, longestAbout: 99, hasContact: false, hasOpenDay: false }).codes).toEqual(["about_short", "no_contact", "no_hours"]);
   });
   it("a page that is not live is never warned", () => {
     expect(predictedBreaks({ ...base, state: "ready", publicPlanCount: 0 }).codes).toEqual([]);
