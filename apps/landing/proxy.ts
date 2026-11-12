@@ -14,7 +14,10 @@ import { decideGymRequest } from "@/lib/gym-site/request";
  *    deleted first, on EVERY request this proxy sees, so a client can never choose the tenant. The apex, `www.` and any host that is not
  *    under the root domain (a *.vercel.app preview) keep the marketing site.
  *
- * 2. The apex (`gymosapps.com`) carries no locale segment, so something has to choose one. This picks it from the visitor's own
+ * 2. The bare `/gyms` and `/gyms/*` (Story 25.3) on a host that is not a gym host: one 307 to `/{locale}/gyms/*`, the locale chosen from Accept-Language the
+ *    same way (EXPERIENCE.md "Shared rules": the bare path is not specified; this is the assumption). A gym host never gets here: every path of it is judged above.
+ *
+ * 3. The apex (`gymosapps.com`) carries no locale segment, so something has to choose one. This picks it from the visitor's own
  *    Accept-Language header rather than always sending them to English.
  *
  *    That choice matters more here than it would on most sites: GymOS sells to gym owners in Cameroon, where a francophone owner typing
@@ -52,6 +55,14 @@ export function proxy(request: NextRequest) {
     return NextResponse.rewrite(url, { request: { headers } });
   }
 
+  if (pathname === "/gyms" || pathname.startsWith("/gyms/")) {
+    const locale = negotiateLocale(request.headers.get("accept-language"));
+    // a plain URL, not nextUrl.clone(): NextURL remembers the request's trailing slash and puts it back
+    const url = new URL(request.url);
+    // no trailing slash: Next would 308 the slashed form again, so the target is already the served form
+    url.pathname = `/${locale}${pathname}`.replace(/\/+$/, "");
+    return NextResponse.redirect(url, 307);
+  }
   if (pathname === "/") {
     const locale = negotiateLocale(request.headers.get("accept-language"));
     const url = request.nextUrl.clone();

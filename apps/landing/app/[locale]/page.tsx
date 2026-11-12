@@ -39,7 +39,7 @@ export default async function LandingPage({ params }: LocaleRouteParams) {
         <Testimonials copy={copy} />
         <ClosingCta copy={copy} />
       </main>
-      <SiteFooter copy={copy} />
+      <SiteFooter copy={copy} locale={locale} />
     </>
   );
 }

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Story 25.3: the published gym also has a city (Garoua, Cameroon: a seeded city, cities cannot be deleted), so the directory pages list it.
 // Local-only fixtures for the gate: five gyms whose pages are published, unpublished, taken down, suspended and a published page with an old
 // name that redirects. Inserted straight into the LOCAL database (the same shape supabase/tests/public_site_reader_privileges.test.sql uses) and
 // removed again by `down`. It also sets the local password of `public_site_reader` (the role has none by default).
@@ -45,7 +46,11 @@ export async function up(client, { readerPassword }) {
     [IDS.gyms.takenDown, "Gate Fit Down", "active"],
     [IDS.gyms.suspended, "Gate Fit Paused", "suspended"], // suspended is seeded at insert: a later UPDATE of gyms.status silently reverts
   ];
-  for (const [id, name, status] of gyms) await client.query("insert into gyms (id, name, tier_id, capacity, status) values ($1, $2, $3, 30, $4)", [id, name, IDS.tier, status]);
+  for (const [id, name, status] of gyms) {
+    // only the published gym has a city (Story 25.3): the directory views list a visible gym that has one
+    const city = id === IDS.gyms.published ? "(select id from public.cities where country_code = 'CM' and slug = 'garoua')" : "null";
+    await client.query(`insert into gyms (id, name, tier_id, capacity, status, city_id) values ($1, $2, $3, 30, $4, ${city})`, [id, name, IDS.tier, status]);
+  }
   const names = [
     [nameId(1), IDS.gyms.published, L.published],
     [nameId(2), IDS.gyms.unpublished, L.unpublished],

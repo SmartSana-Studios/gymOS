@@ -2057,7 +2057,7 @@ Lab, local results only (one machine runs the server, the database, the load and
   summary: An Owner changing country in Settings clears the gym's city and unpublishes its page with no warning before the save.
   evidence: Trigger `gyms_z_clear_city_on_country_change` (by the approved intent); `predictedBreaks` no longer models `no_city`, and Settings has no live-page warning.
 - source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
-  summary: Close before story 25.3: review the seeded country names (Intl.DisplayNames short forms such as "Congo - Kinshasa", "Antigua & Barbuda", "St. Barthélemy") before they become public directory headings.
+  summary: RESOLVED 2026-11-12 by 25-3 (migration 0171 corrects 22 names, pinned by supabase/tests/directory_country_names.test.sql). Close before story 25.3: review the seeded country names (Intl.DisplayNames short forms such as "Congo - Kinshasa", "Antigua & Barbuda", "St. Barthélemy") before they become public directory headings.
   evidence: `countries.name_en/name_fr` come straight from ICU; no UI edits them. Added to the 25.3 acceptance criteria in epics.md.
 - source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
   summary: The Super Admin /cities read (select with `city_aliases` and `gyms(count)` embeds) is tested only against a mock that ignores the select string.
@@ -2070,8 +2070,27 @@ Lab, local results only (one machine runs the server, the database, the load and
   evidence: Migration 0169 and the spec ("AD-49 wins over the epic's text[]"). 25-2 builds the directory views from these documents, so a story written from the old text will target a column that does not exist. Fix is to edit the two documents, not the code.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-25-2-directory-views-and-listing-correctness.md`
-  summary: Close before 25-3 is done (acceptance criterion for 25.3): the country page's displayed count and its `indexable` must come from the same rows it lists (the `directory_city`/`directory_gym` rows), not from `directory_country.published_count` alone.
+  summary: RESOLVED 2026-11-12 by 25-3 (the country page and the top-page cards count the directory_city rows, S; noindex while S differs from the country view). Close before 25-3 is done (acceptance criterion for 25.3): the country page's displayed count and its `indexable` must come from the same rows it lists (the `directory_city`/`directory_gym` rows), not from `directory_country.published_count` alone.
   evidence: `directory_country` counts by the snapshot's country while the city and gym views join the live `gyms.city_id`, so inside the AD-46 refresh window a country can show a count with no listed gym, and can read `indexable` true while none of its cities is (the Ghana and Kenya cases in `supabase/tests/directory_views.test.sql`). Review of 25-2, 2026-11-12.
 - source_spec: `_bmad-output/implementation-artifacts/spec-25-2-directory-views-and-listing-correctness.md`
   summary: Before the production apply of 0170, rehearse `scripts/rollback-0170-directory-views.sql` (and 0169) in a rolled-back transaction and compare the restored `pages`, `page_media` and `page_redirects` definitions, reloptions and grants with the pre-0170 state; extend or retire `scripts/rollback-rehearsal-epic24.sh`.
   evidence: The rollback was proven only by one manual local run; the script holds hand-copied 0164/0166 view text; `rollback-rehearsal-epic24.sh` runs 0168..0160 and its `drop view private.gym_page_visible` step cannot succeed while the 0170 directory views (and 0169 objects) depend on it, so it needs 0170 and 0169 rolled back first. Review of 25-2, 2026-11-12.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-3-directory-pages-country-city-category-filter.md`
+  summary: Africa map on the top directory page: build-time inline SVG from Natural Earth 110 m (generator script, committed generated module, local Natural Earth projection proven equal to d3, one dot per city with coordinates, CSS-only labels, halo under prefers-reduced-motion, caption, `aria-hidden` with `tabindex=-1` links), exactly as in the 25.3 epic criteria and DESIGN.md "Africa map".
+  evidence: Split from 25.3 at the size gate (2026-11-12): independently mergeable, adds devDependencies and a generator, and is the largest risk in the story. The 25.3 top page ships without a map; the hero must leave room for it (copy left, map right from 1024 px).
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-3-directory-pages-country-city-category-filter.md`
+  summary: Old city slugs do not 301 for 12 months: the reader role cannot read `city_slug_history`, so a renamed city's old `/gyms/{cc}/{old-slug}` URL is the uniform not-found until a `public_site` view exposes the redirects.
+  evidence: 25.1 promised the 301; 25.3 reads only the 25.2 views (owner chose to defer, 2026-11-12). Needs a fourth reader view, a grant-test edit and a redirect branch in the directory handler. Nothing is renamed at launch.
+
+## Deferred from: code review of spec-25-3-directory-pages-country-city-category-filter (2026-11-12)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-3-directory-pages-country-city-category-filter.md`
+  summary: Extend the landing-gate load check (`scripts/landing-gate/load.mjs`) to the directory routes, including random `?x=` query strings and `?page=` values, before the 25.6 release gate.
+  evidence: Unverified medium. The route is `force-dynamic` with `s-maxage=60`; every distinct query string is a new CDN key and a city page runs four reads on the reader's one-connection pool (`CONNECTION LIMIT` sized for gym pages with one read). Review of 25-3, 2026-11-12.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-3-directory-pages-country-city-category-filter.md`
+  summary: No test that CI runs requests a directory page through the real Next route, reader and renderer; `scripts/landing-gate/check-http.mjs` (which now does) is owner-run through `run-local.sh`, not in ci-local or GitHub Actions.
+  evidence: Same design as the 24.x gate kit. The implementer ran `run-local.sh http` against a built server (lazy `react-dom/server` import worked). A swap to a static import or a dropped `deps()` field would pass vitest. Review of 25-3, 2026-11-12.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-3-directory-pages-country-city-category-filter.md`
+  summary: `apps/mobile/src/constants/countryNames.ts` (phone picker) still holds the ICU short forms that migration 0171 corrected in `public.countries`.
+  evidence: A separate generated list, so the directory is unaffected; the two country-name sources now disagree. Review of 25-3, 2026-11-12.

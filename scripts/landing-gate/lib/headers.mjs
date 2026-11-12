@@ -58,10 +58,31 @@ export function expectedCsp(imgSrc, hash) {
 }
 
 /**
+ * Story 25.3: what a directory page adds to the page contract. Script-free (no <script>, no inline style attribute, no cookie is checked by the caller),
+ * and ONE indexability signal: the `noindex` robots meta tag and the X-Robots-Tag header are both present or both absent, and equal what the caller expects.
+ * Marks `x-robots-tag` as an expected header so the generic unexpected-header sweep does not flag it.
+ */
+export function checkDirectoryDocument(h, body, indexable, expected) {
+  const problems = [];
+  expected.add("x-robots-tag");
+  if (/<script[\s>]/i.test(body)) problems.push("directory: the body holds a <script> element");
+  if (/<[a-z][^>]*\sstyle\s*=/i.test(body)) problems.push("directory: the body holds an inline style attribute (the CSP hashes one <style> block only)");
+  if (!/<link rel="canonical" href="[^"]+"/.test(body)) problems.push("directory: no canonical link");
+  if (!/hrefLang="x-default"|hreflang="x-default"/i.test(body)) problems.push("directory: no hreflang x-default alternate");
+  const header = h["x-robots-tag"];
+  const metaNoindex = /<meta name="robots" content="noindex"/i.test(body);
+  if (header !== undefined && (header.length !== 1 || header[0] !== "noindex")) problems.push(`directory: x-robots-tag is [${header.join(" | ")}], expected [noindex] or absent`);
+  if ((header !== undefined) !== metaNoindex) problems.push(`directory: the X-Robots-Tag header (${header === undefined ? "absent" : "noindex"}) and the robots meta tag (${metaNoindex ? "noindex" : "absent"}) disagree`);
+  if (indexable === true && (header !== undefined || metaNoindex)) problems.push("directory: expected an indexable page, it carries noindex");
+  if (indexable === false && (header === undefined || !metaNoindex)) problems.push("directory: expected noindex in the header and the meta tag");
+  return problems;
+}
+
+/**
  * Judge one response against the exact header set of its kind.
- * @param {"page"|"notFound"|"redirect"} kind
+ * @param {"page"|"notFound"|"redirect"|"directory"} kind  "directory" (Story 25.3) is a directory page on www: the page set, no language Vary, an X-Robots-Tag that must agree with the document, and a script-free body
  * @param {{status:number, headers:Record<string,string[]>, body:Buffer|string}} res  headers as folded by lib/http.mjs
- * @param {{mediaOrigin:string, platform?:string, extraAllowed?:string[], varyLanguage?:boolean, location?:string}} ctx
+ * @param {{mediaOrigin:string, platform?:string, extraAllowed?:string[], varyLanguage?:boolean, location?:string, indexable?:boolean}} ctx  `indexable` (directory only): true = no X-Robots-Tag, false = `noindex`, undefined = either, but header and meta tag must agree
  * @returns {{problems:string[], nextAdded:string[], platformExtras:string[]}}
  */
 export function checkResponse(kind, res, ctx) {
@@ -76,19 +97,20 @@ export function checkResponse(kind, res, ctx) {
   };
   const body = typeof res.body === "string" ? res.body : res.body.toString("utf8");
 
-  const expectedStatus = { page: 200, notFound: 404, redirect: 301 }[kind];
+  const expectedStatus = { page: 200, directory: 200, notFound: 404, redirect: 301 }[kind];
   if (res.status !== expectedStatus) problems.push(`${kind}: status ${res.status}, expected ${expectedStatus}`);
 
   const expected = new Set();
   const expect_ = (name, value) => { expected.add(name); want(name, value); };
 
-  if (kind === "page" || kind === "notFound") {
+  if (kind === "page" || kind === "notFound" || kind === "directory") {
     expect_("content-type", "text/html; charset=utf-8");
-    expect_("cache-control", kind === "page" ? CACHE_CONTROL.page : CACHE_CONTROL.notFound);
+    expect_("cache-control", kind === "notFound" ? CACHE_CONTROL.notFound : CACHE_CONTROL.page);
     for (const [k, v] of Object.entries(SECURITY_BASE)) expect_(k, v);
     const style = singleStyleBlock(body);
     if (style === null) problems.push(`${kind}: the body does not hold exactly one <style> block`);
-    else expect_("content-security-policy", expectedCsp(kind === "page" ? ctx.mediaOrigin : "'none'", styleHash(style)));
+    else expect_("content-security-policy", expectedCsp(kind === "notFound" ? "'none'" : ctx.mediaOrigin, styleHash(style)));
+    if (kind === "directory") problems.push(...checkDirectoryDocument(h, body, ctx.indexable, expected));
   } else {
     expect_("cache-control", CACHE_CONTROL.redirect);
     expect_("x-content-type-options", SECURITY_BASE["x-content-type-options"]);
@@ -116,7 +138,9 @@ export function checkResponse(kind, res, ctx) {
   const allowedExtra = new Set(ctx.extraAllowed ?? []);
   for (const name of Object.keys(h)) {
     if (expected.has(name) || TRANSPORT_HEADERS.has(name) || name === "set-cookie") continue;
-    if (name in NEXT_ADDED_HEADERS) {
+    if (kind === "directory" && name in NEXT_ADDED_HEADERS) {
+      problems.push(`directory: unexpected header ${name}: ${(h[name] ?? []).join(" | ")} (a directory page is served by its own route, never rewritten)`);
+    } else if (name in NEXT_ADDED_HEADERS) {
       if (one(name) !== NEXT_ADDED_HEADERS[name]) problems.push(`${kind}: ${name} is [${(h[name] ?? []).join(" | ")}], Next adds [${NEXT_ADDED_HEADERS[name]}]`);
       else nextAdded.push(`${name}: ${NEXT_ADDED_HEADERS[name]}`);
     } else if ((ctx.platform === "vercel" && VERCEL_HEADERS.has(name)) || allowedExtra.has(name)) {

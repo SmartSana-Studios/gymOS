@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Container } from "./primitives";
 import type { Copy } from "@/lib/copy";
+import type { Locale } from "@/lib/i18n";
 import {
   APP_STORE_URL,
   DASHBOARD_URL,
@@ -10,7 +11,7 @@ import {
   SUPPORT_EMAIL,
 } from "@/lib/config";
 
-export function SiteFooter({ copy }: { copy: Copy }) {
+export function SiteFooter({ copy, locale }: { copy: Copy; locale: Locale }) {
   return (
     <footer className="on-navy bg-navy-deep">
       <Container className="grid gap-12 py-14 sm:grid-cols-2 lg:grid-cols-4">
@@ -33,6 +34,12 @@ export function SiteFooter({ copy }: { copy: Copy }) {
             {copy.footer.product}
           </h3>
           <ul className="mt-3 text-[0.9375rem] text-on-navy-muted">
+            <li>
+              {/* Story 25.3: the gym directory, its own set of pages (a plain link). */}
+              <a href={`/${locale}/gyms`} className="inline-flex min-h-11 items-center transition-colors hover:text-on-navy">
+                {copy.nav.gyms}
+              </a>
+            </li>
             <li>
               <a href={`${DASHBOARD_URL}/auth/login`} className="inline-flex min-h-11 items-center transition-colors hover:text-on-navy">
                 {copy.footer.ownerLogin}

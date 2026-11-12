@@ -110,19 +110,83 @@ test("singleStyleBlock", () => {
   assert.equal(singleStyleBlock("no style"), null);
 });
 
+// ---- Story 25.3: the directory kind ----
+const dirHtml = ({ noindex = false, extra = "" } = {}) =>
+  `<!doctype html><html lang="en"><head><meta charSet="utf-8"/>${noindex ? '<meta name="robots" content="noindex"/>' : ""}<link rel="canonical" href="http://www.localhost/en/gyms"/><link rel="alternate" hreflang="x-default" href="http://www.localhost/en/gyms"/><style>${STYLE}</style></head><body>GATE FIT${extra}</body></html>`;
+function dirHeaders(over = {}, { noindex = false } = {}) {
+  const h = pageHeaders({ vary: null, "x-middleware-rewrite": null, ...(noindex ? { "x-robots-tag": "noindex" } : {}) });
+  for (const [k, v] of Object.entries(over)) {
+    if (v === null) delete h[k];
+    else h[k] = [].concat(v);
+  }
+  return h;
+}
+const dir = ({ over, noindex = false, body } = {}) => ({ status: 200, headers: dirHeaders(over, { noindex }), body: Buffer.from(body ?? dirHtml({ noindex })) });
+const dirProblems = (res, ctx = {}) => problems(res, "directory", ctx);
+
+test("a correct directory page passes, indexable or noindex, and a language Vary is not asked for", () => {
+  assert.deepEqual(dirProblems(dir(), { indexable: true }), []);
+  assert.deepEqual(dirProblems(dir({ noindex: true }), { indexable: false }), []);
+  assert.deepEqual(dirProblems(dir({ noindex: true })), [], "no expectation: either, as long as header and meta agree");
+  assert.ok(dirProblems({ ...dir(), headers: dirHeaders({ vary: "Accept-Language" }) }).some((p) => p.includes("Vary carries Accept-Language")));
+});
+test("known bad directory page: a <script> element fails", () => {
+  assert.ok(dirProblems(dir({ body: dirHtml({ extra: "<script>1</script>" }) })).some((p) => p.includes("<script>")));
+  assert.ok(dirProblems(dir({ body: dirHtml({ extra: '<script src="/a.js"></script>' }) })).some((p) => p.includes("<script>")));
+});
+test("known bad directory page: a Set-Cookie, an inline style attribute, a second style block fail", () => {
+  assert.ok(dirProblems(dir({ over: { "set-cookie": "a=b" } })).some((p) => p.includes("sets a cookie")));
+  assert.ok(dirProblems(dir({ body: dirHtml({ extra: '<p style="color:red">x</p>' }) })).some((p) => p.includes("inline style attribute")));
+  assert.ok(dirProblems(dir({ body: dirHtml({ extra: "<style>a{}</style>" }) })).some((p) => p.includes("exactly one <style>")));
+});
+test("known bad directory page: header and meta tag must agree on noindex, and match the expectation", () => {
+  const headerOnly = { status: 200, headers: dirHeaders({}, { noindex: true }), body: Buffer.from(dirHtml()) };
+  const metaOnly = { status: 200, headers: dirHeaders(), body: Buffer.from(dirHtml({ noindex: true })) };
+  assert.ok(dirProblems(headerOnly).some((p) => p.includes("disagree")));
+  assert.ok(dirProblems(metaOnly).some((p) => p.includes("disagree")));
+  assert.ok(dirProblems(dir({ noindex: true }), { indexable: true }).some((p) => p.includes("expected an indexable page")));
+  assert.ok(dirProblems(dir(), { indexable: false }).some((p) => p.includes("expected noindex")));
+  assert.ok(dirProblems(dir({ over: { "x-robots-tag": "noindex, nofollow" }, body: dirHtml({ noindex: true }) })).some((p) => p.includes("x-robots-tag")));
+});
+test("known bad directory page: the AD-44 headers, a rewrite header, a missing canonical or x-default", () => {
+  for (const name of ["content-security-policy", "strict-transport-security", "cache-control"]) {
+    assert.ok(dirProblems(dir({ over: { [name]: null } })).some((p) => p.includes(`missing header ${name}`)), name);
+  }
+  assert.ok(dirProblems(dir({ over: { "cache-control": "public, s-maxage=600" } })).some((p) => p.includes("cache-control")));
+  assert.ok(dirProblems(dir({ over: { "x-middleware-rewrite": "/gym-site" } })).some((p) => p.includes("never rewritten")));
+  assert.ok(dirProblems(dir({ body: dirHtml().replace('<link rel="canonical" href="http://www.localhost/en/gyms"/>', "") })).some((p) => p.includes("no canonical")));
+  assert.ok(dirProblems(dir({ body: dirHtml().replace('hreflang="x-default"', 'hreflang="en"') })).some((p) => p.includes("x-default")));
+});
+
 // ---- end to end: check-http.mjs against a doctored server ----
 const SCRIPT = fileURLToPath(new URL("../check-http.mjs", import.meta.url));
+
+/** What the landing server answers on www for the directory paths the check requests (the data of the local fixture: a thin city). */
+function directoryResponse(url) {
+  const p = url.pathname;
+  const nf = () => ({ status: 404, headers: pageHeaders({ "cache-control": CACHE_CONTROL.notFound, vary: "rsc, next-router-state-tree", "x-middleware-rewrite": null, "content-security-policy": expectedCsp("'none'", styleHash(STYLE)) }), body: html("-NF") });
+  if (p === "/gyms/cm") return { status: 307, headers: { location: ["http://www.localhost/fr/gyms/cm"], "cache-control": ["no-store"] }, body: "" };
+  if (p === "/en/gyms" || p === "/fr/gyms") return { status: 200, headers: dirHeaders(), body: dirHtml() };
+  if (p === "/en/gyms/cm") return { status: 200, headers: dirHeaders({}, { noindex: true }), body: dirHtml({ noindex: true }) };
+  if (p === "/en/gyms/cm/garoua" && url.searchParams.get("page") === null) {
+    if (url.searchParams.get("category") === "gym") return { status: 200, headers: dirHeaders(), body: dirHtml() };
+    return { status: 200, headers: dirHeaders({}, { noindex: true }), body: dirHtml({ noindex: true }) };
+  }
+  return nf();
+}
 
 /** A server that behaves like the landing server; `doctor(label, response)` may break one response. */
 function startServer(doctor = () => undefined) {
   const server = http.createServer((req, res) => {
     const label = (req.headers.host ?? "").split(".")[0];
+    const url = new URL(req.url ?? "/", "http://x");
     let r;
-    if (label === "gate-grace") r = { status: 200, headers: pageHeaders(), body: html() };
+    if (label === "www") r = directoryResponse(url);
+    else if (label === "gate-grace") r = { status: 200, headers: pageHeaders(), body: html() };
     else if (label === "gate-grace-old") r = { status: 301, headers: { location: ["http://gate-grace.localhost/"], "cache-control": [CACHE_CONTROL.redirect], "x-content-type-options": ["nosniff"], "strict-transport-security": [SECURITY_BASE["strict-transport-security"]], vary: ["rsc"], "x-middleware-rewrite": ["/gym-site"] }, body: "" };
     else r = { status: 404, headers: pageHeaders({ "cache-control": CACHE_CONTROL.notFound, vary: "rsc, next-router-state-tree", "content-security-policy": expectedCsp("'none'", styleHash(STYLE)) }), body: html("-NF") };
     r = structuredClone(r);
-    doctor(label, r);
+    doctor(label, r, req.url);
     const raw = [];
     for (const [k, v] of Object.entries(r.headers)) for (const x of v) raw.push([k, x]);
     res.writeHead(r.status, raw);
@@ -154,6 +218,25 @@ test("check-http passes against a faithful server", async () => {
     const { code, out } = await runCheck(port);
     assert.equal(code, 0, out);
     assert.match(out, /check-http: PASS/);
+  });
+});
+test("check-http: a directory page with a <script> or a Set-Cookie fails the run (known bad), naming the page", async () => {
+  await withServer((label, r, url) => { if (label === "www" && url === "/en/gyms") r.body = r.body.replace("</body>", "<script>1</script></body>"); }, async (port) => {
+    const { code, out } = await runCheck(port);
+    assert.equal(code, 1);
+    assert.match(out, /www \/en\/gyms: directory: the body holds a <script> element/);
+  });
+  await withServer((label, r, url) => { if (label === "www" && url === "/en/gyms/cm") r.headers["set-cookie"] = ["a=b"]; }, async (port) => {
+    const { code, out } = await runCheck(port);
+    assert.equal(code, 1);
+    assert.match(out, /www \/en\/gyms\/cm: directory: sets a cookie/);
+  });
+});
+test("check-http: a filtered directory view that carries noindex fails the run", async () => {
+  await withServer((label, r, url) => { if (label === "www" && url?.includes("category=gym")) { r.headers["x-robots-tag"] = ["noindex"]; r.body = dirHtml({ noindex: true }); } }, async (port) => {
+    const { code, out } = await runCheck(port);
+    assert.equal(code, 1);
+    assert.match(out, /category=gym: directory: expected an indexable page/);
   });
 });
 test("check-http fails (exit 1) when the page drops a header, naming it", async () => {

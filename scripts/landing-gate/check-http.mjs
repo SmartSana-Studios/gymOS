@@ -6,6 +6,9 @@
 // 1. A published page, a not-found and a redirect each carry the EXACT header set of their kind (CSP string, nosniff, referrer policy, HSTS,
 //    Cache-Control, Vary, no Set-Cookie) and nothing else. The headers Next.js (and, on staging, the platform) add are printed, and any other
 //    header fails the run.
+// 3. Story 25.3: the directory pages on www (top, country, city, a filtered view, an unknown place, the bare /gyms redirect) carry the page set with no
+//    script, no inline style attribute, no cookie, s-maxage at most 300, and ONE indexability signal (X-Robots-Tag and the robots meta tag agree; a filtered
+//    view is never noindex).
 // 2. The not-found of an unknown, an unpublished, a taken-down, a suspended and a reserved label is byte-identical: status, every header but
 //    Date, body.
 import { config, targetFor, schemeFor, missingStagingLabels } from "./lib/config.mjs";
@@ -16,6 +19,39 @@ const L = config.labels;
 const fail = [];
 const note = (s) => console.log(s);
 const get = (label, path = "/") => rawGet(targetFor(label, path));
+
+/** Story 25.3. `judge` is main()'s; every directory response goes through checkResponse("directory" | "notFound" | ...). */
+async function checkDirectory(judge) {
+  const D = config.directory;
+  const at = (path, headers) => rawGet(targetFor(D.label, path), headers ? { headers } : undefined);
+  const top = await at("/en/gyms");
+  judge("directory", "www /en/gyms", top, { indexable: true });
+  judge("directory", "www /fr/gyms", await at("/fr/gyms"), { indexable: true });
+  const unknown = await at("/en/gyms/zz");
+  judge("notFound", "www /en/gyms/zz (unknown country)", unknown);
+  judge("notFound", "www /de/gyms (bad locale)", await at("/de/gyms"));
+  judge("notFound", "www /en/gyms/CM (upper-case code)", await at("/en/gyms/CM"));
+
+  // the bare path: one 307 by Accept-Language, no cookie
+  const bare = await at("/gyms/cm", { "accept-language": "fr" });
+  const loc = bare.headers["location"]?.[0] ?? "";
+  if (bare.status !== 307 || new URL(loc, "http://x").pathname !== "/fr/gyms/cm") fail.push(`www /gyms/cm: expected a 307 to /fr/gyms/cm, got ${bare.status} [${loc}]`);
+  else note("ok   bare /gyms/cm -> 307 /fr/gyms/cm");
+  if (bare.headers["set-cookie"]) fail.push("www /gyms/cm: the redirect sets a cookie");
+
+  if (!D.country) return note("note: GATE_DIRECTORY_COUNTRY / GATE_DIRECTORY_CITY are unset (staging): only the top pages were checked");
+  const country = await at(`/en/gyms/${D.country}`);
+  judge("directory", `www /en/gyms/${D.country}`, country);
+  if (!D.city) return;
+  const cityPath = `/en/gyms/${D.country}/${D.city}`;
+  const city = await at(cityPath);
+  judge("directory", `www ${cityPath}`, city);
+  if (!city.body.toString("utf8").includes(config.publishedMarker)) fail.push(`www ${cityPath}: the page does not list the published fixture gym "${config.publishedMarker}"`);
+  const filtered = await at(`${cityPath}?category=gym`);
+  judge("directory", `www ${cityPath}?category=gym`, filtered, { indexable: true });
+  if (!filtered.body.toString("utf8").includes(config.publishedMarker)) fail.push(`www ${cityPath}?category=gym: the filtered page does not list the published fixture gym`);
+  judge("notFound", `www ${cityPath}?page=9 (past the last page)`, await at(`${cityPath}?page=9`));
+}
 
 async function main() {
   note(`check-http: ${config.baseUrl} root ${config.rootDomain} platform ${config.platform}`);
@@ -76,6 +112,8 @@ async function main() {
     if (diffs.length === 0) note(`ok   identical: ${firstCause} == ${cause}`);
     else for (const d of diffs) fail.push(`not-found differs, ${firstCause} vs ${cause}: ${d}`);
   }
+
+  await checkDirectory(judge);
 
   note("");
   note(`Headers Next.js adds itself (allowed, listed so a change is seen): ${nextAdded.size ? [...nextAdded].sort().join("; ") : "none"}`);

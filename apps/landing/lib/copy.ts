@@ -41,6 +41,8 @@ export interface Copy {
     how: string;
     app: string;
     about: string;
+    /** Story 25.3: the link to the gym directory, `/{locale}/gyms`. */
+    gyms: string;
     login: string;
     switchTo: string;
     switchLabel: string;
@@ -137,6 +139,7 @@ const en: Copy = {
     how: "How it works",
     app: "Member app",
     about: "About",
+    gyms: "Gyms",
     login: "Owner login",
     switchTo: "Français",
     switchLabel: "Switch language",
@@ -352,6 +355,7 @@ const fr: Copy = {
     how: "Comment ça marche",
     app: "Application membre",
     about: "À propos",
+    gyms: "Salles",
     login: "Espace gérant",
     switchTo: "English",
     switchLabel: "Changer de langue",

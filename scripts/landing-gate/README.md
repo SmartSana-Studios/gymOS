@@ -6,6 +6,7 @@ Proof for the Step 2 release gate of Epic 24 (PRD 10.2; NFR-024, NFR-025, NFR-02
 |---|---|---|
 | Isolation | `public_site_reader` and `anon` reach nothing outside the published projection (pgTAP) | `supabase/tests/public_site_reader_privileges.test.sql`, `supabase/tests/public_site_anon_isolation.test.sql` |
 | Headers | real HTTP: the exact AD-44 set on a page, a not-found and a redirect; every hidden cause is byte-identical | `check-http.mjs` |
+| Directory (Story 25.3) | real HTTP on `www`: the top, country, city, filtered and unknown-place directory responses carry the AD-44 set, no `<script>`, no inline style attribute, no cookie, `s-maxage` at most 300, and one indexability signal (`X-Robots-Tag` and the robots meta tag agree; a filtered view is never `noindex`); the bare `/gyms/cm` is one 307 by `Accept-Language` | `check-http.mjs` (kind `directory` in `lib/headers.mjs`) |
 | Speed | p75 LCP of a published page, lab conditions (CPU 4x, 1.6 Mbps, 150 ms RTT, 360x640, cold cache), 20 or more runs, EN and FR | `lcp.mjs` |
 | Load | a label scan does not exceed the reader role's `CONNECTION LIMIT`, and the core product (dashboard Overview load, check-in RPC) stays inside its budget and within 25% of its own baseline | `load.mjs` |
 | Purge job | the `page_media_purge` job ran successfully in the last 15 minutes | `purge-staleness.sql` (its regression test, `purge-staleness.test.sh`, runs in CI) |
@@ -20,7 +21,7 @@ bash scripts/landing-gate/run-local.sh serve      # fixtures + servers only, to 
 node --test scripts/landing-gate/__tests__/*.test.mjs   # the kit's own tests (also part of `pnpm run test:guardrails`)
 ```
 
-Needs the local Supabase stack, Node 22 and Chromium (`cd apps/dashboard && npx playwright install chromium`). The script seeds throwaway gyms (published, unpublished, taken down, suspended, renamed) and one core-probe gym, starts a storage stand-in, the landing server and the dashboard, and **always** removes the fixtures again (a leftover published page breaks the reader privilege suite). All output lands in `$TMPDIR/landing-gate-results`.
+Needs the local Supabase stack, Node 22 and Chromium (`cd apps/dashboard && npx playwright install chromium`). The script seeds throwaway gyms (published, unpublished, taken down, suspended, renamed; the published one also has a city, Garoua in Cameroon, so the directory pages list it) and one core-probe gym, starts a storage stand-in, the landing server and the dashboard, and **always** removes the fixtures again (a leftover published page breaks the reader privilege suite). All output lands in `$TMPDIR/landing-gate-results`.
 
 Local numbers are a floor: the server, the database, the load and the probes share one machine.
 
@@ -60,6 +61,7 @@ The load check needs permission from the owner to run against staging: it sends 
 | `GATE_MEDIA_ORIGIN` | `http://127.0.0.1:3911` | the storage origin the CSP names |
 | `GATE_PLATFORM`, `GATE_ALLOWED_EXTRA_HEADERS` | `none`, empty | headers added by the platform; they are allowed and **printed**, never silent |
 | `GATE_PUBLISHED_MARKER` | `GATE FIT` | text the published page must contain (its gym name); **set it to the staging page's gym name** |
+| `GATE_DIRECTORY_COUNTRY`, `GATE_DIRECTORY_CITY`, `GATE_DIRECTORY_LABEL` | `cm`, `garoua`, `www` locally; empty on staging | the directory pages checked (country and city slugs that list the published page); with a `{label}` BASE_URL and these unset only the top pages are checked and the run says so |
 | `GATE_LABEL_*` | the local fixture labels | `PUBLISHED`, `REDIRECT_OLD`, `UNPUBLISHED`, `TAKEN_DOWN`, `SUSPENDED`, `UNKNOWN`, `RESERVED`, `INVALID` |
 | `GATE_LCP_RUNS`, `GATE_LCP_TARGET_MS`, `GATE_LCP_ENFORCE` | 20, 3000, off | the 3 s target stays an `[ASSUMPTION]`, so the default **records** the baseline; `GATE_LCP_ENFORCE=1` makes "over" fail |
 | `GATE_LOAD_STEPS`, `GATE_LOAD_STEP_SECONDS`, `GATE_LOAD_REAL_SHARE`, `GATE_LOAD_SEED` | `2,8,24,64`, 15, 0.1, 1 | the scan; the same seed repeats the same labels |
