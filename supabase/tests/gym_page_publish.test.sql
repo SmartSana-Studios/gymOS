@@ -834,7 +834,7 @@ select is((select count(*)::int from pg_proc where proname = 'unpublish_gym_page
           'unpublish_gym_page admits the same roles and has no gym-status check (always allowed)');
 select is((select array_agg(distinct c.relname::text order by c.relname::text) from pg_depend d join pg_rewrite r on r.oid = d.objid join pg_class c on c.oid = r.ev_class
             where d.refobjid = 'private.gym_page_visible'::regclass and c.relnamespace = 'public_site'::regnamespace and c.relkind = 'v' and c.oid <> d.refobjid),
-          array['page_media', 'page_redirects', 'pages'], 'the public_site views (pages, page_media and, from 24.10, page_redirects) are all built on the one visibility predicate');
+          array['directory_city', 'directory_country', 'directory_gym', 'page_media', 'page_redirects', 'pages'], 'the public_site views (pages, page_media, from 24.10 page_redirects, from 25.2 the three directory views) are all built on the one visibility predicate');
 select is((select count(*)::int from pg_class c join pg_depend d on d.refobjid = 'public.gym_pages'::regclass and d.deptype = 'n' join pg_rewrite r on r.oid = d.objid and r.ev_class = c.oid
             where c.relnamespace = 'public_site'::regnamespace), 0, 'neither public_site view reads gym_pages directly');
 

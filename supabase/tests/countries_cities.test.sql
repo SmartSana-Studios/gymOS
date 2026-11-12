@@ -270,7 +270,8 @@ select is((select array_agg(c.relname::text || '.' || t.tgname order by c.relnam
 select is((select count(*)::int from pg_trigger where tgname = 'gym_page_refresh' and tgrelid = 'public.gyms'::regclass and pg_get_triggerdef(oid) ~ 'page_city'), 0, 'the gym refresh trigger no longer watches page_city');
 select is((select count(*)::int from pg_trigger where tgname = 'gym_page_refresh' and tgrelid = 'public.gyms'::regclass
             and pg_get_triggerdef(oid) ~ 'UPDATE OF [^)]*city_id' and pg_get_triggerdef(oid) ~ 'old\.city_id IS DISTINCT FROM new\.city_id'), 1, 'it watches city_id in the column list and in the WHEN clause');
-select is((select count(*)::int from pg_views where schemaname in ('public', 'private', 'public_site') and definition ~* 'page_city|city_id|cities'), 0, 'no view reads the city yet (the directory views are 25.2)');
+select is((select array_agg(schemaname || '.' || viewname order by schemaname, viewname) from pg_views where schemaname in ('public', 'private', 'public_site') and definition ~* 'page_city|city_id|cities'),
+          array['private.gym_page_visible', 'public_site.directory_city', 'public_site.directory_gym'], 'the only views that read the city are the visibility predicate (city_id, appended by 25.2) and the two directory views that join cities');
 select is((select count(*)::int from pg_policies where coalesce(qual, '') || coalesce(with_check, '') ~* 'city'), 0, 'no policy reads the city');
 select ok((select prosrc ~ 'array_append\(v_missing, ''no_city''\)' from pg_proc where proname = 'gym_page_gate_missing'), 'the gate still has its no_city code');
 select ok((select prosrc !~ 'page_city' from pg_proc where proname = 'gym_page_gate_missing'), 'and it no longer reads page_city');
