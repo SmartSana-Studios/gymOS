@@ -124,3 +124,33 @@ Three layers (blind-hunter 12 findings, edge-case-hunter 16, verification-gap 2 
 
 **Manual checks (if no CLI):**
 - Owner at epic end: `www.` `/robots.txt`, `/sitemap-index.xml`, `/llms.txt` in a browser; Search Console submission is 25.6.
+
+### Review Findings
+
+Second review (bmad-code-review, 2026-11-12): four independent layers over `770bcf4...c6ff7dc`, 2,469 lines. 0 decision-needed, 2 patch, 3 defer, rest rejected.
+
+- [x] [Review][Patch] The `/llms.txt` cut line is not verified through the handler: `llmsCap` is never set by any test, and `readLlmsPages(cap + 1)` could become `readLlmsPages(cap)` with every test still green. Add a `handler.test.ts` case with `llmsCap: 3` over 4 or more gyms: `calls` holds `llms:4`, the body has exactly 3 `## ` blocks, the last line is `The list is cut at 3 gyms; more exist.` [apps/landing/lib/crawl/handler.ts:62-66, apps/landing/lib/crawl/handler.test.ts] (verification-gap)
+- [x] [Review][Patch] The comment on `app/robots.txt/route.ts` is copied from the database routes: `robots.txt` reads no database (`handleCrawl` answers it before any read), so "the answer is the database's" and "`pg` needs sockets" are wrong for it. Correct the comment; keep `force-dynamic` (the answer depends on the runtime root domain). [apps/landing/app/robots.txt/route.ts:6-7] (blind-hunter)
+- [x] [Review][Defer] Real routing of the four routes, the `/en` and `/fr` 200 and no-`noindex` checks, and the check that the fixture's indexable city is listed and its thin city and country are absent, are covered only by the manual `run-local.sh http`, not by `ci-local.sh` or CI. [scripts/landing-gate/check-http.mjs] — deferred: same arrangement as 25.3 and 25.4; the implementer ran it and it passed. New entry in deferred-work.md. (verification-gap, edge-case-hunter, blind-hunter, acceptance-auditor)
+- [x] [Review][Defer] A varying query string, an encoded chunk URL (`/sitemaps/1%2Exml`) or a well-formed nonexistent chunk number reaches the database on a CDN miss. [apps/landing/lib/crawl/handler.ts] — deferred: already recorded in deferred-work.md by the first review of this story (the CDN cache bypass entry); this review adds the encoded form and the chunk-number form to the same entry's cause. (edge-case-hunter, blind-hunter)
+- [x] [Review][Defer] Response size: at about 400 bytes an entry, the 4.5 MB function response limit is reached near 11,000 entries (about 5,600 places), well below the 50,000 default, so `SITEMAP_CHUNK_SIZE = 50_000` cannot be served by the platform once that many places exist. [apps/landing/lib/crawl/entries.ts:SITEMAP_CHUNK_SIZE] — deferred: already recorded by the first review ("tens of thousands of listings" understates it); no place count is near this; lowering the constant to about 5,000 is the fix and costs nothing now, but the spec says "at most 50,000", so the owner picks the number. (blind-hunter)
+
+#### Rejected
+
+- Matrix row "Many entries" says 3 chunks, the code gives 2 files for 50,008 entries; Spec Change Log empty; triage count says 1 deferral where the table has 2; frontmatter `done` against sprint-status `review` (acceptance-auditor, blind-hunter) -- low: the fix edits the spec; the discrepancy is already in Implementation Notes and decisions.md.
+- `lib/directory/handler.ts` moved `COUNTRY_SEGMENT`, `CITY_SEGMENT` and `directoryPath` into `indexable.ts`, beyond "call the shared function" (acceptance-auditor) -- low: output unchanged, the Code Map named `directoryPath` for reuse.
+- `public-site-reader-sql.test.sh` 25.3 expectations changed (acceptance-auditor) -- low: they follow the second three-gym city added to the fixture, documented; not a 24.11 test.
+- Consumer-enumeration tests live in `handler.test.ts` and `wiring.test.ts`, not the files the Code Map names (acceptance-auditor) -- low: coverage exists, only the location differs.
+- `llms.txt` cap counts rows, not blocks (acceptance-auditor) -- low: needs 5,000 rows with invalid ones among them; the fix adds a fetch loop (first review item 7).
+- `check-http` gym-host rows use a visible host for five paths, not an unknown one (acceptance-auditor) -- low: vitest covers both hosts for all paths.
+- `planLine` prints "per month" for other plan types and intervals (blind-hunter) -- false: `PAGE_BILLING_INTERVALS` is `monthly | annual` and `PAGE_PLAN_TYPES` adds only `pay_per_session` as a different unit, which is already handled.
+- Plan prices rounded to whole units (blind-hunter) -- false: `price` is `z.number().int()` in the page-content schema.
+- `oneLine` strips a leading `#` or `-` from legitimate names, and a currency of only dashes prints empty (blind-hunter, edge-case-hunter) -- low: the spec requires the strip ("leading `#` or `-` collapsed"); the fix edits the spec.
+- `/en` and `/fr` hreflang is never compared with the marketing page's (acceptance-auditor, blind-hunter, edge-case-hunter) -- low: the values match today (`app/[locale]/layout.tsx`); the gap is drift only, and the 200 and no-`noindex` part is in the deferred real-server gate entry.
+- `checkLlms` `url:` regex accepts a foreign host; `checkUrlset` does not check the alternates' origin (blind-hunter, edge-case-hunter) -- low: the `present` and `absent` lists constrain it; repeats first-review item 12.
+- Unknown-label precondition in `check-http` skips instead of failing (blind-hunter) -- low: a deliberate note added by the first review.
+- A database error answers a cached 404 rather than 503 (blind-hunter) -- low: the spec names the uniform not-found; repeats first-review item 6.
+- A cheap guard on the chunk number (blind-hunter) -- low: folded into the CDN bypass deferral; a ceiling would be a guess.
+- `c.category` without a label prints `undefined` (edge-case-hunter) -- false: the category is a `gymCategorySchema` enum and `CHROME.en.categories` is built from `GYM_CATEGORY_LABELS` for every key.
+- Index and chunk are separate reads and can drift; page and sitemap read the country total in separate queries (edge-case-hunter) -- low: seconds of skew inside a 15-minute bound (first-review item 11).
+- Marketing `/en` and `/fr` not fetched by the vitest "every `<loc>`" test (edge-case-hunter) -- low: disclosed in Implementation Notes; covered by the deferred real-server gate entry.

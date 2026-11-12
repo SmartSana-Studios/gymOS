@@ -2109,3 +2109,10 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-25-5-sitemaps-robots-and-plain-text-summary.md`
   summary: A full sitemap file (50,000 entries with three alternates each, about 20 MB) and a large `llms.txt` (bounded by gym count, not bytes) exceed Vercel's 4.5 MB non-streamed function response limit.
   evidence: Reachable only at tens of thousands of listings or a few thousand gyms with many plans. When a platform approaches it, lower `SITEMAP_CHUNK_SIZE` (the handler already takes it as a dep) and cap `llms.txt` by bytes. Review of 25-5, 2026-11-12.
+
+## Deferred from: code review of spec-25-5-sitemaps-robots-and-plain-text-summary, second review (2026-11-12)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-5-sitemaps-robots-and-plain-text-summary.md`
+  summary: The real-server proof of the four crawler routes is not in `ci-local.sh` or CI. Next's routing of `/robots.txt`, `/sitemap-index.xml`, `/sitemaps/{n}.xml` (the `[file]` segment) and `/llms.txt`, the 200 and no-`noindex` answer of the marketing `/en` and `/fr` entries, and the presence of the fixture's indexable city (with its thin city and thin country absent) are checked only by `bash scripts/landing-gate/run-local.sh http`. Renaming a route folder keeps vitest and ci-local green.
+  evidence: Same arrangement as 25.3 and 25.4; the implementer ran it and it passed. Close by adding a stage that serves the built landing app and runs `check-http`, or at the latest by running it again at the epic end before 25.6. Also: nothing compares the marketing pages' hreflang with the sitemap's `/en` and `/fr` alternates (the values match today). Review of 25-5, 2026-11-12.
+- Refinement of the response-size entry above: the 4.5 MB limit is hit near 11,000 entries (about 5,600 places), not at "tens of thousands of listings"; lower `SITEMAP_CHUNK_SIZE` to about 5,000 before a place count nears that. The spec says "at most 50,000", so the owner picks the number.

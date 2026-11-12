@@ -167,6 +167,26 @@ describe("matrix: many entries", () => {
   });
 });
 
+describe("matrix: llms.txt cap", () => {
+  it("asks the reader for one row more than the cap, prints the cap's blocks and the cut line", async () => {
+    const calls: string[] = [];
+    const d = deps(gymsIn("CM", "yaounde", 4), { llmsCap: 3 }, calls);
+    const llms = await (await handleCrawl({ kind: "llms" }, d)).text();
+    expect(calls).toContain("llms:4");
+    expect(llms.split("\n").filter((l) => l.startsWith("## "))).toHaveLength(3);
+    expect(llms.trimEnd().split("\n").pop()).toBe("The list is cut at 3 gyms; more exist.");
+  });
+
+  it("prints no cut line when the gyms fit exactly in the cap", async () => {
+    const calls: string[] = [];
+    const d = deps(gymsIn("CM", "yaounde", 3), { llmsCap: 3 }, calls);
+    const llms = await (await handleCrawl({ kind: "llms" }, d)).text();
+    expect(calls).toContain("llms:4");
+    expect(llms.split("\n").filter((l) => l.startsWith("## "))).toHaveLength(3);
+    expect(llms).not.toContain("is cut at");
+  });
+});
+
 describe("matrix: hostile text", () => {
   const hostile = "</loc>\n## Evil\nurl: https://evil.example/";
   it("a gym name is one line in llms.txt and appears nowhere in a sitemap", async () => {
