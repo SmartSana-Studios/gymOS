@@ -100,6 +100,49 @@ context:
 | 21 | Hard-coded counts 249/9/233 in verify and plan | low | rejected | deliberate pins that fail loudly |
 | 22 | Spec Implementation Notes empty | low | patch | filled in this pass |
 
+### Review Findings
+
+Second review, 2026-11-12 (`bmad-code-review`, four layers: blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor; whole diff `6e578eb..6a68d53`). 0 decision-needed, 5 patch, 2 defer, 26 rejected (the rejected ones include repeats of triage #13-#21 above).
+
+- [x] [Review][Patch] (medium) The Location block offers 7 countries that Settings refuses: AQ, BV, GS, HM, PN, TF, UM [apps/dashboard/services/landing-page.ts:264,289 and apps/dashboard/services/landing-page.ts saveLandingPageLocation] — the `countries` seed has 249 codes; `libphonenumber-js` `getCountries()` has 245, and these 7 are in the seed but not in it (checked by script). `set_gym_location` accepts them as soon as a Super Admin adds a city there. After that `settings/actions.ts:73` (`isSupportedPhoneCountry`) answers `invalidCountry` to every Settings save, because the form always sends `country`; `resolvePhoneCountry` silently falls CSV import back to CM. Fix: filter the editor's country list with `isSupportedPhoneCountry`, and have the location save reject an unsupported code before the RPC, the same rule Settings uses. Sources: edge-case-hunter + blind-hunter.
+- [x] [Review][Patch] (medium) No editor test shows the page taking the data a location save returns [apps/dashboard/app/(dashboard)/settings/landing-page/components/LandingPageEditor.test.tsx:722-843] — every Location test uses a `saveLocationAction` mock whose `status` is the unchanged default. Deleting the `applyData(...)` call at `LandingPageEditor.tsx:373-376` leaves them green; so does deleting `onSavedReloadFailed`. Add (a) a save that resolves with `status: ready, missing: []` after `missing: ["no_city"]` and assert the badge/checklist change, (b) `{data: null, error: null, reloadFailed: true}` asserts `loadLandingPageAction` is called and `pageEditor.savedReloadFailed` shows. Source: verification-gap.
+- [x] [Review][Patch] (low) Switching the country back to the stored country drops the stored city [apps/dashboard/app/(dashboard)/settings/landing-page/components/LocationSection.tsx:124-137] — `onCountryChange` clears `cityId` and `query` before the `next === storedCountry` branch, which restores only the list. The Owner who flips the select and flips it back has no city chosen and Save is off until the city is typed again. Fix: in that branch also `setCityId(storedCityId)` and `setQuery` to the stored city's name. Sources: edge-case-hunter + blind-hunter.
+- [x] [Review][Patch] (low) "1 gyms" on every city row with one gym [apps/super-admin/locales/en.json:467, apps/super-admin/locales/fr.json:467, apps/super-admin/app/(admin)/cities/components/CitiesPageClient.tsx:91] — `rowDetail` is a flat string. Fix: pass `count` and add `_one`/`_other` keys in both locales (keep `check-i18n-key-parity` green). Source: blind-hunter.
+- [x] [Review][Patch] (low) The `predictedBreaks` comment says a country change "is not made from this editor" [apps/dashboard/lib/landingPage.ts:188-190] — the Location block's own Save changes `gyms.country` too (it needs a city of the new country, so it does not unpublish). Reword the comment only. Source: edge-case-hunter.
+- [x] [Review][Defer] Backfill and the `do $refresh$` loop in 0169 never run against real rows, and no script lists the live pages that will unpublish [supabase/migrations/0169_countries_cities.sql:1576] — deferred: already recorded in `deferred-work.md` (triage #8); must be done before the production apply. Nothing new added there. Sources: verification-gap + acceptance-auditor + blind-hunter.
+- [x] [Review][Defer] `epic-25-context.md` (line 31) and `epics.md` story 25.1 AC (line 3857) still describe `cities.aliases text[]` and `numeric(8,5)`; the migration has the `city_aliases` table and `numeric(9,6)` [_bmad-output/implementation-artifacts/epic-25-context.md:31, _bmad-output/planning-artifacts/epics.md:3857] — deferred: the fix edits context/planning docs, not code. Correct both before the 25-2 spec is written, since 25-2 reads this context. Sources: blind-hunter + acceptance-auditor.
+
+Already in `deferred-work.md`, seen again by this review and not added: AC/TA/XK not in `countries` (#9), no warning before a Settings country change unpublishes (#10), country names are ICU short forms (#11), `/cities` embed tested only against a mock (#12).
+
+#### Rejected
+
+- Lowercase or non-ISO `gyms.country` blocks `mapGymToCity` (edge-case-hunter) — false: CHECK `gyms_country_iso2` (0105) forces `^[A-Z]{2}$`; same as triage #13/#14.
+- `clear_gym_city_on_country_change` fires on a case or whitespace rewrite of the country (edge-case-hunter) — false: the same CHECK makes such a value impossible.
+- Cities read and unmapped list hit the PostgREST 1000-row cap (edge-case-hunter, blind-hunter) — low: 12 seeded cities; the unmapped cap is documented in the migration; same as triage #16/#18.
+- Alias with a comma is split; case-only alias edit is a silent no-op (edge-case-hunter) — low: contrived, same as triage #20; a fix adds branches.
+- Enter on an exact name replaces it with the first prefix match (edge-case-hunter) — low: needs two city names where one starts with the other, none seeded; Tab keeps the exact hit.
+- Typing part of a name and tabbing away leaves Save off with no message (blind-hunter) — low: the dropdown and hint show the way; a message needs new copy in both languages.
+- City list load failure leaves the new country selected (edge-case-hunter) — low: the error message shows and re-picking retries.
+- Gym with only legacy `page_city` reads `not_started` (edge-case-hunter) — low: the text can no longer be edited, and `list_gyms_without_city` is the route for it.
+- Unknown country code gives an empty list instead of `unknown_country` (edge-case-hunter, blind-hunter) — low: the select only sends listed codes.
+- Stale `no_country` copy "set it in Settings" (blind-hunter) — low: Settings still has a country select, so the text is not wrong, and the code is nearly unreachable (`gyms.country` is NOT NULL).
+- Trigger-driven city clear has no audit row (blind-hunter) — low: by approved intent (#10); the Settings country write is the audited action.
+- Supervisors writing `gyms.country` not impact-checked (blind-hunter) — false: the owner approved this in the spec; the consumers (`resolvePhoneCountry`, Settings) were checked and the one real issue is the first patch above.
+- Rollback script is unproven and drops cities (blind-hunter) — low: proven locally per decisions.md; the production backup rule already covers every prod migration.
+- Country seed generated from ICU, not curated; no hide flag (blind-hunter) — low: the seed is a fixed literal in the migration; name review is already deferred (#11); the unsupported-code part is the first patch.
+- Non-Latin city name derives an empty slug and fails late with a generic message (blind-hunter) — low: the error does tell the admin to give a slug; a pre-submit check adds a branch.
+- `FieldMessage`, `errId`, `described` copied from `ContentSections.tsx` (blind-hunter) — low: 3 tiny helpers, no divergence shown.
+- Address edits are not saved by "Save location" (blind-hunter) — low: the helper text says so and the page's unsaved-change guard still tracks the address.
+- Extra serial round trip and countries refetched on every load and save (blind-hunter, edge-case-hunter) — low: volumes tiny.
+- Migration "0169" hard-coded and provisional; verify pins 249/12/9 (blind-hunter) — low: known and recorded; the pins fail loudly on purpose (#21).
+- Reserved slug list lives only in SQL (blind-hunter) — low: 25.3 and 25.5 add words by migration, the normal route.
+- Changing country needs the target country to already have a city (acceptance-auditor, blind-hunter) — false: that is the specified behaviour ("pick a country and city").
+- `service_role` loses all access to the new tables (acceptance-auditor) — false: deliberate, asserted by `do $verify$`, and no service-role reader is named.
+- `invalid_alias`, rename-keeps-old-name alias, map action, advisory lock go beyond the frozen spec (acceptance-auditor) — rejected: accepted additions recorded in decisions.md; the fix would be to edit the spec under review.
+- Spec header says `done` while sprint-status says `review`; empty Spec Change Log; `review_loop_iteration` (blind-hunter, acceptance-auditor) — rejected: the fix is to edit the spec under review.
+- `update_city` early return ignores an alias spelling change with the same fold (edge-case-hunter) — low: same as #20.
+- Editor loads cities with no limit / country code format check (blind-hunter) — low: same as the cap entry above.
+
 ## Design Notes
 
 Coordinates for seeded cities are approximate and for map dots only; the Super Admin can edit them. `list_gyms_without_city()` returns gym id, name, country and the legacy `page_city` text for hand-mapping.

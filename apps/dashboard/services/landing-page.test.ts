@@ -559,6 +559,21 @@ describe("the Location block (25.1)", () => {
     expect(error).toEqual({ code, message: `pageEditor.errors.${code}` });
   });
 
+  it("the editor's country list leaves out countries Settings would refuse", async () => {
+    countryRows = [...countryRows, { code: "AQ", name_en: "Antarctica", name_fr: "Antarctique" }, { code: "UM", name_en: "U.S. Outlying Islands", name_fr: "Îles mineures éloignées des États-Unis" }];
+    const { data } = await getLandingPageData();
+    expect(data?.lists.countries.map((c) => c.code)).toEqual(["CM", "SN"]);
+  });
+
+  it("a country Settings would refuse (in the seed, outside the phone-region list) never reaches the database", async () => {
+    for (const country of ["AQ", "BV", "GS", "HM", "PN", "TF", "UM"]) {
+      const { data, error } = await saveLandingPageLocation({ country, city_id: CITY });
+      expect(data).toBeNull();
+      expect(error?.code).toBe("unknown_country");
+    }
+    expect(rpc).not.toHaveBeenCalledWith("set_gym_location", expect.anything());
+  });
+
   it("a role with no page access never reaches the database", async () => {
     getClaims.mockResolvedValue({ data: { claims: { gym_id: GYM, app_role: "manager" } }, error: null });
     const { error } = await saveLandingPageLocation({ country: "CM", city_id: CITY });

@@ -30,6 +30,7 @@ import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { isOfferedTemplate } from "@/lib/pageTemplates";
+import { isSupportedPhoneCountry } from "@/lib/phone";
 import { rebuildPurgedMedia, type RebuiltMedia } from "@/services/page-media";
 
 // Story 24.9 (FR-197..FR-201). The dashboard's service for the landing-page editor and publish screens. Every call goes through the
@@ -286,7 +287,11 @@ export async function getLandingPageData(): ServiceResult<LandingPageData> {
       pageName: pageName.data,
       content,
       lists: {
-        countries: (countriesRes.data ?? []).map((c) => ({ code: c.code, nameEn: c.name_en, nameFr: c.name_fr })),
+        // Only countries Settings also accepts: it validates gyms.country against the phone-region list, so a gym placed in a
+        // country outside it (the seed has AQ, BV, GS, HM, PN, TF, UM) could not save its Settings any more.
+        countries: (countriesRes.data ?? [])
+          .filter((c) => isSupportedPhoneCountry(c.code))
+          .map((c) => ({ code: c.code, nameEn: c.name_en, nameFr: c.name_fr })),
         cities: cities.data,
       },
       plans: (plansRes.data ?? []).map((p) => ({
@@ -388,6 +393,8 @@ export async function saveLandingPageLocation(
   const supabase = await createClient();
   const caller = await callerContext(supabase);
   if ("error" in caller) return { data: null, error: caller.error };
+  // the same rule as Settings' country save (see getLandingPageData): a country it would refuse is not accepted here either
+  if (!isSupportedPhoneCountry(parsed.data.country)) return { data: null, error: await typedError("pageEditor", "unknown_country") };
 
   const { error } = await supabase.rpc("set_gym_location", {
     p_gym_id: caller.gymId,

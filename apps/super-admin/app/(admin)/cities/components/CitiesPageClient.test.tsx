@@ -61,6 +61,14 @@ describe("the list", () => {
     expect(list.getByText(/Slug: dakar · 0 gyms · no map position/)).toBeTruthy();
   });
 
+  it("says '1 gym' for one gym, not '1 gyms'", () => {
+    const one: CitiesPageData = { ...DATA, cities: [{ ...DATA.cities[0], gymCount: 1 }] };
+    renderWithI18n(<CitiesPageClient data={one} />);
+    const list = within(screen.getByTestId("city-list"));
+    expect(list.getByText(/Slug: douala · 1 gym ·/)).toBeTruthy();
+    expect(list.queryByText(/1 gyms/)).toBeNull();
+  });
+
   it("filters by country and by search text", async () => {
     const user = userEvent.setup();
     renderWithI18n(<CitiesPageClient data={DATA} />);

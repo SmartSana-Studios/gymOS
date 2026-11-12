@@ -186,8 +186,8 @@ export interface SaveImpact {
 /**
  * Would saving this form take a LIVE page offline? A client-side prediction used only to warn first (the database re-judges the
  * gate at commit, and unpublishes by itself): the plans switched on, the longest About, the contact and the hours. (The city is saved by its
- * own Location button, which only ever sets a city, so it is not predicted here. A country change in Settings DOES clear the city and
- * unpublish the page, but that save is not made from this editor.)
+ * own Location button, which only sets a city of the chosen country, so it never leaves a page without one and is not predicted here. A
+ * country change in Settings DOES clear the city and unpublish the page, but that save is not made from this form.)
  */
 export function predictedBreaks(args: {
   state: PageStatusState;

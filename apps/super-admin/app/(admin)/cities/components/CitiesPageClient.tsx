@@ -88,7 +88,7 @@ export function CitiesPageClient({ data }: { data: CitiesPageData }) {
                   {city.name} <span className="font-normal text-muted-foreground">{countryName(city.countryCode)}</span>
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {t("cities.rowDetail", { slug: city.slug, gyms: city.gymCount })}
+                  {t("cities.rowDetail", { slug: city.slug, count: city.gymCount })}
                   {city.lat !== null && city.lng !== null ? ` · ${city.lat}, ${city.lng}` : ` · ${t("cities.noPosition")}`}
                 </p>
                 {city.aliases.length > 0 && <p className="text-sm text-muted-foreground">{t("cities.aliasesLine", { aliases: city.aliases.join(", ") })}</p>}

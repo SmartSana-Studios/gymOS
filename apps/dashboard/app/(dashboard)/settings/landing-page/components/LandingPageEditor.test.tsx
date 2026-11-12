@@ -808,6 +808,45 @@ describe("the Location block (25.1): country and city are chosen from the lists"
     expect(within(screen.getByRole("listbox")).getAllByRole("option").map((o) => o.textContent)).toEqual(["Douala", "Yaoundé"]);
   });
 
+  it("back to the stored country brings the stored city back, nothing to retype", async () => {
+    loadCitiesAction.mockResolvedValue({ data: [dakar], error: null });
+    render(<LandingPageEditor initial={makeData({ content: { ...makeData().content, cityId: CITY_DOUALA } })} />);
+    fireEvent.change(document.getElementById("pageCountry") as HTMLSelectElement, { target: { value: "SN" } });
+    await waitFor(() => expect((document.getElementById("pageCity") as HTMLInputElement).disabled).toBe(false));
+    expect((document.getElementById("pageCity") as HTMLInputElement).value).toBe("");
+    fireEvent.change(document.getElementById("pageCountry") as HTMLSelectElement, { target: { value: "CM" } });
+    expect((document.getElementById("pageCity") as HTMLInputElement).value).toBe("Douala");
+    // the city is selected again (not only its text), so it is the stored location and there is nothing to save
+    fireEvent.focus(document.getElementById("pageCity") as HTMLInputElement);
+    const selected = within(screen.getByRole("listbox")).getAllByRole("option").filter((o) => o.getAttribute("aria-selected") === "true");
+    expect(selected.map((o) => o.textContent)).toEqual(["Douala"]);
+    expect(saveButton().disabled).toBe(true);
+  });
+
+  it("the page takes the status the save returns: 'city missing' goes and the page can be reviewed", async () => {
+    saveLocationAction.mockImplementation(async (input: { country: string; city_id: string }) => {
+      const base = makeData();
+      return { data: makeData({ content: { ...base.content, country: input.country, cityId: input.city_id }, status: { state: "ready", missing: [] } }), error: null };
+    });
+    render(<LandingPageEditor initial={makeData({ status: { state: "in_progress", missing: ["no_city"] } })} />);
+    expect(screen.getByTestId("review-disabled")).toBeTruthy();
+    typeCity("Douala");
+    fireEvent.click(saveButton());
+    expect(await screen.findByText("pageEditor.location.saved")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByTestId("review-disabled")).toBeNull());
+    expect(screen.getByText("pageEditor.header.reviewAndPublish")).toBeTruthy();
+  });
+
+  it("a location save whose reload failed is saved: a distinct toast, no error, and a refresh follows", async () => {
+    saveLocationAction.mockResolvedValue({ data: null, error: null, reloadFailed: true });
+    render(<LandingPageEditor initial={makeData()} />);
+    typeCity("Douala");
+    fireEvent.click(saveButton());
+    expect(await screen.findByText("pageEditor.savedReloadFailed")).toBeTruthy();
+    expect(screen.queryByTestId("location-error")).toBeNull();
+    await waitFor(() => expect(loadLandingPageAction).toHaveBeenCalled());
+  });
+
   it("a Supervisor changes the country and city the same way (owner decision 2026-11-12)", async () => {
     loadCitiesAction.mockResolvedValue({ data: [dakar], error: null });
     render(<LandingPageEditor initial={makeData({ role: "supervisor" })} />);

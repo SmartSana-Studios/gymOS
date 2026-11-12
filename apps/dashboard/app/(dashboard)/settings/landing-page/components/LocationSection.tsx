@@ -131,8 +131,11 @@ export function LocationSection({ form, setForm, errors, data, onSaved, onSavedR
     // every change of country retires any load still in flight, including a return to the stored country
     const seq = ++loadSeq.current;
     if (next === storedCountry) {
+      // back to the stored country: its list and its stored city come back too, nothing to retype
       setLoadingCities(false);
       setCities(data.lists.cities);
+      setCityId(storedCityId);
+      setQuery(data.lists.cities.find((c) => c.id === storedCityId)?.name ?? "");
       return;
     }
     setLoadingCities(true);
