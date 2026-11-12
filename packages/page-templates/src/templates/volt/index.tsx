@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { PAGE_CONTENT_LANGUAGES, PAGE_HOURS_DAYS, type PageContentLanguage, type PageContentV1 } from "@gymos/types";
 import { CHROME } from "../../chrome";
 import type { RenderEnv } from "../../contract";
-import { countryName, excerpt, formatPrice, lines, mapHref, paragraphs, telHref, whatsappHref } from "../../format";
+import { countryName, formatPrice, lines, mapHref, metaDescription, pageTitle, paragraphs, telHref, whatsappHref } from "../../format";
 import { ContactActions, LanguageNav, section, text } from "../shared/parts";
 import { DarkMapTile } from "./MapTile";
 import { voltCss } from "./styles";
@@ -34,8 +34,7 @@ function render(page: PageContentV1, locale: PageContentLanguage, env: RenderEnv
     : c.contact?.whatsapp
       ? { href: whatsappHref(c.contact.whatsapp), label: chrome.whatsapp, external: true }
       : undefined;
-  const description = about ? excerpt(about) : undefined;
-  const titleParts = [c.name, [category, c.city].filter(Boolean).join(", ")].filter(Boolean);
+  const description = metaDescription(c, locale);
   const names = Object.fromEntries(env.languageOrder.map((l) => [l, CHROME[l].languageName]));
   const eyebrow = [category, subtitleLocation].filter(Boolean).join(" · ");
   const showLang = env.languageLinks;
@@ -45,7 +44,7 @@ function render(page: PageContentV1, locale: PageContentLanguage, env: RenderEnv
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>{titleParts.join(" - ")}</title>
+        <title>{pageTitle(c, locale)}</title>
         {description ? <meta name="description" content={description} /> : null}
         {env.alternates
           ? [

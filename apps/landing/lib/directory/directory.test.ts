@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { CHROME, contentSecurityPolicy, extractStyleBlock, styleHash } from "@gymos/page-templates";
 import * as headersModule from "./headers";
 import { handleDirectory, parseCategory, parsePage, type DirectoryDeps, type DirectoryRequest } from "./handler";
+import { validateJsonLd } from "@gymos/page-templates/src/structuredData.fixtures";
 import { notFoundResponse } from "@/lib/gym-site/notFound";
 import { DIRECTORY_PAGE_SIZE, type CityRow, type CountryRow, type DirectoryReader, type GymRow } from "./types";
 
@@ -95,6 +96,21 @@ const page = async (d: DirectoryDeps, locale: string, segments: string[] = [], q
 const snapshot = async (r: Response) => ({ status: r.status, headers: [...r.headers.entries()].sort(), body: await r.text() });
 const noindexMeta = (html: string) => /<meta name="robots" content="noindex"\/>/.test(html);
 const headerOf = (res: Response, name: string) => res.headers.get(name);
+/** Story 25.4: executable script stays banned; the only `<script` allowed is ONE inert application/ld+json block whose text is JSON with no literal `<`. `blocks` is how many are expected (0 or 1). */
+function expectLdJsonBlocks(html: string, blocks: 0 | 1): void {
+  expect([...html.matchAll(/<script\b[^>]*>/g)].map((m) => m[0])).toEqual(blocks ? ['<script type="application/ld+json">'] : []);
+  expect(html.match(/<\/script>/g) ?? []).toHaveLength(blocks);
+  for (const m of html.matchAll(/<script type="application\/ld\+json">([^]*?)<\/script>/g)) {
+    expect(m[1]).not.toMatch(/[<>&]/);
+    expect(() => JSON.parse(m[1]!)).not.toThrow();
+  }
+}
+const ldJson = (html: string): Record<string, unknown> => JSON.parse(/<script type="application\/ld\+json">([^]*?)<\/script>/.exec(html)![1]!);
+const ogOf = (html: string): Record<string, string> => {
+  const unescape = (v: string) => v.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  return Object.fromEntries([...html.matchAll(/<meta property="(og:[a-z:]+)" content="([^"]*)">/g)].map((m) => [m[1]!, unescape(m[2]!)]));
+};
+const titleOf = (html: string) => /<title>([^]*?)<\/title>/.exec(html)![1]!.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 const h2s = (html: string) => [...html.matchAll(/<h2>([^<]*)<\/h2>/g)].map((m) => m[1]!);
 
 describe("parsing", () => {
@@ -422,6 +438,7 @@ describe("matrix: hostile text", () => {
     const w = world();
     w.gyms["CM/douala"] = [gym("</script><img src=x onerror=alert(1)>", { pageName: "hostile", cityName: "<b>Douala</b>" })];
     const { html } = await page(deps(w), "en", ["cm", "douala"]);
+    expectLdJsonBlocks(html, 1);
     expect(html).not.toContain("</script><img");
     expect(html).not.toContain("<img src=x");
     expect(html).not.toContain("<b>");
@@ -430,7 +447,7 @@ describe("matrix: hostile text", () => {
     // and in an attribute
     w.gyms["CM/douala"] = [gym('"><script>1</script>', { pageName: "hostile2", logoKey: "00000001-aaaa-4bbb-8ccc-000000000001.webp" })];
     const attr = await page(deps(w), "en", ["cm", "douala"]);
-    expect(attr.html).not.toContain("<script");
+    expectLdJsonBlocks(attr.html, 1);
     expect(attr.html).toContain('alt=""');
     expect(attr.html).toContain("&quot;&gt;&lt;script&gt;1&lt;/script&gt;");
   });
@@ -439,7 +456,7 @@ describe("matrix: hostile text", () => {
     w.cities.CM![1] = city("douala", "<script>x</script>", 1);
     w.countries[1] = country("CM", "<i>Cameroon</i>", "<i>Cameroun</i>", 4);
     const { html } = await page(deps(w), "en", ["cm", "douala"]);
-    expect(html).not.toContain("<script");
+    expectLdJsonBlocks(html, 1);
     expect(html).not.toContain("<i>");
   });
   it("a gym with an invalid page name is dropped (no link to a malformed host)", async () => {
@@ -510,7 +527,8 @@ describe("the document", () => {
       await page(deps(world()), "en", ["cm", "yaounde"], "category=yoga_studio"),
     ];
     for (const { html } of all) {
-      expect(html).not.toMatch(/<script/i);
+      expect(html).not.toMatch(/<script(?![^>]*type="application\/ld\+json")/i);
+      expect([...html.matchAll(/<script\b/gi)].length).toBeLessThanOrEqual(1);
       expect(html).not.toMatch(/\sstyle=/i);
       expect(html).not.toMatch(/\son[a-z]+=/i);
       expect(html).not.toMatch(/<iframe|<form|<link rel="(stylesheet|preload|prefetch)"/i);
@@ -565,7 +583,9 @@ describe("headers: every outcome goes through the one function", () => {
     { name: "no media origin", run: () => ask(deps(world(), { config: { rootDomain: ROOT, mediaOrigin: undefined, reportKey: undefined } }), "en"), expect: "notFound" },
     { name: "no root domain", run: () => ask(deps(world(), { config: { rootDomain: undefined, mediaOrigin: MEDIA, reportKey: undefined } }), "en"), expect: "notFound" },
     { name: "render error", run: () => ask(deps(world(), { renderToStaticMarkup: () => { throw new TypeError("boom"); } }), "en"), expect: "notFound" },
-    { name: "a document without exactly one style block", run: () => ask(deps(world(), { renderToStaticMarkup: () => "<html><body>no style</body></html>" }), "en"), expect: "notFound" },
+    { name: "a document without a style block", run: () => ask(deps(world(), { renderToStaticMarkup: () => "<html><head></head><body></body></html>" }), "en"), expect: "notFound" },
+    { name: "a document with two style blocks", run: () => ask(deps(world(), { renderToStaticMarkup: () => "<html><head><style>a{}</style><style>b{}</style></head><body></body></html>" }), "en"), expect: "notFound" },
+    { name: "a document without a </head> (nowhere to inject the tags)", run: () => ask(deps(world(), { renderToStaticMarkup: () => "<html><body>no head</body></html>" }), "en"), expect: "notFound" },
   ];
   const headerFn = vi.mocked(headersModule.directoryHeaders);
 
@@ -628,7 +648,122 @@ describe("headers: every outcome goes through the one function", () => {
     await ask(r, "en");
     expect(r.logs).toEqual([["directory_render_error", { name: "TypeError" }]]);
   });
+  it("a style-block failure logs directory_style_block with the count; a missing </head> logs directory_render_error", async () => {
+    const log = async (html: string) => {
+      const d = deps(world(), { renderToStaticMarkup: () => html });
+      await ask(d, "en");
+      return d.logs;
+    };
+    expect(await log("<html><head></head><body></body></html>")).toEqual([["directory_style_block", { count: 0 }]]);
+    expect(await log("<html><head><style>a{}</style><style>b{}</style></head><body></body></html>")).toEqual([["directory_style_block", { count: 2 }]]);
+    expect(await log("<html><body>no head</body></html>")).toEqual([["directory_render_error", { name: "Error" }]]);
+  });
   it("a world that reads only the three directory views: the reader interface has no other read", () => {
     expect(Object.keys(reader(world())).sort()).toEqual(["readCategories", "readCities", "readCity", "readCityTotals", "readCountries", "readCountry", "readGyms"]);
+  });
+});
+
+// ---- Story 25.4: structured data and Open Graph on every directory page ----
+describe("structured data: ItemList and Open Graph", () => {
+  const w21: World = { countries: [country("CM", "Cameroon", "Cameroun", 21)], cities: { CM: [city("douala", "Douala", 21)] }, gyms: { "CM/douala": gyms(21) } };
+  const emptyCity: World = { countries: [country("CM", "Cameroon", "Cameroun", 3)], cities: { CM: [city("yaounde", "Yaoundé", 3), city("douala", "Douala", 0)] }, gyms: { "CM/yaounde": gyms(3) } };
+  const metaDescription = (html: string) => /<meta name="description" content="([^"]*)"/.exec(html)![1]!.replace(/&amp;/g, "&").replace(/&#x27;/g, "'");
+  const canonical = (html: string) => /<link rel="canonical" href="([^"]+)"/.exec(html)![1]!;
+
+  it("a city page lists each shown gym at its canonical subdomain URL with positions 1..n in order", async () => {
+    const { html } = await page(deps(world()), "en", ["cm", "yaounde"]);
+    expectLdJsonBlocks(html, 1);
+    const j = ldJson(html);
+    expect(validateJsonLd(j, "ItemList")).toEqual([]);
+    expect(j).toEqual({
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, url: `https://alpha-box.${ROOT}/`, name: "Alpha Box" },
+        { "@type": "ListItem", position: 2, url: `https://beta-yoga.${ROOT}/`, name: "beta yoga" },
+        { "@type": "ListItem", position: 3, url: `https://gamma.${ROOT}/`, name: "Gamma" },
+      ],
+    });
+  });
+
+  it("21 gyms, page 2: one ListItem at position 21; page 1: 20 items", async () => {
+    const p2 = await page(deps(w21), "en", ["cm", "douala"], "page=2");
+    expect(validateJsonLd(ldJson(p2.html), "ItemList", { firstPosition: 21 })).toEqual([]);
+    expect(ldJson(p2.html).itemListElement).toEqual([{ "@type": "ListItem", position: 21, url: `https://gym-21.${ROOT}/`, name: "Gym 21" }]);
+    const p1 = await page(deps(w21), "en", ["cm", "douala"]);
+    expect(ldJson(p1.html).itemListElement).toHaveLength(20);
+    expect(validateJsonLd(ldJson(p1.html), "ItemList")).toEqual([]);
+  });
+
+  it("a filtered view lists the filtered rows", async () => {
+    const { html } = await page(deps(world()), "en", ["cm", "yaounde"], "category=yoga_studio");
+    expect((ldJson(html).itemListElement as { name: string }[]).map((i) => i.name)).toEqual(["beta yoga"]);
+  });
+
+  it("a hostile gym name is a JSON string: escaped in the block, JSON.parse returns the original", async () => {
+    const name = "</script><img src=x onerror=alert(1)> & \"q\"";
+    const w = world();
+    w.gyms["CM/douala"] = [gym(name, { pageName: "hostile" })];
+    const { html } = await page(deps(w), "en", ["cm", "douala"]);
+    expectLdJsonBlocks(html, 1);
+    expect((ldJson(html).itemListElement as { name: string }[])[0]!.name).toBe(name);
+    expect(html.match(/<\/script>/g)).toHaveLength(1);
+  });
+
+  it("a gym with an invalid page name is not in the list; positions follow the shown rows", async () => {
+    const w = world();
+    w.gyms["CM/douala"] = [gym("Bad", { pageName: "-evil.example.com/" }), gym("Good", { pageName: "good" })];
+    const { html } = await page(deps(w), "en", ["cm", "douala"]);
+    expect(ldJson(html).itemListElement).toEqual([{ "@type": "ListItem", position: 1, url: `https://good.${ROOT}/`, name: "Good" }]);
+  });
+
+  // The consumer list: every directory outcome that is a page. A new outcome added here is judged without touching the checks.
+  const consumers: { name: string; run: () => Promise<Response>; items: number | null }[] = [
+    { name: "top", run: () => ask(deps(world()), "en"), items: null },
+    { name: "top, French", run: () => ask(deps(world()), "fr"), items: null },
+    { name: "top, empty", run: () => ask(deps(empty), "en"), items: null },
+    { name: "country", run: () => ask(deps(world()), "en", ["cm"]), items: null },
+    { name: "country, French, thin", run: () => ask(deps(world()), "fr", ["sn"]), items: null },
+    { name: "city", run: () => ask(deps(world()), "en", ["cm", "yaounde"]), items: 3 },
+    { name: "city, French, thin", run: () => ask(deps(world()), "fr", ["cm", "douala"]), items: 1 },
+    { name: "filtered", run: () => ask(deps(world()), "en", ["cm", "douala"], "category=pilates_studio"), items: 1 },
+    { name: "filtered, stale (no gym in the category)", run: () => ask(deps(world()), "en", ["cm", "yaounde"], "category=fitness_center"), items: null },
+    { name: "paged, page 1", run: () => ask(deps(w21), "en", ["cm", "douala"]), items: 20 },
+    { name: "paged, page 2", run: () => ask(deps(w21), "en", ["cm", "douala"], "page=2"), items: 1 },
+    { name: "empty city", run: () => ask(deps(emptyCity), "en", ["cm", "douala"]), items: null },
+  ];
+  for (const c of consumers) {
+    it(`${c.name}: the og tags are present and match the page, ${c.items === null ? "no ItemList" : `an ItemList of ${c.items}`}`, async () => {
+      const res = await c.run();
+      expect(res.status).toBe(200);
+      const html = await res.text();
+      const og = ogOf(html);
+      expect(og["og:type"]).toBe("website");
+      expect(og["og:title"]).toBe(titleOf(html));
+      expect(og["og:description"]).toBe(metaDescription(html));
+      expect(og["og:url"]).toBe(canonical(html));
+      expect(og["og:url"].startsWith(`${WWW}/`)).toBe(true);
+      expect(og).not.toHaveProperty("og:image");
+      expect(Object.keys(og).sort()).toEqual(["og:description", "og:title", "og:type", "og:url"]);
+      expectLdJsonBlocks(html, c.items === null ? 0 : 1);
+      if (c.items !== null) expect(ldJson(html).itemListElement).toHaveLength(c.items);
+    });
+  }
+
+  it("the CSP and header strings are unchanged by the block", async () => {
+    const res = await ask(deps(world()), "en", ["cm", "yaounde"]);
+    const html = await res.text();
+    const hash = styleHash((extractStyleBlock(html) as { text: string }).text);
+    expect(res.headers.get("content-security-policy")).toBe(contentSecurityPolicy(MEDIA, hash));
+    expect(res.headers.get("content-security-policy")).toContain("script-src 'none'");
+  });
+
+  it("og tags carry hostile text as escaped attribute values", async () => {
+    const w = world();
+    w.cities.CM![1] = city("douala", 'A"B<i>&\'', 1);
+    const { html } = await page(deps(w), "en", ["cm", "douala"]);
+    expect(html).toContain("&quot;");
+    expect(html).not.toContain('content="A"B');
+    expect(ogOf(html)["og:title"]).toBe(titleOf(html));
   });
 });

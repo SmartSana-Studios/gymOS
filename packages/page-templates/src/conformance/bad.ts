@@ -2,6 +2,7 @@
 // breaks and nothing else. They prove the rules can fail (a conformance suite that cannot fail proves nothing) without shipping a second template.
 import { createHash } from "node:crypto";
 import { JSDOM } from "jsdom";
+import { serializeJsonLd } from "../structuredData";
 import { fixtures, languageFixtures, type Fixture } from "./fixtures";
 import type { Case, Rendered, Subject } from "./subject";
 import { templateSubject } from "./subject";
@@ -32,6 +33,15 @@ const q = (doc: Document, sel: string): Element => {
   return el;
 };
 
+const LD = "script[type=\"application/ld+json\"]";
+/** Rewrites the parsed JSON-LD block of the page (the escaping is the serializer's, as in the real pipeline). */
+const editLd = (d: Document, edit: (node: Record<string, unknown>) => void) => {
+  const script = q(d, LD);
+  const node = JSON.parse(script.textContent ?? "") as Record<string, unknown>;
+  edit(node);
+  script.textContent = serializeJsonLd(node);
+};
+
 function appendCss(doc: Document, css: string) {
   const style = q(doc, "style");
   style.textContent = `${style.textContent}\n${css}`;
@@ -59,6 +69,21 @@ export const BAD_FLAWS: BadFlaw[] = [
   { id: "inline-handler", rule: "no-script", dom: (d) => q(d, "[data-action=call]").setAttribute("onclick", "x()") },
   { id: "javascript-url", rule: "no-script", dom: (d) => q(d, "a.pill").setAttribute("href", "javascript:alert(1)") },
   { id: "hydration-payload", rule: "no-script", html: (h) => h.replace("</body>", '<template id="__next_f"></template></body>') },
+  { id: "ld-json-block-with-an-extra-attribute", rule: "no-script", dom: (d) => { q(d, LD).setAttribute("src", "/a.js"); q(d, LD).setAttribute("defer", ""); } },
+  { id: "ld-json-invalid-json", rule: "no-script", dom: (d) => { q(d, LD).textContent = "{\"@context\": \"https://schema.org\", "; } },
+  // structured-data (Story 25.4)
+  { id: "ld-json-block-missing", rule: "structured-data", dom: (d) => q(d, LD).remove() },
+  { id: "second-ld-json-block", rule: "structured-data", dom: (d) => q(d, "head").append(q(d, LD).cloneNode(true)) },
+  { id: "ld-json-unknown-property", rule: "structured-data", dom: (d) => editLd(d, (n) => { n["fooBar"] = 1; }) },
+  { id: "ld-json-wrong-type-name", rule: "structured-data", dom: (d) => editLd(d, (n) => { n["@type"] = "LocalBusiness"; }) },
+  { id: "ld-json-address-country-missing", rule: "structured-data", dom: (d) => editLd(d, (n) => { delete (n["address"] as Record<string, unknown>)["addressCountry"]; }) },
+  { id: "ld-json-relative-url", rule: "structured-data", dom: (d) => editLd(d, (n) => { n["url"] = "/"; }) },
+  { id: "ld-json-unescaped-angle-bracket", rule: "structured-data", dom: (d) => { q(d, LD).textContent = (q(d, LD).textContent ?? "").replace("GRACE FIT", "GRACE <FIT"); } },
+  { id: "ld-json-geo-without-a-map", rule: "structured-data", fixture: "no-map", dom: (d) => editLd(d, (n) => { n["geo"] = { "@type": "GeoCoordinates", latitude: 1, longitude: 2 }; }) },
+  { id: "og-title-differs-from-title", rule: "structured-data", dom: (d) => q(d, "meta[property=\"og:title\"]").setAttribute("content", "Something else") },
+  { id: "og-description-missing", rule: "structured-data", dom: (d) => q(d, "meta[property=\"og:description\"]").remove() },
+  { id: "og-url-from-the-request-host", rule: "structured-data", dom: (d) => q(d, "meta[property=\"og:url\"]").setAttribute("content", "https://other.gymosapps.com/") },
+  { id: "og-image-missing", rule: "structured-data", dom: (d) => q(d, "meta[property=\"og:image\"]").remove() },
   // header-policy
   { id: "hsts-missing", rule: "header-policy", headers: (h) => { const { "Strict-Transport-Security": _s, ...rest } = h; void _s; return rest; } },
   { id: "csp-script-self", rule: "header-policy", headers: (h) => ({ ...h, "Content-Security-Policy": h["Content-Security-Policy"]!.replace("script-src 'none'", "script-src 'self'") }) },

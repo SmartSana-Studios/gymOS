@@ -57,15 +57,95 @@ export function expectedCsp(imgSrc, hash) {
   ].join("; ");
 }
 
+const LD_JSON_ATTRS = /^\s*type\s*=\s*"application\/ld\+json"\s*$/i;
+const NAMED_ENTITIES = { quot: '"', lt: "<", gt: ">", amp: "&" };
+/** One pass, so a decoded character is never decoded again ("&#38;lt;" is "&lt;", not "<"); a numeric entity outside the code-point range is left as written. */
+export const decodeEntities = (v) =>
+  v.replace(/&(?:#x([0-9a-f]+)|#(\d+)|(quot|lt|gt|amp));/gi, (whole, hex, dec, name) => {
+    if (name !== undefined) return NAMED_ENTITIES[name.toLowerCase()];
+    const cp = hex !== undefined ? parseInt(hex, 16) : Number(dec);
+    return Number.isInteger(cp) && cp >= 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : whole;
+  });
+const absoluteUrl = (v) => {
+  try {
+    const u = new URL(v);
+    return (u.protocol === "https:" || u.protocol === "http:") && u.hostname !== "";
+  } catch {
+    return false;
+  }
+};
+
+/** The <script> elements of a body: the inert JSON-LD data blocks (their text) and the count of every other <script> (executable, forbidden). */
+export function scriptsOf(body) {
+  const blocks = [];
+  for (const m of body.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) if (LD_JSON_ATTRS.test(m[1])) blocks.push(m[2]);
+  const all = (body.match(/<script\b/gi) ?? []).length;
+  return { blocks, executable: all - blocks.length };
+}
+
 /**
- * Story 25.3: what a directory page adds to the page contract. Script-free (no <script>, no inline style attribute, no cookie is checked by the caller),
+ * Story 25.4 (AD-51): the structured data and Open Graph tags of a gym page or a directory page, judged on the body of a real response.
+ * Executable script stays forbidden; the ONE script allowed is an application/ld+json block whose text is JSON, holds no literal "<" and carries a
+ * schema.org type of ours. expect: "HealthClub" | "ItemList" = exactly one such block; "none" = no block; undefined = at most one of either.
+ * The og tags: type, title (equal to the <title>), description and url must be present; a directory page's og:url is its canonical link.
+ */
+export function checkStructuredData(kind, body, expect) {
+  const problems = [];
+  const { blocks, executable } = scriptsOf(body);
+  if (executable > 0) problems.push(kind + ": the body holds a <script> element");
+  const want = expect === "none" ? 0 : expect === undefined ? null : 1;
+  if (want !== null && blocks.length !== want) problems.push(kind + ": " + blocks.length + " application/ld+json block(s), expected " + want);
+  if (want === null && blocks.length > 1) problems.push(kind + ": " + blocks.length + " application/ld+json blocks, expected at most one");
+  for (const text of blocks) {
+    if (/[<>&]/.test(text)) problems.push(kind + ": the JSON-LD block holds an unescaped < > or &");
+    let node;
+    try {
+      node = JSON.parse(text);
+    } catch {
+      problems.push(kind + ": the application/ld+json block is not valid JSON");
+      continue;
+    }
+    const type = node?.["@type"];
+    if (node?.["@context"] !== "https://schema.org") problems.push(kind + ": JSON-LD @context is not https://schema.org");
+    const typeOk = expect === "HealthClub" || expect === "ItemList" ? type === expect : type === "HealthClub" || type === "ItemList";
+    if (!typeOk) problems.push(kind + ": JSON-LD @type is " + JSON.stringify(type) + (expect === "HealthClub" || expect === "ItemList" ? ", expected " + expect : ""));
+    if (type === "HealthClub") {
+      if (typeof node.name !== "string" || node.name === "") problems.push(kind + ": HealthClub has no name");
+      if (!absoluteUrl(node.url)) problems.push(kind + ": HealthClub url is not absolute");
+      if (typeof node.address?.addressCountry !== "string") problems.push(kind + ": HealthClub has no address.addressCountry");
+    } else if (type === "ItemList") {
+      const items = node.itemListElement;
+      if (!Array.isArray(items) || items.length === 0) problems.push(kind + ": ItemList has no items");
+      else
+        items.forEach((item, i) => {
+          if (item?.["@type"] !== "ListItem" || !Number.isInteger(item.position) || item.position !== items[0].position + i) problems.push(kind + ": ItemList item " + i + " is not a ListItem at the next position");
+          if (!absoluteUrl(item?.url)) problems.push(kind + ": ItemList item " + i + " has no absolute url");
+        });
+    }
+  }
+  const og = {};
+  for (const m of body.matchAll(/<meta property="(og:[a-z:]+)" content="([^"]*)"/g)) og[m[1]] = decodeEntities(m[2]);
+  for (const p of ["og:type", "og:title", "og:description", "og:url"]) if (!og[p]) problems.push(kind + ": missing " + p);
+  const title = /<title>([\s\S]*?)<\/title>/.exec(body)?.[1];
+  if (title === undefined) problems.push(kind + ": no <title>");
+  else if (og["og:title"] !== undefined && og["og:title"] !== decodeEntities(title)) problems.push(kind + ": og:title differs from the <title>");
+  if (og["og:url"] !== undefined && !absoluteUrl(og["og:url"])) problems.push(kind + ": og:url is not absolute");
+  if (kind === "directory") {
+    const canonical = /<link rel="canonical" href="([^"]+)"/.exec(body)?.[1];
+    if (canonical !== undefined && og["og:url"] !== undefined && og["og:url"] !== decodeEntities(canonical)) problems.push("directory: og:url differs from the canonical link");
+    if (og["og:image"] !== undefined) problems.push("directory: a listing has no published image, og:image must be absent");
+  }
+  return problems;
+}
+
+/**
+ * Story 25.3: what a directory page adds to the page contract. Script-free (no executable <script>, no inline style attribute, no cookie is checked by the caller),
  * and ONE indexability signal: the `noindex` robots meta tag and the X-Robots-Tag header are both present or both absent, and equal what the caller expects.
  * Marks `x-robots-tag` as an expected header so the generic unexpected-header sweep does not flag it.
  */
 export function checkDirectoryDocument(h, body, indexable, expected) {
   const problems = [];
   expected.add("x-robots-tag");
-  if (/<script[\s>]/i.test(body)) problems.push("directory: the body holds a <script> element");
   if (/<[a-z][^>]*\sstyle\s*=/i.test(body)) problems.push("directory: the body holds an inline style attribute (the CSP hashes one <style> block only)");
   if (!/<link rel="canonical" href="[^"]+"/.test(body)) problems.push("directory: no canonical link");
   if (!/hrefLang="x-default"|hreflang="x-default"/i.test(body)) problems.push("directory: no hreflang x-default alternate");
@@ -82,7 +162,7 @@ export function checkDirectoryDocument(h, body, indexable, expected) {
  * Judge one response against the exact header set of its kind.
  * @param {"page"|"notFound"|"redirect"|"directory"} kind  "directory" (Story 25.3) is a directory page on www: the page set, no language Vary, an X-Robots-Tag that must agree with the document, and a script-free body
  * @param {{status:number, headers:Record<string,string[]>, body:Buffer|string}} res  headers as folded by lib/http.mjs
- * @param {{mediaOrigin:string, platform?:string, extraAllowed?:string[], varyLanguage?:boolean, location?:string, indexable?:boolean}} ctx  `indexable` (directory only): true = no X-Robots-Tag, false = `noindex`, undefined = either, but header and meta tag must agree
+ * @param {{mediaOrigin:string, platform?:string, extraAllowed?:string[], varyLanguage?:boolean, location?:string, indexable?:boolean, structuredData?:"HealthClub"|"ItemList"|"none"}} ctx  `indexable` (directory only): true = no X-Robots-Tag, false = `noindex`, undefined = either, but header and meta tag must agree; `structuredData` (page, directory): the one JSON-LD block expected ("none" = no block; undefined = a gym page is a HealthClub, a directory page has at most one)
  * @returns {{problems:string[], nextAdded:string[], platformExtras:string[]}}
  */
 export function checkResponse(kind, res, ctx) {
@@ -111,6 +191,8 @@ export function checkResponse(kind, res, ctx) {
     if (style === null) problems.push(`${kind}: the body does not hold exactly one <style> block`);
     else expect_("content-security-policy", expectedCsp(kind === "notFound" ? "'none'" : ctx.mediaOrigin, styleHash(style)));
     if (kind === "directory") problems.push(...checkDirectoryDocument(h, body, ctx.indexable, expected));
+    // Story 25.4: no executable script, and the one inert JSON-LD block plus the og tags on a gym page and a directory page (a gym page is a HealthClub unless the caller says otherwise)
+    if (kind === "page" || kind === "directory") problems.push(...checkStructuredData(kind, body, ctx.structuredData ?? (kind === "page" ? "HealthClub" : undefined)));
   } else {
     expect_("cache-control", CACHE_CONTROL.redirect);
     expect_("x-content-type-options", SECURITY_BASE["x-content-type-options"]);

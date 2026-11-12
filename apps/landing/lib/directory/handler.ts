@@ -8,7 +8,7 @@
 // The country page and the top page therefore count the gyms of the city rows they list (S); the country page is `noindex` while S differs from the
 // country view's own count (no second copy of the threshold), and a country with S = 0 is neither listed nor served.
 import { GYM_CATEGORY_LABELS, PAGE_MEDIA_KEY_PATTERN, isValidPageName } from "@gymos/types";
-import { CHROME, DEFAULT_MEDIA_PATH, extractStyleBlock } from "@gymos/page-templates";
+import { CHROME, DEFAULT_MEDIA_PATH, directoryItemList, extractStyleBlock, injectHead, jsonLdScript, openGraphTags, type ListedGym } from "@gymos/page-templates";
 import type { ReactNode } from "react";
 import type { GymSiteConfig } from "@/lib/gym-site/env";
 import { notFoundResponse, schemeFor } from "@/lib/gym-site/notFound";
@@ -88,7 +88,7 @@ export async function handleDirectory(req: DirectoryRequest, deps: DirectoryDeps
   if (cc !== undefined && !COUNTRY_SEGMENT.test(cc)) return notFound();
   if (citySlug !== undefined && (citySlug.length > 60 || !CITY_SEGMENT.test(citySlug))) return notFound();
 
-  let built: { doc: DirectoryDocument } | null;
+  let built: Built | null;
   try {
     const ctx: Context = { locale, rootDomain, mediaOrigin, www: `${schemeFor(rootDomain)}://www.${rootDomain}`, reader: deps.reader };
     if (cc === undefined) built = await topPage(ctx);
@@ -104,7 +104,7 @@ export async function handleDirectory(req: DirectoryRequest, deps: DirectoryDeps
   let html: string;
   try {
     const render = deps.renderToStaticMarkup ?? (await import("react-dom/server")).renderToStaticMarkup;
-    html = `<!doctype html>${await render(DirectoryPage({ doc: built.doc }))}`;
+    html = injectHead(`<!doctype html>${await render(DirectoryPage({ doc: built.doc }))}`, headExtras(built));
   } catch (e) {
     deps.log("directory_render_error", { name: e instanceof Error ? e.name : "unknown" });
     return notFound();
@@ -117,6 +117,24 @@ export async function handleDirectory(req: DirectoryRequest, deps: DirectoryDeps
     return notFound();
   }
   return new Response(html, { status: 200, headers: directoryHeaders({ mediaOrigin, styleText: style.text, indexable: built.doc.indexable }) });
+}
+
+/** A built page: the document, and (a city page) the gyms it lists with the number of gyms on earlier pages, for the ItemList. */
+interface Built {
+  doc: DirectoryDocument;
+  listed?: { gyms: ListedGym[]; offset: number };
+}
+
+/**
+ * Story 25.4 (AD-51): what every directory page adds to its head, as strings spliced by injectHead after rendering (the same function as the gym pages).
+ * Open Graph on every page, from the document's own title, description and canonical (so og:title is the <title> and og:url the canonical, a constant
+ * origin); no og:image (a listing has no published image). An ItemList only on a city page that shows at least one gym.
+ */
+function headExtras({ doc, listed }: Built): string[] {
+  const extras = openGraphTags({ type: "website", title: doc.title, description: doc.description, url: doc.canonical });
+  const list = listed ? directoryItemList(listed.gyms, listed.offset) : undefined;
+  if (list) extras.push(jsonLdScript(list));
+  return extras;
 }
 
 interface Context {
@@ -154,7 +172,7 @@ async function listedByCountry(ctx: Context): Promise<Map<string, number>> {
   return new Map(totals.map((t) => [t.countryCode, t.listedCount]));
 }
 
-async function topPage(ctx: Context): Promise<{ doc: DirectoryDocument }> {
+async function topPage(ctx: Context): Promise<Built> {
   const copy = DIRECTORY_COPY[ctx.locale];
   const [countries, listed] = await Promise.all([ctx.reader.readCountries(), listedByCountry(ctx)]);
   const withS = countries.map((c) => ({ c, s: listed.get(c.countryCode) ?? 0 })).filter((x) => x.s > 0);
@@ -190,7 +208,7 @@ async function topPage(ctx: Context): Promise<{ doc: DirectoryDocument }> {
   };
 }
 
-async function countryPage(ctx: Context, cc: string): Promise<{ doc: DirectoryDocument } | null> {
+async function countryPage(ctx: Context, cc: string): Promise<Built | null> {
   const copy = DIRECTORY_COPY[ctx.locale];
   const code = cc.toUpperCase();
   const [country, cities] = await Promise.all([ctx.reader.readCountry(code), ctx.reader.readCities(code)]);
@@ -229,7 +247,7 @@ function gymRowView(ctx: Context, g: GymRow): RowView | null {
   };
 }
 
-async function cityPage(ctx: Context, cc: string, citySlug: string, query: URLSearchParams): Promise<{ doc: DirectoryDocument } | null> {
+async function cityPage(ctx: Context, cc: string, citySlug: string, query: URLSearchParams): Promise<Built | null> {
   const copy = DIRECTORY_COPY[ctx.locale];
   const code = cc.toUpperCase();
   const category = parseCategory(query);
@@ -301,6 +319,8 @@ async function cityPage(ctx: Context, cc: string, citySlug: string, query: URLSe
         empty: rows.length === 0 && stale === null ? copy.city.empty : null,
       },
     },
+    // the rows shown, filtered and paged views included: position = offset + index + 1
+    listed: { gyms: rows.map((r) => ({ url: r.href, name: r.name })), offset: (page - 1) * DIRECTORY_PAGE_SIZE },
   };
 }
 

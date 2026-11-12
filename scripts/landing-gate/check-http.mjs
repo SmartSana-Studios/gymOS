@@ -11,6 +11,8 @@
 //    view is never noindex).
 // 2. The not-found of an unknown, an unpublished, a taken-down, a suspended and a reserved label is byte-identical: status, every header but
 //    Date, body.
+// 4. Story 25.4: the gym page carries exactly one HealthClub JSON-LD block and the Open Graph tags (og:title equal to the <title>); a city page lists its gyms in one
+//    ItemList; the top and country pages carry the tags and no block; no response holds an executable <script> (the one allowed script is that inert data block).
 import { config, targetFor, schemeFor, missingStagingLabels } from "./lib/config.mjs";
 import { rawGet } from "./lib/http.mjs";
 import { checkResponse, diffResponses } from "./lib/headers.mjs";
@@ -25,8 +27,8 @@ async function checkDirectory(judge) {
   const D = config.directory;
   const at = (path, headers) => rawGet(targetFor(D.label, path), headers ? { headers } : undefined);
   const top = await at("/en/gyms");
-  judge("directory", "www /en/gyms", top, { indexable: true });
-  judge("directory", "www /fr/gyms", await at("/fr/gyms"), { indexable: true });
+  judge("directory", "www /en/gyms", top, { indexable: true, structuredData: "none" });
+  judge("directory", "www /fr/gyms", await at("/fr/gyms"), { indexable: true, structuredData: "none" });
   const unknown = await at("/en/gyms/zz");
   judge("notFound", "www /en/gyms/zz (unknown country)", unknown);
   judge("notFound", "www /de/gyms (bad locale)", await at("/de/gyms"));
@@ -41,14 +43,14 @@ async function checkDirectory(judge) {
 
   if (!D.country) return note("note: GATE_DIRECTORY_COUNTRY / GATE_DIRECTORY_CITY are unset (staging): only the top pages were checked");
   const country = await at(`/en/gyms/${D.country}`);
-  judge("directory", `www /en/gyms/${D.country}`, country);
+  judge("directory", `www /en/gyms/${D.country}`, country, { structuredData: "none" });
   if (!D.city) return;
   const cityPath = `/en/gyms/${D.country}/${D.city}`;
   const city = await at(cityPath);
-  judge("directory", `www ${cityPath}`, city);
+  judge("directory", `www ${cityPath}`, city, { structuredData: "ItemList" });
   if (!city.body.toString("utf8").includes(config.publishedMarker)) fail.push(`www ${cityPath}: the page does not list the published fixture gym "${config.publishedMarker}"`);
   const filtered = await at(`${cityPath}?category=gym`);
-  judge("directory", `www ${cityPath}?category=gym`, filtered, { indexable: true });
+  judge("directory", `www ${cityPath}?category=gym`, filtered, { indexable: true, structuredData: "ItemList" });
   if (!filtered.body.toString("utf8").includes(config.publishedMarker)) fail.push(`www ${cityPath}?category=gym: the filtered page does not list the published fixture gym`);
   judge("notFound", `www ${cityPath}?page=9 (past the last page)`, await at(`${cityPath}?page=9`));
 }

@@ -8,6 +8,7 @@ import type { RenderEnv, TemplateEntry } from "./contract";
 import { PAGE_CACHE_CONTROL, SECURITY_HEADERS_BASE, contentSecurityPolicy, extractStyleBlock, styleHash } from "./headers";
 import { classifyPagePath, decideLanguage, type PagePath } from "./language";
 import { getTemplate } from "./registry";
+import { gymHeadExtras, injectHead } from "./structuredData";
 
 export interface RenderPageInput {
   page: PageContentV1;
@@ -28,7 +29,7 @@ export interface RenderPageInput {
 
 export type RenderPageResult =
   | { ok: true; status: 200; headers: Record<string, string>; body: string; language: PageContentLanguage; styleHash: string }
-  | { ok: false; reason: "path" | "no_language" | "unknown_template" | "style_block" };
+  | { ok: false; reason: "path" | "no_language" | "unknown_template" | "style_block" | "head" };
 
 export const DEFAULT_MEDIA_PATH = "/storage/v1/object/public/gym-page-media";
 
@@ -58,7 +59,14 @@ export function renderPageWith(renderToStaticMarkup: MarkupRenderer, input: Rend
     languageLinks: decision.languageLinks,
   };
 
-  const html = `<!doctype html>${renderToStaticMarkup(entry.render(input.page, decision.shown, env))}`;
+  const rendered = `<!doctype html>${renderToStaticMarkup(entry.render(input.page, decision.shown, env))}`;
+  // Story 25.4 (AD-51): the Open Graph tags and the one JSON-LD block are spliced in as strings after rendering, for every template, so no template can skip or drift them
+  let html: string;
+  try {
+    html = injectHead(rendered, gymHeadExtras(input.page, decision.shown, env));
+  } catch {
+    return { ok: false, reason: "head" };
+  }
   const style = extractStyleBlock(html);
   if (!style.ok) return { ok: false, reason: "style_block" };
   const hash = styleHash(style.text);

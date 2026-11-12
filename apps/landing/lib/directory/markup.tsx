@@ -1,5 +1,5 @@
 // Story 25.3 (AD-44, AD-48): the directory document as React elements, rendered to a STRING by renderToStaticMarkup (handler.ts). No App Router page
-// (those ship Next scripts), no <script>, no style="" attribute (the CSP hashes the one <style> block), no cookie, no third-party request. This
+// (those ship Next scripts), no executable script (the one <script> a page may carry is the inert JSON-LD data block that handler.ts splices in after rendering), no style="" attribute (the CSP hashes the one <style> block), no cookie, no third-party request. This
 // module is presentational: the handler decides what to show and passes plain data. Hostile gym text is a React text node (escaped), never markup.
 import type { ReactNode } from "react";
 import type { Locale } from "@/lib/i18n";

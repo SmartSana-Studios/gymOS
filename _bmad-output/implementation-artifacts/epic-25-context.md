@@ -14,6 +14,7 @@ Published gyms appear in country and city listings on the main site, filterable 
 - Story 25.4: Structured Data Serializer & Validation
 - Story 25.5: Sitemaps, Robots & Plain-Text Summary
 - Story 25.6: Directory Gate: SEO Verification & Removal Timing
+- Story 25.7: Directory Africa Map & Old City-Slug Redirects (split out of 25.3 and 25.1; not a 25.6 prerequisite)
 
 ## Requirements & Constraints
 
@@ -39,10 +40,11 @@ Published gyms appear in country and city listings on the main site, filterable 
 
 - Directory is its own pages on the rebranded main site; home gains only a "Gyms" link in header and footer. Tokens come from `apps/landing/DESIGN.md`; never a gym's colour.
 - Navy hero band (breadcrumb, `h1` with place name as accent, one count sentence, no stat numerals), then light content. Cards 76 px minimum in 1/2/3 columns; listing rows 80 px minimum with 48 px logo or monogram; category pills 44 px, current one filled with a check glyph and `aria-current`. No motion except map halos.
-- Africa map, top page only: static inline SVG built at build time from Natural Earth 110 m (public domain, record provenance, committed generated module), no script or third-party request. One orange dot per city with a published gym, radius 5 + 3.2 x sqrt(gyms) in a 760 viewBox, linking to the city page with a 44 px hit area, CSS-only labels hidden under 640 px. `aria-hidden` with `tabindex=-1` links because the country cards carry every link. No dot for cities without coordinates or countries off the map; no country highlighted; no map when nothing is published; visible caption. No map on country or city pages.
+- Africa map (Story 25.7, not 25.3), top page only: static inline SVG built at build time from Natural Earth 110 m (public domain, record provenance, committed generated module), no script or third-party request. One orange dot per city with a published gym, radius 5 + 3.2 x sqrt(gyms) in a 760 viewBox, linking to the city page with a 44 px hit area, CSS-only labels hidden under 640 px. `aria-hidden` with `tabindex=-1` links because the country cards carry every link. No dot for cities without coordinates or countries off the map; no country highlighted; no map when nothing is published; visible caption. No map on country or city pages.
 - Empty states, breadcrumbs, language switch link and draft copy (flagged to confirm) are in the UX files. Bare `/gyms/` redirects once by `Accept-Language` (assumption).
 
 ## Cross-Story Dependencies
 
-- Order: 25.1 (needs 24.5) -> 25.2 (also 24.8) -> 25.3 (also 24.10; map needs 25.1 coordinates via 25.2) -> 25.4 and 25.5 -> 25.6. Only 25.1 and 25.2 have migrations, numbered at merge time.
+- Order: 25.1 (needs 24.5) -> 25.2 (also 24.8) -> 25.3 (also 24.10) -> 25.4 and 25.5 -> 25.6; 25.7 (map needs 25.1 coordinates via 25.2; old-slug 301 needs a fourth view) follows 25.3 and is closed before the first production city rename.
+- Shipped by 25.3: directory pages are a script-free Route Handler under `apps/landing/app/[locale]/gyms/[[...path]]` with `lib/directory/*`; one header function and one indexable flag drive both meta and `X-Robots-Tag`; `www.` origin comes from the configured root domain. Only 25.1 and 25.2 have migrations, numbered at merge time.
 - Reuses Epic 24: snapshot refresh triggers, reader role and grant test, uniform not-found handler, header test, `apps/landing` proxy. 25.6 needs a staging environment, which Epic 24 closed without; coordinate with the owner.

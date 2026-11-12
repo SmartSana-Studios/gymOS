@@ -5,11 +5,15 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { CACHE_CONTROL, SECURITY_BASE, checkResponse, diffResponses, expectedCsp, singleStyleBlock, styleHash } from "../lib/headers.mjs";
+import { CACHE_CONTROL, SECURITY_BASE, checkResponse, checkStructuredData, decodeEntities, diffResponses, expectedCsp, scriptsOf, singleStyleBlock, styleHash } from "../lib/headers.mjs";
 
 const MEDIA = "http://127.0.0.1:3911";
 const STYLE = "body{margin:0}";
-const html = (extra = "") => `<!doctype html><html lang="en"><head><style>${STYLE}</style></head><body>GATE FIT${extra}</body></html>`;
+const HEALTH_CLUB = { "@context": "https://schema.org", "@type": "HealthClub", name: "GATE FIT", url: "http://gate-grace.localhost/", address: { "@type": "PostalAddress", addressCountry: "CM" } };
+const ITEM_LIST = { "@context": "https://schema.org", "@type": "ItemList", itemListElement: [{ "@type": "ListItem", position: 1, url: "http://gate-grace.localhost/", name: "GATE FIT" }, { "@type": "ListItem", position: 2, url: "http://other.localhost/", name: "OTHER" }] };
+const ld = (node) => `<script type="application/ld+json">${JSON.stringify(node).replace(/[<>&]/g, (c) => "\\u00" + c.charCodeAt(0).toString(16).padStart(2, "0"))}</script>`;
+const og = (title = "GATE FIT", url = "http://gate-grace.localhost/") => `<meta property="og:type" content="website"><meta property="og:title" content="${title}"><meta property="og:description" content="d"><meta property="og:url" content="${url}">`;
+const html = (extra = "", { block = ld(HEALTH_CLUB), tags = og() } = {}) => `<!doctype html><html lang="en"><head><title>GATE FIT</title><style>${STYLE}</style>${tags}${block}</head><body>GATE FIT${extra}</body></html>`;
 
 function pageHeaders(over = {}) {
   const h = {
@@ -111,8 +115,8 @@ test("singleStyleBlock", () => {
 });
 
 // ---- Story 25.3: the directory kind ----
-const dirHtml = ({ noindex = false, extra = "" } = {}) =>
-  `<!doctype html><html lang="en"><head><meta charSet="utf-8"/>${noindex ? '<meta name="robots" content="noindex"/>' : ""}<link rel="canonical" href="http://www.localhost/en/gyms"/><link rel="alternate" hreflang="x-default" href="http://www.localhost/en/gyms"/><style>${STYLE}</style></head><body>GATE FIT${extra}</body></html>`;
+const dirHtml = ({ noindex = false, extra = "", block = "", tags = og("Gyms", "http://www.localhost/en/gyms") } = {}) =>
+  `<!doctype html><html lang="en"><head><meta charSet="utf-8"/><title>Gyms</title>${noindex ? '<meta name="robots" content="noindex"/>' : ""}<link rel="canonical" href="http://www.localhost/en/gyms"/><link rel="alternate" hreflang="x-default" href="http://www.localhost/en/gyms"/><style>${STYLE}</style>${tags}${block}</head><body>GATE FIT${extra}</body></html>`;
 function dirHeaders(over = {}, { noindex = false } = {}) {
   const h = pageHeaders({ vary: null, "x-middleware-rewrite": null, ...(noindex ? { "x-robots-tag": "noindex" } : {}) });
   for (const [k, v] of Object.entries(over)) {
@@ -169,8 +173,8 @@ function directoryResponse(url) {
   if (p === "/en/gyms" || p === "/fr/gyms") return { status: 200, headers: dirHeaders(), body: dirHtml() };
   if (p === "/en/gyms/cm") return { status: 200, headers: dirHeaders({}, { noindex: true }), body: dirHtml({ noindex: true }) };
   if (p === "/en/gyms/cm/garoua" && url.searchParams.get("page") === null) {
-    if (url.searchParams.get("category") === "gym") return { status: 200, headers: dirHeaders(), body: dirHtml() };
-    return { status: 200, headers: dirHeaders({}, { noindex: true }), body: dirHtml({ noindex: true }) };
+    if (url.searchParams.get("category") === "gym") return { status: 200, headers: dirHeaders(), body: dirHtml({ block: ld(ITEM_LIST) }) };
+    return { status: 200, headers: dirHeaders({}, { noindex: true }), body: dirHtml({ noindex: true, block: ld(ITEM_LIST) }) };
   }
   return nf();
 }
@@ -288,4 +292,101 @@ test("check-http fails when the server is not there", async () => {
   const { code, out } = await runCheck(1);
   assert.equal(code, 1);
   assert.match(out, /could not complete/);
+});
+
+// ---- Story 25.4: structured data and Open Graph, shown failing ----
+test("scriptsOf separates the inert JSON-LD data blocks from executable script", () => {
+  assert.deepEqual(scriptsOf(html()), { blocks: [JSON.stringify(HEALTH_CLUB).replace(/[<>&]/g, "")], executable: 0 });
+  assert.equal(scriptsOf(html("<script>1</script>")).executable, 1);
+  assert.equal(scriptsOf(html('<script src="/a.js"></script>')).executable, 1);
+  assert.equal(scriptsOf(html('<script type="module">1</script>')).executable, 1);
+  assert.equal(scriptsOf(html('<script type="application/ld+json" src="/a.js"></script>')).executable, 1, "extra attributes are not the inert block");
+  assert.equal(scriptsOf(html("<script")).executable, 1, "an unterminated opener still counts");
+});
+test("a correct gym page passes the structured-data check; a correct city page with an ItemList and a top page with none pass too", () => {
+  assert.deepEqual(checkStructuredData("page", html(), "HealthClub"), []);
+  assert.deepEqual(problems(page({})), []);
+  assert.deepEqual(dirProblems(dir({ body: dirHtml({ block: ld(ITEM_LIST) }) }), { structuredData: "ItemList" }), []);
+  assert.deepEqual(dirProblems(dir(), { structuredData: "none" }), []);
+  assert.deepEqual(dirProblems(dir(), {}), [], "no expectation: zero or one block");
+});
+test("known bad gym page: no block, a second block, an executable script, invalid JSON, another type each fail", () => {
+  const bad = (body) => problems(page({}, body));
+  assert.ok(bad(html("", { block: "" })).some((p) => p.includes("0 application/ld+json block(s), expected 1")));
+  assert.ok(bad(html("", { block: ld(HEALTH_CLUB) + ld(HEALTH_CLUB) })).some((p) => p.includes("2 application/ld+json block(s), expected 1")));
+  assert.ok(bad(html("<script>alert(1)</script>")).some((p) => p.includes("page: the body holds a <script> element")));
+  assert.ok(bad(html("", { block: '<script type="application/ld+json">{"@context": </script>' })).some((p) => p.includes("not valid JSON")));
+  assert.ok(bad(html("", { block: ld({ ...HEALTH_CLUB, "@type": "LocalBusiness" }) })).some((p) => p.includes("@type")));
+  assert.ok(bad(html("", { block: ld({ ...HEALTH_CLUB, "@type": "ItemList" }) })).some((p) => p.includes("expected HealthClub")));
+});
+test("known bad gym page: a relative url, no country, a literal < in the block, no name each fail", () => {
+  const bad = (node) => problems(page({}, html("", { block: ld(node) })));
+  assert.ok(bad({ ...HEALTH_CLUB, url: "/" }).some((p) => p.includes("url is not absolute")));
+  assert.ok(bad({ ...HEALTH_CLUB, address: { "@type": "PostalAddress" } }).some((p) => p.includes("addressCountry")));
+  assert.ok(bad({ ...HEALTH_CLUB, name: "" }).some((p) => p.includes("no name")));
+  assert.ok(bad({ ...HEALTH_CLUB, "@context": "http://example.test" }).some((p) => p.includes("@context")));
+  assert.ok(problems(page({}, html("", { block: '<script type="application/ld+json">{"name":"a<b"}</script>' }))).some((p) => p.includes("unescaped")));
+});
+test("known bad gym page: a missing og tag, an og:title that differs from the <title>, a relative og:url each fail", () => {
+  const bad = (tags) => problems(page({}, html("", { tags })));
+  assert.ok(bad("").some((p) => p.includes("missing og:type")));
+  assert.ok(bad(og().replace(/<meta property="og:description"[^>]*>/, "")).some((p) => p.includes("missing og:description")));
+  assert.ok(bad(og("Something else")).some((p) => p.includes("og:title differs from the <title>")));
+  assert.ok(bad(og("GATE FIT", "/")).some((p) => p.includes("og:url is not absolute")));
+  assert.deepEqual(bad(og("GATE &amp; FIT")).filter((p) => p.includes("og:title")), ["page: og:title differs from the <title>"], "entities are decoded before comparing: the title here has no ampersand");
+});
+test("known bad directory page: a block where none belongs, no ItemList on a city, wrong positions, og:image, og:url not the canonical", () => {
+  assert.ok(dirProblems(dir({ body: dirHtml({ block: ld(ITEM_LIST) }) }), { structuredData: "none" }).some((p) => p.includes("1 application/ld+json block(s), expected 0")));
+  assert.ok(dirProblems(dir(), { structuredData: "ItemList" }).some((p) => p.includes("0 application/ld+json block(s), expected 1")));
+  assert.ok(dirProblems(dir({ body: dirHtml({ block: ld(HEALTH_CLUB) }) }), { structuredData: "ItemList" }).some((p) => p.includes("expected ItemList")));
+  const skipped = { ...ITEM_LIST, itemListElement: [ITEM_LIST.itemListElement[0], { ...ITEM_LIST.itemListElement[1], position: 5 }] };
+  assert.ok(dirProblems(dir({ body: dirHtml({ block: ld(skipped) }) }), { structuredData: "ItemList" }).some((p) => p.includes("next position")));
+  const relative = { ...ITEM_LIST, itemListElement: [{ ...ITEM_LIST.itemListElement[0], url: "/x" }] };
+  assert.ok(dirProblems(dir({ body: dirHtml({ block: ld(relative) }) }), { structuredData: "ItemList" }).some((p) => p.includes("absolute url")));
+  assert.ok(dirProblems(dir({ body: dirHtml({ tags: og("Gyms", "http://www.localhost/en/gyms/cm") }) })).some((p) => p.includes("og:url differs from the canonical")));
+  assert.ok(dirProblems(dir({ body: dirHtml({ tags: og("Gyms", "http://www.localhost/en/gyms") + '<meta property="og:image" content="http://m/x.webp">' }) })).some((p) => p.includes("og:image must be absent")));
+});
+
+test("check-http: a gym page without the block, with a second block or an executable script fails the run (doctored responses), naming the page", async () => {
+  await withServer((label, r) => { if (label === "gate-grace") r.body = html("", { block: "" }); }, async (port) => {
+    const { code, out } = await runCheck(port);
+    assert.equal(code, 1);
+    assert.match(out, /gate-grace: page: 0 application\/ld\+json block\(s\), expected 1/);
+  });
+  await withServer((label, r) => { if (label === "gate-grace") r.body = html("", { block: ld(HEALTH_CLUB) + ld(HEALTH_CLUB) }); }, async (port) => {
+    const { code, out } = await runCheck(port);
+    assert.equal(code, 1);
+    assert.match(out, /gate-grace: page: 2 application\/ld\+json block\(s\), expected 1/);
+  });
+  await withServer((label, r) => { if (label === "gate-grace") r.body = html("<script>1</script>"); }, async (port) => {
+    const { code, out } = await runCheck(port);
+    assert.equal(code, 1);
+    assert.match(out, /gate-grace: page: the body holds a <script> element/);
+  });
+  await withServer((label, r) => { if (label === "gate-grace") r.body = html("", { tags: og("Other title") }); }, async (port) => {
+    const { code, out } = await runCheck(port);
+    assert.equal(code, 1);
+    assert.match(out, /gate-grace: page: og:title differs from the <title>/);
+  });
+});
+test("check-http: a city page without its ItemList, and a top page that carries one, fail the run", async () => {
+  await withServer((label, r, url) => { if (label === "www" && url === "/en/gyms/cm/garoua") r.body = dirHtml({ noindex: true }); }, async (port) => {
+    const { code, out } = await runCheck(port);
+    assert.equal(code, 1);
+    assert.match(out, /www \/en\/gyms\/cm\/garoua: directory: 0 application\/ld\+json block\(s\), expected 1/);
+  });
+  await withServer((label, r, url) => { if (label === "www" && url === "/en/gyms") r.body = dirHtml({ block: ld(ITEM_LIST) }); }, async (port) => {
+    const { code, out } = await runCheck(port);
+    assert.equal(code, 1);
+    assert.match(out, /www \/en\/gyms: directory: 1 application\/ld\+json block\(s\), expected 0/);
+  });
+});
+
+test("decodeEntities decodes in a single pass and leaves an out-of-range numeric entity as written", () => {
+  assert.equal(decodeEntities("&#38;lt;"), "&lt;", "a decoded ampersand is not decoded again");
+  assert.equal(decodeEntities("&amp;lt;"), "&lt;");
+  assert.equal(decodeEntities("&#x27;&#39;&quot;&lt;&gt;&amp;"), "''\"<>&");
+  assert.equal(decodeEntities("a&#x110000;b"), "a&#x110000;b");
+  assert.equal(decodeEntities("a&#99999999;b"), "a&#99999999;b");
+  assert.equal(decodeEntities("&#x10FFFF;").codePointAt(0), 0x10ffff);
 });
