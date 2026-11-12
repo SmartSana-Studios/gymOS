@@ -3837,6 +3837,7 @@ So that launching public pages cannot expose tenant data or slow the core produc
 | 25.4 | Structured Data Serializer & Validation | none | 25.3 |
 | 25.5 | Sitemap Index, Robots & Plain-Text Summary | none | 25.3 |
 | 25.6 | Directory Gate — SEO Verification & Removal Timing | none | 25.4, 25.5 |
+| 25.7 | Directory Africa Map & Old City-Slug Redirects | next free at merge time (a fourth `public_site` view) | 25.3 |
 
 *Step 3 starts only after Step 2's gate (24.12) is passed (PRD §10.2). The directory has no tables of its own: every listing is a view over the Epic 24 snapshot (AD-49), so unpublishing, takedown and suspension leave it without extra code. At launch, with few gyms, only individual pages are expected to be indexed (FR-212). The directory UX pass ran 2026-11-12 (`DESIGN.md` "Public Directory", `EXPERIENCE.md` PS-04…PS-06): the directory is its own set of pages on the rebranded main site, and the top page carries one Africa map with a dot per city that has a gym (static SVG, no script, city coordinates from 25.1).*
 
@@ -3930,7 +3931,7 @@ So that I can find a place to train near me.
 
 **Given** `/{locale}/gyms/` with published gyms in cities that have coordinates
 **When** it renders
-**Then** its hero draws one Africa map as an inline SVG generated at build time from Natural Earth (public domain; provenance recorded), with one dot per city that has a published gym, radius growing with the gym count, each dot a link to that city's page; the page makes no request to a third party and runs no script (AD-44)
+**Then** *(MOVED to Story 25.7 at the 25.3 size gate, 2026-11-12; 25.3 ships the hero as copy only and keeps one free column from 1024 px for the map)* its hero draws one Africa map as an inline SVG generated at build time from Natural Earth (public domain; provenance recorded), with one dot per city that has a published gym, radius growing with the gym count, each dot a link to that city's page; the page makes no request to a third party and runs no script (AD-44)
 **And** the map is `aria-hidden` with its links out of the tab order, because the country cards carry every link; a city without coordinates has no dot but is listed; gyms in countries outside the map are listed and counted; with no published gym anywhere no map is drawn
 **And** no country has its own map or any highlight, and the country and city pages carry no map
 **And** the home page carries no directory content beyond a "Gyms" link in header and footer (the directory is its own pages)
@@ -4054,6 +4055,29 @@ So that launching discovery cannot publish a removed gym or misleading markup.
 **Given** the E2E baseline (NFR-015)
 **When** the suite runs
 **Then** it covers browse by country and city, category filter, thin-listing `noindex`, and removal on unpublish, in English and French
+
+---
+
+### Story 25.7: Directory Africa Map & Old City-Slug Redirects
+
+As a visitor,
+I want the directory's top page to show where gyms are and an old city link to keep working after a rename,
+So that I can find a place to train at a glance and never meet a dead link.
+
+*Split out of 25.3 (size gate, 2026-11-12, owner decision) and of 25.1 (the 301 promise). Review of 25.3 found both items had no story to carry them. Not a prerequisite of 25.6; close it before the first city is renamed in production.*
+
+**Acceptance Criteria:**
+
+**Given** `/{locale}/gyms/` with published gyms in cities that have coordinates
+**When** it renders
+**Then** its hero draws one Africa map as an inline SVG generated at build time from Natural Earth 110 m (public domain; provenance recorded; generator script, committed generated module, local Natural Earth projection proven equal to d3), with one dot per city that has a published gym, radius growing with the gym count, each dot a link to that city's page; labels are CSS-only, the halo is dropped under `prefers-reduced-motion`, a caption names the map; the page makes no request to a third party and runs no script (AD-44)
+**And** the map is `aria-hidden` with its links `tabindex=-1`, because the country cards carry every link; a city without coordinates has no dot but is listed; gyms in countries outside the map are listed and counted; with no published gym anywhere no map is drawn
+**And** no country has its own map or any highlight, and the country and city pages carry no map (`DESIGN.md` "Africa map")
+
+**Given** a city renamed within the last 12 months (`city_slug_history`)
+**When** `/{locale}/gyms/{cc}/{old-slug}` is requested
+**Then** it answers a 301 to the current city URL in one hop with cache lifetime of 5 minutes at most, through a fourth `public_site` view that exposes only the redirect (the reader role reads no base table), with the grant test updated to name it
+**And** after 12 months, or for a slug that was never a city's, the answer is the uniform not-found
 
 ## Epic 1: Platform Foundation & Gym Onboarding
 

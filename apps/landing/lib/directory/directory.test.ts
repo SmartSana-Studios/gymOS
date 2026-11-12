@@ -1,5 +1,6 @@
 // Story 25.3: every row of the I/O matrix, the header table, the noindex signal, the Cameroon order, 21-gym paging and the country window.
 // The reader is an in-memory world that behaves like the three 25.2 views and the SQL of readerSql.ts (order, filter, 20 per page).
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { CHROME, contentSecurityPolicy, extractStyleBlock, styleHash } from "@gymos/page-templates";
 import * as headersModule from "./headers";
@@ -464,9 +465,9 @@ describe("canonical, hreflang and the language link", () => {
   });
   it("the language link keeps the path and the effective query in the other locale, written in that language", async () => {
     const top = await page(deps(world()), "en");
-    expect(top.html).toContain('<a class="chip" href="/fr/gyms" lang="fr" hrefLang="fr">Français</a>');
+    expect(top.html).toContain(`<a class="chip" href="${WWW}/fr/gyms" lang="fr" hrefLang="fr">Français</a>`);
     const city = await page(deps(world()), "fr", ["cm", "yaounde"], "category=gym&page=1&junk=1");
-    expect(city.html).toContain('href="/en/gyms/cm/yaounde?category=gym" lang="en" hrefLang="en">English</a>');
+    expect(city.html).toContain(`href="${WWW}/en/gyms/cm/yaounde?category=gym" lang="en" hrefLang="en">English</a>`);
   });
   it("the top and country pages have a self canonical and the three alternates", async () => {
     const top = await page(deps(world()), "en");
@@ -522,6 +523,17 @@ describe("the document", () => {
     const fonts = [...html.matchAll(/url\(([^)]+)\)/g)].map((m) => m[1]);
     expect(fonts).toEqual(["/fonts/bricolage-grotesque-800.woff2", "/fonts/figtree-variable.woff2"]);
     expect(html).toContain("font-display:swap");
+  });
+  it("every font URL in the CSS is a real, non-empty woff2 file under public/", async () => {
+    const { html } = await page(deps(world()), "en");
+    const urls = [...html.matchAll(/url\(([^)]+)\)/g)].map((m) => m[1]!);
+    expect(urls.length).toBeGreaterThan(0);
+    for (const url of urls) {
+      const file = new URL(`../../public${url}`, import.meta.url);
+      const bytes = readFileSync(file); // throws when the file was renamed or deleted
+      expect(bytes.length, url).toBeGreaterThan(1000);
+      expect(bytes.subarray(0, 4).toString("latin1"), `${url} is not a woff2 file`).toBe("wOF2");
+    }
   });
   it("uses the tokens of the main site: navy hero, 76 px cards, 80 px rows, 44 px targets", async () => {
     const { html } = await page(deps(world()), "en");

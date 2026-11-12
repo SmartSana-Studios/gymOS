@@ -116,6 +116,37 @@ context:
 | 21 | Blank gym name gives an empty link (edge) | false | rejected | `gyms.name` is NOT NULL with a CHECK and the snapshot always writes it (25.2 triage 2) |
 | 22 | Other cosmetic items: double `extractStyleBlock`, mutated argument, comment order, deep import, hard-coded `cm`, non-string `code`, first code point monogram, FM/Cape Verde names (blind, edge) | low | rejected | No named harm; `cm` is the spec's own ordering rule |
 
+### Review Findings
+
+Independent re-review of commit ac4a8a9 (2026-11-12, bmad-code-review; Blind Hunter, Edge Case Hunter, Verification Gap, Acceptance Auditor).
+
+- [x] [Review][Decision] RESOLVED 2026-11-12 (owner said "decide"): new story 25.7 carries both; epics.md and sprint-status updated. The Africa map and the old city-slug 301 left the 25.3 criteria with no story to carry them — `epics.md` still lists both under 25.3 and 0169's header says the 301 serving is "25.5"; the deferred-work entries name no later story and `sprint-status.yaml` has no entry for either. Epic 22 retro 67: a deferral that must close before a later story is an acceptance criterion of that story. Choose the carrier (a new story, 25-6, or 25-5) and amend `epics.md`.
+- [x] [Review][Patch] The language link is a relative path, the spec requires the configured `https://www.{rootDomain}` origin [apps/landing/lib/directory/handler.ts:frame, `languageHref`] — canonical and the three alternates use `ctx.www`, the language link does not; the test pins `href="/fr/gyms"` and decisions.md says all three use the configured origin.
+- [x] [Review][Patch] No test checks that the two `@font-face` URLs resolve to real files [apps/landing/lib/directory/directory.test.ts:520] — the fonts test compares CSS strings only; deleting or renaming `public/fonts/figtree-variable.woff2` passes every CI stage and the pages fall back to system-ui silently. Add an exists, non-empty and `wOF2` magic-byte check over the URLs in `DIRECTORY_CSS`.
+
+#### Rejected
+
+- `?page=1000000` served as page 1 (acceptance) — low: no real listing has a million pages; the fix adds a branch.
+- Gate seeds one published gym, so city and country are thin in the real run (acceptance, blind) — low: the spec says only "seeded published gyms"; the `indexable: true` side is pinned by the doctored-server tests.
+- Spec `status: done` vs sprint-status `review`; three 25-3 `last_updated` lines (acceptance, blind) — process note; the fix edits the spec under review.
+- Deep import of `@gymos/page-templates/src/headers` (acceptance) — false: same `contentSecurityPolicy` function, behaviour identical; already item 22.
+- Gate does not assert thin pages are `noindex`; `category=gym` and `page=9` hard-coded (blind, edge) — low/false: staging mode returns before the city checks, locally the fixture gym is a `gym` in a 1-gym city; unit tests pin the flag.
+- 307 test double has `no-store` but the proxy sets no cache header, and no `Vary: Accept-Language` (blind) — low: the apex `/` redirect has the same shape and has shipped; no cached-locale failure was shown.
+- Reader-SQL harness expects exactly `CM|…|2` (blind, edge) — low: it runs on a clean CI database and `scripts/demo-gym` does not publish pages with a city.
+- Gym ordering not proven against accented names (blind) — low: item 10.
+- Database error is a cacheable 404 (blind) — item 1, spec-frozen.
+- ICU check covers four patterns; FK, PS, UM, FM names (blind) — false for FK ("Falkland Islands") and the rest are the plain CLDR names, not short forms; item 14/22.
+- Migration and rollback do not assert 22 rows updated (blind, edge) — low: items 14 and 15; the pgTAP file pins each corrected code.
+- FR grammar ("Salles à Le Caire") (blind) — low: item 9, draft copy the owner confirms.
+- Filtered view indexable while its canonical is `noindex`; duplicate title on page 2 (blind) — spec-frozen AD-50 and item 5.
+- `directory_config_missing` logged on every request; missing `rootDomain` not logged (blind) — low: a misconfiguration signal, not a defect; the fix adds de-duplication state.
+- `check-http.mjs` header comment numbers 1, 3, 2 (blind, verification) — low: cosmetic, item 22.
+- City count sentence uses `city.publishedCount` when the views disagree (edge) — low: inside the AD-46 refresh window only; the spec says the unfiltered page uses the city's own count.
+- Stale-filter page has no current pill (edge) — low: the fix adds a branch for a transient edge.
+- Bare `/gyms` 307 for POST and PUT (edge) — low: the route answers 405/404 either way.
+- Four parallel reads on the one-connection reader pool (edge) — already deferred in `deferred-work.md` (directory load check).
+- Country page lists city cards, not gym rows (edge) — false: the I/O matrix and Code Map define the country page as city cards.
+
 ## Design Notes
 
 `S`: the 25.2 country view counts by the snapshot country, the city views by the live `city_id`, so they can differ inside the AD-46 refresh window. The country page therefore trusts the rows it lists and goes `noindex` while the two disagree, without a second copy of the threshold. A filtered view is never `noindex` by the AD-50 text even when its listing is thin; its canonical points at the unfiltered listing, which carries the flag.

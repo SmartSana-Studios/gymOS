@@ -138,7 +138,8 @@ function frame(ctx: Context, rest: string[], canonicalQuery: string, languageQue
     locale: ctx.locale,
     canonical: url(ctx.locale),
     alternates: { en: url("en"), fr: url("fr"), xDefault: url("en") },
-    languageHref: `${directoryPath(other, ...rest)}${languageQuery}`,
+    // the configured origin like the canonical and the alternates, never the request Host
+    languageHref: `${ctx.www}${directoryPath(other, ...rest)}${languageQuery}`,
     homeHref: `/${ctx.locale}`,
     gymsHref: directoryPath(ctx.locale),
   };
