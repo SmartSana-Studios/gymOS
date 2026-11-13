@@ -105,8 +105,10 @@ stage_deno() {
 # Story 24.12: the landing-page E2E spec removes its gyms, but audit_log is append-only for service_role and gym_id is set null when the gym goes, so
 # its `gym_page_*` and `page_name_*` rows stay behind. gym_page_publish.negative.test.sql asserts that NO such audit row exists database-wide, so the
 # previous run's leftovers would fail it. Only orphaned page rows (no gym) are removed, as the DB owner; pgTAP's own fixtures roll back.
+# Story 25.6: the directory spec sets each gym's category through the Owner's RPC, which writes a `gym_category_changed` row; gym_category.negative.test.sql
+# asserts that no refusal wrote one database-wide, so those orphans are removed too.
 clean_orphaned_page_audit_rows() {
-  psql_local -c "delete from audit_log where gym_id is null and (action_type like 'gym\_page\_%' or action_type like 'page\_name\_%')" >/dev/null || return 1
+  psql_local -c "delete from audit_log where gym_id is null and (action_type like 'gym\_page\_%' or action_type like 'page\_name\_%' or action_type = 'gym_category_changed')" >/dev/null || return 1
 }
 
 stage_pgtap() {

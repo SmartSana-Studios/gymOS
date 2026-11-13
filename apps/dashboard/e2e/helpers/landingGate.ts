@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { readFileSync } from "node:fs";
 import http from "node:http";
+import { createRequire } from "node:module";
 import path from "node:path";
 
 import { supabaseAnonKey, supabaseServiceRoleKey, supabaseUrl } from "./env";
@@ -64,8 +65,11 @@ function unique(): string {
   return `${Date.now().toString(36)}${Math.floor(Math.random() * 36 ** 2).toString(36)}`;
 }
 
-/** Creates the gym, its Owner (email login, password known, preferred language set), one plan and the gate content. Nothing is claimed or published. */
-export async function createPageGym(lang: Lang): Promise<PageGym> {
+/**
+ * Creates the gym, its Owner (email login, password known, preferred language set), one plan and the gate content. Nothing is claimed or published.
+ * `citySlug` is a seeded Cameroon city (migration 0169: douala, garoua, limbe, kribi, buea, ebolowa, ...); the 24.12 spec keeps the default.
+ */
+export async function createPageGym(lang: Lang, citySlug = "douala"): Promise<PageGym> {
   const admin = adminClient();
   const tag = unique();
   const { data: tier, error: tierError } = await admin.from("tiers").select("id").order("created_at").limit(1).single();
@@ -112,7 +116,7 @@ export async function createPageGym(lang: Lang): Promise<PageGym> {
     aboutEn,
     aboutFr,
   };
-  await fillGate(pg);
+  await fillGate(pg, citySlug);
   return pg;
   } catch (e) {
     // the caller never gets a handle on a failed create, so nothing else would remove the gym and the auth user
@@ -122,7 +126,7 @@ export async function createPageGym(lang: Lang): Promise<PageGym> {
 }
 
 /** The nine publish-gate items except the name: text in both languages, country and city, a public contact, hours, one public plan, logo and banner. */
-async function fillGate(pg: PageGym): Promise<void> {
+async function fillGate(pg: PageGym, citySlug: string): Promise<void> {
   const owner = await signedInClient(pg.ownerEmail);
   const { error } = await owner.rpc("set_gym_page_content", {
     p_gym_id: pg.gymId,
@@ -135,10 +139,10 @@ async function fillGate(pg: PageGym): Promise<void> {
     p_plans: [{ plan_id: pg.planId, is_public: true }],
   });
   if (error) throw new Error(`landing gate e2e: set_gym_page_content -- ${error.message}`);
-  // 25.1: the city is chosen from the list (migration 0169 seeds Douala), never typed
-  const douala = await owner.from("cities").select("id").eq("country_code", "CM").eq("slug", "douala").single();
-  if (douala.error) throw new Error(`landing gate e2e: reading the Douala row -- ${douala.error.message}`);
-  const located = await owner.rpc("set_gym_location", { p_gym_id: pg.gymId, p_country: "CM", p_city_id: douala.data.id });
+  // 25.1: the city is chosen from the list (migration 0169 seeds the Cameroon cities), never typed
+  const city = await owner.from("cities").select("id").eq("country_code", "CM").eq("slug", citySlug).single();
+  if (city.error) throw new Error(`landing gate e2e: reading the ${citySlug} row -- ${city.error.message}`);
+  const located = await owner.rpc("set_gym_location", { p_gym_id: pg.gymId, p_country: "CM", p_city_id: city.data.id });
   if (located.error) throw new Error(`landing gate e2e: set_gym_location -- ${located.error.message}`);
   // media rows need no Storage objects: the gate counts registered, attested rows
   for (const [n, kind] of [[1, "logo"], [2, "banner"]] as const) {
@@ -264,4 +268,69 @@ export function landingGet(label: string, path = "/", headers: Record<string, st
 export function sameness(r: LandingResponse): string {
   const headers = Object.entries(r.headers).filter(([name]) => name !== "date").sort(([a], [b]) => a.localeCompare(b));
   return JSON.stringify({ status: r.status, headers, body: r.body });
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+// Story 25.6 (directory gate): publishing and removing without the UI, and the suspension that only the billing lifecycle job normally makes
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+
+/** A page name no other run uses and no near-match rule holds: 8 random characters, far from any other name (the hold rule is an edit distance of 1). */
+export function randomPageName(): string {
+  return `e2e-d${Math.random().toString(36).slice(2, 10).padEnd(8, "x")}`;
+}
+
+/** The Owner sets the category, claims `name` (it must go active, not be held for review) and publishes. The Owner's own RPCs, as the editor calls them. */
+export async function claimAndPublish(pg: PageGym, name: string, category: string): Promise<void> {
+  const owner = await signedInClient(pg.ownerEmail);
+  const cat = await owner.rpc("set_gym_category", { p_gym_id: pg.gymId, p_category: category });
+  if (cat.error) throw new Error(`landing gate e2e: set_gym_category -- ${cat.error.message}`);
+  const claim = await owner.rpc("claim_page_name", { p_gym_id: pg.gymId, p_name: name });
+  if (claim.error) throw new Error(`landing gate e2e: claim_page_name(${name}) -- ${claim.error.message}`);
+  if (claim.data?.state !== "active") throw new Error(`landing gate e2e: the name ${name} is ${claim.data?.state}, not active (held for review?)`);
+  await publishPage(pg);
+}
+
+/** The Owner publishes (or republishes). Throws unless the gate passes. */
+export async function publishPage(pg: PageGym): Promise<void> {
+  const owner = await signedInClient(pg.ownerEmail);
+  const { data, error } = await owner.rpc("publish_gym_page", { p_gym_id: pg.gymId, p_template: "classic" });
+  if (error) throw new Error(`landing gate e2e: publish_gym_page -- ${error.message}`);
+  if (!data?.published) throw new Error(`landing gate e2e: publish_gym_page refused, missing ${JSON.stringify(data?.missing)}`);
+}
+
+const DB_URL = process.env.E2E_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+
+/**
+ * Changes ONE gym's `status` through a direct connection, in a transaction that sets the billing lifecycle job's own transaction-local bypass
+ * (`app.saas_billing_lifecycle_job_bypass`, migration 0071), and reads the result back. Never `run_saas_billing_lifecycle_job()` (it acts on every gym)
+ * and never a bare UPDATE: `protect_super_admin_only_gym_columns` pins `gyms.status` back to its old value with no error, so the read-back is the proof.
+ * Local databases only.
+ */
+export async function setGymStatusScoped(gymId: string, status: "active" | "suspended"): Promise<void> {
+  const url = new URL(DB_URL);
+  if (!["127.0.0.1", "localhost", "::1", "[::1]", "host.docker.internal"].includes(url.hostname)) throw new Error(`landing gate e2e: refusing to change a gym status on ${url.hostname}`);
+  // pg is a dependency of apps/landing, not of the dashboard: resolved from there like scripts/landing-gate/lib/resolve.mjs does
+  const { Client } = createRequire(path.join(__dirname, "..", "..", "..", "landing", "package.json"))("pg");
+  const client = new Client({ connectionString: DB_URL });
+  await client.connect();
+  try {
+    await client.query("begin");
+    await client.query("select set_config('app.saas_billing_lifecycle_job_bypass', 'true', true)");
+    const res = await client.query("update gyms set status = $2 where id = $1 returning status", [gymId, status]);
+    if (res.rowCount !== 1) throw new Error(`landing gate e2e: no gym ${gymId}`);
+    await client.query("commit");
+    const back = await client.query("select status from gyms where id = $1", [gymId]);
+    if (back.rows[0]?.status !== status) throw new Error(`landing gate e2e: the status is ${back.rows[0]?.status}, not ${status}: the trigger pinned it back (the bypass did not apply)`);
+  } catch (e) {
+    await client.query("rollback").catch(() => undefined);
+    throw e;
+  } finally {
+    await client.end();
+  }
+}
+
+/** The Super Admin lifts a takedown. The page comes back UNPUBLISHED: the Owner publishes again. */
+export async function liftTakedown(sa: SuperAdmin, gymId: string): Promise<void> {
+  const { error } = await sa.client.rpc("lift_gym_page_takedown", { p_gym_id: gymId, p_reason: "E2E restore between removal cases" });
+  if (error) throw new Error(`landing gate e2e: lift_gym_page_takedown -- ${error.message}`);
 }

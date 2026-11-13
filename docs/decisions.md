@@ -6,6 +6,83 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## 2026-11-13 — Story 25.6: directory gate, SEO verification and removal timing
+
+PRD 10.2 Step 3 release gate; FR-207, FR-211..FR-214, NFR-025; AD-44, AD-50, AD-52. No product code, migration, view or grant changed; nothing ran against staging or production; no Search Console, Rich Results or schema.org request was made from the development session.
+
+**Status: the kit, the tests and the checklist are built and every check passes LOCALLY. The Step 3 gate is UNSIGNED.** No staging exists (owner decision 2026-11-09, still true), so the Rich Results Test, the schema.org validator, Search Console, the staging removal run and a field LCP are OPEN (below). A local number never signs the gate.
+
+### What was built (all under `scripts/landing-gate/` unless noted)
+
+- **Removal surfaces, one list.** `lib/removal.mjs` enumerates the places a removed gym could still show: the gym page, the gym-host `/sitemap.xml`, the city listing row, the city listing count, the country page count, `www` `/llms.txt`, and the `www` sitemap (it applies only when the city had exactly 3 gyms, because a city leaves the sitemap by dropping under the indexable line; otherwise it prints `n/a` with the reason). Each surface names the `public_site` views it reads. `__tests__/removal.test.mjs` scans every migration for views and functions that read `private.gym_page_visible` (outside comments) and every `public_site.*` the landing app's SQL reads, and fails when one is neither a surface's `reads` nor listed in `NOT_A_SURFACE` with a reason (`page_media`, `page_redirects`, `submit_page_report`, `page_names_sweep`). Shown failing: a new view, a new function and a new landing reader, and a real mutation (the city-row surface stripped of its view makes both coverage tests fail naming `public_site.directory_gym`).
+- **`removal-timing.mjs`.** Takes `BASE_URL`/`ROOT_DOMAIN` like the other scripts and `--since <ISO>` (exit 2 without it). Polls each surface until it drops and prints elapsed time per surface against the bounds. It creates, publishes and removes nothing. `--mode origin` (the default for `localhost`): every surface within 60 s; the CDN (5 min) and sitemap (15 min) bounds are shown BY CONSTRUCTION (`s-maxage` at most 300 s on every answer, plus the origin time for sitemaps) and printed as such. `--mode cdn` (the default elsewhere): the time is measured against 300 s (pages, listings, `llms.txt`) and 900 s (sitemaps). An answer without `s-maxage`, or with one over 300 s, fails. A surface already gone at the first poll prints "gone before the first poll (at most N s after --since)", never 0 s; if the first poll was later than the bound, the time is not proven and the run fails. Shown failing on a doctored server that keeps the removed gym in each of the seven surfaces (exit 1 naming the surface), on a missing or oversized `s-maxage`, and on a `--since` too old to prove anything.
+- **E2E `apps/dashboard/e2e/directory-gate.spec.ts`**, EN and FR, serial, 8 steps each (16 tests): browse top -> country -> city in Chromium; the three levels over raw HTTP with the AD-44 page set, `lang`, counts, canonical and hreflang; category pills only for present categories, a filtered view canonical to the unfiltered one with no `noindex` and out of the sitemap; a thin city (2 gyms) `noindex` in header and meta tag and out of the sitemap, a city of 3 indexable and in it; then removal by **unpublish** (Owner RPC), **takedown** (Super Admin RPC; the Owner still sees the banner) and **suspension**, each timed on every surface with the 60 s origin bound asserted, the gym asserted visible on every surface first, and restored afterwards so the next case starts at 3 gyms. Own gyms and cities per language (Kribi and Limbe for EN, Ebolowa and Buea for FR; the 24.12 spec keeps Douala), removed in `afterAll`. Suspension uses the billing lifecycle job's transaction-local bypass (`app.saas_billing_lifecycle_job_bypass`), scoped to one gym through a direct `pg` connection with a read-back (a bare `gyms.status` UPDATE silently reverts); never `run_saas_billing_lifecycle_job()`. A suspended gym's republish is refused. `helpers/landingGate.ts` gained a city parameter on `createPageGym`, and `claimAndPublish`, `publishPage`, `setGymStatusScoped`, `liftTakedown`. Gym names are stored upper-cased (migration 0159), so the raw-HTTP name checks compare without case.
+- **Realistic directory seed.** `node scripts/landing-gate/seed.mjs up --directory`: `GATE_DIRECTORY_GYMS` (default 45) more published gyms in Garoua (46 with the fixture, 3 pages of 20), 3 in Maroua (exactly the indexable line), 2 in Bertoua (thin); removed by `down`. The names sort after "GATE FIT" so the fixture stays on page 1 and `check-http` finds it with or without the seed. `run-local.sh` seeds it for `lcp`, `load` and `serve`; `http` alone keeps the small seed.
+- **LCP targets.** `GATE_LCP_TARGET=gym|directory-top|directory-city` (default `gym`, unchanged). `run-local.sh lcp` runs all three. The p75 is recorded against 3 s and never enforced; output says LAB.
+- **Load check with directory pages.** `GATE_LOAD_DIRECTORY_SHARE` (default 20%) of the requests are directory pages in both languages with random `?x=<n>`, `?page=<n>` (past the last page too, which must answer the uniform 404) and stale `?category=` values; the same connection ceiling is judged; directory latency is reported separately; a run that was meant to include directory pages and sent none fails. This closes the deferral "extend the load check to the directory routes" (25-3 review).
+
+### Gate table (all LOCAL, lab, 2026-11-13)
+
+| AC | Command | Result | Where run |
+|---|---|---|---|
+| Kit tests incl. known-bad removal and doctored sitemap/`llms.txt` | `node --test scripts/landing-gate/__tests__/*.test.mjs` | 97 pass (21 new in `removal.test.mjs`, 5 new in `pure.test.mjs`) | local, no server |
+| Removal by unpublish, takedown, suspension, EN and FR | `npx playwright test e2e/directory-gate.spec.ts` (inside `scripts/ci-local.sh`, stage e2e) | 16 of 16 pass. Every surface of every case was gone at the FIRST poll, at most 0.1 s after the action (the views are computed on read, so there is no propagation delay at the origin); 60 s bound met with a wide margin. The CDN and sitemap bounds: by construction, `s-maxage` seen on the surfaces: 30 s (the not-found a removed gym becomes), 60 s (gym page, city and country pages), 300 s (sitemaps, `llms.txt`), all at most 300 s | local, two Next servers, local DB |
+| 24.12 page flows still pass | same stage | 12 of 12 | local |
+| `run-local.sh http` on the final tree, small default seed (closes the 25.5 deferral) | `GATE_LANDING_PORT=3230 bash scripts/landing-gate/run-local.sh http` | PASS (2026-11-13, after the review patches): every directory, crawler and gym-host row ok; the sitemap lists 4 URLs and each answers 200 with no `noindex`. The earlier full run (all three checks, rows below) also passed `http`, with the 46-gym directory seed present | local `next start` |
+| LCP, gym page (Classic fixture) | same run, target `gym` | p75 3456 ms (EN 3456, FR 3464), 20 runs, OVER the assumed 3 s, recorded not enforced; LCP element is the banner image | local Chromium, throttled (LAB) |
+| LCP, directory top | target `directory-top` | p75 264 ms (EN 280, FR 264), 20 runs, under 3 s; LCP element is text (`h1`, `p`) | LAB |
+| LCP, city listing (46 gyms, page 1 of 3) | target `directory-city` | p75 284 ms (EN 284, FR 284), 20 runs, under 3 s; LCP element `h1` | LAB |
+| Load with directory pages | same run, `load` | PASS: 7229 requests, 0 errors, 0 real pages answered 404, directory pages as expected 1464 of 1464 (including the 404 past the last page); peak role connections 1 of 20; directory latency median 89 ms, p95 364 ms (real label 83/369 ms, unknown label 161/694 ms); Overview median 424 -> 472 ms (+11%), check-in 13 -> 10 ms | local |
+| ci-local per stage | `E2E_LANDING_PORT=3230 bash scripts/ci-local.sh` | static PASS (71 s), deno PASS (2 s), unit PASS (274 s), layout PASS (98 s), e2e PASS (411 s: 36 tests = 8 existing + 12 landing-page-gate + 16 directory-gate, `CI=1`), pgtap PASS (136 s, 188 files). The first full run failed pgtap on `gym_category.negative.test.sql` ("no refusal wrote an audit row"): my own standalone E2E iterations had left orphaned `gym_category_changed` audit rows (audit_log is append-only, gym_id is nulled when the gym goes). Fixed in `scripts/ci-local.sh` `clean_orphaned_page_audit_rows` (now also removes orphaned `gym_category_changed` rows, as it already does for `gym_page_*` and `page_name_*`), then `--only pgtap` passed; the other stages ran once on the final test code and are not repeated for that script-only fix. Dirty tree, so no merge stamp | local |
+| Deferrals closed | `deferred-work.md` | the load check to the directory routes: closed. The real-server proof before 25.6: `run-local.sh http` run again (above); a `ci-local` stage for it is still not built (entry kept, marked partly closed) | n/a |
+
+The local LCP of the directory pages is far under 3 s because they are small text pages with no hero image; the 3 s number that matters for the gym page is over, as recorded in 24.12 and 24.13. A field LCP needs real traffic (OPEN item 6).
+
+### Decisions
+
+1. No staging: the story delivers and runs everything locally and lists the rest OPEN (owner, 2026-11-09). The gate stays unsigned.
+2. The CDN and sitemap bounds are by construction locally and measured only by `removal-timing.mjs --mode cdn` on staging.
+3. The 3 s LCP target stays an `[ASSUMPTION]`: recorded, not enforced.
+4. Removal is instant at the origin by design (computed views, no counter), so the local timing proves "no code path of its own", not a measured delay. The staging run is the one that can show a real CDN delay.
+5. The directory seed's gym names sort after the fixture (see above).
+6. Port 3101 cannot be bound on the machine of this run (the same kind of blocked port as 3200, decisions 24.12); the run used `GATE_DASHBOARD_PORT=3111` and `GATE_LANDING_PORT=3230`.
+
+### Owner checklist (all OPEN). Staging root below is `<staging root>`; use the real staging host names
+
+Needs: a staging deployment of this branch with at least four published gyms (three in one city, so the city is indexable, and a published page for the Rich Results run), a Super Admin, and Google Search Console.
+
+1. **Rich Results Test, one gym page.** Open `https://search.google.com/test/rich-results`, test `https://<gym label>.<staging root>/`. Record: the detected item type (`HealthClub`), errors (must be 0) and warnings (list them).
+2. **Rich Results Test, one city listing.** Same tool, `https://www.<staging root>/en/gyms/<cc>/<city slug>` (the city with 3 or more gyms). Record: the `ItemList` detection, errors (0), warnings.
+3. **schema.org validator, both URLs.** Open `https://validator.schema.org/`, paste each of the two URLs of items 1 and 2. Record: errors (must be 0) and warnings.
+4. **Search Console, property per host.** Add a Domain property for `<staging root>` (DNS TXT) or URL-prefix properties for `https://www.<staging root>/` and `https://<gym label>.<staging root>/`. Record which property type was used.
+5. **Search Console, sitemaps.** On the `www` property submit `sitemap-index.xml` (full URL `https://www.<staging root>/sitemap-index.xml`). On the gym-host property submit `sitemap.xml` (`https://<gym label>.<staging root>/sitemap.xml`). Record per sitemap: status (Success), number of discovered URLs, the listing and gym page URLs shown under "Discovered pages", and any error text. This resolves the AD-52 `[ASSUMPTION]` that a gym host and the main site may each submit their own sitemap. If a sitemap is rejected because it lists URLs on another host, record the exact message; that decides whether the gym pages need a different route to discovery.
+6. **Field LCP.** The lab number cannot stand in for it. Record the p75 LCP from one of: the Core Web Vitals report of the `www` property in Search Console, or `https://pagespeed.web.dev/` "Discover what your real users are experiencing" for the gym page URL and the city listing URL (needs enough real traffic; if the report says "not enough data", record that and the date). Decide whether 3 s stands (NFR-025) and tell the assistant, so `GATE_LCP_ENFORCE=1` can be turned on.
+7. **Staging removal run, three causes.** For each cause, with a gym in a city of exactly 3 gyms: read the city listing's count, then run `node scripts/landing-gate/removal-timing.mjs --check-visible --label <the gym's page name> --country <cc> --city <city slug> --count-before 3` BEFORE the action (it needs no `--since`; it exits 1 naming every surface that does not show the gym, so a mistyped label or city, a gym that is not live or a row on page 2 cannot later read as "gone before the first poll"). Only when it exits 0: note the time, do the action, run the timing tool at once.
+   ```sh
+   export BASE_URL='https://{label}.<staging root>' ROOT_DOMAIN='<staging root>' GATE_PLATFORM=vercel GATE_ENV_LABEL='staging, through the CDN'
+   SINCE=$(date -u +%Y-%m-%dT%H:%M:%SZ)   # then, immediately: unpublish in the Owner UI / take the page down as Super Admin / suspend the gym
+   node scripts/landing-gate/removal-timing.mjs --since "$SINCE" --label <the removed gym's page name> --country <cc> --city <city slug> --count-before 3 --cause unpublish
+   ```
+   Repeat with `--cause takedown` and `--cause suspension` on two other gyms (restore each gym first, or use a fresh one: a city of 3 is needed for the sitemap surface to apply). Record per cause and surface the printed elapsed time, and the final PASS or FAIL. Bounds: 300 s for pages, listings and `llms.txt`, 900 s for sitemaps (measured; the `s-maxage` header is not judged in this mode, because Vercel drops it from the client-visible `Cache-Control`).
+8. **Staging `check-http` and `load` with directory pages** (the existing 24.12 steps 1 and 3, now including the directory routes): set `GATE_DIRECTORY_COUNTRY` and `GATE_DIRECTORY_CITY` first, or the directory part is skipped and the run says so.
+
+| # | Item | Where | Status | Date / initials |
+|---|---|---|---|---|
+| 1 | Kit tests, known-bad removal and doctored sitemap | local | PASS (local) | 2026-11-13 |
+| 2 | Removal by unpublish, takedown, suspension, origin <= 60 s, EN and FR E2E | local | PASS (local), all at the first poll | 2026-11-13 |
+| 3 | Removal run, three causes, through the CDN (item 7) | staging | OPEN | |
+| 4 | Rich Results Test, gym page (item 1) | staging | OPEN | |
+| 5 | Rich Results Test, city listing (item 2) | staging | OPEN | |
+| 6 | schema.org validator, both URLs (item 3) | staging | OPEN | |
+| 7 | Search Console, `www` sitemap accepted (items 4, 5) | staging | OPEN | |
+| 8 | Search Console, gym-host sitemap accepted (items 4, 5), AD-52 `[ASSUMPTION]` resolved | staging | OPEN | |
+| 9 | LCP p75, directory and gym page, lab | local | RECORDED: 3456 ms gym (over 3 s), 264 ms top, 284 ms city | 2026-11-13 |
+| 10 | LCP p75, field (item 6) | staging / production | OPEN | |
+| 11 | `check-http` and `load` on staging with directory pages (item 8) | staging | OPEN | |
+| 12 | Owner signature: Step 3 gate PASSED | owner | UNSIGNED | |
+
+---
+
 ## 2026-11-12 — Story 25.5: sitemaps, robots and plain-text summary (AD-52)
 
 `www.` gets `/robots.txt`, `/sitemap-index.xml`, `/sitemaps/{n}.xml` and `/llms.txt`. No migration, no new view or grant; the 24.11 gym-host `/sitemap.xml` and `/robots.txt` are byte-identical.
