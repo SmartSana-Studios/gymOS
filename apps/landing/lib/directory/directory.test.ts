@@ -7,7 +7,7 @@ import * as headersModule from "./headers";
 import { handleDirectory, parseCategory, parsePage, type DirectoryDeps, type DirectoryRequest } from "./handler";
 import { validateJsonLd } from "@gymos/page-templates/src/structuredData.fixtures";
 import { notFoundResponse } from "@/lib/gym-site/notFound";
-import { DIRECTORY_PAGE_SIZE, type CityRow, type CountryRow, type DirectoryReader, type GymRow } from "./types";
+import { DIRECTORY_PAGE_SIZE, type CityRow, type CountryRow, type DirectoryReader, type GymRow, type MapCityRow } from "./types";
 
 const ROOT = "gymosapps.com";
 const MEDIA = "https://media.example.com";
@@ -23,6 +23,10 @@ interface World {
   countries: CountryRow[];
   cities: Record<string, CityRow[]>;
   gyms: Record<string, GymRow[]>;
+  /** Story 25.7: rows of directory_city that carry coordinates. */
+  mapCities?: MapCityRow[];
+  /** Story 25.7: `CC/old-slug` to the current slug, as directory_city_redirect yields it (already filtered by expiry and visibility). */
+  redirects?: Record<string, string>;
 }
 const country = (code: string, nameEn: string, nameFr: string, publishedCount: number, indexable = publishedCount >= 3): CountryRow => ({ countryCode: code, nameEn, nameFr, publishedCount, indexable });
 const city = (slug: string, name: string, publishedCount: number, indexable = publishedCount >= 3): CityRow => ({ citySlug: slug, cityName: name, publishedCount, indexable });
@@ -61,6 +65,14 @@ function reader(w: World, calls: string[] = []): DirectoryReader {
       const sorted = [...all].sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()) || a.pageName.localeCompare(b.pageName));
       const rows = sorted.slice((page - 1) * DIRECTORY_PAGE_SIZE, page * DIRECTORY_PAGE_SIZE);
       return { rows, total: rows.length ? all.length : 0 };
+    },
+    async readMapCities() {
+      calls.push("mapCities");
+      return w.mapCities ?? [];
+    },
+    async readCitySlugRedirect(cc, slug) {
+      calls.push(`redirect:${cc}/${slug}`);
+      return w.redirects?.[`${cc}/${slug}`] ?? null;
     },
   };
 }
@@ -509,7 +521,7 @@ describe("canonical, hreflang and the language link", () => {
 });
 
 describe("the document", () => {
-  it("has landmarks, one h1, a skip link first, a lang, and the hero keeps a free column for the later map", async () => {
+  it("has landmarks, one h1, a skip link first, a lang, and the hero keeps its column for the map", async () => {
     const { html } = await page(deps(world()), "en");
     expect(html.startsWith("<!doctype html><html lang=\"en\">")).toBe(true);
     expect(html.match(/<h1>/g)).toHaveLength(1);
@@ -517,7 +529,7 @@ describe("the document", () => {
     expect(html.match(/<main /g)).toHaveLength(1);
     expect(html.match(/<footer /g)).toHaveLength(1);
     expect(html.indexOf('class="skip"')).toBeLessThan(html.indexOf("<header"));
-    expect(html).toContain('class="hero hero-top"');
+    expect(html).toContain('class="hero hero-top has-map"');
     expect(html).toContain(".hero-top .hero-copy{max-width:50%}");
   });
   it("is script-free: no script element, no style attribute, no handler attribute, no external URL but the media origin", async () => {
@@ -556,7 +568,10 @@ describe("the document", () => {
   it("uses the tokens of the main site: navy hero, 76 px cards, 80 px rows, 44 px targets", async () => {
     const { html } = await page(deps(world()), "en");
     for (const token of ["#0F1B2D", "min-height:76px", "min-height:80px", "min-height:44px", "width:48px;height:48px", "grid-template-columns:repeat(3"]) expect(html).toContain(token);
-    expect(html).not.toMatch(/animation|transition|@keyframes/);
+    // no motion but the map's halo (opacity only, under no-preference); no transition anywhere
+    expect(html).not.toMatch(/transition/);
+    expect(html.match(/animation/g)).toHaveLength(1);
+    expect(html).toContain("@media (prefers-reduced-motion:no-preference){.map-halo{animation:halo 2.6s ease-in-out infinite}}");
   });
 });
 
@@ -658,8 +673,8 @@ describe("headers: every outcome goes through the one function", () => {
     expect(await log("<html><head><style>a{}</style><style>b{}</style></head><body></body></html>")).toEqual([["directory_style_block", { count: 2 }]]);
     expect(await log("<html><body>no head</body></html>")).toEqual([["directory_render_error", { name: "Error" }]]);
   });
-  it("a world that reads only the three directory views: the reader interface has no other read", () => {
-    expect(Object.keys(reader(world())).sort()).toEqual(["readCategories", "readCities", "readCity", "readCityTotals", "readCountries", "readCountry", "readGyms"]);
+  it("a world that reads only the directory views: the reader interface has no other read (25.7 added the map and the old-slug reads)", () => {
+    expect(Object.keys(reader(world())).sort()).toEqual(["readCategories", "readCities", "readCity", "readCitySlugRedirect", "readCityTotals", "readCountries", "readCountry", "readGyms", "readMapCities"]);
   });
 });
 
@@ -765,5 +780,200 @@ describe("structured data: ItemList and Open Graph", () => {
     expect(html).toContain("&quot;");
     expect(html).not.toContain('content="A"B');
     expect(ogOf(html)["og:title"]).toBe(titleOf(html));
+  });
+});
+
+// ---- Story 25.7: the Africa map on the top page and the 301 from an old city slug ----
+describe("Africa map (25.7)", () => {
+  const mapCity = (countryCode: string, citySlug: string, cityName: string, lat: number, lng: number, publishedCount: number): MapCityRow => ({ countryCode, citySlug, cityName, lat, lng, publishedCount });
+  // Douala (1 gym) and Yaoundé (3) in Cameroon, Dakar (1) in Senegal; Kinshasa (CD) has a gym but no coordinates
+  const mapWorld = (): World => ({
+    ...world(),
+    mapCities: [mapCity("CM", "douala", "Douala", 4.0511, 9.7679, 1), mapCity("CM", "yaounde", "Yaoundé", 3.848, 11.5021, 3), mapCity("SN", "dakar", "Dakar", 14.7167, -17.4677, 1)],
+  });
+  const svgOf = (html: string) => /<svg[^]*?<\/svg>/.exec(html)![0];
+  const dotLinks = (html: string) => [...svgOf(html).matchAll(/<a [^>]*>/g)].map((m) => m[0]);
+
+  it("normal: one dot per city with coordinates, each a root-relative tabindex=-1 link; the SVG is aria-hidden; countries with a gym use the lit fill", async () => {
+    const { res, html } = await page(deps(mapWorld()), "en");
+    expect(res.status).toBe(200);
+    expect(html).toContain('<figure class="map">');
+    expect(html).toMatch(/<svg class="map-svg" viewBox="0 0 760 \d+" aria-hidden="true" focusable="false">/);
+    expect(dotLinks(html)).toEqual([
+      '<a href="/en/gyms/cm/yaounde" tabindex="-1" class="map-dot">',
+      '<a href="/en/gyms/cm/douala" tabindex="-1" class="map-dot">',
+      '<a href="/en/gyms/sn/dakar" tabindex="-1" class="map-dot">',
+    ]);
+    // the dots: radius 5 + 3.2 sqrt(gyms)
+    expect([...svgOf(html).matchAll(/<circle class="map-pt" cx="[\d.]+" cy="[\d.]+" r="([\d.]+)"/g)].map((m) => m[1])).toEqual(["10.54", "8.2", "8.2"]);
+    // the hit circle is transparent (CSS fill) and at least 44 CSS px across at the widest rendering
+    expect(svgOf(html).match(/class="map-hit"[^>]* r="44"/g)).toHaveLength(3);
+    const lit = [...svgOf(html).matchAll(/<path d="[^"]*" class="lit"/g)];
+    expect(lit).toHaveLength(3); // CM, SN, CD have a listed gym
+    expect(html).toContain("Each dot is a city with gyms. Larger means more gyms.");
+    // the caption describes an aria-hidden SVG, so it is hidden from assistive technology too (it stays visible)
+    expect(html).toContain('<figcaption aria-hidden="true">Each dot is a city with gyms. Larger means more gyms.</figcaption>');
+    expect(html).toContain("@media (max-width:360px){.map-hit{r:72px}}");
+    // the country cards link to the country pages, from which the cities are reachable
+    expect(html).toContain('href="/en/gyms/cm"');
+    expect(html).toContain('href="/en/gyms/sn"');
+  });
+  it("the label (city name and count) is CSS-only, hidden under 640 px; the halo breathes only under no-preference reduced motion", async () => {
+    const { html } = await page(deps(mapWorld()), "en");
+    expect(svgOf(html)).toContain('<text class="map-label"');
+    expect(svgOf(html)).toContain(">Douala · 1 gym</text>");
+    expect(svgOf(html)).toContain(">Yaoundé · 3 gyms</text>");
+    expect(html).toContain(".map-dot:hover .map-label,.map-dot:focus .map-label,.map-dot:focus-visible .map-label{opacity:1}");
+    expect(html).toContain("@media (max-width:640px){.map-label{display:none}");
+    expect(html).toContain("@media (prefers-reduced-motion:no-preference){.map-halo{animation:halo 2.6s ease-in-out infinite}}");
+    expect(html).toContain(".map-halo{fill:#E0971F;opacity:.22}");
+    expect(html).toContain(".map-pt{fill:#E0971F;stroke:#0F1B2D;stroke-width:2;vector-effect:non-scaling-stroke}");
+    expect(html).toContain(".map-land path{fill:#17253B;stroke:#0F1B2D");
+    expect(html).toContain(".map-land .lit{fill:#2B4163}");
+    expect(html).toContain("min-width:1024px");
+    expect(html).toContain("margin:0 0 -112px"); // 64 px into the light band (the hero's 48 px foot padding is cancelled)
+  });
+  it("AD-44: one style block, no style attribute, no script, nothing external, no style/image/href-to-elsewhere inside the SVG", async () => {
+    for (const locale of ["en", "fr"]) {
+      const { res, html } = await page(deps(mapWorld()), locale);
+      expect(html.match(/<style/g)).toHaveLength(1);
+      expect(html).not.toMatch(/\sstyle=/i);
+      expect(html).not.toMatch(/<script/i);
+      const svg = svgOf(html);
+      expect(svg).not.toMatch(/<style|<image|<use|<foreignObject|xlink:href|https?:/i);
+      for (const m of svg.matchAll(/href="([^"]*)"/g)) expect(m[1]).toMatch(/^\/(en|fr)\/gyms\/[a-z]{2}\/[a-z0-9-]+$/);
+      expect(res.headers.get("content-security-policy")).toContain("script-src 'none'");
+      expect(res.headers.get("content-security-policy")).toContain(`style-src '${styleHash((extractStyleBlock(html) as { text: string }).text)}'`);
+    }
+  });
+  it("French caption and links, from the same data", async () => {
+    const { html } = await page(deps(mapWorld()), "fr");
+    expect(html).toContain("Chaque point est une ville qui compte des salles. Plus grand, plus de salles.");
+    expect(dotLinks(html)[0]).toContain('href="/fr/gyms/cm/yaounde"');
+    expect(svgOf(html)).toContain(">Yaoundé · 3 salles</text>");
+  });
+  it("a city without coordinates has no dot but stays listed and counted", async () => {
+    const { html } = await page(deps(mapWorld()), "en");
+    expect(dotLinks(html).some((l) => l.includes("kinshasa"))).toBe(false);
+    expect(html).toContain("Democratic Republic of the Congo");
+    expect(html).toContain("6 gyms in 3 countries");
+  });
+  it("a country off the map is in the cards and the count, with no dot and no fill", async () => {
+    const w = mapWorld();
+    w.countries.push(country("FR", "France", "France", 1));
+    w.cities.FR = [city("paris", "Paris", 1)];
+    w.mapCities!.push(mapCity("FR", "paris", "Paris", 48.8566, 2.3522, 1));
+    const { html } = await page(deps(w), "en");
+    expect(html).toContain("<h2>France</h2>");
+    expect(html).toContain("7 gyms in 4 countries");
+    expect(dotLinks(html)).toHaveLength(3);
+    expect(svgOf(html)).not.toContain("paris");
+    expect([...svgOf(html).matchAll(/class="lit"/g)]).toHaveLength(3);
+  });
+  it("the dot position is the city's own, never a gym's: the gym rows carry no coordinates and the reader's map read is the only one", async () => {
+    const calls: string[] = [];
+    await page(deps(mapWorld(), {}, calls), "en");
+    expect(calls.filter((c) => c === "mapCities")).toHaveLength(1);
+    expect(calls).not.toContain("gyms:-:1");
+  });
+  it("nothing published: the empty message and no map markup (no figure, no svg, no hero column, no map CSS class on the hero)", async () => {
+    const { res, html } = await page(deps({ ...empty, mapCities: [mapCity("CM", "douala", "Douala", 4.0511, 9.7679, 1)] }), "en");
+    expect(res.status).toBe(200);
+    expect(html).toContain("No gyms are listed yet.");
+    expect(html).not.toContain("<svg");
+    expect(html).not.toContain("<figure");
+    expect(html).not.toContain('hero-top has-map"');
+    expect(html).not.toContain('class="after-map"');
+  });
+  it("no map on a country page or a city page", async () => {
+    for (const segments of [["cm"], ["cm", "yaounde"], ["cm", "douala"]]) {
+      const { html } = await page(deps(mapWorld()), "en", segments);
+      expect(html, segments.join("/")).not.toContain("<svg");
+      expect(html, segments.join("/")).not.toContain("<figure");
+      expect(html, segments.join("/")).not.toContain('has-map"');
+    }
+  });
+  it("the map read failing is a database error: the uniform not-found, logged like any other read", async () => {
+    const d = deps(mapWorld(), { reader: { ...reader(mapWorld()), readMapCities: async () => { throw Object.assign(new Error("secret"), { code: "57014" }); } } });
+    const res = await ask(d, "en");
+    expect(await snapshot(res)).toEqual(await snapshot(notFoundResponse(ROOT)));
+    expect(d.logs).toEqual([["directory_db_error", { code: "57014" }]]);
+  });
+});
+
+describe("old city slug redirects (25.7)", () => {
+  const renamed = (): World => ({ ...world(), redirects: { "CM/old-douala": "douala" } });
+  const notFoundSnap = async () => snapshot(notFoundResponse(ROOT));
+
+  it("a renamed city's old slug is one 301 to the current slug on the constant www origin, with an empty body and the cache bound", async () => {
+    const res = await ask(deps(renamed()), "en", ["cm", "old-douala"]);
+    expect(res.status).toBe(301);
+    expect(res.headers.get("location")).toBe(`${WWW}/en/gyms/cm/douala`);
+    expect(res.headers.get("cache-control")).toBe("public, max-age=300, s-maxage=300");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(res.headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
+    expect(res.headers.get("strict-transport-security")).toBe("max-age=63072000; includeSubDomains");
+    expect(await res.text()).toBe("");
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+  it("keeps the locale, drops the query string, and never takes the origin from the request", async () => {
+    const res = await ask(deps(renamed()), "fr", ["cm", "old-douala"], "category=gym&page=2&x=https://evil.example");
+    expect(res.status).toBe(301);
+    expect(res.headers.get("location")).toBe(`${WWW}/fr/gyms/cm/douala`);
+  });
+  it("the Cache-Control is the shared constant and at most five minutes", async () => {
+    const { REDIRECT_CACHE_CONTROL } = await import("@gymos/page-templates");
+    const res = await ask(deps(renamed()), "en", ["cm", "old-douala"]);
+    expect(res.headers.get("cache-control")).toBe(REDIRECT_CACHE_CONTROL);
+    expect(Number(/s-maxage=(\d+)/.exec(REDIRECT_CACHE_CONTROL)![1])).toBeLessThanOrEqual(300);
+  });
+  it("the localhost scheme follows the configured root domain, like every other directory URL", async () => {
+    const res = await ask(deps(renamed(), { config: { rootDomain: "localhost", mediaOrigin: MEDIA, reportKey: undefined } }), "en", ["cm", "old-douala"]);
+    expect(res.headers.get("location")).toBe("http://www.localhost/en/gyms/cm/douala");
+  });
+  it("expired, never a slug, or a current city with no visible gym: the reader yields no row and the answer is the uniform not-found, byte for byte", async () => {
+    const want = await notFoundSnap();
+    for (const slug of ["expired-slug", "never-a-slug", "old-unpublished"]) {
+      const res = await ask(deps(renamed()), "en", ["cm", slug]);
+      expect(await snapshot(res), slug).toEqual(want);
+    }
+  });
+  it("a redirect for a country with no such city is still the uniform not-found", async () => {
+    expect(await snapshot(await ask(deps(renamed()), "en", ["zz", "old-douala"]))).toEqual(await notFoundSnap());
+  });
+  it("a stored slug that is not a valid city segment (or is the requested slug itself) is never put into a Location header", async () => {
+    const want = await notFoundSnap();
+    for (const bad of ["Bad Slug", "a/../b", "x\r\nSet-Cookie: a=b", "-x", "x".repeat(61), "", "old-douala"]) {
+      const res = await ask(deps({ ...world(), redirects: { "CM/old-douala": bad } }), "en", ["cm", "old-douala"]);
+      expect(await snapshot(res), JSON.stringify(bad)).toEqual(want);
+    }
+  });
+  it("a city that exists is never redirected, and the redirect read is not made for it", async () => {
+    const calls: string[] = [];
+    const res = await ask(deps({ ...world(), redirects: { "CM/douala": "yaounde" } }, {}, calls), "en", ["cm", "douala"]);
+    expect(res.status).toBe(200);
+    expect(calls.some((c) => c.startsWith("redirect:"))).toBe(false);
+  });
+  it("a page past the last of an existing city is the not-found, not a redirect lookup", async () => {
+    const calls: string[] = [];
+    const w21: World = { countries: [country("CM", "Cameroon", "Cameroun", 21)], cities: { CM: [city("douala", "Douala", 21)] }, gyms: { "CM/douala": gyms(21) }, redirects: { "CM/douala": "yaounde" } };
+    const res = await ask(deps(w21, {}, calls), "en", ["cm", "douala"], "page=3");
+    expect(await snapshot(res)).toEqual(await notFoundSnap());
+    expect(calls.some((c) => c.startsWith("redirect:"))).toBe(false);
+  });
+  it("a reader error on the redirect read is the uniform not-found, logged as directory_db_error", async () => {
+    const d = deps(renamed(), { reader: { ...reader(renamed()), readCitySlugRedirect: async () => { throw Object.assign(new Error("secret"), { code: "53300" }); } } });
+    expect(await snapshot(await ask(d, "en", ["cm", "old-douala"]))).toEqual(await notFoundSnap());
+    expect(d.logs).toEqual([["directory_db_error", { code: "53300" }]]);
+  });
+  it("the redirect lookup uses the upper-case country code and the exact old slug", async () => {
+    const calls: string[] = [];
+    await ask(deps(renamed(), {}, calls), "en", ["cm", "old-douala"]);
+    expect(calls).toContain("redirect:CM/old-douala");
+  });
+  it("the country and top pages never redirect", async () => {
+    const r = { ...renamed(), redirects: { "CM/old-douala": "douala", "ZZ/": "x" } };
+    expect((await ask(deps(r), "en", ["zz"])).status).toBe(404);
+    expect((await ask(deps(r), "en")).status).toBe(200);
   });
 });

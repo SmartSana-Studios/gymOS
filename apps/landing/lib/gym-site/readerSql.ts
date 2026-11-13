@@ -59,3 +59,16 @@ export const CRAWL_CITIES_SQL = "select country_code, city_slug from public_site
 /** The visible pages for `/llms.txt`. `$1` is the number of rows wanted (the cap plus one, to know whether the list was cut). */
 export const CRAWL_PAGES_SQL =
   "select name, template, schema_version, content from public_site.pages order by name collate \"C\" limit $1::integer";
+
+// Story 25.7: the Africa map and the old city slug. Same rules as above: one unnamed statement each, `$n` params, no quote characters in the text.
+
+/**
+ * The cities the map may draw a dot for: those with coordinates (the city's OWN lat/lng, never a gym position) and at least one visible gym (the view
+ * holds only such cities). This is the ONLY directory statement that names lat or lng, and it reads directory_city only.
+ */
+export const DIRECTORY_MAP_CITIES_SQL =
+  "select country_code, city_slug, city_name, lat, lng, published_count from public_site.directory_city where lat is not null and lng is not null";
+
+/** The CURRENT slug of an old city slug inside its 12 months, only while the current city has a visible gym. `$1` upper-case alpha-2, `$2` the old slug. */
+export const DIRECTORY_CITY_REDIRECT_SQL =
+  "select city_slug from public_site.directory_city_redirect where country_code = $1 and old_slug = $2 limit 1";

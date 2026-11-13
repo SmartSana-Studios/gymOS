@@ -103,6 +103,14 @@ export function worldReader(gyms: readonly WorldGym[], calls: string[] = []): Re
       const rows = sorted.slice((page - 1) * DIRECTORY_PAGE_SIZE, page * DIRECTORY_PAGE_SIZE).map(rowOf);
       return { rows, total: rows.length ? all.length : 0 };
     },
+    async readMapCities() {
+      calls.push("mapCities");
+      return [];
+    },
+    async readCitySlugRedirect() {
+      calls.push("citySlugRedirect");
+      return null;
+    },
     async readIndexableCities() {
       calls.push("indexableCities");
       return cityRows().filter((c) => c.indexable).map((c) => ({ countryCode: c.countryCode, citySlug: c.citySlug }));

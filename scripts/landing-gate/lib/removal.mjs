@@ -183,6 +183,7 @@ export const SURFACES = [
 export const NOT_A_SURFACE = Object.freeze({
   "public_site.page_media": "images referenced by the gym page; it has no listing of its own and goes with the gym-page surface (the media is served only inside a visible page)",
   "public_site.page_redirects": "the old-name 301 answers only while the page is visible; the 24.12 spec asserts that the old name stops redirecting after a takedown",
+  "public_site.directory_city_redirect": "the old city slug -> current slug 301 (25.7); it names no gym and its row exists only while the current city has a visible gym, so it goes with the city-page surface that is already timed (the old URL answers the uniform not-found once the city has no gym; 25.7 proves it in city_slug_redirects.test.sql)",
   "private.page_names_sweep": "the nightly sweep that decides whether a name is idle; a private function that exposes nothing to a visitor",
   "public_site.submit_page_report": "the report form's receiving function on the gym host; it answers `not_found` for a page that is not visible, behind the same visibility check as the gym page",
 });

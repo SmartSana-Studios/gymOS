@@ -39,8 +39,30 @@ export interface PageLinkView {
   current: boolean;
 }
 
+/** Story 25.7: one dot of the Africa map, in view-box units. `href` is root-relative. */
+export interface MapDotView {
+  x: number;
+  y: number;
+  r: number;
+  href: string;
+  /** City name and gym count, shown on hover and focus. */
+  label: string;
+  /** Which side of the dot the label grows to, so it stays inside the view box. */
+  anchor: "start" | "middle" | "end";
+}
+
+/** Story 25.7: the Africa map of the top page (see map.ts). Null on the page means no map. */
+export interface MapView {
+  width: number;
+  height: number;
+  caption: string;
+  /** `lit`: a country with a listed gym (the lighter fill). */
+  countries: { code: string; d: string; lit: boolean }[];
+  dots: MapDotView[];
+}
+
 export type DirectoryBody =
-  | { kind: "top"; cards: CardView[]; lede: string; count: string | null; empty: string | null }
+  | { kind: "top"; cards: CardView[]; lede: string; count: string | null; empty: string | null; map: MapView | null }
   | { kind: "country"; cards: CardView[]; count: string }
   | {
       kind: "city";
@@ -131,9 +153,55 @@ export const DIRECTORY_CSS = [
   ".foot{background:#0F1B2D;color:#A9B7CB;padding:16px 0}",
   ".foot ul{display:flex;flex-wrap:wrap;align-items:center;gap:0 24px}",
   ".foot a{display:inline-flex;align-items:center;min-height:44px;font-size:15px;font-weight:600;color:#A9B7CB}",
+  // Story 25.7: the Africa map. Land, lit countries and borders carry no meaning on their own (the cards do); the ring is a 2 px line at any size.
+  ".map{margin:32px auto 0;max-width:560px}",
+  ".map figcaption{margin-bottom:12px;font-size:15px;line-height:1.4;color:#A9B7CB;text-align:center}",
+  ".map-svg{display:block;width:100%;height:auto;overflow:visible}",
+  ".map-land path{fill:#17253B;stroke:#0F1B2D;stroke-width:.6;stroke-linejoin:round}",
+  ".map-land .lit{fill:#2B4163}",
+  ".map-dot{cursor:pointer;outline:none}",
+  ".map-halo{fill:#E0971F;opacity:.22}",
+  ".map-pt{fill:#E0971F;stroke:#0F1B2D;stroke-width:2;vector-effect:non-scaling-stroke}",
+  ".map-hit{fill:transparent}",
+  ".map-label{font:600 16px/1 Figtree,system-ui,sans-serif;fill:#FFFFFF;stroke:#0F1B2D;stroke-width:5px;stroke-linejoin:round;paint-order:stroke;opacity:0;pointer-events:none}",
+  ".map-dot:hover .map-label,.map-dot:focus .map-label,.map-dot:focus-visible .map-label{opacity:1}",
+  "@keyframes halo{0%,100%{opacity:.22}50%{opacity:.06}}",
+  "@media (prefers-reduced-motion:no-preference){.map-halo{animation:halo 2.6s ease-in-out infinite}}",
+  "@media (max-width:640px){.map-label{display:none}.map-hit{r:56px}}",
+  "@media (max-width:360px){.map-hit{r:72px}}",
   "@media (min-width:641px){.wrap{padding:0 32px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}h1{font-size:40px}}",
   "@media (min-width:1024px){.cards{grid-template-columns:repeat(3,minmax(0,1fr))}h1{font-size:52px}.hero-top .hero-copy{max-width:50%}}",
+  // from 1024 px the copy is left and the map right, running 64 px down into the light band (the hero's 48 px foot padding is cancelled too); main makes room
+  "@media (min-width:1024px){.hero-top.has-map{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:start}.hero-top.has-map .hero-copy{max-width:none}.hero-top.has-map .map{position:relative;z-index:1;max-width:none;margin:0 0 -112px}.map figcaption{text-align:left}main.after-map{padding-top:104px}}",
 ].join("\n");
+
+/** Static, aria-hidden Africa map (Story 25.7): inline SVG, no script, no style attribute; every link is out of the tab order (the country cards carry every link). */
+function AfricaMap({ map }: { map: MapView }): ReactNode {
+  return (
+    <figure className="map">
+      <figcaption aria-hidden="true">{map.caption}</figcaption>
+      <svg className="map-svg" viewBox={`0 0 ${map.width} ${map.height}`} aria-hidden="true" focusable="false">
+        <g className="map-land">
+          {map.countries.map((c) => (
+            <path key={c.code} d={c.d} className={c.lit ? "lit" : undefined} />
+          ))}
+        </g>
+        <g>
+          {map.dots.map((d) => (
+            <a key={d.href} href={d.href} tabIndex={-1} className="map-dot">
+              <circle className="map-halo" cx={d.x} cy={d.y} r={Math.round(d.r * 1.9 * 100) / 100} />
+              <circle className="map-pt" cx={d.x} cy={d.y} r={d.r} />
+              <circle className="map-hit" cx={d.x} cy={d.y} r={44} />
+              <text className="map-label" x={d.x} y={d.y < 40 ? d.y + d.r + 22 : d.y - d.r - 10} textAnchor={d.anchor}>
+                {d.label}
+              </text>
+            </a>
+          ))}
+        </g>
+      </svg>
+    </figure>
+  );
+}
 
 function Cards({ cards }: { cards: CardView[] }): ReactNode {
   return (
@@ -215,7 +283,7 @@ export function DirectoryPage({ doc }: { doc: DirectoryDocument }): ReactNode {
                 </a>
               </div>
             </div>
-            <div className={isTop ? "hero hero-top" : "hero"}>
+            <div className={isTop ? (body.kind === "top" && body.map ? "hero hero-top has-map" : "hero hero-top") : "hero"}>
               <div className="hero-copy">
                 <nav className="crumbs" aria-label={copy.breadcrumbLabel}>
                   <ol>
@@ -230,10 +298,11 @@ export function DirectoryPage({ doc }: { doc: DirectoryDocument }): ReactNode {
                 {body.kind === "top" ? <p className="lede">{body.lede}</p> : null}
                 {body.kind === "top" ? (body.count ? <p className="count">{body.count}</p> : null) : <p className="count">{body.count}</p>}
               </div>
+              {body.kind === "top" && body.map ? <AfricaMap map={body.map} /> : null}
             </div>
           </div>
         </header>
-        <main id="content">
+        <main id="content" className={body.kind === "top" && body.map ? "after-map" : undefined}>
           <div className="wrap">
             {body.kind === "top" ? (body.empty ? <p className="note">{body.empty}</p> : <Cards cards={body.cards} />) : null}
             {body.kind === "country" ? <Cards cards={body.cards} /> : null}

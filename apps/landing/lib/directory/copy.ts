@@ -17,7 +17,7 @@ export interface DirectoryCopy {
   all: string;
   /** Accessible name of a numbered page link. */
   pageLink(n: number): string;
-  top: { titleLead: string; titleAccent: string; lede: string; metaDescription: string; empty: string; countSentence(gyms: number, countries: number): string };
+  top: { titleLead: string; titleAccent: string; lede: string; metaDescription: string; empty: string; countSentence(gyms: number, countries: number): string; mapCaption: string };
   country: { titleLead: string; metaDescription(country: string): string; countSentence(gyms: number, cities: number): string };
   city: {
     titleLead: string;
@@ -55,6 +55,7 @@ const en: DirectoryCopy = {
     metaDescription: "Browse gyms, studios and fitness centers on GymOS by country and city.",
     empty: "No gyms are listed yet.",
     countSentence: (g, c) => `${g} ${plural(g, "gym", "gyms")} in ${c} ${plural(c, "country", "countries")}`,
+    mapCaption: "Each dot is a city with gyms. Larger means more gyms.", // [ASSUMPTION - copy to confirm]
   },
   country: {
     titleLead: "Gyms in",
@@ -90,6 +91,7 @@ const fr: DirectoryCopy = {
     metaDescription: "Parcourez les salles de sport, studios et centres de fitness sur GymOS, par pays et par ville.",
     empty: "Aucune salle n'est encore répertoriée.",
     countSentence: (g, c) => `${g} ${frPlural(g, "salle", "salles")} dans ${c} pays`,
+    mapCaption: "Chaque point est une ville qui compte des salles. Plus grand, plus de salles.", // [ASSUMPTION - copy to confirm]
   },
   country: {
     // « Salles en [pays] » (the draft) is wrong for « au Cameroun » or « aux Comores »: a colon takes any name as entered

@@ -15,16 +15,28 @@ import { DIRECTORY_COPY } from "./copy";
 const DIRECTORY_SQL = Object.entries(sql).filter(([k]) => k.startsWith("DIRECTORY_")) as [string, string][];
 
 describe("the directory statements (readerSql.ts)", () => {
-  it("are the seven reads, each one unnamed statement over the three directory views only", () => {
+  // Story 25.7 widened this on purpose: two more statements (the map's cities, the old-slug redirect) over two more public_site relations
+  const VIEWS = ["public_site.directory_country", "public_site.directory_city", "public_site.directory_gym", "public_site.directory_city_redirect"];
+  it("are the nine reads, each one unnamed statement over the four directory views only", () => {
     expect(DIRECTORY_SQL.map(([k]) => k).sort()).toEqual(
-      ["DIRECTORY_CATEGORIES_SQL", "DIRECTORY_CITIES_SQL", "DIRECTORY_CITY_SQL", "DIRECTORY_CITY_TOTALS_SQL", "DIRECTORY_COUNTRIES_SQL", "DIRECTORY_COUNTRY_SQL", "DIRECTORY_GYMS_SQL"],
+      [
+        "DIRECTORY_CATEGORIES_SQL",
+        "DIRECTORY_CITIES_SQL",
+        "DIRECTORY_CITY_REDIRECT_SQL",
+        "DIRECTORY_CITY_SQL",
+        "DIRECTORY_CITY_TOTALS_SQL",
+        "DIRECTORY_COUNTRIES_SQL",
+        "DIRECTORY_COUNTRY_SQL",
+        "DIRECTORY_GYMS_SQL",
+        "DIRECTORY_MAP_CITIES_SQL",
+      ],
     );
     for (const [name, text] of DIRECTORY_SQL) {
       expect(text, name).toMatch(/^select /);
       expect(text, name).not.toContain(";");
       expect(text, name).not.toContain("'"); // scripts/public-site-reader-sql.test.sh binds only $1 to $4 and refuses a quote
       const relations = [...text.matchAll(/\b(?:from|join)\s+([a-z_.]+)/g)].map((m) => m[1]);
-      for (const r of relations) expect(["public_site.directory_country", "public_site.directory_city", "public_site.directory_gym"], `${name}: ${r}`).toContain(r);
+      for (const r of relations) expect(VIEWS, `${name}: ${r}`).toContain(r);
       expect(relations.length, name).toBeGreaterThan(0);
     }
   });
@@ -35,7 +47,17 @@ describe("the directory statements (readerSql.ts)", () => {
     expect(sql.DIRECTORY_CATEGORIES_SQL).toBe("select distinct category from public_site.directory_gym where country_code = $1 and city_slug = $2");
   });
   it("select no internal id, banner, hours, plan, contact or position column", () => {
-    for (const [name, text] of DIRECTORY_SQL) expect(text, name).not.toMatch(/\b(id|gym_id|city_id|lat|lng|content|banner|hours|plans?|phone|whatsapp)\b/);
+    for (const [name, text] of DIRECTORY_SQL) expect(text, name).not.toMatch(/\b(id|gym_id|city_id|content|banner|hours|plans?|phone|whatsapp)\b/);
+  });
+  it("only the map statement names lat or lng, and it reads directory_city (the city's own position) only", () => {
+    const naming = DIRECTORY_SQL.filter(([, text]) => /\b(lat|lng|latitude|longitude)\b/.test(text)).map(([k]) => k);
+    expect(naming).toEqual(["DIRECTORY_MAP_CITIES_SQL"]);
+    expect(sql.DIRECTORY_MAP_CITIES_SQL).toBe(
+      "select country_code, city_slug, city_name, lat, lng, published_count from public_site.directory_city where lat is not null and lng is not null",
+    );
+  });
+  it("redirect: the current slug of one (country, old slug), from the redirect view only", () => {
+    expect(sql.DIRECTORY_CITY_REDIRECT_SQL).toBe("select city_slug from public_site.directory_city_redirect where country_code = $1 and old_slug = $2 limit 1");
   });
 });
 
@@ -64,6 +86,22 @@ describe("the reader's directory methods", () => {
 
     const cat = pool([{ category: "gym" }, { category: null }, { category: "yoga_studio" }]);
     expect(await cat.reader.readCategories("CM", "douala")).toEqual(["gym", "yoga_studio"]);
+  });
+  it("the map's cities: coordinates arrive as numeric strings and become numbers; a row that is not a finite position is dropped", async () => {
+    const m = pool([
+      { country_code: "CM", city_slug: "douala", city_name: "Douala", lat: "4.051100", lng: "9.767900", published_count: 3 },
+      { country_code: "CM", city_slug: "bad", city_name: "Bad", lat: "x", lng: "9", published_count: 1 },
+      { country_code: "CM", city_slug: "none", city_name: "None", lat: null, lng: null, published_count: 1 },
+    ]);
+    expect(await m.reader.readMapCities()).toEqual([{ countryCode: "CM", citySlug: "douala", cityName: "Douala", lat: 4.0511, lng: 9.7679, publishedCount: 3 }]);
+    expect(m.calls).toEqual([[sql.DIRECTORY_MAP_CITIES_SQL, []]]);
+  });
+  it("the old-slug redirect passes the country and the old slug and returns the current slug, or null", async () => {
+    const r = pool([{ city_slug: "douala-new" }]);
+    expect(await r.reader.readCitySlugRedirect("CM", "douala-old")).toBe("douala-new");
+    expect(r.calls).toEqual([[sql.DIRECTORY_CITY_REDIRECT_SQL, ["CM", "douala-old"]]]);
+    expect(await pool([]).reader.readCitySlugRedirect("CM", "nowhere")).toBeNull();
+    expect(await pool([{ city_slug: 5 }]).reader.readCitySlugRedirect("CM", "x")).toBeNull();
   });
   it("absent rows are null, an empty page has total 0", async () => {
     const e = pool([]);

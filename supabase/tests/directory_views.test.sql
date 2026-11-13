@@ -140,8 +140,8 @@ select is(
   (select count(*)::int from information_schema.columns where table_schema = 'public_site' and table_name like 'directory\_%' and column_name in ('gym_id', 'city_id', 'page_name_id', 'id')),
   0, 'none of the three views has an internal id column');
 select is(
-  (select count(*)::int from pg_class where relnamespace = 'public_site'::regnamespace and relname like 'directory\_%' and relkind = 'v' and reloptions = array['security_barrier=true']), 3,
-  'all three views are security_barrier');
+  (select count(*)::int from pg_class where relnamespace = 'public_site'::regnamespace and relname like 'directory\_%' and relkind = 'v' and reloptions = array['security_barrier=true']), 4,
+  'all three directory views and directory_city_redirect (25.7) are security_barrier');
 select is(
   (select array_agg(relowner::regrole::text) from (select distinct c.relowner from pg_class c where c.relnamespace = 'public_site'::regnamespace and c.relname like 'directory\_%') x),
   array['postgres'], 'the views are owned by the migration owner');
@@ -271,8 +271,8 @@ create or replace function pg_temp.views_not_reading_predicate() returns text la
 $f$;
 select is(
   (select string_agg(c.relname::text, ',' order by c.relname) from pg_class c where c.relnamespace = 'public_site'::regnamespace and c.relkind = 'v'),
-  'directory_city,directory_country,directory_gym,page_media,page_redirects,pages',
-  'the scan covers pages, page_media, page_redirects and the three directory views');
+  'directory_city,directory_city_redirect,directory_country,directory_gym,page_media,page_redirects,pages',
+  'the scan covers pages, page_media, page_redirects, the three directory views and directory_city_redirect (25.7)');
 select is(pg_temp.views_not_reading_predicate(), 'none', 'every public_site view reads private.gym_page_visible (no exceptions)');
 -- shown able to fail: a view that reads gym_pages directly is reported (then dropped)
 create view public_site.zz_bad_direct as select gp.template from public.gym_pages gp;

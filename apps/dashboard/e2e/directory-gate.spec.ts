@@ -10,6 +10,7 @@ import {
   claimAndPublish,
   createPageGym,
   createSuperAdmin,
+  deleteCitySlugHistory,
   landingGet,
   liftTakedown,
   mediaOrigin,
@@ -316,6 +317,62 @@ for (const lang of ["en", "fr"] as const) {
 
       await setGymStatusScoped(victim.gymId, "active");
       await expectVisibleEverywhere(victim, "after the reactivation");
+    });
+
+    test("25.7: the top page carries the Africa map; a renamed city's old slug answers one 301, then the city page", async () => {
+      const tempSlug = `${place.three}-e2e${Date.now().toString(36)}`;
+
+      // the map: an inline SVG in the hero, aria-hidden, each dot a tabindex=-1 link to the city page; the page still passes the directory judge
+      const top = await get("www", `/${lang}/gyms`, accept);
+      expect(top.status).toBe(200);
+      expect(judgeDirectory(top, true), "the top page with the map").toEqual([]);
+      expect(top.body).toMatch(/<svg class="map-svg" viewBox="0 0 760 \d+" aria-hidden="true" focusable="false">/);
+      expect(top.body).toContain(`<a href="${cityPath(place.three)}" tabindex="-1" class="map-dot">`);
+      expect(top.body).not.toMatch(/<script|\sstyle=/);
+      // and nowhere else
+      for (const path of [`/${lang}/gyms/${COUNTRY}`, cityPath(place.three)]) expect((await get("www", path, accept)).body, path).not.toContain("<svg");
+
+      // a slug that was never one is the uniform not-found
+      expect((await get("www", cityPath(tempSlug), accept)).status).toBe(404);
+
+      const row = await sa.client.from("cities").select("id, name, lat, lng").eq("country_code", "CM").eq("slug", place.three).single();
+      expect(row.error, row.error?.message).toBeNull();
+      const rename = async (id: string, slug: string) => {
+        const { error } = await sa.client.rpc("update_city", { p_city_id: id, p_name: row.data!.name, p_slug: slug, p_aliases: null, p_lat: row.data!.lat, p_lng: row.data!.lng });
+        expect(error, error?.message).toBeNull();
+      };
+      let renamed = false;
+      try {
+        await rename(row.data!.id, tempSlug);
+        renamed = true;
+
+        const moved = await get("www", `${cityPath(place.three)}?category=gym`, accept);
+        expect(moved.status, "the old slug answers a 301").toBe(301);
+        expect(moved.headers["location"], "one hop to the current slug on the constant www origin, the query dropped").toEqual([`http://www.localhost${cityPath(tempSlug)}`]);
+        expect(moved.headers["cache-control"]).toEqual(["public, max-age=300, s-maxage=300"]);
+        expect(moved.headers["x-content-type-options"]).toEqual(["nosniff"]);
+        expect(moved.headers["strict-transport-security"]).toBeDefined();
+        expect(moved.headers["set-cookie"]).toBeUndefined();
+        expect(moved.body).toBe("");
+
+        const now = await get("www", cityPath(tempSlug), accept);
+        expect(now.status, "the new slug is the city page").toBe(200);
+        expect(judgeDirectory(now, true)).toEqual([]);
+        expect(now.body).toMatch(/<p class="count">\s*3 /);
+        const after = await get("www", `/${lang}/gyms`, accept);
+        expect(after.body, "the dot follows the city's current slug").toContain(`<a href="${cityPath(tempSlug)}" tabindex="-1" class="map-dot">`);
+      } finally {
+        if (renamed) {
+          try {
+            await rename(row.data!.id, place.three); // coming back to its own old slug: that history row goes
+          } finally {
+            await deleteCitySlugHistory("CM", tempSlug); // runs even when the rename back throws
+          }
+        }
+      }
+      const back = await get("www", cityPath(place.three), accept);
+      expect(back.status, "restored: the city is at its own slug again").toBe(200);
+      expect((await get("www", cityPath(tempSlug), accept)).status, "and the temporary slug is gone").toBe(404);
     });
   });
 }

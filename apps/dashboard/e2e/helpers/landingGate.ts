@@ -334,3 +334,21 @@ export async function liftTakedown(sa: SuperAdmin, gymId: string): Promise<void>
   const { error } = await sa.client.rpc("lift_gym_page_takedown", { p_gym_id: gymId, p_reason: "E2E restore between removal cases" });
   if (error) throw new Error(`landing gate e2e: lift_gym_page_takedown -- ${error.message}`);
 }
+
+/**
+ * Story 25.7: removes the `city_slug_history` rows of one old slug, through a direct local connection (the table has no client write path). The 25.7 spec
+ * renames a seeded city's slug and back; renaming back deletes the row of the slug it returns to, and this removes the row of the temporary slug it left,
+ * so a run leaves no 12-month redirect behind. Local databases only.
+ */
+export async function deleteCitySlugHistory(countryCode: string, oldSlug: string): Promise<void> {
+  const url = new URL(DB_URL);
+  if (!["127.0.0.1", "localhost", "::1", "[::1]", "host.docker.internal"].includes(url.hostname)) throw new Error(`landing gate e2e: refusing to change city history on ${url.hostname}`);
+  const { Client } = createRequire(path.join(__dirname, "..", "..", "..", "landing", "package.json"))("pg");
+  const client = new Client({ connectionString: DB_URL });
+  await client.connect();
+  try {
+    await client.query("delete from public.city_slug_history where country_code = $1 and old_slug = $2", [countryCode, oldSlug]);
+  } finally {
+    await client.end();
+  }
+}

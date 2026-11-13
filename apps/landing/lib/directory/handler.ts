@@ -8,7 +8,7 @@
 // The country page and the top page therefore count the gyms of the city rows they list (S); the country page is `noindex` while S differs from the
 // country view's own count (no second copy of the threshold), and a country with S = 0 is neither listed nor served.
 import { GYM_CATEGORY_LABELS, PAGE_MEDIA_KEY_PATTERN, isValidPageName } from "@gymos/types";
-import { CHROME, DEFAULT_MEDIA_PATH, directoryItemList, extractStyleBlock, injectHead, jsonLdScript, openGraphTags, type ListedGym } from "@gymos/page-templates";
+import { CHROME, DEFAULT_MEDIA_PATH, REDIRECT_CACHE_CONTROL, SECURITY_HEADERS_BASE, directoryItemList, extractStyleBlock, injectHead, jsonLdScript, openGraphTags, type ListedGym } from "@gymos/page-templates";
 import type { ReactNode } from "react";
 import type { GymSiteConfig } from "@/lib/gym-site/env";
 import { notFoundResponse, schemeFor } from "@/lib/gym-site/notFound";
@@ -16,7 +16,8 @@ import { isLocale, otherLocale, type Locale } from "@/lib/i18n";
 import { DIRECTORY_COPY } from "./copy";
 import { directoryHeaders } from "./headers";
 import { DirectoryPage, type CardView, type Crumb, type DirectoryBody, type DirectoryDocument, type PageLinkView, type PillView, type RowView } from "./markup";
-import { CITY_SEGMENT_MAX, CITY_SEGMENT, COUNTRY_SEGMENT, countryIsIndexable, directoryPath } from "./indexable";
+import { CITY_SEGMENT_MAX, CITY_SEGMENT, COUNTRY_SEGMENT, countryIsIndexable, directoryPath, isCitySegment } from "./indexable";
+import { buildMapView } from "./map";
 import { DIRECTORY_PAGE_SIZE, type CountryRow, type DirectoryReader, type GymRow } from "./types";
 
 export interface DirectoryDeps {
@@ -88,16 +89,22 @@ export async function handleDirectory(req: DirectoryRequest, deps: DirectoryDeps
   if (citySlug !== undefined && (citySlug.length > CITY_SEGMENT_MAX || !CITY_SEGMENT.test(citySlug))) return notFound();
 
   let built: Built | null;
+  let redirectTo: string | null = null;
   try {
     const ctx: Context = { locale, rootDomain, mediaOrigin, www: `${schemeFor(rootDomain)}://www.${rootDomain}`, reader: deps.reader };
     if (cc === undefined) built = await topPage(ctx);
     else if (citySlug === undefined) built = await countryPage(ctx, cc);
-    else built = await cityPage(ctx, cc, citySlug, req.query);
+    else {
+      built = await cityPage(ctx, cc, citySlug, req.query);
+      // Story 25.7: a slug that is no city may be a renamed city's old slug (inside its 12 months, current city still has a gym): one hop, to its current slug
+      if (!built) redirectTo = await cityRedirect(ctx, cc, citySlug);
+    }
   } catch (e) {
     // the error's code only: a message could carry data
     deps.log("directory_db_error", { code: (e as { code?: string })?.code ?? "unknown" });
     return notFound();
   }
+  if (redirectTo) return redirectResponse(redirectTo);
   if (!built) return notFound();
 
   let html: string;
@@ -116,6 +123,22 @@ export async function handleDirectory(req: DirectoryRequest, deps: DirectoryDeps
     return notFound();
   }
   return new Response(html, { status: 200, headers: directoryHeaders({ mediaOrigin, styleText: style.text, indexable: built.doc.indexable }) });
+}
+
+/**
+ * Story 25.7: the absolute URL of the current slug of `citySlug` as a renamed city's old slug, or null. The view holds both rules (12 months, the current city has a visible
+ * gym); the stored slug is re-validated here before it goes into a Location header. A city that exists is never redirected.
+ */
+async function cityRedirect(ctx: Context, cc: string, citySlug: string): Promise<string | null> {
+  const code = cc.toUpperCase();
+  if (await ctx.reader.readCity(code, citySlug)) return null;
+  const current = await ctx.reader.readCitySlugRedirect(code, citySlug);
+  return current && current !== citySlug && isCitySegment(current) ? `${ctx.www}${directoryPath(ctx.locale, cc, current)}` : null;
+}
+
+/** Story 25.7: the 301 to `location` (an absolute URL on the constant `www.` origin, never the request Host; the query is dropped), an empty body, cacheable for at most 5 minutes. */
+function redirectResponse(location: string): Response {
+  return new Response(null, { status: 301, headers: { Location: location, "Cache-Control": REDIRECT_CACHE_CONTROL, ...SECURITY_HEADERS_BASE } });
 }
 
 /** A built page: the document, and (a city page) the gyms it lists with the number of gyms on earlier pages, for the ItemList. */
@@ -171,7 +194,7 @@ async function listedByCountry(ctx: Context): Promise<Map<string, number>> {
 
 async function topPage(ctx: Context): Promise<Built> {
   const copy = DIRECTORY_COPY[ctx.locale];
-  const [countries, listed] = await Promise.all([ctx.reader.readCountries(), listedByCountry(ctx)]);
+  const [countries, listed, mapCities] = await Promise.all([ctx.reader.readCountries(), listedByCountry(ctx), ctx.reader.readMapCities()]);
   const withS = countries.map((c) => ({ c, s: listed.get(c.countryCode) ?? 0 })).filter((x) => x.s > 0);
   const byName = collator(ctx.locale);
   withS.sort((a, b) => {
@@ -191,6 +214,8 @@ async function topPage(ctx: Context): Promise<Built> {
     lede: copy.top.lede,
     count: cards.length ? copy.top.countSentence(gyms, cards.length) : null,
     empty: cards.length ? null : copy.top.empty,
+    // the map follows the cards: no listed country, no map; a country with a listed gym gets the lighter fill
+    map: cards.length ? buildMapView({ copy, listed: new Set(withS.map((x) => x.c.countryCode)), cities: mapCities, cityHref: (code, slug) => directoryPath(ctx.locale, code.toLowerCase(), slug) }) : null,
   };
   return {
     doc: {

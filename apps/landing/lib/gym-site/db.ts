@@ -10,11 +10,13 @@ import {
   CRAWL_PAGES_SQL,
   DIRECTORY_CATEGORIES_SQL,
   DIRECTORY_CITIES_SQL,
+  DIRECTORY_CITY_REDIRECT_SQL,
   DIRECTORY_CITY_SQL,
   DIRECTORY_CITY_TOTALS_SQL,
   DIRECTORY_COUNTRIES_SQL,
   DIRECTORY_COUNTRY_SQL,
   DIRECTORY_GYMS_SQL,
+  DIRECTORY_MAP_CITIES_SQL,
   PAGE_SQL,
   REDIRECT_SQL,
   SUBMIT_REPORT_SQL,
@@ -193,6 +195,22 @@ export function createReader(getPool: () => Queryable = defaultPool, retryDelayM
     async readGyms(countryCode, citySlug, category, page): Promise<GymPage> {
       const { rows } = await run(DIRECTORY_GYMS_SQL, [countryCode, citySlug, category, page]);
       return { rows: rows.map(gymRow), total: rows[0] ? num(rows[0].total) : 0 };
+    },
+    async readMapCities() {
+      const { rows } = await run(DIRECTORY_MAP_CITIES_SQL, []);
+      // lat and lng are numeric(9,6): pg returns them as strings. A value that is not a finite number is dropped (the city is listed, with no dot).
+      return rows.flatMap((r) => {
+        const lat = Number(r.lat);
+        const lng = Number(r.lng);
+        return r.lat === null || r.lng === null || !Number.isFinite(lat) || !Number.isFinite(lng)
+          ? []
+          : [{ countryCode: str(r.country_code), citySlug: str(r.city_slug), cityName: str(r.city_name), lat, lng, publishedCount: num(r.published_count) }];
+      });
+    },
+    async readCitySlugRedirect(countryCode, oldSlug) {
+      const { rows } = await run(DIRECTORY_CITY_REDIRECT_SQL, [countryCode, oldSlug]);
+      const slug = rows[0]?.city_slug;
+      return typeof slug === "string" ? slug : null;
     },
   };
 

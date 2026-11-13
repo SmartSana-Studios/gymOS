@@ -18,6 +18,9 @@
 # Story 25.5 adds the two crawler statements (CRAWL_CITIES_SQL: the indexable cities of directory_city; CRAWL_PAGES_SQL: the visible snapshots of public_site.pages in byte order,
 # limited by a parameter) to the same transaction, with a second city of three visible gyms (so one city is indexable and one is thin).
 #
+# Story 25.7 adds the two map and redirect statements (DIRECTORY_MAP_CITIES_SQL: the cities with coordinates; DIRECTORY_CITY_REDIRECT_SQL: old city slug -> current slug) to the same
+# transaction: rsq-big gets coordinates; history rows for a valid old slug, an expired one, and a city with no visible gym.
+#
 # Needs the local Supabase stack and Node 22.18 or later. The first block never commits; the report block commits its own fixtures and removes them.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -30,7 +33,7 @@ load() { # load <export name>
 PAGE_SQL=$(load PAGE_SQL) || { echo "FAIL could not load PAGE_SQL from $SRC (Node 22.18 or later is needed to import TypeScript)"; exit 1; }
 REDIRECT_SQL=$(load REDIRECT_SQL) || { echo "FAIL could not load REDIRECT_SQL from $SRC"; exit 1; }
 [ -n "$PAGE_SQL" ] && [ -n "$REDIRECT_SQL" ] || { echo "FAIL $SRC does not export PAGE_SQL and REDIRECT_SQL"; exit 1; }
-DIR_NAMES=(DIRECTORY_COUNTRIES_SQL DIRECTORY_COUNTRY_SQL DIRECTORY_CITY_TOTALS_SQL DIRECTORY_CITIES_SQL DIRECTORY_CITY_SQL DIRECTORY_CATEGORIES_SQL DIRECTORY_GYMS_SQL)
+DIR_NAMES=(DIRECTORY_COUNTRIES_SQL DIRECTORY_COUNTRY_SQL DIRECTORY_CITY_TOTALS_SQL DIRECTORY_CITIES_SQL DIRECTORY_CITY_SQL DIRECTORY_CATEGORIES_SQL DIRECTORY_GYMS_SQL DIRECTORY_MAP_CITIES_SQL DIRECTORY_CITY_REDIRECT_SQL)
 declare -A DIR
 for n in "${DIR_NAMES[@]}"; do
   DIR[$n]=$(load "$n")
@@ -90,7 +93,7 @@ insert into public.gym_pages (gym_id, page_name_id, template, published_at, cont
   ('$G4', '00000000-0000-0000-0000-0000000a1fa4', 'classic', now(), '{"name":"alpha Yoga","category":"yoga_studio","country":"CM","logo":"$LOGO"}'),
   ('$G5', '00000000-0000-0000-0000-0000000a1fa5', 'classic', null,  '{"name":"Draft Gym","category":"gym","country":"CM"}');
 -- Story 25.5: a second city of its own with three visible gyms (indexable), next to the thin one above
-insert into public.cities (country_code, slug, name) values ('CM', 'rsq-big', 'Rsq Big');
+insert into public.cities (country_code, slug, name, lat, lng) values ('CM', 'rsq-big', 'Rsq Big', 4.0511, 9.7679);
 insert into gyms (id, name, tier_id, capacity, status, city_id) values
   ('$G6', 'Reader Sql Big One',   '$TIER', 30, 'active', (select id from public.cities where country_code = 'CM' and slug = 'rsq-big')),
   ('$G7', 'Reader Sql Big Two',   '$TIER', 30, 'active', (select id from public.cities where country_code = 'CM' and slug = 'rsq-big')),
@@ -103,6 +106,12 @@ insert into public.gym_pages (gym_id, page_name_id, template, published_at, cont
   ('$G6', '00000000-0000-0000-0000-0000000a1fa6', 'classic', now(), '{"name":"Big One","category":"gym","country":"CM"}'),
   ('$G7', '00000000-0000-0000-0000-0000000a1fa7', 'classic', now(), '{"name":"Big Two","category":"gym","country":"CM"}'),
   ('$G8', '00000000-0000-0000-0000-0000000a1fa8', 'classic', now(), '{"name":"Big Three","category":"gym","country":"CM"}');
+-- Story 25.7: a city with no visible gym, and the old slugs of the cities above (one valid, one expired, one whose current city has no gym)
+insert into public.cities (country_code, slug, name) values ('CM', 'rsq-empty', 'Rsq Empty');
+insert into public.city_slug_history (country_code, old_slug, city_id, expires_at) values
+  ('CM', 'rsq-old-big',   (select id from public.cities where country_code = 'CM' and slug = 'rsq-big'),   now() + interval '6 months'),
+  ('CM', 'rsq-expired',   (select id from public.cities where country_code = 'CM' and slug = 'rsq-big'),   now() - interval '1 day'),
+  ('CM', 'rsq-old-empty', (select id from public.cities where country_code = 'CM' and slug = 'rsq-empty'), now() + interval '6 months');
 set local role public_site_reader;
 prepare page_q as $PAGE_SQL;
 prepare redirect_q as $REDIRECT_SQL;
@@ -113,6 +122,8 @@ prepare dir_cities as ${DIR[DIRECTORY_CITIES_SQL]};
 prepare dir_city as ${DIR[DIRECTORY_CITY_SQL]};
 prepare dir_categories as ${DIR[DIRECTORY_CATEGORIES_SQL]};
 prepare dir_gyms as ${DIR[DIRECTORY_GYMS_SQL]};
+prepare dir_map as ${DIR[DIRECTORY_MAP_CITIES_SQL]};
+prepare dir_redirect as ${DIR[DIRECTORY_CITY_REDIRECT_SQL]};
 prepare crawl_cities as ${CRAWL[CRAWL_CITIES_SQL]};
 prepare crawl_pages as ${CRAWL[CRAWL_PAGES_SQL]};
 \echo CASE page_visible
@@ -149,6 +160,20 @@ execute dir_gyms('CM', 'rsq-city', 'gym', 1);
 execute dir_gyms('CM', 'rsq-city', 'other', 1);
 \echo CASE dir_gyms_past_last
 execute dir_gyms('CM', 'rsq-city', null, 2);
+\echo CASE dir_map
+execute dir_map;
+\echo CASE dir_redirect_valid
+execute dir_redirect('CM', 'rsq-old-big');
+\echo CASE dir_redirect_expired
+execute dir_redirect('CM', 'rsq-expired');
+\echo CASE dir_redirect_unknown
+execute dir_redirect('CM', 'rsq-nobody');
+\echo CASE dir_redirect_no_gym
+execute dir_redirect('CM', 'rsq-old-empty');
+\echo CASE dir_redirect_other_country
+execute dir_redirect('GH', 'rsq-old-big');
+\echo CASE dir_redirect_current_slug
+execute dir_redirect('CM', 'rsq-big');
 \echo CASE crawl_cities
 execute crawl_cities;
 \echo CASE crawl_pages
@@ -204,6 +229,15 @@ Rsq City|gym|Beta Gym|rsq-dir-b||2"
 check dir_gyms_filtered 'Rsq City|gym|Beta Gym|rsq-dir-b||1'
 check dir_gyms_stale_filter ''
 check dir_gyms_past_last ''
+
+# ---- Story 25.7: the map and the redirect statements, as the role. Only rsq-big has coordinates (numeric(9,6) arrives with six decimals); rsq-city has none and is absent ----
+check dir_map 'CM|rsq-big|Rsq Big|4.051100|9.767900|3'
+check dir_redirect_valid 'rsq-big'
+check dir_redirect_expired ''
+check dir_redirect_unknown ''
+check dir_redirect_no_gym ''
+check dir_redirect_other_country ''
+check dir_redirect_current_slug ''
 
 # ---- Story 25.5: the crawler statements, as the role: only the city that reaches the threshold; every visible page in byte order, none unpublished; the limit holds ----
 check crawl_cities 'CM|rsq-big'
@@ -303,5 +337,5 @@ SQL
 if printf '%s\n' "$ro" | grep -q 'cannot execute INSERT in a read-only transaction' || printf '%s\n' "$ro" | grep -qi 'read-only transaction'; then echo "ok   report_bare_call_refused"; else echo "FAIL report_bare_call_refused: [$ro]"; fail=1; fi
 denied=$(printf '%s\n' "$ro" | grep -c 'permission denied')
 if [ "$denied" = 3 ]; then echo "ok   report_other_calls_denied"; else echo "FAIL report_other_calls_denied: expected 3 permission errors, got $denied: [$ro]"; fail=1; fi
-[ "$fail" = 0 ] && echo "public-site reader SQL: 5/5 page cases, 12 directory cases, 4 crawler cases and 7 report cases ok"
+[ "$fail" = 0 ] && echo "public-site reader SQL: 5/5 page cases, 19 directory cases, 4 crawler cases and 7 report cases ok"
 exit "$fail"

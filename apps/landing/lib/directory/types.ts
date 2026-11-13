@@ -1,5 +1,5 @@
 // Story 25.3: the rows the directory pages read from the three 25.2 views (public_site.directory_country, directory_city, directory_gym), as the
-// reader returns them. No internal id exists in any of them; the lat/lng of directory_city are read by a later story (the map), not here.
+// reader returns them. No internal id exists in any of them; the lat/lng of directory_city are read only by the map statement (Story 25.7).
 
 export interface CountryRow {
   countryCode: string;
@@ -21,6 +21,17 @@ export interface CityRow {
   cityName: string;
   publishedCount: number;
   indexable: boolean;
+}
+
+/** Story 25.7: a city the map may draw: its own coordinates (never a gym position) and its gym count. */
+export interface MapCityRow {
+  /** Upper-case alpha-2, as the view carries it. */
+  countryCode: string;
+  citySlug: string;
+  cityName: string;
+  lat: number;
+  lng: number;
+  publishedCount: number;
 }
 
 export interface GymRow {
@@ -49,6 +60,10 @@ export interface DirectoryReader {
   readCategories(countryCode: string, citySlug: string): Promise<string[]>;
   /** One page of gyms ordered by `lower(name), page_name`. `category` null is the unfiltered list. `page` is 1-based. */
   readGyms(countryCode: string, citySlug: string, category: string | null, page: number): Promise<GymPage>;
+  /** Story 25.7: the cities with coordinates and a published gym, in no particular order. */
+  readMapCities(): Promise<MapCityRow[]>;
+  /** Story 25.7: the CURRENT slug of an old city slug (`countryCode` upper case) inside its 12 months while the current city has a visible gym, else null. */
+  readCitySlugRedirect(countryCode: string, oldSlug: string): Promise<string | null>;
 }
 
 /** Gyms per page of a city listing (the SQL text in readerSql.ts has the same 20). */

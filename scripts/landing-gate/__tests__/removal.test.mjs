@@ -23,7 +23,7 @@ const landingReaderFiles = () => ["../../../apps/landing/lib/gym-site/readerSql.
 test("every reader of private.gym_page_visible in the migrations is a removal surface or exempted with a reason", () => {
   const readers = readersOfPredicate(migrations());
   // sanity: the scan really finds the readers it should (a regex that finds nothing would pass the coverage check)
-  for (const known of ["public_site.pages", "public_site.page_media", "public_site.page_redirects", "public_site.directory_gym", "public_site.directory_city", "public_site.directory_country"]) {
+  for (const known of ["public_site.pages", "public_site.page_media", "public_site.page_redirects", "public_site.directory_gym", "public_site.directory_city", "public_site.directory_country", "public_site.directory_city_redirect"]) {
     assert.ok(readers.includes(known), `the scan did not find ${known}; found ${readers.join(", ")}`);
   }
   assert.deepEqual(uncoveredReaders(readers), [], "a view or function reads the visibility predicate but no removal surface names it (add it to lib/removal.mjs SURFACES, or to NOT_A_SURFACE with the reason)");

@@ -134,6 +134,12 @@ test("a correct directory page passes, indexable or noindex, and a language Vary
   assert.deepEqual(dirProblems(dir({ noindex: true })), [], "no expectation: either, as long as header and meta agree");
   assert.ok(dirProblems({ ...dir(), headers: dirHeaders({ vary: "Accept-Language" }) }).some((p) => p.includes("Vary carries Accept-Language")));
 });
+test("Story 25.7: a top page carrying the inline Africa map (svg, aria-hidden, tabindex -1 links, no style attribute) passes; a style attribute inside the svg still fails", () => {
+  const svg = '<figure class="map"><figcaption>c</figcaption><svg class="map-svg" viewBox="0 0 760 925" aria-hidden="true" focusable="false"><g class="map-land"><path d="M1,2L3,4Z" class="lit"></path></g><a href="/en/gyms/cm/douala" tabindex="-1" class="map-dot"><circle class="map-pt" cx="1" cy="2" r="8.2"></circle><text class="map-label" x="1" y="2" text-anchor="middle">Douala</text></a></svg></figure>';
+  assert.deepEqual(dirProblems(dir({ body: dirHtml({ extra: svg }) }), { indexable: true }), []);
+  assert.ok(dirProblems(dir({ body: dirHtml({ extra: svg.replace('<circle ', '<circle style="fill:red" ') }) })).some((p) => p.includes("inline style attribute")));
+  assert.ok(dirProblems(dir({ body: dirHtml({ extra: svg.replace('<g class="map-land">', "<style>a{}</style><g>") }) })).some((p) => p.includes("exactly one <style>")));
+});
 test("known bad directory page: a <script> element fails", () => {
   assert.ok(dirProblems(dir({ body: dirHtml({ extra: "<script>1</script>" }) })).some((p) => p.includes("<script>")));
   assert.ok(dirProblems(dir({ body: dirHtml({ extra: '<script src="/a.js"></script>' }) })).some((p) => p.includes("<script>")));
