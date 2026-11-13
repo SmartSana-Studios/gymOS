@@ -484,7 +484,7 @@ development_status:
   25-5-sitemaps-robots-and-plain-text-summary: done
   25-6-directory-gate-seo-verification-and-removal-timing: done
   25-7-directory-africa-map-and-old-city-slug-redirects: done
-  epic-25-retrospective: optional
+  epic-25-retrospective: done
 
   epic-26: done
   26-1-member-profile-fields-birth-year-profession-neighborhood: done
@@ -1546,7 +1546,7 @@ action_items:
     action: "Before any marketing push run load.mjs, check-http.mjs and lcp.mjs with
       more than one published page"
     owner: "smartsana"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
   - id: "epic-24-retro-item-113-process-record-full-headers-and-spaced-s"
     epic: 24
@@ -1561,9 +1561,86 @@ action_items:
     action: "Set epic-24 to done in sprint-status.yaml once the owner accepts the
       Epic 24 verdict"
     owner: "smartsana"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-24-retro-2026-11-11.md"
-last_updated: 13-11-2026 12:10
+  - id: "epic-25-retro-item-115-run-the-staging-only-gate-checks-on-prod"
+    epic: 25
+    action: "Run the staging-only gate checks on production: Rich Results Test and
+      schema.org validator on the gym page and the Yaounde city listing, Search Console
+      sitemap submission for www and the gym host (resolves AD-52 assumption); record
+      in decisions.md 25.6 rows 4-8"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-13.md"
+  - id: "epic-25-retro-item-116-sign-or-explicitly-waive-the-step-3-rele"
+    epic: 25
+    action: "Sign or explicitly waive the Step 3 release gate (decisions.md 25.6 row
+      12) after the production checks, naming what stays open (CDN removal timing,
+      field LCP, load on the real platform)"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-13.md"
+  - id: "epic-25-retro-item-117-apply-the-epic-25-spec-reconciliations-e"
+    epic: 25
+    action: "Apply the Epic 25 spec reconciliations: epics.md 25.6 and 25.1 ACs, stale
+      301/country-without-city lines in decisions.md and epic-25-context.md, 25.4
+      ItemList scope, 25.5 chunk matrix row, AD-44 wording; do not edit applied 0169"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-13.md"
+  - id: "epic-25-retro-item-118-add-a-ci-local-stage-that-serves-the-bui"
+    epic: 25
+    action: "Add a ci-local stage that serves the built landing app and runs scripts/landing-gate/check-http.mjs,
+      plus a thin test of seedDirectory and the load directory share; show it failing
+      on a route rename"
+    owner: "dev loop"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-13.md"
+  - id: "epic-25-retro-item-119-decide-sitemap_chunk_size-about-5000-per"
+    epic: 25
+    action: "Decide SITEMAP_CHUNK_SIZE (about 5000 per the 4.5 MB Vercel limit) and
+      cap llms.txt by bytes before the place count nears 5000"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-13.md"
+  - id: "epic-25-retro-item-120-consolidate-duplicated-landing-helpers-w"
+    epic: 25
+    action: "Consolidate duplicated landing helpers when next touched (www origin,
+      schemeFor, header builder, slug grammar), add the classifyHost check to the
+      directory handler, pin removal.mjs scrapers to markup.tsx with a test"
+    owner: "dev loop"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-13.md"
+  - id: "epic-25-retro-item-121-mark-deferred-work-md-entries-for-25-1-b"
+    epic: 25
+    action: "Mark deferred-work.md entries for 25.1 backfill rehearsal and 25.2 rollback
+      rehearsal closed with a note, or run the rollback rehearsal"
+    owner: "dev loop"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-13.md"
+  - id: "epic-25-retro-item-122-decide-the-three-open-epic-25-product-it"
+    epic: 25
+    action: "Decide the three open Epic 25 product items: country picker offering
+      AC/TA/XK, warning before a country change unpublishes a page, mobile countryNames.ts
+      ICU short forms"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-13.md"
+  - id: "epic-25-retro-item-123-owner-browser-pass-at-epic-end-cities-su"
+    epic: 25
+    action: "Owner browser pass at epic end: /cities Super Admin page, map hit zones
+      at 390 and 320 px, French directory copy marked copy to confirm"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-13.md"
+  - id: "epic-25-retro-item-124-before-the-first-production-city-rename"
+    epic: 25
+    action: "Before the first production city rename, rename a city and confirm the
+      old slug returns a 301 on production (0172 applied, untested there)"
+    owner: "smartsana"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-25-retro-2026-11-13.md"
+last_updated: 11-13-2026 12:31
 # last_updated: 2026-10-16 (retro: epic-22-retrospective optional -> done. Verdict accepted-with-open-items (declared criteria); 16 action items added (items 1-4 block enabling super_admin_aal2: gate all Super Admin Server Actions, refuse Add admin while flag on (option A), close concurrent-removal and hook-error deferrals, run browser checklist). Decisions: option A for post-go-live admins, billing.saas_pay exempt for suspended only. Doc: epic-22-retro-2026-10-16.md. 3 review lenses via bmad-review, findings re-checked against source. No code changes.)
 # last_updated: 2026-10-16 (ad-hoc, non-story: wrote _bmad-output/implementation-artifacts/epic-22-browser-qa-checklist.md, 33-step manual browser QA checklist for Epic 22 (22-5 /security, 22-6 /auth/mfa, 22-7 session expiry, step-up, lockout) ahead of the retrospective; not yet run. No code changes.)
 # last_updated: 2026-10-15 (code-review: 22-4 review -> done -- 1 decision (gate the edge initiate authorization in CI) resolved as patch + 2 patches applied: deno test stage added to scripts/ci-local.sh and ci.yml (3 baseline Deno failures were stale tests: platform env lacked TARAMONEY_API_KEY, link-fallback fixtures used non-uuid ids; 80/80 pass), permission_denied mapping tests for dashboard payments/billing and mobile initiate, pgTAP count corrected to 26. 2 deferred (coach role on registration-fee audit read unverified, cleanup writers without authorizeAction), 12 rejected.)
