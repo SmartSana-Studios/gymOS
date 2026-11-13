@@ -129,3 +129,33 @@ Dots are positioned at request time, so the projection must exist at runtime: th
 
 **Manual checks (if no CLI):**
 - Owner browser QA at epic end: map at 1280 px and 390 px, hover label, reduced-motion, FR caption.
+
+### Review Findings
+
+Code review of 77d5812, 2026-11-13 (second, independent pass: blind-hunter 12, edge-case-hunter 7, verification-gap 2, acceptance-auditor 5 raw findings; 4 entries survive, 0 deferred).
+
+- [x] [Review][Patch] Overlapping hit circles: a smaller neighbour's 44-unit hit circle covers a larger dot's body (Douala and Yaounde about 18 view-box units apart), so the larger dot opens the smaller city's page. DECIDED by the assistant on the owner's "decide what is best": draw every visible dot body above all hit circles (two layers) so a dot always wins its own click; the 44 px hit rule is kept for the space around dots; the hit radius is not capped (that would contradict the frozen rule). Add a markup test for the layer order. DONE: `map-zone` links (hit circle + label) in a first layer, `map-dot` links (halo, point, label; halo pointer-events none) in a second; new layer-order test shown failing when the hit circle moves back into the dot layer; decisions.md entry added [apps/landing/lib/directory/markup.tsx:190, apps/landing/lib/directory/map.ts:52]
+- [x] [Review][Patch] Close AC4: no single green `E2E_LANDING_PORT=3230 bash scripts/ci-local.sh` run exists for the final tree — the build notes say it never passed in one go (two pgtap flakes inside public-site-reader-sql.test.sh) and E2E was not re-run after the review patches (CSS hit radius, figcaption aria-hidden, e2e nested finally). Run it once, read the per-stage lines, record the result [spec AC4]. DONE 2026-11-13 on the final tree (dirty, no merge stamp): deno, pgtap (no 'not ok'), unit, layout, e2e PASS in one run; static FAILED in that run on 257 errors in the gitignored apps/dashboard/playwright-report/trace/*.js (stale Playwright artifact from an earlier e2e run that dashboard eslint does not ignore, not story code) and PASSED alone with --only static once the e2e stage had rewritten that folder. Not one single all-green run; the pgtap flake did not recur
+- [x] [Review][Patch] `main.after-map` is never asserted present when the map shows — only the negative case (`not.toContain('class="after-map"')`) exists, so dropping the className or the `main.after-map{padding-top:104px}` rule passes every test and the desktop map covers the first card row. Assert `<main id="content" class="after-map">` and the rule in the normal map test; assert no class on `<main>` in the no-map top case [apps/landing/lib/directory/markup.tsx:175, apps/landing/lib/directory/directory.test.ts:~826]
+- [x] [Review][Patch] Label `text-anchor` and the flip-below placement are untested in rendered markup — `map.test.ts` checks `anchor` data, `directory.test.ts` only the label strings. Assert `text-anchor="start"` for Dakar, `"end"` for Mogadishu in the HTML, and that a dot with `y < 40` renders its label at `d.y + d.r + 22` [apps/landing/lib/directory/markup.tsx:195, apps/landing/lib/directory/directory.test.ts:~821]
+- [x] [Review][Patch] The hit-circle test claims "at least 44 CSS px" but only asserts the `r="44"` view-box attribute; the 320/360/390 px behaviour rests on the CSS `r` rules and prose in decisions.md. Reword the comment and test name to say what is checked (attribute plus the two CSS rules) [apps/landing/lib/directory/directory.test.ts:809]
+
+#### Rejected
+
+- Map read failure turns the top page into 404 (blind, edge) — false: the frozen I/O row says a reader error is the uniform not-found "same as other directory reads"; tested; a country-read failure does the same.
+- Unknown city slug costs an extra `readCity` (blind, edge, auditor) — low, rejected: probe traffic only, one indexed read; the fix is a flag through `cityPage`; already rejected in pass 1.
+- Map read unbounded and uncached, unused non-African rows read (blind, edge) — false/low: cities are a Super Admin controlled list, only rows with coordinates; wasted work only.
+- Labels painted under later dots, magic `y < 40` (blind) — low, rejected: label stroke keeps it readable, fix needs z-order machinery.
+- "Never a gym's position" test is vacuous (blind) — false: it fails if the top page ever reads gyms page 1; the SQL pin in wiring.test.ts is the main guard.
+- E2E rename clobbers aliases, races, or its finally depends on the RPC (blind, edge) — false: 0169 says null aliases keeps them, E2E is serial, the finally is nested and runs the history delete even if the rename back throws; hard-coded count of 3 is the suite's own fixture.
+- dir_map assertion depends on other local rows (edge) — false: same fixture assumption as the existing exact `dir_countries` counts in that script.
+- Old slug now owned by another city / a gym-less live city shadowed (blind) — false: handler reads the live city first, and a gym-less city's page is a 404 either way.
+- No index or EXPLAIN for the redirect view (blind) — maybe-false, would be low (probe traffic, tiny table): rejected.
+- Draft copy and coordinate (0, 0) edge (blind) — false: copy flagged in code, UX file and for owner; null and empty coordinates are dropped in `readMapCities`, (0, 0) is a legitimate value.
+- 0172 provisional numbering, code-before-view deploy logs db errors (blind) — low, rejected: apply order recorded in decisions.md, same 404 as before.
+- No sprint-status entry in the diff (blind) — false: the review diff excluded `_bmad-output`; entries exist.
+- decisions.md "27 KB" vs test name "26 KB" (blind) — negligible.
+- Infinite halo animation, `outline:none`, no touch labels (blind) — false: decorative, aria-hidden, links are tabindex -1, labels hidden under 640 px by the frozen spec.
+- Layout overlap is 64 px only when the map is the taller grid item (auditor) — low, rejected: owner browser QA covers it, a fix is a layout rewrite.
+- `Location` scheme follows `schemeFor(rootDomain)` (auditor) — false: https in production, same as every other directory URL.
+- 44 px hit rule met via CSS `r` (auditor) — merged into the test-wording patch; the trade-off is a recorded decision.

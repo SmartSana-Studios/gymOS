@@ -792,12 +792,18 @@ describe("Africa map (25.7)", () => {
     mapCities: [mapCity("CM", "douala", "Douala", 4.0511, 9.7679, 1), mapCity("CM", "yaounde", "Yaoundé", 3.848, 11.5021, 3), mapCity("SN", "dakar", "Dakar", 14.7167, -17.4677, 1)],
   });
   const svgOf = (html: string) => /<svg[^]*?<\/svg>/.exec(html)![0];
-  const dotLinks = (html: string) => [...svgOf(html).matchAll(/<a [^>]*>/g)].map((m) => m[0]);
+  // the visible dots (layer 2) and the 44-unit hit zones (layer 1): two links per city, both to the same page
+  const linksOf = (html: string, cls: string) => [...svgOf(html).matchAll(/<a [^>]*>/g)].map((m) => m[0]).filter((l) => l.endsWith(`class="${cls}">`));
+  const dotLinks = (html: string) => linksOf(html, "map-dot");
+  const zoneLinks = (html: string) => linksOf(html, "map-zone");
 
   it("normal: one dot per city with coordinates, each a root-relative tabindex=-1 link; the SVG is aria-hidden; countries with a gym use the lit fill", async () => {
     const { res, html } = await page(deps(mapWorld()), "en");
     expect(res.status).toBe(200);
     expect(html).toContain('<figure class="map">');
+    // from 1024 px the map runs down into the light band; main makes room so the first card row is not covered
+    expect(html).toContain('<main id="content" class="after-map">');
+    expect(html).toContain("main.after-map{padding-top:104px}");
     expect(html).toMatch(/<svg class="map-svg" viewBox="0 0 760 \d+" aria-hidden="true" focusable="false">/);
     expect(dotLinks(html)).toEqual([
       '<a href="/en/gyms/cm/yaounde" tabindex="-1" class="map-dot">',
@@ -806,8 +812,10 @@ describe("Africa map (25.7)", () => {
     ]);
     // the dots: radius 5 + 3.2 sqrt(gyms)
     expect([...svgOf(html).matchAll(/<circle class="map-pt" cx="[\d.]+" cy="[\d.]+" r="([\d.]+)"/g)].map((m) => m[1])).toEqual(["10.54", "8.2", "8.2"]);
-    // the hit circle is transparent (CSS fill) and at least 44 CSS px across at the widest rendering
+    // the hit circle is transparent (CSS fill); the attribute is 44 view-box units, and the CSS `r` rules below raise it on small screens (the CSS-px size at 320, 360
+    // and 390 px is the recorded trade-off in decisions.md, not computed here)
     expect(svgOf(html).match(/class="map-hit"[^>]* r="44"/g)).toHaveLength(3);
+    expect(html).toContain("@media (max-width:640px){.map-label{display:none}.map-hit{r:56px}}");
     const lit = [...svgOf(html).matchAll(/<path d="[^"]*" class="lit"/g)];
     expect(lit).toHaveLength(3); // CM, SN, CD have a listed gym
     expect(html).toContain("Each dot is a city with gyms. Larger means more gyms.");
@@ -823,15 +831,56 @@ describe("Africa map (25.7)", () => {
     expect(svgOf(html)).toContain('<text class="map-label"');
     expect(svgOf(html)).toContain(">Douala · 1 gym</text>");
     expect(svgOf(html)).toContain(">Yaoundé · 3 gyms</text>");
-    expect(html).toContain(".map-dot:hover .map-label,.map-dot:focus .map-label,.map-dot:focus-visible .map-label{opacity:1}");
+    expect(html).toContain(".map-zone:hover .map-label,.map-zone:focus .map-label,.map-zone:focus-visible .map-label,.map-dot:hover .map-label,.map-dot:focus .map-label,.map-dot:focus-visible .map-label{opacity:1}");
     expect(html).toContain("@media (max-width:640px){.map-label{display:none}");
     expect(html).toContain("@media (prefers-reduced-motion:no-preference){.map-halo{animation:halo 2.6s ease-in-out infinite}}");
-    expect(html).toContain(".map-halo{fill:#E0971F;opacity:.22}");
+    expect(html).toContain(".map-halo{fill:#E0971F;opacity:.22;pointer-events:none}");
     expect(html).toContain(".map-pt{fill:#E0971F;stroke:#0F1B2D;stroke-width:2;vector-effect:non-scaling-stroke}");
     expect(html).toContain(".map-land path{fill:#17253B;stroke:#0F1B2D");
     expect(html).toContain(".map-land .lit{fill:#2B4163}");
     expect(html).toContain("min-width:1024px");
     expect(html).toContain("margin:0 0 -112px"); // 64 px into the light band (the hero's 48 px foot padding is cancelled)
+  });
+  it("a dot's own body wins its own click: every hit zone is drawn before every visible dot, and each zone links to the same page as its dot", async () => {
+    const { html } = await page(deps(mapWorld()), "en");
+    const svg = svgOf(html);
+    expect(zoneLinks(html).map((l) => /href="([^"]*)"/.exec(l)![1])).toEqual(dotLinks(html).map((l) => /href="([^"]*)"/.exec(l)![1]));
+    expect(zoneLinks(html)).toHaveLength(3);
+    // no circle of a dot body (halo or point) before the last hit circle, so no zone can lie on top of a body
+    const lastHit = svg.lastIndexOf('class="map-hit"');
+    expect(lastHit).toBeGreaterThan(-1);
+    expect(svg.indexOf('class="map-halo"')).toBeGreaterThan(lastHit);
+    expect(svg.indexOf('class="map-pt"')).toBeGreaterThan(lastHit);
+    // the zone carries a label too, so hovering the space around a dot shows the name
+    expect(svg.match(/>Douala · 1 gym<\/text>/g)).toHaveLength(2);
+    // the halo does not take clicks (it is wider than its dot and would cover a neighbour)
+    expect(html).toContain("pointer-events:none}");
+  });
+  it("the label's text-anchor grows toward the inside of the map, and a dot near the top edge gets its label below it", async () => {
+    const w = mapWorld();
+    w.countries.push(country("SO", "Somalia", "Somalie", 1), country("TN", "Tunisia", "Tunisie", 1));
+    w.cities.SO = [city("mogadishu", "Mogadishu", 1)];
+    w.cities.TN = [city("tunis", "Tunis", 1)];
+    w.mapCities!.push(mapCity("SO", "mogadishu", "Mogadishu", 2.0469, 45.3182, 1), mapCity("TN", "tunis", "Tunis", 36.8065, 10.1815, 1));
+    const { html } = await page(deps(w), "en");
+    const svg = svgOf(html);
+    const labelOf = (name: string) => [...svg.matchAll(/<text class="map-label" x="[\d.]+" y="([\d.]+)" text-anchor="(\w+)">([^<]*)<\/text>/g)].filter((m) => m[3]!.startsWith(name)).map((m) => ({ y: Number(m[1]), anchor: m[2] }));
+    const dotOf = (name: string, href: string) => {
+      const m = new RegExp(`href="${href}"[^>]*class="map-dot"><circle class="map-halo"[^>]*></circle><circle class="map-pt" cx="[\\d.]+" cy="([\\d.]+)" r="([\\d.]+)"`).exec(svg)!;
+      return { cy: Number(m[1]), r: Number(m[2]), name };
+    };
+    for (const l of labelOf("Dakar")) expect(l.anchor).toBe("start");
+    for (const l of labelOf("Mogadishu")) expect(l.anchor).toBe("end");
+    for (const l of labelOf("Douala")) expect(l.anchor).toBe("middle");
+    expect(labelOf("Dakar")).toHaveLength(2);
+    expect(labelOf("Mogadishu")).toHaveLength(2);
+    // placement: above the dot, or below it when the dot is within 40 units of the top edge
+    const tunis = dotOf("Tunis", "/en/gyms/tn/tunis");
+    expect(tunis.cy).toBeLessThan(40);
+    for (const l of labelOf("Tunis")) expect(l.y).toBeCloseTo(tunis.cy + tunis.r + 22, 5);
+    const douala = dotOf("Douala", "/en/gyms/cm/douala");
+    expect(douala.cy).toBeGreaterThanOrEqual(40);
+    for (const l of labelOf("Douala")) expect(l.y).toBeCloseTo(douala.cy - douala.r - 10, 5);
   });
   it("AD-44: one style block, no style attribute, no script, nothing external, no style/image/href-to-elsewhere inside the SVG", async () => {
     for (const locale of ["en", "fr"]) {
@@ -884,6 +933,7 @@ describe("Africa map (25.7)", () => {
     expect(html).not.toContain("<figure");
     expect(html).not.toContain('hero-top has-map"');
     expect(html).not.toContain('class="after-map"');
+    expect(html).toContain('<main id="content">');
   });
   it("no map on a country page or a city page", async () => {
     for (const segments of [["cm"], ["cm", "yaounde"], ["cm", "douala"]]) {

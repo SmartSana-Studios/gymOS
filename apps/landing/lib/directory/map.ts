@@ -45,7 +45,7 @@ export function buildMapView(
       };
       return [{ dot, gyms: c.publishedCount, key: `${c.countryCode}/${c.citySlug}` }];
     })
-    // the larger dots first, so a small dot is drawn (and hit) on top of a large neighbour; the slug breaks ties so the markup is stable
+    // the larger dots first, so a small dot is drawn on top of a large neighbour; the slug breaks ties so the markup is stable (the hit zones are a layer below all dots, see AfricaMap)
     .sort((a, b) => b.gyms - a.gyms || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
     .map((e) => e.dot);
   return {

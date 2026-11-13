@@ -159,12 +159,12 @@ export const DIRECTORY_CSS = [
   ".map-svg{display:block;width:100%;height:auto;overflow:visible}",
   ".map-land path{fill:#17253B;stroke:#0F1B2D;stroke-width:.6;stroke-linejoin:round}",
   ".map-land .lit{fill:#2B4163}",
-  ".map-dot{cursor:pointer;outline:none}",
-  ".map-halo{fill:#E0971F;opacity:.22}",
+  ".map-zone,.map-dot{cursor:pointer;outline:none}",
+  ".map-halo{fill:#E0971F;opacity:.22;pointer-events:none}",
   ".map-pt{fill:#E0971F;stroke:#0F1B2D;stroke-width:2;vector-effect:non-scaling-stroke}",
   ".map-hit{fill:transparent}",
   ".map-label{font:600 16px/1 Figtree,system-ui,sans-serif;fill:#FFFFFF;stroke:#0F1B2D;stroke-width:5px;stroke-linejoin:round;paint-order:stroke;opacity:0;pointer-events:none}",
-  ".map-dot:hover .map-label,.map-dot:focus .map-label,.map-dot:focus-visible .map-label{opacity:1}",
+  ".map-zone:hover .map-label,.map-zone:focus .map-label,.map-zone:focus-visible .map-label,.map-dot:hover .map-label,.map-dot:focus .map-label,.map-dot:focus-visible .map-label{opacity:1}",
   "@keyframes halo{0%,100%{opacity:.22}50%{opacity:.06}}",
   "@media (prefers-reduced-motion:no-preference){.map-halo{animation:halo 2.6s ease-in-out infinite}}",
   "@media (max-width:640px){.map-label{display:none}.map-hit{r:56px}}",
@@ -174,6 +174,9 @@ export const DIRECTORY_CSS = [
   // from 1024 px the copy is left and the map right, running 64 px down into the light band (the hero's 48 px foot padding is cancelled too); main makes room
   "@media (min-width:1024px){.hero-top.has-map{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:start}.hero-top.has-map .hero-copy{max-width:none}.hero-top.has-map .map{position:relative;z-index:1;max-width:none;margin:0 0 -112px}.map figcaption{text-align:left}main.after-map{padding-top:104px}}",
 ].join("\n");
+
+/** A label sits above its dot, or below it when the dot is near the top edge of the view box. */
+const labelY = (d: MapDotView): number => (d.y < 40 ? d.y + d.r + 22 : d.y - d.r - 10);
 
 /** Static, aria-hidden Africa map (Story 25.7): inline SVG, no script, no style attribute; every link is out of the tab order (the country cards carry every link). */
 function AfricaMap({ map }: { map: MapView }): ReactNode {
@@ -186,13 +189,24 @@ function AfricaMap({ map }: { map: MapView }): ReactNode {
             <path key={c.code} d={c.d} className={c.lit ? "lit" : undefined} />
           ))}
         </g>
+        {/* Two layers, so a dot's own body always wins its own click: every 44-unit hit zone is drawn first, every visible dot on top of all of them (a smaller
+            neighbour's zone cannot cover a larger dot). Both links go to the same city page; both carry the label, so hovering the zone or the dot shows it. */}
+        <g>
+          {map.dots.map((d) => (
+            <a key={d.href} href={d.href} tabIndex={-1} className="map-zone">
+              <circle className="map-hit" cx={d.x} cy={d.y} r={44} />
+              <text className="map-label" x={d.x} y={labelY(d)} textAnchor={d.anchor}>
+                {d.label}
+              </text>
+            </a>
+          ))}
+        </g>
         <g>
           {map.dots.map((d) => (
             <a key={d.href} href={d.href} tabIndex={-1} className="map-dot">
               <circle className="map-halo" cx={d.x} cy={d.y} r={Math.round(d.r * 1.9 * 100) / 100} />
               <circle className="map-pt" cx={d.x} cy={d.y} r={d.r} />
-              <circle className="map-hit" cx={d.x} cy={d.y} r={44} />
-              <text className="map-label" x={d.x} y={d.y < 40 ? d.y + d.r + 22 : d.y - d.r - 10} textAnchor={d.anchor}>
+              <text className="map-label" x={d.x} y={labelY(d)} textAnchor={d.anchor}>
                 {d.label}
               </text>
             </a>
