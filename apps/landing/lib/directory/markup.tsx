@@ -1,0 +1,381 @@
+// Story 25.3 (AD-44, AD-48): the directory document as React elements, rendered to a STRING by renderToStaticMarkup (handler.ts). No App Router page
+// (those ship Next scripts), no executable script (the one <script> a page may carry is the inert JSON-LD data block that handler.ts splices in after rendering), no style="" attribute (the CSP hashes the one <style> block), no cookie, no third-party request. This
+// module is presentational: the handler decides what to show and passes plain data. Hostile gym text is a React text node (escaped), never markup.
+import type { ReactNode } from "react";
+import type { Locale } from "@/lib/i18n";
+import { DIRECTORY_COPY, GLYPH } from "./copy";
+
+export interface Crumb {
+  label: string;
+  /** Null for the current page. */
+  href: string | null;
+}
+
+export interface CardView {
+  name: string;
+  href: string;
+  count: string;
+}
+
+export interface RowView {
+  name: string;
+  /** `https://{page_name}.{rootDomain}/` */
+  href: string;
+  /** Absolute logo URL under the media origin, or null for the monogram tile. */
+  logoSrc: string | null;
+  categoryLabel: string | null;
+  city: string;
+}
+
+export interface PillView {
+  label: string;
+  href: string;
+  current: boolean;
+}
+
+export interface PageLinkView {
+  n: number;
+  href: string;
+  current: boolean;
+}
+
+/** Story 25.7: one dot of the Africa map, in view-box units. `href` is root-relative. */
+export interface MapDotView {
+  x: number;
+  y: number;
+  r: number;
+  href: string;
+  /** City name and gym count, shown on hover and focus. */
+  label: string;
+  /** Which side of the dot the label grows to, so it stays inside the view box. */
+  anchor: "start" | "middle" | "end";
+}
+
+/** Story 25.7: the Africa map of the top page (see map.ts). Null on the page means no map. */
+export interface MapView {
+  width: number;
+  height: number;
+  caption: string;
+  /** `lit`: a country with a listed gym (the lighter fill). */
+  countries: { code: string; d: string; lit: boolean }[];
+  dots: MapDotView[];
+}
+
+export type DirectoryBody =
+  | { kind: "top"; cards: CardView[]; lede: string; count: string | null; empty: string | null; map: MapView | null }
+  | { kind: "country"; cards: CardView[]; count: string }
+  | {
+      kind: "city";
+      count: string;
+      pills: PillView[];
+      rows: RowView[];
+      pager: PageLinkView[] | null;
+      /** The stale-link text and its "show all" link: a valid category with no gym in the city. */
+      stale: { message: string; showAllLabel: string; showAllHref: string } | null;
+      empty: string | null;
+    };
+
+export interface DirectoryDocument {
+  locale: Locale;
+  title: string;
+  description: string;
+  /** The ONE flag: false renders `<meta name="robots" content="noindex">` here and `X-Robots-Tag: noindex` in headers.ts. */
+  indexable: boolean;
+  canonical: string;
+  alternates: { en: string; fr: string; xDefault: string };
+  /** The same page in the other language (path and query), relative to the host. */
+  languageHref: string;
+  homeHref: string;
+  gymsHref: string;
+  crumbs: Crumb[];
+  /** The h1: a lead and the place name as the accent fragment. */
+  heading: { lead: string; accent: string };
+  body: DirectoryBody;
+}
+
+// Look per apps/landing/DESIGN.md and the "Public Directory" section of the UX DESIGN.md: navy hero band, 76 px cards in 1/2/3 columns, 80 px
+// rows, 44 px targets, no motion. One <style> block; the quotes below are CSS, not HTML (React does not escape a <style> child).
+export const DIRECTORY_CSS = [
+  "@font-face{font-family:'Bricolage Grotesque';font-style:normal;font-weight:800;font-display:swap;src:url(/fonts/bricolage-grotesque-800.woff2) format('woff2')}",
+  "@font-face{font-family:'Figtree';font-style:normal;font-weight:400 600;font-display:swap;src:url(/fonts/figtree-variable.woff2) format('woff2')}",
+  "*,*::before,*::after{box-sizing:border-box}",
+  "html{-webkit-text-size-adjust:100%}",
+  "body{margin:0;background:#F6F8FB;color:#3A485C;font:400 16px/1.625 Figtree,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;overflow-wrap:anywhere}",
+  "h1,h2,p,ul,ol{margin:0}",
+  "ul,ol{padding:0;list-style:none}",
+  "a{color:inherit}",
+  "a:focus-visible{outline:3px solid #0F1B2D;outline-offset:2px;border-radius:4px}",
+  ".on-navy a:focus-visible{outline-color:#FFFFFF}",
+  ".wrap{max-width:76rem;margin:0 auto;padding:0 20px}",
+  ".skip{position:absolute;left:-9999px;top:0;z-index:10;background:#FFFFFF;color:#0F1B2D;padding:12px 16px;font-weight:600}",
+  ".skip:focus{left:16px;top:8px}",
+  // the navy band (header and hero, on the top, country and city pages) carries a faint texture, gradients only because the CSP allows no image: a soft accent glow
+  // at the top left, and a 28 px dot grid (echoing the map's dots) that fades out toward the bottom of the band
+  ".top{background-color:#0F1B2D;background-image:radial-gradient(60% 90% at 12% 0%,rgba(224,151,31,.1),rgba(224,151,31,0) 70%),linear-gradient(to bottom,rgba(15,27,45,0) 35%,#0F1B2D 100%),radial-gradient(circle,rgba(255,255,255,.08) 1.2px,transparent 1.7px);background-size:auto,auto,28px 28px;color:#FFFFFF}",
+  ".bar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:68px}",
+  ".brand{display:inline-flex;align-items:center;min-height:44px;font:800 20px/1 'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-.02em;color:#FFFFFF;text-decoration:none}",
+  ".bar-links{display:flex;align-items:center;gap:8px}",
+  ".chip{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:1px solid rgba(169,183,203,.6);border-radius:12px;color:#FFFFFF;font-size:15px;font-weight:600;line-height:1.4;text-decoration:none}",
+  ".chip:hover{border-color:#FFFFFF}",
+  ".hero{padding:8px 0 48px}",
+  ".crumbs ol{display:flex;flex-wrap:wrap;align-items:center}",
+  ".crumbs li{display:inline-flex;align-items:center;font-size:15px;font-weight:600;color:#A9B7CB}",
+  ".crumbs li+li::before{content:'\\203A';padding:0 8px;color:#A9B7CB}",
+  ".crumbs a{display:inline-flex;align-items:center;min-height:44px;color:#A9B7CB}",
+  ".crumbs [aria-current]{color:#FFFFFF}",
+  "h1{margin-top:8px;font:800 32px/1.06 'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-.028em;text-wrap:balance;color:#FFFFFF}",
+  ".accent{color:#E0971F}",
+  ".lede{margin-top:16px;max-width:34rem;font-size:18px;color:#A9B7CB;text-wrap:pretty}",
+  ".count{margin-top:16px;font-size:18px;font-weight:600;color:#FFFFFF}",
+  "main{padding:40px 0 80px}",
+  ".cards{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}",
+  ".card a{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:76px;padding:16px 20px;background:#FFFFFF;border:1px solid #7F8FA6;border-radius:16px;color:#0F1B2D;text-decoration:none}",
+  ".card a:hover{border-color:#0F1B2D}",
+  ".card h2{font:800 22px/1.2 'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-.02em}",
+  ".card p{font-size:15px;line-height:1.4;color:#59687C}",
+  // the card's chevron is drawn with two borders, not a font glyph: the same shape and weight in every browser, no SVG on country and city pages
+  ".arrow{flex:none;width:10px;height:10px;margin-right:6px;border-top:2.5px solid #BA6500;border-right:2.5px solid #BA6500;transform:rotate(45deg)}",
+  ".pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}",
+  ".pills a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;background:#FFFFFF;border:1px solid #7F8FA6;border-radius:999px;color:#0F1B2D;font-size:15px;font-weight:600;line-height:1.4;text-decoration:none}",
+  ".pills a:hover{border-color:#0F1B2D}",
+  ".pills a[aria-current]{background:#E0971F;border-color:#E0971F}",
+  ".rows{display:grid;gap:8px;max-width:52rem}",
+  ".row a{display:flex;align-items:center;gap:16px;min-height:80px;padding:16px 20px;background:#FFFFFF;border:1px solid #7F8FA6;border-radius:16px;color:#0F1B2D;text-decoration:none}",
+  ".row a:hover{border-color:#0F1B2D}",
+  ".logo,.mono{flex:none;width:48px;height:48px;border-radius:9px}",
+  ".logo{object-fit:cover;background:#E1E7EF}",
+  ".mono{display:flex;align-items:center;justify-content:center;background:#1B2A41;color:#FFFFFF;font:800 22px/1 'Bricolage Grotesque',system-ui,sans-serif}",
+  ".row h2{font:800 20px/1.2 'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-.02em}",
+  ".row p{font-size:15px;line-height:1.4;color:#59687C}",
+  ".pager{margin-top:32px}",
+  ".pager ul{display:flex;flex-wrap:wrap;gap:8px}",
+  ".pager a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:0 12px;background:#FFFFFF;border:1px solid #7F8FA6;border-radius:12px;color:#0F1B2D;font-weight:600;text-decoration:none}",
+  ".pager a[aria-current]{background:#1B2A41;border-color:#1B2A41;color:#FFFFFF}",
+  ".note{max-width:34rem;font-size:18px;color:#0F1B2D}",
+  ".note a{display:inline-flex;align-items:center;min-height:44px;margin-top:8px;font-weight:600}",
+  ".foot{background:#0F1B2D;color:#A9B7CB;padding:16px 0}",
+  ".foot ul{display:flex;flex-wrap:wrap;align-items:center;gap:0 24px}",
+  ".foot a{display:inline-flex;align-items:center;min-height:44px;font-size:15px;font-weight:600;color:#A9B7CB}",
+  // Story 25.7: the Africa map. Land, lit countries and borders carry no meaning on their own (the cards do); the ring is a 2 px line at any size.
+  ".map{margin:32px auto 0;max-width:560px}",
+  ".map figcaption{margin-bottom:12px;font-size:15px;line-height:1.4;color:#A9B7CB;text-align:center}",
+  ".map-svg{display:block;width:100%;height:auto;overflow:visible}",
+  ".map-land path{fill:#17253B;stroke:#0F1B2D;stroke-width:.6;stroke-linejoin:round}",
+  ".map-land .lit{fill:#2B4163}",
+  ".map-zone,.map-dot{cursor:pointer;outline:none}",
+  ".map-halo{fill:#E0971F;opacity:.22;pointer-events:none}",
+  ".map-pt{fill:#E0971F;stroke:#0F1B2D;stroke-width:2;vector-effect:non-scaling-stroke}",
+  ".map-hit{fill:transparent}",
+  ".map-label{font:600 16px/1 Figtree,system-ui,sans-serif;fill:#FFFFFF;stroke:#0F1B2D;stroke-width:5px;stroke-linejoin:round;paint-order:stroke;opacity:0;pointer-events:none}",
+  ".map-zone:hover .map-label,.map-zone:focus .map-label,.map-zone:focus-visible .map-label,.map-dot:hover .map-label,.map-dot:focus .map-label,.map-dot:focus-visible .map-label{opacity:1}",
+  "@keyframes halo{0%,100%{opacity:.22}50%{opacity:.06}}",
+  "@media (prefers-reduced-motion:no-preference){.map-halo{animation:halo 2.6s ease-in-out infinite}}",
+  "@media (max-width:640px){.map-label{display:none}.map-hit{r:56px}}",
+  "@media (max-width:360px){.map-hit{r:72px}}",
+  "@media (min-width:641px){.wrap{padding:0 32px}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}h1{font-size:40px}}",
+  "@media (min-width:1024px){.cards{grid-template-columns:repeat(3,minmax(0,1fr))}h1{font-size:52px}.hero-top .hero-copy{max-width:50%}}",
+  // from 1024 px the copy is left and the map right, running 64 px down into the light band (the hero's 48 px foot padding is cancelled too); main makes room
+  "@media (min-width:1024px){.hero-top.has-map{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:32px;align-items:start}.hero-top.has-map .hero-copy{max-width:none}.hero-top.has-map .map{position:relative;z-index:1;max-width:none;margin:0 0 -112px}.map figcaption{text-align:left}main.after-map{padding-top:104px}}",
+].join("\n");
+
+/** A label sits above its dot, or below it when the dot is near the top edge of the view box. */
+const labelY = (d: MapDotView): number => (d.y < 40 ? d.y + d.r + 22 : d.y - d.r - 10);
+
+/** Static, aria-hidden Africa map (Story 25.7): inline SVG, no script, no style attribute; every link is out of the tab order (the country cards carry every link). */
+function AfricaMap({ map }: { map: MapView }): ReactNode {
+  return (
+    <figure className="map">
+      <figcaption aria-hidden="true">{map.caption}</figcaption>
+      <svg className="map-svg" viewBox={`0 0 ${map.width} ${map.height}`} aria-hidden="true" focusable="false">
+        <g className="map-land">
+          {map.countries.map((c) => (
+            <path key={c.code} d={c.d} className={c.lit ? "lit" : undefined} />
+          ))}
+        </g>
+        {/* Two layers, so a dot's own body always wins its own click: every 44-unit hit zone is drawn first, every visible dot on top of all of them (a smaller
+            neighbour's zone cannot cover a larger dot). Both links go to the same city page; both carry the label, so hovering the zone or the dot shows it. */}
+        <g>
+          {map.dots.map((d) => (
+            <a key={d.href} href={d.href} tabIndex={-1} className="map-zone">
+              <circle className="map-hit" cx={d.x} cy={d.y} r={44} />
+              <text className="map-label" x={d.x} y={labelY(d)} textAnchor={d.anchor}>
+                {d.label}
+              </text>
+            </a>
+          ))}
+        </g>
+        <g>
+          {map.dots.map((d) => (
+            <a key={d.href} href={d.href} tabIndex={-1} className="map-dot">
+              <circle className="map-halo" cx={d.x} cy={d.y} r={Math.round(d.r * 1.9 * 100) / 100} />
+              <circle className="map-pt" cx={d.x} cy={d.y} r={d.r} />
+              <text className="map-label" x={d.x} y={labelY(d)} textAnchor={d.anchor}>
+                {d.label}
+              </text>
+            </a>
+          ))}
+        </g>
+      </svg>
+    </figure>
+  );
+}
+
+function Cards({ cards }: { cards: CardView[] }): ReactNode {
+  return (
+    <ul className="cards">
+      {cards.map((c) => (
+        <li key={c.href} className="card">
+          <a href={c.href}>
+            <div>
+              <h2>{c.name}</h2>
+              <p>{c.count}</p>
+            </div>
+            <span className="arrow" aria-hidden="true" />
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function Rows({ rows }: { rows: RowView[] }): ReactNode {
+  return (
+    <ul className="rows">
+      {rows.map((r) => (
+        <li key={r.href} className="row">
+          <a href={r.href}>
+            {r.logoSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element -- a plain <img> in a script-free document; next/image would ship its client runtime
+              <img className="logo" src={r.logoSrc} alt="" width="48" height="48" loading="lazy" decoding="async" />
+            ) : (
+              <span className="mono" aria-hidden="true">
+                {Array.from(r.name.trim())[0]?.toUpperCase() ?? ""}
+              </span>
+            )}
+            <div>
+              <h2>{r.name}</h2>
+              <p>{[r.categoryLabel, r.city].filter(Boolean).join(" · ")}</p>
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function DirectoryPage({ doc }: { doc: DirectoryDocument }): ReactNode {
+  const copy = DIRECTORY_COPY[doc.locale];
+  const { body } = doc;
+  const isTop = body.kind === "top";
+  return (
+    <html lang={doc.locale}>
+      {/* eslint-disable-next-line @next/next/no-head-element -- a whole document rendered to a string, not an App Router layout */}
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>{doc.title}</title>
+        <meta name="description" content={doc.description} />
+        {doc.indexable ? null : <meta name="robots" content="noindex" />}
+        <link rel="canonical" href={doc.canonical} />
+        <link rel="alternate" hrefLang="en" href={doc.alternates.en} />
+        <link rel="alternate" hrefLang="fr" href={doc.alternates.fr} />
+        <link rel="alternate" hrefLang="x-default" href={doc.alternates.xDefault} />
+        <style>{DIRECTORY_CSS}</style>
+      </head>
+      <body>
+        <a className="skip" href="#content">
+          {copy.skip}
+        </a>
+        <header className="top on-navy">
+          <div className="wrap">
+            <div className="bar">
+              <a className="brand" href={doc.homeHref} aria-label={copy.homeLabel}>
+                {copy.siteName}
+              </a>
+              <div className="bar-links">
+                <a className="chip" href={doc.languageHref} lang={doc.locale === "en" ? "fr" : "en"} hrefLang={doc.locale === "en" ? "fr" : "en"}>
+                  {copy.otherLanguageName}
+                </a>
+              </div>
+            </div>
+            <div className={isTop ? (body.kind === "top" && body.map ? "hero hero-top has-map" : "hero hero-top") : "hero"}>
+              <div className="hero-copy">
+                <nav className="crumbs" aria-label={copy.breadcrumbLabel}>
+                  <ol>
+                    {doc.crumbs.map((c, i) => (
+                      <li key={i}>{c.href ? <a href={c.href}>{c.label}</a> : <span aria-current="page">{c.label}</span>}</li>
+                    ))}
+                  </ol>
+                </nav>
+                <h1>
+                  {doc.heading.lead} <span className="accent">{doc.heading.accent}</span>
+                </h1>
+                {body.kind === "top" ? <p className="lede">{body.lede}</p> : null}
+                {body.kind === "top" ? (body.count ? <p className="count">{body.count}</p> : null) : <p className="count">{body.count}</p>}
+              </div>
+              {body.kind === "top" && body.map ? <AfricaMap map={body.map} /> : null}
+            </div>
+          </div>
+        </header>
+        <main id="content" className={body.kind === "top" && body.map ? "after-map" : undefined}>
+          <div className="wrap">
+            {body.kind === "top" ? (body.empty ? <p className="note">{body.empty}</p> : <Cards cards={body.cards} />) : null}
+            {body.kind === "country" ? <Cards cards={body.cards} /> : null}
+            {body.kind === "city" ? (
+              <>
+                {body.pills.length > 0 ? (
+                  <nav aria-label={copy.categoriesLabel}>
+                    <ul className="pills">
+                      {body.pills.map((p) => (
+                        <li key={p.href}>
+                          <a href={p.href} aria-current={p.current ? "page" : undefined}>
+                            {p.current ? <span aria-hidden="true">{GLYPH.check}</span> : null}
+                            {p.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </nav>
+                ) : null}
+                {body.stale ? (
+                  <p className="note">
+                    {body.stale.message}
+                    <br />
+                    <a href={body.stale.showAllHref}>{body.stale.showAllLabel}</a>
+                  </p>
+                ) : null}
+                {body.empty ? <p className="note">{body.empty}</p> : null}
+                {body.rows.length > 0 ? <Rows rows={body.rows} /> : null}
+                {body.pager ? (
+                  <nav className="pager" aria-label={copy.pagesLabel}>
+                    <ul>
+                      {body.pager.map((p) => (
+                        <li key={p.n}>
+                          <a href={p.href} aria-label={copy.pageLink(p.n)} aria-current={p.current ? "page" : undefined}>
+                            {p.n}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </nav>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        </main>
+        <footer className="foot">
+          <div className="wrap">
+            <ul>
+              <li>
+                <a href={doc.homeHref}>{copy.siteName}</a>
+              </li>
+              <li>
+                <a href={doc.gymsHref}>{copy.gyms}</a>
+              </li>
+            </ul>
+          </div>
+        </footer>
+      </body>
+    </html>
+  );
+}

@@ -3,8 +3,10 @@
 import {
   claimLandingPageName,
   getLandingPageData,
+  loadCitiesOfCountry,
   publishLandingPage,
   saveLandingPageContent,
+  saveLandingPageLocation,
   submitLandingPageAppeal,
   unpublishLandingPage,
 } from "@/services/landing-page";
@@ -19,6 +21,16 @@ export async function loadLandingPageAction() {
 
 export async function saveLandingPageAction(input: unknown) {
   return saveLandingPageContent(input);
+}
+
+/** The cities of a country, for the Location block (25.1). */
+export async function loadCitiesAction(country: string) {
+  return loadCitiesOfCountry(country);
+}
+
+/** The Location block's own Save: a country of the list and a city id. Never text. */
+export async function saveLocationAction(input: unknown) {
+  return saveLandingPageLocation(input);
 }
 
 export async function claimPageNameAction(name: string) {

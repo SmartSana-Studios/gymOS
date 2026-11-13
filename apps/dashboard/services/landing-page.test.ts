@@ -10,6 +10,8 @@ const rpc = vi.fn();
 const getClaims = vi.fn();
 let gymRow: Record<string, unknown> | null = null;
 let plansRows: Record<string, unknown>[] = [];
+let countryRows: Record<string, unknown>[] = [];
+let cityRows: Record<string, unknown>[] = [];
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
@@ -18,7 +20,11 @@ vi.mock("@/lib/supabase/server", () => ({
     from: (table: string) =>
       table === "gyms"
         ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: gymRow, error: null }) }) }) }
-        : { select: () => ({ eq: () => ({ order: async () => ({ data: plansRows, error: null }) }) }) },
+        : table === "countries"
+          ? { select: () => ({ order: async () => ({ data: countryRows, error: null }) }) }
+          : table === "cities"
+            ? { select: () => ({ eq: () => ({ order: async () => ({ data: cityRows, error: null }) }) }) }
+            : { select: () => ({ eq: () => ({ order: async () => ({ data: plansRows, error: null }) }) }) },
   })),
 }));
 vi.mock("@/lib/i18n/get-request-locale", () => ({ getRequestLocale: vi.fn(async () => "en") }));
@@ -33,12 +39,16 @@ import {
   claimLandingPageName,
   getLandingPageData,
   getLandingPageState,
+  listCitiesOf,
+  loadCitiesOfCountry,
+  locationCodeFromDbError,
   pageContentCodeFromDbError,
   pageNameCodeFromDbError,
   pagePublishCodeFromDbError,
   publishLandingPage,
   pageAppealCodeFromDbError,
   saveLandingPageContent,
+  saveLandingPageLocation,
   submitLandingPageAppeal,
   unpublishLandingPage,
 } from "./landing-page";
@@ -47,6 +57,7 @@ const migrations = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..
 const m163 = readFileSync(join(migrations, "0163_page_names.sql"), "utf8");
 const m164 = readFileSync(join(migrations, "0164_publish_gate_snapshot.sql"), "utf8");
 const m161 = readFileSync(join(migrations, "0161_gym_page_content.sql"), "utf8");
+const m169 = readFileSync(join(migrations, "0169_countries_cities.sql"), "utf8");
 const m167claim = readFileSync(join(migrations, "0167_page_takedown_reports_media_purge.sql"), "utf8");
 
 const status = {
@@ -59,7 +70,9 @@ const nameState = { name: "grace-fit", state: "active", pending_name: null, comp
 beforeEach(() => {
   vi.clearAllMocks();
   getClaims.mockResolvedValue({ data: { claims: { gym_id: GYM, app_role: "owner" } }, error: null });
-  gymRow = { category: "pilates_studio", country: "CM", default_language: "fr", page_about_en: "About", page_about_fr: null, page_services_en: null, page_services_fr: "A\nB", page_address: "Rue 1", page_city: "Douala", page_lat: 4.05, page_lng: null, page_hours: { mon: { open: "06:00", close: "22:00" }, sun: null }, page_contact_phone: "+237600111222", page_contact_whatsapp: null };
+  gymRow = { category: "pilates_studio", country: "CM", default_language: "fr", page_about_en: "About", page_about_fr: null, page_services_en: null, page_services_fr: "A\nB", page_address: "Rue 1", city_id: "c1111111-1111-4111-8111-111111111111", page_lat: 4.05, page_lng: null, page_hours: { mon: { open: "06:00", close: "22:00" }, sun: null }, page_contact_phone: "+237600111222", page_contact_whatsapp: null };
+  countryRows = [{ code: "CM", name_en: "Cameroon", name_fr: "Cameroun" }, { code: "SN", name_en: "Senegal", name_fr: "Sénégal" }];
+  cityRows = [{ id: "c1111111-1111-4111-8111-111111111111", name: "Douala", slug: "douala", city_aliases: [{ alias_norm: "douala" }, { alias_norm: "duala" }] }];
   plansRows = [{ id: "p1", name: "Monthly", plan_type: "monthly", price: 10000, currency: "XAF", billing_interval: "monthly", duration_days: 30, is_public: true }];
   rpc.mockImplementation(async (fn: string) => {
     if (fn === "get_gym_page_status") return { data: status, error: null };
@@ -158,6 +171,11 @@ describe("getLandingPageData", () => {
     expect(data?.content.lat).toBe("4.05");
     expect(data?.content.lng).toBe("");
     expect(data?.content.hours).toEqual({ mon: { open: "06:00", close: "22:00" }, sun: null });
+    // 25.1: the city is the stored id, and the lists behind the Location block come with it
+    expect(data?.content.cityId).toBe("c1111111-1111-4111-8111-111111111111");
+    expect(data?.content).not.toHaveProperty("city");
+    expect(data?.lists.countries).toEqual([{ code: "CM", nameEn: "Cameroon", nameFr: "Cameroun" }, { code: "SN", nameEn: "Senegal", nameFr: "Sénégal" }]);
+    expect(data?.lists.cities).toEqual([{ id: "c1111111-1111-4111-8111-111111111111", name: "Douala", slug: "douala", aliasNorms: ["douala", "duala"] }]);
     expect(data?.plans).toEqual([{ id: "p1", name: "Monthly", planType: "monthly", price: 10000, currency: "XAF", billingInterval: "monthly", durationDays: 30, isPublic: true }]);
   });
 
@@ -239,9 +257,9 @@ describe("saveLandingPageContent", () => {
     }
   });
 
-  it("CRLF and lone CR become LF in About, Services, address and city BEFORE the call (a direct call, not the form)", async () => {
+  it("CRLF and lone CR become LF in About, Services and address BEFORE the call (a direct call, not the form)", async () => {
     await saveLandingPageContent({
-      content: { about_en: "a\r\nb\rc", about_fr: "x\r\ny", services_en: "one\r\ntwo", services_fr: "s\u0001t", address: "Rue 1\r\nBP 2", city: "Dou\u0007ala", contact_phone: "+237600111222" },
+      content: { about_en: "a\r\nb\rc", about_fr: "x\r\ny", services_en: "one\r\ntwo", services_fr: "s\u0001t", address: "Rue 1\r\nBP 2", contact_phone: "+237600111222" },
     });
     const sent = rpc.mock.calls.find((c) => c[0] === "set_gym_page_content")?.[1] as { p_content: Record<string, unknown> };
     expect(sent.p_content).toMatchObject({
@@ -250,7 +268,6 @@ describe("saveLandingPageContent", () => {
       services_en: "one\ntwo",
       services_fr: "st",
       address: "Rue 1\nBP 2",
-      city: "Douala",
       contact_phone: "+237600111222",
     });
     expect(JSON.stringify(sent)).not.toContain("\\r");
@@ -492,5 +509,101 @@ describe("Story 24.11: the Owner's appeal", () => {
     expect((await submitLandingPageAppeal("A reason")).error).toEqual({ code: "appeal_decided", message: "pageAppeal.errors.appeal_decided" });
     rpc.mockResolvedValue({ data: null, error: { message: "boom" } });
     expect((await submitLandingPageAppeal("A reason")).error?.message).toBe("mapped");
+  });
+});
+
+describe("the Location block (25.1)", () => {
+  const CITY = "c1111111-1111-4111-8111-111111111111";
+
+  it("the mapper is pinned against the real messages of set_gym_location (0169)", () => {
+    expect(m169).toContain("raise exception 'set_gym_location: invalid_city'");
+    expect(m169).toContain("raise exception 'set_gym_location: unknown_country'");
+    expect(m169).toContain("raise exception 'set_gym_location: gym % is not active', p_gym_id");
+    expect(locationCodeFromDbError({ message: "set_gym_location: invalid_city" })).toBe("invalid_city");
+    expect(locationCodeFromDbError({ message: "set_gym_location: unknown_country" })).toBe("unknown_country");
+    expect(locationCodeFromDbError({ message: `set_gym_location: gym ${GYM} is not active` })).toBe("gym_not_active");
+    expect(locationCodeFromDbError({ message: "permission denied" })).toBe("not_admitted");
+    expect(locationCodeFromDbError({ message: "permission denied for table gyms" })).toBeNull();
+    expect(locationCodeFromDbError({ message: "set_gym_page_content: invalid_city" })).toBeNull();
+  });
+
+  it("the setter no longer accepts a city key, so the content mapper and the editor cannot send one", () => {
+    expect(pageContentCodeFromDbError({ message: "set_gym_page_content: unknown_key city" })).toBe("invalid_content");
+  });
+
+  it("saves the pair with the session's gym (never one from the browser) and returns the fresh data", async () => {
+    const { data, error } = await saveLandingPageLocation({ country: "CM", city_id: CITY });
+    expect(error).toBeNull();
+    expect(rpc).toHaveBeenCalledWith("set_gym_location", { p_gym_id: GYM, p_country: "CM", p_city_id: CITY });
+    expect(data?.content.cityId).toBe(CITY);
+  });
+
+  it("refuses anything but a country code and a city id, before any call", async () => {
+    for (const bad of [{ country: "CM", city: "Douala" }, { country: "cm", city_id: CITY }, { country: "CM", city_id: "Douala" }, { country: "CM" }, null, "Douala", { country: "CM", city_id: CITY, gym_id: GYM }]) {
+      const { data, error } = await saveLandingPageLocation(bad);
+      expect(data).toBeNull();
+      expect(error?.code).toBe("invalid_city");
+    }
+    expect(rpc).not.toHaveBeenCalledWith("set_gym_location", expect.anything());
+  });
+
+  it.each([
+    ["set_gym_location: invalid_city", "invalid_city"],
+    ["set_gym_location: unknown_country", "unknown_country"],
+    ["permission denied", "not_admitted"],
+    [`set_gym_location: gym ${GYM} is not active`, "gym_not_active"],
+  ])("a database refusal '%s' is the typed error %s", async (message, code) => {
+    rpc.mockImplementation(async (fn: string) => (fn === "set_gym_location" ? { data: null, error: { message } } : { data: status, error: null }));
+    const { data, error } = await saveLandingPageLocation({ country: "CM", city_id: CITY });
+    expect(data).toBeNull();
+    expect(error).toEqual({ code, message: `pageEditor.errors.${code}` });
+  });
+
+  it("the editor's country list leaves out countries Settings would refuse", async () => {
+    countryRows = [...countryRows, { code: "AQ", name_en: "Antarctica", name_fr: "Antarctique" }, { code: "UM", name_en: "U.S. Outlying Islands", name_fr: "Îles mineures éloignées des États-Unis" }];
+    const { data } = await getLandingPageData();
+    expect(data?.lists.countries.map((c) => c.code)).toEqual(["CM", "SN"]);
+  });
+
+  it("a country Settings would refuse (in the seed, outside the phone-region list) never reaches the database", async () => {
+    for (const country of ["AQ", "BV", "GS", "HM", "PN", "TF", "UM"]) {
+      const { data, error } = await saveLandingPageLocation({ country, city_id: CITY });
+      expect(data).toBeNull();
+      expect(error?.code).toBe("unknown_country");
+    }
+    expect(rpc).not.toHaveBeenCalledWith("set_gym_location", expect.anything());
+  });
+
+  it("a role with no page access never reaches the database", async () => {
+    getClaims.mockResolvedValue({ data: { claims: { gym_id: GYM, app_role: "manager" } }, error: null });
+    const { error } = await saveLandingPageLocation({ country: "CM", city_id: CITY });
+    expect(error?.code).toBe("not_admitted");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("a save that committed but whose read-back failed is distinct from a failed save", async () => {
+    rpc.mockImplementation(async (fn: string) => (fn === "set_gym_location" ? { data: null, error: null } : { data: null, error: { message: "network" } }));
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const r = await saveLandingPageLocation({ country: "CM", city_id: CITY });
+    expect(r).toEqual({ data: null, error: null, reloadFailed: true });
+    spy.mockRestore();
+  });
+
+  it("loads the cities of a country for the picker, with their spellings", async () => {
+    const r = await loadCitiesOfCountry("cm");
+    expect(r.error).toBeNull();
+    expect(r.data).toEqual([{ id: CITY, name: "Douala", slug: "douala", aliasNorms: ["douala", "duala"] }]);
+  });
+
+  it("loading the cities of something that is not a country code is empty, not an error", async () => {
+    const supabase = { from: vi.fn() } as never;
+    expect(await listCitiesOf(supabase, "Cameroon")).toEqual({ data: [], error: null });
+    expect((supabase as { from: ReturnType<typeof vi.fn> }).from).not.toHaveBeenCalled();
+  });
+
+  it("a role with no page access cannot list cities through the action", async () => {
+    getClaims.mockResolvedValue({ data: { claims: { gym_id: GYM, app_role: "member" } }, error: null });
+    const r = await loadCitiesOfCountry("CM");
+    expect(r.error?.code).toBe("not_admitted");
   });
 });

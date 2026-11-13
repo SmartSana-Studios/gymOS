@@ -4,8 +4,13 @@
 #   bash scripts/landing-gate/run-local.sh              # check-http, lcp, load; prints a summary; exit 0 when http and load pass and lcp ran. The LCP
 #                                                       # baseline is RECORDED, not enforced (the 3 s target is an [ASSUMPTION]): over target still exits 0
 #                                                       # and the summary says "OVER TARGET (recorded, not enforced)"; GATE_LCP_ENFORCE=1 makes it fail
-#   bash scripts/landing-gate/run-local.sh http lcp     # a subset (names: http lcp load)
+#   bash scripts/landing-gate/run-local.sh http lcp     # a subset (names: http lcp load). Story 25.6: `lcp` runs three targets (the gym page, the directory top page and the
+#                                                       # Garoua city listing) and `lcp`/`load` seed a realistic directory (46 gyms in Garoua, 3 in Maroua, 2 in Bertoua; GATE_DIRECTORY_GYMS
+#                                                       # sets the 45 extra); `http` alone runs on the small default seed
 #   bash scripts/landing-gate/run-local.sh serve        # fixtures and servers only, until Ctrl-C (to try a page by hand, e.g. http://gate-grace.localhost:3200/)
+#
+# Removal timing (Story 25.6) is not here: it needs an action to time, and the E2E spec `apps/dashboard/e2e/directory-gate.spec.ts` does it (unpublish, takedown, suspension).
+# On staging the owner runs `node scripts/landing-gate/removal-timing.mjs --since ...` (README.md).
 #
 # What it does: seeds five throwaway gyms (published, unpublished, taken down, suspended, renamed) and one core-product probe gym into the
 # local database, starts a stand-in for the storage origin, the landing server (`next start`; the landing app is built here every run) and the dashboard
@@ -73,7 +78,10 @@ done
 
 echo "run-local: fixtures"
 node "$GATE/seed.mjs" down >/dev/null 2>&1
-node "$GATE/seed.mjs" up || exit 1
+SEED_ARGS=(up)
+# Story 25.6: the realistic directory (a 46-gym city, a city of exactly 3, a thin one) for the speed and load checks and for `serve`; `http` alone keeps the small seed
+if want lcp || want load || want serve || [ -n "${GATE_DIRECTORY_GYMS:-}" ]; then SEED_ARGS+=(--directory); fi
+node "$GATE/seed.mjs" "${SEED_ARGS[@]}" || exit 1
 if want load; then
   node "$GATE/core-fixture.mjs" up >"$RESULTS/core.env" || { echo "run-local: could not create the core probe fixture" >&2; exit 1; }
   # shellcheck disable=SC1091
@@ -119,26 +127,32 @@ fi
 export BASE_URL=http://127.0.0.1:$LANDING_PORT ROOT_DOMAIN=localhost GATE_ENV_LABEL="lab, local"
 declare -A RES
 fail=0
-for check in http lcp load; do
-  want "$check" || continue
-  script="$GATE/check-http.mjs"; [ "$check" = lcp ] && script="$GATE/lcp.mjs"; [ "$check" = load ] && script="$GATE/load.mjs"
+# jobs: <key>:<script>:<GATE_LCP_TARGET or ->. `lcp` is three jobs (Story 25.6): the gym page, the directory top page, the city listing.
+JOBS=()
+want http && JOBS+=("http:check-http.mjs:-")
+want lcp && JOBS+=("lcp:lcp.mjs:gym" "lcp-directory-top:lcp.mjs:directory-top" "lcp-directory-city:lcp.mjs:directory-city")
+want load && JOBS+=("load:load.mjs:-")
+for job in "${JOBS[@]}"; do
+  IFS=: read -r key script lcp_target <<<"$job"
   echo
-  echo "================ $check ================"
-  node "$script" 2>&1 | tee "$RESULTS/$check.out"
+  echo "================ $key ================"
+  if [ "$lcp_target" = - ]; then node "$GATE/$script" 2>&1 | tee "$RESULTS/$key.out"
+  else GATE_LCP_TARGET=$lcp_target node "$GATE/$script" 2>&1 | tee "$RESULTS/$key.out"; fi
   rc=${PIPESTATUS[0]}
-  RES[$check]=$rc
+  RES[$key]=$rc
   [ "$rc" = 0 ] || fail=1
 done
 
 echo
 echo "================ summary (lab, local) ================"
-for check in http lcp load; do
-  want "$check" || continue
-  if [ "${RES[$check]}" != 0 ]; then verdict="FAIL (exit ${RES[$check]})"
-  elif [ "$check" = lcp ]; then verdict=$(grep -o 'BASELINE RECORDED.*' "$RESULTS/lcp.out" | head -1 | sed 's/(not enforced.*//') # a baseline is recorded, not passed: the 3 s target is an [ASSUMPTION]
+for job in "${JOBS[@]}"; do
+  key=${job%%:*}
+  if [ "${RES[$key]}" != 0 ]; then verdict="FAIL (exit ${RES[$key]})"
+  elif [ "${key#lcp}" != "$key" ]; then verdict=$(grep -o 'BASELINE RECORDED.*' "$RESULTS/$key.out" | head -1 | sed 's/(not enforced.*//') # a baseline is recorded, not passed: the 3 s target is an [ASSUMPTION]
     if printf '%s' "$verdict" | grep -q ': OVER '; then verdict="$verdict -- OVER TARGET (recorded, not enforced)"; fi
+    p75=$(grep -o '  all: p75 [0-9]* ms' "$RESULTS/$key.out" | head -1 | sed 's/^ *//'); [ -n "$p75" ] && verdict="$p75; $verdict"
   else verdict=PASS; fi
-  printf '  %-5s %s\n' "$check" "$verdict"
+  printf '  %-18s %s\n' "$key" "$verdict"
 done
 echo "  full output: $RESULTS/*.out"
 exit $fail

@@ -24,7 +24,8 @@ import {
 } from "@/lib/pageEditorForm";
 import { loadLandingPageAction, publishPageAction, saveLandingPageAction } from "../actions";
 import { Checklist, LanguagesOffered } from "./Checklist";
-import { ContactSection, HoursSection, LocationSection } from "./ContentSections";
+import { ContactSection, HoursSection } from "./ContentSections";
+import { LocationSection } from "./LocationSection";
 import { ImagesSection } from "./ImagesSection";
 import { PageNameSection } from "./PageNameSection";
 import { PageTextSection } from "./PageTextSection";
@@ -37,7 +38,6 @@ import { itemLine } from "./pageCopy";
 
 const FOCUS_ID: Record<string, string> = {
   address: "pageAddress",
-  city: "pageCity",
   latlng: "pageLat",
   contact_phone: "pagePhone",
   contact_whatsapp: "pageWhatsapp",
@@ -224,7 +224,6 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
         publicPlanCount: data.plans.filter((p) => cleaned.plans[p.id]).length,
         longestAbout: Math.max(0, ...PAGE_CONTENT_LANGUAGES.map((l) => aboutCharacters(cleaned.about[l] ?? ""))),
         minAbout: minChars,
-        city: cleaned.city,
         hasContact: cleaned.phone.trim() !== "" || cleaned.whatsapp.trim() !== "",
         hasOpenDay: hasOpenDay(cleaned),
       });
@@ -365,7 +364,19 @@ export function LandingPageEditor({ initial }: { initial: LandingPageData }) {
         <ImagesSection gymId={data.gymId} media={status.media} onChanged={refresh} onToast={showToast} />
         {/* Two by two from 1280 px (narrower, the fields inside would be cramped): Location | Hours, then Contact | Plans. The cards keep their own anchors. */}
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2" data-testid="row-location-hours">
-          <LocationSection form={form} setForm={setForm} errors={errors} country={data.content.country} category={data.content.category} />
+          <LocationSection
+            key={`${data.content.country}:${data.content.cityId ?? ""}`}
+            form={form}
+            setForm={setForm}
+            errors={errors}
+            data={data}
+            onSaved={(fresh) => {
+              // the location is stored; the server's facts (status, snapshot) replace what is on screen, and the form being typed is left alone
+              applyData(++issuedRef.current, fresh);
+            }}
+            onSavedReloadFailed={() => void refresh()}
+            onToast={showToast}
+          />
           <HoursSection form={form} setForm={setForm} errors={errors} />
         </div>
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2" data-testid="row-contact-plans">

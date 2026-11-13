@@ -87,7 +87,7 @@ describe("templates are pure modules (imports scanned)", () => {
     expect(importSpecifiers('import "fs";').every((s) => s.startsWith(".") || ALLOWED.has(s))).toBe(false);
   });
   const SKIP = /(^|\/)(conformance|__scratch)\//;
-  const PIPELINE = new Set(["headers.ts", "renderPage.ts", "renderPageAsync.ts", "renderCore.ts"]); // node:crypto and react-dom/server live here, never in a template
+  const PIPELINE = new Set(["headers.ts", "renderPage.ts", "renderPageAsync.ts", "renderCore.ts", "structuredData.ts"]); // node:crypto, react-dom/server and the schema-dts types live here, never in a template
   function files(dir: string): string[] {
     return readdirSync(dir).flatMap((f) => {
       const p = join(dir, f);
@@ -287,7 +287,12 @@ describe("hostile text", () => {
   it("the literal script string appears escaped in the markup", () => {
     const f = fixtures().find((x) => x.id === "hostile-literal")!;
     const r = ok(renderPage({ page: f.page, pathname: "/", acceptLanguage: "en", ...TEST_CONFIG }));
-    expect(r.body).not.toContain("<script");
+    // Story 25.4: no `<script` other than ONE inert application/ld+json block, whose text parses as JSON and holds no literal `<`
+    expect([...r.body.matchAll(/<script\b[^>]*>/g)].map((m) => m[0])).toEqual(['<script type="application/ld+json">']);
+    expect(r.body.match(/<\/script>/g)).toHaveLength(1);
+    const block = /<script type="application\/ld\+json">([^]*?)<\/script>/.exec(r.body)![1]!;
+    expect(block).not.toMatch(/[<>&]/);
+    expect(JSON.parse(block).name).toBe(f.page.content.name);
     expect(r.body).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
   });
 });

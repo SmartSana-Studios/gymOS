@@ -303,7 +303,6 @@ export const gymPageContentSchema = z.strictObject({
   services_en: pageText(2000).optional(),
   services_fr: pageText(2000).optional(),
   address: pageText(300).optional(),
-  city: pageText(100).optional(),
   lat: z.number().min(-90, "Latitude must be between -90 and 90").max(90, "Latitude must be between -90 and 90").nullable().optional(),
   lng: z.number().min(-180, "Longitude must be between -180 and 180").max(180, "Longitude must be between -180 and 180").nullable().optional(),
   hours: gymPageHoursSchema.nullable().optional(),

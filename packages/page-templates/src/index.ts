@@ -16,7 +16,19 @@ export {
   extractStyleBlock,
   styleHash,
 } from "./headers";
-export { formatPrice } from "./format";
+export { formatPrice, metaDescription, pageTitle } from "./format";
+export {
+  directoryItemList,
+  gymHeadExtras,
+  gymOpenGraph,
+  gymStructuredData,
+  injectHead,
+  jsonLdScript,
+  openGraphTags,
+  serializeJsonLd,
+  type ListedGym,
+  type OpenGraph,
+} from "./structuredData";
 export {
   REPORT_HONEYPOT_FIELD,
   REPORT_MAX_BODY_BYTES,
@@ -29,4 +41,4 @@ export {
   type ReportParse,
   type ReportView,
 } from "./reportPage";
-export { SEO_CACHE_CONTROL, classifyExtraPath, pageOrigin, renderRobots, renderSitemap, type GymPath, type SeoParts } from "./seo";
+export { SEO_CACHE_CONTROL, classifyExtraPath, pageOrigin, renderRobots, renderSitemap, seoHeaders, xmlEscape, type GymPath, type SeoParts } from "./seo";

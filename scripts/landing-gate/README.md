@@ -1,4 +1,4 @@
-# Landing-page gate kit (Story 24.12)
+# Landing-page gate kit (Story 24.12, extended by 25.6)
 
 Proof for the Step 2 release gate of Epic 24 (PRD 10.2; NFR-024, NFR-025, NFR-026). One kit, two places: **locally now** (`run-local.sh`), **on staging later** (the same scripts with `BASE_URL`). A result is always labelled where it was produced. A local result never signs the gate; see the checklist in `docs/decisions.md`, section "Story 24.12".
 
@@ -6,21 +6,26 @@ Proof for the Step 2 release gate of Epic 24 (PRD 10.2; NFR-024, NFR-025, NFR-02
 |---|---|---|
 | Isolation | `public_site_reader` and `anon` reach nothing outside the published projection (pgTAP) | `supabase/tests/public_site_reader_privileges.test.sql`, `supabase/tests/public_site_anon_isolation.test.sql` |
 | Headers | real HTTP: the exact AD-44 set on a page, a not-found and a redirect; every hidden cause is byte-identical | `check-http.mjs` |
-| Speed | p75 LCP of a published page, lab conditions (CPU 4x, 1.6 Mbps, 150 ms RTT, 360x640, cold cache), 20 or more runs, EN and FR | `lcp.mjs` |
-| Load | a label scan does not exceed the reader role's `CONNECTION LIMIT`, and the core product (dashboard Overview load, check-in RPC) stays inside its budget and within 25% of its own baseline | `load.mjs` |
+| Structured data (Story 25.4) | real HTTP: a gym page has exactly one `HealthClub` `application/ld+json` block and the Open Graph tags (`og:title` equal to the `<title>`); a city page has one `ItemList`; the top and country pages have the tags and no block; no response holds an executable `<script>` | `check-http.mjs` (`checkStructuredData` in `lib/headers.mjs`) |
+| Crawler files (Story 25.5) | real HTTP on `www`: `robots.txt` allows everything and names the index; `/sitemap-index.xml` and each `/sitemaps/{n}.xml` are well formed, on the `www` origin, list no gym page or filtered view and carry en, fr and x-default alternates; EVERY listed URL is requested and answers 200 with no `noindex`; `/llms.txt` holds only allowlisted lines and none of the unpublished, taken-down, suspended or renamed fixture gyms; a chunk that does not exist is the uniform not-found; on a gym host `/llms.txt`, `/sitemap-index.xml`, `/sitemaps/1.xml`, `/en/gyms` and `/en/gyms/cm` (and `/robots.txt` of an unknown gym) are byte-identical to the unknown label's not-found. Shown failing on doctored sitemaps in `__tests__/headers.test.mjs` | `check-http.mjs` (kind `crawler` and `checkRobots`, `checkSitemapIndex`, `checkUrlset`, `checkListedPage`, `checkLlms` in `lib/headers.mjs`) |
+| Directory (Story 25.3) | real HTTP on `www`: the top, country, city, filtered and unknown-place directory responses carry the AD-44 set, no `<script>`, no inline style attribute, no cookie, `s-maxage` at most 300, and one indexability signal (`X-Robots-Tag` and the robots meta tag agree; a filtered view is never `noindex`); the bare `/gyms/cm` is one 307 by `Accept-Language` | `check-http.mjs` (kind `directory` in `lib/headers.mjs`) |
+| Speed | p75 LCP of a published page, lab conditions (CPU 4x, 1.6 Mbps, 150 ms RTT, 360x640, cold cache), 20 or more runs, EN and FR. Story 25.6: `GATE_LCP_TARGET=gym\|directory-top\|directory-city` (default `gym`) picks the page; the p75 is recorded against 3 s, never enforced, and the output says LAB | `lcp.mjs` |
+| Load | a label scan does not exceed the reader role's `CONNECTION LIMIT`, and the core product (dashboard Overview load, check-in RPC) stays inside its budget and within 25% of its own baseline. Story 25.6: a share (`GATE_LOAD_DIRECTORY_SHARE`, default 20%) of the requests are directory pages with random `?x=<n>`, `?page=<n>` (past the last page too) and `?category=` values, judged against the same connection ceiling; their latency is reported separately | `load.mjs` |
+| Removal timing (Story 25.6) | how long a removed gym keeps showing on each public surface (gym page, gym-host sitemap, city row and count, country count, `llms.txt`, www sitemap), per cause (unpublish, takedown, suspension), against the FR-207 bounds. The surface list is `lib/removal.mjs`; a test fails when a migration or the landing app reads the visibility predicate through something the list does not name | `removal-timing.mjs` (staging, after the owner's action); the local proof is the E2E spec |
 | Purge job | the `page_media_purge` job ran successfully in the last 15 minutes | `purge-staleness.sql` (its regression test, `purge-staleness.test.sh`, runs in CI) |
 | Page flows | claim, publish, rename, unpublish, takedown, uniform not-found, EN and FR | `apps/dashboard/e2e/landing-page-gate.spec.ts` (runs in `scripts/ci-local.sh --only e2e` and in CI) |
+| Directory flows (Story 25.6) | browse top -> country -> city, category filter, thin city (noindex, out of the sitemap) and indexable city, removal by unpublish, takedown and suspension timed on every surface (60 s at the origin), EN and FR | `apps/dashboard/e2e/directory-gate.spec.ts` (same stage) |
 
 ## Locally
 
 ```sh
 bash scripts/landing-gate/run-local.sh            # check-http, lcp, load; summary at the end; exit 0 when http and load pass and lcp ran (the LCP baseline is recorded, not enforced: over target still exits 0; GATE_LCP_ENFORCE=1 makes it fail)
-bash scripts/landing-gate/run-local.sh http       # one check (http | lcp | load)
+bash scripts/landing-gate/run-local.sh http       # one check (http | lcp | load). `lcp` runs three targets (the gym page, the directory top page, the Garoua listing); `lcp` and `load` seed a realistic directory first (`seed.mjs up --directory`: 46 gyms in Garoua = 3 pages, 3 in Maroua, 2 in Bertoua; `GATE_DIRECTORY_GYMS` sets the 45 extra)
 bash scripts/landing-gate/run-local.sh serve      # fixtures + servers only, to look at a page: http://gate-grace.localhost:3200/
 node --test scripts/landing-gate/__tests__/*.test.mjs   # the kit's own tests (also part of `pnpm run test:guardrails`)
 ```
 
-Needs the local Supabase stack, Node 22 and Chromium (`cd apps/dashboard && npx playwright install chromium`). The script seeds throwaway gyms (published, unpublished, taken down, suspended, renamed) and one core-probe gym, starts a storage stand-in, the landing server and the dashboard, and **always** removes the fixtures again (a leftover published page breaks the reader privilege suite). All output lands in `$TMPDIR/landing-gate-results`.
+Needs the local Supabase stack, Node 22 and Chromium (`cd apps/dashboard && npx playwright install chromium`). The script seeds throwaway gyms (published, unpublished, taken down, suspended, renamed; the published one also has a city, Garoua in Cameroon, so the directory pages list it) and one core-probe gym, starts a storage stand-in, the landing server and the dashboard, and **always** removes the fixtures again (a leftover published page breaks the reader privilege suite). All output lands in `$TMPDIR/landing-gate-results`.
 
 Local numbers are a floor: the server, the database, the load and the probes share one machine.
 
@@ -49,6 +54,25 @@ GATE_CORE_OWNER_EMAIL=... GATE_CORE_OWNER_PASSWORD=... GATE_CORE_MEMBER_PHONE=..
 psql "$STAGING_DB_URL" -v ON_ERROR_STOP=1 -At -f scripts/landing-gate/purge-staleness.sql
 ```
 
+### Directory gate on staging (Story 25.6)
+
+The SEO steps cannot run from a development session (no staging, no Search Console, no Rich Results request from here). The numbered OPEN list with every URL and what to record is in `docs/decisions.md`, section "Story 25.6". The removal run is:
+
+```sh
+# 0. the target FIRST: every command below reads it (without it --check-visible would probe localhost)
+export BASE_URL='https://{label}.<staging root>' ROOT_DOMAIN='<staging root>' GATE_PLATFORM=vercel GATE_ENV_LABEL='staging, through the CDN'
+# 1. read the city listing's count first (the number in "N gyms in <city>")
+# 2. BEFORE the action, prove the tool can see the gym on every surface (needs no --since; exit 1 names each surface that does not show the gym or could not be read):
+node scripts/landing-gate/removal-timing.mjs --check-visible --label <the gym's page name> --country <cc> --city <city slug> --count-before <N>
+# 3. only when step 2 exited 0: take the time IMMEDIATELY before the action, then do ONE removal in the Owner or Super Admin UI
+SINCE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+# 4. right after the action:
+node scripts/landing-gate/removal-timing.mjs --since "$SINCE" --label <the removed gym's page name> \
+  --country <cc> --city <city slug> --count-before <N> --cause unpublish    # then takedown, then suspension (one gym each); add --locale fr for a second run in French
+```
+
+Run `--check-visible` first: without it a mistyped label or city, a gym that was never live, or a listing row on page 2 all read as "gone before the first poll" and the run would pass with nothing proven. Then run the timing within a minute of the action: a surface already gone at the first poll is reported as "gone before the first poll" with the time of that poll as an upper bound, and a first poll later than the bound proves nothing and fails. In `--mode cdn` (the default whenever `ROOT_DOMAIN` is not `localhost`) the time is measured against 300 s (pages, listings, `llms.txt`) and 900 s (sitemaps). With `--count-before 3` the www sitemap surface applies (the city leaves the sitemap when it drops to 2); with any other count it prints `n/a`. Exit 2 without `--since` (normal mode), for a `--since` more than 5 s in the future, and for a `--poll-ms` below 50 or not a number. In `--mode cdn` the `s-maxage` header is not judged (on Vercel the client-visible `Cache-Control` drops it); the measured time is the proof.
+
 The load check needs permission from the owner to run against staging: it sends several thousand requests of random labels. Keep `GATE_LOAD_STEPS` small on a first run (`GATE_LOAD_STEPS=2,8`).
 
 ## Variables
@@ -60,7 +84,12 @@ The load check needs permission from the owner to run against staging: it sends 
 | `GATE_MEDIA_ORIGIN` | `http://127.0.0.1:3911` | the storage origin the CSP names |
 | `GATE_PLATFORM`, `GATE_ALLOWED_EXTRA_HEADERS` | `none`, empty | headers added by the platform; they are allowed and **printed**, never silent |
 | `GATE_PUBLISHED_MARKER` | `GATE FIT` | text the published page must contain (its gym name); **set it to the staging page's gym name** |
+| `GATE_DIRECTORY_COUNTRY`, `GATE_DIRECTORY_CITY`, `GATE_DIRECTORY_LABEL` | `cm`, `garoua`, `www` locally; empty on staging | the directory pages checked (country and city slugs that list the published page); with a `{label}` BASE_URL and these unset only the top pages are checked and the run says so |
 | `GATE_LABEL_*` | the local fixture labels | `PUBLISHED`, `REDIRECT_OLD`, `UNPUBLISHED`, `TAKEN_DOWN`, `SUSPENDED`, `UNKNOWN`, `RESERVED`, `INVALID` |
+| `GATE_LCP_TARGET` | `gym` | `gym`, `directory-top` or `directory-city` (the last needs `GATE_DIRECTORY_COUNTRY` and `GATE_DIRECTORY_CITY`) |
+| `GATE_LOAD_DIRECTORY_SHARE` | 0.2 | share of the load check's requests that are directory pages (0 turns them off; they need `GATE_DIRECTORY_COUNTRY`/`CITY`) |
+| `GATE_DIRECTORY_GYMS` | 45 | `seed.mjs up --directory`: extra published gyms in Garoua (local only) |
+| `GATE_LABEL_REMOVED` | none | `removal-timing.mjs`: the removed gym's page name when `--label` is not given |
 | `GATE_LCP_RUNS`, `GATE_LCP_TARGET_MS`, `GATE_LCP_ENFORCE` | 20, 3000, off | the 3 s target stays an `[ASSUMPTION]`, so the default **records** the baseline; `GATE_LCP_ENFORCE=1` makes "over" fail |
 | `GATE_LOAD_STEPS`, `GATE_LOAD_STEP_SECONDS`, `GATE_LOAD_REAL_SHARE`, `GATE_LOAD_SEED` | `2,8,24,64`, 15, 0.1, 1 | the scan; the same seed repeats the same labels |
 | `GATE_ADMIN_DB_URL`, `GATE_READER_ROLE` | local postgres, `public_site_reader` | the sampler reads `pg_stat_activity` and the role's limit from `pg_roles` |

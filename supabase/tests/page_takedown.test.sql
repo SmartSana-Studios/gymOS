@@ -84,9 +84,10 @@ create or replace function pg_temp.complete(gym text, nm text, plan_id text, n i
 begin
   perform set_gym_page_content(pg_temp.g(gym)::uuid,
     jsonb_build_object('about_en', repeat('This gym is complete. ', 6), 'about_fr', repeat('Cette salle est complete. ', 6), 'services_en', 'Cardio', 'services_fr', 'Cardio FR',
-                       'city', 'Douala', 'contact_phone', '+237600555000',
+                       'contact_phone', '+237600555000',
                        'hours', '{"mon":{"open":"06:00","close":"22:00"},"sun":null}'::jsonb),
     jsonb_build_array(jsonb_build_object('plan_id', plan_id, 'is_public', true)));
+  perform set_gym_location(pg_temp.g(gym)::uuid, 'CM', (select id from cities where country_code = 'CM' and slug = 'douala'));
   perform claim_page_name(pg_temp.g(gym)::uuid, nm);
   perform register_page_media(pg_temp.g(gym)::uuid, 'logo', pg_temp.g(gym) || '/' || pg_temp.ok_(n), pg_temp.dk(n), true, 'v1');
   perform register_page_media(pg_temp.g(gym)::uuid, 'banner', pg_temp.g(gym) || '/' || pg_temp.ok_(n + 1), pg_temp.dk(n + 1), true, 'v1');
@@ -443,7 +444,7 @@ select is(pg_temp.consumer('claim'), 'claim_page_name: page_taken_down', 'consum
 select is(pg_temp.consumer('redirect_sweep'), 'redirect', 'consumer page_names_sweep loop 2: an expired flagged redirect of a taken-down gym is kept');
 -- every one of them can fail: break the consumer, the same check turns
 create or replace view private.gym_page_visible with (security_barrier = true) as
-select gp.page_name_id, gp.template, gp.schema_version, gp.content, gp.published_at, gp.updated_at, pn.name
+select gp.page_name_id, gp.template, gp.schema_version, gp.content, gp.published_at, gp.updated_at, pn.name, g.city_id
 from public.gym_pages gp join public.page_names pn on pn.id = gp.page_name_id and pn.gym_id = gp.gym_id join public.gyms g on g.id = gp.gym_id
 where gp.published_at is not null and gp.unpublished_at is null and pn.state = 'active' and pn.taken_down_at is null and g.status = 'active';
 select is(pg_temp.consumer('visible'), '1', 'KNOWN-BAD: a visibility predicate without the page-row term shows the taken-down page');
@@ -451,7 +452,7 @@ select is(pg_temp.consumer('reader_pages'), '1', 'KNOWN-BAD: and public_site.pag
 select is(pg_temp.consumer('reader_media'), '2', 'KNOWN-BAD: and public_site.page_media lists its images');
 select is(pg_temp.consumer('reader_redirects'), '1', 'KNOWN-BAD: and public_site.page_redirects forwards the old name to the taken-down page');
 create or replace view private.gym_page_visible with (security_barrier = true) as
-select gp.page_name_id, gp.template, gp.schema_version, gp.content, gp.published_at, gp.updated_at, pn.name
+select gp.page_name_id, gp.template, gp.schema_version, gp.content, gp.published_at, gp.updated_at, pn.name, g.city_id
 from public.gym_pages gp join public.page_names pn on pn.id = gp.page_name_id and pn.gym_id = gp.gym_id join public.gyms g on g.id = gp.gym_id
 where gp.published_at is not null and gp.unpublished_at is null and gp.taken_down_at is null and pn.state = 'active' and pn.taken_down_at is null and g.status = 'active';
 select is(pg_temp.consumer('visible'), '0', 'control: the predicate is restored');

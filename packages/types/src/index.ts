@@ -33,3 +33,5 @@ export * from "./pagination";
 export * from "./pageHost";
 export * from "./schemas/pageContent";
 export * from "./schemas/pageModeration";
+export * from "./schemas/place";
+export * from "./placeNorm";

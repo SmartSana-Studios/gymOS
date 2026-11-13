@@ -30,6 +30,15 @@ async function snapshot(r: Response) {
   return { status: r.status, headers: [...r.headers.entries()].sort(), body: await r.text() };
 }
 
+/** Story 25.4: executable script stays banned; the one `<script` allowed is a single inert application/ld+json block whose text is JSON and holds no `<`. */
+function expectOnlyOneLdJsonBlock(body: string): void {
+  expect([...body.matchAll(/<script\b[^>]*>/g)].map((m) => m[0])).toEqual(['<script type="application/ld+json">']);
+  expect(body.match(/<\/script>/g)).toHaveLength(1);
+  const text = /<script type="application\/ld\+json">([^]*?)<\/script>/.exec(body)![1]!;
+  expect(text).not.toMatch(/[<>&]/);
+  expect(() => JSON.parse(text)).not.toThrow();
+}
+
 describe("the proxy: every outcome for a host and a path", () => {
   const cases: [string, string, string | undefined, string][] = [
     ["apex", "gymosapps.com", "/", "marketing"],
@@ -195,7 +204,8 @@ describe("the page route", () => {
     expect(r.headers.get("content-security-policy")).toBe(
       `default-src 'none'; img-src ${MEDIA}; style-src '${hash}'; font-src 'self'; connect-src 'none'; script-src 'none'; base-uri 'none'; form-action 'self'; object-src 'none'; frame-ancestors 'none'`,
     );
-    expect(body).not.toMatch(/<script|__NEXT_DATA__/);
+    expectOnlyOneLdJsonBlock(body);
+    expect(body).not.toMatch(/__NEXT_DATA__/);
   });
 
   it("one complete language: that language, no link, no hreflang, for a visitor who prefers the other", async () => {
@@ -231,7 +241,7 @@ describe("the page route", () => {
     c.about_en = `<script>alert(1)</script><img src=x onerror=alert(1)>\n${c.about_en}`;
     const r = await ask(deps({ readPage: async () => row({ content: c }) }), "fit", "/", "en");
     const body = await r.text();
-    expect(body).not.toContain("<script");
+    expectOnlyOneLdJsonBlock(body);
     expect(body).not.toContain("<img src=x");
     expect(body).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
   });

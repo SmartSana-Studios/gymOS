@@ -2046,3 +2046,79 @@ Lab, local results only (one machine runs the server, the database, the load and
 - **A draft template choice that survives a reload.** For a page that is not live the choice lives in the editor session and the `?template=` handoff. A real draft needs a `gyms.page_template` column (or a content key), `set_gym_page_content` and the draft-change trigger to carry it, `publish_gym_page` to read it, the shared fixture and pgTAP updates, and a migration to production. Not done: too large to add to epic 24 at the merge.
 - **Thumbnails from the gym's own content.** The picker draws wireframes. A real preview needs the dashboard to render the template module over the unpublished content (AD-48), with the page's CSP and media origin handled in an iframe.
 - **Per-template speed numbers.** [Volt on production measured 2026-11-11, p75 1,164 ms; Classic locally p75 3,488 ms; Classic on production and load still open.] The 24.12 LCP/load table covers the old Classic only. Run `scripts/landing-gate/run-local.sh lcp` against Classic and Volt before the gate is signed.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
+  summary: Before applying the 25.1 migration to production, run a rolled-back proof of its backfill and live-page re-judge on pre-0169 data and list every live page that will unpublish for want of a mapped city.
+  evidence: The backfill and `do $refresh$` loop in the migration are never executed by pgTAP (it tests a pasted copy on an empty DB). Live pages with unmapped or free-text cities unpublish at deploy; the owner should hand-map first.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
+  summary: Settings country picker offers AC, TA and XK, which are not in the seeded `countries` table, so such a gym can never get a city.
+  evidence: `libphonenumber-js` getCountries() includes them, the ISO seed from Intl.DisplayNames does not; set_gym_location answers unknown_country. Cameroon pilot unaffected.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
+  summary: An Owner changing country in Settings clears the gym's city and unpublishes its page with no warning before the save.
+  evidence: Trigger `gyms_z_clear_city_on_country_change` (by the approved intent); `predictedBreaks` no longer models `no_city`, and Settings has no live-page warning.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
+  summary: RESOLVED 2026-11-12 by 25-3 (migration 0171 corrects 22 names, pinned by supabase/tests/directory_country_names.test.sql). Close before story 25.3: review the seeded country names (Intl.DisplayNames short forms such as "Congo - Kinshasa", "Antigua & Barbuda", "St. Barthélemy") before they become public directory headings.
+  evidence: `countries.name_en/name_fr` come straight from ICU; no UI edits them. Added to the 25.3 acceptance criteria in epics.md.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
+  summary: The Super Admin /cities read (select with `city_aliases` and `gyms(count)` embeds) is tested only against a mock that ignores the select string.
+  evidence: apps/super-admin has no e2e; a mistyped embed would show LoadError. Covered by the owner's browser QA of /cities.
+
+## Deferred from: code review of spec-25-1-country-and-city-controlled-lists-gym-city-selection (2026-11-12)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-1-country-and-city-controlled-lists-gym-city-selection.md`
+  summary: RESOLVED 2026-11-12 (both documents corrected on epic/25). Close before the 25-2 spec is written: `epic-25-context.md` (line 31) and the Story 25.1 acceptance criteria in `epics.md` (line 3857) still describe `cities.aliases text[]` and `numeric(8,5)`; the shipped schema has a `city_aliases` table and `numeric(9,6)`.
+  evidence: Migration 0169 and the spec ("AD-49 wins over the epic's text[]"). 25-2 builds the directory views from these documents, so a story written from the old text will target a column that does not exist. Fix is to edit the two documents, not the code.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-2-directory-views-and-listing-correctness.md`
+  summary: RESOLVED 2026-11-12 by 25-3 (the country page and the top-page cards count the directory_city rows, S; noindex while S differs from the country view). Close before 25-3 is done (acceptance criterion for 25.3): the country page's displayed count and its `indexable` must come from the same rows it lists (the `directory_city`/`directory_gym` rows), not from `directory_country.published_count` alone.
+  evidence: `directory_country` counts by the snapshot's country while the city and gym views join the live `gyms.city_id`, so inside the AD-46 refresh window a country can show a count with no listed gym, and can read `indexable` true while none of its cities is (the Ghana and Kenya cases in `supabase/tests/directory_views.test.sql`). Review of 25-2, 2026-11-12.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-2-directory-views-and-listing-correctness.md`
+  summary: Before the production apply of 0170, rehearse `scripts/rollback-0170-directory-views.sql` (and 0169) in a rolled-back transaction and compare the restored `pages`, `page_media` and `page_redirects` definitions, reloptions and grants with the pre-0170 state; extend or retire `scripts/rollback-rehearsal-epic24.sh`.
+  evidence: The rollback was proven only by one manual local run; the script holds hand-copied 0164/0166 view text; `rollback-rehearsal-epic24.sh` runs 0168..0160 and its `drop view private.gym_page_visible` step cannot succeed while the 0170 directory views (and 0169 objects) depend on it, so it needs 0170 and 0169 rolled back first. Review of 25-2, 2026-11-12.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-3-directory-pages-country-city-category-filter.md`
+  summary: CLOSED 2026-11-13 by 25-7 (inline SVG from Natural Earth 110 m, generator and committed module, local projection proven equal to d3, dots, CSS-only labels, caption; docs/decisions.md 25.7). Was: Africa map on the top directory page: CARRIED by story 25.7 (epics.md, sprint-status 25-7; decided in the 25-3 re-review, 2026-11-12). build-time inline SVG from Natural Earth 110 m (generator script, committed generated module, local Natural Earth projection proven equal to d3, one dot per city with coordinates, CSS-only labels, halo under prefers-reduced-motion, caption, `aria-hidden` with `tabindex=-1` links), exactly as in the 25.3 epic criteria and DESIGN.md "Africa map".
+  evidence: Split from 25.3 at the size gate (2026-11-12): independently mergeable, adds devDependencies and a generator, and is the largest risk in the story. The 25.3 top page ships without a map; the hero must leave room for it (copy left, map right from 1024 px).
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-3-directory-pages-country-city-category-filter.md`
+  summary: CLOSED 2026-11-13 by 25-7 (migration 0172 view `directory_city_redirect`, grant tests, redirect branch in the directory handler; 0172 must be applied before the first production city rename). Was: Old city slugs do not 301 for 12 months: CARRIED by story 25.7 (epics.md, sprint-status 25-7; decided in the 25-3 re-review, 2026-11-12). the reader role cannot read `city_slug_history`, so a renamed city's old `/gyms/{cc}/{old-slug}` URL is the uniform not-found until a `public_site` view exposes the redirects.
+  evidence: 25.1 promised the 301; 25.3 reads only the 25.2 views (owner chose to defer, 2026-11-12). Needs a fourth reader view, a grant-test edit and a redirect branch in the directory handler. Nothing is renamed at launch.
+
+## Deferred from: code review of spec-25-3-directory-pages-country-city-category-filter (2026-11-12)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-3-directory-pages-country-city-category-filter.md`
+  summary: PARTLY CLOSED 2026-11-13 by 25-6 (`load.mjs` mixes directory requests, default 20%, with random `?x=`, `?page=` past the last page and `?category=` values against the same connection ceiling and reports their latency separately; unit-tested in `__tests__/pure.test.mjs`, run locally). The open half is the per-query-string CDN-key effect, which only a staging load run can show: decisions.md 25.6 checklist item 8. Extend the landing-gate load check (`scripts/landing-gate/load.mjs`) to the directory routes, including random `?x=` query strings and `?page=` values, before the 25.6 release gate.
+  evidence: Unverified medium. The route is `force-dynamic` with `s-maxage=60`; every distinct query string is a new CDN key and a city page runs four reads on the reader's one-connection pool (`CONNECTION LIMIT` sized for gym pages with one read). Review of 25-3, 2026-11-12.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-3-directory-pages-country-city-category-filter.md`
+  summary: No test that CI runs requests a directory page through the real Next route, reader and renderer; `scripts/landing-gate/check-http.mjs` (which now does) is owner-run through `run-local.sh`, not in ci-local or GitHub Actions.
+  evidence: Same design as the 24.x gate kit. The implementer ran `run-local.sh http` against a built server (lazy `react-dom/server` import worked). A swap to a static import or a dropped `deps()` field would pass vitest. Review of 25-3, 2026-11-12.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-3-directory-pages-country-city-category-filter.md`
+  summary: `apps/mobile/src/constants/countryNames.ts` (phone picker) still holds the ICU short forms that migration 0171 corrected in `public.countries`.
+  evidence: A separate generated list, so the directory is unaffected; the two country-name sources now disagree. Review of 25-3, 2026-11-12.
+
+## Deferred from: code review of spec-25-4-structured-data-serializer-and-validation (2026-11-12)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-4-structured-data-serializer-and-validation.md`
+  summary: AD-44 in `ARCHITECTURE-SPINE.md` (line 287) is titled and worded "gym pages are script-free static HTML"; since 25.4 a gym page and a directory page carry one inert `application/ld+json` block (executable scripts are still banned and `script-src 'none'` is unchanged).
+  evidence: AD-51's "As built (Story 25.4)" bullet records the relaxation, so the architecture is not wrong, only AD-44's wording is stale. Fix is a one-line reword of AD-44 at the next architecture touch-up. Review of 25-4, 2026-11-12.
+
+## Deferred from: code review of spec-25-5-sitemaps-robots-and-plain-text-summary (2026-11-12)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-5-sitemaps-robots-and-plain-text-summary.md`
+  summary: `/llms.txt`, `/sitemap-index.xml` and `/sitemaps/{n}.xml` each read the database on every request that misses the CDN, so a varying query string (`?x=N`) or a well-formed but nonexistent chunk number can reach the one pooled connection at will, and `llms.txt` reads up to 5,001 full snapshots each time.
+  evidence: Every dynamic public route has the same exposure; `llms.txt` is the heaviest read. Needs a platform answer (a rate or query-string rule at the CDN, or a short per-instance memo) rather than a handler guard. Unverified at load. Review of 25-5, 2026-11-12.
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-5-sitemaps-robots-and-plain-text-summary.md`
+  summary: A full sitemap file (50,000 entries with three alternates each, about 20 MB) and a large `llms.txt` (bounded by gym count, not bytes) exceed Vercel's 4.5 MB non-streamed function response limit.
+  evidence: Reachable only at tens of thousands of listings or a few thousand gyms with many plans. When a platform approaches it, lower `SITEMAP_CHUNK_SIZE` (the handler already takes it as a dep) and cap `llms.txt` by bytes. Review of 25-5, 2026-11-12.
+
+## Deferred from: code review of spec-25-5-sitemaps-robots-and-plain-text-summary, second review (2026-11-12)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-5-sitemaps-robots-and-plain-text-summary.md`
+  summary: PARTLY CLOSED 2026-11-13 by 25-6 (`run-local.sh http` was run again on the final tree of 25-6 and its result is in docs/decisions.md; the stage in ci-local/CI is still not built). The real-server proof of the four crawler routes is not in `ci-local.sh` or CI. Next's routing of `/robots.txt`, `/sitemap-index.xml`, `/sitemaps/{n}.xml` (the `[file]` segment) and `/llms.txt`, the 200 and no-`noindex` answer of the marketing `/en` and `/fr` entries, and the presence of the fixture's indexable city (with its thin city and thin country absent) are checked only by `bash scripts/landing-gate/run-local.sh http`. Renaming a route folder keeps vitest and ci-local green.
+  evidence: Same arrangement as 25.3 and 25.4; the implementer ran it and it passed. Close by adding a stage that serves the built landing app and runs `check-http`, or at the latest by running it again at the epic end before 25.6. Also: nothing compares the marketing pages' hreflang with the sitemap's `/en` and `/fr` alternates (the values match today). Review of 25-5, 2026-11-12.
+- Refinement of the response-size entry above: the 4.5 MB limit is hit near 11,000 entries (about 5,600 places), not at "tens of thousands of listings"; lower `SITEMAP_CHUNK_SIZE` to about 5,000 before a place count nears that. The spec says "at most 50,000", so the owner picks the number.
+
+## Deferred from: code review of spec-25-6-directory-gate-seo-verification-and-removal-timing (2026-11-13)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-25-6-directory-gate-seo-verification-and-removal-timing.md`
+  summary: The directory wiring of the landing-gate kit has no automated check. `seed.mjs --directory` (`seedDirectory`), the directory share in `load.mjs`, the `GATE_LCP_TARGET` targets in `lcp.mjs` and the `JOBS`/`SEED_ARGS` logic in `run-local.sh` are covered only by the unit tests of the pure helpers in `lib/load.mjs`; making `load.mjs` pass `expected: false` keeps all 101 kit tests green.
+  evidence: Owner-run kit by design; decisions.md 25.6 records a passing local run (7229 requests, 1464 directory). Would settle it: a thin test of `seedDirectory` or a `ci-local` stage that runs `run-local.sh load` with a short `GATE_LOAD_STEPS`.

@@ -43,6 +43,8 @@ export function SiteHeader({
     { href: "#how", label: nav.how },
     { href: "#app", label: nav.app },
     { href: "#about", label: nav.about },
+    // Story 25.3: the directory is its own set of pages (a Route Handler), so this is a plain link, not a client navigation.
+    { href: `/${locale}/gyms`, label: nav.gyms },
   ];
 
   return (

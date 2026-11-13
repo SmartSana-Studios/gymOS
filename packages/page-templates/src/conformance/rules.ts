@@ -10,11 +10,14 @@ import { CHROME } from "../chrome";
 import type { Chrome } from "../contract";
 import type { Case, Rendered, Subject } from "./subject";
 import { MEDIA_BASE, PAGE_ORIGIN, TEST_CONFIG, WWW_ORIGIN } from "./subject";
+import { validateJsonLd } from "../structuredData.fixtures";
+import { metaDescription, pageTitle } from "../format";
 
 export const DOM_RULE_IDS = [
   "section-order",
   "omit-never-empty",
   "no-script",
+  "structured-data",
   "header-policy",
   "style-budget",
   "media-origin",
@@ -112,6 +115,8 @@ function expectedSections(ctx: RuleContext): string[] {
   return SECTION_IDS.filter((id) => has[id]);
 }
 
+const LD_JSON = "application/ld+json";
+
 const rules: Record<DomRuleId, (ctx: RuleContext) => string[]> = {
   "section-order"(ctx) {
     const found = [...ctx.doc.querySelectorAll("[data-section]")].map((e) => e.getAttribute("data-section") ?? "");
@@ -143,7 +148,19 @@ const rules: Record<DomRuleId, (ctx: RuleContext) => string[]> = {
 
   "no-script"(ctx) {
     const v: string[] = [];
-    const banned = ctx.doc.querySelectorAll("script, iframe, frame, frameset, object, embed, applet, base, form, link[rel~=modulepreload], link[rel~=prefetch], meta[http-equiv=refresh]");
+    // Story 25.4: executable script stays banned; the ONE allowed script is the inert JSON-LD data block, and its text must parse as JSON. How many blocks there are is the structured-data rule's.
+    ctx.doc.querySelectorAll("script").forEach((e) => {
+      if (e.getAttribute("type") !== LD_JSON) v.push("<script> is not allowed (only the application/ld+json data block)");
+      else if (e.attributes.length !== 1) v.push(`the application/ld+json block carries an attribute besides type (${[...e.attributes].map((a) => a.name).filter((n) => n !== "type").join(", ")})`);
+      else {
+        try {
+          JSON.parse(e.textContent ?? "");
+        } catch {
+          v.push("the application/ld+json block is not valid JSON");
+        }
+      }
+    });
+    const banned = ctx.doc.querySelectorAll("iframe, frame, frameset, object, embed, applet, base, form, link[rel~=modulepreload], link[rel~=prefetch], meta[http-equiv=refresh]");
     banned.forEach((e) => v.push(`<${e.tagName.toLowerCase()}> is not allowed`));
     for (const el of ctx.doc.querySelectorAll("*")) {
       for (const a of el.attributes) {
@@ -152,6 +169,58 @@ const rules: Record<DomRuleId, (ctx: RuleContext) => string[]> = {
       }
     }
     if (/__NEXT_DATA__|self\.__next|__next_f|hydrat/i.test(ctx.html)) v.push("hydration payload");
+    return v;
+  },
+
+  "structured-data"(ctx) {
+    // Story 25.4 (AD-51): every response of every registered template carries exactly one HealthClub block and the Open Graph tags, whatever the template does.
+    const v: string[] = [];
+    const { doc, content, decision } = ctx;
+    const blocks = [...doc.querySelectorAll("script")].filter((e) => e.getAttribute("type") === LD_JSON);
+    if (blocks.length !== 1) v.push(`${blocks.length} application/ld+json blocks, expected exactly one`);
+    const block = blocks[0];
+    if (block) {
+      if (block.parentElement?.tagName !== "HEAD") v.push("the JSON-LD block is not in <head>");
+      const raw = block.textContent ?? "";
+      // inert: no character that could close the block or start markup; the escapes carry them
+      if (/[<>&\u2028\u2029]/.test(raw)) v.push("the JSON-LD text holds an unescaped < > & or line separator");
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        parsed = undefined; // not JSON: the no-script rule reports it
+      }
+      if (parsed !== undefined) {
+        v.push(...validateJsonLd(parsed, "HealthClub"));
+        const node = parsed as Record<string, unknown>;
+        if (node["name"] !== content.name) v.push("the JSON-LD name is not the gym name as entered");
+        if (node["url"] !== `${PAGE_ORIGIN}/`) v.push(`the JSON-LD url is ${JSON.stringify(node["url"])}, expected ${PAGE_ORIGIN}/ (one URL per gym page)`);
+        const addr = (node["address"] ?? {}) as Record<string, unknown>;
+        if (content.country && addr["addressCountry"] !== content.country) v.push("addressCountry is not the stored ISO code");
+        if (Boolean(node["geo"]) !== Boolean(content.map)) v.push("geo must exist exactly when there is a map position");
+        if (Boolean(node["openingHoursSpecification"]) !== Object.values(content.hours ?? {}).some(Boolean)) v.push("openingHoursSpecification must exist exactly when a day is open");
+        if (Boolean(node["telephone"]) !== Boolean(content.contact?.phone)) v.push("telephone must exist exactly when there is a phone number");
+        for (const u of [...((node["image"] as string[] | undefined) ?? []), ...(node["logo"] ? [node["logo"] as string] : [])]) if (!u.startsWith(`${MEDIA_BASE}/`)) v.push(`JSON-LD image outside the media origin: ${u.slice(0, 60)}`);
+      }
+    }
+    const metas = Object.fromEntries([...doc.querySelectorAll("meta[property^=\"og:\"]")].map((m) => [m.getAttribute("property") ?? "", m.getAttribute("content") ?? ""]));
+    const ogCount = doc.querySelectorAll("meta[property^=\"og:\"]").length;
+    for (const p of ["og:type", "og:title", "og:description", "og:url"]) if (!metas[p]) v.push(`missing ${p}`);
+    if (ogCount !== Object.keys(metas).length) v.push("a duplicate og: tag");
+    const title = doc.querySelector("title")?.textContent ?? "";
+    if (metas["og:type"] !== "website") v.push(`og:type is ${JSON.stringify(metas["og:type"])}, expected "website"`);
+    if (metas["og:title"] !== title) v.push(`og:title is ${JSON.stringify(metas["og:title"])}, the <title> is ${JSON.stringify(title)}`);
+    if (metas["og:title"] !== pageTitle(content, decision.shown)) v.push("og:title is not the shared page title");
+    // the description in the language shown: the meta description (first paragraph of About), else category and city, else the name
+    const category = content.category ? CHROME[decision.shown].categories[content.category] : undefined;
+    const wantDescription = metaDescription(content, decision.shown) ?? ([category, content.city].filter(Boolean).join(", ") || content.name);
+    if (metas["og:description"] !== wantDescription) v.push(`og:description is ${JSON.stringify(metas["og:description"])}, expected ${JSON.stringify(wantDescription)} (the description in the language shown)`);
+    const metaDesc = doc.querySelector("meta[name=\"description\"]")?.getAttribute("content");
+    if (metaDesc !== undefined && metaDesc !== null && metaDesc !== metas["og:description"]) v.push("og:description differs from the meta description");
+    if (metas["og:url"] !== `${PAGE_ORIGIN}/`) v.push(`og:url is ${JSON.stringify(metas["og:url"])}, expected ${PAGE_ORIGIN}/ (never the request host)`);
+    const imageKey = content.banner ?? content.logo ?? content.gallery?.[0];
+    const wantImage = imageKey ? `${MEDIA_BASE}/${imageKey}` : undefined;
+    if (metas["og:image"] !== wantImage) v.push(`og:image is ${JSON.stringify(metas["og:image"])}, expected ${JSON.stringify(wantImage)}`);
     return v;
   },
 

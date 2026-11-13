@@ -6,7 +6,7 @@
 -- either means editing the pinned list below in the same change (24.7/24.8 extend the view on purpose).
 
 begin;
-select plan(71);
+select plan(80);
 
 -- The migration owner is not allowed to SET ROLE to the reader by default; grant it inside this rolled-back transaction so the
 -- denial assertions below prove a missing privilege, not a missing SET ROLE right.
@@ -172,13 +172,24 @@ select is(
 select is((select reloptions from pg_class where oid = 'public_site.pages'::regclass), array['security_barrier=true'], 'public_site.pages is a security_barrier view');
 select is((select reloptions from pg_class where oid = 'public_site.page_media'::regclass), array['security_barrier=true'], 'public_site.page_media is a security_barrier view');
 select is((select reloptions from pg_class where oid = 'public_site.page_redirects'::regclass), array['security_barrier=true'], 'public_site.page_redirects is a security_barrier view (24.10)');
+select is((select reloptions from pg_class where oid = 'public_site.directory_gym'::regclass), array['security_barrier=true'], 'public_site.directory_gym is a security_barrier view (25.2)');
+select is((select reloptions from pg_class where oid = 'public_site.directory_city'::regclass), array['security_barrier=true'], 'public_site.directory_city is a security_barrier view (25.2)');
+select is((select reloptions from pg_class where oid = 'public_site.directory_country'::regclass), array['security_barrier=true'], 'public_site.directory_country is a security_barrier view (25.2)');
+select is((select reloptions from pg_class where oid = 'public_site.directory_city_redirect'::regclass), array['security_barrier=true'], 'public_site.directory_city_redirect is a security_barrier view (25.7)');
 select is(
   (select count(*)::int from pg_class c where c.relnamespace = 'public_site'::regnamespace and c.relkind <> 'v'), 0,
   'public_site holds views only'
 );
 select is(
   (select array_agg(relname::text order by relname) from pg_class c where c.relnamespace = 'public_site'::regnamespace),
-  array['page_media', 'page_redirects', 'pages'], 'public_site holds exactly the views pages, page_media and page_redirects (24.6 added page_media, 24.10 page_redirects); edit this list with any view change'
+  array['directory_city', 'directory_city_redirect', 'directory_country', 'directory_gym', 'page_media', 'page_redirects', 'pages'],
+  'public_site holds exactly the views pages, page_media, page_redirects, directory_gym, directory_city, directory_country and directory_city_redirect (24.6 added page_media, 24.10 page_redirects, 25.2 the three directory views, 25.7 directory_city_redirect); edit this list with any view change'
+);
+select is(
+  (select array_agg(c.relname::text order by c.relname) from pg_class c
+    where c.relnamespace = 'public_site'::regnamespace and c.relkind = 'v' and has_table_privilege('public_site_reader', c.oid, 'SELECT')),
+  array['directory_city', 'directory_city_redirect', 'directory_country', 'directory_gym', 'page_media', 'page_redirects', 'pages'],
+  'the reader can select exactly seven views, directory_city_redirect among them (25.7)'
 );
 select is(
   (select array_agg(p.oid::regprocedure::text order by p.oid::regprocedure::text) from pg_proc p where p.pronamespace = 'public_site'::regnamespace),
@@ -191,7 +202,7 @@ select is(
   0, 'anon, authenticated, service_role hold nothing on schema public_site'
 );
 select is(
-  (select count(*)::int from unnest(array['public', 'anon', 'authenticated', 'service_role']) g, unnest(array['public_site.pages', 'public_site.page_media', 'public_site.page_redirects', 'public.gym_pages', 'public.gym_page_media', 'public.page_names', 'public.page_name_words']) t,
+  (select count(*)::int from unnest(array['public', 'anon', 'authenticated', 'service_role']) g, unnest(array['public_site.pages', 'public_site.page_media', 'public_site.page_redirects', 'public_site.directory_gym', 'public_site.directory_city', 'public_site.directory_country', 'public_site.directory_city_redirect', 'public.city_slug_history', 'public.gym_pages', 'public.gym_page_media', 'public.page_names', 'public.page_name_words']) t,
           unnest(array['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) p
    where has_table_privilege(g, t, p)),
   0, 'PUBLIC, anon, authenticated, service_role hold no privilege on the public_site views or the tables behind them'
@@ -267,6 +278,30 @@ select is(
    where table_schema = 'public_site' and table_name = 'page_redirects'),
   array['old_name', 'name'],
   'public_site.page_redirects columns are pinned (24.10: the old name and the current name; no gym id); edit this list with any view change'
+);
+select is(
+  (select array_agg(column_name::text order by ordinal_position) from information_schema.columns
+   where table_schema = 'public_site' and table_name = 'directory_gym'),
+  array['country_code', 'city_slug', 'city_name', 'category', 'name', 'page_name', 'logo_key'],
+  'public_site.directory_gym columns are pinned (25.2: no gym_id, city_id, page_name_id, banner, hours, plans, contact, address, map or colour); edit this list with any view change'
+);
+select is(
+  (select array_agg(column_name::text order by ordinal_position) from information_schema.columns
+   where table_schema = 'public_site' and table_name = 'directory_city'),
+  array['country_code', 'city_slug', 'city_name', 'lat', 'lng', 'published_count', 'indexable'],
+  'public_site.directory_city columns are pinned (25.2: the city''s own lat/lng, never a gym position, no ids); edit this list with any view change'
+);
+select is(
+  (select array_agg(column_name::text order by ordinal_position) from information_schema.columns
+   where table_schema = 'public_site' and table_name = 'directory_country'),
+  array['country_code', 'name_en', 'name_fr', 'published_count', 'indexable'],
+  'public_site.directory_country columns are pinned (25.2); edit this list with any view change'
+);
+select is(
+  (select array_agg(column_name::text order by ordinal_position) from information_schema.columns
+   where table_schema = 'public_site' and table_name = 'directory_city_redirect'),
+  array['country_code', 'old_slug', 'city_slug'],
+  'public_site.directory_city_redirect columns are pinned (25.7: old slug and current slug per country; no history id, no city id); edit this list with any view change'
 );
 select is(
   (select array(select (regexp_matches(substring(pg_get_constraintdef(oid) from 'ARRAY\[(.*)\]'), '''([a-z_]+)''', 'g'))[1] order by 1)

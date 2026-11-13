@@ -7,7 +7,7 @@ import { schemeFor } from "./renderCore";
 /** 5 minutes at the CDN: the sitemap leaves within 15 minutes of an unpublish (EXPERIENCE.md "Availability"). */
 export const SEO_CACHE_CONTROL = "public, s-maxage=300";
 
-const xmlEscape = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+export const xmlEscape = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 
 export function pageOrigin(name: string, rootDomain: string): string {
   const root = rootDomain.toLowerCase();
@@ -26,16 +26,25 @@ const COMMON_HEADERS = {
   ...SECURITY_HEADERS_BASE,
 } as const;
 
+/**
+ * Story 25.5: the header set of every crawler response (a gym host's /sitemap.xml and /robots.txt, the main site's /robots.txt, /sitemap-index.xml,
+ * /sitemaps/{n}.xml and /llms.txt): the content type, a 5 minute CDN cache, a CSP that allows nothing, the base security headers, no cookie.
+ * ONE function, so the two hosts cannot drift.
+ */
+export function seoHeaders(contentType: string): Record<string, string> {
+  return { "Content-Type": contentType, ...COMMON_HEADERS };
+}
+
 export function renderSitemap(name: string, rootDomain: string): SeoParts {
   const body =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url><loc>${xmlEscape(pageOrigin(name, rootDomain))}/</loc></url>\n</urlset>\n`;
-  return { status: 200, headers: { "Content-Type": "application/xml; charset=utf-8", ...COMMON_HEADERS }, body };
+  return { status: 200, headers: seoHeaders("application/xml; charset=utf-8"), body };
 }
 
 export function renderRobots(name: string, rootDomain: string): SeoParts {
   const body = `User-agent: *\nAllow: /\n\nSitemap: ${pageOrigin(name, rootDomain)}/sitemap.xml\n`;
-  return { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8", ...COMMON_HEADERS }, body };
+  return { status: 200, headers: seoHeaders("text/plain; charset=utf-8"), body };
 }
 
 /** The paths a gym host answers beyond the page itself. Anything else is the uniform not-found. */

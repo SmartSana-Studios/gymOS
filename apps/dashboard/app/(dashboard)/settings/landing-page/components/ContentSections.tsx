@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { Clock, MapPin, Phone } from "lucide-react";
+import { Clock, Phone } from "lucide-react";
 import { PAGE_HOURS_DAYS } from "@gymos/types";
-import { gymCategoryLabel } from "@gymos/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,59 +29,6 @@ function FieldMessage({ error, name }: { error: FieldError | undefined; name: st
     <p id={errId(name)} role="alert" className="text-sm text-red-600">
       {fieldErrorText(t, error)}
     </p>
-  );
-}
-
-export function LocationSection({ form, setForm, errors, country, category }: SectionProps & { country: string; category: string }) {
-  const { t, i18n } = useTranslation();
-  let countryName = country;
-  try {
-    countryName = new Intl.DisplayNames(i18n.language, { type: "region" }).of(country) ?? country;
-  } catch {
-    countryName = country;
-  }
-  return (
-    <Card id={PAGE_SECTION_IDS.location} data-testid="section-location">
-      <SectionHeader icon={MapPin} accent="rose" title={t("pageEditor.sections.location")} description={t("pageEditor.sections.locationDescription")} />
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 text-sm sm:grid-cols-2">
-          <p>
-            <span className="font-medium">{t("pageEditor.location.category")}:</span> {gymCategoryLabel(category, i18n.language)}
-          </p>
-          <p>
-            <span className="font-medium">{t("pageEditor.location.country")}:</span> {countryName}
-          </p>
-        </div>
-        <Link href="/settings" className="text-sm underline">
-          {t("pageEditor.location.changeInSettings")}
-        </Link>
-        <div className="space-y-2">
-          <Label htmlFor="pageCity">{t("pageEditor.fields.city")}</Label>
-          <Input id="pageCity" value={form.city} aria-invalid={errors.city ? true : undefined} aria-describedby={described(errors, "city")} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-          <FieldMessage name="city" error={errors.city} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="pageAddress">{t("pageEditor.fields.address")}</Label>
-          <Input id="pageAddress" value={form.address} aria-invalid={errors.address ? true : undefined} aria-describedby={described(errors, "address")} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          <FieldMessage name="address" error={errors.address} />
-        </div>
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">{t("pageEditor.location.map")}</legend>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label htmlFor="pageLat">{t("pageEditor.location.lat")}</Label>
-              <Input id="pageLat" inputMode="decimal" value={form.lat} aria-invalid={errors.latlng ? true : undefined} aria-describedby={described(errors, "latlng")} onChange={(e) => setForm({ ...form, lat: e.target.value })} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="pageLng">{t("pageEditor.location.lng")}</Label>
-              <Input id="pageLng" inputMode="decimal" value={form.lng} aria-invalid={errors.latlng ? true : undefined} aria-describedby={described(errors, "latlng")} onChange={(e) => setForm({ ...form, lng: e.target.value })} />
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground">{t("pageEditor.location.mapHelper")}</p>
-          <FieldMessage name="latlng" error={errors.latlng} />
-        </fieldset>
-      </CardContent>
-    </Card>
   );
 }
 

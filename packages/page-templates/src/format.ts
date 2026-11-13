@@ -1,6 +1,7 @@
 // Story 24.10: pure formatting helpers shared by templates. No gym text is turned into markup here: every function returns a string that a
 // template renders as a React text node or as an attribute value, and every URL is built from validated parts (E.164 digits, numbers).
-import type { PageContentLanguage } from "@gymos/types";
+import type { PageContentLanguage, PageContentSnapshotV1 } from "@gymos/types";
+import { CHROME } from "./chrome";
 
 const NBSP = " ";
 
@@ -58,4 +59,16 @@ export function excerpt(text: string, max = 160): string {
   const cut = chars.slice(0, max).join("");
   const at = cut.lastIndexOf(" ");
   return `${(at > max * 0.6 ? cut.slice(0, at) : cut).trimEnd()}…`;
+}
+
+/** The `<title>` of a gym page and its `og:title` (one function, so the two cannot drift): "Name - Category, City", each part only when stored, the category in the language shown. */
+export function pageTitle(content: PageContentSnapshotV1, lang: PageContentLanguage): string {
+  const category = content.category ? CHROME[lang].categories[content.category] : undefined;
+  return [content.name, [category, content.city].filter(Boolean).join(", ")].filter(Boolean).join(" - ");
+}
+
+/** The `<meta name="description">` of a gym page: the first paragraph of About in the language shown; undefined without About. */
+export function metaDescription(content: PageContentSnapshotV1, lang: PageContentLanguage): string | undefined {
+  const v = (content as Record<string, unknown>)[`about_${lang}`];
+  return typeof v === "string" && v.trim() !== "" ? excerpt(v) : undefined;
 }

@@ -8,10 +8,14 @@ import {
   gymPageStatusSchema,
   pageNameSchema,
   publishGymPageResultSchema,
+  setGymLocationSchema,
   setGymPageContentSchema,
   submitPageAppealSchema,
   PAGE_APPEAL_ERROR_CODES,
   type AppError,
+  type CityOption,
+  type CountryOption,
+  type GymLocationErrorCode,
   type PageAppealErrorCode,
   type ClaimPageNameResult,
   type GymPageName,
@@ -26,6 +30,7 @@ import { mapAndLog } from "@/services/session";
 import { getRequestLocale } from "@/lib/i18n/get-request-locale";
 import { getServerTranslation } from "@/lib/i18n/get-server-translation";
 import { isOfferedTemplate } from "@/lib/pageTemplates";
+import { isSupportedPhoneCountry } from "@/lib/phone";
 import { rebuildPurgedMedia, type RebuiltMedia } from "@/services/page-media";
 
 // Story 24.9 (FR-197..FR-201). The dashboard's service for the landing-page editor and publish screens. Every call goes through the
@@ -38,7 +43,6 @@ export interface LandingPageContent {
   about: Record<PageContentLanguage, string>;
   services: Record<PageContentLanguage, string>;
   address: string;
-  city: string;
   lat: string;
   lng: string;
   /** Keys mon..sun, each null (closed) or {open, close}; null when never set. */
@@ -46,6 +50,8 @@ export interface LandingPageContent {
   contactPhone: string;
   contactWhatsapp: string;
   country: string;
+  /** The selected city (gyms.city_id, 25.1); null when none is chosen. Written only by set_gym_location. */
+  cityId: string | null;
   category: string;
   defaultLanguage: PageContentLanguage;
 }
@@ -61,6 +67,12 @@ export interface LandingPagePlan {
   isPublic: boolean;
 }
 
+/** The controlled lists behind the Location block (25.1): every country, and the cities of the gym's current country. */
+export interface LandingPageLists {
+  countries: CountryOption[];
+  cities: CityOption[];
+}
+
 export type LandingPageRole = "owner" | "supervisor" | "support";
 
 export interface LandingPageData {
@@ -69,6 +81,7 @@ export interface LandingPageData {
   status: GymPageStatus;
   pageName: GymPageName;
   content: LandingPageContent;
+  lists: LandingPageLists;
   plans: LandingPagePlan[];
 }
 
@@ -126,6 +139,17 @@ export function pageAppealCodeFromDbError(error: { message?: string } | null | u
   return null;
 }
 
+/** set_gym_location (0169): unknown_country, invalid_city, `permission denied`, `gym <id> is not active`. */
+export function locationCodeFromDbError(error: { message?: string } | null | undefined): GymLocationErrorCode | null {
+  const message = error?.message ?? "";
+  if (message === NOT_ADMITTED_MESSAGE) return "not_admitted";
+  if (isNotActive(message, "set_gym_location")) return "gym_not_active";
+  for (const code of ["invalid_city", "unknown_country"] as const) {
+    if (message === `set_gym_location: ${code}`) return code;
+  }
+  return null;
+}
+
 async function typedError(scope: "pageEditor" | "pageNames" | "pagePublish" | "pageAppeal", code: string): Promise<AppError> {
   const { t } = await getServerTranslation(await getRequestLocale());
   return { code, message: t(`${scope}.errors.${code}`) };
@@ -147,7 +171,7 @@ async function callerContext(supabase: UserClient): Promise<{ gymId: string; rol
 }
 
 const GYM_COLUMNS =
-  "category, country, default_language, page_about_en, page_about_fr, page_services_en, page_services_fr, page_address, page_city, page_lat, page_lng, page_hours, page_contact_phone, page_contact_whatsapp";
+  "category, country, city_id, default_language, page_about_en, page_about_fr, page_services_en, page_services_fr, page_address, page_lat, page_lng, page_hours, page_contact_phone, page_contact_whatsapp";
 
 function readHours(value: unknown): LandingPageContent["hours"] {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
@@ -178,15 +202,36 @@ function toContent(row: Record<string, unknown>): LandingPageContent {
     about: perLanguage(row, "page_about_"),
     services: perLanguage(row, "page_services_"),
     address: typeof row.page_address === "string" ? row.page_address : "",
-    city: typeof row.page_city === "string" ? row.page_city : "",
     lat: row.page_lat === null || row.page_lat === undefined ? "" : String(row.page_lat),
     lng: row.page_lng === null || row.page_lng === undefined ? "" : String(row.page_lng),
     hours: readHours(row.page_hours),
     contactPhone: typeof row.page_contact_phone === "string" ? row.page_contact_phone : "",
     contactWhatsapp: typeof row.page_contact_whatsapp === "string" ? row.page_contact_whatsapp : "",
     country: typeof row.country === "string" ? row.country : "",
+    cityId: typeof row.city_id === "string" ? row.city_id : null,
     category: typeof row.category === "string" ? row.category : "",
     defaultLanguage: lang,
+  };
+}
+
+/** The cities of one country with the normalized spellings that reach each (its name included), for the alias-aware picker. Names only; no ids leave
+ * the page except the city's own id, which is the value the save sends. */
+export async function listCitiesOf(supabase: UserClient, country: string): Promise<{ data: CityOption[] | null; error: AppError | null }> {
+  if (!/^[A-Z]{2}$/.test(country)) return { data: [], error: null };
+  const { data, error } = await supabase
+    .from("cities")
+    .select("id, name, slug, city_aliases(alias_norm)")
+    .eq("country_code", country)
+    .order("name", { ascending: true });
+  if (error) return { data: null, error: await mapAndLog(error) };
+  return {
+    data: (data ?? []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      aliasNorms: (c.city_aliases ?? []).map((a) => a.alias_norm),
+    })),
+    error: null,
   };
 }
 
@@ -209,7 +254,7 @@ export async function getLandingPageData(): ServiceResult<LandingPageData> {
     return { data: null, error: await typedError("pageEditor", "load_failed") };
   }
 
-  const [nameRes, gymRes, plansRes] = await Promise.all([
+  const [nameRes, gymRes, plansRes, countriesRes] = await Promise.all([
     supabase.rpc("get_gym_page_name", { p_gym_id: gymId }),
     supabase.from("gyms").select(GYM_COLUMNS).eq("id", gymId).maybeSingle(),
     supabase
@@ -217,10 +262,12 @@ export async function getLandingPageData(): ServiceResult<LandingPageData> {
       .select("id, name, plan_type, price, currency, billing_interval, duration_days, is_public")
       .eq("gym_id", gymId)
       .order("created_at", { ascending: true }),
+    supabase.from("countries").select("code, name_en, name_fr").order("code", { ascending: true }),
   ]);
   if (nameRes.error) return { data: null, error: await mapAndLog(nameRes.error) };
   if (gymRes.error) return { data: null, error: await mapAndLog(gymRes.error) };
   if (plansRes.error) return { data: null, error: await mapAndLog(plansRes.error) };
+  if (countriesRes.error) return { data: null, error: await mapAndLog(countriesRes.error) };
   if (!gymRes.data) return { data: null, error: await typedError("pageEditor", "load_failed") };
   const pageName = gymPageNameSchema.safeParse(nameRes.data);
   if (!pageName.success) {
@@ -228,13 +275,25 @@ export async function getLandingPageData(): ServiceResult<LandingPageData> {
     return { data: null, error: await typedError("pageEditor", "load_failed") };
   }
 
+  const content = toContent(gymRes.data as unknown as Record<string, unknown>);
+  const cities = await listCitiesOf(supabase, content.country);
+  if (cities.error || !cities.data) return { data: null, error: cities.error ?? (await typedError("pageEditor", "load_failed")) };
+
   return {
     data: {
       gymId,
       role,
       status: status.data,
       pageName: pageName.data,
-      content: toContent(gymRes.data as unknown as Record<string, unknown>),
+      content,
+      lists: {
+        // Only countries Settings also accepts: it validates gyms.country against the phone-region list, so a gym placed in a
+        // country outside it (the seed has AQ, BV, GS, HM, PN, TF, UM) could not save its Settings any more.
+        countries: (countriesRes.data ?? [])
+          .filter((c) => isSupportedPhoneCountry(c.code))
+          .map((c) => ({ code: c.code, nameEn: c.name_en, nameFr: c.name_fr })),
+        cities: cities.data,
+      },
       plans: (plansRes.data ?? []).map((p) => ({
         id: p.id,
         name: p.name,
@@ -265,7 +324,7 @@ export async function getLandingPageState(): Promise<GymPageStatus["state"] | nu
   }
 }
 
-const CLEANED_CONTENT_KEYS = ["about_en", "about_fr", "services_en", "services_fr", "address", "city"] as const;
+const CLEANED_CONTENT_KEYS = ["about_en", "about_fr", "services_en", "services_fr", "address"] as const;
 
 /** CRLF and a lone CR become LF and control characters other than LF and tab go, in the free-text fields, before Zod and the call. */
 export function cleanSaveInput(input: unknown): unknown {
@@ -307,6 +366,50 @@ export async function saveLandingPageContent(
   const fresh = await getLandingPageData();
   if (fresh.error || !fresh.data) {
     console.error("[landing-page] saved, but reading the page back failed", fresh.error);
+    return { data: null, error: null, reloadFailed: true };
+  }
+  return fresh;
+}
+
+/** The cities of a country, for the Location block when the country select changes. The lists are readable by every signed-in user; the caller must be an admitted role. */
+export async function loadCitiesOfCountry(country: unknown): ServiceResult<CityOption[]> {
+  const supabase = await createClient();
+  const caller = await callerContext(supabase);
+  if ("error" in caller) return { data: null, error: caller.error };
+  if (typeof country !== "string") return { data: null, error: await typedError("pageEditor", "unknown_country") };
+  return listCitiesOf(supabase, country.toUpperCase());
+}
+
+/**
+ * Saves the gym's country and city in one `set_gym_location` call (the only writer of the city), then returns the fresh data. Only a city of
+ * the list can be sent: the input is a city id, never text. When the save committed but the read failed, `reloadFailed` is true with no error.
+ */
+export async function saveLandingPageLocation(
+  input: unknown,
+): Promise<{ data: LandingPageData | null; error: AppError | null; reloadFailed?: boolean }> {
+  const parsed = setGymLocationSchema.safeParse(input);
+  if (!parsed.success) return { data: null, error: await typedError("pageEditor", "invalid_city") };
+
+  const supabase = await createClient();
+  const caller = await callerContext(supabase);
+  if ("error" in caller) return { data: null, error: caller.error };
+  // the same rule as Settings' country save (see getLandingPageData): a country it would refuse is not accepted here either
+  if (!isSupportedPhoneCountry(parsed.data.country)) return { data: null, error: await typedError("pageEditor", "unknown_country") };
+
+  const { error } = await supabase.rpc("set_gym_location", {
+    p_gym_id: caller.gymId,
+    p_country: parsed.data.country,
+    p_city_id: parsed.data.city_id,
+  });
+  if (error) {
+    const code = locationCodeFromDbError(error);
+    if (code) return { data: null, error: await typedError("pageEditor", code) };
+    console.error("[landing-page] set_gym_location failed", error);
+    return { data: null, error: await mapAndLog(error) };
+  }
+  const fresh = await getLandingPageData();
+  if (fresh.error || !fresh.data) {
+    console.error("[landing-page] location saved, but reading the page back failed", fresh.error);
     return { data: null, error: null, reloadFailed: true };
   }
   return fresh;

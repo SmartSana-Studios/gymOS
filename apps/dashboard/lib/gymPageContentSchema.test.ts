@@ -16,7 +16,6 @@ describe("gymPageContentSchema", () => {
       services_en: "Yoga",
       services_fr: "Yoga",
       address: "Rue 1",
-      city: "Douala",
       lat: 4.05,
       lng: 9.76,
       hours: { mon: { open: "06:00", close: "22:00" }, sun: null },
@@ -32,12 +31,12 @@ describe("gymPageContentSchema", () => {
     expect(r.about_fr).toBeNull();
     expect(r.contact_phone).toBeNull();
 
-    expect(gymPageContentSchema.parse({ city: "\u00a0Kribi\u3000" }).city).toBe("Kribi");
+    expect(gymPageContentSchema.parse({ address: "\u00a0Kribi\u3000" }).address).toBe("Kribi");
   });
 
   it("rejects markup characters anywhere in text", () => {
     expect(gymPageContentSchema.safeParse({ about_en: "<script>x</script>" }).success).toBe(false);
-    expect(gymPageContentSchema.safeParse({ city: "a>b" }).success).toBe(false);
+    expect(gymPageContentSchema.safeParse({ address: "a>b" }).success).toBe(false);
     expect(gymPageContentSchema.safeParse({ address: "a<b" }).success).toBe(false);
   });
 
@@ -45,7 +44,7 @@ describe("gymPageContentSchema", () => {
     expect(gymPageContentSchema.safeParse({ about_en: "a".repeat(2000) }).success).toBe(true);
     expect(gymPageContentSchema.safeParse({ about_en: "a".repeat(2001) }).success).toBe(false);
     expect(gymPageContentSchema.safeParse({ address: "a".repeat(301) }).success).toBe(false);
-    expect(gymPageContentSchema.safeParse({ city: "a".repeat(101) }).success).toBe(false);
+    expect(gymPageContentSchema.safeParse({ city: "Douala" }).success).toBe(false); // 25.1: a city is chosen with set_gym_location
   });
 
   it("requires E.164 for both public phones", () => {
@@ -86,7 +85,7 @@ describe("gymPageContentSchema", () => {
 describe("setGymPageContentSchema", () => {
   it("accepts content with public plans and optional labels", () => {
     const r = setGymPageContentSchema.safeParse({
-      content: { city: "Douala" },
+      content: { address: "Rue 1" },
       plans: [{ plan_id: PLAN, is_public: true, public_label_en: "Monthly" }],
     });
     expect(r.success).toBe(true);

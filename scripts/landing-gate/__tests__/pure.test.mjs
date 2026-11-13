@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { percentile, p75, median, regressed } from "../lib/stats.mjs";
 import { isGrammarValid, pickLabel, randomLabel, rng } from "../lib/labels.mjs";
 import { MIN_RUNS, summarise } from "../lib/lcp.mjs";
-import { BUDGETS, classify, emptyTally, judge, tally } from "../lib/load.mjs";
+import { BUDGETS, DIRECTORY_PAGE_SIZE, classify, classifyDirectory, emptyTally, judge, pageCountFor, pickDirectoryRequest, tally } from "../lib/load.mjs";
 import { targetFor, browserUrlFor, missingStagingLabels } from "../lib/config.mjs";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -202,4 +202,78 @@ test("the suspended label defaults to a local fixture only locally, never to a l
     }).toString();
   assert.equal(suspendedFor("http://127.0.0.1:3200"), '"gate-paused"');
   assert.equal(suspendedFor("https://{label}.staging.example.com"), '""');
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+// Story 25.6: the directory share of the load check
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+const WHERE = { country: "cm", city: "garoua", pages: 3 };
+
+test("directory requests: top, country and city pages in both languages, with random ?x= and ?page= values, built from the real page count", () => {
+  const next = rng(11);
+  const seen = { kinds: new Set(), langs: new Set(), x: 0, page: 0, past: 0, category: 0, plain: 0 };
+  for (let i = 0; i < 6000; i++) {
+    const r = pickDirectoryRequest(next, WHERE);
+    assert.match(r.path, /^\/(en|fr)\/gyms(\/cm(\/garoua)?)?(\?(x=\d+|page=\d+|category=[a-z_]+))?$/, r.path);
+    seen.kinds.add(r.kind);
+    seen.langs.add(r.path.slice(1, 3));
+    const page = /page=(\d+)/.exec(r.path);
+    if (/x=/.test(r.path)) seen.x++;
+    else if (page) {
+      seen.page++;
+      const n = Number(page[1]);
+      assert.ok(n >= 1 && n <= WHERE.pages + 50);
+      // only a city listing past its last page is the uniform not-found
+      const expected = r.kind === "city" && n > WHERE.pages ? 404 : 200;
+      assert.equal(r.expected, expected, r.path);
+      if (n > WHERE.pages) seen.past++;
+    } else if (/category=/.test(r.path)) {
+      assert.equal(r.kind, "city");
+      assert.equal(r.expected, 200, "a stale category filter is a 200 with a message");
+      seen.category++;
+    } else {
+      seen.plain++;
+      assert.equal(r.expected, 200);
+    }
+  }
+  assert.deepEqual([...seen.kinds].sort(), ["city", "country", "top"]);
+  assert.deepEqual([...seen.langs].sort(), ["en", "fr"]);
+  assert.ok(seen.x > 1500 && seen.page > 1500 && seen.past > 100 && seen.category > 100 && seen.plain > 100, JSON.stringify({ ...seen, kinds: undefined, langs: undefined }));
+});
+test("directory requests repeat with the same seed", () => {
+  const a = Array.from({ length: 20 }, ((n) => () => pickDirectoryRequest(n, WHERE).path)(rng(5)));
+  const b = Array.from({ length: 20 }, ((n) => () => pickDirectoryRequest(n, WHERE).path)(rng(5)));
+  assert.deepEqual(a, b);
+});
+test("page counts follow the directory page size of 20", () => {
+  assert.equal(DIRECTORY_PAGE_SIZE, 20);
+  assert.deepEqual([0, 1, 20, 21, 46].map(pageCountFor), [1, 1, 1, 2, 3]);
+});
+test("a directory answer is right only when it is the status the request was built to get", () => {
+  assert.equal(classifyDirectory({ expected: 200, status: 200 }), "dirOk");
+  assert.equal(classifyDirectory({ expected: 404, status: 404 }), "dirOk");
+  assert.equal(classifyDirectory({ expected: 200, status: 404 }), "error");
+  assert.equal(classifyDirectory({ expected: 404, status: 200 }), "error");
+  assert.equal(classifyDirectory({ expected: 200, status: 500 }), "error");
+});
+test("load judge: directory requests are judged with the same ceiling; none sent when expected, or one wrong, fails", () => {
+  const dirTally = (n, wrong = 0) => {
+    const t = emptyTally();
+    for (let i = 0; i < n; i++) tally(t, "dirOk", 30);
+    for (let i = 0; i < wrong; i++) tally(t, "error", null);
+    return t;
+  };
+  const withDir = (dir, over = {}) => {
+    const all = okTally();
+    for (let i = 0; i < dir.requests; i++) all.requests++;
+    all.error += dir.error;
+    return judge({ peak: 7, limit: 20, tally: all, core: goodCore(), directory: { expected: true, tally: dir }, ...over });
+  };
+  assert.deepEqual(withDir(dirTally(50)).failures, []);
+  assert.match(withDir(dirTally(0)).failures.join("\n"), /was to include directory requests and made none/);
+  assert.match(withDir(dirTally(50, 2)).failures.join("\n"), /2 directory request\(s\) answered something other/);
+  // the connection ceiling still applies to a run with directory pages
+  assert.match(withDir(dirTally(50), { peak: 20 }).failures.join("\n"), /reached the role's CONNECTION LIMIT 20/);
+  // a run that did not ask for the directory is judged as before
+  assert.deepEqual(judge({ peak: 7, limit: 20, tally: okTally(), core: goodCore(), directory: { expected: false, tally: dirTally(0) } }).failures, []);
 });

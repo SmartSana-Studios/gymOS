@@ -12,7 +12,12 @@ export const CACHE_CONTROL = {
   page: "public, s-maxage=60",
   notFound: "public, s-maxage=30",
   redirect: "public, max-age=300, s-maxage=300",
+  /** Story 25.5: robots.txt, the sitemaps and llms.txt (packages/page-templates/src/seo.ts, SEO_CACHE_CONTROL). */
+  crawler: "public, s-maxage=300",
 };
+
+/** Story 25.5: the CSP of a crawler file: nothing is allowed. */
+export const CRAWLER_CSP = "default-src 'none'; frame-ancestors 'none'";
 
 /** Headers every Node response carries: transport, not policy. */
 export const TRANSPORT_HEADERS = new Set(["date", "connection", "keep-alive", "content-length", "transfer-encoding"]);
@@ -57,11 +62,112 @@ export function expectedCsp(imgSrc, hash) {
   ].join("; ");
 }
 
+const LD_JSON_ATTRS = /^\s*type\s*=\s*"application\/ld\+json"\s*$/i;
+const NAMED_ENTITIES = { quot: '"', lt: "<", gt: ">", amp: "&" };
+/** One pass, so a decoded character is never decoded again ("&#38;lt;" is "&lt;", not "<"); a numeric entity outside the code-point range is left as written. */
+export const decodeEntities = (v) =>
+  v.replace(/&(?:#x([0-9a-f]+)|#(\d+)|(quot|lt|gt|amp));/gi, (whole, hex, dec, name) => {
+    if (name !== undefined) return NAMED_ENTITIES[name.toLowerCase()];
+    const cp = hex !== undefined ? parseInt(hex, 16) : Number(dec);
+    return Number.isInteger(cp) && cp >= 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : whole;
+  });
+const absoluteUrl = (v) => {
+  try {
+    const u = new URL(v);
+    return (u.protocol === "https:" || u.protocol === "http:") && u.hostname !== "";
+  } catch {
+    return false;
+  }
+};
+
+/** The <script> elements of a body: the inert JSON-LD data blocks (their text) and the count of every other <script> (executable, forbidden). */
+export function scriptsOf(body) {
+  const blocks = [];
+  for (const m of body.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) if (LD_JSON_ATTRS.test(m[1])) blocks.push(m[2]);
+  const all = (body.match(/<script\b/gi) ?? []).length;
+  return { blocks, executable: all - blocks.length };
+}
+
+/**
+ * Story 25.4 (AD-51): the structured data and Open Graph tags of a gym page or a directory page, judged on the body of a real response.
+ * Executable script stays forbidden; the ONE script allowed is an application/ld+json block whose text is JSON, holds no literal "<" and carries a
+ * schema.org type of ours. expect: "HealthClub" | "ItemList" = exactly one such block; "none" = no block; undefined = at most one of either.
+ * The og tags: type, title (equal to the <title>), description and url must be present; a directory page's og:url is its canonical link.
+ */
+export function checkStructuredData(kind, body, expect) {
+  const problems = [];
+  const { blocks, executable } = scriptsOf(body);
+  if (executable > 0) problems.push(kind + ": the body holds a <script> element");
+  const want = expect === "none" ? 0 : expect === undefined ? null : 1;
+  if (want !== null && blocks.length !== want) problems.push(kind + ": " + blocks.length + " application/ld+json block(s), expected " + want);
+  if (want === null && blocks.length > 1) problems.push(kind + ": " + blocks.length + " application/ld+json blocks, expected at most one");
+  for (const text of blocks) {
+    if (/[<>&]/.test(text)) problems.push(kind + ": the JSON-LD block holds an unescaped < > or &");
+    let node;
+    try {
+      node = JSON.parse(text);
+    } catch {
+      problems.push(kind + ": the application/ld+json block is not valid JSON");
+      continue;
+    }
+    const type = node?.["@type"];
+    if (node?.["@context"] !== "https://schema.org") problems.push(kind + ": JSON-LD @context is not https://schema.org");
+    const typeOk = expect === "HealthClub" || expect === "ItemList" ? type === expect : type === "HealthClub" || type === "ItemList";
+    if (!typeOk) problems.push(kind + ": JSON-LD @type is " + JSON.stringify(type) + (expect === "HealthClub" || expect === "ItemList" ? ", expected " + expect : ""));
+    if (type === "HealthClub") {
+      if (typeof node.name !== "string" || node.name === "") problems.push(kind + ": HealthClub has no name");
+      if (!absoluteUrl(node.url)) problems.push(kind + ": HealthClub url is not absolute");
+      if (typeof node.address?.addressCountry !== "string") problems.push(kind + ": HealthClub has no address.addressCountry");
+    } else if (type === "ItemList") {
+      const items = node.itemListElement;
+      if (!Array.isArray(items) || items.length === 0) problems.push(kind + ": ItemList has no items");
+      else
+        items.forEach((item, i) => {
+          if (item?.["@type"] !== "ListItem" || !Number.isInteger(item.position) || item.position !== items[0]?.position + i) problems.push(kind + ": ItemList item " + i + " is not a ListItem at the next position");
+          if (!absoluteUrl(item?.url)) problems.push(kind + ": ItemList item " + i + " has no absolute url");
+        });
+    }
+  }
+  const og = {};
+  for (const m of body.matchAll(/<meta property="(og:[a-z:]+)" content="([^"]*)"/g)) og[m[1]] = decodeEntities(m[2]);
+  for (const p of ["og:type", "og:title", "og:description", "og:url"]) if (!og[p]) problems.push(kind + ": missing " + p);
+  const title = /<title>([\s\S]*?)<\/title>/.exec(body)?.[1];
+  if (title === undefined) problems.push(kind + ": no <title>");
+  else if (og["og:title"] !== undefined && og["og:title"] !== decodeEntities(title)) problems.push(kind + ": og:title differs from the <title>");
+  if (og["og:url"] !== undefined && !absoluteUrl(og["og:url"])) problems.push(kind + ": og:url is not absolute");
+  if (kind === "directory") {
+    const canonical = /<link rel="canonical" href="([^"]+)"/.exec(body)?.[1];
+    if (canonical !== undefined && og["og:url"] !== undefined && og["og:url"] !== decodeEntities(canonical)) problems.push("directory: og:url differs from the canonical link");
+    if (og["og:image"] !== undefined) problems.push("directory: a listing has no published image, og:image must be absent");
+  }
+  return problems;
+}
+
+/**
+ * Story 25.3: what a directory page adds to the page contract. Script-free (no executable <script>, no inline style attribute, no cookie is checked by the caller),
+ * and ONE indexability signal: the `noindex` robots meta tag and the X-Robots-Tag header are both present or both absent, and equal what the caller expects.
+ * Marks `x-robots-tag` as an expected header so the generic unexpected-header sweep does not flag it.
+ */
+export function checkDirectoryDocument(h, body, indexable, expected) {
+  const problems = [];
+  expected.add("x-robots-tag");
+  if (/<[a-z][^>]*\sstyle\s*=/i.test(body)) problems.push("directory: the body holds an inline style attribute (the CSP hashes one <style> block only)");
+  if (!/<link rel="canonical" href="[^"]+"/.test(body)) problems.push("directory: no canonical link");
+  if (!/hrefLang="x-default"|hreflang="x-default"/i.test(body)) problems.push("directory: no hreflang x-default alternate");
+  const header = h["x-robots-tag"];
+  const metaNoindex = /<meta name="robots" content="noindex"/i.test(body);
+  if (header !== undefined && (header.length !== 1 || header[0] !== "noindex")) problems.push(`directory: x-robots-tag is [${header.join(" | ")}], expected [noindex] or absent`);
+  if ((header !== undefined) !== metaNoindex) problems.push(`directory: the X-Robots-Tag header (${header === undefined ? "absent" : "noindex"}) and the robots meta tag (${metaNoindex ? "noindex" : "absent"}) disagree`);
+  if (indexable === true && (header !== undefined || metaNoindex)) problems.push("directory: expected an indexable page, it carries noindex");
+  if (indexable === false && (header === undefined || !metaNoindex)) problems.push("directory: expected noindex in the header and the meta tag");
+  return problems;
+}
+
 /**
  * Judge one response against the exact header set of its kind.
- * @param {"page"|"notFound"|"redirect"} kind
+ * @param {"page"|"notFound"|"redirect"|"directory"|"crawler"} kind  "crawler" (Story 25.5) is a robots.txt, sitemap or llms.txt of www: `ctx.contentType`, `public, s-maxage=300`, the CSP that allows nothing, the base security headers, no cookie. "directory" (Story 25.3) is a directory page on www: the page set, no language Vary, an X-Robots-Tag that must agree with the document, and a script-free body
  * @param {{status:number, headers:Record<string,string[]>, body:Buffer|string}} res  headers as folded by lib/http.mjs
- * @param {{mediaOrigin:string, platform?:string, extraAllowed?:string[], varyLanguage?:boolean, location?:string}} ctx
+ * @param {{contentType?:string, mediaOrigin:string, platform?:string, extraAllowed?:string[], varyLanguage?:boolean, location?:string, indexable?:boolean, structuredData?:"HealthClub"|"ItemList"|"none"}} ctx  `indexable` (directory only): true = no X-Robots-Tag, false = `noindex`, undefined = either, but header and meta tag must agree; `structuredData` (page, directory): the one JSON-LD block expected ("none" = no block; undefined = a gym page is a HealthClub, a directory page has at most one)
  * @returns {{problems:string[], nextAdded:string[], platformExtras:string[]}}
  */
 export function checkResponse(kind, res, ctx) {
@@ -76,19 +182,28 @@ export function checkResponse(kind, res, ctx) {
   };
   const body = typeof res.body === "string" ? res.body : res.body.toString("utf8");
 
-  const expectedStatus = { page: 200, notFound: 404, redirect: 301 }[kind];
+  const expectedStatus = { page: 200, directory: 200, crawler: 200, notFound: 404, redirect: 301 }[kind];
   if (res.status !== expectedStatus) problems.push(`${kind}: status ${res.status}, expected ${expectedStatus}`);
 
   const expected = new Set();
   const expect_ = (name, value) => { expected.add(name); want(name, value); };
 
-  if (kind === "page" || kind === "notFound") {
+  if (kind === "crawler") {
+    // Story 25.5: robots.txt, /sitemap-index.xml, /sitemaps/{n}.xml and /llms.txt of www: their own content type, a 5 minute cache, a CSP that allows nothing
+    expect_("content-type", ctx.contentType);
+    expect_("cache-control", CACHE_CONTROL.crawler);
+    for (const [k, v] of Object.entries(SECURITY_BASE)) expect_(k, v);
+    expect_("content-security-policy", CRAWLER_CSP);
+  } else if (kind === "page" || kind === "notFound" || kind === "directory") {
     expect_("content-type", "text/html; charset=utf-8");
-    expect_("cache-control", kind === "page" ? CACHE_CONTROL.page : CACHE_CONTROL.notFound);
+    expect_("cache-control", kind === "notFound" ? CACHE_CONTROL.notFound : CACHE_CONTROL.page);
     for (const [k, v] of Object.entries(SECURITY_BASE)) expect_(k, v);
     const style = singleStyleBlock(body);
     if (style === null) problems.push(`${kind}: the body does not hold exactly one <style> block`);
-    else expect_("content-security-policy", expectedCsp(kind === "page" ? ctx.mediaOrigin : "'none'", styleHash(style)));
+    else expect_("content-security-policy", expectedCsp(kind === "notFound" ? "'none'" : ctx.mediaOrigin, styleHash(style)));
+    if (kind === "directory") problems.push(...checkDirectoryDocument(h, body, ctx.indexable, expected));
+    // Story 25.4: no executable script, and the one inert JSON-LD block plus the og tags on a gym page and a directory page (a gym page is a HealthClub unless the caller says otherwise)
+    if (kind === "page" || kind === "directory") problems.push(...checkStructuredData(kind, body, ctx.structuredData ?? (kind === "page" ? "HealthClub" : undefined)));
   } else {
     expect_("cache-control", CACHE_CONTROL.redirect);
     expect_("x-content-type-options", SECURITY_BASE["x-content-type-options"]);
@@ -116,7 +231,9 @@ export function checkResponse(kind, res, ctx) {
   const allowedExtra = new Set(ctx.extraAllowed ?? []);
   for (const name of Object.keys(h)) {
     if (expected.has(name) || TRANSPORT_HEADERS.has(name) || name === "set-cookie") continue;
-    if (name in NEXT_ADDED_HEADERS) {
+    if ((kind === "directory" || kind === "crawler") && name in NEXT_ADDED_HEADERS) {
+      problems.push(`${kind}: unexpected header ${name}: ${(h[name] ?? []).join(" | ")} (a ${kind === "directory" ? "directory page" : "crawler file"} is served by its own route, never rewritten)`);
+    } else if (name in NEXT_ADDED_HEADERS) {
       if (one(name) !== NEXT_ADDED_HEADERS[name]) problems.push(`${kind}: ${name} is [${(h[name] ?? []).join(" | ")}], Next adds [${NEXT_ADDED_HEADERS[name]}]`);
       else nextAdded.push(`${name}: ${NEXT_ADDED_HEADERS[name]}`);
     } else if ((ctx.platform === "vercel" && VERCEL_HEADERS.has(name)) || allowedExtra.has(name)) {
@@ -145,4 +262,119 @@ export function diffResponses(a, b, { platform = "none" } = {}) {
   }
   if (!Buffer.from(a.body).equals(Buffer.from(b.body))) diffs.push(`body differs (${a.body.length} vs ${b.body.length} bytes)`);
   return diffs;
+}
+
+// ---- Story 25.5: the crawler files of www, judged on the body of a real response ----
+
+/** The `<loc>` values of a sitemap document, in order, decoded. */
+export function locsOf(xml) {
+  return [...xml.matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => decodeEntities(m[1]));
+}
+
+/** robots.txt of www: allow everything, disallow nothing, name the index at the configured origin. */
+export function checkRobots(body, www) {
+  const problems = [];
+  const lines = body.split("\n").filter((l) => l !== "");
+  if (lines[0] !== "User-agent: *") problems.push("robots: the first line is not `User-agent: *`");
+  if (!lines.includes("Allow: /")) problems.push("robots: no `Allow: /`");
+  if (lines.some((l) => /^disallow\s*:/i.test(l))) problems.push("robots: it carries a Disallow (a filtered view needs crawling to read its canonical)");
+  const sitemaps = lines.filter((l) => /^sitemap\s*:/i.test(l));
+  if (sitemaps.length !== 1 || sitemaps[0] !== `Sitemap: ${www}/sitemap-index.xml`) problems.push(`robots: expected exactly \`Sitemap: ${www}/sitemap-index.xml\`, got [${sitemaps.join(" | ")}]`);
+  return problems;
+}
+
+/** /sitemap-index.xml: a sitemapindex whose `<loc>` are `{www}/sitemaps/1.xml` ... `/N.xml`, consecutive, at least one. */
+export function checkSitemapIndex(body, www) {
+  const problems = [];
+  if (!/<sitemapindex\b[^>]*xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9"/.test(body)) problems.push("sitemap-index: not a sitemapindex document");
+  if (/<lastmod|<changefreq|<priority/.test(body)) problems.push("sitemap-index: it carries lastmod, changefreq or priority");
+  const locs = locsOf(body);
+  if (locs.length === 0) problems.push("sitemap-index: it lists no file");
+  locs.forEach((l, i) => {
+    if (l !== `${www}/sitemaps/${i + 1}.xml`) problems.push(`sitemap-index: <loc> ${i + 1} is [${l}], expected [${www}/sitemaps/${i + 1}.xml]`);
+  });
+  return problems;
+}
+
+const DIRECTORY_URL_PATH = /^\/(en|fr)(\/gyms(\/[a-z]{2}(\/[a-z0-9]+(-[a-z0-9]+)*)?)?)?$/;
+
+/** A chunk: a urlset of at most 50,000 `<url>`, each on the www origin, a marketing page or a directory page (never a gym page or a filtered view), with en, fr and x-default alternates. */
+export function checkUrlset(body, www, { max = 50_000 } = {}) {
+  const problems = [];
+  if (!/<urlset\b[^>]*xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9"/.test(body)) problems.push("sitemap: not a urlset document");
+  if (/<lastmod|<changefreq|<priority/.test(body)) problems.push("sitemap: it carries lastmod, changefreq or priority");
+  const urls = [...body.matchAll(/<url>([\s\S]*?)<\/url>/g)].map((m) => m[1]);
+  if (urls.length === 0) problems.push("sitemap: it lists no <url>");
+  if (urls.length > max) problems.push(`sitemap: ${urls.length} <url>, at most ${max}`);
+  const seen = new Set();
+  for (const u of urls) {
+    const loc = locsOf(u);
+    if (loc.length !== 1) {
+      problems.push(`sitemap: a <url> has ${loc.length} <loc>`);
+      continue;
+    }
+    const l = loc[0];
+    if (!l.startsWith(`${www}/`)) problems.push(`sitemap: ${l} is not on the www origin ${www}`);
+    else if (!DIRECTORY_URL_PATH.test(l.slice(www.length))) problems.push(`sitemap: ${l} is not a marketing or directory page (a gym page, a filtered view and anything else are never listed)`);
+    if (seen.has(l)) problems.push(`sitemap: ${l} is listed twice`);
+    seen.add(l);
+    const alt = Object.fromEntries([...u.matchAll(/<xhtml:link rel="alternate" hreflang="([^"]+)" href="([^"]+)"\/>/g)].map((m) => [m[1], decodeEntities(m[2])]));
+    for (const k of ["en", "fr", "x-default"]) if (!alt[k]) problems.push(`sitemap: ${l} has no ${k} alternate`);
+    if (alt.en && alt["x-default"] && alt.en !== alt["x-default"]) problems.push(`sitemap: ${l} x-default is not the English URL`);
+    if (alt.en && alt.fr && ![alt.en, alt.fr].includes(l)) problems.push(`sitemap: ${l} is neither of its own alternates`);
+  }
+  return problems;
+}
+
+/**
+ * A URL a sitemap lists, fetched: 200 and no `noindex` (header or robots meta tag). Marketing pages (`/en`, `/fr`) have no robots header of ours; a directory page
+ * has one flag in both places. `res` is the response to the request for that URL's path.
+ */
+export function checkListedPage(res) {
+  const problems = [];
+  if (res.status !== 200) problems.push(`status ${res.status}, expected 200`);
+  const header = res.headers["x-robots-tag"];
+  if (header !== undefined) problems.push(`it carries X-Robots-Tag [${header.join(" | ")}]`);
+  const body = typeof res.body === "string" ? res.body : res.body.toString("utf8");
+  if (/<meta[^>]+name="robots"[^>]+content="[^"]*noindex/i.test(body) || /<meta[^>]+content="[^"]*noindex[^"]*"[^>]+name="robots"/i.test(body)) problems.push("it carries a robots noindex meta tag");
+  return problems;
+}
+
+/**
+ * /llms.txt: plain text with a header that says it is a voluntary hint, then one block per gym made only of allowlisted lines (`## name`, `url:`, `category:`,
+ * `location:`, `hours:`, `plans:` and `- plan` lines). Every block starts with a `## ` line followed by its `url:` on the gym's own subdomain.
+ * `absent` are URL prefixes (`scheme://label.root/`) that must not appear: the removed gyms of the fixture.
+ */
+export function checkLlms(body, { absent = [], present = [] } = {}) {
+  const problems = [];
+  if (!/^# GymOS gyms\n/.test(body)) problems.push("llms: it does not start with the `# GymOS gyms` header");
+  if (!/voluntary hint/.test(body) || !/not access control/.test(body)) problems.push("llms: the header does not call it a voluntary hint, not access control");
+  const lines = body.split("\n");
+  let inHeader = true;
+  let blocks = 0;
+  let sawUrl = true;
+  for (const [i, l] of lines.entries()) {
+    if (l === "") continue;
+    if (l.startsWith("## ")) {
+      inHeader = false;
+      if (!sawUrl) problems.push(`llms: line ${i + 1}: a block has no url: line`);
+      blocks++;
+      sawUrl = false;
+      continue;
+    }
+    if (inHeader && (l.startsWith("# ") || l.startsWith("> "))) continue;
+    if (/^The list is cut at [\d,]+ gyms; more exist\.$/.test(l)) continue;
+    if (inHeader) {
+      problems.push(`llms: line ${i + 1} is neither a header nor a block line`);
+      continue;
+    }
+    if (l.startsWith("url: ")) {
+      sawUrl = true;
+      if (!/^url: https?:\/\/[a-z0-9-]+\.[^/\s]+\/$/.test(l)) problems.push(`llms: line ${i + 1}: url is not a gym's subdomain address`);
+    } else if (!/^(category: |location: |hours: |plans:$|- )/.test(l)) problems.push(`llms: line ${i + 1} is not an allowlisted field`);
+  }
+  if (blocks > 0 && !sawUrl) problems.push("llms: the last block has no url: line");
+  for (const a of absent) if (body.includes(a)) problems.push(`llms: it lists ${a}, a gym whose page is not served`);
+  for (const p of present) if (!body.includes(p)) problems.push(`llms: it does not list ${p}`);
+  return problems;
 }
