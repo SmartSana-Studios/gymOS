@@ -6,6 +6,12 @@ Dated entries recording spike/decision outcomes that can't be changed later with
 
 ---
 
+## Epic 25 production release (2026-11-13)
+
+Epic 24 was already live (0160 to 0168, 2026-11-11), so this release was epic 25 only: migrations 0169 to 0172, then the merge of PR #129 (merge commit 753a68a). Order used: read-only readiness (`scripts/deploy-readiness.sh 0169`, head 0168) and a read-only look at the two production gyms, then `scripts/deploy-migration.sh` one migration at a time with the green db-backup run 43417039427, then the merge, then the smoke test. The one real-gym risk was 0169's backfill, which unpublishes a live page whose free-text city matches no seeded alias: SMARTSANA FITNESS (page city "Yaounde") matched Yaoundé and stayed published; the other gym has no page. No new environment variable, secret or DNS record. The full gate was five stages green in one run plus `unit` green alone after 6 load timeouts, so not a single all-green run; the `e2e-tests` job failed once on a runner docker networking error and passed on re-run. Not yet exercised on production: the 301 from a renamed city's old slug (needs a rename). Rollback: roll the apps back first, then `scripts/rollback-0172-*.sql` before `rollback-0170`, newest first.
+
+---
+
 ## 2026-11-13 — Story 25.7: directory Africa map and old city-slug redirects (migration 0172, provisional)
 
 AD-44, AD-49, AD-50. One new `public_site` view, one new redirect branch, one map on the top page. Nothing ran against staging or production.
