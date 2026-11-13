@@ -180,6 +180,8 @@ async function main() {
   log();
   log(`Load result (${envLabel}; the scan, the server, the database and the probes share one machine, so every figure is a floor)`);
   log(`  requests ${all.requests}: real pages 200 ${real.ok}, real pages answered 404 ${real.realNotFound}, unknown labels 404 ${unknown.unknownOk}, directory pages as expected ${dir.dirOk} of ${dir.requests}, errors ${all.error}`);
+  // a PASS with the directory mix off says nothing about the directory routes: the summary must not let that pass for the 25.3 deferral being closed
+  if (where === null) log(`  directory pages: NOT EXERCISED (${directoryShare === 0 ? "GATE_LOAD_DIRECTORY_SHARE=0" : "GATE_DIRECTORY_COUNTRY and GATE_DIRECTORY_CITY are not set"}); this run does not cover the directory routes`);
   if (errorsSeen.size) log(`  error kinds: ${[...errorsSeen].map(([k, v]) => `${k} x${v}`).join(", ")}`);
   if (real.latencies.length) log(`  real label latency: median ${median(real.latencies).toFixed(0)} ms, p95 ${p95(real.latencies).toFixed(0)} ms (one read)`);
   if (dir.latencies.length) log(`  directory latency (reported separately; a city page runs up to four reads on the one pooled connection): median ${median(dir.latencies).toFixed(0)} ms, p95 ${p95(dir.latencies).toFixed(0)} ms (${dir.latencies.length} requests)`);

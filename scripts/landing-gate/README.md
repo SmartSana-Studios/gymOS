@@ -59,14 +59,16 @@ psql "$STAGING_DB_URL" -v ON_ERROR_STOP=1 -At -f scripts/landing-gate/purge-stal
 The SEO steps cannot run from a development session (no staging, no Search Console, no Rich Results request from here). The numbered OPEN list with every URL and what to record is in `docs/decisions.md`, section "Story 25.6". The removal run is:
 
 ```sh
-# 1. read the city listing's count first (the number in "N gyms in <city>"), note the time, then do ONE removal in the Owner or Super Admin UI
-SINCE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-# 1b. BEFORE the action, prove the tool can see the gym on every surface (needs no --since; exit 1 names each surface that does not show it):
+# 0. the target FIRST: every command below reads it (without it --check-visible would probe localhost)
+export BASE_URL='https://{label}.<staging root>' ROOT_DOMAIN='<staging root>' GATE_PLATFORM=vercel GATE_ENV_LABEL='staging, through the CDN'
+# 1. read the city listing's count first (the number in "N gyms in <city>")
+# 2. BEFORE the action, prove the tool can see the gym on every surface (needs no --since; exit 1 names each surface that does not show the gym or could not be read):
 node scripts/landing-gate/removal-timing.mjs --check-visible --label <the gym's page name> --country <cc> --city <city slug> --count-before <N>
-# 2. right after the action:
-export BASE_URL='https://{label}.<staging root>' ROOT_DOMAIN='<staging root>' GATE_ENV_LABEL='staging, through the CDN'
+# 3. only when step 2 exited 0: take the time IMMEDIATELY before the action, then do ONE removal in the Owner or Super Admin UI
+SINCE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+# 4. right after the action:
 node scripts/landing-gate/removal-timing.mjs --since "$SINCE" --label <the removed gym's page name> \
-  --country <cc> --city <city slug> --count-before <N> --cause unpublish    # then takedown, then suspension (one gym each)
+  --country <cc> --city <city slug> --count-before <N> --cause unpublish    # then takedown, then suspension (one gym each); add --locale fr for a second run in French
 ```
 
 Run `--check-visible` first: without it a mistyped label or city, a gym that was never live, or a listing row on page 2 all read as "gone before the first poll" and the run would pass with nothing proven. Then run the timing within a minute of the action: a surface already gone at the first poll is reported as "gone before the first poll" with the time of that poll as an upper bound, and a first poll later than the bound proves nothing and fails. In `--mode cdn` (the default whenever `ROOT_DOMAIN` is not `localhost`) the time is measured against 300 s (pages, listings, `llms.txt`) and 900 s (sitemaps). With `--count-before 3` the www sitemap surface applies (the city leaves the sitemap when it drops to 2); with any other count it prints `n/a`. Exit 2 without `--since` (normal mode), for a `--since` more than 5 s in the future, and for a `--poll-ms` below 50 or not a number. In `--mode cdn` the `s-maxage` header is not judged (on Vercel the client-visible `Cache-Control` drops it); the measured time is the proof.

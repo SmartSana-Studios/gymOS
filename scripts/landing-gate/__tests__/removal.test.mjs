@@ -384,3 +384,99 @@ test("CLI usage: a --since more than 5 s in the future, and a --poll-ms below 50
     assert.match(r.out, /--poll-ms must be a number of at least 50/);
   }
 });
+
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+// Review patches (second review of 25-6): the per-kind staging deadlines, a late-but-eventual removal, and a probe that could not read its surface
+// ---------------------------------------------------------------------------------------------------------------------------------------------
+/** A surface that drops at `dropAtMs` of the injected clock (never when null); `clock.t` is the injected time. */
+const stubSurface = (id, bound, clock, dropAtMs) => ({
+  id,
+  name: id,
+  bound,
+  reads: [],
+  applies: () => true,
+  async probe() {
+    return { gone: dropAtMs !== null && clock.t >= dropAtMs, responses: [] };
+  },
+});
+const fakeClock = () => {
+  const clock = { t: 0 };
+  return { clock, now: () => clock.t, sleep: async (ms) => { clock.t += ms; } };
+};
+
+test("poll: each kind of surface is polled until its OWN deadline (300 s for pages, 900 s for sitemaps)", async () => {
+  const bounds = { cdnS: 300, sitemapS: 900 };
+  const page = fakeClock();
+  const pageRun = await pollRemoval({ get: async () => ({}), ctx: ctxFor(), since: 0, boundS: bounds, pollMs: 100_000, now: page.now, sleep: page.sleep, surfaces: [stubSurface("page", "cdn", page.clock, null)] });
+  assert.equal(page.clock.t, 300_000, "a stuck page stops being polled at 300 s, not later");
+  assert.equal(pageRun[0].polls, 4);
+  assert.equal(pageRun[0].gone, false);
+
+  const sitemap = fakeClock();
+  const sitemapRun = await pollRemoval({ get: async () => ({}), ctx: ctxFor(), since: 0, boundS: bounds, pollMs: 100_000, now: sitemap.now, sleep: sitemap.sleep, surfaces: [stubSurface("sitemap", "sitemap", sitemap.clock, null)] });
+  assert.equal(sitemap.clock.t, 900_000, "a stuck sitemap is polled until 900 s, not 300 s");
+  assert.equal(sitemapRun[0].polls, 10);
+
+  // a sitemap that drops at 400 s is inside its bound; a page that drops at 400 s is not
+  const mixed = fakeClock();
+  const surfaces = [stubSurface("page", "cdn", mixed.clock, 400_000), stubSurface("sitemap", "sitemap", mixed.clock, 400_000)];
+  const results = await pollRemoval({ get: async () => ({}), ctx: ctxFor(), since: 0, boundS: bounds, pollMs: 100_000, now: mixed.now, sleep: mixed.sleep, surfaces });
+  const verdict = judgeRemoval(results, { mode: "cdn" });
+  assert.equal(verdict.failures.length, 1, verdict.failures.join("\n"));
+  assert.match(verdict.failures[0], /^page: took 400\.0 s to leave, over the 300 s bound/);
+});
+
+test("judge: a surface that is gone, but later than its bound, fails naming the surface (origin 60 s, and cdn 300 s / 900 s)", async () => {
+  const origin = fakeClock();
+  const late = await pollRemoval({ get: async () => ({}), ctx: ctxFor(), since: 0, boundS: 60, pollMs: 25_000, now: origin.now, sleep: origin.sleep, surfaces: [stubSurface("llms", "cdn", origin.clock, 75_000)] });
+  assert.equal(late[0].gone, true);
+  assert.equal(late[0].beforeFirstPoll, false);
+  const failures = judgeRemoval(late, { mode: "origin" }).failures;
+  assert.equal(failures.length, 1, failures.join("\n"));
+  assert.match(failures[0], /^llms: took 75\.0 s to leave, over the 60 s bound$/, "probed at 0, 25, 50, 75 s it is first seen gone at 75 s: the poll records the time it saw it");
+  // the same removal inside its bound passes
+  const ok = judgeRemoval([{ ...late[0], elapsedMs: 40_000 }], { mode: "origin" });
+  assert.deepEqual(ok.failures, []);
+  // sitemap kind: 900 s in cdn mode
+  assert.deepEqual(judgeRemoval([{ ...late[0], kind: "sitemap", elapsedMs: 800_000 }], { mode: "cdn" }).failures, []);
+  assert.match(judgeRemoval([{ ...late[0], kind: "sitemap", elapsedMs: 950_000 }], { mode: "cdn" }).failures[0], /^llms: took 950\.0 s to leave, over the 900 s bound$/);
+});
+
+test("probe: a surface that could not be read is broken, and a city that lost no gym is not read as emptied", async () => {
+  const page = (status, text = "") => async () => ({ status, headers: {}, body: text });
+  const probe = (id, get, ctx = ctxFor()) => SURFACES.find((s) => s.id === id).probe(get, ctx);
+  // a 5xx is broken, not "shows the gym" and not "gone"
+  for (const id of ["gym-page", "gym-sitemap", "city-row", "city-count", "country-count", "llms"]) {
+    const r = await probe(id, page(500));
+    assert.equal(r.gone, false, id);
+    assert.equal(r.broken, true, `${id}: a 500 answer is broken`);
+  }
+  // a city page with no count sentence is broken; one that still counts the gyms is a normal visible result
+  const noCount = await probe("city-count", page(200, "<html>no sentence</html>"));
+  assert.deepEqual([noCount.gone, noCount.broken], [false, true]);
+  const stillCounts = await probe("city-count", page(200, '<p class="count">3 gyms in Kribi</p>'));
+  assert.deepEqual([stillCounts.gone, stillCounts.broken], [false, undefined]);
+  // 404 on the city page, or no card on the country page, is "gone" only when the city had ONE gym; with three it is a wrong target
+  const countryNoCard = page(200, '<ul><li class="card"><a href="/en/gyms/cm/other"><p>3 gyms</p></a></li></ul>');
+  for (const [id, get] of [["city-row", page(404)], ["city-count", page(404)], ["country-count", page(404)], ["country-count", countryNoCard]]) {
+    const wrong = await probe(id, get, ctxFor({ countBefore: 3 }));
+    assert.deepEqual([wrong.gone, wrong.broken], [false, true], `${id} with 3 gyms before`);
+    assert.match(wrong.note, /one removal leaves 2/);
+    const emptied = await probe(id, get, ctxFor({ countBefore: 1 }));
+    assert.deepEqual([emptied.gone, emptied.broken], [true, undefined], `${id} with 1 gym before`);
+  }
+  // a request that throws is broken in probeAll
+  const all = await probeAll({ get: async () => { throw new Error("ECONNREFUSED"); }, ctx: ctxFor({ countBefore: 5 }) });
+  for (const [id, r] of Object.entries(all)) assert.deepEqual([id, r.gone, r.broken], [id, false, true]);
+});
+
+test("CLI --check-visible: a target that cannot be read (nothing listens) is exit 1, never a PASS", async () => {
+  const w = await world({ still: new Set(ALL) });
+  const { port } = w;
+  await new Promise((resolve) => w.server.close(resolve));
+  const r = await run(["--check-visible", "--label", LABEL, "--country", "cm", "--city", CITY, "--count-before", "3"], { BASE_URL: `http://127.0.0.1:${port}` });
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /COULD NOT BE READ/);
+  assert.match(r.out, /- gym page .* could not be read: check BASE_URL and ROOT_DOMAIN/);
+  assert.doesNotMatch(r.out, /PASS/);
+});

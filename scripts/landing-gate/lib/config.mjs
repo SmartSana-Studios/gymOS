@@ -35,7 +35,8 @@ export const config = {
     label: env.GATE_DIRECTORY_LABEL ?? "www",
   },
   /** Story 25.6: the share (0 to 1) of the load check's requests that are directory pages (the rest are page-label scans). 0 turns the directory mix off. */
-  loadDirectoryShare: Number(env.GATE_LOAD_DIRECTORY_SHARE ?? 0.2),
+  // an empty value is NaN (load.mjs rejects it), not 0: `Number("")` would turn the directory mix off without a word
+  loadDirectoryShare: env.GATE_LOAD_DIRECTORY_SHARE === undefined ? 0.2 : env.GATE_LOAD_DIRECTORY_SHARE.trim() === "" ? NaN : Number(env.GATE_LOAD_DIRECTORY_SHARE),
   /** An admin connection used ONLY to read pg_stat_activity and pg_roles (needs pg_monitor or a superuser). */
   adminDbUrl: env.GATE_ADMIN_DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres",
   readerRole: env.GATE_READER_ROLE ?? "public_site_reader",

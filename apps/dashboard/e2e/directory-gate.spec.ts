@@ -106,9 +106,17 @@ for (const lang of ["en", "fr"] as const) {
     });
 
     test.afterAll(async () => {
-      if (sa) await removeSuperAdmin(sa);
-      for (const pg of [...three, ...thin]) await removePageGym(pg);
+      // every gym is removed even when the Super Admin's removal throws: a leftover published gym breaks the next run's exact city counts
+      const failures: unknown[] = [];
+      for (const step of [async () => { if (sa) await removeSuperAdmin(sa); }, ...[...three, ...thin].map((pg) => () => removePageGym(pg))]) {
+        try {
+          await step();
+        } catch (e) {
+          failures.push(e);
+        }
+      }
       if (measured.length) console.log(`\ndirectory gate ${lang.toUpperCase()}: removal timing (LOCAL, origin; CDN and sitemap bounds by construction)\n${measured.join("\n")}`);
+      if (failures.length) throw new Error(`directory gate ${lang.toUpperCase()}: ${failures.length} cleanup step(s) failed: ${failures.map(String).join("; ")}`);
     });
 
     const ctxFor = (victim: PageGym) => ({
@@ -248,8 +256,9 @@ for (const lang of ["en", "fr"] as const) {
     async function expectVisibleEverywhere(victim: PageGym, when: string): Promise<void> {
       await expect
         .poll(async () => {
-          const state = (await probeAll({ get, ctx: ctxFor(victim) })) as Record<string, { gone: boolean; note?: string }>;
-          return Object.entries(state).filter(([, v]) => v.gone).map(([k]) => k);
+          const state = (await probeAll({ get, ctx: ctxFor(victim) })) as Record<string, { gone: boolean; broken?: boolean; note?: string }>;
+          // a surface that could not be read is not "visible" either
+          return Object.entries(state).filter(([, v]) => v.gone || v.broken).map(([k]) => k);
         }, { message: `${when}: the gym must be on every surface`, timeout: 15_000 })
         .toEqual([]);
     }

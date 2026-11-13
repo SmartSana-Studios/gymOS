@@ -13,8 +13,9 @@
 //                    (s-maxage <= 300 s on every answer). cdn (default elsewhere, staging): the time is measured against 300 s (pages, listings, llms.txt) and 900 s (sitemaps).
 //   --bound-seconds  overrides the origin bound (60), for the kit's own tests.
 //
-//   --check-visible BEFORE the action (needs no --since): requests every surface once and exits 1 naming each one that does NOT show the gym, so a mistyped --label or
-//                    --city, a gym that is not live, or a row on page 2 of the listing is found before it can read as "gone before the first poll". Exit 0: all show it.
+//   --check-visible BEFORE the action (needs no --since; export BASE_URL and ROOT_DOMAIN first): requests every surface once and exits 1 naming each one that does NOT
+//                    show the gym or could not be read (a 5xx, a refused connection), so a mistyped --label or --city, a gym that is not live, a row on page 2 of the
+//                    listing or a wrong target is found before it can read as "gone before the first poll". Exit 0: all show it.
 //
 // Exit 0: every surface dropped within its bound. Exit 1: a surface kept the gym past its bound, an answer has no s-maxage or one over 300 s, or a time cannot be proven. Exit 2: usage.
 import { parseArgs } from "node:util";
@@ -93,12 +94,14 @@ if (checkVisible) {
       continue;
     }
     const r = state[surface.id];
-    if (r.gone) missing.push(surface.name);
-    console.log(`  ${surface.name}: ${r.gone ? "NOT SHOWING THE GYM" : "shows the gym"}${r.note ? ` (${r.note})` : ""}`);
+    // a surface that could not be read (5xx, request failed, no count sentence) neither shows the gym nor proves it gone: it is not a pass
+    if (r.gone) missing.push(`${surface.name} does not show the gym`);
+    else if (r.broken) missing.push(`${surface.name} could not be read`);
+    console.log(`  ${surface.name}: ${r.gone ? "NOT SHOWING THE GYM" : r.broken ? "COULD NOT BE READ" : "shows the gym"}${r.note ? ` (${r.note})` : ""}`);
   }
   if (missing.length) {
     console.log(`\nremoval-timing --check-visible: FAIL (${missing.length}) (${envLabel})`);
-    for (const m of missing) console.log(`  - ${m} does not show the gym: check --label, --city, --country, --count-before and that the gym is live (a listing row on page 2 is not seen)`);
+    for (const m of missing) console.log(`  - ${m}: check BASE_URL and ROOT_DOMAIN, --label, --city, --country, --count-before and that the gym is live (a listing row on page 2 is not seen)`);
     process.exit(1);
   }
   console.log(`\nremoval-timing --check-visible: PASS, every applicable surface shows the gym (${envLabel})`);

@@ -13,8 +13,6 @@ export const BOUNDS = Object.freeze({ originS: 60, cdnS: 300, sitemapS: 900, max
 /** The number of published gyms at which a city becomes indexable (private.directory_indexable_min, migration 0170). Used only to know when the sitemap surface applies. */
 export const INDEXABLE_MIN = 3;
 
-const schemeFor = (rootDomain) => (/^localhost(:\d+)?$/i.test(rootDomain) ? "http" : "https");
-
 /**
  * What every probe receives. `label` is the removed gym's page name (its subdomain), `country` and `city` the slugs of the listing it was in, `countBefore` the
  * number of gyms that listing showed BEFORE the removal, `locale` the language of the directory paths probed.
@@ -39,10 +37,18 @@ export function countryCardCount(html, href) {
   return m ? Number(m[1]) : null;
 }
 
-/** A probe result: `gone` (the surface no longer shows the gym), `responses` (status and headers of every answer it took, for the s-maxage check), `note` when something was odd. */
-const probeResult = (gone, responses, note) => ({ gone, responses: responses.map((r) => ({ status: r.status, headers: r.headers })), ...(note ? { note } : {}) });
+/**
+ * A probe result: `gone` (the surface no longer shows the gym), `responses` (status and headers of every answer it took, for the s-maxage check), `note` when
+ * something was odd. `broken` is set when the probe could not read the surface at all (an unexpected status, a failed request, a page without its count, or a
+ * not-found for a city that listed more than one gym): that is neither "shows the gym" nor "gone", and a pre-check must not read it as either.
+ */
+const probeResult = (gone, responses, note, broken = false) => ({ gone, responses: responses.map((r) => ({ status: r.status, headers: r.headers })), ...(note ? { note } : {}), ...(broken ? { broken: true } : {}) });
 
 const unexpected = (what, r) => `${what} answered ${r.status}`;
+const brokenResult = (what, r) => probeResult(false, [r], unexpected(what, r), true);
+/** One removal takes a city from `countBefore` gyms to one fewer, so its listing disappears (404, or no card on the country page) only when it had exactly one. */
+const emptiesCity = (ctx) => ctx.countBefore === 1;
+const notEmptied = (what, ctx) => `${what} is missing though the city listed ${ctx.countBefore} gyms (one removal leaves ${ctx.countBefore - 1}): check --country, --city and --count-before`;
 
 /**
  * The surfaces. `bound`: which FR-207 bound applies through the CDN ("cdn" 5 minutes, "sitemap" 15 minutes). `reads`: the public_site views the surface is
@@ -59,7 +65,7 @@ export const SURFACES = [
     async probe(get, ctx) {
       const r = await get(ctx.label, "/");
       if (r.status === 404) return probeResult(true, [r]);
-      return probeResult(false, [r], r.status === 200 ? undefined : unexpected("the gym page", r));
+      return r.status === 200 ? probeResult(false, [r]) : brokenResult("the gym page", r);
     },
   },
   {
@@ -71,7 +77,7 @@ export const SURFACES = [
     async probe(get, ctx) {
       const r = await get(ctx.label, "/sitemap.xml");
       if (r.status === 404) return probeResult(true, [r]);
-      return probeResult(false, [r], r.status === 200 ? undefined : unexpected("the gym-host sitemap", r));
+      return r.status === 200 ? probeResult(false, [r]) : brokenResult("the gym-host sitemap", r);
     },
   },
   {
@@ -82,8 +88,8 @@ export const SURFACES = [
     applies: () => true,
     async probe(get, ctx) {
       const r = await get(ctx.wwwLabel, dirPath(ctx, ctx.country, ctx.city));
-      if (r.status === 404) return probeResult(true, [r]); // the city has no gym left: the page is the not-found
-      if (!ok200(r)) return probeResult(false, [r], unexpected("the city page", r));
+      if (r.status === 404) return emptiesCity(ctx) ? probeResult(true, [r]) : probeResult(false, [r], notEmptied("the city page", ctx), true); // the city has no gym left: the page is the not-found
+      if (!ok200(r)) return brokenResult("the city page", r);
       const listed = body(r).includes(`//${ctx.label}.${ctx.rootDomain}/"`);
       return probeResult(!listed, [r]);
     },
@@ -96,10 +102,10 @@ export const SURFACES = [
     applies: () => true,
     async probe(get, ctx) {
       const r = await get(ctx.wwwLabel, dirPath(ctx, ctx.country, ctx.city));
-      if (r.status === 404) return probeResult(true, [r]);
-      if (!ok200(r)) return probeResult(false, [r], unexpected("the city page", r));
+      if (r.status === 404) return emptiesCity(ctx) ? probeResult(true, [r]) : probeResult(false, [r], notEmptied("the city page", ctx), true);
+      if (!ok200(r)) return brokenResult("the city page", r);
       const n = cityPageCount(body(r));
-      if (n === null) return probeResult(false, [r], "the city page has no count sentence");
+      if (n === null) return probeResult(false, [r], "the city page has no count sentence", true);
       return probeResult(n < ctx.countBefore, [r], n < ctx.countBefore ? undefined : `the city page still counts ${n}`);
     },
   },
@@ -111,10 +117,10 @@ export const SURFACES = [
     applies: () => true,
     async probe(get, ctx) {
       const r = await get(ctx.wwwLabel, dirPath(ctx, ctx.country));
-      if (r.status === 404) return probeResult(true, [r]); // the country has no gym left
-      if (!ok200(r)) return probeResult(false, [r], unexpected("the country page", r));
+      if (r.status === 404) return emptiesCity(ctx) ? probeResult(true, [r]) : probeResult(false, [r], notEmptied("the country page", ctx), true); // the country has no gym left
+      if (!ok200(r)) return brokenResult("the country page", r);
       const n = countryCardCount(body(r), dirPath(ctx, ctx.country, ctx.city));
-      if (n === null) return probeResult(true, [r]); // the city's card is gone: it had one gym
+      if (n === null) return emptiesCity(ctx) ? probeResult(true, [r]) : probeResult(false, [r], notEmptied("the city's card on the country page", ctx), true); // the city's card is gone: it had one gym
       return probeResult(n < ctx.countBefore, [r], n < ctx.countBefore ? undefined : `the country page's card still counts ${n}`);
     },
   },
@@ -126,7 +132,7 @@ export const SURFACES = [
     applies: () => true,
     async probe(get, ctx) {
       const r = await get(ctx.wwwLabel, "/llms.txt");
-      if (!ok200(r)) return probeResult(false, [r], unexpected("llms.txt", r));
+      if (!ok200(r)) return brokenResult("llms.txt", r);
       const url = `//${ctx.label}.${ctx.rootDomain}/`;
       const listed = body(r).split("\n").some((l) => l.startsWith("url: ") && l.trimEnd().endsWith(url));
       return probeResult(!listed, [r]);
@@ -142,7 +148,7 @@ export const SURFACES = [
     notApplicable: (ctx) => `the city had ${ctx.countBefore} gyms (the sitemap lists a city at ${INDEXABLE_MIN} or more, so one fewer changes it only from exactly ${INDEXABLE_MIN})`,
     async probe(get, ctx) {
       const index = await get(ctx.wwwLabel, "/sitemap-index.xml");
-      if (!ok200(index)) return probeResult(false, [index], unexpected("the sitemap index", index));
+      if (!ok200(index)) return brokenResult("the sitemap index", index);
       const responses = [index];
       const wanted = new Set(["en", "fr"].map((l) => `/${l}/gyms/${ctx.country}/${ctx.city}`));
       for (const loc of locsOf(body(index))) {
@@ -154,7 +160,7 @@ export const SURFACES = [
         }
         const r = await get(ctx.wwwLabel, file.pathname);
         responses.push(r);
-        if (!ok200(r)) return probeResult(false, responses, unexpected(`sitemap file ${file.pathname}`, r));
+        if (!ok200(r)) return probeResult(false, responses, unexpected(`sitemap file ${file.pathname}`, r), true);
         for (const entry of locsOf(body(r))) {
           let path;
           try {
@@ -240,7 +246,7 @@ export async function probeAll({ get, ctx, surfaces = SURFACES }) {
     try {
       out[s.id] = await s.probe(get, ctx);
     } catch (e) {
-      out[s.id] = { gone: false, responses: [], note: `request failed: ${e.message}` };
+      out[s.id] = { gone: false, responses: [], note: `request failed: ${e.message}`, broken: true };
     }
   }
   return out;
@@ -283,7 +289,7 @@ export async function pollRemoval({ get, ctx, since, boundS, pollMs = 500, now =
       try {
         p = await by.get(r.id).probe(get, ctx);
       } catch (e) {
-        p = { gone: false, responses: [], note: `request failed: ${e.message}` };
+        p = { gone: false, responses: [], note: `request failed: ${e.message}`, broken: true };
       }
       r.polls++;
       for (const resp of p.responses) {
