@@ -575,6 +575,32 @@ describe("the document", () => {
   });
 });
 
+describe("hero texture (owner review 2026-11-13)", () => {
+  const TEXTURE = ".top{background-color:#0F1B2D;background-image:radial-gradient(60% 90% at 12% 0%,rgba(224,151,31,.1),rgba(224,151,31,0) 70%),linear-gradient(to bottom,rgba(15,27,45,0) 35%,#0F1B2D 100%),radial-gradient(circle,rgba(255,255,255,.08) 1.2px,transparent 1.7px);background-size:auto,auto,28px 28px;color:#FFFFFF}";
+  it("the navy band of the top, country and city pages carries the glow and the dot grid, in CSS only", async () => {
+    for (const segments of [[], ["cm"], ["cm", "douala"]]) {
+      const { html } = await page(deps(world()), "en", segments);
+      expect(html, segments.join("/") || "top").toContain(TEXTURE);
+      expect(html.match(/<header class="top on-navy">/g)).toHaveLength(1);
+      // the CSP allows no image, so the texture is gradients: the only url() calls in the page are the two self-hosted fonts
+      expect([...html.matchAll(/url\(([^)]*)\)/g)].map((m) => m[1])).toEqual(["/fonts/bricolage-grotesque-800.woff2", "/fonts/figtree-variable.woff2"]);
+      expect(html).not.toMatch(/<style[^>]*>[^]*data:/);
+    }
+  });
+  it("stays faint: the dots are at most 8 % white and the glow at most 10 % accent (read from the rendered page), so text contrast on the navy is unchanged", async () => {
+    const { html } = await page(deps(world()), "en");
+    const rule = /\.top\{[^}]*\}/.exec(html)![0];
+    const layers = [...rule.matchAll(/rgba\((\d+),(\d+),(\d+),(\.?\d+(?:\.\d+)?)\)/g)].map((m) => ({ rgb: m.slice(1, 4).join(","), a: Number(m[4]) }));
+    const max = (rgb: string) => Math.max(0, ...layers.filter((l) => l.rgb === rgb).map((l) => l.a));
+    expect(layers.length).toBeGreaterThan(0);
+    expect(max("255,255,255")).toBeGreaterThan(0);
+    expect(max("255,255,255")).toBeLessThanOrEqual(0.08);
+    expect(max("224,151,31")).toBeGreaterThan(0);
+    expect(max("224,151,31")).toBeLessThanOrEqual(0.1);
+    expect(layers.every((l) => ["255,255,255", "224,151,31", "15,27,45"].includes(l.rgb))).toBe(true);
+  });
+});
+
 describe("card chevron (owner review 2026-11-13)", () => {
   it("is two CSS borders on an empty aria-hidden span, not a font glyph and not an SVG", async () => {
     const { html } = await page(deps(world()), "en");

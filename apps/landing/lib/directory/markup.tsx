@@ -109,7 +109,9 @@ export const DIRECTORY_CSS = [
   ".wrap{max-width:76rem;margin:0 auto;padding:0 20px}",
   ".skip{position:absolute;left:-9999px;top:0;z-index:10;background:#FFFFFF;color:#0F1B2D;padding:12px 16px;font-weight:600}",
   ".skip:focus{left:16px;top:8px}",
-  ".top{background:#0F1B2D;color:#FFFFFF}",
+  // the navy band (header and hero, on the top, country and city pages) carries a faint texture, gradients only because the CSP allows no image: a soft accent glow
+  // at the top left, and a 28 px dot grid (echoing the map's dots) that fades out toward the bottom of the band
+  ".top{background-color:#0F1B2D;background-image:radial-gradient(60% 90% at 12% 0%,rgba(224,151,31,.1),rgba(224,151,31,0) 70%),linear-gradient(to bottom,rgba(15,27,45,0) 35%,#0F1B2D 100%),radial-gradient(circle,rgba(255,255,255,.08) 1.2px,transparent 1.7px);background-size:auto,auto,28px 28px;color:#FFFFFF}",
   ".bar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:68px}",
   ".brand{display:inline-flex;align-items:center;min-height:44px;font:800 20px/1 'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-.02em;color:#FFFFFF;text-decoration:none}",
   ".bar-links{display:flex;align-items:center;gap:8px}",

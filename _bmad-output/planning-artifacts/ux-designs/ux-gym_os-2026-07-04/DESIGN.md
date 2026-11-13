@@ -218,6 +218,7 @@ The directory is its own set of pages on `www.gymosapps.com` (`/{locale}/gyms/â€
 | Rule | Value |
 |---|---|
 | Page shape | A navy-deep hero band continuous with the header (breadcrumb, `h1` with the place name as the accent fragment, one count sentence), then the content on the light ground. No stat numerals: the count is a sentence ("11 gyms in 4 cities"), so a small directory is never dressed up |
+| Hero texture *(owner review 2026-11-13)* | The navy band (header and hero) of PS-04, PS-05 and PS-06 is not flat: a soft glow of `colors.accent` (10 % at most) at the top left behind the headline, and a grid of tiny white dots (8 % at most, 28 px apart, echoing the map's dots) that fades out toward the bottom of the band. CSS gradients only (the page CSP allows no image), no motion, nothing to read: it never carries meaning and never lowers text contrast |
 | Cards (PS-04, PS-05) | White surface, 1 px `line-strong` border, no shadow, `rounded.card`; 76 px minimum height; name in Bricolage 800 22 px, count in muted 15 px, a thin chevron (two 2.5 px borders, drawn in CSS, not a font glyph) in the large-text orange. One column under 641 px, two to 1023 px, three from 1024 px |
 | Order | PS-04: Cameroon first, same card as every other country, no badge, no map treatment. PS-05, PS-06 as in EXPERIENCE.md |
 | Category filter (PS-06) | Wrapping pill links, 44 px tall; current one filled `colors.accent` with navy text, a check glyph and `aria-current`, so it never relies on colour alone |
