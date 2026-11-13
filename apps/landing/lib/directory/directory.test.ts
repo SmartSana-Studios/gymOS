@@ -575,6 +575,19 @@ describe("the document", () => {
   });
 });
 
+describe("card chevron (owner review 2026-11-13)", () => {
+  it("is two CSS borders on an empty aria-hidden span, not a font glyph and not an SVG", async () => {
+    const { html } = await page(deps(world()), "en");
+    expect(html).toContain('<span class="arrow" aria-hidden="true"></span>');
+    expect(html).toContain(".arrow{flex:none;width:10px;height:10px;margin-right:6px;border-top:2.5px solid #BA6500;border-right:2.5px solid #BA6500;transform:rotate(45deg)}");
+    expect(html).not.toContain("→");
+    // the country page lists cities with the same cards and still has no <svg> (the 25.7 "no map elsewhere" rule)
+    const country = await page(deps(world()), "en", ["cm"]);
+    expect(country.html).toContain('<span class="arrow" aria-hidden="true"></span>');
+    expect(country.html).not.toContain("<svg");
+  });
+});
+
 describe("headers: every outcome goes through the one function", () => {
   type Outcome = { name: string; run: () => Promise<Response>; expect: "page" | "notFound"; indexable?: boolean };
   const w21: World = { countries: [country("CM", "Cameroon", "Cameroun", 21)], cities: { CM: [city("douala", "Douala", 21)] }, gyms: { "CM/douala": gyms(21) } };
@@ -810,7 +823,7 @@ describe("Africa map (25.7)", () => {
       '<a href="/en/gyms/cm/douala" tabindex="-1" class="map-dot">',
       '<a href="/en/gyms/sn/dakar" tabindex="-1" class="map-dot">',
     ]);
-    // the dots: radius 5 + 3.2 sqrt(gyms)
+    // the dots: radius 5 + 3.2 sqrt(gyms), capped at 20 (map.test.ts)
     expect([...svgOf(html).matchAll(/<circle class="map-pt" cx="[\d.]+" cy="[\d.]+" r="([\d.]+)"/g)].map((m) => m[1])).toEqual(["10.54", "8.2", "8.2"]);
     // the hit circle is transparent (CSS fill); the attribute is 44 view-box units, and the CSS `r` rules below raise it on small screens (the CSS-px size at 320, 360
     // and 390 px is the recorded trade-off in decisions.md, not computed here)

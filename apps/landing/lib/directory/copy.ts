@@ -113,4 +113,4 @@ const fr: DirectoryCopy = {
 export const DIRECTORY_COPY: Record<Locale, DirectoryCopy> = { en, fr };
 
 /** Glyphs, kept out of the markup for the same reason as the words. */
-export const GLYPH = { check: "✓", arrow: "→" } as const;
+export const GLYPH = { check: "✓" } as const;

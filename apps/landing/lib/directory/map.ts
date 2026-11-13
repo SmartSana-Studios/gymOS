@@ -1,7 +1,7 @@
 // Story 25.7 (AD-44, AD-49): what the Africa map of the top page shows, as plain data for markup.tsx. The shapes are the committed generated module; the dots are
 // placed at request time from `directory_city` lat/lng by the local Natural Earth projection (mapProjection.ts, proven equal to d3's).
 //
-// Rules (DESIGN.md "Africa map"): one dot per city with a published gym, radius 5 + 3.2 * sqrt(gyms) in the 760-unit view box; position is the city's OWN
+// Rules (DESIGN.md "Africa map"): one dot per city with a published gym, radius 5 + 3.2 * sqrt(gyms), capped at 20, in the 760-unit view box; position is the city's OWN
 // coordinates, never a gym's. A city without coordinates (not in the rows given), outside the map's area or in a country off the map has no dot but stays
 // listed and counted by the cards. A country with a listed gym uses the lighter fill; no country is otherwise singled out. The caption does not claim completeness.
 import { AFRICA_MAP } from "./africaMap.generated";
@@ -10,8 +10,11 @@ import type { MapDotView, MapView } from "./markup";
 import type { DirectoryCopy } from "./copy";
 import type { MapCityRow } from "./types";
 
-/** Dot radius for a city with `gyms` published gyms, in view-box units. */
-export const dotRadius = (gyms: number): number => Math.round((5 + 3.2 * Math.sqrt(Math.max(0, gyms))) * 100) / 100;
+/** The largest a dot grows (about 22 gyms): one big city must not dominate the map. The label still carries the exact count. */
+export const MAX_DOT_RADIUS = 20;
+
+/** Dot radius for a city with `gyms` published gyms, in view-box units: 5 + 3.2 * sqrt(gyms), at most MAX_DOT_RADIUS. */
+export const dotRadius = (gyms: number): number => Math.min(MAX_DOT_RADIUS, Math.round((5 + 3.2 * Math.sqrt(Math.max(0, gyms))) * 100) / 100);
 
 const round1 = (n: number): number => Math.round(n * 10) / 10;
 

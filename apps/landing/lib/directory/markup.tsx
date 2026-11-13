@@ -131,7 +131,8 @@ export const DIRECTORY_CSS = [
   ".card a:hover{border-color:#0F1B2D}",
   ".card h2{font:800 22px/1.2 'Bricolage Grotesque',system-ui,sans-serif;letter-spacing:-.02em}",
   ".card p{font-size:15px;line-height:1.4;color:#59687C}",
-  ".arrow{flex:none;font:800 24px/1 'Bricolage Grotesque',system-ui,sans-serif;color:#BA6500}",
+  // the card's chevron is drawn with two borders, not a font glyph: the same shape and weight in every browser, no SVG on country and city pages
+  ".arrow{flex:none;width:10px;height:10px;margin-right:6px;border-top:2.5px solid #BA6500;border-right:2.5px solid #BA6500;transform:rotate(45deg)}",
   ".pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}",
   ".pills a{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;background:#FFFFFF;border:1px solid #7F8FA6;border-radius:999px;color:#0F1B2D;font-size:15px;font-weight:600;line-height:1.4;text-decoration:none}",
   ".pills a:hover{border-color:#0F1B2D}",
@@ -227,9 +228,7 @@ function Cards({ cards }: { cards: CardView[] }): ReactNode {
               <h2>{c.name}</h2>
               <p>{c.count}</p>
             </div>
-            <span className="arrow" aria-hidden="true">
-              {GLYPH.arrow}
-            </span>
+            <span className="arrow" aria-hidden="true" />
           </a>
         </li>
       ))}

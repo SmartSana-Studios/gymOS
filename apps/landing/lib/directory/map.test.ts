@@ -97,7 +97,12 @@ const view = (cities: MapCityRow[], listed: string[], locale: "en" | "fr" = "en"
   buildMapView({ copy: DIRECTORY_COPY[locale], listed: new Set(listed), cities, cityHref: (cc, slug) => `/${locale}/gyms/${cc.toLowerCase()}/${slug}` });
 
 describe("buildMapView", () => {
-  it("radius is 5 + 3.2 * sqrt(gyms)", () => {
+  it("radius is 5 + 3.2 * sqrt(gyms), capped at 20 so one big city cannot dominate the map", () => {
+    expect(dotRadius(22)).toBeCloseTo(20, 0);
+    expect(dotRadius(21)).toBeLessThan(20);
+    expect(dotRadius(23)).toBe(20);
+    expect(dotRadius(46)).toBe(20);
+    expect(dotRadius(5000)).toBe(20);
     expect(dotRadius(1)).toBe(8.2);
     expect(dotRadius(4)).toBe(11.4);
     expect(dotRadius(9)).toBe(14.6);
