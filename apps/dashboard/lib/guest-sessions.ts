@@ -55,7 +55,7 @@ export interface BlockedAttemptRow {
   id: string;
   memberId: string;
   memberName: string;
-  source: "check_in" | "class";
+  source: "check_in" | "class" | "staff";
   className: string | null;
   /** Scan time for an offline scan, otherwise server receipt. */
   time: string;

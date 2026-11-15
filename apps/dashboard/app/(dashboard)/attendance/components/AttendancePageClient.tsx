@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { LogOut } from "lucide-react";
+import { LogOut, UserCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,18 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TablePagination } from "@/components/TablePagination";
 import { useUrlPagination } from "@/hooks/use-table-pagination";
-import type { AttendanceLogRow, CurrentlyCheckedInRow } from "@/services/attendance";
+import type { AttendanceEntryInfo, AttendanceLogRow, CurrentlyCheckedInRow } from "@/services/attendance";
 import type { FrontDeskAlertRow } from "@/services/frontDeskAlerts";
 import { FrontDeskAlertPanel } from "@/components/shared/FrontDeskAlertPanel";
 import { resolveBadgeStatus, STATUS_BADGE_CONFIG } from "../attendanceLabels";
 import { CheckOutMemberConfirmDialog } from "./CheckOutMemberConfirmDialog";
+import { CheckInMemberModal } from "./CheckInMemberModal";
+import { VoidCheckInModal, type VoidTarget } from "./VoidCheckInModal";
+
+/** Story 27.3: who may check a member in at the entrance (every role that sees this page, and GymOS Support). Coach has no Attendance. */
+const CHECK_IN_ROLES = ["receptionist", "manager", "supervisor", "owner", "support"];
+/** Who may void a staff entry the same day (Manager and above, and GymOS Support). The database re-checks the role. */
+const VOID_ROLES = ["manager", "supervisor", "owner", "support"];
 
 export const ATTENDANCE_TABS = ["checkedIn", "log"] as const;
 type AttendanceTab = (typeof ATTENDANCE_TABS)[number];
@@ -74,6 +81,24 @@ export function AttendancePageClient({
 
   const [searchInput, setSearchInput] = useState(memberSearch);
   const [checkingOutMember, setCheckingOutMember] = useState<CurrentlyCheckedInRow | null>(null);
+  const [checkInOpen, setCheckInOpen] = useState(false);
+  const [voidTarget, setVoidTarget] = useState<VoidTarget | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canCheckIn = role !== undefined && CHECK_IN_ROLES.includes(role);
+  const canVoid = role !== undefined && VOID_ROLES.includes(role);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
+  function showToast(message: string) {
+    setToast(message);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 5000);
+  }
 
   // Review Finding: `updateParams` used to close over `searchParams`
   // directly, so a debounce timeout scheduled on one render could fire
@@ -175,6 +200,58 @@ export function AttendancePageClient({
     return name || t("attendance.unknownMember");
   }
 
+  // Story 27.3 (UX AD-11 V1.8): the Entry cell is plain text, never colour-coded. A scan (and every row from before V1.8) reads "QR scan";
+  // a staff entry shows the neutral "By staff" pill and "· [Name]" -- the name is hidden under 1024 px, the pill always stays. A name
+  // that did not resolve leaves the pill alone and the row stays usable.
+  function entryCell(entry: AttendanceEntryInfo) {
+    if (entry.source !== "staff") return t("attendance.log.entryScan");
+    return (
+      <span className="inline-flex items-center gap-1" aria-label={t("attendance.log.entryAria", { name: entry.enteredByLabel ?? "" })}>
+        <Badge variant="outline" className="border-gray-200 bg-gray-100 text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+          <UserCheck size={12} className="mr-1" aria-hidden="true" />
+          {t("attendance.log.byStaff")}
+        </Badge>
+        {entry.enteredByLabel && <span className="hidden lg:inline">· {entry.enteredByLabel}</span>}
+      </span>
+    );
+  }
+
+  function voidedDetail(row: AttendanceLogRow): string {
+    const when = row.voidedAt ? new Date(row.voidedAt) : null;
+    return t("attendance.log.voidedDetail", {
+      name: row.voidedByLabel ?? "",
+      date: when ? when.toLocaleDateString(i18n.language) : "",
+      time: when ? when.toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit", hour12: false }) : "",
+      reason: row.voidReason ?? "",
+    });
+  }
+
+  function voidTimeLabel(iso: string): string {
+    return new Date(iso).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit", hour12: false });
+  }
+
+  function voidButton(row: { id: string; memberName: string; checkedInAt: string; consumedSession: boolean | null; earnedStamp: boolean | null }) {
+    const name = memberDisplayName(row.memberName);
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        aria-label={t("attendance.void.actionAria", { name, time: voidTimeLabel(row.checkedInAt) })}
+        onClick={() =>
+          setVoidTarget({
+            attendanceId: row.id,
+            memberName: name,
+            checkedInAt: row.checkedInAt,
+            consumedSession: row.consumedSession,
+            earnedStamp: row.earnedStamp,
+          })
+        }
+      >
+        {t("attendance.void.action")}
+      </Button>
+    );
+  }
+
 
   return (
     <div className="space-y-8">
@@ -186,7 +263,16 @@ export function AttendancePageClient({
         role={role}
       />
 
-      <h1 className="text-2xl font-semibold">{t("attendance.title")}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">{t("attendance.title")}</h1>
+        {/* Absent from the DOM for a Coach (and any role without the check-in), not just disabled. */}
+        {canCheckIn && (
+          <Button onClick={() => setCheckInOpen(true)}>
+            <UserCheck size={16} />
+            {t("attendance.checkIn.action")}
+          </Button>
+        )}
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-md border p-4 bg-card">
@@ -233,6 +319,7 @@ export function AttendancePageClient({
                 <tr>
                   <th className="p-3 font-medium">{t("attendance.table.member")}</th>
                   <th className="p-3 font-medium">{t("attendance.table.checkIn")}</th>
+                  <th className="p-3 font-medium">{t("attendance.log.entry")}</th>
                   <th className="p-3 font-medium">{t("attendance.table.status")}</th>
                   <th className="p-3 font-medium">{t("attendance.table.actions")}</th>
                 </tr>
@@ -252,6 +339,7 @@ export function AttendancePageClient({
                         </div>
                       </td>
                       <td className="p-3">{formatTimestamp(row.checkedInAt)}</td>
+                      <td className="p-3">{entryCell(row)}</td>
                       <td className="p-3">
                         <Badge variant="outline" className={badge.className}>
                           <Icon size={12} className="mr-1" />
@@ -259,15 +347,27 @@ export function AttendancePageClient({
                         </Badge>
                       </td>
                       <td className="p-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-200"
-                          onClick={() => setCheckingOutMember(row)}
-                        >
-                          <LogOut size={14} />
-                          {t("attendance.checkOutButton")}
-                        </Button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950 dark:hover:text-blue-200"
+                            onClick={() => setCheckingOutMember(row)}
+                          >
+                            <LogOut size={14} />
+                            {t("attendance.checkOutButton")}
+                          </Button>
+                          {/* Only a staff entry of today, not voided, and only for Manager and above: otherwise absent from the DOM. */}
+                          {canVoid &&
+                            row.voidable &&
+                            voidButton({
+                              id: row.attendanceId,
+                              memberName: row.name,
+                              checkedInAt: row.checkedInAt,
+                              consumedSession: row.consumedSession,
+                              earnedStamp: row.earnedStamp,
+                            })}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -338,17 +438,53 @@ export function AttendancePageClient({
                   <th className="p-3 font-medium">{t("attendance.table.checkIn")}</th>
                   <th className="p-3 font-medium">{t("attendance.table.checkOut")}</th>
                   <th className="p-3 font-medium">{t("attendance.table.duration")}</th>
+                  <th className="p-3 font-medium">{t("attendance.log.entry")}</th>
+                  {canVoid && (
+                    <th className="p-3 font-medium">
+                      <span className="sr-only">{t("attendance.table.actions")}</span>
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {logRows.map((row) => (
-                  <tr key={row.id} className="border-b last:border-0">
-                    <td className="p-3">{memberDisplayName(row.memberName)}</td>
-                    <td className="p-3">{formatTimestamp(row.checkedInAt)}</td>
-                    <td className="p-3">{row.checkedOutAt ? formatTimestamp(row.checkedOutAt) : "—"}</td>
-                    <td className="p-3">{formatDuration(row.checkedInAt, row.checkedOutAt)}</td>
-                  </tr>
-                ))}
+                {logRows.map((row) => {
+                  const voided = row.voidedAt !== null;
+                  return (
+                    <tr key={row.id} className={`border-b last:border-0 ${voided ? "text-muted-foreground" : ""}`} data-voided={voided ? "true" : undefined}>
+                      <td className="p-3">{memberDisplayName(row.memberName)}</td>
+                      <td className="p-3">{formatTimestamp(row.checkedInAt)}</td>
+                      <td className="p-3">
+                        {voided ? (
+                          // The "Voided" pill sits in the Check-out cell; the tooltip and the screen-reader text say who, when and why.
+                          <span title={voidedDetail(row)}>
+                            <Badge variant="outline" className="border-gray-200 bg-gray-100 text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
+                              {t("attendance.log.voided")}
+                            </Badge>
+                            <span className="sr-only">{voidedDetail(row)}</span>
+                          </span>
+                        ) : row.checkedOutAt ? (
+                          formatTimestamp(row.checkedOutAt)
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td className="p-3">{voided ? "—" : formatDuration(row.checkedInAt, row.checkedOutAt)}</td>
+                      <td className="p-3">{entryCell(row)}</td>
+                      {canVoid && (
+                        <td className="p-3">
+                          {row.voidable &&
+                            voidButton({
+                              id: row.id,
+                              memberName: row.memberName,
+                              checkedInAt: row.checkedInAt,
+                              consumedSession: row.consumedSession,
+                              earnedStamp: row.earnedStamp,
+                            })}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -357,6 +493,39 @@ export function AttendancePageClient({
         <TablePagination page={page} pageSize={pageSize} total={logTotal} {...logPagination} />
         </TabsContent>
       </Tabs>
+
+      {checkInOpen && (
+        <CheckInMemberModal
+          role={role}
+          mobileMoneyEnabled={mobileMoneyEnabled}
+          onClose={() => {
+            setCheckInOpen(false);
+            router.refresh();
+          }}
+          onChanged={() => router.refresh()}
+        />
+      )}
+
+      {voidTarget && (
+        <VoidCheckInModal
+          target={voidTarget}
+          isSupport={role === "support"}
+          onClose={() => setVoidTarget(null)}
+          onStale={() => router.refresh()}
+          onVoided={() => {
+            const name = voidTarget.memberName;
+            setVoidTarget(null);
+            showToast(t("attendance.void.success", { name }));
+            router.refresh();
+          }}
+        />
+      )}
+
+      {toast && (
+        <div role="status" className="fixed bottom-4 right-4 max-w-sm rounded-md bg-primary px-4 py-3 text-sm text-primary-foreground shadow-lg">
+          {toast}
+        </div>
+      )}
 
       {checkingOutMember && (
         <CheckOutMemberConfirmDialog

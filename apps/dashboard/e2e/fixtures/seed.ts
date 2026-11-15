@@ -67,7 +67,7 @@ async function signInAs(email: string): Promise<SupabaseClient> {
 async function createStaffFixture(
   admin: SupabaseClient,
   gymId: string,
-  role: "owner" | "supervisor" | "manager" | "coach",
+  role: "owner" | "supervisor" | "manager" | "coach" | "receptionist",
   seq: number,
 ): Promise<RoleFixture> {
   const email = `e2e-${role}-${Date.now()}-${seq}@fixture.gymos.test`;
@@ -128,9 +128,10 @@ async function createMemberFixture(
   planId: string,
   phone: string,
   seq: number,
-  subscriptionStatus: "active" | "expiring_soon" = "active",
+  subscriptionStatus: "active" | "expiring_soon" | "expired" = "active",
+  options: { name?: string; expiryOffsetDays?: number | null } = {},
 ): Promise<MemberFixture> {
-  const name = `E2E Member ${seq}`;
+  const name = options.name ?? `E2E Member ${seq}`;
   let userId: string;
 
   const { data: existing } = await admin.from("users").select("id").eq("phone", phone.replace(/^\+/, "")).maybeSingle();
@@ -161,7 +162,9 @@ async function createMemberFixture(
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  // Story 27.3: a null offset is a Pay-per-session subscription (no expiry); an offset of -3 is an expired membership.
+  const offsetDays = options.expiryOffsetDays === undefined ? 30 : options.expiryOffsetDays;
+  const expiry = offsetDays === null ? null : new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const { error: subError } = await admin
     .from("subscriptions")
     .insert({ gym_id: gymId, member_id: memberRow.id, plan_id: planId, status: subscriptionStatus, start_date: today, expiry_date: expiry });
@@ -197,6 +200,8 @@ export default async function globalSetup(): Promise<void> {
   const manager = await createStaffFixture(admin, gymId, "manager", 3);
   const coach = await createStaffFixture(admin, gymId, "coach", 4);
   const secondCoach = await createStaffFixture(admin, gymId, "coach", 5);
+  // Story 27.3: the desk-fixes spec signs in as a Receptionist (who can check in but never void) and as the Manager above.
+  const receptionist = await createStaffFixture(admin, gymId, "receptionist", 6);
 
   // 3. One plan, needed by every member's subscription (Flow 4's booking
   // eligibility check, Flow 2's renewal pricing).
@@ -236,6 +241,21 @@ export default async function globalSetup(): Promise<void> {
   const fillerB = await createMemberFixture(admin, gymId, planId, "+237680000102", 102);
   const fillerC = await createMemberFixture(admin, gymId, planId, "+237680000103", 103);
   const fillerD = await createMemberFixture(admin, gymId, planId, "+237680000104", 104);
+
+  // Story 27.3: the desk members. The fixture gym charges per session by default (gyms.charge_guests_per_session defaults to true), so a
+  // Pay-per-session member with no session meets R5.
+  const { data: ppsPlanRow, error: ppsPlanError } = await admin
+    .from("plans")
+    .insert({ gym_id: gymId, name: "E2E Per Session", plan_type: "pay_per_session", price: 2000, currency: "XAF", billing_interval: "monthly" })
+    .select("id")
+    .single();
+  if (ppsPlanError || !ppsPlanRow) {
+    throw new Error(`e2e seed: pay-per-session plan insert failed -- ${ppsPlanError?.message}`);
+  }
+  const ppsPlanId = ppsPlanRow.id as string;
+  const deskActive = await createMemberFixture(admin, gymId, planId, "+237680000201", 201, "active", { name: "E2E Desk Active" });
+  const deskExpired = await createMemberFixture(admin, gymId, planId, "+237680000202", 202, "expired", { name: "E2E Desk Expired", expiryOffsetDays: -3 });
+  const deskPps = await createMemberFixture(admin, gymId, ppsPlanId, "+237680000203", 203, "active", { name: "E2E Desk Session", expiryOffsetDays: null });
 
   // 6. coach_assignments, via the real assign_coach() RPC under the
   // Owner's own session (Subtask 3.4).
@@ -324,6 +344,8 @@ export default async function globalSetup(): Promise<void> {
     manager,
     coach,
     secondCoach,
+    receptionist,
+    desk: { active: deskActive, expired: deskExpired, pps: deskPps, ppsPlanId },
     member,
     classFillerMembers: [fillerA, fillerB, fillerC, fillerD],
     classId,

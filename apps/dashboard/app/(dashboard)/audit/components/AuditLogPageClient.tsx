@@ -50,6 +50,33 @@ function detailsLabel(metadata: Record<string, unknown>): string {
     .join(", ");
 }
 
+// Story 27.3 (UX AD-12 V1.8): the three staff check-in rows read in plain words -- the time and outcome ("Checked in with a warning"
+// for Expiring Soon and Grace Period), the reason code of a refusal, the original entry time and reason of a void -- instead of the
+// generic `key: value` list. Anything unexpected falls back to the generic cell, so a row never renders empty.
+function staffCheckInDetails(
+  t: (key: string, options?: Record<string, unknown>) => string,
+  actionType: string,
+  metadata: Record<string, unknown>,
+  locale: string,
+): string | null {
+  const time = (value: unknown) =>
+    typeof value === "string" ? new Date(value).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", hour12: false }) : null;
+  if (actionType === "staff_check_in") {
+    const at = time(metadata.checked_in_at);
+    if (!at) return null;
+    return t(metadata.outcome === "checked_in_with_warning" ? "audit.staffCheckIn.checkedInWarning" : "audit.staffCheckIn.checkedIn", { time: at });
+  }
+  if (actionType === "staff_check_in_rejected") {
+    const reason = metadata.reason;
+    return typeof reason === "string" ? t(`audit.staffCheckIn.reason.${reason}`) : null;
+  }
+  if (actionType === "staff_check_in_voided") {
+    const at = time(metadata.original_checked_in_at);
+    return at && typeof metadata.reason === "string" ? t("audit.staffCheckIn.voided", { time: at, reason: metadata.reason }) : null;
+  }
+  return null;
+}
+
 function formatTimestamp(iso: string, locale: string): string {
   return new Date(iso).toLocaleString(locale);
 }
@@ -248,7 +275,7 @@ export function AuditLogPageClient({
                   <td className="p-3">{row.actorDisplayName}</td>
                   <td className="p-3">{actionLabel(t, row.actionType, row.metadata)}</td>
                   <td className="p-3">{targetLabel(row)}</td>
-                  <td className="p-3">{detailsLabel(row.metadata)}</td>
+                  <td className="p-3">{staffCheckInDetails(t, row.actionType, row.metadata, i18n.language) ?? detailsLabel(row.metadata)}</td>
                   {role === "owner" && (
                     <td className="p-3">
                       <Button variant="outline" size="sm" onClick={() => setAskAbout(row.id)}>

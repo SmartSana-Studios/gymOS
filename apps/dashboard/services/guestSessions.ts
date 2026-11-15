@@ -219,7 +219,7 @@ export async function listBlockedSessionAttempts(
     attempt_id: string;
     member_id: string;
     member_name: string;
-    source: "check_in" | "class";
+    source: "check_in" | "class" | "staff";
     class_name: string | null;
     attempt_time: string;
     scanned_at: string | null;

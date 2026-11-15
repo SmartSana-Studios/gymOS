@@ -33,6 +33,9 @@ const selectClassName =
  * default; Tara Money is not offered here (a guest paying in the app has its
  * own flow). Each refusal keeps the panel open with its own inline message;
  * focus returns to the control that opened it.
+ *
+ * Story 27.3: the body of the dialog is `RecordSessionPaymentPanel`, an embeddable form the Check in a member modal hosts inline
+ * (AD-30: never a second dialog on top of a dialog). This component is the dialog wrapper around it; its behaviour is unchanged.
  */
 export function RecordSessionPaymentDialog({
   memberId,
@@ -56,9 +59,73 @@ export function RecordSessionPaymentDialog({
   /** The session payment was recorded (the panel is done; the caller closes it). */
   onRecorded: () => void;
 }) {
-  const { t, i18n } = useTranslation();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.showModal();
+    const trigger = triggerRef.current;
+    return () => {
+      // Focus returns to the control that opened the panel (native dialog
+      // restoration is not guaranteed once that control re-rendered).
+      if (trigger && trigger.isConnected) trigger.focus();
+      else if (fallbackFocusId) document.getElementById(fallbackFocusId)?.focus();
+    };
+    // Mount-only: the trigger is captured once; the fallback id is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      onClose={onClose}
+      onCancel={(e) => {
+        if (submitting) e.preventDefault();
+      }}
+      aria-labelledby="sessionPaymentTitle"
+      className="w-full max-w-[480px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
+    >
+      <RecordSessionPaymentPanel
+        memberId={memberId}
+        memberName={memberName}
+        role={role}
+        alertId={alertId}
+        onClose={onClose}
+        onRecorded={onRecorded}
+        onBusyChange={setSubmitting}
+      />
+    </dialog>
+  );
+}
+
+/**
+ * The Record Session Payment form without its dialog (Story 27.3): the same amount, method, note and refusals as the dialog, so the
+ * Check in a member modal records a desk payment in place. `onRecorded` fires once the payment is recorded (the host decides what
+ * follows); `onClose` is the Cancel button; `onBusyChange` tells the host a request is in flight (so it can refuse Escape).
+ */
+export function RecordSessionPaymentPanel({
+  memberId,
+  memberName,
+  role,
+  alertId,
+  onClose,
+  onRecorded,
+  onBusyChange,
+  titleId = "sessionPaymentTitle",
+}: {
+  memberId: string;
+  memberName: string;
+  role?: string;
+  alertId?: string;
+  onClose: () => void;
+  onRecorded: () => void;
+  onBusyChange?: (busy: boolean) => void;
+  /** The heading id (a host that already uses the default id passes its own). */
+  titleId?: string;
+}) {
+  const { t, i18n } = useTranslation();
   // One call at a time: a ref, not just state, so a double click inside the
   // same tick cannot start a second RPC.
   const inFlightRef = useRef(false);
@@ -75,24 +142,15 @@ export function RecordSessionPaymentDialog({
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  useEffect(() => {
+    onBusyChange?.(submitting);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [submitting]);
+
   const canBankTransfer = role !== undefined && BANK_TRANSFER_ROLES.includes(role);
   const methods: SessionPaymentMethod[] = canBankTransfer
     ? ["cash", "manual_momo", "bank_transfer"]
     : ["cash", "manual_momo"];
-
-  useEffect(() => {
-    triggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    dialogRef.current?.showModal();
-    const trigger = triggerRef.current;
-    return () => {
-      // Focus returns to the control that opened the panel (native dialog
-      // restoration is not guaranteed once that control re-rendered).
-      if (trigger && trigger.isConnected) trigger.focus();
-      else if (fallbackFocusId) document.getElementById(fallbackFocusId)?.focus();
-    };
-    // Mount-only: the trigger is captured once; the fallback id is stable.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -163,17 +221,9 @@ export function RecordSessionPaymentDialog({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      onClose={onClose}
-      onCancel={(e) => {
-        if (submitting) e.preventDefault();
-      }}
-      aria-labelledby="sessionPaymentTitle"
-      className="w-full max-w-[480px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
-    >
+    <>
       <form onSubmit={handleSubmit} className="space-y-4 p-6">
-        <h2 id="sessionPaymentTitle" className="text-lg font-semibold">
+        <h2 id={titleId} className="text-lg font-semibold">
           {t("sessionPayment.title", { name: memberName })}
         </h2>
 
@@ -245,6 +295,6 @@ export function RecordSessionPaymentDialog({
           </Button>
         </div>
       </form>
-    </dialog>
+    </>
   );
 }

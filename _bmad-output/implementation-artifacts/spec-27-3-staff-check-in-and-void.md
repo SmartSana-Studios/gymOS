@@ -1,0 +1,105 @@
+---
+title: '27-3 Staff check-in and void: check a member in at the entrance, undo a mistake the same day'
+type: 'feature'
+created: '2026-11-15'
+status: 'in-progress'
+route: 'dispatch'
+baseline_commit: 'bcaddf05d5ce2889a0b8449f5c56eb962656dcd3'
+review_loop_iteration: 0
+context:
+  - '{project-root}/_bmad-output/implementation-artifacts/epic-27-context.md'
+---
+
+<frozen-after-approval reason="human-owned intent — do not modify unless human renegotiates">
+
+## Intent
+
+**Problem:** A member whose phone is dead or lost cannot get in, and a desk mistake (the wrong member checked in) has no remedy: it costs the wrong member a paid session and a place in the streak. There is no staff write into attendance at all.
+
+**Approach:** Two functions over the 27.2 insert path, `staff_check_in` (coded outcomes, no time parameter) and `void_staff_check_in` (Manager and above, same gym-local day, mandatory reason, gives the session back), one read function for the Daily Log (`list_attendance_log`), then the dashboard: a Check in a member modal (UX AD-30, R1 to R12), an Entry column and a Void modal (UX AD-11). Database and pgTAP first, then the dashboard.
+
+## Boundaries & Constraints
+
+**Always:** The AC text in `epics.md` "Story 27.3" (lines 6621-6731) is the acceptance baseline; the UX baseline is `EXPERIENCE.md` lines cited in the Code Map; this spec adds the code facts found at planning time. A staff entry calls `private.record_check_in(member, gym, 'staff', private.actor_id(), now())` and nothing else inserts. Every function is `SECURITY DEFINER`, `set search_path = public`, EXECUTE revoked from `public` and `anon`, role and gym resolved live. A refusal of a staff attempt returns normally (never raises) so its audit row commits; only the gym-not-active case raises (R9). No `front_desk_alerts` row for any staff outcome. `staff_check_in` and `void_staff_check_in` take the gym from `private.support_rpc_gym_id(<own name>)`, never from a parameter, so the gym that `record_check_in` checks through `private.current_gym_status()` is by construction the gym the support caller acts on (closes the 27.2 deferral; a pgTAP case proves it). All three updaters (`check_out()`, `check_out_member`, `run_check_in_auto_timeout_job`) read the open row with `voided_at is null`, each proved by a pgTAP case with a voided open row beside a live one (closes the second 27.2 deferral). Lock order AD-29: member, then attendance row, then `guest_sessions`, then loyalty (inside the existing hook). Migration is the next free at merge time (0175, head is 0174); rollback `scripts/rollback-0175-staff-check-in.sql`, header says it is valid only while no staff entry exists. The existing mobile and dashboard check-in suites, `front_desk_alert_kind*`, `session_alert_cooldown*` and `check_in_record_path.test.sql` pass unedited.
+
+**Never:** No `dirty_from` or engagement object (Epic 30). No Realtime publication of `attendance_events` and no new realtime channel (see Design Notes). No mobile change. No time, date or scan-id parameter on `staff_check_in`. No reversal of the desk payment on void. A scan row is never voidable. The word "void" is not used for the session transition (`unconsume` in code and comments, spine AD-28). No mock-ups.
+
+## I/O & Edge-Case Matrix
+
+| Scenario | Input / State | Expected Output / Behavior | Error Handling |
+|----------|--------------|---------------------------|----------------|
+| Active member | live Receptionist, no open row | R1 `checked_in`; row `source='staff'`, `entered_by` = caller; audit `staff_check_in` | N/A |
+| Expiring / grace | status expiring_soon / grace_period | R2 / R3 (`checked_in_expiring_soon`, `..._grace_period`, `grace_ends_on` = expiry + `gyms.grace_period_days`); audit says warning | N/A |
+| Expired | status expired | R4 `rejected_expired`, `days_since_expiry` (0 = today); no row; audit `staff_check_in_rejected` | returns normally |
+| Pay-per-session, no usable session, charging on | | R5 `session_required`, `session_amount`; no row; `session_attempts` source `staff`; audit | returns normally |
+| Already inside | non-stale open row | R7 `already_checked_in`, `since`; nothing written, no audit | N/A |
+| Deactivated / fee due / no plan | | R8 `refused_deactivated` / `refused_registration_fee_due` / `refused_no_plan`; checked before `record_check_in`, nothing consumed | returns normally |
+| Other gym's or missing member | | `member_not_found`, identical for both | no oracle |
+| Suspended gym | | raises `staff_check_in: gym % is not active` (R9) | exception |
+| Coach, member, anon, other gym's staff | | `permission denied` | exception |
+| Void, same day, open | Manager, staff row | `voided_at/by/reason` set, `checked_out_at = now()`, `checkout_type='void'`, one-open slot free (member's scan accepted at once), audit `staff_check_in_voided` | N/A |
+| Void, session consumed | row consumed a paid or free session | session back to Unused (`consumed_at`, `covered_day`, `covered_attendance_id` cleared, original `usable_until`), `stamp_reversed` via the existing hook, payment untouched | N/A |
+| Void, later visit relies | later same-day non-voided row of the member, entry consumed the session | `later_visit_relies`, `later_is_staff_entry`; nothing changes | coded, returns normally |
+| Void refusals | scan row / earlier day / already voided / reason not 5-300 | `not_staff_entry` / `not_same_day` / `already_voided` / `invalid_reason`; other gym's id is `attendance_not_found` | coded |
+| Void, entry itself covered or charging off | no session consumed | succeeds, releases nothing | N/A |
+
+</frozen-after-approval>
+
+## Code Map
+
+- `supabase/migrations/0174_record_check_in.sql:81-264` -- `private.record_check_in` returns `(outcome, member_status, expiry_date, event)`: `checked_in|blocked_expired|blocked_session|already_open|replayed`. Add: set `guest_sessions.covered_attendance_id` in the same transaction when the gate returns `consumed`. `consume_guest_session` (0111:128, only definition; callers `record_check_in` and `mark_class_attendance` 0112:170) returns `(outcome, session_created_at)`: add a third column `session_id` (drop and re-create, same body) so no lookup is guessed; both callers use named columns.
+- `supabase/migrations/0174_record_check_in.sql:271-351` -- `check_in()`: unchanged. Template for role gate and outcome mapping; alerts stay there.
+- `supabase/migrations/0124_live_authorization_database.sql:1038` (`check_out_member`), `:1094` (`check_out`), `0024_check_out_manual_auto_timeout.sql:35` (`run_check_in_auto_timeout_job`) -- the three updaters, add `and voided_at is null`; bodies otherwise unchanged. `attendance_events.checkout_type` CHECK is `('manual','auto')`: gains `'void'`. `session_attempts.source` CHECK is `('check_in','class')` (0111:66): gains `'staff'`.
+- `supabase/migrations/0113_session_refunds_revenue_line.sql:151-180` -- trigger `audit_session_attempt_blocked` writes `session_attempt_blocked` on every `session_attempts` insert, so an R5 writes that row too, in addition to `staff_check_in_rejected`; keep both (consistent with a scan), pin the count in pgTAP. `0120_loyalty_refund_reversal_lapse_sweep.sql:251` -- `private.on_session_refunded_after_consumption(session, member, gym)` is the stamp reversal (the epic's `private.reverse_session_stamp()` does not exist); it returns early unless `consumed_at` is set, so call it BEFORE clearing `consumed_at`. `stamp_earned` / `stamp_reversed` unique on `(origin_id, event_type)`.
+- `supabase/migrations/0140_support_capability_allow_list.sql:69-120,139` -- `support_rpc_gym_id`, `support_rpc_role` (support = Supervisor ceiling), `support_stepup_require(action, subject)` raises `step_up_required` P0001; `private.support_capabilities (capability, kind, object_name)`; `0141:105` `private.actor_id()` returns the per-gym proxy id for support. Pattern to copy: `record_session_payment` (0141:~700).
+- `supabase/migrations/0173_attendance_counting.sql` -- `attendance_counted` (no `entered_by`), voided-hiding SELECT policies on the base table (so staff clients never see a voided row; support has no attendance policy at all, `support_capabilities.test.sql:128` classifies it `excludes`), `private.gym_today(gym)` (0157:20) for the same-day check on `visit_day`. Local DB is at 0174 with 43 registry rows; `attendance_events` is NOT in the `supabase_realtime` publication (only `payments`, `front_desk_alerts`).
+- `supabase/tests/support_capabilities.test.sql:9,93` -- `plan(146)`, `count = 43`, two sorted name arrays; add the three rpc rows by arithmetic on the file as it stands at merge time (27.4 adds two more, never hard-code). `supabase/tests/attendance_counting.test.sql:~463-520` -- reader list, inserter and updater enumerations: add `list_attendance_log`, `staff_check_in` (reads), `void_staff_check_in` (updater). `supabase/tests/suspension_rpc_coverage.test.sql` -- new functions must carry the gym-status guard before their first write (`write_at` already matches `public.`-qualified). `support_action_identity` / `support_proxy_actor` tests -- confirm `entered_by`, `voided_by` (classified by 27.2) and the new `covered_attendance_id` need no row.
+- `apps/dashboard/app/(dashboard)/attendance/` -- `page.tsx:44-107` (server fetch, `role={shell.role}`), `components/AttendancePageClient.tsx` (374 lines, two tabs inline, check-out button ~262, only `FrontDeskAlertPanel` takes `role`), `components/CheckOutMemberConfirmDialog.tsx` (native `<dialog>` pattern), `actions.ts:11`, `services/attendance.ts` (`getCurrentlyCheckedIn` ~163, `listAttendanceLog` ~310 read `attendance_counted`; Daily Log moves to `list_attendance_log`; `scripts/check-attendance-readers.mjs` forbids any `.from("attendance_events")`).
+- `apps/dashboard/components/shared/RenewalModal.tsx:93` and `RecordSessionPaymentDialog.tsx:36` -- both self-opening native dialogs (not embeddable). Extract each body into an embeddable panel the modal hosts inline; the existing dialogs become thin wrappers and their tests pass unedited. `confirmRenewalAction` `(d)/subscriptions/actions.ts:31`, `recordSessionPaymentAction` `(d)/payments/actions.ts:378`.
+- Support step-up in the dashboard is a typed authenticator code, not a catch-and-retry prompt: `components/support-code-field.tsx` (`SupportCodeField`), `requireSupportGrant()` `(d)/payments/actions.ts:161`, `services/support-stepup.ts` (`SupportGrantAction` union line 21; add `support_staff_check_in`, `support_void_staff_check_in`), `supportStepUp.*` i18n `locales/en.json:2063`; no SA-21 component exists. Follow that pattern (decision in Design Notes).
+- `apps/dashboard/app/(dashboard)/audit/auditLabels.ts:12` (map `action_type` -> `audit.actionTypes.*`, Epic 23 entries last) and `auditLabels.epic23.test.ts` (shape for `auditLabels.epic27.test.ts`: key resolves in EN and FR, FR differs). Details cells are generic (`AuditLogPageClient.tsx:45 detailsLabel`); a per-action cell is new only if the UX table needs it.
+- `apps/dashboard/app/(dashboard)/guest-sessions/components/GuestSessionsPageClient.tsx:260`, `services/guestSessions.ts:222` (`source: "check_in" | "class"`), `locales/{en,fr}.json:1972` -- add `desk`; `list_session_attempts` 0114:238 passes `source` through (pin the count with one scan and one staff attempt). Attendance i18n `locales/*.json:1511-1548`; `scripts/check-i18n-key-parity.mjs`.
+- UX baseline `_bmad-output/planning-artifacts/ux-designs/ux-gym_os-2026-07-04/EXPERIENCE.md`: AD-11 V1.8 block 2891-2960 (Entry column 2915-2922, Void modal and refusals 2923-2953, support 2954), AD-30 4121-4187 (R1-R12 table 4153-4168), AD-12 labels 3173-3186, AD-22 line 3707, strings Group A 805-850, Group B 852-872, Group H 1037-1048, `guestSessions.source.desk` 1066. Ignore `.working/pre-v18-splice/`.
+- `packages/types/src/database.ts` (hand-splice if the CLI carries drift, 27.1 and 27.2 precedent), `docs/decisions.md` (newest-first; re-verify cited line numbers after adding), `scripts/rollback-0174-record-check-in.sql` (shape), `apps/dashboard/e2e/` (no `desk-fixes.spec.ts` yet; 27.4 shares it; create if absent).
+
+## Tasks & Acceptance
+
+**Execution:**
+- [x] `supabase/tests/staff_check_in.test.sql`, `void_staff_check_in.test.sql`, `list_attendance_log.test.sql` -- written first: every matrix state above, role and gym matrix (Receptionist, Manager, Supervisor, Owner, Coach, member, anon, other gym, deactivated and role-changed staff, live support with and without step-up, revoked, AAL1, switch off), no `front_desk_alerts` row for any outcome, one `staff_check_in_rejected` per rejection and none for R7, paid and free session void, `later_visit_relies` with and without `later_is_staff_entry`, double void, scan-after-void accepted, `member_occupancy_band` and `member_visit_days` drop the visit, the three updaters with a voided open row, support proof that the gym status checked is the gym acted on (suspended gym for a support caller refused), "GymOS Support" and no real identity in the Entry label, void label, audit read, raw row and `list_attendance_log`
+- [x] `supabase/migrations/0175_staff_check_in.sql` -- `consume_guest_session` + `session_id`; `guest_sessions.covered_attendance_id` (FK, unique where not null, no cascade) set by `record_check_in` on `consumed`; `checkout_type` and `session_attempts.source` CHECKs; `voided_at is null` in the three updaters; `staff_check_in`, `void_staff_check_in`, `list_attendance_log`; registry rows in the same migration; grants; verify block (bodies contain `record_check_in`, `support_stepup_require`, the guard; the three updaters contain `voided_at is null`)
+- [x] `scripts/rollback-0175-staff-check-in.sql` -- restores the three updaters, both CHECKs, `consume_guest_session`, `record_check_in`; drops the functions, registry rows and column; header states the staff-entry precondition
+- [x] `supabase/tests/support_capabilities.test.sql`, `attendance_counting.test.sql`, `suspension_rpc_coverage.test.sql`, `support_*` tests -- the edits in the Code Map, each shown failing against a seeded offender; `attendance_counting` gains an enumeration that every function body matching `checked_out_at is null` also matches `voided_at is null`
+- [x] `apps/dashboard` services, actions and components: `staff_check_in` / `void_staff_check_in` service and actions with the support code field; `CheckInMemberModal` (step 1 search, R1-R12, panels hosted inline, R10 retries the check-in only); `VoidCheckInModal`; Entry column and [Void] on both tables; header button for Receptionist and above and support, absent from the DOM for Coach; Daily Log on `list_attendance_log`; guest-sessions `desk` source; `auditLabels.ts` + `auditLabels.epic27.test.ts`; EN and FR keys; component tests for R1-R12, renew-then-complete, payment-then-complete, double submit gives one row, payment function not called twice on R10 retry
+- [x] `apps/dashboard/e2e/desk-fixes.spec.ts` -- staff-check-in group (R1 and Entry cell; R4 renew then R6; R5 payment then R6; Receptionist sees no [Void], Manager voids, row muted, member scans in)
+- [x] `packages/types/src/database.ts`, `docs/decisions.md`, `sprint-status.yaml` -- types; entry covering the Realtime finding, the stamp-key consequence, the step-up pattern, the reversal hook name, the `consume_guest_session` change; status transitions and `last_updated` lines
+
+**Acceptance Criteria:**
+- Given the 27.3 AC set in `epics.md`, when the story closes, then each is met and pgTAP- or component-proven, and both 27.2 deferrals (updaters, gym resolution) are closed by named tests.
+- Given the whole suite, when `scripts/ci-local.sh` runs on story/27-3 after an owner-run `supabase db reset`, then every stage line is read and GREEN; a changed or reused gate script is shown failing once against a known-bad input.
+
+## Implementation Notes
+
+- Migration 0175 is as the Design Notes say; deviations worth knowing: (1) `support_audit_actions` gains six types (the three new ones, `attendance_stale_check_in_auto_closed`, `session_consumed`, `session_attempt_blocked`) because a support caller can now cause each and `log_audit_event` refuses any unlisted type; `support_request_path.test.sql` E1 and E5 changed accordingly. (2) `support_action_identity.test.sql` names both functions as audit-covered actor writers (the identity of the real person is recorded through the audit row's trigger; `attendance_events` needs no identity row of its own) and `support_excluded_from_counts.test.sql` classifies the three functions; neither was in the spec's list. (3) The read function raises the gym-not-active exception for a suspended gym (like the writers) and returns an empty result to every non-staff caller. (4) `staff_check_in` does not mention `attendance_events` in its body, so only `list_attendance_log` and `void_staff_check_in` joined the reader list.
+- A support caller who renews or pays at the desk spends the single-use grant; the modal then lands on R10 and asks for a fresh code (recorded in docs/decisions.md).
+- E2E teardown deletes the fixture gym's attendance, session, attempt and ledger rows through the local direct connection (no API role may delete `attendance_events`), then the existing API deletes run.
+
+## Spec Change Log
+
+## Review Triage Log
+
+## Design Notes
+
+- **Refusal order in `staff_check_in`:** role and gym, suspension guard (raises), `support_stepup_require`, member lock (a second lock by `record_check_in` is harmless), then member checks (not found, deactivated, fee due = no subscription and `registration_fee_settled_at` null, no plan), then `record_check_in`. A scan treats fee due and no plan as `blocked_expired`; staff gets the distinct code, nothing is consumed.
+- **Support step-up:** the epic names an SA-21 prompt raised on `step_up_required`; the code has no such component and every support write already uses a typed code (`requireSupportGrant`). The modal shows the code field and the bound-action line ("You're about to: Check in [Name]" / "Void the check-in of [Name]") for a support caller and the action issues the grant then calls the RPC. The database contract is unchanged. Surfaced to the owner in the summary.
+- **Support reads:** support has no `attendance_events` policy, so for a support caller both tables are read from `list_attendance_log` (open rows are the Currently Checked In), and the "In the gym since" tag is skipped (R7 covers it on submit). Staff keep `attendance_counted`.
+- **Realtime:** `attendance_events` is not published and the page has no attendance subscription; publishing would also push `entered_by` and not deliver an update for a row the new policy hides. Build none: a second desk sees a change on Refresh or next fetch, a double void returns `already_voided`. The implementer confirms with one test and records it in `docs/decisions.md`.
+- **Earned stamp flag** in `list_attendance_log`: a `stamp_earned` for the consumed session with no `stamp_reversed`; the reversal hook may still decline (a later reset) and the line then over-promises by one text line, accepted.
+- **Size:** largest story of the epic, one goal across two layers; DB and its pgTAP land first and are committed before any dashboard work.
+
+## Verification
+
+**Commands:**
+- `bash scripts/ci-local.sh` -- expected: every stage PASS, read per stage, after the owner's `supabase db reset`
+- `bash scripts/check-in-member-lock-race.sh` -- expected: last line is the pass verdict (unchanged path still holds)
+- `node scripts/check-i18n-key-parity.mjs` and `node scripts/check-attendance-readers.mjs` -- expected: pass
+- `bash scripts/ci-local.selftest.sh` -- only if `ci-local.sh` is touched

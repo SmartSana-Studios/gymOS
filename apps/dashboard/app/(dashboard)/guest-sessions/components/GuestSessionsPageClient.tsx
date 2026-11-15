@@ -257,7 +257,8 @@ export function GuestSessionsPageClient(props: Props) {
                     </span>
                   )}
                 </td>
-                <td className="p-3">{t(`guestSessions.source.${row.source}`)}</td>
+                {/* Story 27.3: a refused desk check-in is stored as source 'staff' and shown as "Desk check-in" (AD-22 V1.8) */}
+                <td className="p-3">{t(`guestSessions.source.${row.source === "staff" ? "desk" : row.source}`)}</td>
                 <td className="p-3">{row.className ?? "—"}</td>
               </tr>
             ))}

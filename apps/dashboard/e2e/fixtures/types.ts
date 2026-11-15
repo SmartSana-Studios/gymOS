@@ -45,6 +45,10 @@ export interface FixtureData {
   classId: string;
   classSessionId: string;
   classCapacity: number;
+  /** Story 27.3: the desk-fixes spec. A Receptionist who checks members in, and three members for the three desk results:
+   * `active` (R1), `expired` (R4 then renew, R6) and `pps` (a Pay-per-session member with no usable session, R5 then pay, R6). */
+  receptionist: RoleFixture;
+  desk: { active: MemberFixture; expired: MemberFixture; pps: MemberFixture; ppsPlanId: string };
   /** Optional real, gym-connectable TaraMoney sandbox credentials for Flow
    * 2 (Task 5) -- see docs/decisions.md's Story 13.5 entry. Never committed;
    * absent by default (including in CI), in which case the payment-cutover

@@ -90,15 +90,29 @@ function formatLocalDate(dateOnly: string, locale: string): string {
  * a standalone reusable component so Story 4.8's Subscriptions page can
  * render it from a table row later.
  */
-export function RenewalModal({
-  alertId,
-  memberId,
-  memberName,
-  originalExpiryDate,
-  mobileMoneyEnabled,
-  onClose,
-  onRenewed,
-}: {
+export function RenewalModal(props: RenewalPanelProps) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [blockClose, setBlockClose] = useState(false);
+
+  useEffect(() => {
+    dialogRef.current?.showModal();
+  }, []);
+
+  return (
+    <dialog
+      ref={dialogRef}
+      onClose={props.onClose}
+      onCancel={(e) => {
+        if (blockClose) e.preventDefault();
+      }}
+      className="w-full max-w-[480px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
+    >
+      <RenewalPanel {...props} onBusyChange={setBlockClose} />
+    </dialog>
+  );
+}
+
+export interface RenewalPanelProps {
   alertId?: string;
   memberId: string;
   memberName: string;
@@ -112,9 +126,24 @@ export function RenewalModal({
   mobileMoneyEnabled: boolean;
   onClose: () => void;
   onRenewed: () => void;
-}) {
+}
+
+/**
+ * The renewal form without its dialog (Story 27.3, "Inline Renewal Panel", FR-050): the same plan preview, methods, note, Mobile
+ * Money watch and refusals as the dialog. The Check in a member modal hosts it inline under a result panel; `RenewalModal` wraps it
+ * in the native <dialog>. `onBusyChange(true)` means a request is in flight and the host must not close.
+ */
+export function RenewalPanel({
+  alertId,
+  memberId,
+  memberName,
+  originalExpiryDate,
+  mobileMoneyEnabled,
+  onClose,
+  onRenewed,
+  onBusyChange,
+}: RenewalPanelProps & { onBusyChange?: (busy: boolean) => void }) {
   const { t, i18n } = useTranslation();
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const domIdSuffix = alertId ?? memberId;
 
   const [preview, setPreview] = useState<RenewalPreview | null>(null);
@@ -159,10 +188,6 @@ export function RenewalModal({
     "idle" | "sending" | "pending" | "stillWaiting" | "failed"
   >("idle");
   const [initiatedPaymentId, setInitiatedPaymentId] = useState<string | null>(null);
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -437,19 +462,16 @@ export function RenewalModal({
   const isWatchingMobileMoney =
     mobileMoneyPhase === "pending" || mobileMoneyPhase === "stillWaiting" || mobileMoneyPhase === "failed";
   const blockClose = submitting || mobileMoneyPhase === "sending";
+  useEffect(() => {
+    onBusyChange?.(blockClose);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blockClose]);
   const methodOptions: { value: RenewalMethod }[] = mobileMoneyEnabled
     ? [...MANUAL_METHOD_OPTIONS, { value: "mobile_money" }]
     : MANUAL_METHOD_OPTIONS;
 
   return (
-    <dialog
-      ref={dialogRef}
-      onClose={resetAndClose}
-      onCancel={(e) => {
-        if (blockClose) e.preventDefault();
-      }}
-      className="w-full max-w-[480px] rounded-md border bg-background p-0 text-foreground backdrop:bg-black/50"
-    >
+    <>
       <form onSubmit={handleSubmit} className="space-y-4 p-6">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">{t("renewalPanel.title")}</h2>
@@ -603,6 +625,6 @@ export function RenewalModal({
           )}
         </div>
       </form>
-    </dialog>
+    </>
   );
 }
