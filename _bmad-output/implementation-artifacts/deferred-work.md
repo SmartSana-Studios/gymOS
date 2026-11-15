@@ -2122,3 +2122,18 @@ Lab, local results only (one machine runs the server, the database, the load and
 - source_spec: `_bmad-output/implementation-artifacts/spec-25-6-directory-gate-seo-verification-and-removal-timing.md`
   summary: The directory wiring of the landing-gate kit has no automated check. `seed.mjs --directory` (`seedDirectory`), the directory share in `load.mjs`, the `GATE_LCP_TARGET` targets in `lcp.mjs` and the `JOBS`/`SEED_ARGS` logic in `run-local.sh` are covered only by the unit tests of the pure helpers in `lib/load.mjs`; making `load.mjs` pass `expected: false` keeps all 101 kit tests green.
   evidence: Owner-run kit by design; decisions.md 25.6 records a passing local run (7229 requests, 1464 directory). Would settle it: a thin test of `seedDirectory` or a `ci-local` stage that runs `run-local.sh load` with a short `GATE_LOAD_STEPS`.
+
+## Deferred from: code review of spec-27-1-protected-attendance-counting (2026-11-15)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-1-protected-attendance-counting.md`
+  summary: The Attendance page "today" count is gym-local after 27.1, but the Daily Log's date filter and its default "today" still use the UTC day, so for a Douala gym a check-in from 00:00 to 01:00 local counts in the header but not in the log filtered to today.
+  evidence: `apps/dashboard/services/attendance.ts` `listAttendanceLog` still builds its range from `todayUtcDate()`; 27.1's frozen Never excludes changing it. Settled by filtering the log on `visit_day` (default date from `gym_local_period_bounds()`); do it before Epic 30 reads the same days, or accept the one-hour window.
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-1-protected-attendance-counting.md`
+  summary: Migration 0173 was proven only applied alone on a local database sitting at 0159 (`supabase migration up` stops at 0160), not in sequence after 0160 to 0172.
+  evidence: grep shows 0160 to 0172 do not touch `attendance_events`, its policies or `private.gym_occupancy_band`, so the risk is low. Settled by `supabase db reset` followed by the full `scripts/ci-local.sh` before epic/27 reaches master; the reset needs the owner's `!` line because the permission classifier refused it for the subagent.
+
+## Deferred from: code review of spec-27-1-protected-attendance-counting (2026-11-15, second pass)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-27-1-protected-attendance-counting.md`
+  summary: Migration 0173 backfills `visit_day` in one UPDATE with a per-row function call (own exception sub-block and `gyms` lookup) while holding ACCESS EXCLUSIVE on `attendance_events`; unmeasured, marked medium unverified.
+  evidence: `lock_timeout = '5s'` bounds only the wait for the lock, not the hold time. The first pass estimated tens of thousands of production rows at microseconds per call. Would settle it: `select count(*) from attendance_events` on production and a timed local run of the backfill at that size before the prod apply; if the count is large, backfill in a join (`update ... from gyms`) or in batches.

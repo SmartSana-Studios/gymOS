@@ -1,0 +1,14 @@
+{
+  "entries": [
+    {
+      "file": "apps/mobile/src/app/(tabs)/history/index.tsx",
+      "count": 1,
+      "reason": "member policy hides voided rows (27.1); no mobile build is forced"
+    },
+    {
+      "file": "apps/mobile/src/services/checkin.ts",
+      "count": 1,
+      "reason": "member policy hides voided rows (27.1); no mobile build is forced"
+    }
+  ]
+}

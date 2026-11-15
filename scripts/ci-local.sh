@@ -79,6 +79,8 @@ stage_static() {
   pnpm run check:landing-no-supabase || return 1
   # Epic 24 retro D1 (PR #123): no Server Component imports a value from a "use client" module (React #441 in production)
   pnpm run check:client-boundary || return 1
+  # Story 27.1: no new base-table reader of attendance_events (counts read attendance_counted / member_visit_days)
+  pnpm run check:attendance-readers || return 1
   pnpm run test:guardrails || return 1
   # The deploy scripts refuse to apply a migration without a green db-backup run (against a fake gh; never touches GitHub).
   bash "$ROOT/scripts/require-db-backup.test.sh" || return 1
